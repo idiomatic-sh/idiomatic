@@ -18,6 +18,7 @@ templates = [
   { template = "idiomatic.arch/unchecked", file = "tools/{*tools}", description = "The pinned command-line tools and their installer." },
   { template = "idiomatic.arch/unchecked", file = ".editorconfig", description = "The editor settings every text file is held to." },
   { template = "idiomatic.arch/unchecked", file = ".editorconfig-checker.json", description = "The editorconfig checker's settings." },
+  { template = "idiomatic.arch/unchecked", file = ".github/actionlint.yaml", description = "The workflow linter's settings: the hosted runner labels newer than it knows." },
   { template = "idiomatic.arch/unchecked", file = ".gitignore", description = "The files git leaves out." },
   { template = "idiomatic.arch/unchecked", file = ".yamllint.yaml", description = "The YAML lint settings." },
   { template = "idiomatic.arch/unchecked", file = "LICENSE", description = "The MIT license." },

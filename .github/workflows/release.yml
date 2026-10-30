@@ -34,7 +34,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runner: [ubuntu-24.04, ubuntu-24.04-arm, macos-15]
+        runner: [ubuntu-26.04, ubuntu-26.04-arm, macos-26]
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -65,12 +65,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { target: x86_64-unknown-linux-gnu, runner: ubuntu-24.04, manylinux: 2_17 }
-          - { target: aarch64-unknown-linux-gnu, runner: ubuntu-24.04-arm, manylinux: 2_17 }
-          - { target: x86_64-unknown-linux-musl, runner: ubuntu-24.04, manylinux: musllinux_1_2 }
-          - { target: aarch64-unknown-linux-musl, runner: ubuntu-24.04-arm, manylinux: musllinux_1_2 }
-          - { target: x86_64-apple-darwin, runner: macos-15 }
-          - { target: aarch64-apple-darwin, runner: macos-15 }
+          - { target: x86_64-unknown-linux-gnu, runner: ubuntu-26.04, manylinux: 2_17 }
+          - { target: aarch64-unknown-linux-gnu, runner: ubuntu-26.04-arm, manylinux: 2_17 }
+          - { target: x86_64-unknown-linux-musl, runner: ubuntu-26.04, manylinux: musllinux_1_2 }
+          - { target: aarch64-unknown-linux-musl, runner: ubuntu-26.04-arm, manylinux: musllinux_1_2 }
+          - { target: x86_64-apple-darwin, runner: macos-26, macosx-deployment-target: "10.12" }
+          - { target: aarch64-apple-darwin, runner: macos-26, macosx-deployment-target: "11.0" }
           - { target: x86_64-pc-windows-msvc, runner: windows-2025 }
           - { target: aarch64-pc-windows-msvc, runner: windows-2025 }
     runs-on: ${{ matrix.runner }}
@@ -78,6 +78,8 @@ jobs:
       # The repository's .cargo/config.toml links with mold on Linux, which the build containers lack, and links the C runtime
       # statically on Windows: RUSTFLAGS replaces that configuration, with the same flag on Windows and none elsewhere.
       RUSTFLAGS: ${{ contains(matrix.target, 'windows') && '-C target-feature=+crt-static' || ' ' }}
+      # The oldest macOS each binary runs on, maturin's and rustc's defaults, so building on a newer macOS does not raise it.
+      MACOSX_DEPLOYMENT_TARGET: ${{ matrix.macosx-deployment-target }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -114,7 +116,7 @@ jobs:
           path: dist
   publish:
     needs: build
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     environment: release
     permissions:
       contents: write
