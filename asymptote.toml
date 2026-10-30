@@ -89,3 +89,20 @@ group = "check"
 run = ["pytest", "--quiet", "-p", "no:cacheprovider", "--import-mode=importlib", "-o", "pythonpath=.", "-o", "python_files=*_test.py", "-o", "python_classes=", "-o", "norecursedirs=.* __pycache__", "ci"]
 timeout-seconds = 1800
 inputs = ["ci", "asymptote.toml", "tastemaker.toml", ".github", "crates/*/asymptote.toml", "crates/*/Cargo.toml", "crates/*/distribution/registries/npm/dist-workspace.toml", "tools/install.py"]
+
+[[tools]]
+id = "speed"
+group = "speed"
+# A pull request's speed against main: main checked out beside the checkout, the `commands` bench of every product and ryo's
+# `lint` bench (only when crates/ryo changed) run over both in turn for 5 rounds, and each measure's median head/main ratio
+# judged: above 1.15 it fails, above 1.05 it warns. Absolute times are never compared. The check workflow's `speed` job runs it.
+run = ["uv", "run", "ci/perf/command.py", "--against", "origin/main", "--bench", "commands", "--bench", "lint"]
+timeout-seconds = 14400
+
+[[tools]]
+id = "benchmarks"
+group = "benchmarks"
+# The weekly record of the whole-project benchmarks: each product's `distribution` bench and ryo's `lint` bench run once, their
+# Bencher Metric Format documents kept under target/benchmarks, which the benchmarks workflow uploads. It judges nothing.
+run = ["uv", "run", "ci/perf/command.py", "--bench", "distribution", "--bench", "lint", "--output", "target/benchmarks"]
+timeout-seconds = 21600

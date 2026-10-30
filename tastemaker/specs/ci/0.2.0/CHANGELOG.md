@@ -1,5 +1,9 @@
 # ci
 
+## 0.2.0
+
+A workflow may start on a pull request and on a push to main, not only by hand: on a public repository GitHub's standard hosted runners are free, so the `check` group, which the pre-commit hook leaves out, runs on every pull request. The workflows' test renames `test_every_workflow_runs_only_when_dispatched` to `test_every_workflow_runs_only_on_its_allowed_triggers` and asserts `trigger_problems(...) == []`: the triggers are a subset of `ALLOWED` (`workflow_dispatch`, `pull_request`, `push`), a `schedule` is allowed only for the workflows `SCHEDULED` names (`benchmarks.yml`), a `push` lists `branches: [main]` alone, and a workflow with a `publish` job or a job in the `release` environment starts by hand alone. Its negative tests refuse a `schedule` elsewhere, `pull_request_target` (it runs a fork's code with the repository's secrets), a push to more than main, and a publishing workflow started by a pull request or a push. The thin-edge test reads a job's `asymptote check --groups ${{ matrix.group }}` with its expression as a group name, so a workflow fans its groups out over a matrix, and lets a check be followed by `actions/upload-artifact` steps alone, which upload what its tools left (a bench's documents). A check may name its product's root, `asymptote check --root <dir> [--groups <groups>]`, so the release runs one product's `release` group. The `workflow-test` rule requires the renamed test.
+
 ## 0.1.0
 
 The first release. It is applied at `ci/` and places what CI is beside the workflows: the release job, the workflows' test, and the two checks no command-line tool provides. The workflows under `.github/workflows/` are the `workflows` spec's, applied there, since the repository root's `tastemaker.toml` is open now that a workspace is its whole directory.

@@ -7,7 +7,7 @@ dependencies = ["idiomatic.arch", "idiomatic.benchmarks"]
 path = "tastemaker"
 
 [packages."idiomatic.arch".specs]
-ci = "0.1.0"
+ci = "0.2.0"
 workflows = "0.1.0"
 
 [packages."idiomatic.arch".templates]

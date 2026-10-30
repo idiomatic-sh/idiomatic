@@ -14,6 +14,7 @@ import pytest
 from ci.release.publish.adapters.cargo.adapter import (
     CargoPublish,
     cargo_metadata,
+    owned,
     cargo_publish,
     patches,
     publication_order,
@@ -50,6 +51,7 @@ def names(order: list[dict]) -> list[str]:
 
 # cli needs core and, through it, base; a feature-only language needs base; `unused` is not reached.
 METADATA = {
+    "workspace_root": "/checkout",
     "packages": [
         package("cli", dependency("core"), dependency("language", None), dependency("serde", path=False)),
         package("core", dependency("base"), dependency("core", "dev", "*")),
@@ -192,6 +194,15 @@ def test_a_crate_whose_manifest_says_publish_false_runs_no_publish(tmp_path, car
     assert "not yet possible" in capsys.readouterr().out
 
 
+def test_another_product_s_crate_is_patched_in_but_never_published(tmp_path, cargo, monkeypatch, capsys) -> None:
+    foreign = dict(package("base"), manifest_path="/elsewhere/base/Cargo.toml")
+    monkeypatch.setitem(METADATA, "packages", [foreign if each["name"] == "base" else each for each in METADATA["packages"]])
+    assert not owned(METADATA, foreign) and owned(METADATA, package("cli"))
+    CargoPublish().publish(PRODUCT, Artifact("cargo", tmp_path, "shared"), True)
+    assert cargo.published() == ["core", "language", "cli"]
+    assert "base 1.0.0: another product's crate" in capsys.readouterr().out
+
+
 COMMAND_LINES = {
     "tastemaker": "idiomatic-sh-tastemaker",
     "ryo": "idiomatic-sh-ryo",
@@ -238,3 +249,15 @@ def test_each_products_real_order_holds_every_crate_of_this_checkout_the_command
         ]
     published = set(names(publication_order(metadata, package)))
     assert {local[identity] for identity in reached} <= published
+
+
+@pytest.mark.parametrize(("product", "package"), COMMAND_LINES.items())
+def test_each_product_publishes_only_its_own_crates(product: str, package: str) -> None:
+    """Each product is released on its own: of the crates its command line needs, it publishes those of its own workspace, all
+    named for it (ryo's every `idiomatic-sh-ryo-*`, tastemaker's and asymptote's their command line and core), and none of another
+    product's (tastemaker's ryo crates come from ryo's release)."""
+    metadata = cargo_metadata(ROOT / "crates" / product / "cli" / "Cargo.toml")
+    order = publication_order(metadata, package)
+    own = {each["name"] for each in order if owned(metadata, each)}
+    assert own and all(name == package or name.startswith(f"{package}-") for name in own)
+    assert not [each["name"] for each in order if not owned(metadata, each) and each["name"].startswith(f"{package}-")]

@@ -58,6 +58,12 @@ def publication_order(metadata: dict, package: str) -> list[dict]:
     return order
 
 
+def owned(metadata: dict, package: dict) -> bool:
+    """Whether `package` is of the product's own workspace: a crate of another product it depends on (tastemaker's on ryo's) is
+    released by that product's own release, and must be on crates.io first."""
+    return Path(package["manifest_path"]).is_relative_to(metadata["workspace_root"])
+
+
 def cargo_metadata(manifest: Path) -> dict:
     """Cargo's metadata of the package at `manifest`, with its dependencies."""
     said = subprocess.run(
@@ -90,8 +96,9 @@ def cargo_publish(package: dict, dry_run: bool, config: Path | None = None) -> l
 
 
 class CargoPublish(Publish):
-    """`publish` through Cargo: the command line crate and every crate of this checkout it
-    depends on, dependencies first, the order read from Cargo's metadata. A crate published
+    """`publish` through Cargo: the command line crate and every crate of its product's workspace it
+    depends on, dependencies first, the order read from Cargo's metadata; another product's crates it depends on are patched in
+    for the dry run and never published here. A crate published
     for one product is not published again for another in the same run, and neither is a crate
     already dry-run: another product's dry run would resolve it against a lockfile that is not
     its own, and `--locked` refuses. While the manifest
@@ -111,12 +118,16 @@ class CargoPublish(Publish):
             # The workflow hands the token: the `release` environment's secret on the first
             # run, crates.io's trusted publishing (its auth action) after.
             raise RuntimeError(f"{product.package}: no crates.io token: the workflow handed none")
-        order = publication_order(cargo_metadata(artifact.path / "Cargo.toml"), product.package)
+        metadata = cargo_metadata(artifact.path / "Cargo.toml")
+        order = publication_order(metadata, product.package)
         with tempfile.TemporaryDirectory(prefix="publish-") as scratch:
             config = Path(scratch) / "patches.toml"
             config.write_text(patches(order))
             for package in order:
                 if package["name"] in self.done[dry_run]:
+                    continue
+                if not owned(metadata, package):
+                    print(f"{package['name']} {package['version']}: another product's crate, released by its own release", flush=True)
                     continue
                 print(f"{package['name']} {package['version']}: cargo publish{' --dry-run' if dry_run else ''}", flush=True)
                 subprocess.run(cargo_publish(package, dry_run, config), cwd=artifact.path, check=True)

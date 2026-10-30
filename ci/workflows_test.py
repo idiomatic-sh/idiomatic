@@ -1,4 +1,4 @@
-"""The repository's workflows are a thin edge over Asymptote: each starts only by hand and checks through one `asymptote check` call."""
+"""The repository's workflows are a thin edge over Asymptote: each starts only on its allowed triggers and checks through one `asymptote check` call."""
 
 from __future__ import annotations
 
@@ -11,13 +11,19 @@ import yaml
 DIRECTORY = Path(__file__).resolve().parents[1] / ".github/workflows"
 WORKFLOWS = sorted(DIRECTORY.glob("*.yml"))
 
-# The one command a job's checks are, with the groups it names: Asymptote decides what runs.
-CHECK = re.compile(r"asymptote check( --groups [a-z]+(,[a-z]+)*)?")
+# The one command a job's checks are, with the product root and the groups it names: Asymptote decides what runs.
+CHECK = re.compile(r"asymptote check( --root [\w./-]+)?( --groups [a-z]+(,[a-z]+)*)?")
 # The release itself: a job that does not check runs one job command (`ci/<job>/command.py`) with plain arguments, which no shell
 # chains anything to, or only actions (a build matrix). The values it is handed are crates.io's token, from the `release` environment
 # or its trusted publishing, npm's token for a first publish, and the token `gh` creates the GitHub Release with.
 COMMAND = re.compile(r"uv run ci/[a-z_]+/command\.py( [\w./=-]+)*")
 HANDED = {"CARGO_REGISTRY_TOKEN", "GH_TOKEN", "NODE_AUTH_TOKEN"}
+# What may start a workflow: a hand run, a pull request, a push to main. A schedule starts only the workflows `SCHEDULED` names, and a
+# workflow that publishes starts only by hand; `pull_request_target`, which runs a fork's code with the repository's secrets, never.
+ALLOWED = {"workflow_dispatch", "pull_request", "push"}
+SCHEDULED = {"benchmarks.yml"}
+# What may follow a job's check: uploading what its tools left (a bench's documents) as the run's artifact.
+UPLOAD = "actions/upload-artifact@"
 # The GitHub Release is the one step beside the job command that is not a command of its own: `gh` calls and the checksums they upload.
 RELEASE_STEP = "GitHub Release"
 # One release per product, over the directories of `dist/archives`, each named for its product's tag.
@@ -32,6 +38,27 @@ SETUP = {"rustup toolchain install", "uv run --script tools/install.py"}
 def triggers(workflow: dict) -> set[str]:
     """What starts the workflow. YAML 1.1, which PyYAML reads, takes the key `on` for true."""
     return set(workflow["on" if "on" in workflow else True])
+
+
+def environment(job: dict) -> str | None:
+    """The environment a job runs in, named alone or as `name:`."""
+    named = job.get("environment")
+    return named.get("name") if isinstance(named, dict) else named
+
+
+def trigger_problems(name: str, workflow: dict) -> list[str]:
+    """What starts the workflow that may not: a trigger outside `ALLOWED` (a schedule outside `SCHEDULED`), a push to a branch other
+    than main, and anything but a hand run for a workflow that publishes (a `publish` job, or a job in the `release` environment)."""
+    started = triggers(workflow)
+    allowed = ALLOWED | ({"schedule"} if name in SCHEDULED else set())
+    found = [f"{name} starts on {each}" for each in sorted(started - allowed)]
+    on = workflow["on" if "on" in workflow else True]
+    if "push" in started and (on.get("push") if isinstance(on, dict) else None) != {"branches": ["main"]}:
+        found.append(f"{name} starts on a push to more than main")
+    jobs = workflow["jobs"]
+    if ("publish" in jobs or any(environment(job) == "release" for job in jobs.values())) and started != {"workflow_dispatch"}:
+        found.append(f"{name} publishes, so it starts only by hand")
+    return found
 
 
 def checks(job: dict) -> list[int]:
@@ -56,11 +83,11 @@ def problems(workflow: dict) -> list[str]:
         if len(positions) > 1:
             found.append(f"{name} calls asymptote check {len(positions)} times")
         elif positions:
-            run = job["steps"][positions[0]]["run"].strip()
-            if positions[0] != len(job["steps"]) - 1:
+            run = re.sub(r"\$\{\{[^}]*\}\}", "value", job["steps"][positions[0]]["run"].strip())
+            if any(not step.get("uses", "").startswith(UPLOAD) for step in job["steps"][positions[0] + 1 :]):
                 found.append(f"{name} does not end in its asymptote check step")
             if not CHECK.fullmatch(run):
-                found.append(f"{name} runs {run!r}, not one `asymptote check [--groups <groups>]`")
+                found.append(f"{name} runs {run!r}, not one `asymptote check [--root <dir>] [--groups <groups>]`")
         else:
             steps = [step for step in job["steps"] if "run" in step and step.get("name") != RELEASE_STEP]
             runs = [re.sub(r"\$\{\{[^}]*\}\}", "value", step["run"].strip()) for step in steps]
@@ -88,10 +115,10 @@ def job(*run: str, needs: str | None = None) -> dict:
 
 
 @pytest.mark.parametrize("path", WORKFLOWS, ids=lambda path: path.name)
-def test_every_workflow_runs_only_when_dispatched(path: Path) -> None:
-    """A workflow starts only when someone dispatches it by hand: no push, pull request or schedule starts a hosted run, and the
-    git hook `asymptote init` installs is the per-change gate."""
-    assert triggers(yaml.safe_load(path.read_text())) == {"workflow_dispatch"}
+def test_every_workflow_runs_only_on_its_allowed_triggers(path: Path) -> None:
+    """A workflow starts by hand, on a pull request or on a push to main; a schedule starts only the workflows `SCHEDULED` names, and
+    a workflow that publishes starts only by hand. The git hook `asymptote init` installs stays the per-change gate."""
+    assert trigger_problems(path.name, yaml.safe_load(path.read_text())) == []
 
 
 @pytest.mark.parametrize("path", WORKFLOWS, ids=lambda path: path.name)
@@ -143,6 +170,14 @@ def test_a_job_that_does_not_end_in_its_check_is_refused() -> None:
     assert problems({"jobs": {"check": job("asymptote check", "echo done")}}) == ["check does not end in its asymptote check step"]
 
 
+def test_a_check_may_take_its_group_from_the_matrix_and_upload_what_its_tools_left() -> None:
+    # The expression is written in pieces, since the template this file is rendered from reads two braces as its own.
+    expression = "$" + "{" * 2 + " matrix.group " + "}" * 2
+    checking = job("uv run --script tools/install.py", f"asymptote check --groups {expression}")
+    checking["steps"].append({"uses": "actions/upload-artifact@0000000000000000000000000000000000000000", "with": {"path": "target"}})
+    assert problems({"jobs": {"check": checking}}) == []
+
+
 def test_a_job_that_checks_twice_is_refused() -> None:
     assert problems({"jobs": {"check": job("asymptote check --groups lint", "asymptote check --groups test")}}) == [
         "check calls asymptote check 2 times"
@@ -151,7 +186,7 @@ def test_a_job_that_checks_twice_is_refused() -> None:
 
 def test_a_check_that_chains_another_command_is_refused() -> None:
     assert problems({"jobs": {"check": job("asymptote check && echo done")}}) == [
-        "check runs 'asymptote check && echo done', not one `asymptote check [--groups <groups>]`"
+        "check runs 'asymptote check && echo done', not one `asymptote check [--root <dir>] [--groups <groups>]`"
     ]
 
 
@@ -171,6 +206,36 @@ def test_a_trigger_other_than_dispatch_is_told_apart() -> None:
     assert triggers(dispatched) == {"workflow_dispatch"}
 
 
+def test_a_schedule_starts_only_the_scheduled_workflows() -> None:
+    scheduled = yaml.safe_load("on:\n  schedule:\n    - cron: '0 3 * * 0'\njobs: {}\n")
+    assert trigger_problems("check.yml", scheduled) == ["check.yml starts on schedule"]
+    assert trigger_problems("benchmarks.yml", scheduled) == []
+
+
+def test_a_pull_request_target_is_refused() -> None:
+    """`pull_request_target` runs a fork's code with the repository's secrets."""
+    target = yaml.safe_load("on:\n  pull_request_target:\njobs: {}\n")
+    assert trigger_problems("check.yml", target) == ["check.yml starts on pull_request_target"]
+
+
+def test_a_push_starts_a_workflow_only_on_main() -> None:
+    main = yaml.safe_load("on:\n  push:\n    branches: [main]\njobs: {}\n")
+    every = yaml.safe_load("on:\n  push:\njobs: {}\n")
+    other = yaml.safe_load("on:\n  push:\n    branches: [main, release]\njobs: {}\n")
+    assert trigger_problems("check.yml", main) == []
+    assert trigger_problems("check.yml", every) == trigger_problems("check.yml", other) == ["check.yml starts on a push to more than main"]
+
+
+def test_a_workflow_that_publishes_starts_only_by_hand() -> None:
+    publish = {"environment": "release", "steps": [{"run": "uv run ci/release/command.py --publish"}]}
+    on_a_pull_request = {"on": {"workflow_dispatch": None, "pull_request": None}, "jobs": {"publish": publish}}
+    assert trigger_problems("release.yml", on_a_pull_request) == ["release.yml publishes, so it starts only by hand"]
+    by_hand = {"on": {"workflow_dispatch": None}, "jobs": {"upload": {"environment": {"name": "release"}, "steps": []}}}
+    assert trigger_problems("release.yml", by_hand) == []
+    on_a_push = by_hand | {"on": {"push": {"branches": ["main"]}}}
+    assert trigger_problems("release.yml", on_a_push) == ["release.yml publishes, so it starts only by hand"]
+
+
 def test_only_the_release_job_that_uploads_is_handed_a_token_and_only_after_the_maintainer_s_gate() -> None:
     """The registry token reaches the one job that publishes, and only when all three of the gate hold (`PUBLISH`): a dry run
     never holds it."""
@@ -183,6 +248,14 @@ def test_only_the_release_job_that_uploads_is_handed_a_token_and_only_after_the_
     assert handed == {"publish"}
     publish = workflow["jobs"]["publish"]
     assert publish["environment"] == "release" and "RELEASE_MAINTAINER" in publish["env"]["PUBLISH"]
+    # One product per run, published only from its own tag.
+    assert "startsWith(github.ref_name, format('idiomatic-sh-{0}-v', inputs.product))" in publish["env"]["PUBLISH"]
+    (product,) = [workflow["on" if "on" in workflow else True]["workflow_dispatch"]["inputs"]["product"]]
+    assert product["required"] is True and product["options"] == ["ryo", "tastemaker", "asymptote"]
+    (command,) = [step["run"] for step in publish["steps"] if "ci/release/command.py" in step.get("run", "")]
+    assert "--product ${{ inputs.product }}" in command
+    (checking,) = [step["run"] for step in workflow["jobs"]["check"]["steps"] if "asymptote check" in step.get("run", "")]
+    assert checking == "asymptote check --root crates/${{ inputs.product }} --groups release"
     (uploading,) = [step for step in publish["steps"] if "CARGO_REGISTRY_TOKEN" in step.get("env", {})]
     assert uploading["env"]["CARGO_REGISTRY_TOKEN"].startswith("${{ env.PUBLISH == 'true' &&")
     assert uploading["env"]["NODE_AUTH_TOKEN"].startswith("${{ env.PUBLISH == 'true' &&")
@@ -220,6 +293,13 @@ def test_the_release_builds_every_target_in_one_matrix_whose_rows_run_the_same_s
         "crates/asymptote/distribution/registries/pypi",
         "crates/ryo/cli",
         "crates/tastemaker/distribution/registries/pypi",
+    }
+    # A run builds only the product it releases.
+    building = {step["with"]["working-directory"]: step["if"] for step in build["steps"] if step["uses"].startswith("PyO3/maturin-action@")}
+    assert {directory: condition.split("'")[1] for directory, condition in building.items()} == {
+        "crates/asymptote/distribution/registries/pypi": "asymptote",
+        "crates/ryo/cli": "ryo",
+        "crates/tastemaker/distribution/registries/pypi": "tastemaker",
     }
     assert workflow["jobs"]["publish"]["needs"] == "build"
 
