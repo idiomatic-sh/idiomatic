@@ -16,6 +16,9 @@ use process_wrap::std::{ProcessGroup, ResetSigmask};
 
 use super::connection::ToolsConnection;
 use super::constants::{EMPTY, MAX_OUTPUT, POLL, REMOVED, SET};
+#[cfg(windows)]
+use super::constants::{EXTENSIONS, PATH};
+use crate::domain::manifest::types::Argument;
 use crate::outbound::tools::interface::ToolsPort;
 use crate::outbound::tools::types::{
     Captured, Completion, Ending, ExitCode, GroupId, Invocation, StartProblem,
@@ -42,7 +45,7 @@ impl ToolsPort for ToolsSubprocessAdapter {
         let Some((program, arguments)) = invocation.argv.0.split_first() else {
             return unstartable(EMPTY);
         };
-        let mut command = Command::new(&*program.0);
+        let mut command = Command::new(found(program));
         // The builder hands back the command it configures; only its effect on `command` is wanted.
         let _: &mut Command = REMOVED
             .iter()
@@ -135,6 +138,35 @@ impl ToolsPort for ToolsSubprocessAdapter {
             stderr: take(&stderr),
         }
     }
+}
+
+/// The program a tool names, found on `PATH` with each extension Windows runs a program by, in Windows' own order, as a
+/// shell finds it: `std::process` looks in the system directories before `PATH`, where `bash` is WSL's and not the one
+/// `PATH` names. A name with a directory or an extension, or one `PATH` does not hold, is left as it is.
+#[cfg(windows)]
+fn found(program: &Argument) -> std::path::PathBuf {
+    let named = std::path::Path::new(&*program.0);
+    if named.components().nth(1).is_some() || named.extension().is_some() {
+        return named.to_path_buf();
+    }
+    // ignore: idiomatic.arch/no-env-reads - the convention every shell shares for finding a program: the directories `PATH` lists
+    let directories = std::env::var_os(PATH).unwrap_or_default();
+    std::env::split_paths(&directories)
+        .flat_map(|directory| {
+            EXTENSIONS.iter().map(move |extension| {
+                let mut file = named.as_os_str().to_owned();
+                file.push(extension);
+                directory.join(file)
+            })
+        })
+        .find(|candidate| candidate.is_file())
+        .unwrap_or_else(|| named.to_path_buf())
+}
+
+/// The program a tool names: `std::process` finds it on `PATH`.
+#[cfg(not(windows))]
+fn found(program: &Argument) -> &std::path::Path {
+    std::path::Path::new(&*program.0)
 }
 
 /// Drains a pipe into `into` on a thread of its own.

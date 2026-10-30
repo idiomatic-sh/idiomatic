@@ -35,3 +35,11 @@ pub(super) const REMOVED: [&str; 14] = [
 /// Variables every tool gets: machine-readable output with no escape sequences, in a locale that never reorders or
 /// translates a message asymptote keys on.
 pub(super) const SET: [(&str, &str); 3] = [("LANG", "C"), ("LC_ALL", "C"), ("NO_COLOR", "1")];
+
+/// The variable that lists the directories a program is found in.
+#[cfg(windows)]
+pub(super) const PATH: &str = "PATH";
+
+/// The extensions Windows runs a program by, in the order its default `PATHEXT` lists them.
+#[cfg(windows)]
+pub(super) const EXTENSIONS: [&str; 4] = [".com", ".exe", ".bat", ".cmd"];
