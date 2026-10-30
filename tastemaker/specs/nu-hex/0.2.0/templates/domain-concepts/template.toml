@@ -1,0 +1,42 @@
+description = "A domain's concepts: one module per concept part the product places in it, and nothing else."
+why = "Declares each concept of the hex's rules so the domain's use cases and adapters reach them, while the rules themselves, and their tests, live in their own `domain/<concept>/` directories as parts of kind `concept` rather than in one file holding every rule. The list is rendered from the concept parts the product's tastemaker.toml places in this domain (a part placed under a hex has the `port` capture of that hex), so a concept that is placed and not declared here is a finding."
+content = '''
+//! The `{{ domain }}` domain's rules, one module per concept.
+{%- set vis = "pub(crate) " if present["language-conformance-test"] | default(false) else "" %}
+{% for part in instances.concept | default([]) %}
+{%- if (part.port | default(part.domain | default(domain))) == domain %}
+{{ vis }}mod {{ part.name }};
+{%- endif %}
+{%- endfor %}
+'''
+
+[params]
+domain = { type = "identifier", from = "directory-name", description = "The domain, its directory's name." }
+
+[given]
+file = 'src/greeting/domain.rs'
+params = { domain = 'greeting' }
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'src/greeting/domain.rs' = '''
+//! The `greeting` domain's rules, one module per concept.
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template.'
+given.files.'src/greeting/domain.rs' = '''
+//! The `greeting` domain's rules, one module per concept.
+
+pub(crate) mod length;
+pub(crate) mod short;
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'domain-concepts#count', path = '.' },
+]

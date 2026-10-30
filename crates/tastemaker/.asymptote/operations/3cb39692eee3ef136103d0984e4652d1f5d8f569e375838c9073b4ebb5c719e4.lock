@@ -1,0 +1,13 @@
+version = 1
+parents = ["7022cece093f0de9daffe3c45da364ad670ed7438a3359e77acdc03f3d0df7bc"]
+
+suppressed = [
+  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/core/src/outbound/store/adapters/postcard/schemas.rs", level = "warning", fingerprint = "b38a6c348fd3539f", count = 1, message = "`crates/tastemaker/crates/core/src/outbound/store/adapters/postcard/schemas.rs` has 6112 lines, over the file-length limit", since_rev = "d9c1c28499a73523c8abe81443cdef19829c0c4d", since = "2026-10-29" },
+  { tool = "tastemaker", rule = "idiomatic.arch/pub-item-unreferenced-elsewhere", path = "crates/core/src/outbound/repository/fixtures/fake.rs", level = "warning", fingerprint = "98f82d7749e03584", count = 1, message = "`pub` property `scratches` is named in no other file", since_rev = "d9c1c28499a73523c8abe81443cdef19829c0c4d", since = "2026-10-29" },
+  { tool = "tastemaker", rule = "idiomatic.arch/no-unwrap-or-on-lookup", path = "crates/core/src/domain/reaching/service.rs", level = "error", fingerprint = "9bb273042e950969", count = 1, message = "a lookup in an internal table by its own index answers a default when it misses: the bug becomes a wrong answer", since_rev = "d9c1c28499a73523c8abe81443cdef19829c0c4d", since = "2026-10-29" },
+]
+
+suppressed-removed = [
+  { tool = "tastemaker", rule = "idiomatic.arch/pub-item-unreferenced-elsewhere", path = "crates/core/src/outbound/manifest/fixtures/fake.rs", level = "warning", fingerprint = "a88dad9958124b37" },
+  { tool = "tastemaker", rule = "idiomatic.arch/pub-item-unreferenced-elsewhere", path = "crates/core/src/outbound/repository/fixtures/fake.rs", level = "warning", fingerprint = "d591316996e00d40" },
+]

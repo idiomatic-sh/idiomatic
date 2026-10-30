@@ -1,0 +1,1 @@
+let m = select * from "function" where name = "run"; let n = select * from "function" where name = "inner"; let a = union(left=m, right=n); emit a subject file key(span);

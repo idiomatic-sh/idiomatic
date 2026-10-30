@@ -1,0 +1,85 @@
+# idiomatic-sh-ryo-query_language
+
+The RyoQL front end: the parser, the lowering and the plan a query compiles to; the language itself is described in `docs/ryoql.md` of the ryo product.
+
+## Domains
+
+### assembling
+
+The `query_language` domain's `assembling` concept: a validated program lowered to a plan, by calling the concepts that lower each kind of step.
+
+### calling
+
+The `query_language` domain's `calling` concept: the calls that shape rows lowered to steps: `project`, `extend`, `join` and `antijoin`, and the dispatch of every call.
+
+### combining
+
+The `query_language` domain's `combining` concept: the set calls (`union`, `intersection` and `difference`) of two inputs with the same columns, lowered to steps.
+
+### comparing
+
+The `query_language` domain's `comparing` concept: the sides of a comparison, resolved, and the test checked against their types.
+
+### fusing
+
+The `query_language` domain's `fusing` concept: the filters and lookups of a plan that are read where they are found, instead of being made into tables first.
+
+### idioms
+
+The `query_language` domain's `idioms` concept: the pairs of functions with equal sets of texts, said as a comparison of digests.
+
+### inlining
+
+The `query_language` domain's `inlining` concept: the views of a relation read in place, and the rows handed over cut to the columns asked.
+
+### joining
+
+The `query_language` domain's `joining` concept: the join a `select` writes, and the columns of either side its `where` names.
+
+### lowering
+
+The `query_language` domain's `lowering` concept: the values, names and failures the concepts that lower a program share while a plan is built.
+
+### planning
+
+The `query_language` domain's `planning` concept: the steps added to the plan under construction, and where each one runs.
+
+### pruning
+
+The `query_language` domain's `pruning` concept: the steps nothing reads, dropped, and the inputs walked.
+
+### pushing
+
+The `query_language` domain's `pushing` concept: the lookups into a join of edges and elements made before the join.
+
+### reshaping
+
+The `query_language` domain's `reshaping` concept: the calls that count, digest, capture, split or rank rows, lowered to steps.
+
+### resolving
+
+The `query_language` domain's `resolving` concept: where the names a query writes become what they name, and where the arguments of a call are read.
+
+### rewriting
+
+The `query_language` domain's `rewriting` concept: the idiom of a plan that says in many rows what one aggregate says in few: the pairs of functions whose sets of texts are equal.
+
+### selecting
+
+The `query_language` domain's `selecting` concept: a `select` lowered to the join, the filter and the projection the query wrote.
+
+### syntax
+
+The `query_language` domain's `syntax` concept.
+
+### traversing
+
+The `query_language` domain's `traversing` concept: the calls that walk an axis or close a relation, lowered to steps.
+
+### validation
+
+The `query_language` domain's `validation` concept.
+
+### walking
+
+The `query_language` domain's `walking` concept: the descents and neighbour lookups of the syntax tree made one walk.

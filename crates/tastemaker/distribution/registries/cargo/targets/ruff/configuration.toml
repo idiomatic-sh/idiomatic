@@ -1,0 +1,14 @@
+
+# What tastemaker checks this target with: a run places this file in the project's directory, under tastemaker's own name for it.
+workspace = { name = "ruff-distribution", dependencies = [{ package = "idiomatic.arch", path = ".policy" }, { package = "idiomatic.benchmarks", path = ".benchmarks" }] }
+closed = false
+rules = [
+  { rule = "idiomatic.benchmarks/empty-else", include = ["**"] },
+  { rule = "idiomatic.benchmarks/glob-imports", include = ["**"], params = { allowed = ["prelude", "super"] } },
+  { rule = "idiomatic.benchmarks/let-single-arm-match", include = ["**"] },
+  { rule = "idiomatic.benchmarks/long-function", include = ["**"], params = { max-lines = 100 } },
+  { rule = "idiomatic.benchmarks/match-on-bool", include = ["**"] },
+  { rule = "idiomatic.benchmarks/too-many-parameters", include = ["**"], params = { max-parameters = 7 } },
+  { rule = "idiomatic.benchmarks/unseparated-literals", include = ["**"] },
+  { rule = "idiomatic.benchmarks/unwrap-outside-tests", include = ["**"], exclude = ["**/tests/**", "**/benches/**", "**/*_test.rs", "**/tests.rs", "**/build.rs"] },
+]

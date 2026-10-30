@@ -1,0 +1,14 @@
+{
+  "name": "@idiomatic-sh/tastemaker-x86_64-apple-darwin",
+  "description": "The tastemaker binary for x86_64-apple-darwin, run by @idiomatic-sh/tastemaker.",
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "files": [
+    "bin"
+  ],
+  "preferUnplugged": true
+}

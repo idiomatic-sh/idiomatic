@@ -1,0 +1,121 @@
+description = "No Rust `assert!` or `debug_assert!` and no Python `assert` whose condition is the literal `true`/`True` or `false`/`False`."
+why = "`assert!(true)` checks nothing and `assert!(false)` is a panic in disguise, which `panic!` or `unreachable!` says plainly (clippy's `assertions_on_constants`); in Python `assert False` is a `raise AssertionError` that `python -O` removes (ruff's `B011`). No shared relation holds an assertion: Rust's is a macro and Python's a statement, so each is read from its own syntax. Rust: read from the tokens as written: the macro's own path ends in `assert` or `debug_assert`, and its arguments start with `true` or `false` followed directly by the closing delimiter or a comma, so `assert!(false, \"message\")` counts. Python: an `assert` statement whose condition, the constant before any comma, is `True` or `False`. Not seen: a constant written with spaces inside the parentheses, a named constant, and an assertion inside another macro's tokens."
+
+query = '''
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let names = select * from tree-tokens where glob_any(text, "{assert,debug_assert}");
+let name-refs = select r."parent" as "node" from names as l join "syntax-child" as r on l."id" = r."child";
+let segments = select r."parent" as "node" from name-refs as l join "syntax-child" as r on l."node" = r."child";
+let paths = select r."parent" as "node" from segments as l join "syntax-child" as r on l."node" = r."child";
+let owners = select r."parent" as "node" from paths as l join "syntax-child" as r on l."node" = r."child";
+let macro-calls = select * from tree-nodes where kind = "macro-call";
+let assertions = select r."id" as "id", r."file" as "file", r."span" as "span" from owners as l join macro-calls as r on l."node" = r."id";
+let call-trees = select l."id" as "id", l."file" as "file", l."span" as "span", r."child" as "tree" from macro-calls as l join "syntax-child" as r on l."id" = r."parent";
+let trees = select * from tree-nodes where kind = "token-tree";
+let argument-trees = select l."id" as "id", l."file" as "file", l."span" as "span", l."tree" as "tree" from call-trees as l join trees as r on l."tree" = r."id";
+let first-edges = select * from "syntax-child" where ordinal = 1;
+let first-arguments = select l."id" as "id", l."file" as "file", l."span" as "span", r."child" as "token", l."tree" as "tree" from argument-trees as l join first-edges as r on l."tree" = r."parent";
+let booleans = select * from tree-tokens where glob_any(kind, "{true-kw,false-kw}");
+let boolean-starts = select l."id" as "id", l."file" as "file", l."span" as "span", l."tree" as "tree" from first-arguments as l join booleans as r on l."token" = r."id";
+let second-edges = select * from "syntax-child" where ordinal = 2;
+let second-arguments = select l."id" as "id", l."file" as "file", l."span" as "span", r."child" as "token" from boolean-starts as l join second-edges as r on l."tree" = r."parent";
+let ends = select * from tree-tokens where glob_any(kind, "{r-paren,r-brack,r-curly,comma}");
+let constant-calls = select l."id" as "id", l."file" as "file", l."span" as "span" from second-arguments as l join ends as r on l."token" = r."id";
+let macro-assertions = intersection(left=assertions, right=constant-calls);
+let statements = select * from tree-nodes where kind = "assert";
+let statement-children = select l."id" as "id", l."file" as "file", l."span" as "span", r."child" as "child", r."ordinal" as "position" from statements as l join "syntax-child" as r on l."id" = r."parent";
+let constants = select * from tree-nodes where kind = "constant";
+let constant-children = select l."id" as "id", l."file" as "file", l."span" as "span", l."child" as "child", l."position" as "position" from statement-children as l join constants as r on l."child" = r."id";
+let truths = select * from tree-tokens where glob_any(text, "{True,False}");
+let truth-parents = select r."parent" as "node" from truths as l join "syntax-child" as r on l."id" = r."child";
+let truth-children = select l."id" as "id", l."file" as "file", l."span" as "span", l."position" as "position" from constant-children as l join truth-parents as r on l."child" = r."node";
+let commas = select * from tree-tokens where kind = "comma";
+let comma-children = select l."id" as "id", l."position" as "comma" from statement-children as l join commas as r on l."child" = r."id";
+let truth-commas = select l."id" as "id", l."file" as "file", l."span" as "span", l."position" as "position", r."comma" as "comma" from truth-children as l join comma-children as r on l."id" = r."id";
+let messages = select * from truth-commas where position > comma;
+let message-ids = project(from=messages, columns=["id", "position"]);
+let conditions = antijoin(left=truth-children, right=message-ids, left-on=["id", "position"], right-on=["id", "position"]);
+let statement-assertions = project(from=conditions, columns=["id", "file", "span"]);
+let constant-assertions = union(left=macro-assertions, right=statement-assertions);
+emit constant-assertions subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "this assertion's condition is a constant"
+help = "Remove an assertion of `true`; write `panic!` or `unreachable!` for one of `false`."
+
+[given]
+include = ['**']
+files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+files.'src/lib.rs' = '''
+mod code;
+'''
+
+[[scenarios]]
+id = 'assertions-real-conditions'
+scenario = 'Assertions of real conditions.'
+given.files.'src/lib.rs' = '''
+pub fn check(a: bool) {
+    assert!(a);
+    assert!(true && a, "true");
+    debug_assert!(!a || true);
+    let _ = vec![true];
+}
+'''
+
+[[scenarios]]
+id = 'assertion-true'
+scenario = 'An assertion of true.'
+given.files.'src/code.rs' = '''
+pub fn check() {
+    assert!(true);
+}
+'''
+then.findings = [
+  { path = 'src/code.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'false-message'
+scenario = 'An assertion of false with a message.'
+given.files.'src/code.rs' = '''
+pub fn check() {
+    debug_assert!(false, "never");
+}
+'''
+then.findings = [
+  { path = 'src/code.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'python-assertions-on-values'
+scenario = 'Python assertions on a value, and one whose message is the constant False.'
+given.include = ['**']
+given.files.'pkg/check.py' = '''
+def check(value):
+    assert value
+    assert value is True, False
+    return value
+'''
+
+[[scenarios]]
+id = 'python-assertions-on-constants'
+scenario = 'Python assertions of True and of False with a message.'
+given.include = ['**']
+given.files.'pkg/check.py' = '''
+def check(value):
+    assert True
+    assert False, "unreachable"
+    return value
+'''
+then.findings = [
+  { path = 'pkg/check.py', line = 2 },
+  { path = 'pkg/check.py', line = 3 },
+]

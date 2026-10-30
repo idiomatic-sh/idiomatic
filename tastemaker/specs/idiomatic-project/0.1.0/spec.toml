@@ -1,0 +1,54 @@
+description = "The rules every product of the monorepo is held to whatever language it is written in: the length of a file, the names of directories, the product's Cargo workspace, and the formats of its data."
+why = "A product reads these as one policy, not as a list it copies from another product: the set is placed once, so a rule added here reaches every product that places the spec and two products cannot drift apart. It has no template, so it owns nothing and its rules reach every file beneath its place, the files of the parts placed inside it too."
+closed = false
+rules = [
+  { rule = "idiomatic.arch/dependency-feature-sprawl@0.1.0", include = ["**/Cargo.toml"], exclude = ["**/tests/fixtures/**"], params = { max-features = 4 }, description = "A dependency enables at most four features and never a `*` version." },
+  { rule = "idiomatic.arch/crate-dependency-cycles@0.1.0", include = ["**/Cargo.toml"], exclude = ["**/tests/fixtures/**"], params = { kinds = ["normal", "dev", "build"] }, description = "No local package is on a cycle of path dependencies, dev-dependencies included: a test through the cycle links a second copy." },
+  { rule = "idiomatic.arch/crate-dependency-depth@0.1.0", include = ["**/Cargo.toml"], exclude = ["**/tests/fixtures/**"], params = { max-reach = 9, kinds = ["normal", "build"], optional = false }, description = "A package reaches at most nine local packages through its dependencies that a build naming no feature links. The command line links its languages by feature, one optional dependency for each, and those are not counted; its other dependencies are." },
+  { rule = "idiomatic.arch/file-length@0.3.0", include = ["**"], exclude = ["**/Cargo.lock", "**/tastemaker.lock", "**/.asymptote/**", "**/tests/fixtures/**", "**/api.txt"], params = { max-lines = 400 }, description = "No hand-written file of the product is longer than 400 lines." },
+  { rule = "idiomatic.arch/catch-all-names@0.1.0", include = ["**"], description = "No directory or file of the product is a catch-all named `common`, `utils`, `shared` or `helpers`." },
+  { rule = "idiomatic.arch/no-registry-renames@0.1.0", include = ["Cargo.toml"], description = "The workspace names every registry dependency by its package, so a crate that inherits a dependency names the crate it compiles against." },
+  { rule = "idiomatic.arch/workspace-membership@0.1.0", include = ["**"], description = "Every member of the product's Cargo workspace lies inside the product." },
+  { rule = "idiomatic.arch/workspace-completeness@0.1.0", include = ["**"], description = "Every crate the product places is a member of its Cargo workspace." },
+  { rule = "no-tsv", include = ["**"], description = "No file of the product is a tab-separated table: expected data is typed Rust, recorded data is TOML." },
+  { rule = "idiomatic.arch/no-machine-paths-shipped@0.1.0", include = ["**"], exclude = ["**/tests/**", "**/benches/**", "**/*_test.rs", "**/fixtures/**", "**/fixtures.rs", "**/.asymptote/**", "**/tastemaker.lock", "**/Cargo.lock"], description = "No file the product ships names a path of one machine: none under /workspaces, /tmp, /home or /Users." },
+  { rule = "idiomatic.arch/readme-blocks-executed@0.2.0", include = ["README.md", "cli/tests/readme.rs"], description = "The product README's `console` blocks are run by its README test." },
+  { rule = "idiomatic.arch/no-tracker-text-shipped@0.1.0", include = ["**"], exclude = ["**/tests/fixtures/**", "**/.asymptote/**"], params = { patterns = ["*ryo-[a-z0-9][a-z0-9][a-z0-9].[0-9]*", "*ryo-[a-z0-9][a-z0-9][a-z0-9][a-z0-9].[0-9]*", "*ryo-[0-9][a-z0-9][a-z0-9][!a-z0-9]*", "*ryo-[a-z][0-9][a-z0-9][!a-z0-9]*", "*ryo-[a-z][a-z][0-9][!a-z0-9]*", "*ryo-[0-9][a-z0-9][a-z0-9][a-z0-9][!a-z0-9]*", "*ryo-[a-z][0-9][a-z0-9][a-z0-9][!a-z0-9]*", "*ryo-[a-z][a-z][0-9][a-z0-9][!a-z0-9]*", "*ryo-[a-z][a-z][a-z][0-9][!a-z0-9]*", "*ryo-[0-9][a-z0-9][a-z0-9]", "*ryo-[a-z][0-9][a-z0-9]", "*ryo-[a-z][a-z][0-9]", "*ryo-[0-9][a-z0-9][a-z0-9][a-z0-9]", "*ryo-[a-z][0-9][a-z0-9][a-z0-9]", "*ryo-[a-z][a-z][0-9][a-z0-9]", "*ryo-[a-z][a-z][a-z][0-9]", "*(owner 20*", "*owner 20[0-9][0-9]-*", "*[Tt]he owner's*", "*[Oo]wner's decision*", "*[Tt]he spike", "*[Tt]he spike[!a-z]*", "*[Tt]he devcontainer*", "*[Aa]n agent*"] }, description = "No shipped text names the work that made it: no issue id of the tracker (`ryo-` and a short id with a digit or a child number) no dated attribution (`(owner 2026-10-27)`) and no process phrase (\"the owner\", \"owner's decision\", \"the spike\", \"the devcontainer\", \"an agent\")." },
+]
+
+[given]
+files.'Cargo.toml' = '''
+[workspace]
+members = ["demo"]
+resolver = "3"
+'''
+files.'demo/Cargo.toml' = '''
+[package]
+name = "demo"
+version = "0.1.0"
+edition = "2024"
+'''
+files.'demo/src/lib.rs' = '''
+pub fn run() {}
+'''
+files.'tastemaker.toml' = '''
+workspace = { name = "fixture", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+closed = false
+specs = [
+  { spec = "idiomatic.arch/idiomatic-project", include = ["demo"] },
+]
+'''
+
+[[scenarios]]
+id = 'product-no-long-file-no-catch-all'
+scenario = 'A product with no long file, no catch-all name and no table in tabs passes.'
+
+[[scenarios]]
+id = 'tsv-file'
+scenario = 'A tab-separated table: it is reported.'
+given.files.'demo/data/rows.tsv' = '''
+a	b
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/idiomatic-project/no-tsv', path = 'demo/data/rows.tsv' },
+]

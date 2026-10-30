@@ -1,0 +1,3 @@
+rows = [
+  { path = "crates/ruff_formatter/shared_traits.rs", key = "crates/ruff_formatter/shared_traits.rs" },
+]

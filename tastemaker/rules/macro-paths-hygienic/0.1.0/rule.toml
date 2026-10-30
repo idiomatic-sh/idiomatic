@@ -1,0 +1,164 @@
+description = "An exported macro names the items of its own crate through `$crate::`, never `crate::`, `self::`, `super::` or a bare crate name."
+why = "A `#[macro_export]` macro expands in its caller's crate: `crate::x` there names the caller's crate, and a bare `serde::x` names whatever the caller calls `serde`, so the macro breaks or reaches the wrong item. `$crate::` always names the crate that defines the macro. Read syntactically, over the tokens of the macro's body, where `::` is two `:` tokens: a path is the token before a `::` that does not itself follow a `:`, and it must be `$crate` or a metavariable (`$path::new`, the caller's own path). A path from the root (`::core::fmt`) names the extern crate the same in every crate, a primitive type (`u32::MAX`) is the language's own, and a tool's attribute (`clippy::`, `rustfmt::`, `rustdoc::`) names no item: each is allowed. Not seen: a path written with whitespace before its `::` (`std :: fmt`)."
+
+query = '''
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let macro-rules = select * from tree-nodes where kind = "macro-rules";
+let export-names = select * from tree-tokens where text = "macro_export";
+let exported = axis(from=export-names, relation="syntax-child", direction=nearest-ancestor, domain=macro-rules);
+let exported-macros = select l."id" as "id", l."file" as "file", l."span" as "span" from macro-rules as l join exported as r on l."id" = r."related";
+let colons = select * from tree-tokens where kind = "colon";
+let body-colons = axis(from=exported-macros, relation="syntax-child", direction=descendant, domain=colons);
+let colon-ids = select r."id" as "id" from body-colons as l join colons as r on l."related" = r."id";
+let doubled = axis(from=colon-ids, relation="syntax-child", direction=next-sibling, domain=colons);
+let separators = project(from=doubled, columns=["id"]);
+let heads = axis(from=separators, relation="syntax-child", direction=previous-sibling, domain=tree-tokens);
+let head-tokens = select r."id" as "id", r."kind" as "kind", r."file" as "file", r."span" as "span", r."text" as "text" from heads as l join tree-tokens as r on l."related" = r."id";
+let named-heads = select * from head-tokens where glob_any(kind, "{ident,crate-kw,self-kw,super-kw}");
+let path-heads = select * from named-heads where not glob_any(text, "{clippy,rustfmt,rustdoc,bool,char,str,u8,u16,u32,u64,u128,usize,i8,i16,i32,i64,i128,isize,f32,f64}");
+let before-heads = axis(from=path-heads, relation="syntax-child", direction=previous-sibling, domain=tree-tokens);
+let before-tokens = select l."id" as "id", r."kind" as "kind" from before-heads as l join tree-tokens as r on l."related" = r."id";
+let continued = select * from before-tokens where glob_any(kind, "{colon,dollar}");
+let starts = antijoin(left=path-heads, right=continued, left-on=["id"], right-on=["id"]);
+emit starts subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "`{text}::` in an exported macro names a path of the crate the macro expands in"
+help = "Name the macro's own crate as `$crate::` (`$crate::types::Value` for `crate::types::Value`), and reach another crate through a re-export of yours (`$crate::reexported::Thing`) or from the root (`::core::fmt`). Ignore only a path the caller must provide, naming why: `// ignore: idiomatic.arch/macro-paths-hygienic - <why the caller's crate owns this path>` on its own line above it."
+
+[given]
+include = ['**']
+files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+
+[[scenarios]]
+id = 'dollar-crate'
+scenario = "A path of the macro's crate through $crate."
+given.files.'src/lib.rs' = '''
+pub struct Thing;
+
+impl Thing {
+    pub fn new() -> Self {
+        Thing
+    }
+}
+
+#[macro_export]
+macro_rules! make {
+    () => {
+        $crate::Thing::new()
+    };
+}
+'''
+
+[[scenarios]]
+id = 'crate-path'
+scenario = 'A path through crate:: in an exported macro.'
+given.files.'src/lib.rs' = '''
+pub struct Thing;
+
+#[macro_export]
+macro_rules! make {
+    () => {
+        crate::Thing
+    };
+}
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 6 },
+]
+
+[[scenarios]]
+id = 'bare-crate-name'
+scenario = 'A bare crate name in an exported macro.'
+given.files.'src/lib.rs' = '''
+#[macro_export]
+macro_rules! show {
+    ($value:expr) => {
+        serde_json::to_string(&$value)
+    };
+}
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 4 },
+]
+
+[[scenarios]]
+id = 'metavariable-path'
+scenario = 'A path the caller gives as a metavariable.'
+given.files.'src/lib.rs' = '''
+#[macro_export]
+macro_rules! build {
+    ($kind:ident) => {
+        $kind::new()
+    };
+}
+'''
+
+[[scenarios]]
+id = 'path-from-the-root'
+scenario = 'A path from the root.'
+given.files.'src/lib.rs' = '''
+#[macro_export]
+macro_rules! debug_of {
+    ($value:expr) => {
+        ::core::format_args!("{:?}", $value)
+    };
+}
+'''
+
+[[scenarios]]
+id = 'not-exported'
+scenario = 'A macro that is not exported.'
+given.files.'src/lib.rs' = '''
+pub struct Thing;
+
+macro_rules! make {
+    () => {
+        crate::Thing
+    };
+}
+
+pub fn thing() -> Thing {
+    make!()
+}
+'''
+
+[[scenarios]]
+id = 'long-path'
+scenario = 'The later segments of a $crate path.'
+given.files.'src/lib.rs' = '''
+pub mod a {
+    pub mod b {
+        pub struct Thing;
+    }
+}
+
+#[macro_export]
+macro_rules! make {
+    () => {
+        $crate::a::b::Thing
+    };
+}
+'''
+
+[[scenarios]]
+id = 'tool-attributes-and-primitives'
+scenario = "A tool's attribute and a primitive type in an exported macro."
+given.files.'src/lib.rs' = '''
+#[macro_export]
+macro_rules! widest {
+    ($value:expr) => {{
+        #[allow(clippy::cast_possible_truncation)]
+        let wide = u32::try_from($value).unwrap_or(u32::MAX);
+        wide
+    }};
+}
+'''

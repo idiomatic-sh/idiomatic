@@ -1,0 +1,56 @@
+description = "A module's `__all__` lists only names without a leading underscore, and every public top-level name is in `__all__`."
+why = "`__all__` is the module's public surface: a name in it is a promise, so a leading underscore in it contradicts itself, and a public name missing from it is a surface nobody declared. A public top-level name is a function, class or variable whose name does not start with an underscore. Not seen: a list built any other way than one assignment `__all__ = [...]`, and an annotated assignment."
+
+query = '''
+let tree = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l;
+let dunder = select l."file" as "file", l."span" as "span" from "defines" as l where l."name" = "__all__" and l."kind" = "variable";
+let names = select * from tree where kind = "name";
+let all-names = select l."id" as "id", l."file" as "file", l."span" as "span" from names as l join dunder as r on l."file" = r."file" and l."span" = r."span";
+let assign-edges = select r."parent" as "id", l."file" as "file" from all-names as l join "syntax-child" as r on l."id" = r."child";
+let assign-nodes = select l."id" as "id", l."file" as "file" from tree as l where l."kind" = "assign";
+let lists = select r."id" as "id", r."file" as "file" from assign-edges as l join assign-nodes as r on l."id" = r."id";
+let below = axis(from=lists, relation="syntax-child", direction=descendant, domain=tree);
+let below-tokens = select r."id" as "id", r."file" as "file", r."span" as "span", r."text" as "text", r."kind" as "kind" from below as l join tree as r on l."related" = r."id";
+let strs = select * from below-tokens where kind = "string";
+let str-spans = project(from=strs, columns=["file", "span"]);
+let values = project(from="string-literal", columns=["file", "span", "value"]);
+let listed = select l."file" as "file", l."span" as "span", r."value" as "name" from str-spans as l join values as r on l."file" = r."file" and l."span" = r."span";
+let listed-names = project(from=listed, columns=["file", "name"]);
+let private = select * from listed where glob_any(name, "_*");
+let modules = select l."id" as "module" from tree as l where l."kind" = "module";
+let top = select l."file" as "file", l."span" as "span", l."name" as "name", l."kind" as "kind" from "defines" as l join modules as r on l."owner" = r."module";
+let kinds = select * from top where glob_any(kind, "{function,class,variable,constant,type-alias}");
+let publics = select * from kinds where not glob_any(name, "_*");
+let unlisted = antijoin(left=publics, right=listed-names, left-on=["file", "name"], right-on=["file", "name"]);
+let private-rows = project(from=private, columns=["file", "span"]);
+let private-findings = extend(from=private-rows, values={"problem": "lists a name with a leading underscore"});
+let unlisted-rows = project(from=unlisted, columns=["file", "span"]);
+let unlisted-findings = extend(from=unlisted-rows, values={"problem": "declares a public name that `__all__` does not list"});
+let findings = union(left=private-findings, right=unlisted-findings);
+emit findings subject "file" key("span", "problem");
+'''
+
+[diagnostic]
+primary = "span"
+message = "this name {problem}"
+help = "List every public name in `__all__`, and keep the names with a leading underscore out of it."
+
+[given]
+include = ["**"]
+
+[[scenarios]]
+id = "private-name-listed"
+scenario = "A name with a leading underscore in __all__ is reported."
+given.files."src/a.py" = "__all__ = [\"total\", \"_total\"]\n\n\ndef total() -> int:\n    return 1\n\n\ndef _total() -> int:\n    return total()\n"
+then.findings = [{ path = "src/a.py", line = 1 }]
+
+[[scenarios]]
+id = "public-name-unlisted"
+scenario = "A public function missing from __all__ is reported."
+given.files."src/a.py" = "__all__ = [\"total\"]\n\n\ndef total() -> int:\n    return 1\n\n\ndef count() -> int:\n    return 2\n"
+then.findings = [{ path = "src/a.py", line = 8 }]
+
+[[scenarios]]
+id = "all-lists-the-public-names"
+scenario = "A module whose __all__ lists exactly its public names is not reported."
+given.files."src/a.py" = "__all__ = [\"total\"]\n\n\ndef total() -> int:\n    return _one()\n\n\ndef _one() -> int:\n    return 1\n"

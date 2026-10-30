@@ -1,0 +1,4 @@
+a = "t\tb"
+b = 'raw'
+c = ["x"]
+"quoted" = 1

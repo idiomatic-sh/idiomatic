@@ -1,0 +1,20 @@
+error[E0308]: mismatched types
+  --> tests/ui/fail_reader_writes_another_relation.rs:17:15
+   |
+17 |       out.write(ScopeRow {
+   |  _________-----_^
+   | |         |
+   | |         arguments to this method are incorrect
+18 | |         parent: NodeId(0),
+19 | |         child: NodeId(0),
+20 | |         file: FileId(0),
+...  |
+24 | |         },
+25 | |     });
+   | |_____^ expected `FunctionRow`, found `ScopeRow`
+   |
+note: method defined here
+  --> src/domain/relations/types.rs
+   |
+   |     fn write(&mut self, row: Row);
+   |        ^^^^^

@@ -1,0 +1,43 @@
+description = "Selects each composition that names its verb's connections, so a condition it answers holds when the verb's composition uses a client."
+why = "Lets the entry spec place `connections.rs` exactly when the verb opens a client: a composition that takes the clients its connections opened names `connections` in its imports, and one that opens nothing does not, so the composition itself says whether the verb has connections. It answers the `opens-client` condition and is never placed as a check, so its rows are never findings; its level only lets its fixtures show them."
+
+query = '''
+let listed-files = select l."path" as "file" from "filesystem.file" as l;
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let files = project(from=listed-files, columns=["file"]);
+let compositions = select * from files where glob_any(file, "{composition.rs,**/composition.rs}");
+let tokens = select * from tree-tokens where text = "connections";
+let parents = select r."parent" as "id" from tokens as l join "syntax-child" as r on l."id" = r."child";
+let nodes = select r."file" as "file" from parents as l join tree-nodes as r on l."id" = r."id";
+let named = project(from=nodes, columns=["file"]);
+let uses = select l."file" as "file" from compositions as l join named as r on l."file" = r."file";
+emit uses subject "file" key("file");
+'''
+
+[diagnostic]
+primary = "file"
+message = "`{file}` names its connections"
+help = "Nothing to fix: this rule only answers a condition, and its rows are never reported as findings."
+
+[given]
+include = ['app/composition.rs']
+
+[[scenarios]]
+id = 'composition-imports-connections-answers-yes'
+scenario = 'A composition that imports its connections answers yes.'
+given.files.'app/composition.rs' = '''
+use super::connections::ShowConnections;
+
+pub fn compose(connections: ShowConnections) {}
+'''
+then.findings = [
+  { path = 'app/composition.rs' },
+]
+
+[[scenarios]]
+id = 'composition-opens-nothing-answers-no'
+scenario = 'A composition that opens nothing answers no.'
+given.files.'app/composition.rs' = '''
+pub fn compose() {}
+'''

@@ -1,0 +1,5 @@
+rows = [
+  { path = "crates/ruff_db/src/diagnostic/render/rdjson.rs", key = "3146..3220" },
+  { path = "crates/ruff_linter/src/checkers/ast/analyze/deferred_comprehensions.rs", key = "961..1009" },
+  { path = "crates/ruff_python_semantic/src/definition.rs", key = "10201..10254" },
+]

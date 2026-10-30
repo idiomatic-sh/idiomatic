@@ -1,0 +1,11 @@
+root[4]
+├─0 heading[1]
+│   │ depth: 2
+│   └─0 text "`Foo"
+├─1 paragraph[1]
+│   └─0 text "`"
+├─2 heading[1]
+│   │ depth: 2
+│   └─0 text "<a title=\"a lot"
+└─3 paragraph[1]
+    └─0 text "of dashes\"/>"

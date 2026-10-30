@@ -1,0 +1,82 @@
+description = "No `filter_map` parses: a closure or function passed to `filter_map` calls no `parse` and no `from_str`."
+why = "`filter_map` keeps what its function returns as `Some`, so a parse inside it turns every value that does not parse into a value that was never there: a line of output that is not the JSON it should be, or a number written wrong, disappears and the result looks complete. The values are parsed with `map` and collected into a `Result`, or each failure is reported. Read from the syntax: every method call named `filter_map` whose arguments hold, at any depth, a method call named `parse` or a path ending `parse` or `from_str`, in the files the entry includes. A parse whose failure the closure reports in another way is reported too: it moves out of the `filter_map`."
+
+query = '''
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let idents = select l."id" as "id", l."text" as "text" from "syntax-tree" as l where l."kind" = "ident";
+let name-edges = select * from "syntax-child" where field = "name-ref";
+let ref-tokens = select l."parent" as "owner", l."child" as "name-ref", r."child" as "token" from name-edges as l join "syntax-child" as r on l."child" = r."parent";
+let named = select l."owner" as "owner", l."name-ref" as "name-ref", r."text" as "name" from ref-tokens as l join idents as r on l."token" = r."id";
+let method-calls = select * from tree-nodes where kind = "method-call-expr";
+let segments = select * from tree-nodes where kind = "path-segment";
+let filter-names = select * from named where name = "filter_map";
+let filter-calls = select l."owner" as "id", l."name-ref" as "name-ref" from filter-names as l join method-calls as r on l."owner" = r."id";
+let arg-list-edges = select * from "syntax-child" where field = "arg-list";
+let filter-arguments = select r."child" as "id", l."name-ref" as "name-ref" from filter-calls as l join arg-list-edges as r on l."id" = r."parent";
+let parse-names = select * from named where glob_any(name, "{parse,from_str}");
+let parse-names-only = select * from parse-names where name = "parse";
+let parse-method-calls = select l."owner" as "id" from parse-names-only as l join method-calls as r on l."owner" = r."id";
+let parse-segments = select l."owner" as "id" from parse-names as l join segments as r on l."owner" = r."id";
+let parses = union(left=parse-method-calls, right=parse-segments);
+let parse-nodes = select r."id" as "id" from parses as l join tree-nodes as r on l."id" = r."id";
+let reached = axis(from=filter-arguments, relation="syntax-child", direction=descendant, domain=parse-nodes);
+let parsing-filters = project(from=reached, columns=["name-ref"]);
+let found = select r."id" as "id", r."file" as "file", r."span" as "span" from parsing-filters as l join tree-nodes as r on l."name-ref" = r."id";
+emit found subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "a value that does not parse is dropped by this `filter_map`"
+help = "Parse with `map` and collect into a `Result` (`.map(|line| serde_json::from_str(line)).collect::<Result<Vec<_>, _>>()?`), or report each value that does not parse; keep `filter_map` for values that are absent by meaning."
+
+[given]
+include = ['**']
+files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+files.'src/lib.rs' = '''
+mod code;
+'''
+
+[[scenarios]]
+id = 'build-messages-dropped'
+scenario = 'Lines of `cargo build --message-format=json` that are not JSON are dropped, and the build looks as if it named no executable (the distribution bench at 74f3904c19); a number parsed by `from_str` in a block.'
+given.files.'src/code.rs' = '''
+pub fn executable(output: &str) -> Option<std::path::PathBuf> {
+    output
+        .lines()
+        .filter_map(|line| serde_json::from_str::<serde_json::Value>(line).ok())
+        .filter_map(|message| message["executable"].as_str().map(std::path::PathBuf::from))
+        .next_back()
+}
+pub fn values(output: &str) -> Vec<u8> {
+    output
+        .lines()
+        .filter_map(|line| {
+            let trimmed = line.trim();
+            u8::from_str(trimmed).ok()
+        })
+        .collect()
+}
+use std::str::FromStr;
+'''
+then.findings = [
+  { path = 'src/code.rs', line = 4 },
+  { path = 'src/code.rs', line = 11 },
+]
+
+[[scenarios]]
+id = 'parse-failures-kept'
+scenario = 'Parses collected into a `Result`, and a `filter_map` that keeps values absent by meaning.'
+given.files.'src/code.rs' = '''
+pub fn numbers(text: &str) -> Result<Vec<u64>, std::num::ParseIntError> {
+    text.lines().map(str::parse).collect()
+}
+pub fn names(entries: &[Option<&str>]) -> Vec<String> {
+    entries.iter().filter_map(|entry| entry.map(str::to_owned)).collect()
+}
+'''

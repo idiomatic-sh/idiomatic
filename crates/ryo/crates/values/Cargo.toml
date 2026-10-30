@@ -1,0 +1,33 @@
+[package]
+name = "idiomatic-sh-ryo-values"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = true
+description = "Shared source query value types for Ryo"
+keywords = ["static-analysis", "query", "ryo"]
+categories = ["development-tools"]
+autobenches = false
+
+[lib]
+name = "ryo_values"
+
+[dependencies]
+ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.2.0" }
+
+[dev-dependencies]
+# The crate itself, with its fixtures: its tests need them, and no test is run with a flag.
+idiomatic-sh-ryo-values = { path = ".", features = ["fixtures"] }
+
+
+[features]
+fixtures = []
+
+[lints]
+workspace = true
+
+# The crate names itself as a dev-dependency to switch its own `fixtures` feature on for its tests: no source names it.
+[package.metadata.cargo-machete]
+ignored = ["idiomatic-sh-ryo-values"]

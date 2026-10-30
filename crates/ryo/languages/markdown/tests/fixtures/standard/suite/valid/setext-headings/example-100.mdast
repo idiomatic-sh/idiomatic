@@ -1,0 +1,5 @@
+root[2]
+├─0 code "foo"
+│     lang: null
+│     meta: null
+└─1 thematicBreak

@@ -1,0 +1,15 @@
+version = 1
+parents = ["64ebd3a914185d8d05986fbc926e507abc2195248d954903b926911a44c2b75f"]
+
+[[perf]]
+reasons = ["Seeded with the median of five runs of the benchmark on the development machine, each run the median of its rounds; the tolerance is three times the spread of those five medians, rounded up to a multiple of 5, and at least 100% for a workload under 100 ms or 20% above it: the machine is shared, and a workload that short moves by its own rounding."]
+records = [
+  { tool = "performance-distribution", benchmark = "cargo/ruff", measure = "cold-ms", best = 1.0 },
+  { tool = "performance-distribution", benchmark = "cargo/ruff", measure = "edit-ms", best = 8.0 },
+  { tool = "performance-distribution", benchmark = "cargo/ruff", measure = "warm-ms", best = 1.0 },
+  { tool = "performance-distribution", benchmark = "npm/hono", measure = "cold-ms", best = 18.0 },
+  { tool = "performance-distribution", benchmark = "npm/hono", measure = "edit-ms", best = 26.0 },
+  { tool = "performance-distribution", benchmark = "npm/hono", measure = "warm-ms", best = 18.0 },
+  { tool = "performance-distribution", benchmark = "pypi/fastapi", measure = "edit-ms", best = 9.0 },
+  { tool = "performance-distribution", benchmark = "pypi/fastapi", measure = "warm-ms", best = 1.0 },
+]

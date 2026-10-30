@@ -1,0 +1,1 @@
+Module(body=[TryStar(body=[Expr(value=Constant(value=Ellipsis))], handlers=[ExceptHandler(type=Name(id='ValueError'), body=[Expr(value=Constant(value=Ellipsis))])])])

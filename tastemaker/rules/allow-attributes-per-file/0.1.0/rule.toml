@@ -1,0 +1,61 @@
+description = "A file whose declarations carry more than `max-allows` `#[allow(..)]` attributes."
+why = "Each `#[allow]` switches a lint off for one item, usually with no reason written; many in one file mean the file argues with the lints instead of meeting them (clippy's `allow_attributes` would have each become an `#[expect]`, which fails once the lint no longer fires). Read from `decorates`: an attribute whose normalized name is `allow`, outer or inner (`#![allow]`). Not seen: `#[cfg_attr(.., allow(..))]`, whose name is `cfg_attr`, and an allow inside a macro's tokens."
+
+query = '''
+param max-allows: integer;
+let allows = select * from "decorates" where target = "allow";
+let per-file = group-count(from=allows, keys=["file"], count="allows", distinct="occurrence");
+let over = select * from per-file where allows > $max-allows;
+emit over subject "file" key("file");
+'''
+
+[params.max-allows]
+type = "integer"
+description = "The most `#[allow]` attributes one file may carry."
+
+[diagnostic]
+primary = "file"
+message = "`{file}` carries {allows} `#[allow]` attributes"
+help = "Fix what the lints report, or turn each into an `#[expect]` with a reason."
+
+[given]
+include = ['**']
+params = { max-allows = 2 }
+files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+
+[[scenarios]]
+id = 'three-allows-over-limit-two'
+scenario = 'Three allows over a limit of two.'
+given.files.'src/lib.rs' = '''
+#[allow(dead_code)]
+fn first() {}
+
+#[allow(dead_code)]
+fn second() {}
+
+#[derive(Debug)]
+#[allow(clippy::large_enum_variant)]
+enum Shape {
+    Circle,
+}
+'''
+then.findings = [
+  { path = 'src/lib.rs' },
+]
+
+[[scenarios]]
+id = 'two-allows-derive-limit-two'
+scenario = 'Two allows and a derive at a limit of two.'
+given.files.'src/lib.rs' = '''
+#[allow(dead_code)]
+fn first() {}
+
+#[allow(dead_code)]
+#[derive(Debug)]
+struct Point;
+'''

@@ -1,0 +1,14 @@
+{
+  "name": "@idiomatic-sh/asymptote-aarch64-apple-darwin",
+  "description": "The asymptote binary for aarch64-apple-darwin, run by @idiomatic-sh/asymptote.",
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "files": [
+    "bin"
+  ],
+  "preferUnplugged": true
+}

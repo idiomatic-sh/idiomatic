@@ -1,0 +1,36 @@
+description = "A target's pin: the repository the real project is cloned from, the one revision of it every release is proven on, the directory in it the command runs in, and the tag that revision is when the project tagged it. Optional dependencies bind isolated external package directories or copy input files from repository-relative sources to target-relative destinations before cold measurement."
+why = "A proof on a real project is repeatable only at one revision, and a tag can move, so the revision is what is pinned."
+content = '''
+{% if scaffold | default(false) -%}
+# The project this target is, and the one revision of it every release is proven on.
+#   repository = "<url>"      cloned once, at `revision`, into the cache
+#   revision   = "<commit>"   the full commit id: a tag can move, so it never stands in for one
+#   directory  = "<path>"     where in the project the command runs, `.` for its root
+#   tag        = "<tag>"      the release that revision is, when the project tagged it
+# Optional dependencies are copied from this release's repository before measurement.
+# Directory sources become isolated external packages in a scratch sibling; destination
+# binds them inside the target. File sources are copied into the target (e.g. a lock).
+# Paths are relative and contained; escapes, nonordinary files and overwrites fail.
+# dependencies = [{ source = "policy", destination = ".policy" }]
+{% endif -%}
+'''
+
+[given]
+file = 'pin.toml'
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'pin.toml' = '''
+repository = "https://github.com/honojs/hono"
+tag = "v4.6.9"
+revision = "7c050b2840bd94baa2a71d8ed0786c7d07bcc1b9"
+directory = "."
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'target-pin#count', path = '.' },
+]

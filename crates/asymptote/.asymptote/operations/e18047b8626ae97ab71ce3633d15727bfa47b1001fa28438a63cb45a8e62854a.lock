@@ -1,0 +1,8 @@
+version = 1
+parents = ["6dcae06a040946d2c82a4b92831302ea9bc315c91f44375f366a5bc099585a70"]
+
+suppressed = [
+  { tool = "tastemaker", rule = "idiomatic.arch/pub-item-unreferenced-elsewhere", path = "crates/core/src/outbound/sources/fixtures/fake.rs", level = "warning", fingerprint = "5a1a7e441ee8c0a2", count = 1, message = "`pub` property `writes` is named in no other file", since_rev = "36fc87b6df42ad3ae6b52e86b1dd9adcd0271ab7", since = "2026-10-28" },
+  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/core/src/inbound/use_cases/check/use_case_test.rs", level = "warning", fingerprint = "b38a6c348fd3539f", count = 1, message = "`crates/asymptote/crates/core/src/inbound/use_cases/check/use_case_test.rs` has 465 lines, over the file-length limit", since_rev = "36fc87b6df42ad3ae6b52e86b1dd9adcd0271ab7", since = "2026-10-28" },
+  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/core/src/outbound/check_store/adapters/postcard/schemas.rs", level = "warning", fingerprint = "b38a6c348fd3539f", count = 1, message = "`crates/asymptote/crates/core/src/outbound/check_store/adapters/postcard/schemas.rs` has 478 lines, over the file-length limit", since_rev = "36fc87b6df42ad3ae6b52e86b1dd9adcd0271ab7", since = "2026-10-28" },
+]

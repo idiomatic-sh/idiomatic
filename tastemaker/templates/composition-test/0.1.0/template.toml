@@ -1,0 +1,188 @@
+description = "Proofs of one composition's real wiring over fake connections, as rows of cases."
+why = "Runs the real compose with fake connections, as rows of cases (a name, one case word, an input and the expected service state or error variant), checking returned state, error order and shared resource identity; connections.rs opens the stores and is the only I/O of the edge, so the wiring itself runs without any. Changing an injected fake must change the observed service answer or error; counting parameters or constructing an unused fake does not prove wiring. When compose constructs adapters, call the actual factory and adapter using the injected fake connection. A pure compute service may substitute the service directly. The generated runner refuses an empty case table; fill its domain-specific input and expected values before claiming a passing proof. Production defaults are not test setup."
+content = '''
+//! Proves the real wiring of `{{ resource }} {{ part }}` over fake connections, as rows of cases.
+
+use crate::cases::{Case, Word, run};
+
+/// What a row gives the wiring: the fake connections.
+type Input = ();
+/// What the wiring builds.
+type Value = ();
+/// Why the wiring ends in error.
+type Failure = ();
+
+/// The rows of this composition's cases: a name, one case word, the fake connections given to the real `compose`, and the observable answer or error variant that results. Replace one injected dependency and assert its changed answer reaches the service; when adapters are composed, exercise the real factory and adapter over a fake connection.
+const CASES: &[Case<Input, Value, Failure>] = &[];
+
+/// Calls the real `compose` over one row's fake connections; the author states it.
+fn subject(input: Input) -> Result<Value, Failure> {
+    todo!("call the real compose with fake connections, and return what it built or the error it ends with")
+}
+
+#[test]
+fn succeeds() {
+    assert!(!CASES.is_empty(), "fill the composition cases with observable substitution outcomes");
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+
+[params]
+resource = { type = "identifier", from = "directory-name", description = "The resource, captured from the path of the edge's part; the directory's own name where the part has no resource." }
+part = { type = "identifier", from = "directory-name", description = "The edge's directory name: the command or the function." }
+
+[[scenarios]]
+id = 'example-command'
+scenario = 'The rendered template passes for a command.'
+given.file = 'src/commands/greeting/show/composition_test.rs'
+given.params = { resource = 'greeting', part = 'show' }
+given.files.'src/commands/greeting/show/composition_test.rs' = '''
+//! Proves the real wiring of `greeting show` over fake connections, as rows of cases.
+
+use crate::cases::{Case, Word, run};
+
+/// What a row gives the wiring: the fake connections.
+type Input = ();
+/// What the wiring builds.
+type Value = ();
+/// Why the wiring ends in error.
+type Failure = ();
+
+/// The rows of this composition's cases: a name, one case word, the fake connections given to the real `compose`, and the observable answer or error variant that results. Replace one injected dependency and assert its changed answer reaches the service; when adapters are composed, exercise the real factory and adapter over a fake connection.
+const CASES: &[Case<Input, Value, Failure>] = &[];
+
+/// Calls the real `compose` over one row's fake connections; the author states it.
+fn subject(input: Input) -> Result<Value, Failure> {
+    todo!("call the real compose with fake connections, and return what it built or the error it ends with")
+}
+
+#[test]
+fn succeeds() {
+    assert!(!CASES.is_empty(), "fill the composition cases with observable substitution outcomes");
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+
+[[scenarios]]
+id = 'example-entry'
+scenario = 'The rendered template passes for an entry.'
+given.file = 'src/entries/greeting/show/composition_test.rs'
+given.params = { resource = 'greeting', part = 'show' }
+given.files.'src/entries/greeting/show/composition_test.rs' = '''
+//! Proves the real wiring of `greeting show` over fake connections, as rows of cases.
+
+use crate::cases::{Case, Word, run};
+
+/// What a row gives the wiring: the fake connections.
+type Input = ();
+/// What the wiring builds.
+type Value = ();
+/// Why the wiring ends in error.
+type Failure = ();
+
+/// The rows of this composition's cases: a name, one case word, the fake connections given to the real `compose`, and the observable answer or error variant that results. Replace one injected dependency and assert its changed answer reaches the service; when adapters are composed, exercise the real factory and adapter over a fake connection.
+const CASES: &[Case<Input, Value, Failure>] = &[];
+
+/// Calls the real `compose` over one row's fake connections; the author states it.
+fn subject(input: Input) -> Result<Value, Failure> {
+    todo!("call the real compose with fake connections, and return what it built or the error it ends with")
+}
+
+#[test]
+fn succeeds() {
+    assert!(!CASES.is_empty(), "fill the composition cases with observable substitution outcomes");
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template, such as its rows.'
+given.file = 'src/commands/greeting/show/composition_test.rs'
+given.params = { resource = 'greeting', part = 'show' }
+given.files.'src/commands/greeting/show/composition_test.rs' = '''
+//! Proves the real wiring of `greeting show` over fake connections, as rows of cases.
+
+use crate::cases::{Case, Expect, Word, run};
+
+/// What a row gives the wiring: the fake connections.
+type Input = ();
+/// What the wiring builds.
+type Value = ();
+/// Why the wiring ends in error.
+type Failure = ();
+
+/// The rows of this composition's cases: a name, one case word, the fake connections given to the real `compose`, and the service state or error variant that results.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "a name is accepted",
+        word: Word::Succeeds,
+        input: || (),
+        expect: Expect::Value(()),
+    },
+];
+
+/// Calls the real `compose` over one row's fake connections; the author states it.
+fn subject(input: Input) -> Result<Value, Failure> {
+    todo!("call the real compose with fake connections, and return what it built or the error it ends with")
+}
+
+/// The `succeeds` rows: the wiring is built and its state is the expected one. Template-owned.
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+given.file = 'src/commands/greeting/show/composition_test.rs'
+given.params = { resource = 'greeting', part = 'show' }
+then.findings = [
+  { rule = 'composition-test#count', path = 'tastemaker.toml' },
+]
+
+[[scenarios]]
+id = 'missing-declaration'
+scenario = 'A file with none of the declarations.'
+given.file = 'src/commands/greeting/show/composition_test.rs'
+given.params = { resource = 'greeting', part = 'show' }
+given.files.'src/commands/greeting/show/composition_test.rs' = '''
+// missing required declaration
+'''
+then.findings = [
+  { rule = 'composition-test#template', path = 'src/commands/greeting/show/composition_test.rs' },
+  { rule = 'composition-test#template', path = 'src/commands/greeting/show/composition_test.rs' },
+  { rule = 'composition-test#template', path = 'src/commands/greeting/show/composition_test.rs' },
+  { rule = 'composition-test#template', path = 'src/commands/greeting/show/composition_test.rs' },
+  { rule = 'composition-test#template', path = 'src/commands/greeting/show/composition_test.rs' },
+  { rule = 'composition-test#template', path = 'src/commands/greeting/show/composition_test.rs' },
+]
+
+[[scenarios]]
+id = 'no-cases-table'
+scenario = 'The test has no table of cases.'
+given.file = 'src/commands/greeting/show/composition_test.rs'
+given.params = { resource = 'greeting', part = 'show' }
+given.files.'src/commands/greeting/show/composition_test.rs' = '''
+//! Proves the real wiring of `greeting show` over fake connections, as rows of cases.
+
+use crate::cases::{Case, Word, run};
+
+/// What a row gives the wiring: the fake connections.
+type Input = ();
+/// What the wiring builds.
+type Value = ();
+/// Why the wiring ends in error.
+type Failure = ();
+
+/// Calls the real `compose` over one row's fake connections; the author states it.
+fn subject(input: Input) -> Result<Value, Failure> {
+    todo!("call the real compose with fake connections, and return what it built or the error it ends with")
+}
+'''
+then.findings = [
+  { rule = 'composition-test#template', path = 'src/commands/greeting/show/composition_test.rs' },
+  { rule = 'composition-test#template', path = 'src/commands/greeting/show/composition_test.rs' },
+]

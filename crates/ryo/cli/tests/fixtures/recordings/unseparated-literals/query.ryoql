@@ -1,0 +1,6 @@
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let integers = select * from tree-tokens where kind = "int-number";
+let long = select * from integers where glob_any(text, "[0-9][0-9][0-9][0-9][0-9][0-9]*");
+let separated = select * from long where glob_any(text, "*_*");
+let unseparated = antijoin(left=long, right=separated, left-on=["id"], right-on=["id"]);
+emit unseparated subject "file" key("span");

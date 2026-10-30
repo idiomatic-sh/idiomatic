@@ -1,0 +1,6 @@
+stylesheet
+  at-rule foo-with-block
+    whitespace
+    block
+      whitespace
+      ident

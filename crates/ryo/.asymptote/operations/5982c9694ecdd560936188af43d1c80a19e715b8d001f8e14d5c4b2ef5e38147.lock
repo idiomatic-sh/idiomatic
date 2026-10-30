@@ -1,0 +1,12 @@
+version = 1
+parents = ["2e893bfbca53f1562dcf621392e0fe01e9c7997e0508c34470ee636209a6ffc4"]
+
+suppressed = [
+  { tool = "tastemaker", rule = "idiomatic.arch/adapter/stateless-adapters", path = "crates/core/src/outbound/lint_store/adapters/postcard/adapter.rs", level = "error", fingerprint = "cca31bb1a5e4bad7", count = 1, message = "this adapter holds process-global state", since_rev = "c6e6ffa6216c4f7697bac5e076893d3bcc25e038", since = "2026-10-27" },
+]
+
+suppressed-removed = [
+  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/core/src/outbound/image/adapters/file/schemas.rs", level = "warning", fingerprint = "b38a6c348fd3539f" },
+  { tool = "tastemaker", rule = "idiomatic.arch/adapter/stateless-adapters", path = "crates/core/src/outbound/image/adapters/file/adapter.rs", level = "error", fingerprint = "cca31bb1a5e4bad7" },
+  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/core/src/outbound/image/adapters/file/adapter.rs", level = "warning", fingerprint = "b38a6c348fd3539f" },
+]

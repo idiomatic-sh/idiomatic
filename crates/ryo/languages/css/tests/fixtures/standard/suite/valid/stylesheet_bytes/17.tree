@@ -1,0 +1,6 @@
+stylesheet
+  at-rule charset
+    whitespace
+    string
+  whitespace
+  at-rule é

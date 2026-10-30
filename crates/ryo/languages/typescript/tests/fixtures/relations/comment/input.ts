@@ -1,0 +1,3 @@
+// hello
+/** Greets. */
+function greet() {}

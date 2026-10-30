@@ -1,0 +1,10 @@
+version = 1
+parents = ["e18047b8626ae97ab71ce3633d15727bfa47b1001fa28438a63cb45a8e62854a"]
+
+suppressed = [
+  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/core/src/inbound/use_cases/down/use_case_test.rs", level = "warning", fingerprint = "b38a6c348fd3539f", count = 1, message = "`crates/asymptote/crates/core/src/inbound/use_cases/down/use_case_test.rs` has 448 lines, over the file-length limit", since_rev = "0a667f235d32df34831187b7b6465b58909118bc", since = "2026-10-28" },
+]
+
+suppressed-removed = [
+  { tool = "tastemaker", rule = "idiomatic.arch/pub-item-unreferenced-elsewhere", path = "cli/src/resources/ratchet/down/schemas.rs", level = "warning", fingerprint = "365450f73f95ebff" },
+]

@@ -1,0 +1,1 @@
+Module(body=[AnnAssign(target=Subscript(value=Name(id='match'), slice=Constant(value=0), ctx=Store()), annotation=Name(id='int'), simple=0), AnnAssign(target=Subscript(value=Name(id='match'), slice=Tuple(elts=[Name(id='x'), Name(id='y'), Name(id='z')]), ctx=Store()), annotation=Name(id='dict'), simple=0)])

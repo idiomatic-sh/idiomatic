@@ -1,0 +1,6 @@
+version = 1
+parents = ["273ff5b5d430997fda96ec90ca226ea8eb260222f31569d10d557db251911d00"]
+
+suppressed = [
+  { tool = "tastemaker", rule = "idiomatic.arch/no-env-reads", path = "cli/src/resources.rs", level = "error", fingerprint = "1ac6fd976e0e92ba", count = 1, message = "`std::env::var` reads an environment variable", since_rev = "1d1b1cb80d4c359da7062b45c4b08080e87bd2b2", since = "2026-10-23" },
+]

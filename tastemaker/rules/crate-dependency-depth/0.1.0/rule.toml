@@ -1,0 +1,286 @@
+description = "A workspace member package reaches at most `max-reach` other local packages through its local path dependencies of the `kinds` given, directly or transitively."
+why = "Every local package a crate reaches is rebuilt and re-tested when it changes, so a crate that reaches most of the workspace couples all of it (a transitive fan-out, which clippy cannot see from one crate). The edges are Cargo's declared local path dependencies of the listed kinds (normal, build, dev) that are or are not optional as `optional` says, mapped onto each manifest's TOML document so the engine's transitive closure runs over entities; the member is the manifest Cargo metadata lists in a workspace and analyzed as a package. Not seen: registry and git dependencies, and packages outside the workspace's scope."
+
+query = '''
+param max-reach: integer;
+param kinds: set<string>;
+param optional: boolean;
+let listed-files = select l."path" as "file" from "filesystem.file" as l;
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let counted = select * from "package-dependency" where kind in $kinds and optional = $optional;
+let dependencies = project(from=counted, columns=["source", "target"]);
+let documents = select * from tree-nodes where kind = "toml";
+let manifests = project(from=documents, columns=["id", "file", "span"]);
+let from-manifests = select r."id" as "from", l."target" as "target" from dependencies as l join manifests as r on l."source" = r."file";
+let edges = select l."from" as "from", r."id" as "to" from from-manifests as l join manifests as r on l."target" = r."file";
+let reach = closure(edges=edges, source="from", destination="to");
+let others = select * from reach where from != to;
+let reach-counts = group-count(from=others, keys=["from"], count="reached", distinct="to");
+let wide = select * from reach-counts where reached > $max-reach;
+let members = select l."package" as "file" from "workspace-member" as l join listed-files as r on l."package" = r."file";
+let member-manifests = select l."id" as "id", l."file" as "file", l."span" as "span" from manifests as l join members as r on l."file" = r."file";
+let wide-members = select r."file" as "file", l."reached" as "reached", r."span" as "span" from wide as l join member-manifests as r on l."from" = r."id";
+emit wide-members subject "file" key("file");
+'''
+
+[params.max-reach]
+type = "integer"
+description = "The most other local packages a member may reach transitively."
+
+[params.kinds]
+type = "set<string>"
+description = "The Cargo dependency kinds that count as edges: any of normal, build and dev."
+
+[params.optional]
+type = "boolean"
+description = "Whether the counted edges are the optional dependencies: false counts the ones a build that names no feature links, which leaves out the languages a command line links by feature."
+
+[diagnostic]
+primary = "span"
+message = "`{file}` reaches {reached} other local packages through its dependencies"
+help = "Depend on fewer crates: move what this crate needs from the far ones into a smaller shared crate, or split this crate by what it uses."
+
+[[scenarios]]
+id = 'deep-chain'
+scenario = 'A crate reaches three packages over a limit of two.'
+given.include = ['**']
+given.params = { max-reach = 2, kinds = ['normal', 'build'], optional = false }
+given.files.'Cargo.toml' = '''
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+'''
+given.files.'crates/alpha/Cargo.toml' = '''
+[package]
+name = "alpha"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+beta = { path = "../beta" }
+'''
+given.files.'crates/alpha/src/lib.rs' = '''
+pub use beta as _beta;
+'''
+given.files.'crates/beta/Cargo.toml' = '''
+[package]
+name = "beta"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+gamma = { path = "../gamma" }
+'''
+given.files.'crates/beta/src/lib.rs' = ''
+given.files.'crates/delta/Cargo.toml' = '''
+[package]
+name = "delta"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'crates/delta/src/lib.rs' = ''
+given.files.'crates/gamma/Cargo.toml' = '''
+[package]
+name = "gamma"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+delta = { path = "../delta" }
+'''
+given.files.'crates/gamma/src/lib.rs' = ''
+then.findings = [
+  { path = 'crates/alpha/Cargo.toml', line = 1 },
+]
+
+[[scenarios]]
+id = 'within-limit'
+scenario = 'Every crate reaches at most three packages.'
+given.include = ['**']
+given.params = { max-reach = 3, kinds = ['normal', 'build'], optional = false }
+given.files.'Cargo.toml' = '''
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+'''
+given.files.'crates/alpha/Cargo.toml' = '''
+[package]
+name = "alpha"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+beta = { path = "../beta" }
+'''
+given.files.'crates/alpha/src/lib.rs' = '''
+pub use beta as _beta;
+'''
+given.files.'crates/beta/Cargo.toml' = '''
+[package]
+name = "beta"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+gamma = { path = "../gamma" }
+'''
+given.files.'crates/beta/src/lib.rs' = ''
+given.files.'crates/delta/Cargo.toml' = '''
+[package]
+name = "delta"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'crates/delta/src/lib.rs' = ''
+given.files.'crates/gamma/Cargo.toml' = '''
+[package]
+name = "gamma"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+delta = { path = "../delta" }
+'''
+given.files.'crates/gamma/src/lib.rs' = ''
+
+[[scenarios]]
+id = 'dev-only'
+scenario = 'Dev dependencies are not counted when the kinds leave them out.'
+given.include = ['**']
+given.params = { max-reach = 1, kinds = ['normal', 'build'], optional = false }
+given.files.'Cargo.toml' = '''
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+'''
+given.files.'crates/alpha/Cargo.toml' = '''
+[package]
+name = "alpha"
+version = "0.1.0"
+edition = "2024"
+
+[dev-dependencies]
+beta = { path = "../beta" }
+gamma = { path = "../gamma" }
+'''
+given.files.'crates/alpha/src/lib.rs' = ''
+given.files.'crates/beta/Cargo.toml' = '''
+[package]
+name = "beta"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'crates/beta/src/lib.rs' = ''
+given.files.'crates/gamma/Cargo.toml' = '''
+[package]
+name = "gamma"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'crates/gamma/src/lib.rs' = ''
+
+[[scenarios]]
+id = 'optional-language-edges'
+scenario = 'The optional dependencies of the command line, the languages it links by feature, are not counted.'
+given.include = ['**']
+given.params = { max-reach = 2, kinds = ['normal', 'build'], optional = false }
+given.files.'Cargo.toml' = '''
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+'''
+given.files.'crates/beta/Cargo.toml' = '''
+[package]
+name = "beta"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+gamma = { path = "../gamma" }
+'''
+given.files.'crates/beta/src/lib.rs' = ''
+given.files.'crates/cli/Cargo.toml' = '''
+[package]
+name = "cli"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+beta = { path = "../beta", optional = true }
+
+[features]
+beta = ["dep:beta"]
+'''
+given.files.'crates/cli/src/lib.rs' = '''
+pub use beta as _beta;
+'''
+given.files.'crates/delta/Cargo.toml' = '''
+[package]
+name = "delta"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'crates/delta/src/lib.rs' = ''
+given.files.'crates/gamma/Cargo.toml' = '''
+[package]
+name = "gamma"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+delta = { path = "../delta" }
+'''
+given.files.'crates/gamma/src/lib.rs' = ''
+
+[[scenarios]]
+id = 'required-edges-of-the-cli'
+scenario = "The command line's other dependencies are counted like any crate's."
+given.include = ['**']
+given.params = { max-reach = 2, kinds = ['normal', 'build'], optional = false }
+given.files.'Cargo.toml' = '''
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+'''
+given.files.'crates/beta/Cargo.toml' = '''
+[package]
+name = "beta"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+gamma = { path = "../gamma" }
+'''
+given.files.'crates/beta/src/lib.rs' = ''
+given.files.'crates/cli/Cargo.toml' = '''
+[package]
+name = "cli"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+beta = { path = "../beta" }
+'''
+given.files.'crates/cli/src/lib.rs' = '''
+pub use beta as _beta;
+'''
+given.files.'crates/delta/Cargo.toml' = '''
+[package]
+name = "delta"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'crates/delta/src/lib.rs' = ''
+given.files.'crates/gamma/Cargo.toml' = '''
+[package]
+name = "gamma"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+delta = { path = "../delta" }
+'''
+given.files.'crates/gamma/src/lib.rs' = ''
+then.findings = [
+  { path = 'crates/cli/Cargo.toml', line = 1 },
+]

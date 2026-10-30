@@ -1,0 +1,5 @@
+[target.'cfg(all())']
+linker = "dylint-link"
+
+[build]
+jobs = 6

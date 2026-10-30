@@ -1,0 +1,41 @@
+description = "A documentation page: one Markdown page of a product's docs, with any content."
+why = "Places each page of a product's docs, its design pages and any page a tool writes there, so every file under docs/ is accounted for and read by the rules (file-length among them) instead of being left out of the workspace; the page's content is its author's, so the template is open and asks only that the page exist."
+content = ''
+
+[params]
+page = { type = "string", description = "The page, its file's name without `.md`, captured from its path." }
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.file = 'docs/{page}.md'
+given.count = { min = 1 }
+given.files.'docs/guide.md' = '''
+# guide
+'''
+
+[[scenarios]]
+id = 'any-content'
+scenario = "A page holds any content, the template's heading or not."
+given.file = 'docs/{page}.md'
+given.count = { min = 1 }
+given.files.'docs/hexagonal.md' = '''
+# The hexagonal model
+
+A page's words, headings and code are its author's.
+
+## Roles
+
+```toml
+key = "value"
+```
+'''
+
+[[scenarios]]
+id = 'page-missing'
+scenario = 'The page is missing.'
+given.file = 'docs/{page}.md'
+given.count = { min = 1 }
+then.findings = [
+  { rule = 'doc-page#count', path = 'tastemaker.toml' },
+]

@@ -1,0 +1,29 @@
+description = "Imports retain a package qualifier."
+why = "A dot import hides which package defines an unqualified name and makes additions to that package collide with local names."
+
+query = '''
+let imports = select * from "syntax-tree" where kind = "import-spec";
+let dots = select * from "syntax-tree" where text = ".";
+let descendants = axis(from=imports, relation="syntax-child", direction=descendant, domain="syntax-tree");
+let found = select l."file" as "file", l."span" as "span" from descendants as l join dots as r on l."related" = r."id";
+emit found subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "this dot import removes the package qualifier"
+help = "Import the package by name and qualify the names it supplies."
+
+[given]
+include = ["**"]
+
+[[scenarios]]
+id = "dot-import"
+scenario = "A dot import is reported."
+given.files."src/main.go" = "package main\nimport . \"fmt\"\nfunc main() { Println(1) }\n"
+then.findings = [{ path = "src/main.go", line = 2 }]
+
+[[scenarios]]
+id = "qualified-import"
+scenario = "A qualified import is allowed."
+given.files."src/main.go" = "package main\nimport \"fmt\"\nfunc main() { fmt.Println(1) }\n"

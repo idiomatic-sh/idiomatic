@@ -1,0 +1,18 @@
+stylesheet
+  qualified-rule
+    literal .
+    ident
+    whitespace
+    block
+      whitespace
+      declaration background
+        whitespace
+        url
+        whitespace
+        ident
+        literal ,
+        whitespace
+        function url
+          string
+      whitespace
+  whitespace

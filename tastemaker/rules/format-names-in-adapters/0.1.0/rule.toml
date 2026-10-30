@@ -1,0 +1,54 @@
+description = "A format's versioned name (a partition, a file or a table written `<name>-v1`) is written only inside the adapter that writes the format: never in an edge, a use case, a port or the domain."
+why = "The layout a store writes, and the version of that layout, are the adapter's: when the format changes, its version changes with it, in one place. An edge that spells the adapter's partition (`SourcePartition(\"source-inventory-v1\")`) and a use case that names a versioned file each must change when the format does: the format has leaked out of the adapter. The composition calls the factory with the settings it decides (the directory, whether to write); the factory and the adapter name the format. The format library itself is the `client-at-adapter` rule's: it is listed in that rule's `libraries`. Read as written: a string literal holding a version suffix (`-v1`, `-v2`)."
+
+query = '''
+let versioned = select l."file" as "file", l."span" as "span", l."value" as "value" from "string-literal" as l where glob_any(value, "*-v[0-9]*");
+emit versioned subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "`{value}` names a format's version outside its adapter"
+help = "Keep the name inside `src/outbound/<port>/adapters/<format>/` (its `constants.rs`): the composition calls `<port>::factory::<format>(..)` with the settings the edge decides, and the factory gives the adapter its partition. An ignore is never the fix."
+
+[given]
+include = ['**/*.rs']
+exclude = ['**/adapters/**', '**/factory.rs']
+
+[[scenarios]]
+id = 'a-partition-spelled-at-the-edge'
+scenario = 'An edge that spells the inventory adapter`s versioned partition, as Tastemaker`s check composition did, is reported.'
+given.files.'src/resources/workspace/check/composition.rs' = '''
+//! The composition of `check`.
+
+/// The use case, wired.
+pub fn compose() -> CheckUseCaseImpl {
+    CheckUseCaseImpl {
+        inventory: Arc::new(inventory::factory::arrow(
+            SourceConnection,
+            SourcePartition("source-inventory-v1".into()),
+        )),
+    }
+}
+'''
+then.findings = [{ path = 'src/resources/workspace/check/composition.rs', line = 8 }]
+
+[[scenarios]]
+id = 'the-adapter-names-its-partition'
+scenario = 'A composition that calls the factory with the settings it decides, and the adapter that names its own partition, are not reported.'
+given.files.'src/resources/workspace/check/composition.rs' = '''
+//! The composition of `check`.
+
+/// The use case, wired.
+pub fn compose(cache: Cache, writing: Writing) -> CheckUseCaseImpl {
+    CheckUseCaseImpl {
+        inventory: Arc::new(inventory::factory::arrow(cache, writing)),
+    }
+}
+'''
+given.files.'src/outbound/inventory/adapters/arrow/constants.rs' = '''
+//! The constants of the arrow inventory.
+
+/// The partition it writes, under the cache.
+pub(super) const PARTITION: &str = "source-inventory-v1";
+'''

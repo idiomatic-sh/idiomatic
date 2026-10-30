@@ -1,0 +1,8 @@
+stylesheet
+  at-rule foo
+  whitespace
+  at-rule charset
+    whitespace
+    number
+    whitespace
+    block

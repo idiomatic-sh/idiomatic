@@ -1,0 +1,6 @@
+version = 1
+parents = ["95e33621da8eca797d7feef9ba404cfb2fb3bed1d7412db35efbe5f1bf75914d"]
+
+suppressed = [
+  { tool = "tastemaker", rule = "idiomatic.arch/no-json-in-process", path = "crates/core/Cargo.toml", level = "error", fingerprint = "c4f036d84c7a03b4", count = 1, message = "`serde_json` is JSON in process", since_rev = "5f830057edfd1f764210641daf5d7ba2a6f071c9", since = "2026-10-27" },
+]

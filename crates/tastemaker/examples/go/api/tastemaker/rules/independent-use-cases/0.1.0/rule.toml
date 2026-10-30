@@ -1,0 +1,26 @@
+description = "A use case imports no other use case."
+why = "Go rejects import cycles at compile time; keeping use cases independent also prevents one-way coupling between operations. Share the domain port instead."
+
+query = '''
+let found = select * from "static-import" where glob_any(target, "*/src/inbound/use_cases/*");
+emit found subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "this use case imports another use case: `{target}`"
+help = "Call the domain port, or move shared behavior into the domain."
+
+[given]
+include = ["**"]
+
+[[scenarios]]
+id = "peer-use-case"
+scenario = "A dependency on a peer use case is reported."
+given.files."src/use_case.go" = "package create_todo\nimport \"example.com/app/src/inbound/use_cases/list_todos\"\n"
+then.findings = [{ path = "src/use_case.go", line = 2 }]
+
+[[scenarios]]
+id = "domain-port"
+scenario = "A dependency on a domain port is allowed."
+given.files."src/use_case.go" = "package create_todo\nimport \"example.com/app/src/domain/todo\"\n"

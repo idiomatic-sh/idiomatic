@@ -1,0 +1,66 @@
+description = "The UI runner: trybuild over the tests/ui pass cases, then the compile-fail cases."
+why = "Runs trybuild over the pass cases and then the compile-fail cases, so the compiler errors a crate promises are proven and kept."
+content = '''
+//! The UI runner: every pass case under `tests/ui` compiles, then every compile-fail case fails with the errors it records.
+
+#[test]
+fn ui() {
+    let cases = ::trybuild::TestCases::new();
+    cases.pass("tests/ui/pass_*.rs");
+    cases.compile_fail("tests/ui/fail_*.rs");
+}
+'''
+
+[given]
+file = 'macros/tests/compile_fail.rs'
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'macros/tests/compile_fail.rs' = '''
+//! The UI runner: every pass case under `tests/ui` compiles, then every compile-fail case fails with the errors it records.
+
+#[test]
+fn ui() {
+    let cases = ::trybuild::TestCases::new();
+    cases.pass("tests/ui/pass_*.rs");
+    cases.compile_fail("tests/ui/fail_*.rs");
+}
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template.'
+given.files.'macros/tests/compile_fail.rs' = '''
+//! The UI runner: every pass case under `tests/ui` compiles, then every compile-fail case fails with the errors it records.
+
+#[test]
+fn ui() {
+    let cases = ::trybuild::TestCases::new();
+    cases.pass("tests/ui/pass_*.rs");
+    cases.compile_fail("tests/ui/fail_*.rs");
+}
+
+// More.
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'compile-fail#count', path = 'tastemaker.toml' },
+]
+
+[[scenarios]]
+id = 'no-runner'
+scenario = 'The runner is not a test.'
+given.files.'macros/tests/compile_fail.rs' = '''
+fn ui() {
+    let cases = ::trybuild::TestCases::new();
+    cases.pass("tests/ui/pass_*.rs");
+    cases.compile_fail("tests/ui/fail_*.rs");
+}
+'''
+then.findings = [
+  { rule = 'compile-fail#template', path = 'macros/tests/compile_fail.rs' },
+]

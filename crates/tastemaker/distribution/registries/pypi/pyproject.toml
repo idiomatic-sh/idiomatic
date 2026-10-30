@@ -1,0 +1,20 @@
+[build-system]
+requires = ["maturin==1.15.0"]
+build-backend = "maturin"
+
+[project]
+name = "idiomatic-sh-tastemaker"
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+dynamic = ["version"]
+
+[tool.maturin]
+bindings = "bin"
+manifest-path = "../../../cli/Cargo.toml"
+module-name = "idiomatic_sh_tastemaker"
+python-source = "python"
+profile = "dist"
+# The languages PyPI's build links: a language is added here, in this one place.
+no-default-features = true
+features = ["css", "go", "html", "javascript", "json", "markdown", "python", "rust", "toml", "typescript"]

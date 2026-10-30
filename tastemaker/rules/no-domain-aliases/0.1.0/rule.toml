@@ -1,0 +1,157 @@
+description = "A `types.rs` and an `errors.rs` declare nominal types, never a module-level type alias."
+why = "An alias creates no owned domain type: the value keeps the representation's identity, so nothing stops a `usize` of one meaning standing in for another. Associated types and aliases local to a function body are not domain declarations and are not checked. An alias of a function pointer type (`type Builder = fn() -> Result<Rows, Error>;`) is admitted: it names a callable's signature, not a value, and writing that signature out in a field instead is what `clippy::type_complexity` refuses, so for a function pointer the alias wins."
+
+query = '''
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let all-aliases = select * from tree-nodes where kind = "type-alias";
+let function-types = select * from tree-nodes where kind = "fn-ptr-type";
+let alias-children = select l."id" as "id", r."child" as "child" from all-aliases as l join "syntax-child" as r on l."id" = r."parent";
+let function-aliases = select l."id" as "id" from alias-children as l join function-types as r on l."child" = r."id";
+let aliases = antijoin(left=all-aliases, right=function-aliases, left-on=["id"], right-on=["id"]);
+let alias-parents = select l."id" as "id", r."parent" as "parent", l."file" as "file", l."span" as "span" from aliases as l join "syntax-child" as r on l."id" = r."child";
+let modules = select * from tree-nodes where glob_any(kind, "{source-file,item-list}");
+let module-aliases = select l."id" as "id", l."file" as "file", l."span" as "span" from alias-parents as l join modules as r on l."parent" = r."id";
+emit module-aliases subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "module-level alias does not create an owned domain type"
+help = "Replace the alias with a struct or enum of its own (for example `pub struct Name(Inner);`), so the value has its own identity."
+
+[given]
+include = ['**/types.rs', '**/errors.rs']
+files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+files.'src/greeting.rs' = '''
+pub mod types;
+'''
+files.'src/lib.rs' = '''
+pub mod greeting;
+'''
+
+[[scenarios]]
+id = 'alias-beside-nominal'
+scenario = 'An alias beside a nominal type in types.rs.'
+given.files.'src/greeting/types.rs' = '''
+struct Marker;
+type Count = usize;
+'''
+then.findings = [
+  { path = 'src/greeting/types.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'error-alias'
+scenario = 'An alias in errors.rs.'
+given.files.'src/greeting.rs' = '''
+pub mod errors;
+'''
+given.files.'src/greeting/errors.rs' = '''
+pub struct ParseError;
+type Failure = ParseError;
+'''
+then.findings = [
+  { path = 'src/greeting/errors.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'inline-module-alias'
+scenario = 'An alias in an inline module of types.rs.'
+given.files.'src/greeting/types.rs' = '''
+mod values { pub type Count = usize; }
+'''
+then.findings = [
+  { path = 'src/greeting/types.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'nominal-alias'
+scenario = 'An alias naming a nominal type.'
+given.files.'src/greeting/types.rs' = '''
+struct Label(String);
+type Name = Label;
+'''
+then.findings = [
+  { path = 'src/greeting/types.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'qualified-alias'
+scenario = 'An alias written with a qualified path.'
+given.files.'src/greeting/types.rs' = '''
+type Count = core::primitive::usize;
+'''
+then.findings = [
+  { path = 'src/greeting/types.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'associated-types'
+scenario = 'Associated types in a trait and its implementation.'
+given.files.'src/greeting/types.rs' = '''
+pub struct Count(pub usize);
+pub trait Protocol {
+    type Output;
+}
+impl Protocol for Count {
+    type Output = Count;
+}
+'''
+
+[[scenarios]]
+id = 'local-alias'
+scenario = 'An alias local to a function body.'
+given.files.'src/greeting/types.rs' = '''
+pub struct Count(pub usize);
+impl Count {
+    pub fn new(value: usize) -> Self {
+        type Raw = usize;
+        let raw: Raw = value;
+        Self(raw)
+    }
+}
+'''
+
+[[scenarios]]
+id = 'nominal-values'
+scenario = 'Structs and enums only.'
+given.files.'src/greeting/types.rs' = '''
+pub struct Count(pub usize);
+pub struct Label(pub String);
+pub enum Mode {
+    Fast,
+    Slow,
+}
+'''
+
+[[scenarios]]
+id = 'selected-paths'
+scenario = 'An alias in a file outside the entry.'
+given.files.'src/greeting.rs' = '''
+pub mod adapter;
+pub mod types;
+'''
+given.files.'src/greeting/adapter.rs' = '''
+type Raw = usize;
+'''
+given.files.'src/greeting/types.rs' = '''
+pub struct Count(pub usize);
+'''
+
+[[scenarios]]
+id = 'function-pointer-alias'
+scenario = 'An alias of a function pointer type is admitted, so a field holding the pointer does not write the signature out (which clippy::type_complexity refuses); an alias of a type that holds a function pointer is still refused.'
+given.files.'src/greeting/types.rs' = '''
+pub struct Row;
+pub struct Failure;
+pub type Builder = fn() -> Result<Vec<Row>, Failure>;
+pub type Builders = Vec<fn() -> Row>;
+'''
+then.findings = [
+  { path = 'src/greeting/types.rs', line = 4 },
+]

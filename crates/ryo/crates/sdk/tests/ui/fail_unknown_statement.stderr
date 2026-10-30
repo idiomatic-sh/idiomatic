@@ -1,0 +1,11 @@
+error: no rules expected `write`
+  --> tests/ui/fail_unknown_statement.rs:14:9
+   |
+14 |         write { id: node(at), name: text(at), file: file, span: span(at) }
+   |         ^^^^^ no rules expected this token in macro call
+   |
+note: while trying to match `row`
+  --> src/resources/languages/macros/statements.rs
+   |
+   |         row { $( $column:ident : $form:tt $( ( $($argument:tt)* ) )? ),+ $(,)? }
+   |         ^^^

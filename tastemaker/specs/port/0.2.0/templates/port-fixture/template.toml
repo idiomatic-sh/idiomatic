@@ -1,0 +1,36 @@
+description = "A further file of a port's test support, named for what it holds: a script, the trees a fake replays, the library an adapter is held to."
+why = "The test support of a port is its contract, its fake and the proof of the fake; a port whose fake replays recorded or hand-written material keeps that material in files of their own beside them (`script.rs`, `trees.rs`, `library.rs`), and a test of the contract that proves it holds an adapter to account (`contract_test.rs`). The template asks only that the file exist; what it holds is the port's. The entry that places it names the three files that have a template of their own, so every other `.rs` of `fixtures/` is one of these."
+content = '''
+//! A file of the `{{ part }}` port's test support.
+'''
+
+[params]
+part = { type = "identifier", from = "directory-name", description = "The port's directory name." }
+
+[given]
+file = 'fixtures/script.rs'
+params = { part = 'syntax' }
+
+[[scenarios]]
+id = 'further-file-test-support-needs-only-doc'
+scenario = 'A further file of the test support needs only its doc comment.'
+given.files.'fixtures/script.rs' = '''
+//! A file of the `syntax` port's test support.
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template.'
+given.files.'fixtures/script.rs' = '''
+//! A script written by hand.
+
+/// A piece of a tree.
+pub const PIECE: usize = 1;
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'port-fixture#count', path = '.' },
+]

@@ -1,0 +1,13 @@
+root[1]
+└─0 list[1]
+    │ ordered: false
+    │ start: null
+    │ spread: false
+    └─0 listItem[2]
+        │ spread: true
+        │ checked: null
+        ├─0 paragraph[1]
+        │   └─0 text "Foo"
+        └─1 code "bar\n\n\nbaz"
+              lang: null
+              meta: null

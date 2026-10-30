@@ -1,0 +1,200 @@
+description = "No non-plain type, one that holds a `dyn`, a `File` or a sync type, is returned by one method of a port's `interface.rs` trait and taken back by another method of the same port. A handle trait declared in the same interface.rs is exempt: a consuming method such as `fn finish(&self, workers: Vec<Box<dyn FactsWorker>>)` that takes back the handle `FactsWorker` another method returns is the approved shape."
+why = "A port method that hands out a worker, a shard or a file and a second method that takes it back makes the caller carry the adapter's state between calls: the interface is aware of what only the adapter should hold. The fix is a handle trait that the port declares and a consuming method that takes it back (`finish(&self, workers: Vec<Box<dyn FactsWorker>>)`), or an adapter that keeps the state, never a round trip through the caller. Non-plain means: a name in a signature that is a struct or enum of the port's `types.rs` holding `File`, `Mutex`, `RwLock`, an atomic, `OnceLock`, `LazyLock`, `Condvar`, `Barrier` or `dyn`; or one of those words itself. A handle, a trait declared in the port's `interface.rs`, is not non-plain: a method that takes back the handle another method returns passes Read from names: a `Box<dyn Foreign>` of a trait the port does not declare is not seen, and neither is a type reached only through another type's field."
+
+query = '''
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let token-edges = select l."parent" as "parent", l."file" as "file", r."span" as "span", r."text" as "text" from "syntax-child" as l join tree-tokens as r on l."child" = r."id";
+let names = select * from tree-nodes where kind = "name";
+let type-items = select * from tree-nodes where glob_any(kind, "{struct,enum}");
+let port-type-items = capture(from=type-items, path="file", pattern="{*hex}/types.rs", captures=["hex"]);
+let type-parts = axis(from=port-type-items, relation="syntax-child", direction=descendant, domain=tree-nodes);
+let type-part-rows = project(from=type-parts, columns=["id", "hex", "related"]);
+let type-part-tokens = select l."id" as "item", l."hex" as "hex", r."text" as "text" from type-part-rows as l join token-edges as r on l."related" = r."parent";
+let holding-tokens = select * from type-part-tokens where glob_any(text, "{File,Mutex,RwLock,Atomic*,OnceLock,LazyLock,Condvar,Barrier,dyn}");
+let holders = project(from=holding-tokens, columns=["item", "hex"]);
+let holder-name-edges = select l."item" as "item", l."hex" as "hex", r."child" as "child" from holders as l join "syntax-child" as r on l."item" = r."parent";
+let holder-name-nodes = select r."id" as "name", l."hex" as "hex" from holder-name-edges as l join names as r on l."child" = r."id";
+let holder-names = select l."hex" as "hex", r."text" as "handle" from holder-name-nodes as l join token-edges as r on l."name" = r."parent";
+let all-traits = select * from tree-nodes where kind = "trait";
+let port-traits = capture(from=all-traits, path="file", pattern="{*hex}/interface.rs", captures=["hex"]);
+let trait-list-edges = select r."child" as "child", l."id" as "trait", l."hex" as "hex" from port-traits as l join "syntax-child" as r on l."id" = r."parent";
+let item-lists = select * from tree-nodes where kind = "assoc-item-list";
+let trait-lists = select r."id" as "list", l."hex" as "hex" from trait-list-edges as l join item-lists as r on l."child" = r."id";
+let trait-fn-edges = select r."child" as "child", l."hex" as "hex" from trait-lists as l join "syntax-child" as r on l."list" = r."parent";
+let fn-nodes = select * from tree-nodes where kind = "fn";
+let trait-fns = select r."id" as "fn", l."hex" as "hex" from trait-fn-edges as l join fn-nodes as r on l."child" = r."id";
+let fn-kids = select l."fn" as "fn", l."hex" as "hex", r."child" as "child" from trait-fns as l join "syntax-child" as r on l."fn" = r."parent";
+let ret-types = select * from tree-nodes where kind = "ret-type";
+let ret-nodes = select r."id" as "id", l."fn" as "fn", l."hex" as "hex" from fn-kids as l join ret-types as r on l."child" = r."id";
+let ret-parts = axis(from=ret-nodes, relation="syntax-child", direction=descendant, domain=tree-nodes);
+let ret-part-rows = project(from=ret-parts, columns=["fn", "hex", "related"]);
+let ret-words = select l."fn" as "fn", l."hex" as "hex", r."text" as "handle" from ret-part-rows as l join token-edges as r on l."related" = r."parent";
+let param-lists = select * from tree-nodes where kind = "param-list";
+let param-nodes = select r."id" as "id", l."fn" as "fn", l."hex" as "hex" from fn-kids as l join param-lists as r on l."child" = r."id";
+let param-parts = axis(from=param-nodes, relation="syntax-child", direction=descendant, domain=tree-nodes);
+let param-part-rows = project(from=param-parts, columns=["fn", "hex", "related"]);
+let param-words = select l."fn" as "fn", l."hex" as "hex", r."text" as "handle" from param-part-rows as l join token-edges as r on l."related" = r."parent";
+let ret-named = select l."fn" as "fn", l."hex" as "hex", l."handle" as "handle" from ret-words as l join holder-names as r on l."hex" = r."hex" and l."handle" = r."handle";
+let ret-banned = select * from ret-words where glob_any(handle, "{File,Mutex,RwLock,Atomic*,OnceLock,LazyLock,Condvar,Barrier}");
+let returned = union(left=ret-named, right=ret-banned);
+let param-named = select l."fn" as "fn", l."hex" as "hex", l."handle" as "handle" from param-words as l join holder-names as r on l."hex" = r."hex" and l."handle" = r."handle";
+let param-banned = select * from param-words where glob_any(handle, "{File,Mutex,RwLock,Atomic*,OnceLock,LazyLock,Condvar,Barrier}");
+let taken = union(left=param-named, right=param-banned);
+let pairs = select l."fn" as "returner", r."fn" as "taker", l."hex" as "hex", l."handle" as "handle" from returned as l join taken as r on l."hex" = r."hex" and l."handle" = r."handle";
+let round-trips = select * from pairs where returner != taker;
+let found = select r."file" as "file", r."span" as "span", l."handle" as "handle" from round-trips as l join fn-nodes as r on l."taker" = r."id";
+emit found subject "file" key("span", "handle");
+'''
+
+[diagnostic]
+primary = "span"
+message = "this method takes back `{handle}`, a non-plain type another method of the port returns"
+help = "Do not make the caller carry the adapter's state between two calls: give the returned handle the method that finishes it (a handle trait declared in interface.rs, taken back by a `finish` method, passes), or keep the state in the adapter and make the port's methods take and return plain data. An ignore is never the fix."
+
+[given]
+include = ['src/outbound/*/interface.rs', 'src/outbound/*/types.rs']
+files.'src/outbound/facts/interface.rs' = '''
+//! The facts port.
+
+/// What every `facts` adapter implements.
+pub trait FactsPort {
+    /// Starts a shard.
+    fn start(&self) -> Shard;
+    /// Merges a shard.
+    fn merge(&self, shard: Shard);
+}
+'''
+
+[[scenarios]]
+id = 'handle-finishes-itself'
+scenario = 'A handle that carries its own finish passes.'
+given.files.'src/outbound/facts/interface.rs' = '''
+//! The facts port.
+
+/// What every `facts` adapter implements.
+pub trait FactsPort {
+    /// Starts a worker.
+    fn worker(&self) -> Box<dyn FactsWorker>;
+}
+
+/// One worker the port hands out.
+pub trait FactsWorker {
+    /// Finishes the worker.
+    fn finish(self: Box<Self>) -> u32;
+}
+'''
+
+[[scenarios]]
+id = 'plain-both-ways'
+scenario = 'Plain data returned by one method and taken by another passes.'
+given.files.'src/outbound/facts/interface.rs' = '''
+//! The facts port.
+
+/// What every `facts` adapter implements.
+pub trait FactsPort {
+    /// Reads a row.
+    fn read(&self) -> Row;
+    /// Writes a row.
+    fn write(&self, row: Row);
+}
+'''
+given.files.'src/outbound/facts/types.rs' = '''
+//! The types of the `facts` port.
+
+/// A row.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Row {
+    pub id: u32,
+}
+'''
+
+[[scenarios]]
+id = 'one-method'
+scenario = 'One method taking and returning the same type is not a round trip.'
+given.files.'src/outbound/facts/interface.rs' = '''
+//! The facts port.
+
+/// What every `facts` adapter implements.
+pub trait FactsPort {
+    /// Merges a shard into another.
+    fn merge(&self, shard: Shard) -> Shard;
+}
+'''
+given.files.'src/outbound/facts/types.rs' = '''
+//! The types of the `facts` port.
+
+/// A shard.
+pub struct Shard {
+    pub state: std::sync::Mutex<u32>,
+}
+'''
+
+[[scenarios]]
+id = 'handle-taken-back'
+scenario = 'A handle trait of the interface returned by one method and taken back by a consuming finish passes.'
+given.files.'src/outbound/facts/interface.rs' = '''
+//! The facts port.
+
+/// What every `facts` adapter implements.
+pub trait FactsPort {
+    /// Starts a worker.
+    fn worker(&self) -> Box<dyn FactsWorker>;
+    /// Takes the workers back and finishes them.
+    fn finish(&self, workers: Vec<Box<dyn FactsWorker>>);
+}
+
+/// One worker the port hands out.
+pub trait FactsWorker {
+    /// Adds a row.
+    fn add(&self, id: u32);
+}
+'''
+
+[[scenarios]]
+id = 'file-round-trip'
+scenario = 'A File returned by one method and taken by another.'
+given.files.'src/outbound/facts/interface.rs' = '''
+//! The facts port.
+
+/// What every `facts` adapter implements.
+pub trait FactsPort {
+    /// Opens the spill.
+    fn open(&self) -> std::fs::File;
+    /// Closes the spill.
+    fn close(&self, spill: std::fs::File);
+}
+'''
+then.findings = [
+  { path = 'src/outbound/facts/interface.rs', line = 8 },
+]
+
+[[scenarios]]
+id = 'shard-round-trip'
+scenario = 'A type holding a lock returned by one method and taken by another.'
+given.files.'src/outbound/facts/types.rs' = '''
+//! The types of the `facts` port.
+
+/// A shard.
+pub struct Shard {
+    pub state: std::sync::Mutex<u32>,
+}
+'''
+then.findings = [
+  { path = 'src/outbound/facts/interface.rs', line = 8 },
+]
+
+[[scenarios]]
+id = 'dyn-round-trip'
+scenario = 'A type holding a dyn returned by one method and taken by another.'
+given.files.'src/outbound/facts/types.rs' = '''
+//! The types of the `facts` port.
+
+/// A shard.
+pub struct Shard {
+    pub sink: Box<dyn Fn(u32)>,
+}
+'''
+then.findings = [
+  { path = 'src/outbound/facts/interface.rs', line = 8 },
+]

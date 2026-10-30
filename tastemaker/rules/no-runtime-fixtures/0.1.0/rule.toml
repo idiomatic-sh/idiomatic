@@ -1,0 +1,384 @@
+description = "Production code never names a `fixtures` module or imports colocated acceptance steps: a path segment `fixtures` in a use or an expression outside test code is a finding."
+why = "`fixtures.rs` holds test data and fakes, compiled for the crate's own tests and, through the `fixtures` feature, for other crates' tests; it never ships. What production runs is not a fixture: a probe or a certification case the product needs is a value in `types.rs` or a use case's input. The entry leaves out test code (`*_test.rs`, `tests/`, `benches/`) and `fixtures.rs` itself; declaring the module (`pub mod fixtures;`) names no path and is not a finding. A `fixtures` that is the whole of an expression's path (a local binding, `fixtures.first()`) names no module and is not a finding: a module is named by a path that goes on past it (`fixtures::fake`) or by an import. A domain concept named `fixtures` (`domain::fixtures`, a product whose subject is test cases, such as a linter's fixtures of its rules) is the product's own domain, not test support, and is not a finding, in a path of code, of an import or of a type."
+
+query = '''
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let name-refs = select * from tree-nodes where kind = "name-ref";
+let paths = select * from tree-nodes where kind = "path";
+let segments = select * from tree-nodes where kind = "path-segment";
+let ref-edges = select l."id" as "ref", l."file" as "file", l."span" as "span", r."child" as "token" from name-refs as l join "syntax-child" as r on l."id" = r."parent";
+let ref-texts = select l."ref" as "ref", l."file" as "file", l."span" as "span", r."text" as "text" from ref-edges as l join tree-tokens as r on l."token" = r."id";
+let named = select * from ref-texts where text = "fixtures";
+let domain-names = select * from ref-texts where text = "domain";
+let named-segments = select l."ref" as "ref", l."file" as "file", l."span" as "span", r."parent" as "segment" from named as l join "syntax-child" as r on l."ref" = r."child";
+let named-paths = select l."ref" as "ref", l."file" as "file", l."span" as "span", r."parent" as "path" from named-segments as l join "syntax-child" as r on l."segment" = r."child";
+let qualifier-edges = select l."ref" as "ref", l."file" as "file", l."span" as "span", r."child" as "qualifier" from named-paths as l join "syntax-child" as r on l."path" = r."parent";
+let qualifiers = select l."ref" as "ref", l."qualifier" as "qualifier" from qualifier-edges as l join paths as r on l."qualifier" = r."id";
+let qualifier-segment-edges = select l."ref" as "ref", r."child" as "segment" from qualifiers as l join "syntax-child" as r on l."qualifier" = r."parent";
+let qualifier-segments = select l."ref" as "ref", l."segment" as "segment" from qualifier-segment-edges as l join segments as r on l."segment" = r."id";
+let qualifier-ref-edges = select l."ref" as "ref", r."child" as "name" from qualifier-segments as l join "syntax-child" as r on l."segment" = r."parent";
+let concepts = select l."ref" as "ref" from qualifier-ref-edges as l join domain-names as r on l."name" = r."ref";
+let path-parents = select l."ref" as "ref", r."parent" as "parent" from named-paths as l join "syntax-child" as r on l."path" = r."child";
+let modular = select * from tree-nodes where glob_any(kind, "{path,use-tree}");
+let module-refs = select l."ref" as "ref" from path-parents as l join modular as r on l."parent" = r."id";
+let named-modules = select l."ref" as "ref", l."file" as "file", l."span" as "span" from named as l join module-refs as r on l."ref" = r."ref";
+let fixtures = antijoin(left=named-modules, right=concepts, left-on=["ref"], right-on=["ref"]);
+let spans = project(from=fixtures, columns=["file", "span"]);
+let module-items = select * from tree-nodes where kind = "module";
+let bodies = select * from tree-nodes where kind = "item-list";
+let module-kids = select l."id" as "id", r."child" as "child" from module-items as l join "syntax-child" as r on l."id" = r."parent";
+let with-body = select l."id" as "id" from module-kids as l join bodies as r on l."child" = r."id";
+let decl-modules = antijoin(left=module-items, right=with-body, left-on=["id"], right-on=["id"]);
+let m-name-nodes-all = select * from tree-nodes where kind = "name";
+let m-kids = select l."id" as "id", r."child" as "child" from decl-modules as l join "syntax-child" as r on l."id" = r."parent";
+let m-name-nodes = select l."id" as "id", r."id" as "name-node" from m-kids as l join m-name-nodes-all as r on l."child" = r."id";
+let m-name-tokens = select l."id" as "id", r."child" as "token" from m-name-nodes as l join "syntax-child" as r on l."name-node" = r."parent";
+let m-name-texts = select l."id" as "id", r."text" as "name" from m-name-tokens as l join tree-tokens as r on l."token" = r."id";
+let decls = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", r."name" as "name" from decl-modules as l join m-name-texts as r on l."id" = r."id";
+let x-token-edges = select l."parent" as "parent", r."id" as "token", r."kind" as "kind", r."text" as "text" from "syntax-child" as l join tree-tokens as r on l."child" = r."id";
+let x-paths = select * from tree-nodes where kind = "path";
+let x-segments = select * from tree-nodes where kind = "path-segment";
+let x-name-refs = select * from tree-nodes where kind = "name-ref";
+let x-path-segment-edges = select l."id" as "pathnode", r."child" as "child" from x-paths as l join "syntax-child" as r on l."id" = r."parent";
+let x-path-segments = select l."pathnode" as "pathnode", r."id" as "segment" from x-path-segment-edges as l join x-segments as r on l."child" = r."id";
+let x-segment-ref-edges = select l."pathnode" as "pathnode", r."child" as "child" from x-path-segments as l join "syntax-child" as r on l."segment" = r."parent";
+let x-segment-refs = select l."pathnode" as "pathnode", r."id" as "nameref" from x-segment-ref-edges as l join x-name-refs as r on l."child" = r."id";
+let x-path-names = select l."pathnode" as "pathnode", r."text" as "name" from x-segment-refs as l join x-token-edges as r on l."nameref" = r."parent";
+let attr-nodes = select * from tree-nodes where kind = "attr";
+let cfg-nodes = select * from tree-nodes where kind = "cfg-meta";
+let decl-kids = select l."id" as "id", r."child" as "child" from decls as l join "syntax-child" as r on l."id" = r."parent";
+let decl-attrs = select l."id" as "id", r."id" as "attr" from decl-kids as l join attr-nodes as r on l."child" = r."id";
+let attr-kids = select l."id" as "id", r."child" as "child" from decl-attrs as l join "syntax-child" as r on l."attr" = r."parent";
+let cfg-rows = select r."id" as "id", l."id" as "decl" from attr-kids as l join cfg-nodes as r on l."child" = r."id";
+let kv-metas = select * from tree-nodes where kind = "key-value-meta";
+let literal-nodes = select * from tree-nodes where kind = "literal";
+let kv-rows = select l."id" as "id", r."id" as "meta" from attr-kids as l join kv-metas as r on l."child" = r."id";
+let kv-kids = select l."id" as "id", l."meta" as "meta", r."child" as "child" from kv-rows as l join "syntax-child" as r on l."meta" = r."parent";
+let kv-key-paths = select l."id" as "id", l."meta" as "meta", r."id" as "pathnode" from kv-kids as l join x-paths as r on l."child" = r."id";
+let kv-keys = select l."id" as "id", l."meta" as "meta", r."name" as "key" from kv-key-paths as l join x-path-names as r on l."pathnode" = r."pathnode";
+let path-keyed = select * from kv-keys where key = "path";
+let path-decl-ids = project(from=path-keyed, columns=["id"]);
+let path-decl-all = select l."id" as "id", l."file" as "file", l."span" as "span", l."name" as "name" from decls as l join path-decl-ids as r on l."id" = r."id";
+let kv-literals = select l."id" as "id", l."meta" as "meta", r."file" as "lpath", r."span" as "lspan" from kv-kids as l join literal-nodes as r on l."child" = r."id";
+let path-literals = select l."id" as "id", r."lpath" as "lpath", r."lspan" as "lspan" from path-keyed as l join kv-literals as r on l."id" = r."id" and l."meta" = r."meta";
+let literal-values = project(from="string-literal", columns=["file", "span", "value"]);
+let attribute-path-values = select l."id" as "id", r."value" as "value" from path-literals as l join literal-values as r on l."lpath" = r."file" and l."lspan" = r."span";
+
+let include-macros = select * from tree-nodes where kind = "macro-call";
+let macro-children = select l."id" as "id", r."child" as "child" from include-macros as l join "syntax-child" as r on l."id" = r."parent";
+let named-macros = select l."id" as "id", r."name" as "name" from macro-children as l join x-path-names as r on l."child" = r."pathnode";
+let includes = select * from named-macros where name = "include";
+let arguments = select * from tree-nodes where kind = "token-tree";
+let macro-arguments = select l."id" as "id", r."id" as "args" from macro-children as l join arguments as r on l."child" = r."id";
+let include-arguments = select l."id" as "id", r."args" as "args" from includes as l join macro-arguments as r on l."id" = r."id";
+let include-tokens = select l."id" as "id", r."child" as "child" from include-arguments as l join "syntax-child" as r on l."args" = r."parent";
+let include-strings = select l."id" as "id", r."file" as "file", r."span" as "span" from include-tokens as l join tree-tokens as r on l."child" = r."id";
+let include-values = select l."id" as "id", r."value" as "value" from include-strings as l join literal-values as r on l."file" = r."file" and l."span" = r."span";
+let path-values = union(left=attribute-path-values, right=include-values);
+let macro-sites = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", r."name" as "name" from include-macros as l join includes as r on l."id" = r."id";
+let declaration-sites = union(left=decls, right=macro-sites);
+
+let owner-decls = select * from decls where name = "acceptance" and glob_any(file, "**/src/inbound/{use_cases,contracts}/*.rs");
+let direct-rows = project(from=owner-decls, columns=["file", "span"]);
+let explicit-targets = select * from path-values where glob_any(value, "{src/inbound,**/src/inbound}/{use_cases,contracts}/*/acceptance.rs");
+let relative-targets = capture(from=path-values, path="value", pattern="{owner}/acceptance.rs", captures=["owner"]);
+let namespace-decls = capture(from=declaration-sites, path="file", pattern="{*root}/src/inbound/use_cases/{owner}.rs", captures=["root", "owner"]);
+let contract-decls = capture(from=declaration-sites, path="file", pattern="{*root}/src/inbound/contracts/{owner}.rs", captures=["root", "owner"]);
+let all-owner-decls = union(left=namespace-decls, right=contract-decls);
+let relative-ids = select l."id" as "id" from relative-targets as l join all-owner-decls as r on l."id" = r."id" and l."owner" = r."owner";
+let explicit-ids = project(from=explicit-targets, columns=["id"]);
+let local-targets = select * from path-values where glob_any(value, "{,./}acceptance.rs");
+let component-decls = select * from declaration-sites where glob_any(file, "**/src/inbound/{use_cases,contracts}/*/*.rs");
+let local-ids = select l."id" as "id" from local-targets as l join component-decls as r on l."id" = r."id";
+let located-ids = union(left=relative-ids, right=explicit-ids);
+let imported-ids = union(left=located-ids, right=local-ids);
+let imported-rows = select l."file" as "file", l."span" as "span" from declaration-sites as l join imported-ids as r on l."id" = r."id";
+let literal-include-tokens = select l."id" as "id", r."text" as "text" from include-tokens as l join tree-tokens as r on l."child" = r."id";
+let plain-includes = select * from literal-include-tokens where glob_any(text, "?acceptance.rs?");
+let raw-candidates = capture(from=literal-include-tokens, path="text", pattern="r{prefix}acceptance.rs{suffix}", captures=["prefix", "suffix"]);
+let raw-local = select * from raw-candidates where not glob_any(prefix, "*[!#]?*") and not glob_any(suffix, "?*[!#]*");
+let raw-includes = project(from=raw-local, columns=["id", "text"]);
+let local-includes = union(left=plain-includes, right=raw-includes);
+let local-include-rows = select r."file" as "file", r."span" as "span" from local-includes as l join component-decls as r on l."id" = r."id";
+let declared-acceptance = union(left=direct-rows, right=imported-rows);
+let acceptance-found = union(left=declared-acceptance, right=local-include-rows);
+let findings = union(left=spans, right=acceptance-found);
+emit findings subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "production code names test support (`fixtures` or colocated acceptance steps)"
+help = "Test data stays in tests: move what production needs (a probe, a case) into a `types.rs` value or a use case's input, and name `fixtures` only from `_test.rs` files, `tests/` and `benches/`. An ignore is never the fix."
+
+[given]
+include = ['**']
+
+[[scenarios]]
+id = 'declared-and-tested'
+scenario = 'The module is declared, and a test reads it.'
+given.exclude = ['**/*_test.rs', '**/fixtures.rs', 'tests/**', 'benches/**']
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+fixtures = []
+'''
+given.files.'src/greeting.rs' = '''
+pub mod interface;
+#[cfg(any(test, feature = "fixtures"))]
+pub mod fixtures;
+'''
+given.files.'src/greeting/fixtures.rs' = '''
+pub const EXPECTED: &str = "hello";
+'''
+given.files.'src/greeting/use_cases/greet/use_case_test.rs' = '''
+use super::super::super::fixtures::EXPECTED;
+
+#[test]
+fn greet_succeeds() {
+    assert!(!EXPECTED.is_empty());
+}
+'''
+given.files.'src/lib.rs' = '''
+pub mod greeting;
+'''
+
+[[scenarios]]
+id = 'production-reads'
+scenario = 'A use case reads a fixture at runtime.'
+given.exclude = ['**/*_test.rs', '**/fixtures.rs', 'tests/**', 'benches/**']
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+fixtures = []
+'''
+given.files.'src/greeting.rs' = '''
+pub mod interface;
+#[cfg(any(test, feature = "fixtures"))]
+pub mod fixtures;
+'''
+given.files.'src/greeting/fixtures.rs' = '''
+pub const EXPECTED: &str = "hello";
+'''
+given.files.'src/greeting/use_cases/greet/use_case.rs' = '''
+pub fn greet() -> &'static str {
+    super::super::super::fixtures::EXPECTED
+}
+'''
+given.files.'src/lib.rs' = '''
+pub mod greeting;
+'''
+then.findings = [
+  { path = 'src/greeting/use_cases/greet/use_case.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'other-crate'
+scenario = "Production imports another crate's fixtures."
+given.exclude = ['**/*_test.rs', '**/fixtures.rs', 'tests/**', 'benches/**']
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+fixtures = []
+'''
+given.files.'src/lib.rs' = '''
+pub mod probe;
+'''
+given.files.'src/probe.rs' = '''
+use ryo_query_plan::antijoin::fixtures::probe;
+
+pub fn run() {
+    probe();
+}
+'''
+then.findings = [
+  { path = 'src/probe.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'domain-concept-named-fixtures'
+scenario = "A domain concept named fixtures is the product's own domain."
+given.exclude = ['**/*_test.rs', '**/fixtures.rs', 'tests/**', 'benches/**']
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+fixtures = []
+'''
+given.files.'src/domain.rs' = '''
+pub mod fixtures;
+'''
+given.files.'src/domain/fixtures.rs' = '''
+pub mod constants;
+'''
+given.files.'src/domain/fixtures/constants.rs' = '''
+pub const CASES: &str = "cases";
+'''
+given.files.'src/inbound.rs' = '''
+pub mod use_cases;
+'''
+given.files.'src/inbound/use_cases.rs' = '''
+pub mod prove;
+'''
+given.files.'src/inbound/use_cases/prove.rs' = '''
+pub mod use_case;
+'''
+given.files.'src/inbound/use_cases/prove/use_case.rs' = '''
+use crate::domain::fixtures::constants::CASES;
+
+pub fn directory() -> &'static str {
+    CASES
+}
+
+pub fn again() -> &'static str {
+    crate::domain::fixtures::constants::CASES
+}
+'''
+given.files.'src/lib.rs' = '''
+pub mod domain;
+pub mod inbound;
+'''
+
+[[scenarios]]
+id = 'domain-concept-in-a-type'
+scenario = 'A domain concept named fixtures, named in an import group and a type.'
+given.exclude = ['**/*_test.rs', '**/fixtures.rs', 'tests/**', 'benches/**']
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+fixtures = []
+'''
+given.files.'src/domain.rs' = '''
+pub mod fixtures;
+'''
+given.files.'src/domain/fixtures.rs' = '''
+pub mod constants;
+'''
+given.files.'src/domain/fixtures/constants.rs' = '''
+pub const CASES: &str = "cases";
+pub const OTHER: &str = "other";
+
+pub struct Cases(pub &'static str, pub &'static str);
+'''
+given.files.'src/inbound.rs' = '''
+pub mod use_cases;
+'''
+given.files.'src/inbound/use_cases.rs' = '''
+pub mod prove;
+'''
+given.files.'src/inbound/use_cases/prove.rs' = '''
+pub mod use_case;
+'''
+given.files.'src/inbound/use_cases/prove/use_case.rs' = '''
+use crate::domain::fixtures::constants::{CASES, OTHER};
+
+pub fn directory() -> Result<crate::domain::fixtures::constants::Cases, ()> {
+    Ok(crate::domain::fixtures::constants::Cases(CASES, OTHER))
+}
+'''
+given.files.'src/lib.rs' = '''
+pub mod domain;
+pub mod inbound;
+'''
+
+[[scenarios]]
+id = 'binding-named-fixtures'
+scenario = 'A local binding named fixtures names no module.'
+given.exclude = ['**/*_test.rs', '**/fixtures.rs', 'tests/**', 'benches/**']
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+fixtures = []
+'''
+given.files.'src/lib.rs' = '''
+pub fn first(fixtures: &[u32]) -> Option<u32> {
+    let count = fixtures.len();
+    fixtures.first().copied().filter(|_| count > 0)
+}
+'''
+
+[[scenarios]]
+id = 'integration-acceptance-module'
+scenario = 'A project of 3 files with nothing to report.'
+given.exclude = ['**/acceptance.rs', '**/tests/**']
+given.files.'app/src/inbound/use_cases/greet.rs' = '''
+pub mod use_case;
+'''
+given.files.'app/src/inbound/use_cases/greet/acceptance.rs' = '''
+use crate::Behavior;
+'''
+given.files.'app/tests/bdd.rs' = '''
+#[path = "../src/inbound/use_cases/greet/acceptance.rs"]
+mod greet;
+'''
+
+[[scenarios]]
+id = 'legitimate-acceptance'
+scenario = 'A project of 2 files with nothing to report.'
+given.files.'app/src/inbound/use_cases/greet.rs' = '''
+pub fn greeting() { let acceptance = "greet/acceptance.rs"; crate::application::acceptance::validate(acceptance); }
+#[path = "domain/acceptance.rs"]
+mod semantics;
+'''
+given.files.'app/src/inbound/use_cases/greet/use_case.rs' = '''
+include!(r####"--acceptance.rs"####);
+'''
+
+[[scenarios]]
+id = 'production-acceptance-alias'
+scenario = 'A project of 1 file that is reported at `app/src/inbound/use_cases/greet.rs`.'
+given.exclude = ['**/acceptance.rs', '**/tests/**']
+given.files.'app/src/inbound/use_cases/greet.rs' = '''
+#[path = "greet/acceptance.rs"]
+mod hidden;
+'''
+then.findings = [
+  { path = 'app/src/inbound/use_cases/greet.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'production-acceptance-include'
+scenario = 'A project of 1 file that is reported at `app/src/inbound/use_cases/greet/use_case.rs`.'
+given.files.'app/src/inbound/use_cases/greet/use_case.rs' = '''
+include!(r#"acceptance.rs"#);
+include!(r####"acceptance.rs"####);
+'''
+then.findings = [
+  { path = 'app/src/inbound/use_cases/greet/use_case.rs', line = 1 },
+  { path = 'app/src/inbound/use_cases/greet/use_case.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'production-acceptance-module'
+scenario = 'A project of 1 file that is reported at `app/src/inbound/use_cases/greet.rs`.'
+given.exclude = ['**/acceptance.rs', '**/tests/**']
+given.files.'app/src/inbound/use_cases/greet.rs' = '''
+pub mod acceptance;
+'''
+then.findings = [
+  { path = 'app/src/inbound/use_cases/greet.rs', line = 1 },
+]

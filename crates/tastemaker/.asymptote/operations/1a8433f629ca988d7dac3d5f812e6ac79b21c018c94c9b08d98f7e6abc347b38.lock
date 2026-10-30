@@ -1,0 +1,6 @@
+version = 1
+parents = ["865c0169e5d03b9d1de98c593d0ff368cf8b6c126e457beddec15b361968ffe0"]
+
+suppressed-removed = [
+  { tool = "tastemaker", rule = "idiomatic.arch/pub-item-unreferenced-elsewhere", path = "crates/core/src/outbound/analysis/fixtures/fake.rs", level = "warning", fingerprint = "2bfadc2745df6349" },
+]

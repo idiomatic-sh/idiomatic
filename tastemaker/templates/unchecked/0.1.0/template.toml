@@ -1,0 +1,65 @@
+description = "A file placed as it is: Tastemaker accounts for it and checks none of its contents."
+why = "A closed directory accounts for every file in it. A file or a whole directory whose contents are its owner's (notes, tooling, dotfiles) is placed by this template, so it is accounted for without a template per file; anything else in that directory stays a `#closed` finding."
+content = ''
+
+[[scenarios]]
+id = 'any-file'
+scenario = 'A file is placed whatever it holds.'
+given.file = 'notes/{*path}'
+given.count = { min = 1 }
+given.files.'notes/plan.md' = '''
+# plan
+'''
+given.files.'notes/tools/run.sh' = '''
+#!/bin/sh
+echo anything goes
+'''
+
+[[scenarios]]
+id = 'listed-directory-unchecked-and-stray-folder-closed'
+scenario = "In a closed workspace, a listed directory's files are placed unchecked, and a folder no entry lists is a closed finding."
+given.files.'tastemaker.toml' = '''
+workspace = { name = "root", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+templates = [
+  { template = "idiomatic.arch/unchecked", file = "notes/{*path}", description = "Notes, their contents unchecked." },
+]
+'''
+given.files.'notes/anything.txt' = '''
+any { text, unbalanced
+'''
+given.files.'scratch/draft.txt' = '''
+a draft no entry lists
+'''
+then.findings = [
+  { rule = 'tastemaker.toml#closed', path = 'scratch/draft.txt' },
+]
+
+[[scenarios]]
+id = 'rules-only-instance-closes-nothing-away'
+scenario = "A spec of rules alone places nothing and owns nothing: a stray file in its instance's directory is still a closed finding."
+given.files.'tastemaker.toml' = '''
+workspace = { name = "root", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+templates = [
+  { template = "idiomatic.arch/unchecked", file = "notes/{*path}", description = "Notes, their contents unchecked." },
+]
+specs = [
+  { spec = "idiomatic.arch/pipeline", include = ["work"], description = "Lifecycle evidence of the work directory." },
+]
+'''
+given.files.'notes/anything.txt' = '''
+any text
+'''
+given.files.'work/stray.txt' = '''
+a file no template places
+'''
+then.findings = [
+  { rule = 'tastemaker.toml#closed', path = 'work/stray.txt' },
+]
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'A listed file that is not there is a count finding.'
+given.file = 'LICENSE'
+then.findings = [
+  { rule = 'unchecked#count', path = 'tastemaker.toml' },
+]

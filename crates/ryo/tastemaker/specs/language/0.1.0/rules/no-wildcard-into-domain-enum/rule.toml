@@ -1,0 +1,73 @@
+description = "An adapter maps into a domain enum with an arm for every variant: a `match` in an adapter.rs or a schemas.rs has no `_ =>` arm."
+why = "An adapter translates what the outside gives into the domain's enums. A `_ =>` arm in that match absorbs every variant the domain adds later, so the new variant compiles and is silently mapped to whatever the wildcard returns; with one arm for each variant, a new variant is a compile error in every adapter that maps it, and the author decides what each means. Which matches build a domain enum cannot be known from syntax alone, so every `match` of an adapter.rs and a schemas.rs is read: a `_` pattern directly in a match arm is the finding. Not seen: a `_` in a `let`, a closure parameter or a nested pattern, and a match in any other file. A match over a value of the outside world (a string, a status code) that must refuse the values it does not know maps them in a lookup the `TryFrom` of a schemas.rs owns, naming the refused values in an arm of their own."
+
+query = '''
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let wildcards = select * from tree-nodes where kind = "wildcard-pat";
+let arms = select * from tree-nodes where kind = "match-arm";
+let edges = select r."parent" as "arm", l."file" as "file", l."span" as "span" from wildcards as l join "syntax-child" as r on l."id" = r."child";
+let hits = select l."file" as "file", l."span" as "span" from edges as l join arms as r on l."arm" = r."id";
+emit hits subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "this `match` has a `_ =>` arm, so a variant added later is mapped silently"
+help = "Write one arm for each variant, so that a new variant of the enum is a compile error here. Name the variants that share an outcome with `A | B =>`. An ignore is never the fix."
+
+[given]
+include = ['adapter.rs']
+
+[[scenarios]]
+id = 'every-variant'
+scenario = 'Every variant has its arm.'
+given.files.'adapter.rs' = '''
+pub fn map(status: Status) -> Level {
+    match status {
+        Status::Ok => Level::Fine,
+        Status::Failed => Level::Broken,
+    }
+}
+'''
+
+[[scenarios]]
+id = 'wildcard-outside-match'
+scenario = 'A wildcard outside a match arm is no finding.'
+given.include = ['schemas.rs']
+given.files.'schemas.rs' = '''
+pub fn first(pairs: Vec<(u8, u8)>) -> Vec<u8> {
+    let _ = pairs.len();
+    pairs.into_iter().map(|(a, _)| a).collect()
+}
+'''
+
+[[scenarios]]
+id = 'adapter-wildcard'
+scenario = 'A wildcard arm in an adapter.'
+given.files.'adapter.rs' = '''
+pub fn map(status: Status) -> Level {
+    match status {
+        Status::Ok => Level::Fine,
+        _ => Level::Broken,
+    }
+}
+'''
+then.findings = [
+  { path = 'adapter.rs', line = 4 },
+]
+
+[[scenarios]]
+id = 'schemas-wildcard'
+scenario = 'A wildcard arm in a schemas file.'
+given.include = ['schemas.rs']
+given.files.'schemas.rs' = '''
+pub fn map(status: Status) -> Level {
+    match status {
+        Status::Ok => Level::Fine,
+        _ => Level::Broken,
+    }
+}
+'''
+then.findings = [
+  { path = 'schemas.rs', line = 4 },
+]

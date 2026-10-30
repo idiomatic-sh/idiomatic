@@ -1,0 +1,11 @@
+stylesheet
+  whitespace
+  comment
+  whitespace
+  at-rule foo-with-block
+    whitespace
+    ident
+    block
+      block [
+        block (
+          number

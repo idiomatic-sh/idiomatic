@@ -1,0 +1,51 @@
+description = "A compile-fail case: code the compiler must reject."
+why = "Is code the compiler must reject or accept, so a crate's compile-time promises are proven like any behavior."
+content = '''
+//! {{ case }}: the compiler rejects this.
+
+fn main() {}
+'''
+
+[params]
+case = { type = "identifier", description = "The UI case, captured from its path." }
+
+[given]
+file = 'macros/tests/ui/missing_input.rs'
+params = { case = 'missing_input' }
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'macros/tests/ui/missing_input.rs' = '''
+//! missing_input: the compiler rejects this.
+
+fn main() {}
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template.'
+given.files.'macros/tests/ui/missing_input.rs' = '''
+//! missing_input: the compiler rejects this.
+
+fn main() {}
+
+// More.
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'ui-case#count', path = 'tastemaker.toml' },
+]
+
+[[scenarios]]
+id = 'no-main'
+scenario = 'The case has no main.'
+given.files.'macros/tests/ui/missing_input.rs' = '''
+//! missing_input: the compiler rejects this.
+'''
+then.findings = [
+  { rule = 'ui-case#template', path = 'macros/tests/ui/missing_input.rs' },
+]

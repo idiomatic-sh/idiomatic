@@ -1,0 +1,94 @@
+description = "A cache directory's name is written once, by the adapter that keeps the cache, its factory or the edge that composes it (a composition, or the command line's own `cli/src/resources.rs`, which hands the name to every composition): never in the domain or a use case, and never copied into a second file."
+why = "Where a product keeps its cache is a setting of the adapter that writes it. A domain constant holding `.tastemaker_cache`, and a copy of the same name in another port's adapter (to skip it while walking the tree), make the core own an infrastructure path and make every copy a place to change when it moves: the store can no longer be moved or swapped by its factory alone. The edge decides the directory once and injects it into each adapter that needs it. Read as written: a string literal the entry's `locations` globs match, reported outside an adapter, a factory, a composition and the command line's `cli/src/resources.rs`, and reported at every copy when the same name is written in two files or more."
+
+query = '''
+param locations: set<string>;
+let named = select l."file" as "file", l."span" as "span", l."value" as "value" from "string-literal" as l where glob_any(value, $locations);
+let outside = select * from named where not glob_any(file, "{outbound/*/adapters/**,**/outbound/*/adapters/**,factory.rs,**/factory.rs,composition.rs,**/composition.rs,cli/src/resources.rs,**/cli/src/resources.rs}");
+let spread = group-count(from=named, keys=["value"], count="files", distinct="file");
+let copied = select * from spread where files >= 2;
+let copies = select l."file" as "file", l."span" as "span", l."value" as "value" from named as l join copied as r on l."value" = r."value";
+let found = union(left=outside, right=copies);
+emit found subject "file" key("span");
+'''
+
+[params.locations]
+type = "set<string>"
+description = "Globs of the names a cache directory is given: `.*_cache`."
+
+[diagnostic]
+primary = "span"
+message = "the cache directory `{value}` is named outside the one adapter that keeps it"
+help = "Name the directory once: the edge decides it and injects it into the store's factory (`store::factory::postcard(Store { directory, build })`), and into any other adapter that must know it (`repository::factory::disk(skipped)`). The domain and the use cases never hold it. An ignore is never the fix."
+
+[given]
+include = ['**/*.rs']
+params = { locations = ['.*_cache', '.*_cache/**'] }
+
+[[scenarios]]
+id = 'the-store-name-in-the-domain-and-a-walker'
+scenario = 'A cache directory named in a domain constant and again in the repository adapter that skips it, as Tastemaker`s `.tastemaker_cache` was, is reported at both.'
+given.files.'src/domain/definitions/constants.rs' = '''
+//! The constants of the `definitions` concept.
+
+/// The directory the store keeps its image in.
+pub const STORE: &str = ".tastemaker_cache";
+'''
+given.files.'src/outbound/repository/adapters/disk/constants.rs' = '''
+//! The constants of the disk adapter.
+
+/// The store's directory, which the walk skips.
+pub(super) const STORE: &str = ".tastemaker_cache";
+'''
+then.findings = [
+  { path = 'src/domain/definitions/constants.rs', line = 4 },
+  { path = 'src/outbound/repository/adapters/disk/constants.rs', line = 4 },
+]
+
+[[scenarios]]
+id = 'one-adapter-keeps-the-name'
+scenario = 'The name written once, in the adapter that keeps the cache, is not reported.'
+given.files.'src/outbound/cache/adapters/arrow/constants.rs' = '''
+//! The constants of the arrow adapter.
+
+/// The directory the cache is kept in, under the root.
+pub(super) const DIRECTORY: &str = ".asymptote_cache";
+'''
+given.files.'src/domain/topics/constants.rs' = '''
+//! The constants of the `topics` concept.
+
+/// The topic on the store.
+pub const STORE: &str = "# The store\n\nOne store at the root, `.tastemaker_cache/`, gitignored.\n";
+'''
+
+[[scenarios]]
+id = 'the-command-line-names-it-once-for-every-composition'
+scenario = 'The command line`s own entry names the store directory once and hands it to every composition: nothing is reported, and the compositions name no cache.'
+given.files.'cli/src/resources.rs' = '''
+//! The command tree.
+
+/// The directory beneath a project`s root where the store is kept.
+pub(crate) fn store() -> DirectoryName {
+    DirectoryName(".tastemaker_cache".into())
+}
+'''
+given.files.'cli/src/resources/workspace/check/composition.rs' = '''
+//! The wiring of `check`.
+
+pub(crate) fn build() {
+    let repository = repository::factory::disk(crate::languages::skipped(), crate::resources::store());
+}
+'''
+
+[[scenarios]]
+id = 'a-resources-file-elsewhere-names-it-too'
+scenario = 'A file called `resources.rs` that is not the command line`s own, a domain file here, is no place to name the store directory: it is reported.'
+given.files.'src/domain/resources.rs' = '''
+//! The resources of the domain.
+
+/// The directory the store is kept in.
+pub const STORE: &str = ".tastemaker_cache";
+'''
+then.findings = [
+  { path = 'src/domain/resources.rs', line = 4 },
+]

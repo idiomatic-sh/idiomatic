@@ -1,0 +1,1777 @@
+description = "A directory names only what its place in the crate's import directions allows: `forbidden` lists the targets it may not name, and an application service, use case, port or adapter names no sibling of its kind (a use case no other use case, a port no other port, an adapter no other adapter and no other port)."
+why = "Imports run one way inside a crate, and a part never reaches its sibling. The core directions are placed by nu-hex itself; the idiomatic-rust spec adds edge directions: domain imports only domain and the kernel crates' public types, never its own crate's inbound or outbound; an application service imports pure domain functions and outbound contracts, never sibling services or use cases; a use case (`inbound/use_cases/<use case>`) composes application services and imports domain, its own crate's outbound port interface, types and errors, and the kernel, never another use case; a port's `interface.rs`, `types.rs` and `errors.rs` import domain and the kernel, never another port; an adapter (`outbound/<port>/adapters/<adapter>`) imports its own port, domain, the kernel, its schemas and its client library, and when it translates one crate's use case for another it imports that other crate's use-case interface, types and errors, never another adapter and never another port; an edge (a command, an SDK entry or a composition) imports use-case interface, types and errors and port types and factory, never an adapter or a domain service, and `use_case.rs` is named only in `composition.rs`. The entry's `forbidden` param holds the targets one directory may not name (path globs as written in code, `*::inbound::*`); the identity of a use case, a port and an adapter is read from the file's own path, so a file naming `crate::outbound::<other port>` or `crate::inbound::use_cases::<other use case>` is a finding while its own port and use case are not: the files of one use case name each other with `super::`. Found from the paths the files write in imports and in code: the provider's `static-import` and `reference` relations. Resolved source dependencies also check relative imports and aliases between local parts. Paths inside macro expansions and dynamically chosen effects are not proven; behavioral tests and review remain necessary. The entry leaves out tests, fixtures and benches."
+
+query = '''
+param forbidden: set<string>;
+let imports = project(from="static-import", columns=["file", "span", "target"]);
+let references = project(from="reference", columns=["file", "span", "target"]);
+let mentions = union(left=imports, right=references);
+let forbidden-rows = select * from mentions where glob_any(target, $forbidden);
+let forbidden-keys = project(from=forbidden-rows, columns=["file", "span"]);
+let forbidden-found = extend(from=forbidden-keys, values={"problem": "points against the import directions of the directory it is written in"});
+let uc-src = capture(from="source-dependency", path="source", pattern="{*root}/inbound/use_cases/{uc}/{*rest}", captures=["root", "uc", "rest"]);
+let uc-t0 = capture(from=uc-src, path="target", pattern="{*troot}/inbound/use_cases/{tuc}/{*trest}", captures=["troot", "tuc", "trest"]);
+let uc-c0-0 = select * from uc-t0 where root = troot;
+let uc-c0-1 = select * from uc-c0-0 where uc != tuc;
+let uc-r0 = project(from=uc-c0-1, columns=["source", "span", "target"]);
+let uc-t1 = capture(from=uc-src, path="target", pattern="{*troot}/inbound/use_cases/{tuc}.rs", captures=["troot", "tuc"]);
+let uc-c1-0 = select * from uc-t1 where root = troot;
+let uc-c1-1 = select * from uc-c1-0 where uc != tuc;
+let uc-r1 = project(from=uc-c1-1, columns=["source", "span", "target"]);
+let uc-u0 = union(left=uc-r0, right=uc-r1);
+let uc-named = select l."source" as "file", l."span" as "span" from uc-u0 as l;
+let uc-found = extend(from=uc-named, values={"problem": "belongs to another use case: a use case names no other use case"});
+let pt-src = capture(from="source-dependency", path="source", pattern="{*root}/outbound/{pt}/{leaf}", captures=["root", "pt", "leaf"]);
+let pt-t0 = capture(from=pt-src, path="target", pattern="{*troot}/outbound/{tpt}/{*trest}", captures=["troot", "tpt", "trest"]);
+let pt-c0-0 = select * from pt-t0 where root = troot;
+let pt-c0-1 = select * from pt-c0-0 where pt != tpt;
+let pt-r0 = project(from=pt-c0-1, columns=["source", "span", "target"]);
+let pt-t1 = capture(from=pt-src, path="target", pattern="{*troot}/outbound/{tpt}.rs", captures=["troot", "tpt"]);
+let pt-c1-0 = select * from pt-t1 where root = troot;
+let pt-c1-1 = select * from pt-c1-0 where pt != tpt;
+let pt-r1 = project(from=pt-c1-1, columns=["source", "span", "target"]);
+let pt-u0 = union(left=pt-r0, right=pt-r1);
+let pt-named = select l."source" as "file", l."span" as "span" from pt-u0 as l;
+let pt-found = extend(from=pt-named, values={"problem": "belongs to another port: a port names no other port"});
+let ap-src = capture(from="source-dependency", path="source", pattern="{*root}/outbound/{ap}/adapters/{adapter}/{*rest}", captures=["root", "ap", "adapter", "rest"]);
+let ap-t0 = capture(from=ap-src, path="target", pattern="{*troot}/outbound/{tap}/{*trest}", captures=["troot", "tap", "trest"]);
+let ap-c0-0 = select * from ap-t0 where root = troot;
+let ap-c0-1 = select * from ap-c0-0 where ap != tap;
+let ap-r0 = project(from=ap-c0-1, columns=["source", "span", "target"]);
+let ap-t1 = capture(from=ap-src, path="target", pattern="{*troot}/outbound/{tap}.rs", captures=["troot", "tap"]);
+let ap-c1-0 = select * from ap-t1 where root = troot;
+let ap-c1-1 = select * from ap-c1-0 where ap != tap;
+let ap-r1 = project(from=ap-c1-1, columns=["source", "span", "target"]);
+let ap-u0 = union(left=ap-r0, right=ap-r1);
+let ap-named = select l."source" as "file", l."span" as "span" from ap-u0 as l;
+let ap-found = extend(from=ap-named, values={"problem": "belongs to another port: an adapter names its own port and no other"});
+let ad-src = capture(from="source-dependency", path="source", pattern="{*root}/outbound/{adport}/adapters/{ad}/{*rest}", captures=["root", "adport", "ad", "rest"]);
+let ad-t0 = capture(from=ad-src, path="target", pattern="{*troot}/outbound/{tadport}/adapters/{tad}/{*trest}", captures=["troot", "tadport", "tad", "trest"]);
+let ad-c0-0 = select * from ad-t0 where root = troot;
+let ad-c0-1 = select * from ad-c0-0 where ad != tad;
+let ad-r0 = project(from=ad-c0-1, columns=["source", "span", "target"]);
+let ad-named = select l."source" as "file", l."span" as "span" from ad-r0 as l;
+let ad-found = extend(from=ad-named, values={"problem": "belongs to another adapter: an adapter names no other adapter"});
+let found-0 = union(left=forbidden-found, right=uc-found);
+let found-1 = union(left=found-0, right=pt-found);
+let found-2 = union(left=found-1, right=ap-found);
+let found-3 = union(left=found-2, right=ad-found);
+let app-src = capture(from="source-dependency", path="source", pattern="{*root}/application/{app}/{*rest}", captures=["root", "app", "rest"]);
+let app-target = capture(from=app-src, path="target", pattern="{*troot}/application/{other}/{*trest}", captures=["troot", "other", "trest"]);
+let app-same-root = select * from app-target where root = troot;
+let app-other = select * from app-same-root where app != other;
+let app-mod-target = capture(from=app-src, path="target", pattern="{*troot}/application/{other}.rs", captures=["troot", "other"]);
+let app-mod-root = select * from app-mod-target where root = troot;
+let app-mod-other = select * from app-mod-root where app != other;
+let app-files = project(from=app-other, columns=["source", "span"]);
+let app-mods = project(from=app-mod-other, columns=["source", "span"]);
+let app-all = union(left=app-files, right=app-mods);
+let app-named = select l."source" as "file", l."span" as "span" from app-all as l;
+let app-found = extend(from=app-named, values={"problem": "belongs to a sibling application service: the use case composes their operations"});
+let domain-source = select * from "source-dependency" where glob_any(source, "**/domain/**");
+let domain-bad = select * from domain-source where glob_any(target, "{**/application,**/application/**,**/application.rs,**/inbound,**/inbound/**,**/inbound.rs,**/outbound,**/outbound/**,**/outbound.rs}");
+let app-source = select * from "source-dependency" where glob_any(source, "**/application/**");
+let app-bad = select * from app-source where glob_any(target, "{**/inbound,**/inbound/**,**/inbound.rs,**/outbound/*/adapters,**/outbound/*/adapters/**,**/outbound/*/adapters.rs,**/outbound/*/factory.rs}");
+let use-source = select * from "source-dependency" where glob_any(source, "**/inbound/use_cases/**");
+let use-bad = select * from use-source where glob_any(target, "{**/outbound/*/adapters,**/outbound/*/adapters/**,**/outbound/*/adapters.rs,**/outbound/*/factory.rs}");
+let outbound-source = capture(from="source-dependency", path="source", pattern="{*root}/outbound/{*rest}", captures=["root", "rest"]);
+let outbound-target = capture(from=outbound-source, path="target", pattern="{*troot}/application/{*trest}", captures=["troot", "trest"]);
+let outbound-bad = select * from outbound-target where root = troot;
+let domain-rows = project(from=domain-bad, columns=["source", "span"]);
+let app-rows = project(from=app-bad, columns=["source", "span"]);
+let use-rows = project(from=use-bad, columns=["source", "span"]);
+let outbound-rows = project(from=outbound-bad, columns=["source", "span"]);
+let direction-a = union(left=domain-rows, right=app-rows);
+let direction-b = union(left=use-rows, right=outbound-rows);
+let direction-all = union(left=direction-a, right=direction-b);
+let direction-named = select l."source" as "file", l."span" as "span" from direction-all as l;
+let direction-found = extend(from=direction-named, values={"problem": "resolves against the core dependency directions"});
+let found-4 = union(left=found-3, right=app-found);
+let found-5 = union(left=found-4, right=direction-found);
+emit found-5 subject "file" key("span");
+'''
+
+[params.forbidden]
+type = "set<string>"
+description = "The targets this directory may not name, each a path glob as written in code: `*::inbound::*` for any inbound module of any crate, `crate::outbound::*::adapters::*` for an adapter of the crate."
+
+[diagnostic]
+primary = "span"
+message = "this import {problem}"
+help = "Follow the direction of imports: domain imports domain and the kernel; application services import domain and outbound contracts, never sibling services or use cases; a use case composes application services and imports domain and its own crate's port interfaces, types and errors; a port imports domain and the kernel; an adapter imports its own port and domain, and a translation adapter another crate's use-case interface; an edge imports use-case interfaces and port factories and wires adapters and `use_case.rs` only in `composition.rs`. Name the files of your own part with `super::`, and pass what you need from another part as a parameter or a port instead of importing it."
+
+[given]
+include = ['src/**']
+params = { forbidden = ['*::inbound', '*::inbound::*', '*::outbound', '*::outbound::*', '*::use_case', '*::use_case::*Impl'] }
+files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+files.'src/lib.rs' = '''
+//! Module.
+
+pub mod resources;
+'''
+
+[[scenarios]]
+id = 'domain-to-inbound'
+scenario = 'Domain names a use case of the inbound side.'
+given.exclude = ['**/*_test.rs', '**/tests/**', '**/fixtures/**', '**/benches/**']
+given.files.'src/domain.rs' = '''
+//! Module.
+
+pub mod greeting;
+'''
+given.files.'src/domain/greeting.rs' = '''
+//! Module.
+
+pub mod service;
+'''
+given.files.'src/domain/greeting/service.rs' = '''
+use crate::inbound::use_cases::greet::types::Request;
+
+pub fn run(_request: Request) {}
+'''
+given.files.'src/inbound.rs' = '''
+//! Module.
+
+pub mod use_cases;
+'''
+given.files.'src/inbound/use_cases.rs' = '''
+//! Module.
+
+pub mod greet;
+'''
+given.files.'src/inbound/use_cases/greet.rs' = '''
+//! Module.
+
+pub mod types;
+'''
+given.files.'src/inbound/use_cases/greet/types.rs' = '''
+//! Stub.
+
+pub struct Request;
+'''
+given.files.'src/lib.rs' = '''
+//! Module.
+
+pub mod domain;
+pub mod inbound;
+'''
+then.findings = [
+  { path = 'src/domain/greeting/service.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'domain-to-outbound'
+scenario = 'Domain names a port of the outbound side.'
+given.exclude = ['**/*_test.rs', '**/tests/**', '**/fixtures/**', '**/benches/**']
+given.files.'src/domain.rs' = '''
+//! Module.
+
+pub mod greeting;
+'''
+given.files.'src/domain/greeting.rs' = '''
+//! Module.
+
+pub mod service;
+'''
+given.files.'src/domain/greeting/service.rs' = '''
+use crate::outbound::store::types::Row;
+
+pub fn run(_row: Row) {}
+'''
+given.files.'src/lib.rs' = '''
+//! Module.
+
+pub mod domain;
+pub mod outbound;
+'''
+given.files.'src/outbound.rs' = '''
+//! Module.
+
+pub mod store;
+'''
+given.files.'src/outbound/store.rs' = '''
+//! Module.
+
+pub mod types;
+'''
+given.files.'src/outbound/store/types.rs' = '''
+//! Stub.
+
+pub struct Row;
+'''
+then.findings = [
+  { path = 'src/domain/greeting/service.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'domain-path-to-outbound'
+scenario = 'Domain writes a path into the outbound side without importing it.'
+given.exclude = ['**/*_test.rs', '**/tests/**', '**/fixtures/**', '**/benches/**']
+given.files.'src/domain.rs' = '''
+//! Module.
+
+pub mod greeting;
+'''
+given.files.'src/domain/greeting.rs' = '''
+//! Module.
+
+pub mod service;
+'''
+given.files.'src/domain/greeting/service.rs' = '''
+pub fn run(_row: crate::outbound::store::types::Row) {}
+'''
+given.files.'src/lib.rs' = '''
+//! Module.
+
+pub mod domain;
+pub mod outbound;
+'''
+given.files.'src/outbound.rs' = '''
+//! Module.
+
+pub mod store;
+'''
+given.files.'src/outbound/store.rs' = '''
+//! Module.
+
+pub mod types;
+'''
+given.files.'src/outbound/store/types.rs' = '''
+//! Stub.
+
+pub struct Row;
+'''
+then.findings = [
+  { path = 'src/domain/greeting/service.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'domain-to-domain-and-kernel'
+scenario = 'Domain names domain and the kernel crates.'
+given.exclude = ['**/*_test.rs', '**/tests/**', '**/fixtures/**', '**/benches/**']
+given.files.'src/domain.rs' = '''
+//! Module.
+
+pub mod greeting;
+pub mod name;
+'''
+given.files.'src/domain/greeting.rs' = '''
+//! Module.
+
+pub mod service;
+'''
+given.files.'src/domain/greeting/service.rs' = '''
+use crate::domain::name::types::Name;
+use ryo_values::domain::count::types::Count;
+use ryo_language::domain::symbols::types::Symbol;
+
+pub fn run(_name: Name, _count: Count, _symbol: Symbol) {}
+'''
+given.files.'src/domain/name.rs' = '''
+//! Module.
+
+pub mod types;
+'''
+given.files.'src/domain/name/types.rs' = '''
+//! Stub.
+
+pub struct Name;
+'''
+given.files.'src/lib.rs' = '''
+//! Module.
+
+pub mod domain;
+'''
+
+[[scenarios]]
+id = 'use-case-to-use-case'
+scenario = 'A use case names another use case.'
+given.exclude = ['**/*_test.rs', '**/tests/**', '**/fixtures/**', '**/benches/**']
+given.params = { forbidden = ['{,::}crate::outbound::*::adapters', '{,::}crate::outbound::*::adapters::*', '{,::}crate::outbound::*::factory', '{,::}crate::outbound::*::factory::*', '*::use_case', '*::use_case::*Impl'] }
+given.files.'src/inbound.rs' = '''
+//! Module.
+
+pub mod use_cases;
+'''
+given.files.'src/inbound/use_cases.rs' = '''
+//! Module.
+
+pub mod greet;
+pub mod other;
+'''
+given.files.'src/inbound/use_cases/greet.rs' = '''
+//! Module.
+
+pub mod use_case;
+'''
+given.files.'src/inbound/use_cases/greet/use_case.rs' = '''
+use crate::inbound::use_cases::other::types::Request;
+
+pub fn run(_request: Request) {}
+'''
+given.files.'src/inbound/use_cases/other.rs' = '''
+//! Module.
+
+pub mod types;
+'''
+given.files.'src/inbound/use_cases/other/types.rs' = '''
+//! Stub.
+
+pub struct Request;
+'''
+given.files.'src/lib.rs' = '''
+//! Module.
+
+pub mod inbound;
+'''
+then.findings = [
+  { path = 'src/inbound/use_cases/greet/use_case.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'use-case-to-adapter'
+scenario = 'A use case names an adapter of a port.'
+given.exclude = ['**/*_test.rs', '**/tests/**', '**/fixtures/**', '**/benches/**']
+given.params = { forbidden = ['{,::}crate::outbound::*::adapters', '{,::}crate::outbound::*::adapters::*', '{,::}crate::outbound::*::factory', '{,::}crate::outbound::*::factory::*', '*::use_case', '*::use_case::*Impl'] }
+given.files.'src/inbound.rs' = '''
+//! Module.
+
+pub mod use_cases;
+'''
+given.files.'src/inbound/use_cases.rs' = '''
+//! Module.
+
+pub mod greet;
+'''
+given.files.'src/inbound/use_cases/greet.rs' = '''
+//! Module.
+
+pub mod use_case;
+'''
+given.files.'src/inbound/use_cases/greet/use_case.rs' = '''
+use crate::outbound::store::adapters::memory::adapter::StoreMemoryAdapter;
+
+pub fn run(_adapter: StoreMemoryAdapter) {}
+'''
+given.files.'src/lib.rs' = '''
+//! Module.
+
+pub mod inbound;
+pub mod outbound;
+'''
+given.files.'src/outbound.rs' = '''
+//! Module.
+
+pub mod store;
+'''
+given.files.'src/outbound/store.rs' = '''
+//! Module.
+
+pub mod adapters;
+'''
+given.files.'src/outbound/store/adapters.rs' = '''
+//! Module.
+
+pub mod memory;
+'''
+given.files.'src/outbound/store/adapters/memory.rs' = '''
+//! Module.
+
+pub mod adapter;
+'''
+given.files.'src/outbound/store/adapters/memory/adapter.rs' = '''
+//! Stub.
+
+pub struct StoreMemoryAdapter;
+'''
+then.findings = [
+  { path = 'src/inbound/use_cases/greet/use_case.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'use-case-to-port-interface'
+scenario = 'A use case names the interface, types and errors of a port, domain, and itself.'
+given.exclude = ['**/*_test.rs', '**/tests/**', '**/fixtures/**', '**/benches/**']
+given.params = { forbidden = ['{,::}crate::outbound::*::adapters', '{,::}crate::outbound::*::adapters::*', '{,::}crate::outbound::*::factory', '{,::}crate::outbound::*::factory::*', '*::use_case', '*::use_case::*Impl'] }
+given.files.'src/domain.rs' = '''
+//! Module.
+
+pub mod name;
+'''
+given.files.'src/domain/name.rs' = '''
+//! Module.
+
+pub mod types;
+'''
+given.files.'src/domain/name/types.rs' = '''
+//! Stub.
+
+pub struct Name;
+'''
+given.files.'src/inbound.rs' = '''
+//! Module.
+
+pub mod use_cases;
+'''
+given.files.'src/inbound/use_cases.rs' = '''
+//! Module.
+
+pub mod greet;
+'''
+given.files.'src/inbound/use_cases/greet.rs' = '''
+//! Module.
+
+pub mod types;
+pub mod use_case;
+'''
+given.files.'src/inbound/use_cases/greet/types.rs' = '''
+//! Stub.
+
+pub struct Request;
+'''
+given.files.'src/inbound/use_cases/greet/use_case.rs' = '''
+use crate::domain::name::types::Name;
+use crate::inbound::use_cases::greet::types::Request;
+use crate::outbound::store::errors::StoreError;
+use crate::outbound::store::interface::StorePort;
+use crate::outbound::store::types::Row;
+use ryo_values::domain::count::types::Count;
+
+pub fn run(_name: Name, _request: Request, _error: StoreError, _port: &dyn StorePort, _row: Row, _count: Count) {}
+'''
+given.files.'src/lib.rs' = '''
+//! Module.
+
+pub mod domain;
+pub mod inbound;
+pub mod outbound;
+'''
+given.files.'src/outbound.rs' = '''
+//! Module.
+
+pub mod store;
+'''
+given.files.'src/outbound/store.rs' = '''
+//! Module.
+
+pub mod errors;
+pub mod interface;
+pub mod types;
+'''
+given.files.'src/outbound/store/errors.rs' = '''
+//! Stub.
+
+pub struct StoreError;
+'''
+given.files.'src/outbound/store/interface.rs' = '''
+//! Stub.
+
+pub struct StorePort;
+'''
+given.files.'src/outbound/store/types.rs' = '''
+//! Stub.
+
+pub struct Row;
+'''
+
+[[scenarios]]
+id = 'port-to-port'
+scenario = 'A port names another port.'
+given.exclude = ['**/*_test.rs', '**/tests/**', '**/fixtures/**', '**/benches/**']
+given.params = { forbidden = ['{,::}crate::inbound', '{,::}crate::inbound::*', '{,::}crate::outbound::*::adapters', '{,::}crate::outbound::*::adapters::*', '*::use_case', '*::use_case::*Impl'] }
+given.files.'src/lib.rs' = '''
+//! Module.
+
+pub mod outbound;
+'''
+given.files.'src/outbound.rs' = '''
+//! Module.
+
+pub mod other;
+pub mod store;
+'''
+given.files.'src/outbound/other.rs' = '''
+//! Module.
+
+pub mod types;
+'''
+given.files.'src/outbound/other/types.rs' = '''
+//! Stub.
+
+pub struct Row;
+'''
+given.files.'src/outbound/store.rs' = '''
+//! Module.
+
+pub mod types;
+'''
+given.files.'src/outbound/store/types.rs' = '''
+use crate::outbound::other::types::Row;
+
+pub struct Held {
+    pub row: Row,
+}
+'''
+then.findings = [
+  { path = 'src/outbound/store/types.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'port-to-use-case'
+scenario = 'A port names a use case.'
+given.exclude = ['**/*_test.rs', '**/tests/**', '**/fixtures/**', '**/benches/**']
+given.params = { forbidden = ['{,::}crate::inbound', '{,::}crate::inbound::*', '{,::}crate::outbound::*::adapters', '{,::}crate::outbound::*::adapters::*', '*::use_case', '*::use_case::*Impl'] }
+given.files.'src/inbound.rs' = '''
+//! Module.
+
+pub mod use_cases;
+'''
+given.files.'src/inbound/use_cases.rs' = '''
+//! Module.
+
+pub mod greet;
+'''
+given.files.'src/inbound/use_cases/greet.rs' = '''
+//! Module.
+
+pub mod types;
+'''
+given.files.'src/inbound/use_cases/greet/types.rs' = '''
+//! Stub.
+
+pub struct Request;
+'''
+given.files.'src/lib.rs' = '''
+//! Module.
+
+pub mod inbound;
+pub mod outbound;
+'''
+given.files.'src/outbound.rs' = '''
+//! Module.
+
+pub mod store;
+'''
+given.files.'src/outbound/store.rs' = '''
+//! Module.
+
+pub mod interface;
+'''
+given.files.'src/outbound/store/interface.rs' = '''
+use crate::inbound::use_cases::greet::types::Request;
+
+pub trait StorePort {
+    fn keep(&self, request: Request);
+}
+'''
+then.findings = [
+  { path = 'src/outbound/store/interface.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'port-to-domain'
+scenario = 'A port names domain, the kernel and its own files.'
+given.exclude = ['**/*_test.rs', '**/tests/**', '**/fixtures/**', '**/benches/**']
+given.params = { forbidden = ['{,::}crate::inbound', '{,::}crate::inbound::*', '{,::}crate::outbound::*::adapters', '{,::}crate::outbound::*::adapters::*', '*::use_case', '*::use_case::*Impl'] }
+given.files.'src/domain.rs' = '''
+//! Module.
+
+pub mod name;
+'''
+given.files.'src/domain/name.rs' = '''
+//! Module.
+
+pub mod types;
+'''
+given.files.'src/domain/name/types.rs' = '''
+//! Stub.
+
+pub struct Name;
+'''
+given.files.'src/lib.rs' = '''
+//! Module.
+
+pub mod domain;
+pub mod outbound;
+'''
+given.files.'src/outbound.rs' = '''
+//! Module.
+
+pub mod store;
+'''
+given.files.'src/outbound/store.rs' = '''
+//! Module.
+
+pub mod errors;
+pub mod interface;
+pub mod types;
+'''
+given.files.'src/outbound/store/errors.rs' = '''
+//! Stub.
+
+pub struct StoreError;
+'''
+given.files.'src/outbound/store/interface.rs' = '''
+use crate::domain::name::types::Name;
+use crate::outbound::store::errors::StoreError;
+use crate::outbound::store::types::Row;
+use ryo_values::domain::count::types::Count;
+
+pub trait StorePort {
+    fn keep(&self, name: Name, row: Row, count: Count) -> Result<(), StoreError>;
+}
+'''
+given.files.'src/outbound/store/types.rs' = '''
+//! Stub.
+
+pub struct Row;
+'''
+
+[[scenarios]]
+id = 'adapter-to-adapter'
+scenario = 'An adapter names another adapter of its port.'
+given.exclude = ['**/*_test.rs', '**/tests/**', '**/fixtures/**', '**/benches/**']
+given.params = { forbidden = ['{,::}crate::inbound', '{,::}crate::inbound::*', '*::use_case', '*::use_case::*Impl'] }
+given.files.'src/lib.rs' = '''
+//! Module.
+
+pub mod outbound;
+'''
+given.files.'src/outbound.rs' = '''
+//! Module.
+
+pub mod store;
+'''
+given.files.'src/outbound/store.rs' = '''
+//! Module.
+
+pub mod adapters;
+'''
+given.files.'src/outbound/store/adapters.rs' = '''
+//! Module.
+
+pub mod disk;
+pub mod memory;
+'''
+given.files.'src/outbound/store/adapters/disk.rs' = '''
+//! Module.
+
+pub mod adapter;
+'''
+given.files.'src/outbound/store/adapters/disk/adapter.rs' = '''
+//! Stub.
+
+pub struct StoreDiskAdapter;
+'''
+given.files.'src/outbound/store/adapters/memory.rs' = '''
+//! Module.
+
+pub mod adapter;
+'''
+given.files.'src/outbound/store/adapters/memory/adapter.rs' = '''
+use crate::outbound::store::adapters::disk::adapter::StoreDiskAdapter;
+
+pub struct StoreMemoryAdapter {
+    pub inner: StoreDiskAdapter,
+}
+'''
+then.findings = [
+  { path = 'src/outbound/store/adapters/memory/adapter.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'adapter-to-other-port'
+scenario = 'An adapter names a port that is not its own.'
+given.exclude = ['**/*_test.rs', '**/tests/**', '**/fixtures/**', '**/benches/**']
+given.params = { forbidden = ['{,::}crate::inbound', '{,::}crate::inbound::*', '*::use_case', '*::use_case::*Impl'] }
+given.files.'src/lib.rs' = '''
+//! Module.
+
+pub mod outbound;
+'''
+given.files.'src/outbound.rs' = '''
+//! Module.
+
+pub mod other;
+pub mod store;
+'''
+given.files.'src/outbound/other.rs' = '''
+//! Module.
+
+pub mod interface;
+'''
+given.files.'src/outbound/other/interface.rs' = '''
+//! Stub.
+
+pub struct OtherPort;
+'''
+given.files.'src/outbound/store.rs' = '''
+//! Module.
+
+pub mod adapters;
+'''
+given.files.'src/outbound/store/adapters.rs' = '''
+//! Module.
+
+pub mod memory;
+'''
+given.files.'src/outbound/store/adapters/memory.rs' = '''
+//! Module.
+
+pub mod adapter;
+'''
+given.files.'src/outbound/store/adapters/memory/adapter.rs' = '''
+use crate::outbound::other::interface::OtherPort;
+
+pub struct StoreMemoryAdapter {
+    pub other: Box<dyn OtherPort>,
+}
+'''
+then.findings = [
+  { path = 'src/outbound/store/adapters/memory/adapter.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'adapter-to-use-case'
+scenario = 'An adapter names a use case of its own crate.'
+given.exclude = ['**/*_test.rs', '**/tests/**', '**/fixtures/**', '**/benches/**']
+given.params = { forbidden = ['{,::}crate::inbound', '{,::}crate::inbound::*', '*::use_case', '*::use_case::*Impl'] }
+given.files.'src/inbound.rs' = '''
+//! Module.
+
+pub mod use_cases;
+'''
+given.files.'src/inbound/use_cases.rs' = '''
+//! Module.
+
+pub mod greet;
+'''
+given.files.'src/inbound/use_cases/greet.rs' = '''
+//! Module.
+
+pub mod interface;
+'''
+given.files.'src/inbound/use_cases/greet/interface.rs' = '''
+//! Stub.
+
+pub struct GreetUseCase;
+'''
+given.files.'src/lib.rs' = '''
+//! Module.
+
+pub mod inbound;
+pub mod outbound;
+'''
+given.files.'src/outbound.rs' = '''
+//! Module.
+
+pub mod store;
+'''
+given.files.'src/outbound/store.rs' = '''
+//! Module.
+
+pub mod adapters;
+'''
+given.files.'src/outbound/store/adapters.rs' = '''
+//! Module.
+
+pub mod memory;
+'''
+given.files.'src/outbound/store/adapters/memory.rs' = '''
+//! Module.
+
+pub mod adapter;
+'''
+given.files.'src/outbound/store/adapters/memory/adapter.rs' = '''
+use crate::inbound::use_cases::greet::interface::GreetUseCase;
+
+pub struct StoreMemoryAdapter {
+    pub greet: Box<dyn GreetUseCase>,
+}
+'''
+then.findings = [
+  { path = 'src/outbound/store/adapters/memory/adapter.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'adapter-to-its-own-port'
+scenario = 'An adapter names its own port, domain, the kernel and its own files.'
+given.exclude = ['**/*_test.rs', '**/tests/**', '**/fixtures/**', '**/benches/**']
+given.params = { forbidden = ['{,::}crate::inbound', '{,::}crate::inbound::*', '*::use_case', '*::use_case::*Impl'] }
+given.files.'src/domain.rs' = '''
+//! Module.
+
+pub mod name;
+'''
+given.files.'src/domain/name.rs' = '''
+//! Module.
+
+pub mod types;
+'''
+given.files.'src/domain/name/types.rs' = '''
+//! Stub.
+
+pub struct Name;
+'''
+given.files.'src/lib.rs' = '''
+//! Module.
+
+pub mod domain;
+pub mod outbound;
+'''
+given.files.'src/outbound.rs' = '''
+//! Module.
+
+pub mod store;
+'''
+given.files.'src/outbound/store.rs' = '''
+//! Module.
+
+pub mod adapters;
+pub mod interface;
+pub mod types;
+'''
+given.files.'src/outbound/store/adapters.rs' = '''
+//! Module.
+
+pub mod memory;
+'''
+given.files.'src/outbound/store/adapters/memory.rs' = '''
+//! Module.
+
+pub mod adapter;
+pub mod schemas;
+'''
+given.files.'src/outbound/store/adapters/memory/adapter.rs' = '''
+use crate::domain::name::types::Name;
+use crate::outbound::store::adapters::memory::schemas::RowSchema;
+use crate::outbound::store::interface::StorePort;
+use crate::outbound::store::types::Row;
+use ryo_values::domain::count::types::Count;
+
+pub struct StoreMemoryAdapter {
+    pub name: Name,
+    pub schema: RowSchema,
+    pub row: Row,
+    pub count: Count,
+}
+
+impl StorePort for StoreMemoryAdapter {}
+'''
+given.files.'src/outbound/store/adapters/memory/schemas.rs' = '''
+//! Stub.
+
+pub struct RowSchema;
+'''
+given.files.'src/outbound/store/interface.rs' = '''
+//! Stub.
+
+pub struct StorePort;
+'''
+given.files.'src/outbound/store/types.rs' = '''
+//! Stub.
+
+pub struct Row;
+'''
+
+[[scenarios]]
+id = 'translation-adapter-to-other-crate-use-case'
+scenario = "A translation adapter names another crate's use-case interface and types."
+given.exclude = ['**/*_test.rs', '**/tests/**', '**/fixtures/**', '**/benches/**']
+given.params = { forbidden = ['{,::}crate::inbound', '{,::}crate::inbound::*', '*::use_case', '*::use_case::*Impl'] }
+given.files.'src/lib.rs' = '''
+//! Module.
+
+pub mod outbound;
+'''
+given.files.'src/outbound.rs' = '''
+//! Module.
+
+pub mod lint;
+'''
+given.files.'src/outbound/lint.rs' = '''
+//! Module.
+
+pub mod adapters;
+pub mod interface;
+'''
+given.files.'src/outbound/lint/adapters.rs' = '''
+//! Module.
+
+pub mod translate;
+'''
+given.files.'src/outbound/lint/adapters/translate.rs' = '''
+//! Module.
+
+pub mod adapter;
+'''
+given.files.'src/outbound/lint/adapters/translate/adapter.rs' = '''
+use crate::outbound::lint::interface::LintPort;
+use ryo_core::inbound::use_cases::lint::interface::LintUseCase;
+use ryo_core::inbound::use_cases::lint::types::Request;
+
+pub struct LintTranslateAdapter {
+    pub inner: Box<dyn LintUseCase>,
+    pub request: Request,
+}
+
+impl LintPort for LintTranslateAdapter {}
+'''
+given.files.'src/outbound/lint/interface.rs' = '''
+//! Stub.
+
+pub struct LintPort;
+'''
+
+[[scenarios]]
+id = 'edge-to-adapter'
+scenario = 'An edge names an adapter.'
+given.exclude = ['**/*_test.rs', '**/tests/**', '**/fixtures/**', '**/benches/**']
+given.params = { forbidden = ['*::adapters', '*::adapters::*', '{,::}crate::domain::*::service', '{,::}crate::domain::*::service::*', '*::use_case', '*::use_case::*Impl'] }
+given.files.'src/resources.rs' = '''
+//! Module.
+
+pub mod greeting;
+'''
+given.files.'src/resources/greeting.rs' = '''
+//! Module.
+
+pub mod show;
+'''
+given.files.'src/resources/greeting/show.rs' = '''
+//! Module.
+
+pub mod entry;
+'''
+given.files.'src/resources/greeting/show/entry.rs' = '''
+use ryo_core::outbound::store::adapters::memory::adapter::StoreMemoryAdapter;
+
+pub fn show(_adapter: StoreMemoryAdapter) {}
+'''
+then.findings = [
+  { path = 'src/resources/greeting/show/entry.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'edge-to-domain-service'
+scenario = 'An edge names a domain service.'
+given.exclude = ['**/*_test.rs', '**/tests/**', '**/fixtures/**', '**/benches/**']
+given.params = { forbidden = ['*::adapters', '*::adapters::*', '{,::}crate::domain::*::service', '{,::}crate::domain::*::service::*', '*::use_case', '*::use_case::*Impl'] }
+given.files.'src/resources.rs' = '''
+//! Module.
+
+pub mod greeting;
+'''
+given.files.'src/resources/greeting.rs' = '''
+//! Module.
+
+pub mod show;
+'''
+given.files.'src/resources/greeting/show.rs' = '''
+//! Module.
+
+pub mod entry;
+'''
+given.files.'src/resources/greeting/show/entry.rs' = '''
+use crate::domain::name::service::normalise;
+
+pub fn show() {
+    normalise();
+}
+'''
+then.findings = [
+  { path = 'src/resources/greeting/show/entry.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'edge-to-use-case-and-port-factory'
+scenario = "An edge names a use case's interface, types and errors and a port's types and factory."
+given.exclude = ['**/*_test.rs', '**/tests/**', '**/fixtures/**', '**/benches/**']
+given.params = { forbidden = ['*::adapters', '*::adapters::*', '{,::}crate::domain::*::service', '{,::}crate::domain::*::service::*', '*::use_case', '*::use_case::*Impl'] }
+given.files.'src/resources.rs' = '''
+//! Module.
+
+pub mod greeting;
+'''
+given.files.'src/resources/greeting.rs' = '''
+//! Module.
+
+pub mod show;
+'''
+given.files.'src/resources/greeting/show.rs' = '''
+//! Module.
+
+pub mod entry;
+'''
+given.files.'src/resources/greeting/show/entry.rs' = '''
+use ryo_core::inbound::use_cases::greet::errors::GreetError;
+use ryo_core::inbound::use_cases::greet::interface::GreetUseCase;
+use ryo_core::inbound::use_cases::greet::types::Request;
+use ryo_core::outbound::store::factory::store_memory;
+use ryo_core::outbound::store::types::Row;
+
+pub fn show(_error: GreetError, _use_case: &dyn GreetUseCase, _request: Request, _row: Row) {
+    store_memory();
+}
+'''
+
+[[scenarios]]
+id = 'use-case-file-in-an-entry'
+scenario = 'An entry names use_case.rs.'
+given.exclude = ['**/*_test.rs', '**/tests/**', '**/fixtures/**', '**/benches/**']
+given.params = { forbidden = ['*::adapters', '*::adapters::*', '{,::}crate::domain::*::service', '{,::}crate::domain::*::service::*', '*::use_case', '*::use_case::*Impl'] }
+given.files.'src/resources.rs' = '''
+//! Module.
+
+pub mod greeting;
+'''
+given.files.'src/resources/greeting.rs' = '''
+//! Module.
+
+pub mod show;
+'''
+given.files.'src/resources/greeting/show.rs' = '''
+//! Module.
+
+pub mod entry;
+'''
+given.files.'src/resources/greeting/show/entry.rs' = '''
+use ryo_core::inbound::use_cases::greet::use_case::GreetUseCaseImpl;
+
+pub fn show(_use_case: GreetUseCaseImpl) {}
+'''
+then.findings = [
+  { path = 'src/resources/greeting/show/entry.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'use-case-file-in-a-composition'
+scenario = 'A composition names use_case.rs.'
+given.exclude = ['**/*_test.rs', '**/tests/**', '**/fixtures/**', '**/benches/**']
+given.params = { forbidden = ['*::adapters', '*::adapters::*', '{,::}crate::domain::*::service', '{,::}crate::domain::*::service::*'] }
+given.files.'src/resources.rs' = '''
+//! Module.
+
+pub mod greeting;
+'''
+given.files.'src/resources/greeting.rs' = '''
+//! Module.
+
+pub mod show;
+'''
+given.files.'src/resources/greeting/show.rs' = '''
+//! Module.
+
+pub mod composition;
+'''
+given.files.'src/resources/greeting/show/composition.rs' = '''
+use ryo_core::inbound::use_cases::greet::use_case::GreetUseCaseImpl;
+use ryo_core::outbound::store::factory::store_memory;
+
+pub fn compose() -> GreetUseCaseImpl {
+    GreetUseCaseImpl::new(store_memory())
+}
+'''
+
+[[scenarios]]
+id = 'adapter-in-a-composition'
+scenario = 'A composition names an adapter instead of the factory.'
+given.exclude = ['**/*_test.rs', '**/tests/**', '**/fixtures/**', '**/benches/**']
+given.params = { forbidden = ['*::adapters', '*::adapters::*', '{,::}crate::domain::*::service', '{,::}crate::domain::*::service::*'] }
+given.files.'src/resources.rs' = '''
+//! Module.
+
+pub mod greeting;
+'''
+given.files.'src/resources/greeting.rs' = '''
+//! Module.
+
+pub mod show;
+'''
+given.files.'src/resources/greeting/show.rs' = '''
+//! Module.
+
+pub mod composition;
+'''
+given.files.'src/resources/greeting/show/composition.rs' = '''
+use ryo_core::outbound::store::adapters::memory::adapter::StoreMemoryAdapter;
+
+pub fn compose() -> StoreMemoryAdapter {
+    StoreMemoryAdapter::default()
+}
+'''
+then.findings = [
+  { path = 'src/resources/greeting/show/composition.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'test-file-is-exempt'
+scenario = 'A test names what the directions forbid.'
+given.exclude = ['**/*_test.rs', '**/tests/**', '**/fixtures/**', '**/benches/**']
+given.files.'src/domain.rs' = '''
+//! Module.
+
+pub mod greeting;
+'''
+given.files.'src/domain/greeting.rs' = '''
+//! Module.
+
+#[cfg(test)]
+mod service_test;
+'''
+given.files.'src/domain/greeting/service_test.rs' = '''
+use crate::outbound::store::types::Row;
+
+#[test]
+fn names_a_row() {
+    let _ = std::mem::size_of::<Row>();
+}
+'''
+given.files.'src/lib.rs' = '''
+//! Module.
+
+pub mod domain;
+pub mod outbound;
+'''
+given.files.'src/outbound.rs' = '''
+//! Module.
+
+pub mod store;
+'''
+given.files.'src/outbound/store.rs' = '''
+//! Module.
+
+pub mod types;
+'''
+given.files.'src/outbound/store/types.rs' = '''
+//! Stub.
+
+pub struct Row;
+'''
+
+[[scenarios]]
+id = 'edge-to-kernel-domain-service'
+scenario = "An edge uses a kernel crate's domain service, which any crate may import."
+given.exclude = ['**/*_test.rs', '**/tests/**', '**/fixtures/**', '**/benches/**']
+given.params = { forbidden = ['*::adapters', '*::adapters::*', '{,::}crate::domain::*::service', '{,::}crate::domain::*::service::*', '*::use_case', '*::use_case::*Impl'] }
+given.files.'src/resources.rs' = '''
+//! Module.
+
+pub mod greeting;
+'''
+given.files.'src/resources/greeting.rs' = '''
+//! Module.
+
+pub mod show;
+'''
+given.files.'src/resources/greeting/show.rs' = '''
+//! Module.
+
+pub mod entry;
+'''
+given.files.'src/resources/greeting/show/entry.rs' = '''
+use ryo_values::domain::name::service::normalise;
+
+pub fn show() {
+    normalise();
+}
+'''
+
+[[scenarios]]
+id = 'port-to-use-case-leading-colon'
+scenario = 'A port names a use case with a leading colon.'
+given.exclude = ['**/*_test.rs', '**/tests/**', '**/fixtures/**', '**/benches/**']
+given.params = { forbidden = ['{,::}crate::inbound', '{,::}crate::inbound::*', '{,::}crate::outbound::*::adapters', '{,::}crate::outbound::*::adapters::*', '*::use_case', '*::use_case::*Impl'] }
+given.files.'src/inbound.rs' = '''
+//! Module.
+
+pub mod use_cases;
+'''
+given.files.'src/inbound/use_cases.rs' = '''
+//! Module.
+
+pub mod greet;
+'''
+given.files.'src/inbound/use_cases/greet.rs' = '''
+//! Module.
+
+pub mod types;
+'''
+given.files.'src/inbound/use_cases/greet/types.rs' = '''
+//! Stub.
+
+pub struct Request;
+'''
+given.files.'src/lib.rs' = '''
+//! Module.
+
+pub mod inbound;
+pub mod outbound;
+'''
+given.files.'src/outbound.rs' = '''
+//! Module.
+
+pub mod store;
+'''
+given.files.'src/outbound/store.rs' = '''
+//! Module.
+
+pub mod interface;
+'''
+given.files.'src/outbound/store/interface.rs' = '''
+use ::crate::inbound::use_cases::greet::types::Request;
+
+pub trait StorePort {
+    fn keep(&self, request: Request);
+}
+'''
+then.findings = [
+  { path = 'src/outbound/store/interface.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'port-to-domain-leading-colon'
+scenario = 'A port names domain and its own files with a leading colon.'
+given.exclude = ['**/*_test.rs', '**/tests/**', '**/fixtures/**', '**/benches/**']
+given.params = { forbidden = ['{,::}crate::inbound', '{,::}crate::inbound::*', '{,::}crate::outbound::*::adapters', '{,::}crate::outbound::*::adapters::*', '*::use_case', '*::use_case::*Impl'] }
+given.files.'src/domain.rs' = '''
+//! Module.
+
+pub mod name;
+'''
+given.files.'src/domain/name.rs' = '''
+//! Module.
+
+pub mod types;
+'''
+given.files.'src/domain/name/types.rs' = '''
+//! Stub.
+
+pub struct Name;
+'''
+given.files.'src/lib.rs' = '''
+//! Module.
+
+pub mod domain;
+pub mod outbound;
+'''
+given.files.'src/outbound.rs' = '''
+//! Module.
+
+pub mod store;
+'''
+given.files.'src/outbound/store.rs' = '''
+//! Module.
+
+pub mod errors;
+pub mod interface;
+pub mod types;
+'''
+given.files.'src/outbound/store/errors.rs' = '''
+//! Stub.
+
+pub struct StoreError;
+'''
+given.files.'src/outbound/store/interface.rs' = '''
+use ::crate::domain::name::types::Name;
+use ::crate::outbound::store::errors::StoreError;
+use ::crate::outbound::store::types::Row;
+use ryo_values::domain::count::types::Count;
+
+pub trait StorePort {
+    fn keep(&self, name: Name, row: Row, count: Count) -> Result<(), StoreError>;
+}
+'''
+given.files.'src/outbound/store/types.rs' = '''
+//! Stub.
+
+pub struct Row;
+'''
+
+[[scenarios]]
+id = 'application-injected-port-and-pure-domain'
+scenario = 'Application-injected-port-and-pure-domain.'
+given.params = { forbidden = [] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "example"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/application.rs' = '''
+pub mod first; pub mod second;
+'''
+given.files.'src/application/first.rs' = '''
+pub mod service;
+'''
+given.files.'src/application/first/service.rs' = '''
+use crate::outbound::values::interface::ValuesPort;
+pub fn run(values: &dyn ValuesPort) -> u32 { crate::domain::values::service::double(values.get()) }
+'''
+given.files.'src/application/second.rs' = '''
+pub mod service;
+'''
+given.files.'src/application/second/service.rs' = '''
+pub fn run(value: u32) -> u32 { value }
+'''
+given.files.'src/domain.rs' = '''
+pub mod values;
+'''
+given.files.'src/domain/values.rs' = '''
+pub mod service;
+'''
+given.files.'src/domain/values/service.rs' = '''
+pub fn double(value: u32) -> u32 { value * 2 }
+'''
+given.files.'src/inbound.rs' = '''
+pub mod use_cases;
+'''
+given.files.'src/inbound/use_cases.rs' = '''
+pub mod run;
+'''
+given.files.'src/inbound/use_cases/run.rs' = '''
+pub mod use_case;
+'''
+given.files.'src/inbound/use_cases/run/use_case.rs' = '''
+pub fn run(value: u32) -> u32 { value }
+'''
+given.files.'src/lib.rs' = '''
+pub mod domain; pub mod application; pub mod inbound; pub mod outbound;
+'''
+given.files.'src/outbound.rs' = '''
+pub mod values;
+'''
+given.files.'src/outbound/values.rs' = '''
+pub mod interface; pub mod adapters;
+'''
+given.files.'src/outbound/values/adapters.rs' = '''
+pub mod memory;
+'''
+given.files.'src/outbound/values/adapters/memory.rs' = '''
+pub mod adapter;
+'''
+given.files.'src/outbound/values/adapters/memory/adapter.rs' = '''
+pub struct Memory { pub value: u32 }
+'''
+given.files.'src/outbound/values/interface.rs' = '''
+pub trait ValuesPort { fn get(&self) -> u32; }
+'''
+
+[[scenarios]]
+id = 'application-relative-sibling'
+scenario = 'Application-relative-sibling: it is reported.'
+given.params = { forbidden = [] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "example"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/application.rs' = '''
+pub mod first; pub mod second;
+'''
+given.files.'src/application/first.rs' = '''
+pub mod service;
+'''
+given.files.'src/application/first/service.rs' = '''
+use super::super::second::service::run as sibling;
+pub fn run(value: u32) -> u32 { sibling(value) }
+'''
+given.files.'src/application/second.rs' = '''
+pub mod service;
+'''
+given.files.'src/application/second/service.rs' = '''
+pub fn run(value: u32) -> u32 { value }
+'''
+given.files.'src/domain.rs' = '''
+pub mod values;
+'''
+given.files.'src/domain/values.rs' = '''
+pub mod service;
+'''
+given.files.'src/domain/values/service.rs' = '''
+pub fn double(value: u32) -> u32 { value * 2 }
+'''
+given.files.'src/inbound.rs' = '''
+pub mod use_cases;
+'''
+given.files.'src/inbound/use_cases.rs' = '''
+pub mod run;
+'''
+given.files.'src/inbound/use_cases/run.rs' = '''
+pub mod use_case;
+'''
+given.files.'src/inbound/use_cases/run/use_case.rs' = '''
+pub fn run(value: u32) -> u32 { value }
+'''
+given.files.'src/lib.rs' = '''
+pub mod domain; pub mod application; pub mod inbound; pub mod outbound;
+'''
+given.files.'src/outbound.rs' = '''
+pub mod values;
+'''
+given.files.'src/outbound/values.rs' = '''
+pub mod interface; pub mod adapters;
+'''
+given.files.'src/outbound/values/adapters.rs' = '''
+pub mod memory;
+'''
+given.files.'src/outbound/values/adapters/memory.rs' = '''
+pub mod adapter;
+'''
+given.files.'src/outbound/values/adapters/memory/adapter.rs' = '''
+pub struct Memory { pub value: u32 }
+'''
+given.files.'src/outbound/values/interface.rs' = '''
+pub trait ValuesPort { fn get(&self) -> u32; }
+'''
+then.findings = [
+  { path = 'src/application/first/service.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'application-qualified-usecase'
+scenario = 'Application-qualified-usecase.'
+given.params = { forbidden = ['*::inbound', '*::inbound::*'] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "example"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/application.rs' = '''
+pub mod first; pub mod second;
+'''
+given.files.'src/application/first.rs' = '''
+pub mod service;
+'''
+given.files.'src/application/first/service.rs' = '''
+pub fn run(value: u32) -> u32 { crate::inbound::use_cases::run::use_case::run(value) }
+'''
+given.files.'src/application/second.rs' = '''
+pub mod service;
+'''
+given.files.'src/application/second/service.rs' = '''
+pub fn run(value: u32) -> u32 { value }
+'''
+given.files.'src/domain.rs' = '''
+pub mod values;
+'''
+given.files.'src/domain/values.rs' = '''
+pub mod service;
+'''
+given.files.'src/domain/values/service.rs' = '''
+pub fn double(value: u32) -> u32 { value * 2 }
+'''
+given.files.'src/inbound.rs' = '''
+pub mod use_cases;
+'''
+given.files.'src/inbound/use_cases.rs' = '''
+pub mod run;
+'''
+given.files.'src/inbound/use_cases/run.rs' = '''
+pub mod use_case;
+'''
+given.files.'src/inbound/use_cases/run/use_case.rs' = '''
+pub fn run(value: u32) -> u32 { value }
+'''
+given.files.'src/lib.rs' = '''
+pub mod domain; pub mod application; pub mod inbound; pub mod outbound;
+'''
+given.files.'src/outbound.rs' = '''
+pub mod values;
+'''
+given.files.'src/outbound/values.rs' = '''
+pub mod interface; pub mod adapters;
+'''
+given.files.'src/outbound/values/adapters.rs' = '''
+pub mod memory;
+'''
+given.files.'src/outbound/values/adapters/memory.rs' = '''
+pub mod adapter;
+'''
+given.files.'src/outbound/values/adapters/memory/adapter.rs' = '''
+pub struct Memory { pub value: u32 }
+'''
+given.files.'src/outbound/values/interface.rs' = '''
+pub trait ValuesPort { fn get(&self) -> u32; }
+'''
+then.findings = [
+  { path = 'src/application/first/service.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'application-relative-adapter'
+scenario = 'Application-relative-adapter: it is reported.'
+given.params = { forbidden = [] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "example"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/application.rs' = '''
+pub mod first; pub mod second;
+'''
+given.files.'src/application/first.rs' = '''
+pub mod service;
+'''
+given.files.'src/application/first/service.rs' = '''
+use super::super::super::outbound::values::adapters::memory::adapter::Memory as Store;
+pub fn run(store: Store) -> u32 { store.value }
+'''
+given.files.'src/application/second.rs' = '''
+pub mod service;
+'''
+given.files.'src/application/second/service.rs' = '''
+pub fn run(value: u32) -> u32 { value }
+'''
+given.files.'src/domain.rs' = '''
+pub mod values;
+'''
+given.files.'src/domain/values.rs' = '''
+pub mod service;
+'''
+given.files.'src/domain/values/service.rs' = '''
+pub fn double(value: u32) -> u32 { value * 2 }
+'''
+given.files.'src/inbound.rs' = '''
+pub mod use_cases;
+'''
+given.files.'src/inbound/use_cases.rs' = '''
+pub mod run;
+'''
+given.files.'src/inbound/use_cases/run.rs' = '''
+pub mod use_case;
+'''
+given.files.'src/inbound/use_cases/run/use_case.rs' = '''
+pub fn run(value: u32) -> u32 { value }
+'''
+given.files.'src/lib.rs' = '''
+pub mod domain; pub mod application; pub mod inbound; pub mod outbound;
+'''
+given.files.'src/outbound.rs' = '''
+pub mod values;
+'''
+given.files.'src/outbound/values.rs' = '''
+pub mod interface; pub mod adapters;
+'''
+given.files.'src/outbound/values/adapters.rs' = '''
+pub mod memory;
+'''
+given.files.'src/outbound/values/adapters/memory.rs' = '''
+pub mod adapter;
+'''
+given.files.'src/outbound/values/adapters/memory/adapter.rs' = '''
+pub struct Memory { pub value: u32 }
+'''
+given.files.'src/outbound/values/interface.rs' = '''
+pub trait ValuesPort { fn get(&self) -> u32; }
+'''
+then.findings = [
+  { path = 'src/application/first/service.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'domain-relative-application'
+scenario = 'Domain-relative-application: it is reported.'
+given.params = { forbidden = [] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "example"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/application.rs' = '''
+pub mod first; pub mod second;
+'''
+given.files.'src/application/first.rs' = '''
+pub mod service;
+'''
+given.files.'src/application/first/service.rs' = '''
+pub fn run(value: u32) -> u32 { value }
+'''
+given.files.'src/application/second.rs' = '''
+pub mod service;
+'''
+given.files.'src/application/second/service.rs' = '''
+pub fn run(value: u32) -> u32 { value }
+'''
+given.files.'src/domain.rs' = '''
+pub mod values;
+'''
+given.files.'src/domain/values.rs' = '''
+pub mod service;
+'''
+given.files.'src/domain/values/service.rs' = '''
+use super::super::super::application::first::service::run;
+pub fn double(value: u32) -> u32 { run(value) }
+'''
+given.files.'src/inbound.rs' = '''
+pub mod use_cases;
+'''
+given.files.'src/inbound/use_cases.rs' = '''
+pub mod run;
+'''
+given.files.'src/inbound/use_cases/run.rs' = '''
+pub mod use_case;
+'''
+given.files.'src/inbound/use_cases/run/use_case.rs' = '''
+pub fn run(value: u32) -> u32 { value }
+'''
+given.files.'src/lib.rs' = '''
+pub mod domain; pub mod application; pub mod inbound; pub mod outbound;
+'''
+given.files.'src/outbound.rs' = '''
+pub mod values;
+'''
+given.files.'src/outbound/values.rs' = '''
+pub mod interface; pub mod adapters;
+'''
+given.files.'src/outbound/values/adapters.rs' = '''
+pub mod memory;
+'''
+given.files.'src/outbound/values/adapters/memory.rs' = '''
+pub mod adapter;
+'''
+given.files.'src/outbound/values/adapters/memory/adapter.rs' = '''
+pub struct Memory { pub value: u32 }
+'''
+given.files.'src/outbound/values/interface.rs' = '''
+pub trait ValuesPort { fn get(&self) -> u32; }
+'''
+then.findings = [
+  { path = 'src/domain/values/service.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'usecase-composes-applications'
+scenario = 'Usecase-composes-applications.'
+given.params = { forbidden = [] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "example"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/application.rs' = '''
+pub mod first; pub mod second;
+'''
+given.files.'src/application/first.rs' = '''
+pub mod service;
+'''
+given.files.'src/application/first/service.rs' = '''
+pub fn run(value: u32) -> u32 { value }
+'''
+given.files.'src/application/second.rs' = '''
+pub mod service;
+'''
+given.files.'src/application/second/service.rs' = '''
+pub fn run(value: u32) -> u32 { value }
+'''
+given.files.'src/domain.rs' = '''
+pub mod values;
+'''
+given.files.'src/domain/values.rs' = '''
+pub mod service;
+'''
+given.files.'src/domain/values/service.rs' = '''
+pub fn double(value: u32) -> u32 { value * 2 }
+'''
+given.files.'src/inbound.rs' = '''
+pub mod use_cases;
+'''
+given.files.'src/inbound/use_cases.rs' = '''
+pub mod run;
+'''
+given.files.'src/inbound/use_cases/run.rs' = '''
+pub mod use_case;
+'''
+given.files.'src/inbound/use_cases/run/use_case.rs' = '''
+pub fn run(value: u32) -> u32 { crate::application::second::service::run(crate::application::first::service::run(value)) }
+'''
+given.files.'src/lib.rs' = '''
+pub mod domain; pub mod application; pub mod inbound; pub mod outbound;
+'''
+given.files.'src/outbound.rs' = '''
+pub mod values;
+'''
+given.files.'src/outbound/values.rs' = '''
+pub mod interface; pub mod adapters;
+'''
+given.files.'src/outbound/values/adapters.rs' = '''
+pub mod memory;
+'''
+given.files.'src/outbound/values/adapters/memory.rs' = '''
+pub mod adapter;
+'''
+given.files.'src/outbound/values/adapters/memory/adapter.rs' = '''
+pub struct Memory { pub value: u32 }
+'''
+given.files.'src/outbound/values/interface.rs' = '''
+pub trait ValuesPort { fn get(&self) -> u32; }
+'''
+
+[[scenarios]]
+id = 'core-names-value-rendering'
+scenario = 'A core crate names the module of the command line where a typed cell becomes text: values stay typed until the command line prints them.'
+given.exclude = ['**/*_test.rs', '**/tests/**', '**/fixtures/**', '**/benches/**']
+given.params = { forbidden = ['*::output::schemas', '*::output::schemas::*', 'ryo_cli', 'ryo_cli::*'] }
+given.files.'src/lib.rs' = '''
+//! Module.
+
+pub mod domain;
+'''
+given.files.'src/domain.rs' = '''
+//! Module.
+
+pub mod render;
+'''
+given.files.'src/domain/render.rs' = '''
+//! Module.
+
+pub mod service;
+'''
+given.files.'src/domain/render/service.rs' = '''
+use ryo_cli::output::schemas::CellSchema;
+
+pub fn shown(cell: CellSchema<'_>) -> String {
+    cell.to_string()
+}
+'''
+then.findings = [
+  { path = 'src/domain/render/service.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'core-hands-typed-cells'
+scenario = 'A core crate hands typed cells through its port and names no module where a cell becomes text.'
+given.exclude = ['**/*_test.rs', '**/tests/**', '**/fixtures/**', '**/benches/**']
+given.params = { forbidden = ['*::output::schemas', '*::output::schemas::*', 'ryo_cli', 'ryo_cli::*'] }
+given.files.'src/lib.rs' = '''
+//! Module.
+
+pub mod outbound;
+'''
+given.files.'src/outbound.rs' = '''
+//! Module.
+
+pub mod rows;
+'''
+given.files.'src/outbound/rows.rs' = '''
+//! Module.
+
+pub mod interface;
+'''
+given.files.'src/outbound/rows/interface.rs' = '''
+use ryo_values::domain::records::types::Cell;
+
+pub trait RowsPort {
+    fn row(&self, cells: &mut dyn Iterator<Item = Option<Cell<&str>>>);
+}
+'''

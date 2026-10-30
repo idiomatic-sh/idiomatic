@@ -1,0 +1,3416 @@
+SOURCE_FILE
+  USE
+    USE_KW "use"
+    WHITESPACE " "
+    USE_TREE
+      PATH
+        PATH
+          PATH_SEGMENT
+            NAME_REF
+              CRATE_KW "crate"
+        COLON2 "::"
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "Idx"
+    SEMICOLON ";"
+  WHITESPACE "\n"
+  USE
+    USE_KW "use"
+    WHITESPACE " "
+    USE_TREE
+      PATH
+        PATH
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                CRATE_KW "crate"
+          COLON2 "::"
+          PATH_SEGMENT
+            NAME_REF
+              IDENT "slice"
+        COLON2 "::"
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "IndexSlice"
+    SEMICOLON ";"
+  WHITESPACE "\n"
+  USE
+    USE_KW "use"
+    WHITESPACE " "
+    USE_TREE
+      PATH
+        PATH
+          PATH_SEGMENT
+            NAME_REF
+              IDENT "std"
+        COLON2 "::"
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "borrow"
+      COLON2 "::"
+      USE_TREE_LIST
+        L_CURLY "{"
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "Borrow"
+        COMMA ","
+        WHITESPACE " "
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "BorrowMut"
+        R_CURLY "}"
+    SEMICOLON ";"
+  WHITESPACE "\n"
+  USE
+    USE_KW "use"
+    WHITESPACE " "
+    USE_TREE
+      PATH
+        PATH
+          PATH_SEGMENT
+            NAME_REF
+              IDENT "std"
+        COLON2 "::"
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "fmt"
+      COLON2 "::"
+      USE_TREE_LIST
+        L_CURLY "{"
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "Debug"
+        COMMA ","
+        WHITESPACE " "
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "Formatter"
+        R_CURLY "}"
+    SEMICOLON ";"
+  WHITESPACE "\n"
+  USE
+    USE_KW "use"
+    WHITESPACE " "
+    USE_TREE
+      PATH
+        PATH
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "std"
+          COLON2 "::"
+          PATH_SEGMENT
+            NAME_REF
+              IDENT "marker"
+        COLON2 "::"
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "PhantomData"
+    SEMICOLON ";"
+  WHITESPACE "\n"
+  USE
+    USE_KW "use"
+    WHITESPACE " "
+    USE_TREE
+      PATH
+        PATH
+          PATH_SEGMENT
+            NAME_REF
+              IDENT "std"
+        COLON2 "::"
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "ops"
+      COLON2 "::"
+      USE_TREE_LIST
+        L_CURLY "{"
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "Deref"
+        COMMA ","
+        WHITESPACE " "
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "DerefMut"
+        COMMA ","
+        WHITESPACE " "
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "RangeBounds"
+        R_CURLY "}"
+    SEMICOLON ";"
+  WHITESPACE "\n\n"
+  STRUCT
+    COMMENT "/// An owned sequence of `T` indexed by `I`"
+    WHITESPACE "\n"
+    ATTR
+      POUND "#"
+      L_BRACK "["
+      TOKEN_TREE_META
+        PATH
+          PATH_SEGMENT
+            NAME_REF
+              IDENT "derive"
+        TOKEN_TREE
+          L_PAREN "("
+          IDENT "Clone"
+          COMMA ","
+          WHITESPACE " "
+          IDENT "PartialEq"
+          COMMA ","
+          WHITESPACE " "
+          IDENT "Eq"
+          COMMA ","
+          WHITESPACE " "
+          IDENT "Hash"
+          COMMA ","
+          WHITESPACE " "
+          IDENT "get_size2"
+          COLON ":"
+          COLON ":"
+          IDENT "GetSize"
+          R_PAREN ")"
+      R_BRACK "]"
+    WHITESPACE "\n"
+    ATTR
+      POUND "#"
+      L_BRACK "["
+      TOKEN_TREE_META
+        PATH
+          PATH_SEGMENT
+            NAME_REF
+              IDENT "repr"
+        TOKEN_TREE
+          L_PAREN "("
+          IDENT "transparent"
+          R_PAREN ")"
+      R_BRACK "]"
+    WHITESPACE "\n"
+    VISIBILITY
+      PUB_KW "pub"
+    WHITESPACE " "
+    STRUCT_KW "struct"
+    WHITESPACE " "
+    NAME
+      IDENT "IndexVec"
+    GENERIC_PARAM_LIST
+      L_ANGLE "<"
+      TYPE_PARAM
+        NAME
+          IDENT "I"
+      COMMA ","
+      WHITESPACE " "
+      TYPE_PARAM
+        NAME
+          IDENT "T"
+      R_ANGLE ">"
+    WHITESPACE " "
+    RECORD_FIELD_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      RECORD_FIELD
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        NAME
+          IDENT "raw"
+        COLON ":"
+        WHITESPACE " "
+        PATH_TYPE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "Vec"
+              GENERIC_ARG_LIST
+                L_ANGLE "<"
+                TYPE_ARG
+                  PATH_TYPE
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "T"
+                R_ANGLE ">"
+      COMMA ","
+      WHITESPACE "\n    "
+      RECORD_FIELD
+        NAME
+          IDENT "index"
+        COLON ":"
+        WHITESPACE " "
+        PATH_TYPE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "PhantomData"
+              GENERIC_ARG_LIST
+                L_ANGLE "<"
+                TYPE_ARG
+                  PATH_TYPE
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "I"
+                R_ANGLE ">"
+      COMMA ","
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    GENERIC_PARAM_LIST
+      L_ANGLE "<"
+      TYPE_PARAM
+        NAME
+          IDENT "I"
+        COLON ":"
+        WHITESPACE " "
+        TYPE_BOUND_LIST
+          TYPE_BOUND
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "Idx"
+      COMMA ","
+      WHITESPACE " "
+      TYPE_PARAM
+        NAME
+          IDENT "T"
+      R_ANGLE ">"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "IndexVec"
+          GENERIC_ARG_LIST
+            L_ANGLE "<"
+            TYPE_ARG
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "I"
+            COMMA ","
+            WHITESPACE " "
+            TYPE_ARG
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "T"
+            R_ANGLE ">"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "new"
+        PARAM_LIST
+          L_PAREN "("
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  SELF_TYPE_KW "Self"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            RECORD_EXPR
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    SELF_TYPE_KW "Self"
+              WHITESPACE " "
+              RECORD_EXPR_FIELD_LIST
+                L_CURLY "{"
+                WHITESPACE "\n            "
+                RECORD_EXPR_FIELD
+                  NAME_REF
+                    IDENT "raw"
+                  COLON ":"
+                  WHITESPACE " "
+                  CALL_EXPR
+                    PATH_EXPR
+                      PATH
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "Vec"
+                        COLON2 "::"
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "new"
+                    ARG_LIST
+                      L_PAREN "("
+                      R_PAREN ")"
+                COMMA ","
+                WHITESPACE "\n            "
+                RECORD_EXPR_FIELD
+                  NAME_REF
+                    IDENT "index"
+                  COLON ":"
+                  WHITESPACE " "
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "PhantomData"
+                COMMA ","
+                WHITESPACE "\n        "
+                R_CURLY "}"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "with_capacity"
+        PARAM_LIST
+          L_PAREN "("
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "capacity"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "usize"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  SELF_TYPE_KW "Self"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            RECORD_EXPR
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    SELF_TYPE_KW "Self"
+              WHITESPACE " "
+              RECORD_EXPR_FIELD_LIST
+                L_CURLY "{"
+                WHITESPACE "\n            "
+                RECORD_EXPR_FIELD
+                  NAME_REF
+                    IDENT "raw"
+                  COLON ":"
+                  WHITESPACE " "
+                  CALL_EXPR
+                    PATH_EXPR
+                      PATH
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "Vec"
+                        COLON2 "::"
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "with_capacity"
+                    ARG_LIST
+                      L_PAREN "("
+                      PATH_EXPR
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "capacity"
+                      R_PAREN ")"
+                COMMA ","
+                WHITESPACE "\n            "
+                RECORD_EXPR_FIELD
+                  NAME_REF
+                    IDENT "index"
+                  COLON ":"
+                  WHITESPACE " "
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "PhantomData"
+                COMMA ","
+                WHITESPACE "\n        "
+                R_CURLY "}"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "from_raw"
+        PARAM_LIST
+          L_PAREN "("
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "raw"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "Vec"
+                  GENERIC_ARG_LIST
+                    L_ANGLE "<"
+                    TYPE_ARG
+                      PATH_TYPE
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "T"
+                    R_ANGLE ">"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  SELF_TYPE_KW "Self"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            RECORD_EXPR
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    SELF_TYPE_KW "Self"
+              WHITESPACE " "
+              RECORD_EXPR_FIELD_LIST
+                L_CURLY "{"
+                WHITESPACE "\n            "
+                RECORD_EXPR_FIELD
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "raw"
+                COMMA ","
+                WHITESPACE "\n            "
+                RECORD_EXPR_FIELD
+                  NAME_REF
+                    IDENT "index"
+                  COLON ":"
+                  WHITESPACE " "
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "PhantomData"
+                COMMA ","
+                WHITESPACE "\n        "
+                R_CURLY "}"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "drain"
+        GENERIC_PARAM_LIST
+          L_ANGLE "<"
+          TYPE_PARAM
+            NAME
+              IDENT "R"
+            COLON ":"
+            WHITESPACE " "
+            TYPE_BOUND_LIST
+              TYPE_BOUND
+                PATH_TYPE
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "RangeBounds"
+                      GENERIC_ARG_LIST
+                        L_ANGLE "<"
+                        TYPE_ARG
+                          PATH_TYPE
+                            PATH
+                              PATH_SEGMENT
+                                NAME_REF
+                                  IDENT "usize"
+                        R_ANGLE ">"
+          R_ANGLE ">"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            MUT_KW "mut"
+            WHITESPACE " "
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "range"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "R"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          IMPL_TRAIT_TYPE
+            IMPL_KW "impl"
+            WHITESPACE " "
+            TYPE_BOUND_LIST
+              TYPE_BOUND
+                PATH_TYPE
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "Iterator"
+                      GENERIC_ARG_LIST
+                        L_ANGLE "<"
+                        ASSOC_TYPE_ARG
+                          NAME_REF
+                            IDENT "Item"
+                          WHITESPACE " "
+                          EQ "="
+                          WHITESPACE " "
+                          PATH_TYPE
+                            PATH
+                              PATH_SEGMENT
+                                NAME_REF
+                                  IDENT "T"
+                        R_ANGLE ">"
+              WHITESPACE " "
+              PLUS "+"
+              WHITESPACE " "
+              TYPE_BOUND
+                LIFETIME
+                  LIFETIME_IDENT "'_"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            METHOD_CALL_EXPR
+              FIELD_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        SELF_KW "self"
+                DOT "."
+                NAME_REF
+                  IDENT "raw"
+              DOT "."
+              NAME_REF
+                IDENT "drain"
+              ARG_LIST
+                L_PAREN "("
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "range"
+                R_PAREN ")"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "truncate"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            MUT_KW "mut"
+            WHITESPACE " "
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "a"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "usize"
+          R_PAREN ")"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            EXPR_STMT
+              METHOD_CALL_EXPR
+                FIELD_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          SELF_KW "self"
+                  DOT "."
+                  NAME_REF
+                    IDENT "raw"
+                DOT "."
+                NAME_REF
+                  IDENT "truncate"
+                ARG_LIST
+                  L_PAREN "("
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "a"
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "as_slice"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          REF_TYPE
+            AMP "&"
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "IndexSlice"
+                  GENERIC_ARG_LIST
+                    L_ANGLE "<"
+                    TYPE_ARG
+                      PATH_TYPE
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "I"
+                    COMMA ","
+                    WHITESPACE " "
+                    TYPE_ARG
+                      PATH_TYPE
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "T"
+                    R_ANGLE ">"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            CALL_EXPR
+              PATH_EXPR
+                PATH
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "IndexSlice"
+                  COLON2 "::"
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "from_raw"
+              ARG_LIST
+                L_PAREN "("
+                REF_EXPR
+                  AMP "&"
+                  FIELD_EXPR
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            SELF_KW "self"
+                    DOT "."
+                    NAME_REF
+                      IDENT "raw"
+                R_PAREN ")"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "as_mut_slice"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            MUT_KW "mut"
+            WHITESPACE " "
+            NAME
+              SELF_KW "self"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          REF_TYPE
+            AMP "&"
+            MUT_KW "mut"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "IndexSlice"
+                  GENERIC_ARG_LIST
+                    L_ANGLE "<"
+                    TYPE_ARG
+                      PATH_TYPE
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "I"
+                    COMMA ","
+                    WHITESPACE " "
+                    TYPE_ARG
+                      PATH_TYPE
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "T"
+                    R_ANGLE ">"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            CALL_EXPR
+              PATH_EXPR
+                PATH
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "IndexSlice"
+                  COLON2 "::"
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "from_raw_mut"
+              ARG_LIST
+                L_PAREN "("
+                REF_EXPR
+                  AMP "&"
+                  MUT_KW "mut"
+                  WHITESPACE " "
+                  FIELD_EXPR
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            SELF_KW "self"
+                    DOT "."
+                    NAME_REF
+                      IDENT "raw"
+                R_PAREN ")"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "push"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            MUT_KW "mut"
+            WHITESPACE " "
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "data"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "T"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "I"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            LET_STMT
+              LET_KW "let"
+              WHITESPACE " "
+              IDENT_PAT
+                NAME
+                  IDENT "index"
+              WHITESPACE " "
+              EQ "="
+              WHITESPACE " "
+              METHOD_CALL_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        SELF_KW "self"
+                DOT "."
+                NAME_REF
+                  IDENT "next_index"
+                ARG_LIST
+                  L_PAREN "("
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n        "
+            EXPR_STMT
+              METHOD_CALL_EXPR
+                FIELD_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          SELF_KW "self"
+                  DOT "."
+                  NAME_REF
+                    IDENT "raw"
+                DOT "."
+                NAME_REF
+                  IDENT "push"
+                ARG_LIST
+                  L_PAREN "("
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "data"
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n        "
+            PATH_EXPR
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "index"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "next_index"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "I"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            CALL_EXPR
+              PATH_EXPR
+                PATH
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "I"
+                  COLON2 "::"
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "new"
+              ARG_LIST
+                L_PAREN "("
+                METHOD_CALL_EXPR
+                  FIELD_EXPR
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            SELF_KW "self"
+                    DOT "."
+                    NAME_REF
+                      IDENT "raw"
+                  DOT "."
+                  NAME_REF
+                    IDENT "len"
+                  ARG_LIST
+                    L_PAREN "("
+                    R_PAREN ")"
+                R_PAREN ")"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "shrink_to_fit"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            MUT_KW "mut"
+            WHITESPACE " "
+            NAME
+              SELF_KW "self"
+          R_PAREN ")"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            EXPR_STMT
+              METHOD_CALL_EXPR
+                FIELD_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          SELF_KW "self"
+                  DOT "."
+                  NAME_REF
+                    IDENT "raw"
+                DOT "."
+                NAME_REF
+                  IDENT "shrink_to_fit"
+                ARG_LIST
+                  L_PAREN "("
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "resize"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            MUT_KW "mut"
+            WHITESPACE " "
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "new_len"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "usize"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "value"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "T"
+          R_PAREN ")"
+        WHITESPACE "\n    "
+        WHERE_CLAUSE
+          WHERE_KW "where"
+          WHITESPACE "\n        "
+          WHERE_PRED
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "T"
+            COLON ":"
+            WHITESPACE " "
+            TYPE_BOUND_LIST
+              TYPE_BOUND
+                PATH_TYPE
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "Clone"
+          COMMA ","
+        WHITESPACE "\n    "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            EXPR_STMT
+              METHOD_CALL_EXPR
+                FIELD_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          SELF_KW "self"
+                  DOT "."
+                  NAME_REF
+                    IDENT "raw"
+                DOT "."
+                NAME_REF
+                  IDENT "resize"
+                ARG_LIST
+                  L_PAREN "("
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "new_len"
+                  COMMA ","
+                  WHITESPACE " "
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "value"
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    GENERIC_PARAM_LIST
+      L_ANGLE "<"
+      TYPE_PARAM
+        NAME
+          IDENT "I"
+      COMMA ","
+      WHITESPACE " "
+      TYPE_PARAM
+        NAME
+          IDENT "T"
+      R_ANGLE ">"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "Debug"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "IndexVec"
+          GENERIC_ARG_LIST
+            L_ANGLE "<"
+            TYPE_ARG
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "I"
+            COMMA ","
+            WHITESPACE " "
+            TYPE_ARG
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "T"
+            R_ANGLE ">"
+    WHITESPACE "\n"
+    WHERE_CLAUSE
+      WHERE_KW "where"
+      WHITESPACE "\n    "
+      WHERE_PRED
+        PATH_TYPE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "T"
+        COLON ":"
+        WHITESPACE " "
+        TYPE_BOUND_LIST
+          TYPE_BOUND
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "Debug"
+      COMMA ","
+    WHITESPACE "\n"
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      FN
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "fmt"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "f"
+            COLON ":"
+            WHITESPACE " "
+            REF_TYPE
+              AMP "&"
+              MUT_KW "mut"
+              WHITESPACE " "
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "Formatter"
+                    GENERIC_ARG_LIST
+                      L_ANGLE "<"
+                      LIFETIME_ARG
+                        LIFETIME
+                          LIFETIME_IDENT "'_"
+                      R_ANGLE ">"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "std"
+                COLON2 "::"
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "fmt"
+              COLON2 "::"
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "Result"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            CALL_EXPR
+              PATH_EXPR
+                PATH
+                  PATH
+                    PATH
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "std"
+                      COLON2 "::"
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "fmt"
+                    COLON2 "::"
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "Debug"
+                  COLON2 "::"
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "fmt"
+              ARG_LIST
+                L_PAREN "("
+                REF_EXPR
+                  AMP "&"
+                  FIELD_EXPR
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            SELF_KW "self"
+                    DOT "."
+                    NAME_REF
+                      IDENT "raw"
+                COMMA ","
+                WHITESPACE " "
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "f"
+                R_PAREN ")"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    GENERIC_PARAM_LIST
+      L_ANGLE "<"
+      TYPE_PARAM
+        NAME
+          IDENT "I"
+        COLON ":"
+        WHITESPACE " "
+        TYPE_BOUND_LIST
+          TYPE_BOUND
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "Idx"
+      COMMA ","
+      WHITESPACE " "
+      TYPE_PARAM
+        NAME
+          IDENT "T"
+      R_ANGLE ">"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "Deref"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "IndexVec"
+          GENERIC_ARG_LIST
+            L_ANGLE "<"
+            TYPE_ARG
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "I"
+            COMMA ","
+            WHITESPACE " "
+            TYPE_ARG
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "T"
+            R_ANGLE ">"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      TYPE_ALIAS
+        TYPE_KW "type"
+        WHITESPACE " "
+        NAME
+          IDENT "Target"
+        WHITESPACE " "
+        EQ "="
+        WHITESPACE " "
+        PATH_TYPE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "IndexSlice"
+              GENERIC_ARG_LIST
+                L_ANGLE "<"
+                TYPE_ARG
+                  PATH_TYPE
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "I"
+                COMMA ","
+                WHITESPACE " "
+                TYPE_ARG
+                  PATH_TYPE
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "T"
+                R_ANGLE ">"
+        SEMICOLON ";"
+      WHITESPACE "\n\n    "
+      FN
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "deref"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          REF_TYPE
+            AMP "&"
+            PATH_TYPE
+              PATH
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      SELF_TYPE_KW "Self"
+                COLON2 "::"
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "Target"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            METHOD_CALL_EXPR
+              PATH_EXPR
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      SELF_KW "self"
+              DOT "."
+              NAME_REF
+                IDENT "as_slice"
+              ARG_LIST
+                L_PAREN "("
+                R_PAREN ")"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    GENERIC_PARAM_LIST
+      L_ANGLE "<"
+      TYPE_PARAM
+        NAME
+          IDENT "I"
+        COLON ":"
+        WHITESPACE " "
+        TYPE_BOUND_LIST
+          TYPE_BOUND
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "Idx"
+      COMMA ","
+      WHITESPACE " "
+      TYPE_PARAM
+        NAME
+          IDENT "T"
+      R_ANGLE ">"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "DerefMut"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "IndexVec"
+          GENERIC_ARG_LIST
+            L_ANGLE "<"
+            TYPE_ARG
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "I"
+            COMMA ","
+            WHITESPACE " "
+            TYPE_ARG
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "T"
+            R_ANGLE ">"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      FN
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "deref_mut"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            MUT_KW "mut"
+            WHITESPACE " "
+            NAME
+              SELF_KW "self"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          REF_TYPE
+            AMP "&"
+            MUT_KW "mut"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      SELF_TYPE_KW "Self"
+                COLON2 "::"
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "Target"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            METHOD_CALL_EXPR
+              PATH_EXPR
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      SELF_KW "self"
+              DOT "."
+              NAME_REF
+                IDENT "as_mut_slice"
+              ARG_LIST
+                L_PAREN "("
+                R_PAREN ")"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    GENERIC_PARAM_LIST
+      L_ANGLE "<"
+      TYPE_PARAM
+        NAME
+          IDENT "I"
+        COLON ":"
+        WHITESPACE " "
+        TYPE_BOUND_LIST
+          TYPE_BOUND
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "Idx"
+      COMMA ","
+      WHITESPACE " "
+      TYPE_PARAM
+        NAME
+          IDENT "T"
+      R_ANGLE ">"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "Borrow"
+          GENERIC_ARG_LIST
+            L_ANGLE "<"
+            TYPE_ARG
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "IndexSlice"
+                    GENERIC_ARG_LIST
+                      L_ANGLE "<"
+                      TYPE_ARG
+                        PATH_TYPE
+                          PATH
+                            PATH_SEGMENT
+                              NAME_REF
+                                IDENT "I"
+                      COMMA ","
+                      WHITESPACE " "
+                      TYPE_ARG
+                        PATH_TYPE
+                          PATH
+                            PATH_SEGMENT
+                              NAME_REF
+                                IDENT "T"
+                      R_ANGLE ">"
+            R_ANGLE ">"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "IndexVec"
+          GENERIC_ARG_LIST
+            L_ANGLE "<"
+            TYPE_ARG
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "I"
+            COMMA ","
+            WHITESPACE " "
+            TYPE_ARG
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "T"
+            R_ANGLE ">"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      FN
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "borrow"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          REF_TYPE
+            AMP "&"
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "IndexSlice"
+                  GENERIC_ARG_LIST
+                    L_ANGLE "<"
+                    TYPE_ARG
+                      PATH_TYPE
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "I"
+                    COMMA ","
+                    WHITESPACE " "
+                    TYPE_ARG
+                      PATH_TYPE
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "T"
+                    R_ANGLE ">"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            PATH_EXPR
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    SELF_KW "self"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    GENERIC_PARAM_LIST
+      L_ANGLE "<"
+      TYPE_PARAM
+        NAME
+          IDENT "I"
+        COLON ":"
+        WHITESPACE " "
+        TYPE_BOUND_LIST
+          TYPE_BOUND
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "Idx"
+      COMMA ","
+      WHITESPACE " "
+      TYPE_PARAM
+        NAME
+          IDENT "T"
+      R_ANGLE ">"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "BorrowMut"
+          GENERIC_ARG_LIST
+            L_ANGLE "<"
+            TYPE_ARG
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "IndexSlice"
+                    GENERIC_ARG_LIST
+                      L_ANGLE "<"
+                      TYPE_ARG
+                        PATH_TYPE
+                          PATH
+                            PATH_SEGMENT
+                              NAME_REF
+                                IDENT "I"
+                      COMMA ","
+                      WHITESPACE " "
+                      TYPE_ARG
+                        PATH_TYPE
+                          PATH
+                            PATH_SEGMENT
+                              NAME_REF
+                                IDENT "T"
+                      R_ANGLE ">"
+            R_ANGLE ">"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "IndexVec"
+          GENERIC_ARG_LIST
+            L_ANGLE "<"
+            TYPE_ARG
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "I"
+            COMMA ","
+            WHITESPACE " "
+            TYPE_ARG
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "T"
+            R_ANGLE ">"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      FN
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "borrow_mut"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            MUT_KW "mut"
+            WHITESPACE " "
+            NAME
+              SELF_KW "self"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          REF_TYPE
+            AMP "&"
+            MUT_KW "mut"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "IndexSlice"
+                  GENERIC_ARG_LIST
+                    L_ANGLE "<"
+                    TYPE_ARG
+                      PATH_TYPE
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "I"
+                    COMMA ","
+                    WHITESPACE " "
+                    TYPE_ARG
+                      PATH_TYPE
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "T"
+                    R_ANGLE ">"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            PATH_EXPR
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    SELF_KW "self"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    GENERIC_PARAM_LIST
+      L_ANGLE "<"
+      TYPE_PARAM
+        NAME
+          IDENT "I"
+      COMMA ","
+      WHITESPACE " "
+      TYPE_PARAM
+        NAME
+          IDENT "T"
+      R_ANGLE ">"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "Extend"
+          GENERIC_ARG_LIST
+            L_ANGLE "<"
+            TYPE_ARG
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "T"
+            R_ANGLE ">"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "IndexVec"
+          GENERIC_ARG_LIST
+            L_ANGLE "<"
+            TYPE_ARG
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "I"
+            COMMA ","
+            WHITESPACE " "
+            TYPE_ARG
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "T"
+            R_ANGLE ">"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "extend"
+        GENERIC_PARAM_LIST
+          L_ANGLE "<"
+          TYPE_PARAM
+            NAME
+              IDENT "Iter"
+            COLON ":"
+            WHITESPACE " "
+            TYPE_BOUND_LIST
+              TYPE_BOUND
+                PATH_TYPE
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "IntoIterator"
+                      GENERIC_ARG_LIST
+                        L_ANGLE "<"
+                        ASSOC_TYPE_ARG
+                          NAME_REF
+                            IDENT "Item"
+                          WHITESPACE " "
+                          EQ "="
+                          WHITESPACE " "
+                          PATH_TYPE
+                            PATH
+                              PATH_SEGMENT
+                                NAME_REF
+                                  IDENT "T"
+                        R_ANGLE ">"
+          R_ANGLE ">"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            MUT_KW "mut"
+            WHITESPACE " "
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "iter"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "Iter"
+          R_PAREN ")"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            EXPR_STMT
+              METHOD_CALL_EXPR
+                FIELD_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          SELF_KW "self"
+                  DOT "."
+                  NAME_REF
+                    IDENT "raw"
+                DOT "."
+                NAME_REF
+                  IDENT "extend"
+                ARG_LIST
+                  L_PAREN "("
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "iter"
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    GENERIC_PARAM_LIST
+      L_ANGLE "<"
+      TYPE_PARAM
+        NAME
+          IDENT "I"
+        COLON ":"
+        WHITESPACE " "
+        TYPE_BOUND_LIST
+          TYPE_BOUND
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "Idx"
+      COMMA ","
+      WHITESPACE " "
+      TYPE_PARAM
+        NAME
+          IDENT "T"
+      R_ANGLE ">"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "FromIterator"
+          GENERIC_ARG_LIST
+            L_ANGLE "<"
+            TYPE_ARG
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "T"
+            R_ANGLE ">"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "IndexVec"
+          GENERIC_ARG_LIST
+            L_ANGLE "<"
+            TYPE_ARG
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "I"
+            COMMA ","
+            WHITESPACE " "
+            TYPE_ARG
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "T"
+            R_ANGLE ">"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "from_iter"
+        GENERIC_PARAM_LIST
+          L_ANGLE "<"
+          TYPE_PARAM
+            NAME
+              IDENT "Iter"
+            COLON ":"
+            WHITESPACE " "
+            TYPE_BOUND_LIST
+              TYPE_BOUND
+                PATH_TYPE
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "IntoIterator"
+                      GENERIC_ARG_LIST
+                        L_ANGLE "<"
+                        ASSOC_TYPE_ARG
+                          NAME_REF
+                            IDENT "Item"
+                          WHITESPACE " "
+                          EQ "="
+                          WHITESPACE " "
+                          PATH_TYPE
+                            PATH
+                              PATH_SEGMENT
+                                NAME_REF
+                                  IDENT "T"
+                        R_ANGLE ">"
+          R_ANGLE ">"
+        PARAM_LIST
+          L_PAREN "("
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "iter"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "Iter"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  SELF_TYPE_KW "Self"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            CALL_EXPR
+              PATH_EXPR
+                PATH
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        SELF_TYPE_KW "Self"
+                  COLON2 "::"
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "from_raw"
+              ARG_LIST
+                L_PAREN "("
+                CALL_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "Vec"
+                      COLON2 "::"
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "from_iter"
+                  ARG_LIST
+                    L_PAREN "("
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "iter"
+                    R_PAREN ")"
+                R_PAREN ")"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    GENERIC_PARAM_LIST
+      L_ANGLE "<"
+      TYPE_PARAM
+        NAME
+          IDENT "I"
+        COLON ":"
+        WHITESPACE " "
+        TYPE_BOUND_LIST
+          TYPE_BOUND
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "Idx"
+      COMMA ","
+      WHITESPACE " "
+      TYPE_PARAM
+        NAME
+          IDENT "T"
+      R_ANGLE ">"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "IntoIterator"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "IndexVec"
+          GENERIC_ARG_LIST
+            L_ANGLE "<"
+            TYPE_ARG
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "I"
+            COMMA ","
+            WHITESPACE " "
+            TYPE_ARG
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "T"
+            R_ANGLE ">"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      TYPE_ALIAS
+        TYPE_KW "type"
+        WHITESPACE " "
+        NAME
+          IDENT "IntoIter"
+        WHITESPACE " "
+        EQ "="
+        WHITESPACE " "
+        PATH_TYPE
+          PATH
+            PATH
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "std"
+              COLON2 "::"
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "vec"
+            COLON2 "::"
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "IntoIter"
+              GENERIC_ARG_LIST
+                L_ANGLE "<"
+                TYPE_ARG
+                  PATH_TYPE
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "T"
+                R_ANGLE ">"
+        SEMICOLON ";"
+      WHITESPACE "\n    "
+      TYPE_ALIAS
+        TYPE_KW "type"
+        WHITESPACE " "
+        NAME
+          IDENT "Item"
+        WHITESPACE " "
+        EQ "="
+        WHITESPACE " "
+        PATH_TYPE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "T"
+        SEMICOLON ";"
+      WHITESPACE "\n\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "into_iter"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            NAME
+              SELF_KW "self"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "std"
+                COLON2 "::"
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "vec"
+              COLON2 "::"
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "IntoIter"
+                GENERIC_ARG_LIST
+                  L_ANGLE "<"
+                  TYPE_ARG
+                    PATH_TYPE
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "T"
+                  R_ANGLE ">"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            METHOD_CALL_EXPR
+              FIELD_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        SELF_KW "self"
+                DOT "."
+                NAME_REF
+                  IDENT "raw"
+              DOT "."
+              NAME_REF
+                IDENT "into_iter"
+              ARG_LIST
+                L_PAREN "("
+                R_PAREN ")"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    GENERIC_PARAM_LIST
+      L_ANGLE "<"
+      LIFETIME_PARAM
+        LIFETIME
+          LIFETIME_IDENT "'a"
+      COMMA ","
+      WHITESPACE " "
+      TYPE_PARAM
+        NAME
+          IDENT "I"
+        COLON ":"
+        WHITESPACE " "
+        TYPE_BOUND_LIST
+          TYPE_BOUND
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "Idx"
+      COMMA ","
+      WHITESPACE " "
+      TYPE_PARAM
+        NAME
+          IDENT "T"
+      R_ANGLE ">"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "IntoIterator"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    REF_TYPE
+      AMP "&"
+      LIFETIME
+        LIFETIME_IDENT "'a"
+      WHITESPACE " "
+      PATH_TYPE
+        PATH
+          PATH_SEGMENT
+            NAME_REF
+              IDENT "IndexVec"
+            GENERIC_ARG_LIST
+              L_ANGLE "<"
+              TYPE_ARG
+                PATH_TYPE
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "I"
+              COMMA ","
+              WHITESPACE " "
+              TYPE_ARG
+                PATH_TYPE
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "T"
+              R_ANGLE ">"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      TYPE_ALIAS
+        TYPE_KW "type"
+        WHITESPACE " "
+        NAME
+          IDENT "IntoIter"
+        WHITESPACE " "
+        EQ "="
+        WHITESPACE " "
+        PATH_TYPE
+          PATH
+            PATH
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "std"
+              COLON2 "::"
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "slice"
+            COLON2 "::"
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "Iter"
+              GENERIC_ARG_LIST
+                L_ANGLE "<"
+                LIFETIME_ARG
+                  LIFETIME
+                    LIFETIME_IDENT "'a"
+                COMMA ","
+                WHITESPACE " "
+                TYPE_ARG
+                  PATH_TYPE
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "T"
+                R_ANGLE ">"
+        SEMICOLON ";"
+      WHITESPACE "\n    "
+      TYPE_ALIAS
+        TYPE_KW "type"
+        WHITESPACE " "
+        NAME
+          IDENT "Item"
+        WHITESPACE " "
+        EQ "="
+        WHITESPACE " "
+        REF_TYPE
+          AMP "&"
+          LIFETIME
+            LIFETIME_IDENT "'a"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "T"
+        SEMICOLON ";"
+      WHITESPACE "\n\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "into_iter"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            NAME
+              SELF_KW "self"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "std"
+                COLON2 "::"
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "slice"
+              COLON2 "::"
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "Iter"
+                GENERIC_ARG_LIST
+                  L_ANGLE "<"
+                  LIFETIME_ARG
+                    LIFETIME
+                      LIFETIME_IDENT "'a"
+                  COMMA ","
+                  WHITESPACE " "
+                  TYPE_ARG
+                    PATH_TYPE
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "T"
+                  R_ANGLE ">"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            METHOD_CALL_EXPR
+              PATH_EXPR
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      SELF_KW "self"
+              DOT "."
+              NAME_REF
+                IDENT "iter"
+              ARG_LIST
+                L_PAREN "("
+                R_PAREN ")"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    GENERIC_PARAM_LIST
+      L_ANGLE "<"
+      LIFETIME_PARAM
+        LIFETIME
+          LIFETIME_IDENT "'a"
+      COMMA ","
+      WHITESPACE " "
+      TYPE_PARAM
+        NAME
+          IDENT "I"
+        COLON ":"
+        WHITESPACE " "
+        TYPE_BOUND_LIST
+          TYPE_BOUND
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "Idx"
+      COMMA ","
+      WHITESPACE " "
+      TYPE_PARAM
+        NAME
+          IDENT "T"
+      R_ANGLE ">"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "IntoIterator"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    REF_TYPE
+      AMP "&"
+      LIFETIME
+        LIFETIME_IDENT "'a"
+      WHITESPACE " "
+      MUT_KW "mut"
+      WHITESPACE " "
+      PATH_TYPE
+        PATH
+          PATH_SEGMENT
+            NAME_REF
+              IDENT "IndexVec"
+            GENERIC_ARG_LIST
+              L_ANGLE "<"
+              TYPE_ARG
+                PATH_TYPE
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "I"
+              COMMA ","
+              WHITESPACE " "
+              TYPE_ARG
+                PATH_TYPE
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "T"
+              R_ANGLE ">"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      TYPE_ALIAS
+        TYPE_KW "type"
+        WHITESPACE " "
+        NAME
+          IDENT "IntoIter"
+        WHITESPACE " "
+        EQ "="
+        WHITESPACE " "
+        PATH_TYPE
+          PATH
+            PATH
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "std"
+              COLON2 "::"
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "slice"
+            COLON2 "::"
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "IterMut"
+              GENERIC_ARG_LIST
+                L_ANGLE "<"
+                LIFETIME_ARG
+                  LIFETIME
+                    LIFETIME_IDENT "'a"
+                COMMA ","
+                WHITESPACE " "
+                TYPE_ARG
+                  PATH_TYPE
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "T"
+                R_ANGLE ">"
+        SEMICOLON ";"
+      WHITESPACE "\n    "
+      TYPE_ALIAS
+        TYPE_KW "type"
+        WHITESPACE " "
+        NAME
+          IDENT "Item"
+        WHITESPACE " "
+        EQ "="
+        WHITESPACE " "
+        REF_TYPE
+          AMP "&"
+          LIFETIME
+            LIFETIME_IDENT "'a"
+          WHITESPACE " "
+          MUT_KW "mut"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "T"
+        SEMICOLON ";"
+      WHITESPACE "\n\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "into_iter"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            NAME
+              SELF_KW "self"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "std"
+                COLON2 "::"
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "slice"
+              COLON2 "::"
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "IterMut"
+                GENERIC_ARG_LIST
+                  L_ANGLE "<"
+                  LIFETIME_ARG
+                    LIFETIME
+                      LIFETIME_IDENT "'a"
+                  COMMA ","
+                  WHITESPACE " "
+                  TYPE_ARG
+                    PATH_TYPE
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "T"
+                  R_ANGLE ">"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            METHOD_CALL_EXPR
+              PATH_EXPR
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      SELF_KW "self"
+              DOT "."
+              NAME_REF
+                IDENT "iter_mut"
+              ARG_LIST
+                L_PAREN "("
+                R_PAREN ")"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    GENERIC_PARAM_LIST
+      L_ANGLE "<"
+      TYPE_PARAM
+        NAME
+          IDENT "I"
+        COLON ":"
+        WHITESPACE " "
+        TYPE_BOUND_LIST
+          TYPE_BOUND
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "Idx"
+      COMMA ","
+      WHITESPACE " "
+      TYPE_PARAM
+        NAME
+          IDENT "T"
+      R_ANGLE ">"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "Default"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "IndexVec"
+          GENERIC_ARG_LIST
+            L_ANGLE "<"
+            TYPE_ARG
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "I"
+            COMMA ","
+            WHITESPACE " "
+            TYPE_ARG
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "T"
+            R_ANGLE ">"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "default"
+        PARAM_LIST
+          L_PAREN "("
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  SELF_TYPE_KW "Self"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            CALL_EXPR
+              PATH_EXPR
+                PATH
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "IndexVec"
+                  COLON2 "::"
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "new"
+              ARG_LIST
+                L_PAREN "("
+                R_PAREN ")"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    GENERIC_PARAM_LIST
+      L_ANGLE "<"
+      TYPE_PARAM
+        NAME
+          IDENT "I"
+        COLON ":"
+        WHITESPACE " "
+        TYPE_BOUND_LIST
+          TYPE_BOUND
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "Idx"
+      COMMA ","
+      WHITESPACE " "
+      TYPE_PARAM
+        NAME
+          IDENT "T"
+      COMMA ","
+      WHITESPACE " "
+      CONST_PARAM
+        CONST_KW "const"
+        WHITESPACE " "
+        NAME
+          IDENT "N"
+        COLON ":"
+        WHITESPACE " "
+        PATH_TYPE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "usize"
+      R_ANGLE ">"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "From"
+          GENERIC_ARG_LIST
+            L_ANGLE "<"
+            TYPE_ARG
+              ARRAY_TYPE
+                L_BRACK "["
+                PATH_TYPE
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "T"
+                SEMICOLON ";"
+                WHITESPACE " "
+                CONST_ARG
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "N"
+                R_BRACK "]"
+            R_ANGLE ">"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "IndexVec"
+          GENERIC_ARG_LIST
+            L_ANGLE "<"
+            TYPE_ARG
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "I"
+            COMMA ","
+            WHITESPACE " "
+            TYPE_ARG
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "T"
+            R_ANGLE ">"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "from"
+        PARAM_LIST
+          L_PAREN "("
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "array"
+            COLON ":"
+            WHITESPACE " "
+            ARRAY_TYPE
+              L_BRACK "["
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "T"
+              SEMICOLON ";"
+              WHITESPACE " "
+              CONST_ARG
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "N"
+              R_BRACK "]"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  SELF_TYPE_KW "Self"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            CALL_EXPR
+              PATH_EXPR
+                PATH
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "IndexVec"
+                  COLON2 "::"
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "from_raw"
+              ARG_LIST
+                L_PAREN "("
+                METHOD_CALL_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "array"
+                  DOT "."
+                  NAME_REF
+                    IDENT "into"
+                  ARG_LIST
+                    L_PAREN "("
+                    R_PAREN ")"
+                R_PAREN ")"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    COMMENT "// Whether `IndexVec` is `Send` depends only on the data,"
+    WHITESPACE "\n"
+    COMMENT "// not the phantom data."
+    WHITESPACE "\n"
+    ATTR
+      POUND "#"
+      L_BRACK "["
+      TOKEN_TREE_META
+        PATH
+          PATH_SEGMENT
+            NAME_REF
+              IDENT "expect"
+        TOKEN_TREE
+          L_PAREN "("
+          IDENT "unsafe_code"
+          R_PAREN ")"
+      R_BRACK "]"
+    WHITESPACE "\n"
+    UNSAFE_KW "unsafe"
+    WHITESPACE " "
+    IMPL_KW "impl"
+    GENERIC_PARAM_LIST
+      L_ANGLE "<"
+      TYPE_PARAM
+        NAME
+          IDENT "I"
+        COLON ":"
+        WHITESPACE " "
+        TYPE_BOUND_LIST
+          TYPE_BOUND
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "Idx"
+      COMMA ","
+      WHITESPACE " "
+      TYPE_PARAM
+        NAME
+          IDENT "T"
+      R_ANGLE ">"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "Send"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "IndexVec"
+          GENERIC_ARG_LIST
+            L_ANGLE "<"
+            TYPE_ARG
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "I"
+            COMMA ","
+            WHITESPACE " "
+            TYPE_ARG
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "T"
+            R_ANGLE ">"
+    WHITESPACE " "
+    WHERE_CLAUSE
+      WHERE_KW "where"
+      WHITESPACE " "
+      WHERE_PRED
+        PATH_TYPE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "T"
+        COLON ":"
+        WHITESPACE " "
+        TYPE_BOUND_LIST
+          TYPE_BOUND
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "Send"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    COMMENT "// SAFETY: `IndexVec` owns its elements; `I` is only a marker."
+    WHITESPACE "\n"
+    ATTR
+      POUND "#"
+      L_BRACK "["
+      TOKEN_TREE_META
+        PATH
+          PATH_SEGMENT
+            NAME_REF
+              IDENT "expect"
+        TOKEN_TREE
+          L_PAREN "("
+          IDENT "unsafe_code"
+          R_PAREN ")"
+      R_BRACK "]"
+    WHITESPACE "\n"
+    ATTR
+      POUND "#"
+      L_BRACK "["
+      CFG_META
+        CFG_KW "cfg"
+        L_PAREN "("
+        CFG_ATOM
+          IDENT "feature"
+          WHITESPACE " "
+          EQ "="
+          WHITESPACE " "
+          STRING "\"salsa\""
+        R_PAREN ")"
+      R_BRACK "]"
+    WHITESPACE "\n"
+    UNSAFE_KW "unsafe"
+    WHITESPACE " "
+    IMPL_KW "impl"
+    GENERIC_PARAM_LIST
+      L_ANGLE "<"
+      TYPE_PARAM
+        NAME
+          IDENT "I"
+      COMMA ","
+      WHITESPACE " "
+      TYPE_PARAM
+        NAME
+          IDENT "T"
+        COLON ":"
+        WHITESPACE " "
+        TYPE_BOUND_LIST
+          TYPE_BOUND
+            PATH_TYPE
+              PATH
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "salsa"
+                COLON2 "::"
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "SalsaValue"
+      R_ANGLE ">"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH
+          PATH_SEGMENT
+            NAME_REF
+              IDENT "salsa"
+        COLON2 "::"
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "SalsaValue"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "IndexVec"
+          GENERIC_ARG_LIST
+            L_ANGLE "<"
+            TYPE_ARG
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "I"
+            COMMA ","
+            WHITESPACE " "
+            TYPE_ARG
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "T"
+            R_ANGLE ">"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      R_CURLY "}"
+  WHITESPACE "\n"

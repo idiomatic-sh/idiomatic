@@ -1,0 +1,39 @@
+description = "Every `.go` file under `src/` has the test file `<name>_test.go` at the same place under `src/`."
+why = "A source file with no test beside it in the tree is behaviour nobody runs. The test file mirrors the source path: `src/domain/todo/titles.go` is tested by `src/domain/todo/titles_test.go`, and `src/main.go` by `src/main_test.go`."
+
+query = '''
+let sources = select * from "filesystem.file" where not glob_any(path, "**/*_test.go");
+let nested = capture(from=sources, path="path", pattern="src/{*dir}/{name}.go", captures=["dir", "name"]);
+let top = capture(from=sources, path="path", pattern="src/{name}.go", captures=["name"]);
+let nested-tests = capture(from="filesystem.file", path="path", pattern="src/{*dir}/{name}_test.go", captures=["dir", "name"]);
+let top-tests = capture(from="filesystem.file", path="path", pattern="src/{name}_test.go", captures=["name"]);
+let nested-test-keys = project(from=nested-tests, columns=["dir", "name"]);
+let top-test-keys = project(from=top-tests, columns=["name"]);
+let nested-missing = antijoin(left=nested, right=nested-test-keys, left-on=["dir", "name"], right-on=["dir", "name"]);
+let top-missing = antijoin(left=top, right=top-test-keys, left-on=["name"], right-on=["name"]);
+let nested-paths = project(from=nested-missing, columns=["path"]);
+let top-paths = project(from=top-missing, columns=["path"]);
+let missing = union(left=nested-paths, right=top-paths);
+emit missing subject "path" key("path");
+'''
+
+[diagnostic]
+primary = "path"
+message = "`{path}` has no test file `<name>_test.go` under `src/`"
+help = "Add the test file beside the source under `src/`."
+
+[given]
+include = ["**"]
+files."src/main.go" = "package main\n"
+files."src/main_test.go" = "package main\n"
+files."src/domain/user.go" = "package domain\n"
+
+[[scenarios]]
+id = "source-without-test"
+scenario = "Only the source without its colocated test is reported."
+then.findings = [{ path = "src/domain/user.go" }]
+
+[[scenarios]]
+id = "sources-with-tests"
+scenario = "Test files do not themselves need a second test file."
+given.files."src/domain/user_test.go" = "package domain\n"

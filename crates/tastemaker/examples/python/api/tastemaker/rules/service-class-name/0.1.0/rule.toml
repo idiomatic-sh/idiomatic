@@ -1,0 +1,41 @@
+description = "The `service.py` of `services/<pkg>/` declares a class named for its package: `<Pkg>Service`, the package in Pascal case."
+why = "Placed on the `service.py` files, every service package exposes its operations through one class named for the service, so a reader and a tool find it by its name. The name is the package's in Pascal case with the suffix `Service`: `todos/` holds `TodosService` and `todo_lists/` holds `TodoListsService`, so `TodoService` in `todos/` is reported."
+
+query = '''
+let files = select * from "filesystem.file";
+let services = capture(from=files, path="path", pattern="src/services/{pkg}/service.py", captures=["pkg"]);
+let classes = select * from "defines" where kind = "class";
+let named = select c."file" as "file", c."name" as "name", p."pkg" as "pkg" from classes as c join services as p on c."file" = p."path" where c.name = concat(pascal(p.pkg), "Service");
+let missing = antijoin(left=services, right=named, left-on=["path"], right-on=["file"]);
+emit missing subject "path" key("path");
+'''
+
+[diagnostic]
+primary = "path"
+message = "`{path}` declares no class named for its package `{pkg}`: the package in Pascal case, then `Service`"
+help = "Name the service's class for its package: `todo_lists/service.py` declares `TodoListsService`."
+
+[given]
+include = ["**/service.py"]
+
+[[scenarios]]
+id = "class-without-the-suffix"
+scenario = "A service.py whose class does not end in Service is reported."
+given.files."src/services/billing/service.py" = "class BillingManager:\n    pass\n"
+then.findings = [{ path = "src/services/billing/service.py" }]
+
+[[scenarios]]
+id = "class-named-for-another-package"
+scenario = "A service.py whose class ends in Service but is not named for its package is reported."
+given.files."src/services/todos/service.py" = "class TodoService:\n    pass\n"
+then.findings = [{ path = "src/services/todos/service.py" }]
+
+[[scenarios]]
+id = "class-named-for-its-package"
+scenario = "A service.py whose class is its package in Pascal case with the suffix Service is not reported."
+given.files."src/services/todos/service.py" = "class TodosService:\n    pass\n"
+
+[[scenarios]]
+id = "class-named-for-a-package-of-two-words"
+scenario = "A package of two words, todo_lists, is named in Pascal case: TodoListsService is not reported."
+given.files."src/services/todo_lists/service.py" = "class TodoListsService:\n    pass\n"

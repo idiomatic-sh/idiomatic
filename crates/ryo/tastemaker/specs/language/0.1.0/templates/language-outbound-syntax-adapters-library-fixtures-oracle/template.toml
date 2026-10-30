@@ -1,0 +1,47 @@
+description = "A file of a syntax adapter, the implementation of the syntax port for one parser library: `src/outbound/syntax/adapters/<library>/fixtures/oracle.rs`."
+why = "The language is complete or says what it lacks: this file is placed at count 1 for every language, so a language added by its directory has it from the first scaffold, in the shape every other language has, and a language that lacks it is a finding at the language. The template asks for the declarations the file makes; the bodies and the language's words are the author's."
+content = '''
+//! The library's own reading of a file, compared with the rows: what the oracle rail of the conformance holds the relations to.
+
+use ryo::languages::contract::OracleRows;
+
+{% if scaffold | default(false) %}
+/// What the library reads in `text` that `rows` do not say: the differences, none when the rows agree.
+#[must_use]
+pub(crate) fn oracle(text: &str, rows: &OracleRows) -> Vec<String> {
+    let _ = (text, rows);
+    Vec::new()
+}
+{% endif %}
+'''
+
+[given]
+file = 'src/outbound/syntax/adapters/{library}/fixtures/oracle.rs'
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'src/outbound/syntax/adapters/demo_parser/fixtures/oracle.rs' = '''
+//! The library's own reading of a file, compared with the rows: what the oracle rail of the conformance holds the relations to.
+
+use ryo::languages::contract::OracleRows;
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template.'
+given.files.'src/outbound/syntax/adapters/demo_parser/fixtures/oracle.rs' = '''
+//! The library's own reading of a file, compared with the rows: what the oracle rail of the conformance holds the relations to.
+
+use ryo::languages::contract::OracleRows;
+
+
+// More.
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'language-outbound-syntax-adapters-library-fixtures-oracle#count', path = '.' },
+]

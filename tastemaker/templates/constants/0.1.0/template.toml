@@ -1,0 +1,32 @@
+description = "A part's constants: the constants the part's code uses: no literal sits in code."
+why = "The text a concept uses (a key, a message, a punctuation mark) lives in one file named for what it is, so no string literal sits in code: `no-string-literals` allows literals in `constants.rs` only. The template is open: it asks that the file exist and states its role, and the constants are its author's."
+content = '''
+//! The constants of the part: the text its code uses.
+'''
+
+[given]
+file = 'src/greeting/constants.rs'
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'src/greeting/constants.rs' = '''
+//! The constants of the part: the text its code uses.
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template.'
+given.files.'src/greeting/constants.rs' = '''
+//! The constants of the part: the text its code uses.
+
+/// A greeting.
+pub const HELLO: &str = "hello";
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'constants#count', path = 'tastemaker.toml' },
+]

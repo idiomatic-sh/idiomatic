@@ -1,0 +1,90 @@
+description = "A test never reads its cases from a directory in a way that turns a read that fails into no cases."
+why = "A test that reads its cases from a fixture directory and takes an unreadable or missing directory as an empty one runs zero cases and passes: deleting the fixtures deletes the coverage, silently. A case table written in code is held by the crate's `cases::run`, which refuses a case word with no row; a case set read at run time is held here. Read in test code: a `read_dir(…)` whose result is swallowed: passed to `into_iter`, `ok`, `flatten`, `unwrap_or_default`, `unwrap_or` or `unwrap_or_else`, or bound by `let Ok(…) = … else` or `if let Ok(…) = …`. A read that fails the test (`?`, `expect`, `unwrap`) is not reported."
+
+query = '''
+let tree = select l."id" as "id", l."kind" as "kind", l."text" as "text", l."file" as "file", l."span" as "span" from "syntax-tree" as l;
+let calls = select * from tree where kind = "call-expr";
+let call-children = select l."id" as "call", r."child" as "child" from calls as l join "syntax-child" as r on l."id" = r."parent";
+let call-paths = select l."call" as "call", l."child" as "path" from call-children as l join tree as r on l."child" = r."id" where r."kind" = "path-expr";
+let path-nodes = select l."path" as "id", l."call" as "call" from call-paths as l;
+let path-below = axis(from=path-nodes, relation="syntax-child", direction=descendant, domain=tree);
+let reads = select l."call" as "id" from path-below as l join tree as r on l."related" = r."id" where r."kind" = "ident" and r."text" = "read_dir";
+let read-places = select l."id" as "id", r."file" as "file", r."span" as "span" from reads as l join tree as r on l."id" = r."id";
+let read-parents = select l."id" as "id", l."file" as "file", l."span" as "span", r."parent" as "parent", r."field" as "field" from read-places as l join "syntax-child" as r on l."id" = r."child";
+let name-edges = select * from "syntax-child" where field = "name-ref";
+let ref-tokens = select l."parent" as "owner", r."child" as "token" from name-edges as l join "syntax-child" as r on l."child" = r."parent";
+let method-names = select l."owner" as "method", r."text" as "name" from ref-tokens as l join tree as r on l."token" = r."id" where r."kind" = "ident";
+let swallowing = select * from method-names where glob_any(name, "{into_iter,ok,flatten,unwrap_or_default,unwrap_or,unwrap_or_else}");
+let swallowed = select l."file" as "file", l."span" as "span" from read-parents as l join swallowing as r on l."parent" = r."method" where l."field" = "receiver";
+let lets = select * from tree where kind = "let-stmt";
+let let-children = select l."id" as "statement", r."child" as "child" from lets as l join "syntax-child" as r on l."id" = r."parent";
+let let-elses = select l."statement" as "statement" from let-children as l join tree as r on l."child" = r."id" where r."kind" = "let-else";
+let bound-else = select l."file" as "file", l."span" as "span" from read-parents as l join let-elses as r on l."parent" = r."statement";
+let let-exprs = select * from tree where kind = "let-expr";
+let bound-if = select l."file" as "file", l."span" as "span" from read-parents as l join let-exprs as r on l."parent" = r."id";
+let either = union(left=swallowed, right=bound-else);
+let found = union(left=either, right=bound-if);
+emit found subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "a directory read that fails here becomes no cases, and the test passes"
+help = "Fail the test when its cases cannot be read: `std::fs::read_dir(&folder)?` or `.expect(\"the fixtures of …\")`, and read each entry the same way (`entry?`). A directory that may be absent by design is not a case source: name the cases instead."
+
+[given]
+include = ['**']
+files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+
+[[scenarios]]
+id = 'fixture-folders-read-whatever-they-are'
+scenario = 'A language adapter test whose fixture folders are read as empty when unreadable, and manifests collected as none when a directory cannot be read, as the tests were at 5149cd075d.'
+given.files.'src/adapter_test.rs' = '''
+fn pinned(folders: &[std::path::PathBuf]) -> usize {
+    let mut seen = 0;
+    for folder in folders {
+        for entry in std::fs::read_dir(&folder).into_iter().flatten().flatten() {
+            seen += usize::from(entry.path().is_file());
+        }
+    }
+    seen
+}
+fn manifests_below(directory: &std::path::Path, found: &mut Vec<String>) {
+    let Ok(entries) = std::fs::read_dir(directory) else {
+        return;
+    };
+    for entry in entries.filter_map(Result::ok) {
+        found.push(entry.path().display().to_string());
+    }
+}
+fn listed(directory: &std::path::Path) -> usize {
+    if let Ok(entries) = std::fs::read_dir(directory) {
+        return entries.count();
+    }
+    0
+}
+'''
+then.findings = [
+  { path = 'src/adapter_test.rs', line = 4 },
+  { path = 'src/adapter_test.rs', line = 11 },
+  { path = 'src/adapter_test.rs', line = 19 },
+]
+
+[[scenarios]]
+id = 'fixture-folders-required'
+scenario = 'A test that fails when its fixture folder or one of its entries cannot be read is not reported.'
+given.files.'src/adapter_test.rs' = '''
+fn pinned(folder: &std::path::Path) -> Result<usize, std::io::Error> {
+    let mut seen = 0;
+    for entry in std::fs::read_dir(folder)? {
+        seen += usize::from(entry?.path().is_file());
+    }
+    let listed = std::fs::read_dir(folder).expect("the fixtures").count();
+    Ok(seen + listed)
+}
+'''

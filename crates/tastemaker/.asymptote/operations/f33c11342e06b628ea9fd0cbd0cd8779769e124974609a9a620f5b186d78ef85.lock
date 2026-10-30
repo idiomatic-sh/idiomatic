@@ -1,0 +1,9 @@
+version = 1
+parents = ["40699f752e2d6131336341789efad3dca1fbb59c81b935b067f30b20ebb9ccb2"]
+
+suppressed-removed = [
+  { tool = "tastemaker", rule = "idiomatic.arch/idiomatic-rust/bounded-engine-state", path = "crates/core/src/outbound/packages/adapters/path/adapter.rs", level = "error", fingerprint = "10e46b8f772299d4" },
+  { tool = "tastemaker", rule = "idiomatic.arch/idiomatic-rust/bounded-engine-state", path = "crates/core/src/outbound/analysis/adapters/ryo/adapter.rs", level = "error", fingerprint = "f1ad19dd45ad6f96" },
+  { tool = "tastemaker", rule = "idiomatic.arch/idiomatic-rust/bounded-engine-state", path = "crates/core/src/outbound/validate_store/adapters/postcard/adapter.rs", level = "error", fingerprint = "ed6f20563b616475" },
+  { tool = "tastemaker", rule = "idiomatic.arch/idiomatic-rust/bounded-engine-state", path = "crates/core/src/inbound/use_cases/validate/use_case.rs", level = "error", fingerprint = "05e65a93efd71c4e" },
+]

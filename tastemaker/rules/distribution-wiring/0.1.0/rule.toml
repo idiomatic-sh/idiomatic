@@ -1,0 +1,237 @@
+description = "A placed distribution has exactly the CLI Cargo wiring that runs its sibling smoke test behind the distribution feature, and only when named."
+why = "A generated performance proof that Cargo never compiles cannot protect a release; a nonshipping CLI must not point to a nonexistent sibling test."
+
+query = '''
+let listed-files = select l."path" as "file" from "filesystem.file" as l;
+let placed-files = select l."path" as "file", l."entry" as "entry", l."package" as "package", l."template" as "template", l."version" as "version", l."spec" as "spec" from "tastemaker.placed" as l;
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let roots = select * from placed-files where template = "smoke-test";
+let distributions = capture(from=roots, path="file", pattern="{*product}/distribution/smoke_test.rs", captures=["product"]);
+let manifests = capture(from=listed-files, path="file", pattern="{*product}/cli/Cargo.toml", captures=["product"]);
+let entries = project(from="entry", columns=["file", "owner", "occurrence", "key", "kind", "decoded", "text"]);
+let documents = select * from tree-nodes where kind = "toml";
+let test-keys = select * from entries where key = "test";
+let test-roots = select l."occurrence" as "entry" from test-keys as l join documents as r on l."owner" = r."id";
+let elements = select l."occurrence" as "element", l."owner" as "entry" from "sequence-element" as l;
+let test-elements = select r."element" as "element" from test-roots as l join elements as r on l."entry" = r."entry";
+let members = select * from "mapping" where kind = "sequence-member";
+let test-tables = select r."id" as "table" from test-elements as l join members as r on l."element" = r."owner";
+let names = select * from entries where key = "name";
+let distribution-names = select * from names where decoded = "distribution";
+let targets = select l."file" as "file", l."owner" as "owner" from distribution-names as l join test-tables as r on l."owner" = r."table";
+let paths = select * from entries where key = "path";
+let sibling-paths = select * from paths where decoded = "../distribution/smoke_test.rs";
+let located = select l."file" as "file", l."owner" as "owner" from targets as l join sibling-paths as r on l."owner" = r."owner";
+let gates = select * from entries where key = "required-features";
+let distribution-elements = select * from "sequence-element" where decoded = "distribution";
+let gated-owners = select l."owner" as "owner" from gates as l join distribution-elements as r on l."occurrence" = r."owner";
+let test-flags = select * from entries where key = "test";
+let manual-flags = select * from test-flags where text = "false";
+let manual = select l."file" as "file", l."owner" as "owner" from located as l join manual-flags as r on l."owner" = r."owner";
+let gated = select l."file" as "file" from manual as l join gated-owners as r on l."owner" = r."owner";
+let feature-keys = select * from entries where key = "features";
+let feature-roots = select l."occurrence" as "entry" from feature-keys as l join documents as r on l."owner" = r."id";
+let feature-tables = select r."id" as "table" from feature-roots as l join "mapping" as r on l."entry" = r."owner";
+let feature-names = select * from entries where key = "distribution";
+let feature-arrays = select * from feature-names where kind = "sequence";
+let features = select l."file" as "file" from feature-arrays as l join feature-tables as r on l."owner" = r."table";
+let wired = select l."file" as "file" from gated as l join features as r on l."file" = r."file";
+let shipping = select l."file" as "file", l."product" as "product" from manifests as l join distributions as r on l."product" = r."product";
+let missing = antijoin(left=shipping, right=wired, left-on=["file"], right-on=["file"]);
+let missing-wiring = extend(from=missing, values={"reason": "missing gated sibling test"});
+let named-targets = project(from=targets, columns=["file"]);
+let enabled = union(left=named-targets, right=features);
+let configured = select l."file" as "file", l."product" as "product" from manifests as l join enabled as r on l."file" = r."file";
+let dangling = antijoin(left=configured, right=distributions, left-on=["product"], right-on=["product"]);
+let dangling-wiring = extend(from=dangling, values={"reason": "distribution is not placed"});
+let findings = union(left=missing-wiring, right=dangling-wiring);
+emit findings subject "file" key("file", "reason");
+'''
+
+[diagnostic]
+primary = "file"
+message = "`{file}` has inconsistent distribution wiring: {reason}"
+help = "Set the CLI crate's distribution parameter to shipped exactly when the sibling distribution spec is placed, then scaffold its Cargo manifest. The test must be named distribution, use../distribution/smoke_test.rs, require the distribution feature, set `test = false` so neither `cargo test` nor `--all-features` runs it, and declare that feature."
+
+[given]
+files.'project/cli/Cargo.toml' = '''
+[package]
+name = "proof"
+version = "0.1.0"
+[[test]]
+name = "distribution"
+path = "../distribution/smoke_test.rs"
+required-features = ["distribution"]
+test = false
+[features]
+distribution = []
+'''
+files.'tastemaker.toml' = '''
+workspace = { name = "fixture", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+rules = [{ rule = "idiomatic.arch/distribution-wiring", include = ["**"] }]
+specs = [{ spec = "idiomatic.arch/distribution", include = ["project/distribution"], params = { command = "proof", product = "proof", organization = "idiomatic_sh", languages = "none", configuration = "proof.toml", check = "check" } }]
+'''
+
+[[scenarios]]
+id = 'shipped'
+scenario = 'Shipped: nothing is reported.'
+given.files.'project/distribution/smoke_test.rs' = '''
+// The placed target root.
+'''
+then.only = ['idiomatic.arch/distribution-wiring', 'idiomatic.arch/distribution-wiring#unknown']
+
+[[scenarios]]
+id = 'absent'
+scenario = 'Absent: nothing is reported.'
+given.files.'project/cli/Cargo.toml' = '''
+[package]
+name="proof"
+version="0.1.0"
+'''
+given.files.'tastemaker.toml' = '''
+workspace = { name = "fixture", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+rules = [{ rule = "idiomatic.arch/distribution-wiring", include = ["**"] }]
+'''
+then.only = ['idiomatic.arch/distribution-wiring', 'idiomatic.arch/distribution-wiring#unknown']
+
+[[scenarios]]
+id = 'missing-target'
+scenario = 'Missing-target: it is reported.'
+given.files.'project/cli/Cargo.toml' = '''
+[package]
+name="proof"
+version="0.1.0"
+'''
+given.files.'project/distribution/smoke_test.rs' = '''
+// The placed target root.
+'''
+then.only = ['idiomatic.arch/distribution-wiring', 'idiomatic.arch/distribution-wiring#unknown']
+then.findings = [
+  { path = 'project/cli/Cargo.toml' },
+]
+
+[[scenarios]]
+id = 'wrong-path'
+scenario = 'Wrong-path: it is reported.'
+given.files.'project/cli/Cargo.toml' = '''
+[package]
+name = "proof"
+version = "0.1.0"
+[[test]]
+name = "distribution"
+path = "tests/unrelated.rs"
+required-features = ["distribution"]
+test = false
+[features]
+distribution = []
+'''
+given.files.'project/distribution/smoke_test.rs' = '''
+// The placed target root.
+'''
+then.only = ['idiomatic.arch/distribution-wiring', 'idiomatic.arch/distribution-wiring#unknown']
+then.findings = [
+  { path = 'project/cli/Cargo.toml' },
+]
+
+[[scenarios]]
+id = 'missing-gate'
+scenario = 'Missing-gate: it is reported.'
+given.files.'project/cli/Cargo.toml' = '''
+[package]
+name = "proof"
+version = "0.1.0"
+[[test]]
+name = "distribution"
+path = "../distribution/smoke_test.rs"
+required-features = []
+test = false
+[features]
+distribution = []
+'''
+given.files.'project/distribution/smoke_test.rs' = '''
+// The placed target root.
+'''
+then.only = ['idiomatic.arch/distribution-wiring', 'idiomatic.arch/distribution-wiring#unknown']
+then.findings = [
+  { path = 'project/cli/Cargo.toml' },
+]
+
+[[scenarios]]
+id = 'missing-feature'
+scenario = 'Missing-feature: it is reported.'
+given.files.'project/cli/Cargo.toml' = '''
+[package]
+name = "proof"
+version = "0.1.0"
+[[test]]
+name = "distribution"
+path = "../distribution/smoke_test.rs"
+required-features = ["distribution"]
+test = false
+[features]
+unrelated = []
+'''
+given.files.'project/distribution/smoke_test.rs' = '''
+// The placed target root.
+'''
+then.only = ['idiomatic.arch/distribution-wiring', 'idiomatic.arch/distribution-wiring#unknown']
+then.findings = [
+  { path = 'project/cli/Cargo.toml' },
+]
+
+[[scenarios]]
+id = 'dangling-target'
+scenario = 'Dangling-target: it is reported.'
+given.files.'tastemaker.toml' = '''
+workspace = { name = "fixture", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+rules = [{ rule = "idiomatic.arch/distribution-wiring", include = ["**"] }]
+'''
+then.only = ['idiomatic.arch/distribution-wiring', 'idiomatic.arch/distribution-wiring#unknown']
+then.findings = [
+  { path = 'project/cli/Cargo.toml' },
+]
+
+[[scenarios]]
+id = 'wrong-table'
+scenario = 'Wrong-table: it is reported.'
+given.files.'project/cli/Cargo.toml' = '''
+[package]
+name = "proof"
+version = "0.1.0"
+[[example]]
+name = "distribution"
+path = "../distribution/smoke_test.rs"
+required-features = ["distribution"]
+test = false
+[features]
+distribution = []
+'''
+given.files.'project/distribution/smoke_test.rs' = '''
+// The placed target root.
+'''
+then.only = ['idiomatic.arch/distribution-wiring', 'idiomatic.arch/distribution-wiring#unknown']
+then.findings = [
+  { path = 'project/cli/Cargo.toml' },
+]
+
+[[scenarios]]
+id = 'unit-run'
+scenario = 'Unit-run: it is reported.'
+given.files.'project/cli/Cargo.toml' = '''
+[package]
+name = "proof"
+version = "0.1.0"
+[[test]]
+name = "distribution"
+path = "../distribution/smoke_test.rs"
+required-features = ["distribution"]
+[features]
+distribution = []
+'''
+given.files.'project/distribution/smoke_test.rs' = '''
+// The placed target root.
+'''
+then.only = ['idiomatic.arch/distribution-wiring', 'idiomatic.arch/distribution-wiring#unknown']
+then.findings = [
+  { path = 'project/cli/Cargo.toml' },
+]

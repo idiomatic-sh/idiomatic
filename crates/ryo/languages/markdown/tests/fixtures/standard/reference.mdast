@@ -1,0 +1,55 @@
+root[5]
+├─0 heading[1]
+│   │ depth: 1
+│   └─0 text "Links"
+├─1 paragraph[9]
+│   ├─0 text "See "
+│   ├─1 link[1]
+│   │   │ title: null
+│   │   │ url: "../guide.md#setup"
+│   │   └─0 text "the guide"
+│   ├─2 text ", "
+│   ├─3 link[1]
+│   │   │ title: null
+│   │   │ url: "#links"
+│   │   └─0 text "this file"
+│   ├─4 text ", "
+│   ├─5 link[1]
+│   │   │ title: null
+│   │   │ url: "https://example.org/x"
+│   │   └─0 text "the site"
+│   ├─6 text " and "
+│   ├─7 image
+│   │     title: null
+│   │     url: "img/fig.png"
+│   │     alt: "a figure"
+│   └─8 text "."
+├─2 paragraph[7]
+│   ├─0 text "Autolink "
+│   ├─1 link[1]
+│   │   │ title: null
+│   │   │ url: "https://example.org/auto"
+│   │   └─0 text "https://example.org/auto"
+│   ├─2 text " and "
+│   ├─3 linkReference[1]
+│   │   │ label: "a shortcut"
+│   │   │ identifier: "a shortcut"
+│   │   │ referenceType: "shortcut"
+│   │   └─0 text "a shortcut"
+│   ├─4 text " and "
+│   ├─5 linkReference[1]
+│   │   │ label: "a collapsed"
+│   │   │ identifier: "a collapsed"
+│   │   │ referenceType: "collapsed"
+│   │   └─0 text "a collapsed"
+│   └─6 text "."
+├─3 definition
+│     identifier: "a shortcut"
+│     label: "a shortcut"
+│     title: null
+│     url: "other.md"
+└─4 definition
+      identifier: "a collapsed"
+      label: "a collapsed"
+      title: null
+      url: "/docs/root.md?raw=1"

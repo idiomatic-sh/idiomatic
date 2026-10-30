@@ -1,0 +1,7 @@
+{
+  "name": "util",
+  "version": "1.0.0",
+  "dependencies": { "core": "workspace:*" },
+  "optionalDependencies": { "left-pad": "1.3.0" },
+  "peerDependencies": { "react": ">=18" }
+}

@@ -1,0 +1,32 @@
+description = "A file does not import a module that `forbidden` names."
+why = "Dependencies run one way: routers call services, never the reverse, so a service stays usable without the web layer. The entry names the forbidden modules as globs over the dotted import path and the files it covers; a finding is the import. Not seen: an import written relative to the file."
+
+query = '''
+param forbidden: set<string>;
+let found = select * from "static-import" where glob_any(target, $forbidden);
+emit found subject "file" key("span");
+'''
+
+[params.forbidden]
+type = "set<string>"
+description = "The globs of the dotted import paths the files may not import."
+
+[diagnostic]
+primary = "span"
+message = "this file imports `{target}`, which it may not"
+help = "Move what both need into a module they both may import, or invert the call so the router passes the service what it needs."
+
+[given]
+include = ["**"]
+params = { forbidden = ["src.routers", "src.routers.*"] }
+
+[[scenarios]]
+id = "service-imports-a-router"
+scenario = "A service that imports from routers is reported."
+given.files."src/services/billing/service.py" = "from src.routers.users.routes import router\n"
+then.findings = [{ path = "src/services/billing/service.py", line = 1 }]
+
+[[scenarios]]
+id = "service-imports-a-model"
+scenario = "A service that imports from models is not reported."
+given.files."src/services/users/service.py" = "from src.models.user import User\n"

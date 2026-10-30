@@ -1,0 +1,8 @@
+root[1]
+└─0 list[1]
+    │ ordered: false
+    │ start: null
+    │ spread: false
+    └─0 listItem[0]
+          spread: false
+          checked: null

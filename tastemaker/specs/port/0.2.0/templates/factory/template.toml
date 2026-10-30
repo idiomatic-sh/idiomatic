@@ -1,0 +1,91 @@
+description = "A hex's factory: one function per adapter, building it from the parameters the edge passes. It has no test of its own: it only constructs, and what it constructs, each adapter, is proven by that adapter's `adapter_test.rs`."
+why = "Keeps construction beside the adapters and composition at the edge: every dependency (settings, the connection or client the edge opened, shared caches) arrives as a parameter, so the edge opens each connection once, passes it to every adapter that uses it and chooses the implementation, and a factory builds nothing else and chooses nothing. It returns the core's port. Construction is constructor injection: a factory takes its clients and returns the adapter built with them. A store's factory takes the store's settings, the directory it is kept in and the build that reads it, so its port methods take only the core's rows."
+content = '''
+//! Builds the {{ port }} adapters, one function each, by constructor injection: a factory takes
+//! the clients and settings the edge opened and returns the adapter built with them, so no
+//! port method takes configuration. A factory builds nothing else, chooses nothing, and is
+//! called only by an edge.
+{% for implementation in captures.implementation | default([]) %}
+/// The {{ implementation }} {{ port }} adapter, built from the clients the edge passes.
+#[must_use]
+pub fn {{ implementation }}() -> impl crate::outbound::{{ port }}::interface::{{ port | pascal }}Port {
+    super::adapters::{{ implementation }}::adapter::{{ port | pascal }}{{ implementation | pascal }}Adapter
+}
+{%- endfor %}
+'''
+
+[params]
+port = { type = "identifier", from = "directory-name", description = "The outbound port, the directory the file sits in." }
+
+[given]
+file = 'factory.rs'
+params = { port = 'names' }
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'factory.rs' = '''
+//! Builds the names adapters, one function each, by constructor injection: a factory takes
+//! the clients and settings the edge opened and returns the adapter built with them, so no
+//! port method takes configuration. A factory builds nothing else, chooses nothing, and is
+//! called only by an edge.
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template.'
+given.files.'factory.rs' = '''
+//! Builds the names adapters, one function each, by constructor injection: a factory takes
+//! the clients and settings the edge opened and returns the adapter built with them, so no
+//! port method takes configuration. A factory builds nothing else, chooses nothing, and is
+//! called only by an edge.
+
+use super::adapters::memory::adapter::NamesMemoryAdapter;
+
+/// The memory names adapter, built from the clients the edge passes.
+#[must_use]
+pub fn memory() -> NamesMemoryAdapter {
+    NamesMemoryAdapter
+}
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'factory#count', path = '.' },
+]
+
+[[scenarios]]
+id = 'store-settings'
+scenario = "A store's factory takes the directory and the build and gives them to the adapter's settings."
+given.files.'factory.rs' = '''
+//! Builds the names adapters, one function each, by constructor injection: a factory takes
+//! the clients and settings the edge opened and returns the adapter built with them, so no
+//! port method takes configuration. A factory builds nothing else, chooses nothing, and is
+//! called only by an edge.
+
+/// The postcard names adapter, built from the clients the edge passes.
+#[must_use]
+pub fn postcard(directory: std::path::PathBuf, build: Box<str>) -> impl crate::outbound::names::interface::NamesPort {
+    super::adapters::postcard::adapter::NamesPostcardAdapter::new(
+        super::adapters::postcard::settings::NamesPostcardSettings { directory, build },
+    )
+}
+'''
+
+[[scenarios]]
+id = 'with-parameters'
+scenario = 'A factory takes the clients and settings it builds the adapter from.'
+given.files.'factory.rs' = '''
+//! Builds the names adapters, one function each, by constructor injection: a factory takes
+//! the clients and settings the edge opened and returns the adapter built with them, so no
+//! port method takes configuration. A factory builds nothing else, chooses nothing, and is
+//! called only by an edge.
+
+/// The disk names adapter, built from the clients the edge passes.
+#[must_use]
+pub fn disk(root: crate::domain::root::types::Root, budget: crate::domain::budget::types::Budget) -> impl crate::outbound::names::interface::NamesPort {
+    super::adapters::disk::adapter::NamesDiskAdapter { root, budget }
+}
+'''

@@ -1,0 +1,11 @@
+root[1]
+└─0 paragraph[3]
+    ├─0 text "[foo "
+    ├─1 emphasis[3]
+    │   ├─0 text "[bar "
+    │   ├─1 link[1]
+    │   │   │ title: null
+    │   │   │ url: "/uri"
+    │   │   └─0 text "baz"
+    │   └─2 text "](/uri)"
+    └─2 text "](/uri)"

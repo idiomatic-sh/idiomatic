@@ -1,0 +1,78 @@
+description = "An edge's test data: fixture-only access to its composition."
+why = "Gives the edge's tests and its benches one place for their test data, the case and domain values and the fake connections they run `compose` over, compiled only for tests and under the `fixtures` feature so that no production build carries them (the owning hex fixtures supply the fake services, and the host exports no runtime port or dependency bag)."
+content = '''
+//! The test data of `{{ resource }} {{ part }}`, compiled only for tests and under the `fixtures` feature.
+#![cfg(any(test, feature = "fixtures"))]
+'''
+
+[params]
+resource = { type = "identifier", from = "directory-name", description = "The resource, captured from the path of the edge's part; the directory's own name where the part has no resource." }
+part = { type = "identifier", from = "directory-name", description = "The edge's directory name: the command or the function." }
+
+[[scenarios]]
+id = 'example-command'
+scenario = 'The rendered template passes for a command.'
+given.file = 'src/commands/greeting/show/fixtures.rs'
+given.params = { resource = 'greeting', part = 'show' }
+given.files.'src/commands/greeting/show/fixtures.rs' = '''
+//! The test data of `greeting show`, compiled only for tests and under the `fixtures` feature.
+#![cfg(any(test, feature = "fixtures"))]
+'''
+
+[[scenarios]]
+id = 'example-entry'
+scenario = 'The rendered template passes for an entry.'
+given.file = 'src/entries/greeting/show/fixtures.rs'
+given.params = { resource = 'greeting', part = 'show' }
+given.files.'src/entries/greeting/show/fixtures.rs' = '''
+//! The test data of `greeting show`, compiled only for tests and under the `fixtures` feature.
+#![cfg(any(test, feature = "fixtures"))]
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template, such as the values it holds.'
+given.file = 'src/commands/greeting/show/fixtures.rs'
+given.params = { resource = 'greeting', part = 'show' }
+given.files.'src/commands/greeting/show/fixtures.rs' = '''
+//! The test data of `greeting show`, compiled only for tests and under the `fixtures` feature.
+#![cfg(any(test, feature = "fixtures"))]
+
+pub fn answer() -> bool {
+    true
+}
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+given.file = 'src/commands/greeting/show/fixtures.rs'
+given.params = { resource = 'greeting', part = 'show' }
+then.findings = [
+  { rule = 'edge-fixtures#count', path = 'tastemaker.toml' },
+]
+
+[[scenarios]]
+id = 'unconditional-fixture-host-would-production-code'
+scenario = 'An unconditional fixture host would be production code.'
+given.file = 'src/commands/greeting/show/fixtures.rs'
+given.params = { resource = 'greeting', part = 'show' }
+given.files.'src/commands/greeting/show/fixtures.rs' = '''
+//! The test data of `greeting show`, compiled only for tests and under the `fixtures` feature.
+'''
+then.findings = [
+  { rule = 'edge-fixtures#template', path = 'src/commands/greeting/show/fixtures.rs' },
+]
+
+[[scenarios]]
+id = 'test-only'
+scenario = 'A test-only host is invisible to external benchmarks.'
+given.file = 'src/commands/greeting/show/fixtures.rs'
+given.params = { resource = 'greeting', part = 'show' }
+given.files.'src/commands/greeting/show/fixtures.rs' = '''
+//! The test data of `greeting show`, compiled only for tests and under the `fixtures` feature.
+#![cfg(test)]
+'''
+then.findings = [
+  { rule = 'edge-fixtures#template', path = 'src/commands/greeting/show/fixtures.rs' },
+]

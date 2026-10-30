@@ -1,0 +1,1 @@
+Module(body=[FunctionDef(name='foo', args=arguments(args=[arg(arg='first', annotation=Name(id='int')), arg(arg='second', annotation=Name(id='int'))]), body=[Expr(value=Constant(value=Ellipsis))], returns=Name(id='int'))])

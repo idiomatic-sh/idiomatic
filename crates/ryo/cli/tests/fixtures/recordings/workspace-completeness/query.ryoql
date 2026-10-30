@@ -1,0 +1,4 @@
+let scoped = project(from="filesystem.file", columns=["path"]);
+let governed = select l."package" as "package", l."workspace" as "workspace" from "workspace-member" as l join scoped as r on l."workspace" = r."path";
+let ungoverned = antijoin(left=governed, right=scoped, left-on=["package"], right-on=["path"]);
+emit ungoverned subject "workspace" key("workspace", "package");

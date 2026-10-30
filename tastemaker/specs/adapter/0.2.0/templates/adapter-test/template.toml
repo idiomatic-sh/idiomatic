@@ -1,0 +1,153 @@
+description = "An adapter's test in the one test shape: the core's contract rows for its port run through it, then a table of the cases specific to this implementation."
+why = "Proves what is specific to one implementation after running the rows every implementation of the port shares, which the core exports as `fixtures::contract::CASES` of the port, so an adapter cannot pass by skipping the promised behavior and no test is named `passes_the_interface_test`: each row of the contract is a named case that fails by its name. `Case` and `Word` are each crate's own (`crate::cases`), so the core's rows run through the core's `cases::run` and this adapter's own rows through this crate's. The runners are the author's, one for each case word the table has rows of (`test-runners-match-rows`): a case is a row, not a function."
+content = '''
+//! The {{ part }} adapter of the {{ port }} port: the core's contract rows run through it, then the cases specific to it.
+
+use crate::cases::{Case, Word, run};
+use crate::outbound::{{ port }}::fixtures::contract::CASES as CONTRACT;
+
+type Input = ();
+type Value = ();
+type Failure = ();
+
+/// The rows of what is specific to this adapter: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[];
+
+/// Calls the adapter on one input, for the contract's rows and for its own; the author states it.
+fn subject(_input: Input) -> Result<Value, Failure> {
+    Err(())
+}
+
+#[test]
+fn succeeds() {
+    run(CONTRACT, Word::Succeeds, subject);
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+
+[params]
+port = { type = "identifier", from = "directory-name", description = "The outbound port the adapter implements, captured from the path of its part; the directory's own name where the part has no port." }
+part = { type = "identifier", from = "directory-name", description = "The adapter's directory name: the implementation." }
+
+[[scenarios]]
+id = 'example-adapter'
+scenario = 'The rendered template passes.'
+given.file = 'src/names/adapters/memory/adapter_test.rs'
+given.params = { port = 'names', part = 'memory' }
+given.files.'src/names/adapters/memory/adapter_test.rs' = '''
+//! The memory adapter of the names port: the core's contract rows run through it, then the cases specific to it.
+
+use crate::cases::{Case, Word, run};
+use crate::outbound::names::fixtures::contract::CASES as CONTRACT;
+
+type Input = ();
+type Value = ();
+type Failure = ();
+
+/// The rows of what is specific to this adapter: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[];
+
+/// Calls the adapter on one input, for the contract's rows and for its own; the author states it.
+fn subject(input: Input) -> Result<Value, Failure> {
+    todo!("call the adapter on one input")
+}
+
+#[test]
+fn succeeds() {
+    run(CONTRACT, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CONTRACT, Word::Refuses, subject);
+}
+
+#[test]
+fn fails() {
+    run(CONTRACT, Word::Fails, subject);
+}
+
+#[test]
+fn rejects() {
+    run(CONTRACT, Word::Rejects, subject);
+}
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template.'
+given.file = 'src/names/adapters/memory/adapter_test.rs'
+given.params = { port = 'names', part = 'memory' }
+given.files.'src/names/adapters/memory/adapter_test.rs' = '''
+//! The memory adapter of the names port: the core's contract rows run through it, then the cases specific to it.
+
+use crate::cases::{Case, Word, run};
+use crate::outbound::names::fixtures::contract::CASES as CONTRACT;
+
+type Input = ();
+type Value = ();
+type Failure = ();
+
+/// The rows of what is specific to this adapter: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[];
+
+/// Calls the adapter on one input, for the contract's rows and for its own; the author states it.
+fn subject(input: Input) -> Result<Value, Failure> {
+    todo!("call the adapter on one input")
+}
+
+#[test]
+fn succeeds() {
+    run(CONTRACT, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CONTRACT, Word::Refuses, subject);
+}
+
+#[test]
+fn fails() {
+    run(CONTRACT, Word::Fails, subject);
+}
+
+#[test]
+fn rejects() {
+    run(CONTRACT, Word::Rejects, subject);
+}
+
+// More.
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+given.file = 'src/names/adapters/memory/adapter_test.rs'
+given.params = { port = 'names', part = 'memory' }
+then.findings = [
+  { rule = 'adapter-test#count', path = '.' },
+]
+
+[[scenarios]]
+id = 'old-pointer-test'
+scenario = 'The pointer test the template no longer writes is no substitute for the table and the runners.'
+given.file = 'src/names/adapters/memory/adapter_test.rs'
+given.params = { port = 'names', part = 'memory' }
+given.files.'src/names/adapters/memory/adapter_test.rs' = '''
+//! What the memory names adapter promises beyond the core's contract.
+
+use super::adapter::NamesMemoryAdapter;
+
+#[test]
+fn passes_the_fixtures::contract() {
+    demo_greeting::outbound::names::fixtures::contract::check(&NamesMemoryAdapter);
+}
+'''
+then.findings = [
+  { rule = 'adapter-test#template', path = 'src/names/adapters/memory/adapter_test.rs' },
+  { rule = 'adapter-test#template', path = 'src/names/adapters/memory/adapter_test.rs' },
+  { rule = 'adapter-test#template', path = 'src/names/adapters/memory/adapter_test.rs' },
+  { rule = 'adapter-test#template', path = 'src/names/adapters/memory/adapter_test.rs' },
+  { rule = 'adapter-test#template', path = 'src/names/adapters/memory/adapter_test.rs' },
+  { rule = 'adapter-test#template', path = 'src/names/adapters/memory/adapter_test.rs' },
+]

@@ -1,0 +1,10 @@
+root[3]
+├─0 heading[1]
+│   │ depth: 3
+│   └─0 text "foo"
+├─1 heading[1]
+│   │ depth: 2
+│   └─0 text "foo"
+└─2 heading[1]
+    │ depth: 1
+    └─0 text "foo"

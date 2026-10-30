@@ -1,0 +1,1 @@
+Today's ryo could not decide this rule on ruff (verdict Unknown, a finding on each file it could not read), so nothing was recorded to compare with. checked.toml holds the findings of ruff checked by hand against the source; a rule with none is checked to give none.

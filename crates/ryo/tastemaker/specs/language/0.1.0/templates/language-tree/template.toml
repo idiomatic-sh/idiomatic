@@ -1,0 +1,34 @@
+description = "One file of the held inputs of a language: a case of its pinned test suite, a file of its pinned standard, a real-world file of its corpus, or the input of a relation fixture, of any kind."
+why = "A language is held to its official test suite and to real-world files, copied unchanged into `tests/fixtures/suite/` and `tests/fixtures/corpus/`. Those files are another project's text in any syntax, inputs that no rule reads, so the workspace keeps rules off them; placement still sees them, and an entry that requires at least one makes a language without a suite case or without a corpus file a finding at the language. Their content is the project's own, so the template asks nothing of it."
+content = ''
+
+[[scenarios]]
+id = 'real-world-file-any-kind-placed'
+scenario = 'A real-world file of any kind is placed.'
+given.file = 'tests/fixtures/corpus/{*path}'
+given.count = { min = 1 }
+given.files.'tests/fixtures/corpus/Cargo.toml' = '''
+[package]
+name = "sample"
+'''
+
+[[scenarios]]
+id = 'other-syntax'
+scenario = 'Files of other syntaxes, one that does not parse among them, are placed.'
+given.file = 'tests/fixtures/corpus/{*path}'
+given.count = { min = 1 }
+given.files.'tests/fixtures/corpus/broken.rs' = '''
+fn broken( {
+'''
+given.files.'tests/fixtures/corpus/script.py' = '''
+print("x")
+'''
+
+[[scenarios]]
+id = 'no-file-where-entry-requires-one'
+scenario = 'No file where the entry requires one.'
+given.file = 'tests/fixtures/corpus/{*path}'
+given.count = { min = 1 }
+then.findings = [
+  { rule = 'language-tree#count', path = '.' },
+]

@@ -1,0 +1,1 @@
+Module(body=[Expr(value=ListComp(elt=NamedExpr(target=Name(id='a', ctx=Store()), value=Constant(value=0)), generators=[comprehension(target=Name(id='x', ctx=Store()), iter=Call(func=Name(id='range'), args=[Constant(value=0)]), is_async=0)]))])

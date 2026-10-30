@@ -1,0 +1,39 @@
+[package]
+name = "idiomatic-sh-ryo-sdk"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = true
+description = "Embed Ryo source queries with independent language providers"
+keywords = ["static-analysis", "language-provider", "query", "lint", "ryo"]
+categories = ["development-tools"]
+autobenches = false
+
+[lib]
+name = "ryo"
+
+[dependencies]
+ryo_core = { package = "idiomatic-sh-ryo-core", path = "../core", version = "0.2.0" }
+ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.2.0" }
+ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.2.0" }
+ryo_query_language = { package = "idiomatic-sh-ryo-query_language", path = "../query_language", version = "0.2.0" }
+rayon.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+divan.workspace = true
+tempfile.workspace = true
+trybuild.workspace = true
+
+[[bench]]
+name = "performance"
+path = "benches/performance.rs"
+harness = false
+
+[features]
+fixtures = ["ryo_language/fixtures", "ryo_values/fixtures"]
+
+[lints]
+workspace = true

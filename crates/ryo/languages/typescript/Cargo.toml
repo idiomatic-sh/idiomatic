@@ -1,0 +1,64 @@
+[package]
+name = "idiomatic-sh-ryo-typescript"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = true
+description = "TypeScript language provider for Ryo"
+keywords = ["typescript", "parser", "static-analysis", "language-provider", "ryo"]
+categories = ["development-tools", "parser-implementations"]
+autobenches = false
+autotests = false
+
+[lib]
+name = "ryo_typescript"
+
+[dependencies]
+serde.workspace = true
+postcard.workspace = true
+serde_json.workspace = true                                  # ignore: idiomatic.arch/no-json-in-process - only the npm and bun manifest reading adapters use it: package.json and bun.lock are JSON by format
+globset.workspace = true
+thiserror.workspace = true
+jsonc-parser = { version = "=0.34.0", features = ["serde"] }
+# serde_yaml is deprecated; this is its continuation, maintained by The YAML Organization.
+yaml_serde = "=0.10.7"
+strum.workspace = true
+oxc_allocator = "=0.142.0"
+oxc_ast = "=0.142.0"
+oxc_ast_visit = "=0.142.0"
+oxc_parser = "=0.142.0"
+oxc_span = "=0.142.0"
+oxc_semantic = "=0.142.0"
+ryo = { package = "idiomatic-sh-ryo-sdk", path = "../../crates/sdk", version = "0.2.0" }
+
+[dev-dependencies]
+ryo = { package = "idiomatic-sh-ryo-sdk", path = "../../crates/sdk", features = ["fixtures"] }
+dhat.workspace = true
+# The crate itself, with its fixtures: its tests need them, and no test is run with a flag.
+idiomatic-sh-ryo-typescript = { path = ".", features = ["fixtures"] }
+divan.workspace = true
+
+[[test]]
+name = "allocation"
+harness = false
+
+[[test]]
+name = "conformance"
+harness = false
+
+[[bench]]
+name = "performance"
+path = "benches/performance.rs"
+harness = false
+
+[features]
+fixtures = ["ryo/fixtures"]
+
+[lints]
+workspace = true
+
+# Its `allocation` test target (`harness = false`) sets `dhat` as the global allocator, which machete does not see.
+[package.metadata.cargo-machete]
+ignored = ["dhat"]

@@ -1,0 +1,34 @@
+description = "No function declares more than `max-params` parameters."
+why = "A function with many parameters is called with them in the wrong order sooner or later, and usually does more than one thing. Pass an object of named fields, or split the function."
+
+query = '''
+param max-params: integer;
+let counted = group-count(from="parameter", keys=["owner", "file"], count="arity", distinct="id");
+let wide = select * from counted where $max-params < arity;
+let placed = select l."file" as "file", r."span" as "span", l."arity" as "arity", r."name" as "name" from wide as l join "function" as r on l."owner" = r."id" and l."file" = r."file";
+emit placed subject "file" key("span");
+'''
+
+[params.max-params]
+type = "integer"
+description = "The most parameters a function may declare."
+
+[diagnostic]
+primary = "span"
+message = "`{name}` declares {arity} parameters, over the limit"
+help = "Pass one object of named fields, or split the function."
+
+[given]
+include = ["**"]
+params = { max-params = 4 }
+
+[[scenarios]]
+id = "five-parameters"
+scenario = "A function with five parameters is reported over a limit of four."
+given.files."src/main.ts" = "export function f(a: number, b: number, c: number, d: number, e: number): number {\n  return a + b + c + d + e;\n}\n"
+then.findings = [{ path = "src/main.ts", line = 1 }]
+
+[[scenarios]]
+id = "four-parameters"
+scenario = "A function with four parameters is not reported."
+given.files."src/main.ts" = "export function f(a: number, b: number, c: number, d: number): number {\n  return a + b + c + d;\n}\n"

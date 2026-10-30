@@ -1,0 +1,8 @@
+version = 1
+parents = ["7c92c8d3633fea918cb5ae2f308fdd1518139a9e2baca8dc0122f6094cac7653"]
+
+[[perf]]
+reasons = ["Median of 5 rounds. Three sets of medians, 5387, 5388 and 5389 ms, held against 5445 ms; re-seeded 2026-10-18 idle: 5608, 5513, 5445 ms."]
+records = [
+  { tool = "performance-lint", benchmark = "ruff", measure = "cold-cpu-milliseconds", best = 5445.0 },
+]

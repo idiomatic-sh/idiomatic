@@ -1,0 +1,61 @@
+description = "One adapter of a step: the step done through one tool or registry, in a class that subclasses the step's port."
+why = "Puts each tool's commands behind the port, one directory per tool, so adding or replacing a tool touches its adapter alone."
+content = '''
+"""The `{{ step }}` step done through {{ adapter }}."""
+
+from __future__ import annotations
+
+from ci.{{ job }}.{{ step }}.interface import {{ step | pascal }}
+
+
+class {{ adapter | pascal }}{{ step | pascal }}({{ step | pascal }}):
+    """`{{ step }}` through {{ adapter }}."""
+'''
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.file = 'ci/{job}/{step}/adapters/{adapter}/adapter.py'
+given.count = { min = 1 }
+given.files.'ci/demo/run/adapters/local/adapter.py' = '''
+"""The `run` step done through local."""
+
+from __future__ import annotations
+
+from ci.demo.run.interface import Run
+
+
+class LocalRun(Run):
+    """`run` through local."""
+'''
+
+[[scenarios]]
+id = 'one-too-many'
+scenario = "A second one where the entry's count allows one per group."
+given.file = 'ci/{job}/{step}/adapters/{adapter}/adapter.py'
+given.count = { min = 1, max = 1 }
+given.files.'ci/demo/run/adapters/local/adapter.py' = '''
+"""The `run` step done through local."""
+
+from __future__ import annotations
+
+from ci.demo.run.interface import Run
+
+
+class LocalRun(Run):
+    """`run` through local."""
+'''
+given.files.'ci/demo/run/adapters/remote/adapter.py' = '''
+"""The `run` step done through remote."""
+
+from __future__ import annotations
+
+from ci.demo.run.interface import Run
+
+
+class RemoteRun(Run):
+    """`run` through remote."""
+'''
+then.findings = [
+  { rule = 'step-adapter#count', path = 'ci/demo/run/adapters' },
+]

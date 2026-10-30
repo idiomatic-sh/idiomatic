@@ -1,0 +1,155 @@
+# The release workflow on GitHub Actions, its thin edge, as ruff's is: `asymptote check --groups release` runs the `release`
+# group's tools (each product's packaging tests) on three machines first; then the `build` job builds every product's wheel (Ryo's only for its binary) on each
+# of eight targets' own machines through PyO3/maturin-action (the manylinux 2_17 and musllinux_1_2 containers on Linux), one matrix
+# whose rows run the same steps; then the `publish` job runs `ci/release/command.py` once over everything the rows built: it
+# makes the npm packages and each product's GitHub Release archives from the wheels' binaries, hands every package to its registry's
+# dry run, and, when it publishes, uploads to crates.io, then npm and PyPI, and last creates each product's GitHub Release with `gh`.
+# Every run is a dry run unless all three hold: a maintainer dispatches it with `publish` from a tag, the
+# maintainer is the repository variable RELEASE_MAINTAINER (unset until a maintainer sets it), and each
+# registry trusts this workflow for publishing (crates.io's first publish of each crate uses
+# the `release` environment's token, and npm's first publish of each package uses its secret NPM_TOKEN), which only a maintainer can arrange (the `distribution` spec).
+name: release
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Upload to npm, PyPI and crates.io (maintainers only); otherwise every publish is a dry run
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: release
+  cancel-in-progress: false
+jobs:
+  check:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-22.04, ubuntu-22.04-arm, macos-15]
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: rui314/setup-mold@10ca16bf91dc22e05ebdc935cad9c75ea248f621 # v1
+        if: runner.os == 'Linux'
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - name: Rust toolchain (rust-toolchain.toml)
+        run: rustup toolchain install
+      - name: The tools the checks run, each at the version declared for it
+        run: uv run --script tools/install.py
+      - run: asymptote check --groups release
+  build:
+    needs: check
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { target: x86_64-unknown-linux-gnu, runner: ubuntu-24.04, manylinux: 2_17 }
+          - { target: aarch64-unknown-linux-gnu, runner: ubuntu-24.04-arm, manylinux: 2_17 }
+          - { target: x86_64-unknown-linux-musl, runner: ubuntu-24.04, manylinux: musllinux_1_2 }
+          - { target: aarch64-unknown-linux-musl, runner: ubuntu-24.04-arm, manylinux: musllinux_1_2 }
+          - { target: x86_64-apple-darwin, runner: macos-15 }
+          - { target: aarch64-apple-darwin, runner: macos-15 }
+          - { target: x86_64-pc-windows-msvc, runner: windows-2025 }
+          - { target: aarch64-pc-windows-msvc, runner: windows-2025 }
+    runs-on: ${{ matrix.runner }}
+    env:
+      # The repository's .cargo/config.toml links with mold on Linux, which the build containers lack, and links the C runtime
+      # statically on Windows: RUSTFLAGS replaces that configuration, with the same flag on Windows and none elsewhere.
+      RUSTFLAGS: ${{ contains(matrix.target, 'windows') && '-C target-feature=+crt-static' || ' ' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
+        with:
+          maturin-version: v1.15.0
+          target: ${{ matrix.target }}
+          manylinux: ${{ matrix.manylinux }}
+          working-directory: crates/asymptote/distribution/registries/pypi
+          args: --locked --out ${{ github.workspace }}/dist
+      - uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
+        with:
+          maturin-version: v1.15.0
+          target: ${{ matrix.target }}
+          manylinux: ${{ matrix.manylinux }}
+          working-directory: crates/tastemaker/distribution/registries/pypi
+          args: --locked --out ${{ github.workspace }}/dist
+      # Ryo ships to Cargo alone, so it has no PyPI project: its command line crate's wheel is built only for the binary its GitHub
+      # Release archives, with the profile a PyPI project names.
+      - uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
+        with:
+          maturin-version: v1.15.0
+          target: ${{ matrix.target }}
+          manylinux: ${{ matrix.manylinux }}
+          working-directory: crates/ryo/cli
+          args: --locked --bindings bin --profile dist --out ${{ github.workspace }}/dist
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ matrix.target }}
+          path: dist
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    environment: release
+    permissions:
+      contents: write
+      id-token: write
+    env:
+      # A publish needs a tag and the maintainer's dispatch; otherwise the job builds and dry-runs everything and uploads nothing.
+      PUBLISH: ${{ inputs.publish && github.ref_type == 'tag' && vars.RELEASE_MAINTAINER != '' && github.triggering_actor == vars.RELEASE_MAINTAINER }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: rui314/setup-mold@10ca16bf91dc22e05ebdc935cad9c75ea248f621 # v1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: false
+      - name: Rust toolchain (rust-toolchain.toml)
+        run: rustup toolchain install
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: dist
+      # crates.io: the token of the `release` environment (the secret CARGO_REGISTRY_TOKEN) on
+      # the first run; crates.io's trusted publishing after, once a maintainer has attached this
+      # workflow to each crate and set the repository variable CRATES_IO_TRUSTED_PUBLISHING.
+      - uses: rust-lang/crates-io-auth-action@3268eb413133e2960fa4ae0e963ca76380c54cd9 # v1.0.6
+        id: crates-io
+        if: env.PUBLISH == 'true' && vars.CRATES_IO_TRUSTED_PUBLISHING == 'true'
+      # crates.io, then npm and PyPI, the last two through OIDC trusted publishing (`id-token: write`); npm with NPM_TOKEN when it is set.
+      - run: uv run ci/release/command.py --dist dist ${{ env.PUBLISH == 'true' && '--publish' || '--dry-run' }}
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ env.PUBLISH == 'true' && (steps.crates-io.outputs.token || secrets.CARGO_REGISTRY_TOKEN) || '' }}
+          # npm: the secret NPM_TOKEN while a package does not exist yet (trusted publishing needs it to); otherwise empty, and OIDC.
+          NODE_AUTH_TOKEN: ${{ env.PUBLISH == 'true' && secrets.NPM_TOKEN || '' }}
+      # The GitHub Releases, last: one per product, tagged `<package>-v<version>` (the directory its archives were written
+      # to, and the tag cargo-binstall's `pkg-url` names), the tag made at this run's commit when it does not exist yet. Each is a
+      # draft while its archives and their checksums upload, then published; a published release is immutable.
+      - name: GitHub Release
+        if: env.PUBLISH == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for archives in dist/archives/*/; do
+            tag="$(basename "$archives")"
+            (cd "$archives" && sha256sum -- * > SHA256SUMS)
+            gh release create "$tag" --draft --target "$GITHUB_SHA" --title "$tag" --generate-notes
+            gh release upload "$tag" "$archives"*
+            gh release edit "$tag" --draft=false
+          done

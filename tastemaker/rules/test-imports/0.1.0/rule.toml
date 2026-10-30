@@ -1,0 +1,135 @@
+description = "A crate's integration test (`tests/**/*.rs`, and a colocated `acceptance.rs` that `tests/bdd.rs` runs) names its own crate, other crates' `fixtures` modules and whatever else `allowed` lists, and no other crate of the repository."
+why = "A scenario that reaches into another crate's logic tests that crate from the wrong place: it belongs in the crate that owns the behaviour. A crate of the repository is one whose manifest declares a `[lib]` name; std and the test crates are none, so they are always allowed. A path is read as written, from imports and from the paths code names: its first segment is the crate. Allowed: the file's own crate (the `[lib]` name of the manifest its package is), any path through a `fixtures` module, and the globs of `allowed`. Not seen: a path inside a macro invocation's tokens, and a crate renamed in the manifest."
+
+query = '''
+param allowed: set<string>;
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file" from "syntax-tree" as l where l."text" = "";
+let documents = select * from tree-nodes where kind = "toml";
+let entries = project(from="entry", columns=["file", "owner", "occurrence", "key", "decoded"]);
+let lib-keys = select * from entries where key = "lib";
+let lib-roots = select l."occurrence" as "entry", l."file" as "manifest" from lib-keys as l join documents as r on l."owner" = r."id";
+let lib-tables = select l."manifest" as "manifest", r."id" as "table" from lib-roots as l join "mapping" as r on l."entry" = r."owner";
+let names = select * from entries where key = "name";
+let libs = select l."manifest" as "manifest", r."decoded" as "lib" from lib-tables as l join names as r on l."table" = r."owner";
+let crates = project(from=libs, columns=["lib"]);
+let imports = project(from="static-import", columns=["file", "span", "target"]);
+let references = project(from="reference", columns=["file", "span", "target"]);
+let mentions = union(left=imports, right=references);
+let headed = capture(from=mentions, path="target", pattern="{head}::{*rest}", captures=["head", "rest"]);
+let repository = select l."file" as "file", l."span" as "span", l."target" as "target", l."head" as "head" from headed as l join crates as r on l."head" = r."lib";
+let packaged = select l."file" as "file", l."span" as "span", l."target" as "target", l."head" as "head", r."package" as "manifest" from repository as l join "file-package" as r on l."file" = r."path";
+let owned = select l."file" as "file", l."span" as "span", l."target" as "target", l."head" as "head", r."lib" as "own" from packaged as l join libs as r on l."manifest" = r."manifest";
+let others = select * from owned where head != own;
+let unfixtured = select * from others where not glob_any(target, "{*::fixtures,*::fixtures::*}");
+let refused = select * from unfixtured where not glob_any(target, $allowed);
+let rows = project(from=refused, columns=["file", "span", "head"]);
+let tests = select * from rows where glob_any(file, "{**/tests/**/*.rs,**/acceptance.rs}");
+emit tests subject "file" key("span");
+'''
+
+[params.allowed]
+type = "set<string>"
+description = "Paths of another crate a test may name besides its fixtures, each a glob as written in code (`*::types::*`); `[]` allows only the crate's own paths and fixtures."
+
+[diagnostic]
+primary = "span"
+message = "this test names `{head}`, another crate of the repository, outside its fixtures"
+help = "Move the scenario to the crate that owns the behaviour (its tests/bdd.feature or its own tests), or reach the other crate through its `fixtures` module."
+
+[given]
+include = ['**']
+params = { allowed = [] }
+files.'Cargo.toml' = '''
+[workspace]
+members = ["app", "store"]
+resolver = "3"
+'''
+files.'app/Cargo.toml' = '''
+[package]
+name = "demo-app"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "app"
+path = "src/lib.rs"
+
+[dev-dependencies]
+store = { package = "demo-store", path = "../store" }
+'''
+files.'app/src/lib.rs' = '''
+//! The app.
+
+/// Runs.
+pub fn run() {}
+'''
+files.'store/Cargo.toml' = '''
+[package]
+name = "demo-store"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "store"
+path = "src/lib.rs"
+'''
+
+[[scenarios]]
+id = 'test-names-another-crates-logic'
+scenario = "A crate's test names another crate's domain: it is refused, its own crate and the other's fixtures pass."
+given.files.'app/tests/end_to_end.rs' = '''
+//! The app end to end.
+
+use app::run;
+use store::domain::compare;
+use store::fixtures::rows;
+
+#[test]
+fn runs() {
+    run();
+    compare();
+    rows();
+}
+'''
+given.files.'store/src/lib.rs' = '''
+//! The store.
+
+pub mod domain {
+    /// Compares.
+    pub fn compare() {}
+}
+
+pub mod fixtures {
+    /// Rows.
+    pub fn rows() {}
+}
+'''
+then.findings = [
+  { path = 'app/tests/end_to_end.rs', line = 4 },
+]
+
+[[scenarios]]
+id = 'test-names-own-crate-and-fixtures'
+scenario = "A crate's test names its own crate, std and another crate's fixtures: it passes."
+given.files.'app/tests/end_to_end.rs' = '''
+//! The app end to end.
+
+use std::path::Path;
+use app::run;
+use store::fixtures::rows;
+
+#[test]
+fn runs() {
+    run();
+    rows();
+    let _ = Path::new(".");
+}
+'''
+given.files.'store/src/lib.rs' = '''
+//! The store.
+
+pub mod fixtures {
+    /// Rows.
+    pub fn rows() {}
+}
+'''

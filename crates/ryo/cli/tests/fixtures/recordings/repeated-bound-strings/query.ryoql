@@ -1,0 +1,7 @@
+param min-files: integer;
+let bound-strings = select l."file" as "file", l."span" as "span", r."value" as "text" from "assigns" as l join "string-literal" as r on l."file" = r."file" and l."span" = r."span";
+let texts = select * from bound-strings where text != "";
+let files-per-text = group-count(from=texts, keys=["text"], count="files", distinct="file");
+let repeated = select * from files-per-text where files >= $min-files;
+let repeated-bindings = select r."files" as "files", l."file" as "file", l."span" as "span", l."text" as "text" from texts as l join repeated as r on l."text" = r."text";
+emit repeated-bindings subject "file" key("span");

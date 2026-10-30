@@ -1,0 +1,7 @@
+error[E0560]: struct `FunctionRow` has no field named `parent`
+  --> tests/ui/fail_row_with_a_column_of_another_relation.rs:14:45
+   |
+14 |         row { id: node(at), name: text(at), parent: node(at), file: file, span: span(at) }
+   |                                             ^^^^^^ `FunctionRow` does not have this field
+   |
+   = note: all struct fields are already assigned

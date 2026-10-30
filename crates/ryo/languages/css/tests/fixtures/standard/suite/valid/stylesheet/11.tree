@@ -1,0 +1,11 @@
+stylesheet
+  whitespace
+  comment
+  whitespace
+  qualified-rule
+    block
+      whitespace
+      declaration color
+        whitespace
+        hash
+        whitespace

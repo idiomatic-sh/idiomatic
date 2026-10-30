@@ -1,0 +1,3 @@
+The files named `ruff_*` are documents of ruff 0.16.9 (github.com/astral-sh/ruff, commit 0be08a206f9c3180afd3e93bcc792ed5cb1f4db1, MIT License, Copyright (c)
+2022 Charles Marsh), copied unchanged, the path joined with `_`: README.md, CONTRIBUTING.md, docs/configuration.md, docs/faq.md, docs/formatter.md,
+docs/linter.md and changelogs/0.9.x.md. The files named `idiomatic_*`, `ryo_*` and `ryo_toml_*` are this repository's own.

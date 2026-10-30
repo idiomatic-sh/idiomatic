@@ -1,0 +1,2303 @@
+SOURCE_FILE
+  USE
+    USE_KW "use"
+    WHITESPACE " "
+    USE_TREE
+      PATH
+        PATH
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "std"
+          COLON2 "::"
+          PATH_SEGMENT
+            NAME_REF
+              IDENT "str"
+        COLON2 "::"
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "Chars"
+    SEMICOLON ";"
+  WHITESPACE "\n\n"
+  USE
+    USE_KW "use"
+    WHITESPACE " "
+    USE_TREE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "ruff_text_size"
+      COLON2 "::"
+      USE_TREE_LIST
+        L_CURLY "{"
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "TextLen"
+        COMMA ","
+        WHITESPACE " "
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "TextSize"
+        R_CURLY "}"
+    SEMICOLON ";"
+  WHITESPACE "\n\n"
+  CONST
+    VISIBILITY
+      PUB_KW "pub"
+    WHITESPACE " "
+    CONST_KW "const"
+    WHITESPACE " "
+    NAME
+      IDENT "EOF_CHAR"
+    COLON ":"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "char"
+    WHITESPACE " "
+    EQ "="
+    WHITESPACE " "
+    LITERAL
+      CHAR "'\\0'"
+    SEMICOLON ";"
+  WHITESPACE "\n\n"
+  STRUCT
+    COMMENT "/// A [`Cursor`] over a string."
+    WHITESPACE "\n"
+    COMMENT "///"
+    WHITESPACE "\n"
+    COMMENT "/// Based on [`rustc`'s `Cursor`](https://github.com/rust-lang/rust/blob/d1b7355d3d7b4ead564dbecb1d240fcc74fff21b/compiler/rustc_lexer/src/cursor.rs)"
+    WHITESPACE "\n"
+    ATTR
+      POUND "#"
+      L_BRACK "["
+      TOKEN_TREE_META
+        PATH
+          PATH_SEGMENT
+            NAME_REF
+              IDENT "derive"
+        TOKEN_TREE
+          L_PAREN "("
+          IDENT "Debug"
+          COMMA ","
+          WHITESPACE " "
+          IDENT "Clone"
+          R_PAREN ")"
+      R_BRACK "]"
+    WHITESPACE "\n"
+    VISIBILITY
+      PUB_KW "pub"
+    WHITESPACE " "
+    STRUCT_KW "struct"
+    WHITESPACE " "
+    NAME
+      IDENT "Cursor"
+    GENERIC_PARAM_LIST
+      L_ANGLE "<"
+      LIFETIME_PARAM
+        LIFETIME
+          LIFETIME_IDENT "'a"
+      R_ANGLE ">"
+    WHITESPACE " "
+    RECORD_FIELD_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      RECORD_FIELD
+        NAME
+          IDENT "chars"
+        COLON ":"
+        WHITESPACE " "
+        PATH_TYPE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "Chars"
+              GENERIC_ARG_LIST
+                L_ANGLE "<"
+                LIFETIME_ARG
+                  LIFETIME
+                    LIFETIME_IDENT "'a"
+                R_ANGLE ">"
+      COMMA ","
+      WHITESPACE "\n    "
+      RECORD_FIELD
+        NAME
+          IDENT "source_length"
+        COLON ":"
+        WHITESPACE " "
+        PATH_TYPE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "TextSize"
+      COMMA ","
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    GENERIC_PARAM_LIST
+      L_ANGLE "<"
+      LIFETIME_PARAM
+        LIFETIME
+          LIFETIME_IDENT "'a"
+      R_ANGLE ">"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "Cursor"
+          GENERIC_ARG_LIST
+            L_ANGLE "<"
+            LIFETIME_ARG
+              LIFETIME
+                LIFETIME_IDENT "'a"
+            R_ANGLE ">"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      FN
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "new"
+        PARAM_LIST
+          L_PAREN "("
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "source"
+            COLON ":"
+            WHITESPACE " "
+            REF_TYPE
+              AMP "&"
+              LIFETIME
+                LIFETIME_IDENT "'a"
+              WHITESPACE " "
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "str"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  SELF_TYPE_KW "Self"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            RECORD_EXPR
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    SELF_TYPE_KW "Self"
+              WHITESPACE " "
+              RECORD_EXPR_FIELD_LIST
+                L_CURLY "{"
+                WHITESPACE "\n            "
+                RECORD_EXPR_FIELD
+                  NAME_REF
+                    IDENT "source_length"
+                  COLON ":"
+                  WHITESPACE " "
+                  METHOD_CALL_EXPR
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "source"
+                    DOT "."
+                    NAME_REF
+                      IDENT "text_len"
+                    ARG_LIST
+                      L_PAREN "("
+                      R_PAREN ")"
+                COMMA ","
+                WHITESPACE "\n            "
+                RECORD_EXPR_FIELD
+                  NAME_REF
+                    IDENT "chars"
+                  COLON ":"
+                  WHITESPACE " "
+                  METHOD_CALL_EXPR
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "source"
+                    DOT "."
+                    NAME_REF
+                      IDENT "chars"
+                    ARG_LIST
+                      L_PAREN "("
+                      R_PAREN ")"
+                COMMA ","
+                WHITESPACE "\n        "
+                R_CURLY "}"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        COMMENT "/// Retrieves the current offset of the cursor within the source code."
+        WHITESPACE "\n    "
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "offset"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "TextSize"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            BIN_EXPR
+              FIELD_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        SELF_KW "self"
+                DOT "."
+                NAME_REF
+                  IDENT "source_length"
+              WHITESPACE " "
+              MINUS "-"
+              WHITESPACE " "
+              METHOD_CALL_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        SELF_KW "self"
+                DOT "."
+                NAME_REF
+                  IDENT "text_len"
+                ARG_LIST
+                  L_PAREN "("
+                  R_PAREN ")"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        COMMENT "/// Return the remaining input as a string slice."
+        WHITESPACE "\n    "
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "chars"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "Chars"
+                GENERIC_ARG_LIST
+                  L_ANGLE "<"
+                  LIFETIME_ARG
+                    LIFETIME
+                      LIFETIME_IDENT "'a"
+                  R_ANGLE ">"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            METHOD_CALL_EXPR
+              FIELD_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        SELF_KW "self"
+                DOT "."
+                NAME_REF
+                  IDENT "chars"
+              DOT "."
+              NAME_REF
+                IDENT "clone"
+              ARG_LIST
+                L_PAREN "("
+                R_PAREN ")"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        COMMENT "/// Returns the remaining input as byte slice."
+        WHITESPACE "\n    "
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "as_bytes"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          REF_TYPE
+            AMP "&"
+            LIFETIME
+              LIFETIME_IDENT "'a"
+            WHITESPACE " "
+            SLICE_TYPE
+              L_BRACK "["
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "u8"
+              R_BRACK "]"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            METHOD_CALL_EXPR
+              METHOD_CALL_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        SELF_KW "self"
+                DOT "."
+                NAME_REF
+                  IDENT "as_str"
+                ARG_LIST
+                  L_PAREN "("
+                  R_PAREN ")"
+              DOT "."
+              NAME_REF
+                IDENT "as_bytes"
+              ARG_LIST
+                L_PAREN "("
+                R_PAREN ")"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        COMMENT "/// Returns the remaining input as string slice."
+        WHITESPACE "\n    "
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "as_str"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          REF_TYPE
+            AMP "&"
+            LIFETIME
+              LIFETIME_IDENT "'a"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "str"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            METHOD_CALL_EXPR
+              FIELD_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        SELF_KW "self"
+                DOT "."
+                NAME_REF
+                  IDENT "chars"
+              DOT "."
+              NAME_REF
+                IDENT "as_str"
+              ARG_LIST
+                L_PAREN "("
+                R_PAREN ")"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        COMMENT "/// Peeks the next character from the input stream without consuming it."
+        WHITESPACE "\n    "
+        COMMENT "/// Returns [`EOF_CHAR`] if the file is at the end of the file."
+        WHITESPACE "\n    "
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "first"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "char"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            METHOD_CALL_EXPR
+              METHOD_CALL_EXPR
+                METHOD_CALL_EXPR
+                  FIELD_EXPR
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            SELF_KW "self"
+                    DOT "."
+                    NAME_REF
+                      IDENT "chars"
+                  DOT "."
+                  NAME_REF
+                    IDENT "clone"
+                  ARG_LIST
+                    L_PAREN "("
+                    R_PAREN ")"
+                DOT "."
+                NAME_REF
+                  IDENT "next"
+                ARG_LIST
+                  L_PAREN "("
+                  R_PAREN ")"
+              DOT "."
+              NAME_REF
+                IDENT "unwrap_or"
+              ARG_LIST
+                L_PAREN "("
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "EOF_CHAR"
+                R_PAREN ")"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        COMMENT "/// Peeks the second character from the input stream without consuming it."
+        WHITESPACE "\n    "
+        COMMENT "/// Returns [`EOF_CHAR`] if the position is past the end of the file."
+        WHITESPACE "\n    "
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "second"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "char"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            LET_STMT
+              LET_KW "let"
+              WHITESPACE " "
+              IDENT_PAT
+                MUT_KW "mut"
+                WHITESPACE " "
+                NAME
+                  IDENT "chars"
+              WHITESPACE " "
+              EQ "="
+              WHITESPACE " "
+              METHOD_CALL_EXPR
+                FIELD_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          SELF_KW "self"
+                  DOT "."
+                  NAME_REF
+                    IDENT "chars"
+                DOT "."
+                NAME_REF
+                  IDENT "clone"
+                ARG_LIST
+                  L_PAREN "("
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n        "
+            EXPR_STMT
+              METHOD_CALL_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "chars"
+                DOT "."
+                NAME_REF
+                  IDENT "next"
+                ARG_LIST
+                  L_PAREN "("
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n        "
+            METHOD_CALL_EXPR
+              METHOD_CALL_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "chars"
+                DOT "."
+                NAME_REF
+                  IDENT "next"
+                ARG_LIST
+                  L_PAREN "("
+                  R_PAREN ")"
+              DOT "."
+              NAME_REF
+                IDENT "unwrap_or"
+              ARG_LIST
+                L_PAREN "("
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "EOF_CHAR"
+                R_PAREN ")"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        COMMENT "/// Peeks the next character from the input stream without consuming it."
+        WHITESPACE "\n    "
+        COMMENT "/// Returns [`EOF_CHAR`] if the file is at the end of the file."
+        WHITESPACE "\n    "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "last"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "char"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            METHOD_CALL_EXPR
+              METHOD_CALL_EXPR
+                METHOD_CALL_EXPR
+                  FIELD_EXPR
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            SELF_KW "self"
+                    DOT "."
+                    NAME_REF
+                      IDENT "chars"
+                  DOT "."
+                  NAME_REF
+                    IDENT "clone"
+                  ARG_LIST
+                    L_PAREN "("
+                    R_PAREN ")"
+                DOT "."
+                NAME_REF
+                  IDENT "next_back"
+                ARG_LIST
+                  L_PAREN "("
+                  R_PAREN ")"
+              DOT "."
+              NAME_REF
+                IDENT "unwrap_or"
+              ARG_LIST
+                L_PAREN "("
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "EOF_CHAR"
+                R_PAREN ")"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "text_len"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "TextSize"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            METHOD_CALL_EXPR
+              METHOD_CALL_EXPR
+                FIELD_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          SELF_KW "self"
+                  DOT "."
+                  NAME_REF
+                    IDENT "chars"
+                DOT "."
+                NAME_REF
+                  IDENT "as_str"
+                ARG_LIST
+                  L_PAREN "("
+                  R_PAREN ")"
+              DOT "."
+              NAME_REF
+                IDENT "text_len"
+              ARG_LIST
+                L_PAREN "("
+                R_PAREN ")"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "token_len"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "TextSize"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            BIN_EXPR
+              FIELD_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        SELF_KW "self"
+                DOT "."
+                NAME_REF
+                  IDENT "source_length"
+              WHITESPACE " "
+              MINUS "-"
+              WHITESPACE " "
+              METHOD_CALL_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        SELF_KW "self"
+                DOT "."
+                NAME_REF
+                  IDENT "text_len"
+                ARG_LIST
+                  L_PAREN "("
+                  R_PAREN ")"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "start_token"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            MUT_KW "mut"
+            WHITESPACE " "
+            NAME
+              SELF_KW "self"
+          R_PAREN ")"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            EXPR_STMT
+              BIN_EXPR
+                FIELD_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          SELF_KW "self"
+                  DOT "."
+                  NAME_REF
+                    IDENT "source_length"
+                WHITESPACE " "
+                EQ "="
+                WHITESPACE " "
+                METHOD_CALL_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          SELF_KW "self"
+                  DOT "."
+                  NAME_REF
+                    IDENT "text_len"
+                  ARG_LIST
+                    L_PAREN "("
+                    R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        COMMENT "/// Returns `true` if the file is at the end of the file."
+        WHITESPACE "\n    "
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "is_eof"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "bool"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            METHOD_CALL_EXPR
+              METHOD_CALL_EXPR
+                FIELD_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          SELF_KW "self"
+                  DOT "."
+                  NAME_REF
+                    IDENT "chars"
+                DOT "."
+                NAME_REF
+                  IDENT "as_str"
+                ARG_LIST
+                  L_PAREN "("
+                  R_PAREN ")"
+              DOT "."
+              NAME_REF
+                IDENT "is_empty"
+              ARG_LIST
+                L_PAREN "("
+                R_PAREN ")"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        COMMENT "/// Consumes the next character"
+        WHITESPACE "\n    "
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "bump"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            MUT_KW "mut"
+            WHITESPACE " "
+            NAME
+              SELF_KW "self"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "Option"
+                GENERIC_ARG_LIST
+                  L_ANGLE "<"
+                  TYPE_ARG
+                    PATH_TYPE
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "char"
+                  R_ANGLE ">"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            METHOD_CALL_EXPR
+              FIELD_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        SELF_KW "self"
+                DOT "."
+                NAME_REF
+                  IDENT "chars"
+              DOT "."
+              NAME_REF
+                IDENT "next"
+              ARG_LIST
+                L_PAREN "("
+                R_PAREN ")"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        COMMENT "/// Consumes the next character from the back"
+        WHITESPACE "\n    "
+        VISIBILITY
+          PUB_KW "pub"
+          VISIBILITY_INNER
+            L_PAREN "("
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  CRATE_KW "crate"
+            R_PAREN ")"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "bump_back"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            MUT_KW "mut"
+            WHITESPACE " "
+            NAME
+              SELF_KW "self"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "Option"
+                GENERIC_ARG_LIST
+                  L_ANGLE "<"
+                  TYPE_ARG
+                    PATH_TYPE
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "char"
+                  R_ANGLE ">"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            METHOD_CALL_EXPR
+              FIELD_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        SELF_KW "self"
+                DOT "."
+                NAME_REF
+                  IDENT "chars"
+              DOT "."
+              NAME_REF
+                IDENT "next_back"
+              ARG_LIST
+                L_PAREN "("
+                R_PAREN ")"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "eat_char"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            MUT_KW "mut"
+            WHITESPACE " "
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "c"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "char"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "bool"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            IF_EXPR
+              IF_KW "if"
+              WHITESPACE " "
+              BIN_EXPR
+                METHOD_CALL_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          SELF_KW "self"
+                  DOT "."
+                  NAME_REF
+                    IDENT "first"
+                  ARG_LIST
+                    L_PAREN "("
+                    R_PAREN ")"
+                WHITESPACE " "
+                EQ2 "=="
+                WHITESPACE " "
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "c"
+              WHITESPACE " "
+              BLOCK_EXPR
+                STMT_LIST
+                  L_CURLY "{"
+                  WHITESPACE "\n            "
+                  EXPR_STMT
+                    METHOD_CALL_EXPR
+                      PATH_EXPR
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              SELF_KW "self"
+                      DOT "."
+                      NAME_REF
+                        IDENT "bump"
+                      ARG_LIST
+                        L_PAREN "("
+                        R_PAREN ")"
+                    SEMICOLON ";"
+                  WHITESPACE "\n            "
+                  LITERAL
+                    TRUE_KW "true"
+                  WHITESPACE "\n        "
+                  R_CURLY "}"
+              WHITESPACE " "
+              ELSE_KW "else"
+              WHITESPACE " "
+              BLOCK_EXPR
+                STMT_LIST
+                  L_CURLY "{"
+                  WHITESPACE "\n            "
+                  LITERAL
+                    FALSE_KW "false"
+                  WHITESPACE "\n        "
+                  R_CURLY "}"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        COMMENT "/// Eats the next two characters if they are `c1` and `c2`. Does not"
+        WHITESPACE "\n    "
+        COMMENT "/// consume any input otherwise, even if the first character matches."
+        WHITESPACE "\n    "
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "eat_char2"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            MUT_KW "mut"
+            WHITESPACE " "
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "c1"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "char"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "c2"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "char"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "bool"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            LET_STMT
+              LET_KW "let"
+              WHITESPACE " "
+              IDENT_PAT
+                MUT_KW "mut"
+                WHITESPACE " "
+                NAME
+                  IDENT "chars"
+              WHITESPACE " "
+              EQ "="
+              WHITESPACE " "
+              METHOD_CALL_EXPR
+                FIELD_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          SELF_KW "self"
+                  DOT "."
+                  NAME_REF
+                    IDENT "chars"
+                DOT "."
+                NAME_REF
+                  IDENT "clone"
+                ARG_LIST
+                  L_PAREN "("
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n        "
+            IF_EXPR
+              IF_KW "if"
+              WHITESPACE " "
+              BIN_EXPR
+                BIN_EXPR
+                  METHOD_CALL_EXPR
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "chars"
+                    DOT "."
+                    NAME_REF
+                      IDENT "next"
+                    ARG_LIST
+                      L_PAREN "("
+                      R_PAREN ")"
+                  WHITESPACE " "
+                  EQ2 "=="
+                  WHITESPACE " "
+                  CALL_EXPR
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "Some"
+                    ARG_LIST
+                      L_PAREN "("
+                      PATH_EXPR
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "c1"
+                      R_PAREN ")"
+                WHITESPACE " "
+                AMP2 "&&"
+                WHITESPACE " "
+                BIN_EXPR
+                  METHOD_CALL_EXPR
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "chars"
+                    DOT "."
+                    NAME_REF
+                      IDENT "next"
+                    ARG_LIST
+                      L_PAREN "("
+                      R_PAREN ")"
+                  WHITESPACE " "
+                  EQ2 "=="
+                  WHITESPACE " "
+                  CALL_EXPR
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "Some"
+                    ARG_LIST
+                      L_PAREN "("
+                      PATH_EXPR
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "c2"
+                      R_PAREN ")"
+              WHITESPACE " "
+              BLOCK_EXPR
+                STMT_LIST
+                  L_CURLY "{"
+                  WHITESPACE "\n            "
+                  EXPR_STMT
+                    METHOD_CALL_EXPR
+                      PATH_EXPR
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              SELF_KW "self"
+                      DOT "."
+                      NAME_REF
+                        IDENT "bump"
+                      ARG_LIST
+                        L_PAREN "("
+                        R_PAREN ")"
+                    SEMICOLON ";"
+                  WHITESPACE "\n            "
+                  EXPR_STMT
+                    METHOD_CALL_EXPR
+                      PATH_EXPR
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              SELF_KW "self"
+                      DOT "."
+                      NAME_REF
+                        IDENT "bump"
+                      ARG_LIST
+                        L_PAREN "("
+                        R_PAREN ")"
+                    SEMICOLON ";"
+                  WHITESPACE "\n            "
+                  LITERAL
+                    TRUE_KW "true"
+                  WHITESPACE "\n        "
+                  R_CURLY "}"
+              WHITESPACE " "
+              ELSE_KW "else"
+              WHITESPACE " "
+              BLOCK_EXPR
+                STMT_LIST
+                  L_CURLY "{"
+                  WHITESPACE "\n            "
+                  LITERAL
+                    FALSE_KW "false"
+                  WHITESPACE "\n        "
+                  R_CURLY "}"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        COMMENT "/// Eats the next three characters if they are `c1`, `c2` and `c3`"
+        WHITESPACE "\n    "
+        COMMENT "/// Does not consume any input otherwise, even if the first character matches."
+        WHITESPACE "\n    "
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "eat_char3"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            MUT_KW "mut"
+            WHITESPACE " "
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "c1"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "char"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "c2"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "char"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "c3"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "char"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "bool"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            LET_STMT
+              LET_KW "let"
+              WHITESPACE " "
+              IDENT_PAT
+                MUT_KW "mut"
+                WHITESPACE " "
+                NAME
+                  IDENT "chars"
+              WHITESPACE " "
+              EQ "="
+              WHITESPACE " "
+              METHOD_CALL_EXPR
+                FIELD_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          SELF_KW "self"
+                  DOT "."
+                  NAME_REF
+                    IDENT "chars"
+                DOT "."
+                NAME_REF
+                  IDENT "clone"
+                ARG_LIST
+                  L_PAREN "("
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n        "
+            IF_EXPR
+              IF_KW "if"
+              WHITESPACE " "
+              BIN_EXPR
+                BIN_EXPR
+                  BIN_EXPR
+                    METHOD_CALL_EXPR
+                      PATH_EXPR
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "chars"
+                      DOT "."
+                      NAME_REF
+                        IDENT "next"
+                      ARG_LIST
+                        L_PAREN "("
+                        R_PAREN ")"
+                    WHITESPACE " "
+                    EQ2 "=="
+                    WHITESPACE " "
+                    CALL_EXPR
+                      PATH_EXPR
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "Some"
+                      ARG_LIST
+                        L_PAREN "("
+                        PATH_EXPR
+                          PATH
+                            PATH_SEGMENT
+                              NAME_REF
+                                IDENT "c1"
+                        R_PAREN ")"
+                  WHITESPACE " "
+                  AMP2 "&&"
+                  WHITESPACE " "
+                  BIN_EXPR
+                    METHOD_CALL_EXPR
+                      PATH_EXPR
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "chars"
+                      DOT "."
+                      NAME_REF
+                        IDENT "next"
+                      ARG_LIST
+                        L_PAREN "("
+                        R_PAREN ")"
+                    WHITESPACE " "
+                    EQ2 "=="
+                    WHITESPACE " "
+                    CALL_EXPR
+                      PATH_EXPR
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "Some"
+                      ARG_LIST
+                        L_PAREN "("
+                        PATH_EXPR
+                          PATH
+                            PATH_SEGMENT
+                              NAME_REF
+                                IDENT "c2"
+                        R_PAREN ")"
+                WHITESPACE " "
+                AMP2 "&&"
+                WHITESPACE " "
+                BIN_EXPR
+                  METHOD_CALL_EXPR
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "chars"
+                    DOT "."
+                    NAME_REF
+                      IDENT "next"
+                    ARG_LIST
+                      L_PAREN "("
+                      R_PAREN ")"
+                  WHITESPACE " "
+                  EQ2 "=="
+                  WHITESPACE " "
+                  CALL_EXPR
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "Some"
+                    ARG_LIST
+                      L_PAREN "("
+                      PATH_EXPR
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "c3"
+                      R_PAREN ")"
+              WHITESPACE " "
+              BLOCK_EXPR
+                STMT_LIST
+                  L_CURLY "{"
+                  WHITESPACE "\n            "
+                  EXPR_STMT
+                    METHOD_CALL_EXPR
+                      PATH_EXPR
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              SELF_KW "self"
+                      DOT "."
+                      NAME_REF
+                        IDENT "bump"
+                      ARG_LIST
+                        L_PAREN "("
+                        R_PAREN ")"
+                    SEMICOLON ";"
+                  WHITESPACE "\n            "
+                  EXPR_STMT
+                    METHOD_CALL_EXPR
+                      PATH_EXPR
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              SELF_KW "self"
+                      DOT "."
+                      NAME_REF
+                        IDENT "bump"
+                      ARG_LIST
+                        L_PAREN "("
+                        R_PAREN ")"
+                    SEMICOLON ";"
+                  WHITESPACE "\n            "
+                  EXPR_STMT
+                    METHOD_CALL_EXPR
+                      PATH_EXPR
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              SELF_KW "self"
+                      DOT "."
+                      NAME_REF
+                        IDENT "bump"
+                      ARG_LIST
+                        L_PAREN "("
+                        R_PAREN ")"
+                    SEMICOLON ";"
+                  WHITESPACE "\n            "
+                  LITERAL
+                    TRUE_KW "true"
+                  WHITESPACE "\n        "
+                  R_CURLY "}"
+              WHITESPACE " "
+              ELSE_KW "else"
+              WHITESPACE " "
+              BLOCK_EXPR
+                STMT_LIST
+                  L_CURLY "{"
+                  WHITESPACE "\n            "
+                  LITERAL
+                    FALSE_KW "false"
+                  WHITESPACE "\n        "
+                  R_CURLY "}"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        VISIBILITY
+          PUB_KW "pub"
+          VISIBILITY_INNER
+            L_PAREN "("
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  CRATE_KW "crate"
+            R_PAREN ")"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "eat_char_back"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            MUT_KW "mut"
+            WHITESPACE " "
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "c"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "char"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "bool"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            IF_EXPR
+              IF_KW "if"
+              WHITESPACE " "
+              BIN_EXPR
+                METHOD_CALL_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          SELF_KW "self"
+                  DOT "."
+                  NAME_REF
+                    IDENT "last"
+                  ARG_LIST
+                    L_PAREN "("
+                    R_PAREN ")"
+                WHITESPACE " "
+                EQ2 "=="
+                WHITESPACE " "
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "c"
+              WHITESPACE " "
+              BLOCK_EXPR
+                STMT_LIST
+                  L_CURLY "{"
+                  WHITESPACE "\n            "
+                  EXPR_STMT
+                    METHOD_CALL_EXPR
+                      PATH_EXPR
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              SELF_KW "self"
+                      DOT "."
+                      NAME_REF
+                        IDENT "bump_back"
+                      ARG_LIST
+                        L_PAREN "("
+                        R_PAREN ")"
+                    SEMICOLON ";"
+                  WHITESPACE "\n            "
+                  LITERAL
+                    TRUE_KW "true"
+                  WHITESPACE "\n        "
+                  R_CURLY "}"
+              WHITESPACE " "
+              ELSE_KW "else"
+              WHITESPACE " "
+              BLOCK_EXPR
+                STMT_LIST
+                  L_CURLY "{"
+                  WHITESPACE "\n            "
+                  LITERAL
+                    FALSE_KW "false"
+                  WHITESPACE "\n        "
+                  R_CURLY "}"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        COMMENT "/// Eats the next character if `predicate` returns `true`."
+        WHITESPACE "\n    "
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "eat_if"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            MUT_KW "mut"
+            WHITESPACE " "
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              MUT_KW "mut"
+              WHITESPACE " "
+              NAME
+                IDENT "predicate"
+            COLON ":"
+            WHITESPACE " "
+            IMPL_TRAIT_TYPE
+              IMPL_KW "impl"
+              WHITESPACE " "
+              TYPE_BOUND_LIST
+                TYPE_BOUND
+                  PATH_TYPE
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "FnMut"
+                        PARENTHESIZED_ARG_LIST
+                          L_PAREN "("
+                          TYPE_ARG
+                            PATH_TYPE
+                              PATH
+                                PATH_SEGMENT
+                                  NAME_REF
+                                    IDENT "char"
+                          R_PAREN ")"
+                        WHITESPACE " "
+                        RET_TYPE
+                          THIN_ARROW "->"
+                          WHITESPACE " "
+                          PATH_TYPE
+                            PATH
+                              PATH_SEGMENT
+                                NAME_REF
+                                  IDENT "bool"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "bool"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            IF_EXPR
+              IF_KW "if"
+              WHITESPACE " "
+              BIN_EXPR
+                CALL_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "predicate"
+                  ARG_LIST
+                    L_PAREN "("
+                    METHOD_CALL_EXPR
+                      PATH_EXPR
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              SELF_KW "self"
+                      DOT "."
+                      NAME_REF
+                        IDENT "first"
+                      ARG_LIST
+                        L_PAREN "("
+                        R_PAREN ")"
+                    R_PAREN ")"
+                WHITESPACE " "
+                AMP2 "&&"
+                WHITESPACE " "
+                PREFIX_EXPR
+                  BANG "!"
+                  METHOD_CALL_EXPR
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            SELF_KW "self"
+                    DOT "."
+                    NAME_REF
+                      IDENT "is_eof"
+                    ARG_LIST
+                      L_PAREN "("
+                      R_PAREN ")"
+              WHITESPACE " "
+              BLOCK_EXPR
+                STMT_LIST
+                  L_CURLY "{"
+                  WHITESPACE "\n            "
+                  EXPR_STMT
+                    METHOD_CALL_EXPR
+                      PATH_EXPR
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              SELF_KW "self"
+                      DOT "."
+                      NAME_REF
+                        IDENT "bump"
+                      ARG_LIST
+                        L_PAREN "("
+                        R_PAREN ")"
+                    SEMICOLON ";"
+                  WHITESPACE "\n            "
+                  LITERAL
+                    TRUE_KW "true"
+                  WHITESPACE "\n        "
+                  R_CURLY "}"
+              WHITESPACE " "
+              ELSE_KW "else"
+              WHITESPACE " "
+              BLOCK_EXPR
+                STMT_LIST
+                  L_CURLY "{"
+                  WHITESPACE "\n            "
+                  LITERAL
+                    FALSE_KW "false"
+                  WHITESPACE "\n        "
+                  R_CURLY "}"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        COMMENT "/// Eats symbols while predicate returns true or until the end of file is reached."
+        WHITESPACE "\n    "
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "eat_while"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            MUT_KW "mut"
+            WHITESPACE " "
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              MUT_KW "mut"
+              WHITESPACE " "
+              NAME
+                IDENT "predicate"
+            COLON ":"
+            WHITESPACE " "
+            IMPL_TRAIT_TYPE
+              IMPL_KW "impl"
+              WHITESPACE " "
+              TYPE_BOUND_LIST
+                TYPE_BOUND
+                  PATH_TYPE
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "FnMut"
+                        PARENTHESIZED_ARG_LIST
+                          L_PAREN "("
+                          TYPE_ARG
+                            PATH_TYPE
+                              PATH
+                                PATH_SEGMENT
+                                  NAME_REF
+                                    IDENT "char"
+                          R_PAREN ")"
+                        WHITESPACE " "
+                        RET_TYPE
+                          THIN_ARROW "->"
+                          WHITESPACE " "
+                          PATH_TYPE
+                            PATH
+                              PATH_SEGMENT
+                                NAME_REF
+                                  IDENT "bool"
+          R_PAREN ")"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            COMMENT "// It was tried making optimized version of this for eg. line comments, but"
+            WHITESPACE "\n        "
+            COMMENT "// LLVM can inline all of this and compile it down to fast iteration over bytes."
+            WHITESPACE "\n        "
+            WHILE_EXPR
+              WHILE_KW "while"
+              WHITESPACE " "
+              BIN_EXPR
+                CALL_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "predicate"
+                  ARG_LIST
+                    L_PAREN "("
+                    METHOD_CALL_EXPR
+                      PATH_EXPR
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              SELF_KW "self"
+                      DOT "."
+                      NAME_REF
+                        IDENT "first"
+                      ARG_LIST
+                        L_PAREN "("
+                        R_PAREN ")"
+                    R_PAREN ")"
+                WHITESPACE " "
+                AMP2 "&&"
+                WHITESPACE " "
+                PREFIX_EXPR
+                  BANG "!"
+                  METHOD_CALL_EXPR
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            SELF_KW "self"
+                    DOT "."
+                    NAME_REF
+                      IDENT "is_eof"
+                    ARG_LIST
+                      L_PAREN "("
+                      R_PAREN ")"
+              WHITESPACE " "
+              BLOCK_EXPR
+                STMT_LIST
+                  L_CURLY "{"
+                  WHITESPACE "\n            "
+                  EXPR_STMT
+                    METHOD_CALL_EXPR
+                      PATH_EXPR
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              SELF_KW "self"
+                      DOT "."
+                      NAME_REF
+                        IDENT "bump"
+                      ARG_LIST
+                        L_PAREN "("
+                        R_PAREN ")"
+                    SEMICOLON ";"
+                  WHITESPACE "\n        "
+                  R_CURLY "}"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        COMMENT "/// Eats symbols from the back while predicate returns true or until the beginning of file is reached."
+        WHITESPACE "\n    "
+        VISIBILITY
+          PUB_KW "pub"
+          VISIBILITY_INNER
+            L_PAREN "("
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  CRATE_KW "crate"
+            R_PAREN ")"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "eat_back_while"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            MUT_KW "mut"
+            WHITESPACE " "
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              MUT_KW "mut"
+              WHITESPACE " "
+              NAME
+                IDENT "predicate"
+            COLON ":"
+            WHITESPACE " "
+            IMPL_TRAIT_TYPE
+              IMPL_KW "impl"
+              WHITESPACE " "
+              TYPE_BOUND_LIST
+                TYPE_BOUND
+                  PATH_TYPE
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "FnMut"
+                        PARENTHESIZED_ARG_LIST
+                          L_PAREN "("
+                          TYPE_ARG
+                            PATH_TYPE
+                              PATH
+                                PATH_SEGMENT
+                                  NAME_REF
+                                    IDENT "char"
+                          R_PAREN ")"
+                        WHITESPACE " "
+                        RET_TYPE
+                          THIN_ARROW "->"
+                          WHITESPACE " "
+                          PATH_TYPE
+                            PATH
+                              PATH_SEGMENT
+                                NAME_REF
+                                  IDENT "bool"
+          R_PAREN ")"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            COMMENT "// It was tried making optimized version of this for eg. line comments, but"
+            WHITESPACE "\n        "
+            COMMENT "// LLVM can inline all of this and compile it down to fast iteration over bytes."
+            WHITESPACE "\n        "
+            WHILE_EXPR
+              WHILE_KW "while"
+              WHITESPACE " "
+              BIN_EXPR
+                CALL_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "predicate"
+                  ARG_LIST
+                    L_PAREN "("
+                    METHOD_CALL_EXPR
+                      PATH_EXPR
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              SELF_KW "self"
+                      DOT "."
+                      NAME_REF
+                        IDENT "last"
+                      ARG_LIST
+                        L_PAREN "("
+                        R_PAREN ")"
+                    R_PAREN ")"
+                WHITESPACE " "
+                AMP2 "&&"
+                WHITESPACE " "
+                PREFIX_EXPR
+                  BANG "!"
+                  METHOD_CALL_EXPR
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            SELF_KW "self"
+                    DOT "."
+                    NAME_REF
+                      IDENT "is_eof"
+                    ARG_LIST
+                      L_PAREN "("
+                      R_PAREN ")"
+              WHITESPACE " "
+              BLOCK_EXPR
+                STMT_LIST
+                  L_CURLY "{"
+                  WHITESPACE "\n            "
+                  EXPR_STMT
+                    METHOD_CALL_EXPR
+                      PATH_EXPR
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              SELF_KW "self"
+                      DOT "."
+                      NAME_REF
+                        IDENT "bump_back"
+                      ARG_LIST
+                        L_PAREN "("
+                        R_PAREN ")"
+                    SEMICOLON ";"
+                  WHITESPACE "\n        "
+                  R_CURLY "}"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        COMMENT "/// Skips the next `count` bytes."
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// ## Panics"
+        WHITESPACE "\n    "
+        COMMENT "///  - If `count` is larger than the remaining bytes in the input stream."
+        WHITESPACE "\n    "
+        COMMENT "///  - If `count` indexes into a multi-byte character."
+        WHITESPACE "\n    "
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "skip_bytes"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            MUT_KW "mut"
+            WHITESPACE " "
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "count"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "usize"
+          R_PAREN ")"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            EXPR_STMT
+              BIN_EXPR
+                FIELD_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          SELF_KW "self"
+                  DOT "."
+                  NAME_REF
+                    IDENT "chars"
+                WHITESPACE " "
+                EQ "="
+                WHITESPACE " "
+                METHOD_CALL_EXPR
+                  INDEX_EXPR
+                    METHOD_CALL_EXPR
+                      FIELD_EXPR
+                        PATH_EXPR
+                          PATH
+                            PATH_SEGMENT
+                              NAME_REF
+                                SELF_KW "self"
+                        DOT "."
+                        NAME_REF
+                          IDENT "chars"
+                      DOT "."
+                      NAME_REF
+                        IDENT "as_str"
+                      ARG_LIST
+                        L_PAREN "("
+                        R_PAREN ")"
+                    L_BRACK "["
+                    RANGE_EXPR
+                      PATH_EXPR
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "count"
+                      DOT2 ".."
+                    R_BRACK "]"
+                  DOT "."
+                  NAME_REF
+                    IDENT "chars"
+                  ARG_LIST
+                    L_PAREN "("
+                    R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n"

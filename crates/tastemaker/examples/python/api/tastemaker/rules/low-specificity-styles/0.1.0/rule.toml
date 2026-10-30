@@ -1,0 +1,31 @@
+description = "No rule selects by ID, and no declaration is marked `!important`."
+why = "An ID selector and an `!important` both win over the rules around them, so the next change to that element has to escalate too, until every style fights every other. The rule reads the selector of each rule and the importance of each declaration."
+
+query = '''
+let rules = select * from "syntax-tree" where kind = "qualified-rule";
+let selector-parts = select l."child" as "child" from "syntax-child" as l join rules as r on l."parent" = r."id";
+let id-selectors = select r."file" as "file", r."span" as "span" from selector-parts as l join "syntax-tree" as r on l."child" = r."id" where r."kind" = "hash-token";
+let marks = select * from "syntax-child" where field = "important";
+let important = select r."file" as "file", r."span" as "span" from marks as l join "syntax-tree" as r on l."parent" = r."id";
+let found = union(left=id-selectors, right=important);
+emit found subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "this selects by ID or marks a declaration `!important`"
+help = "Select by class, and order the rules so no declaration needs `!important`."
+
+[given]
+include = ["**"]
+
+[[scenarios]]
+id = "id-selector-and-important"
+scenario = "An ID selector and an `!important` declaration are both reported; a colour written with `#` is not."
+given.files."style.css" = "#todos {\n  color: #333;\n}\n\n.todo {\n  margin: 0 !important;\n}\n"
+then.findings = [{ path = "style.css", line = 1 }, { path = "style.css", line = 6 }]
+
+[[scenarios]]
+id = "class-selectors"
+scenario = "Class selectors with plain declarations are not reported."
+given.files."style.css" = ".todos {\n  color: #333;\n}\n\n.todo {\n  margin: 0;\n}\n"

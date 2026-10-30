@@ -1,0 +1,911 @@
+description = "A concrete adapter is named - imported or written as a path - only where it is composed."
+why = "An adapter is a replaceable implementation of a port: code that names one depends on that one choice. The places an adapter may be named (its own directory, a binary's main, a composition module, tests and benches) are the entry's `exclude`. An adapter is recognised by the `adapters` module its path runs through. Not seen: a path inside an attribute or a macro invocation, and an adapter reached through a re-export without an `adapters` segment."
+
+query = '''
+let imports = project(from="static-import", columns=["occurrence", "file", "span", "target"]);
+let references = project(from="reference", columns=["occurrence", "file", "span", "target"]);
+let mentions = union(left=imports, right=references);
+let adapters = select * from mentions where glob_any(target, "{*::adapters::*,adapters::*}");
+emit adapters subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "adapter `{target}` is named outside its own directory and a composition root"
+help = "Depend on the port, its `*Port` trait (a hex crate's `*Interface`), instead: take it here as a parameter or generic, and name the concrete adapter only where it is composed (a command's `composition.rs`, `main.rs`, a test or a bench). Ignore only in a file that really composes adapters: `// ignore: idiomatic.arch/adapter-at-root - <what this file composes>` on its own line above the import."
+
+[given]
+include = ['**']
+exclude = ['**/composition.rs', '**/main.rs', '**/adapters/**', '**/fixtures/**', '**/tests/**', '**/benches/**', '**/*_test.rs']
+files.'src/lib.rs' = '''
+pub mod port;
+'''
+
+[[scenarios]]
+id = 'library-default'
+scenario = 'A domain type constructing an adapter as its default.'
+given.files.'src/port/adapters/mod.rs' = '''
+pub mod native;
+'''
+given.files.'src/port/adapters/native/adapter.rs' = '''
+use crate::port::interface::Port;
+
+pub struct PortNativeAdapter;
+
+impl Port for PortNativeAdapter {
+    fn answer(&self) -> u8 {
+        1
+    }
+}
+'''
+given.files.'src/port/adapters/native/mod.rs' = '''
+pub mod adapter;
+'''
+given.files.'src/port/interface.rs' = '''
+pub trait Port {
+    fn answer(&self) -> u8;
+}
+'''
+given.files.'src/port/mod.rs' = '''
+pub mod adapters;
+pub mod interface;
+pub mod types;
+'''
+given.files.'src/port/types.rs' = '''
+use crate::port::adapters::native::adapter::PortNativeAdapter;
+use crate::port::interface::Port;
+
+pub struct Answer(pub u8);
+
+impl Answer {
+    pub fn taken() -> Self {
+        Self(PortNativeAdapter.answer())
+    }
+}
+'''
+then.findings = [
+  { path = 'src/port/types.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'suite-names-adapter'
+scenario = 'A conformance suite importing the adapter it should be handed.'
+given.files.'src/port/adapters/mod.rs' = '''
+pub mod native;
+'''
+given.files.'src/port/adapters/native/adapter.rs' = '''
+use crate::port::interface::Port;
+
+pub struct PortNativeAdapter;
+
+impl Port for PortNativeAdapter {
+    fn answer(&self) -> u8 {
+        1
+    }
+}
+'''
+given.files.'src/port/adapters/native/mod.rs' = '''
+pub mod adapter;
+'''
+given.files.'src/port/conformance.rs' = '''
+use crate::port::adapters::native::adapter::PortNativeAdapter;
+use crate::port::interface::Port;
+
+pub fn check() -> Result<(), String> {
+    if PortNativeAdapter.answer() == 1 {
+        Ok(())
+    } else {
+        Err("wrong".into())
+    }
+}
+'''
+given.files.'src/port/interface.rs' = '''
+pub trait Port {
+    fn answer(&self) -> u8;
+}
+'''
+given.files.'src/port/mod.rs' = '''
+pub mod adapters;
+pub mod conformance;
+pub mod interface;
+pub mod types;
+'''
+given.files.'src/port/types.rs' = '''
+pub struct Answer(pub u8);
+'''
+then.findings = [
+  { path = 'src/port/conformance.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'foreign-crate-adapter'
+scenario = "A second crate's module importing another crate's adapter."
+given.files.'src/lib.rs' = '''
+pub mod port;
+pub mod service;
+'''
+given.files.'src/port/adapters/mod.rs' = '''
+pub mod native;
+'''
+given.files.'src/port/adapters/native/adapter.rs' = '''
+use crate::port::interface::Port;
+
+pub struct PortNativeAdapter;
+
+impl Port for PortNativeAdapter {
+    fn answer(&self) -> u8 {
+        1
+    }
+}
+'''
+given.files.'src/port/adapters/native/mod.rs' = '''
+pub mod adapter;
+'''
+given.files.'src/port/interface.rs' = '''
+pub trait Port {
+    fn answer(&self) -> u8;
+}
+'''
+given.files.'src/port/mod.rs' = '''
+pub mod adapters;
+pub mod interface;
+pub mod types;
+'''
+given.files.'src/port/types.rs' = '''
+pub struct Answer(pub u8);
+'''
+given.files.'src/service.rs' = '''
+use other_crate::storage::adapters::memory::adapter::StorageMemoryAdapter;
+
+pub fn store() -> StorageMemoryAdapter {
+    StorageMemoryAdapter::default()
+}
+'''
+then.findings = [
+  { path = 'src/service.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'qualified-in-signature'
+scenario = 'An adapter written as a path in a signature, with no import.'
+given.files.'src/port/adapters/mod.rs' = '''
+pub mod native;
+'''
+given.files.'src/port/adapters/native/adapter.rs' = '''
+use crate::port::interface::Port;
+
+pub struct PortNativeAdapter;
+
+impl Port for PortNativeAdapter {
+    fn answer(&self) -> u8 {
+        1
+    }
+}
+'''
+given.files.'src/port/adapters/native/mod.rs' = '''
+pub mod adapter;
+'''
+given.files.'src/port/interface.rs' = '''
+pub trait Port {
+    fn answer(&self) -> u8;
+}
+'''
+given.files.'src/port/mod.rs' = '''
+pub mod adapters;
+pub mod interface;
+pub mod types;
+'''
+given.files.'src/port/types.rs' = '''
+pub struct Answer(pub u8);
+
+impl Answer {
+    pub fn selected() -> crate::port::adapters::native::adapter::PortNativeAdapter {
+        crate::port::adapters::native::adapter::PortNativeAdapter
+    }
+}
+'''
+then.findings = [
+  { path = 'src/port/types.rs', line = 4 },
+  { path = 'src/port/types.rs', line = 5 },
+]
+
+[[scenarios]]
+id = 'composed-at-root'
+scenario = 'The composition module selects the adapter.'
+given.files.'src/composition.rs' = '''
+use crate::port::adapters::native::adapter::PortNativeAdapter;
+use crate::port::interface::Port;
+
+pub fn answer() -> u8 {
+    PortNativeAdapter.answer()
+}
+'''
+given.files.'src/lib.rs' = '''
+pub mod composition;
+pub mod port;
+'''
+given.files.'src/port/adapters/mod.rs' = '''
+pub mod native;
+'''
+given.files.'src/port/adapters/native/adapter.rs' = '''
+use crate::port::interface::Port;
+
+pub struct PortNativeAdapter;
+
+impl Port for PortNativeAdapter {
+    fn answer(&self) -> u8 {
+        1
+    }
+}
+'''
+given.files.'src/port/adapters/native/mod.rs' = '''
+pub mod adapter;
+'''
+given.files.'src/port/interface.rs' = '''
+pub trait Port {
+    fn answer(&self) -> u8;
+}
+'''
+given.files.'src/port/mod.rs' = '''
+pub mod adapters;
+pub mod interface;
+pub mod types;
+'''
+given.files.'src/port/types.rs' = '''
+pub struct Answer(pub u8);
+'''
+
+[[scenarios]]
+id = 'test-names-adapter'
+scenario = 'A test composes its own process.'
+given.files.'src/port/adapters/mod.rs' = '''
+pub mod native;
+'''
+given.files.'src/port/adapters/native/adapter.rs' = '''
+use crate::port::interface::Port;
+
+pub struct PortNativeAdapter;
+
+impl Port for PortNativeAdapter {
+    fn answer(&self) -> u8 {
+        1
+    }
+}
+'''
+given.files.'src/port/adapters/native/mod.rs' = '''
+pub mod adapter;
+'''
+given.files.'src/port/interface.rs' = '''
+pub trait Port {
+    fn answer(&self) -> u8;
+}
+'''
+given.files.'src/port/mod.rs' = '''
+pub mod adapters;
+pub mod interface;
+pub mod types;
+'''
+given.files.'src/port/types.rs' = '''
+pub struct Answer(pub u8);
+'''
+given.files.'src/port/types_test.rs' = '''
+use crate::port::adapters::native::adapter::PortNativeAdapter;
+use crate::port::interface::Port;
+
+#[test]
+fn answers() {
+    assert_eq!(PortNativeAdapter.answer(), 1);
+}
+'''
+
+[[scenarios]]
+id = 'adapter-directory'
+scenario = "The adapter's own directory names itself."
+given.files.'src/port/adapters/mod.rs' = '''
+pub mod native;
+'''
+given.files.'src/port/adapters/native/adapter.rs' = '''
+use crate::port::interface::Port;
+
+pub struct PortNativeAdapter;
+
+impl Port for PortNativeAdapter {
+    fn answer(&self) -> u8 {
+        1
+    }
+}
+'''
+given.files.'src/port/adapters/native/adapter_test.rs' = '''
+use crate::port::adapters::native::adapter::PortNativeAdapter;
+use crate::port::interface::Port;
+
+#[test]
+fn answers() {
+    assert_eq!(PortNativeAdapter.answer(), 1);
+}
+'''
+given.files.'src/port/adapters/native/mod.rs' = '''
+pub mod adapter;
+#[cfg(test)]
+mod adapter_test;
+'''
+given.files.'src/port/interface.rs' = '''
+pub trait Port {
+    fn answer(&self) -> u8;
+}
+'''
+given.files.'src/port/mod.rs' = '''
+pub mod adapters;
+pub mod interface;
+pub mod types;
+'''
+given.files.'src/port/types.rs' = '''
+pub struct Answer(pub u8);
+'''
+
+[[scenarios]]
+id = 'adapters-word'
+scenario = 'A module merely named after adapters is not an adapter path.'
+given.files.'src/port/adapters/mod.rs' = '''
+pub mod native;
+'''
+given.files.'src/port/adapters/native/adapter.rs' = '''
+use crate::port::interface::Port;
+
+pub struct PortNativeAdapter;
+
+impl Port for PortNativeAdapter {
+    fn answer(&self) -> u8 {
+        1
+    }
+}
+'''
+given.files.'src/port/adapters/native/mod.rs' = '''
+pub mod adapter;
+'''
+given.files.'src/port/adapters_registry.rs' = '''
+pub mod adapter;
+
+pub struct Registry;
+'''
+given.files.'src/port/adapters_registry/adapter.rs' = '''
+pub struct Listed;
+'''
+given.files.'src/port/interface.rs' = '''
+pub trait Port {
+    fn answer(&self) -> u8;
+}
+'''
+given.files.'src/port/mod.rs' = '''
+pub mod adapters;
+pub mod adapters_registry;
+pub mod interface;
+pub mod types;
+'''
+given.files.'src/port/types.rs' = '''
+use crate::port::adapters_registry::Registry;
+use crate::port::adapters_registry::adapter::Listed;
+
+pub struct Answer(pub u8, pub Registry, pub Listed);
+'''
+
+[[scenarios]]
+id = 'module-import'
+scenario = "The adapter's module imported instead of the type."
+given.files.'src/port/adapters/mod.rs' = '''
+pub mod native;
+'''
+given.files.'src/port/adapters/native/adapter.rs' = '''
+use crate::port::interface::Port;
+
+pub struct PortNativeAdapter;
+
+impl Port for PortNativeAdapter {
+    fn answer(&self) -> u8 {
+        1
+    }
+}
+'''
+given.files.'src/port/adapters/native/mod.rs' = '''
+pub mod adapter;
+'''
+given.files.'src/port/interface.rs' = '''
+pub trait Port {
+    fn answer(&self) -> u8;
+}
+'''
+given.files.'src/port/mod.rs' = '''
+pub mod adapters;
+pub mod interface;
+pub mod types;
+'''
+given.files.'src/port/types.rs' = '''
+use crate::port::adapters::native::adapter;
+use crate::port::interface::Port;
+
+pub struct Answer(pub u8);
+
+impl Answer {
+    pub fn taken() -> Self {
+        Self(adapter::PortNativeAdapter.answer())
+    }
+}
+'''
+then.findings = [
+  { path = 'src/port/types.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'glob-import'
+scenario = 'The adapter reached through a glob import.'
+given.files.'src/port/adapters/mod.rs' = '''
+pub mod native;
+'''
+given.files.'src/port/adapters/native/adapter.rs' = '''
+use crate::port::interface::Port;
+
+pub struct PortNativeAdapter;
+
+impl Port for PortNativeAdapter {
+    fn answer(&self) -> u8 {
+        1
+    }
+}
+'''
+given.files.'src/port/adapters/native/mod.rs' = '''
+pub mod adapter;
+'''
+given.files.'src/port/interface.rs' = '''
+pub trait Port {
+    fn answer(&self) -> u8;
+}
+'''
+given.files.'src/port/mod.rs' = '''
+pub mod adapters;
+pub mod interface;
+pub mod types;
+'''
+given.files.'src/port/types.rs' = '''
+use crate::port::adapters::native::adapter::*;
+use crate::port::interface::Port;
+
+pub struct Answer(pub u8);
+
+impl Answer {
+    pub fn taken() -> Self {
+        Self(PortNativeAdapter.answer())
+    }
+}
+'''
+then.findings = [
+  { path = 'src/port/types.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'untemplated-adapter'
+scenario = 'An adapter not laid out by the template is still one.'
+given.files.'src/port/adapters/mod.rs' = '''
+pub mod observed;
+'''
+given.files.'src/port/adapters/observed.rs' = '''
+use crate::port::interface::Port;
+
+pub struct Observed;
+
+impl Port for Observed {
+    fn answer(&self) -> u8 {
+        2
+    }
+}
+'''
+given.files.'src/port/interface.rs' = '''
+pub trait Port {
+    fn answer(&self) -> u8;
+}
+'''
+given.files.'src/port/mod.rs' = '''
+pub mod adapters;
+pub mod interface;
+pub mod types;
+'''
+given.files.'src/port/types.rs' = '''
+use crate::port::interface::Port;
+
+pub struct Answer(pub u8);
+
+impl Answer {
+    pub fn taken() -> Self {
+        Self(super::adapters::observed::Observed.answer())
+    }
+}
+'''
+then.findings = [
+  { path = 'src/port/types.rs', line = 7 },
+]
+
+[[scenarios]]
+id = 'registration-module'
+scenario = 'The adapters registration module constructs an adapter.'
+given.files.'src/port/adapters.rs' = '''
+pub mod native;
+
+use crate::port::interface::Port;
+use crate::port::types::Answer;
+
+impl Answer {
+    pub fn selected() -> Self {
+        Self(crate::port::adapters::native::adapter::PortNativeAdapter.answer())
+    }
+}
+'''
+given.files.'src/port/adapters/native/adapter.rs' = '''
+use crate::port::interface::Port;
+
+pub struct PortNativeAdapter;
+
+impl Port for PortNativeAdapter {
+    fn answer(&self) -> u8 {
+        1
+    }
+}
+'''
+given.files.'src/port/adapters/native/mod.rs' = '''
+pub mod adapter;
+'''
+given.files.'src/port/interface.rs' = '''
+pub trait Port {
+    fn answer(&self) -> u8;
+}
+'''
+given.files.'src/port/mod.rs' = '''
+pub mod adapters;
+pub mod interface;
+pub mod types;
+'''
+given.files.'src/port/types.rs' = '''
+pub struct Answer(pub u8);
+'''
+then.findings = [
+  { path = 'src/port/adapters.rs', line = 8 },
+]
+
+[[scenarios]]
+id = 'untemplated-module-import'
+scenario = 'The module of an adapter not laid out by the template imported.'
+given.files.'src/port/adapters/mod.rs' = '''
+pub mod observed;
+'''
+given.files.'src/port/adapters/observed.rs' = '''
+use crate::port::interface::Port;
+
+pub struct Observed;
+
+impl Port for Observed {
+    fn answer(&self) -> u8 {
+        2
+    }
+}
+'''
+given.files.'src/port/interface.rs' = '''
+pub trait Port {
+    fn answer(&self) -> u8;
+}
+'''
+given.files.'src/port/mod.rs' = '''
+pub mod adapters;
+pub mod interface;
+pub mod types;
+'''
+given.files.'src/port/types.rs' = '''
+use super::adapters::observed;
+
+use crate::port::interface::Port;
+
+pub struct Answer(pub u8);
+
+impl Answer {
+    pub fn taken() -> Self {
+        Self(observed::Observed.answer())
+    }
+}
+'''
+then.findings = [
+  { path = 'src/port/types.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'port-root-reexport'
+scenario = "The port's own module root re-exporting its adapter with a bare path."
+given.files.'src/port/adapters/mod.rs' = '''
+pub mod native;
+'''
+given.files.'src/port/adapters/native/adapter.rs' = '''
+use crate::port::interface::Port;
+
+pub struct PortNativeAdapter;
+
+impl Port for PortNativeAdapter {
+    fn answer(&self) -> u8 {
+        1
+    }
+}
+'''
+given.files.'src/port/adapters/native/mod.rs' = '''
+pub mod adapter;
+'''
+given.files.'src/port/interface.rs' = '''
+pub trait Port {
+    fn answer(&self) -> u8;
+}
+'''
+given.files.'src/port/mod.rs' = '''
+pub mod adapters;
+pub mod interface;
+pub mod types;
+
+pub use adapters::native::adapter::PortNativeAdapter;
+'''
+given.files.'src/port/types.rs' = '''
+pub struct Answer(pub u8);
+'''
+then.findings = [
+  { path = 'src/port/mod.rs', line = 5 },
+]
+
+[[scenarios]]
+id = 'type-alias-argument'
+scenario = 'An adapter as the generic argument of a type alias.'
+given.files.'src/port/adapters/mod.rs' = '''
+pub mod native;
+'''
+given.files.'src/port/adapters/native/adapter.rs' = '''
+use crate::port::interface::Port;
+
+pub struct PortNativeAdapter;
+
+impl Port for PortNativeAdapter {
+    fn answer(&self) -> u8 {
+        1
+    }
+}
+'''
+given.files.'src/port/adapters/native/mod.rs' = '''
+pub mod adapter;
+'''
+given.files.'src/port/interface.rs' = '''
+pub trait Port {
+    fn answer(&self) -> u8;
+}
+'''
+given.files.'src/port/mod.rs' = '''
+pub mod adapters;
+pub mod interface;
+pub mod types;
+'''
+given.files.'src/port/types.rs' = '''
+pub struct Answer<P>(pub P);
+
+/// The port as composed, spelled where the composition is not.
+pub type Selected = Answer<crate::port::adapters::native::adapter::PortNativeAdapter>;
+'''
+then.findings = [
+  { path = 'src/port/types.rs', line = 4 },
+]
+
+[[scenarios]]
+id = 'adapter-handed-its-port'
+scenario = 'An adapter handed its port, composed at the root, in its composition module and its test.'
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/composition.rs' = '''
+use crate::process::adapters::native::adapter::ProcessNativeAdapter;
+use crate::sampling::adapters::native::adapter::SamplingNativeAdapter;
+
+/// The composition root selects both adapters and hands one to the other.
+pub fn sampler() -> SamplingNativeAdapter<ProcessNativeAdapter> {
+    SamplingNativeAdapter::new(ProcessNativeAdapter)
+}
+'''
+given.files.'src/lib.rs' = '''
+pub mod composition;
+pub mod process;
+pub mod sampling;
+'''
+given.files.'src/process/adapters/mod.rs' = '''
+pub mod native;
+'''
+given.files.'src/process/adapters/native/adapter.rs' = '''
+use crate::process::interface::ProcessInterface;
+
+pub struct ProcessNativeAdapter;
+
+impl ProcessInterface for ProcessNativeAdapter {
+    fn run(&self) -> u8 {
+        1
+    }
+}
+'''
+given.files.'src/process/adapters/native/mod.rs' = '''
+pub mod adapter;
+'''
+given.files.'src/process/interface.rs' = '''
+pub trait ProcessInterface {
+    fn run(&self) -> u8;
+}
+'''
+given.files.'src/process/mod.rs' = '''
+pub mod adapters;
+pub mod interface;
+'''
+given.files.'src/sampling/adapters/cpu_time/adapter.rs' = '''
+use crate::sampling::interface::SamplingInterface;
+
+pub struct SamplingCpuTimeAdapter;
+
+impl SamplingInterface for SamplingCpuTimeAdapter {
+    fn sample(&self) -> u8 {
+        2
+    }
+}
+'''
+given.files.'src/sampling/adapters/cpu_time/mod.rs' = '''
+pub mod adapter;
+'''
+given.files.'src/sampling/adapters/mod.rs' = '''
+pub mod cpu_time;
+pub mod native;
+'''
+given.files.'src/sampling/adapters/native/adapter.rs' = '''
+use crate::process::interface::ProcessInterface;
+use crate::sampling::interface::SamplingInterface;
+
+/// Takes the process port; which process adapter it runs is the composition's choice.
+pub struct SamplingNativeAdapter<Process> {
+    process: Process,
+}
+
+impl<Process: ProcessInterface> SamplingNativeAdapter<Process> {
+    pub fn new(process: Process) -> Self {
+        Self { process }
+    }
+}
+
+impl<Process: ProcessInterface> SamplingInterface for SamplingNativeAdapter<Process> {
+    fn sample(&self) -> u8 {
+        self.process.run()
+    }
+}
+'''
+given.files.'src/sampling/adapters/native/adapter_test.rs' = '''
+use crate::process::adapters::native::adapter::ProcessNativeAdapter;
+use crate::sampling::adapters::native::adapter::SamplingNativeAdapter;
+use crate::sampling::interface::SamplingInterface;
+
+#[test]
+fn samples_through_the_process_it_is_handed() {
+    assert_eq!(SamplingNativeAdapter::new(ProcessNativeAdapter).sample(), 1);
+}
+'''
+given.files.'src/sampling/adapters/native/composition.rs' = '''
+use crate::process::adapters::native::adapter::ProcessNativeAdapter;
+use crate::sampling::adapters::native::adapter::SamplingNativeAdapter;
+
+/// A composition module inside the adapter's directory selects its collaborator.
+pub fn native() -> SamplingNativeAdapter<ProcessNativeAdapter> {
+    SamplingNativeAdapter::new(ProcessNativeAdapter)
+}
+'''
+given.files.'src/sampling/adapters/native/mod.rs' = '''
+pub mod adapter;
+pub mod composition;
+#[cfg(test)]
+mod adapter_test;
+'''
+given.files.'src/sampling/interface.rs' = '''
+pub trait SamplingInterface {
+    fn sample(&self) -> u8;
+}
+'''
+given.files.'src/sampling/mod.rs' = '''
+pub mod adapters;
+pub mod interface;
+'''
+
+[[scenarios]]
+id = 'fixture-names-adapter'
+scenario = "A port's fixtures name the adapter of their own port."
+given.files.'src/port/adapters/mod.rs' = '''
+pub mod native;
+'''
+given.files.'src/port/adapters/native/adapter.rs' = '''
+use crate::port::interface::Port;
+
+pub struct PortNativeAdapter;
+
+impl Port for PortNativeAdapter {
+    fn answer(&self) -> u8 {
+        1
+    }
+}
+'''
+given.files.'src/port/adapters/native/mod.rs' = '''
+pub mod adapter;
+'''
+given.files.'src/port/fixtures/library.rs' = '''
+use crate::port::adapters::native::adapter::PortNativeAdapter;
+use crate::port::interface::Port;
+
+pub fn library() -> u8 {
+    PortNativeAdapter.answer()
+}
+'''
+given.files.'src/port/fixtures/mod.rs' = '''
+pub mod library;
+'''
+given.files.'src/port/interface.rs' = '''
+pub trait Port {
+    fn answer(&self) -> u8;
+}
+'''
+given.files.'src/port/mod.rs' = '''
+pub mod adapters;
+pub mod fixtures;
+pub mod interface;
+pub mod types;
+'''
+given.files.'src/port/types.rs' = '''
+pub struct Answer(pub u8);
+'''
+
+[[scenarios]]
+id = 'fixture-lookalike'
+scenario = 'A directory only called fixture is not a fixtures directory.'
+given.files.'src/port/adapters/mod.rs' = '''
+pub mod native;
+'''
+given.files.'src/port/adapters/native/adapter.rs' = '''
+use crate::port::interface::Port;
+
+pub struct PortNativeAdapter;
+
+impl Port for PortNativeAdapter {
+    fn answer(&self) -> u8 {
+        1
+    }
+}
+'''
+given.files.'src/port/adapters/native/mod.rs' = '''
+pub mod adapter;
+'''
+given.files.'src/port/fixture/library.rs' = '''
+use crate::port::adapters::native::adapter::PortNativeAdapter;
+use crate::port::interface::Port;
+
+pub fn library() -> u8 {
+    PortNativeAdapter.answer()
+}
+'''
+given.files.'src/port/fixture/mod.rs' = '''
+pub mod library;
+'''
+given.files.'src/port/interface.rs' = '''
+pub trait Port {
+    fn answer(&self) -> u8;
+}
+'''
+given.files.'src/port/mod.rs' = '''
+pub mod adapters;
+pub mod fixture;
+pub mod interface;
+pub mod types;
+'''
+given.files.'src/port/types.rs' = '''
+pub struct Answer(pub u8);
+'''
+then.findings = [
+  { path = 'src/port/fixture/library.rs', line = 1 },
+]

@@ -1,0 +1,29 @@
+closed = false
+tastemaker = "0.1.0"
+workspace = { name = "local", dependencies = [{ package = "local", path = "tastemaker" }] }
+rules = [
+  { rule = "local/top-level-directories", include = ["."], params = { allowed = [
+    "src/**",
+    "packages/**",
+    "tastemaker/**",
+    "go.mod",
+    "go.sum",
+    ".gitignore",
+    "README.md",
+    "tastemaker.toml",
+    "tastemaker.lock",
+    "fixes.toml",
+  ] }, description = "The declared source, local packages and rules own the tree." },
+  { rule = "local/tests-for-sources", include = ["src"], description = "Each Go source has a colocated _test.go file." },
+  { rule = "local/method-routing-patterns", include = ["src/routes/*/routes.go"], description = "Routes use Go 1.22 method-aware patterns." },
+  { rule = "local/too-many-parameters", include = ["src"], params = { max-params = 4 }, description = "Functions take at most four parameters." },
+  { rule = "local/independent-use-cases", include = ["src/inbound/use_cases/*/use_case.go"], description = "Use cases depend on domain ports, not other use cases." },
+  { rule = "local/no-todo-comments", include = ["src"], description = "No TODO comments." },
+  { rule = "local/duplicate-function-bodies", include = ["src"], params = { min-tokens = 10 }, description = "Functions are not copied between packages." },
+  { rule = "local/no-dot-imports", include = ["src"], description = "Imports retain a package qualifier." },
+  { rule = "local/readme-sections", include = ["README.md"], description = "Install, Usage with fenced code, and Development appear in order." },
+  { rule = "local/sorted-dependencies", include = ["go.mod"], description = "Each require block is in alphabetical order." },
+]
+specs = [
+  { spec = "local/use-case", include = ["src/inbound/use_cases/{use-case}"], description = "Each use case has use_case.go and its named type." },
+]

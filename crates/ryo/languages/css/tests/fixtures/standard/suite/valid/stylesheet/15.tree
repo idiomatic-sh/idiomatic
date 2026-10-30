@@ -1,0 +1,6 @@
+stylesheet
+  qualified-rule
+    ident
+    whitespace
+    block
+  whitespace

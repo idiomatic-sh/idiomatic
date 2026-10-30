@@ -1,0 +1,560 @@
+description = "A `schemas.rs` names every wire shape `<Name>Schema` and its refusal `<Name>SchemaError`, converts with `impl TryFrom<<Name>Schema> for <CoreType>`, or `impl From<<Name>Schema> for <CoreType>` where the conversion cannot fail (at least one of the two in the file, so a file of only a refusal is a finding) and may hold the decode functions that read bytes into the core's type through those conversions."
+why = "A `schemas.rs` is the edge where the shape of the data is not ours, and a wire shape there is named for what it is: `<Name>Schema` for the shape, `<Name>SchemaError` for the refusal of its conversion, and `impl TryFrom<<Name>Schema> for <CoreType>` for the checked conversion into the core's type, so validation has one place and one name; a lossless wire shape converts with `impl From<<Name>Schema> for <CoreType>`, where the conversion cannot fail. The file converts and decodes: the decode function is a function with a body, so none is a finding here, and `schema-confined` keeps every name of a schema inside the file. RyoQL cannot compare a PascalCase name with a snake_case directory, so the stem of the name is pinned by the part spec's templates, which write the declaration named from the directory; this rule gives that declaration its role and its suffix. Read as written: in each `schemas.rs` the entry selects, every `struct` and `enum` at the top level must end `Schema` or `SchemaError`; every `impl TryFrom<X> for Y` or `impl From<X> for Y` (a `From` into a `*Schema`, the core written out as a schema, is not a conversion into the core and is left alone) must have an `X` ending `Schema` and a `Y` that does not; a function with a body is allowed anywhere in the file (a macro-generated item is not seen)."
+
+query = '''
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let source-files = select * from tree-nodes where kind = "source-file";
+let top-edges = select r."child" as "child" from source-files as l join "syntax-child" as r on l."id" = r."parent";
+let top-items = select r."id" as "id", r."kind" as "kind", r."file" as "file", r."span" as "span" from top-edges as l join tree-nodes as r on l."child" = r."id";
+let shape-items = select * from top-items where glob_any(kind, "{struct,enum}");
+let s-name-nodes-all = select * from tree-nodes where kind = "name";
+let s-kids = select l."id" as "id", r."child" as "child" from shape-items as l join "syntax-child" as r on l."id" = r."parent";
+let s-name-nodes = select l."id" as "id", r."id" as "name-node" from s-kids as l join s-name-nodes-all as r on l."child" = r."id";
+let s-name-tokens = select l."id" as "id", r."child" as "token" from s-name-nodes as l join "syntax-child" as r on l."name-node" = r."parent";
+let s-name-texts = select l."id" as "id", r."text" as "name" from s-name-tokens as l join tree-tokens as r on l."token" = r."id";
+let shape-rows = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", r."name" as "name" from shape-items as l join s-name-texts as r on l."id" = r."id";
+let good-shapes = select * from shape-rows where glob_any(name, "{*Schema,*SchemaError}");
+let bad-shapes = antijoin(left=shape-rows, right=good-shapes, left-on=["id"], right-on=["id"]);
+let bad-shape-rows = project(from=bad-shapes, columns=["file", "span", "name"]);
+let bad-shape-findings = extend(from=bad-shape-rows, values={"problem": "is not named `<Name>Schema` (a wire shape) or `<Name>SchemaError` (the refusal of a conversion)"});
+let x-token-edges = select l."parent" as "parent", r."id" as "token", r."kind" as "kind", r."text" as "text" from "syntax-child" as l join tree-tokens as r on l."child" = r."id";
+let x-paths = select * from tree-nodes where kind = "path";
+let x-segments = select * from tree-nodes where kind = "path-segment";
+let x-name-refs = select * from tree-nodes where kind = "name-ref";
+let x-path-segment-edges = select l."id" as "pathnode", r."child" as "child" from x-paths as l join "syntax-child" as r on l."id" = r."parent";
+let x-path-segments = select l."pathnode" as "pathnode", r."id" as "segment" from x-path-segment-edges as l join x-segments as r on l."child" = r."id";
+let x-segment-ref-edges = select l."pathnode" as "pathnode", r."child" as "child" from x-path-segments as l join "syntax-child" as r on l."segment" = r."parent";
+let x-segment-refs = select l."pathnode" as "pathnode", r."id" as "nameref" from x-segment-ref-edges as l join x-name-refs as r on l."child" = r."id";
+let x-path-names = select l."pathnode" as "pathnode", r."text" as "name" from x-segment-refs as l join x-token-edges as r on l."nameref" = r."parent";
+let x-impls = select * from tree-nodes where kind = "impl";
+let x-impl-children = select r."child" as "child", l."id" as "id", r."ordinal" as "ordinal", l."file" as "file", l."span" as "span" from x-impls as l join "syntax-child" as r on l."id" = r."parent";
+let x-path-types = select * from tree-nodes where kind = "path-type";
+let x-impl-types = select l."child" as "type", l."id" as "id", l."ordinal" as "ordinal", l."file" as "file", l."span" as "span" from x-impl-children as l join x-path-types as r on l."child" = r."id";
+let x-for-tokens = select * from tree-tokens where kind = "for-kw";
+let x-impl-for = select l."id" as "id", l."ordinal" as "for" from x-impl-children as l join x-for-tokens as r on l."child" = r."id";
+let x-impl-types-for = select r."for" as "for", l."id" as "id", l."ordinal" as "ordinal", l."type" as "type", l."file" as "file", l."span" as "span" from x-impl-types as l join x-impl-for as r on l."id" = r."id";
+let x-trait-types = select * from x-impl-types-for where ordinal < for;
+let x-self-types = select * from x-impl-types-for where ordinal > for;
+let x-trait-path-edges = select r."child" as "child", l."id" as "impl", l."file" as "file", l."span" as "span" from x-trait-types as l join "syntax-child" as r on l."type" = r."parent";
+let x-trait-paths = select l."impl" as "impl", l."file" as "file", l."span" as "span", r."id" as "pathnode" from x-trait-path-edges as l join x-paths as r on l."child" = r."id";
+let x-impl-trait = select l."impl" as "impl", l."file" as "file", l."span" as "span", r."name" as "trait" from x-trait-paths as l join x-path-names as r on l."pathnode" = r."pathnode";
+let x-self-path-edges = select r."child" as "child", l."id" as "impl" from x-self-types as l join "syntax-child" as r on l."type" = r."parent";
+let x-self-paths = select l."impl" as "impl", r."id" as "pathnode" from x-self-path-edges as l join x-paths as r on l."child" = r."id";
+let x-impl-self = select l."impl" as "impl", r."name" as "self" from x-self-paths as l join x-path-names as r on l."pathnode" = r."pathnode";
+let x-generic-lists = select * from tree-nodes where kind = "generic-arg-list";
+let x-type-args = select * from tree-nodes where kind = "type-arg";
+let x-arg-segments = select l."impl" as "impl", r."segment" as "segment" from x-trait-paths as l join x-path-segments as r on l."pathnode" = r."pathnode";
+let x-arg-list-edges = select l."impl" as "impl", r."child" as "child" from x-arg-segments as l join "syntax-child" as r on l."segment" = r."parent";
+let x-arg-lists = select l."impl" as "impl", r."id" as "list" from x-arg-list-edges as l join x-generic-lists as r on l."child" = r."id";
+let x-arg-edges = select l."impl" as "impl", r."child" as "child" from x-arg-lists as l join "syntax-child" as r on l."list" = r."parent";
+let x-args = select l."impl" as "impl", r."id" as "arg" from x-arg-edges as l join x-type-args as r on l."child" = r."id";
+let x-arg-type-edges = select l."impl" as "impl", r."child" as "child" from x-args as l join "syntax-child" as r on l."arg" = r."parent";
+let x-arg-types = select l."impl" as "impl", r."id" as "type" from x-arg-type-edges as l join x-path-types as r on l."child" = r."id";
+let x-arg-path-edges = select l."impl" as "impl", r."child" as "child" from x-arg-types as l join "syntax-child" as r on l."type" = r."parent";
+let x-arg-paths = select l."impl" as "impl", r."id" as "pathnode" from x-arg-path-edges as l join x-paths as r on l."child" = r."id";
+let x-impl-arg = select l."impl" as "impl", r."name" as "arg" from x-arg-paths as l join x-path-names as r on l."pathnode" = r."pathnode";
+let x-ref-types = select * from tree-nodes where kind = "ref-type";
+let x-arg-refs = select l."impl" as "impl", r."id" as "ref" from x-arg-type-edges as l join x-ref-types as r on l."child" = r."id";
+let x-ref-edges = select l."impl" as "impl", r."child" as "child" from x-arg-refs as l join "syntax-child" as r on l."ref" = r."parent";
+let x-ref-path-types = select l."impl" as "impl", r."id" as "type" from x-ref-edges as l join x-path-types as r on l."child" = r."id";
+let x-ref-path-edges = select l."impl" as "impl", r."child" as "child" from x-ref-path-types as l join "syntax-child" as r on l."type" = r."parent";
+let x-ref-paths = select l."impl" as "impl", r."id" as "pathnode" from x-ref-path-edges as l join x-paths as r on l."child" = r."id";
+let x-ref-arg = select l."impl" as "impl", r."name" as "arg" from x-ref-paths as l join x-path-names as r on l."pathnode" = r."pathnode";
+let text-args = select * from x-ref-arg where glob_any(arg, "str");
+let try-impls = select * from x-impl-trait where trait = "TryFrom";
+let from-impls = select * from x-impl-trait where trait = "From";
+let schema-args = select * from x-impl-arg where glob_any(arg, "*Schema");
+let arg-schemas = union(left=schema-args, right=text-args);
+let self-schemas = select * from x-impl-self where glob_any(self, "*Schema");
+let from-forward = antijoin(left=from-impls, right=self-schemas, left-on=["impl"], right-on=["impl"]);
+let conversions = union(left=try-impls, right=from-forward);
+let bad-source = antijoin(left=conversions, right=arg-schemas, left-on=["impl"], right-on=["impl"]);
+let bad-source-rows = project(from=bad-source, columns=["file", "span"]);
+let bad-source-findings = extend(from=bad-source-rows, values={"name": "impl From/TryFrom", "problem": "converts from a type that is not a `<Name>Schema` or a `&str`: a schema, or a text a type validates, is converted into the core's type"});
+let bad-target = select l."file" as "file", l."span" as "span" from try-impls as l join self-schemas as r on l."impl" = r."impl";
+let bad-target-rows = project(from=bad-target, columns=["file", "span"]);
+let bad-target-findings = extend(from=bad-target-rows, values={"name": "impl TryFrom", "problem": "converts into a `<Name>Schema`: a schema is converted into the core's type, never the other way by TryFrom"});
+let forward-converting = select l."file" as "file" from conversions as l join arg-schemas as r on l."impl" = r."impl";
+let back-converting = select l."file" as "file" from from-impls as l join self-schemas as r on l."impl" = r."impl";
+let converting = union(left=forward-converting, right=back-converting);
+let unconverted = antijoin(left=source-files, right=converting, left-on=["file"], right-on=["file"]);
+let unconverted-rows = project(from=unconverted, columns=["file", "span"]);
+let unconverted-findings = extend(from=unconverted-rows, values={"name": "schemas.rs", "problem": "has no `impl TryFrom<<Name>Schema>`, `impl From<<Name>Schema>` or `impl From<<CoreType>> for <Name>Schema` in this file: a schema is converted into the core's type, or built from it when the command takes no input"});
+let all-1 = union(left=bad-shape-findings, right=bad-source-findings);
+let all-2 = union(left=all-1, right=bad-target-findings);
+let all-3 = union(left=all-2, right=unconverted-findings);
+emit all-3 subject "file" key("span", "problem");
+'''
+
+[diagnostic]
+primary = "span"
+message = "`{name}` {problem}"
+help = "Name each wire shape `<Name>Schema` and the refusal of its conversion `<Name>SchemaError`, convert a schema into the core's type with `impl TryFrom<<Name>Schema> for <CoreType>` (or `impl From<<Name>Schema> for <CoreType>` when it cannot fail; a schema that only presents the core's answer, for a verb with no input, is built with `impl From<<CoreType>> for <Name>Schema`), and validation is the conversion, and a decode function that calls it lives here too. An ignore is not legitimate here: a schema converts."
+
+[given]
+include = ['**/schemas.rs']
+
+[[scenarios]]
+id = 'wire-shape-refusal-tryfrom-conversion'
+scenario = 'A wire shape, its refusal and its TryFrom conversion.'
+given.files.'src/names/adapters/memory/schemas.rs' = '''
+//! The shape of the data the memory store returns, and its checked conversion into the core's types.
+
+use greeting_core::outbound::names::types::Name;
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;
+
+/// One name as the store writes it.
+pub(super) struct NameSchema {
+    pub(super) text: String,
+}
+
+/// Why a stored name was refused.
+pub(super) enum NameSchemaError {
+    Empty,
+}
+
+impl TryFrom<NameSchema> for Name {
+    type Error = NameSchemaError;
+
+    fn try_from(schema: NameSchema) -> Result<Self, Self::Error> {
+        if schema.text.is_empty() {
+            return Err(NameSchemaError::Empty);
+        }
+        Ok(Name(schema.text))
+    }
+}
+'''
+
+[[scenarios]]
+id = 'from-back'
+scenario = 'A From impl converts the other way.'
+given.files.'src/names/adapters/memory/schemas.rs' = '''
+//! The shape of the data the memory store returns, and its checked conversion into the core's types.
+
+use greeting_core::outbound::names::types::Name;
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;
+
+/// One name as the store writes it.
+pub(super) struct NameSchema {
+    pub(super) text: String,
+}
+
+/// Why a stored name was refused.
+pub(super) enum NameSchemaError {
+    Empty,
+}
+
+impl TryFrom<NameSchema> for Name {
+    type Error = NameSchemaError;
+
+    fn try_from(schema: NameSchema) -> Result<Self, Self::Error> {
+        if schema.text.is_empty() {
+            return Err(NameSchemaError::Empty);
+        }
+        Ok(Name(schema.text))
+    }
+}
+
+impl From<Name> for NameSchema {
+    fn from(name: Name) -> Self {
+        Self { text: name.0 }
+    }
+}
+'''
+
+[[scenarios]]
+id = 'inline-test-module'
+scenario = "A test module's functions are not the schema's."
+given.files.'src/names/adapters/memory/schemas.rs' = '''
+//! The shape of the data the memory store returns, and its checked conversion into the core's types.
+
+use greeting_core::outbound::names::types::Name;
+
+/// One name as the store writes it.
+pub(super) struct NameSchema {
+    pub(super) text: String,
+}
+
+/// Why a stored name was refused.
+pub(super) enum NameSchemaError {
+    Empty,
+}
+
+impl TryFrom<NameSchema> for Name {
+    type Error = NameSchemaError;
+
+    fn try_from(schema: NameSchema) -> Result<Self, Self::Error> {
+        if schema.text.is_empty() {
+            return Err(NameSchemaError::Empty);
+        }
+        Ok(Name(schema.text))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn refuses_empty() {
+        assert!(true);
+    }
+}
+'''
+
+[[scenarios]]
+id = 'unnamed-struct'
+scenario = 'A struct not named Schema.'
+given.files.'src/names/adapters/memory/schemas.rs' = '''
+//! The shape of the data the memory store returns, and its checked conversion into the core's types.
+
+use greeting_core::outbound::names::types::Name;
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;
+
+/// One name as the store writes it.
+pub(super) struct NameWire {
+    pub(super) text: String,
+}
+
+/// Why a stored name was refused.
+pub(super) enum NameSchemaError {
+    Empty,
+}
+
+impl TryFrom<NameWire> for Name {
+    type Error = NameSchemaError;
+
+    fn try_from(schema: NameWire) -> Result<Self, Self::Error> {
+        if schema.text.is_empty() {
+            return Err(NameSchemaError::Empty);
+        }
+        Ok(Name(schema.text))
+    }
+}
+'''
+then.findings = [
+  { path = 'src/names/adapters/memory/schemas.rs', line = 3 },
+  { path = 'src/names/adapters/memory/schemas.rs', line = 10 },
+  { path = 'src/names/adapters/memory/schemas.rs', line = 19 },
+]
+
+[[scenarios]]
+id = 'unnamed-enum'
+scenario = 'An enum not named SchemaError.'
+given.files.'src/names/adapters/memory/schemas.rs' = '''
+//! The shape of the data the memory store returns, and its checked conversion into the core's types.
+
+use greeting_core::outbound::names::types::Name;
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;
+
+/// One name as the store writes it.
+pub(super) struct NameSchema {
+    pub(super) text: String,
+}
+
+/// Why a stored name was refused.
+pub(super) enum NameRefusal {
+    Empty,
+}
+
+impl TryFrom<NameSchema> for Name {
+    type Error = NameRefusal;
+
+    fn try_from(schema: NameSchema) -> Result<Self, Self::Error> {
+        if schema.text.is_empty() {
+            return Err(NameRefusal::Empty);
+        }
+        Ok(Name(schema.text))
+    }
+}
+'''
+then.findings = [
+  { path = 'src/names/adapters/memory/schemas.rs', line = 15 },
+]
+
+[[scenarios]]
+id = 'source-not-a-schema'
+scenario = 'TryFrom from a type that is not a schema.'
+given.files.'src/names/adapters/memory/schemas.rs' = '''
+//! The shape of the data the memory store returns, and its checked conversion into the core's types.
+
+use greeting_core::outbound::names::types::Name;
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;
+
+/// One name as the store writes it.
+pub(super) struct NameSchema {
+    pub(super) text: String,
+}
+
+/// Why a stored name was refused.
+pub(super) enum NameSchemaError {
+    Empty,
+}
+
+impl TryFrom<String> for Name {
+    type Error = NameSchemaError;
+
+    fn try_from(schema: String) -> Result<Self, Self::Error> {
+        if schema.is_empty() {
+            return Err(NameSchemaError::Empty);
+        }
+        Ok(Name(schema))
+    }
+}
+'''
+then.findings = [
+  { path = 'src/names/adapters/memory/schemas.rs', line = 3 },
+  { path = 'src/names/adapters/memory/schemas.rs', line = 19 },
+]
+
+[[scenarios]]
+id = 'target-is-a-schema'
+scenario = 'TryFrom into a schema.'
+given.files.'src/names/adapters/memory/schemas.rs' = '''
+//! The shape of the data the memory store returns, and its checked conversion into the core's types.
+
+use greeting_core::outbound::names::types::Name;
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;
+
+/// One name as the store writes it.
+pub(super) struct NameSchema {
+    pub(super) text: String,
+}
+
+/// Why a stored name was refused.
+pub(super) enum NameSchemaError {
+    Empty,
+}
+
+impl TryFrom<NameSchema> for Name {
+    type Error = NameSchemaError;
+
+    fn try_from(schema: NameSchema) -> Result<Self, Self::Error> {
+        if schema.text.is_empty() {
+            return Err(NameSchemaError::Empty);
+        }
+        Ok(Name(schema.text))
+    }
+}
+
+impl TryFrom<Name> for NameSchema {
+    type Error = NameSchemaError;
+
+    fn try_from(name: Name) -> Result<Self, Self::Error> {
+        Ok(Self { text: name.0 })
+    }
+}
+'''
+then.findings = [
+  { path = 'src/names/adapters/memory/schemas.rs', line = 30 },
+  { path = 'src/names/adapters/memory/schemas.rs', line = 30 },
+]
+
+[[scenarios]]
+id = 'decode-function'
+scenario = 'A decode function that reads bytes through the conversion.'
+given.files.'src/names/adapters/memory/schemas.rs' = '''
+//! The shape of the data the memory store returns, and its checked conversion into the core's types.
+
+use greeting_core::outbound::names::types::Name;
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;
+
+/// One name as the store writes it.
+pub(super) struct NameSchema {
+    pub(super) text: String,
+}
+
+/// Why a stored name was refused.
+pub(super) enum NameSchemaError {
+    Empty,
+}
+
+impl TryFrom<NameSchema> for Name {
+    type Error = NameSchemaError;
+
+    fn try_from(schema: NameSchema) -> Result<Self, Self::Error> {
+        if schema.text.is_empty() {
+            return Err(NameSchemaError::Empty);
+        }
+        Ok(Name(schema.text))
+    }
+}
+
+/// Reads a stored name into the core's type.
+pub(super) fn read(text: &str) -> Result<Name, NameSchemaError> {
+    Name::try_from(NameSchema { text: text.to_owned() })
+}
+'''
+
+[[scenarios]]
+id = 'no-conversion'
+scenario = "A schema with no conversion into the core's type."
+given.files.'src/names/adapters/memory/schemas.rs' = '''
+//! The shape of the data the memory store returns.
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;
+
+/// One name as the store writes it.
+pub(super) struct NameSchema {
+    pub(super) text: String,
+}
+'''
+then.findings = [
+  { path = 'src/names/adapters/memory/schemas.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'refusal-without-conversion'
+scenario = 'A schemas.rs of only a refusal has no conversion either.'
+given.files.'src/names/adapters/memory/schemas.rs' = '''
+//! Why a stored name was refused.
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;
+
+/// Why a stored name was refused.
+pub(super) enum NameSchemaError {
+    Invalid,
+}
+'''
+then.findings = [
+  { path = 'src/names/adapters/memory/schemas.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'text-conversion'
+scenario = "A port's own type validates the text it is made from."
+given.files.'src/names/adapters/memory/schemas.rs' = '''
+//! The shape of the data the memory store returns, and its checked conversion into the core's types.
+
+use greeting_core::outbound::names::types::Name;
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;
+
+/// Why a name was refused.
+pub enum NameSchemaError {
+    Empty,
+}
+
+impl TryFrom<&str> for Name {
+    type Error = NameSchemaError;
+
+    fn try_from(text: &str) -> Result<Self, Self::Error> {
+        if text.is_empty() {
+            return Err(NameSchemaError::Empty);
+        }
+        Ok(Name(text.to_owned()))
+    }
+}
+'''
+
+[[scenarios]]
+id = 'from-conversion'
+scenario = 'A lossless wire shape converts with From, with no TryFrom in the file.'
+given.files.'src/names/adapters/memory/schemas.rs' = '''
+//! The shape of the data the memory store returns, and its checked conversion into the core's types.
+
+use greeting_core::outbound::names::types::Name;
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;
+
+/// One name as the store writes it.
+pub(super) struct NameSchema {
+    pub(super) text: String,
+}
+
+/// Why a stored name was refused.
+pub(super) enum NameSchemaError {
+    Empty,
+}
+
+impl From<NameSchema> for Name {
+    fn from(schema: NameSchema) -> Self {
+        Name(schema.text)
+    }
+}
+'''
+
+[[scenarios]]
+id = 'from-source-not-a-schema'
+scenario = 'From from a type that is not a schema.'
+given.files.'src/names/adapters/memory/schemas.rs' = '''
+//! The shape of the data the memory store returns, and its checked conversion into the core's types.
+
+use greeting_core::outbound::names::types::Name;
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;
+
+/// One name as the store writes it.
+pub(super) struct NameSchema {
+    pub(super) text: String,
+}
+
+/// Why a stored name was refused.
+pub(super) enum NameSchemaError {
+    Empty,
+}
+
+impl From<u8> for Name {
+    fn from(code: u8) -> Self {
+        Name(code.to_string())
+    }
+}
+'''
+then.findings = [
+  { path = 'src/names/adapters/memory/schemas.rs', line = 3 },
+  { path = 'src/names/adapters/memory/schemas.rs', line = 19 },
+]
+
+[[scenarios]]
+id = 'answer-only'
+scenario = "A schema that only presents the core's answer, for a verb with no input."
+given.files.'src/names/adapters/memory/schemas.rs' = '''
+//! The shape of the answer the command prints, built from the core's report.
+
+use greeting_core::outbound::names::types::Name;
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;
+
+/// What the command prints.
+pub(super) struct AnswerSchema {
+    pub(super) text: String,
+}
+
+impl From<Name> for AnswerSchema {
+    fn from(name: Name) -> Self {
+        Self { text: name.0 }
+    }
+}
+'''

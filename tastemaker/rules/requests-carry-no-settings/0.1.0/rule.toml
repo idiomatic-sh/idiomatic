@@ -1,0 +1,96 @@
+description = "A request carries what the caller asks, never how the program runs it: no worker count, memory budget, cache, build identity or output format field on a request or a session."
+why = "A request is the question a caller asks a use case or an SDK entry. A field for the worker count, the memory budget, the cache directory, the build or the output format makes every caller decide infrastructure, and makes the core carry the setting from the request to the adapter that uses it, layer by layer. The edge decides each setting once and injects it into the factory of the adapter that needs it (`scheduler::factory::rayon(workers)`, `store::factory::postcard(Store { directory, build })`); the edge renders the output format after the use case answers. Read as written: a field the entry lists in `settings`, of a struct whose name the entry's `requests` globs match."
+
+query = '''
+param requests: set<string>;
+param settings: set<string>;
+let tree = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l;
+let fields = select l."id" as "id", l."name" as "field", l."file" as "file", l."span" as "span" from "defines" as l where l."kind" = "property" and l."name" in $settings;
+let structs = select l."id" as "id", l."name" as "name" from "defines" as l where l."kind" = "struct" and glob_any(l."name", $requests);
+let up = axis(from=fields, relation="syntax-child", direction=ancestor, domain=tree);
+let carried = select l."field" as "field", l."file" as "file", l."span" as "span", r."name" as "request" from up as l join structs as r on l."related" = r."id";
+emit carried subject "file" key("span");
+'''
+
+[params.requests]
+type = "set<string>"
+description = "Globs of the names a request type is given: `*Request`, `Session`."
+
+[params.settings]
+type = "set<string>"
+description = "The field names that hold a setting: the worker count, the memory budget, the cache, the build, the output format."
+
+[diagnostic]
+primary = "span"
+message = "`{request}` carries `{field}`, a setting"
+help = "Drop the field. The edge decides the setting once and injects it into the factory of the adapter that uses it (`scheduler::factory::rayon(workers)`, `memory::factory::sysinfo(budget)`, `store::factory::postcard(Store { directory, build })`); an output format is chosen by the edge, which renders the answer. An ignore is never the fix."
+
+[given]
+include = ['**']
+params = { requests = ['*Request', 'Session'], settings = ['workers', 'memory', 'memory_budget', 'cache', 'build', 'logging'] }
+
+[[scenarios]]
+id = 'an-sdk-request-sizes-the-run'
+scenario = 'An SDK request that carries the worker count, the memory budget and the cache, as ryo`s lint request did, is reported at each.'
+given.files.'src/resources/linter/lint/types.rs' = '''
+//! The types of `lint`.
+
+/// What a caller asks `lint` for.
+pub struct LintRequest {
+    /// The repository to lint.
+    pub root: PathBuf,
+    /// How many workers to run.
+    pub workers: Workers,
+    /// How much memory the run may hold.
+    pub memory: MemoryBudget,
+    /// Where the cache is kept.
+    pub cache: Cache,
+}
+'''
+then.findings = [
+  { path = 'src/resources/linter/lint/types.rs', line = 8 },
+  { path = 'src/resources/linter/lint/types.rs', line = 10 },
+  { path = 'src/resources/linter/lint/types.rs', line = 12 },
+]
+
+[[scenarios]]
+id = 'a-request-chooses-the-output'
+scenario = 'A request that names the build and the output format, as Asymptote`s check request did, is reported.'
+given.files.'src/inbound/use_cases/check/types.rs' = '''
+//! The types of `check`.
+
+/// What a caller asks `check` for.
+pub struct CheckRequest {
+    /// The repository.
+    pub root: MachinePath,
+    /// How the violations are written.
+    pub logging: Logging,
+    /// The build that runs.
+    pub build: Build,
+}
+'''
+then.findings = [
+  { path = 'src/inbound/use_cases/check/types.rs', line = 8 },
+  { path = 'src/inbound/use_cases/check/types.rs', line = 10 },
+]
+
+[[scenarios]]
+id = 'a-request-asks-only-its-question'
+scenario = 'A request of what the caller asks, and a type that is no request holding a build, are not reported.'
+given.files.'src/inbound/use_cases/check/types.rs' = '''
+//! The types of `check`.
+
+/// What a caller asks `check` for.
+pub struct CheckRequest {
+    /// The repository.
+    pub root: MachinePath,
+    /// The paths to check.
+    pub paths: Vec<RepoPath>,
+}
+
+/// A target of the workspace.
+pub struct Target {
+    /// How it is built.
+    pub build: Build,
+}
+'''

@@ -1,0 +1,375 @@
+//! The `pipeline` service: free functions named by verb that run the per-file steps of a plan on one file's rows, each step
+//! passing its rows on as it makes them.
+
+// ignore: idiomatic.arch/idiomatic-rust/module-cycles - the steps feed on the steps they run: the service runs a step through the `Feed` impl of `Stepper`, which reads its input by running the service's steps again (`run`, `operate`, `deliver`), one ring by design
+use ryo_language::domain::relations::types::{Relation, Value};
+
+use crate::domain::fragment::service as lowered;
+use crate::domain::fragment::types::FragmentRun;
+use crate::domain::layout::service::layout_of;
+use crate::domain::lowering::types::Counting;
+use crate::domain::operating::errors::OperatingError;
+use crate::domain::operating::types::{Emit, InputPlace, OperatorContext};
+use crate::domain::operator::service::operate;
+use crate::domain::operator::types::{PlanIdentity, Pool, RowsFed, StepPlace, TreeSteps};
+use crate::domain::pipeline::types::{LoweredTree, Stepper};
+use crate::domain::positions::types::Readiness;
+use crate::domain::replay::service::scan;
+use crate::domain::replay::types::{Collect, Pipe};
+use crate::domain::table_cells::types::{TreeForm, TreeRows};
+use crate::domain::table_model::service::{copy_table, materialize, reset};
+use crate::domain::table_model::types::{RowCount, Rows, Table};
+use crate::domain::trust::service::blocked;
+use crate::domain::trust::types::Blocking;
+use ryo_language::domain::relations::types::ColumnsView;
+use ryo_values::domain::plan_parts::types::Input;
+use ryo_values::domain::plan_parts::types::StepId;
+use ryo_values::domain::plans::service::{inputs_of, named};
+use ryo_values::domain::plans::types::{Plan, StepScope};
+
+/// Notes that the step `consumer` was fed `rows` rows.
+pub(crate) fn feed(
+    stepper: &mut Stepper<'_, '_>,
+    consumer: StepPlace,
+    which: InputPlace,
+    rows: RowCount,
+) {
+    let rows = u64::try_from(rows.0).unwrap_or(u64::MAX);
+    if let Some(slot) = stepper
+        .fed
+        .get_mut(consumer.0)
+        .and_then(|fed| fed.0.get_mut(which.0))
+    {
+        *slot = slot.saturating_add(rows);
+    }
+}
+
+/// The input `which` of the current step.
+///
+/// # Errors
+///
+/// `MissingInput` when the step has no such input.
+pub(crate) fn input(stepper: &Stepper<'_, '_>, which: InputPlace) -> Result<Input, OperatingError> {
+    let step = stepper
+        .plan
+        .steps
+        .get(stepper.current.0)
+        .ok_or(OperatingError::NotRun)?;
+    let inputs = inputs_of(&step.operation);
+    named(&inputs)
+        .get(which.0)
+        .copied()
+        .ok_or(OperatingError::MissingInput {
+            position: which.0 + 1,
+        })
+}
+
+/// Makes the rows of the step `id` and passes them on, whether or not it keeps them.
+///
+/// # Errors
+///
+/// Whatever the step, its inputs or `emit` refuse.
+pub(crate) fn pass_on<'a, 'f>(
+    stepper: &mut Stepper<'a, 'f>,
+    id: StepPlace,
+    context: &mut OperatorContext<'_>,
+    emit: &mut dyn Emit,
+) -> Result<(), OperatingError>
+where
+    'f: 'a,
+{
+    let id = id.0;
+    let plan = stepper.plan;
+    // A step that answers from the absence of rows cannot where the rows could be missing: it makes none.
+    if stepper
+        .layout
+        .needs
+        .get(id)
+        .is_some_and(|needs| blocked(needs, stepper.partial) == Blocking::Blocked)
+    {
+        return Ok(());
+    }
+    if let LoweredTree::Tree(tree) = stepper.lowered
+        && (stepper
+            .layout
+            .lowering
+            .shapes
+            .get(id)
+            .is_some_and(Option::is_some)
+            || stepper
+                .layout
+                .lowering
+                .counting
+                .get(id)
+                .copied()
+                .unwrap_or(Counting::DoesNotCount)
+                == Counting::Counts)
+    {
+        let mut run = FragmentRun {
+            plan,
+            lowering: &stepper.layout.lowering,
+            tree,
+            room: &mut *stepper.made,
+        };
+        let step = StepId(u32::try_from(id).unwrap_or(u32::MAX));
+        if stepper.counting == Counting::DoesNotCount {
+            if lowered::counts(&run, step) == Counting::Counts {
+                return lowered::emit_counts(&mut run, step, context, emit);
+            }
+            lowered::make(&mut run, step, context)?;
+            return lowered::emit(&mut run, step, context, emit);
+        }
+        // A step over the tree is fed the rows it makes: it reads the tree in place.
+        let mut made = 0_usize;
+        let outcome = {
+            let mut counting = Pipe(|piped: &mut OperatorContext<'_>, row: &[Value]| {
+                made += 1;
+                emit.row(piped, row)
+            });
+            if lowered::counts(&run, step) == Counting::Counts {
+                lowered::emit_counts(&mut run, step, context, &mut counting)
+            } else {
+                lowered::make(&mut run, step, context)
+                    .and_then(|()| lowered::emit(&mut run, step, context, &mut counting))
+            }
+        };
+        feed(stepper, StepPlace(id), InputPlace(0), RowCount(made));
+        return outcome;
+    }
+    let operation = &plan.steps.get(id).ok_or(OperatingError::NotRun)?.operation;
+    let mut room = stepper
+        .rooms
+        .get_mut(id)
+        .and_then(Option::take)
+        .unwrap_or_default();
+    let previous = std::mem::replace(&mut stepper.current, StepPlace(id));
+    let outcome = operate(operation, stepper, context, &mut room, emit);
+    stepper.current = previous;
+    if let Some(slot) = stepper.rooms.get_mut(id) {
+        *slot = Some(room);
+    }
+    outcome
+}
+
+/// Passes on the rows of the step `id`: its table when it keeps them, else as it makes them.
+///
+/// # Errors
+///
+/// `NotRun` when a step that keeps its rows has not run, and whatever the step or `emit` refuse.
+pub(crate) fn run<'a, 'f>(
+    stepper: &mut Stepper<'a, 'f>,
+    id: StepPlace,
+    context: &mut OperatorContext<'_>,
+    emit: &mut dyn Emit,
+) -> Result<(), OperatingError>
+where
+    'f: 'a,
+{
+    if stepper.layout.kept.0.get(id.0) == Some(&true) {
+        let id = id.0;
+        let table = stepper.done.get(id).ok_or(OperatingError::NotRun)?;
+        let mut buffer = stepper.spare.pop().unwrap_or_default();
+        let outcome = scan(&Rows::Computed(table), &mut buffer, context, emit);
+        stepper.spare.push(buffer);
+        outcome
+    } else {
+        pass_on(stepper, id, context, emit)
+    }
+}
+
+/// Passes the rows of the input `which` to `emit`.
+///
+/// # Errors
+///
+/// Whatever the input or `emit` refuse.
+pub(crate) fn deliver<'a, 'f>(
+    stepper: &mut Stepper<'a, 'f>,
+    which: InputPlace,
+    context: &mut OperatorContext<'_>,
+    emit: &mut dyn Emit,
+) -> Result<(), OperatingError>
+where
+    'f: 'a,
+{
+    match input(stepper, which)? {
+        Input::Relation(relation) => {
+            let rows = stepper.read.rows(relation)?;
+            let mut buffer = stepper.spare.pop().unwrap_or_default();
+            let outcome = scan(&rows, &mut buffer, context, emit);
+            stepper.spare.push(buffer);
+            outcome
+        }
+        Input::Step(id) => run(
+            stepper,
+            StepPlace(usize::try_from(id.0).unwrap_or(usize::MAX)),
+            context,
+            emit,
+        ),
+    }
+}
+
+/// The rows of the input `which`, whole.
+///
+/// # Errors
+///
+/// Whatever the input refuses.
+pub(crate) fn keep<'a, 'f, 't>(
+    stepper: &mut Stepper<'a, 'f>,
+    which: InputPlace,
+    context: &mut OperatorContext<'_>,
+    into: &'t mut Table,
+) -> Result<Rows<'t>, OperatingError>
+where
+    'a: 't,
+    'f: 'a,
+{
+    match input(stepper, which)? {
+        Input::Relation(relation) => Ok(stepper.read.rows(relation)?),
+        Input::Step(id) => {
+            let id = usize::try_from(id.0).unwrap_or(usize::MAX);
+            if stepper.layout.kept.0.get(id) == Some(&true) {
+                return Ok(Rows::Computed(
+                    stepper.done.get(id).ok_or(OperatingError::NotRun)?,
+                ));
+            }
+            let kinds = stepper.layout.kinds.get(id).ok_or(OperatingError::NotRun)?;
+            reset(into, kinds);
+            pass_on(stepper, StepPlace(id), context, &mut Collect(&mut *into))?;
+            Ok(Rows::Computed(into))
+        }
+    }
+}
+
+/// Runs the per-file steps of a plan on one file's rows into the pool: the rows of the steps that keep them, and of the inputs
+/// handed to the cross-file steps. `relations` gives the rows of each relation the plan reads, of this file alone, where the store
+/// keeps them. A step passes its rows on as it makes them.
+///
+/// # Errors
+///
+/// Whatever an operator refuses, or `NotRun`/`NotRead` when a step reads what nothing provides.
+pub(crate) fn evaluate_file<'f>(
+    plan: &Plan,
+    relations: &dyn Fn(Relation) -> Option<ColumnsView<'f>>,
+    tree: Option<TreeRows<'f>>,
+    context: &mut OperatorContext<'_>,
+    pool: &mut Pool,
+) -> Result<(), OperatingError> {
+    let read = |relation: Relation| -> Result<Rows<'f>, OperatingError> {
+        match (relation, tree) {
+            (Relation::SyntaxChild, Some(tree)) => Ok(Rows::Tree(TreeRows {
+                form: TreeForm::Edges,
+                ..tree
+            })),
+            (Relation::SyntaxTree, Some(tree)) => Ok(Rows::Tree(TreeRows {
+                form: TreeForm::Elements,
+                ..tree
+            })),
+            _ => relations(relation)
+                .map(Rows::Stored)
+                .ok_or(OperatingError::NotRead),
+        }
+    };
+    let identity = PlanIdentity(std::ptr::from_ref(plan).addr());
+    let place = if let Some(place) = pool.layouts.iter().position(|each| each.plan == identity) {
+        place
+    } else {
+        let layout = layout_of(plan, identity, &read, context)?;
+        pool.layouts.push(layout);
+        pool.layouts.len() - 1
+    };
+    if pool.fed.len() <= place {
+        pool.fed.resize_with(place + 1, Vec::new);
+    }
+    if pool.rooms.len() < plan.steps.len() {
+        pool.rooms.resize_with(plan.steps.len(), || None);
+    }
+    let Pool {
+        steps,
+        frontier,
+        rooms,
+        layouts,
+        spare,
+        made,
+        unlowered,
+        counting,
+        partial,
+        fed,
+    } = pool;
+    made.ready.clear();
+    made.ready.resize(plan.steps.len(), Readiness::NotMade);
+    if made.made.len() < plan.steps.len() {
+        made.made.resize_with(plan.steps.len(), Default::default);
+    }
+    let layout = layouts.get(place).ok_or(OperatingError::NotRun)?;
+    let plan_fed = fed.get_mut(place).ok_or(OperatingError::NotRun)?;
+    if plan_fed.len() < plan.steps.len() {
+        plan_fed.resize(plan.steps.len(), RowsFed::default());
+    }
+    let lowered = match tree {
+        Some(each) if *unlowered == TreeSteps::Lowered => LoweredTree::Tree(TreeRows {
+            form: TreeForm::Elements,
+            ..each
+        }),
+        _ => LoweredTree::Missing,
+    };
+    for (index, step) in plan.steps.iter().enumerate() {
+        if step.scope == StepScope::CrossFile || layout.kept.0.get(index) != Some(&true) {
+            continue;
+        }
+        let (before, rest) = steps.split_at_mut(index);
+        let target = rest.first_mut().ok_or(OperatingError::NotRun)?;
+        reset(
+            target,
+            layout.kinds.get(index).ok_or(OperatingError::NotRun)?,
+        );
+        let mut stepper = Stepper {
+            plan,
+            read: &read,
+            done: before,
+            rooms,
+            spare,
+            layout,
+            lowered,
+            made,
+            current: StepPlace(index),
+            partial,
+            fed: &mut *plan_fed,
+            counting: *counting,
+        };
+        pass_on(
+            &mut stepper,
+            StepPlace(index),
+            context,
+            &mut Collect(target),
+        )?;
+    }
+    hand_over(plan, steps, &read, context, frontier)
+}
+
+/// The inputs the cross-file steps are handed, into `frontier`: a relation's rows of the file, or a per-file step's table.
+///
+/// # Errors
+///
+/// `NotRead` when a relation is not read, `NotRun` when a step has no table.
+fn hand_over<'f>(
+    plan: &Plan,
+    steps: &[Table],
+    read: &dyn Fn(Relation) -> Result<Rows<'f>, OperatingError>,
+    context: &mut OperatorContext<'_>,
+    frontier: &mut [Table],
+) -> Result<(), OperatingError> {
+    for (input, into) in plan.frontier.iter().zip(frontier.iter_mut()) {
+        match input {
+            Input::Relation(relation) => {
+                materialize(&read(*relation)?, into, &mut context.scratch.row);
+            }
+            Input::Step(id) => {
+                let table = steps
+                    .get(usize::try_from(id.0).unwrap_or(usize::MAX))
+                    .ok_or(OperatingError::NotRun)?;
+                copy_table(table, into);
+            }
+        }
+    }
+    Ok(())
+}

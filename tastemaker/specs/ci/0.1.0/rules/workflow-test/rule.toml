@@ -1,0 +1,88 @@
+description = "The repository's `ci/workflows_test.py` defines, at module level where pytest collects them, `test_every_workflow_runs_only_when_dispatched`, the test that holds every workflow's triggers to `workflow_dispatch` alone, and `test_every_workflow_checks_through_one_asymptote_call`, the test that holds every workflow to a thin edge over one `asymptote check` call."
+why = "No YAML provider exists, so Tastemaker cannot read a workflow's steps or triggers; the repository's own test reads them, and the root's `ci-tests` tool runs it. Hosted runs start only by hand, and Asymptote decides what a check runs, so no workflow holds logic of its own. This rule makes sure the test holds both promises, since the template contract does not compare Python declarations yet."
+
+query = '''
+let listed-files = select l."path" as "file" from "filesystem.file" as l;
+let tests = select * from listed-files where file = "ci/workflows_test.py";
+let scopes = project(from="scope", columns=["parent", "child"]);
+let modules = select * from scopes where parent = child;
+let outermost = select l."parent" as "parent", l."child" as "child" from scopes as l join modules as r on l."parent" = r."child";
+let enclosed = antijoin(left=scopes, right=outermost, left-on=["child"], right-on=["child"]);
+let module-functions = antijoin(left="function", right=enclosed, left-on=["id"], right-on=["child"]);
+let check-tests = select * from module-functions where name = "test_every_workflow_checks_through_one_asymptote_call";
+let dispatch-tests = select * from module-functions where name = "test_every_workflow_runs_only_when_dispatched";
+let workflow-tested = select l."file" as "file" from check-tests as l join dispatch-tests as r on l."file" = r."file";
+let findings = antijoin(left=tests, right=workflow-tested, left-on=["file"], right-on=["file"]);
+emit findings subject "file" key("file");
+'''
+
+[diagnostic]
+primary = "file"
+message = "`ci/workflows_test.py` does not test the workflows"
+help = "Define `test_every_workflow_runs_only_when_dispatched` and `test_every_workflow_checks_through_one_asymptote_call` at module level in `ci/workflows_test.py`, as the `workflows-test` template writes them: they read every `.github/workflows/*.yml` and assert that `workflow_dispatch` is its one trigger and that each job that checks ends in one `asymptote check` call. An ignore is never the fix."
+
+[given]
+include = ['ci/**']
+
+[[scenarios]]
+id = 'tests-read-workflows'
+scenario = 'The workflow test defines both tests.'
+given.files.'ci/workflows_test.py' = '''
+"""The repository's workflows."""
+
+
+def test_every_workflow_runs_only_when_dispatched() -> None:
+    """Every workflow starts only when dispatched."""
+
+
+def test_every_workflow_checks_through_one_asymptote_call() -> None:
+    """Every workflow is a thin edge over `asymptote check`."""
+'''
+
+[[scenarios]]
+id = 'tests-do-not-read-workflows'
+scenario = 'The workflow test does not test the workflows.'
+given.files.'ci/workflows_test.py' = '''
+"""The repository's workflows, which this never reads."""
+
+
+def test_demo_runs_end_to_end() -> None:
+    """The command runs the job."""
+'''
+then.findings = [
+  { path = 'ci/workflows_test.py' },
+]
+
+[[scenarios]]
+id = 'nested-test'
+scenario = 'The workflow tests are nested where pytest never collects them.'
+given.files.'ci/workflows_test.py' = '''
+"""The repository's workflows, whose tests are nested where pytest never collects them."""
+
+
+def helper() -> None:
+    """Hides the workflow tests."""
+
+    def test_every_workflow_runs_only_when_dispatched() -> None:
+        """Never run."""
+
+    def test_every_workflow_checks_through_one_asymptote_call() -> None:
+        """Never run."""
+'''
+then.findings = [
+  { path = 'ci/workflows_test.py' },
+]
+
+[[scenarios]]
+id = 'tests-do-not-test-the-check'
+scenario = 'The workflow test does not hold the workflows to the check.'
+given.files.'ci/workflows_test.py' = '''
+"""The repository's workflows, whose check call is never tested."""
+
+
+def test_every_workflow_runs_only_when_dispatched() -> None:
+    """Every workflow starts only when dispatched."""
+'''
+then.findings = [
+  { path = 'ci/workflows_test.py' },
+]

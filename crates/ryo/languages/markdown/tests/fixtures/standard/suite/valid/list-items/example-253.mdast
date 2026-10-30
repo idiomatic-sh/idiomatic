@@ -1,0 +1,9 @@
+root[3]
+├─0 paragraph[1]
+│   └─0 text "A paragraph\nwith two lines."
+├─1 code "indented code"
+│     lang: null
+│     meta: null
+└─2 blockquote[1]
+    └─0 paragraph[1]
+        └─0 text "A block quote."

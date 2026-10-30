@@ -1,0 +1,4 @@
+root[1]
+└─0 heading[1]
+    │ depth: 3
+    └─0 text "foo\\"

@@ -1,0 +1,8 @@
+# The css language's own placement (paths are directory-relative).
+# The parser crates css reads with are declared here, once, as the variable `libraries`: `imports-allow` adds them to the language's
+# allow-list, and its own `client-at-adapter` below keeps them in its syntax adapter. Its own Cargo.toml names them, and nothing else does.
+variables = { libraries = ["cssparser::*"] }
+imports-allow = [{ variable = "libraries" }]
+rules = [
+  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+]

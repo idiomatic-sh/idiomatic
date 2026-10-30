@@ -1,0 +1,13 @@
+toml 0-45
+ expression 0-44
+  keyval 0-44
+   key 0-4
+    simple-key 0-4
+     unquoted-key 0-4
+   keyval-sep 4-7
+    ws 4-5
+    ws 6-7
+   val 7-44
+    string 7-44
+     ml-basic-string 7-44
+ newline 44-45

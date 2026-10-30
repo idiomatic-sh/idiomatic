@@ -1,0 +1,31 @@
+[package]
+name = "idiomatic_lints"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[workspace]
+resolver = "3"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+clippy_config = { git = "https://github.com/rust-lang/rust-clippy", rev = "9fca3bc9fc2bc83c60bde26d18ed68f11564b228" }
+clippy_utils = { git = "https://github.com/rust-lang/rust-clippy", rev = "9fca3bc9fc2bc83c60bde26d18ed68f11564b228" }
+dylint_linting = "=6.0.4"
+serde = "=1.0.229"
+
+[[test]]
+name = "bdd"
+path = "tests/bdd.rs"
+harness = false
+
+[dev-dependencies]
+cucumber = "=0.23.0"
+tokio = { version = "=1.53.1", features = ["macros", "rt"] }
+serde_json = "=1.0.151"
+tempfile = "=3.27.0"
+
+[package.metadata.rust-analyzer]
+rustc_private = true

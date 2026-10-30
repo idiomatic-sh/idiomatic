@@ -1,0 +1,171 @@
+description = "No directory and no file is named `common`, `utils`, `shared` or `helpers`: a file with one of those names, whatever its extension, and every file beneath a directory with one, is a finding."
+why = "A catch-all name says where code was put, not what it is, so it fills with unrelated things and nothing can be found by its name. Each file under such a name is filed into the design primitive it really is, in the domain that owns it. The names are matched whole: `commons/`, `shared_state.rs` and `helper.rs` are not findings. A closed spec already refuses an unplaced file; this rule also refuses the name where a capture would accept it, as `tests/common/end_to_end.rs` is `tests/{feature}/end_to_end.rs` with `feature = common`."
+
+query = '''
+let files = project(from="filesystem.file", columns=["path"]);
+let inner-directories = capture(from=files, path="path", pattern="{*above}/{name}/{*below}", captures=["above", "name", "below"]);
+let first-directories = capture(from=files, path="path", pattern="{name}/{*below}", captures=["name", "below"]);
+let inner-directory-names = project(from=inner-directories, columns=["path", "name"]);
+let first-directory-names = project(from=first-directories, columns=["path", "name"]);
+let directory-names = union(left=inner-directory-names, right=first-directory-names);
+let catch-all-directories = select * from directory-names where glob_any(name, "{common,utils,shared,helpers}");
+let in-directories = extend(from=catch-all-directories, values={"place": "is in a directory named"});
+let inner-files = capture(from=files, path="path", pattern="{*parent}/{name}", captures=["parent", "name"]);
+let first-files = capture(from=files, path="path", pattern="{name}", captures=["name"]);
+let inner-file-names = project(from=inner-files, columns=["path", "name"]);
+let first-file-names = project(from=first-files, columns=["path", "name"]);
+let file-names = union(left=inner-file-names, right=first-file-names);
+let catch-all-files = select * from file-names where glob_any(name, "{common,common.*,utils,utils.*,shared,shared.*,helpers,helpers.*}");
+let named-files = extend(from=catch-all-files, values={"place": "is a file named"});
+let catch-alls = union(left=in-directories, right=named-files);
+emit catch-alls subject "path" key("path", "name");
+'''
+
+[diagnostic]
+primary = "path"
+message = "`{path}` {place} `{name}`, a catch-all"
+help = "Move each file out of the catch-all into the design primitive it really is, in the domain that owns it: a port's fake into that hex's fixtures, a test's data beside the test that uses it, a shared value into the hex whose value it is; then delete the catch-all. A name says what the code is, never that several things use it, so an ignore is never the fix."
+
+[given]
+include = ['**']
+
+[[scenarios]]
+id = 'named-by-concept'
+scenario = 'Names that say what the code is, even ones that only contain a catch-all word.'
+given.files.'src/greeting/commons/pool.rs' = '''
+//! A pool of commons, named for what it holds.
+'''
+given.files.'src/greeting/fixtures.rs' = '''
+//! Values the greeting tests share.
+'''
+given.files.'src/greeting/helper.rs' = '''
+//! One helper, named in the singular.
+'''
+given.files.'src/greeting/shared_state.rs' = '''
+//! State two adapters share, named for what it is.
+'''
+given.files.'src/utilities/clock.rs' = '''
+//! A clock.
+'''
+given.files.'tests/greeting/end_to_end.rs' = '''
+//! The greeting feature, end to end.
+'''
+
+[[scenarios]]
+id = 'common-directory'
+scenario = 'A directory named common, and every file beneath it.'
+given.files.'tests/common/nested/frames.rs' = '''
+//! Record frames.
+'''
+given.files.'tests/common/repository.rs' = '''
+//! A repository on disk.
+'''
+given.files.'tests/greeting/end_to_end.rs' = '''
+//! The greeting feature, end to end.
+'''
+then.findings = [
+  { path = 'tests/common/repository.rs' },
+  { path = 'tests/common/nested/frames.rs' },
+]
+
+[[scenarios]]
+id = 'utils-directory'
+scenario = 'A directory named utils.'
+given.files.'src/greeting/types.rs' = '''
+//! The greeting values.
+'''
+given.files.'src/utils/text.rs' = '''
+//! Text functions.
+'''
+then.findings = [
+  { path = 'src/utils/text.rs' },
+]
+
+[[scenarios]]
+id = 'shared-directory'
+scenario = 'A directory named shared.'
+given.files.'crates/app/src/greeting/types.rs' = '''
+//! The greeting values.
+'''
+given.files.'crates/app/src/shared/clock.rs' = '''
+//! A clock.
+'''
+then.findings = [
+  { path = 'crates/app/src/shared/clock.rs' },
+]
+
+[[scenarios]]
+id = 'helpers-directory'
+scenario = 'A directory named helpers.'
+given.files.'benches/performance/helpers/rounds.rs' = '''
+//! The rounds.
+'''
+given.files.'benches/performance/parse/bench.rs' = '''
+//! The parse workload.
+'''
+then.findings = [
+  { path = 'benches/performance/helpers/rounds.rs' },
+]
+
+[[scenarios]]
+id = 'named-files'
+scenario = 'Files named for each catch-all, with any extension or none, at the root and beneath it.'
+given.files.'common.rs' = '''
+//! At the root.
+'''
+given.files.'src/greeting/helpers' = '''
+# No extension.
+'''
+given.files.'src/greeting/helpers.test.rs' = '''
+//! A test of the grab-bag.
+'''
+given.files.'src/greeting/shared.ts' = '''
+// TypeScript values.
+'''
+given.files.'src/greeting/types.rs' = '''
+//! The greeting values.
+'''
+given.files.'src/utils.py' = '''
+# Python functions.
+'''
+then.findings = [
+  { path = 'common.rs' },
+  { path = 'src/utils.py' },
+  { path = 'src/greeting/shared.ts' },
+  { path = 'src/greeting/helpers' },
+  { path = 'src/greeting/helpers.test.rs' },
+]
+
+[[scenarios]]
+id = 'first-directory'
+scenario = 'A catch-all directory at the root of what the entry covers.'
+given.files.'common/clock.rs' = '''
+//! A clock.
+'''
+given.files.'src/greeting/types.rs' = '''
+//! The greeting values.
+'''
+then.findings = [
+  { path = 'common/clock.rs' },
+]
+
+[[scenarios]]
+id = 'capture-value'
+scenario = "A catch-all used as a capture's value, which a closed spec alone accepts."
+given.files.'src/greeting/fixtures.rs' = '''
+//! Values the greeting tests share.
+'''
+given.files.'src/greeting/fixtures/common.rs' = '''
+//! Its module file.
+'''
+given.files.'src/greeting/fixtures/common/fixture.rs' = '''
+//! A split fixture named for the grab-bag.
+'''
+given.files.'tests/common/end_to_end.rs' = '''
+//! A feature named for the grab-bag.
+'''
+then.findings = [
+  { path = 'tests/common/end_to_end.rs' },
+  { path = 'src/greeting/fixtures/common/fixture.rs' },
+  { path = 'src/greeting/fixtures/common.rs' },
+]

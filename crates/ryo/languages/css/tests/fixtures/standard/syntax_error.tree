@@ -1,0 +1,23 @@
+stylesheet
+  qualified-rule
+    ident
+    whitespace
+    block
+      whitespace
+      declaration b
+        whitespace
+        ident
+        whitespace
+  whitespace
+  qualified-rule
+    literal .
+    ident
+    whitespace
+    block
+      whitespace
+      declaration content
+        whitespace
+        error bad-string
+        whitespace
+  whitespace
+  error invalid

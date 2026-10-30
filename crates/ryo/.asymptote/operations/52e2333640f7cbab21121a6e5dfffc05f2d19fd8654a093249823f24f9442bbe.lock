@@ -1,0 +1,8 @@
+version = 1
+parents = ["ae5e70e280ee6ca3ea0a4811a968ca5d60ffb83ff392523c8a7f27da4a193f3e"]
+
+[[perf]]
+reasons = ["The store a warm run leaves in the cache directory of the target: the image and one words file. The store is bounded (the first version left an 18 GB store)."]
+records = [
+  { tool = "performance-lint", benchmark = "ruff", measure = "store-megabytes", best = 128.0 },
+]

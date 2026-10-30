@@ -1,0 +1,1 @@
+Module(body=[Match(subject=Name(id='foo'), cases=[match_case(pattern=MatchAs(name='foo_bar'), body=[Expr(value=Constant(value=Ellipsis))])]), Match(subject=Name(id='foo'), cases=[match_case(pattern=MatchAs(), body=[Expr(value=Constant(value=Ellipsis))])])])

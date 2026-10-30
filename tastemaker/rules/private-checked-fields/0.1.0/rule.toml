@@ -1,0 +1,536 @@
+description = "In `types.rs`, a validated value's only fallible constructor is `TryFrom<Raw>`, and a type with a checked constructor keeps every field private."
+why = "A checked constructor is the only way in only while no field is visible outside the module, and one fallible constructor per value keeps its validation in one place, the one `?`, `try_into` and serde's `try_from` reach. Read as written, in the same file. Checked: an inherent function (with or without `self`) returning `Result<Self, _>` or `Result<Name, _>`, or an `impl TryFrom<_> for Name`. A fallible constructor: an inherent function with a visibility (`pub`, `pub(crate)`,..) and without `self` returning `Result<Self, _>` or `Result<Name, _>`, or an `impl FromStr for Name` (`str::parse`). `Result` is any path ending in `Result`, and each trait and type is the last segment of its path. Not seen: an impl written in another file than the type's `types.rs`, a `Result` alias named otherwise, and a constructor behind another trait."
+
+query = '''
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let structs = select * from tree-nodes where kind = "struct";
+let struct-children = select l."id" as "id", r."child" as "node", l."file" as "file" from structs as l join "syntax-child" as r on l."id" = r."parent";
+let names = select * from tree-nodes where kind = "name";
+let struct-names = select l."id" as "id", l."node" as "node", l."file" as "file" from struct-children as l join names as r on l."node" = r."id";
+let struct-name-tokens = select l."id" as "id", l."file" as "file", r."child" as "token" from struct-names as l join "syntax-child" as r on l."node" = r."parent";
+let struct-texts = select l."id" as "id", r."text" as "name", l."file" as "file" from struct-name-tokens as l join tree-tokens as r on l."token" = r."id";
+let impls = select * from tree-nodes where kind = "impl";
+let for-keywords = select * from tree-tokens where kind = "for-kw";
+let trait-impls = select l."parent" as "id" from "syntax-child" as l join for-keywords as r on l."child" = r."id";
+let inherent-impls = antijoin(left=impls, right=trait-impls, left-on=["id"], right-on=["id"]);
+let impl-children = select l."id" as "impl", r."child" as "node", l."file" as "file" from inherent-impls as l join "syntax-child" as r on l."id" = r."parent";
+let item-lists = select * from tree-nodes where kind = "assoc-item-list";
+let impl-lists = select l."impl" as "impl", l."node" as "list" from impl-children as l join item-lists as r on l."node" = r."id";
+let list-items = select l."impl" as "impl", r."child" as "node" from impl-lists as l join "syntax-child" as r on l."list" = r."parent";
+let functions = select * from tree-nodes where kind = "fn";
+let impl-functions = select l."node" as "function", l."impl" as "impl" from list-items as l join functions as r on l."node" = r."id";
+let function-children = select l."function" as "function", l."impl" as "impl", r."child" as "node" from impl-functions as l join "syntax-child" as r on l."function" = r."parent";
+let return-types = select * from tree-nodes where kind = "ret-type";
+let function-returns = select l."function" as "function", l."impl" as "impl", l."node" as "returns" from function-children as l join return-types as r on l."node" = r."id";
+let return-children = select l."function" as "function", l."impl" as "impl", r."child" as "node" from function-returns as l join "syntax-child" as r on l."returns" = r."parent";
+let path-types = select * from tree-nodes where kind = "path-type";
+let type-children = select r."child" as "node", l."id" as "type" from path-types as l join "syntax-child" as r on l."id" = r."parent";
+let paths = select * from tree-nodes where kind = "path";
+let type-paths = select l."node" as "node", l."type" as "type" from type-children as l join paths as r on l."node" = r."id";
+let type-path-children = select r."child" as "node", l."type" as "type" from type-paths as l join "syntax-child" as r on l."node" = r."parent";
+let segments = select * from tree-nodes where kind = "path-segment";
+let type-segments = select l."node" as "segment", l."type" as "type" from type-path-children as l join segments as r on l."node" = r."id";
+let segment-children = select r."child" as "node", l."segment" as "segment", l."type" as "type" from type-segments as l join "syntax-child" as r on l."segment" = r."parent";
+let name-refs = select * from tree-nodes where kind = "name-ref";
+let segment-refs = select l."node" as "node", l."segment" as "segment", l."type" as "type" from segment-children as l join name-refs as r on l."node" = r."id";
+let ref-tokens = select l."segment" as "segment", r."child" as "token", l."type" as "type" from segment-refs as l join "syntax-child" as r on l."node" = r."parent";
+let type-names = select r."text" as "name", l."segment" as "segment", l."type" as "type" from ref-tokens as l join tree-tokens as r on l."token" = r."id";
+let returned-types = select l."function" as "function", l."impl" as "impl", r."name" as "name", r."segment" as "segment" from return-children as l join type-names as r on l."node" = r."type";
+let results = select * from returned-types where name = "Result";
+let result-children = select l."function" as "function", l."impl" as "impl", r."child" as "node" from results as l join "syntax-child" as r on l."segment" = r."parent";
+let argument-lists = select * from tree-nodes where kind = "generic-arg-list";
+let result-arguments = select l."function" as "function", l."impl" as "impl", l."node" as "list" from result-children as l join argument-lists as r on l."node" = r."id";
+let type-arguments = select * from tree-nodes where kind = "type-arg";
+let list-type-arguments = select l."child" as "child", l."ordinal" as "ordinal", l."parent" as "parent" from "syntax-child" as l join type-arguments as r on l."child" = r."id";
+let argument-pairs = select l."child" as "child", r."ordinal" as "earlier", l."ordinal" as "ordinal" from list-type-arguments as l join list-type-arguments as r on l."parent" = r."parent";
+let later-arguments = select * from argument-pairs where ordinal > earlier;
+let first-arguments = antijoin(left=list-type-arguments, right=later-arguments, left-on=["child"], right-on=["child"]);
+let result-first = select l."function" as "function", l."impl" as "impl", r."child" as "node" from result-arguments as l join first-arguments as r on l."list" = r."parent";
+let result-first-types = select l."function" as "function", l."impl" as "impl", l."node" as "node" from result-first as l join type-arguments as r on l."node" = r."id";
+let first-type-children = select l."function" as "function", l."impl" as "impl", r."child" as "node" from result-first-types as l join "syntax-child" as r on l."node" = r."parent";
+let value-names = select l."function" as "function", l."impl" as "impl", r."name" as "value" from first-type-children as l join type-names as r on l."node" = r."type";
+let impl-types = select l."impl" as "impl", r."name" as "name", l."file" as "file" from impl-children as l join type-names as r on l."node" = r."type";
+let named-values = select l."function" as "function", r."name" as "name", r."file" as "file", l."value" as "value" from value-names as l join impl-types as r on l."impl" = r."impl";
+let self-values = select * from named-values where value = "Self";
+let checked-self = project(from=self-values, columns=["file", "name"]);
+let own-values = select * from named-values where value = name;
+let checked-own = project(from=own-values, columns=["file", "name"]);
+let checked-inherent = union(left=checked-self, right=checked-own);
+let impl-path-types = select l."parent" as "impl", l."ordinal" as "ordinal", l."child" as "type" from "syntax-child" as l join path-types as r on l."child" = r."id";
+let for-ordinals = select l."parent" as "impl", l."ordinal" as "keyword" from "syntax-child" as l join for-keywords as r on l."child" = r."id";
+let trait-impl-types = select l."impl" as "impl", r."keyword" as "keyword", l."ordinal" as "ordinal", l."type" as "type" from impl-path-types as l join for-ordinals as r on l."impl" = r."impl";
+let trait-traits = select * from trait-impl-types where ordinal < keyword;
+let trait-names = select l."impl" as "impl", r."name" as "trait" from trait-traits as l join type-names as r on l."type" = r."type";
+let trait-self-types = select * from trait-impl-types where ordinal > keyword;
+let trait-self-names = select l."impl" as "impl", r."name" as "name" from trait-self-types as l join type-names as r on l."type" = r."type";
+let named-trait-impls = select l."impl" as "impl", r."name" as "name", l."trait" as "trait" from trait-names as l join trait-self-names as r on l."impl" = r."impl";
+let located-trait-impls = select l."name" as "name", r."file" as "file", r."span" as "span", l."trait" as "trait" from named-trait-impls as l join impls as r on l."impl" = r."id";
+let try-from-impls = select * from located-trait-impls where trait = "TryFrom";
+let checked-try-from = project(from=try-from-impls, columns=["file", "name"]);
+let checked = union(left=checked-inherent, right=checked-try-from);
+let checked-structs = select l."id" as "id", l."name" as "name" from struct-texts as l join checked as r on l."file" = r."file" and l."name" = r."name";
+let field-lists = select r."child" as "list", l."name" as "name" from checked-structs as l join "syntax-child" as r on l."id" = r."parent";
+let list-fields = select r."child" as "field", l."name" as "name" from field-lists as l join "syntax-child" as r on l."list" = r."parent";
+let fields = select * from tree-nodes where glob_any(kind, "{record-field,tuple-field}");
+let checked-fields = select l."field" as "field", l."name" as "name", r."file" as "file", r."span" as "span" from list-fields as l join fields as r on l."field" = r."id";
+let visibilities = select * from tree-nodes where kind = "visibility";
+let visible-owners = select l."parent" as "id" from "syntax-child" as l join visibilities as r on l."child" = r."id";
+let visible-fields = select l."name" as "name", l."file" as "file", l."span" as "span" from checked-fields as l join visible-owners as r on l."field" = r."id";
+let field-findings = extend(from=visible-fields, values={"problem": "checks its value, but a field is visible outside its module"});
+let self-constructors = project(from=self-values, columns=["name", "function"]);
+let own-constructors = project(from=own-values, columns=["name", "function"]);
+let fallible-functions = union(left=self-constructors, right=own-constructors);
+let self-params = select * from tree-nodes where kind = "self-param";
+let self-param-owners = select l."parent" as "list" from "syntax-child" as l join self-params as r on l."child" = r."id";
+let param-lists = select * from tree-nodes where kind = "param-list";
+let receiver-lists = select l."list" as "list" from self-param-owners as l join param-lists as r on l."list" = r."id";
+let receivers = select l."parent" as "function" from "syntax-child" as l join receiver-lists as r on l."child" = r."list";
+let receiverless-functions = antijoin(left=fallible-functions, right=receivers, left-on=["function"], right-on=["function"]);
+let function-visibilities = select * from tree-nodes where kind = "visibility";
+let visible-functions = select l."parent" as "function" from "syntax-child" as l join function-visibilities as r on l."child" = r."id";
+let fallible-constructors = select l."function" as "function", l."name" as "name" from receiverless-functions as l join visible-functions as r on l."function" = r."function";
+let constructor-spans = select l."name" as "name", r."file" as "file", r."span" as "span" from fallible-constructors as l join tree-nodes as r on l."function" = r."id";
+let constructor-findings = extend(from=constructor-spans, values={"problem": "has a fallible constructor other than `TryFrom`"});
+let from-str-impls = select * from located-trait-impls where trait = "FromStr";
+let from-str-spans = project(from=from-str-impls, columns=["name", "file", "span"]);
+let from-str-findings = extend(from=from-str-spans, values={"problem": "implements `FromStr`, a fallible constructor other than `TryFrom`"});
+let constructor-or-parse-findings = union(left=constructor-findings, right=from-str-findings);
+let findings = union(left=field-findings, right=constructor-or-parse-findings);
+emit findings subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "`{name}` {problem}"
+help = "Make each field private (read it through an accessor), and turn a `new`, `from_*`, `parse` or `FromStr` that returns `Result` into `impl TryFrom<Raw>`, the value's one fallible constructor."
+
+[given]
+include = ['**/types.rs']
+files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+files.'src/lib.rs' = '''
+pub mod checked;
+'''
+
+[[scenarios]]
+id = 'named-pub'
+scenario = 'A pub field of a type checked by a method returning Result<Name, _>.'
+given.files.'src/checked.rs' = '''
+pub mod types;
+'''
+given.files.'src/checked/types.rs' = '''
+pub struct Invalid;
+
+/// Checked by a method returning its own type by name, with a field visible outside the module.
+pub struct Name {
+    pub text: String,
+    checked: (),
+}
+impl Name {
+    pub fn renamed(&self, text: &str) -> Result<Name, Invalid> {
+        if text.is_empty() { Err(Invalid) } else { Ok(Name { text: text.to_owned(), checked: self.checked }) }
+    }
+}
+'''
+then.findings = [
+  { path = 'src/checked/types.rs', line = 5 },
+]
+
+[[scenarios]]
+id = 'named-crate'
+scenario = 'A pub(crate) field of a checked type.'
+given.files.'src/checked.rs' = '''
+pub mod types;
+'''
+given.files.'src/checked/types.rs' = '''
+pub struct Invalid;
+
+/// Checked by a method returning its own type by name, with a field visible outside the module.
+pub struct Name {
+    pub(crate) text: String,
+    checked: (),
+}
+impl Name {
+    pub fn renamed(&self, text: &str) -> Result<Name, Invalid> {
+        if text.is_empty() { Err(Invalid) } else { Ok(Name { text: text.to_owned(), checked: self.checked }) }
+    }
+}
+'''
+then.findings = [
+  { path = 'src/checked/types.rs', line = 5 },
+]
+
+[[scenarios]]
+id = 'named-super'
+scenario = 'A pub(super) field of a checked type.'
+given.files.'src/checked.rs' = '''
+pub mod types;
+'''
+given.files.'src/checked/types.rs' = '''
+pub struct Invalid;
+
+/// Checked by a method returning its own type by name, with a field visible outside the module.
+pub struct Name {
+    pub(super) text: String,
+    checked: (),
+}
+impl Name {
+    pub fn renamed(&self, text: &str) -> Result<Name, Invalid> {
+        if text.is_empty() { Err(Invalid) } else { Ok(Name { text: text.to_owned(), checked: self.checked }) }
+    }
+}
+'''
+then.findings = [
+  { path = 'src/checked/types.rs', line = 5 },
+]
+
+[[scenarios]]
+id = 'positional-pub-field-checked-method-returning-result'
+scenario = 'A positional pub field, checked by a method returning Result<Self, _>.'
+given.files.'src/checked.rs' = '''
+pub mod types;
+'''
+given.files.'src/checked/types.rs' = '''
+pub struct Invalid;
+
+/// Positional, checked by a method that returns a new value.
+pub struct Identifier(pub u64);
+impl Identifier {
+    pub fn next(&self) -> Result<Self, Invalid> {
+        self.0.checked_add(1).map(Self).ok_or(Invalid)
+    }
+}
+'''
+then.findings = [
+  { path = 'src/checked/types.rs', line = 4 },
+]
+
+[[scenarios]]
+id = 'trait-constructor'
+scenario = 'A pub field of a type checked by TryFrom.'
+given.files.'src/checked.rs' = '''
+pub mod types;
+'''
+given.files.'src/checked/types.rs' = '''
+pub struct Invalid;
+
+pub struct Port {
+    pub number: u16,
+}
+impl TryFrom<u32> for Port {
+    type Error = Invalid;
+    fn try_from(number: u32) -> Result<Self, Invalid> {
+        u16::try_from(number).map(|number| Self { number }).map_err(|_| Invalid)
+    }
+}
+'''
+then.findings = [
+  { path = 'src/checked/types.rs', line = 4 },
+]
+
+[[scenarios]]
+id = 'fallible-new'
+scenario = 'New returning Result<Self, _>.'
+given.files.'src/checked.rs' = '''
+pub mod types;
+'''
+given.files.'src/checked/types.rs' = '''
+pub struct Invalid;
+
+/// `new` returning `Result<Self, _>`: a fallible constructor other than `TryFrom`.
+pub struct Port {
+    number: u16,
+}
+impl Port {
+    pub fn new(number: u16) -> Result<Self, Invalid> {
+        if number == 0 { Err(Invalid) } else { Ok(Self { number }) }
+    }
+}
+'''
+then.findings = [
+  { path = 'src/checked/types.rs', line = 8 },
+]
+
+[[scenarios]]
+id = 'fallible-from'
+scenario = 'A from_* function returning Result<Name, _>.'
+given.files.'src/checked.rs' = '''
+pub mod types;
+'''
+given.files.'src/checked/types.rs' = '''
+pub struct Invalid;
+
+/// A `pub(crate)` `from_*` function returning the type by name.
+pub struct Port {
+    number: u16,
+}
+impl Port {
+    pub(crate) fn from_number(number: u32) -> Result<Port, Invalid> {
+        u16::try_from(number).map(|number| Port { number }).map_err(|_| Invalid)
+    }
+}
+'''
+then.findings = [
+  { path = 'src/checked/types.rs', line = 8 },
+]
+
+[[scenarios]]
+id = 'fallible-parse'
+scenario = 'A generic parse in a generic impl.'
+given.files.'src/checked.rs' = '''
+pub mod types;
+'''
+given.files.'src/checked/types.rs' = '''
+pub struct Invalid;
+
+/// `parse`, generic, in an impl with generics.
+pub struct Tagged<T> {
+    tag: String,
+    value: T,
+}
+impl<T: Default> Tagged<T> {
+    pub fn parse<S: AsRef<str>>(raw: S) -> Result<Self, Invalid> {
+        let tag = raw.as_ref();
+        if tag.is_empty() { Err(Invalid) } else { Ok(Self { tag: tag.to_owned(), value: T::default() }) }
+    }
+}
+'''
+then.findings = [
+  { path = 'src/checked/types.rs', line = 9 },
+]
+
+[[scenarios]]
+id = 'alias-result'
+scenario = 'A constructor returning io::Result<Self>.'
+given.files.'src/checked.rs' = '''
+pub mod types;
+'''
+given.files.'src/checked/types.rs' = '''
+/// A constructor returning a `Result` alias: `io::Result<Self>`.
+pub struct Contents {
+    text: String,
+}
+impl Contents {
+    pub fn read(path: &std::path::Path) -> std::io::Result<Self> {
+        std::fs::read_to_string(path).map(|text| Self { text })
+    }
+}
+'''
+then.findings = [
+  { path = 'src/checked/types.rs', line = 6 },
+]
+
+[[scenarios]]
+id = 'spaced-result'
+scenario = 'A constructor whose Result<Self, _> has a comment and spaces before Self.'
+given.files.'src/checked.rs' = '''
+pub mod types;
+'''
+given.files.'src/checked/types.rs' = '''
+pub struct Invalid;
+
+/// A fallible constructor other than `TryFrom`, its `Self` after a comment and spaces.
+pub struct Port {
+    number: u16,
+}
+impl Port {
+    pub fn new(number: u16) -> Result< /* checked */  Self, Invalid> {
+        if number == 0 { Err(Invalid) } else { Ok(Self { number }) }
+    }
+}
+'''
+then.findings = [
+  { path = 'src/checked/types.rs', line = 8 },
+]
+
+[[scenarios]]
+id = 'from-str'
+scenario = 'An impl of std::str::FromStr.'
+given.files.'src/checked.rs' = '''
+pub mod types;
+'''
+given.files.'src/checked/types.rs' = '''
+pub struct Invalid;
+
+/// `FromStr` is `str::parse`: the fallible constructor is `TryFrom<&str>` instead.
+pub enum Kind {
+    Source,
+    Package,
+}
+impl std::str::FromStr for Kind {
+    type Err = Invalid;
+    fn from_str(name: &str) -> Result<Self, Invalid> {
+        match name {
+            "source" => Ok(Self::Source),
+            "package" => Ok(Self::Package),
+            _ => Err(Invalid),
+        }
+    }
+}
+'''
+then.findings = [
+  { path = 'src/checked/types.rs', line = 8 },
+]
+
+[[scenarios]]
+id = 'private-fields'
+scenario = 'A type checked by TryFrom whose fields are all private.'
+given.files.'src/checked.rs' = '''
+pub mod types;
+'''
+given.files.'src/checked/types.rs' = '''
+pub struct Invalid;
+
+/// Checked by `TryFrom`, and every field private: the conversion is the only way in.
+pub struct Port {
+    number: u16,
+}
+impl TryFrom<u16> for Port {
+    type Error = Invalid;
+    fn try_from(number: u16) -> Result<Self, Invalid> {
+        if number == 0 { Err(Invalid) } else { Ok(Self { number }) }
+    }
+}
+impl Port {
+    pub fn number(&self) -> u16 {
+        self.number
+    }
+}
+'''
+
+[[scenarios]]
+id = 'derived-method'
+scenario = 'A method deriving a checked value from a checked value.'
+given.files.'src/checked.rs' = '''
+pub mod types;
+'''
+given.files.'src/checked/types.rs' = '''
+pub struct Invalid;
+
+/// A method deriving a checked value from a checked value is not a constructor from raw input.
+pub struct Identifier(u64);
+impl TryFrom<u64> for Identifier {
+    type Error = Invalid;
+    fn try_from(value: u64) -> Result<Self, Invalid> {
+        if value == 0 { Err(Invalid) } else { Ok(Self(value)) }
+    }
+}
+impl Identifier {
+    pub fn next(&self) -> Result<Self, Invalid> {
+        self.0.checked_add(1).map(Self).ok_or(Invalid)
+    }
+}
+'''
+
+[[scenarios]]
+id = 'private-helper'
+scenario = 'A private helper returning Result<Self, _>.'
+given.files.'src/checked.rs' = '''
+pub mod types;
+'''
+given.files.'src/checked/types.rs' = '''
+pub struct Invalid;
+
+/// A private helper returning `Result<Self, _>` is the module's own: `TryFrom` is still the
+/// only way in for other code.
+pub struct Port {
+    number: u16,
+}
+impl Port {
+    fn checked(number: u16) -> Result<Self, Invalid> {
+        if number == 0 { Err(Invalid) } else { Ok(Self { number }) }
+    }
+}
+impl TryFrom<u32> for Port {
+    type Error = Invalid;
+    fn try_from(number: u32) -> Result<Self, Invalid> {
+        u16::try_from(number).map_err(|_| Invalid).and_then(Self::checked)
+    }
+}
+'''
+
+[[scenarios]]
+id = 'total-constructor-result-another-type'
+scenario = 'A total constructor, and a Result of another type.'
+given.files.'src/lib.rs' = '''
+pub mod total;
+'''
+given.files.'src/total.rs' = '''
+pub mod types;
+'''
+given.files.'src/total/types.rs' = '''
+pub struct Invalid;
+
+/// Total: any value is valid, so public fields bypass nothing.
+pub struct Point {
+    pub x: i32,
+    pub y: i32,
+}
+impl Point {
+    pub fn new(x: i32, y: i32) -> Self {
+        Self { x, y }
+    }
+    /// A `Result` of another type is not a constructor.
+    pub fn quadrant(&self) -> Result<u8, Invalid> {
+        if self.x > 0 { Ok(1) } else { Err(Invalid) }
+    }
+}
+'''
+
+[[scenarios]]
+id = 'other-trait'
+scenario = 'A Result<Self, _> from a trait other than TryFrom and FromStr.'
+given.files.'src/checked.rs' = '''
+pub mod types;
+'''
+given.files.'src/checked/types.rs' = '''
+pub struct Invalid;
+
+pub trait Decode: Sized {
+    fn decode(bytes: &[u8]) -> Result<Self, Invalid>;
+}
+
+/// A `Result<Self, _>` from a trait other than `TryFrom` and `FromStr` is not read as a
+/// constructor: the rule cannot tell a decoding trait from a validating one.
+pub struct Point {
+    pub x: u8,
+}
+impl Decode for Point {
+    fn decode(bytes: &[u8]) -> Result<Self, Invalid> {
+        bytes.first().map(|&x| Self { x }).ok_or(Invalid)
+    }
+}
+'''
+
+[[scenarios]]
+id = 'checked-type-outside-types-rs'
+scenario = 'A checked type outside types.rs.'
+given.files.'src/elsewhere.rs' = '''
+/// Not in types.rs.
+pub struct Invalid;
+pub struct Port {
+    pub number: u16,
+}
+impl Port {
+    pub fn new(number: u16) -> Result<Self, Invalid> {
+        Ok(Self { number })
+    }
+}
+'''
+given.files.'src/lib.rs' = '''
+pub mod elsewhere;
+'''
+given.files.'src/types.rs' = '''
+//! The crate's types.
+
+/// A name.
+pub struct Name {
+    /// Its text.
+    pub text: String,
+}
+'''

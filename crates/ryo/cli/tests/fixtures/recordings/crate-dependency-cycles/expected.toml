@@ -1,0 +1,5 @@
+rows = [
+  { path = "crates/ruff_annotate_snippets/Cargo.toml", key = "crates/ruff_annotate_snippets/Cargo.toml" },
+  { path = "crates/ty_python_semantic/Cargo.toml", key = "crates/ty_python_semantic/Cargo.toml" },
+  { path = "crates/ty_test/Cargo.toml", key = "crates/ty_test/Cargo.toml" },
+]

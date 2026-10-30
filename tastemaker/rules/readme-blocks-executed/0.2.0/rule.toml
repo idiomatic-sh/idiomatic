@@ -1,0 +1,96 @@
+description = "A README's `console` blocks are run by its README test: a `console` block is reported when no `tests/readme.rs` in scope names `../README.md`. A shell block (`sh`, `bash`, `shell`, `zsh`) is a reference, not a run, and is not reported."
+why = "A command written in a README that no test runs goes stale without a sound: the flag is renamed, the subcommand moves, the output changes, and the README still shows the old line to every reader. trycmd runs a `console` block, each `$` line and the output under it, when a test hands it the README (`TestCases::new().case(\"../README.md\")`). A `console` block no README test hands to trycmd is reported. A shell block lists commands for the reader to copy and shows no output to compare, so there is nothing for a test to hold it to. Not seen: a command inside a `text` block, and a README test that names the file by another path."
+
+query = '''
+let blocks = select * from "syntax-tree" where kind = "code";
+let markups = select * from "syntax-tree" where kind = "markup";
+let consoles = select * from markups where glob_any(text, "```{console?,console *}");
+let block-children = select r."child" as "child", l."file" as "file", l."span" as "span" from blocks as l join "syntax-child" as r on l."id" = r."parent";
+let console-spans = select l."file" as "file", l."span" as "span" from block-children as l join consoles as r on l."child" = r."id";
+let console-blocks = extend(from=console-spans, values={"info": "console"});
+let runners = select * from "string-literal" where value = "../README.md" and glob_any(file, "{**/,}tests/readme.rs");
+let any-runner = project(from=runners, columns=["value"]);
+let console-keyed = extend(from=console-blocks, values={"value": "../README.md"});
+let unrun-consoles = antijoin(left=console-keyed, right=any-runner, left-on=["value"], right-on=["value"]);
+let unrun-console-rows = project(from=unrun-consoles, columns=["file", "span", "info"]);
+emit unrun-console-rows subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "this `{info}` block is run by no test"
+help = "Write the commands as a `console` block, each `$ <command>` line followed by what it prints, and run the README with trycmd from `cli/tests/readme.rs` (`TestCases::new().case(\"../README.md\")`)."
+
+[given]
+include = ['README.md', 'cli/tests/readme.rs']
+files.'cli/tests/readme.rs' = '''
+//! The product README's Usage, each command run and its output compared.
+
+#[test]
+fn readme() {
+    let cases = trycmd::TestCases::new();
+    let _: &trycmd::TestCases = cases.case("../README.md");
+}
+'''
+
+[[scenarios]]
+id = 'sh-reference-blocks-pass'
+scenario = 'The Usage of a README written as `sh` reference blocks, which no test runs and the rule does not ask for.'
+given.files.'README.md' = '''
+# Tastemaker
+
+## Usage
+
+### Set up
+
+```sh
+tm init
+```
+
+### Author a rule
+
+```sh
+tm create rule/example-rule
+```
+
+```toml
+description = "What the rule checks."
+```
+'''
+
+[[scenarios]]
+id = 'console-block-run'
+scenario = 'A `console` block with its output, which the README test runs.'
+given.files.'README.md' = '''
+# Demo
+
+## Usage
+
+```console
+$ demo greeting show
+Hello!
+```
+
+```toml
+description = "What the rule checks."
+```
+'''
+
+[[scenarios]]
+id = 'console-block-without-test'
+scenario = 'A `console` block in a product with no README test.'
+given.files.'cli/tests/readme.rs' = '''
+#[test]
+fn nothing() {}
+'''
+given.files.'README.md' = '''
+# Demo
+
+```console
+$ demo greeting show
+Hello!
+```
+'''
+then.findings = [
+  { path = 'README.md', line = 3 },
+]

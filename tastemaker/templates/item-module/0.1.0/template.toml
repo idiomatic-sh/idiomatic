@@ -1,0 +1,73 @@
+description = "One item's module file: its code, `item`, and its test, `item_test`, under #[cfg(test)]."
+why = "Declares one item's code and its proof, so every item of every collection compiles the same way and none runs untested."
+content = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+
+[given]
+file = 'src/greeting/collections/phrases/hello.rs'
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'src/greeting/collections/phrases/hello.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template.'
+given.files.'src/greeting/collections/phrases/hello.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+
+// More.
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'item-module#count', path = 'tastemaker.toml' },
+]
+
+[[scenarios]]
+id = 'test-not-cfg-test'
+scenario = "The item's test is compiled outside tests."
+given.files.'src/greeting/collections/phrases/hello.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+mod item_test;
+'''
+then.findings = [
+  { rule = 'item-module#template', path = 'src/greeting/collections/phrases/hello.rs' },
+]
+
+[[scenarios]]
+id = 'no-item'
+scenario = 'The item module does not declare its code.'
+given.files.'src/greeting/collections/phrases/hello.rs' = '''
+//! One item of a collection.
+
+#[cfg(test)]
+mod item_test;
+'''
+then.findings = [
+  { rule = 'item-module#template', path = 'src/greeting/collections/phrases/hello.rs' },
+]

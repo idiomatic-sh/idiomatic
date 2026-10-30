@@ -1,0 +1,158 @@
+description = "A dependency the workspace takes from a registry is keyed by its package's name: an entry of `[workspace.dependencies]` with a `package` key and no `path` renames a registry crate."
+why = "A crate that inherits a dependency (`foo.workspace = true`) names it by its key, so what the key stands for is decided once, in the workspace table, and a registry entry that renames its package (`serde = { package = \"..\", version = \"..\" }`) lets any crate sit behind a name the manifest rules allow. The cargo-workspace template does not see it: it pins the keys it renders and allows extra keys inside them. An entry with a `path` may rename, its package being a crate of the product (the `ryo-` aliases of ryo's own crates). Read from the manifest's TOML: an entry of the `dependencies` table of the `workspace` table, written inline (`foo = {.. }`), as its own `[workspace.dependencies.foo]` table or with dotted keys (`foo.package = \"..\"`). Not seen: a `path` entry that renames to a crate of another kind, and a registry crate renamed by `[patch]` or `[replace]`."
+
+query = '''
+let workspace-keys = select * from "entry" where key = "workspace";
+let workspace-tables = select r."id" as "table" from workspace-keys as l join "mapping" as r on l."occurrence" = r."owner";
+let workspace-entries = select r."key" as "key", r."occurrence" as "occurrence" from workspace-tables as l join "entry" as r on l."table" = r."owner";
+let dependency-keys = select * from workspace-entries where key = "dependencies";
+let dependency-tables = select r."id" as "table" from dependency-keys as l join "mapping" as r on l."occurrence" = r."owner";
+let dependencies = select r."key" as "name", r."occurrence" as "dependency", r."file" as "file", r."span" as "span" from dependency-tables as l join "entry" as r on l."table" = r."owner";
+let bodies = select r."id" as "body", l."dependency" as "dependency" from dependencies as l join "mapping" as r on l."dependency" = r."owner";
+let body-entries = select r."key" as "key", r."decoded" as "decoded", l."dependency" as "dependency" from bodies as l join "entry" as r on l."body" = r."owner";
+let packages = select * from body-entries where key = "package";
+let paths = select * from body-entries where key = "path";
+let path-ids = project(from=paths, columns=["dependency"]);
+let registry = antijoin(left=packages, right=path-ids, left-on=["dependency"], right-on=["dependency"]);
+let named = select l."decoded" as "package", r."name" as "name", r."file" as "file", r."span" as "span" from registry as l join dependencies as r on l."dependency" = r."dependency";
+let renamed = select * from named where package != name;
+emit renamed subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "the workspace takes `{name}` from a registry as the package `{package}`"
+help = "Key the entry by its package: write the entry as `{package}` in [workspace.dependencies], and name `{package}` where a crate inherits it. A rename of one of the product's own crates stays, written with its `path`. An ignore is never the fix: a registry crate under another name is the one thing this rule exists to refuse."
+
+[given]
+include = ['Cargo.toml']
+files.'src/lib.rs' = '''
+//! The demo crate.
+'''
+
+[[scenarios]]
+id = 'registry-entries-keyed-their-packages-path-entry'
+scenario = 'Registry entries keyed by their packages, and a path entry renamed.'
+given.files.'Cargo.toml' = '''
+[package]
+name = "demo"
+version = "0.1.0"
+edition = "2024"
+
+[workspace]
+members = ["crates/value"]
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+thiserror = "2"
+ryo-value = { package = "ryo-record-value", version = "0.1.0", path = "crates/value" }
+'''
+given.files.'crates/value/Cargo.toml' = '''
+[package]
+name = "ryo-record-value"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'crates/value/src/lib.rs' = '''
+//! The value crate.
+'''
+
+[[scenarios]]
+id = 'registry-rename'
+scenario = 'An inline entry that renames a registry crate.'
+given.files.'Cargo.toml' = '''
+[package]
+name = "demo"
+version = "0.1.0"
+edition = "2024"
+
+[workspace]
+members = []
+
+[workspace.dependencies]
+serde = { package = "rusqlite", version = "0.32" }
+thiserror = "2"
+'''
+then.findings = [
+  { path = 'Cargo.toml', line = 10 },
+]
+
+[[scenarios]]
+id = 'table-header'
+scenario = 'A registry crate renamed in its own table.'
+given.files.'Cargo.toml' = '''
+[package]
+name = "demo"
+version = "0.1.0"
+edition = "2024"
+
+[workspace]
+members = []
+
+[workspace.dependencies]
+thiserror = "2"
+
+[workspace.dependencies.serde]
+package = "rusqlite"
+version = "0.32"
+'''
+then.findings = [
+  { path = 'Cargo.toml', line = 12 },
+]
+
+[[scenarios]]
+id = 'dotted-keys'
+scenario = 'A registry crate renamed with dotted keys.'
+given.files.'Cargo.toml' = '''
+[package]
+name = "demo"
+version = "0.1.0"
+edition = "2024"
+
+[workspace]
+members = []
+
+[workspace.dependencies]
+serde.package = "rusqlite"
+serde.version = "0.32"
+thiserror = "2"
+'''
+then.findings = [
+  { path = 'Cargo.toml', line = 10 },
+]
+
+[[scenarios]]
+id = 'same-name'
+scenario = 'A package written equal to its key is no rename.'
+given.files.'Cargo.toml' = '''
+[package]
+name = "demo"
+version = "0.1.0"
+edition = "2024"
+
+[workspace]
+members = []
+
+[workspace.dependencies]
+serde = { package = "serde", version = "1" }
+thiserror = "2"
+'''
+
+[[scenarios]]
+id = 'member-rename'
+scenario = "A member's own renamed dependency is read by its package elsewhere."
+given.files.'Cargo.toml' = '''
+[package]
+name = "demo"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+errors = { package = "thiserror", version = "2" }
+
+[workspace]
+members = []
+
+[workspace.dependencies]
+thiserror = "2"
+'''

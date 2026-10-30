@@ -1,0 +1,23 @@
+version = 1
+parents = ["2eb4bb3d08398d5613b185c46da99d8025cbd92b7257be97d733430e87ae8546"]
+
+suppressed-removed = [
+  { tool = "tastemaker", rule = "idiomatic.arch/pub-item-unreferenced-elsewhere", path = "crates/core/src/outbound/sources/fixtures/fake.rs", level = "warning", fingerprint = "5a1a7e441ee8c0a2" },
+  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/core/src/inbound/use_cases/check/use_case.rs", level = "warning", fingerprint = "b38a6c348fd3539f" },
+  { tool = "tastemaker", rule = "idiomatic.arch/pub-item-unreferenced-elsewhere", path = "cli/src/resources/ratchet/check/schemas.rs", level = "warning", fingerprint = "35efcd57f3ed9079" },
+  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/core/src/outbound/lock/adapters/toml/schemas.rs", level = "warning", fingerprint = "b38a6c348fd3539f" },
+  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "cli/src/timings.rs", level = "warning", fingerprint = "b38a6c348fd3539f" },
+  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "cli/src/resources/ratchet/check/schemas.rs", level = "warning", fingerprint = "b38a6c348fd3539f" },
+  { tool = "tastemaker", rule = "idiomatic.arch/pub-item-unreferenced-elsewhere", path = "crates/core/src/outbound/repository/fixtures/fake.rs", level = "warning", fingerprint = "af97eaf9c4684ec1" },
+  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/core/src/domain/reports/service_test.rs", level = "warning", fingerprint = "b38a6c348fd3539f" },
+  { tool = "tastemaker", rule = "idiomatic.arch/pub-item-unreferenced-elsewhere", path = "cli/src/resources/ratchet/check/schemas.rs", level = "warning", fingerprint = "7aaab352826f6995" },
+  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/core/src/inbound/use_cases/check/use_case_test.rs", level = "warning", fingerprint = "b38a6c348fd3539f" },
+  { tool = "tastemaker", rule = "idiomatic.arch/serialize-dont-format", path = "crates/core/src/outbound/lock/adapters/toml/schemas.rs", level = "error", fingerprint = "6c4bf69c0bf708c4" },
+  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/core/src/outbound/check_store/adapters/postcard/schemas.rs", level = "warning", fingerprint = "b38a6c348fd3539f" },
+  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/core/src/inbound/use_cases/down/use_case_test.rs", level = "warning", fingerprint = "b38a6c348fd3539f" },
+  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/core/src/outbound/manifest/adapters/toml/adapter_test.rs", level = "warning", fingerprint = "b38a6c348fd3539f" },
+  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/core/src/outbound/sarif/adapters/serde_sarif/schemas.rs", level = "warning", fingerprint = "b38a6c348fd3539f" },
+  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "cli/src/resources/ratchet/check/schemas_test.rs", level = "warning", fingerprint = "b38a6c348fd3539f" },
+  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/core/src/inbound/use_cases/check/fixtures.rs", level = "warning", fingerprint = "b38a6c348fd3539f" },
+  { tool = "tastemaker", rule = "idiomatic.arch/pub-item-unreferenced-elsewhere", path = "cli/src/resources/ratchet/down/schemas.rs", level = "warning", fingerprint = "8b92c4fe75ff09d2" },
+]

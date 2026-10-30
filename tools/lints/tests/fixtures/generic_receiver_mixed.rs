@@ -1,0 +1,12 @@
+pub trait LocalValue {}
+pub struct Count;
+impl LocalValue for Count {}
+impl LocalValue for u32 {}
+pub mod interface {
+    pub trait MeasureInterface {
+        fn measure(&self) -> foreign::Count;
+    }
+}
+impl<T: LocalValue> interface::MeasureInterface for T {
+    fn measure(&self) -> foreign::Count { foreign::Count(1) }
+}

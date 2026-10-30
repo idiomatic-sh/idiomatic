@@ -1,0 +1,75 @@
+description = "No `todo!`, `unimplemented!` or `dbg!` macro call is left in the code."
+why = "The two placeholder macros panic when reached, and the debugging macro writes to stderr: each is scaffolding that was meant to go before merging (clippy's `unimplemented` and `dbg_macro`, and its lint of the same name for the first). Read syntactically: a macro call whose own path ends in one of the three names, bare or qualified (`std::dbg!`). Not seen: a call inside another macro's tokens (`vec![todo!()]`), and a macro renamed on import."
+
+query = '''
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let names = select * from tree-tokens where glob_any(text, "{todo,unimplemented,dbg}");
+let name-refs = select r."parent" as "node", l."text" as "text" from names as l join "syntax-child" as r on l."id" = r."child";
+let segments = select r."parent" as "node", l."text" as "text" from name-refs as l join "syntax-child" as r on l."node" = r."child";
+let paths = select r."parent" as "node", l."text" as "text" from segments as l join "syntax-child" as r on l."node" = r."child";
+let owners = select r."parent" as "node", l."text" as "text" from paths as l join "syntax-child" as r on l."node" = r."child";
+let macro-calls = select * from tree-nodes where kind = "macro-call";
+let unfinished = select r."file" as "file", r."span" as "span", l."text" as "text" from owners as l join macro-calls as r on l."node" = r."id";
+emit unfinished subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "`{text}!` is left in the code"
+help = "Finish the code, or remove the debugging output, before it merges."
+
+[given]
+include = ['**']
+files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+files.'src/lib.rs' = '''
+mod code;
+'''
+
+[[scenarios]]
+id = 'no-scaffolding-macro'
+scenario = 'No scaffolding macro: nothing is reported.'
+given.files.'src/lib.rs' = '''
+pub fn value() -> u8 {
+    let todo = 1;
+    todo
+}
+'''
+
+[[scenarios]]
+id = 'function-body-todo'
+scenario = 'A function body is todo!'
+given.files.'src/code.rs' = '''
+pub fn value() -> u8 {
+    todo!()
+}
+'''
+then.findings = [
+  { path = 'src/code.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'qualified-dbg'
+scenario = 'A value is printed with std::dbg!'
+given.files.'src/code.rs' = '''
+pub fn value() -> u8 {
+    std::dbg!(1)
+}
+'''
+then.findings = [
+  { path = 'src/code.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'other-macro'
+scenario = 'A macro whose qualifier is named todo.'
+given.files.'src/lib.rs' = '''
+pub fn value() -> Vec<u8> {
+    todo::vec![1]
+}
+'''

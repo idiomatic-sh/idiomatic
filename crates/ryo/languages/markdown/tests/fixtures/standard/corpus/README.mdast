@@ -1,0 +1,30 @@
+root[5]
+├─0 heading[1]
+│   │ depth: 1
+│   └─0 text "markdown corpus"
+├─1 heading[1]
+│   │ depth: 2
+│   └─0 text "Source"
+├─2 paragraph[13]
+│   ├─0  text "Real Markdown, copied unchanged: seven documents of ruff (github.com/astral-sh/ruff, MIT License, Copyright (c) 2022 Charles Marsh), each named "
+│   ├─1  inlineCode "ruff_"
+│   ├─2  text " and its path with "
+│   ├─3  inlineCode "/"
+│   ├─4  text " written "
+│   ├─5  inlineCode "_"
+│   ├─6  text ", and this repository's own documents, named "
+│   ├─7  inlineCode "idiomatic_"
+│   ├─8  text ", "
+│   ├─9  inlineCode "ryo_"
+│   ├─10 text " and "
+│   ├─11 inlineCode "ryo_toml_"
+│   └─12 text "."
+├─3 heading[1]
+│   │ depth: 2
+│   └─0 text "Version"
+└─4 paragraph[5]
+    ├─0 text "ruff 0.16.9, at commit "
+    ├─1 inlineCode "0be08a206f9c3180afd3e93bcc792ed5cb1f4db1"
+    ├─2 text "; the repository's own documents are those of the commit that added them; "
+    ├─3 inlineCode "NOTICE"
+    └─4 text " names each file."

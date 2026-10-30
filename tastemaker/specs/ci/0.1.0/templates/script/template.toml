@@ -1,0 +1,33 @@
+description = "One script under `ci/scripts/`: a shell or Python file of any content, grouped by what it serves, that a tool of an `asymptote.toml` runs or that a maintainer runs by hand."
+why = "Puts the scripts (the checks that have logic no command-line tool provides, with their tests, and the local test tooling) in the closed `ci` spec instead of beside it, so a script is a placed part of CI and a stray file under `ci/` is still a finding. Its content is the script's own, so the template asks nothing of it."
+content = '''
+{# Nothing: the content of a script is its own. #}
+'''
+
+[[scenarios]]
+id = 'scripts-runner-top-group-directory-placed'
+scenario = 'Scripts, at the top and in a group directory, are placed.'
+given.file = 'ci/scripts/{*path}'
+given.count = { min = 1 }
+given.files.'ci/scripts/checks/helper.py' = '''
+print("helper")
+'''
+given.files.'ci/scripts/checks/lint.sh' = '''
+#!/usr/bin/env bash
+set -euo pipefail
+echo check
+'''
+given.files.'ci/scripts/affected.sh' = '''
+#!/usr/bin/env bash
+set -euo pipefail
+echo affected
+'''
+
+[[scenarios]]
+id = 'no-script-where-entry-requires-one'
+scenario = 'No script where the entry requires one.'
+given.file = 'ci/scripts/{*path}'
+given.count = { min = 1 }
+then.findings = [
+  { rule = 'script#count', path = '.' },
+]

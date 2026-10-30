@@ -1,0 +1,6 @@
+root[1]
+└─0 paragraph[1]
+    └─0 link[1]
+        │ title: null
+        │ url: "MAILTO:FOO@BAR.BAZ"
+        └─0 text "MAILTO:FOO@BAR.BAZ"

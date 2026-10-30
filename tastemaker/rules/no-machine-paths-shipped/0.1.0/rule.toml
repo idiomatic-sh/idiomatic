@@ -1,0 +1,69 @@
+description = "No file a product ships names a path of one machine: no text, comment, code block or data value holds a path under `/workspaces`, `/tmp`, `/home` or `/Users`."
+why = "What a product ships (its README and docs, its manifests and data files, the comments rustdoc publishes) is read on other machines. A path under a container's workspace mount, a temporary directory or someone's home works only where it was written: a reader who copies the command gets a file that is not there, and a published page shows the layout of the machine it was built on. A shipped file names a path relative to the project, a placeholder (`<project>`), or one the reader's tools give (`$HOME`, `~/.cargo/bin`). Read from the text of every syntax token a language gives (Markdown text and code blocks, TOML and JSON values, comments): a path starting the text, or after a space, a backtick, a parenthesis, an equals sign or a quote. The string literals of Rust code are left to `no-hardcoded-paths`. Not seen: a file no linked language reads, and a path inside a word (`a/tmp/b`)."
+
+query = '''
+let tokens = select * from "syntax-tree" where not glob_any(kind, "{string,byte-string}");
+let machine = select * from tokens where glob_any(text, "/workspaces*") or glob_any(text, "* /workspaces*") or glob_any(text, "*`/workspaces*") or glob_any(text, "*(/workspaces*") or glob_any(text, "*=/workspaces*") or glob_any(text, "?/workspaces*") or glob_any(text, "/tmp/*") or glob_any(text, "* /tmp/*") or glob_any(text, "*`/tmp/*") or glob_any(text, "*(/tmp/*") or glob_any(text, "*=/tmp/*") or glob_any(text, "?/tmp/*") or glob_any(text, "/home/*") or glob_any(text, "* /home/*") or glob_any(text, "*`/home/*") or glob_any(text, "*(/home/*") or glob_any(text, "*=/home/*") or glob_any(text, "?/home/*") or glob_any(text, "/Users/*") or glob_any(text, "* /Users/*") or glob_any(text, "*`/Users/*") or glob_any(text, "*(/Users/*") or glob_any(text, "*=/Users/*") or glob_any(text, "?/Users/*");
+emit machine subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "`{file}` names a path of one machine"
+help = "Name the path relative to the project, as a placeholder (`<project>`), or as the reader's tools give it (`$HOME`, `~/.cargo/bin`)."
+
+[given]
+include = ['**']
+exclude = ['tastemaker.toml']
+files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+files.'src/lib.rs' = '''
+//! The fixture.
+'''
+
+[[scenarios]]
+id = 'machine-paths-in-docs-and-data'
+scenario = 'A README runs a command in the container, a code block reads a temporary file, a data file and a comment name a home directory.'
+given.files.'README.md' = '''
+# Fixture
+
+Run `cargo run` in /workspaces/fixture/crates.
+
+```console
+$ cat /tmp/fixture-run/report.json
+```
+'''
+given.files.'data.toml' = '''
+[cache]
+directory = "/home/someone/.cache/fixture"
+'''
+given.files.'src/paths.rs' = '''
+// Written against /Users/someone/fixture.
+pub fn name() -> &'static str {
+    "paths"
+}
+'''
+then.findings = [
+  { path = 'README.md', line = 3 },
+  { path = 'README.md', line = 6 },
+  { path = 'data.toml', line = 2 },
+  { path = 'src/paths.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'relative-and-placeholder-paths'
+scenario = 'The docs name paths relative to the project, a placeholder and the reader own install directory; a link names a path of a site.'
+given.files.'README.md' = '''
+# Fixture
+
+Run `cargo install --path cli` in `<project>`; the binary lands in `~/.cargo/bin`.
+The cache is `.fixture_cache/` beside `tastemaker.toml`. See https://example.com/home/fixture.
+'''
+given.files.'data.toml' = '''
+[cache]
+directory = ".fixture_cache"
+'''

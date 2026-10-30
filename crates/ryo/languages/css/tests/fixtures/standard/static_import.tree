@@ -1,0 +1,11 @@
+stylesheet
+  at-rule import
+    whitespace
+    string
+  whitespace
+  at-rule import
+    whitespace
+    url
+    whitespace
+    ident
+  whitespace

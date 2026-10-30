@@ -1,0 +1,3 @@
+root[1]
+└─0 paragraph[1]
+    └─0 text "&nbsp &x; &#; &#x;\n&#87654321;\n&#abcdef0;\n&ThisIsNotDefined; &hi?;"

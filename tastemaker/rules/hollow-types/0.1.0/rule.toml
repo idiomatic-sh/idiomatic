@@ -1,0 +1,146 @@
+description = "A `types.rs` declares at least one `struct`, `enum` or `union` at its own top level."
+why = "A part is never only a name, and its types.rs is never empty of types: its data is its own nominal types, declared in types.rs. A type declared only in an inline module, a function body or a macro invocation does not count."
+
+query = '''
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let files = select * from tree-nodes where kind = "source-file";
+let types = select * from tree-nodes where glob_any(kind, "{struct,enum,union}");
+let type-parents = select r."parent" as "parent" from types as l join "syntax-child" as r on l."id" = r."child";
+let typeless = antijoin(left=files, right=type-parents, left-on=["id"], right-on=["parent"]);
+emit typeless subject "file" key("file");
+'''
+
+[diagnostic]
+primary = "span"
+message = "this file declares no struct, enum or union"
+help = "Declare the part's own types in types.rs, a struct or enum for each, plain: public fields and derives; or delete the file and its `mod` line."
+
+[given]
+include = ['**/types.rs']
+files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+files.'src/lib.rs' = '''
+pub mod greeting;
+'''
+
+[[scenarios]]
+id = 'types-rs-holding-only-comment'
+scenario = 'A types.rs holding only a comment.'
+given.files.'src/greeting.rs' = '''
+pub mod types;
+'''
+given.files.'src/greeting/types.rs' = '''
+// The domain's types, still to come.
+'''
+then.findings = [
+  { path = 'src/greeting/types.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'types-rs-holding-import-function'
+scenario = 'A types.rs holding an import and a function.'
+given.files.'src/greeting.rs' = '''
+pub mod types;
+'''
+given.files.'src/greeting/types.rs' = '''
+use std::fmt::Display;
+pub fn show(value: &impl Display) -> String {
+    value.to_string()
+}
+'''
+then.findings = [
+  { path = 'src/greeting/types.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'types-rs-whose-only-type-inline-module'
+scenario = 'A types.rs whose only type is in an inline module.'
+given.files.'src/greeting.rs' = '''
+pub mod types;
+'''
+given.files.'src/greeting/types.rs' = '''
+pub mod inner {
+    pub struct Hidden;
+}
+'''
+then.findings = [
+  { path = 'src/greeting/types.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'types-rs-whose-only-type-local-function'
+scenario = 'A types.rs whose only type is local to a function.'
+given.files.'src/greeting.rs' = '''
+pub mod types;
+'''
+given.files.'src/greeting/types.rs' = '''
+pub fn make() {
+    struct Local;
+    let _ = Local;
+}
+'''
+then.findings = [
+  { path = 'src/greeting/types.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'struct'
+scenario = 'A struct: nothing is reported.'
+given.files.'src/greeting.rs' = '''
+pub mod types;
+'''
+given.files.'src/greeting/types.rs' = '''
+pub struct Name(pub String);
+'''
+
+[[scenarios]]
+id = 'enum'
+scenario = 'An enum: nothing is reported.'
+given.files.'src/greeting.rs' = '''
+pub mod types;
+'''
+given.files.'src/greeting/types.rs' = '''
+pub enum Mode {
+    Fast,
+    Slow,
+}
+'''
+
+[[scenarios]]
+id = 'union'
+scenario = 'A union: nothing is reported.'
+given.files.'src/greeting.rs' = '''
+pub mod types;
+'''
+given.files.'src/greeting/types.rs' = '''
+pub union Bits {
+    pub word: u32,
+    pub bytes: [u8; 4],
+}
+'''
+
+[[scenarios]]
+id = 'inline-module-named-types-types-rs-file'
+scenario = 'An inline module named types is not a types.rs file.'
+given.files.'src/inline.rs' = '''
+/// An inline module named `types` is not a types.rs file.
+pub mod types {
+    pub fn nothing() {}
+}
+'''
+given.files.'src/lib.rs' = '''
+pub mod inline;
+'''
+given.files.'src/types.rs' = '''
+//! The crate's types.
+
+/// A name.
+pub struct Name {
+    /// Its text.
+    pub text: String,
+}
+'''

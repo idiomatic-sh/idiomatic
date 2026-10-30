@@ -1,0 +1,8 @@
+version = 1
+parents = ["6d6f83ac302b4c6f0f72b46e5fd0192d3317992718187560d55901a2dd81a30b"]
+
+[[perf]]
+reasons = ["Median of 3 rounds; 6 rounds read 84 98 96 81 79 81 ms. The tolerance stays at 20% for a named reason: the run is a process that starts, reads one record and exits in 80 ms, and 15 ms of that is the machine (the same file read twice varies by it)."]
+records = [
+  { tool = "performance-lint", benchmark = "ruff", measure = "warm-milliseconds", best = 80.0 },
+]

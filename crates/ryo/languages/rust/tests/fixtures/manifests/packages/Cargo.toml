@@ -1,0 +1,6 @@
+[workspace]
+members = ["app", "support", "tool"]
+resolver = "3"
+
+[workspace.dependencies]
+shared = { git = "https://example.com/shared.git", tag = "v1.0.0" }

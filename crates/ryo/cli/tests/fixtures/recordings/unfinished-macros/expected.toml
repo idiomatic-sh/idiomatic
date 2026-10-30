@@ -1,0 +1,14 @@
+rows = [
+  { path = "crates/ruff_db/src/diagnostic/render.rs", key = "31794..31840" },
+  { path = "crates/ruff_db/src/diagnostic/render.rs", key = "32057..32103" },
+  { path = "crates/ruff_db/src/diagnostic/render.rs", key = "32836..32882" },
+  { path = "crates/ruff_db/src/diagnostic/render.rs", key = "33099..33145" },
+  { path = "crates/ruff_db/src/diagnostic/render.rs", key = "40746..40762" },
+  { path = "crates/ruff_db/src/diagnostic/render.rs", key = "40822..40838" },
+  { path = "crates/ruff_linter/src/message/mod.rs", key = "4152..4222" },
+  { path = "crates/ruff_linter/src/message/mod.rs", key = "4283..4353" },
+  { path = "crates/ruff_linter/src/message/mod.rs", key = "4511..4581" },
+  { path = "crates/ruff_linter/src/message/mod.rs", key = "4830..4900" },
+  { path = "crates/ty_python_semantic/src/types/infer/builder/type_expression.rs", key = "57148..57193" },
+  { path = "crates/ty_server/tests/e2e/main.rs", key = "31796..31875" },
+]

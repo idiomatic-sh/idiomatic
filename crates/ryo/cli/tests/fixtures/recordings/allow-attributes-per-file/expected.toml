@@ -1,0 +1,4 @@
+rows = [
+  { path = "crates/ruff_annotate_snippets/src/renderer/render.rs", key = "crates/ruff_annotate_snippets/src/renderer/render.rs" },
+  { path = "crates/ruff_python_ast/src/generated.rs", key = "crates/ruff_python_ast/src/generated.rs" },
+]

@@ -1,0 +1,1703 @@
+root[73]
+├─0  heading[1]
+│    │ depth: 1
+│    └─0 text "The language contract"
+├─1  paragraph[7]
+│    ├─0 text "Ryo owns the concepts: the relations of the catalog. A language fulfils them. A language implements two\ntraits of "
+│    ├─1 inlineCode "ryo::languages"
+│    ├─2 text ", "
+│    ├─3 inlineCode "Parse"
+│    ├─4 text " and "
+│    ├─5 inlineCode "Project"
+│    └─6 text ", and that is all of ryo it implements: every relation of the\ncatalog is one required method of one of them, with no default body, so a relation added to the catalog is a\ncompile error in every language until the language has answered it. The crate does not compile with a relation\nleft out, and no engine code lists a language or a language's file names."
+├─2  heading[1]
+│    │ depth: 2
+│    └─0 text "What a language answers"
+├─3  table[3]
+│    │ align: [null,null,null]
+│    ├─0 tableRow[3]
+│    │   ├─0 tableCell[1]
+│    │   │   └─0 text "trait"
+│    │   ├─1 tableCell[1]
+│    │   │   └─0 text "what it says"
+│    │   └─2 tableCell[1]
+│    │       └─0 text "per relation"
+│    ├─1 tableRow[3]
+│    │   ├─0 tableCell[1]
+│    │   │   └─0 inlineCode "Parse"
+│    │   ├─1 tableCell[24]
+│    │   │   ├─0  inlineCode "recognizes(request)"
+│    │   │   ├─1  text ": whether it reads the file; "
+│    │   │   ├─2  inlineCode "skips()"
+│    │   │   ├─3  text ": the names of the directories it never reads, at any depth ("
+│    │   │   ├─4  inlineCode "node_modules"
+│    │   │   ├─5  text ", "
+│    │   │   ├─6  inlineCode "target"
+│    │   │   ├─7  text "; empty when its ecosystem has none), declared as "
+│    │   │   ├─8  inlineCode "SKIPS"
+│    │   │   ├─9  text " in "
+│    │   │   ├─10 inlineCode "domain/language/constants.rs"
+│    │   │   ├─11 text " and not entered by the walks of ryo and Tastemaker; "
+│    │   │   ├─12 inlineCode "kind_count()"
+│    │   │   ├─13 text ": how many kinds its trees have (at most "
+│    │   │   ├─14 inlineCode "KIND_LIMIT"
+│    │   │   ├─15 text ", 1024); "
+│    │   │   ├─16 inlineCode "read_tree(request, builder)"
+│    │   │   ├─17 text ": reads the file with its parser library into the builder the engine gives, and nothing else; "
+│    │   │   ├─18 inlineCode "complete(request, table, symbols)"
+│    │   │   ├─19 text ": names the kinds and writes the notes. The engine composes "
+│    │   │   ├─20 inlineCode "build"
+│    │   │   ├─21 text " from them, and the allocation row's bound is "
+│    │   │   ├─22 inlineCode "read_tree"
+│    │   │   └─23 text " through a builder that builds nothing, so no body can be written beside the library to be compared with"
+│    │   └─2 tableCell[10]
+│    │       ├─0 text "one method for each syntax relation ("
+│    │       ├─1 inlineCode "function"
+│    │       ├─2 text ", "
+│    │       ├─3 inlineCode "comment"
+│    │       ├─4 text ", "
+│    │       ├─5 inlineCode "syntax_tree"
+│    │       ├─6 text ", "
+│    │       ├─7 inlineCode "mapping"
+│    │       ├─8 text ", ...): "
+│    │       └─9 inlineCode "Support<Reader<R>>"
+│    └─2 tableRow[3]
+│        ├─0 tableCell[1]
+│        │   └─0 inlineCode "Project"
+│        ├─1 tableCell[4]
+│        │   ├─0 inlineCode "manifests()"
+│        │   ├─1 text ": the names of the files it reads as manifests; "
+│        │   ├─2 inlineCode "resolve(request)"
+│        │   └─3 text ": reads them through its own tools and answers the bytes the readers read and the run keeps"
+│        └─2 tableCell[10]
+│            ├─0 text "one method for each manifest relation ("
+│            ├─1 inlineCode "package_dependency"
+│            ├─2 text ", "
+│            ├─3 inlineCode "workspace_member"
+│            ├─4 text ", "
+│            ├─5 inlineCode "source_dependency"
+│            ├─6 text ", "
+│            ├─7 inlineCode "analyzed_source"
+│            ├─8 text "): "
+│            └─9 inlineCode "Support<ManifestReader<R>>"
+├─4  paragraph[5]
+│    ├─0 text "The relations the engine gives for every file ("
+│    ├─1 inlineCode "filesystem.file"
+│    ├─2 text ", "
+│    ├─3 inlineCode "filesystem.line_count"
+│    └─4 text ") are in neither trait: a\nlanguage cannot write them."
+├─5  paragraph[29]
+│    ├─0  text "Each answer is "
+│    ├─1  inlineCode "Support::reads::<Item>()"
+│    ├─2  text " ("
+│    ├─3  inlineCode "Support::reads_manifests::<Item>()"
+│    ├─4  text " for a manifest relation) or "
+│    ├─5  inlineCode "Support::absent(reason)"
+│    ├─6  text ": a "
+│    ├─7  inlineCode "Reads"
+│    ├─8  text " is made only from an item that implements "
+│    ├─9  inlineCode "ReadItem"
+│    ├─10 text " or "
+│    ├─11 inlineCode "ManifestItem"
+│    ├─12 text ", never from a reader written beside it. The reason is one of\n"
+│    ├─13 inlineCode "NoSuchConstruct"
+│    ├─14 text ", "
+│    ├─15 inlineCode "NotCode"
+│    ├─16 text ", "
+│    ├─17 inlineCode "NotAKeyedDocument"
+│    ├─18 text ", "
+│    ├─19 inlineCode "NotADocument"
+│    ├─20 text ", "
+│    ├─21 inlineCode "NotYetRead"
+│    ├─22 text ", "
+│    ├─23 inlineCode "NoManifests"
+│    ├─24 text " (see \"Why a language does not answer a relation\"); "
+│    ├─25 inlineCode "ryo relation describe <relation>"
+│    ├─26 text " lists, for\nevery linked language, "
+│    ├─27 inlineCode "reads"
+│    └─28 text " or the reason."
+├─6  paragraph[7]
+│    ├─0 text "A reader gets the rows of its own relation to write and no other: "
+│    ├─1 inlineCode "Reader<R>"
+│    ├─2 text " is given "
+│    ├─3 inlineCode "&mut dyn Rows<R's row>"
+│    ├─4 text ",\n"
+│    ├─5 inlineCode "ManifestReader<R>"
+│    └─6 text " the same. The engine reads the tree once for the readers of every wanted relation, so a\nlanguage never receives the writer of the whole store."
+├─7  heading[1]
+│    │ depth: 2
+│    └─0 text "Scopes"
+├─8  paragraph[5]
+│    ├─0 text "Every scope has a row of "
+│    ├─1 inlineCode "scope"
+│    ├─2 text ", including the top-level ones: a function, a class or any other item that makes a scope at the top of a file has the file's module scope for its parent. The module scope itself has a row too, with its own node for its parent (the root of a tree is its own parent in the element table, and here too), so the shape has no parentless row: a scope with no parent is not a shape. It is the only row of its file with that. The conformance holds it: of the scope rows of each sample file, exactly one has the same node for parent and child, and every other has a parent that is a child of a row of the file. A file with nothing in it still gives that one row. Rust's scopes are the module of the file, a nested module, an "
+│    ├─3 inlineCode "impl"
+│    └─4 text ", a trait and a function."
+├─9  heading[1]
+│    │ depth: 2
+│    └─0 text "Documents"
+├─10 paragraph[13]
+│    ├─0  text "A language of documents (Markdown, HTML) says what a document declares with the shared kinds of "
+│    ├─1  inlineCode "defines"
+│    ├─2  text ": a titled section is "
+│    ├─3  inlineCode "defines { kind: section }"
+│    ├─4  text ", nested through "
+│    ├─5  inlineCode "scope"
+│    ├─6  text " as functions nest in classes, and an anchor, an id or a label is "
+│    ├─7  inlineCode "defines { kind: label }"
+│    ├─8  text ". Code languages never write these two kinds. Markdown reads them: a heading is a section (named by its title, held by the section around it, scoped from the heading to the next heading as shallow or shallower), and the definition of a link reference, of a footnote and an "
+│    ├─9  inlineCode "id"
+│    ├─10 text " or "
+│    ├─11 inlineCode "a name"
+│    └─12 text " of raw HTML are labels."
+├─11 paragraph[25]
+│    ├─0  text "A link target is "
+│    ├─1  inlineCode "reference.target"
+│    ├─2  text ", and the language resolves it to a run-relative path as it resolves an import ("
+│    ├─3  inlineCode "static_import.target"
+│    ├─4  text "): "
+│    ├─5  inlineCode "[text](../guide.md#setup)"
+│    ├─6  text " in "
+│    ├─7  inlineCode "docs/a.md"
+│    ├─8  text " has the target "
+│    ├─9  inlineCode "guide.md#setup"
+│    ├─10 text ", where "
+│    ├─11 inlineCode "docs/"
+│    ├─12 text " is the document's own directory; a fragment alone is the document's own path with it ("
+│    ├─13 inlineCode "docs/a.md#top"
+│    ├─14 text "), a path from the root ("
+│    ├─15 inlineCode "/x.md"
+│    ├─16 text ") is the run's own "
+│    ├─17 inlineCode "x.md"
+│    ├─18 text ", and a destination with a scheme stays as written. The language does it where it builds the tree: "
+│    ├─19 inlineCode "read_tree"
+│    ├─20 text " is given the request with the file's path, and writes the resolved target as the decoded text of the first marker of the link, which "
+│    ├─21 inlineCode "named_by"
+│    ├─22 text " reads back (Markdown's adapter shows how). RyoQL has nothing for it: a rule compares the target with a path or a "
+│    ├─23 inlineCode "defines.name"
+│    └─24 text " as it compares any two names."
+├─12 paragraph[9]
+│    ├─0 text "The text a reader reads is "
+│    ├─1 inlineCode "prose { id, owner, text, file, span }"
+│    ├─2 text ": one row for each run of a document: a paragraph, the title of a heading, a cell of a table, the text an item of a list holds itself (an item of paragraphs gives the rows of its paragraphs). The "
+│    ├─3 inlineCode "text"
+│    ├─4 text " joins the markup of the run and masks what a reader does not read as prose: inline code, math and raw HTML become a space, a break is a space, and the white space between words is one space. The "
+│    ├─5 inlineCode "owner"
+│    ├─6 text " is the section that holds the run, or the document. A language that is not a document answers "
+│    ├─7 inlineCode "NotADocument"
+│    └─8 text "."
+├─13 heading[1]
+│    │ depth: 2
+│    └─0 text "Directives"
+├─14 paragraph[21]
+│    ├─0  text "An instruction to the build tool that a file carries is "
+│    ├─1  inlineCode "directive { file, span, kind, text }"
+│    ├─2  text ": "
+│    ├─3  inlineCode "kind"
+│    ├─4  text " is the directive's name as the language writes it and "
+│    ├─5  inlineCode "text"
+│    ├─6  text " its argument text as the tool reads it. Go's "
+│    ├─7  inlineCode "//go:build linux && amd64"
+│    ├─8  text " is "
+│    ├─9  inlineCode "kind: go:build, text: linux && amd64"
+│    ├─10 text " and a header "
+│    ├─11 inlineCode "// +build linux"
+│    ├─12 text " is "
+│    ├─13 inlineCode "kind: +build, text: linux"
+│    ├─14 text "; the line is also a "
+│    ├─15 inlineCode "comment"
+│    ├─16 text " row, and it is no "
+│    ├─17 inlineCode "prose"
+│    ├─18 text " row, which is the text a reader of a document reads. The kinds are the language's words and ryo keeps no list of them. A language with no such instruction answers "
+│    ├─19 inlineCode "NoSuchConstruct"
+│    └─20 text "."
+├─15 heading[1]
+│    │ depth: 2
+│    └─0 text "Why a language does not answer a relation"
+├─16 table[7]
+│    │ align: [null,null,null]
+│    ├─0 tableRow[3]
+│    │   ├─0 tableCell[1]
+│    │   │   └─0 text "reason"
+│    │   ├─1 tableCell[1]
+│    │   │   └─0 text "said by"
+│    │   └─2 tableCell[1]
+│    │       └─0 text "when"
+│    ├─1 tableRow[3]
+│    │   ├─0 tableCell[1]
+│    │   │   └─0 inlineCode "NoSuchConstruct"
+│    │   ├─1 tableCell[1]
+│    │   │   └─0 text "any language"
+│    │   └─2 tableCell[3]
+│    │       ├─0 text "the language has no such construct (Markdown has no "
+│    │       ├─1 inlineCode "function"
+│    │       └─2 text ")"
+│    ├─2 tableRow[3]
+│    │   ├─0 tableCell[1]
+│    │   │   └─0 inlineCode "NotCode"
+│    │   ├─1 tableCell[1]
+│    │   │   └─0 text "a data format"
+│    │   └─2 tableCell[3]
+│    │       ├─0 text "the language is data: it reads no relation of code (TOML says it of "
+│    │       ├─1 inlineCode "function"
+│    │       └─2 text "). A language that reads any relation of code never answers it"
+│    ├─3 tableRow[3]
+│    │   ├─0 tableCell[1]
+│    │   │   └─0 inlineCode "NotAKeyedDocument"
+│    │   ├─1 tableCell[1]
+│    │   │   └─0 text "a language of code"
+│    │   └─2 tableCell[1]
+│    │       └─0 text "it has no keyed documents"
+│    ├─4 tableRow[3]
+│    │   ├─0 tableCell[1]
+│    │   │   └─0 inlineCode "NotADocument"
+│    │   ├─1 tableCell[1]
+│    │   │   └─0 text "a language that is not a document"
+│    │   └─2 tableCell[3]
+│    │       ├─0 text "it has no prose; one that reads "
+│    │       ├─1 inlineCode "prose"
+│    │       └─2 text " never answers it"
+│    ├─5 tableRow[3]
+│    │   ├─0 tableCell[1]
+│    │   │   └─0 inlineCode "NoManifests"
+│    │   ├─1 tableCell[1]
+│    │   │   └─0 text "a language with no manifest"
+│    │   └─2 tableCell[1]
+│    │       └─0 text "it names no manifest file"
+│    └─6 tableRow[3]
+│        ├─0 tableCell[1]
+│        │   └─0 inlineCode "NotYetRead"
+│        ├─1 tableCell[1]
+│        │   └─0 text "a language being written"
+│        └─2 tableCell[3]
+│            ├─0 text "the construct is in the language and its reader is not written yet. It is a stage, never an answer for a finished language: a finished language answers "
+│            ├─1 inlineCode "NoSuchConstruct"
+│            └─2 text " (the construct is not there) or reads it"
+├─17 paragraph[1]
+│    └─0 text "The conformance holds each reason against the class of the relation and against the other answers of the language."
+├─18 heading[1]
+│    │ depth: 2
+│    └─0 text "Manifests are files"
+├─19 paragraph[15]
+│    ├─0  text "A column that names a manifest holds the kind File, never text: "
+│    ├─1  inlineCode "workspace_member.workspace"
+│    ├─2  text " and "
+│    ├─3  inlineCode "package"
+│    ├─4  text ", "
+│    ├─5  inlineCode "file_package.package"
+│    ├─6  text ", "
+│    ├─7  inlineCode "package_dependency.source"
+│    ├─8  text " and "
+│    ├─9  inlineCode "target"
+│    ├─10 text ". A File is the number of the file among the files the run lists, in the order of their paths, so a rule joins a manifest with "
+│    ├─11 inlineCode "filesystem.file.path"
+│    ├─12 text " as it joins any file. A manifest the run does not list (a workspace names a member the scope leaves out) is still a file the rows name: its number is the one after the last file the run lists, in the order of the paths of such manifests, and the language says which they are in "
+│    ├─13 inlineCode "Resolved::unlisted"
+│    └─14 text ". Two languages that both name manifests the run does not list are refused: the numbers after the listed files are one language's to give."
+├─20 heading[1]
+│    │ depth: 3
+│    └─0 text "What each language's manifests say"
+├─21 paragraph[25]
+│    ├─0  text "A manifest is a file the language names ("
+│    ├─1  inlineCode "manifests()"
+│    ├─2  text ", the last part of the path) and reads with the parser of its format. Every language answers the same relations from it: a "
+│    ├─3  emphasis[1]
+│    │    └─0 text "package"
+│    ├─4  text " is a manifest that names one; a "
+│    ├─5  emphasis[1]
+│    │    └─0 text "workspace member"
+│    ├─6  text " is a package the workspace manifest holds; a "
+│    ├─7  emphasis[1]
+│    │    └─0 text "dependency"
+│    ├─8  text " is a requirement of a package on another package "
+│    ├─9  strong[1]
+│    │    └─0 text "of the repository"
+│    ├─10 text ", written with the kind below. The rows name manifests as Files and never text, so a requirement on a package outside the repository (a package of PyPI, a module of the Go proxy, a package of npm) is not a row of "
+│    ├─11 inlineCode "package_dependency"
+│    ├─12 text ": that relation is the graph of the repository's own packages. The "
+│    ├─13 inlineCode "target"
+│    ├─14 text " of a requirement is the manifest of the package of the repository the requirement names, found by the name the format normalizes; a requirement none of the repository's packages answers to has no row. "
+│    ├─15 inlineCode "package_dependency.package"
+│    ├─16 text " is the name as the format normalizes it and "
+│    ├─17 inlineCode "binding"
+│    ├─18 text " the name as the manifest writes it; "
+│    ├─19 inlineCode "condition"
+│    ├─20 text " is the condition text as written (a marker, a build tag); "
+│    ├─21 inlineCode "optional"
+│    ├─22 text " is "
+│    ├─23 inlineCode "Optional"
+│    └─24 text " for what the package needs only when asked for."
+├─22 table[9]
+│    │ align: [null,null,null,null,null]
+│    ├─0 tableRow[5]
+│    │   ├─0 tableCell[0]
+│    │   ├─1 tableCell[1]
+│    │   │   └─0 text "Python"
+│    │   ├─2 tableCell[1]
+│    │   │   └─0 text "Go"
+│    │   ├─3 tableCell[1]
+│    │   │   └─0 text "JavaScript and TypeScript"
+│    │   └─4 tableCell[1]
+│    │       └─0 text "Rust (as built)"
+│    ├─1 tableRow[5]
+│    │   ├─0 tableCell[1]
+│    │   │   └─0 text "manifests"
+│    │   ├─1 tableCell[1]
+│    │   │   └─0 inlineCode "pyproject.toml"
+│    │   ├─2 tableCell[3]
+│    │   │   ├─0 inlineCode "go.mod"
+│    │   │   ├─1 text ", "
+│    │   │   └─2 inlineCode "go.work"
+│    │   ├─3 tableCell[3]
+│    │   │   ├─0 inlineCode "package.json"
+│    │   │   ├─1 text ", "
+│    │   │   └─2 inlineCode "tsconfig.json"
+│    │   └─4 tableCell[1]
+│    │       └─0 inlineCode "Cargo.toml"
+│    ├─2 tableRow[5]
+│    │   ├─0 tableCell[1]
+│    │   │   └─0 text "parser (format)"
+│    │   ├─1 tableCell[1]
+│    │   │   └─0 text "TOML, requirements by PEP 508"
+│    │   ├─2 tableCell[3]
+│    │   │   ├─0 text "the "
+│    │   │   ├─1 inlineCode "go.mod"
+│    │   │   └─2 text " line grammar"
+│    │   ├─3 tableCell[3]
+│    │   │   ├─0 text "JSON, "
+│    │   │   ├─1 inlineCode "tsconfig.json"
+│    │   │   └─2 text " as JSON with comments"
+│    │   └─4 tableCell[1]
+│    │       └─0 inlineCode "cargo metadata"
+│    ├─3 tableRow[5]
+│    │   ├─0 tableCell[1]
+│    │   │   └─0 text "a package"
+│    │   ├─1 tableCell[12]
+│    │   │   ├─0  inlineCode "[project]"
+│    │   │   ├─1  text " with a "
+│    │   │   ├─2  inlineCode "name"
+│    │   │   ├─3  text "; the name is normalized as PEP 503 does (lower case, each run of "
+│    │   │   ├─4  inlineCode "-"
+│    │   │   ├─5  text ", "
+│    │   │   ├─6  inlineCode "_"
+│    │   │   ├─7  text " and "
+│    │   │   ├─8  inlineCode "."
+│    │   │   ├─9  text " one "
+│    │   │   ├─10 inlineCode "-"
+│    │   │   └─11 text ")"
+│    │   ├─2 tableCell[5]
+│    │   │   ├─0 text "the "
+│    │   │   ├─1 inlineCode "module"
+│    │   │   ├─2 text " of a "
+│    │   │   ├─3 inlineCode "go.mod"
+│    │   │   └─4 text "; the name is the module path"
+│    │   ├─3 tableCell[5]
+│    │   │   ├─0 text "a "
+│    │   │   ├─1 inlineCode "package.json"
+│    │   │   ├─2 text " with a "
+│    │   │   ├─3 inlineCode "name"
+│    │   │   └─4 text "; the name is as written"
+│    │   └─4 tableCell[2]
+│    │       ├─0 text "a "
+│    │       └─1 inlineCode "[package]"
+│    ├─4 tableRow[5]
+│    │   ├─0 tableCell[1]
+│    │   │   └─0 text "a workspace"
+│    │   ├─1 tableCell[5]
+│    │   │   ├─0 inlineCode "[tool.uv.workspace]"
+│    │   │   ├─1 text " "
+│    │   │   ├─2 inlineCode "members"
+│    │   │   ├─3 text " (globs, from the directory of the file) less "
+│    │   │   └─4 inlineCode "exclude"
+│    │   ├─2 tableCell[3]
+│    │   │   ├─0 inlineCode "use"
+│    │   │   ├─1 text " directories of a "
+│    │   │   └─2 inlineCode "go.work"
+│    │   ├─3 tableCell[3]
+│    │   │   ├─0 inlineCode "workspaces"
+│    │   │   ├─1 text ": a list of globs, or "
+│    │   │   └─2 inlineCode "{ packages: [..] }"
+│    │   └─4 tableCell[5]
+│    │       ├─0 inlineCode "[workspace]"
+│    │       ├─1 text " "
+│    │       ├─2 inlineCode "members"
+│    │       ├─3 text " less "
+│    │       └─4 inlineCode "exclude"
+│    ├─5 tableRow[5]
+│    │   ├─0 tableCell[1]
+│    │   │   └─0 text "a member"
+│    │   ├─1 tableCell[1]
+│    │   │   └─0 text "the package in a directory the globs hold"
+│    │   ├─2 tableCell[5]
+│    │   │   ├─0 text "the "
+│    │   │   ├─1 inlineCode "go.mod"
+│    │   │   ├─2 text " in a "
+│    │   │   ├─3 inlineCode "use"
+│    │   │   └─4 text " directory"
+│    │   ├─3 tableCell[3]
+│    │   │   ├─0 text "the "
+│    │   │   ├─1 inlineCode "package.json"
+│    │   │   └─2 text " in a directory the globs hold"
+│    │   └─4 tableCell[1]
+│    │       └─0 text "the package in a directory the globs hold"
+│    ├─6 tableRow[5]
+│    │   ├─0 tableCell[1]
+│    │   │   └─0 text "a dependency, its kind"
+│    │   ├─1 tableCell[15]
+│    │   │   ├─0  inlineCode "project.dependencies"
+│    │   │   ├─1  text " is "
+│    │   │   ├─2  inlineCode "normal"
+│    │   │   ├─3  text "; "
+│    │   │   ├─4  inlineCode "project.optional-dependencies.<extra>"
+│    │   │   ├─5  text " is "
+│    │   │   ├─6  inlineCode "optional"
+│    │   │   ├─7  text "; "
+│    │   │   ├─8  inlineCode "dependency-groups.<group>"
+│    │   │   ├─9  text " (PEP 735) is "
+│    │   │   ├─10 inlineCode "dev"
+│    │   │   ├─11 text "; "
+│    │   │   ├─12 inlineCode "build-system.requires"
+│    │   │   ├─13 text " is "
+│    │   │   └─14 inlineCode "build"
+│    │   ├─2 tableCell[8]
+│    │   │   ├─0 inlineCode "require"
+│    │   │   ├─1 text " is "
+│    │   │   ├─2 inlineCode "normal"
+│    │   │   ├─3 text " ("
+│    │   │   ├─4 inlineCode "// indirect"
+│    │   │   ├─5 text " too); "
+│    │   │   ├─6 inlineCode "replace"
+│    │   │   └─7 text " to a directory points the requirement at it"
+│    │   ├─3 tableCell[22]
+│    │   │   ├─0  inlineCode "dependencies"
+│    │   │   ├─1  text " is "
+│    │   │   ├─2  inlineCode "normal"
+│    │   │   ├─3  text "; "
+│    │   │   ├─4  inlineCode "devDependencies"
+│    │   │   ├─5  text " is "
+│    │   │   ├─6  inlineCode "dev"
+│    │   │   ├─7  text "; "
+│    │   │   ├─8  inlineCode "peerDependencies"
+│    │   │   ├─9  text " is "
+│    │   │   ├─10 inlineCode "peer"
+│    │   │   ├─11 text "; "
+│    │   │   ├─12 inlineCode "optionalDependencies"
+│    │   │   ├─13 text " is "
+│    │   │   ├─14 inlineCode "optional"
+│    │   │   ├─15 text "; a "
+│    │   │   ├─16 inlineCode "references"
+│    │   │   ├─17 text " path of a "
+│    │   │   ├─18 inlineCode "tsconfig.json"
+│    │   │   ├─19 text " is "
+│    │   │   ├─20 inlineCode "normal"
+│    │   │   └─21 text " between the packages of the two directories"
+│    │   └─4 tableCell[11]
+│    │       ├─0  inlineCode "[dependencies]"
+│    │       ├─1  text " is "
+│    │       ├─2  inlineCode "normal"
+│    │       ├─3  text ", "
+│    │       ├─4  inlineCode "[dev-dependencies]"
+│    │       ├─5  text " "
+│    │       ├─6  inlineCode "dev"
+│    │       ├─7  text ", "
+│    │       ├─8  inlineCode "[build-dependencies]"
+│    │       ├─9  text " "
+│    │       └─10 inlineCode "build"
+│    ├─7 tableRow[5]
+│    │   ├─0 tableCell[1]
+│    │   │   └─0 text "how a requirement's target is written"
+│    │   ├─1 tableCell[4]
+│    │   │   ├─0 text "a PEP 508 string, "
+│    │   │   ├─1 inlineCode "name[extras] (>=1) ; marker"
+│    │   │   ├─2 text ": the name is normalized and the marker is the "
+│    │   │   └─3 inlineCode "condition"
+│    │   ├─2 tableCell[3]
+│    │   │   ├─0 text "a module path; a "
+│    │   │   ├─1 inlineCode "replace"
+│    │   │   └─2 text " path names the directory"
+│    │   ├─3 tableCell[5]
+│    │   │   ├─0 text "a package name; "
+│    │   │   ├─1 inlineCode "workspace:*"
+│    │   │   ├─2 text " and a "
+│    │   │   ├─3 inlineCode "file:"
+│    │   │   └─4 text " path name a member"
+│    │   └─4 tableCell[2]
+│    │       ├─0 text "a crate name or a "
+│    │       └─1 inlineCode "path"
+│    └─8 tableRow[5]
+│        ├─0 tableCell[1]
+│        │   └─0 text "what is not a row"
+│        ├─1 tableCell[1]
+│        │   └─0 text "a requirement on a package outside the repository"
+│        ├─2 tableCell[1]
+│        │   └─0 text "a module outside it"
+│        ├─3 tableCell[7]
+│        │   ├─0 text "a package outside it; the "
+│        │   ├─1 inlineCode "paths"
+│        │   ├─2 text " of a "
+│        │   ├─3 inlineCode "tsconfig.json"
+│        │   ├─4 text ", which help "
+│        │   ├─5 inlineCode "source_dependency"
+│        │   └─6 text " and are no dependency"
+│        └─4 tableCell[1]
+│            └─0 text "a crate outside it"
+├─23 paragraph[11]
+│    ├─0  text "Python is the first worked case: "
+│    ├─1  inlineCode "pyproject.toml"
+│    ├─2  text " is read with a TOML parser, each requirement with a PEP 508 parser, and the three relations "
+│    ├─3  inlineCode "package_dependency"
+│    ├─4  text ", "
+│    ├─5  inlineCode "workspace_member"
+│    ├─6  text " and "
+│    ├─7  inlineCode "file_package"
+│    ├─8  text " are read from the packages found (the package a file belongs to is the one whose directory is the nearest above it). The contract's types carry no manifest format: a manifest is a path and a text, what the language works out of the manifests is its own "
+│    ├─9  inlineCode "Derived"
+│    └─10 text ", and the rows say Files, names and kinds from the shared words."
+├─24 heading[1]
+│    │ depth: 2
+│    └─0 text "A language's shape"
+├─25 paragraph[3]
+│    ├─0 text "The tree is one template followed over and over, so that it is simple to guess and to hop from one language to another. Every language has this tree; "
+│    ├─1 inlineCode "*"
+│    └─2 text " marks a part present exactly when its trigger holds."
+├─26 code "languages/<lang>/\n  Cargo.toml  tastemaker.toml  README.md  benches/performance.rs   (the bench is always there, placed at count 1: the corpus is the workload)\n  src/\n    lib.rs (link!)  cases.rs\n    inbound/contracts/{parse,project}/contract.rs\n    domain/\n      syntax/{types,service,service_test}.rs        Kind = Node(Node) | Token(Token) | Extra(Extra)*\n      nodes/{types,constants,service,service_test}.rs   one flat enum of the node standard's names; STANDARD names the standard and its version;\n                                                    the standard's categories, if it has any, are functions of service.rs\n      tokens/{types,constants,service,service_test}.rs  one flat enum of the token standard's names; STANDARD likewise\n      extras/{types,constants,service,service_test}.rs  *  present exactly when `Kind` has an `Extra` arm, which is when the enum is non-empty;\n                                                    each variant's doc says why the standard lacks it\n      language/...                                  recognition (always)\n      model/...                                     *  present exactly when `Parse::FileModel` is not `()`\n      relations/collections/relations/{fixtures/contract.rs, <relation>/{item,item_test}.rs}\n      manifests/collections/manifests/<relation>/...  *  present exactly when the language reads manifests\n      <other concepts>/...                          the language's own logic, free-form\n    outbound/\n      syntax/{interface,factory,fixtures}.rs  syntax/fixtures/{contract,fake,fake_test,library}.rs\n      syntax/adapters/<library>/{adapter,adapter_test,schemas,schemas_test,types,constants}.rs  + fixtures/{walk,oracle}.rs\n      project/...                                   *  with manifests\n      <other ports>/...                             free-form, where the language's logic needs IO (Rust's scheduler)\n    fixtures/{kinds,relations,contracts,reading}.rs     kinds.rs keeps `sample(kind)`: fixture data, not domain\n  tests/conformance.rs  tests/allocation.rs\n  tests/fixtures/{standard,suite,corpus}/{README.md, NOTICE, ..}\n  tests/fixtures/relations/<relation>/{input.<ext>, expected.rs}  tests/fixtures/allocation/  tests/fixtures/manifests/<case>/.."
+│      lang: "text"
+│      meta: null
+├─27 paragraph[12]
+│    ├─0  strong[1]
+│    │    └─0 text "The kinds are the standard's."
+│    ├─1  text " A language's node kinds and token kinds follow that language's standard, library-independent, where one exists, and the parser library is mapped into them exhaustively in the adapter's "
+│    ├─2  inlineCode "schemas.rs"
+│    ├─3  text ", so a library can be swapped. The standard is pinned under "
+│    ├─4  inlineCode "tests/fixtures/standard/"
+│    ├─5  text " with its version, and "
+│    ├─6  inlineCode "STANDARD"
+│    ├─7  text " in "
+│    ├─8  inlineCode "nodes"
+│    ├─9  text " and "
+│    ├─10 inlineCode "tokens"
+│    └─11 text " names it."
+├─28 table[11]
+│    │ align: [null,null,null]
+│    ├─0  tableRow[3]
+│    │    ├─0 tableCell[1]
+│    │    │   └─0 text "language"
+│    │    ├─1 tableCell[1]
+│    │    │   └─0 text "node standard"
+│    │    └─2 tableCell[1]
+│    │        └─0 text "token standard"
+│    ├─1  tableRow[3]
+│    │    ├─0 tableCell[1]
+│    │    │   └─0 text "Python"
+│    │    ├─1 tableCell[2]
+│    │    │   ├─0 text "CPython "
+│    │    │   └─1 inlineCode "ast"
+│    │    └─2 tableCell[3]
+│    │        ├─0 text "CPython "
+│    │        ├─1 inlineCode "token"
+│    │        └─2 text " module"
+│    ├─2  tableRow[3]
+│    │    ├─0 tableCell[1]
+│    │    │   └─0 text "JavaScript"
+│    │    ├─1 tableCell[1]
+│    │    │   └─0 text "ESTree"
+│    │    └─2 tableCell[1]
+│    │        └─0 text "ECMA-262 §12"
+│    ├─3  tableRow[3]
+│    │    ├─0 tableCell[1]
+│    │    │   └─0 text "TypeScript"
+│    │    ├─1 tableCell[3]
+│    │    │   ├─0 inlineCode "@typescript-eslint/ast-spec"
+│    │    │   ├─1 text " "
+│    │    │   └─2 inlineCode "AST_NODE_TYPES"
+│    │    └─2 tableCell[1]
+│    │        └─0 inlineCode "AST_TOKEN_TYPES"
+│    ├─4  tableRow[3]
+│    │    ├─0 tableCell[1]
+│    │    │   └─0 text "Markdown"
+│    │    ├─1 tableCell[1]
+│    │    │   └─0 text "mdast"
+│    │    └─2 tableCell[1]
+│    │        └─0 text "micromark token types"
+│    ├─5  tableRow[3]
+│    │    ├─0 tableCell[1]
+│    │    │   └─0 text "HTML"
+│    │    ├─1 tableCell[1]
+│    │    │   └─0 text "the DOM's nodes"
+│    │    └─2 tableCell[1]
+│    │        └─0 text "the HTML §13.2.5 tokenizer"
+│    ├─6  tableRow[3]
+│    │    ├─0 tableCell[1]
+│    │    │   └─0 text "CSS"
+│    │    ├─1 tableCell[1]
+│    │    │   └─0 text "CSS Syntax Level 3 §5"
+│    │    └─2 tableCell[1]
+│    │        └─0 text "CSS Syntax Level 3 §4"
+│    ├─7  tableRow[3]
+│    │    ├─0 tableCell[1]
+│    │    │   └─0 text "Go"
+│    │    ├─1 tableCell[1]
+│    │    │   └─0 inlineCode "go/ast"
+│    │    └─2 tableCell[1]
+│    │        └─0 inlineCode "go/token"
+│    ├─8  tableRow[3]
+│    │    ├─0 tableCell[1]
+│    │    │   └─0 text "TOML"
+│    │    ├─1 tableCell[2]
+│    │    │   ├─0 inlineCode "toml.abnf"
+│    │    │   └─1 text " (both)"
+│    │    └─2 tableCell[2]
+│    │        ├─0 inlineCode "toml.abnf"
+│    │        └─1 text " (both)"
+│    ├─9  tableRow[3]
+│    │    ├─0 tableCell[1]
+│    │    │   └─0 text "JSON"
+│    │    ├─1 tableCell[3]
+│    │    │   ├─0 text "RFC 8259 "
+│    │    │   ├─1 inlineCode "json.abnf"
+│    │    │   └─2 text " (both)"
+│    │    └─2 tableCell[3]
+│    │        ├─0 text "RFC 8259 "
+│    │        ├─1 inlineCode "json.abnf"
+│    │        └─2 text " (both)"
+│    └─10 tableRow[3]
+│         ├─0 tableCell[1]
+│         │   └─0 text "Rust"
+│         ├─1 tableCell[4]
+│         │   ├─0 inlineCode "ra_ap_parser"
+│         │   ├─1 text " "
+│         │   ├─2 inlineCode "SyntaxKind"
+│         │   └─3 text ", pinned and re-pinned with the library"
+│         └─2 tableCell[1]
+│             └─0 text "the same"
+├─29 paragraph[26]
+│    ├─0  strong[1]
+│    │    └─0 text "Kind spelling."
+│    ├─1  text " A kind word is the standard's name in kebab-case, derived mechanically: "
+│    ├─2  inlineCode "FunctionDef"
+│    ├─3  text " is "
+│    ├─4  inlineCode "function-def"
+│    ├─5  text ", "
+│    ├─6  inlineCode "TSTypeAnnotation"
+│    ├─7  text " is "
+│    ├─8  inlineCode "ts-type-annotation"
+│    ├─9  text ", rust-analyzer's "
+│    ├─10 inlineCode "FN"
+│    ├─11 text " is "
+│    ├─12 inlineCode "fn"
+│    ├─13 text ", mdast's "
+│    ├─14 inlineCode "heading"
+│    ├─15 text " is "
+│    ├─16 inlineCode "heading"
+│    ├─17 text " (its depth is data, not six kinds). When a token's name collides with a node's (Python's "
+│    ├─18 inlineCode "NAME"
+│    ├─19 text " and "
+│    ├─20 inlineCode "Name"
+│    ├─21 text "), the token takes the suffix "
+│    ├─22 inlineCode "-token"
+│    ├─23 text ": "
+│    ├─24 inlineCode "name-token"
+│    └─25 text ". The words are consistent RyoQL, guessable from the standard's page, and the existing rules of Rust do not change."
+├─30 paragraph[6]
+│    ├─0 strong[1]
+│    │   └─0 text "The shape rail."
+│    ├─1 text " A language's walk or oracle compares the library's tree, mapped into the standard's vocabulary, with something independent of the code that built it: either an independent walk of the library's own tree ("
+│    ├─2 inlineCode "fixtures/walk.rs"
+│    ├─3 text "), or a projection of the standard itself (Python's comparison with "
+│    ├─4 inlineCode "ast.dump"
+│    └─5 text "). The conformance accepts either, so no language keeps a walk that compares the adapter with itself; a walk that stays only places the tokens."
+├─31 paragraph[2]
+│    ├─0 strong[1]
+│    │   └─0 text "Not yet true."
+│    └─1 text " \"One command writes the whole tree\": the scaffold writes a partial tree today. It is to be fixed, and judged for what it spares the author, as each language is built."
+├─32 heading[3]
+│    │ depth: 2
+│    ├─0 text "Where each part goes ("
+│    ├─1 inlineCode "languages/<lang>/"
+│    └─2 text ")"
+├─33 table[12]
+│    │ align: [null,null,null]
+│    ├─0  tableRow[3]
+│    │    ├─0 tableCell[1]
+│    │    │   └─0 text "part"
+│    │    ├─1 tableCell[1]
+│    │    │   └─0 text "where"
+│    │    └─2 tableCell[1]
+│    │        └─0 text "placed by"
+│    ├─1  tableRow[3]
+│    │    ├─0 tableCell[2]
+│    │    │   ├─0 inlineCode "impl Parse"
+│    │    │   └─1 text ", with every syntax answer"
+│    │    ├─1 tableCell[1]
+│    │    │   └─0 inlineCode "src/inbound/contracts/parse/contract.rs"
+│    │    └─2 tableCell[7]
+│    │        ├─0 text "the "
+│    │        ├─1 inlineCode "language"
+│    │        ├─2 text " spec's "
+│    │        ├─3 inlineCode "parse-contract"
+│    │        ├─4 text " part ("
+│    │        ├─5 inlineCode "languages::Parse"
+│    │        └─6 text ")"
+│    ├─2  tableRow[3]
+│    │    ├─0 tableCell[2]
+│    │    │   ├─0 inlineCode "impl Project"
+│    │    │   └─1 text ", with every manifest answer"
+│    │    ├─1 tableCell[1]
+│    │    │   └─0 inlineCode "src/inbound/contracts/project/contract.rs"
+│    │    └─2 tableCell[3]
+│    │        ├─0 text "the same ("
+│    │        ├─1 inlineCode "languages::Project"
+│    │        └─2 text ")"
+│    ├─3  tableRow[3]
+│    │    ├─0 tableCell[1]
+│    │    │   └─0 text "the item of a relation it reads: the reader and the rows it writes"
+│    │    ├─1 tableCell[12]
+│    │    │   ├─0  inlineCode "src/domain/{relations,manifests,links}/collections/<collection>/<name>/item.rs"
+│    │    │   ├─1  text ", and nowhere else (the rule "
+│    │    │   ├─2  inlineCode "readers-in-items"
+│    │    │   ├─3  text "); the item is declared with "
+│    │    │   ├─4  inlineCode "ryo::reads!"
+│    │    │   ├─5  text ", the only way an item gets "
+│    │    │   ├─6  inlineCode "ryo::languages::ReadItem"
+│    │    │   ├─7  text " (syntax relations) or "
+│    │    │   ├─8  inlineCode "ryo::languages::ManifestItem"
+│    │    │   ├─9  text " (manifests and links): both traits are sealed, so a reader written by hand does not compile (the ui case "
+│    │    │   ├─10 inlineCode "fail_read_item_written_by_hand"
+│    │    │   └─11 text ")"
+│    │    └─2 tableCell[7]
+│    │        ├─0 text "the compiler: "
+│    │        ├─1 inlineCode "Support::reads::<Item>()"
+│    │        ├─2 text " makes the answer from the item, whose "
+│    │        ├─3 inlineCode "READER"
+│    │        ├─4 text " is a "
+│    │        ├─5 inlineCode "Reader"
+│    │        └─6 text " of the relation the trait names; the conformance holds the rows"
+│    ├─4  tableRow[3]
+│    │    ├─0 tableCell[1]
+│    │    │   └─0 text "its own tastemaker.toml"
+│    │    ├─1 tableCell[1]
+│    │    │   └─0 inlineCode "tastemaker.toml"
+│    │    └─2 tableCell[1]
+│    │        └─0 text "declares the parser libraries it reads with"
+│    ├─5  tableRow[3]
+│    │    ├─0 tableCell[3]
+│    │    │   ├─0 text "the syntax adapter (the parser library, behind the "
+│    │    │   ├─1 inlineCode "syntax"
+│    │    │   └─2 text " port)"
+│    │    ├─1 tableCell[1]
+│    │    │   └─0 inlineCode "src/outbound/syntax/adapters/<library>/adapter.rs"
+│    │    └─2 tableCell[5]
+│    │        ├─0 text "the "
+│    │        ├─1 inlineCode "port"
+│    │        ├─2 text " and "
+│    │        ├─3 inlineCode "adapter"
+│    │        └─4 text " specs; the parser's crate is imported there and nowhere else"
+│    ├─6  tableRow[3]
+│    │    ├─0 tableCell[1]
+│    │    │   └─0 text "the project adapter (the tool that reads manifests)"
+│    │    ├─1 tableCell[1]
+│    │    │   └─0 inlineCode "src/outbound/project/adapters/<tool>/adapter.rs"
+│    │    └─2 tableCell[1]
+│    │        └─0 text "the same; the only place a language touches the file system or runs a process"
+│    ├─7  tableRow[3]
+│    │    ├─0 tableCell[1]
+│    │    │   └─0 text "the fixture of a relation it reads"
+│    │    ├─1 tableCell[11]
+│    │    │   ├─0  text "the input in "
+│    │    │   ├─1  inlineCode "tests/fixtures/relations/<relation>/input.<ext>"
+│    │    │   ├─2  text ", and the typed rows it must give in "
+│    │    │   ├─3  inlineCode "tests/fixtures/relations/<relation>/expected.rs"
+│    │    │   ├─4  text ", which "
+│    │    │   ├─5  inlineCode "src/fixtures/relations.rs"
+│    │    │   ├─6  text " includes ("
+│    │    │   ├─7  inlineCode "fixtures::expected()"
+│    │    │   ├─8  text "; no table file: "
+│    │    │   ├─9  inlineCode "no-tsv"
+│    │    │   └─10 text ")"
+│    │    └─2 tableCell[1]
+│    │        └─0 text "the conformance, below"
+│    ├─8  tableRow[3]
+│    │    ├─0 tableCell[1]
+│    │    │   └─0 text "the fixture of its manifests"
+│    │    ├─1 tableCell[3]
+│    │    │   ├─0 inlineCode "tests/fixtures/manifests/<case>/"
+│    │    │   ├─1 text " (a repository) and the typed rows of its manifest relations in "
+│    │    │   └─2 inlineCode "src/fixtures/<case>.rs"
+│    │    └─2 tableCell[1]
+│    │        └─0 text "the conformance, below"
+│    ├─9  tableRow[3]
+│    │    ├─0 tableCell[1]
+│    │    │   └─0 text "the allocation test"
+│    │    ├─1 tableCell[1]
+│    │    │   └─0 inlineCode "tests/allocation.rs"
+│    │    └─2 tableCell[7]
+│    │        ├─0 text "the template "
+│    │        ├─1 inlineCode "language-allocation-test"
+│    │        ├─2 text ", closed (the engine's test, written once; its samples are the fixtures and "
+│    │        ├─3 inlineCode "tests/fixtures/allocation/"
+│    │        ├─4 text ", its bound "
+│    │        ├─5 inlineCode "read_tree"
+│    │        └─6 text " through a builder that builds nothing)"
+│    ├─10 tableRow[3]
+│    │    ├─0 tableCell[1]
+│    │    │   └─0 text "the conformance test"
+│    │    ├─1 tableCell[1]
+│    │    │   └─0 inlineCode "tests/conformance.rs"
+│    │    └─2 tableCell[3]
+│    │        ├─0 text "the template "
+│    │        ├─1 inlineCode "language-conformance-test"
+│    │        └─2 text ", closed: a language holds its answers and its fixtures, and every test is the engine's"
+│    └─11 tableRow[3]
+│         ├─0 tableCell[1]
+│         │   └─0 text "the line that links it to a program"
+│         ├─1 tableCell[6]
+│         │   ├─0 inlineCode "src/lib.rs"
+│         │   ├─1 text ", "
+│         │   ├─2 inlineCode "pub fn linked()"
+│         │   ├─3 text ", made with "
+│         │   ├─4 inlineCode "ryo::link!(\"<directory>\", parse: .., project: ..)"
+│         │   └─5 text ", which names the language by the directory name it is given and builds it by its crate's version; the conformance asserts the name is the directory's"
+│         └─2 tableCell[5]
+│             ├─0 inlineCode "cli/src/languages.rs"
+│             ├─1 text ", written by "
+│             ├─2 inlineCode "cli/build.rs"
+│             ├─3 text " from "
+│             └─4 inlineCode "languages/"
+├─34 heading[1]
+│    │ depth: 2
+│    └─0 text "The spec"
+├─35 paragraph[16]
+│    ├─0  inlineCode "tastemaker/specs/language"
+│    ├─1  text " (the package "
+│    ├─2  inlineCode "crates/ryo/tastemaker"
+│    ├─3  text ") places a language's two tests and, with the rules of the product's "
+│    ├─4  inlineCode "tastemaker.toml"
+│    ├─5  text " over "
+│    ├─6  inlineCode "languages/*"
+│    ├─7  text " (a rule of a spec cannot see the files that "
+│    ├─8  inlineCode "nu-hex"
+│    ├─9  text " nests inside a language: its use cases, ports and concepts), holds it, beside its "
+│    ├─10 inlineCode "crate"
+│    ├─11 text " and "
+│    ├─12 inlineCode "nu-hex"
+│    ├─13 text " entries, by one entry over\n"
+│    ├─14 inlineCode "languages/{lang}"
+│    └─15 text ". Each concept a language fulfils is held first by the compiler, then by the conformance, then by Tastemaker,\nand each rule branch has a failing fixture in its rule:"
+├─36 table[10]
+│    │ align: [null,null,null,null]
+│    ├─0 tableRow[4]
+│    │   ├─0 tableCell[1]
+│    │   │   └─0 text "concept"
+│    │   ├─1 tableCell[1]
+│    │   │   └─0 text "compiler"
+│    │   ├─2 tableCell[1]
+│    │   │   └─0 text "conformance"
+│    │   └─3 tableCell[1]
+│    │       └─0 text "Tastemaker (spec fixture)"
+│    ├─1 tableRow[4]
+│    │   ├─0 tableCell[1]
+│    │   │   └─0 text "it answers every relation"
+│    │   ├─1 tableCell[4]
+│    │   │   ├─0 inlineCode "Parse"
+│    │   │   ├─1 text ", "
+│    │   │   ├─2 inlineCode "Project"
+│    │   │   └─3 text ": one required method for each, which a scaffold leaves out so that the compiler lists them"
+│    │   ├─2 tableCell[5]
+│    │   │   ├─0 inlineCode "Reads"
+│    │   │   ├─1 text " has its fixture and its full rows, "
+│    │   │   ├─2 inlineCode "NotInThisLanguage"
+│    │   │   ├─3 text " has no fixture with the construct and a required "
+│    │   │   └─4 inlineCode "Reason"
+│    │   └─3 tableCell[6]
+│    │       ├─0 inlineCode "language-parts"
+│    │       ├─1 text " ("
+│    │       ├─2 inlineCode "no-parse"
+│    │       ├─3 text ", "
+│    │       ├─4 inlineCode "missing-project-use-case"
+│    │       └─5 text ")"
+│    ├─2 tableRow[4]
+│    │   ├─0 tableCell[1]
+│    │   │   └─0 text "its kinds are one vocabulary"
+│    │   ├─1 tableCell[3]
+│    │   │   ├─0 text "the adapter maps every library name onto the variant of the same name; "
+│    │   │   ├─1 inlineCode "sample(kind)"
+│    │   │   └─2 text " is a match with no wildcard arm, so a kind the grammar gains is a compile error until it is shown"
+│    │   ├─2 tableCell[6]
+│    │   │   ├─0 inlineCode "kind_count"
+│    │   │   ├─1 text " is above 0 and fits a walk; every kind with a sample is read by some relation's "
+│    │   │   ├─2 inlineCode "kinds:"
+│    │   │   ├─3 text " or marked "
+│    │   │   ├─4 inlineCode "Sample::Unread(reason)"
+│    │   │   └─5 text " (the unread check), and a sample's tree holds an element of its kind"
+│    │   └─3 tableCell[6]
+│    │       ├─0 inlineCode "language-parts"
+│    │       ├─1 text " ("
+│    │       ├─2 inlineCode "missing-kinds"
+│    │       ├─3 text ", "
+│    │       ├─4 inlineCode "kind-directory"
+│    │       └─5 text ")"
+│    ├─3 tableRow[4]
+│    │   ├─0 tableCell[1]
+│    │   │   └─0 text "it reads with a parser library"
+│    │   ├─1 tableCell[0]
+│    │   ├─2 tableCell[0]
+│    │   └─3 tableCell[5]
+│    │       ├─0 inlineCode "language-parts"
+│    │       ├─1 text " ("
+│    │       ├─2 inlineCode "missing-syntax-adapter"
+│    │       ├─3 text "), "
+│    │       └─4 inlineCode "client-at-adapter"
+│    ├─4 tableRow[4]
+│    │   ├─0 tableCell[1]
+│    │   │   └─0 text "it reads a project"
+│    │   ├─1 tableCell[0]
+│    │   ├─2 tableCell[2]
+│    │   │   ├─0 text "the full typed rows of each "
+│    │   │   └─1 inlineCode "manifests/<case>/"
+│    │   └─3 tableCell[6]
+│    │       ├─0 inlineCode "language-parts"
+│    │       ├─1 text " ("
+│    │       ├─2 inlineCode "missing-project-adapter"
+│    │       ├─3 text ", "
+│    │       ├─4 inlineCode "missing-manifests-fixtures"
+│    │       └─5 text ")"
+│    ├─5 tableRow[4]
+│    │   ├─0 tableCell[1]
+│    │   │   └─0 text "it is held to fixtures"
+│    │   ├─1 tableCell[0]
+│    │   ├─2 tableCell[1]
+│    │   │   └─0 inlineCode "tests/fixtures/{relations,manifests,allocation}"
+│    │   └─3 tableCell[6]
+│    │       ├─0 inlineCode "language-parts"
+│    │       ├─1 text " ("
+│    │       ├─2 inlineCode "missing-relations-fixtures"
+│    │       ├─3 text ", "
+│    │       ├─4 inlineCode "missing-allocation-fixtures"
+│    │       └─5 text ")"
+│    ├─6 tableRow[4]
+│    │   ├─0 tableCell[1]
+│    │   │   └─0 text "a row is numbers"
+│    │   ├─1 tableCell[0]
+│    │   ├─2 tableCell[1]
+│    │   │   └─0 text "the allocation test"
+│    │   └─3 tableCell[1]
+│    │       └─0 inlineCode "no-string-fields"
+│    ├─7 tableRow[4]
+│    │   ├─0 tableCell[1]
+│    │   │   └─0 text "it touches no file or process but in its project adapter"
+│    │   ├─1 tableCell[0]
+│    │   ├─2 tableCell[0]
+│    │   └─3 tableCell[1]
+│    │       └─0 inlineCode "io-at-boundary"
+│    ├─8 tableRow[4]
+│    │   ├─0 tableCell[1]
+│    │   │   └─0 text "it is linked"
+│    │   ├─1 tableCell[0]
+│    │   ├─2 tableCell[0]
+│    │   └─3 tableCell[4]
+│    │       ├─0 inlineCode "language-parts"
+│    │       ├─1 text " ("
+│    │       ├─2 inlineCode "lib-without-linked"
+│    │       └─3 text ")"
+│    └─9 tableRow[4]
+│        ├─0 tableCell[1]
+│        │   └─0 text "it proves itself"
+│        ├─1 tableCell[8]
+│        │   ├─0 inlineCode "autotests = false"
+│        │   ├─1 text " and a "
+│        │   ├─2 inlineCode "[[test]]"
+│        │   ├─3 text " for "
+│        │   ├─4 inlineCode "conformance"
+│        │   ├─5 text " and "
+│        │   ├─6 inlineCode "allocation"
+│        │   └─7 text " in its manifest"
+│        ├─2 tableCell[3]
+│        │   ├─0 inlineCode "tests/conformance.rs"
+│        │   ├─1 text ", "
+│        │   └─2 inlineCode "tests/allocation.rs"
+│        └─3 tableCell[5]
+│            ├─0 text "the templates ("
+│            ├─1 inlineCode "missing-conformance-test"
+│            ├─2 text ", "
+│            ├─3 inlineCode "missing-allocation-test"
+│            └─4 text ")"
+├─37 paragraph[41]
+│    ├─0  text "A reader is a declaration. "
+│    ├─1  inlineCode "ryo::reads!"
+│    ├─2  text " takes the relation, the names its code uses ("
+│    ├─3  inlineCode "|tree, at, symbols|"
+│    ├─4  text "), the kinds it looks\nat ("
+│    ├─5  inlineCode "kinds: [..] as kind_bits"
+│    ├─6  text ", or "
+│    ├─7  inlineCode "every"
+│    ├─8  text ") and statements: "
+│    ├─9  inlineCode "require"
+│    ├─10 text ", "
+│    ├─11 inlineCode "given"
+│    ├─12 text ", "
+│    ├─13 inlineCode "row { column: form }"
+│    ├─14 text " with the forms "
+│    ├─15 inlineCode "node"
+│    ├─16 text ",\n"
+│    ├─17 inlineCode "file"
+│    ├─18 text ", "
+│    ├─19 inlineCode "span"
+│    ├─20 text ", "
+│    ├─21 inlineCode "text"
+│    ├─22 text " and "
+│    ├─23 inlineCode "value"
+│    ├─24 text ", "
+│    ├─25 inlineCode "partial"
+│    ├─26 text ", "
+│    ├─27 inlineCode "when <function>(..)"
+│    ├─28 text " for one branch per shape a model function answers, and\n"
+│    ├─29 inlineCode "each (<list>) as (<ordinal>, <item>)"
+│    ├─30 text ". The row is the relation's own, so a column left out or one it does not have fails to\ncompile at the row. A reader of trees that would search the file again for each element it is given (the header an entry belongs to, the entries of a table) works the answer out once for each file with "
+│    ├─31 inlineCode "model <name>: <Type> = (<expression>);"
+│    ├─32 text " as its first statement after "
+│    ├─33 inlineCode "kinds:"
+│    ├─34 text "; the expression sees the tree, and the statements see "
+│    ├─35 inlineCode "<name>"
+│    ├─36 text " as a reference to the value. A manifest or link reader names the model it reads ("
+│    ├─37 inlineCode "model <name>: <Type> = (<function>(input..))"
+│    ├─38 text ") and writes its\nrows from the model alone. The functions a statement calls are the language's model, in "
+│    ├─39 inlineCode "domain/<concept>/service.rs"
+│    └─40 text ": they answer\nvalues and never write a row. A rule of Rust that needs a loop is a model function that answers an iterator."
+├─38 heading[1]
+│    │ depth: 2
+│    └─0 text "What a query may name"
+├─39 paragraph[19]
+│    ├─0  text "A word compared with a column that holds a closed set of words is one of them: "
+│    ├─1  inlineCode "kind = \"headline\""
+│    ├─2  text " on "
+│    ├─3  inlineCode "defines"
+│    ├─4  text " is refused when the query is compiled, with the words there are ("
+│    ├─5  inlineCode "`headline` is not a kind of defines; the kinds are function, method, .."
+│    ├─6  text "), and the rule does not run. The columns are "
+│    ├─7  inlineCode "defines.kind"
+│    ├─8  text ", "
+│    ├─9  inlineCode "parameter.kind"
+│    ├─10 text ", "
+│    ├─11 inlineCode "entry.kind"
+│    ├─12 text ", "
+│    ├─13 inlineCode "sequence-element.kind"
+│    ├─14 text ", "
+│    ├─15 inlineCode "mapping.kind"
+│    ├─16 text " and "
+│    ├─17 inlineCode "package-dependency.kind"
+│    └─18 text "."
+├─40 paragraph[13]
+│    ├─0  text "A word a rule compares the kind of a node or a token with ("
+│    ├─1  inlineCode "syntax-tree.kind"
+│    ├─2  text ", with "
+│    ├─3  inlineCode "="
+│    ├─4  text ", "
+│    ├─5  inlineCode "in"
+│    ├─6  text " or a glob) names a kind of some linked language, or the run fails before a file is read, naming the word and the languages ("
+│    ├─7  inlineCode "kind `function-declaration` names no kind of rust, toml, markdown, python"
+│    ├─8  text "). A language declares the names of its kinds with "
+│    ├─9  inlineCode "kind_names()"
+│    ├─10 text ", each once, as many as "
+│    ├─11 inlineCode "kind_count()"
+│    └─12 text "; the conformance holds both. The refinement and the field of a node are the language's own words and have no list yet, so a word compared with them is not checked."
+├─41 heading[1]
+│    │ depth: 2
+│    └─0 text "What a reader may rely on"
+├─42 paragraph[13]
+│    ├─0  text "A reader is given the tree: the kinds and the positions of its elements, their text, and the roles of the children under their parents ("
+│    ├─1  inlineCode "languages::field_at"
+│    ├─2  text ", "
+│    ├─3  inlineCode "field_name_at"
+│    ├─4  text ") when the run asks for them, which it does only when a rule reads "
+│    ├─5  inlineCode "syntax-tree.field"
+│    ├─6  text ". A language whose own relations need the role of an element works it out from the tree as Rust does ("
+│    ├─7  inlineCode "fields::field_of"
+│    ├─8  text "), or writes it with "
+│    ├─9  inlineCode "write_fields"
+│    ├─10 text " in "
+│    ├─11 inlineCode "complete"
+│    └─12 text "; it does not count on the run asking."
+├─43 paragraph[3]
+│    ├─0 text "A language held to an official suite whose files cannot all be read (written for another version of the language, or valid only to a semantic checker) leaves those files out by name in the suite's "
+│    ├─1 inlineCode "NOTICE"
+│    └─2 text " with the reason for each; it never changes a file, and never counts a file it leaves out as read."
+├─44 heading[1]
+│    │ depth: 2
+│    └─0 text "The keyed relations"
+├─45 paragraph[1]
+│    └─0 text "A data document (TOML, JSON, YAML) is read as three relations, each a different row of the same tree. These are the decisions a language\nfulfils; each has an example, written for TOML."
+├─46 table[9]
+│    │ align: [null,null]
+│    ├─0 tableRow[2]
+│    │   ├─0 tableCell[1]
+│    │   │   └─0 text "decision"
+│    │   └─1 tableCell[1]
+│    │       └─0 text "rule"
+│    ├─1 tableRow[2]
+│    │   ├─0 tableCell[1]
+│    │   │   └─0 text "the root"
+│    │   └─1 tableCell[15]
+│    │       ├─0  text "The document is the file's root element (position 0). A document whose top level is a table of keys has one root "
+│    │       ├─1  inlineCode "mapping"
+│    │       ├─2  text " row whose "
+│    │       ├─3  inlineCode "id"
+│    │       ├─4  text " is the root element, whose "
+│    │       ├─5  inlineCode "kind"
+│    │       ├─6  text " is "
+│    │       ├─7  inlineCode "standard"
+│    │       ├─8  text " and whose "
+│    │       ├─9  inlineCode "owner"
+│    │       ├─10 text " is the root element itself. A document whose top level is a sequence has no root mapping; its "
+│    │       ├─11 inlineCode "sequence_element"
+│    │       ├─12 text " rows have the root element as "
+│    │       ├─13 inlineCode "owner"
+│    │       └─14 text "."
+│    ├─2 tableRow[2]
+│    │   ├─0 tableCell[1]
+│    │   │   └─0 text "the anchor of a mapping"
+│    │   └─1 tableCell[16]
+│    │       ├─0  inlineCode "mapping.id"
+│    │       ├─1  text " is the element where the mapping is first written: its header ("
+│    │       ├─2  inlineCode "[a]"
+│    │       ├─3  text ", "
+│    │       ├─4  inlineCode "[[a]]"
+│    │       ├─5  text "), the first dotted key that names it ("
+│    │       ├─6  inlineCode "a.b = 1"
+│    │       ├─7  text " names "
+│    │       ├─8  inlineCode "a"
+│    │       ├─9  text "), or the first longer header that implies it ("
+│    │       ├─10 inlineCode "[a.b]"
+│    │       ├─11 text " implies "
+│    │       ├─12 inlineCode "a"
+│    │       ├─13 text "). A mapping never written by itself is "
+│    │       ├─14 inlineCode "implicit"
+│    │       └─15 text " and anchored at that first longer header's segment, so the same mapping has the same id however many later headers pass through it."
+│    ├─3 tableRow[2]
+│    │   ├─0 tableCell[1]
+│    │   │   └─0 inlineCode "entry.ordinal"
+│    │   └─1 tableCell[1]
+│    │       └─0 text "The place of the key among the keys of its owner, from zero, in the order the keys are first written, counting each key once (a table reopened by a second header continues the count)."
+│    ├─4 tableRow[2]
+│    │   ├─0 tableCell[1]
+│    │   │   └─0 inlineCode "mapping.ordinal"
+│    │   └─1 tableCell[3]
+│    │       ├─0 text "The place among the mappings of a sequence of mappings ("
+│    │       ├─1 inlineCode "[[a]]"
+│    │       └─2 text "), from zero; zero for every other mapping."
+│    ├─5 tableRow[2]
+│    │   ├─0 tableCell[1]
+│    │   │   └─0 inlineCode "sequence_element.ordinal"
+│    │   └─1 tableCell[1]
+│    │       └─0 text "The place in its sequence, from zero."
+│    ├─6 tableRow[2]
+│    │   ├─0 tableCell[1]
+│    │   │   └─0 inlineCode "owner"
+│    │   └─1 tableCell[6]
+│    │       ├─0 inlineCode "entry.owner"
+│    │       ├─1 text " is the mapping that holds the key (the root mapping for a top-level key); "
+│    │       ├─2 inlineCode "mapping.owner"
+│    │       ├─3 text " is the entry or sequence element whose value the mapping is (the root element for the root mapping); "
+│    │       ├─4 inlineCode "sequence_element.owner"
+│    │       └─5 text " is the entry or element that holds the sequence."
+│    ├─7 tableRow[2]
+│    │   ├─0 tableCell[1]
+│    │   │   └─0 text "value kinds"
+│    │   └─1 tableCell[20]
+│    │       ├─0  inlineCode "string"
+│    │       ├─1  text ", "
+│    │       ├─2  inlineCode "integer"
+│    │       ├─3  text ", "
+│    │       ├─4  inlineCode "float"
+│    │       ├─5  text ", "
+│    │       ├─6  inlineCode "boolean"
+│    │       ├─7  text ", "
+│    │       ├─8  inlineCode "datetime"
+│    │       ├─9  text ", "
+│    │       ├─10 inlineCode "sequence"
+│    │       ├─11 text ", "
+│    │       ├─12 inlineCode "inline-mapping"
+│    │       ├─13 text ", "
+│    │       ├─14 inlineCode "mapping"
+│    │       ├─15 text ", "
+│    │       ├─16 inlineCode "sequence-of-mappings"
+│    │       ├─17 text ", and "
+│    │       ├─18 inlineCode "null"
+│    │       └─19 text " for the value that says there is none (JSON; TOML never writes it)."
+│    └─8 tableRow[2]
+│        ├─0 tableCell[1]
+│        │   └─0 inlineCode "decoded"
+│        └─1 tableCell[5]
+│            ├─0 text "The text the language's library decoded for a string value ("
+│            ├─1 inlineCode "decoded_token"
+│            ├─2 text " in the table builder), empty for every other kind; "
+│            ├─3 inlineCode "text"
+│            └─4 text " is the value as written."
+├─47 paragraph[3]
+│    ├─0 text "Example, "
+│    ├─1 inlineCode "tests/fixtures/relations/entry/input.toml"
+│    └─2 text ":"
+├─48 code "name = \"a\"\n[server]\nport = 80\n[[bins]]\npath = \"x\""
+│      lang: "toml"
+│      meta: null
+├─49 table[4]
+│    │ align: [null,null]
+│    ├─0 tableRow[2]
+│    │   ├─0 tableCell[1]
+│    │   │   └─0 text "relation"
+│    │   └─1 tableCell[1]
+│    │       └─0 text "rows (the ids are the starts of the elements named)"
+│    ├─1 tableRow[2]
+│    │   ├─0 tableCell[1]
+│    │   │   └─0 inlineCode "mapping"
+│    │   └─1 tableCell[18]
+│    │       ├─0  inlineCode "root"
+│    │       ├─1  text " (kind "
+│    │       ├─2  inlineCode "standard"
+│    │       ├─3  text ", ordinal 0, owner "
+│    │       ├─4  inlineCode "root"
+│    │       ├─5  text "); "
+│    │       ├─6  inlineCode "server"
+│    │       ├─7  text " ("
+│    │       ├─8  inlineCode "standard"
+│    │       ├─9  text ", 0, owner the entry "
+│    │       ├─10 inlineCode "server"
+│    │       ├─11 text "); the first "
+│    │       ├─12 inlineCode "[[bins]]"
+│    │       ├─13 text " ("
+│    │       ├─14 inlineCode "sequence-member"
+│    │       ├─15 text ", 0, owner the sequence element 0 of "
+│    │       ├─16 inlineCode "bins"
+│    │       └─17 text ")"
+│    ├─2 tableRow[2]
+│    │   ├─0 tableCell[1]
+│    │   │   └─0 inlineCode "entry"
+│    │   └─1 tableCell[36]
+│    │       ├─0  inlineCode "name"
+│    │       ├─1  text " (kind "
+│    │       ├─2  inlineCode "string"
+│    │       ├─3  text ", ordinal 0, owner "
+│    │       ├─4  inlineCode "root"
+│    │       ├─5  text ", decoded "
+│    │       ├─6  inlineCode "a"
+│    │       ├─7  text ", text "
+│    │       ├─8  inlineCode "\"a\""
+│    │       ├─9  text "); "
+│    │       ├─10 inlineCode "server"
+│    │       ├─11 text " ("
+│    │       ├─12 inlineCode "mapping"
+│    │       ├─13 text ", ordinal 1, owner "
+│    │       ├─14 inlineCode "root"
+│    │       ├─15 text "); "
+│    │       ├─16 inlineCode "port"
+│    │       ├─17 text " ("
+│    │       ├─18 inlineCode "integer"
+│    │       ├─19 text ", ordinal 0, owner the "
+│    │       ├─20 inlineCode "server"
+│    │       ├─21 text " mapping, text "
+│    │       ├─22 inlineCode "80"
+│    │       ├─23 text "); "
+│    │       ├─24 inlineCode "bins"
+│    │       ├─25 text " ("
+│    │       ├─26 inlineCode "sequence-of-mappings"
+│    │       ├─27 text ", ordinal 2, owner "
+│    │       ├─28 inlineCode "root"
+│    │       ├─29 text "); "
+│    │       ├─30 inlineCode "path"
+│    │       ├─31 text " ("
+│    │       ├─32 inlineCode "string"
+│    │       ├─33 text ", ordinal 0, owner the first "
+│    │       ├─34 inlineCode "bins"
+│    │       └─35 text " mapping)"
+│    └─3 tableRow[2]
+│        ├─0 tableCell[1]
+│        │   └─0 inlineCode "sequence_element"
+│        └─1 tableCell[7]
+│            ├─0 text "element 0 of "
+│            ├─1 inlineCode "bins"
+│            ├─2 text " (kind "
+│            ├─3 inlineCode "mapping"
+│            ├─4 text "... as a sequence member: owner the entry "
+│            ├─5 inlineCode "bins"
+│            └─6 text ", ordinal 0)"
+├─50 paragraph[31]
+│    ├─0  text "Dotted keys and implicit tables: "
+│    ├─1  inlineCode "a.b.c = 1"
+│    ├─2  text " gives the mappings "
+│    ├─3  inlineCode "a"
+│    ├─4  text " and "
+│    ├─5  inlineCode "a.b"
+│    ├─6  text " (kind "
+│    ├─7  inlineCode "dotted"
+│    ├─8  text ", anchored at the segments "
+│    ├─9  inlineCode "a"
+│    ├─10 text " and "
+│    ├─11 inlineCode "b"
+│    ├─12 text " of that key)\nand the entry "
+│    ├─13 inlineCode "c"
+│    ├─14 text " owned by "
+│    ├─15 inlineCode "a.b"
+│    ├─16 text "; "
+│    ├─17 inlineCode "[x.y]"
+│    ├─18 text " alone gives "
+│    ├─19 inlineCode "x"
+│    ├─20 text " (kind "
+│    ├─21 inlineCode "implicit"
+│    ├─22 text ", anchored at the segment "
+│    ├─23 inlineCode "x"
+│    ├─24 text " of the header) and "
+│    ├─25 inlineCode "x.y"
+│    ├─26 text "\n("
+│    ├─27 inlineCode "standard"
+│    ├─28 text ", anchored at the header); a later "
+│    ├─29 inlineCode "[x]"
+│    └─30 text " opens the mapping already there and keeps its anchor and its kind of first writing."
+├─51 heading[1]
+│    │ depth: 2
+│    └─0 text "Values a language cannot resolve"
+├─52 paragraph[7]
+│    ├─0 text "When a construct's target cannot be resolved statically (Python "
+│    ├─1 inlineCode "from m import *"
+│    ├─2 text ", JavaScript "
+│    ├─3 inlineCode "require(variable)"
+│    ├─4 text ", a dynamic "
+│    ├─5 inlineCode "import()"
+│    └─6 text ", a subscripted decorator), the reader writes the row with an explicit unknown value that carries a reason from the language's closed list. It never omits the row and never marks the whole file partial."
+├─53 table[4]
+│    │ align: [null,null]
+│    ├─0 tableRow[2]
+│    │   ├─0 tableCell[1]
+│    │   │   └─0 text "part"
+│    │   └─1 tableCell[1]
+│    │       └─0 text "rule"
+│    ├─1 tableRow[2]
+│    │   ├─0 tableCell[1]
+│    │   │   └─0 text "the value"
+│    │   └─1 tableCell[5]
+│    │       ├─0 text "a name column holds either a name or an unknown value: "
+│    │       ├─1 inlineCode "unknown_symbol(UnknownReason(n))"
+│    │       ├─2 text " is the same word in every file, "
+│    │       ├─3 inlineCode "n"
+│    │       └─4 text " being the place of the reason in the language's list"
+│    ├─2 tableRow[2]
+│    │   ├─0 tableCell[1]
+│    │   │   └─0 text "the list"
+│    │   └─1 tableCell[6]
+│    │       ├─0 inlineCode "Parse::unknown_reasons()"
+│    │       ├─1 text " is the language's closed list of "
+│    │       ├─2 inlineCode "UnknownName"
+│    │       ├─3 text "s, each named once; a language with no unresolvable construct declares "
+│    │       ├─4 inlineCode "&[]"
+│    │       └─5 text " (Rust does)"
+│    └─3 tableRow[2]
+│        ├─0 tableCell[1]
+│        │   └─0 text "the fixtures"
+│        └─1 tableCell[3]
+│            ├─0 text "every declared reason is shown by a fixture row whose value is "
+│            ├─1 inlineCode "unknown(\"<reason>\")"
+│            └─2 text ", and a fixture row may carry no reason the language does not declare; the conformance holds both"
+├─54 paragraph[7]
+│    ├─0 text "Example, a Python language declaring "
+│    ├─1 inlineCode "[\"wildcard-import\", \"dynamic-import\"]"
+│    ├─2 text ", for "
+│    ├─3 inlineCode "from m import *"
+│    ├─4 text " in "
+│    ├─5 inlineCode "tests/fixtures/relations/static_import/input.py"
+│    └─6 text ". The module is known and is the target, resolved as any other import's; only the names it binds are not, so the binding is the unknown value, and nothing the file says is lost:"
+├─55 code "StaticImportExpectedRow {\n    occurrence: node(3),\n    owner: node(0),\n    binding: unknown(\"wildcard-import\"),\n    target: name(\"m\"),\n    file: file(\"static_import/input.py\"),\n    span: span((1, 1), (1, 19)),\n},"
+│      lang: "rust"
+│      meta: null
+├─56 paragraph[5]
+│    ├─0 text "The unknown value is a word of its own among the words of the closed sets ("
+│    ├─1 inlineCode "terms"
+│    ├─2 text ", block "
+│    ├─3 inlineCode "Unknown"
+│    └─4 text "), so it compares equal to itself in every file. The conformance shows it by the reason's name; showing the name in an engine listing from the language's list is not wired yet (a listing shows the word with no text)."
+├─57 heading[1]
+│    │ depth: 2
+│    └─0 text "A file is read, never refused"
+├─58 paragraph[7]
+│    ├─0 text "Bytes that are not valid text are read: the valid text keeps its tree, and the rest is an error token with a diagnostic, at the offsets it has in the file (the Rust language reads each byte that is part of no character as a control character the lexer reports). "
+│    ├─1 inlineCode "ParseError"
+│    ├─2 text " has no case for them: a refusal is for a language that does not read the file ("
+│    ├─3 inlineCode "Unsupported"
+│    ├─4 text ") and for a library that fails ("
+│    ├─5 inlineCode "Library"
+│    └─6 text "), and the shared rails treat a refusal of a file of the suite or the corpus as a failure."
+├─59 heading[1]
+│    │ depth: 2
+│    └─0 text "What a language works out of a file once"
+├─60 paragraph[17]
+│    ├─0  text "A language that would search a file again for each element a reader is given (TOML: the header an entry belongs to, the ordinal of an entry) works it out once, when it parses the file, and its readers read it. "
+│    ├─1  inlineCode "Parse::FileModel"
+│    ├─2  text " is the type ("
+│    ├─3  inlineCode "()"
+│    ├─4  text " for a language that needs none; it is "
+│    ├─5  inlineCode "Default"
+│    ├─6  text ") and "
+│    ├─7  inlineCode "Parse::file_model(tree, model)"
+│    ├─8  text " refills it: the engine makes one model for each worker, keeps it with the worker's table between files and gives it back, so a file costs no allocation the last did not pay, and the language clears what it keeps and writes the file's. The model and the language that makes it may be private to their crate: the associated type of a crate-private type is crate-private, and the engine holds the model behind an interface that never names it ("
+│    ├─9  inlineCode "tests/ui/pass_crate_private_file_model.rs"
+│    ├─10 text "); a reader is declared "
+│    ├─11 inlineCode "Item => Relation, model(FileModel) |tree, model, at, symbols| { .. }"
+│    ├─12 text ". The text a library decodes from a token (the value of a string with its escapes resolved) is written by the adapter with "
+│    ├─13 inlineCode "decoded_token"
+│    ├─14 text ", and a reader reads it with "
+│    ├─15 inlineCode "decoded_at"
+│    └─16 text "; no language decodes text a second time."
+├─61 heading[1]
+│    │ depth: 2
+│    └─0 text "Per-language notes"
+├─62 list[1]
+│    │ ordered: false
+│    │ start: null
+│    │ spread: false
+│    └─0 listItem[1]
+│        │ spread: false
+│        │ checked: null
+│        └─0 paragraph[15]
+│            ├─0  text "JavaScript and TypeScript follow oxc's source-type defaults: JSX only in "
+│            ├─1  inlineCode ".jsx"
+│            ├─2  text " and "
+│            ├─3  inlineCode ".tsx"
+│            ├─4  text ", "
+│            ├─5  inlineCode ".mjs"
+│            ├─6  text " is a module, "
+│            ├─7  inlineCode ".cjs"
+│            ├─8  text " is CommonJS, "
+│            ├─9  inlineCode ".js"
+│            ├─10 text " is unambiguous. JSX in a "
+│            ├─11 inlineCode ".js"
+│            ├─12 text " file is a "
+│            ├─13 inlineCode "syntax_error"
+│            └─14 text " row, as oxc reports it."
+├─63 heading[1]
+│    │ depth: 2
+│    └─0 text "The conformance"
+├─64 paragraph[4]
+│    ├─0 inlineCode "ryo::languages::contract::conformance(linked, manifest_dir, fixtures)"
+│    ├─1 text " holds each answer to the fixtures and the typed rows\nthe language states ("
+│    ├─2 inlineCode "Fixtures"
+│    └─3 text ": its kinds, the rows of each relation, the rows of each project), the same for every language:"
+├─65 list[8]
+│    │ ordered: false
+│    │ start: null
+│    │ spread: false
+│    ├─0 listItem[1]
+│    │   │ spread: false
+│    │   │ checked: null
+│    │   └─0 paragraph[15]
+│    │       ├─0  text "a relation answered "
+│    │       ├─1  inlineCode "Reads"
+│    │       ├─2  text " has "
+│    │       ├─3  inlineCode "relations/<relation>/"
+│    │       ├─4  text " with an input, and the rows the language writes for the input, each in\nfull (a node as its place in the table, a name as its text, a span as "
+│    │       ├─5  inlineCode "line:column"
+│    │       ├─6  text " on each end), are the typed rows the language\nstates, no more and no fewer; a mismatch prints the rows the language wrote in the syntax of "
+│    │       ├─7  inlineCode "expected.rs"
+│    │       ├─8  text "\n("
+│    │       ├─9  inlineCode "span((1, 1), (1, 8))"
+│    │       ├─10 text "), so a wrong expectation is corrected by copying them, and "
+│    │       ├─11 inlineCode "cargo test --test conformance -- --bless"
+│    │       ├─12 text " writes them as the "
+│    │       ├─13 inlineCode "expected.rs"
+│    │       └─14 text " of each relation, to be reviewed in the diff;"
+│    ├─1 listItem[1]
+│    │   │ spread: false
+│    │   │ checked: null
+│    │   └─0 paragraph[7]
+│    │       ├─0 text "a relation answered "
+│    │       ├─1 inlineCode "NotInThisLanguage"
+│    │       ├─2 text " has no "
+│    │       ├─3 inlineCode "relations/<relation>/"
+│    │       ├─4 text " (a fixture with the construct present\nfails the answer) and says why in its required "
+│    │       ├─5 inlineCode "Reason"
+│    │       └─6 text "; a scaffold answers nothing, so the compiler lists what is\nleft to answer, and no default can pass for an answer;"
+│    ├─2 listItem[1]
+│    │   │ spread: false
+│    │   │ checked: null
+│    │   └─0 paragraph[10]
+│    │       ├─0 inlineCode "--bless"
+│    │       ├─1 text " writes the "
+│    │       ├─2 inlineCode "expected.rs"
+│    │       ├─3 text " of each relation from what the language wrote. Where the expected rows do not compile (a column was added) or are not there, build the language without them: a language leaves them out of its build under "
+│    │       ├─4 inlineCode "#[cfg(bless)]"
+│    │       ├─5 text " (Rust: "
+│    │       ├─6 inlineCode "fixtures.rs"
+│    │       ├─7 text "), and "
+│    │       ├─8 inlineCode "RUSTFLAGS='--cfg bless' cargo test -p <crate> --all-features --test conformance -- --bless"
+│    │       └─9 text " writes them from scratch;"
+│    ├─3 listItem[1]
+│    │   │ spread: false
+│    │   │ checked: null
+│    │   └─0 paragraph[25]
+│    │       ├─0  text "the rails hold every input of the language (the inputs of its relations' fixtures, "
+│    │       ├─1  inlineCode "tests/fixtures/suite/valid/"
+│    │       ├─2  text ", "
+│    │       ├─3  inlineCode "tests/fixtures/suite/invalid/"
+│    │       ├─4  text " and "
+│    │       ├─5  inlineCode "tests/fixtures/corpus/"
+│    │       ├─6  text ", each required to hold a file) to four checks: (1) the tokens of the tree, in order, spell the file byte for byte; (2) the tree has the shape of the library's own tree (nesting, the kind the language maps each kind of the library to, spans), by the walk of its library the language supplies ("
+│    │       ├─7  inlineCode "Fixtures.walk"
+│    │       ├─8  text ", giving "
+│    │       ├─9  inlineCode "Walked"
+│    │       ├─10 text "); (3) the rows say what the library's own semantic model says, by the oracle the language supplies ("
+│    │       ├─11 inlineCode "Fixtures.oracle"
+│    │       ├─12 text ", given the text and the rows of every relation it reads from trees, answering what differs; the oracle is not run on the suite's invalid files); (4) the suite's "
+│    │       ├─13 inlineCode "valid"
+│    │       ├─14 text " files give no syntax error and its "
+│    │       ├─15 inlineCode "invalid"
+│    │       ├─16 text " files at least one. The suite is the language's pinned official one (for Rust, rust-analyzer's "
+│    │       ├─17 inlineCode "crates/parser/test_data/parser/{ok,err,inline}"
+│    │       ├─18 text " from the pinned "
+│    │       ├─19 inlineCode "ra_ap_parser"
+│    │       ├─20 text "; a file written for an edition the language does not read is left out, with the reason in "
+│    │       ├─21 inlineCode "corpus/NOTICE"
+│    │       ├─22 text "); the corpus is real files, whose origin and licence "
+│    │       ├─23 inlineCode "corpus/NOTICE"
+│    │       └─24 text " states;"
+│    ├─4 listItem[1]
+│    │   │ spread: false
+│    │   │ checked: null
+│    │   └─0 paragraph[22]
+│    │       ├─0  inlineCode "syntax_tree"
+│    │       ├─1  text " and "
+│    │       ├─2  inlineCode "syntax_error"
+│    │       ├─3  text " are relations like the others: the input of the "
+│    │       ├─4  inlineCode "syntax_error"
+│    │       ├─5  text " fixture is the\nbroken file the contract reads, and a language that answers "
+│    │       ├─6  inlineCode "syntax_error"
+│    │       ├─7  text " "
+│    │       ├─8  inlineCode "NotInThisLanguage"
+│    │       ├─9  text " has none (a broken input a\ntool of the repository cannot read is left out of it by name, once: the "
+│    │       ├─10 inlineCode "rules-exclude"
+│    │       ├─11 text " of the product's "
+│    │       ├─12 inlineCode "tastemaker.toml"
+│    │       ├─13 text "\nand the "
+│    │       ├─14 inlineCode "check-toml"
+│    │       ├─15 text " exclude of "
+│    │       ├─16 inlineCode ".pre-commit-config.yaml"
+│    │       ├─17 text ", both matching "
+│    │       ├─18 inlineCode "languages/*/tests/fixtures/relations/syntax_error/input.toml"
+│    │       ├─19 text ", and a language's pinned suite, "
+│    │       ├─20 inlineCode "languages/*/tests/fixtures/suite/"
+│    │       └─21 text ", which the file hooks leave byte for byte);"
+│    ├─5 listItem[1]
+│    │   │ spread: false
+│    │   │ checked: null
+│    │   └─0 paragraph[5]
+│    │       ├─0 text "a manifest relation answered "
+│    │       ├─1 inlineCode "Reads"
+│    │       ├─2 text " gives rows from "
+│    │       ├─3 inlineCode "manifests/<case>/"
+│    │       └─4 text ", and the rows of every case, in full, are\nthe typed rows the language states for the case;"
+│    ├─6 listItem[1]
+│    │   │ spread: false
+│    │   │ checked: null
+│    │   └─0 paragraph[13]
+│    │       ├─0  text "every kind of the language's trees is shown ("
+│    │       ├─1  inlineCode "sample"
+│    │       ├─2  text "): a sample whose tree holds an element of the kind, or "
+│    │       ├─3  inlineCode "Sample::Unread(reason)"
+│    │       ├─4  text ";\na kind with a sample that no relation reads is a finding that says how to read it (add it to a reader's "
+│    │       ├─5  inlineCode "kinds:"
+│    │       ├─6  text ") or mark it; a kind a reader reads only through "
+│    │       ├─7  inlineCode "kinds: every"
+│    │       ├─8  text " still needs "
+│    │       ├─9  inlineCode "Sample::Unread(reason)"
+│    │       ├─10 text " or a sample read by a reader that names it, because "
+│    │       ├─11 inlineCode "every"
+│    │       └─12 text " is not a reason to show a kind;"
+│    └─7 listItem[1]
+│        │ spread: false
+│        │ checked: null
+│        └─0 paragraph[5]
+│            ├─0 text "a folder that names no relation read from trees is a failure, and so is a "
+│            ├─1 inlineCode "kind_count"
+│            ├─2 text " above "
+│            ├─3 inlineCode "KIND_LIMIT"
+│            └─4 text " or 0 for a language that reads trees."
+├─66 paragraph[5]
+│    ├─0 text "Moving a relation from "
+│    ├─1 inlineCode "Reads"
+│    ├─2 text " to "
+│    ├─3 inlineCode "NotInThisLanguage"
+│    └─4 text " is therefore a visible change in the fixtures, not only in\na method body."
+├─67 heading[1]
+│    │ depth: 2
+│    └─0 text "A new language"
+├─68 paragraph[13]
+│    ├─0  text "A new language is a directory under "
+│    ├─1  inlineCode "languages/"
+│    ├─2  text " made with "
+│    ├─3  inlineCode "tm scaffold"
+│    ├─4  text ". It joins when its author starts it: add it to "
+│    ├─5  inlineCode "members"
+│    ├─6  text ", give "
+│    ├─7  inlineCode "cli/Cargo.toml"
+│    ├─8  text " its optional dependency and its feature (the build script says which is missing), and the\ncompiler then lists the relation methods its "
+│    ├─9  inlineCode "Parse"
+│    ├─10 text " and "
+│    ├─11 inlineCode "Project"
+│    └─12 text " lack, one error for each, until each is answered."
+├─69 paragraph[3]
+│    ├─0 text "There are no unwritten languages in the tree: an empty scaffold is deleted, and a language comes back with "
+│    ├─1 inlineCode "tm scaffold"
+│    └─2 text " when its author starts it."
+├─70 paragraph[3]
+│    ├─0 text "A scaffold carries no behaviour test of its own: the behaviour of a language is the conformance, which the engine owns and the closed "
+│    ├─1 inlineCode "tests/conformance.rs"
+│    └─2 text " runs, and the crate spec asks for a BDD runner only of a crate that has a feature file."
+├─71 paragraph[7]
+│    ├─0 text "What the rules cannot hold, and review does: that the library parse of a language is the library parse and not more (the allocation bound is its "
+│    ├─1 inlineCode "read_tree"
+│    ├─2 text " through a builder that builds nothing, so a language that allocates there on purpose raises its own bound), and that a language adds no dependency or allow-list entry that would let it name the engine's crates ("
+│    ├─3 inlineCode "language-depends-on-ryo-only"
+│    ├─4 text " holds the dependency of its manifest, not a path put in its own "
+│    ├─5 inlineCode "imports-allow"
+│    └─6 text ", which a language grants itself)."
+└─72 paragraph[45]
+     ├─0  text "Copy nothing: the template of a "
+     ├─1  inlineCode "languages::Parse"
+     ├─2  text " and of a "
+     ├─3  inlineCode "languages::Project"
+     ├─4  text " use case renders no relation method, so the\ncompiler lists the ones left; the work is to answer each, as a "
+     ├─5  inlineCode "Reads"
+     ├─6  text " (item, fixture) or as "
+     ├─7  inlineCode "NotInThisLanguage"
+     ├─8  text " with its "
+     ├─9  inlineCode "Reason"
+     ├─10 text ". Add the directory "
+     ├─11 inlineCode "languages/<lang>/"
+     ├─12 text ": the one entry "
+     ├─13 inlineCode "language"
+     ├─14 text " places it by the "
+     ├─15 inlineCode "{lang}"
+     ├─16 text " capture (its package is "
+     ├─17 inlineCode "idiomatic-sh-ryo-<lang>"
+     ├─18 text " by interpolation, nothing lists it): the "
+     ├─19 inlineCode "language"
+     ├─20 text " spec places the whole tree, every part at count 1 ("
+     ├─21 inlineCode "tm scaffold language --at languages/<lang> --set library=<parser crate> --set ext=<extension> --set relation=syntax_tree"
+     ├─22 text " writes it), including its allocation and conformance tests, the parser and tool crates it reads with are declared once in its own\n"
+     ├─23 inlineCode "tastemaker.toml"
+     ├─24 text " ("
+     ├─25 inlineCode "imports-allow"
+     ├─26 text " for its imports, "
+     ├─27 inlineCode "client-at-adapter"
+     ├─28 text " for where it names them) and in its own "
+     ├─29 inlineCode "Cargo.toml"
+     ├─30 text ", and the command line links it by the Cargo\nfeature of its name (none is a default: a build names its set, "
+     ├─31 inlineCode "--features rust"
+     ├─32 text ", or "
+     ├─33 inlineCode "--all-features"
+     ├─34 text " where every language is exercised; the crate's own tests and benches name "
+     ├─35 inlineCode "rust"
+     ├─36 text " through a dev-dependency on itself): Cargo forces that line in "
+     ├─37 inlineCode "cli/Cargo.toml"
+     ├─38 text ", the build script of "
+     ├─39 inlineCode "cli"
+     ├─40 text " fails the build when a\ndirectory of "
+     ├─41 inlineCode "languages/"
+     ├─42 text " has none, and writes "
+     ├─43 inlineCode "cli/src/languages.rs"
+     └─44 text ", the one file that links them."

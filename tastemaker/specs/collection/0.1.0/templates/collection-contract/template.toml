@@ -1,0 +1,132 @@
+description = "The shared cases every item of a collection runs: its rows, exported, and a `check` that runs them against one item; for a collection whose items implement the language kernel's trait, a `check` that runs the kernel's rows."
+why = "Holds every item of a collection to one promise, as a port's contract holds its implementations. `check` takes any `<Collection>Item`; the items of a trait of `ryo::languages` are held to the rows the kernel states once, so no language copies them."
+content = '''
+{#- The trait of another crate the collection's items implement, from its `<collection>=<trait path>` pair; none for a collection with its own interface. -#}
+{#- The pairs arrive as their TOML text, `["relations=ryo::languages::ReadItem"]`: the path is what follows `"<collection>=` up to its closing quote. -#}
+{%- set pairs = item_trait | default("") | string -%}
+{%- set marker = '"' ~ collection ~ '=' -%}
+{%- set path = ((pairs | split(marker))[1] | split('"'))[0] if marker in pairs else "" -%}
+{%- if path is startingwith("ryo::languages::") -%}
+//! What every item of the `{{ collection }}` collection must pass: the shared rows of the language kernel.
+
+/// Runs the kernel's shared rows against one item.
+pub(crate) fn check<Item: {{ path }}>() {
+    ryo::languages::contract::check_item::<Item>();
+}
+{%- else -%}
+//! What every item of the `{{ collection }}` collection must pass.
+
+use super::super::interface::{{ collection | pascal }}Item;
+use crate::cases::Case;
+
+/// What a shared row is given.
+type Input = ();
+
+/// What a shared row expects when it succeeds.
+type Value = ();
+
+/// What a shared row expects when it is refused.
+type Failure = ();
+
+/// The shared rows: a name, one case word, an input and the expected value or error variant. Every item runs them.
+pub(crate) const CASES: &[Case<Input, Value, Failure>] = &[];
+
+/// Runs the shared rows against one item.
+pub(crate) fn check(item: &impl {{ collection | pascal }}Item) {
+    let _ = item;
+    assert!(
+        CASES.is_empty(),
+        "the shared rows have cases and no call of the item that runs them: write the call here"
+    );
+}
+{%- endif %}
+'''
+
+[params]
+collection = { type = "identifier", description = "The collection, captured from its path." }
+item-trait = { type = "list<string>", description = "The `<collection>=<trait path>` pairs of the crate: a collection whose pair names a trait of `ryo::languages` runs the kernel's rows." }
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.file = 'src/collections/passes/fixtures/contract.rs'
+given.params = { collection = 'passes', item-trait = [] }
+given.files.'src/collections/passes/fixtures/contract.rs' = '''
+//! What every item of the `passes` collection must pass.
+
+use super::super::interface::PassesItem;
+use crate::cases::Case;
+
+/// What a shared row is given.
+type Input = ();
+
+/// What a shared row expects when it succeeds.
+type Value = ();
+
+/// What a shared row expects when it is refused.
+type Failure = ();
+
+/// The shared rows: a name, one case word, an input and the expected value or error variant. Every item runs them.
+pub(crate) const CASES: &[Case<Input, Value, Failure>] = &[];
+
+/// Runs the shared rows against one item.
+pub(crate) fn check(item: &impl PassesItem) {
+    let _ = item;
+    todo!("run the shared rows against the item")
+}
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template.'
+given.file = 'src/collections/passes/fixtures/contract.rs'
+given.params = { collection = 'passes', item-trait = [] }
+given.files.'src/collections/passes/fixtures/contract.rs' = '''
+//! What every item of the `passes` collection must pass.
+
+use super::super::interface::PassesItem;
+use crate::cases::Case;
+
+/// What a shared row is given.
+type Input = ();
+
+/// What a shared row expects when it succeeds.
+type Value = ();
+
+/// What a shared row expects when it is refused.
+type Failure = ();
+
+/// The shared rows: a name, one case word, an input and the expected value or error variant. Every item runs them.
+pub(crate) const CASES: &[Case<Input, Value, Failure>] = &[];
+
+/// Runs the shared rows against one item.
+pub(crate) fn check(item: &impl PassesItem) {
+    let _ = item;
+    todo!("run the shared rows against the item")
+}
+
+// More.
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+given.file = 'src/collections/passes/fixtures/contract.rs'
+given.params = { collection = 'passes', item-trait = [] }
+then.findings = [
+  { rule = 'collection-contract#count', path = '.' },
+]
+
+[[scenarios]]
+id = 'kernel-trait'
+scenario = "A collection of the language kernel's trait runs the kernel's rows."
+given.file = 'src/collections/relations/fixtures/contract.rs'
+given.params = { collection = 'relations', item-trait = ['relations=ryo::languages::ReadItem'] }
+given.files.'src/collections/relations/fixtures/contract.rs' = '''
+//! What every item of the `relations` collection must pass: the shared rows of the language kernel.
+
+/// Runs the kernel's shared rows against one item.
+pub(crate) fn check<Item: ryo::languages::ReadItem>() {
+    ryo::languages::contract::check_item::<Item>();
+}
+'''

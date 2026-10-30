@@ -1,0 +1,3 @@
+name = "idiomatic.ryo"
+description = "Ryo's own architecture: the language a ryo language fulfils."
+dependencies = [{ package = "idiomatic.arch", path = "../../../tastemaker" }]

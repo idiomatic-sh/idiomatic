@@ -1,0 +1,5 @@
+root[1]
+└─0 paragraph[1]
+    └─0 emphasis[1]
+        └─0 emphasis[1]
+            └─0 text "foo"

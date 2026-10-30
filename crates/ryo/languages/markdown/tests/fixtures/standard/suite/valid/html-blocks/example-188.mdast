@@ -1,0 +1,7 @@
+root[3]
+├─0 html "<div>"
+├─1 paragraph[2]
+│   ├─0 emphasis[1]
+│   │   └─0 text "Emphasized"
+│   └─1 text " text."
+└─2 html "</div>"

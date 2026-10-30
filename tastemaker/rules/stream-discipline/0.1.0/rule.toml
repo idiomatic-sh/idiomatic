@@ -1,0 +1,53 @@
+description = "A program's output goes only where its presentation layer sends it: no trace writer is built without the file it writes, so none falls back to a file of its own in the working directory (a `tracing_chrome::ChromeLayerBuilder` with no `.file(..)`)."
+why = "A command runs in the user's project, and its working directory is the tree it reads. A writer left to its default (tracing-chrome writes `./trace-<time>.json`) drops a file into that tree on every run: the next check reads it as a source of the project, a `git status` shows it, and nothing in `--help` says where it went. The presentation layer decides where every output goes, the standard streams included (which `stdio-at-presentation`, `print-in-library` and clippy's `print_stdout` and `print_stderr` hold), so a trace is written to a path it is given, beside the store or where the user asks. Read from the calls written: a `ChromeLayerBuilder::new` call in a file that names no `file`. Not seen: a writer of another crate that picks its own default file, and a `.file(..)` given in another file than the builder's."
+
+query = '''
+let calls = project(from="static-call", columns=["file", "span", "target"]);
+let chrome = select * from calls where glob_any(target, "*ChromeLayerBuilder::new");
+let named = select * from "syntax-tree" where kind = "ident" and text = "file";
+let found = antijoin(left=chrome, right=named, left-on=["file"], right-on=["file"]);
+emit found subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "`{target}` writes its trace to a file of its own in the working directory"
+help = "Give the builder the file it writes (`.file(path)`), a path the presentation layer chooses (beside the store, or one the user names), never the working directory the command reads."
+
+[given]
+include = ['**']
+files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+
+[[scenarios]]
+id = 'trace-in-the-working-directory'
+scenario = 'The Chrome trace is left to its default file in the working directory (the timings report of all three command lines at 5149cd075d).'
+given.files.'src/lib.rs' = '''
+use tracing_subscriber::layer::SubscriberExt as _;
+
+pub fn install() -> Result<Box<dyn std::any::Any + Send>, tracing::subscriber::SetGlobalDefaultError> {
+    let (layer, guard) = tracing_chrome::ChromeLayerBuilder::new().build();
+    tracing::subscriber::set_global_default(tracing_subscriber::registry().with(layer))?;
+    Ok(Box::new(guard))
+}
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 4 },
+]
+
+[[scenarios]]
+id = 'trace-to-a-given-file'
+scenario = 'The Chrome trace is written to the path the presentation layer gives it.'
+given.files.'src/lib.rs' = '''
+use tracing_subscriber::layer::SubscriberExt as _;
+
+pub fn install(trace: &std::path::Path) -> Result<Box<dyn std::any::Any + Send>, tracing::subscriber::SetGlobalDefaultError> {
+    let (layer, guard) = tracing_chrome::ChromeLayerBuilder::new().file(trace).build();
+    tracing::subscriber::set_global_default(tracing_subscriber::registry().with(layer))?;
+    Ok(Box::new(guard))
+}
+'''

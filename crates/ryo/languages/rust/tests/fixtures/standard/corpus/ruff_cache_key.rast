@@ -1,0 +1,6128 @@
+SOURCE_FILE
+  USE
+    USE_KW "use"
+    WHITESPACE " "
+    USE_TREE
+      PATH
+        PATH
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "std"
+          COLON2 "::"
+          PATH_SEGMENT
+            NAME_REF
+              IDENT "borrow"
+        COLON2 "::"
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "Cow"
+    SEMICOLON ";"
+  WHITESPACE "\n"
+  USE
+    USE_KW "use"
+    WHITESPACE " "
+    USE_TREE
+      PATH
+        PATH
+          PATH_SEGMENT
+            NAME_REF
+              IDENT "std"
+        COLON2 "::"
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "collections"
+      COLON2 "::"
+      USE_TREE_LIST
+        L_CURLY "{"
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "BTreeMap"
+        COMMA ","
+        WHITESPACE " "
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "BTreeSet"
+        COMMA ","
+        WHITESPACE " "
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "HashMap"
+        COMMA ","
+        WHITESPACE " "
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "HashSet"
+        R_CURLY "}"
+    SEMICOLON ";"
+  WHITESPACE "\n"
+  USE
+    USE_KW "use"
+    WHITESPACE " "
+    USE_TREE
+      PATH
+        PATH
+          PATH_SEGMENT
+            NAME_REF
+              IDENT "std"
+        COLON2 "::"
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "hash"
+      COLON2 "::"
+      USE_TREE_LIST
+        L_CURLY "{"
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "Hash"
+        COMMA ","
+        WHITESPACE " "
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "Hasher"
+        R_CURLY "}"
+    SEMICOLON ";"
+  WHITESPACE "\n"
+  USE
+    USE_KW "use"
+    WHITESPACE " "
+    USE_TREE
+      PATH
+        PATH
+          PATH_SEGMENT
+            NAME_REF
+              IDENT "std"
+        COLON2 "::"
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "num"
+      COLON2 "::"
+      USE_TREE_LIST
+        L_CURLY "{"
+        WHITESPACE "\n    "
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "NonZeroI8"
+        COMMA ","
+        WHITESPACE " "
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "NonZeroI16"
+        COMMA ","
+        WHITESPACE " "
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "NonZeroI32"
+        COMMA ","
+        WHITESPACE " "
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "NonZeroI64"
+        COMMA ","
+        WHITESPACE " "
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "NonZeroI128"
+        COMMA ","
+        WHITESPACE " "
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "NonZeroU8"
+        COMMA ","
+        WHITESPACE " "
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "NonZeroU16"
+        COMMA ","
+        WHITESPACE " "
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "NonZeroU32"
+        COMMA ","
+        WHITESPACE "\n    "
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "NonZeroU64"
+        COMMA ","
+        WHITESPACE " "
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "NonZeroU128"
+        COMMA ","
+        WHITESPACE "\n"
+        R_CURLY "}"
+    SEMICOLON ";"
+  WHITESPACE "\n"
+  USE
+    USE_KW "use"
+    WHITESPACE " "
+    USE_TREE
+      PATH
+        PATH
+          PATH_SEGMENT
+            NAME_REF
+              IDENT "std"
+        COLON2 "::"
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "path"
+      COLON2 "::"
+      USE_TREE_LIST
+        L_CURLY "{"
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "Path"
+        COMMA ","
+        WHITESPACE " "
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "PathBuf"
+        R_CURLY "}"
+    SEMICOLON ";"
+  WHITESPACE "\n\n"
+  USE
+    USE_KW "use"
+    WHITESPACE " "
+    USE_TREE
+      PATH
+        PATH
+          PATH_SEGMENT
+            NAME_REF
+              IDENT "char_str"
+        COLON2 "::"
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "CharStr"
+    SEMICOLON ";"
+  WHITESPACE "\n"
+  USE
+    USE_KW "use"
+    WHITESPACE " "
+    USE_TREE
+      PATH
+        PATH
+          PATH_SEGMENT
+            NAME_REF
+              IDENT "glob"
+        COLON2 "::"
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "Pattern"
+    SEMICOLON ";"
+  WHITESPACE "\n"
+  USE
+    USE_KW "use"
+    WHITESPACE " "
+    USE_TREE
+      PATH
+        PATH
+          PATH_SEGMENT
+            NAME_REF
+              IDENT "itertools"
+        COLON2 "::"
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "Itertools"
+    SEMICOLON ";"
+  WHITESPACE "\n"
+  USE
+    USE_KW "use"
+    WHITESPACE " "
+    USE_TREE
+      PATH
+        PATH
+          PATH_SEGMENT
+            NAME_REF
+              IDENT "regex"
+        COLON2 "::"
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "Regex"
+    SEMICOLON ";"
+  WHITESPACE "\n"
+  USE
+    USE_KW "use"
+    WHITESPACE " "
+    USE_TREE
+      PATH
+        PATH
+          PATH_SEGMENT
+            NAME_REF
+              IDENT "seahash"
+        COLON2 "::"
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "SeaHasher"
+    SEMICOLON ";"
+  WHITESPACE "\n\n"
+  TRAIT
+    COMMENT "/// A type that be used as part of a cache key."
+    WHITESPACE "\n"
+    COMMENT "///"
+    WHITESPACE "\n"
+    COMMENT "/// A cache looks up artefacts by a cache key. Many cache keys are composed of sub-keys. For example,"
+    WHITESPACE "\n"
+    COMMENT "/// caching the lint results of a file depend at least on the file content, the user settings, and linter version."
+    WHITESPACE "\n"
+    COMMENT "/// Types implementing the [`CacheKey`] trait can be used as part of a cache key by which artefacts are queried."
+    WHITESPACE "\n"
+    COMMENT "///"
+    WHITESPACE "\n"
+    COMMENT "/// ## Implementing `CacheKey`"
+    WHITESPACE "\n"
+    COMMENT "///"
+    WHITESPACE "\n"
+    COMMENT "/// You can derive [`CacheKey`] with `#[derive(CacheKey)]` if all fields implement [`CacheKey`]. The resulting"
+    WHITESPACE "\n"
+    COMMENT "/// cache key will be the combination of the values from calling `cache_key` on each field."
+    WHITESPACE "\n"
+    COMMENT "///"
+    WHITESPACE "\n"
+    COMMENT "/// ```"
+    WHITESPACE "\n"
+    COMMENT "/// # use ruff_macros::CacheKey;"
+    WHITESPACE "\n"
+    COMMENT "///"
+    WHITESPACE "\n"
+    COMMENT "/// #[derive(CacheKey)]"
+    WHITESPACE "\n"
+    COMMENT "/// struct Test {"
+    WHITESPACE "\n"
+    COMMENT "///     name: String,"
+    WHITESPACE "\n"
+    COMMENT "///     version: u32,"
+    WHITESPACE "\n"
+    COMMENT "/// }"
+    WHITESPACE "\n"
+    COMMENT "/// ```"
+    WHITESPACE "\n"
+    COMMENT "///"
+    WHITESPACE "\n"
+    COMMENT "/// If you need more control over computing the cache key, you can of course implement the [`CacheKey]` yourself:"
+    WHITESPACE "\n"
+    COMMENT "///"
+    WHITESPACE "\n"
+    COMMENT "/// ```"
+    WHITESPACE "\n"
+    COMMENT "///  use ruff_cache::{CacheKey, CacheKeyHasher};"
+    WHITESPACE "\n"
+    COMMENT "///"
+    WHITESPACE "\n"
+    COMMENT "/// struct Test {"
+    WHITESPACE "\n"
+    COMMENT "///     name: String,"
+    WHITESPACE "\n"
+    COMMENT "///     version: u32,"
+    WHITESPACE "\n"
+    COMMENT "///     other: String"
+    WHITESPACE "\n"
+    COMMENT "/// }"
+    WHITESPACE "\n"
+    COMMENT "///"
+    WHITESPACE "\n"
+    COMMENT "/// impl CacheKey for Test {"
+    WHITESPACE "\n"
+    COMMENT "///     fn cache_key(&self, state: &mut CacheKeyHasher) {"
+    WHITESPACE "\n"
+    COMMENT "///         self.name.cache_key(state);"
+    WHITESPACE "\n"
+    COMMENT "///         self.version.cache_key(state);"
+    WHITESPACE "\n"
+    COMMENT "///     }"
+    WHITESPACE "\n"
+    COMMENT "/// }"
+    WHITESPACE "\n"
+    COMMENT "/// ```"
+    WHITESPACE "\n"
+    COMMENT "///"
+    WHITESPACE "\n"
+    COMMENT "/// ## Portability"
+    WHITESPACE "\n"
+    COMMENT "///"
+    WHITESPACE "\n"
+    COMMENT "/// Ideally, the cache key is portable across platforms but this is not yet a strict requirement."
+    WHITESPACE "\n"
+    COMMENT "///"
+    WHITESPACE "\n"
+    COMMENT "/// ## Using [`Hash`]"
+    WHITESPACE "\n"
+    COMMENT "///"
+    WHITESPACE "\n"
+    COMMENT "/// You can defer to the [`Hash`] implementation for non-composite types."
+    WHITESPACE "\n"
+    COMMENT "/// Be aware, that the [`Hash`] implementation may not be portable."
+    WHITESPACE "\n"
+    COMMENT "///"
+    WHITESPACE "\n"
+    COMMENT "/// ## Why a new trait rather than reusing [`Hash`]?"
+    WHITESPACE "\n"
+    COMMENT "/// The main reason is that hashes and cache keys have different constraints:"
+    WHITESPACE "\n"
+    COMMENT "///"
+    WHITESPACE "\n"
+    COMMENT "/// * Cache keys are less performance sensitive: Hashes must be super fast to compute for performant hashed-collections. That's"
+    WHITESPACE "\n"
+    COMMENT "///   why some standard types don't implement [`Hash`] where it would be safe to implement [`CacheKey`], e.g. `HashSet`"
+    WHITESPACE "\n"
+    COMMENT "/// * Cache keys must be deterministic where hash keys do not have this constraint. That's why pointers don't implement [`CacheKey`] but they implement [`Hash`]."
+    WHITESPACE "\n"
+    COMMENT "/// * Ideally, cache keys are portable"
+    WHITESPACE "\n"
+    COMMENT "///"
+    WHITESPACE "\n"
+    COMMENT "/// [`Hash`](Hash)"
+    WHITESPACE "\n"
+    VISIBILITY
+      PUB_KW "pub"
+    WHITESPACE " "
+    TRAIT_KW "trait"
+    WHITESPACE " "
+    NAME
+      IDENT "CacheKey"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      FN
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "cache_key"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "state"
+            COLON ":"
+            WHITESPACE " "
+            REF_TYPE
+              AMP "&"
+              MUT_KW "mut"
+              WHITESPACE " "
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "CacheKeyHasher"
+          R_PAREN ")"
+        SEMICOLON ";"
+      WHITESPACE "\n\n    "
+      FN
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "cache_key_slice"
+        PARAM_LIST
+          L_PAREN "("
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "data"
+            COLON ":"
+            WHITESPACE " "
+            REF_TYPE
+              AMP "&"
+              SLICE_TYPE
+                L_BRACK "["
+                PATH_TYPE
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        SELF_TYPE_KW "Self"
+                R_BRACK "]"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "state"
+            COLON ":"
+            WHITESPACE " "
+            REF_TYPE
+              AMP "&"
+              MUT_KW "mut"
+              WHITESPACE " "
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "CacheKeyHasher"
+          R_PAREN ")"
+        WHITESPACE "\n    "
+        WHERE_CLAUSE
+          WHERE_KW "where"
+          WHITESPACE "\n        "
+          WHERE_PRED
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    SELF_TYPE_KW "Self"
+            COLON ":"
+            WHITESPACE " "
+            TYPE_BOUND_LIST
+              TYPE_BOUND
+                PATH_TYPE
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "Sized"
+          COMMA ","
+        WHITESPACE "\n    "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            FOR_EXPR
+              FOR_KW "for"
+              WHITESPACE " "
+              IDENT_PAT
+                NAME
+                  IDENT "piece"
+              WHITESPACE " "
+              IN_KW "in"
+              WHITESPACE " "
+              PATH_EXPR
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "data"
+              WHITESPACE " "
+              BLOCK_EXPR
+                STMT_LIST
+                  L_CURLY "{"
+                  WHITESPACE "\n            "
+                  EXPR_STMT
+                    METHOD_CALL_EXPR
+                      PATH_EXPR
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "piece"
+                      DOT "."
+                      NAME_REF
+                        IDENT "cache_key"
+                      ARG_LIST
+                        L_PAREN "("
+                        PATH_EXPR
+                          PATH
+                            PATH_SEGMENT
+                              NAME_REF
+                                IDENT "state"
+                        R_PAREN ")"
+                    SEMICOLON ";"
+                  WHITESPACE "\n        "
+                  R_CURLY "}"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "CacheKey"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "bool"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "cache_key"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "state"
+            COLON ":"
+            WHITESPACE " "
+            REF_TYPE
+              AMP "&"
+              MUT_KW "mut"
+              WHITESPACE " "
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "CacheKeyHasher"
+          R_PAREN ")"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            EXPR_STMT
+              METHOD_CALL_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "state"
+                DOT "."
+                NAME_REF
+                  IDENT "write_u8"
+                ARG_LIST
+                  L_PAREN "("
+                  CALL_EXPR
+                    PATH_EXPR
+                      PATH
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "u8"
+                        COLON2 "::"
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "from"
+                    ARG_LIST
+                      L_PAREN "("
+                      PREFIX_EXPR
+                        STAR "*"
+                        PATH_EXPR
+                          PATH
+                            PATH_SEGMENT
+                              NAME_REF
+                                SELF_KW "self"
+                      R_PAREN ")"
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "CacheKey"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "char"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "cache_key"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "state"
+            COLON ":"
+            WHITESPACE " "
+            REF_TYPE
+              AMP "&"
+              MUT_KW "mut"
+              WHITESPACE " "
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "CacheKeyHasher"
+          R_PAREN ")"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            EXPR_STMT
+              METHOD_CALL_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "state"
+                DOT "."
+                NAME_REF
+                  IDENT "write_u32"
+                ARG_LIST
+                  L_PAREN "("
+                  CAST_EXPR
+                    PREFIX_EXPR
+                      STAR "*"
+                      PATH_EXPR
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              SELF_KW "self"
+                    WHITESPACE " "
+                    AS_KW "as"
+                    WHITESPACE " "
+                    PATH_TYPE
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "u32"
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "CacheKey"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "usize"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "cache_key"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "state"
+            COLON ":"
+            WHITESPACE " "
+            REF_TYPE
+              AMP "&"
+              MUT_KW "mut"
+              WHITESPACE " "
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "CacheKeyHasher"
+          R_PAREN ")"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            EXPR_STMT
+              METHOD_CALL_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "state"
+                DOT "."
+                NAME_REF
+                  IDENT "write_usize"
+                ARG_LIST
+                  L_PAREN "("
+                  PREFIX_EXPR
+                    STAR "*"
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            SELF_KW "self"
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "CacheKey"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "u128"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "cache_key"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "state"
+            COLON ":"
+            WHITESPACE " "
+            REF_TYPE
+              AMP "&"
+              MUT_KW "mut"
+              WHITESPACE " "
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "CacheKeyHasher"
+          R_PAREN ")"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            EXPR_STMT
+              METHOD_CALL_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "state"
+                DOT "."
+                NAME_REF
+                  IDENT "write_u128"
+                ARG_LIST
+                  L_PAREN "("
+                  PREFIX_EXPR
+                    STAR "*"
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            SELF_KW "self"
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "CacheKey"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "u64"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "cache_key"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "state"
+            COLON ":"
+            WHITESPACE " "
+            REF_TYPE
+              AMP "&"
+              MUT_KW "mut"
+              WHITESPACE " "
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "CacheKeyHasher"
+          R_PAREN ")"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            EXPR_STMT
+              METHOD_CALL_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "state"
+                DOT "."
+                NAME_REF
+                  IDENT "write_u64"
+                ARG_LIST
+                  L_PAREN "("
+                  PREFIX_EXPR
+                    STAR "*"
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            SELF_KW "self"
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "CacheKey"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "u32"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "cache_key"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "state"
+            COLON ":"
+            WHITESPACE " "
+            REF_TYPE
+              AMP "&"
+              MUT_KW "mut"
+              WHITESPACE " "
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "CacheKeyHasher"
+          R_PAREN ")"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            EXPR_STMT
+              METHOD_CALL_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "state"
+                DOT "."
+                NAME_REF
+                  IDENT "write_u32"
+                ARG_LIST
+                  L_PAREN "("
+                  PREFIX_EXPR
+                    STAR "*"
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            SELF_KW "self"
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "CacheKey"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "u16"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "cache_key"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "state"
+            COLON ":"
+            WHITESPACE " "
+            REF_TYPE
+              AMP "&"
+              MUT_KW "mut"
+              WHITESPACE " "
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "CacheKeyHasher"
+          R_PAREN ")"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            EXPR_STMT
+              METHOD_CALL_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "state"
+                DOT "."
+                NAME_REF
+                  IDENT "write_u16"
+                ARG_LIST
+                  L_PAREN "("
+                  PREFIX_EXPR
+                    STAR "*"
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            SELF_KW "self"
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "CacheKey"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "u8"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "cache_key"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "state"
+            COLON ":"
+            WHITESPACE " "
+            REF_TYPE
+              AMP "&"
+              MUT_KW "mut"
+              WHITESPACE " "
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "CacheKeyHasher"
+          R_PAREN ")"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            EXPR_STMT
+              METHOD_CALL_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "state"
+                DOT "."
+                NAME_REF
+                  IDENT "write_u8"
+                ARG_LIST
+                  L_PAREN "("
+                  PREFIX_EXPR
+                    STAR "*"
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            SELF_KW "self"
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "CacheKey"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "isize"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "cache_key"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "state"
+            COLON ":"
+            WHITESPACE " "
+            REF_TYPE
+              AMP "&"
+              MUT_KW "mut"
+              WHITESPACE " "
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "CacheKeyHasher"
+          R_PAREN ")"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            EXPR_STMT
+              METHOD_CALL_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "state"
+                DOT "."
+                NAME_REF
+                  IDENT "write_isize"
+                ARG_LIST
+                  L_PAREN "("
+                  PREFIX_EXPR
+                    STAR "*"
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            SELF_KW "self"
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "CacheKey"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "i128"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "cache_key"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "state"
+            COLON ":"
+            WHITESPACE " "
+            REF_TYPE
+              AMP "&"
+              MUT_KW "mut"
+              WHITESPACE " "
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "CacheKeyHasher"
+          R_PAREN ")"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            EXPR_STMT
+              METHOD_CALL_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "state"
+                DOT "."
+                NAME_REF
+                  IDENT "write_i128"
+                ARG_LIST
+                  L_PAREN "("
+                  PREFIX_EXPR
+                    STAR "*"
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            SELF_KW "self"
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "CacheKey"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "i64"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "cache_key"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "state"
+            COLON ":"
+            WHITESPACE " "
+            REF_TYPE
+              AMP "&"
+              MUT_KW "mut"
+              WHITESPACE " "
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "CacheKeyHasher"
+          R_PAREN ")"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            EXPR_STMT
+              METHOD_CALL_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "state"
+                DOT "."
+                NAME_REF
+                  IDENT "write_i64"
+                ARG_LIST
+                  L_PAREN "("
+                  PREFIX_EXPR
+                    STAR "*"
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            SELF_KW "self"
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "CacheKey"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "i32"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "cache_key"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "state"
+            COLON ":"
+            WHITESPACE " "
+            REF_TYPE
+              AMP "&"
+              MUT_KW "mut"
+              WHITESPACE " "
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "CacheKeyHasher"
+          R_PAREN ")"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            EXPR_STMT
+              METHOD_CALL_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "state"
+                DOT "."
+                NAME_REF
+                  IDENT "write_i32"
+                ARG_LIST
+                  L_PAREN "("
+                  PREFIX_EXPR
+                    STAR "*"
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            SELF_KW "self"
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "CacheKey"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "i16"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "cache_key"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "state"
+            COLON ":"
+            WHITESPACE " "
+            REF_TYPE
+              AMP "&"
+              MUT_KW "mut"
+              WHITESPACE " "
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "CacheKeyHasher"
+          R_PAREN ")"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            EXPR_STMT
+              METHOD_CALL_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "state"
+                DOT "."
+                NAME_REF
+                  IDENT "write_i16"
+                ARG_LIST
+                  L_PAREN "("
+                  PREFIX_EXPR
+                    STAR "*"
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            SELF_KW "self"
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "CacheKey"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "i8"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "cache_key"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "state"
+            COLON ":"
+            WHITESPACE " "
+            REF_TYPE
+              AMP "&"
+              MUT_KW "mut"
+              WHITESPACE " "
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "CacheKeyHasher"
+          R_PAREN ")"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            EXPR_STMT
+              METHOD_CALL_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "state"
+                DOT "."
+                NAME_REF
+                  IDENT "write_i8"
+                ARG_LIST
+                  L_PAREN "("
+                  PREFIX_EXPR
+                    STAR "*"
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            SELF_KW "self"
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n"
+  MACRO_RULES
+    MACRO_RULES_KW "macro_rules"
+    BANG "!"
+    WHITESPACE " "
+    NAME
+      IDENT "impl_cache_key_non_zero"
+    WHITESPACE " "
+    TOKEN_TREE
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      TOKEN_TREE
+        L_PAREN "("
+        DOLLAR "$"
+        IDENT "name"
+        COLON ":"
+        IDENT "ident"
+        R_PAREN ")"
+      WHITESPACE " "
+      EQ "="
+      R_ANGLE ">"
+      WHITESPACE " "
+      TOKEN_TREE
+        L_CURLY "{"
+        WHITESPACE "\n        "
+        IMPL_KW "impl"
+        WHITESPACE " "
+        IDENT "CacheKey"
+        WHITESPACE " "
+        FOR_KW "for"
+        WHITESPACE " "
+        DOLLAR "$"
+        IDENT "name"
+        WHITESPACE " "
+        TOKEN_TREE
+          L_CURLY "{"
+          WHITESPACE "\n            "
+          POUND "#"
+          TOKEN_TREE
+            L_BRACK "["
+            IDENT "inline"
+            R_BRACK "]"
+          WHITESPACE "\n            "
+          FN_KW "fn"
+          WHITESPACE " "
+          IDENT "cache_key"
+          TOKEN_TREE
+            L_PAREN "("
+            AMP "&"
+            SELF_KW "self"
+            COMMA ","
+            WHITESPACE " "
+            IDENT "state"
+            COLON ":"
+            WHITESPACE " "
+            AMP "&"
+            MUT_KW "mut"
+            WHITESPACE " "
+            IDENT "CacheKeyHasher"
+            R_PAREN ")"
+          WHITESPACE " "
+          TOKEN_TREE
+            L_CURLY "{"
+            WHITESPACE "\n                "
+            SELF_KW "self"
+            DOT "."
+            IDENT "get"
+            TOKEN_TREE
+              L_PAREN "("
+              R_PAREN ")"
+            DOT "."
+            IDENT "cache_key"
+            TOKEN_TREE
+              L_PAREN "("
+              IDENT "state"
+              R_PAREN ")"
+            WHITESPACE "\n            "
+            R_CURLY "}"
+          WHITESPACE "\n        "
+          R_CURLY "}"
+        WHITESPACE "\n    "
+        R_CURLY "}"
+      SEMICOLON ";"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  MACRO_CALL
+    PATH
+      PATH_SEGMENT
+        NAME_REF
+          IDENT "impl_cache_key_non_zero"
+    BANG "!"
+    TOKEN_TREE
+      L_PAREN "("
+      IDENT "NonZeroU8"
+      R_PAREN ")"
+    SEMICOLON ";"
+  WHITESPACE "\n"
+  MACRO_CALL
+    PATH
+      PATH_SEGMENT
+        NAME_REF
+          IDENT "impl_cache_key_non_zero"
+    BANG "!"
+    TOKEN_TREE
+      L_PAREN "("
+      IDENT "NonZeroU16"
+      R_PAREN ")"
+    SEMICOLON ";"
+  WHITESPACE "\n"
+  MACRO_CALL
+    PATH
+      PATH_SEGMENT
+        NAME_REF
+          IDENT "impl_cache_key_non_zero"
+    BANG "!"
+    TOKEN_TREE
+      L_PAREN "("
+      IDENT "NonZeroU32"
+      R_PAREN ")"
+    SEMICOLON ";"
+  WHITESPACE "\n"
+  MACRO_CALL
+    PATH
+      PATH_SEGMENT
+        NAME_REF
+          IDENT "impl_cache_key_non_zero"
+    BANG "!"
+    TOKEN_TREE
+      L_PAREN "("
+      IDENT "NonZeroU64"
+      R_PAREN ")"
+    SEMICOLON ";"
+  WHITESPACE "\n"
+  MACRO_CALL
+    PATH
+      PATH_SEGMENT
+        NAME_REF
+          IDENT "impl_cache_key_non_zero"
+    BANG "!"
+    TOKEN_TREE
+      L_PAREN "("
+      IDENT "NonZeroU128"
+      R_PAREN ")"
+    SEMICOLON ";"
+  WHITESPACE "\n\n"
+  MACRO_CALL
+    PATH
+      PATH_SEGMENT
+        NAME_REF
+          IDENT "impl_cache_key_non_zero"
+    BANG "!"
+    TOKEN_TREE
+      L_PAREN "("
+      IDENT "NonZeroI8"
+      R_PAREN ")"
+    SEMICOLON ";"
+  WHITESPACE "\n"
+  MACRO_CALL
+    PATH
+      PATH_SEGMENT
+        NAME_REF
+          IDENT "impl_cache_key_non_zero"
+    BANG "!"
+    TOKEN_TREE
+      L_PAREN "("
+      IDENT "NonZeroI16"
+      R_PAREN ")"
+    SEMICOLON ";"
+  WHITESPACE "\n"
+  MACRO_CALL
+    PATH
+      PATH_SEGMENT
+        NAME_REF
+          IDENT "impl_cache_key_non_zero"
+    BANG "!"
+    TOKEN_TREE
+      L_PAREN "("
+      IDENT "NonZeroI32"
+      R_PAREN ")"
+    SEMICOLON ";"
+  WHITESPACE "\n"
+  MACRO_CALL
+    PATH
+      PATH_SEGMENT
+        NAME_REF
+          IDENT "impl_cache_key_non_zero"
+    BANG "!"
+    TOKEN_TREE
+      L_PAREN "("
+      IDENT "NonZeroI64"
+      R_PAREN ")"
+    SEMICOLON ";"
+  WHITESPACE "\n"
+  MACRO_CALL
+    PATH
+      PATH_SEGMENT
+        NAME_REF
+          IDENT "impl_cache_key_non_zero"
+    BANG "!"
+    TOKEN_TREE
+      L_PAREN "("
+      IDENT "NonZeroI128"
+      R_PAREN ")"
+    SEMICOLON ";"
+  WHITESPACE "\n\n"
+  MACRO_RULES
+    MACRO_RULES_KW "macro_rules"
+    BANG "!"
+    WHITESPACE " "
+    NAME
+      IDENT "impl_cache_key_tuple"
+    WHITESPACE " "
+    TOKEN_TREE
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      TOKEN_TREE
+        L_PAREN "("
+        R_PAREN ")"
+      WHITESPACE " "
+      EQ "="
+      R_ANGLE ">"
+      WHITESPACE " "
+      TOKEN_TREE
+        L_PAREN "("
+        WHITESPACE "\n        "
+        IMPL_KW "impl"
+        WHITESPACE " "
+        IDENT "CacheKey"
+        WHITESPACE " "
+        FOR_KW "for"
+        WHITESPACE " "
+        TOKEN_TREE
+          L_PAREN "("
+          R_PAREN ")"
+        WHITESPACE " "
+        TOKEN_TREE
+          L_CURLY "{"
+          WHITESPACE "\n            "
+          POUND "#"
+          TOKEN_TREE
+            L_BRACK "["
+            IDENT "inline"
+            R_BRACK "]"
+          WHITESPACE "\n            "
+          FN_KW "fn"
+          WHITESPACE " "
+          IDENT "cache_key"
+          TOKEN_TREE
+            L_PAREN "("
+            AMP "&"
+            SELF_KW "self"
+            COMMA ","
+            WHITESPACE " "
+            IDENT "_state"
+            COLON ":"
+            WHITESPACE " "
+            AMP "&"
+            MUT_KW "mut"
+            WHITESPACE " "
+            IDENT "CacheKeyHasher"
+            R_PAREN ")"
+          WHITESPACE " "
+          TOKEN_TREE
+            L_CURLY "{"
+            R_CURLY "}"
+          WHITESPACE "\n        "
+          R_CURLY "}"
+        WHITESPACE "\n    "
+        R_PAREN ")"
+      SEMICOLON ";"
+      WHITESPACE "\n\n    "
+      TOKEN_TREE
+        L_PAREN "("
+        WHITESPACE " "
+        DOLLAR "$"
+        TOKEN_TREE
+          L_PAREN "("
+          DOLLAR "$"
+          IDENT "name"
+          COLON ":"
+          IDENT "ident"
+          R_PAREN ")"
+        PLUS "+"
+        R_PAREN ")"
+      WHITESPACE " "
+      EQ "="
+      R_ANGLE ">"
+      WHITESPACE " "
+      TOKEN_TREE
+        L_PAREN "("
+        WHITESPACE "\n        "
+        IMPL_KW "impl"
+        L_ANGLE "<"
+        DOLLAR "$"
+        TOKEN_TREE
+          L_PAREN "("
+          DOLLAR "$"
+          IDENT "name"
+          COLON ":"
+          WHITESPACE " "
+          IDENT "CacheKey"
+          R_PAREN ")"
+        COMMA ","
+        PLUS "+"
+        R_ANGLE ">"
+        WHITESPACE " "
+        IDENT "CacheKey"
+        WHITESPACE " "
+        FOR_KW "for"
+        WHITESPACE " "
+        TOKEN_TREE
+          L_PAREN "("
+          DOLLAR "$"
+          TOKEN_TREE
+            L_PAREN "("
+            DOLLAR "$"
+            IDENT "name"
+            COMMA ","
+            R_PAREN ")"
+          PLUS "+"
+          R_PAREN ")"
+        WHITESPACE " "
+        WHERE_KW "where"
+        WHITESPACE " "
+        IDENT "last_type"
+        BANG "!"
+        TOKEN_TREE
+          L_PAREN "("
+          DOLLAR "$"
+          TOKEN_TREE
+            L_PAREN "("
+            DOLLAR "$"
+            IDENT "name"
+            COMMA ","
+            R_PAREN ")"
+          PLUS "+"
+          R_PAREN ")"
+        COLON ":"
+        WHITESPACE " "
+        QUESTION "?"
+        IDENT "Sized"
+        WHITESPACE " "
+        TOKEN_TREE
+          L_CURLY "{"
+          WHITESPACE "\n            "
+          POUND "#"
+          TOKEN_TREE
+            L_BRACK "["
+            IDENT "expect"
+            TOKEN_TREE
+              L_PAREN "("
+              IDENT "non_snake_case"
+              R_PAREN ")"
+            R_BRACK "]"
+          WHITESPACE "\n            "
+          POUND "#"
+          TOKEN_TREE
+            L_BRACK "["
+            IDENT "inline"
+            R_BRACK "]"
+          WHITESPACE "\n            "
+          FN_KW "fn"
+          WHITESPACE " "
+          IDENT "cache_key"
+          TOKEN_TREE
+            L_PAREN "("
+            AMP "&"
+            SELF_KW "self"
+            COMMA ","
+            WHITESPACE " "
+            IDENT "state"
+            COLON ":"
+            WHITESPACE " "
+            AMP "&"
+            MUT_KW "mut"
+            WHITESPACE " "
+            IDENT "CacheKeyHasher"
+            R_PAREN ")"
+          WHITESPACE " "
+          TOKEN_TREE
+            L_CURLY "{"
+            WHITESPACE "\n                "
+            LET_KW "let"
+            WHITESPACE " "
+            TOKEN_TREE
+              L_PAREN "("
+              DOLLAR "$"
+              TOKEN_TREE
+                L_PAREN "("
+                REF_KW "ref"
+                WHITESPACE " "
+                DOLLAR "$"
+                IDENT "name"
+                COMMA ","
+                R_PAREN ")"
+              PLUS "+"
+              R_PAREN ")"
+            WHITESPACE " "
+            EQ "="
+            WHITESPACE " "
+            STAR "*"
+            SELF_KW "self"
+            SEMICOLON ";"
+            WHITESPACE "\n                "
+            DOLLAR "$"
+            TOKEN_TREE
+              L_PAREN "("
+              DOLLAR "$"
+              IDENT "name"
+              DOT "."
+              IDENT "cache_key"
+              TOKEN_TREE
+                L_PAREN "("
+                IDENT "state"
+                R_PAREN ")"
+              SEMICOLON ";"
+              R_PAREN ")"
+            PLUS "+"
+            WHITESPACE "\n            "
+            R_CURLY "}"
+          WHITESPACE "\n        "
+          R_CURLY "}"
+        WHITESPACE "\n    "
+        R_PAREN ")"
+      SEMICOLON ";"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  MACRO_RULES
+    MACRO_RULES_KW "macro_rules"
+    BANG "!"
+    WHITESPACE " "
+    NAME
+      IDENT "last_type"
+    WHITESPACE " "
+    TOKEN_TREE
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      TOKEN_TREE
+        L_PAREN "("
+        DOLLAR "$"
+        IDENT "a"
+        COLON ":"
+        IDENT "ident"
+        COMMA ","
+        R_PAREN ")"
+      WHITESPACE " "
+      EQ "="
+      R_ANGLE ">"
+      WHITESPACE " "
+      TOKEN_TREE
+        L_CURLY "{"
+        WHITESPACE " "
+        DOLLAR "$"
+        IDENT "a"
+        WHITESPACE " "
+        R_CURLY "}"
+      SEMICOLON ";"
+      WHITESPACE "\n    "
+      TOKEN_TREE
+        L_PAREN "("
+        DOLLAR "$"
+        IDENT "a"
+        COLON ":"
+        IDENT "ident"
+        COMMA ","
+        WHITESPACE " "
+        DOLLAR "$"
+        TOKEN_TREE
+          L_PAREN "("
+          DOLLAR "$"
+          IDENT "rest_a"
+          COLON ":"
+          IDENT "ident"
+          COMMA ","
+          R_PAREN ")"
+        PLUS "+"
+        R_PAREN ")"
+      WHITESPACE " "
+      EQ "="
+      R_ANGLE ">"
+      WHITESPACE " "
+      TOKEN_TREE
+        L_CURLY "{"
+        WHITESPACE " "
+        IDENT "last_type"
+        BANG "!"
+        TOKEN_TREE
+          L_PAREN "("
+          DOLLAR "$"
+          TOKEN_TREE
+            L_PAREN "("
+            DOLLAR "$"
+            IDENT "rest_a"
+            COMMA ","
+            R_PAREN ")"
+          PLUS "+"
+          R_PAREN ")"
+        WHITESPACE " "
+        R_CURLY "}"
+      SEMICOLON ";"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  MACRO_CALL
+    PATH
+      PATH_SEGMENT
+        NAME_REF
+          IDENT "impl_cache_key_tuple"
+    BANG "!"
+    WHITESPACE " "
+    TOKEN_TREE
+      L_CURLY "{"
+      R_CURLY "}"
+  WHITESPACE "\n"
+  MACRO_CALL
+    PATH
+      PATH_SEGMENT
+        NAME_REF
+          IDENT "impl_cache_key_tuple"
+    BANG "!"
+    WHITESPACE " "
+    TOKEN_TREE
+      L_CURLY "{"
+      WHITESPACE " "
+      IDENT "T"
+      WHITESPACE " "
+      R_CURLY "}"
+  WHITESPACE "\n"
+  MACRO_CALL
+    PATH
+      PATH_SEGMENT
+        NAME_REF
+          IDENT "impl_cache_key_tuple"
+    BANG "!"
+    WHITESPACE " "
+    TOKEN_TREE
+      L_CURLY "{"
+      WHITESPACE " "
+      IDENT "T"
+      WHITESPACE " "
+      IDENT "B"
+      WHITESPACE " "
+      R_CURLY "}"
+  WHITESPACE "\n"
+  MACRO_CALL
+    PATH
+      PATH_SEGMENT
+        NAME_REF
+          IDENT "impl_cache_key_tuple"
+    BANG "!"
+    WHITESPACE " "
+    TOKEN_TREE
+      L_CURLY "{"
+      WHITESPACE " "
+      IDENT "T"
+      WHITESPACE " "
+      IDENT "B"
+      WHITESPACE " "
+      IDENT "C"
+      WHITESPACE " "
+      R_CURLY "}"
+  WHITESPACE "\n"
+  MACRO_CALL
+    PATH
+      PATH_SEGMENT
+        NAME_REF
+          IDENT "impl_cache_key_tuple"
+    BANG "!"
+    WHITESPACE " "
+    TOKEN_TREE
+      L_CURLY "{"
+      WHITESPACE " "
+      IDENT "T"
+      WHITESPACE " "
+      IDENT "B"
+      WHITESPACE " "
+      IDENT "C"
+      WHITESPACE " "
+      IDENT "D"
+      WHITESPACE " "
+      R_CURLY "}"
+  WHITESPACE "\n"
+  MACRO_CALL
+    PATH
+      PATH_SEGMENT
+        NAME_REF
+          IDENT "impl_cache_key_tuple"
+    BANG "!"
+    WHITESPACE " "
+    TOKEN_TREE
+      L_CURLY "{"
+      WHITESPACE " "
+      IDENT "T"
+      WHITESPACE " "
+      IDENT "B"
+      WHITESPACE " "
+      IDENT "C"
+      WHITESPACE " "
+      IDENT "D"
+      WHITESPACE " "
+      IDENT "E"
+      WHITESPACE " "
+      R_CURLY "}"
+  WHITESPACE "\n"
+  MACRO_CALL
+    PATH
+      PATH_SEGMENT
+        NAME_REF
+          IDENT "impl_cache_key_tuple"
+    BANG "!"
+    WHITESPACE " "
+    TOKEN_TREE
+      L_CURLY "{"
+      WHITESPACE " "
+      IDENT "T"
+      WHITESPACE " "
+      IDENT "B"
+      WHITESPACE " "
+      IDENT "C"
+      WHITESPACE " "
+      IDENT "D"
+      WHITESPACE " "
+      IDENT "E"
+      WHITESPACE " "
+      IDENT "F"
+      WHITESPACE " "
+      R_CURLY "}"
+  WHITESPACE "\n"
+  MACRO_CALL
+    PATH
+      PATH_SEGMENT
+        NAME_REF
+          IDENT "impl_cache_key_tuple"
+    BANG "!"
+    WHITESPACE " "
+    TOKEN_TREE
+      L_CURLY "{"
+      WHITESPACE " "
+      IDENT "T"
+      WHITESPACE " "
+      IDENT "B"
+      WHITESPACE " "
+      IDENT "C"
+      WHITESPACE " "
+      IDENT "D"
+      WHITESPACE " "
+      IDENT "E"
+      WHITESPACE " "
+      IDENT "F"
+      WHITESPACE " "
+      IDENT "G"
+      WHITESPACE " "
+      R_CURLY "}"
+  WHITESPACE "\n"
+  MACRO_CALL
+    PATH
+      PATH_SEGMENT
+        NAME_REF
+          IDENT "impl_cache_key_tuple"
+    BANG "!"
+    WHITESPACE " "
+    TOKEN_TREE
+      L_CURLY "{"
+      WHITESPACE " "
+      IDENT "T"
+      WHITESPACE " "
+      IDENT "B"
+      WHITESPACE " "
+      IDENT "C"
+      WHITESPACE " "
+      IDENT "D"
+      WHITESPACE " "
+      IDENT "E"
+      WHITESPACE " "
+      IDENT "F"
+      WHITESPACE " "
+      IDENT "G"
+      WHITESPACE " "
+      IDENT "H"
+      WHITESPACE " "
+      R_CURLY "}"
+  WHITESPACE "\n"
+  MACRO_CALL
+    PATH
+      PATH_SEGMENT
+        NAME_REF
+          IDENT "impl_cache_key_tuple"
+    BANG "!"
+    WHITESPACE " "
+    TOKEN_TREE
+      L_CURLY "{"
+      WHITESPACE " "
+      IDENT "T"
+      WHITESPACE " "
+      IDENT "B"
+      WHITESPACE " "
+      IDENT "C"
+      WHITESPACE " "
+      IDENT "D"
+      WHITESPACE " "
+      IDENT "E"
+      WHITESPACE " "
+      IDENT "F"
+      WHITESPACE " "
+      IDENT "G"
+      WHITESPACE " "
+      IDENT "H"
+      WHITESPACE " "
+      IDENT "I"
+      WHITESPACE " "
+      R_CURLY "}"
+  WHITESPACE "\n"
+  MACRO_CALL
+    PATH
+      PATH_SEGMENT
+        NAME_REF
+          IDENT "impl_cache_key_tuple"
+    BANG "!"
+    WHITESPACE " "
+    TOKEN_TREE
+      L_CURLY "{"
+      WHITESPACE " "
+      IDENT "T"
+      WHITESPACE " "
+      IDENT "B"
+      WHITESPACE " "
+      IDENT "C"
+      WHITESPACE " "
+      IDENT "D"
+      WHITESPACE " "
+      IDENT "E"
+      WHITESPACE " "
+      IDENT "F"
+      WHITESPACE " "
+      IDENT "G"
+      WHITESPACE " "
+      IDENT "H"
+      WHITESPACE " "
+      IDENT "I"
+      WHITESPACE " "
+      IDENT "J"
+      WHITESPACE " "
+      R_CURLY "}"
+  WHITESPACE "\n"
+  MACRO_CALL
+    PATH
+      PATH_SEGMENT
+        NAME_REF
+          IDENT "impl_cache_key_tuple"
+    BANG "!"
+    WHITESPACE " "
+    TOKEN_TREE
+      L_CURLY "{"
+      WHITESPACE " "
+      IDENT "T"
+      WHITESPACE " "
+      IDENT "B"
+      WHITESPACE " "
+      IDENT "C"
+      WHITESPACE " "
+      IDENT "D"
+      WHITESPACE " "
+      IDENT "E"
+      WHITESPACE " "
+      IDENT "F"
+      WHITESPACE " "
+      IDENT "G"
+      WHITESPACE " "
+      IDENT "H"
+      WHITESPACE " "
+      IDENT "I"
+      WHITESPACE " "
+      IDENT "J"
+      WHITESPACE " "
+      IDENT "K"
+      WHITESPACE " "
+      R_CURLY "}"
+  WHITESPACE "\n"
+  MACRO_CALL
+    PATH
+      PATH_SEGMENT
+        NAME_REF
+          IDENT "impl_cache_key_tuple"
+    BANG "!"
+    WHITESPACE " "
+    TOKEN_TREE
+      L_CURLY "{"
+      WHITESPACE " "
+      IDENT "T"
+      WHITESPACE " "
+      IDENT "B"
+      WHITESPACE " "
+      IDENT "C"
+      WHITESPACE " "
+      IDENT "D"
+      WHITESPACE " "
+      IDENT "E"
+      WHITESPACE " "
+      IDENT "F"
+      WHITESPACE " "
+      IDENT "G"
+      WHITESPACE " "
+      IDENT "H"
+      WHITESPACE " "
+      IDENT "I"
+      WHITESPACE " "
+      IDENT "J"
+      WHITESPACE " "
+      IDENT "K"
+      WHITESPACE " "
+      IDENT "L"
+      WHITESPACE " "
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "CacheKey"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "str"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "cache_key"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "state"
+            COLON ":"
+            WHITESPACE " "
+            REF_TYPE
+              AMP "&"
+              MUT_KW "mut"
+              WHITESPACE " "
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "CacheKeyHasher"
+          R_PAREN ")"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            EXPR_STMT
+              METHOD_CALL_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        SELF_KW "self"
+                DOT "."
+                NAME_REF
+                  IDENT "hash"
+                ARG_LIST
+                  L_PAREN "("
+                  REF_EXPR
+                    AMP "&"
+                    MUT_KW "mut"
+                    WHITESPACE " "
+                    PREFIX_EXPR
+                      STAR "*"
+                      PATH_EXPR
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "state"
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "CacheKey"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "String"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "cache_key"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "state"
+            COLON ":"
+            WHITESPACE " "
+            REF_TYPE
+              AMP "&"
+              MUT_KW "mut"
+              WHITESPACE " "
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "CacheKeyHasher"
+          R_PAREN ")"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            EXPR_STMT
+              METHOD_CALL_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        SELF_KW "self"
+                DOT "."
+                NAME_REF
+                  IDENT "hash"
+                ARG_LIST
+                  L_PAREN "("
+                  REF_EXPR
+                    AMP "&"
+                    MUT_KW "mut"
+                    WHITESPACE " "
+                    PREFIX_EXPR
+                      STAR "*"
+                      PATH_EXPR
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "state"
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "CacheKey"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "CharStr"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "cache_key"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "state"
+            COLON ":"
+            WHITESPACE " "
+            REF_TYPE
+              AMP "&"
+              MUT_KW "mut"
+              WHITESPACE " "
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "CacheKeyHasher"
+          R_PAREN ")"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            EXPR_STMT
+              METHOD_CALL_EXPR
+                METHOD_CALL_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          SELF_KW "self"
+                  DOT "."
+                  NAME_REF
+                    IDENT "as_str"
+                  ARG_LIST
+                    L_PAREN "("
+                    R_PAREN ")"
+                DOT "."
+                NAME_REF
+                  IDENT "cache_key"
+                ARG_LIST
+                  L_PAREN "("
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "state"
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    GENERIC_PARAM_LIST
+      L_ANGLE "<"
+      TYPE_PARAM
+        NAME
+          IDENT "T"
+        COLON ":"
+        WHITESPACE " "
+        TYPE_BOUND_LIST
+          TYPE_BOUND
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "CacheKey"
+      R_ANGLE ">"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "CacheKey"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "Option"
+          GENERIC_ARG_LIST
+            L_ANGLE "<"
+            TYPE_ARG
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "T"
+            R_ANGLE ">"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "cache_key"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "state"
+            COLON ":"
+            WHITESPACE " "
+            REF_TYPE
+              AMP "&"
+              MUT_KW "mut"
+              WHITESPACE " "
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "CacheKeyHasher"
+          R_PAREN ")"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            MATCH_EXPR
+              MATCH_KW "match"
+              WHITESPACE " "
+              PATH_EXPR
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      SELF_KW "self"
+              WHITESPACE " "
+              MATCH_ARM_LIST
+                L_CURLY "{"
+                WHITESPACE "\n            "
+                MATCH_ARM
+                  IDENT_PAT
+                    NAME
+                      IDENT "None"
+                  WHITESPACE " "
+                  FAT_ARROW "=>"
+                  WHITESPACE " "
+                  METHOD_CALL_EXPR
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "state"
+                    DOT "."
+                    NAME_REF
+                      IDENT "write_usize"
+                    ARG_LIST
+                      L_PAREN "("
+                      LITERAL
+                        INT_NUMBER "0"
+                      R_PAREN ")"
+                  COMMA ","
+                WHITESPACE "\n            "
+                MATCH_ARM
+                  TUPLE_STRUCT_PAT
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "Some"
+                    L_PAREN "("
+                    IDENT_PAT
+                      NAME
+                        IDENT "value"
+                    R_PAREN ")"
+                  WHITESPACE " "
+                  FAT_ARROW "=>"
+                  WHITESPACE " "
+                  BLOCK_EXPR
+                    STMT_LIST
+                      L_CURLY "{"
+                      WHITESPACE "\n                "
+                      EXPR_STMT
+                        METHOD_CALL_EXPR
+                          PATH_EXPR
+                            PATH
+                              PATH_SEGMENT
+                                NAME_REF
+                                  IDENT "state"
+                          DOT "."
+                          NAME_REF
+                            IDENT "write_usize"
+                          ARG_LIST
+                            L_PAREN "("
+                            LITERAL
+                              INT_NUMBER "1"
+                            R_PAREN ")"
+                        SEMICOLON ";"
+                      WHITESPACE "\n                "
+                      EXPR_STMT
+                        METHOD_CALL_EXPR
+                          PATH_EXPR
+                            PATH
+                              PATH_SEGMENT
+                                NAME_REF
+                                  IDENT "value"
+                          DOT "."
+                          NAME_REF
+                            IDENT "cache_key"
+                          ARG_LIST
+                            L_PAREN "("
+                            PATH_EXPR
+                              PATH
+                                PATH_SEGMENT
+                                  NAME_REF
+                                    IDENT "state"
+                            R_PAREN ")"
+                        SEMICOLON ";"
+                      WHITESPACE "\n            "
+                      R_CURLY "}"
+                WHITESPACE "\n        "
+                R_CURLY "}"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    GENERIC_PARAM_LIST
+      L_ANGLE "<"
+      TYPE_PARAM
+        NAME
+          IDENT "T"
+        COLON ":"
+        WHITESPACE " "
+        TYPE_BOUND_LIST
+          TYPE_BOUND
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "CacheKey"
+      R_ANGLE ">"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "CacheKey"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    SLICE_TYPE
+      L_BRACK "["
+      PATH_TYPE
+        PATH
+          PATH_SEGMENT
+            NAME_REF
+              IDENT "T"
+      R_BRACK "]"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "cache_key"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "state"
+            COLON ":"
+            WHITESPACE " "
+            REF_TYPE
+              AMP "&"
+              MUT_KW "mut"
+              WHITESPACE " "
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "CacheKeyHasher"
+          R_PAREN ")"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            EXPR_STMT
+              METHOD_CALL_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "state"
+                DOT "."
+                NAME_REF
+                  IDENT "write_usize"
+                ARG_LIST
+                  L_PAREN "("
+                  METHOD_CALL_EXPR
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            SELF_KW "self"
+                    DOT "."
+                    NAME_REF
+                      IDENT "len"
+                    ARG_LIST
+                      L_PAREN "("
+                      R_PAREN ")"
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n        "
+            EXPR_STMT
+              CALL_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "CacheKey"
+                    COLON2 "::"
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "cache_key_slice"
+                ARG_LIST
+                  L_PAREN "("
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          SELF_KW "self"
+                  COMMA ","
+                  WHITESPACE " "
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "state"
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    GENERIC_PARAM_LIST
+      L_ANGLE "<"
+      TYPE_PARAM
+        NAME
+          IDENT "T"
+        COLON ":"
+        WHITESPACE " "
+        TYPE_BOUND_LIST
+          TYPE_BOUND
+            QUESTION "?"
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "Sized"
+          WHITESPACE " "
+          PLUS "+"
+          WHITESPACE " "
+          TYPE_BOUND
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "CacheKey"
+      R_ANGLE ">"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "CacheKey"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    REF_TYPE
+      AMP "&"
+      PATH_TYPE
+        PATH
+          PATH_SEGMENT
+            NAME_REF
+              IDENT "T"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "cache_key"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "state"
+            COLON ":"
+            WHITESPACE " "
+            REF_TYPE
+              AMP "&"
+              MUT_KW "mut"
+              WHITESPACE " "
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "CacheKeyHasher"
+          R_PAREN ")"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            EXPR_STMT
+              METHOD_CALL_EXPR
+                PAREN_EXPR
+                  L_PAREN "("
+                  PREFIX_EXPR
+                    STAR "*"
+                    PREFIX_EXPR
+                      STAR "*"
+                      PATH_EXPR
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              SELF_KW "self"
+                  R_PAREN ")"
+                DOT "."
+                NAME_REF
+                  IDENT "cache_key"
+                ARG_LIST
+                  L_PAREN "("
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "state"
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    GENERIC_PARAM_LIST
+      L_ANGLE "<"
+      TYPE_PARAM
+        NAME
+          IDENT "T"
+        COLON ":"
+        WHITESPACE " "
+        TYPE_BOUND_LIST
+          TYPE_BOUND
+            QUESTION "?"
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "Sized"
+          WHITESPACE " "
+          PLUS "+"
+          WHITESPACE " "
+          TYPE_BOUND
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "CacheKey"
+      R_ANGLE ">"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "CacheKey"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    REF_TYPE
+      AMP "&"
+      MUT_KW "mut"
+      WHITESPACE " "
+      PATH_TYPE
+        PATH
+          PATH_SEGMENT
+            NAME_REF
+              IDENT "T"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "cache_key"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "state"
+            COLON ":"
+            WHITESPACE " "
+            REF_TYPE
+              AMP "&"
+              MUT_KW "mut"
+              WHITESPACE " "
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "CacheKeyHasher"
+          R_PAREN ")"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            EXPR_STMT
+              METHOD_CALL_EXPR
+                PAREN_EXPR
+                  L_PAREN "("
+                  PREFIX_EXPR
+                    STAR "*"
+                    PREFIX_EXPR
+                      STAR "*"
+                      PATH_EXPR
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              SELF_KW "self"
+                  R_PAREN ")"
+                DOT "."
+                NAME_REF
+                  IDENT "cache_key"
+                ARG_LIST
+                  L_PAREN "("
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "state"
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    GENERIC_PARAM_LIST
+      L_ANGLE "<"
+      TYPE_PARAM
+        NAME
+          IDENT "T"
+      R_ANGLE ">"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "CacheKey"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "Vec"
+          GENERIC_ARG_LIST
+            L_ANGLE "<"
+            TYPE_ARG
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "T"
+            R_ANGLE ">"
+    WHITESPACE "\n"
+    WHERE_CLAUSE
+      WHERE_KW "where"
+      WHITESPACE "\n    "
+      WHERE_PRED
+        PATH_TYPE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "T"
+        COLON ":"
+        WHITESPACE " "
+        TYPE_BOUND_LIST
+          TYPE_BOUND
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "CacheKey"
+      COMMA ","
+    WHITESPACE "\n"
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      FN
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "cache_key"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "state"
+            COLON ":"
+            WHITESPACE " "
+            REF_TYPE
+              AMP "&"
+              MUT_KW "mut"
+              WHITESPACE " "
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "CacheKeyHasher"
+          R_PAREN ")"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            EXPR_STMT
+              METHOD_CALL_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "state"
+                DOT "."
+                NAME_REF
+                  IDENT "write_usize"
+                ARG_LIST
+                  L_PAREN "("
+                  METHOD_CALL_EXPR
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            SELF_KW "self"
+                    DOT "."
+                    NAME_REF
+                      IDENT "len"
+                    ARG_LIST
+                      L_PAREN "("
+                      R_PAREN ")"
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n        "
+            EXPR_STMT
+              CALL_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "CacheKey"
+                    COLON2 "::"
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "cache_key_slice"
+                ARG_LIST
+                  L_PAREN "("
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          SELF_KW "self"
+                  COMMA ","
+                  WHITESPACE " "
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "state"
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    GENERIC_PARAM_LIST
+      L_ANGLE "<"
+      TYPE_PARAM
+        NAME
+          IDENT "K"
+      COMMA ","
+      WHITESPACE " "
+      TYPE_PARAM
+        NAME
+          IDENT "V"
+      COMMA ","
+      WHITESPACE " "
+      TYPE_PARAM
+        NAME
+          IDENT "S"
+      R_ANGLE ">"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "CacheKey"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "HashMap"
+          GENERIC_ARG_LIST
+            L_ANGLE "<"
+            TYPE_ARG
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "K"
+            COMMA ","
+            WHITESPACE " "
+            TYPE_ARG
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "V"
+            COMMA ","
+            WHITESPACE " "
+            TYPE_ARG
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "S"
+            R_ANGLE ">"
+    WHITESPACE "\n"
+    WHERE_CLAUSE
+      WHERE_KW "where"
+      WHITESPACE "\n    "
+      WHERE_PRED
+        PATH_TYPE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "K"
+        COLON ":"
+        WHITESPACE " "
+        TYPE_BOUND_LIST
+          TYPE_BOUND
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "CacheKey"
+          WHITESPACE " "
+          PLUS "+"
+          WHITESPACE " "
+          TYPE_BOUND
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "Ord"
+      COMMA ","
+      WHITESPACE "\n    "
+      WHERE_PRED
+        PATH_TYPE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "V"
+        COLON ":"
+        WHITESPACE " "
+        TYPE_BOUND_LIST
+          TYPE_BOUND
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "CacheKey"
+      COMMA ","
+    WHITESPACE "\n"
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      FN
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "cache_key"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "state"
+            COLON ":"
+            WHITESPACE " "
+            REF_TYPE
+              AMP "&"
+              MUT_KW "mut"
+              WHITESPACE " "
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "CacheKeyHasher"
+          R_PAREN ")"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            EXPR_STMT
+              METHOD_CALL_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "state"
+                DOT "."
+                NAME_REF
+                  IDENT "write_usize"
+                ARG_LIST
+                  L_PAREN "("
+                  METHOD_CALL_EXPR
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            SELF_KW "self"
+                    DOT "."
+                    NAME_REF
+                      IDENT "len"
+                    ARG_LIST
+                      L_PAREN "("
+                      R_PAREN ")"
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n        "
+            FOR_EXPR
+              FOR_KW "for"
+              WHITESPACE " "
+              TUPLE_PAT
+                L_PAREN "("
+                IDENT_PAT
+                  NAME
+                    IDENT "key"
+                COMMA ","
+                WHITESPACE " "
+                IDENT_PAT
+                  NAME
+                    IDENT "value"
+                R_PAREN ")"
+              WHITESPACE " "
+              IN_KW "in"
+              WHITESPACE " "
+              METHOD_CALL_EXPR
+                METHOD_CALL_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          SELF_KW "self"
+                  WHITESPACE "\n            "
+                  DOT "."
+                  NAME_REF
+                    IDENT "iter"
+                  ARG_LIST
+                    L_PAREN "("
+                    R_PAREN ")"
+                WHITESPACE "\n            "
+                DOT "."
+                NAME_REF
+                  IDENT "sorted_by"
+                ARG_LIST
+                  L_PAREN "("
+                  CLOSURE_EXPR
+                    PARAM_LIST
+                      PIPE "|"
+                      PARAM
+                        TUPLE_PAT
+                          L_PAREN "("
+                          IDENT_PAT
+                            NAME
+                              IDENT "left"
+                          COMMA ","
+                          WHITESPACE " "
+                          WILDCARD_PAT
+                            UNDERSCORE "_"
+                          R_PAREN ")"
+                      COMMA ","
+                      WHITESPACE " "
+                      PARAM
+                        TUPLE_PAT
+                          L_PAREN "("
+                          IDENT_PAT
+                            NAME
+                              IDENT "right"
+                          COMMA ","
+                          WHITESPACE " "
+                          WILDCARD_PAT
+                            UNDERSCORE "_"
+                          R_PAREN ")"
+                      PIPE "|"
+                    WHITESPACE " "
+                    METHOD_CALL_EXPR
+                      PATH_EXPR
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "left"
+                      DOT "."
+                      NAME_REF
+                        IDENT "cmp"
+                      ARG_LIST
+                        L_PAREN "("
+                        PATH_EXPR
+                          PATH
+                            PATH_SEGMENT
+                              NAME_REF
+                                IDENT "right"
+                        R_PAREN ")"
+                  R_PAREN ")"
+              WHITESPACE "\n        "
+              BLOCK_EXPR
+                STMT_LIST
+                  L_CURLY "{"
+                  WHITESPACE "\n            "
+                  EXPR_STMT
+                    METHOD_CALL_EXPR
+                      PATH_EXPR
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "key"
+                      DOT "."
+                      NAME_REF
+                        IDENT "cache_key"
+                      ARG_LIST
+                        L_PAREN "("
+                        PATH_EXPR
+                          PATH
+                            PATH_SEGMENT
+                              NAME_REF
+                                IDENT "state"
+                        R_PAREN ")"
+                    SEMICOLON ";"
+                  WHITESPACE "\n            "
+                  EXPR_STMT
+                    METHOD_CALL_EXPR
+                      PATH_EXPR
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "value"
+                      DOT "."
+                      NAME_REF
+                        IDENT "cache_key"
+                      ARG_LIST
+                        L_PAREN "("
+                        PATH_EXPR
+                          PATH
+                            PATH_SEGMENT
+                              NAME_REF
+                                IDENT "state"
+                        R_PAREN ")"
+                    SEMICOLON ";"
+                  WHITESPACE "\n        "
+                  R_CURLY "}"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    GENERIC_PARAM_LIST
+      L_ANGLE "<"
+      TYPE_PARAM
+        NAME
+          IDENT "V"
+        COLON ":"
+        WHITESPACE " "
+        TYPE_BOUND_LIST
+          TYPE_BOUND
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "CacheKey"
+          WHITESPACE " "
+          PLUS "+"
+          WHITESPACE " "
+          TYPE_BOUND
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "Ord"
+      COMMA ","
+      WHITESPACE " "
+      TYPE_PARAM
+        NAME
+          IDENT "S"
+      R_ANGLE ">"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "CacheKey"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "HashSet"
+          GENERIC_ARG_LIST
+            L_ANGLE "<"
+            TYPE_ARG
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "V"
+            COMMA ","
+            WHITESPACE " "
+            TYPE_ARG
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "S"
+            R_ANGLE ">"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      FN
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "cache_key"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "state"
+            COLON ":"
+            WHITESPACE " "
+            REF_TYPE
+              AMP "&"
+              MUT_KW "mut"
+              WHITESPACE " "
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "CacheKeyHasher"
+          R_PAREN ")"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            EXPR_STMT
+              METHOD_CALL_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "state"
+                DOT "."
+                NAME_REF
+                  IDENT "write_usize"
+                ARG_LIST
+                  L_PAREN "("
+                  METHOD_CALL_EXPR
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            SELF_KW "self"
+                    DOT "."
+                    NAME_REF
+                      IDENT "len"
+                    ARG_LIST
+                      L_PAREN "("
+                      R_PAREN ")"
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n        "
+            FOR_EXPR
+              FOR_KW "for"
+              WHITESPACE " "
+              IDENT_PAT
+                NAME
+                  IDENT "value"
+              WHITESPACE " "
+              IN_KW "in"
+              WHITESPACE " "
+              METHOD_CALL_EXPR
+                METHOD_CALL_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          SELF_KW "self"
+                  DOT "."
+                  NAME_REF
+                    IDENT "iter"
+                  ARG_LIST
+                    L_PAREN "("
+                    R_PAREN ")"
+                DOT "."
+                NAME_REF
+                  IDENT "sorted"
+                ARG_LIST
+                  L_PAREN "("
+                  R_PAREN ")"
+              WHITESPACE " "
+              BLOCK_EXPR
+                STMT_LIST
+                  L_CURLY "{"
+                  WHITESPACE "\n            "
+                  EXPR_STMT
+                    METHOD_CALL_EXPR
+                      PATH_EXPR
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "value"
+                      DOT "."
+                      NAME_REF
+                        IDENT "cache_key"
+                      ARG_LIST
+                        L_PAREN "("
+                        PATH_EXPR
+                          PATH
+                            PATH_SEGMENT
+                              NAME_REF
+                                IDENT "state"
+                        R_PAREN ")"
+                    SEMICOLON ";"
+                  WHITESPACE "\n        "
+                  R_CURLY "}"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    GENERIC_PARAM_LIST
+      L_ANGLE "<"
+      TYPE_PARAM
+        NAME
+          IDENT "V"
+        COLON ":"
+        WHITESPACE " "
+        TYPE_BOUND_LIST
+          TYPE_BOUND
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "CacheKey"
+      R_ANGLE ">"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "CacheKey"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "BTreeSet"
+          GENERIC_ARG_LIST
+            L_ANGLE "<"
+            TYPE_ARG
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "V"
+            R_ANGLE ">"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      FN
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "cache_key"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "state"
+            COLON ":"
+            WHITESPACE " "
+            REF_TYPE
+              AMP "&"
+              MUT_KW "mut"
+              WHITESPACE " "
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "CacheKeyHasher"
+          R_PAREN ")"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            EXPR_STMT
+              METHOD_CALL_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "state"
+                DOT "."
+                NAME_REF
+                  IDENT "write_usize"
+                ARG_LIST
+                  L_PAREN "("
+                  METHOD_CALL_EXPR
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            SELF_KW "self"
+                    DOT "."
+                    NAME_REF
+                      IDENT "len"
+                    ARG_LIST
+                      L_PAREN "("
+                      R_PAREN ")"
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n        "
+            FOR_EXPR
+              FOR_KW "for"
+              WHITESPACE " "
+              IDENT_PAT
+                NAME
+                  IDENT "item"
+              WHITESPACE " "
+              IN_KW "in"
+              WHITESPACE " "
+              PATH_EXPR
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      SELF_KW "self"
+              WHITESPACE " "
+              BLOCK_EXPR
+                STMT_LIST
+                  L_CURLY "{"
+                  WHITESPACE "\n            "
+                  EXPR_STMT
+                    METHOD_CALL_EXPR
+                      PATH_EXPR
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "item"
+                      DOT "."
+                      NAME_REF
+                        IDENT "cache_key"
+                      ARG_LIST
+                        L_PAREN "("
+                        PATH_EXPR
+                          PATH
+                            PATH_SEGMENT
+                              NAME_REF
+                                IDENT "state"
+                        R_PAREN ")"
+                    SEMICOLON ";"
+                  WHITESPACE "\n        "
+                  R_CURLY "}"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    GENERIC_PARAM_LIST
+      L_ANGLE "<"
+      TYPE_PARAM
+        NAME
+          IDENT "K"
+        COLON ":"
+        WHITESPACE " "
+        TYPE_BOUND_LIST
+          TYPE_BOUND
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "CacheKey"
+          WHITESPACE " "
+          PLUS "+"
+          WHITESPACE " "
+          TYPE_BOUND
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "Ord"
+      COMMA ","
+      WHITESPACE " "
+      TYPE_PARAM
+        NAME
+          IDENT "V"
+        COLON ":"
+        WHITESPACE " "
+        TYPE_BOUND_LIST
+          TYPE_BOUND
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "CacheKey"
+      R_ANGLE ">"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "CacheKey"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "BTreeMap"
+          GENERIC_ARG_LIST
+            L_ANGLE "<"
+            TYPE_ARG
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "K"
+            COMMA ","
+            WHITESPACE " "
+            TYPE_ARG
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "V"
+            R_ANGLE ">"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      FN
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "cache_key"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "state"
+            COLON ":"
+            WHITESPACE " "
+            REF_TYPE
+              AMP "&"
+              MUT_KW "mut"
+              WHITESPACE " "
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "CacheKeyHasher"
+          R_PAREN ")"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            EXPR_STMT
+              METHOD_CALL_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "state"
+                DOT "."
+                NAME_REF
+                  IDENT "write_usize"
+                ARG_LIST
+                  L_PAREN "("
+                  METHOD_CALL_EXPR
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            SELF_KW "self"
+                    DOT "."
+                    NAME_REF
+                      IDENT "len"
+                    ARG_LIST
+                      L_PAREN "("
+                      R_PAREN ")"
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n\n        "
+            FOR_EXPR
+              FOR_KW "for"
+              WHITESPACE " "
+              TUPLE_PAT
+                L_PAREN "("
+                IDENT_PAT
+                  NAME
+                    IDENT "key"
+                COMMA ","
+                WHITESPACE " "
+                IDENT_PAT
+                  NAME
+                    IDENT "value"
+                R_PAREN ")"
+              WHITESPACE " "
+              IN_KW "in"
+              WHITESPACE " "
+              PATH_EXPR
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      SELF_KW "self"
+              WHITESPACE " "
+              BLOCK_EXPR
+                STMT_LIST
+                  L_CURLY "{"
+                  WHITESPACE "\n            "
+                  EXPR_STMT
+                    METHOD_CALL_EXPR
+                      PATH_EXPR
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "key"
+                      DOT "."
+                      NAME_REF
+                        IDENT "cache_key"
+                      ARG_LIST
+                        L_PAREN "("
+                        PATH_EXPR
+                          PATH
+                            PATH_SEGMENT
+                              NAME_REF
+                                IDENT "state"
+                        R_PAREN ")"
+                    SEMICOLON ";"
+                  WHITESPACE "\n            "
+                  EXPR_STMT
+                    METHOD_CALL_EXPR
+                      PATH_EXPR
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "value"
+                      DOT "."
+                      NAME_REF
+                        IDENT "cache_key"
+                      ARG_LIST
+                        L_PAREN "("
+                        PATH_EXPR
+                          PATH
+                            PATH_SEGMENT
+                              NAME_REF
+                                IDENT "state"
+                        R_PAREN ")"
+                    SEMICOLON ";"
+                  WHITESPACE "\n        "
+                  R_CURLY "}"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "CacheKey"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "Path"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "cache_key"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "state"
+            COLON ":"
+            WHITESPACE " "
+            REF_TYPE
+              AMP "&"
+              MUT_KW "mut"
+              WHITESPACE " "
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "CacheKeyHasher"
+          R_PAREN ")"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            FOR_EXPR
+              FOR_KW "for"
+              WHITESPACE " "
+              IDENT_PAT
+                NAME
+                  IDENT "component"
+              WHITESPACE " "
+              IN_KW "in"
+              WHITESPACE " "
+              METHOD_CALL_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        SELF_KW "self"
+                DOT "."
+                NAME_REF
+                  IDENT "components"
+                ARG_LIST
+                  L_PAREN "("
+                  R_PAREN ")"
+              WHITESPACE " "
+              BLOCK_EXPR
+                STMT_LIST
+                  L_CURLY "{"
+                  WHITESPACE "\n            "
+                  EXPR_STMT
+                    METHOD_CALL_EXPR
+                      PATH_EXPR
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "component"
+                      DOT "."
+                      NAME_REF
+                        IDENT "hash"
+                      ARG_LIST
+                        L_PAREN "("
+                        REF_EXPR
+                          AMP "&"
+                          MUT_KW "mut"
+                          WHITESPACE " "
+                          PREFIX_EXPR
+                            STAR "*"
+                            PATH_EXPR
+                              PATH
+                                PATH_SEGMENT
+                                  NAME_REF
+                                    IDENT "state"
+                        R_PAREN ")"
+                    SEMICOLON ";"
+                  WHITESPACE "\n        "
+                  R_CURLY "}"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "CacheKey"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "PathBuf"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "cache_key"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "state"
+            COLON ":"
+            WHITESPACE " "
+            REF_TYPE
+              AMP "&"
+              MUT_KW "mut"
+              WHITESPACE " "
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "CacheKeyHasher"
+          R_PAREN ")"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            EXPR_STMT
+              METHOD_CALL_EXPR
+                METHOD_CALL_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          SELF_KW "self"
+                  DOT "."
+                  NAME_REF
+                    IDENT "as_path"
+                  ARG_LIST
+                    L_PAREN "("
+                    R_PAREN ")"
+                DOT "."
+                NAME_REF
+                  IDENT "cache_key"
+                ARG_LIST
+                  L_PAREN "("
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "state"
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    GENERIC_PARAM_LIST
+      L_ANGLE "<"
+      TYPE_PARAM
+        NAME
+          IDENT "V"
+        COLON ":"
+        WHITESPACE " "
+        TYPE_BOUND_LIST
+          TYPE_BOUND
+            QUESTION "?"
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "Sized"
+      R_ANGLE ">"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "CacheKey"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "Cow"
+          GENERIC_ARG_LIST
+            L_ANGLE "<"
+            LIFETIME_ARG
+              LIFETIME
+                LIFETIME_IDENT "'_"
+            COMMA ","
+            WHITESPACE " "
+            TYPE_ARG
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "V"
+            R_ANGLE ">"
+    WHITESPACE "\n"
+    WHERE_CLAUSE
+      WHERE_KW "where"
+      WHITESPACE "\n    "
+      WHERE_PRED
+        PATH_TYPE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "V"
+        COLON ":"
+        WHITESPACE " "
+        TYPE_BOUND_LIST
+          TYPE_BOUND
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "CacheKey"
+          WHITESPACE " "
+          PLUS "+"
+          WHITESPACE " "
+          TYPE_BOUND
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "ToOwned"
+      COMMA ","
+    WHITESPACE "\n"
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      FN
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "cache_key"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "state"
+            COLON ":"
+            WHITESPACE " "
+            REF_TYPE
+              AMP "&"
+              MUT_KW "mut"
+              WHITESPACE " "
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "CacheKeyHasher"
+          R_PAREN ")"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            EXPR_STMT
+              METHOD_CALL_EXPR
+                PAREN_EXPR
+                  L_PAREN "("
+                  PREFIX_EXPR
+                    STAR "*"
+                    PREFIX_EXPR
+                      STAR "*"
+                      PATH_EXPR
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              SELF_KW "self"
+                  R_PAREN ")"
+                DOT "."
+                NAME_REF
+                  IDENT "cache_key"
+                ARG_LIST
+                  L_PAREN "("
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "state"
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "CacheKey"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "Regex"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      FN
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "cache_key"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "state"
+            COLON ":"
+            WHITESPACE " "
+            REF_TYPE
+              AMP "&"
+              MUT_KW "mut"
+              WHITESPACE " "
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "CacheKeyHasher"
+          R_PAREN ")"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            EXPR_STMT
+              METHOD_CALL_EXPR
+                METHOD_CALL_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          SELF_KW "self"
+                  DOT "."
+                  NAME_REF
+                    IDENT "as_str"
+                  ARG_LIST
+                    L_PAREN "("
+                    R_PAREN ")"
+                DOT "."
+                NAME_REF
+                  IDENT "cache_key"
+                ARG_LIST
+                  L_PAREN "("
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "state"
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "CacheKey"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "Pattern"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      FN
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "cache_key"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "state"
+            COLON ":"
+            WHITESPACE " "
+            REF_TYPE
+              AMP "&"
+              MUT_KW "mut"
+              WHITESPACE " "
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "CacheKeyHasher"
+          R_PAREN ")"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            EXPR_STMT
+              METHOD_CALL_EXPR
+                METHOD_CALL_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          SELF_KW "self"
+                  DOT "."
+                  NAME_REF
+                    IDENT "as_str"
+                  ARG_LIST
+                    L_PAREN "("
+                    R_PAREN ")"
+                DOT "."
+                NAME_REF
+                  IDENT "cache_key"
+                ARG_LIST
+                  L_PAREN "("
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "state"
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  STRUCT
+    ATTR
+      POUND "#"
+      L_BRACK "["
+      TOKEN_TREE_META
+        PATH
+          PATH_SEGMENT
+            NAME_REF
+              IDENT "derive"
+        TOKEN_TREE
+          L_PAREN "("
+          IDENT "Clone"
+          COMMA ","
+          WHITESPACE " "
+          IDENT "Default"
+          R_PAREN ")"
+      R_BRACK "]"
+    WHITESPACE "\n"
+    VISIBILITY
+      PUB_KW "pub"
+    WHITESPACE " "
+    STRUCT_KW "struct"
+    WHITESPACE " "
+    NAME
+      IDENT "CacheKeyHasher"
+    WHITESPACE " "
+    RECORD_FIELD_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      RECORD_FIELD
+        NAME
+          IDENT "inner"
+        COLON ":"
+        WHITESPACE " "
+        PATH_TYPE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "SeaHasher"
+      COMMA ","
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "CacheKeyHasher"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      FN
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "new"
+        PARAM_LIST
+          L_PAREN "("
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  SELF_TYPE_KW "Self"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            RECORD_EXPR
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    SELF_TYPE_KW "Self"
+              WHITESPACE " "
+              RECORD_EXPR_FIELD_LIST
+                L_CURLY "{"
+                WHITESPACE "\n            "
+                RECORD_EXPR_FIELD
+                  NAME_REF
+                    IDENT "inner"
+                  COLON ":"
+                  WHITESPACE " "
+                  CALL_EXPR
+                    PATH_EXPR
+                      PATH
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "SeaHasher"
+                        COLON2 "::"
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "new"
+                    ARG_LIST
+                      L_PAREN "("
+                      R_PAREN ")"
+                COMMA ","
+                WHITESPACE "\n        "
+                R_CURLY "}"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "Hasher"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "CacheKeyHasher"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "finish"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "u64"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            METHOD_CALL_EXPR
+              FIELD_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        SELF_KW "self"
+                DOT "."
+                NAME_REF
+                  IDENT "inner"
+              DOT "."
+              NAME_REF
+                IDENT "finish"
+              ARG_LIST
+                L_PAREN "("
+                R_PAREN ")"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "write"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            MUT_KW "mut"
+            WHITESPACE " "
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "bytes"
+            COLON ":"
+            WHITESPACE " "
+            REF_TYPE
+              AMP "&"
+              SLICE_TYPE
+                L_BRACK "["
+                PATH_TYPE
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "u8"
+                R_BRACK "]"
+          R_PAREN ")"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            EXPR_STMT
+              METHOD_CALL_EXPR
+                FIELD_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          SELF_KW "self"
+                  DOT "."
+                  NAME_REF
+                    IDENT "inner"
+                DOT "."
+                NAME_REF
+                  IDENT "write"
+                ARG_LIST
+                  L_PAREN "("
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "bytes"
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "write_u8"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            MUT_KW "mut"
+            WHITESPACE " "
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "i"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "u8"
+          R_PAREN ")"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            EXPR_STMT
+              METHOD_CALL_EXPR
+                FIELD_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          SELF_KW "self"
+                  DOT "."
+                  NAME_REF
+                    IDENT "inner"
+                DOT "."
+                NAME_REF
+                  IDENT "write_u8"
+                ARG_LIST
+                  L_PAREN "("
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "i"
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "write_u16"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            MUT_KW "mut"
+            WHITESPACE " "
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "i"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "u16"
+          R_PAREN ")"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            EXPR_STMT
+              METHOD_CALL_EXPR
+                FIELD_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          SELF_KW "self"
+                  DOT "."
+                  NAME_REF
+                    IDENT "inner"
+                DOT "."
+                NAME_REF
+                  IDENT "write_u16"
+                ARG_LIST
+                  L_PAREN "("
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "i"
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "write_u32"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            MUT_KW "mut"
+            WHITESPACE " "
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "i"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "u32"
+          R_PAREN ")"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            EXPR_STMT
+              METHOD_CALL_EXPR
+                FIELD_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          SELF_KW "self"
+                  DOT "."
+                  NAME_REF
+                    IDENT "inner"
+                DOT "."
+                NAME_REF
+                  IDENT "write_u32"
+                ARG_LIST
+                  L_PAREN "("
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "i"
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "write_u64"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            MUT_KW "mut"
+            WHITESPACE " "
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "i"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "u64"
+          R_PAREN ")"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            EXPR_STMT
+              METHOD_CALL_EXPR
+                FIELD_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          SELF_KW "self"
+                  DOT "."
+                  NAME_REF
+                    IDENT "inner"
+                DOT "."
+                NAME_REF
+                  IDENT "write_u64"
+                ARG_LIST
+                  L_PAREN "("
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "i"
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "write_u128"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            MUT_KW "mut"
+            WHITESPACE " "
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "i"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "u128"
+          R_PAREN ")"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            EXPR_STMT
+              METHOD_CALL_EXPR
+                FIELD_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          SELF_KW "self"
+                  DOT "."
+                  NAME_REF
+                    IDENT "inner"
+                DOT "."
+                NAME_REF
+                  IDENT "write_u128"
+                ARG_LIST
+                  L_PAREN "("
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "i"
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "write_usize"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            MUT_KW "mut"
+            WHITESPACE " "
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "i"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "usize"
+          R_PAREN ")"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            EXPR_STMT
+              METHOD_CALL_EXPR
+                FIELD_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          SELF_KW "self"
+                  DOT "."
+                  NAME_REF
+                    IDENT "inner"
+                DOT "."
+                NAME_REF
+                  IDENT "write_usize"
+                ARG_LIST
+                  L_PAREN "("
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "i"
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "write_i8"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            MUT_KW "mut"
+            WHITESPACE " "
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "i"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "i8"
+          R_PAREN ")"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            EXPR_STMT
+              METHOD_CALL_EXPR
+                FIELD_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          SELF_KW "self"
+                  DOT "."
+                  NAME_REF
+                    IDENT "inner"
+                DOT "."
+                NAME_REF
+                  IDENT "write_i8"
+                ARG_LIST
+                  L_PAREN "("
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "i"
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "write_i16"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            MUT_KW "mut"
+            WHITESPACE " "
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "i"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "i16"
+          R_PAREN ")"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            EXPR_STMT
+              METHOD_CALL_EXPR
+                FIELD_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          SELF_KW "self"
+                  DOT "."
+                  NAME_REF
+                    IDENT "inner"
+                DOT "."
+                NAME_REF
+                  IDENT "write_i16"
+                ARG_LIST
+                  L_PAREN "("
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "i"
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "write_i32"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            MUT_KW "mut"
+            WHITESPACE " "
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "i"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "i32"
+          R_PAREN ")"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            EXPR_STMT
+              METHOD_CALL_EXPR
+                FIELD_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          SELF_KW "self"
+                  DOT "."
+                  NAME_REF
+                    IDENT "inner"
+                DOT "."
+                NAME_REF
+                  IDENT "write_i32"
+                ARG_LIST
+                  L_PAREN "("
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "i"
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "write_i64"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            MUT_KW "mut"
+            WHITESPACE " "
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "i"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "i64"
+          R_PAREN ")"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            EXPR_STMT
+              METHOD_CALL_EXPR
+                FIELD_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          SELF_KW "self"
+                  DOT "."
+                  NAME_REF
+                    IDENT "inner"
+                DOT "."
+                NAME_REF
+                  IDENT "write_i64"
+                ARG_LIST
+                  L_PAREN "("
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "i"
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "write_i128"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            MUT_KW "mut"
+            WHITESPACE " "
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "i"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "i128"
+          R_PAREN ")"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            EXPR_STMT
+              METHOD_CALL_EXPR
+                FIELD_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          SELF_KW "self"
+                  DOT "."
+                  NAME_REF
+                    IDENT "inner"
+                DOT "."
+                NAME_REF
+                  IDENT "write_i128"
+                ARG_LIST
+                  L_PAREN "("
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "i"
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "write_isize"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            MUT_KW "mut"
+            WHITESPACE " "
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "i"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "isize"
+          R_PAREN ")"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            EXPR_STMT
+              METHOD_CALL_EXPR
+                FIELD_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          SELF_KW "self"
+                  DOT "."
+                  NAME_REF
+                    IDENT "inner"
+                DOT "."
+                NAME_REF
+                  IDENT "write_isize"
+                ARG_LIST
+                  L_PAREN "("
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "i"
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n"

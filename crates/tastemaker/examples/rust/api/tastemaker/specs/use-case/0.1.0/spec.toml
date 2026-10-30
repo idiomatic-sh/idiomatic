@@ -1,0 +1,30 @@
+description = "One use case of the API: the directory `inbound/use_cases/<use-case>/` that holds its `use_case.rs`."
+why = "Every use case has the same shape, so a reader and a tool find any use case the same way: `use_case.rs` holds the operation, in a struct named for the use case, and imports no framework. The spec is not closed: a use case may hold further modules of its own."
+closed = false
+
+templates = [
+  { template = "local/use-case@0.1.0", file = "use_case.rs", description = "The use case's operation." },
+]
+rules = [
+  { rule = "local/use-case-class-name@0.1.0", include = ["use_case.rs"], description = "`use_case.rs` declares a struct named `<Name>UseCase`." },
+  { rule = "local/no-framework-imports@0.1.0", include = ["use_case.rs"], params = { forbidden = ["axum", "axum::*"] }, description = "`use_case.rs` does not import the framework." },
+]
+
+[given]
+at = "src/inbound/use_cases/{use-case}"
+
+[[scenarios]]
+id = "complete-use-case"
+scenario = "A use case directory with its use_case.rs has no finding."
+given.files."src/inbound/use_cases/list_todos/use_case.rs" = '''
+//! The operation of this use case, run with the ports it takes.
+pub struct ListTodosUseCase;
+'''
+
+[[scenarios]]
+id = "use-case-without-use-case-ts"
+scenario = "A use case directory with no use_case.rs is reported."
+given.files."src/inbound/use_cases/archive_todo/archive.rs" = '''
+pub struct ArchiveTodoUseCase;
+'''
+then.findings = [{ rule = "#count", path = "src/inbound/use_cases/archive_todo" }]

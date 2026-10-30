@@ -1,0 +1,146 @@
+# One documented finding and independent repair per README decision row.
+commands = [["npm", "install"], ["npm", "test"]]
+
+[[rows]]
+row = "Lock directory structure"
+rule = "local/top-level-directories"
+path = "scripts/seed.js"
+edits = [
+  { path = "tastemaker.toml", find = "\"src/**\",", replace = "\"src/**\", \"scripts/**\"," },
+]
+
+[[rows]]
+row = "Consistent file names"
+rule = "local/use-case#count"
+path = "src/inbound/use_cases/archive_todo"
+edits = [
+  { path = "src/inbound/use_cases/archive_todo/archive.js", delete = true },
+  { path = "src/inbound/use_cases/archive_todo/use_case.js", replace = "/** The operation of this use case, run with the ports it takes. */\nexport class ArchiveTodoUseCase {\n  constructor(store) { this.store = store; }\n  async run(id) { return this.store.archive(id); }\n}\n" },
+  { path = "tests/inbound/use_cases/archive_todo/archive.test.js", delete = true },
+  { path = "tests/inbound/use_cases/archive_todo/use_case.test.js", replace = "import assert from \"node:assert/strict\";\nimport test from \"node:test\";\nimport { ArchiveTodoUseCase } from \"../../../../src/inbound/use_cases/archive_todo/use_case.js\";\nimport { MemoryTodoStore } from \"../../../../src/outbound/todos/adapter.js\";\ntest(\"archive_todo uses its store port\", async () => { const store = new MemoryTodoStore(); const useCase = new ArchiveTodoUseCase(store); const added = await store.add(\"Milk\"); assert.equal(await useCase.run(added.id), true); assert.deepEqual(await store.all(), []); });\n" },
+  { path = "src/routes/todos/routes.js", find = "archive_todo/archive.js", replace = "archive_todo/use_case.js" },
+]
+
+[[rows]]
+row = "Naming convention"
+rule = "local/use-case-class-name"
+path = "src/inbound/use_cases/list_todos/use_case.js"
+edits = [
+  { path = "src/inbound/use_cases/list_todos/use_case.js", find = "class Lister", replace = "class ListTodosUseCase" },
+  { path = "src/inbound/use_cases/create_todo/use_case.js", find = "{ Lister }", replace = "{ ListTodosUseCase }" },
+  { path = "src/inbound/use_cases/create_todo/use_case.js", find = "new Lister(", replace = "new ListTodosUseCase(" },
+  { path = "src/routes/todos/routes.js", find = "{ Lister }", replace = "{ ListTodosUseCase }" },
+  { path = "src/routes/todos/routes.js", find = "new Lister(", replace = "new ListTodosUseCase(" },
+  { path = "tests/inbound/use_cases/list_todos/use_case.test.js", find = "{ Lister }", replace = "{ ListTodosUseCase }" },
+  { path = "tests/inbound/use_cases/list_todos/use_case.test.js", find = "new Lister(", replace = "new ListTodosUseCase(" },
+]
+
+[[rows]]
+row = "Import direction"
+rule = "local/no-framework-imports"
+path = "src/inbound/use_cases/complete_todo/use_case.js"
+line = 3
+edits = [
+  { path = "src/inbound/use_cases/complete_todo/use_case.js", find = "import { HTTPException } from \"hono/http-exception\";", replace = "" },
+  { path = "src/inbound/use_cases/complete_todo/use_case.js", find = "    if (done === undefined) throw new HTTPException(404, { message: \"no such todo\" });", replace = "" },
+]
+
+[[rows]]
+row = "Required tests"
+rule = "local/tests-for-sources"
+path = "src/domain/user/types.js"
+edits = [
+  { path = "tests/domain/user/types.test.js", replace = "import assert from \"node:assert/strict\";\nimport test from \"node:test\";\nimport { User } from \"../../../src/domain/user/types.js\";\ntest(\"a user retains its identity\", () => { assert.deepEqual({ ...new User(7, \"Ann\") }, { id: 7, name: \"Ann\" }); });\n" },
+]
+
+[[rows]]
+row = "Framework conventions"
+rule = "local/async-handlers"
+path = "src/routes/todos/routes.js"
+line = 29
+edits = [
+  { path = "src/routes/todos/routes.js", find = "routes.get(\"/count\", (c) =>", replace = "routes.get(\"/count\", async (c) =>" },
+]
+
+[[rows]]
+row = "Complexity limits"
+rule = "local/too-many-parameters"
+path = "src/domain/todo/titles.js"
+line = 8
+edits = [
+  { path = "src/domain/todo/titles.js", find = "owner, due, tag) {", replace = "owner, due) {" },
+  { path = "src/domain/todo/titles.js", find = "owner, due, tag].join", replace = "owner, due].join" },
+  { path = "tests/domain/todo/titles.test.js", find = "true, \"ann\", \"monday\", \"home\")", replace = "true, \"ann\", \"monday\")" },
+]
+
+[[rows]]
+row = "Dependency graph"
+rule = "local/use-case-import-cycles"
+path = "src/inbound/use_cases/create_todo/use_case.js"
+line = 2
+edits = [
+  { path = "src/inbound/use_cases/list_todos/use_case.js", find = "import { CreateTodoUseCase } from \"../create_todo/use_case.js\";", replace = "" },
+  { path = "src/inbound/use_cases/list_todos/use_case.js", find = "  creator() { return new CreateTodoUseCase(this.store); }", replace = "" },
+]
+
+[[rows]]
+row = "Banned patterns"
+rule = "local/no-todo-comments"
+path = "src/main.js"
+line = 9
+edits = [
+  { path = "src/main.js", find = "// TODO: make the listen address configurable", replace = "// The listen port for the sample." },
+]
+
+[[rows]]
+row = "Duplicate code"
+rule = "local/duplicate-function-bodies"
+path = "src/domain/todo/titles.js"
+line = 1
+edits = [
+  { path = "src/inbound/use_cases/create_todo/use_case.js", find = "// planted: Duplicate code\nfunction normaliseTitle(title) {\n  const trimmed = title.trim();\n  const single = trimmed.replace(/\\s+/g, \" \");\n  return single.charAt(0).toUpperCase() + single.slice(1);\n}\n\n", replace = "import { normaliseTitle } from \"../../../domain/todo/titles.js\";\n\n" },
+]
+
+[[rows]]
+row = "Idiomatic code"
+rule = "local/no-loose-equality"
+path = "src/outbound/todos/adapter.js"
+line = 17
+edits = [
+  { path = "src/outbound/todos/adapter.js", find = "candidate.id == id", replace = "candidate.id === id" },
+]
+
+[[rows]]
+row = "JSON: dependencies pinned"
+rule = "local/pinned-dependencies"
+path = "package.json"
+line = 17
+edits = [
+  { path = "package.json", find = "\"picocolors\": \"^1.1.1\"", replace = "\"picocolors\": \"1.1.1\"" },
+]
+
+[[rows]]
+row = "JSON: dependencies in order"
+rule = "local/sorted-dependencies"
+path = "package.json"
+line = 13
+edits = [
+  { path = "package.json", find = "    \"hono\": \"4.13.14\",\n    \"@hono/node-server\": \"2.1.5\",", replace = "    \"@hono/node-server\": \"2.1.5\",\n    \"hono\": \"4.13.14\"," },
+]
+
+[[rows]]
+row = "JSON: name and description"
+rule = "local/package-identity"
+path = "package.json"
+line = 1
+edits = [
+  { path = "package.json", find = "\"description\": \"\"", replace = "\"description\": \"A todo API on Hono and plain JavaScript.\"" },
+]
+
+[[rows]]
+row = "Markdown: README sections"
+rule = "local/readme-sections"
+path = "README.md"
+edits = [
+  { path = "README.md", find = "Run `npm run dev` to serve the API on port 3000.", replace = "```sh\nnpm run dev\n```" },
+]

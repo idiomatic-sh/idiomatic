@@ -1,0 +1,2556 @@
+stylesheet
+  comment
+  whitespace
+  qualified-rule
+    literal :
+    ident
+    literal ,
+    whitespace
+    block [
+      ident
+      literal =
+      ident
+    whitespace
+    block
+      whitespace
+      declaration --bs-blue
+        whitespace
+        hash
+      whitespace
+      declaration --bs-indigo
+        whitespace
+        hash
+      whitespace
+      declaration --bs-purple
+        whitespace
+        hash
+      whitespace
+      declaration --bs-pink
+        whitespace
+        hash
+      whitespace
+      declaration --bs-red
+        whitespace
+        hash
+      whitespace
+      declaration --bs-orange
+        whitespace
+        hash
+      whitespace
+      declaration --bs-yellow
+        whitespace
+        hash
+      whitespace
+      declaration --bs-green
+        whitespace
+        hash
+      whitespace
+      declaration --bs-teal
+        whitespace
+        hash
+      whitespace
+      declaration --bs-cyan
+        whitespace
+        hash
+      whitespace
+      declaration --bs-black
+        whitespace
+        hash
+      whitespace
+      declaration --bs-white
+        whitespace
+        hash
+      whitespace
+      declaration --bs-gray
+        whitespace
+        hash
+      whitespace
+      declaration --bs-gray-dark
+        whitespace
+        hash
+      whitespace
+      declaration --bs-gray-100
+        whitespace
+        hash
+      whitespace
+      declaration --bs-gray-200
+        whitespace
+        hash
+      whitespace
+      declaration --bs-gray-300
+        whitespace
+        hash
+      whitespace
+      declaration --bs-gray-400
+        whitespace
+        hash
+      whitespace
+      declaration --bs-gray-500
+        whitespace
+        hash
+      whitespace
+      declaration --bs-gray-600
+        whitespace
+        hash
+      whitespace
+      declaration --bs-gray-700
+        whitespace
+        hash
+      whitespace
+      declaration --bs-gray-800
+        whitespace
+        hash
+      whitespace
+      declaration --bs-gray-900
+        whitespace
+        hash
+      whitespace
+      declaration --bs-primary
+        whitespace
+        hash
+      whitespace
+      declaration --bs-secondary
+        whitespace
+        hash
+      whitespace
+      declaration --bs-success
+        whitespace
+        hash
+      whitespace
+      declaration --bs-info
+        whitespace
+        hash
+      whitespace
+      declaration --bs-warning
+        whitespace
+        hash
+      whitespace
+      declaration --bs-danger
+        whitespace
+        hash
+      whitespace
+      declaration --bs-light
+        whitespace
+        hash
+      whitespace
+      declaration --bs-dark
+        whitespace
+        hash
+      whitespace
+      declaration --bs-primary-rgb
+        whitespace
+        number
+        literal ,
+        whitespace
+        number
+        literal ,
+        whitespace
+        number
+      whitespace
+      declaration --bs-secondary-rgb
+        whitespace
+        number
+        literal ,
+        whitespace
+        number
+        literal ,
+        whitespace
+        number
+      whitespace
+      declaration --bs-success-rgb
+        whitespace
+        number
+        literal ,
+        whitespace
+        number
+        literal ,
+        whitespace
+        number
+      whitespace
+      declaration --bs-info-rgb
+        whitespace
+        number
+        literal ,
+        whitespace
+        number
+        literal ,
+        whitespace
+        number
+      whitespace
+      declaration --bs-warning-rgb
+        whitespace
+        number
+        literal ,
+        whitespace
+        number
+        literal ,
+        whitespace
+        number
+      whitespace
+      declaration --bs-danger-rgb
+        whitespace
+        number
+        literal ,
+        whitespace
+        number
+        literal ,
+        whitespace
+        number
+      whitespace
+      declaration --bs-light-rgb
+        whitespace
+        number
+        literal ,
+        whitespace
+        number
+        literal ,
+        whitespace
+        number
+      whitespace
+      declaration --bs-dark-rgb
+        whitespace
+        number
+        literal ,
+        whitespace
+        number
+        literal ,
+        whitespace
+        number
+      whitespace
+      declaration --bs-primary-text-emphasis
+        whitespace
+        hash
+      whitespace
+      declaration --bs-secondary-text-emphasis
+        whitespace
+        hash
+      whitespace
+      declaration --bs-success-text-emphasis
+        whitespace
+        hash
+      whitespace
+      declaration --bs-info-text-emphasis
+        whitespace
+        hash
+      whitespace
+      declaration --bs-warning-text-emphasis
+        whitespace
+        hash
+      whitespace
+      declaration --bs-danger-text-emphasis
+        whitespace
+        hash
+      whitespace
+      declaration --bs-light-text-emphasis
+        whitespace
+        hash
+      whitespace
+      declaration --bs-dark-text-emphasis
+        whitespace
+        hash
+      whitespace
+      declaration --bs-primary-bg-subtle
+        whitespace
+        hash
+      whitespace
+      declaration --bs-secondary-bg-subtle
+        whitespace
+        hash
+      whitespace
+      declaration --bs-success-bg-subtle
+        whitespace
+        hash
+      whitespace
+      declaration --bs-info-bg-subtle
+        whitespace
+        hash
+      whitespace
+      declaration --bs-warning-bg-subtle
+        whitespace
+        hash
+      whitespace
+      declaration --bs-danger-bg-subtle
+        whitespace
+        hash
+      whitespace
+      declaration --bs-light-bg-subtle
+        whitespace
+        hash
+      whitespace
+      declaration --bs-dark-bg-subtle
+        whitespace
+        hash
+      whitespace
+      declaration --bs-primary-border-subtle
+        whitespace
+        hash
+      whitespace
+      declaration --bs-secondary-border-subtle
+        whitespace
+        hash
+      whitespace
+      declaration --bs-success-border-subtle
+        whitespace
+        hash
+      whitespace
+      declaration --bs-info-border-subtle
+        whitespace
+        hash
+      whitespace
+      declaration --bs-warning-border-subtle
+        whitespace
+        hash
+      whitespace
+      declaration --bs-danger-border-subtle
+        whitespace
+        hash
+      whitespace
+      declaration --bs-light-border-subtle
+        whitespace
+        hash
+      whitespace
+      declaration --bs-dark-border-subtle
+        whitespace
+        hash
+      whitespace
+      declaration --bs-white-rgb
+        whitespace
+        number
+        literal ,
+        whitespace
+        number
+        literal ,
+        whitespace
+        number
+      whitespace
+      declaration --bs-black-rgb
+        whitespace
+        number
+        literal ,
+        whitespace
+        number
+        literal ,
+        whitespace
+        number
+      whitespace
+      declaration --bs-font-sans-serif
+        whitespace
+        ident
+        literal ,
+        whitespace
+        ident
+        literal ,
+        whitespace
+        string
+        literal ,
+        whitespace
+        ident
+        literal ,
+        whitespace
+        string
+        literal ,
+        whitespace
+        string
+        literal ,
+        whitespace
+        string
+        literal ,
+        whitespace
+        ident
+        literal ,
+        whitespace
+        ident
+        literal ,
+        whitespace
+        string
+        literal ,
+        whitespace
+        string
+        literal ,
+        whitespace
+        string
+        literal ,
+        whitespace
+        string
+      whitespace
+      declaration --bs-font-monospace
+        whitespace
+        ident
+        literal ,
+        whitespace
+        ident
+        literal ,
+        whitespace
+        ident
+        literal ,
+        whitespace
+        ident
+        literal ,
+        whitespace
+        string
+        literal ,
+        whitespace
+        string
+        literal ,
+        whitespace
+        ident
+      whitespace
+      declaration --bs-gradient
+        whitespace
+        function linear-gradient
+          dimension
+          literal ,
+          whitespace
+          function rgba
+            number
+            literal ,
+            whitespace
+            number
+            literal ,
+            whitespace
+            number
+            literal ,
+            whitespace
+            number
+          literal ,
+          whitespace
+          function rgba
+            number
+            literal ,
+            whitespace
+            number
+            literal ,
+            whitespace
+            number
+            literal ,
+            whitespace
+            number
+      whitespace
+      declaration --bs-body-font-family
+        whitespace
+        function var
+          ident
+      whitespace
+      declaration --bs-body-font-size
+        whitespace
+        dimension
+      whitespace
+      declaration --bs-body-font-weight
+        whitespace
+        number
+      whitespace
+      declaration --bs-body-line-height
+        whitespace
+        number
+      whitespace
+      declaration --bs-body-color
+        whitespace
+        hash
+      whitespace
+      declaration --bs-body-color-rgb
+        whitespace
+        number
+        literal ,
+        whitespace
+        number
+        literal ,
+        whitespace
+        number
+      whitespace
+      declaration --bs-body-bg
+        whitespace
+        hash
+      whitespace
+      declaration --bs-body-bg-rgb
+        whitespace
+        number
+        literal ,
+        whitespace
+        number
+        literal ,
+        whitespace
+        number
+      whitespace
+      declaration --bs-emphasis-color
+        whitespace
+        hash
+      whitespace
+      declaration --bs-emphasis-color-rgb
+        whitespace
+        number
+        literal ,
+        whitespace
+        number
+        literal ,
+        whitespace
+        number
+      whitespace
+      declaration --bs-secondary-color
+        whitespace
+        function rgba
+          number
+          literal ,
+          whitespace
+          number
+          literal ,
+          whitespace
+          number
+          literal ,
+          whitespace
+          number
+      whitespace
+      declaration --bs-secondary-color-rgb
+        whitespace
+        number
+        literal ,
+        whitespace
+        number
+        literal ,
+        whitespace
+        number
+      whitespace
+      declaration --bs-secondary-bg
+        whitespace
+        hash
+      whitespace
+      declaration --bs-secondary-bg-rgb
+        whitespace
+        number
+        literal ,
+        whitespace
+        number
+        literal ,
+        whitespace
+        number
+      whitespace
+      declaration --bs-tertiary-color
+        whitespace
+        function rgba
+          number
+          literal ,
+          whitespace
+          number
+          literal ,
+          whitespace
+          number
+          literal ,
+          whitespace
+          number
+      whitespace
+      declaration --bs-tertiary-color-rgb
+        whitespace
+        number
+        literal ,
+        whitespace
+        number
+        literal ,
+        whitespace
+        number
+      whitespace
+      declaration --bs-tertiary-bg
+        whitespace
+        hash
+      whitespace
+      declaration --bs-tertiary-bg-rgb
+        whitespace
+        number
+        literal ,
+        whitespace
+        number
+        literal ,
+        whitespace
+        number
+      whitespace
+      declaration --bs-heading-color
+        whitespace
+        ident
+      whitespace
+      declaration --bs-link-color
+        whitespace
+        hash
+      whitespace
+      declaration --bs-link-color-rgb
+        whitespace
+        number
+        literal ,
+        whitespace
+        number
+        literal ,
+        whitespace
+        number
+      whitespace
+      declaration --bs-link-decoration
+        whitespace
+        ident
+      whitespace
+      declaration --bs-link-hover-color
+        whitespace
+        hash
+      whitespace
+      declaration --bs-link-hover-color-rgb
+        whitespace
+        number
+        literal ,
+        whitespace
+        number
+        literal ,
+        whitespace
+        number
+      whitespace
+      declaration --bs-code-color
+        whitespace
+        hash
+      whitespace
+      declaration --bs-highlight-color
+        whitespace
+        hash
+      whitespace
+      declaration --bs-highlight-bg
+        whitespace
+        hash
+      whitespace
+      declaration --bs-border-width
+        whitespace
+        dimension
+      whitespace
+      declaration --bs-border-style
+        whitespace
+        ident
+      whitespace
+      declaration --bs-border-color
+        whitespace
+        hash
+      whitespace
+      declaration --bs-border-color-translucent
+        whitespace
+        function rgba
+          number
+          literal ,
+          whitespace
+          number
+          literal ,
+          whitespace
+          number
+          literal ,
+          whitespace
+          number
+      whitespace
+      declaration --bs-border-radius
+        whitespace
+        dimension
+      whitespace
+      declaration --bs-border-radius-sm
+        whitespace
+        dimension
+      whitespace
+      declaration --bs-border-radius-lg
+        whitespace
+        dimension
+      whitespace
+      declaration --bs-border-radius-xl
+        whitespace
+        dimension
+      whitespace
+      declaration --bs-border-radius-xxl
+        whitespace
+        dimension
+      whitespace
+      declaration --bs-border-radius-2xl
+        whitespace
+        function var
+          ident
+      whitespace
+      declaration --bs-border-radius-pill
+        whitespace
+        dimension
+      whitespace
+      declaration --bs-box-shadow
+        whitespace
+        number
+        whitespace
+        dimension
+        whitespace
+        dimension
+        whitespace
+        function rgba
+          number
+          literal ,
+          whitespace
+          number
+          literal ,
+          whitespace
+          number
+          literal ,
+          whitespace
+          number
+      whitespace
+      declaration --bs-box-shadow-sm
+        whitespace
+        number
+        whitespace
+        dimension
+        whitespace
+        dimension
+        whitespace
+        function rgba
+          number
+          literal ,
+          whitespace
+          number
+          literal ,
+          whitespace
+          number
+          literal ,
+          whitespace
+          number
+      whitespace
+      declaration --bs-box-shadow-lg
+        whitespace
+        number
+        whitespace
+        dimension
+        whitespace
+        dimension
+        whitespace
+        function rgba
+          number
+          literal ,
+          whitespace
+          number
+          literal ,
+          whitespace
+          number
+          literal ,
+          whitespace
+          number
+      whitespace
+      declaration --bs-box-shadow-inset
+        whitespace
+        ident
+        whitespace
+        number
+        whitespace
+        dimension
+        whitespace
+        dimension
+        whitespace
+        function rgba
+          number
+          literal ,
+          whitespace
+          number
+          literal ,
+          whitespace
+          number
+          literal ,
+          whitespace
+          number
+      whitespace
+      declaration --bs-focus-ring-width
+        whitespace
+        dimension
+      whitespace
+      declaration --bs-focus-ring-opacity
+        whitespace
+        number
+      whitespace
+      declaration --bs-focus-ring-color
+        whitespace
+        function rgba
+          number
+          literal ,
+          whitespace
+          number
+          literal ,
+          whitespace
+          number
+          literal ,
+          whitespace
+          number
+      whitespace
+      declaration --bs-form-valid-color
+        whitespace
+        hash
+      whitespace
+      declaration --bs-form-valid-border-color
+        whitespace
+        hash
+      whitespace
+      declaration --bs-form-invalid-color
+        whitespace
+        hash
+      whitespace
+      declaration --bs-form-invalid-border-color
+        whitespace
+        hash
+      whitespace
+  whitespace
+  qualified-rule
+    block [
+      ident
+      literal =
+      ident
+    whitespace
+    block
+      whitespace
+      declaration color-scheme
+        whitespace
+        ident
+      whitespace
+      declaration --bs-body-color
+        whitespace
+        hash
+      whitespace
+      declaration --bs-body-color-rgb
+        whitespace
+        number
+        literal ,
+        whitespace
+        number
+        literal ,
+        whitespace
+        number
+      whitespace
+      declaration --bs-body-bg
+        whitespace
+        hash
+      whitespace
+      declaration --bs-body-bg-rgb
+        whitespace
+        number
+        literal ,
+        whitespace
+        number
+        literal ,
+        whitespace
+        number
+      whitespace
+      declaration --bs-emphasis-color
+        whitespace
+        hash
+      whitespace
+      declaration --bs-emphasis-color-rgb
+        whitespace
+        number
+        literal ,
+        whitespace
+        number
+        literal ,
+        whitespace
+        number
+      whitespace
+      declaration --bs-secondary-color
+        whitespace
+        function rgba
+          number
+          literal ,
+          whitespace
+          number
+          literal ,
+          whitespace
+          number
+          literal ,
+          whitespace
+          number
+      whitespace
+      declaration --bs-secondary-color-rgb
+        whitespace
+        number
+        literal ,
+        whitespace
+        number
+        literal ,
+        whitespace
+        number
+      whitespace
+      declaration --bs-secondary-bg
+        whitespace
+        hash
+      whitespace
+      declaration --bs-secondary-bg-rgb
+        whitespace
+        number
+        literal ,
+        whitespace
+        number
+        literal ,
+        whitespace
+        number
+      whitespace
+      declaration --bs-tertiary-color
+        whitespace
+        function rgba
+          number
+          literal ,
+          whitespace
+          number
+          literal ,
+          whitespace
+          number
+          literal ,
+          whitespace
+          number
+      whitespace
+      declaration --bs-tertiary-color-rgb
+        whitespace
+        number
+        literal ,
+        whitespace
+        number
+        literal ,
+        whitespace
+        number
+      whitespace
+      declaration --bs-tertiary-bg
+        whitespace
+        hash
+      whitespace
+      declaration --bs-tertiary-bg-rgb
+        whitespace
+        number
+        literal ,
+        whitespace
+        number
+        literal ,
+        whitespace
+        number
+      whitespace
+      declaration --bs-primary-text-emphasis
+        whitespace
+        hash
+      whitespace
+      declaration --bs-secondary-text-emphasis
+        whitespace
+        hash
+      whitespace
+      declaration --bs-success-text-emphasis
+        whitespace
+        hash
+      whitespace
+      declaration --bs-info-text-emphasis
+        whitespace
+        hash
+      whitespace
+      declaration --bs-warning-text-emphasis
+        whitespace
+        hash
+      whitespace
+      declaration --bs-danger-text-emphasis
+        whitespace
+        hash
+      whitespace
+      declaration --bs-light-text-emphasis
+        whitespace
+        hash
+      whitespace
+      declaration --bs-dark-text-emphasis
+        whitespace
+        hash
+      whitespace
+      declaration --bs-primary-bg-subtle
+        whitespace
+        hash
+      whitespace
+      declaration --bs-secondary-bg-subtle
+        whitespace
+        hash
+      whitespace
+      declaration --bs-success-bg-subtle
+        whitespace
+        hash
+      whitespace
+      declaration --bs-info-bg-subtle
+        whitespace
+        hash
+      whitespace
+      declaration --bs-warning-bg-subtle
+        whitespace
+        hash
+      whitespace
+      declaration --bs-danger-bg-subtle
+        whitespace
+        hash
+      whitespace
+      declaration --bs-light-bg-subtle
+        whitespace
+        hash
+      whitespace
+      declaration --bs-dark-bg-subtle
+        whitespace
+        hash
+      whitespace
+      declaration --bs-primary-border-subtle
+        whitespace
+        hash
+      whitespace
+      declaration --bs-secondary-border-subtle
+        whitespace
+        hash
+      whitespace
+      declaration --bs-success-border-subtle
+        whitespace
+        hash
+      whitespace
+      declaration --bs-info-border-subtle
+        whitespace
+        hash
+      whitespace
+      declaration --bs-warning-border-subtle
+        whitespace
+        hash
+      whitespace
+      declaration --bs-danger-border-subtle
+        whitespace
+        hash
+      whitespace
+      declaration --bs-light-border-subtle
+        whitespace
+        hash
+      whitespace
+      declaration --bs-dark-border-subtle
+        whitespace
+        hash
+      whitespace
+      declaration --bs-heading-color
+        whitespace
+        ident
+      whitespace
+      declaration --bs-link-color
+        whitespace
+        hash
+      whitespace
+      declaration --bs-link-hover-color
+        whitespace
+        hash
+      whitespace
+      declaration --bs-link-color-rgb
+        whitespace
+        number
+        literal ,
+        whitespace
+        number
+        literal ,
+        whitespace
+        number
+      whitespace
+      declaration --bs-link-hover-color-rgb
+        whitespace
+        number
+        literal ,
+        whitespace
+        number
+        literal ,
+        whitespace
+        number
+      whitespace
+      declaration --bs-code-color
+        whitespace
+        hash
+      whitespace
+      declaration --bs-highlight-color
+        whitespace
+        hash
+      whitespace
+      declaration --bs-highlight-bg
+        whitespace
+        hash
+      whitespace
+      declaration --bs-border-color
+        whitespace
+        hash
+      whitespace
+      declaration --bs-border-color-translucent
+        whitespace
+        function rgba
+          number
+          literal ,
+          whitespace
+          number
+          literal ,
+          whitespace
+          number
+          literal ,
+          whitespace
+          number
+      whitespace
+      declaration --bs-form-valid-color
+        whitespace
+        hash
+      whitespace
+      declaration --bs-form-valid-border-color
+        whitespace
+        hash
+      whitespace
+      declaration --bs-form-invalid-color
+        whitespace
+        hash
+      whitespace
+      declaration --bs-form-invalid-border-color
+        whitespace
+        hash
+      whitespace
+  whitespace
+  qualified-rule
+    literal *
+    literal ,
+    whitespace
+    literal *
+    literal :
+    literal :
+    ident
+    literal ,
+    whitespace
+    literal *
+    literal :
+    literal :
+    ident
+    whitespace
+    block
+      whitespace
+      declaration box-sizing
+        whitespace
+        ident
+      whitespace
+  whitespace
+  at-rule media
+    whitespace
+    block (
+      ident
+      literal :
+      whitespace
+      ident
+    whitespace
+    block
+      whitespace
+      qualified-rule
+        literal :
+        ident
+        whitespace
+        block
+          whitespace
+          declaration scroll-behavior
+            whitespace
+            ident
+          whitespace
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    whitespace
+    block
+      whitespace
+      declaration margin
+        whitespace
+        number
+      whitespace
+      declaration font-family
+        whitespace
+        function var
+          ident
+      whitespace
+      declaration font-size
+        whitespace
+        function var
+          ident
+      whitespace
+      declaration font-weight
+        whitespace
+        function var
+          ident
+      whitespace
+      declaration line-height
+        whitespace
+        function var
+          ident
+      whitespace
+      declaration color
+        whitespace
+        function var
+          ident
+      whitespace
+      declaration text-align
+        whitespace
+        function var
+          ident
+      whitespace
+      declaration background-color
+        whitespace
+        function var
+          ident
+      whitespace
+      declaration -webkit-text-size-adjust
+        whitespace
+        percentage
+      whitespace
+      declaration -webkit-tap-highlight-color
+        whitespace
+        function rgba
+          number
+          literal ,
+          whitespace
+          number
+          literal ,
+          whitespace
+          number
+          literal ,
+          whitespace
+          number
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    whitespace
+    block
+      whitespace
+      declaration margin
+        whitespace
+        dimension
+        whitespace
+        number
+      whitespace
+      declaration color
+        whitespace
+        ident
+      whitespace
+      declaration border
+        whitespace
+        number
+      whitespace
+      declaration border-top
+        whitespace
+        function var
+          ident
+        whitespace
+        ident
+      whitespace
+      declaration opacity
+        whitespace
+        number
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    literal ,
+    whitespace
+    ident
+    literal ,
+    whitespace
+    ident
+    literal ,
+    whitespace
+    ident
+    literal ,
+    whitespace
+    ident
+    literal ,
+    whitespace
+    ident
+    whitespace
+    block
+      whitespace
+      declaration margin-top
+        whitespace
+        number
+      whitespace
+      declaration margin-bottom
+        whitespace
+        dimension
+      whitespace
+      declaration font-weight
+        whitespace
+        number
+      whitespace
+      declaration line-height
+        whitespace
+        number
+      whitespace
+      declaration color
+        whitespace
+        function var
+          ident
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    whitespace
+    block
+      whitespace
+      declaration font-size
+        whitespace
+        function calc
+          dimension
+          whitespace
+          literal +
+          whitespace
+          dimension
+      whitespace
+  whitespace
+  at-rule media
+    whitespace
+    block (
+      ident
+      literal :
+      whitespace
+      dimension
+    whitespace
+    block
+      whitespace
+      qualified-rule
+        ident
+        whitespace
+        block
+          whitespace
+          declaration font-size
+            whitespace
+            dimension
+          whitespace
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    whitespace
+    block
+      whitespace
+      declaration font-size
+        whitespace
+        function calc
+          dimension
+          whitespace
+          literal +
+          whitespace
+          dimension
+      whitespace
+  whitespace
+  at-rule media
+    whitespace
+    block (
+      ident
+      literal :
+      whitespace
+      dimension
+    whitespace
+    block
+      whitespace
+      qualified-rule
+        ident
+        whitespace
+        block
+          whitespace
+          declaration font-size
+            whitespace
+            dimension
+          whitespace
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    whitespace
+    block
+      whitespace
+      declaration font-size
+        whitespace
+        function calc
+          dimension
+          whitespace
+          literal +
+          whitespace
+          dimension
+      whitespace
+  whitespace
+  at-rule media
+    whitespace
+    block (
+      ident
+      literal :
+      whitespace
+      dimension
+    whitespace
+    block
+      whitespace
+      qualified-rule
+        ident
+        whitespace
+        block
+          whitespace
+          declaration font-size
+            whitespace
+            dimension
+          whitespace
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    whitespace
+    block
+      whitespace
+      declaration font-size
+        whitespace
+        function calc
+          dimension
+          whitespace
+          literal +
+          whitespace
+          dimension
+      whitespace
+  whitespace
+  at-rule media
+    whitespace
+    block (
+      ident
+      literal :
+      whitespace
+      dimension
+    whitespace
+    block
+      whitespace
+      qualified-rule
+        ident
+        whitespace
+        block
+          whitespace
+          declaration font-size
+            whitespace
+            dimension
+          whitespace
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    whitespace
+    block
+      whitespace
+      declaration font-size
+        whitespace
+        dimension
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    whitespace
+    block
+      whitespace
+      declaration font-size
+        whitespace
+        dimension
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    whitespace
+    block
+      whitespace
+      declaration margin-top
+        whitespace
+        number
+      whitespace
+      declaration margin-bottom
+        whitespace
+        dimension
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    block [
+      ident
+    whitespace
+    block
+      whitespace
+      declaration -webkit-text-decoration
+        whitespace
+        ident
+        whitespace
+        ident
+      whitespace
+      declaration text-decoration
+        whitespace
+        ident
+        whitespace
+        ident
+      whitespace
+      declaration cursor
+        whitespace
+        ident
+      whitespace
+      declaration -webkit-text-decoration-skip-ink
+        whitespace
+        ident
+      whitespace
+      declaration text-decoration-skip-ink
+        whitespace
+        ident
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    whitespace
+    block
+      whitespace
+      declaration margin-bottom
+        whitespace
+        dimension
+      whitespace
+      declaration font-style
+        whitespace
+        ident
+      whitespace
+      declaration line-height
+        whitespace
+        ident
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    literal ,
+    whitespace
+    ident
+    whitespace
+    block
+      whitespace
+      declaration padding-left
+        whitespace
+        dimension
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    literal ,
+    whitespace
+    ident
+    literal ,
+    whitespace
+    ident
+    whitespace
+    block
+      whitespace
+      declaration margin-top
+        whitespace
+        number
+      whitespace
+      declaration margin-bottom
+        whitespace
+        dimension
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    whitespace
+    ident
+    literal ,
+    whitespace
+    ident
+    whitespace
+    ident
+    literal ,
+    whitespace
+    ident
+    whitespace
+    ident
+    literal ,
+    whitespace
+    ident
+    whitespace
+    ident
+    whitespace
+    block
+      whitespace
+      declaration margin-bottom
+        whitespace
+        number
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    whitespace
+    block
+      whitespace
+      declaration font-weight
+        whitespace
+        number
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    whitespace
+    block
+      whitespace
+      declaration margin-bottom
+        whitespace
+        dimension
+      whitespace
+      declaration margin-left
+        whitespace
+        number
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    whitespace
+    block
+      whitespace
+      declaration margin
+        whitespace
+        number
+        whitespace
+        number
+        whitespace
+        dimension
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    literal ,
+    whitespace
+    ident
+    whitespace
+    block
+      whitespace
+      declaration font-weight
+        whitespace
+        ident
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    whitespace
+    block
+      whitespace
+      declaration font-size
+        whitespace
+        dimension
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    whitespace
+    block
+      whitespace
+      declaration padding
+        whitespace
+        dimension
+      whitespace
+      declaration color
+        whitespace
+        function var
+          ident
+      whitespace
+      declaration background-color
+        whitespace
+        function var
+          ident
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    literal ,
+    whitespace
+    ident
+    whitespace
+    block
+      whitespace
+      declaration position
+        whitespace
+        ident
+      whitespace
+      declaration font-size
+        whitespace
+        dimension
+      whitespace
+      declaration line-height
+        whitespace
+        number
+      whitespace
+      declaration vertical-align
+        whitespace
+        ident
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    whitespace
+    block
+      whitespace
+      declaration bottom
+        whitespace
+        dimension
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    whitespace
+    block
+      whitespace
+      declaration top
+        whitespace
+        dimension
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    whitespace
+    block
+      whitespace
+      declaration color
+        whitespace
+        function rgba
+          function var
+            ident
+          literal ,
+          whitespace
+          function var
+            ident
+            literal ,
+            whitespace
+            number
+      whitespace
+      declaration text-decoration
+        whitespace
+        ident
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    literal :
+    ident
+    whitespace
+    block
+      whitespace
+      declaration --bs-link-color-rgb
+        whitespace
+        function var
+          ident
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    literal :
+    function not
+      block [
+        ident
+    literal :
+    function not
+      block [
+        ident
+    literal ,
+    whitespace
+    ident
+    literal :
+    function not
+      block [
+        ident
+    literal :
+    function not
+      block [
+        ident
+    literal :
+    ident
+    whitespace
+    block
+      whitespace
+      declaration color
+        whitespace
+        ident
+      whitespace
+      declaration text-decoration
+        whitespace
+        ident
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    literal ,
+    whitespace
+    ident
+    literal ,
+    whitespace
+    ident
+    literal ,
+    whitespace
+    ident
+    whitespace
+    block
+      whitespace
+      declaration font-family
+        whitespace
+        function var
+          ident
+      whitespace
+      declaration font-size
+        whitespace
+        dimension
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    whitespace
+    block
+      whitespace
+      declaration display
+        whitespace
+        ident
+      whitespace
+      declaration margin-top
+        whitespace
+        number
+      whitespace
+      declaration margin-bottom
+        whitespace
+        dimension
+      whitespace
+      declaration overflow
+        whitespace
+        ident
+      whitespace
+      declaration font-size
+        whitespace
+        dimension
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    whitespace
+    ident
+    whitespace
+    block
+      whitespace
+      declaration font-size
+        whitespace
+        ident
+      whitespace
+      declaration color
+        whitespace
+        ident
+      whitespace
+      declaration word-break
+        whitespace
+        ident
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    whitespace
+    block
+      whitespace
+      declaration font-size
+        whitespace
+        dimension
+      whitespace
+      declaration color
+        whitespace
+        function var
+          ident
+      whitespace
+      declaration word-wrap
+        whitespace
+        ident
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    whitespace
+    literal >
+    whitespace
+    ident
+    whitespace
+    block
+      whitespace
+      declaration color
+        whitespace
+        ident
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    whitespace
+    block
+      whitespace
+      declaration padding
+        whitespace
+        dimension
+        whitespace
+        dimension
+      whitespace
+      declaration font-size
+        whitespace
+        dimension
+      whitespace
+      declaration color
+        whitespace
+        function var
+          ident
+      whitespace
+      declaration background-color
+        whitespace
+        function var
+          ident
+      whitespace
+      declaration border-radius
+        whitespace
+        dimension
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    whitespace
+    ident
+    whitespace
+    block
+      whitespace
+      declaration padding
+        whitespace
+        number
+      whitespace
+      declaration font-size
+        whitespace
+        dimension
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    whitespace
+    block
+      whitespace
+      declaration margin
+        whitespace
+        number
+        whitespace
+        number
+        whitespace
+        dimension
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    literal ,
+    whitespace
+    ident
+    whitespace
+    block
+      whitespace
+      declaration vertical-align
+        whitespace
+        ident
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    whitespace
+    block
+      whitespace
+      declaration caption-side
+        whitespace
+        ident
+      whitespace
+      declaration border-collapse
+        whitespace
+        ident
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    whitespace
+    block
+      whitespace
+      declaration padding-top
+        whitespace
+        dimension
+      whitespace
+      declaration padding-bottom
+        whitespace
+        dimension
+      whitespace
+      declaration color
+        whitespace
+        function var
+          ident
+      whitespace
+      declaration text-align
+        whitespace
+        ident
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    whitespace
+    block
+      whitespace
+      declaration text-align
+        whitespace
+        ident
+      whitespace
+      declaration text-align
+        whitespace
+        ident
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    literal ,
+    whitespace
+    ident
+    literal ,
+    whitespace
+    ident
+    literal ,
+    whitespace
+    ident
+    literal ,
+    whitespace
+    ident
+    literal ,
+    whitespace
+    ident
+    whitespace
+    block
+      whitespace
+      declaration border-color
+        whitespace
+        ident
+      whitespace
+      declaration border-style
+        whitespace
+        ident
+      whitespace
+      declaration border-width
+        whitespace
+        number
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    whitespace
+    block
+      whitespace
+      declaration display
+        whitespace
+        ident
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    whitespace
+    block
+      whitespace
+      declaration border-radius
+        whitespace
+        number
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    literal :
+    ident
+    literal :
+    function not
+      literal :
+      ident
+    whitespace
+    block
+      whitespace
+      declaration outline
+        whitespace
+        number
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    literal ,
+    whitespace
+    ident
+    literal ,
+    whitespace
+    ident
+    literal ,
+    whitespace
+    ident
+    literal ,
+    whitespace
+    ident
+    whitespace
+    block
+      whitespace
+      declaration margin
+        whitespace
+        number
+      whitespace
+      declaration font-family
+        whitespace
+        ident
+      whitespace
+      declaration font-size
+        whitespace
+        ident
+      whitespace
+      declaration line-height
+        whitespace
+        ident
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    literal ,
+    whitespace
+    ident
+    whitespace
+    block
+      whitespace
+      declaration text-transform
+        whitespace
+        ident
+      whitespace
+  whitespace
+  qualified-rule
+    block [
+      ident
+      literal =
+      ident
+    whitespace
+    block
+      whitespace
+      declaration cursor
+        whitespace
+        ident
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    whitespace
+    block
+      whitespace
+      declaration word-wrap
+        whitespace
+        ident
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    literal :
+    ident
+    whitespace
+    block
+      whitespace
+      declaration opacity
+        whitespace
+        number
+      whitespace
+  whitespace
+  qualified-rule
+    block [
+      ident
+    literal :
+    function not
+      block [
+        ident
+        literal =
+        ident
+    literal :
+    function not
+      block [
+        ident
+        literal =
+        ident
+    literal :
+    function not
+      block [
+        ident
+        literal =
+        ident
+    literal :
+    function not
+      block [
+        ident
+        literal =
+        ident
+    literal :
+    function not
+      block [
+        ident
+        literal =
+        ident
+    literal :
+    literal :
+    ident
+    whitespace
+    block
+      whitespace
+      declaration display important
+        whitespace
+        ident
+        whitespace
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    literal ,
+    whitespace
+    block [
+      ident
+      literal =
+      ident
+    literal ,
+    whitespace
+    block [
+      ident
+      literal =
+      ident
+    literal ,
+    whitespace
+    block [
+      ident
+      literal =
+      ident
+    whitespace
+    block
+      whitespace
+      declaration -webkit-appearance
+        whitespace
+        ident
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    literal :
+    function not
+      literal :
+      ident
+    literal ,
+    whitespace
+    block [
+      ident
+      literal =
+      ident
+    literal :
+    function not
+      literal :
+      ident
+    literal ,
+    whitespace
+    block [
+      ident
+      literal =
+      ident
+    literal :
+    function not
+      literal :
+      ident
+    literal ,
+    whitespace
+    block [
+      ident
+      literal =
+      ident
+    literal :
+    function not
+      literal :
+      ident
+    whitespace
+    block
+      whitespace
+      declaration cursor
+        whitespace
+        ident
+      whitespace
+  whitespace
+  qualified-rule
+    literal :
+    literal :
+    ident
+    whitespace
+    block
+      whitespace
+      declaration padding
+        whitespace
+        number
+      whitespace
+      declaration border-style
+        whitespace
+        ident
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    whitespace
+    block
+      whitespace
+      declaration resize
+        whitespace
+        ident
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    whitespace
+    block
+      whitespace
+      declaration min-width
+        whitespace
+        number
+      whitespace
+      declaration padding
+        whitespace
+        number
+      whitespace
+      declaration margin
+        whitespace
+        number
+      whitespace
+      declaration border
+        whitespace
+        number
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    whitespace
+    block
+      whitespace
+      declaration float
+        whitespace
+        ident
+      whitespace
+      declaration width
+        whitespace
+        percentage
+      whitespace
+      declaration padding
+        whitespace
+        number
+      whitespace
+      declaration margin-bottom
+        whitespace
+        dimension
+      whitespace
+      declaration font-size
+        whitespace
+        function calc
+          dimension
+          whitespace
+          literal +
+          whitespace
+          dimension
+      whitespace
+      declaration line-height
+        whitespace
+        ident
+      whitespace
+  whitespace
+  at-rule media
+    whitespace
+    block (
+      ident
+      literal :
+      whitespace
+      dimension
+    whitespace
+    block
+      whitespace
+      qualified-rule
+        ident
+        whitespace
+        block
+          whitespace
+          declaration font-size
+            whitespace
+            dimension
+          whitespace
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    whitespace
+    literal +
+    whitespace
+    literal *
+    whitespace
+    block
+      whitespace
+      declaration clear
+        whitespace
+        ident
+      whitespace
+  whitespace
+  qualified-rule
+    literal :
+    literal :
+    ident
+    literal ,
+    whitespace
+    literal :
+    literal :
+    ident
+    literal ,
+    whitespace
+    literal :
+    literal :
+    ident
+    literal ,
+    whitespace
+    literal :
+    literal :
+    ident
+    literal ,
+    whitespace
+    literal :
+    literal :
+    ident
+    literal ,
+    whitespace
+    literal :
+    literal :
+    ident
+    literal ,
+    whitespace
+    literal :
+    literal :
+    ident
+    whitespace
+    block
+      whitespace
+      declaration padding
+        whitespace
+        number
+      whitespace
+  whitespace
+  qualified-rule
+    literal :
+    literal :
+    ident
+    whitespace
+    block
+      whitespace
+      declaration height
+        whitespace
+        ident
+      whitespace
+  whitespace
+  qualified-rule
+    block [
+      ident
+      literal =
+      ident
+    whitespace
+    block
+      whitespace
+      declaration -webkit-appearance
+        whitespace
+        ident
+      whitespace
+      declaration outline-offset
+        whitespace
+        dimension
+      whitespace
+  whitespace
+  comment
+  whitespace
+  qualified-rule
+    literal :
+    literal :
+    ident
+    whitespace
+    block
+      whitespace
+      declaration -webkit-appearance
+        whitespace
+        ident
+      whitespace
+  whitespace
+  qualified-rule
+    literal :
+    literal :
+    ident
+    whitespace
+    block
+      whitespace
+      declaration padding
+        whitespace
+        number
+      whitespace
+  whitespace
+  qualified-rule
+    literal :
+    literal :
+    ident
+    whitespace
+    block
+      whitespace
+      declaration font
+        whitespace
+        ident
+      whitespace
+      declaration -webkit-appearance
+        whitespace
+        ident
+      whitespace
+  whitespace
+  qualified-rule
+    literal :
+    literal :
+    ident
+    whitespace
+    block
+      whitespace
+      declaration font
+        whitespace
+        ident
+      whitespace
+      declaration -webkit-appearance
+        whitespace
+        ident
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    whitespace
+    block
+      whitespace
+      declaration display
+        whitespace
+        ident
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    whitespace
+    block
+      whitespace
+      declaration border
+        whitespace
+        number
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    whitespace
+    block
+      whitespace
+      declaration display
+        whitespace
+        ident
+      whitespace
+      declaration cursor
+        whitespace
+        ident
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    whitespace
+    block
+      whitespace
+      declaration vertical-align
+        whitespace
+        ident
+      whitespace
+  whitespace
+  qualified-rule
+    block [
+      ident
+    whitespace
+    block
+      whitespace
+      declaration display important
+        whitespace
+        ident
+        whitespace
+      whitespace
+  whitespace
+  comment

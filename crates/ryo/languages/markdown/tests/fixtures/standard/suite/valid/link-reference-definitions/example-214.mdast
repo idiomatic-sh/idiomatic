@@ -1,0 +1,16 @@
+root[3]
+├─0 heading[1]
+│   │ depth: 1
+│   └─0 linkReference[1]
+│       │ label: "Foo"
+│       │ identifier: "foo"
+│       │ referenceType: "shortcut"
+│       └─0 text "Foo"
+├─1 definition
+│     identifier: "foo"
+│     label: "foo"
+│     title: null
+│     url: "/url"
+└─2 blockquote[1]
+    └─0 paragraph[1]
+        └─0 text "bar"

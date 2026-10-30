@@ -1,0 +1,18 @@
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let names = select * from tree-tokens where glob_any(text, "{println,eprintln,print,eprint}");
+let name-refs = select r."parent" as "node", l."text" as "text" from names as l join "syntax-child" as r on l."id" = r."child";
+let segments = select r."parent" as "node", l."text" as "text" from name-refs as l join "syntax-child" as r on l."node" = r."child";
+let paths = select r."parent" as "node", l."text" as "text" from segments as l join "syntax-child" as r on l."node" = r."child";
+let owners = select r."parent" as "node", l."text" as "text" from paths as l join "syntax-child" as r on l."node" = r."child";
+let macro-calls = select * from tree-nodes where kind = "macro-call";
+let prints = select r."id" as "id", r."file" as "file", r."span" as "span", l."text" as "text" from owners as l join macro-calls as r on l."node" = r."id";
+let test-tokens = select * from tree-tokens where text = "test";
+let test-token-parents = select r."parent" as "id" from test-tokens as l join "syntax-child" as r on l."id" = r."child";
+let attributes = select * from tree-nodes where kind = "attr";
+let test-token-attributes = axis(from=test-token-parents, relation="syntax-child", direction=nearest-ancestor, domain=attributes);
+let test-items = select r."parent" as "id" from test-token-attributes as l join "syntax-child" as r on l."related" = r."child";
+let prints-in-tests = axis(from=prints, relation="syntax-child", direction=ancestor, domain=test-items);
+let test-prints = project(from=prints-in-tests, columns=["id", "file", "span", "text"]);
+let library-prints = difference(left=prints, right=test-prints);
+emit library-prints subject "file" key("span");

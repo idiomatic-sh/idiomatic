@@ -1,0 +1,117 @@
+<h3 class="heading settled" data-level="5.2" id="css-tree"><span class="secno">5.2. </span><span class="content">
+CSS Parsing Results</span><a class="self-link" href="#css-tree"></a></h3>
+   <p>The result of parsing can be any of the following
+	(or lists of these):</p>
+   <dl>
+    <dt data-md><dfn class="dfn-paneled" data-dfn-for="CSS" data-dfn-type="dfn" data-export id="css-stylesheet">stylesheet</dfn>
+    <dd data-md>
+     <p>A stylesheet has a list of <a data-link-type="dfn" href="#css-rule" id="ref-for-css-rule">rules</a>.</p>
+    <dt data-md><dfn class="dfn-paneled" data-dfn-for="CSS" data-dfn-type="dfn" data-export id="css-rule">rule</dfn>
+    <dd data-md>
+     <p>A <a data-link-type="dfn" href="#css-rule" id="ref-for-css-rule①">rule</a> is either an <a data-link-type="dfn" href="#at-rule" id="ref-for-at-rule①①">at-rule</a>
+or a <a data-link-type="dfn" href="#qualified-rule" id="ref-for-qualified-rule④">qualified rule</a>.</p>
+    <dt><a data-link-type="dfn" href="#at-rule" id="ref-for-at-rule①②">at-rule</a>
+
+    <dd>
+			An <a data-link-type="dfn" href="#at-rule" id="ref-for-at-rule①③">at-rule</a> has a name which is a <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#string" id="ref-for-string">string</a>,
+			a prelude consisting of a list of <a data-link-type="dfn" href="#component-value" id="ref-for-component-value">component values</a>.
+			<a data-link-type="dfn" href="#block-at-rule" id="ref-for-block-at-rule">Block at-rules</a>
+			(ending in a {}-block)
+			will additionally have
+			a list of <a data-link-type="dfn" href="#declaration" id="ref-for-declaration">declarations</a>
+			and a list of child <a data-link-type="dfn" href="#css-rule" id="ref-for-css-rule②">rules</a>.
+			(<a data-link-type="dfn" href="#statement-at-rule" id="ref-for-statement-at-rule">Statement at-rules</a>,
+			ending in a semicolon,
+			will not.)
+
+
+    <dt><dfn class="dfn-paneled" data-dfn-for="CSS" data-dfn-type="dfn" data-export id="qualified-rule">qualified rule</dfn>
+
+    <dd>
+
+			A qualified rule has
+			a prelude consisting of a list of component values,
+			a list of declarations,
+			and a list of child rules.
+
+
+     <p class="note" role="note"><span class="marker">Note:</span> Most qualified rules will be style rules,
+			where the prelude is a selector <a data-link-type="biblio" href="#biblio-selectors-4" title="Selectors Level 4">[selectors-4]</a>
+			and its declarations are <a data-link-type="dfn" href="https://www.w3.org/TR/css-cascade-5/#css-property" id="ref-for-css-property">properties</a>.</p>
+    <dt><dfn class="dfn-paneled" data-dfn-for="CSS" data-dfn-type="dfn" data-export id="declaration">declaration</dfn>
+
+    <dd>
+
+			A declaration has a name which is a <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#string" id="ref-for-string①">string</a>,
+			a value consisting of a list of <a data-link-type="dfn" href="#component-value" id="ref-for-component-value①">component values</a>,
+			and an <var>important</var> flag which is initially unset.
+			It also has an optional <var>original text</var> which is a <span id="ref-for-string②">string</span>
+			(captured for only a few declarations).
+
+
+     <p>Declarations are further categorized
+			as <dfn class="dfn-paneled" data-dfn-for="CSS" data-dfn-type="dfn" data-export id="css-property-declarations">property declarations</dfn> or <dfn class="dfn-paneled" data-dfn-for="CSS" data-dfn-type="dfn" data-export id="css-descriptor-declarations">descriptor declarations</dfn>,
+			with the former setting CSS <a data-link-type="dfn" href="https://www.w3.org/TR/css-cascade-5/#css-property" id="ref-for-css-property①">properties</a>
+			and appearing most often in <a data-link-type="dfn" href="#qualified-rule" id="ref-for-qualified-rule⑤">qualified rules</a>
+			and the latter setting CSS <a data-link-type="dfn" href="#css-descriptor" id="ref-for-css-descriptor">descriptors</a>,
+			which appear only in <a data-link-type="dfn" href="#at-rule" id="ref-for-at-rule①④">at-rules</a>.
+			(This categorization does not occur at the Syntax level;
+			instead, it is a product of where the declaration appears,
+			and is defined by the respective specifications defining the given rule.)</p>
+    <dt><dfn class="dfn-paneled" data-dfn-for="CSS" data-dfn-type="dfn" data-export id="component-value">component value</dfn>
+
+    <dd>
+			A component value is one of the <a data-link-type="dfn" href="#preserved-tokens" id="ref-for-preserved-tokens">preserved tokens</a>,
+			a <a data-link-type="dfn" href="#function" id="ref-for-function">function</a>,
+			or a <a data-link-type="dfn" href="#simple-block" id="ref-for-simple-block">simple block</a>.
+
+
+    <dt><dfn class="dfn-paneled" data-dfn-for="CSS" data-dfn-type="dfn" data-export id="preserved-tokens">preserved tokens</dfn>
+
+    <dd>
+
+			Any token produced by the tokenizer
+			except for <a class="css production" data-link-type="type" href="#typedef-function-token" id="ref-for-typedef-function-token⑦">&lt;function-token></a>s,
+			<a href="#tokendef-open-curly" id="ref-for-tokendef-open-curly④">&lt;{-token></a>s,
+			<a href="#tokendef-open-paren" id="ref-for-tokendef-open-paren①">&lt;(-token></a>s,
+			and <a href="#tokendef-open-square" id="ref-for-tokendef-open-square①">&lt;[-token></a>s.
+
+
+     <p class="note" role="note"><span class="marker">Note:</span> The non-<a data-link-type="dfn" href="#preserved-tokens" id="ref-for-preserved-tokens①">preserved tokens</a> listed above are always consumed into higher-level objects,
+			either functions or simple blocks,
+			and so never appear in any parser output themselves.</p>
+     <p class="note" role="note"><span class="marker">Note:</span> The tokens <a href="#tokendef-close-curly" id="ref-for-tokendef-close-curly②">&lt;}-token></a>s, <a href="#tokendef-close-paren" id="ref-for-tokendef-close-paren①">&lt;)-token></a>s, <a href="#tokendef-close-square" id="ref-for-tokendef-close-square①">&lt;]-token></a>, <a class="css production" data-link-type="type" href="#typedef-bad-string-token" id="ref-for-typedef-bad-string-token②">&lt;bad-string-token></a>, and <a class="css production" data-link-type="type" href="#typedef-bad-url-token" id="ref-for-typedef-bad-url-token⑦">&lt;bad-url-token></a> are always parse errors,
+			but they are preserved in the token stream by this specification to allow other specs,
+			such as Media Queries,
+			to define more fine-grained error-handling
+			than just dropping an entire declaration or block.</p>
+    <dt><dfn class="dfn-paneled" data-dfn-for="CSS" data-dfn-type="dfn" data-export id="function">function</dfn>
+
+    <dd>
+			A function has a name
+			and a value consisting of a list of <a data-link-type="dfn" href="#component-value" id="ref-for-component-value②">component values</a>.
+
+
+    <dt><dfn class="dfn-paneled" data-dfn-for="CSS" data-dfn-type="dfn" data-export id="simple-block">simple block</dfn>
+
+    <dt><dfn class="dfn-paneled" data-dfn-for="CSS" data-dfn-type="dfn" data-export id="curly-block">{}-block</dfn>
+
+    <dt><dfn class="dfn-paneled" data-dfn-for="CSS" data-dfn-type="dfn" data-export id="square-block">[]-block</dfn>
+
+    <dt><dfn class="dfn-paneled" data-dfn-for="CSS" data-dfn-type="dfn" data-export id="paren-block">()-block</dfn>
+
+    <dd>
+
+			A simple block has an associated token (either a <a href="#tokendef-open-square" id="ref-for-tokendef-open-square②">&lt;[-token></a>, <a href="#tokendef-open-paren" id="ref-for-tokendef-open-paren②">&lt;(-token></a>, or <a href="#tokendef-open-curly" id="ref-for-tokendef-open-curly⑤">&lt;{-token></a>)
+			and a value consisting of a list of component values.
+
+
+     <p><a data-link-type="dfn" href="#curly-block" id="ref-for-curly-block">{}-block</a>, <a data-link-type="dfn" href="#square-block" id="ref-for-square-block">[]-block</a>, and <a data-link-type="dfn" href="#paren-block" id="ref-for-paren-block">()-block</a> refer specifically
+			to a <a data-link-type="dfn" href="#simple-block" id="ref-for-simple-block①">simple block</a> with that corresponding associated token.</p>
+   </dl>
+   <details class="wpt-tests-block" dir="ltr" lang="en">
+    <summary>Tests</summary>
+    <ul class="wpt-tests-list">
+     <li class="wpt-test"><a class="wpt-name" href="https://wpt.fyi/results/css/css-syntax/parse-invalid-input.html" title="css/css-syntax/parse-invalid-input.html">parse-invalid-input.html</a> <a class="wpt-live" href="http://wpt.live/css/css-syntax/parse-invalid-input.html"><small>(live test)</small></a> <a class="wpt-source" href="https://github.com/web-platform-tests/wpt/blob/master/css/css-syntax/parse-invalid-input.html"><small>(source)</small></a>
+    </ul>
+   </details>

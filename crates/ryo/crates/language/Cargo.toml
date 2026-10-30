@@ -1,0 +1,46 @@
+[package]
+name = "idiomatic-sh-ryo-language"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = true
+description = "Independent language provider contracts for Ryo"
+keywords = ["parser", "syntax-tree", "static-analysis", "language-provider", "ryo"]
+categories = ["development-tools", "parser-implementations"]
+autobenches = false
+
+[lib]
+name = "ryo_language"
+
+[dependencies]
+thiserror.workspace = true
+hashbrown.workspace = true
+dhat = { workspace = true, optional = true }
+rustc-hash.workspace = true
+strum.workspace = true
+toml = { workspace = true, optional = true }
+
+[dev-dependencies]
+cargo_metadata.workspace = true
+cucumber.workspace = true
+tokio.workspace = true
+trybuild.workspace = true
+# The crate itself, with its fixtures: its tests need them, and no test is run with a flag.
+idiomatic-sh-ryo-language = { path = ".", features = ["fixtures"] }
+
+[[test]]
+name = "allocation"
+harness = false
+
+[[test]]
+name = "bdd"
+harness = false
+
+
+[features]
+fixtures = ["dep:dhat", "dep:toml"]
+
+[lints]
+workspace = true

@@ -1,0 +1,163 @@
+description = "A use case's test in the one test shape: against the fakes of the ports it calls, or, when it implements a trait another crate declares, that crate's contract rows run through it first."
+why = "Proves the implementation by the rows every implementation of the trait shares, which the declaring crate exports as `fixtures::contract::CASES`, so a language cannot pass by skipping the promised behaviour. It has the shape of an adapter's test: the contract's rows, then its own."
+content = '''
+{% if ('use_case = "' ~ part ~ '"') in implements -%}
+//! The `{{ part }}` use case: the contract of the trait it implements, run through it, then its own cases.
+{% for entry in (implements | split("{") | list)[1:] %}
+{%- if ('use_case = "' ~ part ~ '"') in entry %}
+{%- set crate = ((entry | split('crate = "') | list)[1] | split('"') | list)[0] %}
+{%- set interface = ((entry | split('interface = "') | list)[1] | split('"') | list)[0] %}
+{%- set parents = (interface | split("::") | list)[:-1] %}
+use crate::cases::{Case, Word, run};
+use super::use_case::{{ part | pascal }}UseCaseImpl;
+
+type Input = ();
+type Value = ();
+type Failure = ();
+
+/// The rows of what is specific to this use case: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[];
+
+/// Calls the use case on one input; the author states it.
+fn subject(_input: Input) -> Result<Value, Failure> {
+    todo!("call the use case on one input")
+}
+
+
+
+#[test]
+fn succeeds() {
+    {{ crate }}::{% if parents %}{{ parents | join("::") }}::{% endif %}contract::{{ (interface | split("::") | list)[-1] | snake }}(&{{ part | pascal }}UseCaseImpl::new());
+    run(CASES, Word::Succeeds, subject);
+}
+{%- endif %}
+{%- endfor %}
+{%- else -%}
+//! What the `{{ part }}` use case promises, against the fakes of the ports it calls, from its fixtures.
+
+use crate::cases::{Case, Word, run};
+
+type Input = ();
+type Value = ();
+type Failure = ();
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[];
+
+/// Calls the part on one input; the author states it.
+fn subject(_input: Input) -> Result<Value, Failure> {
+    todo!("call the part on one input")
+}
+{%- endif %}
+'''
+
+[params]
+part = { type = "identifier", from = "directory-name", description = "The part's directory name: the stem of every name in it." }
+implements = { type = "list<table>", description = "The product's `implements` list: each entry names a use case, the crate that declares the trait and the trait's name." }
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.file = 'use_case_test.rs'
+given.params = { part = 'greet', implements = [{ use_case = 'greet', crate = 'ryo', interface = 'languages::Language' }] }
+given.files.'use_case_test.rs' = '''
+//! The `greet` use case: the contract of the trait it implements, run through it, then its own cases.
+
+use crate::cases::{Case, Word, run};
+use super::use_case::GreetUseCaseImpl;
+
+type Input = ();
+type Value = ();
+type Failure = ();
+
+/// The rows of what is specific to this use case: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "greets the person named",
+        word: Word::Succeeds,
+        input: || (),
+        expect: Expect::Value(()),
+    },
+];
+
+/// Calls the use case on one input; the author states it.
+fn subject(input: Input) -> Result<Value, Failure> {
+    todo!("call the use case on one input")
+}
+
+#[test]
+fn succeeds() {
+    ryo::languages::contract::language(&GreetUseCaseImpl::new());
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+given.file = 'use_case_test.rs'
+given.params = { part = 'greet', implements = [{ use_case = 'greet', crate = 'ryo', interface = 'languages::Language' }] }
+then.findings = [
+  { rule = 'use-case-test#count', path = '.' },
+]
+
+[[scenarios]]
+id = 'use-case-against-fakes-ports'
+scenario = 'A use case against the fakes of its ports.'
+given.file = 'use_case_test.rs'
+given.params = { part = 'greet', implements = [] }
+given.files.'use_case_test.rs' = '''
+//! What the `greet` use case promises, against the fakes of the ports it calls, from its fixtures.
+
+use crate::cases::{Case, Word, run};
+
+type Input = ();
+type Value = ();
+type Failure = ();
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[];
+
+/// Calls the part on one input; the author states it.
+fn subject(input: Input) -> Result<Value, Failure> {
+    todo!("call the part on one input")
+}
+'''
+
+[[scenarios]]
+id = 'implementing-parse'
+scenario = "A language's parse use case runs the contract's flow over its samples."
+given.file = 'use_case_test.rs'
+given.params = { part = 'parse', implements = [{ use_case = 'parse', crate = 'ryo', interface = 'languages::Parse' }] }
+given.files.'use_case_test.rs' = '''
+//! The `parse` use case: the contract of the trait it implements, run through it, then its own cases.
+
+use crate::cases::{Case, Word, run};
+use super::use_case::ParseUseCaseImpl;
+use std::sync::Arc;
+
+use ryo::languages;
+
+type Input = ();
+type Value = ();
+type Failure = ();
+
+/// The rows of what is specific to this use case: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[];
+
+/// Calls the use case on one input; the author states it.
+fn subject(input: Input) -> Result<Value, Failure> {
+    todo!("call the use case on one input")
+}
+
+/// The files the flow of the contract reads: a few the language reads, one of which the library can only half read. The author states them.
+const SAMPLES: &[languages::Sample] = &[];
+
+#[test]
+fn succeeds() {
+    let syntax: Arc<dyn crate::outbound::syntax::interface::SyntaxPort + Send + Sync> = todo!("the syntax adapter of the language, from its port's factory");
+    let language = ParseUseCaseImpl::new(syntax);
+    ryo::languages::contract::parse(&language);
+    languages::contract::flow(&language, SAMPLES);
+}
+'''

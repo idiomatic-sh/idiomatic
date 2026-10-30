@@ -1,0 +1,103 @@
+description = "No `exists()` or `try_exists()` asks whether a path is there, and no `Path::exists`, `Path::try_exists` or `fs::exists` is called or passed."
+why = "`exists()` answers `false` for a path that is there but cannot be read (no permission, a link to itself), so the code goes on to write over it or to report it missing; and the answer is stale by the time the next call runs. The operation itself is attempted and its `ErrorKind::NotFound` matched as absence; every other error is an error. Read from the syntax: every method call named `exists` or `try_exists` with no argument, and every path ending `exists` or `try_exists` whose qualifier ends `Path`, `PathBuf` or `fs`, in the files the entry includes. A method of another type named so with no argument is reported too: name it otherwise."
+
+query = '''
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let idents = select l."id" as "id", l."text" as "text" from "syntax-tree" as l where l."kind" = "ident";
+let name-edges = select * from "syntax-child" where field = "name-ref";
+let ref-tokens = select l."parent" as "owner", l."child" as "name-ref", r."child" as "token" from name-edges as l join "syntax-child" as r on l."child" = r."parent";
+let named = select l."owner" as "owner", l."name-ref" as "name-ref", r."text" as "name" from ref-tokens as l join idents as r on l."token" = r."id";
+let probe-names = select * from named where glob_any(name, "{exists,try_exists}");
+let method-calls = select * from tree-nodes where kind = "method-call-expr";
+let probe-calls = select l."owner" as "id", l."name-ref" as "name-ref" from probe-names as l join method-calls as r on l."owner" = r."id";
+let arg-list-edges = select * from "syntax-child" where field = "arg-list";
+let arg-edges = select * from "syntax-child" where field = "args";
+let given-args = select l."parent" as "id" from arg-list-edges as l join arg-edges as r on l."child" = r."parent";
+let bare-probe-calls = antijoin(left=probe-calls, right=given-args, left-on=["id"], right-on=["id"]);
+let call-sites = select r."id" as "id", r."file" as "file", r."span" as "span" from bare-probe-calls as l join tree-nodes as r on l."name-ref" = r."id";
+let segments = select * from tree-nodes where kind = "path-segment";
+let probe-segments = select l."owner" as "segment", l."name-ref" as "name-ref" from probe-names as l join segments as r on l."owner" = r."id";
+let segment-edges = select * from "syntax-child" where field = "segment";
+let probe-paths = select r."parent" as "path", l."name-ref" as "name-ref" from probe-segments as l join segment-edges as r on l."segment" = r."child";
+let qualifier-edges = select * from "syntax-child" where field = "qualifier";
+let qualified = select l."path" as "path", l."name-ref" as "name-ref", r."child" as "qualifier" from probe-paths as l join qualifier-edges as r on l."path" = r."parent";
+let qualifier-segments = select l."name-ref" as "name-ref", r."child" as "segment" from qualified as l join segment-edges as r on l."qualifier" = r."parent";
+let qualifier-names = select l."name-ref" as "name-ref", r."name" as "name" from qualifier-segments as l join named as r on l."segment" = r."owner";
+let path-probes = select * from qualifier-names where glob_any(name, "{Path,PathBuf,fs}");
+let path-sites = select r."id" as "id", r."file" as "file", r."span" as "span" from path-probes as l join tree-nodes as r on l."name-ref" = r."id";
+let found = union(left=call-sites, right=path-sites);
+emit found subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "this asks whether a path exists instead of trying the operation"
+help = "Attempt the operation (read, open, create, metadata) and match `Err(error) if error.kind() == std::io::ErrorKind::NotFound` as the absence; return every other error. Creating a file only when it is missing is `OpenOptions::new().write(true).create_new(true)` with `ErrorKind::AlreadyExists` matched."
+
+[given]
+include = ['**']
+files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+files.'src/lib.rs' = '''
+mod code;
+'''
+
+[[scenarios]]
+id = 'tag-written-when-missing'
+scenario = 'The cache tag is written only when `exists()` says it is missing (the store adapter at 5149cd075d).'
+given.files.'src/code.rs' = '''
+pub fn save(root: &std::path::Path) -> std::io::Result<()> {
+    std::fs::create_dir_all(root)?;
+    let tag = root.join("CACHEDIR.TAG");
+    if !tag.exists() {
+        std::fs::write(&tag, "Signature: 8a477f597d28d172789f06886806bc55\n")?;
+    }
+    Ok(())
+}
+'''
+then.findings = [
+  { path = 'src/code.rs', line = 4 },
+]
+
+[[scenarios]]
+id = 'probe-answers-present'
+scenario = 'A presence probe through `try_exists` (the repository adapter at 5149cd075d), and a search that passes `Path::exists`.'
+given.files.'src/code.rs' = '''
+use std::path::Path;
+pub fn present(path: &Path) -> bool {
+    match path.try_exists() {
+        Ok(false) => false,
+        Ok(true) | Err(_) => true,
+    }
+}
+pub fn first(candidates: &[&Path]) -> Option<&Path> {
+    candidates.iter().copied().find(|path| Path::exists(path))
+}
+'''
+then.findings = [
+  { path = 'src/code.rs', line = 3 },
+  { path = 'src/code.rs', line = 9 },
+]
+
+[[scenarios]]
+id = 'operation-attempted'
+scenario = 'The operation is attempted and only `NotFound` is absence; a port method named `exists` with arguments is not a path probe.'
+given.files.'src/code.rs' = '''
+pub trait Repository {
+    fn exists(&self, root: &str, path: &str) -> bool;
+}
+pub fn read(path: &std::path::Path) -> std::io::Result<Option<String>> {
+    match std::fs::read_to_string(path) {
+        Ok(text) => Ok(Some(text)),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(error) => Err(error),
+    }
+}
+pub fn locked(repository: &dyn Repository) -> bool {
+    repository.exists(".", "tastemaker.lock")
+}
+'''

@@ -1,0 +1,34 @@
+# crates/asymptote/tastemaker.toml   (paths are relative to this file's directory)
+# asymptote is placed by the specs ryo and Tastemaker are placed by (tastemaker): two crates,
+# the command line and its core, the core a nu-hex. A crate exists only when something outside calls it.
+tastemaker = "0.1.0"
+workspace = { name = "asymptote", dependencies = [{ package = "idiomatic.arch", path = "../../tastemaker" }] }
+rules = [
+  { rule = "idiomatic.arch/no-language-names", params = { languages = ["css", "html", "javascript", "python", "rust", "typescript"], written = ["go", "Go", "Go[!A-Za-z0-9]*", "*[!A-Za-z0-9]Go", "*[!A-Za-z0-9]Go[!A-Za-z0-9]*", "*golang*", "*JavaScript*", "*TypeScript*"] }, include = ["crates/core/src/**", "cli/Cargo.toml"], exclude = ["**/*_test.rs", "**/fixtures/**", "**/fixtures.rs", "**/acceptance.rs"], description = "The core names no language and dispatches on no file extension: a language decides its files, and the query names the relations." },
+]
+templates = [
+  { template = "idiomatic.arch/unchecked", file = "crates/core/LICENSE", description = "A link to the repository's LICENSE, the license text the crate ships: a path, never followed." },
+  { template = "idiomatic.arch/unchecked", file = "distribution/registries/pypi/LICENSE", description = "A link to the repository's LICENSE, the license text the PyPI package ships: a path, never followed." },
+  { template = "idiomatic.arch/clippy-config", file = "clippy.toml", description = "The product's clippy configuration: the in-tests allowances that go with the restriction lints at deny." },
+  { template = "idiomatic.arch/cargo-workspace", file = "Cargo.toml", params = { version = "0.1.0" }, description = "The product's Cargo workspace: its two crates as members, the shared dependencies and the lints every crate inherits." },
+  { template = "idiomatic.arch/cargo-lock", file = "Cargo.lock", description = "The product's Cargo.lock, committed so every build resolves the same dependencies." },
+  { template = "idiomatic.arch/tastemaker-lock", file = "tastemaker.lock", description = "This file's lock: the definition versions the product resolved." },
+  { template = "idiomatic.arch/product-readme", file = "README.md", params = { product = "asymptote" }, description = "The product's README: what it is for, how to install it and one checked command line example." },
+  { template = "idiomatic.arch/deny-config", file = "deny.toml", description = "The product's cargo-deny policy for licenses, bans and sources." },
+  { template = "idiomatic.arch/mutants-config", file = ".cargo/mutants.toml", description = "The product's cargo-mutants configuration." },
+  { template = "idiomatic.arch/nextest-config", file = ".config/nextest.toml", description = "The product's cargo-nextest configuration." },
+  { template = "idiomatic.arch/asymptote-config", file = "asymptote.toml", description = "The tools whose findings the product's asymptote lock ratchets." },
+  { template = "idiomatic.arch/asymptote-lock", file = ".asymptote/operations/{operation}.lock", count = { min = 0 }, description = "One of the lock files asymptote writes: the findings accepted for one operation." },
+  { template = "idiomatic.arch/doc-page", file = "docs/{*page}", description = "A design page of the product." },
+]
+specs = [
+  { spec = "idiomatic.arch/pipeline", include = ["crates/core/src/inbound/use_cases/check"], description = "The check pipeline retains per-tool findings with cold, warm, edited and failed-publication lifecycle evidence." },
+  { spec = "idiomatic.arch/pipeline", include = ["crates/core/src/inbound/use_cases/up"], description = "`up` appends to the operation log every run: its lifecycle cases hold the log to a bounded number of files." },
+  { alias = "cli-crate", spec = "idiomatic.arch/crate", include = ["cli"], params = { package = "idiomatic-sh-asymptote", library = "asymptote_cli", binary = "asymptote", distribution = "shipped" }, description = "The command line's crate, package `idiomatic-sh-asymptote`, binary `asymptote`, library `asymptote_cli`." },
+  { spec = "idiomatic.arch/cli", include = ["cli"], params = { library = "asymptote_cli", markdown = "offered", product = "asymptote", writes = ["ratchet up", "ratchet down", "ratchet init"] }, description = "The command line's shell: main, the command tree of the one resource `ratchet`, the output module and the command benches." },
+  { alias = "crate-core", spec = "idiomatic.arch/crate", include = ["crates/core"], params = { package = "idiomatic-sh-asymptote-core", library = "asymptote_core", binary = "absent", distribution = "absent" }, description = "The `core` crate: package `idiomatic-sh-asymptote-core`, library `asymptote_core`." },
+  { spec = "idiomatic.arch/nu-hex", include = ["crates/core"], params = { exposed = [], plugins = [], implements = [], item-trait = "absent" }, description = "asymptote's core: one use case per command, the rules that judge a run against the lock, and the ports it reaches the tools, git, the lock, the disk and its cache through, each with its adapters." },
+  { spec = "idiomatic.arch/idiomatic-rust", include = ["."], params = { apart = "languages", allowed-paths = ["**/constants.rs", "**/errors.rs", "**/schemas.rs", "cli/src/**", "**/*_test.rs", "**/src/inbound/use_cases/*/acceptance.rs", "**/src/inbound/contracts/*/acceptance.rs", "**/tests/**", "**/fixtures/**", "**/fixtures.rs", "**/benches/**"], libraries = ["serde_sarif::*", "toml::*", "blake3::*", "postcard::*", "process_wrap::*", "globset::*", "jiff::*", "percent_encoding::*"] }, description = "The Rust policy rules every product that writes Rust places once." },
+  { spec = "idiomatic.arch/idiomatic-project", include = ["."], description = "The rules every product of the monorepo is held to: file length, catch-all names, the Cargo workspace and no tab-separated tables." },
+  { spec = "idiomatic.arch/distribution", include = ["distribution"], params = { check = "check --format json", configuration = "asymptote.toml", languages = "none", organization = "idiomatic_sh", command = "asymptote", product = "asymptote" }, description = "A product's `distribution` directory, beside its command line crate: the root of the `distribution` test target that crate's manifest declares, the check that holds a build's findings on real projects to the expected ones, the `distribution` bench that measures those projects and prints Bencher Metric Format, and one directory per registry under `registries`, each holding that registry's build, its package files, its targets (pinned real projects) and the smoke test that installs the package and gives the install its targets are checked through. Every product ships to Cargo; a product that places npm's package file and PyPI's project file ships to those too, and one that places neither ships to Cargo alone." },
+]

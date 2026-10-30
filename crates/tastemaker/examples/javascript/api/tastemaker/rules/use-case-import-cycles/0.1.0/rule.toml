@@ -1,0 +1,37 @@
+description = "No import cycle between the use cases under `inbound/use_cases/`."
+why = "Two use cases that import each other are one use case split across two directories: neither can be read, tested or removed alone. The rule reads the source dependencies between the use-case directories and reports each cycle once, at the import of the use case whose name sorts first."
+
+query = '''
+let imports = select l."source" as "source", l."span" as "span", l."target" as "target" from "source-dependency" as l;
+let from-cases = capture(from=imports, path="source", pattern="src/inbound/use_cases/{pkg}/{*rest}", captures=["pkg", "rest"]);
+let edges-with-files = capture(from=from-cases, path="target", pattern="src/inbound/use_cases/{tpkg}/{*trest}", captures=["tpkg", "trest"]);
+let foreign = select * from edges-with-files where pkg != tpkg;
+let edges = project(from=foreign, columns=["pkg", "tpkg"]);
+let cyclic = cycles(edges=edges, source="pkg", destination="tpkg");
+let members = project(from=cyclic, columns=["pkg"]);
+let member-targets = select l."pkg" as "tpkg" from members as l;
+let from-members = select l."source" as "source", l."span" as "span", l."pkg" as "pkg", l."tpkg" as "tpkg" from foreign as l join members as r on l."pkg" = r."pkg";
+let inside = select l."source" as "source", l."span" as "span", l."pkg" as "pkg", l."tpkg" as "tpkg" from from-members as l join member-targets as r on l."tpkg" = r."tpkg";
+let closing = select * from inside where pkg < tpkg;
+emit closing subject "source" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "`{pkg}` imports `{tpkg}`, which imports it back"
+help = "Move what both need into the domain, or merge the two use cases."
+
+[given]
+include = ["**"]
+files."src/inbound/use_cases/a/use_case.js" = "import { B } from \"../b/use_case\";\nexport class A { b() { return new B(); } }\n"
+
+[[scenarios]]
+id = "two-use-cases-import-each-other"
+scenario = "Two use cases that import each other are reported once."
+given.files."src/inbound/use_cases/b/use_case.js" = "import { A } from \"../a/use_case\";\nexport class B { a() { return new A(); } }\n"
+then.findings = [{ path = "src/inbound/use_cases/a/use_case.js", line = 1 }]
+
+[[scenarios]]
+id = "one-way-import"
+scenario = "A use case that imports another one way is not reported."
+given.files."src/inbound/use_cases/b/use_case.js" = "export class B {}\n"

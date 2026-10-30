@@ -1,0 +1,129 @@
+description = "Threads and rayon pools are created only in adapters and at the composition root: no `std::thread::{scope,spawn,Builder,available_parallelism}`, no bare `std::thread` import and no rayon pool builder, `spawn` or `scope` elsewhere."
+why = "How work spreads over the host is one decision, made where the process is composed; a pool opened elsewhere decides it again. The places a pool may be opened are the entry's `exclude`. Not seen: a path written through an alias, and a path inside a macro invocation's tokens."
+
+query = '''
+let imports = project(from="static-import", columns=["occurrence", "file", "span", "target"]);
+let references = project(from="reference", columns=["occurrence", "file", "span", "target"]);
+let mentions = union(left=imports, right=references);
+let pools = select * from mentions where glob_any(target, "{std::thread,std::thread::[*],std::thread::scope,std::thread::spawn,std::thread::Builder,std::thread::Builder::*,std::thread::available_parallelism,rayon::ThreadPoolBuilder,rayon::ThreadPoolBuilder::*,rayon::ThreadPool::*,rayon::spawn,rayon::spawn_fifo,rayon::scope,rayon::scope_fifo,rayon::in_place_scope}");
+emit pools subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "`{target}` opens a thread pool outside an adapter and the composition root"
+help = "Move the thread or pool creation into an adapter, or into the edge's `composition.rs`, and take the port that schedules the work here; the edge decides parallelism once. An ignore is never the fix."
+
+[given]
+include = ['**']
+exclude = ['**/adapters/**', '**/composition.rs', '**/tests/**', '**/benches/**', '**/*_test.rs']
+files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+files.'src/lib.rs' = '''
+mod greeting;
+'''
+
+[[scenarios]]
+id = 'rayon-pool-in-domain'
+scenario = 'A rayon pool built in a domain file.'
+given.files.'src/greeting.rs' = '''
+mod types;
+'''
+given.files.'src/greeting/types.rs' = '''
+pub fn pool() {
+    let _ = rayon::ThreadPoolBuilder::new().num_threads(2).build();
+}
+'''
+then.findings = [
+  { path = 'src/greeting/types.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'rayon-pool-in-adapter'
+scenario = 'A rayon pool built in an adapter.'
+given.files.'src/greeting.rs' = '''
+mod adapters;
+'''
+given.files.'src/greeting/adapters.rs' = '''
+mod pool;
+'''
+given.files.'src/greeting/adapters/pool.rs' = '''
+mod adapter;
+'''
+given.files.'src/greeting/adapters/pool/adapter.rs' = '''
+pub fn pool() {
+    let _ = rayon::ThreadPoolBuilder::new().num_threads(2).build();
+}
+'''
+
+[[scenarios]]
+id = 'rayon-pool-at-composition'
+scenario = 'A rayon pool built at the composition root.'
+given.files.'src/composition.rs' = '''
+pub fn pool() {
+    let _ = rayon::ThreadPoolBuilder::new().num_threads(2).build();
+}
+'''
+given.files.'src/lib.rs' = '''
+mod composition;
+'''
+
+[[scenarios]]
+id = 'rayon-scope-in-domain'
+scenario = 'A rayon scope opened in a domain file.'
+given.files.'src/lib.rs' = '''
+mod work;
+'''
+given.files.'src/work.rs' = '''
+pub fn run() {
+    rayon::scope(|_| {});
+}
+'''
+then.findings = [
+  { path = 'src/work.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'thread-in-domain'
+scenario = 'A thread spawned in a domain file.'
+given.files.'src/lib.rs' = '''
+mod work;
+'''
+given.files.'src/work.rs' = '''
+pub fn run() {
+    std::thread::spawn(|| {});
+}
+'''
+then.findings = [
+  { path = 'src/work.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'sleeping-pool'
+scenario = 'Sleeping is not a pool.'
+given.files.'src/lib.rs' = '''
+mod sleep;
+'''
+given.files.'src/sleep.rs' = '''
+pub fn rest() {
+    std::thread::sleep(std::time::Duration::ZERO);
+}
+'''
+
+[[scenarios]]
+id = 'parallel-iterator'
+scenario = 'Using the global pool through a parallel iterator is not creating one.'
+given.files.'src/lib.rs' = '''
+mod sum;
+'''
+given.files.'src/sum.rs' = '''
+use rayon::prelude::*;
+
+pub fn sum(values: &[u64]) -> u64 {
+    values.par_iter().sum()
+}
+'''

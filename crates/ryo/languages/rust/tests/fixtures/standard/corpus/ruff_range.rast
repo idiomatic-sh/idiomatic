@@ -1,0 +1,5501 @@
+SOURCE_FILE
+  USE
+    USE_KW "use"
+    WHITESPACE " "
+    USE_TREE
+      PATH
+        PATH
+          PATH_SEGMENT
+            NAME_REF
+              IDENT "cmp"
+        COLON2 "::"
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "Ordering"
+    SEMICOLON ";"
+  WHITESPACE "\n\n"
+  USE
+    USE_KW "use"
+    WHITESPACE " "
+    USE_TREE
+      USE_TREE_LIST
+        L_CURLY "{"
+        WHITESPACE "\n    "
+        USE_TREE
+          PATH
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  CRATE_KW "crate"
+            COLON2 "::"
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "TextSize"
+        COMMA ","
+        WHITESPACE "\n    "
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "std"
+          COLON2 "::"
+          USE_TREE_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            USE_TREE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "cmp"
+            COMMA ","
+            WHITESPACE " "
+            USE_TREE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "fmt"
+            COMMA ","
+            WHITESPACE "\n        "
+            USE_TREE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "ops"
+              COLON2 "::"
+              USE_TREE_LIST
+                L_CURLY "{"
+                USE_TREE
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "Add"
+                COMMA ","
+                WHITESPACE " "
+                USE_TREE
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "AddAssign"
+                COMMA ","
+                WHITESPACE " "
+                USE_TREE
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "Bound"
+                COMMA ","
+                WHITESPACE " "
+                USE_TREE
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "Index"
+                COMMA ","
+                WHITESPACE " "
+                USE_TREE
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "IndexMut"
+                COMMA ","
+                WHITESPACE " "
+                USE_TREE
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "Range"
+                COMMA ","
+                WHITESPACE " "
+                USE_TREE
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "RangeBounds"
+                COMMA ","
+                WHITESPACE " "
+                USE_TREE
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "Sub"
+                COMMA ","
+                WHITESPACE " "
+                USE_TREE
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "SubAssign"
+                R_CURLY "}"
+            COMMA ","
+            WHITESPACE "\n    "
+            R_CURLY "}"
+        COMMA ","
+        WHITESPACE "\n"
+        R_CURLY "}"
+    SEMICOLON ";"
+  WHITESPACE "\n\n"
+  STRUCT
+    COMMENT "/// A range in text, represented as a pair of [`TextSize`][struct@TextSize]."
+    WHITESPACE "\n"
+    COMMENT "///"
+    WHITESPACE "\n"
+    COMMENT "/// It is a logic error for `start` to be greater than `end`."
+    WHITESPACE "\n"
+    ATTR
+      POUND "#"
+      L_BRACK "["
+      TOKEN_TREE_META
+        PATH
+          PATH_SEGMENT
+            NAME_REF
+              IDENT "derive"
+        TOKEN_TREE
+          L_PAREN "("
+          IDENT "Default"
+          COMMA ","
+          WHITESPACE " "
+          IDENT "Copy"
+          COMMA ","
+          WHITESPACE " "
+          IDENT "Clone"
+          COMMA ","
+          WHITESPACE " "
+          IDENT "Eq"
+          COMMA ","
+          WHITESPACE " "
+          IDENT "PartialEq"
+          COMMA ","
+          WHITESPACE " "
+          IDENT "Hash"
+          R_PAREN ")"
+      R_BRACK "]"
+    WHITESPACE "\n"
+    ATTR
+      POUND "#"
+      L_BRACK "["
+      CFG_ATTR_META
+        CFG_ATTR_KW "cfg_attr"
+        L_PAREN "("
+        CFG_ATOM
+          IDENT "feature"
+          WHITESPACE " "
+          EQ "="
+          WHITESPACE " "
+          STRING "\"get-size\""
+        COMMA ","
+        WHITESPACE " "
+        TOKEN_TREE_META
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "derive"
+          TOKEN_TREE
+            L_PAREN "("
+            IDENT "get_size2"
+            COLON ":"
+            COLON ":"
+            IDENT "GetSize"
+            R_PAREN ")"
+        R_PAREN ")"
+      R_BRACK "]"
+    WHITESPACE "\n"
+    VISIBILITY
+      PUB_KW "pub"
+    WHITESPACE " "
+    STRUCT_KW "struct"
+    WHITESPACE " "
+    NAME
+      IDENT "TextRange"
+    WHITESPACE " "
+    RECORD_FIELD_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      RECORD_FIELD
+        COMMENT "// Invariant: start <= end"
+        WHITESPACE "\n    "
+        NAME
+          IDENT "start"
+        COLON ":"
+        WHITESPACE " "
+        PATH_TYPE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "TextSize"
+      COMMA ","
+      WHITESPACE "\n    "
+      RECORD_FIELD
+        NAME
+          IDENT "end"
+        COLON ":"
+        WHITESPACE " "
+        PATH_TYPE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "TextSize"
+      COMMA ","
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH
+          PATH_SEGMENT
+            NAME_REF
+              IDENT "fmt"
+        COLON2 "::"
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "Debug"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "TextRange"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      FN
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "fmt"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "f"
+            COLON ":"
+            WHITESPACE " "
+            REF_TYPE
+              AMP "&"
+              MUT_KW "mut"
+              WHITESPACE " "
+              PATH_TYPE
+                PATH
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "fmt"
+                  COLON2 "::"
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "Formatter"
+                    GENERIC_ARG_LIST
+                      L_ANGLE "<"
+                      LIFETIME_ARG
+                        LIFETIME
+                          LIFETIME_IDENT "'_"
+                      R_ANGLE ">"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "fmt"
+              COLON2 "::"
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "Result"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            MACRO_EXPR
+              MACRO_CALL
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "write"
+                BANG "!"
+                TOKEN_TREE
+                  L_PAREN "("
+                  IDENT "f"
+                  COMMA ","
+                  WHITESPACE " "
+                  STRING "\"{}..{}\""
+                  COMMA ","
+                  WHITESPACE " "
+                  SELF_KW "self"
+                  DOT "."
+                  IDENT "start"
+                  TOKEN_TREE
+                    L_PAREN "("
+                    R_PAREN ")"
+                  DOT "."
+                  IDENT "raw"
+                  COMMA ","
+                  WHITESPACE " "
+                  SELF_KW "self"
+                  DOT "."
+                  IDENT "end"
+                  TOKEN_TREE
+                    L_PAREN "("
+                    R_PAREN ")"
+                  DOT "."
+                  IDENT "raw"
+                  R_PAREN ")"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "TextRange"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      FN
+        COMMENT "/// Creates a new `TextRange` with the given `start` and `end` (`start..end`)."
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// # Panics"
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// Panics if `end < start`."
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// # Examples"
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// ```rust"
+        WHITESPACE "\n    "
+        COMMENT "/// # use ruff_text_size::*;"
+        WHITESPACE "\n    "
+        COMMENT "/// let start = TextSize::from(5);"
+        WHITESPACE "\n    "
+        COMMENT "/// let end = TextSize::from(10);"
+        WHITESPACE "\n    "
+        COMMENT "/// let range = TextRange::new(start, end);"
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// assert_eq!(range.start(), start);"
+        WHITESPACE "\n    "
+        COMMENT "/// assert_eq!(range.end(), end);"
+        WHITESPACE "\n    "
+        COMMENT "/// assert_eq!(range.len(), end - start);"
+        WHITESPACE "\n    "
+        COMMENT "/// ```"
+        WHITESPACE "\n    "
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "track_caller"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        CONST_KW "const"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "new"
+        PARAM_LIST
+          L_PAREN "("
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "start"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "TextSize"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "end"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "TextSize"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "TextRange"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            EXPR_STMT
+              MACRO_EXPR
+                MACRO_CALL
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "assert"
+                  BANG "!"
+                  TOKEN_TREE
+                    L_PAREN "("
+                    IDENT "start"
+                    DOT "."
+                    IDENT "raw"
+                    WHITESPACE " "
+                    L_ANGLE "<"
+                    EQ "="
+                    WHITESPACE " "
+                    IDENT "end"
+                    DOT "."
+                    IDENT "raw"
+                    R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n        "
+            RECORD_EXPR
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "TextRange"
+              WHITESPACE " "
+              RECORD_EXPR_FIELD_LIST
+                L_CURLY "{"
+                WHITESPACE " "
+                RECORD_EXPR_FIELD
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "start"
+                COMMA ","
+                WHITESPACE " "
+                RECORD_EXPR_FIELD
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "end"
+                WHITESPACE " "
+                R_CURLY "}"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        COMMENT "/// Create a new `TextRange` with the given `offset` and `len` (`offset..offset + len`)."
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// # Examples"
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// ```rust"
+        WHITESPACE "\n    "
+        COMMENT "/// # use ruff_text_size::*;"
+        WHITESPACE "\n    "
+        COMMENT "/// let text = \"0123456789\";"
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// let offset = TextSize::from(2);"
+        WHITESPACE "\n    "
+        COMMENT "/// let length = TextSize::from(5);"
+        WHITESPACE "\n    "
+        COMMENT "/// let range = TextRange::at(offset, length);"
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// assert_eq!(range, TextRange::new(offset, offset + length));"
+        WHITESPACE "\n    "
+        COMMENT "/// assert_eq!(&text[range], \"23456\")"
+        WHITESPACE "\n    "
+        COMMENT "/// ```"
+        WHITESPACE "\n    "
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "at"
+        PARAM_LIST
+          L_PAREN "("
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "offset"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "TextSize"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "len"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "TextSize"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "TextRange"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            CALL_EXPR
+              PATH_EXPR
+                PATH
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "TextRange"
+                  COLON2 "::"
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "new"
+              ARG_LIST
+                L_PAREN "("
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "offset"
+                COMMA ","
+                WHITESPACE " "
+                BIN_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "offset"
+                  WHITESPACE " "
+                  PLUS "+"
+                  WHITESPACE " "
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "len"
+                R_PAREN ")"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        COMMENT "/// Create a zero-length range at the specified offset (`offset..offset`)."
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// # Examples"
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// ```rust"
+        WHITESPACE "\n    "
+        COMMENT "/// # use ruff_text_size::*;"
+        WHITESPACE "\n    "
+        COMMENT "/// let point: TextSize;"
+        WHITESPACE "\n    "
+        COMMENT "/// # point = TextSize::from(3);"
+        WHITESPACE "\n    "
+        COMMENT "/// let range = TextRange::empty(point);"
+        WHITESPACE "\n    "
+        COMMENT "/// assert!(range.is_empty());"
+        WHITESPACE "\n    "
+        COMMENT "/// assert_eq!(range, TextRange::new(point, point));"
+        WHITESPACE "\n    "
+        COMMENT "/// ```"
+        WHITESPACE "\n    "
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "empty"
+        PARAM_LIST
+          L_PAREN "("
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "offset"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "TextSize"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "TextRange"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            RECORD_EXPR
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "TextRange"
+              WHITESPACE " "
+              RECORD_EXPR_FIELD_LIST
+                L_CURLY "{"
+                WHITESPACE "\n            "
+                RECORD_EXPR_FIELD
+                  NAME_REF
+                    IDENT "start"
+                  COLON ":"
+                  WHITESPACE " "
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "offset"
+                COMMA ","
+                WHITESPACE "\n            "
+                RECORD_EXPR_FIELD
+                  NAME_REF
+                    IDENT "end"
+                  COLON ":"
+                  WHITESPACE " "
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "offset"
+                COMMA ","
+                WHITESPACE "\n        "
+                R_CURLY "}"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        COMMENT "/// Create a range up to the given end (`..end`)."
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// # Examples"
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// ```rust"
+        WHITESPACE "\n    "
+        COMMENT "/// # use ruff_text_size::*;"
+        WHITESPACE "\n    "
+        COMMENT "/// let point: TextSize;"
+        WHITESPACE "\n    "
+        COMMENT "/// # point = TextSize::from(12);"
+        WHITESPACE "\n    "
+        COMMENT "/// let range = TextRange::up_to(point);"
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// assert_eq!(range.len(), point);"
+        WHITESPACE "\n    "
+        COMMENT "/// assert_eq!(range, TextRange::new(0.into(), point));"
+        WHITESPACE "\n    "
+        COMMENT "/// assert_eq!(range, TextRange::at(0.into(), point));"
+        WHITESPACE "\n    "
+        COMMENT "/// ```"
+        WHITESPACE "\n    "
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "up_to"
+        PARAM_LIST
+          L_PAREN "("
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "end"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "TextSize"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "TextRange"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            RECORD_EXPR
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "TextRange"
+              WHITESPACE " "
+              RECORD_EXPR_FIELD_LIST
+                L_CURLY "{"
+                WHITESPACE "\n            "
+                RECORD_EXPR_FIELD
+                  NAME_REF
+                    IDENT "start"
+                  COLON ":"
+                  WHITESPACE " "
+                  METHOD_CALL_EXPR
+                    LITERAL
+                      INT_NUMBER "0"
+                    DOT "."
+                    NAME_REF
+                      IDENT "into"
+                    ARG_LIST
+                      L_PAREN "("
+                      R_PAREN ")"
+                COMMA ","
+                WHITESPACE "\n            "
+                RECORD_EXPR_FIELD
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "end"
+                COMMA ","
+                WHITESPACE "\n        "
+                R_CURLY "}"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    COMMENT "/// Identity methods."
+    WHITESPACE "\n"
+    IMPL_KW "impl"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "TextRange"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      FN
+        COMMENT "/// The start point of this range."
+        WHITESPACE "\n    "
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        CONST_KW "const"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "start"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            NAME
+              SELF_KW "self"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "TextSize"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            FIELD_EXPR
+              PATH_EXPR
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      SELF_KW "self"
+              DOT "."
+              NAME_REF
+                IDENT "start"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        COMMENT "/// The end point of this range."
+        WHITESPACE "\n    "
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        CONST_KW "const"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "end"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            NAME
+              SELF_KW "self"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "TextSize"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            FIELD_EXPR
+              PATH_EXPR
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      SELF_KW "self"
+              DOT "."
+              NAME_REF
+                IDENT "end"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        COMMENT "/// The size of this range."
+        WHITESPACE "\n    "
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        CONST_KW "const"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "len"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            NAME
+              SELF_KW "self"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "TextSize"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            COMMENT "// HACK for const fn: math on primitives only"
+            WHITESPACE "\n        "
+            RECORD_EXPR
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "TextSize"
+              WHITESPACE " "
+              RECORD_EXPR_FIELD_LIST
+                L_CURLY "{"
+                WHITESPACE "\n            "
+                RECORD_EXPR_FIELD
+                  NAME_REF
+                    IDENT "raw"
+                  COLON ":"
+                  WHITESPACE " "
+                  BIN_EXPR
+                    FIELD_EXPR
+                      METHOD_CALL_EXPR
+                        PATH_EXPR
+                          PATH
+                            PATH_SEGMENT
+                              NAME_REF
+                                SELF_KW "self"
+                        DOT "."
+                        NAME_REF
+                          IDENT "end"
+                        ARG_LIST
+                          L_PAREN "("
+                          R_PAREN ")"
+                      DOT "."
+                      NAME_REF
+                        IDENT "raw"
+                    WHITESPACE " "
+                    MINUS "-"
+                    WHITESPACE " "
+                    FIELD_EXPR
+                      METHOD_CALL_EXPR
+                        PATH_EXPR
+                          PATH
+                            PATH_SEGMENT
+                              NAME_REF
+                                SELF_KW "self"
+                        DOT "."
+                        NAME_REF
+                          IDENT "start"
+                        ARG_LIST
+                          L_PAREN "("
+                          R_PAREN ")"
+                      DOT "."
+                      NAME_REF
+                        IDENT "raw"
+                COMMA ","
+                WHITESPACE "\n        "
+                R_CURLY "}"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        COMMENT "/// Check if this range is empty."
+        WHITESPACE "\n    "
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        CONST_KW "const"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "is_empty"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            NAME
+              SELF_KW "self"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "bool"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            COMMENT "// HACK for const fn: math on primitives only"
+            WHITESPACE "\n        "
+            BIN_EXPR
+              FIELD_EXPR
+                METHOD_CALL_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          SELF_KW "self"
+                  DOT "."
+                  NAME_REF
+                    IDENT "start"
+                  ARG_LIST
+                    L_PAREN "("
+                    R_PAREN ")"
+                DOT "."
+                NAME_REF
+                  IDENT "raw"
+              WHITESPACE " "
+              EQ2 "=="
+              WHITESPACE " "
+              FIELD_EXPR
+                METHOD_CALL_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          SELF_KW "self"
+                  DOT "."
+                  NAME_REF
+                    IDENT "end"
+                  ARG_LIST
+                    L_PAREN "("
+                    R_PAREN ")"
+                DOT "."
+                NAME_REF
+                  IDENT "raw"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    COMMENT "/// Manipulation methods."
+    WHITESPACE "\n"
+    IMPL_KW "impl"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "TextRange"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      FN
+        COMMENT "/// Check if this range contains an offset."
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// The end index is considered excluded."
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// # Examples"
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// ```rust"
+        WHITESPACE "\n    "
+        COMMENT "/// # use ruff_text_size::*;"
+        WHITESPACE "\n    "
+        COMMENT "/// let (start, end): (TextSize, TextSize);"
+        WHITESPACE "\n    "
+        COMMENT "/// # start = 10.into(); end = 20.into();"
+        WHITESPACE "\n    "
+        COMMENT "/// let range = TextRange::new(start, end);"
+        WHITESPACE "\n    "
+        COMMENT "/// assert!(range.contains(start));"
+        WHITESPACE "\n    "
+        COMMENT "/// assert!(!range.contains(end));"
+        WHITESPACE "\n    "
+        COMMENT "/// ```"
+        WHITESPACE "\n    "
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "contains"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "offset"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "TextSize"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "bool"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            BIN_EXPR
+              BIN_EXPR
+                METHOD_CALL_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          SELF_KW "self"
+                  DOT "."
+                  NAME_REF
+                    IDENT "start"
+                  ARG_LIST
+                    L_PAREN "("
+                    R_PAREN ")"
+                WHITESPACE " "
+                LTEQ "<="
+                WHITESPACE " "
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "offset"
+              WHITESPACE " "
+              AMP2 "&&"
+              WHITESPACE " "
+              BIN_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "offset"
+                WHITESPACE " "
+                L_ANGLE "<"
+                WHITESPACE " "
+                METHOD_CALL_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          SELF_KW "self"
+                  DOT "."
+                  NAME_REF
+                    IDENT "end"
+                  ARG_LIST
+                    L_PAREN "("
+                    R_PAREN ")"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        COMMENT "/// Check if this range contains an offset."
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// The end index is considered included."
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// # Examples"
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// ```rust"
+        WHITESPACE "\n    "
+        COMMENT "/// # use ruff_text_size::*;"
+        WHITESPACE "\n    "
+        COMMENT "/// let (start, end): (TextSize, TextSize);"
+        WHITESPACE "\n    "
+        COMMENT "/// # start = 10.into(); end = 20.into();"
+        WHITESPACE "\n    "
+        COMMENT "/// let range = TextRange::new(start, end);"
+        WHITESPACE "\n    "
+        COMMENT "/// assert!(range.contains_inclusive(start));"
+        WHITESPACE "\n    "
+        COMMENT "/// assert!(range.contains_inclusive(end));"
+        WHITESPACE "\n    "
+        COMMENT "/// ```"
+        WHITESPACE "\n    "
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "contains_inclusive"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "offset"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "TextSize"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "bool"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            BIN_EXPR
+              BIN_EXPR
+                METHOD_CALL_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          SELF_KW "self"
+                  DOT "."
+                  NAME_REF
+                    IDENT "start"
+                  ARG_LIST
+                    L_PAREN "("
+                    R_PAREN ")"
+                WHITESPACE " "
+                LTEQ "<="
+                WHITESPACE " "
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "offset"
+              WHITESPACE " "
+              AMP2 "&&"
+              WHITESPACE " "
+              BIN_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "offset"
+                WHITESPACE " "
+                LTEQ "<="
+                WHITESPACE " "
+                METHOD_CALL_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          SELF_KW "self"
+                  DOT "."
+                  NAME_REF
+                    IDENT "end"
+                  ARG_LIST
+                    L_PAREN "("
+                    R_PAREN ")"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        COMMENT "/// Check if this range completely contains another range."
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// # Examples"
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// ```rust"
+        WHITESPACE "\n    "
+        COMMENT "/// # use ruff_text_size::*;"
+        WHITESPACE "\n    "
+        COMMENT "/// let larger = TextRange::new(0.into(), 20.into());"
+        WHITESPACE "\n    "
+        COMMENT "/// let smaller = TextRange::new(5.into(), 15.into());"
+        WHITESPACE "\n    "
+        COMMENT "/// assert!(larger.contains_range(smaller));"
+        WHITESPACE "\n    "
+        COMMENT "/// assert!(!smaller.contains_range(larger));"
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// // a range always contains itself"
+        WHITESPACE "\n    "
+        COMMENT "/// assert!(larger.contains_range(larger));"
+        WHITESPACE "\n    "
+        COMMENT "/// assert!(smaller.contains_range(smaller));"
+        WHITESPACE "\n    "
+        COMMENT "/// ```"
+        WHITESPACE "\n    "
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "contains_range"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "other"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "TextRange"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "bool"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            BIN_EXPR
+              BIN_EXPR
+                METHOD_CALL_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          SELF_KW "self"
+                  DOT "."
+                  NAME_REF
+                    IDENT "start"
+                  ARG_LIST
+                    L_PAREN "("
+                    R_PAREN ")"
+                WHITESPACE " "
+                LTEQ "<="
+                WHITESPACE " "
+                METHOD_CALL_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "other"
+                  DOT "."
+                  NAME_REF
+                    IDENT "start"
+                  ARG_LIST
+                    L_PAREN "("
+                    R_PAREN ")"
+              WHITESPACE " "
+              AMP2 "&&"
+              WHITESPACE " "
+              BIN_EXPR
+                METHOD_CALL_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "other"
+                  DOT "."
+                  NAME_REF
+                    IDENT "end"
+                  ARG_LIST
+                    L_PAREN "("
+                    R_PAREN ")"
+                WHITESPACE " "
+                LTEQ "<="
+                WHITESPACE " "
+                METHOD_CALL_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          SELF_KW "self"
+                  DOT "."
+                  NAME_REF
+                    IDENT "end"
+                  ARG_LIST
+                    L_PAREN "("
+                    R_PAREN ")"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        COMMENT "/// The range covered by both ranges, if it exists."
+        WHITESPACE "\n    "
+        COMMENT "/// If the ranges touch but do not overlap, the output range is empty."
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// # Examples"
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// ```rust"
+        WHITESPACE "\n    "
+        COMMENT "/// # use ruff_text_size::*;"
+        WHITESPACE "\n    "
+        COMMENT "/// assert_eq!("
+        WHITESPACE "\n    "
+        COMMENT "///     TextRange::intersect("
+        WHITESPACE "\n    "
+        COMMENT "///         TextRange::new(0.into(), 10.into()),"
+        WHITESPACE "\n    "
+        COMMENT "///         TextRange::new(5.into(), 15.into()),"
+        WHITESPACE "\n    "
+        COMMENT "///     ),"
+        WHITESPACE "\n    "
+        COMMENT "///     Some(TextRange::new(5.into(), 10.into())),"
+        WHITESPACE "\n    "
+        COMMENT "/// );"
+        WHITESPACE "\n    "
+        COMMENT "/// ```"
+        WHITESPACE "\n    "
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "intersect"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "other"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "TextRange"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "Option"
+                GENERIC_ARG_LIST
+                  L_ANGLE "<"
+                  TYPE_ARG
+                    PATH_TYPE
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "TextRange"
+                  R_ANGLE ">"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            LET_STMT
+              LET_KW "let"
+              WHITESPACE " "
+              IDENT_PAT
+                NAME
+                  IDENT "start"
+              WHITESPACE " "
+              EQ "="
+              WHITESPACE " "
+              CALL_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "cmp"
+                    COLON2 "::"
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "max"
+                ARG_LIST
+                  L_PAREN "("
+                  METHOD_CALL_EXPR
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            SELF_KW "self"
+                    DOT "."
+                    NAME_REF
+                      IDENT "start"
+                    ARG_LIST
+                      L_PAREN "("
+                      R_PAREN ")"
+                  COMMA ","
+                  WHITESPACE " "
+                  METHOD_CALL_EXPR
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "other"
+                    DOT "."
+                    NAME_REF
+                      IDENT "start"
+                    ARG_LIST
+                      L_PAREN "("
+                      R_PAREN ")"
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n        "
+            LET_STMT
+              LET_KW "let"
+              WHITESPACE " "
+              IDENT_PAT
+                NAME
+                  IDENT "end"
+              WHITESPACE " "
+              EQ "="
+              WHITESPACE " "
+              CALL_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "cmp"
+                    COLON2 "::"
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "min"
+                ARG_LIST
+                  L_PAREN "("
+                  METHOD_CALL_EXPR
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            SELF_KW "self"
+                    DOT "."
+                    NAME_REF
+                      IDENT "end"
+                    ARG_LIST
+                      L_PAREN "("
+                      R_PAREN ")"
+                  COMMA ","
+                  WHITESPACE " "
+                  METHOD_CALL_EXPR
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "other"
+                    DOT "."
+                    NAME_REF
+                      IDENT "end"
+                    ARG_LIST
+                      L_PAREN "("
+                      R_PAREN ")"
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n        "
+            EXPR_STMT
+              IF_EXPR
+                IF_KW "if"
+                WHITESPACE " "
+                BIN_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "end"
+                  WHITESPACE " "
+                  L_ANGLE "<"
+                  WHITESPACE " "
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "start"
+                WHITESPACE " "
+                BLOCK_EXPR
+                  STMT_LIST
+                    L_CURLY "{"
+                    WHITESPACE "\n            "
+                    EXPR_STMT
+                      RETURN_EXPR
+                        RETURN_KW "return"
+                        WHITESPACE " "
+                        PATH_EXPR
+                          PATH
+                            PATH_SEGMENT
+                              NAME_REF
+                                IDENT "None"
+                      SEMICOLON ";"
+                    WHITESPACE "\n        "
+                    R_CURLY "}"
+            WHITESPACE "\n        "
+            CALL_EXPR
+              PATH_EXPR
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "Some"
+              ARG_LIST
+                L_PAREN "("
+                CALL_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "TextRange"
+                      COLON2 "::"
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "new"
+                  ARG_LIST
+                    L_PAREN "("
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "start"
+                    COMMA ","
+                    WHITESPACE " "
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "end"
+                    R_PAREN ")"
+                R_PAREN ")"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        COMMENT "/// Extends the range to cover `other` as well."
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// # Examples"
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// ```rust"
+        WHITESPACE "\n    "
+        COMMENT "/// # use ruff_text_size::*;"
+        WHITESPACE "\n    "
+        COMMENT "/// assert_eq!("
+        WHITESPACE "\n    "
+        COMMENT "///     TextRange::cover("
+        WHITESPACE "\n    "
+        COMMENT "///         TextRange::new(0.into(), 5.into()),"
+        WHITESPACE "\n    "
+        COMMENT "///         TextRange::new(15.into(), 20.into()),"
+        WHITESPACE "\n    "
+        COMMENT "///     ),"
+        WHITESPACE "\n    "
+        COMMENT "///     TextRange::new(0.into(), 20.into()),"
+        WHITESPACE "\n    "
+        COMMENT "/// );"
+        WHITESPACE "\n    "
+        COMMENT "/// ```"
+        WHITESPACE "\n    "
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "must_use"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "cover"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "other"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "TextRange"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "TextRange"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            LET_STMT
+              LET_KW "let"
+              WHITESPACE " "
+              IDENT_PAT
+                NAME
+                  IDENT "start"
+              WHITESPACE " "
+              EQ "="
+              WHITESPACE " "
+              CALL_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "cmp"
+                    COLON2 "::"
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "min"
+                ARG_LIST
+                  L_PAREN "("
+                  METHOD_CALL_EXPR
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            SELF_KW "self"
+                    DOT "."
+                    NAME_REF
+                      IDENT "start"
+                    ARG_LIST
+                      L_PAREN "("
+                      R_PAREN ")"
+                  COMMA ","
+                  WHITESPACE " "
+                  METHOD_CALL_EXPR
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "other"
+                    DOT "."
+                    NAME_REF
+                      IDENT "start"
+                    ARG_LIST
+                      L_PAREN "("
+                      R_PAREN ")"
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n        "
+            LET_STMT
+              LET_KW "let"
+              WHITESPACE " "
+              IDENT_PAT
+                NAME
+                  IDENT "end"
+              WHITESPACE " "
+              EQ "="
+              WHITESPACE " "
+              CALL_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "cmp"
+                    COLON2 "::"
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "max"
+                ARG_LIST
+                  L_PAREN "("
+                  METHOD_CALL_EXPR
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            SELF_KW "self"
+                    DOT "."
+                    NAME_REF
+                      IDENT "end"
+                    ARG_LIST
+                      L_PAREN "("
+                      R_PAREN ")"
+                  COMMA ","
+                  WHITESPACE " "
+                  METHOD_CALL_EXPR
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "other"
+                    DOT "."
+                    NAME_REF
+                      IDENT "end"
+                    ARG_LIST
+                      L_PAREN "("
+                      R_PAREN ")"
+                  R_PAREN ")"
+              SEMICOLON ";"
+            WHITESPACE "\n        "
+            CALL_EXPR
+              PATH_EXPR
+                PATH
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "TextRange"
+                  COLON2 "::"
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "new"
+              ARG_LIST
+                L_PAREN "("
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "start"
+                COMMA ","
+                WHITESPACE " "
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "end"
+                R_PAREN ")"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        COMMENT "/// Extends the range to cover `other` offsets as well."
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// # Examples"
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// ```rust"
+        WHITESPACE "\n    "
+        COMMENT "/// # use ruff_text_size::*;"
+        WHITESPACE "\n    "
+        COMMENT "/// assert_eq!("
+        WHITESPACE "\n    "
+        COMMENT "///     TextRange::empty(0.into()).cover_offset(20.into()),"
+        WHITESPACE "\n    "
+        COMMENT "///     TextRange::new(0.into(), 20.into()),"
+        WHITESPACE "\n    "
+        COMMENT "/// )"
+        WHITESPACE "\n    "
+        COMMENT "/// ```"
+        WHITESPACE "\n    "
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "must_use"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "cover_offset"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "offset"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "TextSize"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "TextRange"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            METHOD_CALL_EXPR
+              PATH_EXPR
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      SELF_KW "self"
+              DOT "."
+              NAME_REF
+                IDENT "cover"
+              ARG_LIST
+                L_PAREN "("
+                CALL_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "TextRange"
+                      COLON2 "::"
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "empty"
+                  ARG_LIST
+                    L_PAREN "("
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "offset"
+                    R_PAREN ")"
+                R_PAREN ")"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        COMMENT "/// Add an offset to this range."
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// Note that this is not appropriate for changing where a `TextRange` is"
+        WHITESPACE "\n    "
+        COMMENT "/// within some string; rather, it is for changing the reference anchor"
+        WHITESPACE "\n    "
+        COMMENT "/// that the `TextRange` is measured against."
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// The unchecked version (`Add::add`) will _always_ panic on overflow,"
+        WHITESPACE "\n    "
+        COMMENT "/// in contrast to primitive integers, which check in debug mode only."
+        WHITESPACE "\n    "
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "checked_add"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "offset"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "TextSize"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "Option"
+                GENERIC_ARG_LIST
+                  L_ANGLE "<"
+                  TYPE_ARG
+                    PATH_TYPE
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "TextRange"
+                  R_ANGLE ">"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            CALL_EXPR
+              PATH_EXPR
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "Some"
+              ARG_LIST
+                L_PAREN "("
+                RECORD_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "TextRange"
+                  WHITESPACE " "
+                  RECORD_EXPR_FIELD_LIST
+                    L_CURLY "{"
+                    WHITESPACE "\n            "
+                    RECORD_EXPR_FIELD
+                      NAME_REF
+                        IDENT "start"
+                      COLON ":"
+                      WHITESPACE " "
+                      TRY_EXPR
+                        METHOD_CALL_EXPR
+                          FIELD_EXPR
+                            PATH_EXPR
+                              PATH
+                                PATH_SEGMENT
+                                  NAME_REF
+                                    SELF_KW "self"
+                            DOT "."
+                            NAME_REF
+                              IDENT "start"
+                          DOT "."
+                          NAME_REF
+                            IDENT "checked_add"
+                          ARG_LIST
+                            L_PAREN "("
+                            PATH_EXPR
+                              PATH
+                                PATH_SEGMENT
+                                  NAME_REF
+                                    IDENT "offset"
+                            R_PAREN ")"
+                        QUESTION "?"
+                    COMMA ","
+                    WHITESPACE "\n            "
+                    RECORD_EXPR_FIELD
+                      NAME_REF
+                        IDENT "end"
+                      COLON ":"
+                      WHITESPACE " "
+                      TRY_EXPR
+                        METHOD_CALL_EXPR
+                          FIELD_EXPR
+                            PATH_EXPR
+                              PATH
+                                PATH_SEGMENT
+                                  NAME_REF
+                                    SELF_KW "self"
+                            DOT "."
+                            NAME_REF
+                              IDENT "end"
+                          DOT "."
+                          NAME_REF
+                            IDENT "checked_add"
+                          ARG_LIST
+                            L_PAREN "("
+                            PATH_EXPR
+                              PATH
+                                PATH_SEGMENT
+                                  NAME_REF
+                                    IDENT "offset"
+                            R_PAREN ")"
+                        QUESTION "?"
+                    COMMA ","
+                    WHITESPACE "\n        "
+                    R_CURLY "}"
+                R_PAREN ")"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        COMMENT "/// Subtract an offset from this range."
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// Note that this is not appropriate for changing where a `TextRange` is"
+        WHITESPACE "\n    "
+        COMMENT "/// within some string; rather, it is for changing the reference anchor"
+        WHITESPACE "\n    "
+        COMMENT "/// that the `TextRange` is measured against."
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// The unchecked version (`Sub::sub`) will _always_ panic on overflow,"
+        WHITESPACE "\n    "
+        COMMENT "/// in contrast to primitive integers, which check in debug mode only."
+        WHITESPACE "\n    "
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "checked_sub"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "offset"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "TextSize"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "Option"
+                GENERIC_ARG_LIST
+                  L_ANGLE "<"
+                  TYPE_ARG
+                    PATH_TYPE
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "TextRange"
+                  R_ANGLE ">"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            CALL_EXPR
+              PATH_EXPR
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "Some"
+              ARG_LIST
+                L_PAREN "("
+                RECORD_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "TextRange"
+                  WHITESPACE " "
+                  RECORD_EXPR_FIELD_LIST
+                    L_CURLY "{"
+                    WHITESPACE "\n            "
+                    RECORD_EXPR_FIELD
+                      NAME_REF
+                        IDENT "start"
+                      COLON ":"
+                      WHITESPACE " "
+                      TRY_EXPR
+                        METHOD_CALL_EXPR
+                          FIELD_EXPR
+                            PATH_EXPR
+                              PATH
+                                PATH_SEGMENT
+                                  NAME_REF
+                                    SELF_KW "self"
+                            DOT "."
+                            NAME_REF
+                              IDENT "start"
+                          DOT "."
+                          NAME_REF
+                            IDENT "checked_sub"
+                          ARG_LIST
+                            L_PAREN "("
+                            PATH_EXPR
+                              PATH
+                                PATH_SEGMENT
+                                  NAME_REF
+                                    IDENT "offset"
+                            R_PAREN ")"
+                        QUESTION "?"
+                    COMMA ","
+                    WHITESPACE "\n            "
+                    RECORD_EXPR_FIELD
+                      NAME_REF
+                        IDENT "end"
+                      COLON ":"
+                      WHITESPACE " "
+                      TRY_EXPR
+                        METHOD_CALL_EXPR
+                          FIELD_EXPR
+                            PATH_EXPR
+                              PATH
+                                PATH_SEGMENT
+                                  NAME_REF
+                                    SELF_KW "self"
+                            DOT "."
+                            NAME_REF
+                              IDENT "end"
+                          DOT "."
+                          NAME_REF
+                            IDENT "checked_sub"
+                          ARG_LIST
+                            L_PAREN "("
+                            PATH_EXPR
+                              PATH
+                                PATH_SEGMENT
+                                  NAME_REF
+                                    IDENT "offset"
+                            R_PAREN ")"
+                        QUESTION "?"
+                    COMMA ","
+                    WHITESPACE "\n        "
+                    R_CURLY "}"
+                R_PAREN ")"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        COMMENT "/// Relative order of the two ranges (overlapping ranges are considered"
+        WHITESPACE "\n    "
+        COMMENT "/// equal)."
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// This is useful when, for example, binary searching an array of disjoint"
+        WHITESPACE "\n    "
+        COMMENT "/// ranges."
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// # Examples"
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// ```"
+        WHITESPACE "\n    "
+        COMMENT "/// # use ruff_text_size::*;"
+        WHITESPACE "\n    "
+        COMMENT "/// # use std::cmp::Ordering;"
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// let a = TextRange::new(0.into(), 3.into());"
+        WHITESPACE "\n    "
+        COMMENT "/// let b = TextRange::new(4.into(), 5.into());"
+        WHITESPACE "\n    "
+        COMMENT "/// assert_eq!(a.ordering(b), Ordering::Less);"
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// let a = TextRange::new(0.into(), 3.into());"
+        WHITESPACE "\n    "
+        COMMENT "/// let b = TextRange::new(3.into(), 5.into());"
+        WHITESPACE "\n    "
+        COMMENT "/// assert_eq!(a.ordering(b), Ordering::Less);"
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// let a = TextRange::new(0.into(), 3.into());"
+        WHITESPACE "\n    "
+        COMMENT "/// let b = TextRange::new(2.into(), 5.into());"
+        WHITESPACE "\n    "
+        COMMENT "/// assert_eq!(a.ordering(b), Ordering::Equal);"
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// let a = TextRange::new(0.into(), 3.into());"
+        WHITESPACE "\n    "
+        COMMENT "/// let b = TextRange::new(2.into(), 2.into());"
+        WHITESPACE "\n    "
+        COMMENT "/// assert_eq!(a.ordering(b), Ordering::Equal);"
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// let a = TextRange::new(2.into(), 3.into());"
+        WHITESPACE "\n    "
+        COMMENT "/// let b = TextRange::new(2.into(), 2.into());"
+        WHITESPACE "\n    "
+        COMMENT "/// assert_eq!(a.ordering(b), Ordering::Greater);"
+        WHITESPACE "\n    "
+        COMMENT "/// ```"
+        WHITESPACE "\n    "
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "ordering"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "other"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "TextRange"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "Ordering"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            IF_EXPR
+              IF_KW "if"
+              WHITESPACE " "
+              BIN_EXPR
+                METHOD_CALL_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          SELF_KW "self"
+                  DOT "."
+                  NAME_REF
+                    IDENT "end"
+                  ARG_LIST
+                    L_PAREN "("
+                    R_PAREN ")"
+                WHITESPACE " "
+                LTEQ "<="
+                WHITESPACE " "
+                METHOD_CALL_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "other"
+                  DOT "."
+                  NAME_REF
+                    IDENT "start"
+                  ARG_LIST
+                    L_PAREN "("
+                    R_PAREN ")"
+              WHITESPACE " "
+              BLOCK_EXPR
+                STMT_LIST
+                  L_CURLY "{"
+                  WHITESPACE "\n            "
+                  PATH_EXPR
+                    PATH
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "Ordering"
+                      COLON2 "::"
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "Less"
+                  WHITESPACE "\n        "
+                  R_CURLY "}"
+              WHITESPACE " "
+              ELSE_KW "else"
+              WHITESPACE " "
+              IF_EXPR
+                IF_KW "if"
+                WHITESPACE " "
+                BIN_EXPR
+                  METHOD_CALL_EXPR
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "other"
+                    DOT "."
+                    NAME_REF
+                      IDENT "end"
+                    ARG_LIST
+                      L_PAREN "("
+                      R_PAREN ")"
+                  WHITESPACE " "
+                  LTEQ "<="
+                  WHITESPACE " "
+                  METHOD_CALL_EXPR
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            SELF_KW "self"
+                    DOT "."
+                    NAME_REF
+                      IDENT "start"
+                    ARG_LIST
+                      L_PAREN "("
+                      R_PAREN ")"
+                WHITESPACE " "
+                BLOCK_EXPR
+                  STMT_LIST
+                    L_CURLY "{"
+                    WHITESPACE "\n            "
+                    PATH_EXPR
+                      PATH
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "Ordering"
+                        COLON2 "::"
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "Greater"
+                    WHITESPACE "\n        "
+                    R_CURLY "}"
+                WHITESPACE " "
+                ELSE_KW "else"
+                WHITESPACE " "
+                BLOCK_EXPR
+                  STMT_LIST
+                    L_CURLY "{"
+                    WHITESPACE "\n            "
+                    PATH_EXPR
+                      PATH
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "Ordering"
+                        COLON2 "::"
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "Equal"
+                    WHITESPACE "\n        "
+                    R_CURLY "}"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        COMMENT "/// Returns a new range with the start offset set to the"
+        WHITESPACE "\n    "
+        COMMENT "/// value given and the end offset unchanged from this"
+        WHITESPACE "\n    "
+        COMMENT "/// range."
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// ## Panics"
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// When `offset > self.end()`."
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// ## Examples"
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// ```"
+        WHITESPACE "\n    "
+        COMMENT "/// use ruff_text_size::{Ranged, TextRange, TextSize};"
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// let range = TextRange::new(TextSize::from(5), TextSize::from(10));"
+        WHITESPACE "\n    "
+        COMMENT "/// let new = range.with_start(TextSize::from(8));"
+        WHITESPACE "\n    "
+        COMMENT "/// assert_eq!(new, TextRange::new(TextSize::from(8), TextSize::from(10)));"
+        WHITESPACE "\n    "
+        COMMENT "/// ```"
+        WHITESPACE "\n    "
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "must_use"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "with_start"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "offset"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "TextSize"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "TextRange"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            CALL_EXPR
+              PATH_EXPR
+                PATH
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "TextRange"
+                  COLON2 "::"
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "new"
+              ARG_LIST
+                L_PAREN "("
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "offset"
+                COMMA ","
+                WHITESPACE " "
+                METHOD_CALL_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          SELF_KW "self"
+                  DOT "."
+                  NAME_REF
+                    IDENT "end"
+                  ARG_LIST
+                    L_PAREN "("
+                    R_PAREN ")"
+                R_PAREN ")"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        COMMENT "/// Returns a new range with the end offset set to the"
+        WHITESPACE "\n    "
+        COMMENT "/// value given and the start offset unchanged from this"
+        WHITESPACE "\n    "
+        COMMENT "/// range."
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// ## Panics"
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// When `offset < self.start()`."
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// ## Examples"
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// ```"
+        WHITESPACE "\n    "
+        COMMENT "/// use ruff_text_size::{Ranged, TextRange, TextSize};"
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// let range = TextRange::new(TextSize::from(5), TextSize::from(10));"
+        WHITESPACE "\n    "
+        COMMENT "/// let new = range.with_end(TextSize::from(8));"
+        WHITESPACE "\n    "
+        COMMENT "/// assert_eq!(new, TextRange::new(TextSize::from(5), TextSize::from(8)));"
+        WHITESPACE "\n    "
+        COMMENT "/// ```"
+        WHITESPACE "\n    "
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "must_use"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "with_end"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "offset"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "TextSize"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "TextRange"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            CALL_EXPR
+              PATH_EXPR
+                PATH
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "TextRange"
+                  COLON2 "::"
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "new"
+              ARG_LIST
+                L_PAREN "("
+                METHOD_CALL_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          SELF_KW "self"
+                  DOT "."
+                  NAME_REF
+                    IDENT "start"
+                  ARG_LIST
+                    L_PAREN "("
+                    R_PAREN ")"
+                COMMA ","
+                WHITESPACE " "
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "offset"
+                R_PAREN ")"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        COMMENT "/// Subtracts an offset from the start position."
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// ## Panics"
+        WHITESPACE "\n    "
+        COMMENT "/// If `start - amount` is less than zero."
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// ## Examples"
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// ```"
+        WHITESPACE "\n    "
+        COMMENT "/// use ruff_text_size::{Ranged, TextRange, TextSize};"
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// let range = TextRange::new(TextSize::from(5), TextSize::from(10));"
+        WHITESPACE "\n    "
+        COMMENT "/// assert_eq!(range.sub_start(TextSize::from(2)), TextRange::new(TextSize::from(3), TextSize::from(10)));"
+        WHITESPACE "\n    "
+        COMMENT "/// ```"
+        WHITESPACE "\n    "
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "must_use"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "sub_start"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "amount"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "TextSize"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "TextRange"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            CALL_EXPR
+              PATH_EXPR
+                PATH
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "TextRange"
+                  COLON2 "::"
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "new"
+              ARG_LIST
+                L_PAREN "("
+                BIN_EXPR
+                  METHOD_CALL_EXPR
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            SELF_KW "self"
+                    DOT "."
+                    NAME_REF
+                      IDENT "start"
+                    ARG_LIST
+                      L_PAREN "("
+                      R_PAREN ")"
+                  WHITESPACE " "
+                  MINUS "-"
+                  WHITESPACE " "
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "amount"
+                COMMA ","
+                WHITESPACE " "
+                METHOD_CALL_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          SELF_KW "self"
+                  DOT "."
+                  NAME_REF
+                    IDENT "end"
+                  ARG_LIST
+                    L_PAREN "("
+                    R_PAREN ")"
+                R_PAREN ")"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        COMMENT "/// Adds an offset to the start position."
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// ## Panics"
+        WHITESPACE "\n    "
+        COMMENT "/// If `start + amount > end`"
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// ## Examples"
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// ```"
+        WHITESPACE "\n    "
+        COMMENT "/// use ruff_text_size::{Ranged, TextRange, TextSize};"
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// let range = TextRange::new(TextSize::from(5), TextSize::from(10));"
+        WHITESPACE "\n    "
+        COMMENT "/// assert_eq!(range.add_start(TextSize::from(3)), TextRange::new(TextSize::from(8), TextSize::from(10)));"
+        WHITESPACE "\n    "
+        COMMENT "/// ```"
+        WHITESPACE "\n    "
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "must_use"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "add_start"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "amount"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "TextSize"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "TextRange"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            CALL_EXPR
+              PATH_EXPR
+                PATH
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "TextRange"
+                  COLON2 "::"
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "new"
+              ARG_LIST
+                L_PAREN "("
+                BIN_EXPR
+                  METHOD_CALL_EXPR
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            SELF_KW "self"
+                    DOT "."
+                    NAME_REF
+                      IDENT "start"
+                    ARG_LIST
+                      L_PAREN "("
+                      R_PAREN ")"
+                  WHITESPACE " "
+                  PLUS "+"
+                  WHITESPACE " "
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "amount"
+                COMMA ","
+                WHITESPACE " "
+                METHOD_CALL_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          SELF_KW "self"
+                  DOT "."
+                  NAME_REF
+                    IDENT "end"
+                  ARG_LIST
+                    L_PAREN "("
+                    R_PAREN ")"
+                R_PAREN ")"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        COMMENT "/// Subtracts an offset from the end position."
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// ## Panics"
+        WHITESPACE "\n    "
+        COMMENT "/// If `end - amount < 0` or `end - amount < start`"
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// ## Examples"
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// ```"
+        WHITESPACE "\n    "
+        COMMENT "/// use ruff_text_size::{Ranged, TextRange, TextSize};"
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// let range = TextRange::new(TextSize::from(5), TextSize::from(10));"
+        WHITESPACE "\n    "
+        COMMENT "/// assert_eq!(range.sub_end(TextSize::from(2)), TextRange::new(TextSize::from(5), TextSize::from(8)));"
+        WHITESPACE "\n    "
+        COMMENT "/// ```"
+        WHITESPACE "\n    "
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "must_use"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "sub_end"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "amount"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "TextSize"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "TextRange"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            CALL_EXPR
+              PATH_EXPR
+                PATH
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "TextRange"
+                  COLON2 "::"
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "new"
+              ARG_LIST
+                L_PAREN "("
+                METHOD_CALL_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          SELF_KW "self"
+                  DOT "."
+                  NAME_REF
+                    IDENT "start"
+                  ARG_LIST
+                    L_PAREN "("
+                    R_PAREN ")"
+                COMMA ","
+                WHITESPACE " "
+                BIN_EXPR
+                  METHOD_CALL_EXPR
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            SELF_KW "self"
+                    DOT "."
+                    NAME_REF
+                      IDENT "end"
+                    ARG_LIST
+                      L_PAREN "("
+                      R_PAREN ")"
+                  WHITESPACE " "
+                  MINUS "-"
+                  WHITESPACE " "
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "amount"
+                R_PAREN ")"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        COMMENT "/// Adds an offset to the end position."
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// ## Panics"
+        WHITESPACE "\n    "
+        COMMENT "/// If `end + amount > u32::MAX`"
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// ## Examples"
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// ```"
+        WHITESPACE "\n    "
+        COMMENT "/// use ruff_text_size::{Ranged, TextRange, TextSize};"
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// let range = TextRange::new(TextSize::from(5), TextSize::from(10));"
+        WHITESPACE "\n    "
+        COMMENT "/// assert_eq!(range.add_end(TextSize::from(2)), TextRange::new(TextSize::from(5), TextSize::from(12)));"
+        WHITESPACE "\n    "
+        COMMENT "/// ```"
+        WHITESPACE "\n    "
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "must_use"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "add_end"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "amount"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "TextSize"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "TextRange"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            CALL_EXPR
+              PATH_EXPR
+                PATH
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "TextRange"
+                  COLON2 "::"
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "new"
+              ARG_LIST
+                L_PAREN "("
+                METHOD_CALL_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          SELF_KW "self"
+                  DOT "."
+                  NAME_REF
+                    IDENT "start"
+                  ARG_LIST
+                    L_PAREN "("
+                    R_PAREN ")"
+                COMMA ","
+                WHITESPACE " "
+                BIN_EXPR
+                  METHOD_CALL_EXPR
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            SELF_KW "self"
+                    DOT "."
+                    NAME_REF
+                      IDENT "end"
+                    ARG_LIST
+                      L_PAREN "("
+                      R_PAREN ")"
+                  WHITESPACE " "
+                  PLUS "+"
+                  WHITESPACE " "
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "amount"
+                R_PAREN ")"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    COMMENT "/// Conversion methods."
+    WHITESPACE "\n"
+    IMPL_KW "impl"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "TextRange"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      FN
+        COMMENT "/// A convenience routine for converting this range to a"
+        WHITESPACE "\n    "
+        COMMENT "/// standard library range that satisfies the `RangeBounds`"
+        WHITESPACE "\n    "
+        COMMENT "/// trait."
+        WHITESPACE "\n    "
+        COMMENT "///"
+        WHITESPACE "\n    "
+        COMMENT "/// This is also available as a `From` trait implementation,"
+        WHITESPACE "\n    "
+        COMMENT "/// but this method avoids the need to specify types to help"
+        WHITESPACE "\n    "
+        COMMENT "/// inference."
+        WHITESPACE "\n    "
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "must_use"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "to_std_range"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "Range"
+                GENERIC_ARG_LIST
+                  L_ANGLE "<"
+                  TYPE_ARG
+                    PATH_TYPE
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "usize"
+                  R_ANGLE ">"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            METHOD_CALL_EXPR
+              PAREN_EXPR
+                L_PAREN "("
+                PREFIX_EXPR
+                  STAR "*"
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          SELF_KW "self"
+                R_PAREN ")"
+              DOT "."
+              NAME_REF
+                IDENT "into"
+              ARG_LIST
+                L_PAREN "("
+                R_PAREN ")"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "Index"
+          GENERIC_ARG_LIST
+            L_ANGLE "<"
+            TYPE_ARG
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "TextRange"
+            R_ANGLE ">"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "str"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      TYPE_ALIAS
+        TYPE_KW "type"
+        WHITESPACE " "
+        NAME
+          IDENT "Output"
+        WHITESPACE " "
+        EQ "="
+        WHITESPACE " "
+        PATH_TYPE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "str"
+        SEMICOLON ";"
+      WHITESPACE "\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "index"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "index"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "TextRange"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          REF_TYPE
+            AMP "&"
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "str"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            REF_EXPR
+              AMP "&"
+              INDEX_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        SELF_KW "self"
+                L_BRACK "["
+                CALL_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "Range"
+                          GENERIC_ARG_LIST
+                            COLON2 "::"
+                            L_ANGLE "<"
+                            TYPE_ARG
+                              PATH_TYPE
+                                PATH
+                                  PATH_SEGMENT
+                                    NAME_REF
+                                      IDENT "usize"
+                            R_ANGLE ">"
+                      COLON2 "::"
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "from"
+                  ARG_LIST
+                    L_PAREN "("
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "index"
+                    R_PAREN ")"
+                R_BRACK "]"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "Index"
+          GENERIC_ARG_LIST
+            L_ANGLE "<"
+            TYPE_ARG
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "TextRange"
+            R_ANGLE ">"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "String"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      TYPE_ALIAS
+        TYPE_KW "type"
+        WHITESPACE " "
+        NAME
+          IDENT "Output"
+        WHITESPACE " "
+        EQ "="
+        WHITESPACE " "
+        PATH_TYPE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "str"
+        SEMICOLON ";"
+      WHITESPACE "\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "index"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "index"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "TextRange"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          REF_TYPE
+            AMP "&"
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "str"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            REF_EXPR
+              AMP "&"
+              INDEX_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        SELF_KW "self"
+                L_BRACK "["
+                CALL_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "Range"
+                          GENERIC_ARG_LIST
+                            COLON2 "::"
+                            L_ANGLE "<"
+                            TYPE_ARG
+                              PATH_TYPE
+                                PATH
+                                  PATH_SEGMENT
+                                    NAME_REF
+                                      IDENT "usize"
+                            R_ANGLE ">"
+                      COLON2 "::"
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "from"
+                  ARG_LIST
+                    L_PAREN "("
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "index"
+                    R_PAREN ")"
+                R_BRACK "]"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "IndexMut"
+          GENERIC_ARG_LIST
+            L_ANGLE "<"
+            TYPE_ARG
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "TextRange"
+            R_ANGLE ">"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "str"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "index_mut"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            MUT_KW "mut"
+            WHITESPACE " "
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "index"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "TextRange"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          REF_TYPE
+            AMP "&"
+            MUT_KW "mut"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "str"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            REF_EXPR
+              AMP "&"
+              MUT_KW "mut"
+              WHITESPACE " "
+              INDEX_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        SELF_KW "self"
+                L_BRACK "["
+                CALL_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "Range"
+                          GENERIC_ARG_LIST
+                            COLON2 "::"
+                            L_ANGLE "<"
+                            TYPE_ARG
+                              PATH_TYPE
+                                PATH
+                                  PATH_SEGMENT
+                                    NAME_REF
+                                      IDENT "usize"
+                            R_ANGLE ">"
+                      COLON2 "::"
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "from"
+                  ARG_LIST
+                    L_PAREN "("
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "index"
+                    R_PAREN ")"
+                R_BRACK "]"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "IndexMut"
+          GENERIC_ARG_LIST
+            L_ANGLE "<"
+            TYPE_ARG
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "TextRange"
+            R_ANGLE ">"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "String"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "index_mut"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            MUT_KW "mut"
+            WHITESPACE " "
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "index"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "TextRange"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          REF_TYPE
+            AMP "&"
+            MUT_KW "mut"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "str"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            REF_EXPR
+              AMP "&"
+              MUT_KW "mut"
+              WHITESPACE " "
+              INDEX_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        SELF_KW "self"
+                L_BRACK "["
+                CALL_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "Range"
+                          GENERIC_ARG_LIST
+                            COLON2 "::"
+                            L_ANGLE "<"
+                            TYPE_ARG
+                              PATH_TYPE
+                                PATH
+                                  PATH_SEGMENT
+                                    NAME_REF
+                                      IDENT "usize"
+                            R_ANGLE ">"
+                      COLON2 "::"
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "from"
+                  ARG_LIST
+                    L_PAREN "("
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "index"
+                    R_PAREN ")"
+                R_BRACK "]"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "RangeBounds"
+          GENERIC_ARG_LIST
+            L_ANGLE "<"
+            TYPE_ARG
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "TextSize"
+            R_ANGLE ">"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "TextRange"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      FN
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "start_bound"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "Bound"
+                GENERIC_ARG_LIST
+                  L_ANGLE "<"
+                  TYPE_ARG
+                    REF_TYPE
+                      AMP "&"
+                      PATH_TYPE
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "TextSize"
+                  R_ANGLE ">"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            CALL_EXPR
+              PATH_EXPR
+                PATH
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "Bound"
+                  COLON2 "::"
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "Included"
+              ARG_LIST
+                L_PAREN "("
+                REF_EXPR
+                  AMP "&"
+                  FIELD_EXPR
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            SELF_KW "self"
+                    DOT "."
+                    NAME_REF
+                      IDENT "start"
+                R_PAREN ")"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n\n    "
+      FN
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "end_bound"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "Bound"
+                GENERIC_ARG_LIST
+                  L_ANGLE "<"
+                  TYPE_ARG
+                    REF_TYPE
+                      AMP "&"
+                      PATH_TYPE
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "TextSize"
+                  R_ANGLE ">"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            CALL_EXPR
+              PATH_EXPR
+                PATH
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "Bound"
+                  COLON2 "::"
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "Excluded"
+              ARG_LIST
+                L_PAREN "("
+                REF_EXPR
+                  AMP "&"
+                  FIELD_EXPR
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            SELF_KW "self"
+                    DOT "."
+                    NAME_REF
+                      IDENT "end"
+                R_PAREN ")"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "From"
+          GENERIC_ARG_LIST
+            L_ANGLE "<"
+            TYPE_ARG
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "Range"
+                    GENERIC_ARG_LIST
+                      L_ANGLE "<"
+                      TYPE_ARG
+                        PATH_TYPE
+                          PATH
+                            PATH_SEGMENT
+                              NAME_REF
+                                IDENT "TextSize"
+                      R_ANGLE ">"
+            R_ANGLE ">"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "TextRange"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "from"
+        PARAM_LIST
+          L_PAREN "("
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "r"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "Range"
+                  GENERIC_ARG_LIST
+                    L_ANGLE "<"
+                    TYPE_ARG
+                      PATH_TYPE
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "TextSize"
+                    R_ANGLE ">"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  SELF_TYPE_KW "Self"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            CALL_EXPR
+              PATH_EXPR
+                PATH
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "TextRange"
+                  COLON2 "::"
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "new"
+              ARG_LIST
+                L_PAREN "("
+                FIELD_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "r"
+                  DOT "."
+                  NAME_REF
+                    IDENT "start"
+                COMMA ","
+                WHITESPACE " "
+                FIELD_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "r"
+                  DOT "."
+                  NAME_REF
+                    IDENT "end"
+                R_PAREN ")"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    GENERIC_PARAM_LIST
+      L_ANGLE "<"
+      TYPE_PARAM
+        NAME
+          IDENT "T"
+      R_ANGLE ">"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "From"
+          GENERIC_ARG_LIST
+            L_ANGLE "<"
+            TYPE_ARG
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "TextRange"
+            R_ANGLE ">"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "Range"
+          GENERIC_ARG_LIST
+            L_ANGLE "<"
+            TYPE_ARG
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "T"
+            R_ANGLE ">"
+    WHITESPACE "\n"
+    WHERE_CLAUSE
+      WHERE_KW "where"
+      WHITESPACE "\n    "
+      WHERE_PRED
+        PATH_TYPE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "T"
+        COLON ":"
+        WHITESPACE " "
+        TYPE_BOUND_LIST
+          TYPE_BOUND
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "From"
+                  GENERIC_ARG_LIST
+                    L_ANGLE "<"
+                    TYPE_ARG
+                      PATH_TYPE
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "TextSize"
+                    R_ANGLE ">"
+      COMMA ","
+    WHITESPACE "\n"
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "from"
+        PARAM_LIST
+          L_PAREN "("
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "r"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "TextRange"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  SELF_TYPE_KW "Self"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            RANGE_EXPR
+              METHOD_CALL_EXPR
+                METHOD_CALL_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "r"
+                  DOT "."
+                  NAME_REF
+                    IDENT "start"
+                  ARG_LIST
+                    L_PAREN "("
+                    R_PAREN ")"
+                DOT "."
+                NAME_REF
+                  IDENT "into"
+                ARG_LIST
+                  L_PAREN "("
+                  R_PAREN ")"
+              DOT2 ".."
+              METHOD_CALL_EXPR
+                METHOD_CALL_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "r"
+                  DOT "."
+                  NAME_REF
+                    IDENT "end"
+                  ARG_LIST
+                    L_PAREN "("
+                    R_PAREN ")"
+                DOT "."
+                NAME_REF
+                  IDENT "into"
+                ARG_LIST
+                  L_PAREN "("
+                  R_PAREN ")"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  MACRO_RULES
+    MACRO_RULES_KW "macro_rules"
+    BANG "!"
+    WHITESPACE " "
+    NAME
+      IDENT "ops"
+    WHITESPACE " "
+    TOKEN_TREE
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      TOKEN_TREE
+        L_PAREN "("
+        IMPL_KW "impl"
+        WHITESPACE " "
+        DOLLAR "$"
+        IDENT "Op"
+        COLON ":"
+        IDENT "ident"
+        WHITESPACE " "
+        FOR_KW "for"
+        WHITESPACE " "
+        IDENT "TextRange"
+        WHITESPACE " "
+        IDENT "by"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        DOLLAR "$"
+        IDENT "f"
+        COLON ":"
+        IDENT "ident"
+        WHITESPACE " "
+        EQ "="
+        WHITESPACE " "
+        DOLLAR "$"
+        IDENT "op"
+        COLON ":"
+        IDENT "tt"
+        R_PAREN ")"
+      WHITESPACE " "
+      EQ "="
+      R_ANGLE ">"
+      WHITESPACE " "
+      TOKEN_TREE
+        L_CURLY "{"
+        WHITESPACE "\n        "
+        IMPL_KW "impl"
+        WHITESPACE " "
+        DOLLAR "$"
+        IDENT "Op"
+        L_ANGLE "<"
+        AMP "&"
+        IDENT "TextSize"
+        R_ANGLE ">"
+        WHITESPACE " "
+        FOR_KW "for"
+        WHITESPACE " "
+        IDENT "TextRange"
+        WHITESPACE " "
+        TOKEN_TREE
+          L_CURLY "{"
+          WHITESPACE "\n            "
+          TYPE_KW "type"
+          WHITESPACE " "
+          IDENT "Output"
+          WHITESPACE " "
+          EQ "="
+          WHITESPACE " "
+          IDENT "TextRange"
+          SEMICOLON ";"
+          WHITESPACE "\n            "
+          POUND "#"
+          TOKEN_TREE
+            L_BRACK "["
+            IDENT "inline"
+            R_BRACK "]"
+          WHITESPACE "\n            "
+          FN_KW "fn"
+          WHITESPACE " "
+          DOLLAR "$"
+          IDENT "f"
+          TOKEN_TREE
+            L_PAREN "("
+            SELF_KW "self"
+            COMMA ","
+            WHITESPACE " "
+            IDENT "other"
+            COLON ":"
+            WHITESPACE " "
+            AMP "&"
+            IDENT "TextSize"
+            R_PAREN ")"
+          WHITESPACE " "
+          MINUS "-"
+          R_ANGLE ">"
+          WHITESPACE " "
+          IDENT "TextRange"
+          WHITESPACE " "
+          TOKEN_TREE
+            L_CURLY "{"
+            WHITESPACE "\n                "
+            SELF_KW "self"
+            WHITESPACE " "
+            DOLLAR "$"
+            IDENT "op"
+            WHITESPACE " "
+            STAR "*"
+            IDENT "other"
+            WHITESPACE "\n            "
+            R_CURLY "}"
+          WHITESPACE "\n        "
+          R_CURLY "}"
+        WHITESPACE "\n        "
+        IMPL_KW "impl"
+        L_ANGLE "<"
+        IDENT "T"
+        R_ANGLE ">"
+        WHITESPACE " "
+        DOLLAR "$"
+        IDENT "Op"
+        L_ANGLE "<"
+        IDENT "T"
+        R_ANGLE ">"
+        WHITESPACE " "
+        FOR_KW "for"
+        WHITESPACE " "
+        AMP "&"
+        IDENT "TextRange"
+        WHITESPACE "\n        "
+        WHERE_KW "where"
+        WHITESPACE "\n            "
+        IDENT "TextRange"
+        COLON ":"
+        WHITESPACE " "
+        DOLLAR "$"
+        IDENT "Op"
+        L_ANGLE "<"
+        IDENT "T"
+        COMMA ","
+        WHITESPACE " "
+        IDENT "Output"
+        EQ "="
+        IDENT "TextRange"
+        R_ANGLE ">"
+        COMMA ","
+        WHITESPACE "\n        "
+        TOKEN_TREE
+          L_CURLY "{"
+          WHITESPACE "\n            "
+          TYPE_KW "type"
+          WHITESPACE " "
+          IDENT "Output"
+          WHITESPACE " "
+          EQ "="
+          WHITESPACE " "
+          IDENT "TextRange"
+          SEMICOLON ";"
+          WHITESPACE "\n            "
+          POUND "#"
+          TOKEN_TREE
+            L_BRACK "["
+            IDENT "inline"
+            R_BRACK "]"
+          WHITESPACE "\n            "
+          FN_KW "fn"
+          WHITESPACE " "
+          DOLLAR "$"
+          IDENT "f"
+          TOKEN_TREE
+            L_PAREN "("
+            SELF_KW "self"
+            COMMA ","
+            WHITESPACE " "
+            IDENT "other"
+            COLON ":"
+            WHITESPACE " "
+            IDENT "T"
+            R_PAREN ")"
+          WHITESPACE " "
+          MINUS "-"
+          R_ANGLE ">"
+          WHITESPACE " "
+          IDENT "TextRange"
+          WHITESPACE " "
+          TOKEN_TREE
+            L_CURLY "{"
+            WHITESPACE "\n                "
+            STAR "*"
+            SELF_KW "self"
+            WHITESPACE " "
+            DOLLAR "$"
+            IDENT "op"
+            WHITESPACE " "
+            IDENT "other"
+            WHITESPACE "\n            "
+            R_CURLY "}"
+          WHITESPACE "\n        "
+          R_CURLY "}"
+        WHITESPACE "\n    "
+        R_CURLY "}"
+      SEMICOLON ";"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "Add"
+          GENERIC_ARG_LIST
+            L_ANGLE "<"
+            TYPE_ARG
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "TextSize"
+            R_ANGLE ">"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "TextRange"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      TYPE_ALIAS
+        TYPE_KW "type"
+        WHITESPACE " "
+        NAME
+          IDENT "Output"
+        WHITESPACE " "
+        EQ "="
+        WHITESPACE " "
+        PATH_TYPE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "TextRange"
+        SEMICOLON ";"
+      WHITESPACE "\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "add"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "offset"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "TextSize"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "TextRange"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            METHOD_CALL_EXPR
+              METHOD_CALL_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        SELF_KW "self"
+                DOT "."
+                NAME_REF
+                  IDENT "checked_add"
+                ARG_LIST
+                  L_PAREN "("
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "offset"
+                  R_PAREN ")"
+              WHITESPACE "\n            "
+              DOT "."
+              NAME_REF
+                IDENT "expect"
+              ARG_LIST
+                L_PAREN "("
+                LITERAL
+                  STRING "\"TextRange +offset overflowed\""
+                R_PAREN ")"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "Sub"
+          GENERIC_ARG_LIST
+            L_ANGLE "<"
+            TYPE_ARG
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "TextSize"
+            R_ANGLE ">"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "TextRange"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      TYPE_ALIAS
+        TYPE_KW "type"
+        WHITESPACE " "
+        NAME
+          IDENT "Output"
+        WHITESPACE " "
+        EQ "="
+        WHITESPACE " "
+        PATH_TYPE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "TextRange"
+        SEMICOLON ";"
+      WHITESPACE "\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "sub"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "offset"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "TextSize"
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "TextRange"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            METHOD_CALL_EXPR
+              METHOD_CALL_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        SELF_KW "self"
+                DOT "."
+                NAME_REF
+                  IDENT "checked_sub"
+                ARG_LIST
+                  L_PAREN "("
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "offset"
+                  R_PAREN ")"
+              WHITESPACE "\n            "
+              DOT "."
+              NAME_REF
+                IDENT "expect"
+              ARG_LIST
+                L_PAREN "("
+                LITERAL
+                  STRING "\"TextRange -offset overflowed\""
+                R_PAREN ")"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  MACRO_CALL
+    PATH
+      PATH_SEGMENT
+        NAME_REF
+          IDENT "ops"
+    BANG "!"
+    TOKEN_TREE
+      L_PAREN "("
+      IMPL_KW "impl"
+      WHITESPACE " "
+      IDENT "Add"
+      WHITESPACE " "
+      FOR_KW "for"
+      WHITESPACE " "
+      IDENT "TextRange"
+      WHITESPACE " "
+      IDENT "by"
+      WHITESPACE " "
+      FN_KW "fn"
+      WHITESPACE " "
+      IDENT "add"
+      WHITESPACE " "
+      EQ "="
+      WHITESPACE " "
+      PLUS "+"
+      R_PAREN ")"
+    SEMICOLON ";"
+  WHITESPACE "\n"
+  MACRO_CALL
+    PATH
+      PATH_SEGMENT
+        NAME_REF
+          IDENT "ops"
+    BANG "!"
+    TOKEN_TREE
+      L_PAREN "("
+      IMPL_KW "impl"
+      WHITESPACE " "
+      IDENT "Sub"
+      WHITESPACE " "
+      FOR_KW "for"
+      WHITESPACE " "
+      IDENT "TextRange"
+      WHITESPACE " "
+      IDENT "by"
+      WHITESPACE " "
+      FN_KW "fn"
+      WHITESPACE " "
+      IDENT "sub"
+      WHITESPACE " "
+      EQ "="
+      WHITESPACE " "
+      MINUS "-"
+      R_PAREN ")"
+    SEMICOLON ";"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    GENERIC_PARAM_LIST
+      L_ANGLE "<"
+      TYPE_PARAM
+        NAME
+          IDENT "A"
+      R_ANGLE ">"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "AddAssign"
+          GENERIC_ARG_LIST
+            L_ANGLE "<"
+            TYPE_ARG
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "A"
+            R_ANGLE ">"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "TextRange"
+    WHITESPACE "\n"
+    WHERE_CLAUSE
+      WHERE_KW "where"
+      WHITESPACE "\n    "
+      WHERE_PRED
+        PATH_TYPE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "TextRange"
+        COLON ":"
+        WHITESPACE " "
+        TYPE_BOUND_LIST
+          TYPE_BOUND
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "Add"
+                  GENERIC_ARG_LIST
+                    L_ANGLE "<"
+                    TYPE_ARG
+                      PATH_TYPE
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "A"
+                    COMMA ","
+                    WHITESPACE " "
+                    ASSOC_TYPE_ARG
+                      NAME_REF
+                        IDENT "Output"
+                      WHITESPACE " "
+                      EQ "="
+                      WHITESPACE " "
+                      PATH_TYPE
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "TextRange"
+                    R_ANGLE ">"
+      COMMA ","
+    WHITESPACE "\n"
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "add_assign"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            MUT_KW "mut"
+            WHITESPACE " "
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "rhs"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "A"
+          R_PAREN ")"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            EXPR_STMT
+              BIN_EXPR
+                PREFIX_EXPR
+                  STAR "*"
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          SELF_KW "self"
+                WHITESPACE " "
+                EQ "="
+                WHITESPACE " "
+                BIN_EXPR
+                  PREFIX_EXPR
+                    STAR "*"
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            SELF_KW "self"
+                  WHITESPACE " "
+                  PLUS "+"
+                  WHITESPACE " "
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "rhs"
+              SEMICOLON ";"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  IMPL
+    IMPL_KW "impl"
+    GENERIC_PARAM_LIST
+      L_ANGLE "<"
+      TYPE_PARAM
+        NAME
+          IDENT "S"
+      R_ANGLE ">"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "SubAssign"
+          GENERIC_ARG_LIST
+            L_ANGLE "<"
+            TYPE_ARG
+              PATH_TYPE
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "S"
+            R_ANGLE ">"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "TextRange"
+    WHITESPACE "\n"
+    WHERE_CLAUSE
+      WHERE_KW "where"
+      WHITESPACE "\n    "
+      WHERE_PRED
+        PATH_TYPE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "TextRange"
+        COLON ":"
+        WHITESPACE " "
+        TYPE_BOUND_LIST
+          TYPE_BOUND
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "Sub"
+                  GENERIC_ARG_LIST
+                    L_ANGLE "<"
+                    TYPE_ARG
+                      PATH_TYPE
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "S"
+                    COMMA ","
+                    WHITESPACE " "
+                    ASSOC_TYPE_ARG
+                      NAME_REF
+                        IDENT "Output"
+                      WHITESPACE " "
+                      EQ "="
+                      WHITESPACE " "
+                      PATH_TYPE
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "TextRange"
+                    R_ANGLE ">"
+      COMMA ","
+    WHITESPACE "\n"
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      FN
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          PATH_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "inline"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "sub_assign"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            MUT_KW "mut"
+            WHITESPACE " "
+            NAME
+              SELF_KW "self"
+          COMMA ","
+          WHITESPACE " "
+          PARAM
+            IDENT_PAT
+              NAME
+                IDENT "rhs"
+            COLON ":"
+            WHITESPACE " "
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "S"
+          R_PAREN ")"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            EXPR_STMT
+              BIN_EXPR
+                PREFIX_EXPR
+                  STAR "*"
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          SELF_KW "self"
+                WHITESPACE " "
+                EQ "="
+                WHITESPACE " "
+                BIN_EXPR
+                  PREFIX_EXPR
+                    STAR "*"
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            SELF_KW "self"
+                  WHITESPACE " "
+                  MINUS "-"
+                  WHITESPACE " "
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "rhs"
+              SEMICOLON ";"
+            WHITESPACE "\n    "
+            R_CURLY "}"
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n"

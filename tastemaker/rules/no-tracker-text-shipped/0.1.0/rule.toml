@@ -1,0 +1,163 @@
+description = "No shipped text names the work that made it: a comment, a prose line, a string literal or a data string in scope matching a tracker pattern (`patterns`), an issue id, a dated attribution, or a phrase that names who decided or where it was built (\"the owner\", \"owner's decision\", \"the spike\", \"the devcontainer\", \"an agent\"), is reported."
+why = "A product's code, docs and configuration are read by people who have no access to the tracker or the conversation that produced them: an issue id in parentheses at the end of a comment, or a name and a date after a reason, points the reader at a record they cannot open, and the sentence around it reads as complete without it. Say the reason itself, in the product's terms, where the code is; the issue id and who decided belong in the tracker and the commit. The tracker's own files are placed out of scope. Not seen: an issue id the patterns do not describe, and a note written as plain prose."
+
+query = '''
+param patterns: set<string>;
+let comments = project(from="comment", columns=["file", "span", "text"]);
+let prose = project(from="prose", columns=["file", "span", "text"]);
+let literals = select l."file" as "file", l."span" as "span", l."value" as "text" from "string-literal" as l;
+let data = select l."file" as "file", l."span" as "span", l."decoded" as "text" from "entry" as l where l."kind" = "string";
+let written = union(left=comments, right=prose);
+let coded = union(left=written, right=literals);
+let texts = union(left=coded, right=data);
+let tracker = select * from texts where glob_any(text, $patterns);
+emit tracker subject "file" key("span");
+'''
+
+[params.patterns]
+type = "set<string>"
+description = "Globs of the text that names tracker work, each matched against a whole comment, prose line or string: an issue id with its project's prefix (`*ryo-[a-z][a-z][a-z][a-z].[0-9]*`), a dated attribution (`*(owner 20*`), or a phrase that names the process and not the product (`*the owner's*`, `*owner's decision*`, `*the spike*`, `*the devcontainer*`, `*an agent*`)."
+
+[diagnostic]
+primary = "span"
+message = "this text names tracker work"
+help = "Say the reason itself, in the product's terms, and leave the issue id and who decided to the tracker and the commit."
+
+[given]
+include = ['src/**', 'Cargo.toml']
+params = { patterns = ['*ryo-[a-z][a-z][a-z][a-z].[0-9]*', '*ryo-[a-z][a-z][a-z][0-9]*', '*(owner 20*', "*[Tt]he owner's*", "*[Oo]wner's decision*", "*[Tt]he spike", "*[Tt]he spike[!a-z]*", "*[Tt]he devcontainer*", "*[Aa]n agent*"] }
+
+[[scenarios]]
+id = 'issue-ids-and-attribution'
+scenario = 'A comment ending in two issue ids, and a manifest comment that says who decided.'
+given.files.'src/reporting.rs' = '''
+pub fn met(reason: Blindness, text: &str) -> bool {
+    // A file the comparison cannot read is met when it holds its template's text, line by line in order (all of
+    // it and no more for an exact template); else it is `#unknown`, never a pass (ryo-abcd.7, ryo-abcd.7.2).
+    reason != Blindness::Dropped && !text.is_empty()
+}
+'''
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+
+[package.metadata.semver]
+allow = [
+  # The deliberate extension contract, versioned and checked with the library (owner 2026-01-05).
+  "fixture::extensions",
+]
+'''
+then.findings = [
+  { path = 'src/reporting.rs', line = 3 },
+  { path = 'Cargo.toml', line = 8 },
+]
+
+[[scenarios]]
+id = 'reason-in-product-terms'
+scenario = 'The same comments with their reasons said in the terms of the product, beside a package named `ryo-sdk`.'
+given.files.'src/reporting.rs' = '''
+pub fn met(reason: Blindness, text: &str) -> bool {
+    // A file the comparison cannot read is met when it holds its template's text, line by line in order (all of
+    // it and no more for an exact template); else it is `#unknown`, never a pass.
+    reason != Blindness::Dropped && !text.is_empty()
+}
+'''
+given.files.'Cargo.toml' = '''
+[package]
+name = "ryo-sdk"
+version = "0.1.0"
+edition = "2024"
+
+[package.metadata.semver]
+allow = [
+  # The extension contract: versioned and checked with the library, which an extension implements.
+  "fixture::extensions",
+]
+'''
+
+[[scenarios]]
+id = 'process-phrase-the-owner'
+scenario = "A comment that says \"the owner\" is reported."
+given.files.'src/limits.rs' = '''
+// The most a run may reach is the owner's figure, not yet met.
+pub const LIMIT: u64 = 1;
+'''
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+then.findings = [
+  { path = 'src/limits.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'process-phrase-owners-decision'
+scenario = "A comment that says \"owner's decision\" is reported."
+given.files.'src/limits.rs' = '''
+// Held at this size by owner's decision.
+pub const LIMIT: u64 = 1;
+'''
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+then.findings = [
+  { path = 'src/limits.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'process-phrase-the-spike'
+scenario = "A comment that says \"the spike\" is reported."
+given.files.'src/limits.rs' = '''
+// Seeded from what the spike measured.
+pub const LIMIT: u64 = 1;
+'''
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+then.findings = [
+  { path = 'src/limits.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'process-phrase-the-devcontainer'
+scenario = "A comment that says \"the devcontainer\" is reported."
+given.files.'src/limits.rs' = '''
+// Timed on the devcontainer machine.
+pub const LIMIT: u64 = 1;
+'''
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+then.findings = [
+  { path = 'src/limits.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'process-phrase-an-agent'
+scenario = "A comment that says \"an agent\" is reported."
+given.files.'src/limits.rs' = '''
+// Written so that an agent can read it.
+pub const LIMIT: u64 = 1;
+'''
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+then.findings = [
+  { path = 'src/limits.rs', line = 1 },
+]

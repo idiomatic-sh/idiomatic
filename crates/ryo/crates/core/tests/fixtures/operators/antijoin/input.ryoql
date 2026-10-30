@@ -1,0 +1,1 @@
+let m = select * from "function" where name = "run"; let a = antijoin(left="function", right=m, left-on=["id"], right-on=["id"]); emit a subject file key(span);

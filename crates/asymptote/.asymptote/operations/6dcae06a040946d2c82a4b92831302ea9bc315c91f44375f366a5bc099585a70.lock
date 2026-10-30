@@ -1,0 +1,6 @@
+version = 1
+parents = ["2e24a2b5d79ead36d344d1687a1ddf2492a61dec16c3d80ee0d1318a7a521e41"]
+
+suppressed-removed = [
+  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/core/src/outbound/cache/adapters/arrow/schemas.rs", level = "warning", fingerprint = "b38a6c348fd3539f" },
+]

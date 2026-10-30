@@ -1,0 +1,14 @@
+{
+  "name": "@idiomatic-sh/tastemaker-x86_64-pc-windows-msvc",
+  "description": "The tastemaker binary for x86_64-pc-windows-msvc, run by @idiomatic-sh/tastemaker.",
+  "os": [
+    "win32"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "files": [
+    "bin"
+  ],
+  "preferUnplugged": true
+}

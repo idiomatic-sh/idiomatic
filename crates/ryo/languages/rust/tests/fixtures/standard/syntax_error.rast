@@ -1,0 +1,8 @@
+SOURCE_FILE
+  FN
+    FN_KW "fn"
+    WHITESPACE "\n"
+    ERROR
+error 3: expected a name
+error 3: expected function arguments
+error 3: expected a block

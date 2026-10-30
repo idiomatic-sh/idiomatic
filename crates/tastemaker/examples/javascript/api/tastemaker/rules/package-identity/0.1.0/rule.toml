@@ -1,0 +1,34 @@
+description = "The manifest gives a non-empty `name` and `description`."
+why = "The name and the one-line description are what a registry, a lock and a reader of the dependency tree show for the package; an empty one says nothing about what it is."
+
+query = '''
+let roots = select * from "mapping" where owner = id;
+let names = select * from "entry" where key = "name" and kind = "string" and decoded != "";
+let descriptions = select * from "entry" where key = "description" and kind = "string" and decoded != "";
+let named = select l."id" as "id" from roots as l join names as r on l."id" = r."owner";
+let described = select l."id" as "id" from roots as l join descriptions as r on l."id" = r."owner";
+let unnamed = antijoin(left=roots, right=named, left-on=["id"], right-on=["id"]);
+let undescribed = antijoin(left=roots, right=described, left-on=["id"], right-on=["id"]);
+let lacking = union(left=unnamed, right=undescribed);
+let placed = select l."file" as "file", r."span" as "span" from lacking as l join "syntax-tree" as r on l."id" = r."id";
+emit placed subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "this package has no `name` or no `description`, or one of them is empty"
+help = "Give the package its name and a one-line description of what it is."
+
+[given]
+include = ["package.json"]
+
+[[scenarios]]
+id = "empty-description"
+scenario = "A manifest with an empty description is reported."
+given.files."package.json" = "{\n  \"name\": \"app\",\n  \"description\": \"\"\n}\n"
+then.findings = [{ path = "package.json", line = 1 }]
+
+[[scenarios]]
+id = "named-and-described"
+scenario = "A manifest with a name and a description is not reported."
+given.files."package.json" = "{\n  \"name\": \"app\",\n  \"description\": \"A todo API.\"\n}\n"

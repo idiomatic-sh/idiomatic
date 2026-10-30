@@ -1,0 +1,42 @@
+description = "The repository's.gitignore: the build output, the tool installs, the analysis cache that the Rust tooling writes inside each workspace, the cache `ryo` keeps at each project root, and the one Tastemaker keeps beside it."
+why = "Keeps the build output, tool installs and analysis caches out of version control, so only sources and committed locks are tracked."
+content = '''
+target/
+.bin/
+.tastemaker/
+.ryo_cache/
+.tastemaker_cache/
+'''
+
+[given]
+file = '.gitignore'
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'.gitignore' = '''
+target/
+.bin/
+.tastemaker/
+.ryo_cache/
+.tastemaker_cache/
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template.'
+given.files.'.gitignore' = '''
+target/
+.bin/
+.tastemaker/
+.ryo_cache/
+.tastemaker_cache/
+node_modules/
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'gitignore#count', path = 'tastemaker.toml' },
+]

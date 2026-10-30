@@ -1,0 +1,8 @@
+version = 1
+parents = ["a38592bc8208081b01e0fa3d666738f8cc27ee44efcabeb317ca74ec6234a3f5"]
+
+suppressed-removed = [
+  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/core/src/outbound/lint_store/adapters/postcard/adapter.rs", level = "error", fingerprint = "b38a6c348fd3539f" },
+  { tool = "tastemaker", rule = "idiomatic.arch/no-public-options", path = "crates/sdk/src/resources/linter/lint/types.rs", level = "error", fingerprint = "392c3b88df71b743" },
+  { tool = "tastemaker", rule = "idiomatic.arch/no-public-options", path = "crates/sdk/src/resources/linter/lint/types.rs", level = "error", fingerprint = "5f31f6d1c684caed" },
+]

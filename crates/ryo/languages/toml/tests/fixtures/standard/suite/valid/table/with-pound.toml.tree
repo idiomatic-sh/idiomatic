@@ -1,0 +1,22 @@
+toml 0-26
+ expression 0-13
+  table 0-13
+   std-table 0-13
+    std-table-open 0-1
+    key 1-12
+     simple-key 1-12
+      quoted-key 1-12
+       basic-string 1-12
+    std-table-close 12-13
+ newline 13-14
+ expression 14-25
+  keyval 14-25
+   key 14-20
+    simple-key 14-20
+     unquoted-key 14-20
+   keyval-sep 20-23
+    ws 20-21
+    ws 22-23
+   val 23-25
+    integer 23-25
+ newline 25-26

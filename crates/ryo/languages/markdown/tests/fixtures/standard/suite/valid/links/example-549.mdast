@@ -1,0 +1,12 @@
+root[2]
+├─0 paragraph[1]
+│   └─0 linkReference[1]
+│       │ label: "ref["
+│       │ identifier: "ref\\["
+│       │ referenceType: "full"
+│       └─0 text "foo"
+└─1 definition
+      identifier: "ref\\["
+      label: "ref["
+      title: null
+      url: "/uri"

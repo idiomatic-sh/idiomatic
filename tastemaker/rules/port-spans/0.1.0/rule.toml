@@ -1,0 +1,429 @@
+description = "Every method of an `impl <Name>UseCase for <Type>` or `impl <Name>Port for <Type>` block (`<Name>Interface` in a hex crate) carries `#[tracing::instrument(level = \"info\", skip_all)]`, and nothing else opens a span: no `instrument` attribute on another function and no span macro."
+why = "A run's time is attributed where data crosses a hex: every call from one crate into another goes through a port, so one span per port method gives `--timings` its tree of crate, hex and method for free, from the span's module path and name. A span anywhere else is time no tree row owns. `skip_all` records no argument, so a span costs one atomic load when no subscriber listens. Read from syntax: a port is a trait whose name ends in `UseCase` (what a crate offers its edges), `Port` (what it asks of the outside) or, in a hex crate, `Interface`, and a collection's `Item` is none, since an item never crosses a crate; its method a `fn` in the impl's item list; the attribute is matched as `tracing::instrument` whose arguments are `level`, `\"info\"`, `skip_all` and optionally `fields(..)`, and nothing else, so `level = \"info\"` is the one way to write them that compiles; a span opened in a macro's arguments or by a procedural macro is not seen."
+
+query = '''
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let token-edges = select l."parent" as "parent", r."id" as "token", r."kind" as "kind", r."text" as "text" from "syntax-child" as l join tree-tokens as r on l."child" = r."id";
+let paths = select * from tree-nodes where kind = "path";
+let segments = select * from tree-nodes where kind = "path-segment";
+let name-refs = select * from tree-nodes where kind = "name-ref";
+let path-segment-edges = select l."id" as "pathnode", r."child" as "child" from paths as l join "syntax-child" as r on l."id" = r."parent";
+let path-segments = select l."pathnode" as "pathnode", r."id" as "segment" from path-segment-edges as l join segments as r on l."child" = r."id";
+let segment-ref-edges = select l."pathnode" as "pathnode", r."child" as "child" from path-segments as l join "syntax-child" as r on l."segment" = r."parent";
+let segment-refs = select l."pathnode" as "pathnode", r."id" as "nameref" from segment-ref-edges as l join name-refs as r on l."child" = r."id";
+let path-names = select l."pathnode" as "pathnode", r."text" as "name" from segment-refs as l join token-edges as r on l."nameref" = r."parent";
+let impls = select * from tree-nodes where kind = "impl";
+let impl-children = select r."child" as "child", l."id" as "id", r."ordinal" as "ordinal" from impls as l join "syntax-child" as r on l."id" = r."parent";
+let path-types = select * from tree-nodes where kind = "path-type";
+let impl-types = select l."child" as "type", l."id" as "id", l."ordinal" as "ordinal" from impl-children as l join path-types as r on l."child" = r."id";
+let for-tokens = select * from tree-tokens where kind = "for-kw";
+let impl-for = select l."id" as "id", l."ordinal" as "for" from impl-children as l join for-tokens as r on l."child" = r."id";
+let impl-types-for = select r."for" as "for", l."id" as "id", l."ordinal" as "ordinal", l."type" as "type" from impl-types as l join impl-for as r on l."id" = r."id";
+let trait-types = select * from impl-types-for where ordinal < for;
+let trait-path-edges = select r."child" as "child", l."id" as "impl" from trait-types as l join "syntax-child" as r on l."type" = r."parent";
+let trait-paths = select l."impl" as "impl", r."id" as "pathnode" from trait-path-edges as l join paths as r on l."child" = r."id";
+let trait-names = select l."impl" as "impl", r."name" as "trait" from trait-paths as l join path-names as r on l."pathnode" = r."pathnode";
+let ports = select * from trait-names where glob_any(trait, "{*Interface,*Port,*UseCase}");
+let port-children = select r."child" as "child", l."impl" as "impl" from ports as l join "syntax-child" as r on l."impl" = r."parent";
+let item-lists = select * from tree-nodes where kind = "assoc-item-list";
+let port-lists = select r."id" as "list" from port-children as l join item-lists as r on l."child" = r."id";
+let list-children = select r."child" as "child" from port-lists as l join "syntax-child" as r on l."list" = r."parent";
+let functions = select * from tree-nodes where kind = "fn";
+let port-methods = select r."id" as "function", r."file" as "file", r."span" as "span" from list-children as l join functions as r on l."child" = r."id";
+let function-children = select r."child" as "child", l."id" as "function" from functions as l join "syntax-child" as r on l."id" = r."parent";
+let names = select * from tree-nodes where kind = "name";
+let function-name-nodes = select l."function" as "function", r."id" as "namenode" from function-children as l join names as r on l."child" = r."id";
+let function-names = select l."function" as "function", r."text" as "name" from function-name-nodes as l join token-edges as r on l."namenode" = r."parent";
+let attributes = select * from tree-nodes where kind = "attr";
+let function-attributes = select r."id" as "attribute", l."function" as "function" from function-children as l join attributes as r on l."child" = r."id";
+let attribute-children = select l."attribute" as "attribute", r."child" as "child", l."function" as "function" from function-attributes as l join "syntax-child" as r on l."attribute" = r."parent";
+let metas = select * from tree-nodes where glob_any(kind, "{token-tree-meta,path-meta,key-value-meta}");
+let attribute-metas = select l."attribute" as "attribute", r."kind" as "form", l."function" as "function", r."id" as "meta" from attribute-children as l join metas as r on l."child" = r."id";
+let meta-children = select l."attribute" as "attribute", r."child" as "child", l."form" as "form", l."function" as "function", l."meta" as "meta" from attribute-metas as l join "syntax-child" as r on l."meta" = r."parent";
+let meta-paths = select l."attribute" as "attribute", l."form" as "form", l."function" as "function", l."meta" as "meta", r."id" as "pathnode" from meta-children as l join paths as r on l."child" = r."id";
+let attribute-names = select l."attribute" as "attribute", l."form" as "form", l."function" as "function", l."meta" as "meta", r."name" as "name", l."pathnode" as "pathnode" from meta-paths as l join path-names as r on l."pathnode" = r."pathnode";
+let instrument-attributes = select * from attribute-names where name = "instrument";
+let tree-instruments = select * from instrument-attributes where form = "token-tree-meta";
+let qualifier-edges = select l."attribute" as "attribute", r."child" as "child", l."function" as "function", l."meta" as "meta" from tree-instruments as l join "syntax-child" as r on l."pathnode" = r."parent";
+let qualifier-paths = select l."attribute" as "attribute", l."function" as "function", l."meta" as "meta", r."id" as "qualifier" from qualifier-edges as l join paths as r on l."child" = r."id";
+let qualifier-names = select l."attribute" as "attribute", l."function" as "function", l."meta" as "meta", r."name" as "crate" from qualifier-paths as l join path-names as r on l."qualifier" = r."pathnode";
+let tracing-instruments = select * from qualifier-names where crate = "tracing";
+let instrument-tree-edges = select l."attribute" as "attribute", r."child" as "child", l."function" as "function" from tracing-instruments as l join "syntax-child" as r on l."meta" = r."parent";
+let token-trees = select * from tree-nodes where kind = "token-tree";
+let instrument-trees = select l."attribute" as "attribute", l."function" as "function", r."id" as "tree" from instrument-tree-edges as l join token-trees as r on l."child" = r."id";
+let instrument-tokens = select l."attribute" as "attribute", l."function" as "function", r."kind" as "kind", r."text" as "text", r."token" as "token" from instrument-trees as l join token-edges as r on l."tree" = r."parent";
+let skipping-tokens = select * from instrument-tokens where text = "skip_all";
+let skipping = project(from=skipping-tokens, columns=["attribute", "function"]);
+let level-tokens = select * from instrument-tokens where text = "level";
+let levelled = project(from=level-tokens, columns=["attribute"]);
+let info-tokens = select * from instrument-tokens where glob_any(text, "?info?");
+let informed = project(from=info-tokens, columns=["attribute"]);
+let instrument-identifiers = select * from instrument-tokens where kind = "ident";
+let known-identifiers = select * from instrument-identifiers where glob_any(text, "{level,skip_all,fields}");
+let other-identifiers = antijoin(left=instrument-identifiers, right=known-identifiers, left-on=["token"], right-on=["token"]);
+let instrument-strings = select * from instrument-tokens where kind = "string";
+let other-strings = antijoin(left=instrument-strings, right=info-tokens, left-on=["token"], right-on=["token"]);
+let other-identifier-attributes = project(from=other-identifiers, columns=["attribute"]);
+let other-string-attributes = project(from=other-strings, columns=["attribute"]);
+let other-arguments = union(left=other-identifier-attributes, right=other-string-attributes);
+let skipping-levelled = select l."attribute" as "attribute", l."function" as "function" from skipping as l join levelled as r on l."attribute" = r."attribute";
+let skipping-informed = select l."attribute" as "attribute", l."function" as "function" from skipping-levelled as l join informed as r on l."attribute" = r."attribute";
+let spanned-attributes = antijoin(left=skipping-informed, right=other-arguments, left-on=["attribute"], right-on=["attribute"]);
+let spanned-functions = project(from=spanned-attributes, columns=["function"]);
+let unspanned = antijoin(left=port-methods, right=spanned-functions, left-on=["function"], right-on=["function"]);
+let unspanned-named = select r."name" as "name", l."file" as "file", l."span" as "span" from unspanned as l join function-names as r on l."function" = r."function";
+let missing = extend(from=unspanned-named, values={"problem": "is a port method without its span: give it #[tracing::instrument(level = 'info', skip_all)]"});
+let instrumented = project(from=instrument-attributes, columns=["attribute", "function"]);
+let port-method-ids = project(from=port-methods, columns=["function"]);
+let stray-instruments = antijoin(left=instrumented, right=port-method-ids, left-on=["function"], right-on=["function"]);
+let stray-attribute-rows = select l."function" as "function", r."file" as "file", r."span" as "span" from stray-instruments as l join attributes as r on l."attribute" = r."id";
+let stray-attributes-named = select r."name" as "name", l."file" as "file", l."span" as "span" from stray-attribute-rows as l join function-names as r on l."function" = r."function";
+let misplaced = extend(from=stray-attributes-named, values={"problem": "is not a port method, so it opens no span: only an impl of a `<Name>UseCase`, `<Name>Port` or `<Name>Interface` is instrumented"});
+let macro-calls = select * from tree-nodes where kind = "macro-call";
+let macro-edges = select l."id" as "call", r."child" as "child", l."file" as "file", l."span" as "span" from macro-calls as l join "syntax-child" as r on l."id" = r."parent";
+let macro-paths = select l."file" as "file", r."id" as "pathnode", l."span" as "span" from macro-edges as l join paths as r on l."child" = r."id";
+let macro-names = select r."name" as "name", l."file" as "file", l."span" as "span" from macro-paths as l join path-names as r on l."pathnode" = r."pathnode";
+let span-macros = select * from macro-names where glob_any(name, "{span,trace_span,debug_span,info_span,warn_span,error_span}");
+let opened = extend(from=span-macros, values={"problem": "opens a span outside a port method's attribute"});
+let attributed = union(left=missing, right=misplaced);
+let findings = union(left=attributed, right=opened);
+emit findings subject "file" key("span", "problem");
+'''
+
+[diagnostic]
+primary = "span"
+message = "`{name}` {problem}"
+help = "Time is attributed per port call: put `#[tracing::instrument(level = \"info\", skip_all)]` on each method of an `impl <Name>UseCase for`, `impl <Name>Port for` or `impl <Name>Interface for` block, declare a count it reports in the attribute's `fields(..)` and record it with `tracing::Span::current().record(..)`, and move work that needs its own row behind a port of its own."
+
+[given]
+include = ['**']
+
+[[scenarios]]
+id = 'each-method-port-s-impl-carries-instrument'
+scenario = "Each method of a port's impl carries the instrument attribute, in either argument order and with fields; inherent methods and other traits' impls carry none."
+given.files.'src/greeting/adapters/memory/adapter.rs' = '''
+use crate::greeting::interface::GreetingInterface;
+
+pub(crate) struct GreetingMemoryAdapter {
+    greeting: String,
+}
+
+impl GreetingMemoryAdapter {
+    pub(crate) fn new(greeting: String) -> Self {
+        Self { greeting }
+    }
+
+    fn words(&self) -> usize {
+        self.greeting.split_whitespace().count()
+    }
+}
+
+impl GreetingInterface for GreetingMemoryAdapter {
+    #[tracing::instrument(level = "info", skip_all)]
+    fn greet(&self) -> String {
+        self.greeting.clone()
+    }
+
+    #[tracing::instrument(level = "info", skip_all, fields(words))]
+    fn count(&self) -> usize {
+        let words = self.words();
+        tracing::Span::current().record("words", words);
+        words
+    }
+}
+
+impl Default for GreetingMemoryAdapter {
+    fn default() -> Self {
+        Self::new(String::new())
+    }
+}
+'''
+given.files.'src/greeting/adapters/stored/adapter.rs' = '''
+use crate::greeting::interface::GreetingInterface;
+use crate::storage::interface::StorageInterface;
+
+pub(crate) struct GreetingStoredAdapter<S> {
+    storage: S,
+}
+
+impl<S: StorageInterface> crate::greeting::interface::GreetingInterface for GreetingStoredAdapter<S> {
+    #[tracing::instrument(skip_all, level = "info")]
+    fn greet(&self) -> String {
+        self.storage.load()
+    }
+
+    #[tracing::instrument(level = "info", skip_all)]
+    fn count(&self) -> usize {
+        self.storage.load().len()
+    }
+}
+'''
+given.files.'src/greeting/interface.rs' = '''
+pub trait GreetingInterface {
+    fn greet(&self) -> String;
+    fn count(&self) -> usize;
+}
+'''
+
+[[scenarios]]
+id = 'port-methods-one-per-file-no-attribute'
+scenario = 'Port methods, one per file: no attribute, one without arguments, one through an imported `instrument`, one at another level, one naming its span "info" at another level, one without `skip_all`, one at the right level that also names its span, and one that also records its return value.'
+given.files.'src/greeting/adapters/bare/adapter.rs' = '''
+use crate::greeting::interface::GreetingInterface;
+
+pub(crate) struct GreetingBareAdapter;
+
+impl GreetingInterface for GreetingBareAdapter {
+    #[tracing::instrument]
+    fn greet(&self) -> String {
+        String::new()
+    }
+}
+'''
+given.files.'src/greeting/adapters/debug/adapter.rs' = '''
+use crate::greeting::interface::GreetingInterface;
+
+pub(crate) struct GreetingDebugAdapter;
+
+impl GreetingInterface for GreetingDebugAdapter {
+    #[tracing::instrument(level = "debug", skip_all)]
+    fn greet(&self) -> String {
+        String::new()
+    }
+}
+'''
+given.files.'src/greeting/adapters/imported/adapter.rs' = '''
+use crate::greeting::interface::GreetingInterface;
+use tracing::instrument;
+
+pub(crate) struct GreetingImportedAdapter;
+
+impl GreetingInterface for GreetingImportedAdapter {
+    #[instrument(level = "info", skip_all)]
+    fn greet(&self) -> String {
+        String::new()
+    }
+}
+'''
+given.files.'src/greeting/adapters/named/adapter.rs' = '''
+use crate::greeting::interface::GreetingInterface;
+
+pub(crate) struct GreetingNamedAdapter;
+
+impl GreetingInterface for GreetingNamedAdapter {
+    #[tracing::instrument(level = "debug", name = "info", skip_all)]
+    fn greet(&self) -> String {
+        String::new()
+    }
+}
+'''
+given.files.'src/greeting/adapters/plain/adapter.rs' = '''
+use crate::greeting::interface::GreetingInterface;
+
+pub(crate) struct GreetingPlainAdapter;
+
+impl GreetingInterface for GreetingPlainAdapter {
+    fn greet(&self) -> String {
+        String::new()
+    }
+}
+'''
+given.files.'src/greeting/adapters/renamed/adapter.rs' = '''
+use crate::greeting::interface::GreetingInterface;
+
+pub(crate) struct GreetingRenamedAdapter;
+
+impl GreetingInterface for GreetingRenamedAdapter {
+    #[tracing::instrument(level = "info", skip_all, name = "info")]
+    fn greet(&self) -> String {
+        String::new()
+    }
+}
+'''
+given.files.'src/greeting/adapters/returning/adapter.rs' = '''
+use crate::greeting::interface::GreetingInterface;
+
+pub(crate) struct GreetingReturningAdapter;
+
+impl GreetingInterface for GreetingReturningAdapter {
+    #[tracing::instrument(level = "info", skip_all, ret)]
+    fn greet(&self) -> String {
+        String::new()
+    }
+}
+'''
+given.files.'src/greeting/adapters/unskipped/adapter.rs' = '''
+use crate::greeting::interface::GreetingInterface;
+
+pub(crate) struct GreetingUnskippedAdapter;
+
+impl GreetingInterface for GreetingUnskippedAdapter {
+    #[tracing::instrument(level = "info")]
+    fn greet(&self) -> String {
+        String::new()
+    }
+}
+'''
+given.files.'src/greeting/interface.rs' = '''
+pub trait GreetingInterface {
+    fn greet(&self) -> String;
+}
+'''
+then.findings = [
+  { path = 'src/greeting/adapters/bare/adapter.rs', line = 6 },
+  { path = 'src/greeting/adapters/debug/adapter.rs', line = 6 },
+  { path = 'src/greeting/adapters/imported/adapter.rs', line = 7 },
+  { path = 'src/greeting/adapters/named/adapter.rs', line = 6 },
+  { path = 'src/greeting/adapters/plain/adapter.rs', line = 6 },
+  { path = 'src/greeting/adapters/renamed/adapter.rs', line = 6 },
+  { path = 'src/greeting/adapters/returning/adapter.rs', line = 6 },
+  { path = 'src/greeting/adapters/unskipped/adapter.rs', line = 6 },
+]
+
+[[scenarios]]
+id = 'spanned-ports'
+scenario = "Each method of an impl of a use case's trait and of an outbound port's trait carries the instrument attribute."
+given.files.'src/inbound/use_cases/greet/use_case.rs' = '''
+use super::interface::GreetUseCase;
+
+pub struct GreetUseCaseImpl;
+
+impl GreetUseCase for GreetUseCaseImpl {
+    #[tracing::instrument(level = "info", skip_all)]
+    fn greet(&self, name: &str) -> String {
+        name.to_string()
+    }
+}
+'''
+given.files.'src/names/adapters/memory/adapter.rs' = '''
+use crate::names::interface::NamesPort;
+
+pub(crate) struct NamesMemoryAdapter {
+    names: Vec<String>,
+}
+
+impl NamesPort for NamesMemoryAdapter {
+    #[tracing::instrument(level = "info", skip_all)]
+    fn load(&self) -> Vec<String> {
+        self.names.clone()
+    }
+}
+'''
+
+[[scenarios]]
+id = 'unspanned-ports'
+scenario = "The methods of an impl of a use case's trait and of an outbound port's trait with no span."
+given.files.'src/inbound/use_cases/greet/use_case.rs' = '''
+use super::interface::GreetUseCase;
+
+pub struct GreetUseCaseImpl;
+
+impl GreetUseCase for GreetUseCaseImpl {
+    fn greet(&self, name: &str) -> String {
+        name.to_string()
+    }
+}
+'''
+given.files.'src/names/adapters/memory/adapter.rs' = '''
+use crate::names::interface::NamesPort;
+
+pub(crate) struct NamesMemoryAdapter {
+    names: Vec<String>,
+}
+
+impl NamesPort for NamesMemoryAdapter {
+    fn load(&self) -> Vec<String> {
+        self.names.clone()
+    }
+}
+'''
+then.findings = [
+  { path = 'src/inbound/use_cases/greet/use_case.rs', line = 6 },
+  { path = 'src/names/adapters/memory/adapter.rs', line = 8 },
+]
+
+[[scenarios]]
+id = 'items-are-not-ports'
+scenario = "A collection item's impl is no port, so its methods need no span."
+given.files.'src/collections/shapes/circle/item.rs' = '''
+use crate::collections::shapes::interface::ShapesItem;
+
+pub struct CircleItem {
+    radius: f64,
+}
+
+impl ShapesItem for CircleItem {
+    fn area(&self) -> f64 {
+        self.radius * self.radius * 3.14
+    }
+}
+'''
+
+[[scenarios]]
+id = 'instrumented-item'
+scenario = "An instrumented method of a collection item's impl opens a span no tree row owns."
+given.files.'src/collections/shapes/circle/item.rs' = '''
+use crate::collections::shapes::interface::ShapesItem;
+
+pub struct CircleItem {
+    radius: f64,
+}
+
+impl ShapesItem for CircleItem {
+    #[tracing::instrument(level = "info", skip_all)]
+    fn area(&self) -> f64 {
+        self.radius * self.radius * 3.14
+    }
+}
+'''
+then.findings = [
+  { path = 'src/collections/shapes/circle/item.rs', line = 8 },
+]
+
+[[scenarios]]
+id = 'stray-spans'
+scenario = 'A span macro in a step, an instrumented inherent method, and a span macro inside an instrumented port method.'
+given.files.'src/greeting/interface.rs' = '''
+pub trait GreetingInterface {
+    fn greet(&self) -> String;
+    fn count(&self) -> usize;
+}
+'''
+given.files.'src/greeting/steps.rs' = '''
+use crate::greeting::interface::GreetingInterface;
+
+pub(crate) fn greet_twice(greeting: &impl GreetingInterface) -> String {
+    let _span = tracing::info_span!("greet_twice").entered();
+    format!("{}{}", greeting.greet(), greeting.greet())
+}
+'''
+given.files.'src/greeting/types.rs' = '''
+pub struct Greeting(String);
+
+impl Greeting {
+    #[tracing::instrument(level = "info", skip_all)]
+    pub fn shout(&self) -> String {
+        self.0.to_uppercase()
+    }
+}
+'''
+given.files.'src/greeting/use_cases/greet/use_case.rs' = '''
+use super::interface::GreetingGreetInterface;
+
+pub struct GreetingGreet;
+
+impl GreetingGreetInterface for GreetingGreet {
+    #[tracing::instrument(level = "info", skip_all)]
+    fn greet(&self) -> String {
+        let span = span!(tracing::Level::INFO, "inner");
+        drop(span);
+        String::new()
+    }
+}
+'''
+then.findings = [
+  { path = 'src/greeting/steps.rs', line = 4 },
+  { path = 'src/greeting/types.rs', line = 4 },
+  { path = 'src/greeting/use_cases/greet/use_case.rs', line = 8 },
+]

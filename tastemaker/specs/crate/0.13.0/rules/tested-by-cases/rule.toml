@@ -1,0 +1,76 @@
+description = "Selects each file whose presence says the crate keeps tests of the one shape: a core's `src/inbound.rs`, a kernel crate's `src/domain.rs` (a crate with a domain and no use case), an SDK's or a command line's `src/resources.rs`, a command line's `src/main.rs`."
+why = "Lets the crate spec place the test support `src/cases.rs` exactly in the crates whose tests call it, without a capture It answers the `cases` condition and is never placed as a check, so its rows are never findings; its level only lets its fixtures show them."
+
+query = '''
+let files = project(from="filesystem.file", columns=["path"]);
+let singles = select * from files where glob_any(path, "{**/src/inbound.rs,**/src/domain.rs,**/src/resources.rs,**/src/main.rs}");
+emit singles subject "path" key("path");
+'''
+
+[diagnostic]
+primary = "path"
+message = "`{path}` says the crate keeps tests of the one shape"
+help = "Nothing to fix: this rule only answers a condition, and its rows are never reported as findings."
+
+[given]
+include = ['app/src/inbound.rs', 'app/src/domain.rs', 'app/src/resources.rs', 'app/src/main.rs', 'app/src/*/adapters.rs', 'app/src/*/interface.rs']
+
+[[scenarios]]
+id = 'core-answers-yes'
+scenario = 'A core answers yes.'
+given.files.'app/src/inbound.rs' = '''
+//! Inbound.
+'''
+then.findings = [
+  { path = 'app/src/inbound.rs' },
+]
+
+[[scenarios]]
+id = 'kernel-crate-domain-no-use-case-answers'
+scenario = 'A kernel crate, a domain and no use case, answers yes.'
+given.files.'app/src/domain.rs' = '''
+//! Domain.
+'''
+then.findings = [
+  { path = 'app/src/domain.rs' },
+]
+
+[[scenarios]]
+id = 'sdk-answers-yes'
+scenario = 'An SDK answers yes.'
+given.files.'app/src/greeting/show.rs' = '''
+//! Entries.
+'''
+given.files.'app/src/resources.rs' = '''
+//! Entries.
+'''
+then.findings = [
+  { path = 'app/src/resources.rs' },
+]
+
+[[scenarios]]
+id = 'command-line'
+scenario = 'A command line answers yes.'
+given.files.'app/src/main.rs' = '''
+fn main() {}
+'''
+then.findings = [
+  { path = 'app/src/main.rs' },
+]
+
+[[scenarios]]
+id = 'hex-crate'
+scenario = 'A hex crate of the older shape, whose hex holds an interface, answers no.'
+given.files.'app/src/greeting/adapters.rs' = '''
+//! Adapters.
+'''
+given.files.'app/src/greeting/interface.rs' = '''
+//! Interface.
+'''
+
+[[scenarios]]
+id = 'crate-none-these-answers-no'
+scenario = 'A crate with none of these answers no.'
+given.files.'app/src/lib.rs' = '''
+//! Plain.
+'''

@@ -1,0 +1,1 @@
+Module(body=[Expr(value=ListComp(elt=Name(id='item'), generators=[comprehension(target=Tuple(elts=[Starred(value=Name(id='items', ctx=Store()), ctx=Store())], ctx=Store()), iter=Name(id='source'), is_async=0)]))])

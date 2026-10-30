@@ -1,0 +1,75 @@
+description = "A trait declares its methods and gives none of them a body: every method of the trait is required of whoever implements it."
+why = "A default body is a way to leave a method unanswered without the compiler saying so. A trait that is a contract (the catalog a language answers for every relation) is only a contract if adding a method breaks every implementation until it answers. The entry that uses the rule names the directories whose traits are such contracts. A method with a body in an `impl` block is not a finding, and neither is a trait method with none."
+
+query = '''
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let fns = select * from tree-nodes where kind = "fn";
+let lists = select * from tree-nodes where kind = "assoc-item-list";
+let traits = select * from tree-nodes where kind = "trait";
+let blocks = select * from tree-nodes where kind = "block-expr";
+let fn-lists = select l."id" as "function", l."file" as "file", l."span" as "span", r."parent" as "list" from fns as l join "syntax-child" as r on l."id" = r."child";
+let in-lists = select l."function" as "function", l."file" as "file", l."span" as "span", l."list" as "list" from fn-lists as l join lists as r on l."list" = r."id";
+let list-owners = select l."function" as "function", l."file" as "file", l."span" as "span", r."parent" as "owner" from in-lists as l join "syntax-child" as r on l."list" = r."child";
+let in-traits = select l."function" as "function", l."file" as "file", l."span" as "span" from list-owners as l join traits as r on l."owner" = r."id";
+let function-children = select l."function" as "function", l."file" as "file", l."span" as "span", r."child" as "child" from in-traits as l join "syntax-child" as r on l."function" = r."parent";
+let with-body = select l."function" as "function", l."file" as "file", l."span" as "span" from function-children as l join blocks as r on l."child" = r."id";
+emit with-body subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "this trait method has a default body"
+help = "Remove the body and declare the method; every implementation answers it. If several implementations would share the answer, that sharing is a function they call, not a default of the trait. An ignore is never the fix."
+
+[given]
+include = ['**/*.rs']
+files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+
+[[scenarios]]
+id = 'default-method'
+scenario = 'A trait method with a default body.'
+given.files.'src/lib.rs' = '''
+pub trait Language {
+    fn name(&self) -> usize;
+
+    fn kinds(&self) -> usize {
+        0
+    }
+}
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 4 },
+]
+
+[[scenarios]]
+id = 'required-methods'
+scenario = 'A trait whose methods are all required.'
+given.files.'src/lib.rs' = '''
+pub trait Language {
+    fn name(&self) -> usize;
+
+    fn kinds(&self) -> usize;
+}
+'''
+
+[[scenarios]]
+id = 'impl-body'
+scenario = 'A method with a body in an impl block.'
+given.files.'src/lib.rs' = '''
+pub trait Language {
+    fn name(&self) -> usize;
+}
+
+pub struct Rust;
+
+impl Language for Rust {
+    fn name(&self) -> usize {
+        1
+    }
+}
+'''

@@ -1,0 +1,17 @@
+{
+  "name": "@idiomatic-sh/asymptote-x86_64-unknown-linux-musl",
+  "description": "The asymptote binary for x86_64-unknown-linux-musl, run by @idiomatic-sh/asymptote.",
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "libc": [
+    "musl"
+  ],
+  "files": [
+    "bin"
+  ],
+  "preferUnplugged": true
+}

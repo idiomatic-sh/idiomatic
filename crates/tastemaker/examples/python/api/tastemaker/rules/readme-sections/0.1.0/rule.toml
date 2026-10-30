@@ -1,0 +1,65 @@
+description = "The README has the level-two sections `Install`, `Usage` and `Development`, in that order, and `Usage` shows a fenced code block before its next heading."
+why = "A reader comes to the README to install the project, run it and work on it, and looks for those three steps in that order. A usage section without a command to copy sends them to the source instead. The rule reads the document's sections as they nest: the sections under the title in their order, and whether the usage section holds a fenced code block."
+
+query = '''
+let sections = select * from "syntax-tree" where kind = "section";
+let nested = select l."child" as "section", l."ordinal" as "ordinal", l."parent" as "title" from "syntax-child" as l join sections as r on l."parent" = r."id";
+let subsections = select l."section" as "section", l."ordinal" as "ordinal", l."title" as "title" from nested as l join sections as r on l."section" = r."id";
+let headings = select l."parent" as "section", l."child" as "heading" from "syntax-child" as l join "syntax-tree" as r on l."child" = r."id" where r."kind" = "heading";
+let words = select l."parent" as "heading", r."text" as "words" from "syntax-child" as l join "syntax-tree" as r on l."child" = r."id" where r."kind" = "text";
+let titled = select l."section" as "section", r."words" as "words" from headings as l join words as r on l."heading" = r."heading";
+let named = select l."section" as "section", l."ordinal" as "ordinal", l."title" as "title", r."words" as "words" from subsections as l join titled as r on l."section" = r."section";
+let installs = select * from named where words = "Install";
+let usages = select * from named where words = "Usage";
+let developments = select * from named where words = "Development";
+let install-usage = select l."title" as "title", l."ordinal" as "install", r."ordinal" as "usage", r."section" as "usage-section" from installs as l join usages as r on l."title" = r."title";
+let first-two = select * from install-usage where install < usage;
+let all-three = select l."title" as "title", l."usage" as "usage", l."usage-section" as "usage-section", r."ordinal" as "development" from first-two as l join developments as r on l."title" = r."title";
+let ordered = select * from all-three where usage < development;
+let codes = select l."parent" as "section", l."child" as "code" from "syntax-child" as l join "syntax-tree" as r on l."child" = r."id" where r."kind" = "code";
+let fences = select l."parent" as "code" from "syntax-child" as l join "syntax-tree" as r on l."child" = r."id" where r."kind" = "markup";
+let fenced = select l."section" as "section" from codes as l join fences as r on l."code" = r."code";
+let shown = select l."title" as "title" from ordered as l join fenced as r on l."usage-section" = r."section";
+let documents = select r."file" as "file" from shown as l join "syntax-tree" as r on l."title" = r."id";
+let complete = project(from=documents, columns=["file"]);
+let readmes = select * from "filesystem.file" where glob_any(path, "{README.md,**/README.md}");
+let missing = antijoin(left=readmes, right=complete, left-on=["path"], right-on=["file"]);
+emit missing subject "path" key("path");
+'''
+
+[diagnostic]
+primary = "path"
+message = "`{path}` does not have `## Install`, `## Usage` with a fenced code block, and `## Development`, in that order"
+help = "Write the three sections in that order, with the command that runs the project in a fenced code block under `## Usage`."
+
+[given]
+include = ["**"]
+
+[[scenarios]]
+id = "sections-out-of-order"
+scenario = "A README whose development section comes before its usage section is reported."
+given.files."README.md" = "# App\n\n## Install\n\nInstall it.\n\n## Development\n\nTest it.\n\n## Usage\n\n```sh\nrun\n```\n"
+then.findings = [{ path = "README.md" }]
+
+[[scenarios]]
+id = "usage-without-code"
+scenario = "A README whose usage section shows no fenced code block before the next heading is reported."
+given.files."README.md" = "# App\n\n## Install\n\nInstall it.\n\n## Usage\n\nRun it.\n\n## Development\n\n```sh\ntest\n```\n"
+then.findings = [{ path = "README.md" }]
+
+[[scenarios]]
+id = "sections-in-order"
+scenario = "A README with the three sections in order and a fenced block under usage is not reported."
+given.files."README.md" = "# App\n\n## Install\n\nInstall it.\n\n## Usage\n\n```sh\nrun\n```\n\n## Development\n\nTest it.\n"
+
+[[scenarios]]
+id = "usage-with-indented-code"
+scenario = "A README whose usage section shows only indented code, no fenced block, is reported."
+given.files."README.md" = "# App\n\n## Install\n\nInstall it.\n\n## Usage\n\n    run\n\n## Development\n\nTest it.\n"
+then.findings = [{ path = "README.md" }]
+
+[[scenarios]]
+id = "code-under-a-deeper-heading"
+scenario = "A fenced block under a `###` inside usage does not stand for usage's own block, and is reported."
+given.files."README.md" = "# App\n\n## Install\n\nInstall it.\n\n## Usage\n\n### Example\n\n```sh\nrun\n```\n\n## Development\n\nTest it.\n"
+then.findings = [{ path = "README.md" }]

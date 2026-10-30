@@ -1,0 +1,12 @@
+toml 0-30
+ expression 0-29
+  keyval 0-29
+   key 0-1
+    simple-key 0-1
+     unquoted-key 0-1
+   keyval-sep 1-4
+    ws 1-2
+    ws 3-4
+   val 4-29
+    date-time 4-29
+ newline 29-30

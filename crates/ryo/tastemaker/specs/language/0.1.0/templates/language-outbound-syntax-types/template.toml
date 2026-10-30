@@ -1,0 +1,50 @@
+description = "A file of the syntax port, which the parser library implements: `src/outbound/syntax/types.rs`."
+why = "The language is complete or says what it lacks: this file is placed at count 1 for every language, so a language added by its directory has it from the first scaffold, in the shape every other language has, and a language that lacks it is a finding at the language. The template asks for the declarations the file makes; the bodies and the language's words are the author's."
+content = '''
+//! The types of the `syntax` port: plain data, public fields and derives, with no constructor and no inherent impl.
+
+/// The bytes of a {{ lang }} file, borrowed: what the port reads into a table. The language reads {{ lang }} as UTF-8; bytes that are not are
+/// part of the file the parser could not read.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct SourceText<'a>(pub &'a [u8]);
+'''
+
+[params]
+lang = { type = "identifier", from = "directory-name", description = "The language, its directory's name." }
+
+[given]
+file = 'src/outbound/syntax/types.rs'
+params = { lang = 'demo' }
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'src/outbound/syntax/types.rs' = '''
+//! The types of the `syntax` port: plain data, public fields and derives, with no constructor and no inherent impl.
+
+/// The bytes of a demo file, borrowed: what the port reads into a table. The language reads demo as UTF-8; bytes that are not are
+/// part of the file the parser could not read.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct SourceText<'a>(pub &'a [u8]);
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template.'
+given.files.'src/outbound/syntax/types.rs' = '''
+//! The types of the `syntax` port: plain data, public fields and derives, with no constructor and no inherent impl.
+
+/// The bytes of a demo file, borrowed: what the port reads into a table. The language reads demo as UTF-8; bytes that are not are
+/// part of the file the parser could not read.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct SourceText<'a>(pub &'a [u8]);
+
+// More.
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'language-outbound-syntax-types#count', path = '.' },
+]

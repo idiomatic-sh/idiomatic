@@ -1,0 +1,50 @@
+description = "Comments holding an open-work marker (the upper-case to-do, fix-me or triple-X words) are listed for the reader."
+why = "An open-work marker is work the code admits it still owes; listing them shows how much a tree carries and where (clippy has no such lint; Ruff's `FIX` family is the model). The marker is matched in upper case anywhere in a line, block or doc comment. Not seen: a marker inside a string literal or a macro's tokens."
+
+query = '''
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let comments = select * from tree-tokens where kind = "comment";
+let marked = select * from comments where glob_any(text, "{*TODO*,*FIXME*,*XXX*}");
+emit marked subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "this comment marks work still owed"
+help = "Do the work, or file it where work is tracked and remove the marker."
+
+[given]
+include = ['**']
+files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+
+[[scenarios]]
+id = 'comments-without-marker'
+scenario = 'Comments without a marker are not reported.'
+given.files.'src/lib.rs' = '''
+// Returns one; see the todo list in the docs.
+pub fn value() -> u8 {
+    let text = "TODO";
+    text.len() as u8
+}
+'''
+
+[[scenarios]]
+id = 'comment-marker'
+scenario = 'A comment with a marker is reported.'
+given.files.'src/code.rs' = '''
+pub fn value() -> u8 {
+    // FIXME: read it from the config
+    1
+}
+'''
+given.files.'src/lib.rs' = '''
+mod code;
+'''
+then.findings = [
+  { path = 'src/code.rs', line = 2 },
+]

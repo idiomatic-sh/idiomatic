@@ -1,0 +1,210 @@
+description = "Proves what one part's schemas accept and refuse, beside its schemas.rs in the one test shape: a `CASES` table of rows and a runner for each case word the table has rows of."
+why = "A schema checks data we do not control, so each input it accepts (a `succeeds` row) and each it refuses (a `refuses` row) is a case. The runners are the author's, one for each case word the table has rows of (`test-runners-match-rows`), so a case is a row and nothing else is a test."
+content = '''
+//! What the schemas of this {{ kind }} accept and refuse, one row of `CASES` for each input.
+
+use crate::cases::{Case, Word, run};
+
+type Input = ();
+type Value = ();
+type Failure = ();
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[];
+
+/// Converts one wire input through the schemas; the author states it.
+fn subject(_input: Input) -> Result<Value, Failure> {
+    Err(())
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+
+[params]
+kind = { type = "string", description = "What the part is: port, adapter, command or entry." }
+
+[given]
+file = 'src/names/adapters/memory/schemas_test.rs'
+params = { kind = 'adapter' }
+
+[[scenarios]]
+id = 'example-port'
+scenario = 'The rendered template passes for a port.'
+given.file = 'src/outbound/names/schemas_test.rs'
+given.params = { kind = 'port' }
+given.files.'src/outbound/names/schemas_test.rs' = '''
+//! What the schemas of this port accept and refuse, one row of `CASES` for each input.
+
+use crate::cases::{Case, Word, run};
+
+type Input = ();
+type Value = ();
+type Failure = ();
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[];
+
+/// Converts one wire input through the schemas; the author states it.
+fn subject(_input: Input) -> Result<Value, Failure> {
+    Err(())
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+
+[[scenarios]]
+id = 'example-adapter'
+scenario = 'The rendered template passes for an adapter.'
+given.files.'src/names/adapters/memory/schemas_test.rs' = '''
+//! What the schemas of this adapter accept and refuse, one row of `CASES` for each input.
+
+use crate::cases::{Case, Word, run};
+
+type Input = ();
+type Value = ();
+type Failure = ();
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[];
+
+/// Converts one wire input through the schemas; the author states it.
+fn subject(_input: Input) -> Result<Value, Failure> {
+    Err(())
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+
+[[scenarios]]
+id = 'example-command'
+scenario = 'The rendered template passes for a command.'
+given.file = 'src/commands/greeting/show/schemas_test.rs'
+given.params = { kind = 'command' }
+given.files.'src/commands/greeting/show/schemas_test.rs' = '''
+//! What the schemas of this command accept and refuse, one row of `CASES` for each input.
+
+use crate::cases::{Case, Word, run};
+
+type Input = ();
+type Value = ();
+type Failure = ();
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[];
+
+/// Converts one wire input through the schemas; the author states it.
+fn subject(_input: Input) -> Result<Value, Failure> {
+    Err(())
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+
+[[scenarios]]
+id = 'example-entry'
+scenario = 'The rendered template passes for an entry.'
+given.file = 'src/entries/greeting/show/schemas_test.rs'
+given.params = { kind = 'entry' }
+given.files.'src/entries/greeting/show/schemas_test.rs' = '''
+//! What the schemas of this entry accept and refuse, one row of `CASES` for each input.
+
+use crate::cases::{Case, Word, run};
+
+type Input = ();
+type Value = ();
+type Failure = ();
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[];
+
+/// Converts one wire input through the schemas; the author states it.
+fn subject(_input: Input) -> Result<Value, Failure> {
+    Err(())
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template, such as its rows.'
+given.files.'src/names/adapters/memory/schemas_test.rs' = '''
+//! What the schemas of this adapter accept and refuse, one row of `CASES` for each input.
+
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = ();
+type Value = ();
+type Failure = ();
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "a name is accepted",
+        word: Word::Succeeds,
+        input: || (),
+        expect: Expect::Value(()),
+    },
+];
+
+/// Converts one wire input through the schemas; the author states it.
+fn subject(_input: Input) -> Result<Value, Failure> {
+    Err(())
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+given.file = 'src/outbound/names/schemas_test.rs'
+given.params = { kind = 'port' }
+then.findings = [
+  { rule = 'schemas-test#count', path = 'tastemaker.toml' },
+]
+
+[[scenarios]]
+id = 'no-cases-table'
+scenario = 'The test has no table of cases.'
+given.files.'src/names/adapters/memory/schemas_test.rs' = '''
+//! What the schemas of this adapter accept and refuse, one row of `CASES` for each input.
+
+use crate::cases::{Case, Word, run};
+
+type Input = ();
+type Value = ();
+type Failure = ();
+
+/// Converts one wire input through the schemas; the author states it.
+fn subject(input: Input) -> Result<Value, Failure> {
+    todo!("convert one wire input through the schemas and return the core's type or the refusal")
+}
+'''
+then.findings = [
+  { rule = 'schemas-test#template', path = 'src/names/adapters/memory/schemas_test.rs' },
+  { rule = 'schemas-test#template', path = 'src/names/adapters/memory/schemas_test.rs' },
+]

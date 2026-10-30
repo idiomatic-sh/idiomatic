@@ -1,0 +1,22 @@
+root[3]
+├─0 paragraph[2]
+│   ├─0 linkReference[1]
+│   │   │ label: "bar"
+│   │   │ identifier: "bar"
+│   │   │ referenceType: "full"
+│   │   └─0 text "foo"
+│   └─1 linkReference[1]
+│       │ label: "baz"
+│       │ identifier: "baz"
+│       │ referenceType: "shortcut"
+│       └─0 text "baz"
+├─1 definition
+│     identifier: "baz"
+│     label: "baz"
+│     title: null
+│     url: "/url1"
+└─2 definition
+      identifier: "bar"
+      label: "bar"
+      title: null
+      url: "/url2"

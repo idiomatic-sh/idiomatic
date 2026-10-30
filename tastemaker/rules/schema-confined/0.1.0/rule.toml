@@ -1,0 +1,178 @@
+description = "A name ending `Schema` or `SchemaError` is written only in a schemas.rs and its schemas_test.rs."
+why = "A wire shape is the data a part does not control, and it never leaves the file that owns it: schemas.rs holds the shapes, the decode function that reads bytes into the core's type, the conversions and the refusal, and the adapter, command or entry calls the decode function and receives core types. So a name ending `Schema` or `SchemaError` outside `schemas.rs` and `schemas_test.rs` is a shape that leaked, and the two suffixes are the ones the `schema-name` rule gives every shape and refusal. A command's clap argument struct is a shape too, so the command's `command.rs` holds only `run`, which calls the schemas' conversion. Read as written: an identifier token whose text ends `Schema` or `SchemaError` in the files the entry selects (the product's tastemaker.toml excludes `schemas.rs` and `schemas_test.rs`); a name written by a macro is not seen. A `SchemaError` named in a `use` is accepted: it is the public error of a port's own type that validates the text it is made from, and the module that exposes it imports it."
+
+query = '''
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let identifiers = select * from tree-tokens where kind = "ident";
+let names = select * from identifiers where glob_any(text, "{*Schema,*SchemaError}");
+let uses = select * from tree-nodes where kind = "use";
+let error-names = select * from identifiers where glob_any(text, "*SchemaError");
+let error-parents = select l."id" as "token", r."parent" as "id" from error-names as l join "syntax-child" as r on l."id" = r."child";
+let imported = axis(from=error-parents, relation="syntax-child", direction=ancestor, domain=uses);
+let imported-tokens = project(from=imported, columns=["token"]);
+let shapes = antijoin(left=names, right=imported-tokens, left-on=["id"], right-on=["token"]);
+emit shapes subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "`{text}` is a schema named outside schemas.rs"
+help = "Keep the wire shape in the part's schemas.rs and call its decode function (`pub(super) fn read`) from here: the adapter, command or entry receives the core's type, never the schema. A command's clap arguments are `<Command>ArgumentsSchema` in the command's schemas.rs. An ignore is not legitimate here: a schema never leaves its file."
+
+[given]
+include = ['src/**']
+exclude = ['**/schemas.rs', '**/schemas_test.rs']
+
+[[scenarios]]
+id = 'decode-in-schemas'
+scenario = 'The shapes, their conversion and their decode function in schemas.rs, and the adapter calling the decode function.'
+given.files.'src/outbound/names/adapters/memory/adapter.rs' = '''
+//! The memory adapter of the names port.
+
+mod schemas;
+
+/// The adapter.
+pub struct NamesMemoryAdapter;
+
+impl NamesMemoryAdapter {
+    /// Reads one stored name.
+    pub fn name(&self, text: &str) -> Option<String> {
+        schemas::read(text).ok()
+    }
+}
+'''
+given.files.'src/outbound/names/adapters/memory/schemas.rs' = '''
+//! The shape of the data the store returns, its checked conversion and its decode function.
+
+/// One name as the store writes it.
+pub(super) struct NameSchema {
+    pub(super) text: String,
+}
+
+/// Why a stored name was refused.
+pub(super) enum NameSchemaError {
+    Empty,
+}
+
+impl TryFrom<NameSchema> for String {
+    type Error = NameSchemaError;
+
+    fn try_from(schema: NameSchema) -> Result<Self, Self::Error> {
+        if schema.text.is_empty() {
+            return Err(NameSchemaError::Empty);
+        }
+        Ok(schema.text)
+    }
+}
+
+/// Reads a stored name into the core type.
+pub(super) fn read(text: &str) -> Result<String, NameSchemaError> {
+    String::try_from(NameSchema { text: text.to_owned() })
+}
+'''
+
+[[scenarios]]
+id = 'schemas-and-test'
+scenario = 'A schemas.rs and its schemas_test.rs name the schemas.'
+given.files.'src/outbound/names/adapters/memory/adapter.rs' = '''
+//! The memory adapter of the names port.
+
+mod schemas;
+
+/// The adapter.
+pub struct NamesMemoryAdapter;
+
+impl NamesMemoryAdapter {
+    /// Reads one stored name.
+    pub fn name(&self, text: &str) -> Option<String> {
+        schemas::read(text).ok()
+    }
+}
+'''
+given.files.'src/outbound/names/adapters/memory/schemas.rs' = '''
+//! The shape of the data the store returns, its checked conversion and its decode function.
+
+/// One name as the store writes it.
+pub(super) struct NameSchema {
+    pub(super) text: String,
+}
+
+/// Why a stored name was refused.
+pub(super) enum NameSchemaError {
+    Empty,
+}
+
+impl TryFrom<NameSchema> for String {
+    type Error = NameSchemaError;
+
+    fn try_from(schema: NameSchema) -> Result<Self, Self::Error> {
+        if schema.text.is_empty() {
+            return Err(NameSchemaError::Empty);
+        }
+        Ok(schema.text)
+    }
+}
+
+/// Reads a stored name into the core type.
+pub(super) fn read(text: &str) -> Result<String, NameSchemaError> {
+    String::try_from(NameSchema { text: text.to_owned() })
+}
+'''
+given.files.'src/outbound/names/adapters/memory/schemas_test.rs' = '''
+//! Proves the schemas.
+
+use super::{NameSchema, NameSchemaError};
+
+#[test]
+fn refuses_an_empty_name() {
+    assert!(matches!(String::try_from(NameSchema { text: String::new() }), Err(NameSchemaError::Empty)));
+}
+'''
+
+[[scenarios]]
+id = 'adapter-names-schema'
+scenario = 'An adapter that imports and names a wire shape.'
+given.files.'src/outbound/names/adapters/memory/adapter.rs' = '''
+//! The memory adapter of the names port.
+
+use super::schemas::NameSchema;
+
+/// The adapter.
+pub struct NamesMemoryAdapter;
+
+impl NamesMemoryAdapter {
+    /// Reads one stored name.
+    pub fn name(&self, text: &str) -> Option<String> {
+        String::try_from(NameSchema { text: text.to_owned() }).ok()
+    }
+}
+'''
+then.findings = [
+  { path = 'src/outbound/names/adapters/memory/adapter.rs', line = 3 },
+  { path = 'src/outbound/names/adapters/memory/adapter.rs', line = 11 },
+]
+
+[[scenarios]]
+id = 'command-names-error'
+scenario = 'A command that names a schema refusal.'
+given.files.'src/commands/greeting/show/command.rs' = '''
+//! The `greeting show` command.
+
+use super::schemas::ArgumentsSchemaError;
+
+/// Runs the command.
+pub fn run(error: Option<ArgumentsSchemaError>) -> bool {
+    error.is_none()
+}
+'''
+then.findings = [
+  { path = 'src/commands/greeting/show/command.rs', line = 6 },
+]
+
+[[scenarios]]
+id = 'error-reexported'
+scenario = "The public refusal of a port's own type is imported where it is exposed."
+given.files.'src/resources/greeting.rs' = '''
+pub use greeting::schemas::NameSchemaError as NameError;
+'''

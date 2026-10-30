@@ -1,0 +1,113 @@
+description = "No port takes or gives a toggle of whether a cache is kept: whether, and where, a run keeps what it leaves for the next is the adapter's, injected by its factory."
+why = "A port that tells the core whether the cache is kept (`fn keeps(&self) -> ImageKeeping`), or a port request that says per call where to keep it (`keeping: Keeping::At(directory)`), makes the core branch on infrastructure at every site that might write: the decision is drilled through the use case although it never changes during a run. The edge decides it once: it composes the store adapter, or a store that keeps nothing, and the core calls the port the same way in both. Read as written in a port's interface and types files: an identifier the entry lists in `toggles`."
+
+query = '''
+param toggles: set<string>;
+let tokens = select l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."kind" = "ident" and l."text" in $toggles;
+emit tokens subject "file" key("span");
+'''
+
+[params.toggles]
+type = "set<string>"
+description = "The types that say whether, or where, a cache is kept."
+
+[diagnostic]
+primary = "span"
+message = "`{text}` crosses a port: whether the cache is kept is decided per call"
+help = "Drop the toggle from the port. The edge composes the store adapter, or one that keeps nothing, and injects its directory into the factory (`store::factory::postcard(Store { directory, build })`); the core calls the port the same way either way. An ignore is never the fix."
+
+[given]
+include = ['src/outbound/*/interface.rs', 'src/outbound/*/types.rs']
+params = { toggles = ['Keeping', 'ImageKeeping', 'Writing'] }
+
+[[scenarios]]
+id = 'an-image-that-says-whether-it-keeps'
+scenario = 'An image port that tells the core whether it keeps anything, as ryo`s did, is reported where the toggle is defined and where the port gives it.'
+given.files.'src/outbound/image/types.rs' = '''
+//! The types of the `image` port.
+
+/// Whether an image keeps anything.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ImageKeeping {
+    /// It keeps what a run leaves for the next.
+    Keeps,
+    /// It keeps nothing.
+    Discards,
+}
+'''
+given.files.'src/outbound/image/interface.rs' = '''
+//! What the `image` port asks of the outside.
+
+/// What every `image` adapter implements.
+pub trait ImagePort: Send + Sync {
+    /// Whether it keeps anything.
+    fn keeps(&self) -> super::types::ImageKeeping;
+}
+'''
+then.findings = [
+  { path = 'src/outbound/image/types.rs', line = 5 },
+  { path = 'src/outbound/image/interface.rs', line = 6 },
+]
+
+[[scenarios]]
+id = 'a-request-says-where-to-keep'
+scenario = 'A port request that says per call where the engine keeps its cache, as Tastemaker`s analysis request did, is reported.'
+given.files.'src/outbound/analysis/types.rs' = '''
+//! The types of the `analysis` port.
+
+/// What a lint call reads and where it keeps.
+pub struct AnalysisRequest {
+    /// The repository.
+    pub root: MachinePath,
+    /// Where it keeps what it leaves for the next.
+    pub keeping: Keeping,
+}
+'''
+then.findings = [{ path = 'src/outbound/analysis/types.rs', line = 8 }]
+
+[[scenarios]]
+id = 'a-port-that-only-keeps'
+scenario = 'A store port whose methods only keep and load, with the directory injected into its factory, is not reported.'
+given.files.'src/outbound/store/interface.rs' = '''
+//! What the `store` port asks of the outside.
+
+/// What every `store` adapter implements.
+pub trait StorePort: Send + Sync {
+    /// The definitions proven by an earlier run.
+    fn definitions(&self) -> Result<Definitions, StoreError>;
+    /// Keeps the definitions proven by this run.
+    fn keep_definitions(&self, definitions: &Definitions) -> Result<(), StoreError>;
+}
+'''
+
+[[scenarios]]
+id = 'a-factory-takes-the-store-and-whether-it-writes'
+scenario = 'The edge injects where, and whether, a cache is kept into the factory that builds the adapter, through a settings value of the domain; the port`s interface and types name none of it, and nothing is reported.'
+given.files.'src/domain/settings/types.rs' = '''
+//! The types of the `settings` concept.
+
+/// Where a project`s store is, the build that writes it, and whether it is written.
+pub struct Store {
+    /// The store`s directory.
+    pub directory: MachinePath,
+    /// Whether the store is written, or `-n/--dry-run` keeps it as it was.
+    pub writing: Writing,
+}
+'''
+given.files.'src/outbound/analysis/factory.rs' = '''
+//! Builds the analysis adapters.
+
+/// The ryo adapter, keeping its work where `store` says, or nowhere under `-n/--dry-run`.
+pub fn ryo_kept(languages: Languages, store: &Store) -> impl AnalysisPort {
+    AnalysisRyoAdapter::kept(languages, store)
+}
+'''
+given.files.'src/outbound/analysis/interface.rs' = '''
+//! What the `analysis` port asks of the outside.
+
+/// What every `analysis` adapter implements.
+pub trait AnalysisPort: Send + Sync {
+    /// The one lint call: every rule over the files it reads.
+    fn lint(&self, request: AnalysisRequest) -> Result<AnalysisReport, AnalysisError>;
+}
+'''

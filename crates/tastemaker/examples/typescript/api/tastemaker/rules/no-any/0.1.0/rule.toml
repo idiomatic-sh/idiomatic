@@ -1,0 +1,26 @@
+description = "Nothing is annotated `any`."
+why = "An `any` turns the type checker off for everything that value touches: a typo or a wrong shape is found at run time instead. Annotate the real type, or `unknown` and narrow it."
+
+query = '''
+let found = select * from "annotates" where annotation = "any";
+emit found subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "this is annotated `any`"
+help = "Annotate the type the value has, or `unknown` and narrow it where it is read."
+
+[given]
+include = ["**"]
+
+[[scenarios]]
+id = "any-parameter"
+scenario = "A parameter annotated `any` is reported."
+given.files."src/main.ts" = "export function f(x: any): number {\n  return 1;\n}\n"
+then.findings = [{ path = "src/main.ts", line = 1 }]
+
+[[scenarios]]
+id = "typed-parameter"
+scenario = "A parameter with a real type is not reported."
+given.files."src/main.ts" = "export function f(x: string): number {\n  return 1;\n}\n"

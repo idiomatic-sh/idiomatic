@@ -1,0 +1,27 @@
+# Written by Tastemaker: the packages this workspace resolved,
+# direct and transitive, and the definition releases it uses. Do not edit it by hand.
+version = 1
+dependencies = ["local"]
+
+[packages.local]
+path = "tastemaker"
+
+[packages.local.rules]
+duplicate-function-bodies = "0.1.0"
+independent-use-cases = "0.1.0"
+method-routing-patterns = "0.1.0"
+no-dot-imports = "0.1.0"
+no-framework-imports = "0.1.0"
+no-todo-comments = "0.1.0"
+readme-sections = "0.1.0"
+sorted-dependencies = "0.1.0"
+tests-for-sources = "0.1.0"
+too-many-parameters = "0.1.0"
+top-level-directories = "0.1.0"
+use-case-type-name = "0.1.0"
+
+[packages.local.specs]
+use-case = "0.1.0"
+
+[packages.local.templates]
+use-case = "0.1.0"

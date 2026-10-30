@@ -1,0 +1,31 @@
+description = "One item of a collection: its code."
+why = "Holds one item of a repeated domain concept in its own directory, so the item is found by its directory's name and its code sits beside its proof."
+content = '''
+//! One item of a collection.
+'''
+
+[given]
+file = 'src/greeting/collections/phrases/hello/item.rs'
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'src/greeting/collections/phrases/hello/item.rs' = '''
+//! One item of a collection.
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template.'
+given.files.'src/greeting/collections/phrases/hello/item.rs' = '''
+//! One item of a collection.
+
+// More.
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'item#count', path = 'tastemaker.toml' },
+]

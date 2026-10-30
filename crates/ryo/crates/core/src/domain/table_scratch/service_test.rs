@@ -1,0 +1,65 @@
+//! The `table_scratch` service's cases, on values alone.
+
+use ryo_language::domain::relations::types::{CellKind, KindBits};
+
+use super::service::{kind_has, trim_table};
+use super::types::{KindMask, KindSet};
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::table_model::types::{SetMembership, Table};
+
+/// A scenario: what a row asks of the part.
+type Input = fn() -> Result<Value, ()>;
+/// What a scenario answers: a yes as one.
+type Value = usize;
+/// This part has no failure of its own.
+type Failure = ();
+
+/// A table that grew past the room a worker keeps is given back what it grew past.
+fn a_big_table_is_trimmed() -> Value {
+    let mut table = Table {
+        kinds: vec![CellKind::Number],
+        ..Table::default()
+    };
+    table.cells.reserve(1 << 20);
+    let before = table.cells.capacity();
+    trim_table(&mut table);
+    usize::from(before >= 1 << 20 && table.cells.capacity() < before)
+}
+
+/// A kind is in a set when its bit is, and a kind beyond the set is out.
+fn a_kind_is_in_the_set_by_its_bit() -> Value {
+    let set = KindSet {
+        bits: KindMask(vec![0b100]),
+        kinds: vec![KindBits(2)],
+    };
+    usize::from(
+        kind_has(&set, KindBits(2)) == SetMembership::In
+            && kind_has(&set, KindBits(3)) == SetMembership::Out
+            && kind_has(&set, KindBits(130)) == SetMembership::Out,
+    )
+}
+
+/// The rows of this part's cases.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("a_table_grown_past_the_room_is_trimmed"),
+        word: Word::Succeeds,
+        input: || || Ok(a_big_table_is_trimmed()),
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("a_kind_is_in_the_set_by_its_bit"),
+        word: Word::Succeeds,
+        input: || || Ok(a_kind_is_in_the_set_by_its_bit()),
+        expect: Expect::Value(1),
+    },
+];
+
+fn subject(scenario: Input) -> Result<Value, Failure> {
+    scenario()
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}

@@ -1,0 +1,207 @@
+# What `tm check` reports on this sample, one finding per row of the Tastemaker README's table, and the fix of each row:
+# the tests apply a row's edits, see its finding go and nothing else change, then restore the files and see it back; with
+# every row applied, the sample type-checks and its own tests pass. A finding's path is from this directory; a row names
+# its finding by rule and path. An edit replaces the one occurrence of `find` in `path` with `replace`; an edit with no
+# `find` writes `replace` as a new file, and an edit with `delete = true` removes the file.
+
+# The commands that build the sample with every row fixed and run its own tests, in order, from its directory.
+commands = [["npm", "install", "--no-audit", "--no-fund", "--loglevel=error"], ["npx", "tsc", "--noEmit"], ["npx", "vitest", "run"]]
+
+[[rows]]
+row = "Lock directory structure"
+rule = "local/top-level-directories"
+path = "scripts/seed.ts"
+edits = [{ path = "tastemaker.toml", find = '"src/**",', replace = '"src/**", "scripts/**",' }]
+
+[[rows]]
+row = "Consistent file names"
+rule = "local/use-case#count"
+path = "src/inbound/use_cases/archive_todo"
+edits = [
+  { path = "src/inbound/use_cases/archive_todo/archive.ts", delete = true },
+  { path = "src/inbound/use_cases/archive_todo/use_case.ts", replace = """
+/** The operation of this use case, run with the ports it takes. */
+export class ArchiveTodoUseCase {
+  async run(id: number): Promise<number> {
+    return id;
+  }
+}
+""" },
+  { path = "tests/inbound/use_cases/archive_todo/archive.test.ts", delete = true },
+  { path = "tests/inbound/use_cases/archive_todo/use_case.test.ts", replace = """
+import { expect, test } from "vitest";
+import { ArchiveTodoUseCase } from "../../../../src/inbound/use_cases/archive_todo/use_case";
+
+test("archiving answers the id archived", async () => {
+  expect(await new ArchiveTodoUseCase().run(3)).toBe(3);
+});
+""" },
+]
+
+[[rows]]
+row = "Naming convention"
+rule = "local/use-case-class-name"
+path = "src/inbound/use_cases/list_todos/use_case.ts"
+edits = [
+  { path = "src/inbound/use_cases/list_todos/use_case.ts", find = "export class Lister {", replace = "export class ListTodosUseCase {" },
+  { path = "src/inbound/use_cases/create_todo/use_case.ts", find = 'import { Lister } from "../list_todos/use_case";', replace = 'import { ListTodosUseCase } from "../list_todos/use_case";' },
+  { path = "src/inbound/use_cases/create_todo/use_case.ts", find = "new Lister(this.store)", replace = "new ListTodosUseCase(this.store)" },
+  { path = "src/routes/todos/routes.ts", find = 'import { Lister } from "../../inbound/use_cases/list_todos/use_case";', replace = 'import { ListTodosUseCase } from "../../inbound/use_cases/list_todos/use_case";' },
+  { path = "src/routes/todos/routes.ts", find = "new Lister(store)", replace = "new ListTodosUseCase(store)" },
+  { path = "tests/inbound/use_cases/list_todos/use_case.test.ts", find = 'import { Lister } from', replace = 'import { ListTodosUseCase } from' },
+  { path = "tests/inbound/use_cases/list_todos/use_case.test.ts", find = "new Lister(store)", replace = "new ListTodosUseCase(store)" },
+]
+
+[[rows]]
+row = "Import direction"
+rule = "local/no-framework-imports"
+path = "src/inbound/use_cases/complete_todo/use_case.ts"
+line = 2
+edits = [
+  { path = "src/inbound/use_cases/complete_todo/use_case.ts", find = "import { HTTPException } from \"hono/http-exception\";\n", replace = "" },
+  { path = "src/inbound/use_cases/complete_todo/use_case.ts", find = """
+  async run(id: number): Promise<Todo> {
+    const done = await this.store.complete(id);
+    if (done === undefined) {
+      throw new HTTPException(404, { message: "no such todo" });
+    }
+    return done;
+  }""", replace = """
+  async run(id: number): Promise<Todo | undefined> {
+    return this.store.complete(id);
+  }""" },
+  { path = "src/routes/todos/routes.ts", find = """routes.post("/:id/done", async (c) => c.json(await new CompleteTodoUseCase(store).run(Number(c.req.param("id")))));""", replace = """routes.post("/:id/done", async (c) => { const done = await new CompleteTodoUseCase(store).run(Number(c.req.param("id"))); return done === undefined ? c.json({ message: "no such todo" }, 404) : c.json(done); });""" },
+]
+
+[[rows]]
+row = "Required tests"
+rule = "local/tests-for-sources"
+path = "src/domain/user/types.ts"
+edits = [{ path = "tests/domain/user/types.test.ts", replace = """
+import { expect, test } from "vitest";
+import type { User } from "../../../src/domain/user/types";
+
+test("a user keeps its id and name", () => {
+  const user: User = { id: 7, name: "Ann" };
+  expect([user.id, user.name]).toEqual([7, "Ann"]);
+});
+""" }]
+
+[[rows]]
+row = "Framework conventions"
+rule = "local/async-handlers"
+path = "src/routes/todos/routes.ts"
+line = 21
+edits = [{ path = "src/routes/todos/routes.ts", find = 'routes.get("/count", (c) =>', replace = 'routes.get("/count", async (c) =>' }]
+
+[[rows]]
+row = "Complexity limits"
+rule = "local/too-many-parameters"
+path = "src/domain/todo/titles.ts"
+line = 8
+edits = [
+  { path = "src/domain/todo/titles.ts", find = ", due: string, tag: string): string {", replace = ", due: string): string {" },
+  { path = "src/domain/todo/titles.ts", find = "owner, due, tag].join", replace = "owner, due].join" },
+  { path = "tests/domain/todo/titles.test.ts", find = 'describeTodo("Buy milk", true, "ann", "monday", "home")', replace = 'describeTodo("Buy milk", true, "ann", "monday")' },
+]
+
+[[rows]]
+row = "Dependency graph"
+rule = "local/use-case-import-cycles"
+path = "src/inbound/use_cases/create_todo/use_case.ts"
+line = 2
+edits = [
+  { path = "src/inbound/use_cases/list_todos/use_case.ts", find = "import { CreateTodoUseCase } from \"../create_todo/use_case\";\n", replace = "" },
+  { path = "src/inbound/use_cases/list_todos/use_case.ts", find = """
+
+  creator(): CreateTodoUseCase {
+    return new CreateTodoUseCase(this.store);
+  }""", replace = "" },
+]
+
+[[rows]]
+row = "Banned patterns"
+rule = "local/no-todo-comments"
+path = "src/main.ts"
+line = 5
+edits = [{ path = "src/main.ts", find = "// TODO: read the port from the environment (planted: Banned patterns)", replace = "// The port the server listens on." }]
+
+[[rows]]
+row = "Duplicate code"
+rule = "local/duplicate-function-bodies"
+path = "src/domain/todo/titles.ts"
+line = 1
+edits = [
+  { path = "src/inbound/use_cases/create_todo/use_case.ts", find = """
+// planted: Duplicate code (a copy of normaliseTitle)
+function normaliseTitle(title: string): string {
+  const trimmed = title.trim();
+  const single = trimmed.replace(/\\s+/g, " ");
+  return single.charAt(0).toUpperCase() + single.slice(1);
+}
+
+""", replace = "" },
+  { path = "src/inbound/use_cases/create_todo/use_case.ts", find = 'import type { TodoStore } from "../../../domain/todo/ports";', replace = """import type { TodoStore } from "../../../domain/todo/ports";
+import { normaliseTitle } from "../../../domain/todo/titles";""" },
+]
+
+[[rows]]
+row = "Idiomatic code"
+rule = "local/no-any"
+path = "src/main.ts"
+line = 8
+edits = [{ path = "src/main.ts", find = "label: any", replace = "label: string" }]
+
+[[rows]]
+row = "JSON: strict compiler options"
+rule = "local/strict-compiler-options"
+path = "tsconfig.json"
+line = 2
+edits = [{ path = "tsconfig.json", find = '"strict": false,', replace = '"strict": true,' }]
+
+[[rows]]
+row = "JSON: dependencies pinned"
+rule = "local/pinned-dependencies"
+path = "package.json"
+line = 19
+edits = [{ path = "package.json", find = '"vitest": "^4.1.12"', replace = '"vitest": "4.1.12"' }]
+
+[[rows]]
+row = "JSON: dependencies in order"
+rule = "local/sorted-dependencies"
+path = "package.json"
+line = 18
+edits = [{ path = "package.json", find = "    \"typescript\": \"5.7.2\",\n    \"tsx\": \"4.23.15\",\n", replace = "    \"tsx\": \"4.23.15\",\n    \"typescript\": \"5.7.2\",\n" }]
+
+[[rows]]
+row = "JSON: name and description"
+rule = "local/package-identity"
+path = "package.json"
+line = 1
+edits = [{ path = "package.json", find = '"description": "",', replace = '"description": "A small todo API on Hono.",' }]
+
+[[rows]]
+row = "Markdown: README sections"
+rule = "local/readme-sections"
+path = "README.md"
+edits = [{ path = "README.md", find = """
+## Development
+
+Run the tests with `npm test`, and Tastemaker with `tm validate && tm check`.
+
+## Usage
+
+```sh
+npm run dev
+```
+""", replace = """
+## Usage
+
+```sh
+npm run dev
+```
+
+## Development
+
+Run the tests with `npm test`, and Tastemaker with `tm validate && tm check`.
+""" }]

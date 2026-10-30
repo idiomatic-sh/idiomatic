@@ -1,0 +1,8 @@
+version = 1
+parents = ["9708649a12d8f62c4141154cd75918c67cac05abaee7e62cdc8e6d0c2c05bac3"]
+
+suppressed = [
+  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "cli/src/timings.rs", level = "warning", fingerprint = "b38a6c348fd3539f", count = 1, message = "`crates/asymptote/cli/src/timings.rs` has 415 lines, over the file-length limit", since_rev = "5149cd075d081e5047e9ff034eeb58cdfa8046ce", since = "2026-10-28" },
+  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/core/src/outbound/sarif/adapters/serde_sarif/schemas.rs", level = "warning", fingerprint = "b38a6c348fd3539f", count = 1, message = "`crates/asymptote/crates/core/src/outbound/sarif/adapters/serde_sarif/schemas.rs` has 415 lines, over the file-length limit", since_rev = "5149cd075d081e5047e9ff034eeb58cdfa8046ce", since = "2026-10-28" },
+  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "cli/src/resources/ratchet/check/schemas_test.rs", level = "warning", fingerprint = "b38a6c348fd3539f", count = 1, message = "`crates/asymptote/cli/src/resources/ratchet/check/schemas_test.rs` has 491 lines, over the file-length limit", since_rev = "5149cd075d081e5047e9ff034eeb58cdfa8046ce", since = "2026-10-28" },
+]

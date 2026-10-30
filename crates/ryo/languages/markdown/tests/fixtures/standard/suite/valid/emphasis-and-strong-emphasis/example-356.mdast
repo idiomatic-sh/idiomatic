@@ -1,0 +1,6 @@
+root[1]
+└─0 paragraph[3]
+    ├─0 text "5"
+    ├─1 emphasis[1]
+    │   └─0 text "6"
+    └─2 text "78"

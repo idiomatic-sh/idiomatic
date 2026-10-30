@@ -1,0 +1,33 @@
+description = "One value with behaviour: its declaration and its hand-written impls, trait impls included."
+why = "A value is a design primitive filed in its concept's directory: `types/<value>/value.rs` keeps the value with the trait code it owns, pure, with no IO, port access, factory or wiring."
+content = '''
+//! One value: its declaration and its hand-written impls, trait impls included.
+'''
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.file = 'src/greeting/types/{value}/value.rs'
+given.files.'src/greeting/types/greeting/value.rs' = '''
+//! The `Greeting` value: its declaration and its hand-written trait impls.
+
+use std::fmt::Display;
+
+/// A greeting's text.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Greeting(pub(crate) String);
+
+impl Display for Greeting {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+given.file = 'src/greeting/types/greeting/value.rs'
+then.findings = [
+  { rule = 'value#count', path = 'tastemaker.toml' },
+]

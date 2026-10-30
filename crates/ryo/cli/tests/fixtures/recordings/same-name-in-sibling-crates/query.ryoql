@@ -1,0 +1,16 @@
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let types = select * from "defines" where glob_any(kind, "{struct,enum,trait}");
+let names = select * from tree-nodes where kind = "name";
+let type-names = select l."kind" as "kind", l."name" as "name", r."id" as "node", l."file" as "file", l."span" as "span" from types as l join names as r on l."file" = r."file" and l."span" = r."span";
+let type-items = select r."parent" as "item", l."kind" as "kind", l."name" as "name", l."file" as "file", l."span" as "span" from type-names as l join "syntax-child" as r on l."node" = r."child";
+let visibilities = select * from tree-nodes where kind = "visibility";
+let restrictions = select * from tree-nodes where kind = "visibility-inner";
+let restricted = select l."parent" as "id" from "syntax-child" as l join restrictions as r on l."child" = r."id";
+let public = antijoin(left=visibilities, right=restricted, left-on=["id"], right-on=["id"]);
+let public-owners = select l."parent" as "item" from "syntax-child" as l join public as r on l."child" = r."id";
+let public-types = select l."kind" as "kind", l."name" as "name", l."file" as "file", l."span" as "span" from type-items as l join public-owners as r on l."item" = r."item";
+let crate-types = capture(from=public-types, path="file", pattern="{*parent}/{crate}/src/{*rest}", captures=["parent", "crate", "rest"]);
+let sibling-crates = group-count(from=crate-types, keys=["parent", "name"], count="crates", distinct="crate");
+let shared = select * from sibling-crates where crates >= 2;
+let redeclared = select r."crates" as "crates", l."kind" as "kind", l."name" as "name", l."parent" as "parent", l."file" as "file", l."span" as "span" from crate-types as l join shared as r on l."parent" = r."parent" and l."name" = r."name";
+emit redeclared subject "file" key("span");

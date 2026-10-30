@@ -1,0 +1,573 @@
+description = "The compile-fail runner runs the pass cases and the compile-fail cases under tests/ui, directly."
+why = "Cargo owns test targets and trybuild owns compilation and diagnostics. The macro spec places each compile-fail case at tests/ui/fail_{case}.rs and the hostile-scope case at tests/ui/pass_hostile_scope.rs; this rule rejects a runner that is skipped, conditional, disconnected or pointed elsewhere."
+
+query = '''
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let files = select * from tree-nodes where kind = "source-file";
+let functions = select * from tree-nodes where kind = "fn";
+let names = select * from tree-nodes where kind = "name";
+let identifiers = select * from tree-tokens where kind = "ident";
+let main-identifiers = select * from identifiers where text = "ui";
+let main-name-edges = select l."parent" as "parent" from "syntax-child" as l join main-identifiers as r on l."child" = r."id";
+let main-names = select l."id" as "id" from names as l join main-name-edges as r on l."id" = r."parent";
+let main-function-edges = select l."parent" as "parent" from "syntax-child" as l join main-names as r on l."child" = r."id";
+let named-functions = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from functions as l join main-function-edges as r on l."id" = r."parent";
+let root-edges = select l."child" as "child" from "syntax-child" as l join files as r on l."parent" = r."id";
+let main-roots = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from named-functions as l join root-edges as r on l."id" = r."child";
+let kind-fn-nodes = select * from tree-nodes where kind = "fn";
+let whitespace = select * from tree-tokens where kind = "whitespace";
+let comments = select * from tree-tokens where kind = "comment";
+let trivia = union(left=whitespace, right=comments);
+let meaningful-edges = antijoin(left="syntax-child", right=trivia, left-on=["child"], right-on=["id"]);
+let main-descendants = axis(from=main-roots, relation="syntax-child", direction=descendant, domain=tree-nodes);
+let descendant-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from tree-nodes as l join main-descendants as r on l."id" = r."related";
+let main-domain = union(left=main-roots, right=descendant-nodes);
+let main-edges = select l."child" as "child", l."ordinal" as "ordinal", l."parent" as "parent" from meaningful-edges as l join main-domain as r on l."parent" = r."id";
+let child-counts = group-count(from=main-edges, keys=["parent"], count="children");
+let arity-5 = select * from child-counts where children = 5;
+let shape-fn-5 = select l."id" as "id" from kind-fn-nodes as l join arity-5 as r on l."id" = r."parent";
+let sibling-pairs = select r."ordinal" as "before", l."child" as "child", l."ordinal" as "ordinal", l."parent" as "parent" from main-edges as l join main-edges as r on l."parent" = r."parent";
+let predecessors = select * from sibling-pairs where before < ordinal;
+let child-ranks = group-count(from=predecessors, keys=["parent", "child"], count="rank");
+let first-children = antijoin(left=main-edges, right=child-ranks, left-on=["parent", "child"], right-on=["parent", "child"]);
+let kind-attr-nodes = select * from tree-nodes where kind = "attr";
+let arity-4 = select * from child-counts where children = 4;
+let shape-attr-4 = select l."id" as "id" from kind-attr-nodes as l join arity-4 as r on l."id" = r."parent";
+let kind-pound-tokens = select * from tree-tokens where kind = "pound";
+let pound = project(from=kind-pound-tokens, columns=["id"]);
+let test-attribute-child-0 = select l."parent" as "parent" from first-children as l join pound as r on l."child" = r."id";
+let test-attribute-owns-0 = select l."id" as "id" from shape-attr-4 as l join test-attribute-child-0 as r on l."id" = r."parent";
+let position-1 = select * from child-ranks where rank = 1;
+let kind-l-brack-tokens = select * from tree-tokens where kind = "l-brack";
+let lbracket = project(from=kind-l-brack-tokens, columns=["id"]);
+let test-attribute-child-1 = select l."parent" as "parent" from position-1 as l join lbracket as r on l."child" = r."id";
+let test-attribute-owns-1 = select l."id" as "id" from test-attribute-owns-0 as l join test-attribute-child-1 as r on l."id" = r."parent";
+let position-2 = select * from child-ranks where rank = 2;
+let kind-path-meta-nodes = select * from tree-nodes where kind = "path-meta";
+let arity-1 = select * from child-counts where children = 1;
+let shape-path-meta-1 = select l."id" as "id" from kind-path-meta-nodes as l join arity-1 as r on l."id" = r."parent";
+let kind-path-nodes = select * from tree-nodes where kind = "path";
+let shape-path-1 = select l."id" as "id" from kind-path-nodes as l join arity-1 as r on l."id" = r."parent";
+let kind-path-segment-nodes = select * from tree-nodes where kind = "path-segment";
+let shape-path-segment-1 = select l."id" as "id" from kind-path-segment-nodes as l join arity-1 as r on l."id" = r."parent";
+let kind-name-ref-nodes = select * from tree-nodes where kind = "name-ref";
+let shape-name-ref-1 = select l."id" as "id" from kind-name-ref-nodes as l join arity-1 as r on l."id" = r."parent";
+let kind-ident-tokens = select * from tree-tokens where kind = "ident";
+let test-text = select * from kind-ident-tokens where text = "test";
+let test = project(from=test-text, columns=["id"]);
+let test-ref-child-0 = select l."parent" as "parent" from first-children as l join test as r on l."child" = r."id";
+let test-ref-owns-0 = select l."id" as "id" from shape-name-ref-1 as l join test-ref-child-0 as r on l."id" = r."parent";
+let test-segment-child-0 = select l."parent" as "parent" from first-children as l join test-ref-owns-0 as r on l."child" = r."id";
+let test-segment-owns-0 = select l."id" as "id" from shape-path-segment-1 as l join test-segment-child-0 as r on l."id" = r."parent";
+let test-path-child-0 = select l."parent" as "parent" from first-children as l join test-segment-owns-0 as r on l."child" = r."id";
+let test-path-owns-0 = select l."id" as "id" from shape-path-1 as l join test-path-child-0 as r on l."id" = r."parent";
+let test-metadata-child-0 = select l."parent" as "parent" from first-children as l join test-path-owns-0 as r on l."child" = r."id";
+let test-metadata-owns-0 = select l."id" as "id" from shape-path-meta-1 as l join test-metadata-child-0 as r on l."id" = r."parent";
+let test-attribute-child-2 = select l."parent" as "parent" from position-2 as l join test-metadata-owns-0 as r on l."child" = r."id";
+let test-attribute-owns-2 = select l."id" as "id" from test-attribute-owns-1 as l join test-attribute-child-2 as r on l."id" = r."parent";
+let position-3 = select * from child-ranks where rank = 3;
+let kind-r-brack-tokens = select * from tree-tokens where kind = "r-brack";
+let rbracket = project(from=kind-r-brack-tokens, columns=["id"]);
+let test-attribute-child-3 = select l."parent" as "parent" from position-3 as l join rbracket as r on l."child" = r."id";
+let test-attribute-owns-3 = select l."id" as "id" from test-attribute-owns-2 as l join test-attribute-child-3 as r on l."id" = r."parent";
+let ui-function-child-0 = select l."parent" as "parent" from first-children as l join test-attribute-owns-3 as r on l."child" = r."id";
+let ui-function-owns-0 = select l."id" as "id" from shape-fn-5 as l join ui-function-child-0 as r on l."id" = r."parent";
+let kind-fn-kw-tokens = select * from tree-tokens where kind = "fn-kw";
+let fn = project(from=kind-fn-kw-tokens, columns=["id"]);
+let ui-function-child-1 = select l."parent" as "parent" from position-1 as l join fn as r on l."child" = r."id";
+let ui-function-owns-1 = select l."id" as "id" from ui-function-owns-0 as l join ui-function-child-1 as r on l."id" = r."parent";
+let kind-name-nodes = select * from tree-nodes where kind = "name";
+let shape-name-1 = select l."id" as "id" from kind-name-nodes as l join arity-1 as r on l."id" = r."parent";
+let ui-text = select * from kind-ident-tokens where text = "ui";
+let ui = project(from=ui-text, columns=["id"]);
+let ui-ref-child-0 = select l."parent" as "parent" from first-children as l join ui as r on l."child" = r."id";
+let ui-name-owns-0 = select l."id" as "id" from shape-name-1 as l join ui-ref-child-0 as r on l."id" = r."parent";
+let ui-function-child-2 = select l."parent" as "parent" from position-2 as l join ui-name-owns-0 as r on l."child" = r."id";
+let ui-function-owns-2 = select l."id" as "id" from ui-function-owns-1 as l join ui-function-child-2 as r on l."id" = r."parent";
+let kind-param-list-nodes = select * from tree-nodes where kind = "param-list";
+let arity-2 = select * from child-counts where children = 2;
+let shape-param-list-2 = select l."id" as "id" from kind-param-list-nodes as l join arity-2 as r on l."id" = r."parent";
+let kind-l-paren-tokens = select * from tree-tokens where kind = "l-paren";
+let lparen = project(from=kind-l-paren-tokens, columns=["id"]);
+let empty-arguments-child-0 = select l."parent" as "parent" from first-children as l join lparen as r on l."child" = r."id";
+let ui-parameters-owns-0 = select l."id" as "id" from shape-param-list-2 as l join empty-arguments-child-0 as r on l."id" = r."parent";
+let kind-r-paren-tokens = select * from tree-tokens where kind = "r-paren";
+let rparen = project(from=kind-r-paren-tokens, columns=["id"]);
+let empty-arguments-child-1 = select l."parent" as "parent" from position-1 as l join rparen as r on l."child" = r."id";
+let ui-parameters-owns-1 = select l."id" as "id" from ui-parameters-owns-0 as l join empty-arguments-child-1 as r on l."id" = r."parent";
+let ui-function-child-3 = select l."parent" as "parent" from position-3 as l join ui-parameters-owns-1 as r on l."child" = r."id";
+let ui-function-owns-3 = select l."id" as "id" from ui-function-owns-2 as l join ui-function-child-3 as r on l."id" = r."parent";
+let position-4 = select * from child-ranks where rank = 4;
+let kind-block-expr-nodes = select * from tree-nodes where kind = "block-expr";
+let shape-block-expr-1 = select l."id" as "id" from kind-block-expr-nodes as l join arity-1 as r on l."id" = r."parent";
+let kind-stmt-list-nodes = select * from tree-nodes where kind = "stmt-list";
+let shape-stmt-list-5 = select l."id" as "id" from kind-stmt-list-nodes as l join arity-5 as r on l."id" = r."parent";
+let kind-l-curly-tokens = select * from tree-tokens where kind = "l-curly";
+let lbrace = project(from=kind-l-curly-tokens, columns=["id"]);
+let ui-statements-child-0 = select l."parent" as "parent" from first-children as l join lbrace as r on l."child" = r."id";
+let ui-statements-owns-0 = select l."id" as "id" from shape-stmt-list-5 as l join ui-statements-child-0 as r on l."id" = r."parent";
+let kind-let-stmt-nodes = select * from tree-nodes where kind = "let-stmt";
+let shape-let-stmt-5 = select l."id" as "id" from kind-let-stmt-nodes as l join arity-5 as r on l."id" = r."parent";
+let kind-let-kw-tokens = select * from tree-tokens where kind = "let-kw";
+let let = project(from=kind-let-kw-tokens, columns=["id"]);
+let cases-binding-child-0 = select l."parent" as "parent" from first-children as l join let as r on l."child" = r."id";
+let cases-binding-owns-0 = select l."id" as "id" from shape-let-stmt-5 as l join cases-binding-child-0 as r on l."id" = r."parent";
+let kind-ident-pat-nodes = select * from tree-nodes where kind = "ident-pat";
+let shape-ident-pat-1 = select l."id" as "id" from kind-ident-pat-nodes as l join arity-1 as r on l."id" = r."parent";
+let cases-text = select * from kind-ident-tokens where text = "cases";
+let cases = project(from=cases-text, columns=["id"]);
+let cases-ref-child-0 = select l."parent" as "parent" from first-children as l join cases as r on l."child" = r."id";
+let cases-name-owns-0 = select l."id" as "id" from shape-name-1 as l join cases-ref-child-0 as r on l."id" = r."parent";
+let cases-pattern-child-0 = select l."parent" as "parent" from first-children as l join cases-name-owns-0 as r on l."child" = r."id";
+let cases-pattern-owns-0 = select l."id" as "id" from shape-ident-pat-1 as l join cases-pattern-child-0 as r on l."id" = r."parent";
+let cases-binding-child-1 = select l."parent" as "parent" from position-1 as l join cases-pattern-owns-0 as r on l."child" = r."id";
+let cases-binding-owns-1 = select l."id" as "id" from cases-binding-owns-0 as l join cases-binding-child-1 as r on l."id" = r."parent";
+let kind-eq-tokens = select * from tree-tokens where kind = "eq";
+let eq = project(from=kind-eq-tokens, columns=["id"]);
+let cases-binding-child-2 = select l."parent" as "parent" from position-2 as l join eq as r on l."child" = r."id";
+let cases-binding-owns-2 = select l."id" as "id" from cases-binding-owns-1 as l join cases-binding-child-2 as r on l."id" = r."parent";
+let kind-call-expr-nodes = select * from tree-nodes where kind = "call-expr";
+let shape-call-expr-2 = select l."id" as "id" from kind-call-expr-nodes as l join arity-2 as r on l."id" = r."parent";
+let kind-path-expr-nodes = select * from tree-nodes where kind = "path-expr";
+let shape-path-expr-1 = select l."id" as "id" from kind-path-expr-nodes as l join arity-1 as r on l."id" = r."parent";
+let arity-3 = select * from child-counts where children = 3;
+let shape-path-3 = select l."id" as "id" from kind-path-nodes as l join arity-3 as r on l."id" = r."parent";
+let shape-path-segment-2 = select l."id" as "id" from kind-path-segment-nodes as l join arity-2 as r on l."id" = r."parent";
+let kind-colon2-tokens = select * from tree-tokens where kind = "colon2";
+let colon2 = project(from=kind-colon2-tokens, columns=["id"]);
+let absolute-trybuild-segment-child-0 = select l."parent" as "parent" from first-children as l join colon2 as r on l."child" = r."id";
+let absolute-trybuild-segment-owns-0 = select l."id" as "id" from shape-path-segment-2 as l join absolute-trybuild-segment-child-0 as r on l."id" = r."parent";
+let trybuild-text = select * from kind-ident-tokens where text = "trybuild";
+let trybuild = project(from=trybuild-text, columns=["id"]);
+let trybuild-ref-child-0 = select l."parent" as "parent" from first-children as l join trybuild as r on l."child" = r."id";
+let trybuild-ref-owns-0 = select l."id" as "id" from shape-name-ref-1 as l join trybuild-ref-child-0 as r on l."id" = r."parent";
+let absolute-trybuild-segment-child-1 = select l."parent" as "parent" from position-1 as l join trybuild-ref-owns-0 as r on l."child" = r."id";
+let absolute-trybuild-segment-owns-1 = select l."id" as "id" from absolute-trybuild-segment-owns-0 as l join absolute-trybuild-segment-child-1 as r on l."id" = r."parent";
+let trybuild-path-child-0 = select l."parent" as "parent" from first-children as l join absolute-trybuild-segment-owns-1 as r on l."child" = r."id";
+let trybuild-path-owns-0 = select l."id" as "id" from shape-path-1 as l join trybuild-path-child-0 as r on l."id" = r."parent";
+let test-cases-path-child-0 = select l."parent" as "parent" from first-children as l join trybuild-path-owns-0 as r on l."child" = r."id";
+let test-cases-path-owns-0 = select l."id" as "id" from shape-path-3 as l join test-cases-path-child-0 as r on l."id" = r."parent";
+let test-cases-path-child-1 = select l."parent" as "parent" from position-1 as l join colon2 as r on l."child" = r."id";
+let test-cases-path-owns-1 = select l."id" as "id" from test-cases-path-owns-0 as l join test-cases-path-child-1 as r on l."id" = r."parent";
+let test-cases-text = select * from kind-ident-tokens where text = "TestCases";
+let test-cases = project(from=test-cases-text, columns=["id"]);
+let test-cases-ref-child-0 = select l."parent" as "parent" from first-children as l join test-cases as r on l."child" = r."id";
+let test-cases-ref-owns-0 = select l."id" as "id" from shape-name-ref-1 as l join test-cases-ref-child-0 as r on l."id" = r."parent";
+let test-cases-segment-child-0 = select l."parent" as "parent" from first-children as l join test-cases-ref-owns-0 as r on l."child" = r."id";
+let test-cases-segment-owns-0 = select l."id" as "id" from shape-path-segment-1 as l join test-cases-segment-child-0 as r on l."id" = r."parent";
+let test-cases-path-child-2 = select l."parent" as "parent" from position-2 as l join test-cases-segment-owns-0 as r on l."child" = r."id";
+let test-cases-path-owns-2 = select l."id" as "id" from test-cases-path-owns-1 as l join test-cases-path-child-2 as r on l."id" = r."parent";
+let new-path-child-0 = select l."parent" as "parent" from first-children as l join test-cases-path-owns-2 as r on l."child" = r."id";
+let new-path-owns-0 = select l."id" as "id" from shape-path-3 as l join new-path-child-0 as r on l."id" = r."parent";
+let new-path-owns-1 = select l."id" as "id" from new-path-owns-0 as l join test-cases-path-child-1 as r on l."id" = r."parent";
+let new-text = select * from kind-ident-tokens where text = "new";
+let new = project(from=new-text, columns=["id"]);
+let new-ref-child-0 = select l."parent" as "parent" from first-children as l join new as r on l."child" = r."id";
+let new-ref-owns-0 = select l."id" as "id" from shape-name-ref-1 as l join new-ref-child-0 as r on l."id" = r."parent";
+let new-segment-child-0 = select l."parent" as "parent" from first-children as l join new-ref-owns-0 as r on l."child" = r."id";
+let new-segment-owns-0 = select l."id" as "id" from shape-path-segment-1 as l join new-segment-child-0 as r on l."id" = r."parent";
+let new-path-child-2 = select l."parent" as "parent" from position-2 as l join new-segment-owns-0 as r on l."child" = r."id";
+let new-path-owns-2 = select l."id" as "id" from new-path-owns-1 as l join new-path-child-2 as r on l."id" = r."parent";
+let constructor-child-0 = select l."parent" as "parent" from first-children as l join new-path-owns-2 as r on l."child" = r."id";
+let constructor-owns-0 = select l."id" as "id" from shape-path-expr-1 as l join constructor-child-0 as r on l."id" = r."parent";
+let construct-cases-child-0 = select l."parent" as "parent" from first-children as l join constructor-owns-0 as r on l."child" = r."id";
+let construct-cases-owns-0 = select l."id" as "id" from shape-call-expr-2 as l join construct-cases-child-0 as r on l."id" = r."parent";
+let kind-arg-list-nodes = select * from tree-nodes where kind = "arg-list";
+let shape-arg-list-2 = select l."id" as "id" from kind-arg-list-nodes as l join arity-2 as r on l."id" = r."parent";
+let empty-arguments-owns-0 = select l."id" as "id" from shape-arg-list-2 as l join empty-arguments-child-0 as r on l."id" = r."parent";
+let empty-arguments-owns-1 = select l."id" as "id" from empty-arguments-owns-0 as l join empty-arguments-child-1 as r on l."id" = r."parent";
+let construct-cases-child-1 = select l."parent" as "parent" from position-1 as l join empty-arguments-owns-1 as r on l."child" = r."id";
+let construct-cases-owns-1 = select l."id" as "id" from construct-cases-owns-0 as l join construct-cases-child-1 as r on l."id" = r."parent";
+let cases-binding-child-3 = select l."parent" as "parent" from position-3 as l join construct-cases-owns-1 as r on l."child" = r."id";
+let cases-binding-owns-3 = select l."id" as "id" from cases-binding-owns-2 as l join cases-binding-child-3 as r on l."id" = r."parent";
+let kind-semicolon-tokens = select * from tree-tokens where kind = "semicolon";
+let semicolon = project(from=kind-semicolon-tokens, columns=["id"]);
+let cases-binding-child-4 = select l."parent" as "parent" from position-4 as l join semicolon as r on l."child" = r."id";
+let cases-binding-owns-4 = select l."id" as "id" from cases-binding-owns-3 as l join cases-binding-child-4 as r on l."id" = r."parent";
+let ui-statements-child-1 = select l."parent" as "parent" from position-1 as l join cases-binding-owns-4 as r on l."child" = r."id";
+let ui-statements-owns-1 = select l."id" as "id" from ui-statements-owns-0 as l join ui-statements-child-1 as r on l."id" = r."parent";
+let kind-expr-stmt-nodes = select * from tree-nodes where kind = "expr-stmt";
+let shape-expr-stmt-2 = select l."id" as "id" from kind-expr-stmt-nodes as l join arity-2 as r on l."id" = r."parent";
+let kind-method-call-expr-nodes = select * from tree-nodes where kind = "method-call-expr";
+let shape-method-call-expr-4 = select l."id" as "id" from kind-method-call-expr-nodes as l join arity-4 as r on l."id" = r."parent";
+let cases-ref-owns-0 = select l."id" as "id" from shape-name-ref-1 as l join cases-ref-child-0 as r on l."id" = r."parent";
+let cases-segment-child-0 = select l."parent" as "parent" from first-children as l join cases-ref-owns-0 as r on l."child" = r."id";
+let cases-segment-owns-0 = select l."id" as "id" from shape-path-segment-1 as l join cases-segment-child-0 as r on l."id" = r."parent";
+let cases-path-child-0 = select l."parent" as "parent" from first-children as l join cases-segment-owns-0 as r on l."child" = r."id";
+let cases-path-owns-0 = select l."id" as "id" from shape-path-1 as l join cases-path-child-0 as r on l."id" = r."parent";
+let cases-expression-child-0 = select l."parent" as "parent" from first-children as l join cases-path-owns-0 as r on l."child" = r."id";
+let cases-expression-owns-0 = select l."id" as "id" from shape-path-expr-1 as l join cases-expression-child-0 as r on l."id" = r."parent";
+let pass-call-child-0 = select l."parent" as "parent" from first-children as l join cases-expression-owns-0 as r on l."child" = r."id";
+let pass-call-owns-0 = select l."id" as "id" from shape-method-call-expr-4 as l join pass-call-child-0 as r on l."id" = r."parent";
+let kind-dot-tokens = select * from tree-tokens where kind = "dot";
+let dot = project(from=kind-dot-tokens, columns=["id"]);
+let pass-call-child-1 = select l."parent" as "parent" from position-1 as l join dot as r on l."child" = r."id";
+let pass-call-owns-1 = select l."id" as "id" from pass-call-owns-0 as l join pass-call-child-1 as r on l."id" = r."parent";
+let pass-text = select * from kind-ident-tokens where text = "pass";
+let pass = project(from=pass-text, columns=["id"]);
+let pass-ref-child-0 = select l."parent" as "parent" from first-children as l join pass as r on l."child" = r."id";
+let pass-ref-owns-0 = select l."id" as "id" from shape-name-ref-1 as l join pass-ref-child-0 as r on l."id" = r."parent";
+let pass-call-child-2 = select l."parent" as "parent" from position-2 as l join pass-ref-owns-0 as r on l."child" = r."id";
+let pass-call-owns-2 = select l."id" as "id" from pass-call-owns-1 as l join pass-call-child-2 as r on l."id" = r."parent";
+let shape-arg-list-3 = select l."id" as "id" from kind-arg-list-nodes as l join arity-3 as r on l."id" = r."parent";
+let pass-arguments-owns-0 = select l."id" as "id" from shape-arg-list-3 as l join empty-arguments-child-0 as r on l."id" = r."parent";
+let kind-literal-nodes = select * from tree-nodes where kind = "literal";
+let shape-literal-1 = select l."id" as "id" from kind-literal-nodes as l join arity-1 as r on l."id" = r."parent";
+let pass-literals = select * from "string-literal" where value = "tests/ui/pass_*.rs";
+let pass-tokens = select l."id" as "id", l."kind" as "kind" from tree-tokens as l join pass-literals as r on l."file" = r."file" and l."span" = r."span";
+let pass-strings = select * from pass-tokens where kind = "string";
+let pass-literal-token = project(from=pass-strings, columns=["id"]);
+let pass-literal-child-0 = select l."parent" as "parent" from first-children as l join pass-literal-token as r on l."child" = r."id";
+let pass-literal-owns-0 = select l."id" as "id" from shape-literal-1 as l join pass-literal-child-0 as r on l."id" = r."parent";
+let pass-arguments-child-1 = select l."parent" as "parent" from position-1 as l join pass-literal-owns-0 as r on l."child" = r."id";
+let pass-arguments-owns-1 = select l."id" as "id" from pass-arguments-owns-0 as l join pass-arguments-child-1 as r on l."id" = r."parent";
+let pass-arguments-child-2 = select l."parent" as "parent" from position-2 as l join rparen as r on l."child" = r."id";
+let pass-arguments-owns-2 = select l."id" as "id" from pass-arguments-owns-1 as l join pass-arguments-child-2 as r on l."id" = r."parent";
+let pass-call-child-3 = select l."parent" as "parent" from position-3 as l join pass-arguments-owns-2 as r on l."child" = r."id";
+let pass-call-owns-3 = select l."id" as "id" from pass-call-owns-2 as l join pass-call-child-3 as r on l."id" = r."parent";
+let pass-statement-child-0 = select l."parent" as "parent" from first-children as l join pass-call-owns-3 as r on l."child" = r."id";
+let pass-statement-owns-0 = select l."id" as "id" from shape-expr-stmt-2 as l join pass-statement-child-0 as r on l."id" = r."parent";
+let pass-statement-child-1 = select l."parent" as "parent" from position-1 as l join semicolon as r on l."child" = r."id";
+let pass-statement-owns-1 = select l."id" as "id" from pass-statement-owns-0 as l join pass-statement-child-1 as r on l."id" = r."parent";
+let ui-statements-child-2 = select l."parent" as "parent" from position-2 as l join pass-statement-owns-1 as r on l."child" = r."id";
+let ui-statements-owns-2 = select l."id" as "id" from ui-statements-owns-1 as l join ui-statements-child-2 as r on l."id" = r."parent";
+let compile-fail-call-owns-0 = select l."id" as "id" from shape-method-call-expr-4 as l join pass-call-child-0 as r on l."id" = r."parent";
+let compile-fail-call-owns-1 = select l."id" as "id" from compile-fail-call-owns-0 as l join pass-call-child-1 as r on l."id" = r."parent";
+let compile-fail-text = select * from kind-ident-tokens where text = "compile_fail";
+let compile-fail = project(from=compile-fail-text, columns=["id"]);
+let compile-fail-ref-child-0 = select l."parent" as "parent" from first-children as l join compile-fail as r on l."child" = r."id";
+let compile-fail-ref-owns-0 = select l."id" as "id" from shape-name-ref-1 as l join compile-fail-ref-child-0 as r on l."id" = r."parent";
+let compile-fail-call-child-2 = select l."parent" as "parent" from position-2 as l join compile-fail-ref-owns-0 as r on l."child" = r."id";
+let compile-fail-call-owns-2 = select l."id" as "id" from compile-fail-call-owns-1 as l join compile-fail-call-child-2 as r on l."id" = r."parent";
+let compile-fail-arguments-owns-0 = select l."id" as "id" from shape-arg-list-3 as l join empty-arguments-child-0 as r on l."id" = r."parent";
+let compile-fail-literals = select * from "string-literal" where value = "tests/ui/fail_*.rs";
+let compile-fail-tokens = select l."id" as "id", l."kind" as "kind" from tree-tokens as l join compile-fail-literals as r on l."file" = r."file" and l."span" = r."span";
+let compile-fail-strings = select * from compile-fail-tokens where kind = "string";
+let compile-fail-literal-token = project(from=compile-fail-strings, columns=["id"]);
+let compile-fail-literal-child-0 = select l."parent" as "parent" from first-children as l join compile-fail-literal-token as r on l."child" = r."id";
+let compile-fail-literal-owns-0 = select l."id" as "id" from shape-literal-1 as l join compile-fail-literal-child-0 as r on l."id" = r."parent";
+let compile-fail-arguments-child-1 = select l."parent" as "parent" from position-1 as l join compile-fail-literal-owns-0 as r on l."child" = r."id";
+let compile-fail-arguments-owns-1 = select l."id" as "id" from compile-fail-arguments-owns-0 as l join compile-fail-arguments-child-1 as r on l."id" = r."parent";
+let compile-fail-arguments-owns-2 = select l."id" as "id" from compile-fail-arguments-owns-1 as l join pass-arguments-child-2 as r on l."id" = r."parent";
+let compile-fail-call-child-3 = select l."parent" as "parent" from position-3 as l join compile-fail-arguments-owns-2 as r on l."child" = r."id";
+let compile-fail-call-owns-3 = select l."id" as "id" from compile-fail-call-owns-2 as l join compile-fail-call-child-3 as r on l."id" = r."parent";
+let compile-fail-statement-child-0 = select l."parent" as "parent" from first-children as l join compile-fail-call-owns-3 as r on l."child" = r."id";
+let compile-fail-statement-owns-0 = select l."id" as "id" from shape-expr-stmt-2 as l join compile-fail-statement-child-0 as r on l."id" = r."parent";
+let compile-fail-statement-owns-1 = select l."id" as "id" from compile-fail-statement-owns-0 as l join pass-statement-child-1 as r on l."id" = r."parent";
+let ui-statements-child-3 = select l."parent" as "parent" from position-3 as l join compile-fail-statement-owns-1 as r on l."child" = r."id";
+let ui-statements-owns-3 = select l."id" as "id" from ui-statements-owns-2 as l join ui-statements-child-3 as r on l."id" = r."parent";
+let kind-r-curly-tokens = select * from tree-tokens where kind = "r-curly";
+let rbrace = project(from=kind-r-curly-tokens, columns=["id"]);
+let ui-statements-child-4 = select l."parent" as "parent" from position-4 as l join rbrace as r on l."child" = r."id";
+let ui-statements-owns-4 = select l."id" as "id" from ui-statements-owns-3 as l join ui-statements-child-4 as r on l."id" = r."parent";
+let ui-body-child-0 = select l."parent" as "parent" from first-children as l join ui-statements-owns-4 as r on l."child" = r."id";
+let ui-body-owns-0 = select l."id" as "id" from shape-block-expr-1 as l join ui-body-child-0 as r on l."id" = r."parent";
+let ui-function-child-4 = select l."parent" as "parent" from position-4 as l join ui-body-owns-0 as r on l."child" = r."id";
+let ui-function-owns-4 = select l."id" as "id" from ui-function-owns-3 as l join ui-function-child-4 as r on l."id" = r."parent";
+let matched-main-roots = select l."file" as "file" from main-roots as l join ui-function-owns-4 as r on l."id" = r."id";
+let main-counts = group-count(from=main-roots, keys=["file"], count="mains");
+let single-main-files = select * from main-counts where mains = 1;
+let unique-matched-files = select l."file" as "file" from matched-main-roots as l join single-main-files as r on l."file" = r."file";
+let attributed-files = select r."child" as "child", l."id" as "id", l."file" as "file" from files as l join "syntax-child" as r on l."id" = r."parent";
+let attributes = select * from tree-nodes where kind = "attr";
+let file-attributes = select l."file" as "file" from attributed-files as l join attributes as r on l."child" = r."id";
+let active-matched-files = antijoin(left=unique-matched-files, right=file-attributes, left-on=["file"], right-on=["file"]);
+let diagnostics = antijoin(left=files, right=active-matched-files, left-on=["file"], right-on=["file"]);
+emit diagnostics subject "file" key("file");
+'''
+
+[diagnostic]
+primary = "span"
+message = "Compile-fail runner must run tests/ui/pass_*.rs as pass cases and tests/ui/fail_*.rs as compile-fail cases"
+help = "Make the compile-fail runner only construct `::trybuild::TestCases`, call `pass(\"tests/ui/pass_*.rs\")` and then `compile_fail(\"tests/ui/fail_*.rs\")` on it, and nothing else; `tm scaffold` writes the template's runner. Put each case in its own `tests/ui/pass_<case>.rs` or `tests/ui/fail_<case>.rs` file, never in the runner."
+
+[given]
+include = ['tests/compile_fail.rs']
+
+[[scenarios]]
+id = 'authored-ui'
+scenario = 'Authored runner, pass then compile-fail.'
+given.files.'tests/compile_fail.rs' = '''
+#[test]
+fn ui() {
+    let cases = ::trybuild::TestCases::new();
+    cases.pass("tests/ui/pass_*.rs");
+    cases.compile_fail("tests/ui/fail_*.rs");
+}
+'''
+
+[[scenarios]]
+id = 'comments'
+scenario = 'Comments: nothing is reported.'
+given.files.'tests/compile_fail.rs' = '''
+#[test]
+fn ui() {
+    let cases = ::trybuild::TestCases::new();
+    /* compiled */ cases . pass("tests/ui/pass_*.rs");
+    cases.compile_fail("tests/ui/fail_*.rs");
+}
+'''
+
+[[scenarios]]
+id = 'raw-globs'
+scenario = 'Raw globs: nothing is reported.'
+given.files.'tests/compile_fail.rs' = '''
+#[test]
+fn ui() {
+    let cases = ::trybuild::TestCases::new();
+    cases.pass(r#"tests/ui/pass_*.rs"#);
+    cases.compile_fail(r"tests/ui/fail_*.rs");
+}
+'''
+
+[[scenarios]]
+id = 'missing-pass'
+scenario = 'No pass call: it is reported.'
+given.files.'tests/compile_fail.rs' = '''
+#[test]
+fn ui() {
+    let cases = ::trybuild::TestCases::new();
+    cases.compile_fail("tests/ui/fail_*.rs");
+}
+'''
+then.findings = [
+  { path = 'tests/compile_fail.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'one-glob'
+scenario = 'The 0.1.0 single tests/ui/*.rs glob, which would compile-fail the hostile-scope case.'
+given.files.'tests/compile_fail.rs' = '''
+#[test]
+fn ui() {
+    let cases = ::trybuild::TestCases::new();
+    cases.compile_fail("tests/ui/*.rs");
+}
+'''
+then.findings = [
+  { path = 'tests/compile_fail.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'missing-fail'
+scenario = 'Missing compile_fail call: it is reported.'
+given.files.'tests/compile_fail.rs' = '''
+#[test]
+fn ui() {
+    let cases = ::trybuild::TestCases::new();
+    cases.pass("tests/ui/pass_*.rs");
+}
+'''
+then.findings = [
+  { path = 'tests/compile_fail.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'wrong-pass'
+scenario = 'Wrong pass glob: it is reported.'
+given.files.'tests/compile_fail.rs' = '''
+#[test]
+fn ui() {
+    let cases = ::trybuild::TestCases::new();
+    cases.pass("tests/other/*.rs");
+    cases.compile_fail("tests/ui/fail_*.rs");
+}
+'''
+then.findings = [
+  { path = 'tests/compile_fail.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'wrong-fail'
+scenario = 'Wrong fail: it is reported.'
+given.files.'tests/compile_fail.rs' = '''
+#[test]
+fn ui() {
+    let cases = ::trybuild::TestCases::new();
+    cases.pass("tests/ui/pass_*.rs");
+    cases.compile_fail("tests/other/*.rs");
+}
+'''
+then.findings = [
+  { path = 'tests/compile_fail.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'conditional'
+scenario = 'Conditional: it is reported.'
+given.files.'tests/compile_fail.rs' = '''
+#[test]
+fn ui() {
+    let cases = ::trybuild::TestCases::new();
+    if false { cases.pass("tests/ui/pass_*.rs");
+    }
+    cases.compile_fail("tests/ui/fail_*.rs");
+}
+'''
+then.findings = [
+  { path = 'tests/compile_fail.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'ignored'
+scenario = 'Ignored: it is reported.'
+given.files.'tests/compile_fail.rs' = '''
+#[test]
+#[ignore]
+fn ui() {
+    let cases = ::trybuild::TestCases::new();
+    cases.pass("tests/ui/pass_*.rs");
+    cases.compile_fail("tests/ui/fail_*.rs");
+}
+'''
+then.findings = [
+  { path = 'tests/compile_fail.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'file-conditional'
+scenario = 'File conditional: it is reported.'
+given.files.'tests/compile_fail.rs' = '''
+#![cfg(any())]
+#[test]
+fn ui() {
+    let cases = ::trybuild::TestCases::new();
+    cases.pass("tests/ui/pass_*.rs");
+    cases.compile_fail("tests/ui/fail_*.rs");
+}
+'''
+then.findings = [
+  { path = 'tests/compile_fail.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'body-conditional'
+scenario = 'Body conditional: it is reported.'
+given.files.'tests/compile_fail.rs' = '''
+#[test]
+fn ui() { #![cfg(any())]
+    let cases = ::trybuild::TestCases::new();
+    cases.pass("tests/ui/pass_*.rs");
+    cases.compile_fail("tests/ui/fail_*.rs");
+}
+'''
+then.findings = [
+  { path = 'tests/compile_fail.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'dead-helper'
+scenario = 'Dead helper: it is reported.'
+given.files.'tests/compile_fail.rs' = '''
+#[test]
+fn helper() {
+    let cases = ::trybuild::TestCases::new();
+    cases.pass("tests/ui/pass_*.rs");
+    cases.compile_fail("tests/ui/fail_*.rs");
+}
+#[test]
+fn ui() {}
+'''
+then.findings = [
+  { path = 'tests/compile_fail.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'unregistered'
+scenario = 'Unregistered: it is reported.'
+given.files.'tests/compile_fail.rs' = '''
+fn ui() {
+    let cases = ::trybuild::TestCases::new();
+    cases.pass("tests/ui/pass_*.rs");
+    cases.compile_fail("tests/ui/fail_*.rs");
+}
+'''
+then.findings = [
+  { path = 'tests/compile_fail.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'duplicate-test'
+scenario = 'Duplicate test: it is reported.'
+given.files.'tests/compile_fail.rs' = '''
+#[test]
+fn ui() {
+    let cases = ::trybuild::TestCases::new();
+    cases.pass("tests/ui/pass_*.rs");
+    cases.compile_fail("tests/ui/fail_*.rs");
+}
+#[test]
+fn ui() {
+    let cases = ::trybuild::TestCases::new();
+    cases.pass("tests/ui/pass_*.rs");
+    cases.compile_fail("tests/ui/fail_*.rs");
+}
+'''
+then.findings = [
+  { path = 'tests/compile_fail.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'empty-source'
+scenario = 'Empty source: it is reported.'
+given.files.'tests/compile_fail.rs' = ''
+then.findings = [
+  { path = 'tests/compile_fail.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'extra-statement'
+scenario = 'Extra statement: it is reported.'
+given.files.'tests/compile_fail.rs' = '''
+#[test]
+fn ui() {
+    return;
+    let cases = ::trybuild::TestCases::new();
+    cases.pass("tests/ui/pass_*.rs");
+    cases.compile_fail("tests/ui/fail_*.rs");
+}
+'''
+then.findings = [
+  { path = 'tests/compile_fail.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'no-tests'
+scenario = 'No tests: it is reported.'
+given.files.'tests/compile_fail.rs' = '''
+fn main() {}
+'''
+then.findings = [
+  { path = 'tests/compile_fail.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'unqualified-owner'
+scenario = 'Unqualified owner: it is reported.'
+given.files.'tests/compile_fail.rs' = '''
+#[test]
+fn ui() {
+    let cases = trybuild::TestCases::new();
+    cases.pass("tests/ui/pass_*.rs");
+    cases.compile_fail("tests/ui/fail_*.rs");
+}
+'''
+then.findings = [
+  { path = 'tests/compile_fail.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'wrong-receiver'
+scenario = 'Wrong receiver: it is reported.'
+given.files.'tests/compile_fail.rs' = '''
+#[test]
+fn ui() {
+    let cases = ::trybuild::TestCases::new();
+    different.pass("tests/ui/pass_*.rs");
+    cases.compile_fail("tests/ui/fail_*.rs");
+}
+'''
+then.findings = [
+  { path = 'tests/compile_fail.rs', line = 1 },
+]

@@ -1,0 +1,177 @@
+description = "Benchmark: duplicates clippy's `needless_else` and eslint's `no-empty` (for an `else` block); ruff has none for an `else: pass`; not placed on this repo. No `else` branch is empty: a Rust or TypeScript `else {}`, or a Python `else:` holding only `pass`."
+why = "An empty `else {}` says nothing the code without it does not, and reads as a branch someone forgot to fill (clippy's `needless_else`, eslint's `no-empty`). A branch holding only a comment is not empty: the comment is the author saying why nothing happens. No shared relation holds a branch, so each language is read from its own syntax: in Rust, the block after an `else` keyword whose statement list holds nothing but its braces and whitespace; in TypeScript, the block statement after an `else` keyword holding nothing but its braces and whitespace; in Python, an `else` clause holding no statement but `pass` and no comment. Not seen: an `else` inside a macro invocation's tokens."
+
+query = '''
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let else-keywords = select * from tree-tokens where kind = "else-kw";
+let else-positions = select r."ordinal" as "keyword", r."parent" as "owner" from else-keywords as l join "syntax-child" as r on l."id" = r."child";
+let owner-children = select r."child" as "child", l."keyword" as "keyword", r."ordinal" as "position" from else-positions as l join "syntax-child" as r on l."owner" = r."parent";
+let after-else = select * from owner-children where position > keyword;
+let blocks = select * from tree-nodes where kind = "block-expr";
+let else-blocks = select r."id" as "block", r."file" as "file", r."span" as "span" from after-else as l join blocks as r on l."child" = r."id";
+let statement-lists = select r."child" as "list", l."file" as "file", l."span" as "span" from else-blocks as l join "syntax-child" as r on l."block" = r."parent";
+let list-children = select r."child" as "child", l."list" as "list" from statement-lists as l join "syntax-child" as r on l."list" = r."parent";
+let child-nodes = select l."list" as "list" from list-children as l join tree-nodes as r on l."child" = r."id";
+let not-whitespace = select * from tree-tokens where kind != "whitespace";
+let not-opening = select * from not-whitespace where kind != "l-curly";
+let content-tokens = select * from not-opening where kind != "r-curly";
+let child-tokens = select l."list" as "list" from list-children as l join content-tokens as r on l."child" = r."id";
+let filled = union(left=child-nodes, right=child-tokens);
+let empty = antijoin(left=statement-lists, right=filled, left-on=["list"], right-on=["list"]);
+let rust-else = project(from=empty, columns=["file", "span"]);
+let words = select * from tree-tokens where kind = "keyword" and text = "else";
+let word-positions = select r."ordinal" as "keyword", r."parent" as "owner" from words as l join "syntax-child" as r on l."id" = r."child";
+let word-owner-children = select r."child" as "child", l."keyword" as "keyword", r."ordinal" as "position" from word-positions as l join "syntax-child" as r on l."owner" = r."parent";
+let after-word = select * from word-owner-children where position > keyword;
+let statements = select * from tree-nodes where kind = "block-statement";
+let word-blocks = select r."id" as "block", r."file" as "file", r."span" as "span" from after-word as l join statements as r on l."child" = r."id";
+let word-block-children = select r."child" as "child", l."block" as "block" from word-blocks as l join "syntax-child" as r on l."block" = r."parent";
+let word-block-nodes = select l."block" as "block" from word-block-children as l join tree-nodes as r on l."child" = r."id";
+let unopened = select * from not-whitespace where text != "{";
+let unbraced = select * from unopened where text != "}";
+let word-block-tokens = select l."block" as "block" from word-block-children as l join unbraced as r on l."child" = r."id";
+let word-filled = union(left=word-block-nodes, right=word-block-tokens);
+let word-empty = antijoin(left=word-blocks, right=word-filled, left-on=["block"], right-on=["block"]);
+let braced-else = project(from=word-empty, columns=["file", "span"]);
+let clauses = select * from tree-nodes where kind = "elif-else-clause";
+let clause-words = select * from tree-tokens where text = "else";
+let clause-word-parents = select r."parent" as "owner" from clause-words as l join "syntax-child" as r on l."id" = r."child";
+let else-clauses = select r."id" as "clause", r."file" as "file", r."span" as "span" from clause-word-parents as l join clauses as r on l."owner" = r."id";
+let clause-children = select r."child" as "child", l."clause" as "clause" from else-clauses as l join "syntax-child" as r on l."clause" = r."parent";
+let passes = select * from tree-nodes where kind = "pass";
+let statement-nodes = antijoin(left=tree-nodes, right=passes, left-on=["id"], right-on=["id"]);
+let clause-statements = select l."clause" as "clause" from clause-children as l join statement-nodes as r on l."child" = r."id";
+let comments = select * from tree-tokens where kind = "comment";
+let clause-comments = select l."clause" as "clause" from clause-children as l join comments as r on l."child" = r."id";
+let clause-filled = union(left=clause-statements, right=clause-comments);
+let clause-empty = antijoin(left=else-clauses, right=clause-filled, left-on=["clause"], right-on=["clause"]);
+let indented-else = project(from=clause-empty, columns=["file", "span"]);
+let some-else = union(left=rust-else, right=braced-else);
+let all-else = union(left=some-else, right=indented-else);
+emit all-else subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "this `else` branch is an empty block"
+help = "Remove the `else`, or say in a comment why nothing happens."
+
+[given]
+include = ['**']
+files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+
+[[scenarios]]
+id = 'else-branches-something-or-say-why'
+scenario = 'Else branches that do something or say why not.'
+given.files.'src/lib.rs' = '''
+pub fn f(a: bool) -> u8 {
+    let mut n = 0;
+    if a {
+        n = 1;
+    } else {
+        // Nothing to do: n stays zero.
+    }
+    if a {
+    } else if n == 0 {
+        n = 2;
+    } else {
+        n = 3;
+    }
+    n
+}
+'''
+
+[[scenarios]]
+id = 'empty-else-block'
+scenario = 'An empty else block.'
+given.files.'src/code.rs' = '''
+pub fn f(a: bool) -> u8 {
+    let mut n = 0;
+    if a {
+        n = 1;
+    } else {
+    }
+    n
+}
+'''
+given.files.'src/lib.rs' = '''
+mod code;
+'''
+then.findings = [
+  { path = 'src/code.rs', line = 5 },
+]
+
+[[scenarios]]
+id = 'typescript-else-with-statement-or-comment'
+scenario = 'TypeScript else blocks holding a statement or a comment, and an else if.'
+given.files.'src/sign.ts' = '''
+export function sign(value: number): number {
+  if (value > 0) {
+    return 1
+  } else if (value < 0) {
+    return -1
+  } else {
+    // zero has no sign
+  }
+  if (value === 0) {
+    return 0
+  } else {
+    return value
+  }
+}
+'''
+
+[[scenarios]]
+id = 'typescript-empty-else'
+scenario = 'A TypeScript else block that is empty.'
+given.files.'src/sign.ts' = '''
+export function sign(value: number): number {
+  if (value > 0) {
+    return 1
+  } else {
+  }
+  return 0
+}
+'''
+then.findings = [
+  { path = 'src/sign.ts', line = 4 },
+]
+
+[[scenarios]]
+id = 'python-else-with-statement-or-comment'
+scenario = 'Python else clauses holding a statement or a comment, and an elif holding pass.'
+given.files.'pkg/sign.py' = '''
+def sign(value):
+    if value > 0:
+        return 1
+    elif value < 0:
+        pass
+    else:
+        # zero has no sign
+        pass
+    if value == 0:
+        return 0
+    else:
+        return value
+'''
+
+[[scenarios]]
+id = 'python-else-holding-only-pass'
+scenario = 'A Python else clause holding only pass.'
+given.files.'pkg/sign.py' = '''
+def sign(value):
+    if value > 0:
+        return 1
+    else:
+        pass
+    return 0
+'''
+then.findings = [
+  { path = 'pkg/sign.py', line = 4 },
+]

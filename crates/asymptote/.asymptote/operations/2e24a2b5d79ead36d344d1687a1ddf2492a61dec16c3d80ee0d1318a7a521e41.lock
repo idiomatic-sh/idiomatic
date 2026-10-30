@@ -1,0 +1,6 @@
+version = 1
+parents = ["a144dd289c554756130f3dccfa954c400c01bcd6521fbcf9c9cafd6fe3e2a225"]
+
+suppressed = [
+  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/core/src/outbound/cache/adapters/arrow/schemas.rs", level = "warning", fingerprint = "b38a6c348fd3539f", count = 1, message = "`crates/asymptote/crates/core/src/outbound/cache/adapters/arrow/schemas.rs` has 1205 lines, over the file-length limit", since_rev = "2863eed1bded5c1e81d983b36aec2c6a082b29a1", since = "2026-10-28" },
+]

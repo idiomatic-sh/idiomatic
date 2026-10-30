@@ -1,0 +1,29 @@
+description = "A concrete application service; fill in its injected outbound contracts and domain operation."
+why = "The operation needs no interface or factory of its own. Ports are supplied at construction; domain functions are called directly. Use cases own the workflow and final publication."
+content = '''
+//! The `{{ part }}` application operation.
+{% if scaffold | default(false) %}
+// Add the concrete service with its injected outbound ports and cohesive operation.
+// Do not construct adapters, call sibling services, or publish a completed pipeline here.
+{% endif %}
+'''
+[params]
+part = { type = "identifier", from = "directory-name", description = "The operation name." }
+
+[given]
+file = 'service.rs'
+params = { part = 'short' }
+
+[[scenarios]]
+id = 'service-file-names-its-operation'
+scenario = 'The service file of an operation says which operation it holds.'
+given.files.'service.rs' = '''
+//! The `short` application operation.
+'''
+
+[[scenarios]]
+id = 'service-file-missing'
+scenario = 'An operation without a service file is reported.'
+then.findings = [
+  { rule = 'service#count', path = '.' },
+]

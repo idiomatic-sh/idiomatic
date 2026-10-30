@@ -1,0 +1,248 @@
+description = "The one trait a part offers: a use case's `<Part>UseCase` declaring its one method, or an outbound port's `<Part>Port`, in the core's own vocabulary."
+why = "Names what a caller may rely on and nothing of the code behind it. A use case's trait is the one promise an edge calls, so a caller depends on exactly the use case it calls; a port's trait states what the core asks of the outside in the core's own types only, so no client, store or library name crosses it and an adapter of another crate implements it knowing nothing of the core's logic. The trait carries the part's directory name and the kind's suffix, `<Part>UseCase` or `<Part>Port`, and a use case's declares one method named like the part. It is `pub`: an edge calls a use case and an adapter of another crate implements a port. A port's interface takes and returns plain data, and an object it hands out is a handle, a trait this file declares and a method returns; it never takes an adapter's configuration, which the port's factory takes."
+content = '''
+{% if kind == "use-case" -%}
+//! What the `{{ part }}` use case promises its callers, in the core's own vocabulary.
+
+/// What `{{ part }}` offers its callers.
+pub trait {{ part | pascal }}UseCase {
+}
+{%- else -%}
+//! What the `{{ part }}` port asks of the outside, in the core's own vocabulary: plain data in and out,
+//! and the handles (traits this file declares) it hands back. It never takes an adapter's
+//! configuration (a directory, a budget, a client): the port's factory takes that.
+
+{% if part in (exposed | default([])) -%}
+/// What every `{{ part }}` implementation outside the core implements.
+pub trait {{ part | pascal }} {}
+{%- else -%}
+/// What every `{{ part }}` adapter implements.
+pub trait {{ part | pascal }}Port {}
+{%- endif %}
+{%- endif %}
+'''
+
+[params]
+kind = { type = "string", description = "What the part is: use-case or port." }
+exposed = { type = "list<string>", description = "The ports the product's SDK exposes: a listed port's trait is its plain noun (`Language`), every other port's ends in `Port`. Read only for a port." }
+part = { type = "identifier", from = "directory-name", description = "The part's directory name: the stem of every name in it." }
+
+[[scenarios]]
+id = 'example-use-case'
+scenario = 'The rendered template passes for a use case.'
+given.file = 'interface.rs'
+given.params = { kind = 'use-case', exposed = [], part = 'greet' }
+given.files.'interface.rs' = '''
+//! What the `greet` use case promises its callers, in the core's own vocabulary.
+
+/// What `greet` offers its callers.
+pub trait GreetUseCase {
+    /// Runs `greet`.
+    fn greet(&self);
+}
+'''
+
+[[scenarios]]
+id = 'example-port'
+scenario = 'The rendered template passes for a port.'
+given.file = 'interface.rs'
+given.params = { kind = 'port', exposed = [], part = 'names' }
+given.files.'interface.rs' = '''
+//! What the `names` port asks of the outside, in the core's own vocabulary: plain data in and out,
+//! and the handles (traits this file declares) it hands back. It never takes an adapter's
+//! configuration (a directory, a budget, a client): the port's factory takes that.
+
+/// What every `names` adapter implements.
+pub trait NamesPort {}
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template: the vocabulary and a full signature.'
+given.file = 'interface.rs'
+given.params = { kind = 'use-case', exposed = [], part = 'greet' }
+given.files.'interface.rs' = '''
+//! What the `greet` use case promises its callers, in the core's own vocabulary.
+
+use super::errors::GreetError;
+use super::types::Name;
+
+/// Greets one person by name.
+pub trait GreetUseCase: std::fmt::Debug {
+    /// The greeting for `name`.
+    ///
+    /// # Errors
+    ///
+    /// `GreetError` when no greeting is stored for `name`.
+    fn greet(&self, name: &Name) -> Result<String, GreetError>;
+}
+'''
+
+[[scenarios]]
+id = 'multi-word-use-case'
+scenario = 'The stem of a multi-word name is its PascalCase for a use case.'
+given.file = 'interface.rs'
+given.params = { kind = 'use-case', exposed = [], part = 'list_names' }
+given.files.'interface.rs' = '''
+//! What the `list_names` use case promises its callers, in the core's own vocabulary.
+
+/// What `list_names` offers its callers.
+pub trait ListNamesUseCase {
+    /// Runs `list_names`.
+    fn list_names(&self);
+}
+'''
+
+[[scenarios]]
+id = 'multi-word-port'
+scenario = 'The stem of a multi-word name is its PascalCase for a port.'
+given.file = 'interface.rs'
+given.params = { kind = 'port', exposed = [], part = 'name_store' }
+given.files.'interface.rs' = '''
+//! What the `name_store` port asks of the outside, in the core's own vocabulary: plain data in and out,
+//! and the handles (traits this file declares) it hands back. It never takes an adapter's
+//! configuration (a directory, a budget, a client): the port's factory takes that.
+
+/// What every `name_store` adapter implements.
+pub trait NameStorePort {}
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+given.file = 'interface.rs'
+given.params = { kind = 'use-case', exposed = [], part = 'greet' }
+then.findings = [
+  { rule = 'interface#count', path = 'tastemaker.toml' },
+]
+
+[[scenarios]]
+id = 'no-trait'
+scenario = 'The use case declares no trait.'
+given.file = 'interface.rs'
+given.params = { kind = 'use-case', exposed = [], part = 'greet' }
+given.files.'interface.rs' = '''
+//! What the `greet` use case promises its callers, in the core's own vocabulary.
+
+/// What `greet` offers its callers.
+'''
+then.findings = [
+  { rule = 'interface#template', path = 'interface.rs' },
+]
+
+[[scenarios]]
+id = 'old-use-case-suffix'
+scenario = "A use case's trait still carries the retired Interface suffix."
+given.file = 'interface.rs'
+given.params = { kind = 'use-case', exposed = [], part = 'greet' }
+given.files.'interface.rs' = '''
+//! What the `greet` use case promises its callers, in the core's own vocabulary.
+
+/// What `greet` offers its callers.
+pub trait GreetInterface {
+    /// Runs `greet`.
+    fn greet(&self);
+}
+'''
+then.findings = [
+  { rule = 'interface#template', path = 'interface.rs' },
+]
+
+[[scenarios]]
+id = 'old-port-suffix'
+scenario = "A port's trait still carries the retired Interface suffix."
+given.file = 'interface.rs'
+given.params = { kind = 'port', exposed = [], part = 'names' }
+given.files.'interface.rs' = '''
+//! What the `names` port asks of the outside, in the core's own vocabulary: plain data in and out,
+//! and the handles (traits this file declares) it hands back. It never takes an adapter's
+//! configuration (a directory, a budget, a client): the port's factory takes that.
+
+/// What every `names` adapter implements.
+pub trait NamesInterface {}
+'''
+then.findings = [
+  { rule = 'interface#template', path = 'interface.rs' },
+]
+
+[[scenarios]]
+id = 'port-named-as-use-case'
+scenario = "A port's trait carries a use case's suffix."
+given.file = 'interface.rs'
+given.params = { kind = 'port', exposed = [], part = 'names' }
+given.files.'interface.rs' = '''
+//! What the `names` port asks of the outside, in the core's own vocabulary: plain data in and out,
+//! and the handles (traits this file declares) it hands back. It never takes an adapter's
+//! configuration (a directory, a budget, a client): the port's factory takes that.
+
+/// What every `names` adapter implements.
+pub trait NamesUseCase {}
+'''
+then.findings = [
+  { rule = 'interface#template', path = 'interface.rs' },
+]
+
+[[scenarios]]
+id = 'private-trait'
+scenario = 'The port is not public, so no other crate can implement it.'
+given.file = 'interface.rs'
+given.params = { kind = 'port', exposed = [], part = 'names' }
+given.files.'interface.rs' = '''
+//! What the `names` port asks of the outside, in the core's own vocabulary: plain data in and out,
+//! and the handles (traits this file declares) it hands back. It never takes an adapter's
+//! configuration (a directory, a budget, a client): the port's factory takes that.
+
+/// What every `names` adapter implements.
+pub(crate) trait NamesPort {}
+'''
+then.findings = [
+  { rule = 'interface#template', path = 'interface.rs' },
+]
+
+[[scenarios]]
+id = 'exposed-port'
+scenario = 'A port the SDK exposes is declared under its plain noun.'
+given.file = 'interface.rs'
+given.params = { kind = 'port', part = 'language', exposed = ['language'] }
+given.files.'interface.rs' = '''
+//! What the `language` port asks of the outside, in the core's own vocabulary: plain data in and out,
+//! and the handles (traits this file declares) it hands back. It never takes an adapter's
+//! configuration (a directory, a budget, a client): the port's factory takes that.
+
+/// What every `language` implementation outside the core implements.
+pub trait Language {}
+'''
+
+[[scenarios]]
+id = 'exposed-port-with-suffix'
+scenario = 'A port the SDK exposes keeps the Port suffix.'
+given.file = 'interface.rs'
+given.params = { kind = 'port', part = 'language', exposed = ['language'] }
+given.files.'interface.rs' = '''
+//! What the `language` port asks of the outside, in the core's own vocabulary: plain data in and out,
+//! and the handles (traits this file declares) it hands back. It never takes an adapter's
+//! configuration (a directory, a budget, a client): the port's factory takes that.
+
+/// What every `language` adapter implements.
+pub trait LanguagePort {}
+'''
+then.findings = [
+  { rule = 'interface#template', path = 'interface.rs' },
+]
+
+[[scenarios]]
+id = 'unlisted-port-plain-noun'
+scenario = 'A port the SDK does not expose loses its Port suffix.'
+given.file = 'interface.rs'
+given.params = { kind = 'port', part = 'names', exposed = ['language'] }
+given.files.'interface.rs' = '''
+//! What the `names` port asks of the outside, in the core's own vocabulary: plain data in and out,
+//! and the handles (traits this file declares) it hands back. It never takes an adapter's
+//! configuration (a directory, a budget, a client): the port's factory takes that.
+
+/// What every `names` adapter implements.
+pub trait Names {}
+'''
+then.findings = [
+  { rule = 'interface#template', path = 'interface.rs' },
+]

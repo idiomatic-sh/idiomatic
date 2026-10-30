@@ -1,0 +1,4 @@
+This directory holds the standard that defines the nodes and the tokens of the toml language, copied unchanged and pinned: README.md names its source and the version pinned.
+
+- toml.abnf: the ABNF grammar of TOML 1.1.0, from github.com/toml-lang/toml at the tag 1.1.0.
+- NOTICE-LICENSE: the license of the standard (MIT License, Copyright (c) Tom Preston-Werner).

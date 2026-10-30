@@ -1,0 +1,98 @@
+description = "The types.rs of the `extras` concept: the kinds of the language's trees that its standard has no name for: its plain data: the types of the concept, with public fields and derives."
+why = "The language is complete or says what it lacks: this file is placed at count 1 for every language, so a language added by its directory has it from the first scaffold, in the shape every other language has, and a language that lacks it is a finding at the language. The template asks for the declarations the file makes; the bodies and the language's words are the author's."
+content = '''
+//! The types of the `extras` concept: plain data, public fields and derives, with no constructor and no inherent impl. An extra is a kind
+//! of the language's trees that its standard has no name for.
+
+/// What a kind of a {{ lang }} syntax tree is that the standard lacks. One closed list, each name once.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    strum::EnumIter,
+    strum::IntoStaticStr,
+    strum::FromRepr,
+    strum::EnumCount,
+)]
+#[strum(serialize_all = "kebab-case")]
+#[repr(u16)]
+pub(crate) enum Extra {
+    /// Text the parser could not read as any token: a document that is not {{ lang }} has it, and the standard describes only documents that are.
+    Error,
+}
+'''
+
+[params]
+lang = { type = "identifier", from = "directory-name", description = "The language, its directory's name." }
+
+[given]
+file = 'src/domain/extras/types.rs'
+params = { lang = 'demo' }
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'src/domain/extras/types.rs' = '''
+//! The types of the `extras` concept: plain data, public fields and derives, with no constructor and no inherent impl. An extra is a kind
+//! of the language's trees that its standard has no name for.
+
+/// What a kind of a demo syntax tree is that the standard lacks. One closed list, each name once.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    strum::EnumIter,
+    strum::IntoStaticStr,
+    strum::FromRepr,
+    strum::EnumCount,
+)]
+#[strum(serialize_all = "kebab-case")]
+#[repr(u16)]
+pub(crate) enum Extra {
+    /// Text the parser could not read as any token: a document that is not demo has it, and the standard describes only documents that are.
+    Error,
+}
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template.'
+given.files.'src/domain/extras/types.rs' = '''
+//! The types of the `extras` concept: plain data, public fields and derives, with no constructor and no inherent impl. An extra is a kind
+//! of the language's trees that its standard has no name for.
+
+/// What a kind of a demo syntax tree is that the standard lacks. One closed list, each name once.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    strum::EnumIter,
+    strum::IntoStaticStr,
+    strum::FromRepr,
+    strum::EnumCount,
+)]
+#[strum(serialize_all = "kebab-case")]
+#[repr(u16)]
+pub(crate) enum Extra {
+    /// Text the parser could not read as any token: a document that is not demo has it, and the standard describes only documents that are.
+    Error,
+}
+
+// More.
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'language-domain-extras-types#count', path = '.' },
+]

@@ -1,0 +1,9 @@
+rows = [
+  { path = "crates/ruff_linter/src/fix/edits.rs", key = "26263..26270" },
+  { path = "crates/ruff_linter/src/noqa.rs", key = "105812..105819" },
+  { path = "crates/ruff_linter/src/noqa.rs", key = "106649..106656" },
+  { path = "crates/ruff_python_codegen/src/stylist.rs", key = "10945..10952" },
+  { path = "crates/ruff_python_codegen/src/stylist.rs", key = "5994..6002" },
+  { path = "crates/ruff_python_codegen/src/stylist.rs", key = "7954..7962" },
+  { path = "crates/ruff_python_index/src/indexer.rs", key = "9184..9192" },
+]

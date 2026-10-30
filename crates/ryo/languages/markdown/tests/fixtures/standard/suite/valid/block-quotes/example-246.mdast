@@ -1,0 +1,8 @@
+root[3]
+├─0 blockquote[1]
+│   └─0 paragraph[1]
+│       └─0 text "aaa"
+├─1 thematicBreak
+└─2 blockquote[1]
+    └─0 paragraph[1]
+        └─0 text "bbb"

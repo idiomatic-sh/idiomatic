@@ -1,0 +1,348 @@
+//! The `table_model` service: free functions named by verb over tables, with no IO and no ports.
+
+use std::cmp::Ordering;
+
+use ryo_language::domain::elements::service::real_count;
+use ryo_language::domain::relations::service::from_bits;
+use ryo_language::domain::relations::types::{Bits, CellKind, Flag, Integer, Position, Value};
+
+use super::errors::TableModelError;
+use super::types::{
+    ChainLink, Emptiness, HashWord, KeyCellsHash, KeyIndex, On, RowCount, Rows, Table,
+};
+use crate::domain::table_cells::service::{edge_of, element_of};
+use crate::domain::table_cells::types::{RowIndex, TreeForm, TreeRows};
+use ryo_values::domain::plan_parts::types::ColumnIndex;
+
+/// The one of `items` that the column `index` names, when there is one: the one conversion between a column number and a place.
+#[must_use]
+pub(crate) fn column_in<T>(items: &[T], index: ColumnIndex) -> Option<&T> {
+    items.get(usize::try_from(index.0).unwrap_or(usize::MAX))
+}
+
+/// The value of the column at `index` in `row`.
+///
+/// # Errors
+///
+/// `NoSuchColumn` when the row is shorter.
+pub(crate) fn cell(row: &[Value], index: ColumnIndex) -> Result<Value, TableModelError> {
+    column_in(row, index)
+        .copied()
+        .ok_or(TableModelError::NoSuchColumn { index: index.0 })
+}
+
+/// The row at `index`, when the table has that many rows.
+#[must_use]
+pub(crate) fn row_in(table: &Table, index: RowIndex) -> Option<&[Value]> {
+    let (width, index) = (table.kinds.len(), index.0);
+    table
+        .cells
+        .get(index * width..(index + 1) * width)
+        .filter(|_| index < table.count.0)
+}
+
+/// The places of rows, from the first to the last of that many.
+pub(crate) fn positions(count: RowCount) -> impl Iterator<Item = RowIndex> + Clone {
+    (0..count.0).map(RowIndex)
+}
+
+/// Empties the table for new rows of the given kinds, keeping its room.
+pub(crate) fn reset(table: &mut Table, kinds: &[CellKind]) {
+    table.kinds.clear();
+    table.kinds.extend_from_slice(kinds);
+    table.cells.clear();
+    table.count = RowCount(0);
+}
+
+/// Adds one row to the table.
+pub(crate) fn push_row(table: &mut Table, row: &[Value]) {
+    table.cells.extend_from_slice(row);
+    table.count = RowCount(table.count.0 + 1);
+}
+
+/// Makes `into` a copy of `from`, keeping the room `into` has.
+pub(crate) fn copy_table(from: &Table, into: &mut Table) {
+    reset(into, &from.kinds);
+    into.cells.extend_from_slice(&from.cells);
+    into.count = from.count;
+}
+
+/// What each column of the rows holds.
+#[must_use]
+pub(crate) fn kinds_of<'a>(rows: &Rows<'a>) -> &'a [CellKind] {
+    match rows {
+        Rows::Stored(view) => view.kinds,
+        Rows::Tree(TreeRows {
+            form: TreeForm::Edges,
+            ..
+        }) => &EDGE_KINDS,
+        Rows::Tree(TreeRows {
+            form: TreeForm::Elements,
+            ..
+        }) => &ELEMENT_KINDS,
+        Rows::Computed(table) => &table.kinds,
+    }
+}
+
+/// How many rows there are.
+#[must_use]
+pub(crate) fn count_of(rows: &Rows<'_>) -> RowCount {
+    match rows {
+        Rows::Stored(view) => RowCount(view.columns.first().map_or(0, |column| column.0.len())),
+        Rows::Computed(table) => table.count,
+        Rows::Tree(tree) => RowCount(
+            real_count(tree.elements)
+                .0
+                .saturating_sub(usize::from(tree.form == TreeForm::Edges)),
+        ),
+    }
+}
+
+/// What the columns of the edges of a tree hold: the parent, the child, the child's place under
+/// its parent, and the file.
+const EDGE_KINDS: [CellKind; 5] = [
+    CellKind::Node,
+    CellKind::Node,
+    CellKind::Number,
+    CellKind::Symbol,
+    CellKind::File,
+];
+
+/// What the columns of the elements of a tree hold: the element, its kind, its text, the file, and where it is.
+const ELEMENT_KINDS: [CellKind; 5] = [
+    CellKind::Node,
+    CellKind::Symbol,
+    CellKind::Symbol,
+    CellKind::File,
+    CellKind::Span,
+];
+
+/// The row at `index`: a computed row where it is, a stored row read into `scratch`, which keeps
+/// its room from row to row.
+pub(crate) fn read_row<'s>(
+    rows: &'s Rows<'s>,
+    index: RowIndex,
+    scratch: &'s mut Vec<Value>,
+) -> Option<&'s [Value]> {
+    match rows {
+        Rows::Computed(table) => row_in(table, index),
+        Rows::Tree(tree) => {
+            scratch.clear();
+            let place = u32::try_from(index.0 + usize::from(tree.form == TreeForm::Edges))
+                .unwrap_or(u32::MAX);
+            if usize::try_from(place).unwrap_or(usize::MAX) >= tree.elements.kind.len() {
+                return None;
+            }
+            let at = Position(place);
+            match tree.form {
+                TreeForm::Edges => scratch.extend(edge_of(tree, at)),
+                TreeForm::Elements => scratch.extend(element_of(tree, at)),
+            }
+            Some(scratch)
+        }
+        Rows::Stored(view) => {
+            scratch.clear();
+            for (kind, column) in view.kinds.iter().zip(view.columns) {
+                scratch.push(from_bits(*kind, Bits(*column.0.get(index.0)?)));
+            }
+            Some(scratch)
+        }
+    }
+}
+
+/// The rows as a table: the table itself when it was computed, else the rows made into `into`, which keeps its room.
+pub(crate) fn table_in<'a>(
+    rows: &Rows<'a>,
+    into: &'a mut Table,
+    scratch: &mut Vec<Value>,
+) -> &'a Table {
+    if let Rows::Computed(table) = rows {
+        table
+    } else {
+        materialize(rows, into, scratch);
+        into
+    }
+}
+
+/// Copies the rows into `into`, keeping the room `into` has.
+pub(crate) fn materialize(rows: &Rows<'_>, into: &mut Table, scratch: &mut Vec<Value>) {
+    reset(into, kinds_of(rows));
+    for index in positions(count_of(rows)) {
+        if let Some(row) = read_row(rows, index, scratch) {
+            push_row(into, row);
+        }
+    }
+}
+
+/// The cells of `row` that `on` names, written into `key`, whose room is reused.
+///
+/// # Errors
+///
+/// `NoSuchColumn` when the row lacks one of the columns.
+pub(crate) fn key_of(
+    row: &[Value],
+    on: On<'_>,
+    key: &mut Vec<Value>,
+) -> Result<(), TableModelError> {
+    key.clear();
+    match on {
+        On::Whole => key.extend_from_slice(row),
+        On::Columns(columns) => {
+            for column in columns {
+                key.push(cell(row, *column)?);
+            }
+        }
+    }
+    Ok(())
+}
+
+/// How the row compares with `key`, by the cells `on` names.
+pub(crate) fn compare_key(row: &[Value], on: On<'_>, key: &[Value]) -> Ordering {
+    match on {
+        On::Whole => row.cmp(key),
+        On::Columns(columns) => {
+            for (column, wanted) in columns.iter().zip(key) {
+                match column_in(row, *column).map(|each| each.cmp(wanted)) {
+                    Some(Ordering::Equal) => {}
+                    Some(other) => return other,
+                    None => return Ordering::Less,
+                }
+            }
+            Ordering::Equal
+        }
+    }
+}
+
+/// Whether a table whose columns hold `kinds` has every one of `columns`.
+///
+/// # Errors
+///
+/// `NoSuchColumn` naming the first it lacks.
+pub(crate) fn check_columns(
+    kinds: &[CellKind],
+    columns: &[ColumnIndex],
+) -> Result<(), TableModelError> {
+    match columns
+        .iter()
+        .find(|column| usize::try_from(column.0).map_or(true, |place| place >= kinds.len()))
+    {
+        Some(missing) => Err(TableModelError::NoSuchColumn { index: missing.0 }),
+        None => Ok(()),
+    }
+}
+
+/// The number a value is for hashing: what it is stored as, apart from which kind of value it is.
+pub(crate) fn word_of(value: &Value) -> HashWord {
+    HashWord(match value {
+        Value::Node(node) => node.0,
+        Value::Symbol(symbol) => u64::from(symbol.0),
+        Value::Name(name) => name.hash.0,
+        Value::File(file) => u64::from(file.0),
+        Value::Span(span) => (u64::from(span.start.0) << 32) | u64::from(span.end.0),
+        Value::Number(Integer(number)) => number.cast_unsigned(),
+        Value::Flag(flag) => u64::from(*flag == Flag::Raised),
+    })
+}
+
+/// One step of the hash of a run of values.
+pub(crate) const fn mix(hash: KeyCellsHash, word: HashWord) -> KeyCellsHash {
+    KeyCellsHash((hash.0.rotate_left(5) ^ word.0).wrapping_mul(0x517c_c1b7_2722_0a95))
+}
+
+/// The hash of the cells that make a key.
+pub(crate) fn hash_key<'v>(cells: impl Iterator<Item = Option<&'v Value>>) -> KeyCellsHash {
+    cells.fold(KeyCellsHash(0), |hash, cell| {
+        mix(hash, cell.map_or(HashWord(0), word_of))
+    })
+}
+
+/// The hash of the key a row has.
+pub(crate) fn hash_row(row: &[Value], on: On<'_>) -> KeyCellsHash {
+    match on {
+        On::Whole => hash_key(row.iter().map(Some)),
+        On::Columns(columns) => hash_key(columns.iter().map(|column| column_in(row, *column))),
+    }
+}
+
+/// Chains the rows of `table` by their key into `order`, whose room is reused: a table that rows
+/// can be looked up in by key, with nothing sorted.
+///
+/// # Errors
+///
+/// `NoSuchColumn` when `on` names a column the table lacks.
+pub(crate) fn index(
+    table: &Table,
+    on: On<'_>,
+    order: &mut KeyIndex,
+) -> Result<(), TableModelError> {
+    if let On::Columns(columns) = on {
+        check_columns(&table.kinds, columns)?;
+    }
+    let KeyIndex {
+        rows,
+        hashes,
+        heads,
+        next,
+        ..
+    } = order;
+    let count = table.count.0;
+    rows.clear();
+    rows.extend(positions(table.count));
+    hashes.clear();
+    hashes.extend(
+        rows.iter()
+            .map(|each| row_in(table, *each).map_or(KeyCellsHash(0), |row| hash_row(row, on))),
+    );
+    let buckets = count.next_power_of_two().max(1);
+    heads.clear();
+    heads.resize(buckets, ChainLink(0));
+    next.clear();
+    next.resize(count, ChainLink(0));
+    // Last row first, so a chain is met from the first row to the last.
+    for (place, (hash, link)) in hashes.iter().zip(next.iter_mut()).enumerate().rev() {
+        let bucket = usize::try_from(hash.0).unwrap_or(0) & (buckets - 1);
+        if let Some(head) = heads.get_mut(bucket) {
+            *link = *head;
+            *head = ChainLink(u32::try_from(place + 1).unwrap_or(u32::MAX));
+        }
+    }
+    Ok(())
+}
+
+/// The rows of an indexed table whose keys are `key`, in the order they came: the chain of the key's bucket is followed, and a row
+/// whose hash or key differs is passed over.
+pub(crate) fn matching<'o, 'k>(
+    table: &'o Table,
+    on: On<'k>,
+    order: &'o KeyIndex,
+    key: &'k [Value],
+) -> impl Iterator<Item = &'o RowIndex> + Clone {
+    let hash = hash_key(key.iter().map(Some));
+    let bucket = usize::try_from(hash.0).unwrap_or(0) & order.heads.len().saturating_sub(1);
+    // The next row of the chain, plus one; zero when there is none.
+    let mut at = order.heads.get(bucket).copied().unwrap_or(ChainLink(0));
+    std::iter::from_fn(move || {
+        while at.0 != 0 {
+            let place = usize::try_from(at.0 - 1).unwrap_or(usize::MAX);
+            at = order.next.get(place).copied().unwrap_or(ChainLink(0));
+            if order.hashes.get(place) == Some(&hash)
+                && row_in(table, RowIndex(place))
+                    .is_some_and(|row| compare_key(row, on, key) == Ordering::Equal)
+            {
+                return order.rows.get(place);
+            }
+        }
+        None
+    })
+}
+
+/// Whether no row has the key.
+#[must_use]
+pub(crate) fn matches_empty<'o>(found: &(impl Iterator<Item = &'o RowIndex> + Clone)) -> Emptiness {
+    let mut probe = found.clone();
+    if probe.next().is_none() {
+        Emptiness::Empty
+    } else {
+        Emptiness::Filled
+    }
+}

@@ -1,0 +1,11 @@
+error: no rules expected `{`
+  --> tests/ui/fail_each_without_an_item.rs:14:55
+   |
+14 |         each (languages::children(tree.elements, at)) {
+   |                                                       ^ no rules expected this token in macro call
+   |
+note: while trying to match keyword `as`
+  --> src/resources/languages/macros/statements.rs
+   |
+   |         each ($list:expr) as ($ordinal:ident, $item:ident) { $($body:tt)* }
+   |                           ^^

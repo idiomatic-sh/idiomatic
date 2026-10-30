@@ -1,0 +1,98 @@
+description = "Reading a source with the language's own parse, for the tests of the items of a relation: every row the item writes for it and the causes for which it reads the relation only in part."
+why = "The language is complete or says what it lacks: this file is placed at count 1 for every language, so a language added by its directory has it from the first scaffold, in the shape every other language has, and a language that lacks it is a finding at the language. The template asks for the declarations the file makes; the bodies and the language's words are the author's."
+content = '''
+//! Reading a source with the language's own parse, for the tests of the items of a relation: the rows the language writes of the
+//! item's relation, each in full, and the causes for which it says the relation is read only in part.
+
+use ryo::languages::{self, ReadItem};
+
+use ryo::languages::contract::Reading;
+
+{% if scaffold | default(false) %}
+/// The path every source is read as, which a file cell of a row shows.
+pub const SHOWN: &str = "item.{{ ext | default(lang) }}";
+{% endif %}
+
+/// What the item writes for `source`, read with the language's own parse.
+///
+/// # Panics
+///
+/// When the source cannot be read.
+#[must_use]
+pub(crate) fn reading<Item: ReadItem>(source: &'static str) -> Reading {
+    languages::contract::reading::<Item>(
+        &crate::linked(),
+        languages::SourcePath(SHOWN),
+        languages::SampleText(source),
+    )
+    .expect("the source is read")
+}
+'''
+
+[given]
+file = 'src/fixtures/reading.rs'
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'src/fixtures/reading.rs' = '''
+//! Reading a source with the language's own parse, for the tests of the items of a relation: the rows the language writes of the
+//! item's relation, each in full, and the causes for which it says the relation is read only in part.
+
+use ryo::languages::{self, ReadItem};
+
+use ryo::languages::contract::Reading;
+
+
+/// What the item writes for `source`, read with the language's own parse.
+///
+/// # Panics
+///
+/// When the source cannot be read.
+#[must_use]
+pub(crate) fn reading<Item: ReadItem>(source: &'static str) -> Reading {
+    languages::contract::reading::<Item>(
+        &crate::linked(),
+        languages::SourcePath(SHOWN),
+        languages::SampleText(source),
+    )
+    .expect("the source is read")
+}
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template.'
+given.files.'src/fixtures/reading.rs' = '''
+//! Reading a source with the language's own parse, for the tests of the items of a relation: the rows the language writes of the
+//! item's relation, each in full, and the causes for which it says the relation is read only in part.
+
+use ryo::languages::{self, ReadItem};
+
+use ryo::languages::contract::Reading;
+
+
+/// What the item writes for `source`, read with the language's own parse.
+///
+/// # Panics
+///
+/// When the source cannot be read.
+#[must_use]
+pub(crate) fn reading<Item: ReadItem>(source: &'static str) -> Reading {
+    languages::contract::reading::<Item>(
+        &crate::linked(),
+        languages::SourcePath(SHOWN),
+        languages::SampleText(source),
+    )
+    .expect("the source is read")
+}
+
+// More.
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'language-fixtures-reading#count', path = '.' },
+]

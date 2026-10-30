@@ -1,0 +1,42 @@
+[package]
+name = "idiomatic-sh-ryo-query_language"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = true
+description = "RyoQL parsing and planning for source queries"
+keywords = ["ryoql", "query-language", "compiler", "static-analysis", "ryo"]
+categories = ["development-tools", "parser-implementations"]
+autobenches = false
+
+[lib]
+name = "ryo_query_language"
+
+[dependencies]
+thiserror.workspace = true
+winnow.workspace = true
+ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.2.0" }
+ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.2.0" }
+
+[dev-dependencies]
+cargo_metadata.workspace = true
+cucumber.workspace = true
+divan.workspace = true
+tokio.workspace = true
+
+[[test]]
+name = "bdd"
+harness = false
+
+[[bench]]
+name = "performance"
+path = "benches/performance.rs"
+harness = false
+
+[features]
+fixtures = []
+
+[lints]
+workspace = true

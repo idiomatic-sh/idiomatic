@@ -1,0 +1,4 @@
+The files of `valid/` are the 652 examples of the CommonMark spec 0.31.2 (github.com/commonmark/commonmark-spec, tag 0.31.2, Creative Commons
+Attribution-ShareAlike 4.0, Copyright (C) 2014-16 John MacFarlane), the `markdown` of each object of `https://spec.commonmark.org/0.31.2/spec.json` written
+unchanged as `valid/<section>/example-<number>.md`, the section in kebab case. None is left out. The spec has no invalid document: every text is a CommonMark
+document. `invalid/encoding/not-utf8.md` is this repository's own: a file whose bytes are not all UTF-8, the one input the language reports an error for.

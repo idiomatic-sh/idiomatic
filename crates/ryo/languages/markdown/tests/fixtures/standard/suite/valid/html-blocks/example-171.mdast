@@ -1,0 +1,2 @@
+root[1]
+└─0 html "<textarea>\n\n*foo*\n\n_bar_\n\n</textarea>"

@@ -1,0 +1,1 @@
+Module(body=[Try(body=[Pass()], handlers=[ExceptHandler(type=Tuple(elts=[Name(id='x'), Name(id='y')]), body=[Pass()])]), TryStar(body=[Pass()], handlers=[ExceptHandler(type=Tuple(elts=[Name(id='x'), Name(id='y')]), body=[Pass()])])])

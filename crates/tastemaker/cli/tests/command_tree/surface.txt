@@ -1,0 +1,99 @@
+tm
+  --dry-run -n
+  --format <FORMAT>
+  --json
+  --no-color
+  --quiet -q
+  --root <ROOT>
+  --timings <TIMINGS>
+tm init
+  --dry-run -n
+  --format <FORMAT>
+  --json
+  --no-color
+  --quiet -q
+  --root <ROOT>
+  --timings <TIMINGS>
+tm add
+  --at <AT>
+  --dry-run -n
+  --format <FORMAT>
+  --json
+  --no-color
+  --param <NAME=VALUE>
+  --quiet -q
+  --root <ROOT>
+  --timings <TIMINGS>
+  <DEFINITION>
+tm create
+  --dry-run -n
+  --format <FORMAT>
+  --json
+  --no-color
+  --package <PACKAGE>
+  --quiet -q
+  --root <ROOT>
+  --set <NAME=VALUE>
+  --timings <TIMINGS>
+  <DEFINITION>
+tm scaffold
+  --at <AT>
+  --dry-run -n
+  --format <FORMAT>
+  --json
+  --no-color
+  --quiet -q
+  --root <ROOT>
+  --set <NAME=VALUE>
+  --timings <TIMINGS>
+  <ENTRY>
+tm check
+  --dry-run -n
+  --fix
+  --format <FORMAT>
+  --json
+  --no-color
+  --quiet -q
+  --root <ROOT>
+  --timings <TIMINGS>
+  <PATHS>
+tm validate
+  --dry-run -n
+  --format <FORMAT>
+  --json
+  --no-color
+  --quiet -q
+  --root <ROOT>
+  --timings <TIMINGS>
+  <ONLY>
+tm update
+  --dry-run -n
+  --format <FORMAT>
+  --json
+  --no-color
+  --quiet -q
+  --root <ROOT>
+  --timings <TIMINGS>
+  --to <TO>
+  <ENTRY>
+tm explain
+  --all
+  --dry-run -n
+  --format <FORMAT>
+  --json
+  --no-color
+  --output -o <output_directory>
+  --quiet -q
+  --root <ROOT>
+  --timings <TIMINGS>
+  <SUBJECT>
+tm list
+  --dry-run -n
+  --format <FORMAT>
+  --json
+  --no-color
+  --quiet -q
+  --root <ROOT>
+  --timings <TIMINGS>
+  <KIND>
+  <TERM>

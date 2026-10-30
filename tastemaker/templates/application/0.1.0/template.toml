@@ -1,0 +1,25 @@
+description = "The optional application namespace, one module per operation."
+why = "Only cores with application services declare this namespace. Pure domains and direct simple use cases need no placeholder."
+content = '''
+//! Cohesive application operations, composed by use cases.
+{% for part in instances["application-service"] | default([]) %}
+pub mod {{ part.name }};
+{% endfor %}
+'''
+
+[given]
+file = 'application.rs'
+
+[[scenarios]]
+id = 'application-namespace-without-operations'
+scenario = 'An application namespace with no operation declares no module.'
+given.files.'application.rs' = '''
+//! Cohesive application operations, composed by use cases.
+'''
+
+[[scenarios]]
+id = 'application-namespace-missing'
+scenario = 'A core that places the application namespace and has no application.rs is reported.'
+then.findings = [
+  { rule = 'application#count', path = 'tastemaker.toml' },
+]

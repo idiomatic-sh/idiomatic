@@ -1,0 +1,161 @@
+description = "Benchmark: duplicates clippy's `wildcard_imports` and ruff's `F403` (undefined-local-with-import-star); eslint has none, for TypeScript has no import of every name into scope; not placed on this repo. No glob import (Rust's `use path::*`, Python's `from module import *`) unless the module it opens is named in `allowed`, such as a `prelude` or `super`."
+why = "A glob import brings in names nobody wrote down: a reader cannot see where one comes from, and a new item upstream can shadow or collide with a local one (clippy's `wildcard_imports`, which allows `prelude` modules and `super::*` in tests; ruff's `F403`). Read from the shared `static-import` relation: an import binding `*`, or binding no name it can list while its own syntax holds the `*` token (a Python wildcard; a TypeScript import for its side effects binds nothing and holds no `*`, and `import * as name` binds the one name). The module is the last segment of the path before `*`, `::` or `.` separated, as written; a relative module with no segment (`.`, `.models`) is compared whole. Not seen: an import written inside a macro invocation's tokens."
+
+query = '''
+param allowed: set<string>;
+let stars = select l."id" as "id" from "syntax-tree" as l where l."text" = "*";
+let named = select l."occurrence" as "id", l."target" as "target", l."file" as "file", l."span" as "span" from "static-import" as l where l."binding" = "*";
+let unnamed = select l."occurrence" as "id", l."target" as "target", l."file" as "file", l."span" as "span" from "static-import" as l where l."binding" = "";
+let unnamed-stars = axis(from=unnamed, relation="syntax-child", direction=descendant, domain=stars);
+let wildcards = project(from=unnamed-stars, columns=["id", "target", "file", "span"]);
+let globs = union(left=named, right=wildcards);
+let after-path = capture(from=globs, path=target, pattern="{*above}::{module}::*", captures=["above", "module"]);
+let after-path-inner = select * from after-path where glob_any(module, "*::*");
+let after-path-last = difference(left=after-path, right=after-path-inner);
+let path-modules = project(from=after-path-last, columns=["id", "file", "span", "module"]);
+let alone = capture(from=globs, path=target, pattern="{module}::*", captures=["module"]);
+let alone-inner = select * from alone where glob_any(module, "*::*");
+let alone-last = difference(left=alone, right=alone-inner);
+let alone-modules = project(from=alone-last, columns=["id", "file", "span", "module"]);
+let after-dots = capture(from=globs, path=target, pattern="{*above}.{module}", captures=["above", "module"]);
+let after-dots-inner = select * from after-dots where glob_any(module, "*.*");
+let after-dots-last = difference(left=after-dots, right=after-dots-inner);
+let dotted-modules = project(from=after-dots-last, columns=["id", "file", "span", "module"]);
+let split-1 = union(left=path-modules, right=alone-modules);
+let split = union(left=split-1, right=dotted-modules);
+let split-ids = project(from=split, columns=["id"]);
+let whole = antijoin(left=globs, right=split-ids, left-on=["id"], right-on=["id"]);
+let whole-modules = select l."id" as "id", l."file" as "file", l."span" as "span", l."target" as "module" from whole as l;
+let modules = union(left=split, right=whole-modules);
+let disallowed = select * from modules where module not in $allowed;
+emit disallowed subject "file" key("span");
+'''
+
+[params.allowed]
+type = "set<string>"
+description = "Module names whose glob import is allowed (such as `prelude` and `super`)."
+
+[diagnostic]
+primary = "span"
+message = "`{module}::*` imports every public name of `{module}`"
+help = "Import the names used, one by one."
+
+[given]
+include = ['**']
+params = { allowed = ['prelude', 'super'] }
+files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+files.'src/lib.rs' = '''
+mod code;
+'''
+
+[[scenarios]]
+id = 'names-imported-one-one'
+scenario = 'Names imported one by one.'
+given.files.'src/lib.rs' = '''
+use std::collections::HashMap;
+
+pub fn map() -> HashMap<u8, u8> {
+    HashMap::new()
+}
+'''
+
+[[scenarios]]
+id = 'module-s-names-imported-glob'
+scenario = "A module's names imported by glob."
+given.files.'src/code.rs' = '''
+use std::collections::*;
+
+pub fn map() -> HashMap<u8, u8> {
+    HashMap::new()
+}
+'''
+then.findings = [
+  { path = 'src/code.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'nested-glob'
+scenario = 'A glob nested in a use tree.'
+given.files.'src/code.rs' = '''
+use std::{collections::*, fmt};
+
+pub fn map() -> HashMap<u8, u8> {
+    HashMap::new()
+}
+'''
+then.findings = [
+  { path = 'src/code.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'prelude-super-glob'
+scenario = 'A prelude and super glob.'
+given.files.'src/lib.rs' = '''
+mod prelude {
+    pub struct Value;
+}
+
+use prelude::*;
+
+pub fn value() -> Value {
+    Value
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+}
+'''
+
+[[scenarios]]
+id = 'python-names-imported-one-by-one'
+scenario = 'Python names imported one by one, and a module imported whole.'
+given.params = { allowed = ['prelude', 'super'] }
+given.files.'pkg/paths.py' = '''
+import os
+from os.path import join, split
+
+
+def parts(path):
+    return split(join(os.sep, path))
+'''
+
+[[scenarios]]
+id = 'python-wildcard-imports'
+scenario = 'Python wildcard imports, absolute and relative.'
+given.params = { allowed = ['prelude', 'super'] }
+given.files.'pkg/__init__.py' = ''
+given.files.'pkg/models.py' = '''
+VALUE = 1
+'''
+given.files.'pkg/paths.py' = '''
+from os.path import *
+from .models import *
+
+
+def parts(path):
+    return split(join(sep, path)), VALUE
+'''
+then.findings = [
+  { path = 'pkg/paths.py', line = 1 },
+  { path = 'pkg/paths.py', line = 2 },
+]
+
+[[scenarios]]
+id = 'typescript-namespace-and-side-effect-imports'
+scenario = 'A TypeScript namespace import binds one name, and an import for its side effects binds none: neither is a glob.'
+given.params = { allowed = ['prelude', 'super'] }
+given.files.'src/setup.ts' = '''
+export const ready = true
+'''
+given.files.'src/paths.ts' = '''
+import * as path from 'node:path'
+import './setup'
+
+export const joined = path.join('a', 'b')
+'''

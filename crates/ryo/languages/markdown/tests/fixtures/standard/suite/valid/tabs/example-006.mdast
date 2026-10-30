@@ -1,0 +1,5 @@
+root[1]
+└─0 blockquote[1]
+    └─0 code "  foo"
+          lang: null
+          meta: null

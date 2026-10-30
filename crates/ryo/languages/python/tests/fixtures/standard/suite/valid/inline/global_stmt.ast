@@ -1,0 +1,1 @@
+Module(body=[Global(names=['x']), Global(names=['x', 'y', 'z'])])

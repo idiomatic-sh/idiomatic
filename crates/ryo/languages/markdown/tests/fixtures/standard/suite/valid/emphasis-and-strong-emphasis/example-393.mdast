@@ -1,0 +1,7 @@
+root[1]
+└─0 paragraph[1]
+    └─0 emphasis[3]
+        ├─0 text "("
+        ├─1 strong[1]
+        │   └─0 text "foo"
+        └─2 text ")"

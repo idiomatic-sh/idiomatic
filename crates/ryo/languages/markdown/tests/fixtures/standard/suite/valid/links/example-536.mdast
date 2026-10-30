@@ -1,0 +1,9 @@
+root[2]
+├─0 paragraph[2]
+│   ├─0 text "[foo "
+│   └─1 html "<bar attr=\"][ref]\">"
+└─1 definition
+      identifier: "ref"
+      label: "ref"
+      title: null
+      url: "/uri"

@@ -1,0 +1,8 @@
+version = 1
+parents = ["cc3a903d73fb844122fbdde24031cd1fd285c50e0438001f197d165e0c1e4095"]
+
+[[perf]]
+reasons = ["Seeded with the median of five runs of the benchmark on the development machine, each run the median of its rounds; the tolerance is three times the spread of those five medians, rounded up to a multiple of 5, and at least 100% for a workload under 100 ms or 20% above it: the machine is shared, and a workload that short moves by its own rounding."]
+records = [
+  { tool = "performance", benchmark = "relation/describe", measure = "cpu-ms", best = 0.014 },
+]

@@ -1,0 +1,6 @@
+[workspace]
+members = ["app", "y"]
+resolver = "3"
+
+[patch.crates-io]
+y = { path = "y" }

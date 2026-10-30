@@ -1,0 +1,14 @@
+root[1]
+└─0 list[2]
+    │ ordered: false
+    │ start: null
+    │ spread: false
+    ├─0 listItem[1]
+    │   │ spread: false
+    │   │ checked: null
+    │   └─0 html "<div>"
+    └─1 listItem[1]
+        │ spread: false
+        │ checked: null
+        └─0 paragraph[1]
+            └─0 text "foo"

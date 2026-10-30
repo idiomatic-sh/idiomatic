@@ -1,0 +1,15 @@
+# contract
+
+## 0.1.0
+
+The first version: a language's `parse` and `project` are contract parts, not use cases. A contract part is `contract.rs`, which imports the engine's trait (`ryo::languages::Parse`) and implements it for the struct `<Part>Contract`, and `contract_test.rs`, the language's own cases in the one test shape. The `trait` param names the trait, and the rule `contract-implements` holds that the file imports that exact path and implements it. The language spec places the two contracts and their module files; the part has no interface, types, errors or fakes of its own. Fixtures: the complete contract, no test, no contract file and a contract that does not implement its trait, the four of the rule and the templates' own.
+
+The `contract` template's struct names no visibility: a contract may be `pub` or `pub(crate)` (a template that names a visibility is compared exactly). Fixture `crate-visible`.
+
+The `contract-test` template renders no runner: like every test template, it holds the `CASES` table and the subject, and the author writes a `run(CASES, Word::<word>, subject)` runner exactly for each case word the table has rows of. `test-runners-match-rows` is placed beside `test-shape` and `case-expectation`. The fixtures' tests keep only the runners of the words they have rows of; new fixture `test-with-rejects-row-without-runner`.
+
+**Per-file methods fill the engine's buffers.** New rule `contract-fills-buffers` (contract.rs): a method of the trait impl that takes a parameter beside `self` returns no `Vec`, `String`, `Box`, map or `Self::<Assoc>` by value; the engine owns the per-file buffers and the language fills them. Fixtures: `fills-a-buffer`, `methods-without-a-file`, `derived-state-in-a-result` (pass), `returns-a-vec`, `returns-a-string`, `returns-a-result-of-a-box`, `returns-an-associated-type` (violation). Edited in place: the package is frozen.
+
+**A scaffolded contract compiles and answers honestly.** The `contract` template renders the whole implementation for each engine trait: `Parse` holds the syntax port, recognizes no file, builds no tree and has no kind, reads `syntax_tree` through its item and answers every other relation `NotInThisLanguage` (`NoSuchConstruct`); `Project` names no manifest and answers every manifest relation `NotInThisLanguage` (`NoManifests`). The struct is `pub(crate)`, and `ParseContract::new` takes the port. The `contract-test` template renders cases that pass: the engine's refusals (and, for `Parse`, a file the language does not recognize, refused as unsupported; for `Project`, a repository with no manifest) with their runners, with no `todo!`. Fixtures: `example-project` of both templates, `public-struct`, `without-subject`; the others regenerated from the rendering. `crate-visible` is gone: the template names `pub(crate)`.
+
+**The scaffolded contract answers `call_argument` and `resolves`**: the `contract` template renders the two `Parse` methods the engine added, each absent with `NotYetRead` like every other relation the scaffold does not read; the rendered fixtures carry them. Edited in place.

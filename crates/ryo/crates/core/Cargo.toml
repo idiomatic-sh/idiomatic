@@ -1,0 +1,64 @@
+[package]
+name = "idiomatic-sh-ryo-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = true
+description = "Source query execution services for Ryo"
+keywords = ["query", "lint", "static-analysis", "ryoql", "ryo"]
+categories = ["development-tools"]
+autobenches = false
+
+[lib]
+name = "ryo_core"
+
+[dependencies]
+thiserror.workspace = true
+ignore.workspace = true
+rayon.workspace = true
+memchr.workspace = true
+serde.workspace = true
+blake3.workspace = true
+globset.workspace = true
+regex-automata.workspace = true
+hashbrown.workspace = true
+heck.workspace = true
+rustc-hash.workspace = true
+sysinfo.workspace = true
+tracing.workspace = true
+ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.2.0" }
+ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.2.0" }
+ryo_query_language = { package = "idiomatic-sh-ryo-query_language", path = "../query_language", version = "0.2.0" }
+dhat = { workspace = true, optional = true }
+postcard.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+cargo_metadata.workspace = true
+cucumber.workspace = true
+divan.workspace = true
+tokio.workspace = true
+dhat.workspace = true
+# The crate itself, with its fixtures: its tests need them, and no test is run with a flag.
+idiomatic-sh-ryo-core = { path = ".", features = ["fixtures"] }
+
+[[test]]
+name = "bdd"
+harness = false
+
+[[test]]
+name = "allocation"
+harness = false
+
+[[bench]]
+name = "performance"
+path = "benches/performance.rs"
+harness = false
+
+[features]
+fixtures = ["dep:dhat", "ryo_language/fixtures", "ryo_values/fixtures"]
+
+[lints]
+workspace = true

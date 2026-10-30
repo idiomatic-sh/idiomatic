@@ -1,0 +1,13 @@
+{
+  "name": "@idiomatic-sh/asymptote",
+  "description": "The asymptote command line: runs the native binary from the platform package npm installs for this machine.",
+  "bin": {
+    "asymptote": "launcher.js"
+  },
+  "files": [
+    "launcher.js"
+  ],
+  "engines": {
+    "node": ">=18"
+  }
+}

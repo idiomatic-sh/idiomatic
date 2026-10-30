@@ -1,0 +1,213 @@
+description = "A file of the syntax port, which the parser library implements: `src/outbound/syntax/fixtures/contract.rs`."
+why = "The language is complete or says what it lacks: this file is placed at count 1 for every language, so a language added by its directory has it from the first scaffold, in the shape every other language has, and a language that lacks it is a finding at the language. The template asks for the declarations the file makes; the bodies and the language's words are the author's."
+content = '''
+//! What every `syntax` adapter must pass.
+
+use crate::outbound::syntax::types::SourceText;
+use ryo::languages::{
+    ByteSlice, Elements, Symbols, end_at, end_of, kind_at, positions, start_at, table_builder,
+};
+
+use super::super::interface::SyntaxPort;
+use crate::cases::{Case, CaseName, Expect, Word, run};
+
+/// What a row of the contract is given: {{ lang }} text.
+type Input = &'static str;
+/// Whether the table is a tree: one root, and every element's subtree inside its parent's.
+type Value = bool;
+/// A syntax port refuses nothing: the parser recovers from what it cannot read.
+type Failure = ();
+
+/// The contract's rows: a name, one case word, an input and the expected value or error variant. Every implementation runs them.
+pub(crate) const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("a_line_gives_a_well_formed_tree"),
+        word: Word::Succeeds,
+        input: || "a\n",
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("an_empty_file_gives_a_well_formed_tree"),
+        word: Word::Succeeds,
+        input: || "",
+        expect: Expect::Value(true),
+    },
+];
+
+{% if scaffold | default(false) %}
+/// Whether `elements` is a pre-order tree: every element's subtree lies inside the table and
+/// inside its parent's, and the first element is its own parent.
+fn well_formed(elements: &Elements) -> bool {
+    let count = end_of(elements);
+    positions(elements).all(|position| {
+        let end = ryo::languages::last_at(elements, position);
+        let parent = ryo::languages::parent_at(elements, position);
+        end < count
+            && (parent == position
+                || (parent < position && end <= ryo::languages::last_at(elements, parent)))
+    })
+}
+{% endif %}
+
+/// Runs the contract's rows against one implementation: the fake, or an adapter.
+///
+/// # Panics
+///
+/// When the implementation breaks the contract.
+pub(crate) fn check(adapter: &impl SyntaxPort) {
+    run(CASES, Word::Succeeds, |text| {
+        Ok(well_formed(&table_of(adapter, text)))
+    });
+}
+
+{% if scaffold | default(false) %}
+/// The table the adapter reads `text` into.
+fn table_of(adapter: &impl SyntaxPort, text: &str) -> Elements {
+    let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
+    let mut builder = table_builder(&mut elements, &mut symbols, ByteSlice(text.as_bytes()));
+    adapter.read(SourceText(text.as_bytes()), &mut builder);
+    elements
+}
+{% endif %}
+
+{% if scaffold | default(false) %}
+/// Every element of the table the adapter reads `source` into, in order: its kind and the text it spans.
+#[must_use]
+pub(crate) fn elements_of(
+    adapter: &impl SyntaxPort,
+    source: &str,
+) -> Vec<(crate::domain::syntax::types::Kind, String)> {
+    let elements = table_of(adapter, source);
+    positions(&elements)
+        .map(|position| {
+            let (start, end) = (
+                usize::try_from(start_at(&elements, position).0).unwrap_or(0),
+                usize::try_from(end_at(&elements, position).0).unwrap_or(0),
+            );
+            (
+                crate::domain::syntax::service::kind_of(kind_at(&elements, position)),
+                source.get(start..end).unwrap_or_default().to_owned(),
+            )
+        })
+        .collect()
+}
+{% endif %}
+'''
+
+[params]
+lang = { type = "identifier", from = "directory-name", description = "The language, its directory's name." }
+
+[given]
+file = 'src/outbound/syntax/fixtures/contract.rs'
+params = { lang = 'demo' }
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'src/outbound/syntax/fixtures/contract.rs' = '''
+//! What every `syntax` adapter must pass.
+
+use crate::outbound::syntax::types::SourceText;
+use ryo::languages::{
+    ByteSlice, Elements, Symbols, end_at, end_of, kind_at, positions, start_at, table_builder,
+};
+
+use super::super::interface::SyntaxPort;
+use crate::cases::{Case, CaseName, Expect, Word, run};
+
+/// What a row of the contract is given: demo text.
+type Input = &'static str;
+/// Whether the table is a tree: one root, and every element's subtree inside its parent's.
+type Value = bool;
+/// A syntax port refuses nothing: the parser recovers from what it cannot read.
+type Failure = ();
+
+/// The contract's rows: a name, one case word, an input and the expected value or error variant. Every implementation runs them.
+pub(crate) const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("a_line_gives_a_well_formed_tree"),
+        word: Word::Succeeds,
+        input: || "a\n",
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("an_empty_file_gives_a_well_formed_tree"),
+        word: Word::Succeeds,
+        input: || "",
+        expect: Expect::Value(true),
+    },
+];
+
+
+/// Runs the contract's rows against one implementation: the fake, or an adapter.
+///
+/// # Panics
+///
+/// When the implementation breaks the contract.
+pub(crate) fn check(adapter: &impl SyntaxPort) {
+    run(CASES, Word::Succeeds, |text| {
+        Ok(well_formed(&table_of(adapter, text)))
+    });
+}
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template.'
+given.files.'src/outbound/syntax/fixtures/contract.rs' = '''
+//! What every `syntax` adapter must pass.
+
+use crate::outbound::syntax::types::SourceText;
+use ryo::languages::{
+    ByteSlice, Elements, Symbols, end_at, end_of, kind_at, positions, start_at, table_builder,
+};
+
+use super::super::interface::SyntaxPort;
+use crate::cases::{Case, CaseName, Expect, Word, run};
+
+/// What a row of the contract is given: demo text.
+type Input = &'static str;
+/// Whether the table is a tree: one root, and every element's subtree inside its parent's.
+type Value = bool;
+/// A syntax port refuses nothing: the parser recovers from what it cannot read.
+type Failure = ();
+
+/// The contract's rows: a name, one case word, an input and the expected value or error variant. Every implementation runs them.
+pub(crate) const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("a_line_gives_a_well_formed_tree"),
+        word: Word::Succeeds,
+        input: || "a\n",
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("an_empty_file_gives_a_well_formed_tree"),
+        word: Word::Succeeds,
+        input: || "",
+        expect: Expect::Value(true),
+    },
+];
+
+
+/// Runs the contract's rows against one implementation: the fake, or an adapter.
+///
+/// # Panics
+///
+/// When the implementation breaks the contract.
+pub(crate) fn check(adapter: &impl SyntaxPort) {
+    run(CASES, Word::Succeeds, |text| {
+        Ok(well_formed(&table_of(adapter, text)))
+    });
+}
+
+
+
+// More.
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'language-outbound-syntax-fixtures-contract#count', path = '.' },
+]

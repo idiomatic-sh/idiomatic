@@ -1,0 +1,1 @@
+This directory holds the parser tests of rust-analyzer, copied unchanged and pinned: README.md names the source and the version pinned. The valid cases are under valid/ and the invalid ones under invalid/. The files of the suite are MIT or Apache-2.0 licensed by rust-analyzer; the four files left out are listed in ../corpus/NOTICE.

@@ -1,0 +1,16 @@
+[package]
+name = "app"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+helper = { package = "support", path = "../support", version = "0.1", optional = true }
+remote = { git = "https://example.com/remote.git", rev = "0123456" }
+followed = { git = "https://example.com/followed.git", branch = "main" }
+shared = { workspace = true }
+
+[dev-dependencies]
+tool = { path = "../tool", version = "=0.1.0" }
+
+[target.'cfg(unix)'.build-dependencies]
+tool = { path = "../tool" }

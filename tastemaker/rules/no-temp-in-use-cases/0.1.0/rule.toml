@@ -1,0 +1,117 @@
+description = "A temporary directory is made only in a named adapter or in test code: a temporary-file library (`libraries`) named, or a port's scratch method (`methods`) called, anywhere else in scope is reported."
+why = "A temporary directory is the machine's disk: where it lives, when it is removed and what happens when it cannot be made are an adapter's to decide, behind the port the core asks. A use case that calls `scratch()` and `discard()` on a port holds a machine path and owns its cleanup, so an early return leaks the directory and the fake must model the disk; an SDK composition or type that holds a `tempfile::TempDir` puts the library in the core's values. The adapter makes the directory and hands back what the use case needs (the scenario's files, a store that is removed when dropped), and test code makes its own. Not seen: a temporary directory reached through a macro or a call the provider does not resolve."
+
+query = '''
+param libraries: set<string>;
+param methods: set<string>;
+let imports = project(from="static-import", columns=["file", "span", "target"]);
+let references = project(from="reference", columns=["file", "span", "target"]);
+let calls = project(from="static-call", columns=["file", "span", "target"]);
+let named = union(left=imports, right=references);
+let mentions = union(left=named, right=calls);
+let library-uses = select * from mentions where glob_any(target, $libraries);
+let method-calls = select * from "syntax-tree" where kind = "method-call-expr";
+let name-references = select * from "syntax-tree" where kind = "name-ref";
+let method-names = select * from "syntax-tree" where kind = "ident" and text in $methods;
+let call-children = select r."child" as "child" from method-calls as l join "syntax-child" as r on l."id" = r."parent";
+let call-names = select r."id" as "id" from call-children as l join name-references as r on l."child" = r."id";
+let name-children = select r."child" as "child" from call-names as l join "syntax-child" as r on l."id" = r."parent";
+let scratch-calls = select r."text" as "target", r."file" as "file", r."span" as "span" from name-children as l join method-names as r on l."child" = r."id";
+let temporaries = union(left=library-uses, right=scratch-calls);
+emit temporaries subject "file" key("span");
+'''
+
+[params.libraries]
+type = "set<string>"
+description = "The temporary-file libraries and functions, each as a path glob as it is written in code: `tempfile::*`, `*::temp_dir`."
+
+[params.methods]
+type = "set<string>"
+description = "The names of the port methods that hand out or remove a temporary directory: `scratch`, `discard`."
+
+[diagnostic]
+primary = "span"
+message = "`{target}` makes or removes a temporary directory outside an adapter"
+help = "Move the temporary directory into the adapter of the port that needs it: the adapter makes it, removes it when its value is dropped, and hands the use case what it asked for, never the directory's path."
+
+[given]
+include = ['src/**']
+exclude = ['src/outbound/*/adapters/**', 'src/**/*_test.rs', 'src/outbound/*/fixtures/**']
+params = { libraries = ['tempfile', 'tempfile::*', '*::temp_dir', 'temp_dir'], methods = ['scratch', 'discard'] }
+
+[[scenarios]]
+id = 'use-case-calls-scratch'
+scenario = 'The validate use case asks its repository port for a scratch directory and removes it itself.'
+given.files.'src/inbound/use_cases/validate/use_case.rs' = '''
+pub struct ValidateImpl<R> {
+    repository: R,
+}
+
+impl<R: Repository> ValidateImpl<R> {
+    fn judge(&self, scenario: &Scenario) -> Result<Judged, ValidateError> {
+        let root = self.repository.scratch()?;
+        let outcome = self.run(&root, scenario);
+        let discarded = self.repository.discard(&root);
+        discarded?;
+        outcome
+    }
+}
+'''
+then.findings = [
+  { path = 'src/inbound/use_cases/validate/use_case.rs', line = 7 },
+  { path = 'src/inbound/use_cases/validate/use_case.rs', line = 9 },
+]
+
+[[scenarios]]
+id = 'composition-makes-tempdir'
+scenario = 'An SDK composition makes a `tempfile` directory and its type holds it.'
+given.files.'src/resources/linter/lint/composition.rs' = '''
+pub(crate) fn build_image(cache: &Cache) -> Result<Image, LintError> {
+    match cache {
+        Cache::At(path) => Ok(Image::Kept(path.clone())),
+        Cache::None => tempfile::tempdir().map(Image::Scratch).map_err(LintError::from),
+    }
+}
+'''
+given.files.'src/resources/linter/lint/types.rs' = '''
+pub(crate) enum Image {
+    Kept(PathBuf),
+    Scratch(tempfile::TempDir),
+}
+'''
+then.findings = [
+  { path = 'src/resources/linter/lint/composition.rs', line = 4 },
+  { path = 'src/resources/linter/lint/types.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'adapter-and-test-make-them'
+scenario = 'The disk adapter makes the scratch directory, and a test makes its own.'
+given.files.'src/outbound/repository/adapters/disk/adapter.rs' = '''
+impl Repository for Disk {
+    fn scratch(&self) -> Result<MachinePath, RepositoryError> {
+        let directory = tempfile::Builder::new()
+            .prefix(SCRATCH)
+            .tempdir()
+            .map_err(|error| RepositoryError::Write {
+                path: std::env::temp_dir().display().to_string(),
+                reason: error.to_string(),
+            })?
+            .keep();
+        Ok(MachinePath(directory.display().to_string().into()))
+    }
+}
+'''
+given.files.'src/inbound/use_cases/validate/use_case_test.rs' = '''
+#[test]
+fn judges() {
+    let directory = tempfile::tempdir().unwrap();
+    let scratch = vec![0_u8; 4];
+    assert!(directory.path().exists() && !scratch.is_empty());
+}
+'''
+given.files.'src/domain/kinds/service.rs' = '''
+pub fn fill(scratch: &mut Vec<u32>) {
+    scratch.clear();
+}
+'''

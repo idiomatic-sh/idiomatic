@@ -1,0 +1,1 @@
+Module(body=[ClassDef(name='Foo', body=[Expr(value=Constant(value=Ellipsis))], type_params=[TypeVar(name='S', bound=Tuple(elts=[Name(id='str'), Name(id='bytes')])), TypeVar(name='T', bound=Name(id='float')), TypeVarTuple(name='Ts'), ParamSpec(name='P')])])

@@ -1,0 +1,19 @@
+toml 0-13
+ expression 0-6
+  keyval 0-6
+   key 0-1
+    simple-key 0-1
+     unquoted-key 0-1
+   keyval-sep 1-2
+   val 2-6
+    boolean 2-6
+ newline 6-7
+ expression 7-12
+  table 7-12
+   array-table 7-12
+    array-table-open 7-9
+    key 9-10
+     simple-key 9-10
+      unquoted-key 9-10
+    array-table-close 10-12
+ newline 12-13
