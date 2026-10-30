@@ -27,7 +27,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: release
+  group: release-${{ inputs.product }}
   cancel-in-progress: false
 jobs:
   check:
