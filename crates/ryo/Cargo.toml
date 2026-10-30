@@ -13,14 +13,14 @@ package = "idiomatic-sh-ryo-sdk"
 library = "ryo"
 nightly = "nightly-2026-08-01"
 listing = "crates/sdk/api.txt"
-baseline-rev = "2d50425792"
+baseline-rev = "e48028e553"
 allow = [
   # The deliberate language-author contract, versioned and semver-checked with the SDK.
   "ryo::resources::languages",
 ]
 
 [workspace.package]
-version = "0.2.0"
+version = "0.1.0"
 edition = "2024"
 rust-version = "1.97"
 license = "MIT"

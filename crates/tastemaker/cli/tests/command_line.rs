@@ -151,7 +151,7 @@ fn a_command_line_that_names_no_command_prints_help_and_fails() {
 #[test]
 fn every_command_answers_its_version() {
     let tree = tree();
-    // The version is followed by the languages the build links: `tastemaker 0.1.0 (rust 0.2.0)`.
+    // The version is followed by the languages the build links: `tastemaker 0.1.0 (rust 0.1.0)`.
     let version = format!(" {} (", env!("CARGO_PKG_VERSION"));
     for (path, _) in commands(&tree) {
         let path: Vec<&str> = path.iter().map(String::as_str).collect();

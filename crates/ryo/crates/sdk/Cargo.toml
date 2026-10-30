@@ -15,10 +15,10 @@ autobenches = false
 name = "ryo"
 
 [dependencies]
-ryo_core = { package = "idiomatic-sh-ryo-core", path = "../core", version = "0.2.0" }
-ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.2.0" }
-ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.2.0" }
-ryo_query_language = { package = "idiomatic-sh-ryo-query_language", path = "../query_language", version = "0.2.0" }
+ryo_core = { package = "idiomatic-sh-ryo-core", path = "../core", version = "0.1.0" }
+ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.1.0" }
+ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.1.0" }
+ryo_query_language = { package = "idiomatic-sh-ryo-query_language", path = "../query_language", version = "0.1.0" }
 rayon.workspace = true
 thiserror.workspace = true
 

@@ -11,10 +11,10 @@ from ci.release.use_case import Product
 
 
 @pytest.mark.parametrize(("printed", "matches"), [
-    ("tm 0.1.0 (python 0.2.0)\n", True),
+    ("tm 0.1.0 (python 0.1.0)\n", True),
     ("tm 0.1.0 ()\n", True),
-    ("tm 0.1.1 (python 0.2.0)\n", False),
-    ("tm 0.1.0 (python 0.2.0\n", False),
+    ("tm 0.1.1 (python 0.1.0)\n", False),
+    ("tm 0.1.0 (python 0.1.0\n", False),
     ("tm 0.1.0\n", False),
 ])
 def test_tastemaker_reports_its_version_with_its_provider_catalog(printed, matches) -> None:

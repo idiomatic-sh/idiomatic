@@ -1214,7 +1214,7 @@ checksum = "ae293c039020f9ec10710af98d29ce6aa2051486638b49c9a6409f3b4a9e98ad"
 
 [[package]]
 name = "idiomatic-sh-ryo-core"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "blake3",
  "globset",
@@ -1237,7 +1237,7 @@ dependencies = [
 
 [[package]]
 name = "idiomatic-sh-ryo-css"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "cssparser",
  "idiomatic-sh-ryo-sdk",
@@ -1246,7 +1246,7 @@ dependencies = [
 
 [[package]]
 name = "idiomatic-sh-ryo-go"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "idiomatic-sh-ryo-sdk",
  "postcard",
@@ -1259,7 +1259,7 @@ dependencies = [
 
 [[package]]
 name = "idiomatic-sh-ryo-html"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "idiomatic-sh-ryo-sdk",
  "serde_json",
@@ -1272,7 +1272,7 @@ dependencies = [
 
 [[package]]
 name = "idiomatic-sh-ryo-javascript"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "globset",
  "idiomatic-sh-ryo-sdk",
@@ -1292,7 +1292,7 @@ dependencies = [
 
 [[package]]
 name = "idiomatic-sh-ryo-json"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "idiomatic-sh-ryo-sdk",
  "jsonc-parser",
@@ -1301,7 +1301,7 @@ dependencies = [
 
 [[package]]
 name = "idiomatic-sh-ryo-language"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "hashbrown 0.17.1",
  "rustc-hash 2.1.3",
@@ -1311,7 +1311,7 @@ dependencies = [
 
 [[package]]
 name = "idiomatic-sh-ryo-markdown"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "idiomatic-sh-ryo-sdk",
  "pulldown-cmark",
@@ -1320,7 +1320,7 @@ dependencies = [
 
 [[package]]
 name = "idiomatic-sh-ryo-python"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "idiomatic-sh-ryo-sdk",
  "postcard",
@@ -1335,7 +1335,7 @@ dependencies = [
 
 [[package]]
 name = "idiomatic-sh-ryo-query_language"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "idiomatic-sh-ryo-language",
  "idiomatic-sh-ryo-values",
@@ -1345,7 +1345,7 @@ dependencies = [
 
 [[package]]
 name = "idiomatic-sh-ryo-rust"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "cargo-platform",
  "globset",
@@ -1364,7 +1364,7 @@ dependencies = [
 
 [[package]]
 name = "idiomatic-sh-ryo-sdk"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "idiomatic-sh-ryo-core",
  "idiomatic-sh-ryo-language",
@@ -1376,7 +1376,7 @@ dependencies = [
 
 [[package]]
 name = "idiomatic-sh-ryo-toml"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "idiomatic-sh-ryo-sdk",
  "strum",
@@ -1386,7 +1386,7 @@ dependencies = [
 
 [[package]]
 name = "idiomatic-sh-ryo-typescript"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "globset",
  "idiomatic-sh-ryo-sdk",
@@ -1407,7 +1407,7 @@ dependencies = [
 
 [[package]]
 name = "idiomatic-sh-ryo-values"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "idiomatic-sh-ryo-language",
 ]
