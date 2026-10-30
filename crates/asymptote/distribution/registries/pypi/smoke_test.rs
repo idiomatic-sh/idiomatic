@@ -154,5 +154,13 @@ fn installs_and_runs() {
             ]),
     )
     .unwrap();
-    assert!(Path::new(found.trim()).starts_with(&target), "{found}");
+    // Compared as canonical paths both sides: the temporary directory may be reached through a symbolic link (macOS's
+    // /var is /private/var), which Python resolves.
+    assert!(
+        Path::new(found.trim())
+            .canonicalize()
+            .unwrap()
+            .starts_with(target.canonicalize().unwrap()),
+        "{found}"
+    );
 }

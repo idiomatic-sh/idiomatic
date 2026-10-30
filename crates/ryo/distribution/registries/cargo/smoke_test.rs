@@ -79,6 +79,9 @@ fn publishes_dry_run() {
                     "--locked",
                     "--offline",
                     "--all-features",
+                    // The workspace's own packages, the ones a patch names, and none of the registry's: a dependency of
+                    // another platform alone is never downloaded on this one, and offline it could not be read.
+                    "--no-deps",
                 ])
                 .current_dir(env!("CARGO_MANIFEST_DIR")),
         )

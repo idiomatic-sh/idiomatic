@@ -69,15 +69,20 @@ fn adapter() -> ToolsSubprocessAdapter {
     }
 }
 
-/// Whether a tool whose group holds a second process ends, signalled, when its connection is stopped.
+/// Whether a tool whose group holds a second process ends, signalled, when its connection is stopped. The stop comes once the
+/// tool has started that second process (it writes a marker after it), never before: a stop that landed while the tool was still
+/// starting would prove nothing of its group.
 fn stopped() -> bool {
+    let markers = tempfile::tempdir().expect("a directory for the marker");
+    let marker = markers.path().join("running");
+    let script = format!("sleep 60 & : > '{}'; sleep 60; wait", marker.display());
     let connection = ToolsConnection::new();
     let running = ToolsSubprocessAdapter {
         connection: connection.clone(),
     };
     let started = std::time::Instant::now();
-    let ran = std::thread::spawn(move || running.run(&shell("sleep 60 & sleep 60; wait", 120)));
-    while connection.first().is_none() && started.elapsed().as_secs() < 10 {
+    let ran = std::thread::spawn(move || running.run(&shell(&script, 120)));
+    while !marker.exists() && started.elapsed().as_secs() < 10 {
         std::thread::sleep(std::time::Duration::from_millis(10));
     }
     connection.stop();

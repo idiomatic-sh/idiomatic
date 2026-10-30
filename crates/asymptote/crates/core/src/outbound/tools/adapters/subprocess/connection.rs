@@ -30,12 +30,6 @@ impl ToolsConnection {
         let _: bool = self.groups().remove(&group);
     }
 
-    /// The first group running now, if any.
-    #[cfg(test)]
-    pub(super) fn first(&self) -> Option<GroupId> {
-        self.groups().first().copied()
-    }
-
     /// Kills every tool running now, with everything in its process group.
     #[cfg(unix)]
     pub fn stop(&self) {

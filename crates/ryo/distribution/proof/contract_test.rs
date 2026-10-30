@@ -23,8 +23,14 @@ fn dependencies_are_isolated_external_packages_and_paths_cannot_escape() -> std:
         &pin("package", ".benchmark/arch"),
     )?;
     let binding = project.join(".benchmark/arch");
-    assert!(!binding.canonicalize()?.starts_with(&project));
-    assert!(binding.canonicalize()?.starts_with(scratch.path()));
+    // Compared as canonical paths both sides: the temporary directory may be reached through a symbolic link (macOS's
+    // /var is /private/var).
+    assert!(!binding.canonicalize()?.starts_with(project.canonicalize()?));
+    assert!(
+        binding
+            .canonicalize()?
+            .starts_with(scratch.path().canonicalize()?)
+    );
     std::fs::write(repository.join("package/spec.toml"), "after")?;
     assert_eq!(
         std::fs::read_to_string(binding.join("spec.toml"))?,
