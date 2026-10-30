@@ -7,17 +7,21 @@ from __future__ import annotations
 import dataclasses
 import json
 import subprocess
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
 
+from ci.release.publish.adapters.cargo import adapter
 from ci.release.publish.adapters.cargo.adapter import (
+    DEFAULT_WAIT_SECONDS,
     CargoPublish,
     cargo_metadata,
     owned,
     cargo_publish,
     patches,
     publication_order,
+    rate_limit_wait,
 )
 from ci.release.publish.interface_test import conforms
 from ci.release.use_case import Artifact, Product
@@ -124,11 +128,16 @@ class Cargo:
 
     def __init__(self) -> None:
         self.publishes: list[list[str]] = []
+        # The refusals the next publishes answer with, in turn, before they succeed.
+        self.refusals: list[tuple[int, str]] = []
 
     def __call__(self, argv: list[str], **_: object) -> subprocess.CompletedProcess:
         if argv[:2] == ["cargo", "metadata"]:
             return subprocess.CompletedProcess(argv, 0, json.dumps(METADATA), "")
         self.publishes.append(argv)
+        if self.refusals:
+            code, said = self.refusals.pop(0)
+            return subprocess.CompletedProcess(argv, code, "", said)
         return subprocess.CompletedProcess(argv, 0, "", "")
 
     def published(self) -> list[str]:
@@ -139,6 +148,7 @@ class Cargo:
 def cargo(monkeypatch: pytest.MonkeyPatch) -> Cargo:
     recorded = Cargo()
     monkeypatch.setattr(subprocess, "run", recorded)
+    monkeypatch.setattr(adapter, "on_crates_io", lambda name, version: False)
     monkeypatch.delenv("CARGO_REGISTRY_TOKEN", raising=False)
     return recorded
 
@@ -201,6 +211,52 @@ def test_another_product_s_crate_is_patched_in_but_never_published(tmp_path, car
     CargoPublish().publish(PRODUCT, Artifact("cargo", tmp_path, "shared"), True)
     assert cargo.published() == ["core", "language", "cli"]
     assert "base 1.0.0: another product's crate" in capsys.readouterr().out
+
+
+def test_a_crate_version_already_on_crates_io_is_not_uploaded_again(tmp_path, cargo, monkeypatch, capsys) -> None:
+    monkeypatch.setenv("CARGO_REGISTRY_TOKEN", "from-the-release-environment")
+    monkeypatch.setattr(adapter, "on_crates_io", lambda name, version: name in {"base", "core"})
+    CargoPublish().publish(PRODUCT, Artifact("cargo", tmp_path, "shared"), False)
+    assert cargo.published() == ["language", "cli"]
+    assert "base 1.0.0: already on crates.io" in capsys.readouterr().out
+
+
+def test_a_dry_run_dry_runs_every_crate_even_when_it_is_on_crates_io(tmp_path, cargo, monkeypatch) -> None:
+    monkeypatch.setattr(adapter, "on_crates_io", lambda name, version: True)
+    CargoPublish().publish(PRODUCT, Artifact("cargo", tmp_path, "shared"), True)
+    assert cargo.published() == ["base", "core", "language", "cli"]
+
+
+REFUSED = (
+    "error: failed to publish to registry at https://crates.io\n\nCaused by:\n  the remote server responded with an error "
+    "(status 429 Too Many Requests): You have published too many new crates in a short period of time. Please try again "
+    "after Fri, 30 Oct 2026 17:10:00 GMT or email help@crates.io to have your limit increased."
+)
+
+
+def test_the_rate_limit_waits_until_the_time_crates_io_names() -> None:
+    now = datetime(2026, 10, 30, 17, 0, 0, tzinfo=timezone.utc)
+    assert rate_limit_wait(REFUSED, now) == 600 + 15
+    assert rate_limit_wait("status 429 Too Many Requests", now) == DEFAULT_WAIT_SECONDS
+    assert rate_limit_wait("error: some other failure", now) is None
+
+
+def test_a_rate_limited_upload_waits_and_uploads_again(tmp_path, cargo, monkeypatch) -> None:
+    monkeypatch.setenv("CARGO_REGISTRY_TOKEN", "from-the-release-environment")
+    waits: list[float] = []
+    monkeypatch.setattr(adapter.time, "sleep", waits.append)
+    cargo.refusals = [(101, REFUSED)]
+    CargoPublish().publish(PRODUCT, Artifact("cargo", tmp_path, "shared"), False)
+    assert cargo.published() == ["base", "base", "core", "language", "cli"]
+    assert len(waits) == 1
+
+
+def test_another_failure_stops_the_publish(tmp_path, cargo, monkeypatch) -> None:
+    monkeypatch.setenv("CARGO_REGISTRY_TOKEN", "from-the-release-environment")
+    cargo.refusals = [(101, "error: the manifest is invalid")]
+    with pytest.raises(subprocess.CalledProcessError):
+        CargoPublish().publish(PRODUCT, Artifact("cargo", tmp_path, "shared"), False)
+    assert cargo.published() == ["base"]
 
 
 COMMAND_LINES = {
