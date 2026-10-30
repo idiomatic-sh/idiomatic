@@ -128,7 +128,14 @@ fn push_sample(samples: &mut Vec<SourceFile>, fixtures: &Path, path: &Path) {
         return;
     };
     samples.push(SourceFile {
-        path: SourcePath(leaked(super::findings::read_as(&within.to_string_lossy()))),
+        // Separated by `/` on every platform, as the engine hands a language every path.
+        path: SourcePath(leaked(super::findings::read_as(
+            &within
+                .components()
+                .map(|part| part.as_os_str().to_string_lossy())
+                .collect::<Vec<_>>()
+                .join("/"),
+        ))),
         bytes: ByteSlice(Box::leak(bytes.into_boxed_slice())),
     });
 }

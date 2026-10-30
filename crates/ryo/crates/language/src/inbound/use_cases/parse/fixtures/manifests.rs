@@ -40,7 +40,14 @@ pub(super) fn files_under(root: &Path) -> Vec<String> {
             if entry.path().is_dir() {
                 pending.push(relative);
             } else {
-                found.push(relative.to_string_lossy().into_owned());
+                // Separated by `/` on every platform, as the engine hands a language every path.
+                found.push(
+                    relative
+                        .components()
+                        .map(|part| part.as_os_str().to_string_lossy())
+                        .collect::<Vec<_>>()
+                        .join("/"),
+                );
             }
         }
     }

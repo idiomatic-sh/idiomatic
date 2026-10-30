@@ -270,10 +270,8 @@ fn every_registry_is_declared() {
 /// it. A run held to a copy of its expected findings passes however slow it is, and so does
 /// a run that answers it is slow; once the copy is edited, the same run fails the
 /// target and names what changed.
-#[cfg(unix)]
 #[test]
 fn findings_mismatches_are_rejected_independently_of_speed() -> std::io::Result<()> {
-    use std::os::unix::fs::PermissionsExt as _;
     let scratch = tempfile::tempdir()?;
     let printed = r#"{"findings":[{"rule":"a","path":"x"},{"rule":"b","path":"y"}]}"#;
     let snapshot = scratch.path().join("snapshot");
@@ -325,12 +323,26 @@ fn findings_mismatches_are_rejected_independently_of_speed() -> std::io::Result<
         target.join("edit-findings.toml"),
         summary::of(br#"{"findings":[]}"#, 0)?.text(),
     )?;
-    let command = scratch.path().join("command");
-    std::fs::write(
-        &command,
-        format!("#!/bin/sh\nsleep 0.05\nprintf '%s' '{printed}'\nexit 1\n"),
-    )?;
-    std::fs::set_permissions(&command, std::fs::Permissions::from_mode(0o700))?;
+    // A command that prints `printed` and ends with `code`: a shell script, and on Windows a batch file, which the system runs
+    // through cmd.exe.
+    let command = scratch.path().join(if cfg!(windows) {
+        "command.cmd"
+    } else {
+        "command"
+    });
+    let script = |code: i32| {
+        if cfg!(windows) {
+            format!("@echo off\r\necho {printed}\r\nexit /b {code}\r\n")
+        } else {
+            format!("#!/bin/sh\nsleep 0.05\nprintf '%s' '{printed}'\nexit {code}\n")
+        }
+    };
+    std::fs::write(&command, script(1_i32))?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt as _;
+        std::fs::set_permissions(&command, std::fs::Permissions::from_mode(0o700))?;
+    }
     let targets = [target.clone()];
     let install = || Ok(command.clone());
     let held = |command: &Path, target: &Path| {
@@ -342,19 +354,13 @@ fn findings_mismatches_are_rejected_independently_of_speed() -> std::io::Result<
     let over = |_: &Path, _: &Path| Ok("cold 900 ms".to_owned());
     assert!(each("proof", &targets, install, over, &mut said)?.is_empty());
     // The same findings with another exit code than the summary's `exit_code` fail the target.
-    std::fs::write(
-        &command,
-        format!("#!/bin/sh\nprintf '%s' '{printed}'\nexit 0\n"),
-    )?;
+    std::fs::write(&command, script(0_i32))?;
     let failed = each("proof", &targets, install, held, &mut said)?;
     assert!(
         failed.len() == 1 && failed[0].contains("ended with exit code 0, not the `exit_code = 1`"),
         "{failed:?}"
     );
-    std::fs::write(
-        &command,
-        format!("#!/bin/sh\nprintf '%s' '{printed}'\nexit 1\n"),
-    )?;
+    std::fs::write(&command, script(1_i32))?;
     // The edit: the copy's digest, the identity of the whole findings document, changed.
     let copy = std::fs::read_to_string(&findings)?;
     let digest = copy.find("digest = \"").map(|at| at + "digest = \"".len());
