@@ -53,6 +53,7 @@ mod manifests_uv;
 mod peak;
 mod rule_fixtures;
 mod sdk;
+mod snapshot;
 
 use std::sync::{PoisonError, RwLock, RwLockReadGuard, RwLockWriteGuard};
 

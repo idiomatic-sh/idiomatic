@@ -20,7 +20,8 @@ Where a version is declared:
 - `cargo-dist`, in the `dist-workspace.toml` of the npm registry, which cargo-dist reads itself (crates.io holds no release of it as new as
   the one pinned, so its own installer installs it).
 - the nightly toolchain, in `crates/ryo/Cargo.toml` (`[workspace.metadata.api] nightly`).
-- everything that is not Rust, in `TOOLS` below: it has no manifest here.
+- everything that is not Rust, in `TOOLS` below: it has no manifest here; the package managers ryo's tests compare against, which npm
+  installs, in `NODE_TOOLS`.
 - `cargo-binstall`, which installs the prebuilt Rust tools, in `BOOTSTRAP` below: nothing can install it.
 
 A Rust tool is fetched prebuilt with `cargo binstall` and built with `cargo install` where there is no prebuilt one for this machine. A tool
@@ -32,6 +33,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tomllib
@@ -102,6 +104,9 @@ TOOLS = {
     "maturin": {"package": "maturin", "version": "1.15.0"},
 }
 
+# The package managers ryo's replay tests ask what a JavaScript workspace resolves to, installed by npm: command -> version.
+NODE_TOOLS = {"pnpm": "11.25.0", "bun": "1.4.4"}
+
 # Directories a path-installed tool's sources are not read from.
 IGNORED = {"target", ".git", "node_modules"}
 
@@ -170,6 +175,15 @@ def nightly(root: Path = ROOT) -> str:
 def run(argv: list[str], check: bool = True, capture: bool = False) -> subprocess.CompletedProcess[str]:
     print("+", " ".join(argv), flush=True)
     return subprocess.run(argv, check=check, text=True, capture_output=capture, stdin=subprocess.DEVNULL)
+
+
+def installed_node(command: str) -> str:
+    """The version `command --version` answers; empty where there is none."""
+    found = shutil.which(command)
+    if found is None:
+        return ""
+    answered = run([found, "--version"], check=False, capture=True)
+    return answered.stdout.strip() if answered.returncode == 0 else ""
 
 
 def installed_crates() -> dict[str, tuple[str, str]]:
@@ -273,6 +287,12 @@ def main(argv: list[str]) -> int:
         if why:
             extra = [part for each in tool.get("with", []) for part in ("--with", each)]
             run(["uv", "tool", "install", "--force", *extra, f"{tool['package']}=={tool['version']}"])
+    stale = [f"{command}@{version}" for command, version in NODE_TOOLS.items() if installed_node(command) != version]
+    if stale:
+        npm = shutil.which("npm")
+        if npm is None:
+            sys.exit(f"npm installs {', '.join(stale)}: install Node.js first")
+        run([npm, "install", "--global", *stale])
     version = dist_version()
     if dist_installed() != version:
         install_dist(version)

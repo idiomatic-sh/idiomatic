@@ -55,9 +55,32 @@ pub(crate) fn project(name: &str) -> (PathBuf, String) {
     let cache = std::env::home_dir()
         .expect("a home directory to cache targets in")
         .join(".cache/idiomatic/targets");
+    let directory = fetched(&cache, name, &repository, &revision);
+    let inside = table
+        .get("directory")
+        .and_then(toml::Value::as_str)
+        .unwrap_or(".");
+    (directory, inside.to_owned())
+}
+
+/// The checkout of `revision` of `repository` in `cache`, fetched there once. Every process and thread that fetches into the cache
+/// (the distribution tests too) holds its one lock while it looks and fetches, so two never write the same checkout at once: the
+/// second finds the first's.
+///
+/// # Panics
+///
+/// When the cache cannot be written or the revision cannot be fetched.
+pub(crate) fn fetched(cache: &Path, name: &str, repository: &str, revision: &str) -> PathBuf {
+    std::fs::create_dir_all(cache).expect("a cache directory");
+    let lock = std::fs::File::create(cache.join("lock")).expect("the cache's lock file");
+    lock.lock().expect("the cache's lock");
     let directory = cache.join(format!("{name}-{revision}"));
     if !directory.exists() {
+        // A partial checkout left by a fetch that did not finish is started again.
         let partial = cache.join(format!("{name}-{revision}.partial"));
+        if partial.exists() {
+            std::fs::remove_dir_all(&partial).expect("the unfinished checkout is removed");
+        }
         std::fs::create_dir_all(&partial).expect("a cache directory");
         let git = |arguments: &[&str]| {
             // Never wait on a prompt for credentials: a repository or revision that cannot be fetched fails at once.
@@ -73,13 +96,9 @@ pub(crate) fn project(name: &str) -> (PathBuf, String) {
             );
         };
         git(&["init", "--quiet"]);
-        git(&["fetch", "--quiet", "--depth", "1", &repository, &revision]);
-        git(&["checkout", "--quiet", "--detach", &revision]);
+        git(&["fetch", "--quiet", "--depth", "1", repository, revision]);
+        git(&["checkout", "--quiet", "--detach", revision]);
         std::fs::rename(&partial, &directory).expect("the snapshot is kept");
     }
-    let inside = table
-        .get("directory")
-        .and_then(toml::Value::as_str)
-        .unwrap_or(".");
-    (directory, inside.to_owned())
+    directory
 }
