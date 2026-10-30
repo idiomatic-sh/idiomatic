@@ -3,16 +3,18 @@
 from __future__ import annotations
 
 import re
+import tomllib
 from pathlib import Path
 
 import pytest
 import yaml
 
-DIRECTORY = Path(__file__).resolve().parents[1] / ".github/workflows"
+ROOT = Path(__file__).resolve().parents[1]
+DIRECTORY = ROOT / ".github/workflows"
 WORKFLOWS = sorted(DIRECTORY.glob("*.yml"))
 
 # The one command a job's checks are, with the product root and the groups it names: Asymptote decides what runs.
-CHECK = re.compile(r"asymptote check( --root [\w./-]+)?( --groups [a-z]+(,[a-z]+)*)?")
+CHECK = re.compile(r"asymptote check( --root [\w./-]+)?( --groups [a-z][a-z-]*(,[a-z][a-z-]*)*)?")
 # The release itself: a job that does not check runs one job command (`ci/<job>/command.py`) with plain arguments, which no shell
 # chains anything to, or only actions (a build matrix). The values it is handed are crates.io's token, from the `release` environment
 # or its trusted publishing, npm's token for a first publish, and the token `gh` creates the GitHub Release with.
@@ -255,7 +257,16 @@ def test_only_the_release_job_that_uploads_is_handed_a_token_and_only_after_the_
     (command,) = [step["run"] for step in publish["steps"] if "ci/release/command.py" in step.get("run", "")]
     assert "--product ${{ inputs.product }}" in command
     (checking,) = [step["run"] for step in workflow["jobs"]["check"]["steps"] if "asymptote check" in step.get("run", "")]
-    assert checking == "asymptote check --root crates/${{ inputs.product }} --groups release"
+    assert checking == "asymptote check --root crates/${{ inputs.product }} --groups ${{ matrix.group }}"
+    # Every product's release tools, one job per group: each group a product's asymptote.toml names beside lint, check, perf and
+    # build is a row of the matrix, and every row is a group some product names.
+    released = {
+        tool["group"]
+        for manifest in sorted(ROOT.glob("crates/*/asymptote.toml"))
+        for tool in tomllib.loads(manifest.read_text())["tools"]
+        if tool["group"].startswith("release")
+    }
+    assert set(workflow["jobs"]["check"]["strategy"]["matrix"]["group"]) == released
     (uploading,) = [step for step in publish["steps"] if "CARGO_REGISTRY_TOKEN" in step.get("env", {})]
     assert uploading["env"]["CARGO_REGISTRY_TOKEN"].startswith("${{ env.PUBLISH == 'true' &&")
     assert uploading["env"]["NODE_AUTH_TOKEN"].startswith("${{ env.PUBLISH == 'true' &&")

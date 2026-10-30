@@ -5,7 +5,11 @@
 The groups follow ruff's hook, CI and release, with Asymptote as the driver: `lint` is the git hook and compiles nothing (`cargo-fmt`, `tastemaker`, `cargo-machete`, `cargo-deny`); `check` is
 the landing gate (`cargo-clippy`, `sdk-api`, `test-core`, `test-cli`, `test-bdd`, `test-doc`, `cargo-doc`); `release` runs
 before a publish (`cargo-clippy-default`, `test-default`, `cargo-hack`, `cargo-dylint`, `coverage`, `cargo-msrv`,
-`test-distribution`, `release-smoke`, `fresh-resolution`); `perf` is unchanged. `fresh-resolution` packages each published crate
+`test-distribution`, `release-smoke`, `fresh-resolution`), split into one group per independent build so each runs as a job of
+its own: `release-tests` (`cargo-clippy-default`, `test-default`, `test-distribution`, `release-smoke`, the one stable build they
+share), `release-coverage` (`coverage`), `release-msrv` (`cargo-msrv`), `release-dylint` (`cargo-dylint`), `release-hack`
+(`cargo-hack`) and `release-resolution` (`fresh-resolution`); `asymptote check --groups release-tests,release-coverage,release-msrv,release-dylint,release-hack,release-resolution`
+runs all of them locally. `perf` is unchanged. `fresh-resolution` packages each published crate
 without the workspace's `Cargo.lock` and builds it from its package, so its dependencies resolve as a user's do. The `test` group is gone. Clippy runs without `--jobs 2`.
 
 `test-all-features` is split by area: `test-core` and `test-cli` run `cargo nextest run --workspace --locked

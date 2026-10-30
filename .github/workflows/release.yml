@@ -1,7 +1,7 @@
 # The release workflow on GitHub Actions, its thin edge, as ruff's is. Each run releases ONE product, the `product` input: each
 # product is released on its own. Ryo is published first: tastemaker depends on ryo's crates, which must be on crates.io before
-# tastemaker's publish. `asymptote check --root crates/<product> --groups release` runs that product's `release` group (its
-# packaging tests) on three machines first; then the `build` job builds that product's wheel (Ryo's only for its binary) on each
+# tastemaker's publish. `asymptote check --root crates/<product> --groups <group>` runs each of that product's `release-*` groups
+# (its packaging tests, one job per group and machine) on four machines first; then the `build` job builds that product's wheel (Ryo's only for its binary) on each
 # of eight targets' own machines through PyO3/maturin-action (the manylinux 2_17 and musllinux_1_2 containers on Linux), one matrix
 # whose rows run the same steps; then the `publish` job runs `ci/release/command.py --product <product>` once over what the rows built:
 # it makes the product's npm packages and its GitHub Release archives from the wheels' binaries, hands every package to its registry's
@@ -34,8 +34,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runner: [ubuntu-26.04, ubuntu-26.04-arm, macos-26]
+        runner: [ubuntu-26.04, ubuntu-26.04-arm, macos-26, windows-2025]
+        # One job per independent build: the tools of a group share one, and no two groups do.
+        group: [release-tests, release-coverage, release-msrv, release-dylint, release-hack, release-resolution]
     runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -55,13 +60,19 @@ jobs:
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
       - name: Rust toolchain (rust-toolchain.toml)
         run: rustup toolchain install
+      # A cache per machine and group, since each group builds with its own toolchain or flags; `release-tests` builds what the
+      # check workflow's jobs build, so it restores that workflow's cache and saves none.
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
-          shared-key: ${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
-          save-if: true
+          shared-key: ${{ matrix.group == 'release-tests' && format('{0}-{1}', runner.os, hashFiles('**/Cargo.lock')) || format('{0}-{1}', matrix.runner, matrix.group) }}
+          save-if: ${{ matrix.group != 'release-tests' }}
+          workspaces: |
+            crates/asymptote -> target
+            crates/tastemaker -> target
+            crates/ryo -> target
       - name: The tools the checks run, each at the version declared for it
         run: uv run --script tools/install.py
-      - run: asymptote check --root crates/${{ inputs.product }} --groups release
+      - run: asymptote check --root crates/${{ inputs.product }} --groups ${{ matrix.group }}
   build:
     needs: check
     strategy:

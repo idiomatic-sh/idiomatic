@@ -19,7 +19,7 @@ def version_matches(product: Product, printed: str) -> bool:
 
 class Smoke(typing.Protocol):
     """The `smoke` step, done one way per registry: the built packages installed as a user installs them and the command run.
-    The registry's packaging tests are not this step's: they are the `release-smoke` tool of asymptote's `release` group."""
+    The registry's packaging tests are not this step's: they are the `release-smoke` tool of asymptote's `release-tests` group."""
 
     def smoke(self, product: Product, artifacts: list[Artifact], into: Path) -> None:
         """Proves the registry's packages of `product`; raises when one does not install or

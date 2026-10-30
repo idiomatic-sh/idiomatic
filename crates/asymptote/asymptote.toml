@@ -88,7 +88,7 @@ inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
 
 [[tools]]
 id = "cargo-clippy-default"
-group = "release"
+group = "release-tests"
 # The same, with the default features: code a feature turns off is compiled and linted as a user builds it.
 run = ["bash", "-c", "set -o pipefail; clippy-sarif --version </dev/null >&2 && CARGO_BUILD_JOBS=6 cargo clippy --workspace --all-targets --locked --message-format=json | clippy-sarif"]
 output = "sarif"
@@ -97,7 +97,7 @@ inputs = [".", "../../clippy.toml", "../../rust-toolchain.toml", "../../.cargo"]
 
 [[tools]]
 id = "test-default"
-group = "release"
+group = "release-tests"
 # Tests are strictly pass or fail: no lock holds a failing test. nextest runs every libtest target; the BDD runners and the
 # doctests, which it cannot list, run in `test-bdd` and `test-doc`.
 run = ["cargo", "nextest", "run", "--workspace", "--locked"]
@@ -106,7 +106,7 @@ inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
 
 [[tools]]
 id = "cargo-hack"
-group = "release"
+group = "release-hack"
 # Each package with no features, each feature alone and the default: one of the slowest checks, so CI's.
 run = ["cargo", "hack", "check", "--workspace", "--each-feature", "--locked"]
 timeout-seconds = 3600
@@ -114,14 +114,14 @@ inputs = [".", "../../clippy.toml", "../../rust-toolchain.toml", "../../.cargo"]
 
 [[tools]]
 id = "cargo-dylint"
-group = "release"
+group = "release-dylint"
 run = ["cargo", "dylint", "--path", "../../tools/lints", "--workspace", "--", "--all-targets", "--all-features", "--locked"]
 timeout-seconds = 3600
 inputs = [".", "../../tools/lints", "../../rust-toolchain.toml", "../../.cargo"]
 
 [[tools]]
 id = "coverage"
-group = "release"
+group = "release-coverage"
 # Line coverage, a report with no threshold: the run fails only when a test does.
 run = ["cargo", "llvm-cov", "--workspace", "--all-features", "--locked"]
 timeout-seconds = 3600
@@ -129,7 +129,7 @@ inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
 
 [[tools]]
 id = "cargo-msrv"
-group = "release"
+group = "release-msrv"
 # The declared `rust-version` checks the whole workspace: cargo-msrv reads it from the command line crate, the one every product has.
 run = ["cargo", "msrv", "verify", "--path", "cli", "--output-format", "minimal", "--", "cargo", "check", "--workspace", "--all-targets", "--all-features", "--locked"]
 timeout-seconds = 3600
@@ -137,7 +137,7 @@ inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
 
 [[tools]]
 id = "test-distribution"
-group = "release"
+group = "release-tests"
 # The `distribution` test target's findings: each target checked through the crate installed with its registry's languages.
 run = ["cargo", "test", "--workspace", "--locked", "--all-features", "--test", "distribution", "--", "target_test::", "targets_have_their_findings", "every_registry_is_declared"]
 timeout-seconds = 3600
@@ -145,15 +145,15 @@ inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
 
 [[tools]]
 id = "release-smoke"
-group = "release"
-# Each registry's package is built from the crate, installed in a scratch directory and run. Only the release workflow runs the `release` group.
+group = "release-tests"
+# Each registry's package is built from the crate, installed in a scratch directory and run. Only the release workflow runs the `release-*` groups.
 run = ["cargo", "test", "--workspace", "--locked", "--all-features", "--test", "distribution", "--", "cargo::", "npm::", "pypi::"]
 timeout-seconds = 7200
 inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
 
 [[tools]]
 id = "fresh-resolution"
-group = "release"
+group = "release-resolution"
 # Each published crate packaged without the workspace's Cargo.lock and built from its package: its dependencies resolve
 # fresh, as a user's `cargo install` or `cargo add` resolves them, so a crate that builds only against our lock is caught.
 run = ["cargo", "package", "--workspace", "--exclude-lockfile"]
