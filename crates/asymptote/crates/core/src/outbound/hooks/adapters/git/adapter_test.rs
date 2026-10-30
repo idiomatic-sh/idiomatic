@@ -7,8 +7,12 @@ use std::process::Command;
 
 use super::adapter::HooksGitAdapter;
 use crate::cases::{Case, CaseName, Expect, Selection, Word, run};
-use crate::domain::hooks::service::{ownership, script as script_of};
-use crate::domain::hooks::types::{Ownership, ScriptText};
+#[cfg(unix)]
+use crate::domain::hooks::service::ownership;
+use crate::domain::hooks::service::script as script_of;
+#[cfg(unix)]
+use crate::domain::hooks::types::Ownership;
+use crate::domain::hooks::types::ScriptText;
 use crate::domain::manifest::types::{HookName, ProductRoot};
 use crate::outbound::hooks::errors::HooksError;
 use crate::outbound::hooks::fixtures::contract::check;
@@ -188,12 +192,6 @@ fn foreign(path: &Path) -> Result<Value, Failure> {
     )
 }
 
-/// A file system without symlinks has none to read.
-#[cfg(not(unix))]
-fn foreign(_path: &Path) -> Result<Value, Failure> {
-    Ok(true)
-}
-
 fn subject(question: Input) -> Result<Value, Failure> {
     let directory = tempfile::tempdir().expect("a temporary directory");
     let path = directory.path();
@@ -227,16 +225,30 @@ fn subject(question: Input) -> Result<Value, Failure> {
         Question::DanglingLink => {
             git(path, &["init", "-q"]);
             #[cfg(unix)]
-            link(&path.join("nowhere"), &path.join(".git/hooks/pre-commit"));
-            foreign(path)
+            {
+                link(&path.join("nowhere"), &path.join(".git/hooks/pre-commit"));
+                foreign(path)
+            }
+            // A file system without symlinks has none to read.
+            #[cfg(not(unix))]
+            {
+                Ok(true)
+            }
         }
         Question::LinkToOurScript => {
             git(path, &["init", "-q"]);
             let ours = path.join("ours");
             std::fs::write(&ours, script_of(&name()).0.as_bytes()).expect("a script");
             #[cfg(unix)]
-            link(&ours, &path.join(".git/hooks/pre-commit"));
-            foreign(path)
+            {
+                link(&ours, &path.join(".git/hooks/pre-commit"));
+                foreign(path)
+            }
+            // A file system without symlinks has none to read.
+            #[cfg(not(unix))]
+            {
+                Ok(true)
+            }
         }
         Question::Unreadable => {
             git(path, &["init", "-q"]);

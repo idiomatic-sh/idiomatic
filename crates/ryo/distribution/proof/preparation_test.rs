@@ -225,17 +225,26 @@ pub(super) fn dependencies(
             if let Some(parent) = destination.parent() {
                 std::fs::create_dir_all(parent)?;
             }
-            #[cfg(unix)]
-            std::os::unix::fs::symlink(&isolated, &destination)?;
-            #[cfg(not(unix))]
-            return Err(std::io::Error::other(
-                "external directory bindings require symlink support",
-            ));
+            bind(&isolated, &destination)?;
         } else {
             copy(&source, &destination)?;
         }
     }
     Ok(())
+}
+
+/// Binds `destination` to the isolated copy of an external dependency, as a symbolic link.
+#[cfg(unix)]
+fn bind(isolated: &Path, destination: &Path) -> std::io::Result<()> {
+    std::os::unix::fs::symlink(isolated, destination)
+}
+
+/// A file system without symbolic links cannot bind an external dependency.
+#[cfg(not(unix))]
+fn bind(_isolated: &Path, _destination: &Path) -> std::io::Result<()> {
+    Err(std::io::Error::other(
+        "external directory bindings require symlink support",
+    ))
 }
 
 /// Binds the dependencies of `target`'s pin into `project`, their sources read from this

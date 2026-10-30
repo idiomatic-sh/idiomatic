@@ -608,6 +608,7 @@ fn check(features: &[::std::path::PathBuf]) -> ::std::vec::Vec<usize> {
                 feature,
                 ::cucumber::gherkin::GherkinEnv::default(),
             )
+            .map_err(::std::boxed::Box::new)
         })
         .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
     ::std::assert!(parsed.is_ok(), "every feature parses");
@@ -795,6 +796,7 @@ fn check(features: &[::std::path::PathBuf]) -> ::std::vec::Vec<usize> {
                 feature,
                 ::cucumber::gherkin::GherkinEnv::default(),
             )
+            .map_err(::std::boxed::Box::new)
         })
         .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
     ::std::assert!(parsed.is_ok(), "every feature parses");
@@ -915,6 +917,7 @@ fn check(features: &[::std::path::PathBuf]) {
                 feature,
                 ::cucumber::gherkin::GherkinEnv::default(),
             )
+            .map_err(::std::boxed::Box::new)
         })
         .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
     ::std::assert!(parsed.is_ok(), "every feature parses");
@@ -977,10 +980,10 @@ then.findings = [
   { path = 'tests/bdd.rs', line = 30 },
   { path = 'tests/bdd.rs', line = 30 },
   { path = 'tests/bdd.rs', line = 30 },
-  { path = 'tests/bdd.rs', line = 73 },
-  { path = 'tests/bdd.rs', line = 73 },
-  { path = 'tests/bdd.rs', line = 73 },
-  { path = 'tests/bdd.rs', line = 84 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 85 },
 ]
 
 [[scenarios]]
@@ -1024,6 +1027,7 @@ fn check(features: &[::std::path::PathBuf]) {
                 feature,
                 ::cucumber::gherkin::GherkinEnv::default(),
             )
+            .map_err(::std::boxed::Box::new)
         })
         .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
     ::std::assert!(parsed.is_ok(), "every feature parses");
@@ -1087,11 +1091,11 @@ then.findings = [
   { path = 'tests/bdd.rs', line = 30 },
   { path = 'tests/bdd.rs', line = 30 },
   { path = 'tests/bdd.rs', line = 30 },
-  { path = 'tests/bdd.rs', line = 73 },
-  { path = 'tests/bdd.rs', line = 73 },
-  { path = 'tests/bdd.rs', line = 73 },
-  { path = 'tests/bdd.rs', line = 73 },
-  { path = 'tests/bdd.rs', line = 85 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 86 },
 ]
 
 [[scenarios]]
@@ -1135,6 +1139,7 @@ fn check(features: &[::std::path::PathBuf]) {
                 feature,
                 ::cucumber::gherkin::GherkinEnv::default(),
             )
+            .map_err(::std::boxed::Box::new)
         })
         .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
     ::std::assert!(parsed.is_ok(), "every feature parses");
@@ -1198,10 +1203,10 @@ then.findings = [
   { path = 'tests/bdd.rs', line = 30 },
   { path = 'tests/bdd.rs', line = 30 },
   { path = 'tests/bdd.rs', line = 30 },
-  { path = 'tests/bdd.rs', line = 73 },
-  { path = 'tests/bdd.rs', line = 73 },
-  { path = 'tests/bdd.rs', line = 73 },
-  { path = 'tests/bdd.rs', line = 85 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 86 },
 ]
 
 [[scenarios]]
@@ -1245,6 +1250,7 @@ fn check(features: &[::std::path::PathBuf]) {
                 feature,
                 ::cucumber::gherkin::GherkinEnv::default(),
             )
+            .map_err(::std::boxed::Box::new)
         })
         .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
     ::std::assert!(parsed.is_ok(), "every feature parses");
@@ -1308,13 +1314,13 @@ then.findings = [
   { path = 'tests/bdd.rs', line = 30 },
   { path = 'tests/bdd.rs', line = 30 },
   { path = 'tests/bdd.rs', line = 30 },
-  { path = 'tests/bdd.rs', line = 73 },
-  { path = 'tests/bdd.rs', line = 73 },
-  { path = 'tests/bdd.rs', line = 73 },
-  { path = 'tests/bdd.rs', line = 73 },
-  { path = 'tests/bdd.rs', line = 73 },
-  { path = 'tests/bdd.rs', line = 73 },
-  { path = 'tests/bdd.rs', line = 85 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 86 },
 ]
 
 [[scenarios]]
@@ -1358,6 +1364,7 @@ fn check(features: &[::std::path::PathBuf]) {
                 feature,
                 ::cucumber::gherkin::GherkinEnv::default(),
             )
+            .map_err(::std::boxed::Box::new)
         })
         .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
     ::std::assert!(parsed.is_ok(), "every feature parses");
@@ -1421,10 +1428,10 @@ then.findings = [
   { path = 'tests/bdd.rs', line = 30 },
   { path = 'tests/bdd.rs', line = 30 },
   { path = 'tests/bdd.rs', line = 30 },
-  { path = 'tests/bdd.rs', line = 73 },
-  { path = 'tests/bdd.rs', line = 73 },
-  { path = 'tests/bdd.rs', line = 73 },
-  { path = 'tests/bdd.rs', line = 85 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 86 },
 ]
 
 [[scenarios]]
@@ -1468,6 +1475,7 @@ fn check(features: &[::std::path::PathBuf]) {
                 feature,
                 ::cucumber::gherkin::GherkinEnv::default(),
             )
+            .map_err(::std::boxed::Box::new)
         })
         .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
     ::std::assert!(parsed.is_ok(), "every feature parses");
@@ -1531,10 +1539,10 @@ then.findings = [
   { path = 'tests/bdd.rs', line = 30 },
   { path = 'tests/bdd.rs', line = 30 },
   { path = 'tests/bdd.rs', line = 30 },
-  { path = 'tests/bdd.rs', line = 73 },
-  { path = 'tests/bdd.rs', line = 73 },
-  { path = 'tests/bdd.rs', line = 73 },
-  { path = 'tests/bdd.rs', line = 85 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 86 },
 ]
 
 [[scenarios]]
@@ -1578,6 +1586,7 @@ fn check(features: &[::std::path::PathBuf]) {
                 feature,
                 ::cucumber::gherkin::GherkinEnv::default(),
             )
+            .map_err(::std::boxed::Box::new)
         })
         .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
     ::std::assert!(parsed.is_ok(), "every feature parses");
@@ -1642,9 +1651,9 @@ then.findings = [
   { path = 'tests/bdd.rs', line = 30 },
   { path = 'tests/bdd.rs', line = 30 },
   { path = 'tests/bdd.rs', line = 30 },
-  { path = 'tests/bdd.rs', line = 73 },
-  { path = 'tests/bdd.rs', line = 73 },
-  { path = 'tests/bdd.rs', line = 85 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 86 },
 ]
 
 [[scenarios]]
@@ -1688,6 +1697,7 @@ fn check(features: &[::std::path::PathBuf]) {
                 feature,
                 ::cucumber::gherkin::GherkinEnv::default(),
             )
+            .map_err(::std::boxed::Box::new)
         })
         .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
     ::std::assert!(parsed.is_ok(), "every feature parses");
@@ -1752,9 +1762,9 @@ then.findings = [
   { path = 'tests/bdd.rs', line = 30 },
   { path = 'tests/bdd.rs', line = 30 },
   { path = 'tests/bdd.rs', line = 30 },
-  { path = 'tests/bdd.rs', line = 73 },
-  { path = 'tests/bdd.rs', line = 73 },
-  { path = 'tests/bdd.rs', line = 85 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 86 },
 ]
 
 [[scenarios]]
@@ -1798,6 +1808,7 @@ fn check(features: &[::std::path::PathBuf]) {
                 feature,
                 ::cucumber::gherkin::GherkinEnv::default(),
             )
+            .map_err(::std::boxed::Box::new)
         })
         .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
     ::std::assert!(parsed.is_ok(), "every feature parses");
@@ -1860,10 +1871,10 @@ then.findings = [
   { path = 'tests/bdd.rs', line = 30 },
   { path = 'tests/bdd.rs', line = 30 },
   { path = 'tests/bdd.rs', line = 30 },
-  { path = 'tests/bdd.rs', line = 73 },
-  { path = 'tests/bdd.rs', line = 73 },
-  { path = 'tests/bdd.rs', line = 85 },
-  { path = 'tests/bdd.rs', line = 85 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 86 },
+  { path = 'tests/bdd.rs', line = 86 },
 ]
 
 [[scenarios]]
@@ -1907,6 +1918,7 @@ fn check(features: &[::std::path::PathBuf]) {
                 feature,
                 ::cucumber::gherkin::GherkinEnv::default(),
             )
+            .map_err(::std::boxed::Box::new)
         })
         .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
     ::std::assert!(parsed.is_ok(), "every feature parses");
@@ -1970,10 +1982,10 @@ then.findings = [
   { path = 'tests/bdd.rs', line = 30 },
   { path = 'tests/bdd.rs', line = 30 },
   { path = 'tests/bdd.rs', line = 30 },
-  { path = 'tests/bdd.rs', line = 73 },
-  { path = 'tests/bdd.rs', line = 73 },
-  { path = 'tests/bdd.rs', line = 85 },
-  { path = 'tests/bdd.rs', line = 85 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 86 },
+  { path = 'tests/bdd.rs', line = 86 },
 ]
 
 [[scenarios]]
@@ -2017,6 +2029,7 @@ fn check(features: &[::std::path::PathBuf]) {
                 feature,
                 ::cucumber::gherkin::GherkinEnv::default(),
             )
+            .map_err(::std::boxed::Box::new)
         })
         .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
     ::std::assert!(parsed.is_ok(), "every feature parses");
@@ -2081,9 +2094,9 @@ then.findings = [
   { path = 'tests/bdd.rs', line = 30 },
   { path = 'tests/bdd.rs', line = 30 },
   { path = 'tests/bdd.rs', line = 30 },
-  { path = 'tests/bdd.rs', line = 73 },
-  { path = 'tests/bdd.rs', line = 73 },
-  { path = 'tests/bdd.rs', line = 85 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 86 },
 ]
 
 [[scenarios]]
@@ -2127,6 +2140,7 @@ fn check(features: &[::std::path::PathBuf]) {
                 feature,
                 ::cucumber::gherkin::GherkinEnv::default(),
             )
+            .map_err(::std::boxed::Box::new)
         })
         .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
     ::std::assert!(parsed.is_ok(), "every feature parses");
@@ -2191,9 +2205,9 @@ then.findings = [
   { path = 'tests/bdd.rs', line = 30 },
   { path = 'tests/bdd.rs', line = 30 },
   { path = 'tests/bdd.rs', line = 30 },
-  { path = 'tests/bdd.rs', line = 73 },
-  { path = 'tests/bdd.rs', line = 73 },
-  { path = 'tests/bdd.rs', line = 85 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 86 },
 ]
 
 [[scenarios]]
@@ -2237,6 +2251,7 @@ fn check(features: &[::std::path::PathBuf]) {
                 feature,
                 ::cucumber::gherkin::GherkinEnv::default(),
             )
+            .map_err(::std::boxed::Box::new)
         })
         .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
     ::std::assert!(parsed.is_ok(), "every feature parses");
@@ -2301,9 +2316,9 @@ then.findings = [
   { path = 'tests/bdd.rs', line = 30 },
   { path = 'tests/bdd.rs', line = 30 },
   { path = 'tests/bdd.rs', line = 30 },
-  { path = 'tests/bdd.rs', line = 73 },
-  { path = 'tests/bdd.rs', line = 73 },
-  { path = 'tests/bdd.rs', line = 85 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 86 },
 ]
 
 [[scenarios]]
@@ -2347,6 +2362,7 @@ fn check(features: &[::std::path::PathBuf]) {
                 feature,
                 ::cucumber::gherkin::GherkinEnv::default(),
             )
+            .map_err(::std::boxed::Box::new)
         })
         .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
     ::std::assert!(parsed.is_ok(), "every feature parses");
@@ -2411,9 +2427,9 @@ then.findings = [
   { path = 'tests/bdd.rs', line = 30 },
   { path = 'tests/bdd.rs', line = 30 },
   { path = 'tests/bdd.rs', line = 30 },
-  { path = 'tests/bdd.rs', line = 73 },
-  { path = 'tests/bdd.rs', line = 73 },
-  { path = 'tests/bdd.rs', line = 85 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 86 },
 ]
 
 [[scenarios]]
@@ -2457,6 +2473,7 @@ fn check(features: &[::std::path::PathBuf]) {
                 feature,
                 ::cucumber::gherkin::GherkinEnv::default(),
             )
+            .map_err(::std::boxed::Box::new)
         })
         .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
     ::std::assert!(parsed.is_ok(), "every feature parses");
@@ -2520,10 +2537,10 @@ then.findings = [
   { path = 'tests/bdd.rs', line = 30 },
   { path = 'tests/bdd.rs', line = 30 },
   { path = 'tests/bdd.rs', line = 30 },
-  { path = 'tests/bdd.rs', line = 73 },
-  { path = 'tests/bdd.rs', line = 73 },
-  { path = 'tests/bdd.rs', line = 73 },
-  { path = 'tests/bdd.rs', line = 85 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 86 },
 ]
 
 [[scenarios]]
@@ -2570,6 +2587,7 @@ fn check(features: &[::std::path::PathBuf]) {
                 feature,
                 ::cucumber::gherkin::GherkinEnv::default(),
             )
+            .map_err(::std::boxed::Box::new)
         })
         .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
     ::std::assert!(parsed.is_ok(), "every feature parses");
@@ -2634,9 +2652,9 @@ then.findings = [
   { path = 'tests/bdd.rs', line = 30 },
   { path = 'tests/bdd.rs', line = 30 },
   { path = 'tests/bdd.rs', line = 30 },
-  { path = 'tests/bdd.rs', line = 76 },
-  { path = 'tests/bdd.rs', line = 76 },
-  { path = 'tests/bdd.rs', line = 88 },
+  { path = 'tests/bdd.rs', line = 77 },
+  { path = 'tests/bdd.rs', line = 77 },
+  { path = 'tests/bdd.rs', line = 89 },
 ]
 
 [[scenarios]]
@@ -2680,6 +2698,7 @@ fn check(features: &[::std::path::PathBuf]) {
                 feature,
                 ::cucumber::gherkin::GherkinEnv::default(),
             )
+            .map_err(::std::boxed::Box::new)
         })
         .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
     ::std::assert!(parsed.is_ok(), "every feature parses");
@@ -2756,13 +2775,13 @@ then.findings = [
   { path = 'tests/bdd.rs', line = 30 },
   { path = 'tests/bdd.rs', line = 30 },
   { path = 'tests/bdd.rs', line = 30 },
-  { path = 'tests/bdd.rs', line = 73 },
-  { path = 'tests/bdd.rs', line = 73 },
-  { path = 'tests/bdd.rs', line = 73 },
-  { path = 'tests/bdd.rs', line = 85 },
-  { path = 'tests/bdd.rs', line = 96 },
-  { path = 'tests/bdd.rs', line = 96 },
-  { path = 'tests/bdd.rs', line = 96 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 86 },
+  { path = 'tests/bdd.rs', line = 97 },
+  { path = 'tests/bdd.rs', line = 97 },
+  { path = 'tests/bdd.rs', line = 97 },
 ]
 
 [[scenarios]]
@@ -2806,6 +2825,7 @@ fn verify(features: &[::std::path::PathBuf]) {
                 feature,
                 ::cucumber::gherkin::GherkinEnv::default(),
             )
+            .map_err(::std::boxed::Box::new)
         })
         .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
     ::std::assert!(parsed.is_ok(), "every feature parses");
@@ -2866,10 +2886,10 @@ async fn main() -> ::std::result::Result<(), ::cargo_metadata::Error> {
 then.findings = [
   { path = 'tests/bdd.rs', line = 1 },
   { path = 'tests/bdd.rs', line = 8 },
-  { path = 'tests/bdd.rs', line = 73 },
-  { path = 'tests/bdd.rs', line = 73 },
-  { path = 'tests/bdd.rs', line = 85 },
-  { path = 'tests/bdd.rs', line = 85 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 86 },
+  { path = 'tests/bdd.rs', line = 86 },
 ]
 
 [[scenarios]]
@@ -3130,6 +3150,7 @@ fn check(features: &[::std::path::PathBuf]) -> ::std::vec::Vec<usize> {
                 feature,
                 ::cucumber::gherkin::GherkinEnv::default(),
             )
+            .map_err(::std::boxed::Box::new)
         })
         .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
     ::std::assert!(parsed.is_ok(), "every feature parses");
@@ -3261,6 +3282,7 @@ fn check(features: &[::std::path::PathBuf]) -> ::std::vec::Vec<usize> {
                 feature,
                 ::cucumber::gherkin::GherkinEnv::default(),
             )
+            .map_err(::std::boxed::Box::new)
         })
         .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
     ::std::assert!(parsed.is_ok(), "every feature parses");
@@ -3340,5 +3362,5 @@ async fn main() -> ::std::result::Result<(), ::cargo_metadata::Error> {
 }
 '''
 then.findings = [
-  { path = 'tests/bdd.rs', line = 101 },
+  { path = 'tests/bdd.rs', line = 102 },
 ]

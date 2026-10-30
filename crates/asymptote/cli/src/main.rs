@@ -59,6 +59,7 @@ fn on_signal(stop: Box<dyn Fn() + Send>) {
 }
 
 /// Runs what `on_signal` was given: called when a SIGINT or SIGTERM ends the command, before it ends.
+#[cfg(unix)]
 fn signalled() {
     for stop in ON_SIGNAL
         .lock()

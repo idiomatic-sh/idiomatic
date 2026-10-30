@@ -8,8 +8,10 @@
 
 use std::process::Command;
 
+#[cfg(unix)]
+use crate::fixes::copy;
 use crate::fixes::{
-    Placement, UNCOPIED, apply, copy, documented, readable, reported, restore, said, scene,
+    Placement, UNCOPIED, apply, documented, readable, reported, restore, said, scene,
 };
 
 /// Holds each sample's documented findings where `placement` places it, collecting a failure per sample.

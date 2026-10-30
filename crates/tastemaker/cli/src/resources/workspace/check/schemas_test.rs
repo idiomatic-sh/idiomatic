@@ -72,7 +72,7 @@ fn not_text() -> std::ffi::OsString {
 /// A path that is not text: a lone surrogate, which no UTF-8 holds.
 #[cfg(windows)]
 fn not_text() -> std::ffi::OsString {
-    use std::os::windows::ffi::OsStringExt;
+    use std::os::windows::ffi::OsStringExt as _;
     std::ffi::OsString::from_wide(&[u16::from(b'a'), 0xD800])
 }
 

@@ -1827,6 +1827,7 @@ fn check(features: &[::std::path::PathBuf]) -> ::std::vec::Vec<usize> {
                 feature,
                 ::cucumber::gherkin::GherkinEnv::default(),
             )
+            .map_err(::std::boxed::Box::new)
         })
         .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
     ::std::assert!(parsed.is_ok(), "every feature parses");
@@ -2165,6 +2166,7 @@ fn check(features: &[::std::path::PathBuf]) -> ::std::vec::Vec<usize> {
                 feature,
                 ::cucumber::gherkin::GherkinEnv::default(),
             )
+            .map_err(::std::boxed::Box::new)
         })
         .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
     ::std::assert!(parsed.is_ok(), "every feature parses");
@@ -2495,6 +2497,7 @@ fn check(features: &[::std::path::PathBuf]) -> ::std::vec::Vec<usize> {
                 feature,
                 ::cucumber::gherkin::GherkinEnv::default(),
             )
+            .map_err(::std::boxed::Box::new)
         })
         .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
     ::std::assert!(parsed.is_ok(), "every feature parses");
@@ -2836,6 +2839,7 @@ fn check(features: &[::std::path::PathBuf]) -> ::std::vec::Vec<usize> {
                 feature,
                 ::cucumber::gherkin::GherkinEnv::default(),
             )
+            .map_err(::std::boxed::Box::new)
         })
         .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
     ::std::assert!(parsed.is_ok(), "every feature parses");
@@ -3382,6 +3386,7 @@ fn check(features: &[::std::path::PathBuf]) -> ::std::vec::Vec<usize> {
                 feature,
                 ::cucumber::gherkin::GherkinEnv::default(),
             )
+            .map_err(::std::boxed::Box::new)
         })
         .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
     ::std::assert!(parsed.is_ok(), "every feature parses");
@@ -3723,6 +3728,7 @@ fn check(features: &[::std::path::PathBuf]) -> ::std::vec::Vec<usize> {
                 feature,
                 ::cucumber::gherkin::GherkinEnv::default(),
             )
+            .map_err(::std::boxed::Box::new)
         })
         .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
     ::std::assert!(parsed.is_ok(), "every feature parses");
@@ -4067,6 +4073,7 @@ fn check(features: &[::std::path::PathBuf]) -> ::std::vec::Vec<usize> {
                 feature,
                 ::cucumber::gherkin::GherkinEnv::default(),
             )
+            .map_err(::std::boxed::Box::new)
         })
         .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
     ::std::assert!(parsed.is_ok(), "every feature parses");
@@ -4146,7 +4153,7 @@ async fn main() -> ::std::result::Result<(), ::cargo_metadata::Error> {
 '''
 then.only = ['idiomatic.arch/crate/bdd-runner#count', 'idiomatic.arch/crate/bdd-runner#template', 'idiomatic.arch/crate/bdd-runner', 'idiomatic.arch/bdd-members', 'idiomatic.arch/crate/cases#count', 'idiomatic.arch/crate/cases#template', 'idiomatic.arch/crate/cargo-package#template', 'idiomatic.arch/crate/crate-root#template']
 then.findings = [
-  { rule = 'idiomatic.arch/crate/bdd-runner', path = 'app/tests/bdd.rs', line = 101 },
+  { rule = 'idiomatic.arch/crate/bdd-runner', path = 'app/tests/bdd.rs', line = 102 },
 ]
 
 [[scenarios]]
@@ -4410,6 +4417,7 @@ fn check(features: &[::std::path::PathBuf]) -> ::std::vec::Vec<usize> {
                 feature,
                 ::cucumber::gherkin::GherkinEnv::default(),
             )
+            .map_err(::std::boxed::Box::new)
         })
         .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
     ::std::assert!(parsed.is_ok(), "every feature parses");
@@ -4490,7 +4498,7 @@ async fn main() -> ::std::result::Result<(), ::cargo_metadata::Error> {
 '''
 then.only = ['idiomatic.arch/crate/bdd-runner#count', 'idiomatic.arch/crate/bdd-runner#template', 'idiomatic.arch/crate/bdd-runner', 'idiomatic.arch/bdd-members', 'idiomatic.arch/crate/cases#count', 'idiomatic.arch/crate/cases#template', 'idiomatic.arch/crate/cargo-package#template', 'idiomatic.arch/crate/crate-root#template']
 then.findings = [
-  { rule = 'idiomatic.arch/crate/bdd-runner', path = 'app/tests/bdd.rs', line = 114 },
+  { rule = 'idiomatic.arch/crate/bdd-runner', path = 'app/tests/bdd.rs', line = 115 },
 ]
 
 [[scenarios]]
@@ -4755,6 +4763,7 @@ fn check(features: &[::std::path::PathBuf]) -> ::std::vec::Vec<usize> {
                 feature,
                 ::cucumber::gherkin::GherkinEnv::default(),
             )
+            .map_err(::std::boxed::Box::new)
         })
         .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
     ::std::assert!(parsed.is_ok(), "every feature parses");
@@ -5092,6 +5101,7 @@ fn check(features: &[::std::path::PathBuf]) -> ::std::vec::Vec<usize> {
                 feature,
                 ::cucumber::gherkin::GherkinEnv::default(),
             )
+            .map_err(::std::boxed::Box::new)
         })
         .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
     ::std::assert!(parsed.is_ok(), "every feature parses");
@@ -6032,6 +6042,7 @@ fn check(features: &[::std::path::PathBuf]) -> ::std::vec::Vec<usize> {
                 feature,
                 ::cucumber::gherkin::GherkinEnv::default(),
             )
+            .map_err(::std::boxed::Box::new)
         })
         .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
     ::std::assert!(parsed.is_ok(), "every feature parses");
@@ -6565,6 +6576,7 @@ fn check(features: &[::std::path::PathBuf]) -> ::std::vec::Vec<usize> {
                 feature,
                 ::cucumber::gherkin::GherkinEnv::default(),
             )
+            .map_err(::std::boxed::Box::new)
         })
         .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
     ::std::assert!(parsed.is_ok(), "every feature parses");
@@ -6925,6 +6937,7 @@ fn check(features: &[::std::path::PathBuf]) -> ::std::vec::Vec<usize> {
                 feature,
                 ::cucumber::gherkin::GherkinEnv::default(),
             )
+            .map_err(::std::boxed::Box::new)
         })
         .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
     ::std::assert!(parsed.is_ok(), "every feature parses");
@@ -8089,6 +8102,7 @@ fn check(features: &[::std::path::PathBuf]) -> ::std::vec::Vec<usize> {
                 feature,
                 ::cucumber::gherkin::GherkinEnv::default(),
             )
+            .map_err(::std::boxed::Box::new)
         })
         .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
     ::std::assert!(parsed.is_ok(), "every feature parses");
@@ -9062,6 +9076,7 @@ fn check(features: &[::std::path::PathBuf]) -> ::std::vec::Vec<usize> {
                 feature,
                 ::cucumber::gherkin::GherkinEnv::default(),
             )
+            .map_err(::std::boxed::Box::new)
         })
         .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
     ::std::assert!(parsed.is_ok(), "every feature parses");
@@ -9929,6 +9944,7 @@ fn check(features: &[::std::path::PathBuf]) -> ::std::vec::Vec<usize> {
                 feature,
                 ::cucumber::gherkin::GherkinEnv::default(),
             )
+            .map_err(::std::boxed::Box::new)
         })
         .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
     ::std::assert!(parsed.is_ok(), "every feature parses");
@@ -10909,6 +10925,7 @@ fn check(features: &[::std::path::PathBuf]) -> ::std::vec::Vec<usize> {
                 feature,
                 ::cucumber::gherkin::GherkinEnv::default(),
             )
+            .map_err(::std::boxed::Box::new)
         })
         .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
     ::std::assert!(parsed.is_ok(), "every feature parses");
@@ -11827,6 +11844,7 @@ fn check(features: &[::std::path::PathBuf]) -> ::std::vec::Vec<usize> {
                 feature,
                 ::cucumber::gherkin::GherkinEnv::default(),
             )
+            .map_err(::std::boxed::Box::new)
         })
         .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
     ::std::assert!(parsed.is_ok(), "every feature parses");
@@ -12699,6 +12717,7 @@ fn check(features: &[::std::path::PathBuf]) -> ::std::vec::Vec<usize> {
                 feature,
                 ::cucumber::gherkin::GherkinEnv::default(),
             )
+            .map_err(::std::boxed::Box::new)
         })
         .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
     ::std::assert!(parsed.is_ok(), "every feature parses");
@@ -13569,6 +13588,7 @@ fn check(features: &[::std::path::PathBuf]) -> ::std::vec::Vec<usize> {
                 feature,
                 ::cucumber::gherkin::GherkinEnv::default(),
             )
+            .map_err(::std::boxed::Box::new)
         })
         .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
     ::std::assert!(parsed.is_ok(), "every feature parses");
@@ -14398,6 +14418,7 @@ fn check(features: &[::std::path::PathBuf]) -> ::std::vec::Vec<usize> {
                 feature,
                 ::cucumber::gherkin::GherkinEnv::default(),
             )
+            .map_err(::std::boxed::Box::new)
         })
         .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
     ::std::assert!(parsed.is_ok(), "every feature parses");
@@ -15262,6 +15283,7 @@ fn check(features: &[::std::path::PathBuf]) -> ::std::vec::Vec<usize> {
                 feature,
                 ::cucumber::gherkin::GherkinEnv::default(),
             )
+            .map_err(::std::boxed::Box::new)
         })
         .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
     ::std::assert!(parsed.is_ok(), "every feature parses");

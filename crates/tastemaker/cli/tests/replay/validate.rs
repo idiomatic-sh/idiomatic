@@ -64,8 +64,11 @@ fn a_stray_file_in_the_package_fails_validation() {
 
 /// The bounds for validating the repository's own definitions: under 5 s with nothing proved yet, under 1 s with everything
 /// proved, and no more than 500 MB resident. The goals are 300 ms cold and 10 ms warm, and these bounds are lowered when the run reaches them.
+#[cfg(target_os = "linux")]
 const COLD_BOUND: std::time::Duration = std::time::Duration::from_secs(5);
+#[cfg(target_os = "linux")]
 const WARM_BOUND: std::time::Duration = std::time::Duration::from_secs(1);
+#[cfg(target_os = "linux")]
 const PEAK_BOUND_KIB: u64 = 500 * 1024;
 
 /// Runs `tm validate` in `directory` under `time`, answering how long it took and the peak resident set it reached, in KiB.

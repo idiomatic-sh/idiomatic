@@ -145,7 +145,9 @@ fn read_exact_at(
         if read == 0 {
             return Err(std::io::ErrorKind::UnexpectedEof.into());
         }
-        into = &mut into[read..];
+        into = std::mem::take(&mut into)
+            .get_mut(read..)
+            .ok_or_else(|| std::io::Error::from(std::io::ErrorKind::InvalidData))?;
         offset = SpillOffset(offset.0 + u64::try_from(read).unwrap_or(0));
     }
     Ok(())

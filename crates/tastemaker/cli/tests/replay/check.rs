@@ -319,6 +319,7 @@ fn check_proves_only_what_changed_since_its_last_run() {
 
 /// The most resident memory `tm check` may reach over `crates/ryo`, cold: a regression guard at 1.3 GB, set above the 1.21 GB it
 /// measured. The goal is 500 MB, and this bound is lowered when the run reaches it.
+#[cfg(target_os = "linux")]
 const RYO_PEAK_BOUND_KIB: u64 = 1300 * 1024;
 
 /// `tm check` over a `git archive` copy of the repository, in `crates/ryo`, cold, stays under the peak resident set above.

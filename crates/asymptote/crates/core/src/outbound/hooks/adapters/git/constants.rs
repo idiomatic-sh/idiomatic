@@ -7,4 +7,5 @@ pub(super) const GIT_PATH: [&str; 2] = [REV_PARSE_COMMAND, "--git-path"];
 /// The directory of hooks, in git's own directory.
 pub(super) const HOOKS: &str = "hooks";
 /// The mode of an executable script.
+#[cfg(unix)]
 pub(super) const EXECUTABLE: u32 = 0o755;

@@ -214,10 +214,17 @@ pub(crate) fn link(source: &Path, target: &Path) -> std::io::Result<()> {
     {
         std::os::unix::fs::symlink(std::fs::read_link(source)?, target)
     }
+    // A file system without symbolic links cannot make the link again.
     #[cfg(not(unix))]
     {
-        let _ = (source, target);
-        Ok(())
+        Err(std::io::Error::new(
+            std::io::ErrorKind::Unsupported,
+            format!(
+                "{} is a symbolic link, which {} cannot be made as",
+                source.display(),
+                target.display()
+            ),
+        ))
     }
 }
 

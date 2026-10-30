@@ -1,6 +1,8 @@
 //! What a warm run over ruff peaks at in memory, in a process of its own.
 
+#[cfg(target_os = "linux")]
 use crate::{counting, ruff};
+#[cfg(target_os = "linux")]
 use ryo_core::inbound::use_cases::lint::types::Rule;
 
 /// The most memory, in bytes, a warm run over ruff that finds nothing changed may peak at, in a test process of its own: a regression

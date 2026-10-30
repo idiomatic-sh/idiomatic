@@ -92,7 +92,7 @@ fn not_text() -> std::path::PathBuf {
 /// A path that is not text: a lone surrogate, which no UTF-8 holds.
 #[cfg(windows)]
 fn not_text() -> std::path::PathBuf {
-    use std::os::windows::ffi::OsStringExt;
+    use std::os::windows::ffi::OsStringExt as _;
     std::ffi::OsString::from_wide(&[u16::from(b'/'), 0xD800]).into()
 }
 

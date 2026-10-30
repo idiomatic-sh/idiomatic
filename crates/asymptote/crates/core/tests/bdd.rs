@@ -72,6 +72,7 @@ fn check(features: &[::std::path::PathBuf]) -> ::std::vec::Vec<usize> {
                 feature,
                 ::cucumber::gherkin::GherkinEnv::default(),
             )
+            .map_err(::std::boxed::Box::new)
         })
         .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
     ::std::assert!(parsed.is_ok(), "every feature parses");

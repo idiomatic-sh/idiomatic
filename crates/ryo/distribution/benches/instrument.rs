@@ -3,7 +3,9 @@
 //! spikes at a bounded cost, and a measured CPU burner or memory hog reads as one where an
 //! ordinary command does not. They time things, so they are the bench's and never a test.
 
-use super::measure::{ROUNDS, measure, milliseconds};
+use super::measure::milliseconds;
+#[cfg(unix)]
+use super::measure::{ROUNDS, measure};
 use super::resources;
 use std::io::Write as _;
 use std::path::Path;

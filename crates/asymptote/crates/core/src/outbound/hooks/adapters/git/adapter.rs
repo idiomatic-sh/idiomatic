@@ -4,7 +4,9 @@
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
-use super::constants::{EXECUTABLE, GIT_PATH, HOOKS};
+#[cfg(unix)]
+use super::constants::EXECUTABLE;
+use super::constants::{GIT_PATH, HOOKS};
 use crate::domain::git::constants::{GIT, HOOK_VARIABLES, NOT_A_REPOSITORY, TOP_LEVEL};
 use crate::domain::hooks::types::ScriptText;
 use crate::domain::manifest::types::{HookName, ProductRoot};
@@ -65,10 +67,10 @@ fn executable(path: &Path) -> std::io::Result<()> {
     std::fs::set_permissions(path, std::fs::Permissions::from_mode(EXECUTABLE))
 }
 
-/// A file system with no executable bit has nothing to set.
+/// A file system with no executable bit has nothing to set: the script written is all there is, so this only finds it there.
 #[cfg(not(unix))]
-fn executable(_path: &Path) -> std::io::Result<()> {
-    Ok(())
+fn executable(path: &Path) -> std::io::Result<()> {
+    std::fs::metadata(path).map(|_| ())
 }
 
 impl HooksPort for HooksGitAdapter {
