@@ -39,7 +39,7 @@ def pack(staged: Path, into: Path) -> Path:
     """Packs the staged package into `into` and returns the tarball."""
     into.mkdir(parents=True, exist_ok=True)
     said = subprocess.run(
-        ["npm", "pack", "--json", "--pack-destination", str(into)], cwd=staged, check=True, capture_output=True, text=True
+        ["npm", "pack", "--json", "--pack-destination", str(into)], cwd=staged, check=True, capture_output=True, text=True, encoding="utf-8"
     ).stdout
     (packed,) = json.loads(said)
     return into / packed["filename"]

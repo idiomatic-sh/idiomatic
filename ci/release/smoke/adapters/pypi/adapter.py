@@ -28,6 +28,6 @@ class PypiSmoke(Smoke):
             python = environment / "bin" / "python"
             subprocess.run(["uv", "pip", "install", "--python", str(python), "--no-index", "--no-deps", str(artifact.path)], check=True)
             for argv in ([str(environment / "bin" / product.command)], [str(python), "-m", module]):
-                said = subprocess.run([*argv, "--version"], check=True, capture_output=True, text=True).stdout
+                said = subprocess.run([*argv, "--version"], check=True, capture_output=True, text=True, encoding="utf-8").stdout
                 if not version_matches(product, said):
                     raise AssertionError(f"{' '.join(argv)} --version printed {said!r}")

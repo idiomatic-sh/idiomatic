@@ -45,7 +45,7 @@ class CargoBench(Bench):
             env={**os.environ, "RUSTUP_TOOLCHAIN": channel},
             check=True,
             stdout=subprocess.PIPE,
-            text=True,
+            text=True, encoding="utf-8",
         ).stdout
         if self.output is not None:
             self.output.mkdir(parents=True, exist_ok=True)

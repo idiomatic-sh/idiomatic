@@ -28,7 +28,7 @@ class NpmSmoke(Smoke):
             check=True,
         )
         said = subprocess.run(
-            [str(prefix / "bin" / product.command), "--version"], check=True, capture_output=True, text=True
+            [str(prefix / "bin" / product.command), "--version"], check=True, capture_output=True, text=True, encoding="utf-8"
         ).stdout
         if not version_matches(product, said):
             raise AssertionError(f"npm's {product.command} --version printed {said!r}")

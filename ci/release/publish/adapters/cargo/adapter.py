@@ -109,7 +109,7 @@ def cargo_metadata(manifest: Path) -> dict:
         ["cargo", "metadata", "--format-version", "1", "--locked", "--manifest-path", str(manifest)],
         check=True,
         capture_output=True,
-        text=True,
+        text=True, encoding="utf-8",
     ).stdout
     return json.loads(said)
 
@@ -180,7 +180,7 @@ class CargoPublish(Publish):
 def run(argv: list[str], cwd: Path) -> None:
     """One cargo publish, run again after the wait crates.io names each time it refuses for its rate limit."""
     for _ in range(ATTEMPTS):
-        said = subprocess.run(argv, cwd=cwd, capture_output=True, text=True, check=False)
+        said = subprocess.run(argv, cwd=cwd, capture_output=True, text=True, encoding="utf-8", check=False)
         print(said.stdout, end="", flush=True)
         print(said.stderr, end="", flush=True)
         if said.returncode == 0:

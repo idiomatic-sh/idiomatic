@@ -16,7 +16,7 @@ class GitTree(Tree):
 
     def changed(self, base: str) -> tuple[str, ...]:
         listed = subprocess.run(
-            ["git", "diff", "--name-only", f"{base}...HEAD"], cwd=self.root, check=True, capture_output=True, text=True
+            ["git", "diff", "--name-only", f"{base}...HEAD"], cwd=self.root, check=True, capture_output=True, text=True, encoding="utf-8"
         ).stdout
         return tuple(line for line in listed.splitlines() if line)
 

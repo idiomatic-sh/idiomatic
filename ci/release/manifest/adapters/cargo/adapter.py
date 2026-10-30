@@ -49,7 +49,7 @@ class CargoManifest(Manifest):
                 cwd=directory,
                 check=True,
                 capture_output=True,
-                text=True,
+                text=True, encoding="utf-8",
             ).stdout
         )
         package = cli_package(metadata)
@@ -76,6 +76,6 @@ class CargoManifest(Manifest):
         return list(next(iter(fixed), ()))
 
     def host(self) -> str:
-        said = subprocess.run(["rustc", "-vV"], cwd=self.root, check=True, capture_output=True, text=True).stdout
+        said = subprocess.run(["rustc", "-vV"], cwd=self.root, check=True, capture_output=True, text=True, encoding="utf-8").stdout
         (host,) = [line.removeprefix("host: ") for line in said.splitlines() if line.startswith("host: ")]
         return host

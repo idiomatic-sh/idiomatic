@@ -49,12 +49,12 @@ BOOTSTRAP = {"cargo-binstall": "1.23.0"}
 def pinned(tool: str, root: Path = ROOT) -> str:
     """The version of our own `tool` the repository needs: the `<tool> = "x.y.z"` line of the root `<tool>.toml`, which the tool
     itself checks on every run."""
-    return tomllib.loads((root / f"{tool}.toml").read_text())[tool]
+    return tomllib.loads((root / f"{tool}.toml").read_text(encoding="utf-8"))[tool]
 
 
 def workspace_version(product: str, root: Path = ROOT) -> str:
     """The version of our own `product`'s command line: the `version` its Cargo workspace gives every crate."""
-    return tomllib.loads((root / f"crates/{product}/Cargo.toml").read_text())["workspace"]["package"]["version"]
+    return tomllib.loads((root / f"crates/{product}/Cargo.toml").read_text(encoding="utf-8"))["workspace"]["package"]["version"]
 
 
 @dataclass(frozen=True)
@@ -116,7 +116,7 @@ def declared_crates(root: Path = ROOT, shared: list[Crate] = ROOT_CRATES) -> lis
     found: dict[str, Crate] = {}
     declared_once = {crate.name for crate in shared}
     for manifest in sorted(root.glob("crates/*/Cargo.toml")):
-        bins = tomllib.loads(manifest.read_text()).get("workspace", {}).get("metadata", {}).get("bin", {})
+        bins = tomllib.loads(manifest.read_text(encoding="utf-8")).get("workspace", {}).get("metadata", {}).get("bin", {})
         for name, entry in bins.items():
             entry = {"version": entry} if isinstance(entry, str) else entry
             path = (manifest.parent / entry["path"]).resolve() if "path" in entry else None
@@ -138,7 +138,7 @@ def declared_crates(root: Path = ROOT, shared: list[Crate] = ROOT_CRATES) -> lis
 
 def dylint_version(root: Path = ROOT) -> str:
     """The version of `dylint_linting` the lints are built against."""
-    manifest = tomllib.loads((root / "tools/lints/Cargo.toml").read_text())
+    manifest = tomllib.loads((root / "tools/lints/Cargo.toml").read_text(encoding="utf-8"))
     return manifest["dependencies"]["dylint_linting"].removeprefix("=")
 
 
@@ -148,7 +148,7 @@ DIST_INSTALLER = "https://github.com/axodotdev/cargo-dist/releases/download/v{ve
 
 def dist_version(root: Path = ROOT) -> str:
     """The version of cargo-dist the npm registry's `dist-workspace.toml` pins."""
-    return tomllib.loads((root / DIST_WORKSPACE).read_text())["dist"]["cargo-dist-version"]
+    return tomllib.loads((root / DIST_WORKSPACE).read_text(encoding="utf-8"))["dist"]["cargo-dist-version"]
 
 
 def dist_installed() -> str:
@@ -169,12 +169,12 @@ def install_dist(version: str) -> None:
 
 def nightly(root: Path = ROOT) -> str:
     """The nightly toolchain that writes rustdoc's JSON for the `sdk-api` tool."""
-    return tomllib.loads((root / "crates/ryo/Cargo.toml").read_text())["workspace"]["metadata"]["api"]["nightly"]
+    return tomllib.loads((root / "crates/ryo/Cargo.toml").read_text(encoding="utf-8"))["workspace"]["metadata"]["api"]["nightly"]
 
 
 def run(argv: list[str], check: bool = True, capture: bool = False) -> subprocess.CompletedProcess[str]:
     print("+", " ".join(argv), flush=True)
-    return subprocess.run(argv, check=check, text=True, capture_output=capture, stdin=subprocess.DEVNULL)
+    return subprocess.run(argv, check=check, text=True, encoding="utf-8", capture_output=capture, stdin=subprocess.DEVNULL)
 
 
 def installed_node(command: str) -> str:

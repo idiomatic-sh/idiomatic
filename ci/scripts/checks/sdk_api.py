@@ -37,7 +37,7 @@ def toplevel(directory: Path) -> Path:
     directory the repository's top."""
     clean = {name: value for name, value in os.environ.items() if not name.startswith("GIT_")}
     shown = subprocess.run(
-        ["git", "rev-parse", "--show-toplevel"], cwd=directory, check=True, capture_output=True, text=True, env=clean
+        ["git", "rev-parse", "--show-toplevel"], cwd=directory, check=True, capture_output=True, text=True, encoding="utf-8", env=clean
     ).stdout
     return Path(shown.strip())
 
@@ -144,7 +144,7 @@ def check(directory: Path) -> None:
     )
     metadata = json.loads(
         subprocess.run(
-            ["cargo", "metadata", "--format-version", "1", "--no-deps"], cwd=directory, check=True, capture_output=True, text=True
+            ["cargo", "metadata", "--format-version", "1", "--no-deps"], cwd=directory, check=True, capture_output=True, text=True, encoding="utf-8"
         ).stdout
     )
     target = Path(metadata["target_directory"])
@@ -153,7 +153,7 @@ def check(directory: Path) -> None:
     if found:
         raise RuntimeError("the SDK's public API reaches an internal crate's type:\n  " + "\n  ".join(found))
     listing = subprocess.run(
-        ["cargo", f"+{nightly}", "public-api", "-ss", "-p", package], cwd=directory, check=True, capture_output=True, text=True
+        ["cargo", f"+{nightly}", "public-api", "-ss", "-p", package], cwd=directory, check=True, capture_output=True, text=True, encoding="utf-8"
     ).stdout
     recorded = (directory / api["listing"]).read_text()
     if listing != recorded:
