@@ -6,8 +6,16 @@ use std::sync::{Arc, OnceLock};
 
 use super::base::{Pending, Recording, rule_of};
 
-/// These queries assert lexical invariants; only the explicitly named provenance witness emits rows.
+/// These queries assert invariants; only explicitly named provenance and shape witnesses emit rows.
 const QUERIES: &[(&str, &str)] = &[
+    (
+        "expression-shape-invariants",
+        include_str!("../feature_contracts/shapes/query.ryoql"),
+    ),
+    (
+        "expression-shape-witness",
+        include_str!("../feature_contracts/shapes/witness.ryoql"),
+    ),
     (
         "semantic-projection-invariants",
         include_str!("../feature_contracts/semantic/query.ryoql"),
@@ -52,7 +60,7 @@ fn measure() -> Result<BTreeMap<String, u64>, String> {
             &super::base::snapshot::ruff(),
             QUERIES,
             &["scripts/**/*.py", "python/**/*.py"],
-            "known-origin-witness",
+            &["known-origin-witness", "expression-shape-witness"],
         )?;
         // One upstream generated visitor API, not repeated or synthesized locally.
         // CPython's AST independently counts 1,712 quoted annotation occurrences.
@@ -60,7 +68,7 @@ fn measure() -> Result<BTreeMap<String, u64>, String> {
             &super::base::snapshot::target("libcst-annotations"),
             EMBEDDED_QUERIES,
             &["libcst/_typed_visitor.py"],
-            "embedded-root-witness",
+            &["embedded-root-witness"],
         )?;
         if roots != 1_712 {
             return Err(format!("LibCST has {roots} embedded roots, expected 1712"));
@@ -82,7 +90,7 @@ fn measure_corpus(
     root: &Path,
     queries: &[(&str, &str)],
     include: &[&str],
-    witness: &str,
+    witnesses: &[&str],
 ) -> Result<(BTreeMap<String, u64>, usize), String> {
     let rules = queries
         .iter()
@@ -121,22 +129,27 @@ fn measure_corpus(
             report.unknowns.len()
         ));
     }
-    if rows
-        .iter()
-        .any(|row| row.first().is_none_or(|rule| rule != witness))
-    {
+    if rows.iter().any(|row| {
+        row.first()
+            .is_none_or(|rule| !witnesses.contains(&rule.as_str()))
+    }) {
         return Err(format!(
-            "Python feature invariants failed beside {witness}: {rows:?}"
+            "Python feature invariants failed beside {witnesses:?}: {rows:?}"
         ));
     }
-    if rows.len() < 1_000 {
-        return Err(format!(
-            "Python feature contracts have only {} {witness} rows",
-            rows.len()
-        ));
+    for witness in witnesses {
+        let count = rows
+            .iter()
+            .filter(|row| row.first().is_some_and(|rule| rule.as_str() == *witness))
+            .count();
+        if count < 1_000 {
+            return Err(format!(
+                "Python feature contracts have only {count} {witness} rows"
+            ));
+        }
     }
     if rows.iter().collect::<BTreeSet<_>>().len() != rows.len() {
-        return Err(format!("{witness} contains duplicate identities"));
+        return Err(format!("{witnesses:?} contains duplicate identities"));
     }
     let feeds = report
         .features
