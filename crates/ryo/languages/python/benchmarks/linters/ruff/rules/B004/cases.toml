@@ -72,3 +72,8 @@ expected = [{ file = "case.py", start = 0, end = 27 }]
 name = "noqa"
 files = { "case.py" = "hasattr(obj, \"__call__\") # noqa: B004\n" }
 expected = []
+
+[[cases]]
+name = "argument-rank-skips-punctuation-and-trivia"
+files = { "case.py" = "hasattr( # comment before first argument\n    obj, # comment before second argument\n    \"__call__\",\n)\n" }
+expected = [{ file = "case.py", start = 0, end = 100 }]
