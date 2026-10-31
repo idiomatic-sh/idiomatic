@@ -15,12 +15,52 @@ pub enum Operation {
     Directory,
     /// A nonexecutable first PATH match followed by a real shell.
     PathShadow,
+    /// Executable bytes with no recognized image or script header.
+    InvalidFormat,
+    /// A script whose interpreter does not exist.
+    MissingInterpreter,
+    /// A child terminated by a signal, with no ordinary exit code.
+    Signaled,
+    /// Both pipes produce more bytes than their kernel buffers hold.
+    LargeStreams,
 }
 type Input = Operation;
 type Value = (i32, bool, bool);
-type Failure = std::io::ErrorKind;
+type Failure = LaunchFailure;
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// Launch and observation failures distinguished by the shared contract.
+pub enum LaunchFailure {
+    /// A portable operating-system failure category.
+    Kind(std::io::ErrorKind),
+    /// Linux ENOEXEC from an unrecognized executable image.
+    ExecutableFormat,
+}
 /// Named observations every implementation must satisfy.
 pub const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("invalid executable image is a launch failure"),
+        word: Word::Refuses,
+        input: || Operation::InvalidFormat,
+        expect: Expect::Error(Failure::ExecutableFormat),
+    },
+    Case {
+        name: CaseName("missing script interpreter is a launch failure"),
+        word: Word::Refuses,
+        input: || Operation::MissingInterpreter,
+        expect: Expect::Error(Failure::Kind(std::io::ErrorKind::NotFound)),
+    },
+    Case {
+        name: CaseName("signal termination is not a successful observation"),
+        word: Word::Refuses,
+        input: || Operation::Signaled,
+        expect: Expect::Error(Failure::Kind(std::io::ErrorKind::Other)),
+    },
+    Case {
+        name: CaseName("both output pipes drain beyond pipe capacity"),
+        word: Word::Succeeds,
+        input: || Operation::LargeStreams,
+        expect: Expect::Value((0, true, true)),
+    },
     Case {
         name: CaseName("valid child126 remains a normal exit"),
         word: Word::Succeeds,
@@ -36,13 +76,13 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a regular file without execute permission is a launch error"),
         word: Word::Refuses,
         input: || Operation::NonExecutable,
-        expect: Expect::Error(std::io::ErrorKind::PermissionDenied),
+        expect: Expect::Error(Failure::Kind(std::io::ErrorKind::PermissionDenied)),
     },
     Case {
         name: CaseName("a directory cannot be launched"),
         word: Word::Refuses,
         input: || Operation::Directory,
-        expect: Expect::Error(std::io::ErrorKind::PermissionDenied),
+        expect: Expect::Error(Failure::Kind(std::io::ErrorKind::PermissionDenied)),
     },
     Case {
         name: CaseName("PATH search continues past a nonexecutable shadow"),
@@ -69,7 +109,7 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
             call.executable = "ryo-benchmark-missing-program".into();
             Operation::Call(call)
         },
-        expect: Expect::Error(std::io::ErrorKind::NotFound),
+        expect: Expect::Error(Failure::Kind(std::io::ErrorKind::NotFound)),
     },
     Case {
         name: CaseName("status and both streams survive"),
@@ -81,7 +121,7 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("missing program is a launch error"),
         word: Word::Refuses,
         input: || Operation::Call(missing()),
-        expect: Expect::Error(std::io::ErrorKind::NotFound),
+        expect: Expect::Error(Failure::Kind(std::io::ErrorKind::NotFound)),
     },
 ];
 fn invocation() -> Invocation {
@@ -114,6 +154,7 @@ pub fn check(adapter: &impl ExecutionPort) {
     let subject = |input| {
         let temporary = tempfile::tempdir().expect("isolated permission fixture");
         let mut call = invocation();
+        let large = matches!(input, Operation::LargeStreams);
         match input {
             Operation::Call(ready) => call = ready,
             Operation::NonExecutable => {
@@ -125,6 +166,31 @@ pub fn check(adapter: &impl ExecutionPort) {
                 let path = temporary.path().join("directory");
                 std::fs::create_dir(&path).expect("fixture directory");
                 call.executable = path;
+            }
+            Operation::InvalidFormat | Operation::MissingInterpreter => {
+                let format = matches!(input, Operation::InvalidFormat);
+                let path = temporary.path().join(if format {
+                    "invalid-format"
+                } else {
+                    "missing-interpreter"
+                });
+                std::fs::write(
+                    &path,
+                    if format {
+                        "not executable image bytes"
+                    } else {
+                        "#!/ryo-benchmark-missing-interpreter\n"
+                    },
+                )
+                .expect("executable fixture");
+                super::driver::make_executable(&path).expect("executable permission fixture");
+                call.executable = path;
+            }
+            Operation::Signaled => {
+                call.arguments[1] = "kill -TERM $$".into();
+            }
+            Operation::LargeStreams => {
+                call.arguments[1] = "head -c 131072 /dev/zero; head -c 131072 /dev/zero >&2".into();
             }
             Operation::PathShadow => {
                 let path = temporary.path().join("sh");
@@ -146,13 +212,22 @@ pub fn check(adapter: &impl ExecutionPort) {
             .map(|output| {
                 (
                     output.status,
-                    output.stdout == b"payload",
-                    output.stderr == b"issue",
+                    if large {
+                        output.stdout.len() == 131072 && output.stdout.iter().all(|byte| *byte == 0)
+                    } else {
+                        output.stdout == b"payload"
+                    },
+                    if large {
+                        output.stderr.len() == 131072 && output.stderr.iter().all(|byte| *byte == 0)
+                    } else {
+                        output.stderr == b"issue"
+                    },
                 )
             })
             .map_err(|error| match error {
-                Error::Io(error) => error.kind(),
-                _ => std::io::ErrorKind::Other,
+                Error::Io(error) if error.raw_os_error() == Some(8) => Failure::ExecutableFormat,
+                Error::Io(error) => Failure::Kind(error.kind()),
+                _ => Failure::Kind(std::io::ErrorKind::Other),
             })
     };
     run(CASES, Word::Succeeds, subject);

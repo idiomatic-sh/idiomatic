@@ -21,6 +21,13 @@ impl Default for ExecutionFake {
 }
 impl ExecutionPort for ExecutionFake {
     fn run(&self, invocation: Invocation) -> Result<ProcessOutput, Error> {
+        if invocation.executable.file_name().is_some_and(|name| name == "invalid-format") {
+            return Err(std::io::Error::from_raw_os_error(8).into());
+        }
+        if invocation.arguments.iter().any(|argument| argument == "kill -TERM $$") {
+            return Err(Error::Invalid("fixture child terminated by signal".into()));
+        }
+        let large = invocation.arguments.iter().any(|argument| argument.to_string_lossy().contains("/dev/zero"));
         if invocation
             .executable
             .file_name()
@@ -32,7 +39,9 @@ impl ExecutionPort for ExecutionFake {
         {
             return Err(std::io::Error::from(std::io::ErrorKind::NotFound).into());
         }
-        let status = if invocation
+        let status = if large {
+            0
+        } else if invocation
             .arguments
             .iter()
             .any(|argument| argument.to_string_lossy().ends_with("exit 127"))
@@ -53,8 +62,16 @@ impl ExecutionPort for ExecutionFake {
             .push(invocation);
         Ok(ProcessOutput {
             status,
-            stdout: b"payload".to_vec(),
-            stderr: b"issue".to_vec(),
+            stdout: if large {
+                vec![0; 131072]
+            } else {
+                b"payload".to_vec()
+            },
+            stderr: if large {
+                vec![0; 131072]
+            } else {
+                b"issue".to_vec()
+            },
             wall: Duration::ZERO,
             resources: None,
         })

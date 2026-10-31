@@ -6,18 +6,9 @@ pub fn process() -> impl super::interface::ExecutionPort {
     ExecutionProcessAdapter
 }
 
-/// Construct child resource instrumentation from an explicitly pinned GNU time binary.
+/// Construct direct per-child Linux CPU and peak-RSS instrumentation.
+/// Other platforms refuse measurement rather than report cumulative process usage.
 #[must_use]
-pub fn timed(
-    executable: std::path::PathBuf,
-    sha256: crate::domain::measurements::types::ExecutableDigest,
-    path: Option<std::ffi::OsString>,
-) -> impl super::interface::ExecutionPort {
-    super::adapters::timed::adapter::ExecutionTimedAdapter::new(
-        super::adapters::timed::settings::ExecutionTimedSettings {
-            executable,
-            sha256,
-            path,
-        },
-    )
+pub fn timed() -> impl super::interface::ExecutionPort {
+    super::adapters::timed::adapter::ExecutionTimedAdapter
 }
