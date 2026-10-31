@@ -5,9 +5,16 @@ use std::path::{Path, PathBuf};
 
 /// An owned checkout and the evidence needed to restore its current edit.
 #[derive(Debug)]
+#[expect(
+    clippy::field_scoped_visibility_modifiers,
+    reason = "only benchmark adapters may construct or mutate ownership and restoration evidence"
+)]
 pub struct Workspace {
+    /// Verified owned checkout root.
     pub(crate) root: PathBuf,
+    /// Immutable revision checked before every repository operation.
     pub(crate) revision: CommitRevision,
+    /// Exact edit made by this handle, required for safe restoration.
     pub(crate) applied: Option<AppliedPatch>,
 }
 impl Workspace {
