@@ -1,4 +1,4 @@
-//! Emit the potential implicit-name catalog once per physical module.
+//! Emit the enumerated potential implicit-name catalog once per physical module.
 use crate::domain::{
     model::types::Declarations,
     nodes::types::Node,
@@ -7,7 +7,7 @@ use crate::domain::{
 };
 use ryo::languages;
 
-/// Canonical Python builtin inventory; no module globals or fabricated syntax IDs.
+/// Enumerated Python implicit-name providers; entries are potential origins, not live values.
 pub(crate) struct ImplicitSymbolItem;
 
 ryo::reads! {
@@ -42,7 +42,8 @@ struct CatalogName {
     minor: languages::Integer,
 }
 
-/// Attributes supplied by the actual builtins module environment.
+/// Names supplied by the builtins environment, including attributes of the builtins module.
+/// These module attributes overlap with module execution globals without sharing origin.
 const BUILTIN_ATTRIBUTES: &[CatalogName] = &[
     catalog("__doc__", 3, 0),
     catalog("__loader__", 3, 0),
@@ -51,12 +52,21 @@ const BUILTIN_ATTRIBUTES: &[CatalogName] = &[
     catalog("__spec__", 3, 4),
 ];
 
-/// Names installed by Python's module execution environment, not declarations.
+/// Selected known names installed by Python's module environment, not declarations.
+/// This is an enumerated provider catalog, not an exhaustive claim about every import loader.
+/// Version anchors: `__cached__` is in What's New 3.2; `__spec__` was added in 3.4; module
+/// `__annotations__` begins with PEP 526 in 3.6; `__annotate__` was added in the 3.14 data model.
+/// The baseline names predate Python 3.0: `__loader__` is from PEP 302 and `__package__` from
+/// PEP 366. Sources: docs.python.org/3.2/whatsnew/3.2.html, docs.python.org/3.12/reference/datamodel.html,
+/// docs.python.org/3.6/whatsnew/3.6.html, docs.python.org/3/reference/datamodel.html,
+/// peps.python.org/pep-0302/, and peps.python.org/pep-0366/.
 const MODULE_GLOBALS: &[CatalogName] = &[
     catalog("__annotations__", 3, 6),
     catalog("__builtins__", 3, 0),
     catalog("__cached__", 3, 2),
+    catalog("__doc__", 3, 0),
     catalog("__file__", 3, 0),
+    catalog("__loader__", 3, 0),
     catalog("__name__", 3, 0),
     catalog("__package__", 3, 0),
     catalog("__spec__", 3, 4),

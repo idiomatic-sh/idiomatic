@@ -289,6 +289,23 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value((Some("builtins.exec"), "builtin", 3, 0)),
     },
     Case {
+        name: CaseName("module-global __name__ is not a builtins fallback"),
+        word: Word::Succeeds,
+        input: || ("__name__\n", "__name__"),
+        expect: Expect::Value((None, "unresolved", 0, 0)),
+    },
+    Case {
+        name: CaseName("explicit builtins __name__ keeps its qualified origin"),
+        word: Word::Succeeds,
+        input: || {
+            (
+                "from builtins import __name__ as builtin_name\nbuiltin_name\n",
+                "builtin_name",
+            )
+        },
+        expect: Expect::Value((Some("builtins.__name__"), "import", 0, 0)),
+    },
+    Case {
         name: CaseName("builtin_shadow"),
         word: Word::Succeeds,
         input: || ("exec = handler\nexec(source)\n", "exec"),
