@@ -3,13 +3,13 @@ use super::super::adapter::SuiteLocalAdapter;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::suite::types::ArtifactPath;
 #[cfg(unix)]
-const CASES: &[Case<(&str, &str, bool), (), &str>] = &[
+const CASES: &[Case<(&[&str], &str, bool), (), &str>] = &[
     Case {
         name: CaseName("matching executable bytes and version are accepted"),
         word: Word::Succeeds,
         input: || {
             (
-                "b145a69e05e755a39d063badddeffe112a67d4f55993e373cc4db2074b984c0b",
+                &["b145a69e05e755a39d063badddeffe112a67d4f55993e373cc4db2074b984c0b"],
                 "1.0",
                 true,
             )
@@ -17,9 +17,30 @@ const CASES: &[Case<(&str, &str, bool), (), &str>] = &[
         expect: Expect::Value(()),
     },
     Case {
+        name: CaseName("an independently pinned alternate executable is accepted"),
+        word: Word::Succeeds,
+        input: || {
+            (
+                &[
+                    "different-platform-pin",
+                    "b145a69e05e755a39d063badddeffe112a67d4f55993e373cc4db2074b984c0b",
+                ],
+                "1.0",
+                true,
+            )
+        },
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("an empty pin set refuses before executing"),
+        word: Word::Refuses,
+        input: || (&[], "1.0", false),
+        expect: Expect::Error("hash"),
+    },
+    Case {
         name: CaseName("wrong digest refuses before attempting a non executable file"),
         word: Word::Refuses,
-        input: || ("wrong", "1.0", false),
+        input: || (&["wrong", "another-wrong-pin"], "1.0", false),
         expect: Expect::Error("hash"),
     },
     Case {
@@ -27,7 +48,7 @@ const CASES: &[Case<(&str, &str, bool), (), &str>] = &[
         word: Word::Refuses,
         input: || {
             (
-                "b145a69e05e755a39d063badddeffe112a67d4f55993e373cc4db2074b984c0b",
+                &["b145a69e05e755a39d063badddeffe112a67d4f55993e373cc4db2074b984c0b"],
                 "2.0",
                 true,
             )
@@ -37,7 +58,7 @@ const CASES: &[Case<(&str, &str, bool), (), &str>] = &[
 ];
 
 #[cfg(unix)]
-fn verify_pin((sha256, version, executable): (&str, &str, bool)) -> Result<(), &'static str> {
+fn verify_pin((sha256, version, executable): (&[&str], &str, bool)) -> Result<(), &'static str> {
     use crate::domain::{diagnostics::errors::DiagnosticsError as Error, suite::types::Tool};
     use crate::outbound::suite::interface::SuitePort;
     let directory = tempfile::tempdir().expect("tool directory");
@@ -47,7 +68,7 @@ fn verify_pin((sha256, version, executable): (&str, &str, bool)) -> Result<(), &
     let tool = Tool {
         tool: "fixture".into(),
         version: version.into(),
-        sha256: sha256.into(),
+        sha256: sha256.iter().map(|value| (*value).into()).collect(),
         deferred: Default::default(),
         pending: Default::default(),
         defaults: vec!["E722".try_into().expect("rule identifier")],

@@ -115,7 +115,7 @@ pub fn exercise(
     std::fs::write(
         directory.join(super::constants::FIXTURE_PROFILE_FILE),
         format!(
-            "tool = 'fixture'\nversion = '1'\nsha256 = '{:x}'\ndefaults = ['A']\n",
+            "tool = 'fixture'\nversion = '1'\nsha256 = ['{:x}']\ndefaults = ['A']\n",
             Sha256::digest(bytes)
         ),
     )

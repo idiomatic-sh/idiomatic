@@ -33,8 +33,8 @@ pub struct Tool {
     pub tool: ToolName,
     /// Exact reference version required by this suite.
     pub version: ToolVersion,
-    /// Expected SHA-256 digest of the reference executable.
-    pub sha256: ToolDigest,
+    /// Independently pinned native executable digests for supported platforms.
+    pub sha256: Vec<ToolDigest>,
     /// Exact shipped-default rule identifiers for the pinned reference profile.
     pub defaults: Vec<RuleId>,
     /// Deferred default rules mapped to a public capability identifier.

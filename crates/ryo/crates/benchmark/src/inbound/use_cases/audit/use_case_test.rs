@@ -30,7 +30,7 @@ fn subject(nonempty: Input) -> Result<Value, Failure> {
     let tool = Tool {
         tool: "fixture".into(),
         version: "1".into(),
-        sha256: "pin".into(),
+        sha256: vec!["pin".into()],
         defaults: if nonempty {
             vec!["A".try_into().expect("rule")]
         } else {

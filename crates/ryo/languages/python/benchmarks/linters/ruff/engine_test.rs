@@ -1,4 +1,4 @@
-//! Real SDK evidence for missing files, unread inputs and typed findings.
+//! Real SDK evidence for missing files, unread or partial inputs and typed findings.
 use super::{BoundaryFailure, failure};
 use ryo_benchmark::cases::{Case, CaseName, Expect, Word, run};
 use ryo_benchmark::domain::{
@@ -12,6 +12,7 @@ enum EngineScenario {
     Finding,
     Missing,
     Unread,
+    Partial,
 }
 type Input = EngineScenario;
 type Value = bool;
@@ -30,6 +31,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Error(BoundaryFailure::Invalid),
     },
     Case {
+        name: CaseName("partial_relations_cannot_be_reported_as_checked"),
+        word: Word::Refuses,
+        input: || EngineScenario::Partial,
+        expect: Expect::Error(BoundaryFailure::Invalid),
+    },
+    Case {
         name: CaseName("missing_listed_file_is_failure"),
         word: Word::Fails,
         input: || EngineScenario::Missing,
@@ -45,14 +52,18 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
         include_str!("rules/E722/query.ryoql"),
     )?;
     let file = match scenario {
-        EngineScenario::Finding => "input.py",
+        EngineScenario::Finding | EngineScenario::Partial => "input.py",
         EngineScenario::Missing => "missing.py",
         EngineScenario::Unread => "input.unknown",
     };
     if !matches!(scenario, EngineScenario::Missing) {
         std::fs::write(
             root.path().join(file),
-            "try:\n    pass\nexcept:\n    pass\n",
+            if matches!(scenario, EngineScenario::Partial) {
+                "try:\n    pass\nexcept:\n    pass\n\ndef broken(\n"
+            } else {
+                "try:\n    pass\nexcept:\n    pass\n"
+            },
         )?;
     }
     let request = WorkerRequest {
@@ -67,6 +78,12 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
         assert!(
             matches!(&result, Err(Error::Invalid(message)) if message.starts_with("incomplete candidate:") && message.contains("input.unknown"))
         );
+    }
+    if matches!(scenario, EngineScenario::Partial) {
+        assert!(matches!(&result, Err(Error::Invalid(message))
+                if message.starts_with("incomplete candidate:")
+                    && !message.contains("unknowns=[]")
+                    && message.contains("unread=[]")));
     }
     let report = result?;
     Ok(

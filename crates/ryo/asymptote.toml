@@ -65,6 +65,15 @@ timeout-seconds = 3600
 inputs = ["Cargo.toml", "Cargo.lock", ".config", "languages/{lang}", "crates/language", "crates/sdk", "crates/core", "crates/query_language", "crates/values", "crates/benchmark", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
 
 [[tools]]
+id = "correctness-python-ruff"
+group = "check"
+# Real independent rule cases run in quality CI, without timing corpora or requiring
+# the Linux resource collector. The shared command refuses unpinned tools and empty evidence.
+run = ["bash", "-o", "pipefail", "-c", "cargo bench --locked -p idiomatic-sh-ryo-python --bench ruff -- verify-cases \"$(command -v ruff)\""]
+timeout-seconds = 3600
+inputs = ["Cargo.toml", "Cargo.lock", "languages/python", "crates/benchmark", "crates/sdk", "crates/core", "crates/language", "crates/query_language", "crates/values", "../../tools/install.py", "../../rust-toolchain.toml", "../../.cargo"]
+
+[[tools]]
 id = "test-cli"
 group = "check"
 # The command line's tests: it links every crate of the product, so the product is its input.

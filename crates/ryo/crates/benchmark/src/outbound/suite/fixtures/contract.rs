@@ -117,7 +117,7 @@ pub fn check(adapter: &impl SuitePort) {
         let tool = Tool {
             tool: "fixture".into(),
             version: "1".into(),
-            sha256: String::new().into(),
+            sha256: vec![String::new().into()],
             deferred: Default::default(),
             pending: Default::default(),
             defaults: if selected {

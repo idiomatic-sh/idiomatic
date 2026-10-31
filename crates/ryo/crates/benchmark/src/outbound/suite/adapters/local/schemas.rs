@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 struct ToolSchema {
     tool: String,
     version: String,
-    sha256: String,
+    sha256: Vec<String>,
     defaults: Vec<String>,
     #[serde(default)]
     deferred: BTreeMap<String, Vec<String>>,
@@ -55,10 +55,22 @@ pub(super) fn tool(text: &str) -> Result<types::Tool, Error> {
 impl TryFrom<ToolSchema> for types::Tool {
     type Error = Error;
     fn try_from(wire: ToolSchema) -> Result<Self, Error> {
+        if wire.sha256.is_empty()
+            || wire
+                .sha256
+                .iter()
+                .collect::<std::collections::BTreeSet<_>>()
+                .len()
+                != wire.sha256.len()
+        {
+            return Err(Error::Invalid(
+                "executable pins must be nonempty and unique".into(),
+            ));
+        }
         Ok(Self {
             tool: wire.tool.into(),
             version: wire.version.into(),
-            sha256: wire.sha256.into(),
+            sha256: wire.sha256.into_iter().map(Into::into).collect(),
             defaults: wire
                 .defaults
                 .iter()

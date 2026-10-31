@@ -1,9 +1,27 @@
 # Shipped defaults independently matched to tagged upstream DEFAULT_SELECTORS:
 # https://github.com/astral-sh/ruff/blob/0.16.5/crates/ruff_linter/src/settings/mod.rs
-# Executable hash is the Linux aarch64 Ruff 0.16.5 artifact used for this pilot.
+# Native executable pins extracted from official Ruff 0.16.5 wheels after checking
+# each wheel against https://pypi.org/pypi/ruff/0.16.5/json .
+# The certificate additionally binds the exact executable used by a particular run.
 tool = "ruff"
 version = "0.16.5"
-sha256 = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8"
+sha256 = [
+  # manylinux_2_17_aarch64.manylinux2014_aarch64; wheel SHA256:
+  # 7b719b0a1f4d59710d283ab2965f621684a108a9e41da622e3b23f0326cd0025
+  "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  # manylinux_2_17_x86_64.manylinux2014_x86_64; wheel SHA256:
+  # ef0f69e191a13a3c9816f63163c88790cb12cd157bbbb384e9c44745702ab105
+  "024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32",
+  # macosx_11_0_arm64; wheel SHA256:
+  # c5ae9a7b9a8875131f40f8fe967cc86abf899779efd663cb7ce3d572d01da7eb
+  "515c8e5e3c8c3cd9785f421e050c98748420aae9a02459b7232c89a46bbadba4",
+  # macosx_10_12_x86_64; wheel SHA256:
+  # eda58a5802de40e7ed5b32b64e0b32539338cc6fcd2c78f61e3ad6a0d79f51c3
+  "894431afcb8addcd8e3752e53634fdb0a6f9063153cd62ed730ce59d02878487",
+  # win_amd64; wheel SHA256:
+  # ddc6385fb2137f616357ca03d6c74f4be987f80fed4008566b754f6032b8546f
+  "29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e",
+]
 defaults = [
   "ASYNC100", "ASYNC105", "ASYNC115", "ASYNC116", "ASYNC210", "ASYNC220", "ASYNC221", "ASYNC222",
   "ASYNC230", "ASYNC251", "B002", "B003", "B004", "B005", "B006", "B008",

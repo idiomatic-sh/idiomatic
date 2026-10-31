@@ -29,7 +29,6 @@ pub(crate) fn run(
         .skip(1)
         .filter(|argument| argument != constants::CARGO_BENCH_ARGUMENT);
     let suite_source = Arc::new(ryo_benchmark::outbound::suite::factory::local());
-    let execution = Arc::new(ryo_benchmark::outbound::execution::factory::process());
     let comparison = CompareUseCaseImpl::new();
     let command = args.next();
     match command.as_deref() {

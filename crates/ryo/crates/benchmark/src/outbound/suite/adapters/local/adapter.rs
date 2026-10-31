@@ -78,7 +78,8 @@ fn digest(path: &Path) -> Result<ArtifactDigest, Error> {
 }
 
 fn verify_executable(path: &Path, tool: &Tool) -> Result<(), Error> {
-    if digest(path)?.0 != tool.sha256.0 {
+    let actual = digest(path)?;
+    if !tool.sha256.iter().any(|expected| expected.0 == actual.0) {
         return Err(Error::Invalid(constants::TOOL_HASH_MISMATCH.into()));
     }
     let output = std::process::Command::new(path)

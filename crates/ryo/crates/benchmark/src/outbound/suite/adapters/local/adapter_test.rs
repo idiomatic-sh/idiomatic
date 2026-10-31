@@ -127,7 +127,7 @@ expected = []
     let tool = crate::domain::suite::types::Tool {
         tool: "fixture".into(),
         version: "1".into(),
-        sha256: "pin".into(),
+        sha256: vec!["pin".into()],
         defaults: vec!["F621".try_into().expect("rule identifier")],
         deferred: [(
             "F621".try_into().expect("rule identifier"),

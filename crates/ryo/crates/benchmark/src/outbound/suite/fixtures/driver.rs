@@ -30,7 +30,7 @@ expected = []
     let tool = Tool {
         tool: "fixture".into(),
         version: "1".into(),
-        sha256: String::new().into(),
+        sha256: vec![String::new().into()],
         deferred: Default::default(),
         pending: Default::default(),
         defaults: vec!["fixture".try_into().expect("rule identifier")],
