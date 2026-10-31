@@ -14,7 +14,15 @@ pub fn request() -> WorkerRequest {
     }
 }
 /// A report with duplicated findings, which encoding must preserve.
+///
+/// # Panics
+///
+/// Panics if the fixed fixture rule identifier is no longer accepted.
 #[must_use]
+#[expect(
+    clippy::expect_used,
+    reason = "the literal fixture rule must be valid for this contract"
+)]
 pub fn report() -> RunReport {
     let finding = BenchmarkFinding {
         rule: ryo::linter::RuleId::try_from("fixture").expect("fixture rule"),
