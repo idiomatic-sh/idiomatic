@@ -32,7 +32,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 fn subject(record: Input) -> Result<Value, Failure> {
-    ResourcesSchema(record).try_into().map_err(|_| true)
+    ResourcesSchema(record)
+        .try_into()
+        .map_err(|_invalid_boundary_value| true)
 }
 #[test]
 fn succeeds() {

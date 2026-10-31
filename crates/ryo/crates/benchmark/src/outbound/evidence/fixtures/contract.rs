@@ -70,7 +70,11 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
 /// # Panics
 /// Panics if the destination violates the publication contract.
 pub fn check(adapter: &impl EvidencePort) {
-    let subject = |samples: Vec<BenchmarkSample>| adapter.publish(&samples).map_err(|_| ());
+    let subject = |samples: Vec<BenchmarkSample>| {
+        adapter
+            .publish(&samples)
+            .map_err(|_invalid_boundary_value| ())
+    };
     run(CASES, Word::Succeeds, subject);
     run(CASES, Word::Refuses, subject);
 }

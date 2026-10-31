@@ -25,7 +25,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 fn subject(wire: Input) -> Result<Value, Failure> {
-    let result = observation(&CollectorMessage(wire.as_bytes().to_vec())).map_err(|_| ())?;
+    let result = observation(&CollectorMessage(wire.as_bytes().to_vec()))
+        .map_err(|_invalid_boundary_value| ())?;
     Ok(matches!(result,Err(Error::Io(error)) if error.kind()==std::io::ErrorKind::NotFound))
 }
 #[test]

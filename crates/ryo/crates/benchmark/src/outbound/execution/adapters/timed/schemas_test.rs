@@ -33,18 +33,20 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn subject(wire: Input) -> Result<Value, Failure> {
     if wire == "request" {
         let encoded = request(&Invocation {
-            executable: Default::default(),
+            executable: std::path::PathBuf::default(),
             arguments: vec!["a".into()],
-            environment: Default::default(),
-            directory: Default::default(),
+            environment: std::collections::BTreeMap::default(),
+            directory: std::path::PathBuf::default(),
         })
-        .map_err(|_| ())?;
-        let actual: serde_json::Value = serde_json::from_slice(&encoded.0).map_err(|_| ())?;
+        .map_err(|_invalid_boundary_value| ())?;
+        let actual: serde_json::Value =
+            serde_json::from_slice(&encoded.0).map_err(|_invalid_boundary_value| ())?;
         let platform = if cfg!(windows) { "Windows" } else { "Unix" };
-        let expected = serde_json::json!({"executable":{platform:[]},"arguments":[{platform:[97]}],"environment":[],"directory":{platform:[]}});
+        let expected = serde_json::json!({"executable":{platform:[]},"arguments":[{platform:[97_u8]}],"environment":[],"directory":{platform:[]}});
         return Ok(actual == expected);
     }
-    let result = observation(&CollectorMessage(wire.as_bytes().to_vec())).map_err(|_| ())?;
+    let result = observation(&CollectorMessage(wire.as_bytes().to_vec()))
+        .map_err(|_invalid_boundary_value| ())?;
     Ok(matches!(result,Err(Error::Io(error)) if error.kind()==std::io::ErrorKind::NotFound))
 }
 #[test]

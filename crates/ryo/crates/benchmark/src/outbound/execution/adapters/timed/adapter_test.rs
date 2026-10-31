@@ -7,9 +7,9 @@ use ryo_benchmark::{
         measurements::types::{Invocation, ResourceObservation},
         suite::types::ArtifactDigest,
     },
-    outbound::execution::{self, interface::ExecutionPort},
+    outbound::execution::{self, interface::ExecutionPort as _},
 };
-use sha2::{Digest, Sha256};
+use sha2::{Digest as _, Sha256};
 use std::{path::PathBuf, time::Duration};
 #[derive(Clone, Copy, Debug)]
 enum Probe {
@@ -75,14 +75,14 @@ fn check(probe: Probe) -> Result<(), Box<dyn std::error::Error>> {
     let mut invocation = Invocation {
         executable: PathBuf::from("/usr/bin/true"),
         arguments: Vec::new(),
-        environment: Default::default(),
+        environment: std::collections::BTreeMap::default(),
         directory: PathBuf::from("/tmp"),
     };
     if matches!(probe, Probe::ChangedCollector) {
-        assert!(matches!(
-            execution.run(invocation),
-            Err(DiagnosticsError::Invalid(_))
-        ));
+        assert!(
+            matches!(execution.run(invocation), Err(DiagnosticsError::Invalid(_))),
+            "changed collector digest must refuse execution"
+        );
         return Ok(());
     }
     let parent = if matches!(probe, Probe::ParentMemory) {
@@ -105,10 +105,16 @@ while time.process_time()<end: pass"
         invocation.arguments = vec!["-c".into(), "import time; time.sleep(0.25)".into()];
     }
     let output = execution.run(invocation)?;
-    assert_eq!(output.status.0, 0);
-    assert!(output.wall > Duration::ZERO);
+    assert_eq!(
+        output.status.0, 0_i32,
+        "resource probe must exit successfully"
+    );
+    assert!(
+        output.wall > Duration::ZERO,
+        "actual child must have elapsed time"
+    );
     let ResourceObservation::Collected(resources) = output.resources else {
-        panic!("collector omitted resources")
+        return Err("collector omitted resources".into());
     };
     match probe {
         Probe::ParentMemory => assert!(
@@ -134,7 +140,10 @@ while time.process_time()<end: pass"
             );
         }
         Probe::Sleep => {
-            assert!(output.wall >= Duration::from_millis(200));
+            assert!(
+                output.wall >= Duration::from_millis(200),
+                "sleep probe must retain elapsed wall time"
+            );
             assert!(
                 resources.cpu < output.wall / 2,
                 "sleep CPU={:?} wall={:?}",
@@ -142,7 +151,9 @@ while time.process_time()<end: pass"
                 output.wall
             );
         }
-        Probe::Contract | Probe::ChangedCollector => unreachable!(),
+        Probe::Contract | Probe::ChangedCollector => {
+            return Err("early-return probe reached resource assertions".into());
+        }
     }
     drop(std::hint::black_box(parent));
     Ok(())

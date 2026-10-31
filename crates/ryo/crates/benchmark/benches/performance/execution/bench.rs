@@ -6,8 +6,9 @@
 use ryo_benchmark::domain::measurements::types::Invocation;
 use ryo_benchmark::outbound::execution::{
     factory::{direct, process, timed},
-    interface::ExecutionPort,
+    interface::ExecutionPort as _,
 };
+/// Construct the same explicit child workload for each execution adapter.
 fn invocation() -> Invocation {
     Invocation {
         executable: "/bin/sh".into(),
@@ -17,19 +18,24 @@ fn invocation() -> Invocation {
     }
 }
 #[divan::bench]
+/// Measure child startup and collection without resource instrumentation.
 fn process_child(bencher: divan::Bencher<'_, '_>) {
     let adapter = process();
     let input = invocation();
     bencher.bench_local(|| {
         let output = adapter.run(input.clone()).expect("child starts");
-        assert_eq!(output.status.0, 0);
-        assert_eq!(output.stdout.0, b"result");
+        assert_eq!(output.status.0, 0_i32, "workload must exit successfully");
+        assert_eq!(
+            output.stdout.0, b"result",
+            "workload output must survive capture"
+        );
         divan::black_box(output)
     });
 }
 #[divan::bench]
+/// Measure the isolated collector boundary using its actual built executable.
 fn timed_child(bencher: divan::Bencher<'_, '_>) {
-    use sha2::{Digest, Sha256};
+    use sha2::{Digest as _, Sha256};
     let bench = std::env::current_exe().expect("running benchmark executable");
     let executable = bench
         .parent()
@@ -47,17 +53,24 @@ fn timed_child(bencher: divan::Bencher<'_, '_>) {
         let output = adapter
             .run(input.clone())
             .expect("instrumented child starts");
-        assert_eq!(output.status.0, 0);
-        assert_eq!(output.stdout.0, b"result");
-        assert!(matches!(
-            output.resources,
-            ryo_benchmark::domain::measurements::types::ResourceObservation::Collected(_)
-        ));
+        assert_eq!(output.status.0, 0_i32, "workload must exit successfully");
+        assert_eq!(
+            output.stdout.0, b"result",
+            "workload output must survive capture"
+        );
+        assert!(
+            matches!(
+                output.resources,
+                ryo_benchmark::domain::measurements::types::ResourceObservation::Collected(_)
+            ),
+            "instrumented workload must supply actual child resources"
+        );
         divan::black_box(output)
     });
 }
 
 #[divan::bench]
+/// Measure direct collection separately from the isolated collector boundary.
 fn direct_child(bencher: divan::Bencher<'_, '_>) {
     let adapter = direct();
     let input = invocation();
