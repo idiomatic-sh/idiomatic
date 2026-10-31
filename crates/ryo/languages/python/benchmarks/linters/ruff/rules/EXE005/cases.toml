@@ -1,0 +1,59 @@
+[[cases]]
+name = "after-comment"
+files = { "case.py" = "# comment\n#!/usr/bin/python\n" }
+expected = [{ file = "case.py", start = 10, end = 27 }]
+
+[[cases]]
+name = "first"
+files = { "case.py" = "#!/usr/bin/python\n" }
+expected = []
+
+[[cases]]
+name = "whitespace-only"
+files = { "case.py" = "\n  #!/usr/bin/python\n" }
+expected = []
+
+[[cases]]
+name = "inline"
+files = { "case.py" = "x = 1 #!/usr/bin/python\n" }
+expected = [{ file = "case.py", start = 6, end = 23 }]
+
+[[cases]]
+name = "second-shebang"
+files = { "case.py" = "#!/usr/bin/python\n#!/usr/bin/python\n" }
+expected = [{ file = "case.py", start = 18, end = 35 }]
+
+[[cases]]
+name = "empty-shebang"
+files = { "case.py" = "# comment\n#!\n" }
+expected = [{ file = "case.py", start = 10, end = 12 }]
+
+[[cases]]
+name = "not-shebang"
+files = { "case.py" = "# comment\n# !/usr/bin/python\n" }
+expected = []
+
+[[cases]]
+name = "string-lookalike"
+files = { "case.py" = "text = \"#!/usr/bin/python\"\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "# comment\n#!/usr/bin/python # noqa\n" }
+expected = []
+
+[[cases]]
+name = "code-noqa"
+files = { "case.py" = "# comment\n#!/usr/bin/python # noqa: EXE005\n" }
+expected = []
+
+[[cases]]
+name = "other-code"
+files = { "case.py" = "# comment\n#!/usr/bin/python # noqa: F401\n" }
+expected = [{ file = "case.py", start = 10, end = 40 }]
+
+[[cases]]
+name = "file-noqa"
+files = { "case.py" = "# ruff: noqa\n# comment\n#!/usr/bin/python\n" }
+expected = []

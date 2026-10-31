@@ -1,0 +1,59 @@
+[[cases]]
+name = "empty"
+files = { "case.py" = "class C():\n    pass\n" }
+expected = [{ file = "case.py", start = 7, end = 9 }]
+
+[[cases]]
+name = "no-parens"
+files = { "case.py" = "class C:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "base"
+files = { "case.py" = "class C(object):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "metaclass"
+files = { "case.py" = "class C(metaclass=Meta):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "comment"
+files = { "case.py" = "class C( # comment\n):\n    pass\n" }
+expected = [{ file = "case.py", start = 7, end = 20 }]
+
+[[cases]]
+name = "generic"
+files = { "case.py" = "class C[T]():\n    pass\n" }
+expected = [{ file = "case.py", start = 10, end = 12 }]
+
+[[cases]]
+name = "function"
+files = { "case.py" = "def f():\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "nested"
+files = { "case.py" = "class C:\n    class D():\n        pass\n" }
+expected = [{ file = "case.py", start = 20, end = 22 }]
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "class C(): # noqa\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "code-noqa"
+files = { "case.py" = "class C(): # noqa: UP039\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "other-code"
+files = { "case.py" = "class C(): # noqa: F401\n    pass\n" }
+expected = [{ file = "case.py", start = 7, end = 9 }]
+
+[[cases]]
+name = "file-noqa"
+files = { "case.py" = "# ruff: noqa\nclass C():\n    pass\n" }
+expected = []

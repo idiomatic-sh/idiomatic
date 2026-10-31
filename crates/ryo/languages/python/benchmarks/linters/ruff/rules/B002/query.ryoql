@@ -1,7 +1,8 @@
 let unary = select id, file, span from "syntax-tree" where kind = "unary-op";
 let operators = select parent, child from "syntax-child" where field = "op";
 let signs = select id, text from "syntax-tree" where text = "+" or text = "-";
-let signed = select l.parent as id, r.text as sign from operators as l join signs as r on l.child = r.id;
+let all_signed = select l.parent as id, r.text as sign from operators as l join signs as r on l.child = r.id;
+let signed = select l.id as id, l.sign as sign from all_signed as l join unary as r on l.id = r.id;
 let operands = select parent, child from "syntax-child" where field = "operand";
 let inner_signs = select l.parent as id, r.sign as sign from operands as l join signed as r on l.child = r.id;
 let doubled = select l.id as id from signed as l join inner_signs as r on l.id = r.id and l.sign = r.sign;

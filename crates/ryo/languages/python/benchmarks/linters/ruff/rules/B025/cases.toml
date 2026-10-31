@@ -1,0 +1,59 @@
+[[cases]]
+name = "duplicate"
+files = { "case.py" = "try:\n    pass\nexcept ValueError:\n    pass\nexcept ValueError:\n    pass\n" }
+expected = [{ file = "case.py", start = 49, end = 59 }]
+
+[[cases]]
+name = "different"
+files = { "case.py" = "try:\n    pass\nexcept ValueError:\n    pass\nexcept TypeError:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "tuple"
+files = { "case.py" = "try:\n    pass\nexcept (ValueError, TypeError):\n    pass\nexcept (TypeError, KeyError):\n    pass\n" }
+expected = [{ file = "case.py", start = 63, end = 72 }]
+
+[[cases]]
+name = "same-tuple"
+files = { "case.py" = "try:\n    pass\nexcept (ValueError, ValueError):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "qualified"
+files = { "case.py" = "try:\n    pass\nexcept pkg.Error:\n    pass\nexcept pkg . Error:\n    pass\n" }
+expected = [{ file = "case.py", start = 48, end = 59 }]
+
+[[cases]]
+name = "distinct-tries"
+files = { "case.py" = "try:\n    pass\nexcept ValueError:\n    pass\ntry:\n    pass\nexcept ValueError:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "repeated-in-later-tuple"
+files = { "case.py" = "try:\n    pass\nexcept ValueError:\n    pass\nexcept (ValueError, ValueError):\n    pass\n" }
+expected = [{ file = "case.py", start = 50, end = 60 }]
+
+[[cases]]
+name = "group"
+files = { "case.py" = "try:\n    pass\nexcept* ValueError:\n    pass\nexcept* ValueError:\n    pass\n" }
+expected = [{ file = "case.py", start = 51, end = 61 }]
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "try:\n    pass\nexcept ValueError:\n    pass\nexcept ValueError: # noqa\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "code-noqa"
+files = { "case.py" = "try:\n    pass\nexcept ValueError:\n    pass\nexcept ValueError: # noqa: B025\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "other-code"
+files = { "case.py" = "try:\n    pass\nexcept ValueError:\n    pass\nexcept ValueError: # noqa: F401\n    pass\n" }
+expected = [{ file = "case.py", start = 49, end = 59 }]
+
+[[cases]]
+name = "file-noqa"
+files = { "case.py" = "# ruff: noqa\ntry:\n    pass\nexcept ValueError:\n    pass\nexcept ValueError:\n    pass\n" }
+expected = []

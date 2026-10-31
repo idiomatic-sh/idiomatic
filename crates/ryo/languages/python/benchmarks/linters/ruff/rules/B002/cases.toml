@@ -34,6 +34,31 @@ files = { "case.py" = "x = not not value\n" }
 expected = []
 
 [[cases]]
+name = "subtraction-operand"
+files = { "case.py" = "x = -(maximum - count)\n" }
+expected = []
+
+[[cases]]
+name = "addition-operand"
+files = { "case.py" = "x = +(maximum + count)\n" }
+expected = []
+
+[[cases]]
+name = "nested-arithmetic"
+files = { "case.py" = "x = -(-(lower - start) // abs(step))\n" }
+expected = []
+
+[[cases]]
+name = "genuine-nested-sign"
+files = { "case.py" = "x = -(-(lower - start))\n" }
+expected = [{ file = "case.py", start = 4, end = 23 }]
+
+[[cases]]
+name = "binary-before-unary"
+files = { "case.py" = "x = first - -second\n" }
+expected = []
+
+[[cases]]
 name = "noqa"
 files = { "case.py" = "x = ++value # noqa\n" }
 expected = []
