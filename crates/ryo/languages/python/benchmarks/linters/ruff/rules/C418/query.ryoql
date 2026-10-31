@@ -1,3 +1,4 @@
+let qualified_names = select q.id as id, q.path as path, q.provenance as provenance, q."since-major" as since_major, q."since-minor" as since_minor from "qualified-name" as q;
 let semantic_token_nodes = select id from "syntax-tree" where kind = "name-token";
 let semantic_identifier_children = select r.child as id, l.name as text from "identifier" as l join "syntax-child" as r on l.id = r.parent;
 let semantic_identifiers = select l.id as id, l.text as text from semantic_identifier_children as l join semantic_token_nodes as r on l.id = r.id;
@@ -27,7 +28,7 @@ let keyword_names = antijoin(left=unordered_keyword_names, right=later_keyword_n
 let id_fields = select parent, child from "syntax-child" where field = "id";
 let builtin_tokens = select id from semantic_identifiers where text = "dict";
 let spelled_functions = select l.parent as id from id_fields as l join builtin_tokens as r on l.child = r.id;
-let builtin_functions = select id from "qualified-name" where path = "builtins.dict" and provenance = "builtin" and ("since-major" < 3 or "since-major" = 3 and "since-minor" <= 10);
+let builtin_functions = select id from qualified_names where path = "builtins.dict" and provenance = "builtin" and (since_major < 3 or since_major = 3 and since_minor <= 10);
 let eligible_functions = select l.id as id from spelled_functions as l join builtin_functions as r on l.id = r.id;
 let matching_calls = select l.parent as id from functions as l join eligible_functions as r on l.child = r.id;
 let counts = group-count(from=positional, keys=["call"], count="count", distinct="id");

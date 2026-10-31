@@ -1,3 +1,4 @@
+let qualified_names = select q.id as id, q.path as path, q.provenance as provenance, q."since-major" as since_major, q."since-minor" as since_minor from "qualified-name" as q;
 let semantic_token_nodes = select id from "syntax-tree" where kind = "name-token";
 let semantic_identifier_children = select r.child as id, l.name as text from "identifier" as l join "syntax-child" as r on l.id = r.parent;
 let semantic_identifiers = select l.id as id, l.text as text from semantic_identifier_children as l join semantic_token_nodes as r on l.id = r.id;
@@ -24,7 +25,7 @@ let unordered_keyword_names = select l.call as call, l.id as id, r.name as name 
 let ordered_keyword_names = select l.call as call, l.id as id, l.name as name, r."start-byte" as begin from unordered_keyword_names as l join "source-location" as r on l.id = r.id;
 let later_keyword_names = select l.id as id from ordered_keyword_names as l join ordered_keyword_names as r on l.call = r.call and l.name = r.name where l.begin > r.begin;
 let keyword_names = antijoin(left=unordered_keyword_names, right=later_keyword_names, left-on=["id"], right-on=["id"]);
-let qualified = select id, path from "qualified-name" where (path = "builtins.hasattr" or path = "builtins.getattr") and (provenance != "builtin" or "since-major" < 3 or "since-major" = 3 and "since-minor" <= 10);
+let qualified = select id, path from qualified_names where (path = "builtins.hasattr" or path = "builtins.getattr") and (provenance != "builtin" or since_major < 3 or since_major = 3 and since_minor <= 10);
 let builtin_calls = select l.parent as id, r.path as path from functions as l join qualified as r on l.child = r.id;
 let counts = group-count(from=positional, keys=["call"], count="count", distinct="id");
 let counted = select l.id as id, l.path as path, r.count as count from builtin_calls as l join counts as r on l.id = r.call;

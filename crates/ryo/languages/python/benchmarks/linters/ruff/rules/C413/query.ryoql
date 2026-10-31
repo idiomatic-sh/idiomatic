@@ -1,3 +1,4 @@
+let qualified_names = select q.id as id, q.path as path, q.provenance as provenance, q."since-major" as since_major, q."since-minor" as since_minor from "qualified-name" as q;
 let semantic_token_nodes = select id from "syntax-tree" where kind = "name-token";
 let semantic_identifier_children = select r.child as id, l.name as text from "identifier" as l join "syntax-child" as r on l.id = r.parent;
 let semantic_identifiers = select l.id as id, l.text as text from semantic_identifier_children as l join semantic_token_nodes as r on l.id = r.id;
@@ -24,8 +25,8 @@ let unordered_keyword_names = select l.call as call, l.id as id, r.name as name 
 let ordered_keyword_names = select l.call as call, l.id as id, l.name as name, r."start-byte" as begin from unordered_keyword_names as l join "source-location" as r on l.id = r.id;
 let later_keyword_names = select l.id as id from ordered_keyword_names as l join ordered_keyword_names as r on l.call = r.call and l.name = r.name where l.begin > r.begin;
 let keyword_names = antijoin(left=unordered_keyword_names, right=later_keyword_names, left-on=["id"], right-on=["id"]);
-let outer_functions = select id from "qualified-name" where (path = "builtins.list" or path = "builtins.reversed") and (provenance != "builtin" or "since-major" < 3 or "since-major" = 3 and "since-minor" <= 10);
-let sorted_functions = select id from "qualified-name" where path = "builtins.sorted" and (provenance != "builtin" or "since-major" < 3 or "since-major" = 3 and "since-minor" <= 10);
+let outer_functions = select id from qualified_names where (path = "builtins.list" or path = "builtins.reversed") and (provenance != "builtin" or since_major < 3 or since_major = 3 and since_minor <= 10);
+let sorted_functions = select id from qualified_names where path = "builtins.sorted" and (provenance != "builtin" or since_major < 3 or since_major = 3 and since_minor <= 10);
 let outer_calls = select l.parent as id from functions as l join outer_functions as r on l.child = r.id;
 let sorted_calls = select l.parent as id from functions as l join sorted_functions as r on l.child = r.id;
 let first_args = select call, id from positional where ordinal = 0;

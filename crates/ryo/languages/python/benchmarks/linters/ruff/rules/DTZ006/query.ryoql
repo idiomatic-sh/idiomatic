@@ -1,9 +1,10 @@
+let qualified_names = select q.id as id, q.path as path, q.provenance as provenance, q."since-major" as since_major, q."since-minor" as since_minor from "qualified-name" as q;
 let semantic_token_nodes = select id from "syntax-tree" where kind = "name-token";
 let semantic_identifier_children = select r.child as id, l.name as text from "identifier" as l join "syntax-child" as r on l.id = r.parent;
 let semantic_identifiers = select l.id as id, l.text as text from semantic_identifier_children as l join semantic_token_nodes as r on l.id = r.id;
 let calls = select id, file, span from "syntax-tree" where kind = "call";
 let functions = select parent, child from "syntax-child" where field = "func";
-let qualified = select id from "qualified-name" where path = "datetime.datetime.fromtimestamp" and (provenance != "builtin" or "since-major" < 3 or "since-major" = 3 and "since-minor" <= 10);
+let qualified = select id from qualified_names where path = "datetime.datetime.fromtimestamp" and (provenance != "builtin" or since_major < 3 or since_major = 3 and since_minor <= 10);
 let matching_calls = select l.parent as id, l.child as function from functions as l join qualified as r on l.child = r.id;
 let argument_nodes = select id from "syntax-tree" where kind = "call-arguments";
 let call_arguments = select l.parent as call, r.id as id from "syntax-child" as l join argument_nodes as r on l.child = r.id;

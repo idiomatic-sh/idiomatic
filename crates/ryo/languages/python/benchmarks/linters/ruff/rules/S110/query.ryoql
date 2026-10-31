@@ -1,4 +1,5 @@
-let broad_exceptions = select id from "qualified-name" where (path = "builtins.Exception" or path = "builtins.BaseException") and (provenance != "builtin" or "since-major" < 3 or "since-major" = 3 and "since-minor" <= 10);
+let qualified_names = select q.id as id, q.path as path, q.provenance as provenance, q."since-major" as since_major, q."since-minor" as since_minor from "qualified-name" as q;
+let broad_exceptions = select id from qualified_names where (path = "builtins.Exception" or path = "builtins.BaseException") and (provenance != "builtin" or since_major < 3 or since_major = 3 and since_minor <= 10);
 let handlers = select id, file, span from "syntax-tree" where kind = "except-handler";
 let bodies = select parent, child from "syntax-child" where field = "body";
 let counts = group-count(from=bodies, keys=["parent"], count="count", distinct="child");
