@@ -1,0 +1,69 @@
+[[cases]]
+name = "import"
+files = { "case.py" = "import os as os\n" }
+expected = [{ file = "case.py", start = 7, end = 15 }]
+
+[[cases]]
+name = "from"
+files = { "case.py" = "from os import path as path\n" }
+expected = [{ file = "case.py", start = 15, end = 27 }]
+
+[[cases]]
+name = "renamed"
+files = { "case.py" = "import os as operating_system\n" }
+expected = []
+
+[[cases]]
+name = "dotted"
+files = { "case.py" = "import os.path as path\n" }
+expected = []
+
+[[cases]]
+name = "init"
+files = { "__init__.py" = "import os as os\n" }
+expected = []
+
+[[cases]]
+name = "nested-init"
+files = { "pkg/__init__.py" = "from os import path as path\n" }
+expected = []
+
+[[cases]]
+name = "stub-init"
+files = { "__init__.pyi" = "import os as os\n" }
+expected = []
+
+[[cases]]
+name = "relative"
+files = { "case.py" = "from . import feature as feature\n" }
+expected = [{ file = "case.py", start = 14, end = 32 }]
+
+[[cases]]
+name = "multiple"
+files = { "case.py" = "import os as os, sys as sys\n" }
+expected = [{ file = "case.py", start = 7, end = 15 }, { file = "case.py", start = 17, end = 27 }]
+
+[[cases]]
+name = "no-alias"
+files = { "case.py" = "import os\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "import os as os # noqa\n" }
+expected = []
+
+[[cases]]
+name = "code-noqa"
+files = { "case.py" = "import os as os # noqa: PLC0414\n" }
+expected = []
+
+[[cases]]
+name = "other-code"
+files = { "case.py" = "import os as os # noqa: F401\n" }
+expected = [{ file = "case.py", start = 7, end = 15 }]
+
+[[cases]]
+name = "file-noqa"
+files = { "case.py" = "# ruff: noqa\nimport os as os\n" }
+expected = []
