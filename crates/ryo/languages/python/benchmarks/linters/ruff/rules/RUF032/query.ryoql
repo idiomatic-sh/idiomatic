@@ -24,7 +24,9 @@ let keyword_names = antijoin(left=unordered_keyword_names, right=later_keyword_n
 let qualified = select id from "qualified-name" where path = "decimal.Decimal" and (provenance != "builtin" or "since-major" < 3 or "since-major" = 3 and "since-minor" <= 10);
 let matching_calls = select l.parent as id, l.child as function from functions as l join qualified as r on l.child = r.id;
 let constants = select id from "syntax-tree" where kind = "constant";
-let float_tokens = select id from "syntax-tree" where kind = "number" and matches(text, "[.eE]") and not matches(text, "^0[xX]|[jJ]$");
+let float_candidates = select id, text from "syntax-tree" where kind = "number" and matches(text, "[.eE]");
+let nonfloat_tokens = select id from float_candidates where matches(text, "^0[xX]|[jJ]$");
+let float_tokens = antijoin(left=float_candidates, right=nonfloat_tokens, left-on=["id"], right-on=["id"]);
 let numeric_children = select l.parent as id from "syntax-child" as l join float_tokens as r on l.child = r.id;
 let float_literals = select l.id as id from constants as l join numeric_children as r on l.id = r.id;
 let unary = select id from "syntax-tree" where kind = "unary-op";
