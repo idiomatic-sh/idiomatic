@@ -166,6 +166,12 @@ impl Parse for ParseContract {
         languages::reads::<StaticCallItem>()
     }
 
+    fn identifier(&self) -> Support<Reader<languages::Identifier, Declarations>> {
+        languages::reads::<
+            crate::domain::relations::collections::relations::identifier::item::IdentifierItem,
+        >()
+    }
+
     fn qualified_name(&self) -> Support<Reader<languages::QualifiedName, Declarations>> {
         languages::reads::<crate::domain::relations::collections::relations::qualified_name::item::QualifiedNameItem>()
     }

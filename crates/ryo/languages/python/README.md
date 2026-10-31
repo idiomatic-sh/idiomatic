@@ -110,3 +110,5 @@ provenance labels, and versioned import rows. Provider tests independently cover
 shadowing, scope timing, deletes, wildcard uncertainty, mixed dynamic/known calls, and model
 reuse. All languages inherit the row contract and must either implement the reader or declare
 it not yet read where the construct applies.
+
+The `identifier` relation exposes Python's parser-normalized lexical names while `syntax-tree` tokens preserve the original spelling. Its occurrence is the `Name` expression or identifier field node (including attribute names and import aliases); spans always describe source bytes before NFKC normalization. Dotted import fields retain their full canonical path, and wildcard imports are not identifiers. This relation does not resolve bindings. Shared conformance rejects unknown or empty names and non-source spans; Python cases exercise normalized aliases, builtin shadowing, attributes, raw token preservation, and model reuse.

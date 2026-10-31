@@ -207,6 +207,11 @@ impl Parse for ParseContract {
         languages::absent(AbsenceCause::NoSuchConstruct)
     }
 
+    fn identifier(&self) -> Support<Reader<languages::Identifier, ()>> {
+        // Canonical identifier spelling is not yet exposed by this provider.
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn qualified_name(&self) -> Support<Reader<languages::QualifiedName, ()>> {
         // standard: WHATWG HTML, Parsing HTML documents, https://html.spec.whatwg.org/multipage/parsing.html defines document/link structure, not lexical import or builtin namespaces; embedded code is read by its own language.
         languages::absent(AbsenceCause::NoSuchConstruct)

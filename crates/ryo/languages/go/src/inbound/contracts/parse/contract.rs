@@ -227,6 +227,11 @@ impl Parse for ParseContract {
         >()
     }
 
+    fn identifier(&self) -> Support<Reader<languages::Identifier, ()>> {
+        // Canonical identifier spelling is not yet exposed by this provider.
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn qualified_name(&self) -> Support<Reader<languages::QualifiedName, ()>> {
         // Qualified source identities are applicable, but this provider has not implemented their reader.
         languages::absent(AbsenceCause::NotYetRead)

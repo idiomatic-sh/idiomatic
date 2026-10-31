@@ -32,6 +32,7 @@ macro_rules! each_relation {
                 CallArgument call_argument CallArgumentRow CallArgumentColumn;
                 Resolves resolves ResolvesRow ResolvesColumn;
                 QualifiedName qualified_name QualifiedNameRow QualifiedNameColumn;
+                Identifier identifier IdentifierRow IdentifierColumn;
                 StaticImport static_import StaticImportRow StaticImportColumn;
                 StringLiteral string_literal StringLiteralRow StringLiteralColumn;
                 SyntaxChild syntax_child SyntaxChildRow SyntaxChildColumn;

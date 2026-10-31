@@ -268,3 +268,16 @@ pub(crate) fn identifier_text<'a>(tree: &'a Tree<'a>, at: Position) -> Text<'a> 
     languages::property_at(tree.elements, at, super::constants::NORMALIZED_IDENTIFIER)
         .map_or_else(|| written(tree, at), |name| Text(name.0))
 }
+
+/// All lexical identifier fields and name expressions in a complete source tree.
+pub(crate) fn identifiers<'a>(tree: &'a Tree<'a>) -> Option<impl Iterator<Item = Position> + 'a> {
+    if languages::diagnostics(tree.elements).next().is_some() {
+        return None;
+    }
+    Some(languages::positions(tree.elements).filter(|at| {
+        matches!(
+            kind(tree, *at),
+            Kind::Node(Node::Name) | Kind::Extra(Extra::Identifier)
+        ) && name_token(tree, *at).is_some()
+    }))
+}

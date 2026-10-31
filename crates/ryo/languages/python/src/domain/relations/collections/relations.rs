@@ -28,3 +28,6 @@ pub(crate) mod indent_region;
 
 /// Canonical lexical name provenance.
 pub(crate) mod qualified_name;
+
+/// Canonical lexical identifiers.
+pub(crate) mod identifier;

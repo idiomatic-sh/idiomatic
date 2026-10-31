@@ -194,6 +194,11 @@ impl Parse for ParseContract {
         languages::absent(AbsenceCause::NotCode)
     }
 
+    fn identifier(&self) -> Support<Reader<languages::Identifier, Model>> {
+        // Data keys are not programming-language lexical identifiers.
+        languages::absent(AbsenceCause::NotCode)
+    }
+
     fn qualified_name(&self) -> Support<Reader<languages::QualifiedName, Model>> {
         languages::absent(AbsenceCause::NotCode)
     }

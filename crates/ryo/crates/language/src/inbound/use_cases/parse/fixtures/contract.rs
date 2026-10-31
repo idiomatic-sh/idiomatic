@@ -245,6 +245,12 @@ fn read(
         &mut out,
     )?;
     for (relation, row) in out.rows() {
+        if relation == Relation::Identifier {
+            assert!(
+                identifier_valid(&row, &symbols, bytes),
+                "identifier must expose a known nonempty canonical name at a nonempty original byte span"
+            );
+        }
         if relation == Relation::QualifiedName {
             assert!(
                 qualified_name_valid(&row, &symbols, bytes),
@@ -253,6 +259,26 @@ fn read(
         }
     }
     Ok(out)
+}
+
+/// A normalized identifier remains a known spelling and an actual, nonempty source occurrence.
+fn identifier_valid(row: &[u64], symbols: &Symbols, source: ByteSlice<'_>) -> bool {
+    let [_, name, _, span] = row else {
+        return false;
+    };
+    let Ok(name) = u32::try_from(*name) else {
+        return false;
+    };
+    let start = span >> 32;
+    let end = span & u64::from(u32::MAX);
+    crate::domain::symbols::service::text_of(
+        symbols,
+        source,
+        crate::domain::terms::types::Symbol(name),
+    )
+    .is_some_and(|name| !name.0.is_empty())
+        && start < end
+        && end <= u64::try_from(source.0.len()).unwrap_or(u64::MAX)
 }
 
 /// Every provider must distinguish a proven lexical path from an unknown value and explicit builtin availability.

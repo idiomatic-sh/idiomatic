@@ -7,6 +7,8 @@ use crate::domain::relations::{
 };
 #[derive(Clone, Copy, Debug)]
 enum Operation {
+    /// Canonical spelling and original source interval.
+    Identifier(Option<&'static str>, u64),
     Partial,
     PartialAt,
     Qualified(&'static str, Option<&'static str>, u64, u64),
@@ -15,6 +17,30 @@ type Input = Operation;
 type Value = bool;
 type Failure = ();
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("normalized identifier can differ in byte length"),
+        word: Word::Succeeds,
+        input: || Operation::Identifier(Some("exec"), 16),
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("unknown identifier cannot masquerade as canonical"),
+        word: Word::Succeeds,
+        input: || Operation::Identifier(None, 16),
+        expect: Expect::Value(false),
+    },
+    Case {
+        name: CaseName("empty identifier is invalid"),
+        word: Word::Succeeds,
+        input: || Operation::Identifier(Some(""), 16),
+        expect: Expect::Value(false),
+    },
+    Case {
+        name: CaseName("source span cannot use normalized byte extent beyond file"),
+        word: Word::Succeeds,
+        input: || Operation::Identifier(Some("exec"), 17),
+        expect: Expect::Value(false),
+    },
     Case {
         name: CaseName("partial causes reuse buffers and preserve fresh content"),
         word: Word::Succeeds,
@@ -73,6 +99,30 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn subject(operation: Input) -> Result<Value, Failure> {
     let mut output = Collect::default();
     match operation {
+        Operation::Identifier(name, span) => {
+            use crate::domain::{
+                symbols::{
+                    service::intern_derived,
+                    types::{ByteSlice, Symbols},
+                },
+                terms::{
+                    service::unknown_symbol,
+                    types::{NameText, UnknownReason},
+                },
+            };
+            let source = ByteSlice("𝗲𝘅𝗲𝗰".as_bytes());
+            let mut symbols = Symbols::default();
+            let name = name.map_or_else(
+                || unknown_symbol(UnknownReason(23)),
+                |name| intern_derived(&mut symbols, source, NameText(name)),
+            );
+            Ok(super::identifier_valid(
+                &[0, u64::from(name.0), 0, span],
+                &symbols,
+                source,
+            ))
+        }
+
         Operation::Qualified(origin, path, major, minor) => {
             use crate::domain::symbols::{
                 service::intern_derived,

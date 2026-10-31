@@ -9,6 +9,9 @@ use ryo::languages::Why;
 use ryo::languages::contract::{Expected, Unfilled, Unshown};
 
 /// Independently expected canonical lexical names.
+mod identifier {
+    include!("../../tests/fixtures/relations/identifier/expected.rs");
+}
 mod qualified_name {
     include!("../../tests/fixtures/relations/qualified_name/expected.rs");
 }
@@ -111,6 +114,7 @@ pub(super) fn expected() -> Vec<Expected> {
         static_call::expected(),
         resolves::expected(),
         qualified_name::expected(),
+        identifier::expected(),
         call_argument::expected(),
         static_import::expected(),
         string_literal::expected(),
