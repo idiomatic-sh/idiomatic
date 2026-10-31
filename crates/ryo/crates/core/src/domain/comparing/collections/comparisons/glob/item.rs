@@ -63,6 +63,7 @@ impl ComparisonsItem for GlobItem {
             | Test::NotIn
             | Test::StartsWith
             | Test::EndsWith => Err(OperatingError::WrongTest),
+            Test::Matches => Err(OperatingError::WrongTest),
         }
     }
 }

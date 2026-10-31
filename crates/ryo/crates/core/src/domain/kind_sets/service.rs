@@ -58,6 +58,7 @@ fn naming(test: Test) -> Option<NamingPlace> {
         | Test::In
         | Test::NotIn
         | Test::StartsWith
+        | Test::Matches
         | Test::EndsWith => None,
     }
 }
@@ -68,6 +69,11 @@ pub(crate) fn satisfies(test: Test, name: TextView<'_>, wanted: TextView<'_>) ->
     match test {
         Test::Equal | Test::NotEqual => EqualityItem.holds(test, &left, &right),
         Test::StartsWith | Test::EndsWith => AffixItem.holds(test, &left, &right),
+        Test::Matches => crate::domain::matching::service::matches(
+            &left,
+            &right,
+            &mut crate::domain::matching::types::Patterns::default(),
+        ),
         Test::LessThan
         | Test::LessThanOrEqual
         | Test::GreaterThan

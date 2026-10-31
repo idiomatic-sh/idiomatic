@@ -36,6 +36,7 @@ macro_rules! each_relation {
                 SyntaxChild syntax_child SyntaxChildRow SyntaxChildColumn;
                 SyntaxError syntax_error SyntaxErrorRow SyntaxErrorColumn;
                 SyntaxTree syntax_tree SyntaxTreeRow SyntaxTreeColumn;
+                SourceLocation source_location SourceLocationRow SourceLocationColumn;
                 Mapping mapping MappingRow MappingColumn;
                 Entry entry EntryRow EntryColumn;
                 SequenceElement sequence_element SequenceElementRow SequenceElementColumn;

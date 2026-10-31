@@ -1,0 +1,29 @@
+[[cases]]
+name = "undefined-name"
+files = { "case.py" = "print(missing)\n" }
+expected = [{ file = "case.py", start = 6, end = 13 }]
+
+[[cases]]
+name = "builtin-name"
+files = { "case.py" = "print(len([]))\n" }
+expected = []
+
+[[cases]]
+name = "assigned-name"
+files = { "case.py" = "value = 1\nprint(value)\n" }
+expected = []
+
+[[cases]]
+name = "local-is-not-module-binding"
+files = { "case.py" = "def f():\n    local = 1\nprint(local)\n" }
+expected = [{ file = "case.py", start = 29, end = 34 }]
+
+[[cases]]
+name = "closure-binding"
+files = { "case.py" = "def outer():\n    x = 1\n    def inner():\n        return x\n    return inner\n" }
+expected = []
+
+[[cases]]
+name = "unicode-byte-offset"
+files = { "case.py" = "é = 1\nprint(missing)\n" }
+expected = [{ file = "case.py", start = 13, end = 20 }]

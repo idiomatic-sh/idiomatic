@@ -29,6 +29,9 @@ ruff_text_size = "=0.0.18"
 ryo = { package = "idiomatic-sh-ryo-sdk", path = "../../crates/sdk", version = "0.1.0" }
 
 [dev-dependencies]
+ryo_benchmark = { package = "idiomatic-sh-ryo-benchmark", path = "../../crates/benchmark" }
+serde_json.workspace = true
+tempfile.workspace = true
 ryo = { package = "idiomatic-sh-ryo-sdk", path = "../../crates/sdk", features = ["fixtures"] }
 dhat.workspace = true
 # The crate itself, with its fixtures: its tests need them, and no test is run with a flag.
@@ -57,3 +60,12 @@ workspace = true
 # Its `allocation` test target (`harness = false`) sets `dhat` as the global allocator, which machete does not see.
 [package.metadata.cargo-machete]
 ignored = ["dhat"]
+
+[[bench]]
+name = "ruff"
+path = "benchmarks/linters/ruff/bench.rs"
+harness = false
+
+[[test]]
+name = "ruff"
+path = "benchmarks/linters/ruff/tests.rs"

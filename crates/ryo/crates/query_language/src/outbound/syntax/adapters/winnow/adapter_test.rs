@@ -24,7 +24,7 @@ const TWO_EMITS: &str =
     "let a = select * from \"x\"; emit a subject path key(path); emit a subject path key(path);";
 const FLOATS: &str = "let floats = select * from \"syntax-tree\" where float_text_gte(text, $limit);\nemit floats subject \"file\" key(\"span\");";
 
-const FUNCTIONS: &str = "let named = select * from \"defines\" where starts_with(name, \"Todo\") and name = concat(pascal(pkg), \"Service\") and ends_with(snake(name), kebab( camel(pkg) ));\nemit named subject \"file\" key(\"span\");";
+const FUNCTIONS: &str = "let named = select * from \"defines\" where starts_with(name, \"Todo\") and name = concat(pascal(pkg), \"Service\") and ends_with(snake(name), kebab( camel(pkg) )) and matches(name, \"(?i)^todo\");\nemit named subject \"file\" key(\"span\");";
 
 const OR: &str = "let a = select * from \"syntax-tree\" where kind = \"a\" or kind = \"b\" and line > 1;\nemit a subject \"file\" key(\"span\");";
 
@@ -192,6 +192,7 @@ fn functions_and_affixes_read(program: &Program) {
     assert_eq!(test_at(select, 0).test, WrittenTest::StartsWith);
     assert_eq!(test_at(select, 1).test, WrittenTest::Equal);
     assert_eq!(test_at(select, 2).test, WrittenTest::EndsWith);
+    assert_eq!(test_at(select, 3).test, WrittenTest::Matches);
     let WrittenOperand::Function(concat) = &test_at(select, 1).right else {
         panic!("the right side is a function");
     };
@@ -350,7 +351,7 @@ fn refuses() {
 }
 
 /// Every keyword, in the order the grammar meets them.
-const KEYWORDS: [Keyword; 24] = [
+const KEYWORDS: [Keyword; 25] = [
     Keyword::Param,
     Keyword::Let,
     Keyword::Emit,
@@ -369,6 +370,7 @@ const KEYWORDS: [Keyword; 24] = [
     Keyword::GlobAny,
     Keyword::FloatTextGte,
     Keyword::StartsWith,
+    Keyword::Matches,
     Keyword::EndsWith,
     Keyword::Concat,
     Keyword::Pascal,

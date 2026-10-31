@@ -1292,6 +1292,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "idiomatic-sh-ryo-benchmark"
+version = "0.1.0"
+dependencies = [
+ "cargo_metadata",
+ "cucumber",
+ "idiomatic-sh-ryo-benchmark",
+ "idiomatic-sh-ryo-sdk",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "toml",
+]
+
+[[package]]
 name = "idiomatic-sh-ryo-core"
 version = "0.1.0"
 dependencies = [
@@ -1437,6 +1454,7 @@ version = "0.1.0"
 dependencies = [
  "dhat",
  "divan",
+ "idiomatic-sh-ryo-benchmark",
  "idiomatic-sh-ryo-python",
  "idiomatic-sh-ryo-sdk",
  "postcard",
@@ -1444,7 +1462,9 @@ dependencies = [
  "ruff_python_parser",
  "ruff_text_size",
  "serde",
+ "serde_json",
  "strum",
+ "tempfile",
  "thiserror",
  "toml",
 ]

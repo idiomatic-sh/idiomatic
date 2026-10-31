@@ -1,0 +1,67 @@
+description = "Every benchmark rule has a query and cases beside it."
+why = "A query without correctness cases cannot enter measurement; cases without their candidate query cannot prove the engine."
+query = '''
+let files = project(from="filesystem.file", columns=["path"]);
+let queries = capture(from=files, path="path", pattern="{*dir}/query.ryoql", captures=["dir"]);
+let cases = capture(from=files, path="path", pattern="{*dir}/cases.toml", captures=["dir"]);
+let untested = antijoin(left=queries, right=cases, left-on=["dir"], right-on=["dir"]);
+let unimplemented = antijoin(left=cases, right=queries, left-on=["dir"], right-on=["dir"]);
+let rows = project(from=untested, columns=["path", "dir"]);
+let integrations = capture(from=files, path="path", pattern="{*dir}/benchmark.toml", captures=["dir"]);
+let source-files = capture(from=files, path="path", pattern="{*dir}/{part}.rs", captures=["dir", "part"]);
+let required-0 = extend(from=integrations, values={"part": "bench"});
+let required-1 = extend(from=integrations, values={"part": "tests"});
+let required-2 = extend(from=integrations, values={"part": "composition"});
+let required-3 = extend(from=integrations, values={"part": "adapter"});
+let required-4 = extend(from=integrations, values={"part": "adapter_test"});
+let required-5 = extend(from=integrations, values={"part": "schemas"});
+let required-6 = extend(from=integrations, values={"part": "schemas_test"});
+let required-7 = extend(from=integrations, values={"part": "settings"});
+let required-pair-1 = union(left=required-0, right=required-1);
+let required-pair-2 = union(left=required-pair-1, right=required-2);
+let required-pair-3 = union(left=required-pair-2, right=required-3);
+let required-pair-4 = union(left=required-pair-3, right=required-4);
+let required-pair-5 = union(left=required-pair-4, right=required-5);
+let required-pair-6 = union(left=required-pair-5, right=required-6);
+let required-pair-7 = union(left=required-pair-6, right=required-7);
+let missing-sources = antijoin(left=required-pair-7, right=source-files, left-on=["dir", "part"], right-on=["dir", "part"]);
+let source-findings = project(from=missing-sources, columns=["path", "dir"]);
+let findings = union(left=rows, right=source-findings);
+emit findings subject "path" key("path");
+'''
+[diagnostic]
+primary = "path"
+message = "benchmark rule `{dir}` is missing a query, cases or integration companion"
+help = "Place query.ryoql and cases.toml together; the shared audit requires positive and negative cases and exact default-rule coverage."
+[given]
+include = ['linters/**']
+[[scenarios]]
+id = 'paired-rule'
+scenario = 'A rule and its cases are colocated.'
+given.files.'linters/tool/rules/F001/query.ryoql' = ''
+given.files.'linters/tool/rules/F001/cases.toml' = ''
+[[scenarios]]
+id = 'query-without-cases'
+scenario = 'A candidate rule lacks its correctness cases.'
+given.files.'linters/tool/rules/F001/query.ryoql' = ''
+then.findings = [{ path = 'linters/tool/rules/F001/query.ryoql' }]
+[[scenarios]]
+id = 'cases-without-query'
+scenario = 'Pending test-first cases do not claim implemented coverage.'
+given.files.'linters/tool/rules/F001/cases.toml' = ''
+
+
+[[scenarios]]
+id = 'second-linter-cannot-borrow-integration'
+scenario = 'Another linter cannot satisfy missing local integration files.'
+given.files.'linters/first/benchmark.toml' = ''
+given.files.'linters/second/benchmark.toml' = ''
+given.files.'linters/first/bench.rs' = ''
+given.files.'linters/first/tests.rs' = ''
+given.files.'linters/first/composition.rs' = ''
+given.files.'linters/first/adapter.rs' = ''
+given.files.'linters/first/adapter_test.rs' = ''
+given.files.'linters/first/schemas.rs' = ''
+given.files.'linters/first/schemas_test.rs' = ''
+given.files.'linters/first/settings.rs' = ''
+then.findings = [{ path = 'linters/second/benchmark.toml' }]

@@ -50,6 +50,7 @@ fn equal_to_text(
         | Test::GlobAny
         | Test::NotGlobAny
         | Test::StartsWith
+        | Test::Matches
         | Test::EndsWith => return None,
     };
     let ((Operand::Column(column), Operand::Literal(QueryLiteral::Text(text)))
@@ -78,6 +79,7 @@ fn holds(
     bindings: &[ParameterBinding],
     texts: &Texts<'_>,
     compiled: &mut hashbrown::HashMap<ComparisonSlot, CompiledGlobs>,
+    regexes: &mut crate::domain::matching::types::Patterns,
 ) -> Result<Verdict, OperatingError> {
     let (mut left_made, mut right_made) = (MadeText::default(), MadeText::default());
     let left = resolve(&comparison.left, row, bindings, texts, &mut left_made)?;
@@ -88,6 +90,7 @@ fn holds(
         Family::FloatText => FloatTextItem.holds(comparison.test, &left, &right),
         Family::Membership => MembershipItem.holds(comparison.test, &left, &right),
         Family::Affix => AffixItem.holds(comparison.test, &left, &right),
+        Family::Regex => crate::domain::matching::service::matches(&left, &right, regexes),
         Family::Glob => {
             if let Some(verdict) = compiled_glob(comparison, &left, &right, compiled) {
                 return Ok(verdict);
@@ -239,6 +242,7 @@ fn holds_one(
             bindings,
             &texts,
             &mut scratch.compiled_globs,
+            &mut scratch.compiled_regexes,
         )?;
         if scratch.verdicts.len() >= VERDICTS {
             scratch.verdicts.clear();
@@ -271,6 +275,7 @@ fn holds_one(
                         bindings,
                         &texts,
                         &mut scratch.compiled_globs,
+                        &mut scratch.compiled_regexes,
                     )?;
                     if let Some(key) = known {
                         // The verdicts of the texts met so far are kept for the next file; a run with more texts

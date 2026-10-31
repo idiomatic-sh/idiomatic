@@ -2,6 +2,7 @@ description = "A language: the crate that fulfils ryo's concepts for one languag
 why = "Ryo owns the concepts, the language fulfils them. The compiler holds that `Parse` and `Project` answer every relation of the catalog; the conformance holds each answer to the language's fixtures; this spec holds the rest, so that a language added by the directory is complete or says what it lacks: no part is optional, none is left for an author to remember, and no list of languages, of parsers or of rules is kept anywhere else."
 closed = false
 specs = [
+  { alias = "benchmark", spec = "idiomatic.ryo/benchmark@0.1.0", include = ["benchmarks"], count = { min = 0 }, description = "Comparative lint benchmarks, when this language has begun its rollout; the shared harness audits completeness." },
   { alias = "parse-contract", spec = "idiomatic.ryo/contract@0.1.0", include = ["src/inbound/contracts/parse"], params = { trait = "ryo::languages::Parse" }, description = "The parse contract: the language's implementation of `ryo::languages::Parse`, which answers every syntax relation of the catalog." },
   { alias = "project-contract", spec = "idiomatic.ryo/contract@0.1.0", include = ["src/inbound/contracts/project"], params = { trait = "ryo::languages::Project" }, description = "The project contract: the language's implementation of `ryo::languages::Project`, which answers every manifest relation of the catalog." },
 ]
@@ -94,6 +95,7 @@ templates = [
   { template = "language-relation-input", file = "tests/fixtures/relations/{relation}/input.*", description = "`tests/fixtures/relations/{relation}/input.*` of a language: `input.<extension>`, or `input.<file name>` for a file the language reads only by its whole name (`input.go.mod`)." },
 ]
 rules = [
+  { rule = "idiomatic.ryo/benchmark-targets@0.1.0", include = ["Cargo.toml", "benchmarks/linters/*/bench.rs", "benchmarks/linters/*/tests.rs"], description = "Each local benchmark executable is reachable through Cargo." },
   { rule = "bench-registers-workloads", include = ["benches/performance.rs"], description = "A language's bench, which exists exactly when it has a workload, registers at least one workload, a function with `#[divan::bench]`." },
   { rule = "bench-checks-growth", include = ["benches/performance.rs"], description = "A language's bench, which exists exactly when it has a workload, checks the growth of the parse: a function `complexity` against a `GROWTH_LIMIT`, called only under `BENCH_FLAG`." },
   { rule = "domain-modules", include = ["src/domain.rs"], description = "The list of domain concepts only declares modules and holds no rule." },

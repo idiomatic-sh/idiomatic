@@ -271,6 +271,8 @@ pub enum WrittenTest {
     StartsWith,
     /// `ends_with(text, suffix)`.
     EndsWith,
+    /// `matches(text, pattern)`: a regular expression searches the text.
+    Matches,
 }
 
 /// One side of a filter.

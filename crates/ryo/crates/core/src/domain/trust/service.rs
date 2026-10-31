@@ -63,6 +63,7 @@ fn admits(comparison: &Comparison, kind: &LackingKind) -> Passage {
         | Test::In
         | Test::NotIn
         | Test::StartsWith
+        | Test::Matches
         | Test::EndsWith => true,
     };
     if lets {

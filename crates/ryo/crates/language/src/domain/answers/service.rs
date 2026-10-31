@@ -14,6 +14,7 @@ use crate::domain::relations::collections::relations::prose::item::ProseColumn;
 use crate::domain::relations::collections::relations::reference::item::ReferenceColumn;
 use crate::domain::relations::collections::relations::resolves::item::ResolvesColumn;
 use crate::domain::relations::collections::relations::sequence_element::item::SequenceElementColumn;
+use crate::domain::relations::collections::relations::source_location::item::SourceLocationColumn;
 use crate::domain::relations::collections::relations::static_call::item::StaticCallColumn;
 use crate::domain::relations::collections::relations::string_literal::item::StringLiteralColumn;
 use crate::domain::relations::collections::relations::syntax_child::item::SyntaxChildColumn;
@@ -35,6 +36,17 @@ where
     I: ReadItem,
 {
     Support::from(Answer::Reads(I::READER))
+}
+
+/// Offers the engine's indexed coordinates while each provider explicitly declares support.
+#[must_use]
+pub fn source_locations<M: 'static>() -> Support<
+    Reader<
+        crate::domain::relations::collections::relations::source_location::item::SourceLocation,
+        M,
+    >,
+> {
+    reads::<crate::domain::relations::collections::relations::source_location::item::SourceLocationReader<M>>()
 }
 
 /// For `impl ParseUseCase`: answers every syntax relation as not in the language. It is for the test doubles of this crate
@@ -97,6 +109,7 @@ pub fn is_key(column: Column) -> ColumnKeyness {
     if matches!(
         column,
         Column::SyntaxTree(SyntaxTreeColumn::Id)
+            | Column::SourceLocation(SourceLocationColumn::Id)
             | Column::SyntaxChild(SyntaxChildColumn::Child)
             | Column::Function(FunctionColumn::Id)
             | Column::Comment(CommentColumn::Id)

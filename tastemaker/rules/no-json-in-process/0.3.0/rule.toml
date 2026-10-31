@@ -10,7 +10,9 @@ let json = project(from=idents, columns=["file", "span", "text"]);
 let cli = select * from placed-files where spec = "cli";
 let outputs = select * from cli where glob_any(template, "{output,schemas,*/schemas}");
 let commands = select * from placed-files where spec = "command" and glob_any(template, "{schemas,*/schemas}");
-let edges = union(left=outputs, right=commands);
+let presentation = union(left=outputs, right=commands);
+let adapters = select * from placed-files where spec = "adapter" and glob_any(template, "{schemas,*/schemas}");
+let edges = union(left=presentation, right=adapters);
 let internal = antijoin(left=json, right=edges, left-on=["file"], right-on=["file"]);
 let boundary-packages = select r."package" as "file" from edges as l join "file-package" as r on l."file" = r."path";
 let json-dependencies = select l."source" as "file", l."binding" as "binding", l."package" as "text" from "package-dependency" as l where l."package" = "serde_json" and l."kind" = "normal";
@@ -338,3 +340,31 @@ rules = [{ rule = "idiomatic.arch/no-json-in-process", include = ["**"] }]
 specs = [{ spec = "idiomatic.arch/command", include = ["app/src/run"] }]
 '''
 then.only = ['idiomatic.arch/no-json-in-process', 'idiomatic.arch/no-json-in-process#unknown']
+
+[[scenarios]]
+id = 'placed-adapter-schemas-package'
+scenario = 'A governed external adapter schema permits its package dependency, but not JSON in its domain.'
+given.files.'app/Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+[lib]
+path = "src/lib.rs"
+[dependencies]
+serde_json = "1"
+'''
+given.files.'app/src/lib.rs' = ''
+given.files.'app/src/outbound/process/adapters/tool/schemas.rs' = '''
+fn encode() { let _ = serde_json::json!({}); }
+'''
+given.files.'app/src/domain/value.rs' = '''
+fn internal() { let _ = serde_json::json!({}); }
+'''
+given.files.'tastemaker.toml' = '''
+workspace = { name = "fixture", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+rules = [{ rule = "idiomatic.arch/no-json-in-process", include = ["**"] }]
+specs = [{ spec = "idiomatic.arch/adapter", include = ["app/src/outbound/process/adapters/tool"] }]
+'''
+then.only = ['idiomatic.arch/no-json-in-process', 'idiomatic.arch/no-json-in-process#unknown']
+then.findings = [{ path = 'app/src/domain/value.rs', line = 1 }]

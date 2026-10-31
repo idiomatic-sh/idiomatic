@@ -177,6 +177,10 @@ impl Parse for ParseContract {
         }
     }
 
+    fn source_location(&self) -> Support<Reader<languages::SourceLocation, ()>> {
+        languages::source_locations()
+    }
+
     fn syntax_tree(&self) -> Support<Reader<languages::SyntaxTree, ()>> {
         languages::reads::<SyntaxTreeItem>()
     }

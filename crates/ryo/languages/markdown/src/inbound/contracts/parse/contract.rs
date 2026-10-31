@@ -117,6 +117,10 @@ impl Parse for ParseContract {
         languages::reads::<SyntaxErrorItem>()
     }
 
+    fn source_location(&self) -> Support<Reader<languages::SourceLocation, Sections>> {
+        languages::source_locations()
+    }
+
     fn syntax_tree(&self) -> Support<Reader<languages::SyntaxTree, Sections>> {
         languages::reads::<SyntaxTreeItem>()
     }

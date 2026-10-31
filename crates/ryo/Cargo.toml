@@ -1,5 +1,5 @@
 [workspace]
-members = ["cli", "crates/core", "crates/language", "crates/query_language", "crates/sdk", "crates/values", "languages/*"]
+members = ["cli", "crates/core", "crates/benchmark", "crates/language", "crates/query_language", "crates/sdk", "crates/values", "languages/*"]
 resolver = "3"
 # The languages not yet written: each joins the workspace, the command line and the build when its author starts it, and the compiler
 # then lists what its use cases lack. Their directories stay, with the part of each that a scaffold places.
@@ -32,7 +32,7 @@ ignore = "=0.4.33"
 rayon = "=1.12.0"
 memchr = "=2.8.3"
 globset = "=0.4.18"
-regex-automata = { version = "=0.4.18", default-features = false, features = ["std", "perf", "meta", "hybrid"] }
+regex-automata = { version = "=0.4.18", default-features = false, features = ["std", "perf", "meta", "hybrid", "syntax", "unicode"] }
 dhat = "=0.3.3"
 # The allocators ruff and uv ship, pinned as ruff pins them: jemalloc where it builds, mimalloc on Windows (mimalloc v2: v3.3.2
 # crashes on Windows CPUs without POPCNT).

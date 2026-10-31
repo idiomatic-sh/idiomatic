@@ -141,6 +141,8 @@ pub enum Test {
     StartsWith,
     /// `ends_with`.
     EndsWith,
+    /// `matches`: a regular expression searches the text.
+    Matches,
 }
 
 /// One condition of a `select` step.

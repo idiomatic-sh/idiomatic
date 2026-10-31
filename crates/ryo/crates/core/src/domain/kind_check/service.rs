@@ -108,6 +108,7 @@ pub(crate) fn names_a_kind(asked: &AskedKind, vocabularies: &KindVocabularies) -
         Test::GlobAny | Test::NotGlobAny => Test::GlobAny,
         Test::StartsWith => Test::StartsWith,
         Test::EndsWith => Test::EndsWith,
+        Test::Matches => Test::Matches,
         Test::Equal
         | Test::NotEqual
         | Test::LessThan

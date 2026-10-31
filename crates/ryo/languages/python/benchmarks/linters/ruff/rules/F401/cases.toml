@@ -1,0 +1,29 @@
+[[cases]]
+name = "unused-import"
+files = { "case.py" = "import os\n" }
+expected = [{ file = "case.py", start = 7, end = 9 }]
+
+[[cases]]
+name = "used-import"
+files = { "case.py" = "import os\nprint(os.name)\n" }
+expected = []
+
+[[cases]]
+name = "parameter-shadow-does-not-use-import"
+files = { "case.py" = "import os\ndef f(os):\n    return os.name\n" }
+expected = [{ file = "case.py", start = 7, end = 9 }]
+
+[[cases]]
+name = "explicit-reexport"
+files = { "case.py" = "from os import path as path\n" }
+expected = []
+
+[[cases]]
+name = "all-export"
+files = { "case.py" = "import os\n__all__ = [\"os\"]\n" }
+expected = []
+
+[[cases]]
+name = "annotation-use"
+files = { "case.py" = "from typing import Any\ndef f(x: Any):\n    return x\n" }
+expected = []

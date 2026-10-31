@@ -34,6 +34,8 @@ pub(crate) enum Family {
     Glob,
     /// Starts with and ends with.
     Affix,
+    /// Regular expression searches.
+    Regex,
 }
 
 /// What an operator reads besides its inputs and may write: what the host bound, the names and

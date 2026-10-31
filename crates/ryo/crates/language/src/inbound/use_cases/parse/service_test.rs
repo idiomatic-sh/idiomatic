@@ -86,6 +86,7 @@ macro_rules! absent_but_two {
     };
     (@one function Function) => {};
     (@one syntax_tree SyntaxTree) => {};
+    (@one source_location SourceLocation) => {};
     (@one $module:ident $variant:ident) => {
         fn $module(
             &self,
@@ -203,6 +204,17 @@ impl ParseUseCase for Small {
 
     fn syntax_tree(&self) -> Support<Reader<SyntaxTree, Seen>> {
         reads::<TreeItem>()
+    }
+
+    fn source_location(
+        &self,
+    ) -> Support<
+        Reader<
+            crate::domain::relations::collections::relations::source_location::item::SourceLocation,
+            Seen,
+        >,
+    > {
+        crate::domain::answers::service::source_locations()
     }
 
     crate::each_relation!(absent_but_two);
@@ -390,6 +402,23 @@ type Failure = ParseError;
 
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("shared_source_locations_index_and_visit_every_element"),
+        word: Word::Succeeds,
+        input: || {
+            || {
+                let found = walked(&[Relation::SourceLocation]);
+                Ok(found
+                    .rows()
+                    .iter()
+                    .filter(|(relation, row)| {
+                        *relation == Relation::SourceLocation && row[3] == 1 && row[4] == 1
+                    })
+                    .count())
+            }
+        },
+        expect: Expect::Value(3),
+    },
     Case {
         name: CaseName("a_reader_looks_only_at_the_kinds_it_names"),
         word: Word::Succeeds,

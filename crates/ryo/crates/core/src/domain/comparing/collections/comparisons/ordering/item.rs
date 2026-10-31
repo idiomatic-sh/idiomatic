@@ -44,6 +44,7 @@ impl ComparisonsItem for OrderingItem {
             | Test::NotGlobAny
             | Test::StartsWith
             | Test::EndsWith => Err(OperatingError::WrongTest),
+            Test::Matches => Err(OperatingError::WrongTest),
         }
     }
 }

@@ -24,6 +24,7 @@ pub(crate) mod joins;
 pub(crate) mod keeping;
 pub mod kind_check;
 pub(crate) mod kind_sets;
+pub(crate) mod matching;
 pub(crate) mod layout;
 pub(crate) mod listing;
 pub(crate) mod lowering;

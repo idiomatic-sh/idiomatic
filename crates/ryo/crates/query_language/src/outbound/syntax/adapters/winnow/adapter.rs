@@ -357,6 +357,7 @@ pub(super) fn affix_filter(input: &mut Input<'_>) -> ModalResult<Filter> {
         terminated(
             alt((
                 keyword(Keyword::StartsWith).value(WrittenTest::StartsWith),
+                keyword(Keyword::Matches).value(WrittenTest::Matches),
                 keyword(Keyword::EndsWith).value(WrittenTest::EndsWith),
             )),
             (multispace0, '(', multispace0),

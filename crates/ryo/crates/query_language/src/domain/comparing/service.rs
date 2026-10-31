@@ -74,6 +74,7 @@ pub(crate) fn compatible(test: parts::Test, left: Typed, right: Typed) -> Compat
         }
         parts::Test::FloatTextGreaterThanOrEqual
         | parts::Test::StartsWith
+        | parts::Test::Matches
         | parts::Test::EndsWith => texty(left) && texty(right),
         parts::Test::In | parts::Test::NotIn => {
             (numbery(left) && right == Typed::Parameter(plans::ParameterType::Numbers))
@@ -107,6 +108,7 @@ pub(crate) fn test_of(test: syntax::WrittenTest) -> parts::Test {
             parts::Test::FloatTextGreaterThanOrEqual
         }
         syntax::WrittenTest::StartsWith => parts::Test::StartsWith,
+        syntax::WrittenTest::Matches => parts::Test::Matches,
         syntax::WrittenTest::EndsWith => parts::Test::EndsWith,
     }
 }
@@ -244,6 +246,7 @@ pub(crate) fn comparison_of(
     let test = test_of(filter.test);
     let affix = match test {
         parts::Test::StartsWith => Some(STARTS_WITH),
+        parts::Test::Matches => Some("matches"),
         parts::Test::EndsWith => Some(ENDS_WITH),
         parts::Test::Equal
         | parts::Test::NotEqual

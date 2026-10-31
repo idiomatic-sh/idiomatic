@@ -32,6 +32,12 @@ pub(crate) enum OperatingError {
     /// A comparison family was given a test that is not its own.
     #[error("the family does not have this test")]
     WrongTest,
+    /// A query supplied an invalid regular expression.
+    #[error("invalid regular expression: {reason}")]
+    InvalidRegex {
+        /// The regular expression compiler's explanation.
+        reason: String,
+    },
     /// Two inputs that should have the same columns do not.
     #[error("the inputs have different columns")]
     ShapeMismatch,

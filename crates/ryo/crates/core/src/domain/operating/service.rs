@@ -17,6 +17,7 @@ pub(crate) fn family_of(test: Test) -> Family {
         Test::In | Test::NotIn => Family::Membership,
         Test::GlobAny | Test::NotGlobAny => Family::Glob,
         Test::StartsWith | Test::EndsWith => Family::Affix,
+        Test::Matches => Family::Regex,
     }
 }
 

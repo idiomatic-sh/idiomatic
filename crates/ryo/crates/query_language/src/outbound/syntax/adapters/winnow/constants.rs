@@ -40,6 +40,8 @@ pub(crate) enum Keyword {
     FloatTextGte,
     /// `starts_with`.
     StartsWith,
+    /// `matches`.
+    Matches,
     /// `ends_with`.
     EndsWith,
     /// `concat`.
@@ -87,6 +89,7 @@ pub(crate) fn keyword_text(keyword: Keyword) -> &'static str {
         Keyword::GlobAny => "glob_any",
         Keyword::FloatTextGte => "float_text_gte",
         Keyword::StartsWith => "starts_with",
+        Keyword::Matches => "matches",
         Keyword::EndsWith => "ends_with",
         Keyword::Concat => "concat",
         Keyword::Pascal => "pascal",
@@ -217,7 +220,7 @@ pub(crate) const GRAMMAR: &[GrammarLine] = &[
     },
     GrammarLine {
         name: "affix_filter",
-        form: "( starts_with | ends_with ) \"(\" operand \",\" operand \")\", whether the first text starts or ends with the second",
+        form: "( starts_with | ends_with | matches ) \"(\" operand \",\" operand \")\", a text prefix, suffix or regular-expression search",
         example: "ends_with(name, concat(pascal(p.pkg), \"Service\"))",
     },
     GrammarLine {

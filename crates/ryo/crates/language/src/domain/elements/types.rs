@@ -154,6 +154,8 @@ pub struct TableState(ElementsEngine);
 /// What the engine keeps of a file's table beside its columns: names, kind index, decoded texts, expansions, open nodes, notes.
 #[derive(Debug, Default)]
 pub(crate) struct ElementsEngine {
+    /// Source line starts, populated only when source-location is requested; storage is reused.
+    pub line_starts: Vec<Offset>,
     /// Whether native preorder also follows increasing source starts.
     pub source_order: SourceOrder,
     /// What each kind is called, by the number of the kind, as the file's names; no symbol for a kind none of its elements has.

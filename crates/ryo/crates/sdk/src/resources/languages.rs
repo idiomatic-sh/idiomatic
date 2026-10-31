@@ -49,6 +49,8 @@ pub use ryo_language::inbound::use_cases::parse::types::KindName;
 
 pub use ryo_language::domain::relations::types::RowKind;
 
+pub use ryo_language::domain::answers::service::source_locations;
+
 /// What a language's tool or library said when a use case failed.
 pub use ryo_language::domain::reasons::types::ToolMessage;
 pub use ryo_language::inbound::use_cases::project::errors::ProjectError;

@@ -156,6 +156,9 @@ pub use ryo::languages::SourceDependency
 pub use ryo::languages::SourceDependencyColumn
 pub use ryo::languages::SourceDependencyRow
 pub use ryo::languages::SourceFile
+pub use ryo::languages::SourceLocation
+pub use ryo::languages::SourceLocationColumn
+pub use ryo::languages::SourceLocationRow
 pub use ryo::languages::SourceOrder
 pub use ryo::languages::SourcePath
 pub use ryo::languages::Span
@@ -261,6 +264,7 @@ pub use ryo::languages::release
 pub use ryo::languages::resolve_target
 pub use ryo::languages::set_note
 pub use ryo::languages::size_at
+pub use ryo::languages::source_locations
 pub use ryo::languages::source_order
 pub use ryo::languages::start_at
 pub use ryo::languages::table_builder

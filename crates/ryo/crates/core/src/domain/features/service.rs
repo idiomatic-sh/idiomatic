@@ -101,6 +101,7 @@ pub(crate) fn catalog() -> Vec<Feature> {
             Test::NotGlobAny,
             Test::StartsWith,
             Test::EndsWith,
+            Test::Matches,
         ]
         .into_iter()
         .map(Feature::Family),

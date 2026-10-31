@@ -25,6 +25,7 @@ pub mod resolves;
 pub mod scope;
 pub mod sequence_element;
 pub mod source_dependency;
+pub mod source_location;
 pub mod static_call;
 pub mod static_import;
 pub mod string_literal;

@@ -10,6 +10,7 @@ pub mod files;
 pub mod kind_index;
 #[macro_use]
 pub mod kinds;
+pub mod location;
 pub mod reasons;
 pub mod relations;
 pub mod symbols;

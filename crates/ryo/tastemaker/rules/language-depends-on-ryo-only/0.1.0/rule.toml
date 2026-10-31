@@ -1,8 +1,18 @@
-description = "A language's manifest depends on no crate of ryo but the SDK, `ryo`."
+description = "A language uses the SDK at runtime and may use the shared benchmark only as a development dependency."
 why = "A language implements the contract the SDK exposes and nothing else of ryo's. The macro that lists the catalog and the types of the engine are in the engine's own crates; a language that depends on one of them can answer every relation in one line of macro, so that a relation added to the catalog is no longer a compile error in it, and can read what the SDK keeps from it (orchestrator ruling on the review of 74b44edcca). The crates of ryo are named by their key in the manifest and by their package, so a rename is found as well."
 
 query = '''
-let entries = project(from="entry", columns=["file", "owner", "key", "decoded"]);
+let all-entries = project(from="entry", columns=["file", "owner", "occurrence", "key", "decoded"]);
+let dev-headings = select * from all-entries where key = "dev-dependencies";
+let dev-tables = select r."id" as "table" from dev-headings as l join "mapping" as r on l."occurrence" = r."owner";
+let dev-dependencies = select r."occurrence" as "dependency" from dev-tables as l join all-entries as r on l."table" = r."owner";
+let bodies = select r."id" as "body", l."dependency" as "dependency" from dev-dependencies as l join "mapping" as r on l."dependency" = r."owner";
+let benchmark-packages = select * from all-entries where key = "package" and decoded = "idiomatic-sh-ryo-benchmark";
+let allowed = select l."dependency" as "occurrence", r."occurrence" as "package" from bodies as l join benchmark-packages as r on l."body" = r."owner";
+let allowed-keys = project(from=allowed, columns=["occurrence"]);
+let allowed-packages = select l."package" as "occurrence" from allowed as l;
+let exemptions = union(left=allowed-keys, right=allowed-packages);
+let entries = antijoin(left=all-entries, right=exemptions, left-on=["occurrence"], right-on=["occurrence"]);
 let own = select * from entries where key = "name";
 let named = select * from entries where glob_any(key, "{ryo_*,idiomatic-sh-ryo-*}");
 let named-keys = project(from=named, columns=["file", "key"]);
@@ -24,7 +34,7 @@ emit rows subject "file" key("file");
 
 [diagnostic]
 primary = "file"
-message = "the language depends on a crate of ryo other than the SDK"
+message = "the language depends on a private ryo crate or uses the benchmark outside dev-dependencies"
 help = "Depend on `ryo` (package `idiomatic-sh-ryo-sdk`) alone and name what you need through `ryo::languages`. The engine's crates are the engine's. An ignore is never the fix."
 
 [given]
@@ -79,3 +89,61 @@ engine = { package = "idiomatic-sh-ryo-core", path = "../../crates/core" }
 then.findings = [
   { path = 'demo/Cargo.toml' },
 ]
+
+[[scenarios]]
+id = 'benchmark-development'
+scenario = 'Checks benchmark-development dependency ownership.'
+given.files.'demo/Cargo.toml' = '''
+[package]
+name = "idiomatic-sh-ryo-demo"
+version = "0.1.0"
+[dev-dependencies]
+ryo_benchmark = { package = "idiomatic-sh-ryo-benchmark", path = "../../crates/benchmark" }
+'''
+
+[[scenarios]]
+id = 'renamed-benchmark-development'
+scenario = 'Checks renamed-benchmark-development dependency ownership.'
+given.files.'demo/Cargo.toml' = '''
+[package]
+name = "idiomatic-sh-ryo-demo"
+version = "0.1.0"
+[dev-dependencies]
+measure = { package = "idiomatic-sh-ryo-benchmark", path = "../../crates/benchmark" }
+'''
+
+[[scenarios]]
+id = 'benchmark-runtime'
+scenario = 'Checks benchmark-runtime dependency ownership.'
+given.files.'demo/Cargo.toml' = '''
+[package]
+name = "idiomatic-sh-ryo-demo"
+version = "0.1.0"
+[dependencies]
+ryo_benchmark = { package = "idiomatic-sh-ryo-benchmark", path = "../../crates/benchmark" }
+'''
+then.findings = [{ path = 'demo/Cargo.toml' }]
+
+[[scenarios]]
+id = 'benchmark-build'
+scenario = 'Checks benchmark-build dependency ownership.'
+given.files.'demo/Cargo.toml' = '''
+[package]
+name = "idiomatic-sh-ryo-demo"
+version = "0.1.0"
+[build-dependencies]
+measure = { package = "idiomatic-sh-ryo-benchmark", path = "../../crates/benchmark" }
+'''
+then.findings = [{ path = 'demo/Cargo.toml' }]
+
+[[scenarios]]
+id = 'renamed-private-development'
+scenario = 'Checks renamed-private-development dependency ownership.'
+given.files.'demo/Cargo.toml' = '''
+[package]
+name = "idiomatic-sh-ryo-demo"
+version = "0.1.0"
+[dev-dependencies]
+ryo_benchmark = { package = "idiomatic-sh-ryo-core", path = "../../crates/core" }
+'''
+then.findings = [{ path = 'demo/Cargo.toml' }]

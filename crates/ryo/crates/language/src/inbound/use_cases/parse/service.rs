@@ -205,6 +205,9 @@ pub(crate) fn walk_in<L>(
     L: ParseUseCase + ?Sized,
 {
     let mut model: Box<L::FileModel> = take_scratch(elements);
+    if wanted.contains(&Relation::SourceLocation) {
+        crate::domain::location::service::index(elements, source);
+    }
     walk_with(
         language, elements, &mut model, symbols, source, file, wanted, out,
     );

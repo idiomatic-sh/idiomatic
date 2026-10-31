@@ -199,6 +199,10 @@ impl Parse for ParseContract {
         languages::reads::<SyntaxTreeItem>()
     }
 
+    fn source_location(&self) -> Support<Reader<languages::SourceLocation, Declarations>> {
+        languages::source_locations()
+    }
+
     fn mention(&self) -> Support<Reader<languages::Mention, Declarations>> {
         // standard: The Python Language Reference, section 2 (Lexical analysis) and sections 6 to 8 (expressions and statements): Python has no macro call and no token tree to write a name inside of.
         languages::absent(AbsenceCause::NoSuchConstruct)

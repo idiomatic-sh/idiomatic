@@ -1,0 +1,60 @@
+description = "Local benchmark and correctness runners are Cargo targets."
+why = "A file Cargo never runs cannot supply correctness or measurement evidence."
+query = '''
+let files = project(from="filesystem.file", columns=["path"]);
+let runners = capture(from=files, path="path", pattern="{*root}/benchmarks/linters/{linter}/{part}.rs", captures=["root", "linter", "part"]);
+let entries = project(from="entry", columns=["file", "owner", "occurrence", "key", "decoded", "text"]);
+let headings = select * from entries where key = "bench" or key = "test";
+let elements = select r."occurrence" as "element", l."key" as "kind" from headings as l join "sequence-element" as r on l."occurrence" = r."owner";
+let members = select * from "mapping" where kind = "sequence-member";
+let tables = select r."id" as "table", l."kind" as "kind" from elements as l join members as r on l."element" = r."owner";
+let paths = select * from entries where key = "path";
+let targeted = select l."file" as "file", l."decoded" as "target", l."owner" as "owner", r."kind" as "kind" from paths as l join tables as r on l."owner" = r."table";
+let targets = capture(from=targeted, path="target", pattern="benchmarks/linters/{linter}/{part}.rs", captures=["linter", "part"]);
+let manifests = capture(from=targets, path="file", pattern="{*root}/Cargo.toml", captures=["root"]);
+let harness-off = select * from entries where key = "harness" and text = "false";
+let bench-targets = select * from manifests where kind = "bench" and part = "bench";
+let bench-wired = select l."root" as "root", l."linter" as "linter", l."part" as "part" from bench-targets as l join harness-off as r on l."owner" = r."owner";
+let test-targets = select * from manifests where kind = "test" and part = "tests";
+let test-wired = project(from=test-targets, columns=["root", "linter", "part"]);
+let wired = union(left=bench-wired, right=test-wired);
+let missing = antijoin(left=runners, right=wired, left-on=["root", "linter", "part"], right-on=["root", "linter", "part"]);
+emit missing subject "path" key("path");
+'''
+[diagnostic]
+primary = "path"
+message = "benchmark runner is not a Cargo target with the required harness"
+help = "Declare an explicit path in [[bench]] with harness=false or [[test]], in the language Cargo.toml."
+[given]
+include = ["**"]
+
+[[scenarios]]
+id = 'wired'
+scenario = 'The wired benchmark runner.'
+given.files.'language/benchmarks/linters/tool/bench.rs' = ''
+given.files.'language/Cargo.toml' = '''
+[[bench]]
+name="lint"
+path="benchmarks/linters/tool/bench.rs"
+harness=false
+'''
+
+[[scenarios]]
+id = 'unwired'
+scenario = 'The unwired benchmark runner.'
+given.files.'language/benchmarks/linters/tool/bench.rs' = ''
+given.files.'language/Cargo.toml' = '''
+
+'''
+then.findings = [{ path = 'language/benchmarks/linters/tool/bench.rs' }]
+
+[[scenarios]]
+id = 'wrong-target'
+scenario = 'The wrong-target benchmark runner.'
+given.files.'language/benchmarks/linters/tool/bench.rs' = ''
+given.files.'language/Cargo.toml' = '''
+[[test]]
+name="lint"
+path="benchmarks/linters/tool/bench.rs"
+'''
+then.findings = [{ path = 'language/benchmarks/linters/tool/bench.rs' }]
