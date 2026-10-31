@@ -88,21 +88,25 @@ impl OperatorsItem for OrderedMatchItem {
         let left = first(inputs)?;
         let right = second(inputs)?;
         if left_on.len() != right_on.len()
-            || kinds_of(left)
-                .get(usize::try_from(left_order.0).map_err(|_| OperatingError::ShapeMismatch)?)
-                != Some(&CellKind::Number)
-            || kinds_of(right)
-                .get(usize::try_from(right_order.0).map_err(|_| OperatingError::ShapeMismatch)?)
-                != Some(&CellKind::Number)
+            || kinds_of(left).get(
+                usize::try_from(left_order.0)
+                    .map_err(|_not_addressable| OperatingError::ShapeMismatch)?,
+            ) != Some(&CellKind::Number)
+            || kinds_of(right).get(
+                usize::try_from(right_order.0)
+                    .map_err(|_not_addressable| OperatingError::ShapeMismatch)?,
+            ) != Some(&CellKind::Number)
         {
             return Err(OperatingError::ShapeMismatch);
         }
         for (left_key, right_key) in left_on.iter().zip(right_on) {
-            if kinds_of(left)
-                .get(usize::try_from(left_key.0).map_err(|_| OperatingError::ShapeMismatch)?)
-                != kinds_of(right)
-                    .get(usize::try_from(right_key.0).map_err(|_| OperatingError::ShapeMismatch)?)
-            {
+            if kinds_of(left).get(
+                usize::try_from(left_key.0)
+                    .map_err(|_not_addressable| OperatingError::ShapeMismatch)?,
+            ) != kinds_of(right).get(
+                usize::try_from(right_key.0)
+                    .map_err(|_not_addressable| OperatingError::ShapeMismatch)?,
+            ) {
                 return Err(OperatingError::ShapeMismatch);
             }
         }
@@ -124,7 +128,7 @@ impl OperatorsItem for OrderedMatchItem {
                 *kinds
                     .get(
                         usize::try_from(column.column.0)
-                            .map_err(|_| OperatingError::ShapeMismatch)?,
+                            .map_err(|_not_addressable| OperatingError::ShapeMismatch)?,
                     )
                     .ok_or(OperatingError::ShapeMismatch)?,
             );

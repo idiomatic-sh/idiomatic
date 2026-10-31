@@ -81,7 +81,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
         .cells
         .chunks_exact(2)
         .map(|row| match row {
-            [Cell::Number(a), Cell::Number(b)] => (a.0, b.0),
+            [Cell::Number(opened), Cell::Number(closed)] => (opened.0, closed.0),
             _ => panic!("numeric output required"),
         })
         .collect();
