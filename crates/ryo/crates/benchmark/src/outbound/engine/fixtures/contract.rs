@@ -1,6 +1,6 @@
 //! An engine refuses a corpus with no candidate rules rather than reporting success.
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::diagnostics::errors::Error;
+use crate::domain::diagnostics::errors::DiagnosticsError as Error;
 use crate::domain::suite::types::WorkerRequest;
 use crate::outbound::engine::interface::EnginePort;
 type Input = ();
@@ -32,8 +32,8 @@ pub fn check(adapter: &impl EnginePort) {
             .run(WorkerRequest {
                 root: temporary.path().into(),
                 rules: temporary.path().into(),
-                files: vec!["input.txt".into()],
-                cache: None,
+                files: vec![ryo::linter::RelativePath("input.txt".into())],
+                state: crate::domain::suite::types::WorkerState::Fresh,
             })
             .map(|_| ())
             .map_err(|error| match error {

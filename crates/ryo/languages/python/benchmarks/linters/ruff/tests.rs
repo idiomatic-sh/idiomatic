@@ -18,8 +18,10 @@ pub(crate) enum BoundaryFailure {
     Toml,
 }
 
-pub(crate) fn failure(error: ryo_benchmark::domain::diagnostics::errors::Error) -> BoundaryFailure {
-    use ryo_benchmark::domain::diagnostics::errors::Error;
+pub(crate) fn failure(
+    error: ryo_benchmark::domain::diagnostics::errors::DiagnosticsError,
+) -> BoundaryFailure {
+    use ryo_benchmark::domain::diagnostics::errors::DiagnosticsError as Error;
     match error {
         Error::Invalid(_) => BoundaryFailure::Invalid,
         Error::Io(error) => BoundaryFailure::Io(error.kind()),

@@ -2,7 +2,7 @@
 use crate::domain::measurements::types::{Invocation, ProcessOutput};
 use crate::domain::suite::types::WorkerRequest;
 use crate::domain::{
-    diagnostics::{errors::Error, types::RunReport},
+    diagnostics::{errors::DiagnosticsError as Error, types::RunReport},
     suite::types::RunRequest,
 };
 use crate::outbound::linter::interface::LinterPort;
@@ -18,7 +18,9 @@ impl LinterPort for LinterRyoAdapter {
             root: request.root.clone(),
             rules: self.rules.clone(),
             files: request.files.clone(),
-            cache: Some(request.cache.join(super::constants::CACHE)),
+            state: crate::domain::suite::types::WorkerState::Retained(
+                request.state.join(super::constants::CACHE),
+            ),
         };
         Ok(Invocation {
             executable: self.executable.clone(),
@@ -31,13 +33,13 @@ impl LinterPort for LinterRyoAdapter {
         })
     }
     fn decode(&self, _: &RunRequest, output: ProcessOutput) -> Result<RunReport, Error> {
-        if output.status != 0 || !output.stderr.is_empty() {
+        if output.status.0 != 0 || !output.stderr.0.is_empty() {
             return Err(Error::Invalid(format!(
                 "candidate failed ({}): {}",
-                output.status,
-                String::from_utf8_lossy(&output.stderr)
+                output.status.0,
+                String::from_utf8_lossy(&output.stderr.0)
             )));
         }
-        super::schemas::decode_report(&output.stdout)
+        super::schemas::decode_report(&output.stdout.0)
     }
 }

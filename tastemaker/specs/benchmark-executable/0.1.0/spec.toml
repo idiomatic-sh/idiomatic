@@ -1,6 +1,8 @@
 description = "A Cargo benchmark executable's workflow boundary."
 why = "The executable workflow owns temporary artifacts and snapshot lifetimes, composes injected benchmark ports and writes through caller-owned writers. It is separate from a domain operation, library composition and individual benchmark workload. Its product must prove registration as a harness=false Cargo target; this role grants no authority to neighboring source files."
 templates = [
+  { alias = "observations", template = "workflow", file = "composition/output.rs", count = { min = 0, max = 1 }, description = "Stable scalar observations through caller-owned executable writers." },
+  { alias = "commands", template = "workflow", file = "composition/commands.rs", count = { min = 0, max = 1 }, description = "Independent worker and fixture commands owned by the executable." },
   { template = "workflow", file = "composition.rs", description = "The executable orchestration called by the registered Cargo entry." },
 ]
 [[scenarios]]

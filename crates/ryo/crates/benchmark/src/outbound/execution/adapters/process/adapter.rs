@@ -1,5 +1,6 @@
 //! Child startup, tool work, serialization and waiting are inside wall time.
-use crate::domain::diagnostics::errors::Error;
+use crate::domain::diagnostics::errors::DiagnosticsError as Error;
+use crate::domain::measurements::types::{CapturedBytes, ProcessExitCode, ResourceObservation};
 use crate::domain::measurements::types::{Invocation, ProcessOutput};
 use crate::outbound::execution::interface::ExecutionPort;
 use std::process::Command;
@@ -20,11 +21,11 @@ impl ExecutionPort for ExecutionProcessAdapter {
             .code()
             .ok_or_else(|| Error::Invalid(super::constants::SIGNAL.into()))?;
         Ok(ProcessOutput {
-            status,
-            stdout: output.stdout,
-            stderr: output.stderr,
+            status: ProcessExitCode(status),
+            stdout: CapturedBytes(output.stdout),
+            stderr: CapturedBytes(output.stderr),
             wall,
-            resources: None,
+            resources: ResourceObservation::WallOnly,
         })
     }
 }

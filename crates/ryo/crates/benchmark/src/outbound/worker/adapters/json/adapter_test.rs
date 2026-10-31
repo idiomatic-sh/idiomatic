@@ -1,8 +1,8 @@
 //! Independent parent and child endpoints agree on the wire protocol and stream failures propagate.
-use super::adapter::WorkerJsonAdapter;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::{
-    diagnostics::errors::Error, measurements::types::ProcessOutput, suite::types::RunRequest,
+    diagnostics::errors::DiagnosticsError as Error, measurements::types::ProcessOutput,
+    suite::types::RunRequest,
 };
 use crate::outbound::{
     linter::{factory, interface::LinterPort},
@@ -123,8 +123,8 @@ fn subject(operation: Input) -> Result<Value, Failure> {
     let parent = factory::ryo("worker".into(), "rules".into());
     let request = RunRequest {
         root: "workspace".into(),
-        files: vec!["source.txt".into()],
-        cache: "cache".into(),
+        files: vec![ryo::linter::RelativePath("source.txt".into())],
+        state: "cache".into(),
     };
     let payload = match operation {
         Operation::Malformed => "{".into(),
@@ -133,7 +133,7 @@ fn subject(operation: Input) -> Result<Value, Failure> {
             r#"{"root":"workspace","rules":"rules","files":["source.txt"],"cache":"cache"}"#.into()
         }
     };
-    let child = WorkerJsonAdapter::new(payload, Box::new(output));
+    let child = crate::outbound::worker::factory::json(payload, Box::new(output));
     match operation {
         Operation::Malformed => child.receive().map(|_| false).map_err(classify),
         Operation::WriteFailure | Operation::FlushFailure => {
@@ -147,7 +147,10 @@ fn subject(operation: Input) -> Result<Value, Failure> {
                 assert_eq!(received.root, request.root);
                 assert_eq!(received.rules, std::path::PathBuf::from("rules"));
                 assert_eq!(received.files, request.files);
-                assert_eq!(received.cache, Some(request.cache.join("ryo")));
+                assert_eq!(
+                    received.state,
+                    crate::domain::suite::types::WorkerState::Retained(request.state.join("ryo"))
+                );
                 child.respond(&report()).map_err(classify)?;
             }
             let capture = capture.lock().expect("capture");
@@ -157,11 +160,14 @@ fn subject(operation: Input) -> Result<Value, Failure> {
                 .decode(
                     &request,
                     ProcessOutput {
-                        status: 0,
-                        stdout: capture.bytes.clone(),
-                        stderr: Vec::new(),
+                        status: crate::domain::measurements::types::ProcessExitCode(0),
+                        stdout: crate::domain::measurements::types::CapturedBytes(
+                            capture.bytes.clone(),
+                        ),
+                        stderr: crate::domain::measurements::types::CapturedBytes(Vec::new()),
                         wall: Duration::ZERO,
-                        resources: None,
+                        resources:
+                            crate::domain::measurements::types::ResourceObservation::WallOnly,
                     },
                 )
                 .map_err(classify)?;

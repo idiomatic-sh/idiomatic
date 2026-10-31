@@ -1,8 +1,9 @@
 //! Direct Linux wait4 observes the exact child started by std::process::Command.
 #[cfg(target_os = "linux")]
 use super::{constants, schemas};
+use crate::domain::measurements::types::{CapturedBytes, ProcessExitCode, ResourceObservation};
 use crate::domain::{
-    diagnostics::errors::Error,
+    diagnostics::errors::DiagnosticsError as Error,
     measurements::types::{Invocation, ProcessOutput},
 };
 use crate::outbound::execution::interface::ExecutionPort;
@@ -60,11 +61,11 @@ impl ExecutionPort for ExecutionTimedAdapter {
             .code()
             .ok_or_else(|| Error::Invalid(constants::SIGNAL.into()))?;
         Ok(ProcessOutput {
-            status,
-            stdout,
-            stderr,
+            status: ProcessExitCode(status),
+            stdout: CapturedBytes(stdout),
+            stderr: CapturedBytes(stderr),
             wall,
-            resources: Some(schemas::decode(usage.rusage)?),
+            resources: ResourceObservation::Collected(schemas::decode(usage.rusage)?),
         })
     }
 

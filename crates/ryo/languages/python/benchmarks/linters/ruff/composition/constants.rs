@@ -46,3 +46,5 @@ pub(crate) const RUFF_DIRECTORY: &str = "benchmarks/linters/ruff";
 pub(crate) const MEASURE_ACCOUNTED_VALID: &str = "measure-valid";
 
 pub(crate) const ONE_FINDING: usize = 1;
+
+pub(crate) const MANIFEST_DIRECTORY: &str = env!("CARGO_MANIFEST_DIR");

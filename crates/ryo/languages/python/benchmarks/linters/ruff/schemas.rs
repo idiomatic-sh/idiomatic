@@ -2,8 +2,8 @@
 use ryo::linter::{RelativePath, RuleId, SourceText};
 use ryo_benchmark::domain::{
     diagnostics::{
-        errors::Error,
-        types::{Diagnostic, RunReport},
+        errors::DiagnosticsError as Error,
+        types::{BenchmarkFinding, RunReport},
     },
     measurements::types::ProcessOutput,
     suite::types::RunRequest,
@@ -28,13 +28,13 @@ struct LocationSchema {
 
 /// Lint findings and warnings are valid; an operational exit is not.
 pub(super) fn check_status(output: &ProcessOutput) -> Result<(), Error> {
-    if matches!(output.status, 0 | 1) {
+    if matches!(output.status.0, 0 | 1) {
         return Ok(());
     }
     Err(Error::Invalid(format!(
         "Ruff failed ({}): {}",
-        output.status,
-        String::from_utf8_lossy(&output.stderr)
+        output.status.0,
+        String::from_utf8_lossy(&output.stderr.0)
     )))
 }
 
@@ -72,15 +72,13 @@ impl TryFrom<RuffReportSchema<'_>> for RunReport {
         } = schema;
         check_status(output)?;
         if request.files.len() != sources.len()
-            || request
-                .files
-                .iter()
-                .any(|file| !sources.contains_key(&RelativePath(file.clone().into_boxed_str())))
+            || request.files.iter().any(|file| !sources.contains_key(file))
         {
             return Err(Error::Invalid("requested source set is incomplete".into()));
         }
-        let raw: Vec<FindingSchema> = serde_json::from_slice(&output.stdout)?;
-        if (output.status == 0) != raw.is_empty() {
+        let raw: Vec<FindingSchema> = serde_json::from_slice(&output.stdout.0)
+            .map_err(|error| Error::Json(Box::new(error)))?;
+        if (output.status.0 == 0) != raw.is_empty() {
             return Err(Error::Invalid(
                 "Ruff exit status contradicts findings".into(),
             ));
@@ -115,11 +113,11 @@ impl TryFrom<RuffReportSchema<'_>> for RunReport {
             if end < start {
                 return Err(Error::Invalid("Ruff span is reversed".into()));
             }
-            diagnostics.push(Diagnostic {
-                rule: finding.code,
-                file: file.to_owned(),
-                start,
-                end,
+            diagnostics.push(BenchmarkFinding {
+                rule,
+                file: RelativePath(file.into()),
+                start: ryo_benchmark::domain::diagnostics::types::SourceByteOffset(start),
+                end: ryo_benchmark::domain::diagnostics::types::SourceByteOffset(end),
             });
         }
         Ok(RunReport {

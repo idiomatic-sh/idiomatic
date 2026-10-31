@@ -2,8 +2,8 @@
 use crate::domain::measurements::types::{Invocation, ProcessOutput};
 use crate::domain::{
     diagnostics::{
-        errors::Error,
-        types::{Diagnostic, RunReport},
+        errors::DiagnosticsError as Error,
+        types::{BenchmarkFinding, RunReport},
     },
     suite::types::RunRequest,
 };
@@ -13,7 +13,7 @@ use std::path::PathBuf;
 /// Deterministic linter substitute for orchestration and contract tests.
 pub struct LinterFake {
     /// Canonical findings returned by successful fixture decoding.
-    pub diagnostics: Vec<Diagnostic>,
+    pub diagnostics: Vec<BenchmarkFinding>,
     /// Labels carried through execution for call-order assertions.
     pub arguments: Vec<std::ffi::OsString>,
 }
@@ -27,7 +27,7 @@ impl LinterPort for LinterFake {
         })
     }
     fn decode(&self, request: &RunRequest, output: ProcessOutput) -> Result<RunReport, Error> {
-        if output.status > 1 {
+        if output.status.0 > 1 {
             return Err(Error::Invalid("operational failure".into()));
         }
         Ok(RunReport {

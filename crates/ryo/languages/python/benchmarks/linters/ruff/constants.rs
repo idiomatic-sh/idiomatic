@@ -16,3 +16,5 @@ pub(crate) const DUPLICATE_INPUT: &str = "duplicate requested source file";
 pub(crate) const DISCOVERED_OUTSIDE: &str = "discovered file outside corpus";
 pub(crate) const NON_UTF8_PATH: &str = "non-UTF8 corpus path";
 pub(crate) const EMPTY_DISCOVERY: &str = "empty discovered corpus";
+pub(crate) const SELECT: &str = "--select";
+pub(crate) const RULE_SEPARATOR: &str = ",";

@@ -1,5 +1,5 @@
 //! Child-process execution contract.
-use crate::domain::diagnostics::errors::Error;
+use crate::domain::diagnostics::errors::DiagnosticsError as Error;
 use crate::domain::measurements::types::{Invocation, ProcessOutput};
 /// Execute a prepared invocation and observe its process result.
 pub trait ExecutionPort {

@@ -1,6 +1,6 @@
 //! Execution preserves exit status and both streams; launch failure is distinct.
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::diagnostics::errors::Error;
+use crate::domain::diagnostics::errors::DiagnosticsError as Error;
 use crate::domain::measurements::types::Invocation;
 use crate::outbound::execution::interface::ExecutionPort;
 use std::path::PathBuf;
@@ -211,16 +211,18 @@ pub fn check(adapter: &impl ExecutionPort) {
             .run(call)
             .map(|output| {
                 (
-                    output.status,
+                    output.status.0,
                     if large {
-                        output.stdout.len() == 131072 && output.stdout.iter().all(|byte| *byte == 0)
+                        output.stdout.0.len() == 131072
+                            && output.stdout.0.iter().all(|byte| *byte == 0)
                     } else {
-                        output.stdout == b"payload"
+                        output.stdout.0 == b"payload"
                     },
                     if large {
-                        output.stderr.len() == 131072 && output.stderr.iter().all(|byte| *byte == 0)
+                        output.stderr.0.len() == 131072
+                            && output.stderr.0.iter().all(|byte| *byte == 0)
                     } else {
-                        output.stderr == b"issue"
+                        output.stderr.0 == b"issue"
                     },
                 )
             })

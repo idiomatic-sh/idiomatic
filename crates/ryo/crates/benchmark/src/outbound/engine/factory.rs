@@ -1,16 +1,10 @@
-//! Builds the engine adapters from dependencies chosen by the composition.
+//! Constructs the one SDK engine adapter with explicit optional diagnostic tracing.
 use super::adapters::local::adapter::EngineLocalAdapter;
-/// Construct the local implementation of the engine contract.
+/// Construct the SDK engine. Tracing is a separate diagnostic worker configuration.
 #[must_use]
-pub fn local(languages: ryo::linter::Languages) -> impl super::interface::EnginePort {
-    EngineLocalAdapter::new(languages)
-}
-
-/// Record existing engine phase spans for a diagnostic run, separate from performance samples.
-#[must_use]
-pub fn profiled(
+pub fn local(
     languages: ryo::linter::Languages,
-    trace: std::path::PathBuf,
+    trace: Option<std::path::PathBuf>,
 ) -> impl super::interface::EnginePort {
-    EngineLocalAdapter::profiled(languages, trace)
+    EngineLocalAdapter::new(languages, trace)
 }

@@ -22,8 +22,8 @@ fn process_child(bencher: divan::Bencher<'_, '_>) {
     let input = invocation();
     bencher.bench_local(|| {
         let output = adapter.run(input.clone()).expect("child starts");
-        assert_eq!(output.status, 0);
-        assert_eq!(output.stdout, b"result");
+        assert_eq!(output.status.0, 0);
+        assert_eq!(output.stdout.0, b"result");
         divan::black_box(output)
     });
 }
@@ -35,9 +35,12 @@ fn timed_child(bencher: divan::Bencher<'_, '_>) {
         let output = adapter
             .run(input.clone())
             .expect("instrumented child starts");
-        assert_eq!(output.status, 0);
-        assert_eq!(output.stdout, b"result");
-        assert!(output.resources.is_some());
+        assert_eq!(output.status.0, 0);
+        assert_eq!(output.stdout.0, b"result");
+        assert!(matches!(
+            output.resources,
+            ryo_benchmark::domain::measurements::types::ResourceObservation::Collected(_)
+        ));
         divan::black_box(output)
     });
 }

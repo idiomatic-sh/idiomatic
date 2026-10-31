@@ -2,6 +2,6 @@
 use super::super::contract::check;
 use super::EngineFake;
 #[test]
-fn refuses() {
+fn succeeds() {
     check(&EngineFake { refuses: true });
 }

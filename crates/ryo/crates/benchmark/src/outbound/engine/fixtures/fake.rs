@@ -1,5 +1,5 @@
 //! Deterministic SDK substitute preserves the submitted file set.
-use crate::domain::diagnostics::{errors::Error, types::RunReport};
+use crate::domain::diagnostics::{errors::DiagnosticsError as Error, types::RunReport};
 use crate::domain::suite::types::WorkerRequest;
 use crate::outbound::engine::interface::EnginePort;
 #[derive(Clone, Copy, Debug, Default)]

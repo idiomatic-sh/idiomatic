@@ -1,5 +1,4 @@
 //! The concrete process implementation executes the complete shared contract.
-use super::adapter::ExecutionProcessAdapter;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::execution::fixtures::contract::check;
 type Input = ();
@@ -12,7 +11,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
     expect: Expect::Value(()),
 }];
 fn subject(_: Input) -> Result<Value, Failure> {
-    check(&ExecutionProcessAdapter);
+    check(&crate::outbound::execution::factory::process());
     Ok(())
 }
 #[test]

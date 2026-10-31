@@ -25,15 +25,22 @@ impl From<RequestSchema> for WorkerRequest {
         Self {
             root: request.root,
             rules: request.rules,
-            files: request.files,
-            cache: request.cache,
+            files: request
+                .files
+                .into_iter()
+                .map(|path| ryo::linter::RelativePath(path.into_boxed_str()))
+                .collect(),
+            state: request.cache.map_or(
+                crate::domain::suite::types::WorkerState::Fresh,
+                crate::domain::suite::types::WorkerState::Retained,
+            ),
         }
     }
 }
 #[derive(Debug, Serialize)]
 struct ReportSchema<'a> {
     diagnostics: Vec<DiagnosticSchema<'a>>,
-    files: &'a [String],
+    files: Vec<&'a str>,
 }
 #[derive(Debug, Serialize)]
 struct DiagnosticSchema<'a> {
@@ -49,15 +56,15 @@ pub(super) fn request(payload: &OsStr) -> Result<WorkerRequest, WorkerSchemaErro
 }
 pub(super) fn report(report: &RunReport) -> Result<WorkerResponseBytes, WorkerSchemaError> {
     let wire = ReportSchema {
-        files: &report.files,
+        files: report.files.iter().map(|path| path.0.as_ref()).collect(),
         diagnostics: report
             .diagnostics
             .iter()
             .map(|finding| DiagnosticSchema {
-                rule: &finding.rule,
-                file: &finding.file,
-                start: finding.start,
-                end: finding.end,
+                rule: finding.rule.as_ref(),
+                file: finding.file.0.as_ref(),
+                start: finding.start.0,
+                end: finding.end.0,
             })
             .collect(),
     };

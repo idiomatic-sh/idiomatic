@@ -1,5 +1,5 @@
 //! Linter integrations bind commands to decoding; execution stays shared.
-use crate::domain::diagnostics::{errors::Error, types::RunReport};
+use crate::domain::diagnostics::{errors::DiagnosticsError as Error, types::RunReport};
 use crate::domain::measurements::types::{Invocation, ProcessOutput};
 use crate::domain::suite::types::RunRequest;
 

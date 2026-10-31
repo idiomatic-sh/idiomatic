@@ -1,5 +1,5 @@
 //! Execute the candidate through the public SDK.
-use crate::domain::diagnostics::{errors::Error, types::RunReport};
+use crate::domain::diagnostics::{errors::DiagnosticsError as Error, types::RunReport};
 use crate::domain::suite::types::WorkerRequest;
 /// Execute candidate rules through the public SDK.
 pub trait EnginePort {

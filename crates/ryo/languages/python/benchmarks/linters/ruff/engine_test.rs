@@ -2,7 +2,7 @@
 use super::{BoundaryFailure, failure};
 use ryo_benchmark::cases::{Case, CaseName, Expect, Word, run};
 use ryo_benchmark::domain::{
-    diagnostics::{errors::Error, types::Diagnostic},
+    diagnostics::{errors::DiagnosticsError as Error, types::BenchmarkFinding},
     suite::types::WorkerRequest,
 };
 use ryo_benchmark::outbound::engine::{factory, interface::EnginePort};
@@ -58,24 +58,27 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
     let request = WorkerRequest {
         root: root.path().to_owned(),
         rules,
-        files: vec![file.into()],
-        cache: None,
+        files: vec![ryo::linter::RelativePath(file.into())],
+        state: ryo_benchmark::domain::suite::types::WorkerState::Fresh,
     };
-    let result = factory::local(ryo::linter::Languages(vec![ryo_python::linked()])).run(request);
+    let result =
+        factory::local(ryo::linter::Languages(vec![ryo_python::linked()]), None).run(request);
     if matches!(scenario, EngineScenario::Unread) {
         assert!(
             matches!(&result, Err(Error::Invalid(message)) if message.starts_with("incomplete candidate:") && message.contains("input.unknown"))
         );
     }
     let report = result?;
-    Ok(report.files == ["input.py"]
-        && report.diagnostics
-            == [Diagnostic {
-                rule: "E722".into(),
-                file: "input.py".into(),
-                start: 14,
-                end: 20,
-            }])
+    Ok(
+        report.files == [ryo::linter::RelativePath("input.py".into())]
+            && report.diagnostics
+                == [BenchmarkFinding {
+                    rule: ryo::linter::RuleId::try_from("E722").expect("fixture rule"),
+                    file: ryo::linter::RelativePath("input.py".into()),
+                    start: ryo_benchmark::domain::diagnostics::types::SourceByteOffset(14),
+                    end: ryo_benchmark::domain::diagnostics::types::SourceByteOffset(20),
+                }],
+    )
 }
 fn subject(input: Input) -> Result<Value, Failure> {
     exercise(input).map_err(failure)

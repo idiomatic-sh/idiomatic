@@ -1,5 +1,5 @@
 //! The child process receives a typed request and publishes a typed report.
-use crate::domain::diagnostics::{errors::Error, types::RunReport};
+use crate::domain::diagnostics::{errors::DiagnosticsError as Error, types::RunReport};
 use crate::domain::suite::types::WorkerRequest;
 
 /// The worker's process-boundary transport, independently injected from its engine.

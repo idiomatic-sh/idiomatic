@@ -32,7 +32,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 ];
 fn subject(input: Input) -> Result<Value, Failure> {
     request(OsStr::new(input))
-        .map(|request| request.files == ["é.txt"] && request.cache.is_none())
+        .map(|request| {
+            request.files == [ryo::linter::RelativePath("é.txt".into())]
+                && matches!(
+                    request.state,
+                    crate::domain::suite::types::WorkerState::Fresh
+                )
+        })
         .map_err(|error| match error {
             WorkerSchemaError::Json(_) => Refusal::InvalidJson,
             WorkerSchemaError::NotText => Refusal::Unexpected,

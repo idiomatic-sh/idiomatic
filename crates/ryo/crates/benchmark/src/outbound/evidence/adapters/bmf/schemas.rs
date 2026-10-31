@@ -1,5 +1,7 @@
 //! Only this boundary knows the BMF field and metric names.
-use crate::domain::{diagnostics::errors::Error, measurements::types::Sample};
+use crate::domain::{
+    diagnostics::errors::DiagnosticsError as Error, measurements::types::BenchmarkSample,
+};
 use serde::Serialize;
 use std::collections::BTreeMap;
 
@@ -17,23 +19,27 @@ struct ObservationSchema<'a> {
     cpu: Option<f64>,
     resident: Option<u64>,
 }
-impl<'a> From<&'a Sample> for ObservationSchema<'a> {
-    fn from(sample: &'a Sample) -> Self {
+impl<'a> From<&'a BenchmarkSample> for ObservationSchema<'a> {
+    fn from(sample: &'a BenchmarkSample) -> Self {
         Self {
-            name: &sample.name,
+            name: &sample.name.0,
             wall: sample.measurement.wall.as_secs_f64() * 1000.0,
-            cpu: sample
-                .measurement
-                .resources
-                .map(|resources| resources.cpu.as_secs_f64() * 1000.0),
-            resident: sample
-                .measurement
-                .resources
-                .map(|resources| resources.peak_rss_bytes),
+            cpu: match sample.measurement.resources {
+                crate::domain::measurements::types::ResourceObservation::WallOnly => None,
+                crate::domain::measurements::types::ResourceObservation::Collected(resources) => {
+                    Some(resources.cpu.as_secs_f64() * 1000.0)
+                }
+            },
+            resident: match sample.measurement.resources {
+                crate::domain::measurements::types::ResourceObservation::WallOnly => None,
+                crate::domain::measurements::types::ResourceObservation::Collected(resources) => {
+                    Some(resources.peak_rss_bytes.0)
+                }
+            },
         }
     }
 }
-pub(super) fn encode(samples: &[Sample]) -> Result<Vec<u8>, Error> {
+pub(super) fn encode(samples: &[BenchmarkSample]) -> Result<Vec<u8>, Error> {
     if samples.is_empty() {
         return Err(Error::Invalid("no measured evidence".into()));
     }
@@ -76,7 +82,7 @@ pub(super) fn encode(samples: &[Sample]) -> Result<Vec<u8>, Error> {
         }
         let _previous = document.insert(name.to_owned(), summaries);
     }
-    serde_json::to_vec(&document).map_err(Into::into)
+    serde_json::to_vec(&document).map_err(|error| Error::Json(Box::new(error)))
 }
 
 #[cfg(test)]

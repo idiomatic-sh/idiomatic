@@ -2,12 +2,12 @@
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::{
     diagnostics::types::RunReport,
-    measurements::types::{Measurement, Resources, Sample},
+    measurements::types::{BenchmarkSample, Measurement, Resources},
 };
 use crate::outbound::evidence::interface::EvidencePort;
 use std::time::Duration;
 
-type Input = Vec<Sample>;
+type Input = Vec<BenchmarkSample>;
 type Value = ();
 type Failure = ();
 
@@ -17,17 +17,21 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("complete observation publishes"),
         word: Word::Succeeds,
         input: || {
-            vec![Sample {
-                name: "project/contestant/cold".into(),
+            vec![BenchmarkSample {
+                name: crate::domain::measurements::types::SampleName(
+                    "project/contestant/cold".into(),
+                ),
                 measurement: Measurement {
                     wall: Duration::from_millis(5),
-                    resources: Some(Resources {
-                        cpu: Duration::from_millis(4),
-                        peak_rss_bytes: 4096,
-                    }),
+                    resources: crate::domain::measurements::types::ResourceObservation::Collected(
+                        Resources {
+                            cpu: Duration::from_millis(4),
+                            peak_rss_bytes: crate::domain::measurements::types::ResidentBytes(4096),
+                        },
+                    ),
                     report: RunReport {
                         diagnostics: vec![],
-                        files: vec!["input".into()],
+                        files: vec![ryo::linter::RelativePath("input".into())],
                     },
                 },
             }]
@@ -44,14 +48,16 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("missing resources are refused"),
         word: Word::Refuses,
         input: || {
-            vec![Sample {
-                name: "project/contestant/cold".into(),
+            vec![BenchmarkSample {
+                name: crate::domain::measurements::types::SampleName(
+                    "project/contestant/cold".into(),
+                ),
                 measurement: Measurement {
                     wall: Duration::from_millis(5),
-                    resources: None,
+                    resources: crate::domain::measurements::types::ResourceObservation::WallOnly,
                     report: RunReport {
                         diagnostics: vec![],
-                        files: vec!["input".into()],
+                        files: vec![ryo::linter::RelativePath("input".into())],
                     },
                 },
             }]
@@ -64,7 +70,7 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
 /// # Panics
 /// Panics if the destination violates the publication contract.
 pub fn check(adapter: &impl EvidencePort) {
-    let subject = |samples: Vec<Sample>| adapter.publish(&samples).map_err(|_| ());
+    let subject = |samples: Vec<BenchmarkSample>| adapter.publish(&samples).map_err(|_| ());
     run(CASES, Word::Succeeds, subject);
     run(CASES, Word::Refuses, subject);
 }

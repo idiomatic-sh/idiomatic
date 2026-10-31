@@ -1,7 +1,7 @@
 //! JSON exists only at the child-process boundary.
 use crate::domain::diagnostics::{
-    errors::Error,
-    types::{Diagnostic, RunReport},
+    errors::DiagnosticsError as Error,
+    types::{BenchmarkFinding, RunReport},
 };
 use crate::domain::suite::types::WorkerRequest;
 use serde::{Deserialize, Serialize};
@@ -35,34 +35,51 @@ impl From<WorkerRequest> for RyoWorkerRequestSchema {
         Self {
             root: request.root,
             rules: request.rules,
-            files: request.files,
-            cache: request.cache,
+            files: request
+                .files
+                .into_iter()
+                .map(|path| path.0.into_string())
+                .collect(),
+            cache: match request.state {
+                crate::domain::suite::types::WorkerState::Fresh => None,
+                crate::domain::suite::types::WorkerState::Retained(path) => Some(path),
+            },
         }
     }
 }
-impl From<RyoReportSchema> for RunReport {
-    fn from(wire: RyoReportSchema) -> Self {
-        Self {
-            files: wire.files,
+impl TryFrom<RyoReportSchema> for RunReport {
+    type Error = Error;
+    fn try_from(wire: RyoReportSchema) -> Result<Self, Self::Error> {
+        Ok(Self {
+            files: wire
+                .files
+                .into_iter()
+                .map(|path| ryo::linter::RelativePath(path.into_boxed_str()))
+                .collect(),
             diagnostics: wire
                 .diagnostics
                 .into_iter()
-                .map(|finding| Diagnostic {
-                    rule: finding.rule,
-                    file: finding.file,
-                    start: finding.start,
-                    end: finding.end,
+                .map(|finding| {
+                    Ok(BenchmarkFinding {
+                        rule: ryo::linter::RuleId::try_from(finding.rule.as_str())
+                            .map_err(|error| Error::Invalid(error.to_string()))?,
+                        file: ryo::linter::RelativePath(finding.file.into_boxed_str()),
+                        start: crate::domain::diagnostics::types::SourceByteOffset(finding.start),
+                        end: crate::domain::diagnostics::types::SourceByteOffset(finding.end),
+                    })
                 })
-                .collect(),
-        }
+                .collect::<Result<_, Error>>()?,
+        })
     }
 }
 pub(super) fn encode_request(request: WorkerRequest) -> Result<String, Error> {
-    serde_json::to_string(&RyoWorkerRequestSchema::from(request)).map_err(Into::into)
+    serde_json::to_string(&RyoWorkerRequestSchema::from(request))
+        .map_err(|error| Error::Json(Box::new(error)))
 }
 pub(super) fn decode_report(bytes: &[u8]) -> Result<RunReport, Error> {
-    let wire: RyoReportSchema = serde_json::from_slice(bytes)?;
-    Ok(wire.into())
+    let wire: RyoReportSchema =
+        serde_json::from_slice(bytes).map_err(|error| Error::Json(Box::new(error)))?;
+    wire.try_into()
 }
 #[cfg(test)]
 #[path = "schemas_test.rs"]

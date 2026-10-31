@@ -1,21 +1,26 @@
 //! Python composition provides its linked language only at this outer edge.
+mod commands;
 mod constants;
-use super::{adapter::LinterRuffAdapter, settings::LinterRuffSettings};
+mod output;
 use ryo_benchmark::application::run::service::run as execute;
-use ryo_benchmark::domain::diagnostics::errors::Error;
-use ryo_benchmark::domain::measurements::types::{RunOrder, Sample};
+use ryo_benchmark::domain::diagnostics::errors::DiagnosticsError as Error;
+use ryo_benchmark::domain::measurements::types::{BenchmarkSample, RunOrder};
 use ryo_benchmark::domain::suite::service::require_accounted;
-use ryo_benchmark::domain::suite::types::{CoverageScope, RunRequest, Suite, Tool};
-use ryo_benchmark::inbound::use_cases::compare::service::compare;
-use ryo_benchmark::inbound::use_cases::measure::service::measure_certified;
-use ryo_benchmark::inbound::use_cases::run_ryo::{
-    interface::RunRyoUseCase, use_case::RunRyoUseCaseImpl,
+use ryo_benchmark::domain::suite::types::{BenchmarkCoverage, RunRequest, Suite};
+use ryo_benchmark::inbound::use_cases::certify::{
+    interface::CertifyUseCase, use_case::CertifyUseCaseImpl,
+};
+use ryo_benchmark::inbound::use_cases::compare::{
+    interface::CompareUseCase, use_case::CompareUseCaseImpl,
+};
+use ryo_benchmark::inbound::use_cases::measure::{
+    interface::MeasureUseCase, use_case::MeasureUseCaseImpl,
 };
 use ryo_benchmark::outbound::evidence::interface::EvidencePort;
 use ryo_benchmark::outbound::suite::interface::SuitePort;
+use ryo_benchmark::outbound::suite::types::{ArtifactPath, ArtifactSet};
 use ryo_benchmark::outbound::workspace::interface::WorkspacePort;
 use std::{path::PathBuf, sync::Arc};
-
 pub(crate) fn run(
     output: &mut dyn std::io::Write,
     observations: &mut dyn std::io::Write,
@@ -23,62 +28,21 @@ pub(crate) fn run(
     let mut args = std::env::args()
         .skip(1)
         .filter(|argument| argument != constants::CARGO_BENCH_ARGUMENT);
-    let suite_source = ryo_benchmark::outbound::suite::factory::local();
-    let execution = ryo_benchmark::outbound::execution::factory::process();
+    let suite_source = Arc::new(ryo_benchmark::outbound::suite::factory::local());
+    let execution = Arc::new(ryo_benchmark::outbound::execution::factory::process());
+    let comparison = CompareUseCaseImpl::new();
     let command = args.next();
     match command.as_deref() {
-        Some(constants::RUN_RYO | constants::PROFILE_RYO) => {
-            let input = args
-                .next()
-                .ok_or_else(|| Error::Invalid(constants::MISSING_WORKER_REQUEST.into()))?;
-            let languages = ryo::linter::Languages(vec![ryo_python::linked()]);
-            let engine: Arc<dyn ryo_benchmark::outbound::engine::interface::EnginePort> =
-                match if command.as_deref() == Some(constants::PROFILE_RYO) {
-                    Some(
-                        args.next()
-                            .ok_or_else(|| Error::Invalid(constants::MISSING_TRACE.into()))?,
-                    )
-                } else {
-                    None
-                } {
-                    Some(path) => Arc::new(ryo_benchmark::outbound::engine::factory::profiled(
-                        languages,
-                        path.into(),
-                    )),
-                    None => Arc::new(ryo_benchmark::outbound::engine::factory::local(languages)),
-                };
-            let transport = ryo_benchmark::outbound::worker::factory::json(
-                input.into(),
-                Box::new(std::io::stdout()),
-            );
-            RunRyoUseCaseImpl::new(engine, Arc::new(transport)).run_ryo()
-        }
+        Some(constants::RUN_RYO | constants::PROFILE_RYO) => commands::worker(
+            args.map(commands::BenchmarkArgument),
+            if command.as_deref() == Some(constants::PROFILE_RYO) {
+                commands::WorkerTracing::Enabled
+            } else {
+                commands::WorkerTracing::Disabled
+            },
+        ),
         Some(constants::VERIFY_CASES) => {
-            let executable = PathBuf::from(
-                args.next()
-                    .ok_or_else(|| Error::Invalid(constants::EXPECTED_RUFF.into()))?,
-            )
-            .canonicalize()?;
-            let mut tool = suite_source.profile(&directory())?;
-            suite_source.verify_tool(&executable, &tool)?;
-            let audit = suite_source.audit(&directory(), &tool)?;
-            tool.defaults = audit.authored().to_vec();
-            let reference = reference(executable, tool)?;
-            let scratch = tempfile::tempdir()?;
-            let profile = scratch.path().join(constants::PROFILE_DIRECTORY);
-            suite_source.stage(&directory(), &profile, &audit)?;
-            let candidate = ryo_benchmark::outbound::linter::factory::ryo(
-                std::env::current_exe()?,
-                profile.join(constants::RULES_DIRECTORY),
-            );
-            let count = ryo_benchmark::application::cases::service::verify(
-                &suite_source,
-                &reference,
-                &candidate,
-                &execution,
-                &profile.join(constants::RULES_DIRECTORY),
-                &scratch.path().join(constants::CASES_DIRECTORY),
-            )?;
+            let count = commands::verify_cases(args.map(commands::BenchmarkArgument))?;
             writeln!(output, "{count} cases passed against both contestants")?;
             Ok(())
         }
@@ -102,54 +66,65 @@ pub(crate) fn run(
             );
             std::fs::create_dir_all(&cache)?;
             let cache = cache.canonicalize()?;
-            let mut tool = suite_source.profile(&directory())?;
-            suite_source.verify_tool(&executable, &tool)?;
-            let mut audit = suite_source.audit(&directory(), &tool)?;
+            let mut tool = suite_source.profile(ArtifactPath(&commands::directory()))?;
+            suite_source.verify_tool(ArtifactPath(&executable), &tool)?;
+            let mut audit = suite_source.audit(ArtifactPath(&commands::directory()), &tool)?;
             let authored_total = audit.authored_count();
             if let Some(selected) = args.next() {
-                audit =
-                    audit.select(&selected.split(',').map(str::to_owned).collect::<Vec<_>>())?;
+                audit = audit.select(
+                    &selected
+                        .split(',')
+                        .map(ryo::linter::RuleId::try_from)
+                        .collect::<Result<Vec<_>, _>>()
+                        .map_err(|error| Error::Invalid(error.to_string()))?,
+                )?;
             }
             let scope = if matches!(
                 command.as_deref(),
                 Some(constants::MEASURE | constants::MEASURE_ACCOUNTED_VALID)
             ) {
-                CoverageScope::Accounted
+                BenchmarkCoverage::Accounted
             } else {
-                CoverageScope::Interim
+                BenchmarkCoverage::Interim
             };
-            if scope == CoverageScope::Accounted {
+            if scope == BenchmarkCoverage::Accounted {
                 require_accounted(&audit, &tool)?;
             }
             let default_count = tool.defaults.len();
             let deferred_count = tool.deferred.len();
             let pending_count = tool.pending.len();
             tool.defaults = audit.authored().to_vec();
-            let reference = reference(executable.clone(), tool)?;
+            let reference = Arc::new(commands::reference(executable.clone(), tool));
             let selected_scratch = tempfile::Builder::new()
                 .prefix(constants::CERTIFICATION_PREFIX)
                 .tempdir_in(&cache)?
                 .keep();
             let selected_profile = selected_scratch.join(constants::PROFILE_DIRECTORY);
-            suite_source.stage(&directory(), &selected_profile, &audit)?;
+            suite_source.stage(
+                ArtifactPath(&commands::directory()),
+                ArtifactPath(&selected_profile),
+                &audit,
+            )?;
             let frozen_workload = selected_scratch.join(constants::WORKLOAD_DIRECTORY);
             suite_source.stage_projects(
-                &directory().join(constants::LANGUAGE_DIRECTORY),
-                &frozen_workload,
+                ArtifactPath(&commands::directory().join(constants::LANGUAGE_DIRECTORY)),
+                ArtifactPath(&frozen_workload),
             )?;
             let selected_rules = selected_profile.join(constants::RULES_DIRECTORY);
             let candidate_executable = selected_scratch.join(constants::CANDIDATE_EXECUTABLE);
             let _bytes = std::fs::copy(std::env::current_exe()?, &candidate_executable)?;
-            let candidate = ryo_benchmark::outbound::linter::factory::ryo(
+            let candidate = Arc::new(ryo_benchmark::outbound::linter::factory::ryo(
                 candidate_executable.clone(),
                 selected_rules.clone(),
-            );
+            ));
             let case_scratch = tempfile::tempdir()?;
-            let certificate = ryo_benchmark::application::certify::service::certify(
-                &suite_source,
-                &reference,
-                &candidate,
-                &execution,
+            let certificate = CertifyUseCaseImpl::new(
+                suite_source.clone(),
+                reference.clone(),
+                candidate.clone(),
+                execution.clone(),
+            )
+            .certify(
                 &selected_profile,
                 &frozen_workload,
                 &executable,
@@ -162,8 +137,8 @@ pub(crate) fn run(
                 observations,
                 "scope: {scope:?}; {} verified / {default_count} shipped defaults; {deferred_count} assessed deferrals; {pending_count} assessed pending; {} unassessed; {} authored outside subset; {} cases; certificate={}; artifacts={}",
                 audit.authored_count(),
-                default_count - authored_total - deferred_count - pending_count,
-                authored_total - audit.authored_count(),
+                default_count - authored_total.0 - deferred_count - pending_count,
+                authored_total.0 - audit.authored_count().0,
                 certificate.cases(),
                 certificate.fingerprint(),
                 selected_profile.display()
@@ -174,31 +149,34 @@ pub(crate) fn run(
                 std::env::consts::OS,
                 std::env::consts::ARCH
             )?;
-            let suite: Suite = suite_source.projects(&frozen_workload)?;
-            if suite.language != constants::PYTHON || !(2..=3).contains(&suite.projects.len()) {
+            let suite: Suite = suite_source.projects(ArtifactPath(&frozen_workload))?;
+            if suite.language.0 != constants::PYTHON || !(2..=3).contains(&suite.projects.len()) {
                 return Err(Error::Invalid(constants::PROJECT_COUNT_ERROR.into()));
             }
-            let execution = ryo_benchmark::outbound::execution::factory::timed();
+            let execution = Arc::new(ryo_benchmark::outbound::execution::factory::timed());
+            let measurements = MeasureUseCaseImpl::new(
+                reference.clone(),
+                candidate.clone(),
+                execution.clone(),
+                suite_source.clone(),
+            );
             let evidence =
                 ryo_benchmark::outbound::evidence::factory::bmf(Box::new(std::io::stdout()));
             let mut samples = Vec::new();
             let mut failures = Vec::new();
             for project in suite.projects {
-                let observed = (|| -> Result<Vec<Sample>, Error> {
+                let observed = (|| -> Result<Vec<BenchmarkSample>, Error> {
                     let mut samples = Vec::new();
                     let workspaces = ryo_benchmark::outbound::workspace::factory::git(
                         cache.join(constants::PROJECTS_DIRECTORY),
                     );
                     let mut workspace = workspaces.prepare(&project)?;
-                    let discovered: Vec<String> = reference
-                        .files(workspace.root())?
-                        .into_iter()
-                        .map(|path| path.0.into_string())
-                        .collect();
+                    let discovered: Vec<ryo::linter::RelativePath> =
+                        reference.files(workspace.root())?.into_iter().collect();
                     let (mut files, excluded): (Vec<_>, Vec<_>) =
                         discovered.into_iter().partition(|file| {
-                            file.ends_with(constants::PYTHON_EXTENSION)
-                                || file.ends_with(constants::STUB_EXTENSION)
+                            file.0.ends_with(constants::PYTHON_EXTENSION)
+                                || file.0.ends_with(constants::STUB_EXTENSION)
                         });
                     writeln!(
                         observations,
@@ -209,7 +187,11 @@ pub(crate) fn run(
                         excluded
                     )?;
                     let tracked = workspaces.tracked_files(&workspace)?.0;
-                    if files.iter().any(|file| !tracked.contains(file)) {
+                    if files.iter().any(|file| {
+                        !tracked
+                            .iter()
+                            .any(|tracked| tracked.as_str() == file.0.as_ref())
+                    }) {
                         return Err(Error::Invalid(constants::UNTRACKED_SOURCE.into()));
                     }
                     if matches!(
@@ -219,35 +201,34 @@ pub(crate) fn run(
                         let preflight = RunRequest {
                             root: workspace.root().to_owned(),
                             files: files.clone(),
-                            cache: cache
+                            state: cache
                                 .join(constants::PREFLIGHT_DIRECTORY)
-                                .join(&project.name),
+                                .join(&project.name.0),
                         };
-                        let parsed = execute(&reference, &execution, &preflight)?;
+                        let parsed = execute(reference.as_ref(), execution.as_ref(), &preflight)?;
                         let invalid: std::collections::BTreeSet<_> = parsed
                             .report
                             .diagnostics
                             .iter()
-                            .filter(|finding| finding.rule == constants::INVALID_SYNTAX)
+                            .filter(|finding| finding.rule.as_ref() == constants::INVALID_SYNTAX)
                             .map(|finding| finding.file.clone())
                             .collect();
-                        for finding in parsed
-                            .report
-                            .diagnostics
-                            .iter()
-                            .filter(|finding| finding.rule == constants::INVALID_SYNTAX)
+                        for finding in
+                            parsed.report.diagnostics.iter().filter(|finding| {
+                                finding.rule.as_ref() == constants::INVALID_SYNTAX
+                            })
                         {
                             writeln!(
                                 observations,
                                 "{}: excluded invalid Python (pinned Ruff parser), path={} range={}..{}; frontend parser capability gap",
-                                project.name, finding.file, finding.start, finding.end
+                                project.name, finding.file.0, finding.start.0, finding.end.0
                             )?;
                         }
                         files.retain(|file| !invalid.contains(file));
                     }
                     let paths: Vec<_> = files
                         .iter()
-                        .map(|file| workspace.root().join(file))
+                        .map(|file| workspace.root().join(file.0.as_ref()))
                         .collect();
                     let bytes = paths
                         .iter()
@@ -260,7 +241,7 @@ pub(crate) fn run(
                         "{}: measured source files={} bytes={bytes} digest={} input-profile={}",
                         project.name,
                         files.len(),
-                        suite_source.fingerprint(&paths)?,
+                        suite_source.fingerprint(ArtifactSet(&paths))?,
                         if matches!(
                             command.as_deref(),
                             Some(constants::MEASURE_VALID | constants::MEASURE_ACCOUNTED_VALID)
@@ -284,79 +265,57 @@ pub(crate) fn run(
                         let request = RunRequest {
                             root: workspace.root().to_owned(),
                             files: files.clone(),
-                            cache: trial.join(constants::RETAINED_DIRECTORY),
+                            state: trial.join(constants::RETAINED_DIRECTORY),
                         };
                         let clean_request = RunRequest {
-                            cache: trial.join(constants::CLEAN_EDITED_DIRECTORY),
+                            state: trial.join(constants::CLEAN_EDITED_DIRECTORY),
                             ..request.clone()
                         };
-                        let cold = measure_certified(
-                            &certificate,
-                            &suite_source,
-                            &reference,
-                            &candidate,
-                            &execution,
-                            &request,
-                            order,
-                        )?;
-                        let counts = diagnostic_counts(&cold.reference.report);
+                        let cold = measurements.measure(&certificate, &request, order)?;
+                        let counts = output::diagnostic_counts(&cold.reference.report);
                         writeln!(
                             observations,
                             "{}: exact matching findings per rule: {counts:?}",
                             project.name
                         )?;
-                        let retained = measure_certified(
-                            &certificate,
-                            &suite_source,
-                            &reference,
-                            &candidate,
-                            &execution,
-                            &request,
-                            order,
-                        )?;
-                        compare(&cold.reference.report, &retained.reference.report).map_err(
-                            |difference| {
+                        let retained = measurements.measure(&certificate, &request, order)?;
+                        comparison
+                            .compare(&cold.reference.report, &retained.reference.report)
+                            .map_err(|difference| {
                                 Error::Invalid(format!(
                                     "reference retained-cache mismatch: {difference:?}"
                                 ))
-                            },
-                        )?;
-                        compare(&cold.candidate.report, &retained.candidate.report).map_err(
-                            |difference| {
+                            })?;
+                        comparison
+                            .compare(&cold.candidate.report, &retained.candidate.report)
+                            .map_err(|difference| {
                                 Error::Invalid(format!(
                                     "candidate retained-cache mismatch: {difference:?}"
                                 ))
-                            },
-                        )?;
+                            })?;
                         workspaces
                             .apply_patch(&mut workspace, &frozen_workload.join(&project.patch))?;
-                        let edited = measure_certified(
-                            &certificate,
-                            &suite_source,
-                            &reference,
-                            &candidate,
-                            &execution,
-                            &request,
-                            order,
-                        );
-                        let clean_reference = execute(&reference, &execution, &clean_request);
-                        let clean_candidate = execute(&candidate, &execution, &clean_request);
+                        let edited = measurements.measure(&certificate, &request, order);
+                        let clean_reference =
+                            execute(reference.as_ref(), execution.as_ref(), &clean_request);
+                        let clean_candidate =
+                            execute(candidate.as_ref(), execution.as_ref(), &clean_request);
                         workspaces.reset(&mut workspace)?;
                         let edited = edited?;
-                        compare(&edited.reference.report, &clean_reference?.report).map_err(
-                            |difference| {
+                        comparison
+                            .compare(&edited.reference.report, &clean_reference?.report)
+                            .map_err(|difference| {
                                 Error::Invalid(format!(
                                     "reference edited retained vs fresh mismatch: {difference:?}"
                                 ))
-                            },
-                        )?;
-                        compare(&edited.candidate.report, &clean_candidate?.report).map_err(
-                            |difference| {
+                            })?;
+                        comparison
+                            .compare(&edited.candidate.report, &clean_candidate?.report)
+                            .map_err(|difference| {
                                 Error::Invalid(format!(
                                     "candidate edited retained vs fresh mismatch: {difference:?}"
                                 ))
-                            },
-                        )?;
+                            })?;
                         for (condition, pair) in [
                             (constants::EMPTY_CACHE_CONDITION, cold),
                             (constants::RETAINED_CACHE_CONDITION, retained),
@@ -366,21 +325,20 @@ pub(crate) fn run(
                                 (constants::REFERENCE_NAME, pair.reference),
                                 (constants::CANDIDATE_NAME, pair.candidate),
                             ] {
-                                let counts = diagnostic_counts(&measurement.report);
+                                let counts = output::diagnostic_counts(&measurement.report);
                                 writeln!(
                                     observations,
                                     "findings: project={} contestant={contestant} condition={condition} counts={counts:?}",
                                     project.name
                                 )?;
-                                writeln!(
-                                    observations,
-                                    "sample: project={} contestant={contestant} condition={condition} order={order:?} wall={:?} resources={:?}",
-                                    project.name, measurement.wall, measurement.resources
-                                )?;
-                                samples.push(Sample {
-                                    name: format!("{}/{contestant}/{condition}", project.name),
+                                let sample = BenchmarkSample {
+                                    name: ryo_benchmark::domain::measurements::types::SampleName(
+                                        format!("{}/{contestant}/{condition}", project.name),
+                                    ),
                                     measurement,
-                                });
+                                };
+                                output::observe_sample(observations, &sample, order)?;
+                                samples.push(sample);
                             }
                         }
                     }
@@ -410,8 +368,8 @@ pub(crate) fn run(
             }
         }
         Some(constants::AUDIT) => {
-            let tool = suite_source.profile(&directory())?;
-            let result = suite_source.audit(&directory(), &tool)?;
+            let tool = suite_source.profile(ArtifactPath(&commands::directory()))?;
+            let result = suite_source.audit(ArtifactPath(&commands::directory()), &tool)?;
             writeln!(
                 output,
                 "{} {}: {} queries authored / {} shipped defaults (not a parity certificate)",
@@ -427,37 +385,11 @@ pub(crate) fn run(
                 args.next()
                     .ok_or_else(|| Error::Invalid(constants::EXPECTED_EXECUTABLE.into()))?,
             );
-            suite_source.verify_tool(&executable, &suite_source.profile(&directory())?)
+            suite_source.verify_tool(
+                ArtifactPath(&executable),
+                &suite_source.profile(ArtifactPath(&commands::directory()))?,
+            )
         }
         _ => Err(Error::Invalid(constants::USAGE.into())),
     }
-}
-
-fn directory() -> PathBuf {
-    std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(constants::RUFF_DIRECTORY)
-}
-
-fn reference(executable: PathBuf, tool: Tool) -> Result<LinterRuffAdapter, Error> {
-    let defaults = tool
-        .defaults
-        .into_iter()
-        .map(|code| {
-            ryo::linter::RuleId::try_from(code.as_str())
-                .map_err(|error| Error::Invalid(error.to_string()))
-        })
-        .collect::<Result<_, _>>()?;
-    Ok(LinterRuffAdapter::new(LinterRuffSettings {
-        executable,
-        defaults,
-    }))
-}
-
-fn diagnostic_counts(
-    report: &ryo_benchmark::domain::diagnostics::types::RunReport,
-) -> std::collections::BTreeMap<&str, usize> {
-    let mut counts = std::collections::BTreeMap::new();
-    for diagnostic in &report.diagnostics {
-        *counts.entry(diagnostic.rule.as_str()).or_default() += constants::ONE_FINDING;
-    }
-    counts
 }

@@ -3,7 +3,7 @@ use super::{BoundaryFailure, adapter::LinterRuffAdapter, failure, settings::Lint
 use ryo::linter::RuleId;
 use ryo_benchmark::cases::{Case, CaseName, Expect, Word, run};
 use ryo_benchmark::domain::{
-    diagnostics::{errors::Error, types::Diagnostic},
+    diagnostics::{errors::DiagnosticsError as Error, types::BenchmarkFinding},
     measurements::types::ProcessOutput,
     suite::types::RunRequest,
 };
@@ -133,8 +133,8 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
     }
     let mut request = RunRequest {
         root: root.path().to_owned(),
-        files: vec!["case.py".into()],
-        cache: root.path().join("cache"),
+        files: vec![ryo::linter::RelativePath("case.py".into())],
+        state: root.path().join("cache"),
     };
     if matches!(scenario, AdapterScenario::MissingExecutable) {
         return ruff.files(root.path()).map(|_| false);
@@ -155,7 +155,7 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
         .into_iter()
         .map(Into::into)
         .chain([
-            request.cache.join("ruff").into_os_string(),
+            request.state.join("ruff").into_os_string(),
             "--select".into(),
             "E722".into(),
             "--".into(),
@@ -180,7 +180,9 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
         )?;
     }
     if matches!(scenario, AdapterScenario::DuplicateInput) {
-        request.files.push("case.py".into());
+        request
+            .files
+            .push(ryo::linter::RelativePath("case.py".into()));
     }
     let filename = root
         .path()
@@ -206,7 +208,7 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
     };
     let finding = serde_json::to_vec(
         &serde_json::json!([{"code":code,"filename":filename,"cell":null,"location":{"row":3,"column":start},"end_location":{"row":3,"column":end}}]),
-    )?;
+    ).map_err(|error| Error::Json(Box::new(error)))?;
     let (status, stdout) = match scenario {
         AdapterScenario::Operational => (2, b"[]".to_vec()),
         AdapterScenario::MissingCleanFile | AdapterScenario::CleanWarning => (0, b"[]".to_vec()),
@@ -217,21 +219,23 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
     let report = ruff.decode(
         &request,
         ProcessOutput {
-            status,
-            stdout,
-            stderr: b"warning: file-level noqa must be on its own line\n".to_vec(),
+            status: ryo_benchmark::domain::measurements::types::ProcessExitCode(status),
+            stdout: ryo_benchmark::domain::measurements::types::CapturedBytes(stdout),
+            stderr: ryo_benchmark::domain::measurements::types::CapturedBytes(
+                b"warning: file-level noqa must be on its own line\n".to_vec(),
+            ),
             wall: Default::default(),
-            resources: None,
+            resources: ryo_benchmark::domain::measurements::types::ResourceObservation::WallOnly,
         },
     )?;
     let expected = if matches!(scenario, AdapterScenario::CleanWarning) {
         vec![]
     } else {
-        vec![Diagnostic {
-            rule: "E722".into(),
-            file: "case.py".into(),
-            start: 14,
-            end: 20,
+        vec![BenchmarkFinding {
+            rule: RuleId::try_from("E722").expect("fixture rule"),
+            file: ryo::linter::RelativePath("case.py".into()),
+            start: ryo_benchmark::domain::diagnostics::types::SourceByteOffset(14),
+            end: ryo_benchmark::domain::diagnostics::types::SourceByteOffset(20),
         }]
     };
     Ok(report.files == request.files && report.diagnostics == expected)

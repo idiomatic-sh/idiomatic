@@ -1,5 +1,4 @@
 //! Resource instrumentation preserves the execution port's process observations.
-use super::adapter::ExecutionTimedAdapter;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::execution::fixtures::contract::check;
 type Input = ();
@@ -12,7 +11,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
     expect: Expect::Value(()),
 }];
 fn subject(_: Input) -> Result<Value, Failure> {
-    check(&ExecutionTimedAdapter);
+    check(&crate::outbound::execution::factory::timed());
     Ok(())
 }
 #[test]

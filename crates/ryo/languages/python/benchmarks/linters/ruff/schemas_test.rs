@@ -1,6 +1,6 @@
 //! Scalar columns, byte offsets and line-ending boundaries.
 use super::schemas::offset;
-use ryo_benchmark::domain::diagnostics::errors::Error;
+use ryo_benchmark::domain::diagnostics::errors::DiagnosticsError as Error;
 
 #[derive(Debug, PartialEq, Eq)]
 enum BoundaryFailure {

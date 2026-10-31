@@ -3,7 +3,7 @@ use super::{constants, schemas, settings::LinterRuffSettings};
 use ryo::linter::{RelativePath, RuleId, SourceText};
 use ryo_benchmark::domain::measurements::types::{Invocation, ProcessOutput};
 use ryo_benchmark::domain::{
-    diagnostics::{errors::Error, types::RunReport},
+    diagnostics::{errors::DiagnosticsError as Error, types::RunReport},
     suite::{service::relative_path, types::RunRequest},
 };
 use ryo_benchmark::outbound::linter::interface::LinterPort;
@@ -26,14 +26,19 @@ impl LinterPort for LinterRuffAdapter {
             constants::OUTPUT_FORMAT.into(),
             constants::JSON.into(),
             constants::CACHE_DIR.into(),
-            request.cache.join(constants::CACHE_NAME).into_os_string(),
-            "--select".into(),
-            self.defaults.iter().map(ToString::to_string).collect::<Vec<_>>().join(",").into(),
+            request.state.join(constants::CACHE_NAME).into_os_string(),
+            constants::SELECT.into(),
+            self.defaults
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+                .join(constants::RULE_SEPARATOR)
+                .into(),
             constants::END_OPTIONS.into(),
         ];
         for file in &request.files {
-            relative_path(file)?;
-            arguments.push(file.into());
+            relative_path(file.0.as_ref())?;
+            arguments.push(file.0.as_ref().into());
         }
         Ok(Invocation {
             executable: self.executable.clone(),
@@ -48,10 +53,11 @@ impl LinterPort for LinterRuffAdapter {
         schemas::check_status(&output)?;
         let mut sources = BTreeMap::new();
         for file in &request.files {
-            relative_path(file)?;
-            let key = RelativePath(file.clone().into_boxed_str());
-            let source =
-                SourceText(std::fs::read_to_string(request.root.join(file))?.into_boxed_str());
+            relative_path(file.0.as_ref())?;
+            let key = file.clone();
+            let source = SourceText(
+                std::fs::read_to_string(request.root.join(file.0.as_ref()))?.into_boxed_str(),
+            );
             if sources.insert(key, source).is_some() {
                 return Err(Error::Invalid(constants::DUPLICATE_INPUT.into()));
             }

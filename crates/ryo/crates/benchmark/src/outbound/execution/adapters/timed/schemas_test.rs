@@ -17,7 +17,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         },
         expect: Expect::Value(Resources {
             cpu: Duration::from_millis(200),
-            peak_rss_bytes: 12345,
+            peak_rss_bytes: crate::domain::measurements::types::ResidentBytes(12345),
         }),
     },
     Case {

@@ -41,7 +41,7 @@ pub fn check(adapter: &impl WorkerPort) {
                 actual.root == expected.root
                     && actual.rules == expected.rules
                     && actual.files == expected.files
-                    && actual.cache == expected.cache
+                    && actual.state == expected.state
             })
             .map_err(|error| error.to_string()),
         Operation::Respond => adapter

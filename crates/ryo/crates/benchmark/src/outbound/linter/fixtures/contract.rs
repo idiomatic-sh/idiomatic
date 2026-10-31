@@ -1,7 +1,7 @@
 //! Every linter prepares the requested workspace and refuses operational failure.
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::measurements::types::ProcessOutput;
-use crate::domain::{diagnostics::errors::Error, suite::types::RunRequest};
+use crate::domain::{diagnostics::errors::DiagnosticsError as Error, suite::types::RunRequest};
 use crate::outbound::linter::interface::LinterPort;
 use std::{path::PathBuf, time::Duration};
 #[derive(Clone, Copy, Debug)]
@@ -43,8 +43,8 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
 pub fn check(adapter: &impl LinterPort) {
     let request = RunRequest {
         root: PathBuf::new(),
-        cache: PathBuf::new(),
-        files: vec!["input.txt".into()],
+        state: PathBuf::new(),
+        files: vec![ryo::linter::RelativePath("input.txt".into())],
     };
     let subject = |input| match input {
         Input::Prepare => adapter
@@ -54,11 +54,11 @@ pub fn check(adapter: &impl LinterPort) {
         Input::OperationalFailure => match adapter.decode(
             &request,
             ProcessOutput {
-                status: 2,
-                stdout: Vec::new(),
-                stderr: Vec::new(),
+                status: crate::domain::measurements::types::ProcessExitCode(2),
+                stdout: crate::domain::measurements::types::CapturedBytes(Vec::new()),
+                stderr: crate::domain::measurements::types::CapturedBytes(Vec::new()),
                 wall: Duration::ZERO,
-                resources: None,
+                resources: crate::domain::measurements::types::ResourceObservation::WallOnly,
             },
         ) {
             Err(Error::Invalid(_)) => Err(Failure::Operational),

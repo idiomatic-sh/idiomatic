@@ -1,5 +1,4 @@
 //! The concrete local implementation executes the complete shared contract.
-use super::adapter::EngineLocalAdapter;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::engine::fixtures::contract::check;
 type Input = ();
@@ -12,7 +11,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
     expect: Expect::Value(()),
 }];
 fn subject(_: Input) -> Result<Value, Failure> {
-    check(&EngineLocalAdapter::new(ryo::linter::Languages::default()));
+    check(&crate::outbound::engine::factory::local(
+        ryo::linter::Languages::default(),
+        None,
+    ));
     Ok(())
 }
 #[test]

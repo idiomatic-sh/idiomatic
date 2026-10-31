@@ -1,5 +1,5 @@
 //! Stateful worker transport double records receive and response ordering evidence.
-use crate::domain::diagnostics::{errors::Error, types::RunReport};
+use crate::domain::diagnostics::{errors::DiagnosticsError as Error, types::RunReport};
 use crate::domain::suite::types::WorkerRequest;
 use crate::outbound::worker::interface::WorkerPort;
 use std::sync::{

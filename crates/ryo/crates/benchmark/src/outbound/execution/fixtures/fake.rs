@@ -1,5 +1,6 @@
 //! A deterministic process substitute records the observable result of fixture calls.
-use crate::domain::diagnostics::errors::Error;
+use crate::domain::diagnostics::errors::DiagnosticsError as Error;
+use crate::domain::measurements::types::{CapturedBytes, ProcessExitCode, ResourceObservation};
 use crate::domain::measurements::types::{Invocation, ProcessOutput};
 use crate::outbound::execution::interface::ExecutionPort;
 use std::{path::Path, time::Duration};
@@ -21,13 +22,24 @@ impl Default for ExecutionFake {
 }
 impl ExecutionPort for ExecutionFake {
     fn run(&self, invocation: Invocation) -> Result<ProcessOutput, Error> {
-        if invocation.executable.file_name().is_some_and(|name| name == "invalid-format") {
+        if invocation
+            .executable
+            .file_name()
+            .is_some_and(|name| name == "invalid-format")
+        {
             return Err(std::io::Error::from_raw_os_error(8).into());
         }
-        if invocation.arguments.iter().any(|argument| argument == "kill -TERM $$") {
+        if invocation
+            .arguments
+            .iter()
+            .any(|argument| argument == "kill -TERM $$")
+        {
             return Err(Error::Invalid("fixture child terminated by signal".into()));
         }
-        let large = invocation.arguments.iter().any(|argument| argument.to_string_lossy().contains("/dev/zero"));
+        let large = invocation
+            .arguments
+            .iter()
+            .any(|argument| argument.to_string_lossy().contains("/dev/zero"));
         if invocation
             .executable
             .file_name()
@@ -61,19 +73,19 @@ impl ExecutionPort for ExecutionFake {
             .expect("fixture history")
             .push(invocation);
         Ok(ProcessOutput {
-            status,
-            stdout: if large {
+            status: ProcessExitCode(status),
+            stdout: CapturedBytes(if large {
                 vec![0; 131072]
             } else {
                 b"payload".to_vec()
-            },
-            stderr: if large {
+            }),
+            stderr: CapturedBytes(if large {
                 vec![0; 131072]
             } else {
                 b"issue".to_vec()
-            },
+            }),
             wall: Duration::ZERO,
-            resources: None,
+            resources: ResourceObservation::WallOnly,
         })
     }
 }

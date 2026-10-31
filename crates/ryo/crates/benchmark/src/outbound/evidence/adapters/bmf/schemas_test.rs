@@ -3,7 +3,7 @@ use super as schemas;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::{
     diagnostics::types::RunReport,
-    measurements::types::{Measurement, Resources, Sample},
+    measurements::types::{BenchmarkSample, Measurement, Resources},
 };
 use std::time::Duration;
 
@@ -28,17 +28,25 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn subject(resources: bool) -> Result<serde_json::Value, bool> {
     let samples: Vec<_> = [2, 8, 4, 6]
         .into_iter()
-        .map(|millis| Sample {
-            name: "project/ryo/empty-tool-cache".into(),
+        .map(|millis| BenchmarkSample {
+            name: crate::domain::measurements::types::SampleName(
+                "project/ryo/empty-tool-cache".into(),
+            ),
             measurement: Measurement {
                 wall: Duration::from_millis(millis),
-                resources: resources.then_some(Resources {
-                    cpu: Duration::from_millis(millis * 2),
-                    peak_rss_bytes: millis * 1024,
-                }),
+                resources: if resources {
+                    crate::domain::measurements::types::ResourceObservation::Collected(Resources {
+                        cpu: Duration::from_millis(millis * 2),
+                        peak_rss_bytes: crate::domain::measurements::types::ResidentBytes(
+                            millis * 1024,
+                        ),
+                    })
+                } else {
+                    crate::domain::measurements::types::ResourceObservation::WallOnly
+                },
                 report: RunReport {
                     diagnostics: Vec::new(),
-                    files: vec!["input.py".into()],
+                    files: vec![ryo::linter::RelativePath("input.py".into())],
                 },
             },
         })
