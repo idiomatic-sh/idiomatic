@@ -55,9 +55,19 @@ impl ParseContract {
 impl Parse for ParseContract {
     type FileModel = Declarations;
 
+    fn capabilities(&self) -> &'static [languages::OptionalCapability] {
+        &[
+            languages::OptionalCapability::Identifier,
+            languages::OptionalCapability::QualifiedName,
+            languages::OptionalCapability::EmbeddedExpression,
+        ]
+    }
+
     fn file_model(&self, tree: &languages::Tree<'_>, model: &mut Declarations) {
         crate::domain::indentation::service::clear(model.indentation.get_mut());
         crate::domain::qualification::service::clear(model.qualification.get_mut());
+        model.semantic.get_mut().roots.clear();
+        model.semantic.get_mut().state = crate::domain::model::types::QualificationState::Fresh;
         declare(tree, model);
         crate::domain::bindings::service::index(tree, model);
     }
@@ -164,6 +174,20 @@ impl Parse for ParseContract {
 
     fn static_call(&self) -> Support<Reader<languages::StaticCall, Declarations>> {
         languages::reads::<StaticCallItem>()
+    }
+
+    fn embedded_expression(
+        &self,
+    ) -> Support<Reader<languages::EmbeddedExpression, Self::FileModel>> {
+        languages::reads::<crate::domain::relations::collections::relations::embedded_expression::item::EmbeddedExpressionItem>()
+    }
+
+    fn semantic_syntax(&self) -> Support<Reader<languages::SemanticSyntax, Self::FileModel>> {
+        languages::reads::<crate::domain::relations::collections::relations::semantic_syntax::item::SemanticSyntaxItem>()
+    }
+
+    fn semantic_child(&self) -> Support<Reader<languages::SemanticChild, Self::FileModel>> {
+        languages::reads::<crate::domain::relations::collections::relations::semantic_child::item::SemanticChildItem>()
     }
 
     fn identifier(&self) -> Support<Reader<languages::Identifier, Declarations>> {

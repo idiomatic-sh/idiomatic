@@ -230,6 +230,7 @@ fn read(
 ) -> Result<Collect, ParseError> {
     let mut out = Collect::default();
     let mut symbols = Symbols::default();
+    let mut elements = Elements::default();
     read_file(
         subject,
         ParseRequest {
@@ -237,13 +238,63 @@ fn read(
             file: FileId(0),
             bytes,
             notes: NoteRequest::Unwanted,
-            fields: FieldRequest::Unwanted,
+            fields: if wanted.contains(&Relation::SemanticChild) {
+                FieldRequest::Wanted
+            } else {
+                FieldRequest::Unwanted
+            },
         },
-        &mut Elements::default(),
+        &mut elements,
         &mut symbols,
         wanted,
         &mut out,
     )?;
+    if wanted.contains(&Relation::SemanticSyntax) {
+        assert!(
+            semantic_spans_valid(
+                &out,
+                bytes.0.len(),
+                wanted.contains(&Relation::SourceLocation),
+                |id| positions(&elements).any(|position| {
+                    crate::domain::relations::service::node_id(FileId(0), position).0 == id
+                        && crate::domain::elements::service::flags_at(&elements, position).0
+                            & crate::domain::relations::constants::IMPLIED.0
+                            != 0
+                })
+            ),
+            "semantic occurrences must retain bounded physical spans and matching source coordinates"
+        );
+    }
+    if wanted.contains(&Relation::SemanticSyntax)
+        && wanted.contains(&Relation::SyntaxTree)
+        && wanted.contains(&Relation::SemanticChild)
+        && wanted.contains(&Relation::SyntaxChild)
+        && crate::domain::expansions::service::embedded_expressions(&elements)
+            .next()
+            .is_none()
+    {
+        assert!(
+            projection_preserves_native(&out),
+            "without embedded expressions the semantic view must preserve every native row and edge exactly"
+        );
+        let mut fields: Vec<_> = out
+            .rows()
+            .into_iter()
+            .filter_map(|(relation, row)| {
+                (relation == Relation::SyntaxChild)
+                    .then(|| row.get(3).copied())
+                    .flatten()
+            })
+            .collect();
+        fields.sort_unstable();
+        fields.dedup();
+        assert!(
+            fields
+                .into_iter()
+                .all(|field| filtered_projection_valid(&out, field)),
+            "native and semantic child field predicates must select the same edges"
+        );
+    }
     for (relation, row) in out.rows() {
         if relation == Relation::Identifier {
             assert!(
@@ -259,6 +310,79 @@ fn read(
         }
     }
     Ok(out)
+}
+
+/// Without embedded expressions, projection must not add, omit, or alter native syntax.
+fn projection_preserves_native(out: &Collect) -> bool {
+    [
+        (Relation::SyntaxTree, Relation::SemanticSyntax),
+        (Relation::SyntaxChild, Relation::SemanticChild),
+    ]
+    .into_iter()
+    .all(|(native, semantic)| {
+        let mut original: Vec<_> = out
+            .rows()
+            .into_iter()
+            .filter_map(|(relation, row)| (relation == native).then_some(row))
+            .collect();
+        let mut projected: Vec<_> = out
+            .rows()
+            .into_iter()
+            .filter_map(|(relation, row)| (relation == semantic).then_some(row))
+            .collect();
+        original.sort();
+        projected.sort();
+        original == projected
+    })
+}
+
+/// Compare the consumer-visible result of a field equality predicate, not only row counts.
+fn filtered_projection_valid(out: &Collect, field: u64) -> bool {
+    let select = |wanted| {
+        let mut selected: Vec<_> = out
+            .rows()
+            .into_iter()
+            .filter_map(|(relation, row)| {
+                (relation == wanted && row.get(3) == Some(&field)).then_some(row)
+            })
+            .collect();
+        selected.sort();
+        selected
+    };
+    select(Relation::SyntaxChild) == select(Relation::SemanticChild)
+}
+
+/// Logical token lengths cannot replace physical source offsets, even after decoding.
+fn semantic_spans_valid(
+    out: &Collect,
+    length: usize,
+    coordinates: bool,
+    implied: impl Fn(u64) -> bool,
+) -> bool {
+    let rows = out.rows();
+    rows.iter()
+        .filter(|(relation, _)| *relation == Relation::SemanticSyntax)
+        .all(|(_, row)| {
+            let [id, _, _, _, span] = row.as_slice() else {
+                return false;
+            };
+            let start = span >> 32_u32;
+            let end = span & u64::from(u32::MAX);
+            if start == u64::from(u32::MAX) && end == 0 {
+                return implied(*id)
+                    && !rows.iter().any(|(relation, coordinate)| {
+                        *relation == Relation::SourceLocation && coordinate.first() == Some(id)
+                    });
+            }
+            start <= end
+                && end <= u64::try_from(length).unwrap_or(u64::MAX)
+                && (!coordinates
+                    || rows.iter().any(|(relation, coordinate)| {
+                        *relation == Relation::SourceLocation
+                            && coordinate.first() == Some(id)
+                            && coordinate.get(2) == Some(span)
+                    }))
+        })
 }
 
 /// A normalized identifier remains a known spelling and an actual, nonempty source occurrence.

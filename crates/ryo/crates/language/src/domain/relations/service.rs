@@ -38,6 +38,9 @@ macro_rules! each_relation {
                 SyntaxChild syntax_child SyntaxChildRow SyntaxChildColumn;
                 SyntaxError syntax_error SyntaxErrorRow SyntaxErrorColumn;
                 SyntaxTree syntax_tree SyntaxTreeRow SyntaxTreeColumn;
+                SemanticSyntax semantic_syntax SemanticSyntaxRow SemanticSyntaxColumn;
+                SemanticChild semantic_child SemanticChildRow SemanticChildColumn;
+                EmbeddedExpression embedded_expression EmbeddedExpressionRow EmbeddedExpressionColumn;
                 SourceLocation source_location SourceLocationRow SourceLocationColumn;
                 IndentRegion indent_region IndentRegionRow IndentRegionColumn;
                 Mapping mapping MappingRow MappingColumn;
@@ -367,5 +370,25 @@ pub fn location(span: Span) -> super::types::Locatedness {
         super::types::Locatedness::Absent
     } else {
         super::types::Locatedness::Located
+    }
+}
+
+/// The explicit optional promise of a relation; all other relations remain mandatory.
+#[must_use]
+pub fn optional_capability(relation: Relation) -> Option<super::types::OptionalCapability> {
+    super::constants::OPTIONAL_CAPABILITIES
+        .iter()
+        .copied()
+        .find(|capability| capability_relation(*capability) == relation)
+}
+
+/// The catalog relation promised by an optional capability.
+#[must_use]
+pub const fn capability_relation(capability: super::types::OptionalCapability) -> Relation {
+    use super::types::OptionalCapability;
+    match capability {
+        OptionalCapability::Identifier => Relation::Identifier,
+        OptionalCapability::QualifiedName => Relation::QualifiedName,
+        OptionalCapability::EmbeddedExpression => Relation::EmbeddedExpression,
     }
 }

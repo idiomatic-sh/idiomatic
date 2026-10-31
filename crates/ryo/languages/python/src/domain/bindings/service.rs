@@ -3,7 +3,7 @@
 
 use ryo::languages::{self, Position, Symbol, Tree};
 
-use super::types::{BindingAvailability, ScopeExecution};
+use super::types::{BindingAvailability, EvaluationReach, ScopeExecution};
 use crate::domain::definitions::service::definition;
 use crate::domain::model::types::{BindingKey, Declarations, LexicalBinding};
 use crate::domain::nodes::types::Node;
@@ -14,7 +14,7 @@ use crate::domain::syntax::types::Kind;
 /// Index each declaration once, after scope redirects have been collected.
 pub(crate) fn index(tree: &Tree<'_>, model: &mut Declarations) {
     model.bindings.clear();
-    for at in languages::positions(tree.elements) {
+    for at in (0..languages::end_of(tree.elements).0).map(Position) {
         if let Some(found) = definition(tree, model, at) {
             model.bindings.push(LexicalBinding {
                 key: BindingKey {
@@ -26,6 +26,22 @@ pub(crate) fn index(tree: &Tree<'_>, model: &mut Declarations) {
         }
     }
     model.bindings.sort_unstable();
+}
+
+/// A parsed string's bindings apply within its own expression and nested parsed
+/// expressions, never to native code or an unrelated quoted expression.
+fn evaluation_reach(tree: &Tree<'_>, binding: Position, occurrence: Position) -> EvaluationReach {
+    let Some(binding_source) = languages::embedded_source_at(tree.elements, binding) else {
+        return EvaluationReach::Shared;
+    };
+    let mut occurrence = occurrence;
+    while let Some(source) = languages::embedded_source_at(tree.elements, occurrence) {
+        if source.root == binding_source.root {
+            return EvaluationReach::Shared;
+        }
+        occurrence = source.host;
+    }
+    EvaluationReach::Isolated
 }
 
 /// Whether execution of this scope is deferred relative to its surrounding statements.
@@ -108,7 +124,8 @@ pub(crate) fn resolve(
                 )
             );
             if let Some(found) = bindings.iter().rev().find(|binding| {
-                (delayed || binding.position < at)
+                evaluation_reach(tree, binding.position, at) == EvaluationReach::Shared
+                    && (delayed || binding.position < at)
                     && (delayed
                         || lexical
                         || availability(tree, binding.position, at)
@@ -116,8 +133,12 @@ pub(crate) fn resolve(
             }) {
                 return Some(found.position);
             }
-            if lexical {
-                return bindings.first().map(|binding| binding.position);
+            if lexical
+                && let Some(binding) = bindings.iter().find(|binding| {
+                    evaluation_reach(tree, binding.position, at) == EvaluationReach::Shared
+                })
+            {
+                return Some(binding.position);
             }
         }
         delayed |= execution(tree, scope) == ScopeExecution::Deferred;

@@ -40,6 +40,7 @@ fn subject((scope, name): Input) -> Value {
         bindings: Vec::default(),
         indentation: RefCell::default(),
         qualification: RefCell::default(),
+        semantic: RefCell::default(),
         declared: vec![
             ScopeDeclaration {
                 scope: Position(3),

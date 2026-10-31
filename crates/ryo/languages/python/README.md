@@ -114,3 +114,35 @@ it not yet read where the construct applies.
 The `identifier` relation exposes Python's parser-normalized lexical names while `syntax-tree` tokens preserve the original spelling. Its occurrence is the `Name` expression or identifier field node (including attribute names and import aliases); spans always describe source bytes before NFKC normalization. Dotted import fields retain their full canonical path, and wildcard imports are not identifiers. This relation does not resolve bindings. Shared conformance rejects unknown or empty names and non-source spans; Python cases exercise normalized aliases, builtin shadowing, attributes, raw token preservation, and model reuse.
 
 Qualified names follow static lexical binding provenance: wildcard imports do not erase an explicitly known binding or builtin fallback. An unresolved name under a wildcard remains ambiguous, and explicit assignments or deletions still change provenance. This contract does not claim the runtime value imported by a wildcard cannot replace that binding.
+
+### Embedded annotation expressions
+
+`syntax-tree` and `syntax-child` retain the physical, lossless Python tree. The
+explicit `semantic-syntax` and `semantic-child` projection also includes parsed
+quoted type expressions. `embedded-expression` relates each parsed root to its
+source carrier and records its evaluation context and source-map fidelity.
+Identifiers, lexical qualified names, string literals, and source coordinates
+use the same occurrence identities in this view.
+
+A single string whose raw content equals its decoded value has precise content
+coordinates. Escaped or implicitly concatenated strings retain decoded logical
+tokens but map every embedded diagnostic interval to the whole source carrier.
+Different occurrences can therefore have identical physical spans; consumers
+must retain occurrence identity when preserving diagnostic multiplicity.
+
+Explicit annotation fields and resolved `typing`/`typing_extensions` cast,
+NewType, TypeVar, and explicit TypeAlias operands establish type context.
+Literal arguments and Annotated metadata remain values. Callable shadowing is
+resolved through lexical provenance, and ordinary strings never become visible
+semantic expressions merely because their contents parse. An invalid quoted
+expression contributes no fabricated AST and does not make unrelated native
+syntax incomplete. Other typing API contexts remain outside this initial
+implementation.
+
+The shared provider contract checks native projection equality, physical span
+bounds, matching source coordinates, and field-predicate equivalence. The core
+visit tests require semantic child field predicates to request role metadata.
+Python examples independently cover decoding, deferred imports, literal and
+metadata exclusions, callable shadowing, and valid/invalid/empty model reuse.
+The parser-baseline contract also checks that a discarding builder traverses an
+embedded expression without dereferencing a nonexistent stored carrier.

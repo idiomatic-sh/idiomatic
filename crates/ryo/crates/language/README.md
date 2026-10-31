@@ -63,3 +63,46 @@ The language domain's `trees` concept: a file's tree written from its library's 
 ### words
 
 The language domain's `words` concept: a value written as numbers, so it can leave a file and wait in the store.
+
+## Semantic syntax projections
+
+`semantic-syntax` and `semantic-child` are explicit projections, separate from
+native lossless syntax. Providers without embedded expressions reuse the shared
+native projection readers. A provider that parses an embedded expression keeps
+its logical token text as owned derived symbols and records its physical source
+mapping independently. `embedded-expression` identifies the carrier, root,
+evaluation context, and mapping fidelity. An embedded occurrence is distinct
+from a macro expansion and from parser-implied syntax.
+
+Every provider inherits conformance checks for native row and field-predicate
+preservation when there are no embeddings, physical span bounds, source-coordinate
+identity, and deterministic retained-table reuse. Field predicates also participate
+in core demand planning: requesting a semantic edge field must request its roles,
+even when that field is filtered out of the final query result.
+
+### Advertised optional capabilities
+
+Every parser explicitly declares its `OptionalCapability` set. The three optional promises
+are canonical identifiers, qualified-name provenance, and embedded expressions. Every other
+catalog relation remains the required baseline, including both semantic syntax projections.
+Advertising a capability promises either a tested reader or a documented language absence;
+it cannot return `NotYetRead`. Duplicate declarations fail conformance.
+
+An unadvertised optional reader is never invoked. Its absence is `NotYetRead`, and a direct
+read records missing rows rather than a known-empty relation. The conformance run prints
+all unavailable capabilities even when the provider otherwise passes. Retained-reader
+checks exercise unavailable → advertised → unavailable requests; native projections,
+field filtering, source mapping, and reparse checks remain shared requirements.
+
+Current availability is explicit:
+
+| Providers | Optional promises |
+| --- | --- |
+| Python | All three, with readers and independent fixtures |
+| JSON, TOML | Identifier and qualified-name language absence |
+| Markdown | Qualified-name language absence |
+| CSS, Go, HTML, JavaScript, Rust, TypeScript | None; these optional facts remain unavailable |
+
+The parser-implied nodes of languages such as HTML retain their explicit absent source
+span in the semantic projection. Shared guards accept that only for an actual implied
+node, require no fabricated source-location row, and still reject unlocated ordinary nodes.

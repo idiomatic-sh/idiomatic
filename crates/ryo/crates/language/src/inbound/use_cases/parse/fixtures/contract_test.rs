@@ -7,6 +7,14 @@ use crate::domain::relations::{
 };
 #[derive(Clone, Copy, Debug)]
 enum Operation {
+    /// The semantic projection must preserve native identities and values.
+    Projection(u64),
+    /// A field predicate must preserve its native selected edges.
+    FieldProjection(u64),
+    /// Physical span bounds do not follow the length of decoded logical text.
+    SemanticSpan(u64),
+    /// Explicit parser-implied nodes have no fabricated physical coordinates.
+    ImpliedSpan(u64),
     /// Canonical spelling and original source interval.
     Identifier(Option<&'static str>, u64),
     Partial,
@@ -17,6 +25,54 @@ type Input = Operation;
 type Value = bool;
 type Failure = ();
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("parser implied semantic node retains absent span"),
+        word: Word::Succeeds,
+        input: || Operation::ImpliedSpan(u64::from(u32::MAX) << 32_u32),
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("ordinary semantic node cannot invent absent span"),
+        word: Word::Succeeds,
+        input: || Operation::SemanticSpan(u64::from(u32::MAX) << 32_u32),
+        expect: Expect::Value(false),
+    },
+    Case {
+        name: CaseName("semantic field predicate selects native edge"),
+        word: Word::Succeeds,
+        input: || Operation::FieldProjection(7),
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("uncomputed semantic field cannot silently lose native match"),
+        word: Word::Succeeds,
+        input: || Operation::FieldProjection(0),
+        expect: Expect::Value(false),
+    },
+    Case {
+        name: CaseName("semantic projection preserves native rows"),
+        word: Word::Succeeds,
+        input: || Operation::Projection(7),
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("semantic projection cannot replace native token text"),
+        word: Word::Succeeds,
+        input: || Operation::Projection(11),
+        expect: Expect::Value(false),
+    },
+    Case {
+        name: CaseName("semantic span may cover a complete physical carrier"),
+        word: Word::Succeeds,
+        input: || Operation::SemanticSpan(6),
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("semantic span beyond physical file is refused"),
+        word: Word::Succeeds,
+        input: || Operation::SemanticSpan(7),
+        expect: Expect::Value(false),
+    },
     Case {
         name: CaseName("normalized identifier can differ in byte length"),
         word: Word::Succeeds,
@@ -129,6 +185,30 @@ fn qualified(origin: &str, path: Option<&str>, major: u64, minor: u64) -> Result
 fn subject(operation: Input) -> Result<Value, Failure> {
     let mut output = Collect::default();
     match operation {
+        Operation::FieldProjection(field) => {
+            output
+                .relations
+                .extend([Relation::SyntaxChild, Relation::SemanticChild]);
+            output.words.extend([3, 5, 0, 7, 0, 3, 5, 0, field, 0]);
+            Ok(super::filtered_projection_valid(&output, 7))
+        }
+        Operation::Projection(text) => {
+            output
+                .relations
+                .extend([Relation::SyntaxTree, Relation::SemanticSyntax]);
+            output.words.extend([3, 5, 7, 0, 1, 3, 5, text, 0, 1]);
+            Ok(super::projection_preserves_native(&output))
+        }
+        Operation::SemanticSpan(end) => {
+            output.relations.push(Relation::SemanticSyntax);
+            output.words.extend([3, 5, 7, 0, end]);
+            Ok(super::semantic_spans_valid(&output, 6, false, |_| false))
+        }
+        Operation::ImpliedSpan(span) => {
+            output.relations.push(Relation::SemanticSyntax);
+            output.words.extend([3, 5, 7, 0, span]);
+            Ok(super::semantic_spans_valid(&output, 6, false, |id| id == 3))
+        }
         Operation::Identifier(name, span) => {
             use crate::domain::{
                 symbols::{

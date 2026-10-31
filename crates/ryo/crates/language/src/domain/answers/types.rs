@@ -160,7 +160,7 @@ impl<M: 'static> ReadItem for SourceLocationReader<M> {
     > = Reader {
         reads: Reads::Every,
         visit: &Self(std::marker::PhantomData),
-        expansions: Expansions::Ignored,
+        expansions: Expansions::Included,
         relation: std::marker::PhantomData,
     };
 }
@@ -204,6 +204,100 @@ impl<M>
             end_byte: crate::domain::relations::types::Integer(i64::from(span.end.0)),
             start_column: crate::domain::relations::types::Integer(column(index, SourceLineOffset(span.start.0)).0),
             end_column: crate::domain::relations::types::Integer(column(index, SourceLineOffset(span.end.0)).0),
+        });
+    }
+}
+
+/// Shared native projection used by providers without embedded expressions.
+#[derive(Debug)]
+pub(crate) struct NativeSemanticSyntax<M>(
+    pub std::marker::PhantomData<std::sync::atomic::AtomicPtr<M>>,
+);
+impl<M> declared::Syntax for NativeSemanticSyntax<M> {}
+impl<M: 'static> ReadItem for NativeSemanticSyntax<M> {
+    type Relation =
+        crate::domain::relations::collections::relations::semantic_syntax::item::SemanticSyntax;
+    type Model = M;
+    const READER: Reader<Self::Relation, M> = Reader {
+        reads: Reads::Every,
+        visit: &Self(std::marker::PhantomData),
+        expansions: Expansions::Ignored,
+        relation: std::marker::PhantomData,
+    };
+}
+impl<M>
+    Visiting<
+        crate::domain::relations::collections::relations::semantic_syntax::item::SemanticSyntax,
+        M,
+    > for NativeSemanticSyntax<M>
+{
+    fn visit(
+        &self,
+        tree: &Tree<'_>,
+        _model: &M,
+        _symbols: &mut Symbols,
+        position: Position,
+        out: &mut dyn Rows<crate::domain::relations::collections::relations::semantic_syntax::item::SemanticSyntaxRow>,
+    ) {
+        use crate::domain::elements::service::{end_at, kind_at, kind_names, start_at, text_at};
+        let Some(kind) = kind_names(tree.elements)
+            .get(usize::from(kind_at(tree.elements, position).0))
+            .copied()
+        else {
+            return;
+        };
+        out.write(crate::domain::relations::collections::relations::semantic_syntax::item::SemanticSyntaxRow {
+            id: crate::domain::relations::service::node_id(tree.file, position),
+            kind,
+            text: text_at(tree.elements, position),
+            file: tree.file,
+            span: crate::domain::relations::types::Span { start: start_at(tree.elements, position), end: end_at(tree.elements, position) },
+        });
+    }
+}
+
+/// Shared native edge projection; providers with embeddings supply explicit alternatives.
+#[derive(Debug)]
+pub(crate) struct NativeSemanticChild<M>(
+    pub std::marker::PhantomData<std::sync::atomic::AtomicPtr<M>>,
+);
+impl<M> declared::Syntax for NativeSemanticChild<M> {}
+impl<M: 'static> ReadItem for NativeSemanticChild<M> {
+    type Relation =
+        crate::domain::relations::collections::relations::semantic_child::item::SemanticChild;
+    type Model = M;
+    const READER: Reader<Self::Relation, M> = Reader {
+        reads: Reads::Every,
+        visit: &Self(std::marker::PhantomData),
+        expansions: Expansions::Ignored,
+        relation: std::marker::PhantomData,
+    };
+}
+impl<M>
+    Visiting<
+        crate::domain::relations::collections::relations::semantic_child::item::SemanticChild,
+        M,
+    > for NativeSemanticChild<M>
+{
+    fn visit(
+        &self,
+        tree: &Tree<'_>,
+        _model: &M,
+        _symbols: &mut Symbols,
+        position: Position,
+        out: &mut dyn Rows<crate::domain::relations::collections::relations::semantic_child::item::SemanticChildRow>,
+    ) {
+        use crate::domain::elements::service::{field_name_at, ordinal_at, parent_at};
+        let parent = parent_at(tree.elements, position);
+        if parent == position {
+            return;
+        }
+        out.write(crate::domain::relations::collections::relations::semantic_child::item::SemanticChildRow {
+            parent: crate::domain::relations::service::node_id(tree.file, parent),
+            child: crate::domain::relations::service::node_id(tree.file, position),
+            ordinal: crate::domain::relations::types::Integer(i64::from(ordinal_at(tree.elements, position).0)),
+            field: field_name_at(tree.elements, position),
+            file: tree.file,
         });
     }
 }

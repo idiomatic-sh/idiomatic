@@ -129,3 +129,31 @@ pub fn is_key(column: Column) -> ColumnKeyness {
         ColumnKeyness::Plain
     }
 }
+
+/// Preserve native syntax exactly in the explicit semantic projection.
+#[must_use]
+pub fn native_semantic_syntax<M>() -> Support<
+    Reader<
+        crate::domain::relations::collections::relations::semantic_syntax::item::SemanticSyntax,
+        M,
+    >,
+>
+where
+    M: 'static,
+{
+    reads::<super::types::NativeSemanticSyntax<M>>()
+}
+
+/// Preserve native parent, ordinal, and field identities in the semantic projection.
+#[must_use]
+pub fn native_semantic_child<M>() -> Support<
+    Reader<
+        crate::domain::relations::collections::relations::semantic_child::item::SemanticChild,
+        M,
+    >,
+>
+where
+    M: 'static,
+{
+    reads::<super::types::NativeSemanticChild<M>>()
+}

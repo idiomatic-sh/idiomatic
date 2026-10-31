@@ -31,6 +31,9 @@ macro_rules! syntax_methods {
 
 /// What a language offers for its files.
 pub trait ParseUseCase: Send + Sync {
+    /// Optional semantic capabilities this provider promises to answer, including proven language absence.
+    fn capabilities(&self) -> &'static [crate::domain::relations::types::OptionalCapability];
+
     /// What the language works out of a file once, when it parses it, for its readers to read: an index of the file, so that no reader
     /// searches the file again for each element it is given. A language that works out nothing has `()`. The engine makes one for each
     /// worker, keeps it between files and gives it back to `file_model` to refill, so that a file costs no allocation the model of the last

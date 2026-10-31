@@ -31,3 +31,9 @@ pub(crate) mod qualified_name;
 
 /// Canonical lexical identifiers.
 pub(crate) mod identifier;
+
+pub(crate) mod semantic_syntax;
+
+pub(crate) mod semantic_child;
+
+pub(crate) mod embedded_expression;

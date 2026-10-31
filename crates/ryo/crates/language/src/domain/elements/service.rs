@@ -15,7 +15,7 @@ use crate::domain::relations::types::ReportText;
 use crate::domain::relations::types::{
     Bytes, Count, ElementOrigin, Extent, FieldId, Flags, KindBits, Offset, Position, PropertyId,
 };
-use crate::domain::symbols::service::{clear_symbols, intern};
+use crate::domain::symbols::service::{clear_symbols, intern, intern_derived};
 use crate::domain::symbols::types::Symbols;
 use crate::domain::terms::types::ChildOrdinal;
 use crate::domain::terms::types::NameText;
@@ -50,6 +50,7 @@ pub fn clear_elements(elements: &mut Elements) {
     engine.source_order = SourceOrder::Forward;
     engine.field_names.clear();
     engine.expanded.clear();
+    engine.embedded.clear();
     engine.decoded.clear();
     engine.decoded_text.0.clear();
     engine.names.clear();
@@ -81,6 +82,12 @@ pub(crate) fn builder_engine<'b, 'a>(
     builder: &'b mut TableBuilder<'a>,
 ) -> &'b mut BuilderEngine<'a> {
     builder.as_mut()
+}
+
+/// The identity of the next element the builder will append.
+#[must_use]
+pub fn builder_position(builder: &mut TableBuilder<'_>) -> Position {
+    end_of(builder_engine(builder).elements)
 }
 
 /// The position the next element takes: the table holds this many elements, those the language added for reading included.
@@ -268,6 +275,7 @@ pub fn discarding_builder<'a>(
         elements,
         symbols,
         source,
+        logical_source: None,
         writing: TableWriting::Discards,
     })
 }
@@ -307,7 +315,7 @@ pub fn token(builder: &mut TableBuilder<'_>, kind: KindBits, start: Offset, end:
     if builder.writing == TableWriting::Discards {
         return;
     }
-    let text = intern(builder.symbols, builder.source, start, end);
+    let text = token_name(builder, start, end);
     push(builder.elements, kind, TOKEN, start, end, text);
 }
 
@@ -324,7 +332,7 @@ pub fn decoded_token(
     if builder.writing == TableWriting::Discards {
         return;
     }
-    let text = intern(builder.symbols, builder.source, start, end);
+    let text = token_name(builder, start, end);
     let element = pushed(builder.elements, kind, TOKEN, start, end, text);
     let table = engine_mut(builder.elements);
     let texts = &mut table.decoded_text;
@@ -337,6 +345,23 @@ pub fn decoded_token(
         from,
         to,
     });
+}
+
+/// Logical embedded text must outlive the temporary parser buffer as a derived name.
+fn token_name(builder: &mut BuilderEngine<'_>, start: Offset, end: Offset) -> Symbol {
+    if let Some(source) = builder.logical_source {
+        let bytes = source
+            .0
+            .get(
+                usize::try_from(start.0).unwrap_or(usize::MAX)
+                    ..usize::try_from(end.0).unwrap_or(usize::MAX),
+            )
+            .unwrap_or_default();
+        let text = std::str::from_utf8(bytes).unwrap_or_default();
+        intern_derived(builder.symbols, builder.source, NameText(text))
+    } else {
+        intern(builder.symbols, builder.source, start, end)
+    }
 }
 
 /// The text the token at `at` stands for, when the language's library decoded it.
@@ -414,6 +439,7 @@ pub fn table_builder<'a>(
         elements,
         symbols,
         source,
+        logical_source: None,
         writing: TableWriting::Writes,
     })
 }
@@ -567,6 +593,11 @@ pub fn origin_at(elements: &Elements, at: Position) -> ElementOrigin {
     if flags_at(elements, at).0 & IMPLIED.0 != 0 {
         return ElementOrigin::Implied;
     }
+    if let Some(embedded) = embedded_source_at(elements, at) {
+        return ElementOrigin::Embedded {
+            host: embedded.host,
+        };
+    }
     let expanded = &engine(elements).expanded;
     expanded
         .binary_search_by(|each| each.element.cmp(&at))
@@ -576,6 +607,20 @@ pub fn origin_at(elements: &Elements, at: Position) -> ElementOrigin {
             call_site: mark.call_site,
             expansion: mark.expansion,
         })
+}
+
+/// The source carrier of one appended occurrence. Native syntax has no carrier.
+#[must_use]
+pub fn embedded_source_at(
+    elements: &Elements,
+    at: Position,
+) -> Option<crate::domain::relations::types::EmbeddedSource> {
+    let sources = &engine(elements).embedded;
+    let next = sources.partition_point(|source| source.root <= at);
+    next.checked_sub(1)
+        .and_then(|index| sources.get(index))
+        .filter(|source| at < source.end)
+        .copied()
 }
 
 /// Opens a node the parser created without a source location.

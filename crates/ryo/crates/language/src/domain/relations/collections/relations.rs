@@ -42,3 +42,9 @@ pub mod qualified_name;
 
 /// Canonical lexical identifier occurrences.
 pub mod identifier;
+
+pub mod semantic_syntax;
+
+pub mod semantic_child;
+
+pub mod embedded_expression;

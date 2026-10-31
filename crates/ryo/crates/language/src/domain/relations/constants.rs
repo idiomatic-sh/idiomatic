@@ -154,3 +154,10 @@ pub const IMPLIED: Flags = Flags(2);
 
 /// The displayed value of a location explicitly absent from the parser tree.
 pub const UNLOCATED: &str = "unlocated";
+
+/// The closed set of optional semantic promises; every other relation is baseline.
+pub const OPTIONAL_CAPABILITIES: &[super::types::OptionalCapability] = &[
+    super::types::OptionalCapability::Identifier,
+    super::types::OptionalCapability::QualifiedName,
+    super::types::OptionalCapability::EmbeddedExpression,
+];

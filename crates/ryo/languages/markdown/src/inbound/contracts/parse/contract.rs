@@ -43,6 +43,10 @@ impl ParseContract {
 impl Parse for ParseContract {
     type FileModel = Sections;
 
+    fn capabilities(&self) -> &'static [languages::OptionalCapability] {
+        &[languages::OptionalCapability::QualifiedName]
+    }
+
     fn file_model(&self, tree: &languages::Tree<'_>, model: &mut Sections) {
         settle(tree, model);
     }
@@ -212,6 +216,20 @@ impl Parse for ParseContract {
     fn call_argument(&self) -> Support<Reader<languages::CallArgument, Sections>> {
         // standard: mdast.md, Nodes: mdast defines no call, so no argument of one.
         languages::absent(AbsenceCause::NoSuchConstruct)
+    }
+
+    fn embedded_expression(
+        &self,
+    ) -> Support<Reader<languages::EmbeddedExpression, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn semantic_syntax(&self) -> Support<Reader<languages::SemanticSyntax, Self::FileModel>> {
+        languages::native_semantic_syntax()
+    }
+
+    fn semantic_child(&self) -> Support<Reader<languages::SemanticChild, Self::FileModel>> {
+        languages::native_semantic_child()
     }
 
     fn identifier(&self) -> Support<Reader<languages::Identifier, Sections>> {

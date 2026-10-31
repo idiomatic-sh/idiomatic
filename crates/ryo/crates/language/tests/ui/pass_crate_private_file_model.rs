@@ -107,6 +107,8 @@ struct Language;
 impl ParseUseCase for Language {
     type FileModel = Model;
 
+    fn capabilities(&self) -> &'static [ryo_language::domain::relations::types::OptionalCapability] { &[] }
+
     fn file_model(&self, _tree: &ryo_language::domain::elements::types::Tree<'_>, _model: &mut Model) {}
 
     fn recognizes(&self, _request: &ParseRequest<'_>) -> ryo_language::inbound::use_cases::parse::types::Recognition {

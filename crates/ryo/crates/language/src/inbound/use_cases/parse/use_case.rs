@@ -22,6 +22,10 @@ pub struct ParseUseCaseImpl;
 impl ParseUseCase for ParseUseCaseImpl {
     type FileModel = ();
 
+    fn capabilities(&self) -> &'static [crate::domain::relations::types::OptionalCapability] {
+        &[]
+    }
+
     fn file_model(&self, _tree: &Tree<'_>, _model: &mut ()) {}
 
     fn recognizes(&self, _request: &ParseRequest<'_>) -> Recognition {
@@ -59,6 +63,10 @@ impl ParseUseCase for ParseUseCaseImpl {
 
 /// Every `ParseUseCase` is a `ParseEngine`: the engine reads it through the use case's own drive.
 impl<P: ParseUseCase> ParseEngine for P {
+    fn capabilities(&self) -> &'static [crate::domain::relations::types::OptionalCapability] {
+        ParseUseCase::capabilities(self)
+    }
+
     fn recognition(&self, request: &ParseRequest<'_>) -> Recognition {
         self.recognizes(request)
     }

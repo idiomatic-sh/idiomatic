@@ -219,12 +219,16 @@ pub use ryo_language::domain::relations::types::Count;
 
 pub use ryo_language::domain::answers::types::Expansions;
 pub use ryo_language::domain::completion::service::{name_field, write_fields};
+pub use ryo_language::domain::elements::service::builder_position;
+pub use ryo_language::domain::elements::service::embedded_source_at;
 pub use ryo_language::domain::elements::service::{field_at, field_name_at, origin_at};
 pub use ryo_language::domain::expansions::service::mark_expansion;
+pub use ryo_language::domain::expansions::service::{embedded_expressions, write_embedded};
 pub use ryo_language::domain::relations::constants::NO_FIELD;
 pub use ryo_language::domain::relations::types::ReportText;
 pub use ryo_language::domain::relations::types::{Bytes, Extent, Flag, Integer, Optionality};
 pub use ryo_language::domain::relations::types::{ElementOrigin, ExpansionId, FieldId};
+pub use ryo_language::domain::relations::types::{EmbeddedMapping, EmbeddedSource};
 pub use ryo_language::domain::symbols::types::ByteSlice;
 pub use ryo_language::domain::symbols::types::Noted;
 pub use ryo_language::domain::terms::types::NameText;
@@ -291,3 +295,7 @@ pub use ryo_language::domain::relations::service::location;
 pub use ryo_language::domain::relations::types::PropertyId;
 
 pub use ryo_language::domain::relations::types::Locatedness;
+
+pub use ryo_language::domain::answers::service::{native_semantic_child, native_semantic_syntax};
+
+pub use ryo_language::domain::relations::types::OptionalCapability;

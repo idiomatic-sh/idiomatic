@@ -54,6 +54,8 @@ pub(crate) struct Declarations {
     pub indentation: RefCell<IndentationIndex>,
     /// Lazy provenance uncertainty, invalidated with every parse.
     pub qualification: RefCell<QualificationIndex>,
+    /// Enabled embedded-expression roots, computed only for semantic readers.
+    pub semantic: RefCell<SemanticIndex>,
 }
 
 /// A lexical event that can invalidate otherwise known import or builtin provenance.
@@ -89,5 +91,14 @@ pub(crate) struct QualificationIndex {
     /// Source-ordered namespace events.
     pub hazards: Vec<QualificationHazard>,
     /// Cache validity for the current file.
+    pub state: QualificationState,
+}
+
+/// Retained selection of annotation expressions after lexical context classification.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct SemanticIndex {
+    /// The known enabled roots, in parser append order.
+    pub roots: Vec<Position>,
+    /// Whether these roots belong to the current parse.
     pub state: QualificationState,
 }

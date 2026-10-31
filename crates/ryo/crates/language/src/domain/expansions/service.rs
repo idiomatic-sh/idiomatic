@@ -1,9 +1,12 @@
 //! The `expansions` service: free functions named by verb that add the trees a language reads under a macro call, and mark the elements they make, with no IO and no ports.
 
 use crate::domain::elements::service::{builder_engine, children, end_of, engine, engine_mut};
+use crate::domain::elements::types::{BuilderEngine, Elements};
 use crate::domain::elements::types::{OpenNode, TableBuilder, TableWriting};
 use crate::domain::relations::types::Expanded;
 use crate::domain::relations::types::{Count, ExpansionId, Position};
+use crate::domain::relations::types::{EmbeddedMapping, EmbeddedSource, Offset};
+use crate::domain::symbols::types::ByteSlice;
 use crate::domain::terms::types::ChildOrdinal;
 
 /// Adds trees for reading under the element at `host`, which the parser already closed: until [`release`], what is entered or added
@@ -68,4 +71,77 @@ pub fn mark_expansion(
         call_site,
         expansion,
     });
+}
+
+/// Parses logical text under a closed source carrier without changing the native tree.
+/// The callback writes logical offsets and token text. After it returns, only source
+/// intervals are mapped; interned text, parent edges, and syntax identities are retained.
+/// Embedded elements are not marked as macro expansions.
+pub fn write_embedded(
+    builder: &mut TableBuilder<'_>,
+    host: Position,
+    source: ByteSlice<'_>,
+    mapping: EmbeddedMapping,
+    write: impl FnOnce(&mut TableBuilder<'_>),
+) {
+    if builder_engine(builder).writing == TableWriting::Discards {
+        let engine = builder_engine(builder);
+        let mut logical = TableBuilder::from(BuilderEngine {
+            elements: engine.elements,
+            symbols: engine.symbols,
+            source: engine.source,
+            logical_source: Some(source),
+            writing: TableWriting::Discards,
+        });
+        write(&mut logical);
+        return;
+    }
+    adopt(builder, host);
+    let engine = builder_engine(builder);
+    let root = end_of(engine.elements);
+    let host_start = crate::domain::elements::service::start_at(engine.elements, host);
+    let host_end = crate::domain::elements::service::end_at(engine.elements, host);
+    {
+        let mut logical = TableBuilder::from(BuilderEngine {
+            elements: engine.elements,
+            symbols: engine.symbols,
+            source: engine.source,
+            logical_source: Some(source),
+            writing: engine.writing,
+        });
+        write(&mut logical);
+    }
+    let end = end_of(engine.elements);
+    for position in root.0..end.0 {
+        let index = usize::try_from(position).unwrap_or(usize::MAX);
+        if let (Some(start), Some(span_end)) = (
+            engine.elements.start.as_mut().values.get_mut(index),
+            engine.elements.end.as_mut().values.get_mut(index),
+        ) {
+            match mapping {
+                EmbeddedMapping::Exact(base) => {
+                    *start = Offset(start.0.saturating_add(base.0));
+                    *span_end = Offset(span_end.0.saturating_add(base.0));
+                }
+                EmbeddedMapping::WholeHost => {
+                    *start = host_start;
+                    *span_end = host_end;
+                }
+            }
+        }
+    }
+    if root != end {
+        engine_mut(engine.elements).embedded.push(EmbeddedSource {
+            host,
+            root,
+            end,
+            mapping,
+        });
+    }
+    release(builder);
+}
+
+/// The independently parsed expressions retained by a file, in append order.
+pub fn embedded_expressions(elements: &Elements) -> impl Iterator<Item = EmbeddedSource> + '_ {
+    engine(elements).embedded.iter().copied()
 }

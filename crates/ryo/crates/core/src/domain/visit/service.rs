@@ -78,7 +78,10 @@ fn role_column() -> ColumnIndex {
 
 /// Whether an input of a step is the edges of the tree.
 fn edges(input: Input) -> EdgeInput {
-    if input == Input::Relation(Relation::SyntaxChild) {
+    if matches!(
+        input,
+        Input::Relation(Relation::SyntaxChild | Relation::SemanticChild)
+    ) {
         EdgeInput::Edges
     } else {
         EdgeInput::Elsewhere

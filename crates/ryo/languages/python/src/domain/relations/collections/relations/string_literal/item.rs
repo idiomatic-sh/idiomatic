@@ -1,6 +1,7 @@
 //! The `string_literal` relation of the language: every string, f-string and t-string, its parts joined as the library decoded them;
 //! one that interpolates has the unknown value of an interpolated string. A bytes `Constant` is no string, and the format spec of an
 //! interpolation is part of its f-string. The name `__import__(..)` or `importlib.import_module(..)` loads is an import specifier.
+use crate::domain::semantic_syntax::types::Visibility;
 
 use crate::domain::fact_notes::service::specifier;
 use crate::domain::model::types::Declarations;
@@ -18,7 +19,8 @@ pub(crate) struct StringLiteralItem;
 
 ryo::reads! {
     StringLiteralItem => languages::StringLiteral, model(Declarations) |tree, model, at, symbols| {
-        kinds: [Kind::Node(Node::Constant), Kind::Node(Node::JoinedStr), Kind::Node(Node::TemplateStr)] as kind_bits,
+        kinds: [Kind::Node(Node::Constant), Kind::Node(Node::JoinedStr), Kind::Node(Node::TemplateStr)] as kind_bits, expanded,
+        require crate::domain::semantic_syntax::service::visibility(tree, model, at, symbols) == Visibility::Visible;
         require literal(tree, at) == Literal::String || kind(tree, at) != Kind::Node(Node::Constant);
         require standing(tree, at) == Standing::Own;
         row {

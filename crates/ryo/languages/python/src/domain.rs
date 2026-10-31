@@ -27,3 +27,5 @@ pub(crate) mod indentation;
 
 /// Lexical import and builtin provenance.
 pub(crate) mod qualification;
+
+pub(crate) mod semantic_syntax;

@@ -1,4 +1,5 @@
 //! Read proven source origins without importing any linter's matching rules.
+use crate::domain::semantic_syntax::types::Visibility;
 use crate::domain::{
     model::types::Declarations,
     nodes::types::Node,
@@ -21,7 +22,8 @@ ryo::reads! {
         when complete(tree, model) {
             None=>{partial INCOMPLETE => languages::Missing::Any;}
             Some(index)=>{
-                each (languages::positions(tree.elements)) as expression {
+                each (crate::domain::semantic_syntax::service::positions(tree)) as expression {
+                    require crate::domain::semantic_syntax::service::visibility(tree, model, expression, symbols) == Visibility::Visible;
                     require matches!(kind(tree, expression), Kind::Node(Node::Name | Node::Attribute));
                     require context(tree, expression) == Context::Load;
                     given answer = qualify(tree, model, &index, expression, symbols);

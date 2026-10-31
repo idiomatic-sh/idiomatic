@@ -8,3 +8,7 @@ pub(super) const WORDS: usize = COUNT.div_ceil(64);
 
 /// Where a language keeps its fixtures, below its directory.
 pub const FIXTURES: &str = "tests/fixtures";
+
+/// An unavailable optional reader cannot establish known-empty facts.
+pub const UNAVAILABLE_CAPABILITY: &str =
+    "The requested optional capability is unavailable from this provider.";

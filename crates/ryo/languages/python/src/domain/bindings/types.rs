@@ -15,3 +15,12 @@ pub(crate) enum BindingAvailability {
     /// This binding's initialization does not exclude the read.
     Available,
 }
+
+/// Whether a binding participates in an occurrence's evaluation.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum EvaluationReach {
+    /// Native declarations or declarations in this embedding's ancestry.
+    Shared,
+    /// A declaration in a separate embedded expression.
+    Isolated,
+}

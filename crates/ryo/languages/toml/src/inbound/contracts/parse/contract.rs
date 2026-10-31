@@ -41,6 +41,13 @@ impl ParseContract {
 impl Parse for ParseContract {
     type FileModel = Model;
 
+    fn capabilities(&self) -> &'static [languages::OptionalCapability] {
+        &[
+            languages::OptionalCapability::Identifier,
+            languages::OptionalCapability::QualifiedName,
+        ]
+    }
+
     fn file_model(&self, tree: &languages::Tree<'_>, model: &mut Model) {
         build(tree, model);
     }
@@ -192,6 +199,20 @@ impl Parse for ParseContract {
 
     fn call_argument(&self) -> Support<Reader<languages::CallArgument, Model>> {
         languages::absent(AbsenceCause::NotCode)
+    }
+
+    fn embedded_expression(
+        &self,
+    ) -> Support<Reader<languages::EmbeddedExpression, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn semantic_syntax(&self) -> Support<Reader<languages::SemanticSyntax, Self::FileModel>> {
+        languages::native_semantic_syntax()
+    }
+
+    fn semantic_child(&self) -> Support<Reader<languages::SemanticChild, Self::FileModel>> {
+        languages::native_semantic_child()
     }
 
     fn identifier(&self) -> Support<Reader<languages::Identifier, Model>> {

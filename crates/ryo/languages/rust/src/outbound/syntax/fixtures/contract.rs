@@ -37,6 +37,8 @@ pub(crate) struct Made {
 /// Where an element of the table comes from.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Origin {
+    /// A separately parsed non-macro expression; the Rust adapter emits none.
+    Embedded,
     /// A parser-created node without source bytes.
     Implied,
     /// The file wrote it.
@@ -280,6 +282,7 @@ fn positions_of(elements: &Elements, source: &str) -> Vec<Made> {
                 origin: match origin_at(elements, position) {
                     ElementOrigin::File => Origin::File,
                     ElementOrigin::Implied => Origin::Implied,
+                    ElementOrigin::Embedded { .. } => Origin::Embedded,
                     ElementOrigin::Expansion { call_site, .. } => {
                         Origin::Expansion(kind_of(kind_at(elements, call_site)))
                     }

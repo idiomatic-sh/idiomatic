@@ -274,10 +274,14 @@ pub(crate) fn identifiers<'a>(tree: &'a Tree<'a>) -> Option<impl Iterator<Item =
     if languages::diagnostics(tree.elements).next().is_some() {
         return None;
     }
-    Some(languages::positions(tree.elements).filter(|at| {
-        matches!(
-            kind(tree, *at),
-            Kind::Node(Node::Name) | Kind::Extra(Extra::Identifier)
-        ) && name_token(tree, *at).is_some()
-    }))
+    Some(
+        (0..languages::end_of(tree.elements).0)
+            .map(Position)
+            .filter(|at| {
+                matches!(
+                    kind(tree, *at),
+                    Kind::Node(Node::Name) | Kind::Extra(Extra::Identifier)
+                ) && name_token(tree, *at).is_some()
+            }),
+    )
 }

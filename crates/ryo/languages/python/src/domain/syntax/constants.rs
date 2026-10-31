@@ -1,5 +1,12 @@
 //! The names of the `syntax` concept: the reasons no relation models a kind of the trees, which `sample` gives.
 
+/// Syntactic context for a candidate quoted expression, before lexical typing classification.
+pub(crate) const ANNOTATION_CONTEXT: ryo::languages::PropertyId = ryo::languages::PropertyId(7);
+/// A string occurring within an explicit annotation field.
+pub(crate) const ANNOTATION_SEED: &str = "annotation";
+/// A call argument or annotated value requiring semantic classification.
+pub(crate) const CANDIDATE_SEED: &str = "candidate";
+
 /// An expression no relation reads by itself.
 #[cfg(any(test, feature = "fixtures"))]
 pub(crate) const EXPRESSION: &str = "an expression no relation reads by itself: the relations read the names, calls and strings inside it";

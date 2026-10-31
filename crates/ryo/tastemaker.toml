@@ -68,6 +68,15 @@ specs = [
   { spec = "idiomatic.arch/cli", include = ["cli"], params = { library = "ryo_cli", markdown = "offered", product = "ryo", writes = [] }, description = "The command line's shell in that crate: main, the command tree, the output module and the command benches." },
   # The product's SDK, when it has one: crate plus sdk at one directory, crates/sdk, as the command line is crate plus cli.
   { spec = "idiomatic.arch/sdk", include = ["crates/sdk"], count = { min = 0 }, params = { reexports = [
+    { resource = "languages", path = "ryo_language::domain::relations::types::OptionalCapability", as = "OptionalCapability" },
+    { resource = "languages", path = "ryo_language::domain::answers::service::native_semantic_child", as = "native_semantic_child" },
+    { resource = "languages", path = "ryo_language::domain::answers::service::native_semantic_syntax", as = "native_semantic_syntax" },
+    { resource = "languages", path = "ryo_language::domain::elements::service::builder_position", as = "builder_position" },
+    { resource = "languages", path = "ryo_language::domain::elements::service::embedded_source_at", as = "embedded_source_at" },
+    { resource = "languages", path = "ryo_language::domain::expansions::service::embedded_expressions", as = "embedded_expressions" },
+    { resource = "languages", path = "ryo_language::domain::expansions::service::write_embedded", as = "write_embedded" },
+    { resource = "languages", path = "ryo_language::domain::relations::types::EmbeddedMapping", as = "EmbeddedMapping" },
+    { resource = "languages", path = "ryo_language::domain::relations::types::EmbeddedSource", as = "EmbeddedSource" },
     { resource = "languages", path = "ryo_language::domain::relations::types::Locatedness", as = "Locatedness" },
     { resource = "languages", path = "ryo_language::domain::elements::service::enter_implied_node", as = "enter_implied_node" },
     { resource = "languages", path = "ryo_language::domain::elements::service::node_property", as = "node_property" },

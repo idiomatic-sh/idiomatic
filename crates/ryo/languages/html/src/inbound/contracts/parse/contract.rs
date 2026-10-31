@@ -39,6 +39,10 @@ impl ParseContract {
 impl Parse for ParseContract {
     type FileModel = ();
 
+    fn capabilities(&self) -> &'static [languages::OptionalCapability] {
+        &[]
+    }
+
     fn file_model(&self, _tree: &languages::Tree<'_>, _model: &mut ()) {}
 
     fn unknown_reasons(&self) -> &'static [UnknownName] {
@@ -205,6 +209,20 @@ impl Parse for ParseContract {
     fn call_argument(&self) -> Support<Reader<languages::CallArgument, ()>> {
         // standard: WHATWG HTML, Parsing HTML documents: https://html.spec.whatwg.org/multipage/parsing.html defines document nodes, not this programming-language or package construct.
         languages::absent(AbsenceCause::NoSuchConstruct)
+    }
+
+    fn embedded_expression(
+        &self,
+    ) -> Support<Reader<languages::EmbeddedExpression, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn semantic_syntax(&self) -> Support<Reader<languages::SemanticSyntax, Self::FileModel>> {
+        languages::native_semantic_syntax()
+    }
+
+    fn semantic_child(&self) -> Support<Reader<languages::SemanticChild, Self::FileModel>> {
+        languages::native_semantic_child()
     }
 
     fn identifier(&self) -> Support<Reader<languages::Identifier, ()>> {

@@ -95,6 +95,7 @@ mod visibility {
 pub(super) fn expected() -> Vec<Expected> {
     vec![
         syntax_tree::expected(),
+        semantic_syntax::expected(),
         source_location::expected(),
         comment::expected(),
         string_literal::expected(),
@@ -114,6 +115,7 @@ pub(super) fn expected() -> Vec<Expected> {
         visibility::expected(),
         inherits::expected(),
         syntax_child::expected(),
+        semantic_child::expected(),
         syntax_error::expected(),
     ]
 }
@@ -196,4 +198,14 @@ fn words(
         unshown: Unshown::Word(word),
         reason: Why(reason),
     })
+}
+
+/// Native syntax is preserved by the semantic projection.
+mod semantic_syntax {
+    include!("../../tests/fixtures/relations/semantic_syntax/expected.rs");
+}
+
+/// Native syntax is preserved by the semantic projection.
+mod semantic_child {
+    include!("../../tests/fixtures/relations/semantic_child/expected.rs");
 }

@@ -1,3 +1,4 @@
+// ignore: idiomatic.ryo/language/no-wildcard-into-domain-enum - the one `_ =>` arm of this adapter is in `decoded_of`, a match over the library's hundred-odd node kinds whose answer is the text the library decoded, `Option<Decoded>`, not a domain enum: only two kinds carry such text, so a kind the library gains has none until it is named, and naming each of the others would be a hundred arms that all say None
 //! The library's kinds mapped onto the language's, the standards' names: every node kind of `ruff_python_ast` onto the `CPython` `ast`
 //! kind it stands for, or onto the closed list of the extras the standard lacks; every token kind of its lexer onto the name of
 //! Python's `token` module, a keyword being a `NAME`. Both matches have no wildcard arm, so a kind the library gains is a compile
@@ -16,7 +17,7 @@ use ruff_python_ast::NodeKind as RuffNode;
 use ruff_python_ast::{StmtImportFrom, StmtTry};
 
 use super::constants::{
-    BRACES, FUTURE, FUTURE_FEATURES, NOT_A_CHANCE, NOT_DEFINED, UNKNOWN_FEATURE,
+    BRACES, FUTURE, FUTURE_FEATURES, NOT_A_CHANCE, NOT_DEFINED, UNKNOWN_FEATURE, UNREADABLE,
 };
 use ruff_python_ast::token::{TokenKind, Tokens};
 use ruff_text_size::{Ranged, TextRange};
@@ -26,7 +27,11 @@ use crate::domain::nodes::types::Node;
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
 
-use super::types::{ParserRefusal, Said, Strings};
+use super::types::{ByteIndex, Decoded, ParserRefusal, Readable, Said, Strings};
+use crate::outbound::syntax::types::SourceText;
+use ruff_python_ast::AnyNodeRef;
+use ryo::languages::Offset;
+use std::borrow::Cow;
 
 /// A kind of node of the library's tree, and the kind of string an interpolation inside it is in.
 pub(super) struct NodeSchema {
@@ -344,3 +349,36 @@ pub(super) fn unknown_futures(
 #[cfg(test)]
 #[path = "schemas_test.rs"]
 mod tests;
+
+/// The text the library reads for `bytes`: the bytes themselves when they are UTF-8, or else each byte that is not part of a
+/// character replaced by one the lexer cannot read, so every offset is the file's.
+pub(super) fn readable(bytes: SourceText<'_>) -> Readable<'_> {
+    if let Ok(text) = std::str::from_utf8(bytes.0) {
+        return Readable(Cow::Borrowed(text));
+    }
+    let mut text = String::with_capacity(bytes.0.len());
+    for chunk in bytes.0.utf8_chunks() {
+        text.push_str(chunk.valid());
+        text.extend(chunk.invalid().iter().map(|_| UNREADABLE));
+    }
+    Readable(Cow::Owned(text))
+}
+
+/// The text the library decoded for the tokens of a node: a string's value, or the literal part of an f-string's or a t-string's. Only
+/// these two kinds of the library's nodes carry it; every other kind carries none.
+#[expect(
+    clippy::wildcard_enum_match_arm,
+    reason = "only the nodes of a string's text carry what the library decoded; the other ninety-odd kinds carry nothing, and a kind the library gains carries nothing until it is named here"
+)]
+pub(super) fn decoded_of(node: AnyNodeRef<'_>) -> Option<Decoded<'_>> {
+    match node {
+        AnyNodeRef::StringLiteral(literal) => Some(Decoded(&literal.value)),
+        AnyNodeRef::InterpolatedStringLiteralElement(element) => Some(Decoded(&element.value)),
+        _ => None,
+    }
+}
+
+/// The offset of a byte index of the text.
+pub(super) fn offset(index: ByteIndex) -> Offset {
+    Offset(u32::try_from(index.0).unwrap_or(u32::MAX))
+}

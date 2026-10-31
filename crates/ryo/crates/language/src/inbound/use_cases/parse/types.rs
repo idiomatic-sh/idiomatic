@@ -138,6 +138,9 @@ pub struct KindNames(pub Vec<crate::domain::terms::types::NameText<'static>>);
 /// What the engine asks of a language: the same reading as `ParseUseCase`, behind an interface alone and with what the language works
 /// out of each file kept inside the call, so that languages of different models are held side by side. Every `ParseUseCase` is one.
 pub trait ParseEngine: Send + Sync {
+    /// Explicit optional promises, preserved across the erased provider boundary.
+    fn capabilities(&self) -> &'static [crate::domain::relations::types::OptionalCapability];
+
     /// Whether the language reads the file in `request`.
     fn recognition(&self, request: &ParseRequest<'_>) -> Recognition;
 
@@ -203,3 +206,17 @@ pub trait ParseEngine: Send + Sync {
     /// Why the language does not read `relation` from a tree, or nothing when it does or when the relation is not one of the trees'.
     fn absence_of(&self, relation: Relation) -> Option<AbsenceCause>;
 }
+
+/// The catalog defines the exact set of reader slots held by one parse invocation.
+macro_rules! reader_slots {
+    (syntax { $( $variant:ident $module:ident $row:ident $column:ident ; )* }
+     manifest { $( $manifest:tt )* } engine { $( $engine:tt )* }) => {
+        /// The reader of one syntax relation, whichever it is.
+        #[derive(Clone, Copy)]
+        pub(super) enum Slot<M: 'static> {
+            $( $variant(crate::domain::answers::types::Reader<$crate::domain::relations::collections::relations::$module::item::$variant, M>), )*
+        }
+
+    };
+}
+crate::each_relation!(reader_slots);

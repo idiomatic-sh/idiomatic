@@ -54,6 +54,14 @@
 #[macro_export]
 macro_rules! reads {
     (
+        $item:ident => $relation:ty, model ($model_type:ty)
+        |$tree:ident, $model:ident, $at:ident, $symbols:ident|
+        { kinds: every, expanded, $($body:tt)* }
+    ) => {
+        $crate::reads!(@syntax $item $relation [$tree $at $symbols] [$model : $model_type] $crate::languages::Expansions::Included,
+            { $crate::languages::Reads::Every } $($body)*);
+    };
+    (
         $item:ident => $relation:ty
         |$tree:ident, $at:ident, $symbols:ident|
         { kinds: [ $( $kind:expr ),+ $(,)? ] as $bits:path, expanded, $($body:tt)* }

@@ -1,0 +1,232 @@
+// Native projection reuses independently specified native syntax rows.
+// The rows `relations/semantic_syntax/input.py` must give.
+
+use ryo::languages::contract::{
+    Expected, SemanticSyntaxExpectedRow, expected_rows, file, name, node, span,
+};
+
+/// The rows, in the order the language gives them.
+const ROWS: &[SemanticSyntaxExpectedRow] = &[
+    SemanticSyntaxExpectedRow {
+        id: node(0),
+        kind: name("module"),
+        text: name(""),
+        file: file("semantic_syntax/input.py"),
+        span: span((1, 1), (3, 1)),
+    },
+    SemanticSyntaxExpectedRow {
+        id: node(1),
+        kind: name("function-def"),
+        text: name(""),
+        file: file("semantic_syntax/input.py"),
+        span: span((1, 1), (2, 17)),
+    },
+    SemanticSyntaxExpectedRow {
+        id: node(2),
+        kind: name("name-token"),
+        text: name("def"),
+        file: file("semantic_syntax/input.py"),
+        span: span((1, 1), (1, 4)),
+    },
+    SemanticSyntaxExpectedRow {
+        id: node(3),
+        kind: name("whitespace"),
+        text: name(" "),
+        file: file("semantic_syntax/input.py"),
+        span: span((1, 4), (1, 5)),
+    },
+    SemanticSyntaxExpectedRow {
+        id: node(4),
+        kind: name("identifier"),
+        text: name(""),
+        file: file("semantic_syntax/input.py"),
+        span: span((1, 5), (1, 6)),
+    },
+    SemanticSyntaxExpectedRow {
+        id: node(5),
+        kind: name("name-token"),
+        text: name("f"),
+        file: file("semantic_syntax/input.py"),
+        span: span((1, 5), (1, 6)),
+    },
+    SemanticSyntaxExpectedRow {
+        id: node(6),
+        kind: name("arguments"),
+        text: name(""),
+        file: file("semantic_syntax/input.py"),
+        span: span((1, 6), (1, 9)),
+    },
+    SemanticSyntaxExpectedRow {
+        id: node(7),
+        kind: name("lpar"),
+        text: name("("),
+        file: file("semantic_syntax/input.py"),
+        span: span((1, 6), (1, 7)),
+    },
+    SemanticSyntaxExpectedRow {
+        id: node(8),
+        kind: name("parameter-with-default"),
+        text: name(""),
+        file: file("semantic_syntax/input.py"),
+        span: span((1, 7), (1, 8)),
+    },
+    SemanticSyntaxExpectedRow {
+        id: node(9),
+        kind: name("arg"),
+        text: name(""),
+        file: file("semantic_syntax/input.py"),
+        span: span((1, 7), (1, 8)),
+    },
+    SemanticSyntaxExpectedRow {
+        id: node(10),
+        kind: name("identifier"),
+        text: name(""),
+        file: file("semantic_syntax/input.py"),
+        span: span((1, 7), (1, 8)),
+    },
+    SemanticSyntaxExpectedRow {
+        id: node(11),
+        kind: name("name-token"),
+        text: name("x"),
+        file: file("semantic_syntax/input.py"),
+        span: span((1, 7), (1, 8)),
+    },
+    SemanticSyntaxExpectedRow {
+        id: node(12),
+        kind: name("rpar"),
+        text: name(")"),
+        file: file("semantic_syntax/input.py"),
+        span: span((1, 8), (1, 9)),
+    },
+    SemanticSyntaxExpectedRow {
+        id: node(13),
+        kind: name("colon"),
+        text: name(":"),
+        file: file("semantic_syntax/input.py"),
+        span: span((1, 9), (1, 10)),
+    },
+    SemanticSyntaxExpectedRow {
+        id: node(14),
+        kind: name("newline"),
+        text: name("\n"),
+        file: file("semantic_syntax/input.py"),
+        span: span((1, 10), (2, 1)),
+    },
+    SemanticSyntaxExpectedRow {
+        id: node(15),
+        kind: name("indent"),
+        text: name("    "),
+        file: file("semantic_syntax/input.py"),
+        span: span((2, 1), (2, 5)),
+    },
+    SemanticSyntaxExpectedRow {
+        id: node(16),
+        kind: name("return"),
+        text: name(""),
+        file: file("semantic_syntax/input.py"),
+        span: span((2, 5), (2, 17)),
+    },
+    SemanticSyntaxExpectedRow {
+        id: node(17),
+        kind: name("name-token"),
+        text: name("return"),
+        file: file("semantic_syntax/input.py"),
+        span: span((2, 5), (2, 11)),
+    },
+    SemanticSyntaxExpectedRow {
+        id: node(18),
+        kind: name("whitespace"),
+        text: name(" "),
+        file: file("semantic_syntax/input.py"),
+        span: span((2, 11), (2, 12)),
+    },
+    SemanticSyntaxExpectedRow {
+        id: node(19),
+        kind: name("bin-op"),
+        text: name(""),
+        file: file("semantic_syntax/input.py"),
+        span: span((2, 12), (2, 17)),
+    },
+    SemanticSyntaxExpectedRow {
+        id: node(20),
+        kind: name("name"),
+        text: name(""),
+        file: file("semantic_syntax/input.py"),
+        span: span((2, 12), (2, 13)),
+    },
+    SemanticSyntaxExpectedRow {
+        id: node(21),
+        kind: name("name-token"),
+        text: name("x"),
+        file: file("semantic_syntax/input.py"),
+        span: span((2, 12), (2, 13)),
+    },
+    SemanticSyntaxExpectedRow {
+        id: node(22),
+        kind: name("whitespace"),
+        text: name(" "),
+        file: file("semantic_syntax/input.py"),
+        span: span((2, 13), (2, 14)),
+    },
+    SemanticSyntaxExpectedRow {
+        id: node(23),
+        kind: name("plus"),
+        text: name("+"),
+        file: file("semantic_syntax/input.py"),
+        span: span((2, 14), (2, 15)),
+    },
+    SemanticSyntaxExpectedRow {
+        id: node(24),
+        kind: name("whitespace"),
+        text: name(" "),
+        file: file("semantic_syntax/input.py"),
+        span: span((2, 15), (2, 16)),
+    },
+    SemanticSyntaxExpectedRow {
+        id: node(25),
+        kind: name("constant"),
+        text: name(""),
+        file: file("semantic_syntax/input.py"),
+        span: span((2, 16), (2, 17)),
+    },
+    SemanticSyntaxExpectedRow {
+        id: node(26),
+        kind: name("number"),
+        text: name("1"),
+        file: file("semantic_syntax/input.py"),
+        span: span((2, 16), (2, 17)),
+    },
+    SemanticSyntaxExpectedRow {
+        id: node(27),
+        kind: name("whitespace"),
+        text: name("  "),
+        file: file("semantic_syntax/input.py"),
+        span: span((2, 17), (2, 19)),
+    },
+    SemanticSyntaxExpectedRow {
+        id: node(28),
+        kind: name("comment"),
+        text: name("# one more"),
+        file: file("semantic_syntax/input.py"),
+        span: span((2, 19), (2, 29)),
+    },
+    SemanticSyntaxExpectedRow {
+        id: node(29),
+        kind: name("newline"),
+        text: name("\n"),
+        file: file("semantic_syntax/input.py"),
+        span: span((2, 29), (3, 1)),
+    },
+    SemanticSyntaxExpectedRow {
+        id: node(30),
+        kind: name("dedent"),
+        text: name(""),
+        file: file("semantic_syntax/input.py"),
+        span: span((3, 1), (3, 1)),
+    },
+];
+
+/// The rows the fixture's input must give, as the relations contract compares them.
+pub(super) fn expected() -> Expected {
+    expected_rows(ROWS)
+}

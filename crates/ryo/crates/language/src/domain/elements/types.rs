@@ -175,6 +175,8 @@ pub(crate) struct ElementsEngine {
     pub decoded_text: Bytes,
     /// The elements a macro expansion produced, in the order of their positions; none for a file no expansion touched.
     pub expanded: Vec<Expanded>,
+    /// Separately parsed expressions, kept outside the native lossless tree.
+    pub embedded: Vec<crate::domain::relations::types::EmbeddedSource>,
     /// The open nodes while the table is built.
     pub open: Vec<OpenNode>,
     /// The model the worker keeps for the language between files; the engine's, which the language never sees but through `file_model`.
@@ -228,6 +230,9 @@ pub(crate) struct BuilderEngine<'a> {
     pub symbols: &'a mut Symbols,
     /// The bytes of the file.
     pub source: ByteSlice<'a>,
+    /// Separate decoded text while appending an embedded expression. Its symbols
+    /// are derived names, never offsets into the original file.
+    pub logical_source: Option<ByteSlice<'a>>,
     /// Whether it builds nothing: reading a file through it does what the library does and writes no element, no name and no
     /// diagnostic. The engine reads a file this way to know what the library alone costs.
     pub writing: TableWriting,

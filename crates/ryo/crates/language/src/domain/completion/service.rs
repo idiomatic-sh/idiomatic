@@ -129,7 +129,9 @@ pub fn write_fields(
         source: completion.source,
         file: completion.file,
     };
-    for at in positions(completion.elements) {
+    for at in positions(completion.elements).chain(
+        crate::domain::elements::service::expanded_positions(completion.elements),
+    ) {
         *crate::domain::elements::service::number_mut(&mut roles, at) = assign(&tree, at);
     }
     completion.elements.field = roles;

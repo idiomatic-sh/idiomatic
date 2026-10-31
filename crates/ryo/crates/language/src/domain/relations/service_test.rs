@@ -106,10 +106,16 @@ fn the_catalog_lists_exactly_the_folders_of_its_items() -> usize {
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
+        name: CaseName("optional capability identities round trip without weakening baseline"),
+        word: Word::Succeeds,
+        input: || optional_promises_are_closed,
+        expect: Expect::Value(4),
+    },
+    Case {
         name: CaseName("every_relation_is_found_by_its_name"),
         word: Word::Succeeds,
         input: || every_relation_is_named_and_found_by_its_name,
-        expect: Expect::Value(36),
+        expect: Expect::Value(39),
     },
     Case {
         name: CaseName("a_name_no_relation_has_finds_nothing"),
@@ -162,4 +168,30 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
+}
+
+/// Every optional promise names exactly one relation; required projections stay outside this set.
+fn optional_promises_are_closed() -> usize {
+    use super::service::{capability_relation, optional_capability};
+    use super::types::OptionalCapability;
+    let capabilities = [
+        OptionalCapability::Identifier,
+        OptionalCapability::QualifiedName,
+        OptionalCapability::EmbeddedExpression,
+    ];
+    capabilities
+        .into_iter()
+        .filter(|capability| {
+            optional_capability(capability_relation(*capability)) == Some(*capability)
+        })
+        .count()
+        + usize::from(
+            all()
+                .iter()
+                .filter(|relation| optional_capability(**relation).is_some())
+                .count()
+                == 3
+                && optional_capability(Relation::SemanticSyntax).is_none()
+                && optional_capability(Relation::SemanticChild).is_none(),
+        )
 }

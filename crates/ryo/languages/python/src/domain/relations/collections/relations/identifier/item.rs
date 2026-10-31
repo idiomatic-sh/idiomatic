@@ -1,4 +1,5 @@
 //! Emit parser-normalized spelling without changing lossless source tokens.
+use crate::domain::semantic_syntax::types::Visibility;
 use crate::domain::{
     model::types::Declarations,
     nodes::types::Node,
@@ -17,6 +18,7 @@ ryo::reads! {
  when identifiers(tree) {
   Some(occurrences)=>{
    each (occurrences) as identifier {
+    require crate::domain::semantic_syntax::service::visibility(tree, model, identifier, symbols) == Visibility::Visible;
     given name = languages::intern_derived(symbols,tree.source,languages::NameText(identifier_text(tree,identifier).0));
     row {id:node(identifier),name:value(name),file:file,span:span(identifier),}
    }
