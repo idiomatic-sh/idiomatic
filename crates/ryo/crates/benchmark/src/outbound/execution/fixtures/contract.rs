@@ -10,6 +10,27 @@ type Failure = std::io::ErrorKind;
 /// Named observations every implementation must satisfy.
 pub const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
+        name: CaseName("a valid child exit127 is not a launch failure"),
+        word: Word::Succeeds,
+        input: || {
+            let mut call = invocation();
+            call.arguments[1] =
+                "printf %s \"$RYO_BENCH_FIXTURE\"; printf issue >&2; exit 127".into();
+            call
+        },
+        expect: Expect::Value((127, true, true)),
+    },
+    Case {
+        name: CaseName("missing bare command is a launch error"),
+        word: Word::Refuses,
+        input: || {
+            let mut call = missing();
+            call.executable = "ryo-benchmark-missing-program".into();
+            call
+        },
+        expect: Expect::Error(std::io::ErrorKind::NotFound),
+    },
+    Case {
         name: CaseName("status and both streams survive"),
         word: Word::Succeeds,
         input: invocation,

@@ -1,3 +1,3 @@
 //! The implementations of the execution port.
-pub(crate) mod process;
-pub(crate) mod timed;
+pub(super) mod process;
+pub(super) mod timed;

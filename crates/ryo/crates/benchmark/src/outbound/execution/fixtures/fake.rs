@@ -25,12 +25,21 @@ impl ExecutionPort for ExecutionFake {
         {
             return Err(std::io::Error::from(std::io::ErrorKind::NotFound).into());
         }
+        let status = if invocation
+            .arguments
+            .iter()
+            .any(|argument| argument.to_string_lossy().ends_with("exit 127"))
+        {
+            127
+        } else {
+            self.status
+        };
         self.history
             .lock()
             .expect("fixture history")
             .push(invocation);
         Ok(ProcessOutput {
-            status: self.status,
+            status,
             stdout: b"payload".to_vec(),
             stderr: b"issue".to_vec(),
             wall: Duration::ZERO,

@@ -1,4 +1,5 @@
 //! Reproducible corpus worktrees, owned exclusively by the benchmark.
+use super::types::{AppliedPatch, CommitRevision, TrackedFiles};
 use crate::domain::{diagnostics::errors::Error, suite::types::Project};
 use std::path::{Path, PathBuf};
 
@@ -6,8 +7,8 @@ use std::path::{Path, PathBuf};
 #[derive(Debug)]
 pub struct Workspace {
     pub(crate) root: PathBuf,
-    pub(crate) revision: String,
-    pub(crate) applied: Option<Vec<u8>>,
+    pub(crate) revision: CommitRevision,
+    pub(crate) applied: Option<AppliedPatch>,
 }
 impl Workspace {
     /// Root directory of this source snapshot.
@@ -23,13 +24,13 @@ pub trait WorkspacePort {
     /// # Errors
     ///
     /// Returns an error for invalid pins or an existing checkout with conflicting ownership or changes.
-    fn prepare(&self, project: &Project, cache: &Path) -> Result<Workspace, Error>;
+    fn prepare(&self, project: &Project) -> Result<Workspace, Error>;
     /// List all tracked relative paths before language-specific input selection.
     ///
     /// # Errors
     ///
     /// Returns an error when repository state or path encoding cannot be verified.
-    fn tracked_files(&self, workspace: &Workspace) -> Result<Vec<String>, Error>;
+    fn tracked_files(&self, workspace: &Workspace) -> Result<TrackedFiles, Error>;
     /// Apply a checked edit to existing tracked files and retain restoration evidence.
     ///
     /// # Errors

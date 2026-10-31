@@ -1,35 +1,28 @@
 //! Atomic document encoding precedes writing to the injected destination.
-use super::schemas;
+use super::{connection::EvidenceBmfConnection, constants, schemas};
 use crate::domain::{diagnostics::errors::Error, measurements::types::Sample};
 use crate::outbound::evidence::interface::EvidencePort;
-use std::{io::Write, sync::Mutex};
+use std::io::Write;
 
+#[derive(Debug)]
 pub(crate) struct EvidenceBmfAdapter {
-    output: Mutex<Box<dyn Write + Send>>,
+    connection: EvidenceBmfConnection,
 }
 impl EvidenceBmfAdapter {
-    pub(crate) fn new(output: Box<dyn Write + Send>) -> Self {
-        Self {
-            output: Mutex::new(output),
-        }
-    }
-}
-impl std::fmt::Debug for EvidenceBmfAdapter {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct(std::any::type_name::<Self>())
-            .finish_non_exhaustive()
+    pub(crate) fn new(connection: EvidenceBmfConnection) -> Self {
+        Self { connection }
     }
 }
 impl EvidencePort for EvidenceBmfAdapter {
     fn publish(&self, samples: &[Sample]) -> Result<(), Error> {
         let bytes = schemas::encode(samples)?;
         let mut output = self
+            .connection
             .output
             .lock()
-            .map_err(|_| Error::Invalid("evidence output lock poisoned".into()))?;
+            .map_err(|_| Error::Invalid(constants::POISONED.into()))?;
         output.write_all(&bytes)?;
-        output.write_all(b"\n")?;
+        output.write_all(constants::NEWLINE)?;
         output.flush()?;
         Ok(())
     }

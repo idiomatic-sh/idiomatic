@@ -10,9 +10,14 @@ pub fn process() -> impl super::interface::ExecutionPort {
 #[must_use]
 pub fn timed(
     executable: std::path::PathBuf,
-    sha256: String,
+    sha256: crate::domain::measurements::types::ExecutableDigest,
+    path: Option<std::ffi::OsString>,
 ) -> impl super::interface::ExecutionPort {
-    super::adapters::timed::adapter::ExecutionTimedAdapter {
-        settings: super::adapters::timed::settings::ExecutionTimedSettings { executable, sha256 },
-    }
+    super::adapters::timed::adapter::ExecutionTimedAdapter::new(
+        super::adapters::timed::settings::ExecutionTimedSettings {
+            executable,
+            sha256,
+            path,
+        },
+    )
 }

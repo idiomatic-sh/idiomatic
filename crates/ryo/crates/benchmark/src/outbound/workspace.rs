@@ -6,3 +6,5 @@ pub mod interface;
 pub mod fixtures;
 
 pub mod factory;
+
+pub mod types;

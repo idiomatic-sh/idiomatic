@@ -5,3 +5,5 @@ pub(crate) mod settings;
 
 #[cfg(test)]
 mod adapter_test;
+
+mod constants;

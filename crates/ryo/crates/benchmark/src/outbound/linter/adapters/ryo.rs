@@ -4,3 +4,5 @@ mod schemas;
 
 #[cfg(test)]
 mod adapter_test;
+
+mod constants;

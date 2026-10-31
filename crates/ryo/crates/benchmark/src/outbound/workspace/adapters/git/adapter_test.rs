@@ -46,34 +46,29 @@ fn pinned_clone_patch_restore_and_intervening_edit_refusal() {
         patch: "edit.patch".into(),
     };
     let cache = temporary.path().join("cache");
-    let mut workspace = WorkspaceGitAdapter
-        .prepare(&project, &cache)
-        .expect("pinned clone");
+    let adapter = WorkspaceGitAdapter::new(super::settings::WorkspaceGitSettings { cache });
+    let mut workspace = adapter.prepare(&project).expect("pinned clone");
     assert_eq!(
-        WorkspaceGitAdapter
-            .tracked_files(&workspace)
-            .expect("files"),
+        adapter.tracked_files(&workspace).expect("files").0,
         ["input.txt"]
     );
     let patch = temporary.path().join("edit.patch");
     fs::write(&patch, "diff --git a/input.txt b/input.txt\n--- a/input.txt\n+++ b/input.txt\n@@ -1 +1 @@\n-before\n+after\n").expect("patch");
-    WorkspaceGitAdapter
-        .apply_patch(&mut workspace, &patch)
-        .expect("apply");
+    adapter.apply_patch(&mut workspace, &patch).expect("apply");
     assert_eq!(
         fs::read_to_string(workspace.root().join("input.txt")).expect("read"),
         "after\n"
     );
     assert_eq!(
-        WorkspaceGitAdapter
-            .prepare(&project, &cache)
+        adapter
+            .prepare(&project)
             .expect_err("dirty clone")
             .to_string(),
         "corpus is dirty; refusing to overwrite changes"
     );
     fs::write(workspace.root().join("input.txt"), "user edit\n").expect("edit");
     assert_eq!(
-        WorkspaceGitAdapter
+        adapter
             .reset(&mut workspace)
             .expect_err("intervening edit")
             .to_string(),
@@ -84,23 +79,19 @@ fn pinned_clone_patch_restore_and_intervening_edit_refusal() {
         "user edit\n"
     );
     fs::write(workspace.root().join("input.txt"), "after\n").expect("restore patch");
-    WorkspaceGitAdapter
-        .reset(&mut workspace)
-        .expect("restore clean");
+    adapter.reset(&mut workspace).expect("restore clean");
     assert_eq!(
         fs::read_to_string(workspace.root().join("input.txt")).expect("read"),
         "before\n"
     );
-    WorkspaceGitAdapter
-        .prepare(&project, &cache)
-        .expect("clean reuse");
+    adapter.prepare(&project).expect("clean reuse");
     let invalid = Project {
         revision: "main".into(),
         ..project
     };
     assert_eq!(
-        WorkspaceGitAdapter
-            .prepare(&invalid, &cache)
+        adapter
+            .prepare(&invalid)
             .expect_err("mutable pin")
             .to_string(),
         "project requires a safe name and full commit revision"
@@ -108,7 +99,11 @@ fn pinned_clone_patch_restore_and_intervening_edit_refusal() {
 }
 
 fn contract() {
-    crate::outbound::workspace::fixtures::contract::check(&WorkspaceGitAdapter);
+    let cache = tempfile::tempdir().expect("isolated cache");
+    let adapter = WorkspaceGitAdapter::new(super::settings::WorkspaceGitSettings {
+        cache: cache.path().to_owned(),
+    });
+    crate::outbound::workspace::fixtures::contract::check(&adapter);
 }
 
 use crate::cases::{Case, CaseName, Expect, Word, run};

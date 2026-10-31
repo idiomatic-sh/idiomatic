@@ -1,8 +1,9 @@
 //! Pinned workspace preparation and edit lifecycle are shared across adapters.
+use super::driver::git;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::{diagnostics::errors::Error, suite::types::Project};
 use crate::outbound::workspace::interface::WorkspacePort;
-use std::{fs, path::Path, process::Command};
+use std::fs;
 type Input = bool;
 type Value = usize;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -28,22 +29,6 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Error(Failure::InvalidPin),
     },
 ];
-fn git(root: &Path, args: &[&str]) -> String {
-    let output = Command::new("git")
-        .args(args)
-        .current_dir(root)
-        .output()
-        .expect("fixture git");
-    assert!(
-        output.status.success(),
-        "{}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    String::from_utf8(output.stdout)
-        .expect("utf8")
-        .trim()
-        .into()
-}
 /// Run the shared observations against the supplied implementation.
 ///
 /// # Panics
@@ -70,7 +55,8 @@ pub fn check(adapter: &impl WorkspacePort) {
         ],
     ));
     let pin = git(&source, &["rev-parse", "HEAD"]);
-    let cache = temporary.path().join("cache");
+    let patch = temporary.path().join("edit.patch");
+    fs::write(&patch, "diff --git a/input.txt b/input.txt\n--- a/input.txt\n+++ b/input.txt\n@@ -1 +1 @@\n-before\n+after\n").expect("independent edit fixture");
     let subject = |valid| {
         let project = Project {
             name: "fixture".into(),
@@ -79,9 +65,24 @@ pub fn check(adapter: &impl WorkspacePort) {
             patch: "edit.patch".into(),
         };
         adapter
-            .prepare(&project, &cache)
-            .and_then(|workspace| adapter.tracked_files(&workspace))
-            .map(|files| files.len())
+            .prepare(&project)
+            .and_then(|mut workspace| {
+                let before = adapter.tracked_files(&workspace)?;
+                adapter.apply_patch(&mut workspace, &patch)?;
+                assert!(
+                    adapter.apply_patch(&mut workspace, &patch).is_err(),
+                    "a second edit cannot overwrite restoration evidence"
+                );
+                adapter.reset(&mut workspace)?;
+                adapter.reset(&mut workspace)?;
+                assert_eq!(
+                    before,
+                    adapter.tracked_files(&workspace)?,
+                    "edit lifecycle preserves tracked files"
+                );
+                Ok(before)
+            })
+            .map(|files| files.0.len())
             .map_err(|error| match error {
                 Error::Invalid(_) => Failure::InvalidPin,
                 _ => Failure::Unexpected,

@@ -1,2 +1,2 @@
 //! The implementations of the linter port.
-pub(crate) mod ryo;
+pub(super) mod ryo;

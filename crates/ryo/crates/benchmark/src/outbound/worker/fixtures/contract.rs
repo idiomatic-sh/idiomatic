@@ -5,7 +5,9 @@ use crate::outbound::worker::interface::WorkerPort;
 /// Request and response observations shared across implementations.
 #[derive(Clone, Copy, Debug)]
 pub enum Operation {
+    /// Read the canonical request from the injected transport.
     Receive,
+    /// Publish the canonical report through the injected transport.
     Respond,
 }
 type Input = Operation;

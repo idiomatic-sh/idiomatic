@@ -30,27 +30,40 @@ struct RyoDiagnosticSchema {
     end: usize,
 }
 
+impl From<WorkerRequest> for RyoWorkerRequestSchema {
+    fn from(request: WorkerRequest) -> Self {
+        Self {
+            root: request.root,
+            rules: request.rules,
+            files: request.files,
+            cache: request.cache,
+        }
+    }
+}
+impl From<RyoReportSchema> for RunReport {
+    fn from(wire: RyoReportSchema) -> Self {
+        Self {
+            files: wire.files,
+            diagnostics: wire
+                .diagnostics
+                .into_iter()
+                .map(|finding| Diagnostic {
+                    rule: finding.rule,
+                    file: finding.file,
+                    start: finding.start,
+                    end: finding.end,
+                })
+                .collect(),
+        }
+    }
+}
 pub(super) fn encode_request(request: WorkerRequest) -> Result<String, Error> {
-    Ok(serde_json::to_string(&RyoWorkerRequestSchema {
-        root: request.root,
-        rules: request.rules,
-        files: request.files,
-        cache: request.cache,
-    })?)
+    serde_json::to_string(&RyoWorkerRequestSchema::from(request)).map_err(Into::into)
 }
 pub(super) fn decode_report(bytes: &[u8]) -> Result<RunReport, Error> {
     let wire: RyoReportSchema = serde_json::from_slice(bytes)?;
-    Ok(RunReport {
-        files: wire.files,
-        diagnostics: wire
-            .diagnostics
-            .into_iter()
-            .map(|finding| Diagnostic {
-                rule: finding.rule,
-                file: finding.file,
-                start: finding.start,
-                end: finding.end,
-            })
-            .collect(),
-    })
+    Ok(wire.into())
 }
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;

@@ -5,7 +5,7 @@ use crate::outbound::execution::interface::ExecutionPort;
 use std::process::Command;
 use std::time::Instant;
 #[derive(Debug)]
-pub struct ExecutionProcessAdapter;
+pub(crate) struct ExecutionProcessAdapter;
 impl ExecutionPort for ExecutionProcessAdapter {
     fn run(&self, invocation: Invocation) -> Result<ProcessOutput, Error> {
         let start = Instant::now();
@@ -18,7 +18,7 @@ impl ExecutionPort for ExecutionProcessAdapter {
         let status = output
             .status
             .code()
-            .ok_or_else(|| Error::Invalid("tool terminated by signal".into()))?;
+            .ok_or_else(|| Error::Invalid(super::constants::SIGNAL.into()))?;
         Ok(ProcessOutput {
             status,
             stdout: output.stdout,

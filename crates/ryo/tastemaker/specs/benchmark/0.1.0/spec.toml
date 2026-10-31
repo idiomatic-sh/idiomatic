@@ -48,3 +48,49 @@ given.files.'reference/unowned.txt' = ''
 then.findings = [{ rule = 'benchmark#closed', path = 'reference/unowned.txt' }]
 
 then.only = ["idiomatic.ryo/benchmark#closed", "idiomatic.ryo/benchmark-linter#closed", "idiomatic.ryo/benchmark-linter/companions"]
+
+[[scenarios]]
+id = "external-schema-tests-preserve-conversions"
+scenario = "The Cargo test owner replaces only nested registration, keeping schema conversions governed."
+given.files.'linters/tool/tests.rs' = '''
+mod schemas;
+#[path = "schemas_test.rs"]
+mod schemas_test;
+'''
+given.files.'linters/tool/schemas.rs' = '''
+//! The shape of the data this adapter does not control.
+pub(super) struct StoredSchema { pub(super) value: String }
+impl From<StoredSchema> for String {
+    fn from(value: StoredSchema) -> Self { value.value }
+}
+'''
+then.only = ['idiomatic.arch/schemas#template', 'idiomatic.arch/schema-name', 'idiomatic.ryo/benchmark-linter/cargo-schema-tests#template']
+
+[[scenarios]]
+id = "external-schema-tests-still-refuse-missing-conversion"
+scenario = "An externally tested schema cannot omit its conversion into core types."
+given.files.'linters/tool/tests.rs' = '''
+mod schemas;
+#[path = "schemas_test.rs"]
+mod schemas_test;
+'''
+given.files.'linters/tool/schemas.rs' = '''
+//! The shape of the data this adapter does not control.
+pub(super) struct StoredSchema { pub(super) value: String }
+'''
+then.only = ['idiomatic.arch/schema-name']
+then.findings = [{rule='idiomatic.arch/schema-name', path='linters/tool/schemas.rs', line=2}]
+
+[[scenarios]]
+id = "external-schema-tests-must-register-cases"
+scenario = "The explicit owner must compile the adjacent schema cases."
+given.files.'linters/tool/tests.rs' = 'mod schemas;'
+given.files.'linters/tool/schemas.rs' = '''
+//! The shape of the data this adapter does not control.
+pub(super) struct StoredSchema { pub(super) value: String }
+impl From<StoredSchema> for String {
+    fn from(value: StoredSchema) -> Self { value.value }
+}
+'''
+then.only = ['idiomatic.ryo/benchmark-linter/cargo-schema-tests#template']
+then.findings = [{rule='idiomatic.ryo/benchmark-linter/cargo-schema-tests#template', path='linters/tool/tests.rs'}]

@@ -25,6 +25,7 @@ tracing-chrome.workspace = true
 tempfile.workspace = true
 
 [dev-dependencies]
+divan.workspace = true
 tempfile.workspace = true
 cucumber.workspace = true
 cargo_metadata.workspace = true
@@ -33,6 +34,11 @@ idiomatic-sh-ryo-benchmark = { path = ".", features = ["fixtures"] }
 
 [[test]]
 name = "bdd"
+harness = false
+
+[[bench]]
+name = "performance"
+path = "benches/performance.rs"
 harness = false
 
 [features]

@@ -16,10 +16,11 @@ use ryo_benchmark::outbound::workspace::interface::WorkspacePort;
 use std::{path::PathBuf, sync::Arc};
 
 pub(crate) fn run() -> Result<(), Error> {
-    let mut args = std::env::args().skip(1).filter(|argument| argument != "--bench");
+    let mut args = std::env::args()
+        .skip(1)
+        .filter(|argument| argument != "--bench");
     let suite_source = ryo_benchmark::outbound::suite::factory::local();
     let execution = ryo_benchmark::outbound::execution::factory::process();
-    let workspaces = ryo_benchmark::outbound::workspace::factory::git();
     let command = args.next();
     match command.as_deref() {
         Some("run-ryo") => {
@@ -88,11 +89,12 @@ pub(crate) fn run() -> Result<(), Error> {
             for project in suite.projects {
                 let observed = (|| -> Result<Vec<Sample>, Error> {
                 let mut samples = Vec::new();
-                let mut workspace = workspaces.prepare(&project, &cache.join("projects"))?;
+                let workspaces = ryo_benchmark::outbound::workspace::factory::git(cache.join("projects"));
+                let mut workspace = workspaces.prepare(&project)?;
                 let discovered: Vec<String> = reference.files(workspace.root())?.into_iter().map(|path| path.0.into_string()).collect();
                 let (mut files, excluded): (Vec<_>, Vec<_>) = discovered.into_iter().partition(|file| file.ends_with(".py") || file.ends_with(".pyi"));
                 eprintln!("{}: matched Python source scope {} files; excluded default-discovered formats {} files (ryo-7tkn.2): {:?}", project.name, files.len(), excluded.len(), excluded);
-                let tracked = workspaces.tracked_files(&workspace)?;
+                let tracked = workspaces.tracked_files(&workspace)?.0;
                 if files.iter().any(|file| !tracked.contains(file)) { return Err(Error::Invalid("Ruff discovered untracked source".into())); }
                 if command.as_deref() == Some("measure-scoped-valid") {
                     let preflight = RunRequest { root: workspace.root().to_owned(), files: files.clone(), cache: cache.join("preflight").join(&project.name) };

@@ -1297,6 +1297,7 @@ version = "0.1.0"
 dependencies = [
  "cargo_metadata",
  "cucumber",
+ "divan",
  "idiomatic-sh-ryo-benchmark",
  "idiomatic-sh-ryo-sdk",
  "serde",

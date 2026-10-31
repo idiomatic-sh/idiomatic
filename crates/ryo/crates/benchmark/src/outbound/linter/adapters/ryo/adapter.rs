@@ -8,9 +8,9 @@ use crate::domain::{
 use crate::outbound::linter::interface::LinterPort;
 use std::path::PathBuf;
 #[derive(Debug)]
-pub struct LinterRyoAdapter {
-    pub executable: PathBuf,
-    pub rules: PathBuf,
+pub(crate) struct LinterRyoAdapter {
+    pub(crate) executable: PathBuf,
+    pub(crate) rules: PathBuf,
 }
 impl LinterPort for LinterRyoAdapter {
     fn prepare(&self, request: &RunRequest) -> Result<Invocation, Error> {
@@ -18,12 +18,12 @@ impl LinterPort for LinterRyoAdapter {
             root: request.root.clone(),
             rules: self.rules.clone(),
             files: request.files.clone(),
-            cache: Some(request.cache.join("ryo")),
+            cache: Some(request.cache.join(super::constants::CACHE)),
         };
         Ok(Invocation {
             executable: self.executable.clone(),
             arguments: vec![
-                "run-ryo".into(),
+                super::constants::WORKER.into(),
                 super::schemas::encode_request(worker)?.into(),
             ],
             environment: Default::default(),

@@ -16,7 +16,8 @@ let harness-off = select * from entries where key = "harness" and text = "false"
 let bench-targets = select * from manifests where kind = "bench" and part = "bench";
 let bench-wired = select l."root" as "root", l."linter" as "linter", l."part" as "part" from bench-targets as l join harness-off as r on l."owner" = r."owner";
 let test-targets = select * from manifests where kind = "test" and part = "tests";
-let test-wired = project(from=test-targets, columns=["root", "linter", "part"]);
+let conventional-tests = antijoin(left=test-targets, right=harness-off, left-on=["owner"], right-on=["owner"]);
+let test-wired = project(from=conventional-tests, columns=["root", "linter", "part"]);
 let wired = union(left=bench-wired, right=test-wired);
 let missing = antijoin(left=runners, right=wired, left-on=["root", "linter", "part"], right-on=["root", "linter", "part"]);
 emit missing subject "path" key("path");
@@ -58,3 +59,30 @@ name="lint"
 path="benchmarks/linters/tool/bench.rs"
 '''
 then.findings = [{ path = 'language/benchmarks/linters/tool/bench.rs' }]
+
+[[scenarios]]
+id = 'schema-cases-have-cargo-test-target'
+scenario = 'Schema cases live in an explicit conventional Cargo test target.'
+given.files.'language/benchmarks/linters/tool/tests.rs' = ''
+given.files.'language/Cargo.toml' = '''
+[[test]]
+name="lint_cases"
+path="benchmarks/linters/tool/tests.rs"
+'''
+[[scenarios]]
+id = 'schema-cases-are-not-a-benchmark'
+scenario = 'A harness-free test target cannot execute Rust test functions.'
+given.files.'language/benchmarks/linters/tool/tests.rs' = ''
+given.files.'language/Cargo.toml' = '''
+[[test]]
+name="lint_cases"
+path="benchmarks/linters/tool/tests.rs"
+harness=false
+'''
+then.findings = [{path='language/benchmarks/linters/tool/tests.rs'}]
+[[scenarios]]
+id = 'schema-cases-missing-target'
+scenario = 'An unregistered correctness runner cannot prove schemas.'
+given.files.'language/benchmarks/linters/tool/tests.rs' = ''
+given.files.'language/Cargo.toml' = ''
+then.findings = [{path='language/benchmarks/linters/tool/tests.rs'}]

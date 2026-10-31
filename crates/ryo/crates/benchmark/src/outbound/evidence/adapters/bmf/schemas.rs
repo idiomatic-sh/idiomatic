@@ -10,24 +10,46 @@ struct MetricSchema {
     upper_value: f64,
 }
 
+/// Wire-level measurements extracted without validation or loss from one sample.
+struct ObservationSchema<'a> {
+    name: &'a str,
+    wall: f64,
+    cpu: Option<f64>,
+    resident: Option<u64>,
+}
+impl<'a> From<&'a Sample> for ObservationSchema<'a> {
+    fn from(sample: &'a Sample) -> Self {
+        Self {
+            name: &sample.name,
+            wall: sample.measurement.wall.as_secs_f64() * 1000.0,
+            cpu: sample
+                .measurement
+                .resources
+                .map(|resources| resources.cpu.as_secs_f64() * 1000.0),
+            resident: sample
+                .measurement
+                .resources
+                .map(|resources| resources.peak_rss_bytes),
+        }
+    }
+}
 pub(super) fn encode(samples: &[Sample]) -> Result<Vec<u8>, Error> {
     if samples.is_empty() {
         return Err(Error::Invalid("no measured evidence".into()));
     }
     let mut grouped: BTreeMap<&str, BTreeMap<&str, Vec<f64>>> = BTreeMap::new();
-    for sample in samples {
+    for sample in samples.iter().map(ObservationSchema::from) {
         if sample.name.is_empty() {
             return Err(Error::Invalid("empty measurement identity".into()));
         }
-        let resources = sample
-            .measurement
-            .resources
-            .ok_or_else(|| Error::Invalid("resource measurements absent".into()))?;
-        let metrics = grouped.entry(&sample.name).or_default();
+        let (Some(cpu), Some(resident)) = (sample.cpu, sample.resident) else {
+            return Err(Error::Invalid("resource measurements absent".into()));
+        };
+        let metrics = grouped.entry(sample.name).or_default();
         for (metric, value) in [
-            ("wall-ms", sample.measurement.wall.as_secs_f64() * 1000.0),
-            ("cpu-ms", resources.cpu.as_secs_f64() * 1000.0),
-            ("peak-rss-bytes", resources.peak_rss_bytes as f64),
+            ("wall-ms", sample.wall),
+            ("cpu-ms", cpu),
+            ("peak-rss-bytes", resident as f64),
         ] {
             metrics.entry(metric).or_default().push(value);
         }
@@ -43,8 +65,8 @@ pub(super) fn encode(samples: &[Sample]) -> Result<Vec<u8>, Error> {
             } else {
                 values[middle]
             };
-            summaries.insert(
-                metric,
+            let _previous = summaries.insert(
+                metric.to_owned(),
                 MetricSchema {
                     value: median,
                     lower_value: values[0],
@@ -52,7 +74,11 @@ pub(super) fn encode(samples: &[Sample]) -> Result<Vec<u8>, Error> {
                 },
             );
         }
-        document.insert(name, summaries);
+        let _previous = document.insert(name.to_owned(), summaries);
     }
     serde_json::to_vec(&document).map_err(Into::into)
 }
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;

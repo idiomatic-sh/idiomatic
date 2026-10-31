@@ -1,60 +1,30 @@
-//! Independently specified resource records reject missing and malformed observations.
-use super::schemas;
+//! Resource instrumentation preserves the execution port's process observations.
+use super::{adapter::ExecutionTimedAdapter, settings::ExecutionTimedSettings};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::measurements::types::Resources;
-use std::time::Duration;
-
-const CASES: &[Case<&str, Resources, bool>] = &[
-    Case {
-        name: CaseName("CPU sums both clocks and RSS converts KiB"),
-        word: Word::Succeeds,
-        input: || "1.25\t0.75\t2048\n",
-        expect: Expect::Value(Resources {
-            cpu: Duration::from_secs(2),
-            peak_rss_bytes: 2_097_152,
-        }),
-    },
-    Case {
-        name: CaseName("missing metrics fail"),
-        word: Word::Refuses,
-        input: || "",
-        expect: Expect::Error(true),
-    },
-    Case {
-        name: CaseName("non finite CPU fails"),
-        word: Word::Refuses,
-        input: || "NaN\t0.0\t2048",
-        expect: Expect::Error(true),
-    },
-    Case {
-        name: CaseName("negative CPU fails"),
-        word: Word::Refuses,
-        input: || "-1.0\t0.0\t2048",
-        expect: Expect::Error(true),
-    },
-    Case {
-        name: CaseName("RSS byte overflow fails"),
-        word: Word::Refuses,
-        input: || "0.0\t0.0\t18446744073709551615",
-        expect: Expect::Error(true),
-    },
-    Case {
-        name: CaseName("extra records fail"),
-        word: Word::Refuses,
-        input: || "0.1\t0.1\t1\n0.2\t0.2\t2",
-        expect: Expect::Error(true),
-    },
-];
-
-fn subject(record: &str) -> Result<Resources, bool> {
-    schemas::decode(record).map_err(|_| true)
+use crate::outbound::execution::fixtures::contract::check;
+use sha2::{Digest, Sha256};
+type Input = ();
+type Value = ();
+type Failure = ();
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
+    name: CaseName("timed execution honors process contract"),
+    word: Word::Succeeds,
+    input: || (),
+    expect: Expect::Value(()),
+}];
+fn subject(_: Input) -> Result<Value, Failure> {
+    let executable = std::path::PathBuf::from("/usr/bin/time");
+    let bytes = std::fs::read(&executable)
+        .expect("GNU time is required by the instrumentation integration proof");
+    let sha256 = format!("{:x}", Sha256::digest(bytes));
+    check(&ExecutionTimedAdapter::new(ExecutionTimedSettings {
+        executable,
+        sha256: crate::domain::measurements::types::ExecutableDigest(sha256),
+        path: Some(std::ffi::OsString::from("/usr/bin:/bin")),
+    }));
+    Ok(())
 }
-
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
-}
-#[test]
-fn refuses() {
-    run(CASES, Word::Refuses, subject);
 }

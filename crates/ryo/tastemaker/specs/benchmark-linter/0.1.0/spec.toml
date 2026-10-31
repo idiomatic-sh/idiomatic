@@ -1,11 +1,22 @@
 description = "The language-local artifacts and entry points of one benchmark linter."
 why = "Placed beside the standard adapter spec at the same directory, this artifact spec owns Cargo runners, composition, tool pins and candidate rules. The adapter spec alone owns adapter, settings and schemas roles; neither scope exempts the other."
 templates = [
+  { alias = "runner-guide", template = "evidence", file = "README.md", count = { min = 0, max = 1 }, description = "Language-local runner commands and the scope of its benchmark claims." },
   { template = "linter", file = "benchmark.toml", description = "Benchmark linter contract." },
   { alias = "bench", template = "source", file = "bench.rs", imports = { default = "deny", allow = ["ryo_benchmark::*", "ryo::*", "std::*", "serde::*", "serde_json::*", "toml::*", "tempfile::*", "crate::*", "self::*", "super::*", "composition::*"] }, description = "The linter bench implementation." },
-  { alias = "tests", template = "source", file = "tests.rs", imports = { default = "deny", allow = ["ryo_benchmark::*", "ryo::*", "std::*", "serde::*", "serde_json::*", "toml::*", "tempfile::*", "crate::*", "self::*", "super::*"] }, description = "The linter tests implementation." },
+  { template = "cargo-schema-tests", file = "tests.rs", imports = { default = "deny", allow = ["ryo_benchmark::*", "ryo::*", "std::*", "serde::*", "serde_json::*", "toml::*", "tempfile::*", "crate::*", "self::*", "super::*"] }, description = "The linter tests implementation." },
   { alias = "composition", template = "source", file = "composition.rs", imports = { default = "deny", allow = ["ryo_benchmark::*", "ryo::*", "std::*", "serde::*", "serde_json::*", "toml::*", "tempfile::*", "crate::*", "self::*", "super::*"] }, description = "The linter composition implementation." },
   { alias = "engine-test", template = "source", file = "engine_test.rs", count = { min = 0 }, imports = { default = "deny", allow = ["ryo_benchmark::*", "ryo::*", "std::*", "serde::*", "serde_json::*", "toml::*", "tempfile::*", "crate::*", "self::*", "super::*"] }, description = "Optional real-SDK integration proof, compiled by the linter test target." },
+  { alias = "result-report", template = "evidence", file = "results/report.md", count = { min = 0, max = 1 }, description = "Human interpretation of measured correctness and performance." },
+  { alias = "result-measurements", template = "evidence", file = "results/measurements.json", count = { min = 0, max = 1 }, description = "Observed metric values in Bencher Metric Format." },
+  { alias = "result-observations", template = "evidence", file = "results/observations.log", count = { min = 0, max = 1 }, description = "Captured process output supporting the report." },
+  { alias = "result-environment", template = "evidence", file = "results/environment.txt", count = { min = 0, max = 1 }, description = "Execution environment and measurement boundary." },
+  { alias = "result-correctness", template = "evidence", file = "results/correctness.json", count = { min = 0, max = 1 }, description = "Canonical corpus comparison evidence." },
+  { alias = "result-fixtures", template = "evidence", file = "results/fixtures.json", count = { min = 0, max = 1 }, description = "Independent fixture verification evidence." },
+  { alias = "result-profile", template = "evidence", file = "results/profile.json", count = { min = 0, max = 1 }, description = "Observed cold phase profiling evidence, separate from timed trials." },
+  { alias = "result-trace", template = "evidence", file = "results/trace.json", count = { min = 0, max = 1 }, description = "Observed cold phase profiling evidence, separate from timed trials." },
+  { alias = "result-profile-text", template = "evidence", file = "results/profile.txt", count = { min = 0, max = 1 }, description = "Observed cold phase profiling evidence, separate from timed trials." },
+  { alias = "result-identity", template = "evidence", file = "results/identity.json", count = { min = 0, max = 1 }, description = "Pinned inputs and contestant artifact identities." },
   { template = "query", file = "rules/{implemented}/query.ryoql", count = { min = 0 }, description = "Benchmark query contract." },
   { template = "cases", file = "rules/{rule}/cases.toml", description = "Benchmark cases contract." },
 ]
@@ -32,7 +43,11 @@ id = "private-engine-is-not-a-benchmark-dependency"
 scenario = "Benchmark entry points cannot import a private engine."
 given.files.'benchmark.toml' = ''
 given.files.'bench.rs' = 'use ryo_core::domain::engine::Engine;'
-given.files.'tests.rs' = ''
+given.files.'tests.rs' = '''
+mod schemas;
+#[path = "schemas_test.rs"]
+mod schemas_test;
+''' 
 given.files.'composition.rs' = ''
 given.files.'rules/F001/cases.toml' = ''
 then.findings = [
@@ -41,3 +56,22 @@ then.findings = [
   { rule = "idiomatic.arch/orphan-rust-files", path = "composition.rs" },
   { rule = "idiomatic.arch/orphan-rust-files", path = "tests.rs" },
 ]
+
+[[scenarios]]
+id = "named-evidence-is-placed"
+scenario = "Published benchmark evidence has an explicit role."
+given.files.'results/report.md' = ''
+given.files.'results/measurements.json' = ''
+given.files.'results/observations.log' = ''
+given.files.'results/environment.txt' = ''
+given.files.'results/correctness.json' = ''
+given.files.'results/fixtures.json' = ''
+given.files.'results/identity.json' = ''
+then.only = ['idiomatic.ryo/benchmark-linter#closed']
+
+[[scenarios]]
+id = "unnamed-evidence-is-refused"
+scenario = "An arbitrary output file is not silently accepted as evidence."
+given.files.'results/scratch.txt' = ''
+then.only = ['idiomatic.ryo/benchmark-linter#closed']
+then.findings = [{ rule = 'idiomatic.ryo/benchmark-linter#closed', path = 'results/scratch.txt' }]

@@ -1,0 +1,22 @@
+description = "The Cargo correctness target owns adjacent schema tests shared with a harness-free benchmark."
+why = "Cargo compiles harness-free benchmarks with cfg(test), but they cannot run Rust test functions. Registering schemas_test.rs inside schemas.rs would put dead test helpers in that executable. This explicit target instead compiles the shared schemas and their adjacent tests; benchmark-targets independently requires a real [[test]] target, and adapter schema conversion/visibility/proof rules remain in force."
+content = '''
+mod schemas;
+#[path = "schemas_test.rs"]
+mod schemas_test;
+'''
+[given]
+file = 'tests.rs'
+[[scenarios]]
+id = 'registered'
+scenario = 'The correctness target owns the schemas and adjacent cases.'
+given.files.'tests.rs' = '''
+mod schemas;
+#[path = "schemas_test.rs"]
+mod schemas_test;
+'''
+[[scenarios]]
+id = 'unregistered'
+scenario = 'A target cannot leave the schema cases uncompiled.'
+given.files.'tests.rs' = 'mod schemas;'
+then.findings = [{rule = 'cargo-schema-tests#template', path = 'tests.rs'}]

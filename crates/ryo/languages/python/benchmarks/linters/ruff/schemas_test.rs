@@ -1,5 +1,18 @@
 //! Scalar columns, byte offsets and line-ending boundaries.
-use super::{BoundaryFailure, failure, schemas::offset};
+use super::schemas::offset;
+use ryo_benchmark::domain::diagnostics::errors::Error;
+
+#[derive(Debug, PartialEq, Eq)]
+enum BoundaryFailure {
+    Invalid,
+    Unexpected,
+}
+fn failure(error: Error) -> BoundaryFailure {
+    match error {
+        Error::Invalid(_) => BoundaryFailure::Invalid,
+        Error::Io(_) | Error::Json(_) | Error::Toml(_) => BoundaryFailure::Unexpected,
+    }
+}
 use ryo_benchmark::cases::{Case, CaseName, Expect, Word, run};
 
 type Input = (&'static str, usize, usize);
