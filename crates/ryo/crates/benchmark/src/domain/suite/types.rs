@@ -50,9 +50,30 @@ pub struct Cases {
     pub cases: Vec<Case>,
 }
 
+/// Diagnostic projection asserted by an independent case.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum CaseComparison {
+    /// Assert findings belonging to the enclosing rule.
+    #[default]
+    Rule,
+    /// Assert every diagnostic, including frontend errors.
+    Full,
+}
+
+/// Explicit diagnostic identity or the enclosing rule's identity.
+#[derive(Clone, Debug)]
+pub enum ExpectedRule {
+    /// Existing rule-scoped fixture shorthand.
+    Parent,
+    /// Independently specified diagnostic identity.
+    Explicit(RuleId),
+}
+
 /// An isolated set of source files and its exact expected findings.
 #[derive(Clone, Debug)]
 pub struct Case {
+    /// Whether all diagnostics or only the enclosing rule are asserted.
+    pub comparison: CaseComparison,
     /// Human-readable identity of this correctness case.
     pub name: BenchmarkCaseName,
     /// Relative source paths and their complete UTF-8 contents.
@@ -64,6 +85,8 @@ pub struct Case {
 /// An independently authored case materialized by the suite boundary.
 #[derive(Clone, Debug)]
 pub struct PreparedCase {
+    /// Diagnostic projection selected by the authored case.
+    pub comparison: CaseComparison,
     /// Selected default rule whose findings this case asserts.
     pub rule: RuleId,
     /// Unique case name within that rule.
@@ -77,6 +100,8 @@ pub struct PreparedCase {
 /// One expected finding in a case, located by UTF-8 byte offsets.
 #[derive(Clone, Debug)]
 pub struct Expected {
+    /// Diagnostic identity; full-report cases must specify it explicitly.
+    pub identity: ExpectedRule,
     /// Relative path of a source supplied by the case.
     pub file: RelativePath,
     /// Inclusive start offset in UTF-8 bytes.

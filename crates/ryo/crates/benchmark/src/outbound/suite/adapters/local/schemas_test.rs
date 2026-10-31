@@ -28,8 +28,29 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || "tool='ruff'\nversion='1'\nsha256=['abc','abc']\ndefaults=['F401']",
         expect: Expect::Error("invalid pins"),
     },
+    Case {
+        name: CaseName("full report accepts explicit frontend identity"),
+        word: Word::Succeeds,
+        input: || "[[cases]]\nname='parser'\ncomparison='full'\nfiles={'case.py'='x'}\nexpected=[{rule='invalid-syntax',file='case.py',start=0,end=1}]",
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("full report refuses inherited rule identity"),
+        word: Word::Refuses,
+        input: || "[[cases]]\nname='parser'\ncomparison='full'\nfiles={'case.py'='x'}\nexpected=[{file='case.py',start=0,end=1}]",
+        expect: Expect::Error("invalid report envelope"),
+    },
+    Case {
+        name: CaseName("comparison scope rejects unknown modes"),
+        word: Word::Refuses,
+        input: || "[[cases]]\nname='parser'\ncomparison='partial'\nfiles={'case.py'='x'}\nexpected=[]",
+        expect: Expect::Error("invalid report envelope"),
+    },
 ];
 fn subject(text: Input) -> Result<Value, Failure> {
+    if text.starts_with("[[cases]]") {
+        return report_subject(text);
+    }
     let tool = super::tool(text).map_err(|error| {
         if error.to_string() == "rule appears in multiple capability groups" {
             "duplicate capability member"
@@ -58,4 +79,14 @@ fn succeeds() {
 #[test]
 fn refuses() {
     run(CASES, Word::Refuses, subject);
+}
+
+/// Decode and validate the same envelope used by the suite adapter.
+fn report_subject(text: Input) -> Result<Value, Failure> {
+    let cases = super::cases(text).map_err(|_refusal| "invalid report envelope")?;
+    crate::domain::suite::service::validate_case_sources(&cases)
+        .map_err(|_refusal| "invalid report envelope")?;
+    Ok(
+        matches!(cases.cases.first(), Some(case) if case.comparison == crate::domain::suite::types::CaseComparison::Full),
+    )
 }

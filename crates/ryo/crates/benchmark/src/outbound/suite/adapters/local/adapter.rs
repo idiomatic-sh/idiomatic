@@ -298,7 +298,10 @@ fn prepare_cases(
                     .expected
                     .into_iter()
                     .map(|finding| BenchmarkFinding {
-                        rule: rule.clone(),
+                        rule: match finding.identity {
+                            crate::domain::suite::types::ExpectedRule::Parent => rule.clone(),
+                            crate::domain::suite::types::ExpectedRule::Explicit(value) => value,
+                        },
                         file: finding.file,
                         start: finding.start,
                         end: finding.end,
@@ -307,6 +310,7 @@ fn prepare_cases(
             };
             expected.diagnostics.sort();
             prepared.push(PreparedCase {
+                comparison: case.comparison,
                 rule: rule.clone(),
                 name: case.name,
                 request,

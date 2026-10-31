@@ -55,6 +55,9 @@ struct CasesSchema {
 #[serde(deny_unknown_fields)]
 /// One independent source example.
 struct CaseSchema {
+    /// Explicit diagnostic scope; existing cases assert their enclosing rule.
+    #[serde(default)]
+    comparison: ComparisonSchema,
     /// Human-readable case identity.
     name: String,
     /// Project-relative source paths mapped to complete source text.
@@ -66,12 +69,26 @@ struct CaseSchema {
 #[serde(deny_unknown_fields)]
 /// Expected finding in one authored case.
 struct ExpectedSchema {
+    /// Explicit diagnostic identity, required in full-report mode.
+    #[serde(default)]
+    rule: Option<String>,
     /// Project-relative source path.
     file: String,
     /// Inclusive zero-based UTF-8 byte offset.
     start: usize,
     /// Exclusive zero-based UTF-8 byte offset.
     end: usize,
+}
+
+/// Serialized fixture comparison scope.
+#[derive(Default, Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum ComparisonSchema {
+    /// Compare the enclosing rule only.
+    #[default]
+    Rule,
+    /// Compare all reported diagnostics.
+    Full,
 }
 
 /// Decode and validate a pinned reference profile.
@@ -164,40 +181,55 @@ impl From<ProjectSchema> for types::Project {
 }
 /// Decode independent sources and expected byte ranges.
 pub(super) fn cases(text: &str) -> Result<types::Cases, Error> {
-    Ok(toml::from_str::<CasesSchema>(text)?.into())
+    toml::from_str::<CasesSchema>(text)?.try_into()
 }
-impl From<CasesSchema> for types::Cases {
-    fn from(wire: CasesSchema) -> Self {
-        Self {
+impl TryFrom<CasesSchema> for types::Cases {
+    type Error = Error;
+    fn try_from(wire: CasesSchema) -> Result<Self, Error> {
+        Ok(Self {
             cases: wire
                 .cases
                 .into_iter()
-                .map(|case| types::Case {
-                    name: case.name.into(),
-                    files: case
-                        .files
-                        .into_iter()
-                        .map(|(path, text)| {
-                            (
-                                ryo::linter::RelativePath(path.into_boxed_str()),
-                                ryo::linter::SourceText(text.into_boxed_str()),
-                            )
-                        })
-                        .collect(),
-                    expected: case
-                        .expected
-                        .into_iter()
-                        .map(|expected| types::Expected {
-                            file: ryo::linter::RelativePath(expected.file.into_boxed_str()),
-                            start: crate::domain::diagnostics::types::SourceByteOffset(
-                                expected.start,
-                            ),
-                            end: crate::domain::diagnostics::types::SourceByteOffset(expected.end),
-                        })
-                        .collect(),
+                .map(|case| {
+                    Ok(types::Case {
+                        comparison: match case.comparison {
+                            ComparisonSchema::Rule => types::CaseComparison::Rule,
+                            ComparisonSchema::Full => types::CaseComparison::Full,
+                        },
+                        name: case.name.into(),
+                        files: case
+                            .files
+                            .into_iter()
+                            .map(|(path, text)| {
+                                (
+                                    ryo::linter::RelativePath(path.into_boxed_str()),
+                                    ryo::linter::SourceText(text.into_boxed_str()),
+                                )
+                            })
+                            .collect(),
+                        expected: case
+                            .expected
+                            .into_iter()
+                            .map(|expected| {
+                                Ok(types::Expected {
+                                    identity: match expected.rule {
+                                        Some(value) => types::ExpectedRule::Explicit(rule(&value)?),
+                                        None => types::ExpectedRule::Parent,
+                                    },
+                                    file: ryo::linter::RelativePath(expected.file.into_boxed_str()),
+                                    start: crate::domain::diagnostics::types::SourceByteOffset(
+                                        expected.start,
+                                    ),
+                                    end: crate::domain::diagnostics::types::SourceByteOffset(
+                                        expected.end,
+                                    ),
+                                })
+                            })
+                            .collect::<Result<_, Error>>()?,
+                    })
                 })
-                .collect(),
-        }
+                .collect::<Result<_, Error>>()?,
+        })
     }
 }
 #[cfg(test)]

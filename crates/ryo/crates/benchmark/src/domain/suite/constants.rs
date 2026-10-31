@@ -18,3 +18,7 @@ pub(super) const INVALID_SOURCE_RANGE: &str = "expected finding has invalid UTF-
 /// Only distinct authored default rules may enter a selected profile.
 pub(super) const INVALID_SELECTION: &str =
     "selected subset must contain distinct authored default rules";
+
+/// Full-report expectations must identify every diagnostic independently.
+pub(super) const MISSING_DIAGNOSTIC_IDENTITY: &str =
+    "full-report expectations require explicit rule identities";

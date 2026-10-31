@@ -20,8 +20,29 @@ enum Scenario {
     OmittedInput,
     MissingQuery,
     StartupFailure,
+    FullAgreement,
+    MissingFrontend,
+    RuleProjection,
 }
 const CASES: &[Case<Scenario, usize, &'static str>] = &[
+    Case {
+        name: CaseName("full report preserves distinct frontend and lint identities"),
+        word: Word::Succeeds,
+        input: || Scenario::FullAgreement,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("matching lint cannot conceal a missing frontend diagnostic"),
+        word: Word::Refuses,
+        input: || Scenario::MissingFrontend,
+        expect: Expect::Error("candidate mismatch"),
+    },
+    Case {
+        name: CaseName("rule scope explicitly excludes unrelated diagnostics"),
+        word: Word::Succeeds,
+        input: || Scenario::RuleProjection,
+        expect: Expect::Value(1),
+    },
     Case {
         name: CaseName("candidate startup failure executes once before fixture comparisons"),
         word: Word::Refuses,
@@ -82,8 +103,8 @@ fn subject(scenario: Scenario) -> Result<usize, &'static str> {
                 "input coverage"
             });
     }
-    let (suite, expected) = prepared(scenario);
-    let reference = LinterFake {
+    let (mut suite, expected) = prepared(scenario);
+    let mut reference = LinterFake {
         diagnostics: if matches!(scenario, Scenario::MissingReference) {
             Vec::new()
         } else {
@@ -91,7 +112,7 @@ fn subject(scenario: Scenario) -> Result<usize, &'static str> {
         },
         ..Default::default()
     };
-    let candidate = LinterFake {
+    let mut candidate = LinterFake {
         diagnostics: if matches!(scenario, Scenario::MissingCandidate) {
             Vec::new()
         } else {
@@ -99,6 +120,7 @@ fn subject(scenario: Scenario) -> Result<usize, &'static str> {
         },
         ..Default::default()
     };
+    report_scope(scenario, &mut suite, &mut reference, &mut candidate);
     let execution = ExecutionFake {
         status: if matches!(scenario, Scenario::StartupFailure) {
             2
@@ -201,6 +223,37 @@ impl ExecutionPort for Empty {
     }
 }
 
+/// Give both contestants explicit frontend findings without changing rule-only expectations.
+fn report_scope(
+    scenario: Scenario,
+    suite: &mut SuiteFake,
+    reference: &mut LinterFake,
+    candidate: &mut LinterFake,
+) {
+    if matches!(
+        scenario,
+        Scenario::FullAgreement | Scenario::MissingFrontend | Scenario::RuleProjection
+    ) {
+        let frontend = BenchmarkFinding {
+            rule: "invalid-syntax"
+                .try_into()
+                .expect("frontend diagnostic identity"),
+            file: ryo::linter::RelativePath("case.py".into()),
+            start: crate::domain::diagnostics::types::SourceByteOffset(9),
+            end: crate::domain::diagnostics::types::SourceByteOffset(19),
+        };
+        reference.diagnostics.push(frontend.clone());
+        if !matches!(scenario, Scenario::MissingFrontend) {
+            candidate.diagnostics.push(frontend.clone());
+        }
+        if !matches!(scenario, Scenario::RuleProjection) {
+            let case = suite.prepared.first_mut().expect("authored case");
+            case.comparison = crate::domain::suite::types::CaseComparison::Full;
+            case.expected.diagnostics.push(frontend);
+        }
+    }
+}
+
 /// Construct authored evidence independently from either contestant response.
 fn prepared(scenario: Scenario) -> (SuiteFake, BenchmarkFinding) {
     let expected = BenchmarkFinding {
@@ -212,6 +265,7 @@ fn prepared(scenario: Scenario) -> (SuiteFake, BenchmarkFinding) {
     let mut suite = SuiteFake::default();
     if !matches!(scenario, Scenario::NoCases) {
         suite.prepared.push(PreparedCase {
+            comparison: crate::domain::suite::types::CaseComparison::Rule,
             rule: ryo::linter::RuleId::try_from("E722").unwrap(),
             name: "positive".into(),
             request: RunRequest {

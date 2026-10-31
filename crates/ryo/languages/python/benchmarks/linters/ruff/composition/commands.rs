@@ -55,16 +55,19 @@ pub(super) fn verify_cases(
             .ok_or_else(|| Error::Invalid(constants::EXPECTED_RUFF.into()))?,
     )
     .canonicalize()?;
-    let mut tool = suite_source.profile(ArtifactPath(&directory()))?;
+    let source = args
+        .next()
+        .map_or_else(directory, |argument| PathBuf::from(argument.0));
+    let mut tool = suite_source.profile(ArtifactPath(&source))?;
     suite_source.verify_tool(ArtifactPath(&executable), &tool)?;
-    let audit = suite_source.audit(ArtifactPath(&directory()), &tool)?;
+    let audit = suite_source.audit(ArtifactPath(&source), &tool)?;
     ryo_benchmark::domain::suite::service::require_accounted(&audit, &tool)?;
     tool.defaults = audit.authored().to_vec();
     let reference = Arc::new(reference(executable, tool));
     let scratch = tempfile::tempdir()?;
     let root = scratch.path().canonicalize()?;
     let profile = root.join(constants::PROFILE_DIRECTORY);
-    suite_source.stage(ArtifactPath(&directory()), ArtifactPath(&profile), &audit)?;
+    suite_source.stage(ArtifactPath(&source), ArtifactPath(&profile), &audit)?;
     let candidate = Arc::new(ryo_benchmark::outbound::linter::factory::ryo(
         std::env::current_exe()?,
         profile.join(constants::RULES_DIRECTORY),

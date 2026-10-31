@@ -87,10 +87,12 @@ pub fn verify(
             };
             match result {
                 Ok(mut result) => {
-                    result
-                        .report
-                        .diagnostics
-                        .retain(|finding| finding.rule == case.rule);
+                    if case.comparison == crate::domain::suite::types::CaseComparison::Rule {
+                        result
+                            .report
+                            .diagnostics
+                            .retain(|finding| finding.rule == case.rule);
+                    }
                     if let Err(difference) = compare(&case.expected, &result.report) {
                         failures.push(format!(
                             "{}/{} expected-vs-{name}: expected={:?}; actual={:?}",

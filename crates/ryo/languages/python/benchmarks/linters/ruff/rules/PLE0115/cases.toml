@@ -1,0 +1,14 @@
+[[cases]]
+name = "module-global-nonlocal-full-report"
+comparison = "full"
+files = { "case.py" = "global x\nnonlocal x\n" }
+expected = [
+  { rule = "PLE0115", file = "case.py", start = 7, end = 8 },
+  { rule = "invalid-syntax", file = "case.py", start = 9, end = 19 },
+]
+
+[[cases]]
+name = "ordinary-global-full-report"
+comparison = "full"
+files = { "case.py" = "global x\n" }
+expected = []

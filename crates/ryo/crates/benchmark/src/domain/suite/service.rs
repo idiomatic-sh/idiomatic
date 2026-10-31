@@ -106,6 +106,13 @@ pub fn validate_case_sources(cases: &Cases) -> Result<(), Error> {
             relative_path(name.0.as_ref())?;
         }
         for expected in &case.expected {
+            if case.comparison == super::types::CaseComparison::Full
+                && matches!(expected.identity, super::types::ExpectedRule::Parent)
+            {
+                return Err(Error::Invalid(
+                    super::constants::MISSING_DIAGNOSTIC_IDENTITY.into(),
+                ));
+            }
             let source = case
                 .files
                 .get(&expected.file)
