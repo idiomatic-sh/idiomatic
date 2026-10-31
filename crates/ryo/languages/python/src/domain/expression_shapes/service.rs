@@ -13,7 +13,7 @@ use crate::domain::{
             BYTES_SCALAR, INTERPOLATION_CONVERSION, INTERPOLATION_DEBUG, SCALAR_IMAGINARY,
             SCALAR_KIND, SCALAR_VALUE,
         },
-        service::{identifier_text, interpolation, is_token, kind, literal},
+        service::{below, identifier_text, interpolation, is_token, kind, literal},
         types::{Kind, Leaf, Literal},
     },
     tokens::types::Token,
@@ -110,7 +110,15 @@ fn constant(
     {
         // Bytes share the parser's string-part node shape, but their decoded scalar payload is
         // already present and must not be sent through the text-only string decoder.
-    } else if literal(tree, at) == Literal::String {
+    } else if literal(tree, at) == Literal::String
+        || kind(tree, at) == Kind::Node(Node::Constant)
+            && below(tree, at).any(|child| {
+                matches!(
+                    kind(tree, child),
+                    Kind::Token(Token::String | Token::FstringMiddle | Token::TstringMiddle)
+                )
+            })
+    {
         if interpolation(tree, at) == crate::domain::syntax::types::Interpolation::Static {
             words.push(ShapeWord::Literal(string_value(tree, symbols, at)?));
         } else {
@@ -286,32 +294,16 @@ pub(crate) fn prepare<'a>(
             let ExpressionShapeIndex {
                 classes, scratch, ..
             } = &mut *index;
-            let unshaped_child = languages::children(tree.elements, at).find(|child| {
+            if languages::children(tree.elements, at).any(|child| {
                 is_token(tree, *child) == Leaf::Node
                     && classes
                         .get(usize::try_from(child.0).unwrap_or(usize::MAX))
                         .is_none_or(Option::is_none)
-            });
-            if let Some(child) = unshaped_child {
-                #[cfg(test)]
-                eprintln!(
-                    "shape incomplete child: parent={at:?} {:?}; child={child:?} {:?}; field={:?}",
-                    kind(tree, at),
-                    kind(tree, child),
-                    field_of(tree, child),
-                );
+            }) {
                 index.state = ShapeState::Partial;
                 continue;
             }
             if key(tree, at, symbols, classes, scratch).is_none() {
-                #[cfg(test)]
-                eprintln!(
-                    "shape key absent: node={at:?} {:?}; literal={:?}; scalar-kind={:?}; interpolation={:?}",
-                    kind(tree, at),
-                    literal(tree, at),
-                    languages::property_at(tree.elements, at, SCALAR_KIND),
-                    interpolation(tree, at),
-                );
                 index.state = ShapeState::Partial;
                 continue;
             }
