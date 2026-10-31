@@ -4,11 +4,730 @@
   "rules": 54,
   "deferred": 359,
   "samples": 108,
-  "project_evidence": ["environment: os=linux arch=aarch64 release=true workers=1; isolated collector Linux wait4 CPU=user+system, RSS=child peak bytes; child wall includes spawn/wait and pipe collection; collector launch, normalization and certificate/source hashing excluded; OS page cache uncontrolled; retained cache hits unverified","django: matched Python source scope 2875 files; excluded default-discovered formats 1 files (source-kind capability gap): [RelativePath(\"pyproject.toml\")]","django: excluded invalid Python (pinned Ruff parser), path=tests/test_runner_apps/tagged/tests_syntax_error.py range=131..143; frontend parser capability gap","django: measured source files=2874 bytes=18487487 digest=bbd95a92f564a597d21ba8b16d5c8d1d6ba3d82d189190c63c9dde1f8766bc5f input-profile=pinned-reference-valid-python","django: exact matching findings per rule: {RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}","findings: project=django contestant=ruff condition=empty-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}","findings: project=django contestant=ryo condition=empty-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}","findings: project=django contestant=ruff condition=retained-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}","findings: project=django contestant=ryo condition=retained-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}","findings: project=django contestant=ruff condition=edited-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"E722\"): FindingCount(1), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}","findings: project=django contestant=ryo condition=edited-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"E722\"): FindingCount(1), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}","django: exact matching findings per rule: {RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}","findings: project=django contestant=ruff condition=empty-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}","findings: project=django contestant=ryo condition=empty-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}","findings: project=django contestant=ruff condition=retained-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}","findings: project=django contestant=ryo condition=retained-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}","findings: project=django contestant=ruff condition=edited-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"E722\"): FindingCount(1), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}","findings: project=django contestant=ryo condition=edited-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"E722\"): FindingCount(1), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}","django: exact matching findings per rule: {RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}","findings: project=django contestant=ruff condition=empty-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}","findings: project=django contestant=ryo condition=empty-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}","findings: project=django contestant=ruff condition=retained-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}","findings: project=django contestant=ryo condition=retained-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}","findings: project=django contestant=ruff condition=edited-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"E722\"): FindingCount(1), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}","findings: project=django contestant=ryo condition=edited-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"E722\"): FindingCount(1), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}","django: exact matching findings per rule: {RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}","findings: project=django contestant=ruff condition=empty-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}","findings: project=django contestant=ryo condition=empty-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}","findings: project=django contestant=ruff condition=retained-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}","findings: project=django contestant=ryo condition=retained-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}","findings: project=django contestant=ruff condition=edited-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"E722\"): FindingCount(1), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}","findings: project=django contestant=ryo condition=edited-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"E722\"): FindingCount(1), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}","django: exact matching findings per rule: {RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}","findings: project=django contestant=ruff condition=empty-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}","findings: project=django contestant=ryo condition=empty-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}","findings: project=django contestant=ruff condition=retained-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}","findings: project=django contestant=ryo condition=retained-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}","findings: project=django contestant=ruff condition=edited-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"E722\"): FindingCount(1), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}","findings: project=django contestant=ryo condition=edited-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"E722\"): FindingCount(1), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}","django: exact matching findings per rule: {RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}","findings: project=django contestant=ruff condition=empty-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}","findings: project=django contestant=ryo condition=empty-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}","findings: project=django contestant=ruff condition=retained-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}","findings: project=django contestant=ryo condition=retained-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}","findings: project=django contestant=ruff condition=edited-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"E722\"): FindingCount(1), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}","findings: project=django contestant=ryo condition=edited-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"E722\"): FindingCount(1), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}","pandas: matched Python source scope 1553 files; excluded default-discovered formats 2 files (source-kind capability gap): [RelativePath(\"doc/source/user_guide/style.ipynb\"), RelativePath(\"pyproject.toml\")]","pandas: measured source files=1553 bytes=21856668 digest=171895bd5d609c2119e4b94734a293d6ea5410d07acf9c2be30b94058b9ddffb input-profile=pinned-reference-valid-python","pandas: exact matching findings per rule: {RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}","findings: project=pandas contestant=ruff condition=empty-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}","findings: project=pandas contestant=ryo condition=empty-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}","findings: project=pandas contestant=ruff condition=retained-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}","findings: project=pandas contestant=ryo condition=retained-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}","findings: project=pandas contestant=ruff condition=edited-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"E722\"): FindingCount(1), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}","findings: project=pandas contestant=ryo condition=edited-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"E722\"): FindingCount(1), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}","pandas: exact matching findings per rule: {RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}","findings: project=pandas contestant=ruff condition=empty-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}","findings: project=pandas contestant=ryo condition=empty-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}","findings: project=pandas contestant=ruff condition=retained-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}","findings: project=pandas contestant=ryo condition=retained-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}","findings: project=pandas contestant=ruff condition=edited-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"E722\"): FindingCount(1), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}","findings: project=pandas contestant=ryo condition=edited-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"E722\"): FindingCount(1), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}","pandas: exact matching findings per rule: {RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}","findings: project=pandas contestant=ruff condition=empty-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}","findings: project=pandas contestant=ryo condition=empty-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}","findings: project=pandas contestant=ruff condition=retained-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}","findings: project=pandas contestant=ryo condition=retained-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}","findings: project=pandas contestant=ruff condition=edited-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"E722\"): FindingCount(1), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}","findings: project=pandas contestant=ryo condition=edited-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"E722\"): FindingCount(1), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}","pandas: exact matching findings per rule: {RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}","findings: project=pandas contestant=ruff condition=empty-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}","findings: project=pandas contestant=ryo condition=empty-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}","findings: project=pandas contestant=ruff condition=retained-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}","findings: project=pandas contestant=ryo condition=retained-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}","findings: project=pandas contestant=ruff condition=edited-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"E722\"): FindingCount(1), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}","findings: project=pandas contestant=ryo condition=edited-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"E722\"): FindingCount(1), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}","pandas: exact matching findings per rule: {RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}","findings: project=pandas contestant=ruff condition=empty-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}","findings: project=pandas contestant=ryo condition=empty-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}","findings: project=pandas contestant=ruff condition=retained-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}","findings: project=pandas contestant=ryo condition=retained-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}","findings: project=pandas contestant=ruff condition=edited-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"E722\"): FindingCount(1), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}","findings: project=pandas contestant=ryo condition=edited-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"E722\"): FindingCount(1), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}","pandas: exact matching findings per rule: {RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}","findings: project=pandas contestant=ruff condition=empty-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}","findings: project=pandas contestant=ryo condition=empty-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}","findings: project=pandas contestant=ruff condition=retained-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}","findings: project=pandas contestant=ryo condition=retained-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}","findings: project=pandas contestant=ruff condition=edited-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"E722\"): FindingCount(1), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}","findings: project=pandas contestant=ryo condition=edited-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"E722\"): FindingCount(1), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}","fastapi: matched Python source scope 1239 files; excluded default-discovered formats 1 files (source-kind capability gap): [RelativePath(\"pyproject.toml\")]","fastapi: measured source files=1239 bytes=3692435 digest=453eefe0f737157ebe28b9c7a3a309e0b76215877caf89622be441b4a1eee46f input-profile=pinned-reference-valid-python","fastapi: exact matching findings per rule: {RuleId(\"PLC0414\"): FindingCount(23)}","findings: project=fastapi contestant=ruff condition=empty-tool-cache counts={RuleId(\"PLC0414\"): FindingCount(23)}","findings: project=fastapi contestant=ryo condition=empty-tool-cache counts={RuleId(\"PLC0414\"): FindingCount(23)}","findings: project=fastapi contestant=ruff condition=retained-tool-cache counts={RuleId(\"PLC0414\"): FindingCount(23)}","findings: project=fastapi contestant=ryo condition=retained-tool-cache counts={RuleId(\"PLC0414\"): FindingCount(23)}","findings: project=fastapi contestant=ruff condition=edited-tool-cache counts={RuleId(\"E722\"): FindingCount(1), RuleId(\"PLC0414\"): FindingCount(23)}","findings: project=fastapi contestant=ryo condition=edited-tool-cache counts={RuleId(\"E722\"): FindingCount(1), RuleId(\"PLC0414\"): FindingCount(23)}","fastapi: exact matching findings per rule: {RuleId(\"PLC0414\"): FindingCount(23)}","findings: project=fastapi contestant=ruff condition=empty-tool-cache counts={RuleId(\"PLC0414\"): FindingCount(23)}","findings: project=fastapi contestant=ryo condition=empty-tool-cache counts={RuleId(\"PLC0414\"): FindingCount(23)}","findings: project=fastapi contestant=ruff condition=retained-tool-cache counts={RuleId(\"PLC0414\"): FindingCount(23)}","findings: project=fastapi contestant=ryo condition=retained-tool-cache counts={RuleId(\"PLC0414\"): FindingCount(23)}","findings: project=fastapi contestant=ruff condition=edited-tool-cache counts={RuleId(\"E722\"): FindingCount(1), RuleId(\"PLC0414\"): FindingCount(23)}","findings: project=fastapi contestant=ryo condition=edited-tool-cache counts={RuleId(\"E722\"): FindingCount(1), RuleId(\"PLC0414\"): FindingCount(23)}","fastapi: exact matching findings per rule: {RuleId(\"PLC0414\"): FindingCount(23)}","findings: project=fastapi contestant=ruff condition=empty-tool-cache counts={RuleId(\"PLC0414\"): FindingCount(23)}","findings: project=fastapi contestant=ryo condition=empty-tool-cache counts={RuleId(\"PLC0414\"): FindingCount(23)}","findings: project=fastapi contestant=ruff condition=retained-tool-cache counts={RuleId(\"PLC0414\"): FindingCount(23)}","findings: project=fastapi contestant=ryo condition=retained-tool-cache counts={RuleId(\"PLC0414\"): FindingCount(23)}","findings: project=fastapi contestant=ruff condition=edited-tool-cache counts={RuleId(\"E722\"): FindingCount(1), RuleId(\"PLC0414\"): FindingCount(23)}","findings: project=fastapi contestant=ryo condition=edited-tool-cache counts={RuleId(\"E722\"): FindingCount(1), RuleId(\"PLC0414\"): FindingCount(23)}","fastapi: exact matching findings per rule: {RuleId(\"PLC0414\"): FindingCount(23)}","findings: project=fastapi contestant=ruff condition=empty-tool-cache counts={RuleId(\"PLC0414\"): FindingCount(23)}","findings: project=fastapi contestant=ryo condition=empty-tool-cache counts={RuleId(\"PLC0414\"): FindingCount(23)}","findings: project=fastapi contestant=ruff condition=retained-tool-cache counts={RuleId(\"PLC0414\"): FindingCount(23)}","findings: project=fastapi contestant=ryo condition=retained-tool-cache counts={RuleId(\"PLC0414\"): FindingCount(23)}","findings: project=fastapi contestant=ruff condition=edited-tool-cache counts={RuleId(\"E722\"): FindingCount(1), RuleId(\"PLC0414\"): FindingCount(23)}","findings: project=fastapi contestant=ryo condition=edited-tool-cache counts={RuleId(\"E722\"): FindingCount(1), RuleId(\"PLC0414\"): FindingCount(23)}","fastapi: exact matching findings per rule: {RuleId(\"PLC0414\"): FindingCount(23)}","findings: project=fastapi contestant=ruff condition=empty-tool-cache counts={RuleId(\"PLC0414\"): FindingCount(23)}","findings: project=fastapi contestant=ryo condition=empty-tool-cache counts={RuleId(\"PLC0414\"): FindingCount(23)}","findings: project=fastapi contestant=ruff condition=retained-tool-cache counts={RuleId(\"PLC0414\"): FindingCount(23)}","findings: project=fastapi contestant=ryo condition=retained-tool-cache counts={RuleId(\"PLC0414\"): FindingCount(23)}","findings: project=fastapi contestant=ruff condition=edited-tool-cache counts={RuleId(\"E722\"): FindingCount(1), RuleId(\"PLC0414\"): FindingCount(23)}","findings: project=fastapi contestant=ryo condition=edited-tool-cache counts={RuleId(\"E722\"): FindingCount(1), RuleId(\"PLC0414\"): FindingCount(23)}","fastapi: exact matching findings per rule: {RuleId(\"PLC0414\"): FindingCount(23)}","findings: project=fastapi contestant=ruff condition=empty-tool-cache counts={RuleId(\"PLC0414\"): FindingCount(23)}","findings: project=fastapi contestant=ryo condition=empty-tool-cache counts={RuleId(\"PLC0414\"): FindingCount(23)}","findings: project=fastapi contestant=ruff condition=retained-tool-cache counts={RuleId(\"PLC0414\"): FindingCount(23)}","findings: project=fastapi contestant=ryo condition=retained-tool-cache counts={RuleId(\"PLC0414\"): FindingCount(23)}","findings: project=fastapi contestant=ruff condition=edited-tool-cache counts={RuleId(\"E722\"): FindingCount(1), RuleId(\"PLC0414\"): FindingCount(23)}","findings: project=fastapi contestant=ryo condition=edited-tool-cache counts={RuleId(\"E722\"): FindingCount(1), RuleId(\"PLC0414\"): FindingCount(23)}"],
-  "gate": {"summary":{"new":12,"resolved":0,"accepted":188,"unjudged":0},"tools":[{"id":"cargo-fmt","reused":false},{"id":"tastemaker","reused":false},{"id":"cargo-machete","reused":false},{"id":"cargo-deny","reused":false},{"id":"test-core","reused":false,"error":{"ended":"exited","code":104,"said":"   Compiling humantime-serde v1.1.1\n   Compiling automod v1.0.17\n   Compiling shlex v1.3.0\n   Compiling trycmd v0.15.11\n   Compiling cpu-time v1.0.0\n   Compiling trybuild v1.0.120\n    Finished `test` profile [optimized + debuginfo] target(s) in 1m 45s\nerror: creating test list failed\n\nCaused by:\n  for `idiomatic-sh-ryo-core::allocation`, command `/workspaces/idiomatic-public-benchmark/crates/ryo/target/debug/deps/allocation-21ff2e71c67ff2ef --list --format terse` exited with exit code 101\n  --- stdout:\n\n  --- stderr:\n\n  thread 'main' (1296728) panicked at crates/core/src/inbound/use_cases/lint/fixtures/contract.rs:518:41:\n  the corpus lints: Rule { id: \"operator:ordered-match\", reason: \"ordered-match requires unique order values within each side and key group\" }\n  note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n\n  ---"}},{"id":"test-language/css","reused":false},{"id":"test-language/go","reused":false},{"id":"test-language/html","reused":false},{"id":"test-language/javascript","reused":false},{"id":"test-language/json","reused":false},{"id":"test-language/markdown","reused":false},{"id":"test-language/python","reused":false},{"id":"test-language/rust","reused":false},{"id":"test-language/toml","reused":false},{"id":"test-language/typescript","reused":false},{"id":"test-cli","reused":false,"error":{"ended":"exited","code":100,"said":"\n    thread 'resources::operator::list::command_test::succeeds' (1301624) panicked at cli/src/cases.rs:113:9:\n    prints_all_seventeen: expected (17, Terminal), answered Ok((19, Terminal))\n    note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n\n  Cancelling due to test failure: 9 tests still running\n        PASS [   0.006s] ( 42/168) idiomatic-sh-ryo resources::operator::describe::command_test::succeeds\n        PASS [   0.002s] ( 43/168) idiomatic-sh-ryo resources::query::run::schemas::tests::succeeds\n        PASS [   0.005s] ( 44/168) idiomatic-sh-ryo resources::query::run::command_test::refuses\n        PASS [   0.003s] ( 45/168) idiomatic-sh-ryo resources::query::run::schemas::tests::fails\n        PASS [   0.003s] ( 46/168) idiomatic-sh-ryo resources::query::validate::command_test::succeeds\n        PASS [   0.004s] ( 47/168) idiomatic-sh-ryo resources::query::run::schemas::tests::refuses\n        PASS [   0.003s] ( 48/168) idiomatic-sh-ryo resources::query::validate::command_test::refuses\n        PASS [   0.015s] ( 49/168) idiomatic-sh-ryo resources::query::run::command_test::fails\n        PASS [   0.053s] ( 50/168) idiomatic-sh-ryo resources::query::run::command_test::succeeds\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n     Summary [   0.068s] 50/168 tests run: 49 passed, 1 failed, 1 skipped\n        FAIL [   0.004s] ( 41/168) idiomatic-sh-ryo resources::operator::list::command_test::succeeds\nwarning: 118/168 tests were not run due to test failure (run with --no-fail-fast to run all tests, or run with --max-fail)\nerror: test run failed"}},{"id":"test-bdd","reused":false,"error":{"ended":"exited","code":101,"said":"    Finished `test` profile [optimized + debuginfo] target(s) in 0.11s\n     Running tests/bdd.rs (target/debug/deps/bdd-e10aa30df8a31d81)\n     Running tests/bdd.rs (target/debug/deps/bdd-e80c52335fbb74fb)\n\nthread 'main' (1301920) panicked at crates/core/tests/bdd.rs:182:5:\na step failed or was skipped\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\nerror: test failed, to rerun pass `-p idiomatic-sh-ryo-core --test bdd`"}},{"id":"test-doc","reused":false},{"id":"cargo-doc","reused":false},{"id":"peak","reused":false,"error":{"ended":"exited","code":104,"said":"   Compiling idiomatic-sh-ryo-rust v0.1.0 (/workspaces/idiomatic-public-benchmark/crates/ryo/languages/rust)\n   Compiling idiomatic-sh-ryo-json v0.1.0 (/workspaces/idiomatic-public-benchmark/crates/ryo/languages/json)\n   Compiling idiomatic-sh-ryo-typescript v0.1.0 (/workspaces/idiomatic-public-benchmark/crates/ryo/languages/typescript)\n   Compiling idiomatic-sh-ryo-html v0.1.0 (/workspaces/idiomatic-public-benchmark/crates/ryo/languages/html)\n   Compiling idiomatic-sh-ryo-javascript v0.1.0 (/workspaces/idiomatic-public-benchmark/crates/ryo/languages/javascript)\n   Compiling idiomatic-sh-ryo-benchmark v0.1.0 (/workspaces/idiomatic-public-benchmark/crates/ryo/crates/benchmark)\n    Finished `test` profile [optimized + debuginfo] target(s) in 1m 08s\nerror: creating test list failed\n\nCaused by:\n  for `idiomatic-sh-ryo-core::allocation`, command `/workspaces/idiomatic-public-benchmark/crates/ryo/target/debug/deps/allocation-b19792a652d23c69 --list --format terse` exited with exit code 101\n  --- stdout:\n\n  --- stderr:\n\n  thread 'main' (1305558) panicked at crates/core/src/inbound/use_cases/lint/fixtures/contract.rs:518:41:\n  the corpus lints: Rule { id: \"operator:ordered-match\", reason: \"ordered-match requires unique order values within each side and key group\" }\n  note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n\n  ---"}},{"id":"performance","reused":false},{"id":"performance-distribution","reused":false},{"id":"performance-lint","reused":false},{"id":"performance-python-ruff","reused":false}],"new_violations":[{"path":"Cargo.toml","line":null,"column":null,"tool":"tastemaker","rule":"idiomatic.arch/cargo-workspace#template","message":"`= \"crates/core\" key workspace.members.[2]` from the `idiomatic.arch/cargo-workspace` template is missing","status":"new","level":"error","fingerprint":"b38a6c348fd3539f"},{"path":"Cargo.toml","line":36,"column":1,"tool":"tastemaker","rule":"idiomatic.arch/dependency-feature-sprawl","message":"dependency `regex-automata` enables too many features or accepts any version","status":"new","level":"error","fingerprint":"f3dcd34d6dfd5001"},{"path":"crates/core/README.md","line":null,"column":null,"tool":"tastemaker","rule":"idiomatic.arch/crate/crate-readme#template","message":"a one-line prose under `matching` is missing: the `idiomatic.arch/crate/crate-readme` template is the whole document","status":"new","level":"error","fingerprint":"b38a6c348fd3539f"},{"path":"crates/core/README.md","line":null,"column":null,"tool":"tastemaker","rule":"idiomatic.arch/crate/crate-readme#template","message":"the section `matching` is missing: the `idiomatic.arch/crate/crate-readme` template is the whole document","status":"new","level":"error","fingerprint":"b38a6c348fd3539f"},{"path":"crates/language/README.md","line":null,"column":null,"tool":"tastemaker","rule":"idiomatic.arch/crate/crate-readme#template","message":"a one-line prose under `location` is missing: the `idiomatic.arch/crate/crate-readme` template is the whole document","status":"new","level":"error","fingerprint":"b38a6c348fd3539f"},{"path":"crates/language/README.md","line":null,"column":null,"tool":"tastemaker","rule":"idiomatic.arch/crate/crate-readme#template","message":"the section `location` is missing: the `idiomatic.arch/crate/crate-readme` template is the whole document","status":"new","level":"error","fingerprint":"b38a6c348fd3539f"},{"path":"crates/language/src/domain/answers.rs","line":3,"column":1,"tool":"tastemaker","rule":"idiomatic.arch/idiomatic-rust/no-domain-concept-cycles","message":"the domain concept of `crates/ryo/crates/language/src/domain/answers.rs` lies on a cycle of imports between domain concepts","status":"new","level":"error","fingerprint":"1c6b09c89085daf7"},{"path":"crates/language/src/domain/elements.rs","line":3,"column":1,"tool":"tastemaker","rule":"idiomatic.arch/idiomatic-rust/no-domain-concept-cycles","message":"the domain concept of `crates/ryo/crates/language/src/domain/elements.rs` lies on a cycle of imports between domain concepts","status":"new","level":"error","fingerprint":"e347802a06d9b92a"},{"path":"crates/language/src/domain/relations.rs","line":3,"column":1,"tool":"tastemaker","rule":"idiomatic.arch/idiomatic-rust/no-domain-concept-cycles","message":"the domain concept of `crates/ryo/crates/language/src/domain/relations.rs` lies on a cycle of imports between domain concepts","status":"new","level":"error","fingerprint":"1ff4473f6580372a"},{"path":"crates/language/src/domain/symbols.rs","line":3,"column":1,"tool":"tastemaker","rule":"idiomatic.arch/idiomatic-rust/no-domain-concept-cycles","message":"the domain concept of `crates/ryo/crates/language/src/domain/symbols.rs` lies on a cycle of imports between domain concepts","status":"new","level":"error","fingerprint":"2bf72537fbb1ae2f"},{"path":"crates/query_language/README.md","line":null,"column":null,"tool":"tastemaker","rule":"idiomatic.arch/crate/crate-readme#template","message":"a one-line prose under `substituting` is missing: the `idiomatic.arch/crate/crate-readme` template is the whole document","status":"new","level":"error","fingerprint":"b38a6c348fd3539f"},{"path":"crates/query_language/README.md","line":null,"column":null,"tool":"tastemaker","rule":"idiomatic.arch/crate/crate-readme#template","message":"the section `substituting` is missing: the `idiomatic.arch/crate/crate-readme` template is the whole document","status":"new","level":"error","fingerprint":"b38a6c348fd3539f"}],"accepted_suppression_count":188,"full_result_archive":"https://github.com/idiomatic-sh/idiomatic/blob/f9e59ce134febea442eeda1691665073ff0d20e4/crates/ryo/languages/python/benchmarks/linters/ruff/results/correctness.json"},
+  "project_evidence": [
+    "environment: os=linux arch=aarch64 release=true workers=1; isolated collector Linux wait4 CPU=user+system, RSS=child peak bytes; child wall includes spawn/wait and pipe collection; collector launch, normalization and certificate/source hashing excluded; OS page cache uncontrolled; retained cache hits unverified",
+    "django: matched Python source scope 2875 files; excluded default-discovered formats 1 files (source-kind capability gap): [RelativePath(\"pyproject.toml\")]",
+    "django: excluded invalid Python (pinned Ruff parser), path=tests/test_runner_apps/tagged/tests_syntax_error.py range=131..143; frontend parser capability gap",
+    "django: measured source files=2874 bytes=18487487 digest=bbd95a92f564a597d21ba8b16d5c8d1d6ba3d82d189190c63c9dde1f8766bc5f input-profile=pinned-reference-valid-python",
+    "django: exact matching findings per rule: {RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}",
+    "findings: project=django contestant=ruff condition=empty-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}",
+    "findings: project=django contestant=ryo condition=empty-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}",
+    "findings: project=django contestant=ruff condition=retained-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}",
+    "findings: project=django contestant=ryo condition=retained-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}",
+    "findings: project=django contestant=ruff condition=edited-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"E722\"): FindingCount(1), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}",
+    "findings: project=django contestant=ryo condition=edited-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"E722\"): FindingCount(1), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}",
+    "django: exact matching findings per rule: {RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}",
+    "findings: project=django contestant=ruff condition=empty-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}",
+    "findings: project=django contestant=ryo condition=empty-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}",
+    "findings: project=django contestant=ruff condition=retained-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}",
+    "findings: project=django contestant=ryo condition=retained-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}",
+    "findings: project=django contestant=ruff condition=edited-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"E722\"): FindingCount(1), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}",
+    "findings: project=django contestant=ryo condition=edited-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"E722\"): FindingCount(1), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}",
+    "django: exact matching findings per rule: {RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}",
+    "findings: project=django contestant=ruff condition=empty-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}",
+    "findings: project=django contestant=ryo condition=empty-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}",
+    "findings: project=django contestant=ruff condition=retained-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}",
+    "findings: project=django contestant=ryo condition=retained-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}",
+    "findings: project=django contestant=ruff condition=edited-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"E722\"): FindingCount(1), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}",
+    "findings: project=django contestant=ryo condition=edited-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"E722\"): FindingCount(1), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}",
+    "django: exact matching findings per rule: {RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}",
+    "findings: project=django contestant=ruff condition=empty-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}",
+    "findings: project=django contestant=ryo condition=empty-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}",
+    "findings: project=django contestant=ruff condition=retained-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}",
+    "findings: project=django contestant=ryo condition=retained-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}",
+    "findings: project=django contestant=ruff condition=edited-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"E722\"): FindingCount(1), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}",
+    "findings: project=django contestant=ryo condition=edited-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"E722\"): FindingCount(1), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}",
+    "django: exact matching findings per rule: {RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}",
+    "findings: project=django contestant=ruff condition=empty-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}",
+    "findings: project=django contestant=ryo condition=empty-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}",
+    "findings: project=django contestant=ruff condition=retained-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}",
+    "findings: project=django contestant=ryo condition=retained-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}",
+    "findings: project=django contestant=ruff condition=edited-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"E722\"): FindingCount(1), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}",
+    "findings: project=django contestant=ryo condition=edited-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"E722\"): FindingCount(1), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}",
+    "django: exact matching findings per rule: {RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}",
+    "findings: project=django contestant=ruff condition=empty-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}",
+    "findings: project=django contestant=ryo condition=empty-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}",
+    "findings: project=django contestant=ruff condition=retained-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}",
+    "findings: project=django contestant=ryo condition=retained-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}",
+    "findings: project=django contestant=ruff condition=edited-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"E722\"): FindingCount(1), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}",
+    "findings: project=django contestant=ryo condition=edited-tool-cache counts={RuleId(\"B015\"): FindingCount(3), RuleId(\"B026\"): FindingCount(7), RuleId(\"E722\"): FindingCount(1), RuleId(\"PIE800\"): FindingCount(2), RuleId(\"PLC3002\"): FindingCount(1), RuleId(\"PLR1711\"): FindingCount(5), RuleId(\"PLW0120\"): FindingCount(1)}",
+    "pandas: matched Python source scope 1553 files; excluded default-discovered formats 2 files (source-kind capability gap): [RelativePath(\"doc/source/user_guide/style.ipynb\"), RelativePath(\"pyproject.toml\")]",
+    "pandas: measured source files=1553 bytes=21856668 digest=171895bd5d609c2119e4b94734a293d6ea5410d07acf9c2be30b94058b9ddffb input-profile=pinned-reference-valid-python",
+    "pandas: exact matching findings per rule: {RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}",
+    "findings: project=pandas contestant=ruff condition=empty-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}",
+    "findings: project=pandas contestant=ryo condition=empty-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}",
+    "findings: project=pandas contestant=ruff condition=retained-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}",
+    "findings: project=pandas contestant=ryo condition=retained-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}",
+    "findings: project=pandas contestant=ruff condition=edited-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"E722\"): FindingCount(1), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}",
+    "findings: project=pandas contestant=ryo condition=edited-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"E722\"): FindingCount(1), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}",
+    "pandas: exact matching findings per rule: {RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}",
+    "findings: project=pandas contestant=ruff condition=empty-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}",
+    "findings: project=pandas contestant=ryo condition=empty-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}",
+    "findings: project=pandas contestant=ruff condition=retained-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}",
+    "findings: project=pandas contestant=ryo condition=retained-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}",
+    "findings: project=pandas contestant=ruff condition=edited-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"E722\"): FindingCount(1), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}",
+    "findings: project=pandas contestant=ryo condition=edited-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"E722\"): FindingCount(1), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}",
+    "pandas: exact matching findings per rule: {RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}",
+    "findings: project=pandas contestant=ruff condition=empty-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}",
+    "findings: project=pandas contestant=ryo condition=empty-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}",
+    "findings: project=pandas contestant=ruff condition=retained-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}",
+    "findings: project=pandas contestant=ryo condition=retained-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}",
+    "findings: project=pandas contestant=ruff condition=edited-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"E722\"): FindingCount(1), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}",
+    "findings: project=pandas contestant=ryo condition=edited-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"E722\"): FindingCount(1), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}",
+    "pandas: exact matching findings per rule: {RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}",
+    "findings: project=pandas contestant=ruff condition=empty-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}",
+    "findings: project=pandas contestant=ryo condition=empty-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}",
+    "findings: project=pandas contestant=ruff condition=retained-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}",
+    "findings: project=pandas contestant=ryo condition=retained-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}",
+    "findings: project=pandas contestant=ruff condition=edited-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"E722\"): FindingCount(1), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}",
+    "findings: project=pandas contestant=ryo condition=edited-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"E722\"): FindingCount(1), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}",
+    "pandas: exact matching findings per rule: {RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}",
+    "findings: project=pandas contestant=ruff condition=empty-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}",
+    "findings: project=pandas contestant=ryo condition=empty-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}",
+    "findings: project=pandas contestant=ruff condition=retained-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}",
+    "findings: project=pandas contestant=ryo condition=retained-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}",
+    "findings: project=pandas contestant=ruff condition=edited-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"E722\"): FindingCount(1), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}",
+    "findings: project=pandas contestant=ryo condition=edited-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"E722\"): FindingCount(1), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}",
+    "pandas: exact matching findings per rule: {RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}",
+    "findings: project=pandas contestant=ruff condition=empty-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}",
+    "findings: project=pandas contestant=ryo condition=empty-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}",
+    "findings: project=pandas contestant=ruff condition=retained-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}",
+    "findings: project=pandas contestant=ryo condition=retained-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}",
+    "findings: project=pandas contestant=ruff condition=edited-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"E722\"): FindingCount(1), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}",
+    "findings: project=pandas contestant=ryo condition=edited-tool-cache counts={RuleId(\"B015\"): FindingCount(194), RuleId(\"E722\"): FindingCount(1), RuleId(\"SIM210\"): FindingCount(1), RuleId(\"SIM211\"): FindingCount(3), RuleId(\"TRY203\"): FindingCount(1)}",
+    "fastapi: matched Python source scope 1239 files; excluded default-discovered formats 1 files (source-kind capability gap): [RelativePath(\"pyproject.toml\")]",
+    "fastapi: measured source files=1239 bytes=3692435 digest=453eefe0f737157ebe28b9c7a3a309e0b76215877caf89622be441b4a1eee46f input-profile=pinned-reference-valid-python",
+    "fastapi: exact matching findings per rule: {RuleId(\"PLC0414\"): FindingCount(23)}",
+    "findings: project=fastapi contestant=ruff condition=empty-tool-cache counts={RuleId(\"PLC0414\"): FindingCount(23)}",
+    "findings: project=fastapi contestant=ryo condition=empty-tool-cache counts={RuleId(\"PLC0414\"): FindingCount(23)}",
+    "findings: project=fastapi contestant=ruff condition=retained-tool-cache counts={RuleId(\"PLC0414\"): FindingCount(23)}",
+    "findings: project=fastapi contestant=ryo condition=retained-tool-cache counts={RuleId(\"PLC0414\"): FindingCount(23)}",
+    "findings: project=fastapi contestant=ruff condition=edited-tool-cache counts={RuleId(\"E722\"): FindingCount(1), RuleId(\"PLC0414\"): FindingCount(23)}",
+    "findings: project=fastapi contestant=ryo condition=edited-tool-cache counts={RuleId(\"E722\"): FindingCount(1), RuleId(\"PLC0414\"): FindingCount(23)}",
+    "fastapi: exact matching findings per rule: {RuleId(\"PLC0414\"): FindingCount(23)}",
+    "findings: project=fastapi contestant=ruff condition=empty-tool-cache counts={RuleId(\"PLC0414\"): FindingCount(23)}",
+    "findings: project=fastapi contestant=ryo condition=empty-tool-cache counts={RuleId(\"PLC0414\"): FindingCount(23)}",
+    "findings: project=fastapi contestant=ruff condition=retained-tool-cache counts={RuleId(\"PLC0414\"): FindingCount(23)}",
+    "findings: project=fastapi contestant=ryo condition=retained-tool-cache counts={RuleId(\"PLC0414\"): FindingCount(23)}",
+    "findings: project=fastapi contestant=ruff condition=edited-tool-cache counts={RuleId(\"E722\"): FindingCount(1), RuleId(\"PLC0414\"): FindingCount(23)}",
+    "findings: project=fastapi contestant=ryo condition=edited-tool-cache counts={RuleId(\"E722\"): FindingCount(1), RuleId(\"PLC0414\"): FindingCount(23)}",
+    "fastapi: exact matching findings per rule: {RuleId(\"PLC0414\"): FindingCount(23)}",
+    "findings: project=fastapi contestant=ruff condition=empty-tool-cache counts={RuleId(\"PLC0414\"): FindingCount(23)}",
+    "findings: project=fastapi contestant=ryo condition=empty-tool-cache counts={RuleId(\"PLC0414\"): FindingCount(23)}",
+    "findings: project=fastapi contestant=ruff condition=retained-tool-cache counts={RuleId(\"PLC0414\"): FindingCount(23)}",
+    "findings: project=fastapi contestant=ryo condition=retained-tool-cache counts={RuleId(\"PLC0414\"): FindingCount(23)}",
+    "findings: project=fastapi contestant=ruff condition=edited-tool-cache counts={RuleId(\"E722\"): FindingCount(1), RuleId(\"PLC0414\"): FindingCount(23)}",
+    "findings: project=fastapi contestant=ryo condition=edited-tool-cache counts={RuleId(\"E722\"): FindingCount(1), RuleId(\"PLC0414\"): FindingCount(23)}",
+    "fastapi: exact matching findings per rule: {RuleId(\"PLC0414\"): FindingCount(23)}",
+    "findings: project=fastapi contestant=ruff condition=empty-tool-cache counts={RuleId(\"PLC0414\"): FindingCount(23)}",
+    "findings: project=fastapi contestant=ryo condition=empty-tool-cache counts={RuleId(\"PLC0414\"): FindingCount(23)}",
+    "findings: project=fastapi contestant=ruff condition=retained-tool-cache counts={RuleId(\"PLC0414\"): FindingCount(23)}",
+    "findings: project=fastapi contestant=ryo condition=retained-tool-cache counts={RuleId(\"PLC0414\"): FindingCount(23)}",
+    "findings: project=fastapi contestant=ruff condition=edited-tool-cache counts={RuleId(\"E722\"): FindingCount(1), RuleId(\"PLC0414\"): FindingCount(23)}",
+    "findings: project=fastapi contestant=ryo condition=edited-tool-cache counts={RuleId(\"E722\"): FindingCount(1), RuleId(\"PLC0414\"): FindingCount(23)}",
+    "fastapi: exact matching findings per rule: {RuleId(\"PLC0414\"): FindingCount(23)}",
+    "findings: project=fastapi contestant=ruff condition=empty-tool-cache counts={RuleId(\"PLC0414\"): FindingCount(23)}",
+    "findings: project=fastapi contestant=ryo condition=empty-tool-cache counts={RuleId(\"PLC0414\"): FindingCount(23)}",
+    "findings: project=fastapi contestant=ruff condition=retained-tool-cache counts={RuleId(\"PLC0414\"): FindingCount(23)}",
+    "findings: project=fastapi contestant=ryo condition=retained-tool-cache counts={RuleId(\"PLC0414\"): FindingCount(23)}",
+    "findings: project=fastapi contestant=ruff condition=edited-tool-cache counts={RuleId(\"E722\"): FindingCount(1), RuleId(\"PLC0414\"): FindingCount(23)}",
+    "findings: project=fastapi contestant=ryo condition=edited-tool-cache counts={RuleId(\"E722\"): FindingCount(1), RuleId(\"PLC0414\"): FindingCount(23)}",
+    "fastapi: exact matching findings per rule: {RuleId(\"PLC0414\"): FindingCount(23)}",
+    "findings: project=fastapi contestant=ruff condition=empty-tool-cache counts={RuleId(\"PLC0414\"): FindingCount(23)}",
+    "findings: project=fastapi contestant=ryo condition=empty-tool-cache counts={RuleId(\"PLC0414\"): FindingCount(23)}",
+    "findings: project=fastapi contestant=ruff condition=retained-tool-cache counts={RuleId(\"PLC0414\"): FindingCount(23)}",
+    "findings: project=fastapi contestant=ryo condition=retained-tool-cache counts={RuleId(\"PLC0414\"): FindingCount(23)}",
+    "findings: project=fastapi contestant=ruff condition=edited-tool-cache counts={RuleId(\"E722\"): FindingCount(1), RuleId(\"PLC0414\"): FindingCount(23)}",
+    "findings: project=fastapi contestant=ryo condition=edited-tool-cache counts={RuleId(\"E722\"): FindingCount(1), RuleId(\"PLC0414\"): FindingCount(23)}"
+  ],
+  "gate": {
+    "summary": {
+      "new": 12,
+      "resolved": 0,
+      "accepted": 188,
+      "unjudged": 0
+    },
+    "tools": [
+      {
+        "id": "cargo-fmt",
+        "reused": false
+      },
+      {
+        "id": "tastemaker",
+        "reused": false
+      },
+      {
+        "id": "cargo-machete",
+        "reused": false
+      },
+      {
+        "id": "cargo-deny",
+        "reused": false
+      },
+      {
+        "id": "test-core",
+        "reused": false,
+        "error": {
+          "ended": "exited",
+          "code": 104,
+          "said": "   Compiling humantime-serde v1.1.1\n   Compiling automod v1.0.17\n   Compiling shlex v1.3.0\n   Compiling trycmd v0.15.11\n   Compiling cpu-time v1.0.0\n   Compiling trybuild v1.0.120\n    Finished `test` profile [optimized + debuginfo] target(s) in 1m 45s\nerror: creating test list failed\n\nCaused by:\n  for `idiomatic-sh-ryo-core::allocation`, command `/workspaces/idiomatic-public-benchmark/crates/ryo/target/debug/deps/allocation-21ff2e71c67ff2ef --list --format terse` exited with exit code 101\n  --- stdout:\n\n  --- stderr:\n\n  thread 'main' (1296728) panicked at crates/core/src/inbound/use_cases/lint/fixtures/contract.rs:518:41:\n  the corpus lints: Rule { id: \"operator:ordered-match\", reason: \"ordered-match requires unique order values within each side and key group\" }\n  note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n\n  ---"
+        }
+      },
+      {
+        "id": "test-language/css",
+        "reused": false
+      },
+      {
+        "id": "test-language/go",
+        "reused": false
+      },
+      {
+        "id": "test-language/html",
+        "reused": false
+      },
+      {
+        "id": "test-language/javascript",
+        "reused": false
+      },
+      {
+        "id": "test-language/json",
+        "reused": false
+      },
+      {
+        "id": "test-language/markdown",
+        "reused": false
+      },
+      {
+        "id": "test-language/python",
+        "reused": false
+      },
+      {
+        "id": "test-language/rust",
+        "reused": false
+      },
+      {
+        "id": "test-language/toml",
+        "reused": false
+      },
+      {
+        "id": "test-language/typescript",
+        "reused": false
+      },
+      {
+        "id": "test-cli",
+        "reused": false,
+        "error": {
+          "ended": "exited",
+          "code": 100,
+          "said": "\n    thread 'resources::operator::list::command_test::succeeds' (1301624) panicked at cli/src/cases.rs:113:9:\n    prints_all_seventeen: expected (17, Terminal), answered Ok((19, Terminal))\n    note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n\n  Cancelling due to test failure: 9 tests still running\n        PASS [   0.006s] ( 42/168) idiomatic-sh-ryo resources::operator::describe::command_test::succeeds\n        PASS [   0.002s] ( 43/168) idiomatic-sh-ryo resources::query::run::schemas::tests::succeeds\n        PASS [   0.005s] ( 44/168) idiomatic-sh-ryo resources::query::run::command_test::refuses\n        PASS [   0.003s] ( 45/168) idiomatic-sh-ryo resources::query::run::schemas::tests::fails\n        PASS [   0.003s] ( 46/168) idiomatic-sh-ryo resources::query::validate::command_test::succeeds\n        PASS [   0.004s] ( 47/168) idiomatic-sh-ryo resources::query::run::schemas::tests::refuses\n        PASS [   0.003s] ( 48/168) idiomatic-sh-ryo resources::query::validate::command_test::refuses\n        PASS [   0.015s] ( 49/168) idiomatic-sh-ryo resources::query::run::command_test::fails\n        PASS [   0.053s] ( 50/168) idiomatic-sh-ryo resources::query::run::command_test::succeeds\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n     Summary [   0.068s] 50/168 tests run: 49 passed, 1 failed, 1 skipped\n        FAIL [   0.004s] ( 41/168) idiomatic-sh-ryo resources::operator::list::command_test::succeeds\nwarning: 118/168 tests were not run due to test failure (run with --no-fail-fast to run all tests, or run with --max-fail)\nerror: test run failed"
+        }
+      },
+      {
+        "id": "test-bdd",
+        "reused": false,
+        "error": {
+          "ended": "exited",
+          "code": 101,
+          "said": "    Finished `test` profile [optimized + debuginfo] target(s) in 0.11s\n     Running tests/bdd.rs (target/debug/deps/bdd-e10aa30df8a31d81)\n     Running tests/bdd.rs (target/debug/deps/bdd-e80c52335fbb74fb)\n\nthread 'main' (1301920) panicked at crates/core/tests/bdd.rs:182:5:\na step failed or was skipped\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\nerror: test failed, to rerun pass `-p idiomatic-sh-ryo-core --test bdd`"
+        }
+      },
+      {
+        "id": "test-doc",
+        "reused": false
+      },
+      {
+        "id": "cargo-doc",
+        "reused": false
+      },
+      {
+        "id": "peak",
+        "reused": false,
+        "error": {
+          "ended": "exited",
+          "code": 104,
+          "said": "   Compiling idiomatic-sh-ryo-rust v0.1.0 (/workspaces/idiomatic-public-benchmark/crates/ryo/languages/rust)\n   Compiling idiomatic-sh-ryo-json v0.1.0 (/workspaces/idiomatic-public-benchmark/crates/ryo/languages/json)\n   Compiling idiomatic-sh-ryo-typescript v0.1.0 (/workspaces/idiomatic-public-benchmark/crates/ryo/languages/typescript)\n   Compiling idiomatic-sh-ryo-html v0.1.0 (/workspaces/idiomatic-public-benchmark/crates/ryo/languages/html)\n   Compiling idiomatic-sh-ryo-javascript v0.1.0 (/workspaces/idiomatic-public-benchmark/crates/ryo/languages/javascript)\n   Compiling idiomatic-sh-ryo-benchmark v0.1.0 (/workspaces/idiomatic-public-benchmark/crates/ryo/crates/benchmark)\n    Finished `test` profile [optimized + debuginfo] target(s) in 1m 08s\nerror: creating test list failed\n\nCaused by:\n  for `idiomatic-sh-ryo-core::allocation`, command `/workspaces/idiomatic-public-benchmark/crates/ryo/target/debug/deps/allocation-b19792a652d23c69 --list --format terse` exited with exit code 101\n  --- stdout:\n\n  --- stderr:\n\n  thread 'main' (1305558) panicked at crates/core/src/inbound/use_cases/lint/fixtures/contract.rs:518:41:\n  the corpus lints: Rule { id: \"operator:ordered-match\", reason: \"ordered-match requires unique order values within each side and key group\" }\n  note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n\n  ---"
+        }
+      },
+      {
+        "id": "performance",
+        "reused": false
+      },
+      {
+        "id": "performance-distribution",
+        "reused": false
+      },
+      {
+        "id": "performance-lint",
+        "reused": false
+      },
+      {
+        "id": "performance-python-ruff",
+        "reused": false
+      }
+    ],
+    "new_violations": [
+      {
+        "path": "Cargo.toml",
+        "line": null,
+        "column": null,
+        "tool": "tastemaker",
+        "rule": "idiomatic.arch/cargo-workspace#template",
+        "message": "`= \"crates/core\" key workspace.members.[2]` from the `idiomatic.arch/cargo-workspace` template is missing",
+        "status": "new",
+        "level": "error",
+        "fingerprint": "b38a6c348fd3539f"
+      },
+      {
+        "path": "Cargo.toml",
+        "line": 36,
+        "column": 1,
+        "tool": "tastemaker",
+        "rule": "idiomatic.arch/dependency-feature-sprawl",
+        "message": "dependency `regex-automata` enables too many features or accepts any version",
+        "status": "new",
+        "level": "error",
+        "fingerprint": "f3dcd34d6dfd5001"
+      },
+      {
+        "path": "crates/core/README.md",
+        "line": null,
+        "column": null,
+        "tool": "tastemaker",
+        "rule": "idiomatic.arch/crate/crate-readme#template",
+        "message": "a one-line prose under `matching` is missing: the `idiomatic.arch/crate/crate-readme` template is the whole document",
+        "status": "new",
+        "level": "error",
+        "fingerprint": "b38a6c348fd3539f"
+      },
+      {
+        "path": "crates/core/README.md",
+        "line": null,
+        "column": null,
+        "tool": "tastemaker",
+        "rule": "idiomatic.arch/crate/crate-readme#template",
+        "message": "the section `matching` is missing: the `idiomatic.arch/crate/crate-readme` template is the whole document",
+        "status": "new",
+        "level": "error",
+        "fingerprint": "b38a6c348fd3539f"
+      },
+      {
+        "path": "crates/language/README.md",
+        "line": null,
+        "column": null,
+        "tool": "tastemaker",
+        "rule": "idiomatic.arch/crate/crate-readme#template",
+        "message": "a one-line prose under `location` is missing: the `idiomatic.arch/crate/crate-readme` template is the whole document",
+        "status": "new",
+        "level": "error",
+        "fingerprint": "b38a6c348fd3539f"
+      },
+      {
+        "path": "crates/language/README.md",
+        "line": null,
+        "column": null,
+        "tool": "tastemaker",
+        "rule": "idiomatic.arch/crate/crate-readme#template",
+        "message": "the section `location` is missing: the `idiomatic.arch/crate/crate-readme` template is the whole document",
+        "status": "new",
+        "level": "error",
+        "fingerprint": "b38a6c348fd3539f"
+      },
+      {
+        "path": "crates/language/src/domain/answers.rs",
+        "line": 3,
+        "column": 1,
+        "tool": "tastemaker",
+        "rule": "idiomatic.arch/idiomatic-rust/no-domain-concept-cycles",
+        "message": "the domain concept of `crates/ryo/crates/language/src/domain/answers.rs` lies on a cycle of imports between domain concepts",
+        "status": "new",
+        "level": "error",
+        "fingerprint": "1c6b09c89085daf7"
+      },
+      {
+        "path": "crates/language/src/domain/elements.rs",
+        "line": 3,
+        "column": 1,
+        "tool": "tastemaker",
+        "rule": "idiomatic.arch/idiomatic-rust/no-domain-concept-cycles",
+        "message": "the domain concept of `crates/ryo/crates/language/src/domain/elements.rs` lies on a cycle of imports between domain concepts",
+        "status": "new",
+        "level": "error",
+        "fingerprint": "e347802a06d9b92a"
+      },
+      {
+        "path": "crates/language/src/domain/relations.rs",
+        "line": 3,
+        "column": 1,
+        "tool": "tastemaker",
+        "rule": "idiomatic.arch/idiomatic-rust/no-domain-concept-cycles",
+        "message": "the domain concept of `crates/ryo/crates/language/src/domain/relations.rs` lies on a cycle of imports between domain concepts",
+        "status": "new",
+        "level": "error",
+        "fingerprint": "1ff4473f6580372a"
+      },
+      {
+        "path": "crates/language/src/domain/symbols.rs",
+        "line": 3,
+        "column": 1,
+        "tool": "tastemaker",
+        "rule": "idiomatic.arch/idiomatic-rust/no-domain-concept-cycles",
+        "message": "the domain concept of `crates/ryo/crates/language/src/domain/symbols.rs` lies on a cycle of imports between domain concepts",
+        "status": "new",
+        "level": "error",
+        "fingerprint": "2bf72537fbb1ae2f"
+      },
+      {
+        "path": "crates/query_language/README.md",
+        "line": null,
+        "column": null,
+        "tool": "tastemaker",
+        "rule": "idiomatic.arch/crate/crate-readme#template",
+        "message": "a one-line prose under `substituting` is missing: the `idiomatic.arch/crate/crate-readme` template is the whole document",
+        "status": "new",
+        "level": "error",
+        "fingerprint": "b38a6c348fd3539f"
+      },
+      {
+        "path": "crates/query_language/README.md",
+        "line": null,
+        "column": null,
+        "tool": "tastemaker",
+        "rule": "idiomatic.arch/crate/crate-readme#template",
+        "message": "the section `substituting` is missing: the `idiomatic.arch/crate/crate-readme` template is the whole document",
+        "status": "new",
+        "level": "error",
+        "fingerprint": "b38a6c348fd3539f"
+      }
+    ],
+    "accepted_suppression_count": 188,
+    "full_result_archive": "https://github.com/idiomatic-sh/idiomatic/blob/f9e59ce134febea442eeda1691665073ff0d20e4/crates/ryo/languages/python/benchmarks/linters/ruff/results/correctness.json"
+  },
   "baseline_seeded": false,
   "seed_refusal": "Asymptote refuses acceptance while four tools failed; no manual baseline substitution.",
-  "historical_correctness": {"status":"passed","selected_rules":29,"cases":441,"projects":{"django":{"findings":{"B015":3,"B026":7}},"pandas":{"findings":{"B015":194}},"fastapi":{"findings":{}}},"conditions":["empty-tool-cache","retained-tool-cache","edited-tool-cache","edited-vs-fresh-cache"],"trials_per_project":6,"initial_pandas_failure":{"reference_count":194,"candidate_count":197,"missing":[],"extra":[["B002","asv_bench/benchmarks/join_merge.py","10804","10823"],["B002","pandas/core/arrays/categorical.py","78202","78218"],["B002","pandas/core/indexes/range.py","1556","1578"]]},"resolution":{"commit":"e73df38","rule":"B002","cause":"Inner operator relation admitted binary subtraction instead of requiring a unary node","regression_cases_added":5}},
-  "development_boundary": {"scope":"outside measured54 snapshot and expanded1967 fixture snapshot","status":"three simple quoted-annotation cases confirmed missing candidate diagnostics;24 independent oracle cases retained for frontend correction","oracle":[{"rule":"LOG001","kind":"quoted","source":"import logging\nx: \"logging.Logger()\"\n","findings":[[{"column":5,"row":2},{"column":19,"row":2}]]},{"rule":"LOG001","kind":"normal","source":"import logging\nlogging.Logger()\n","findings":[[{"column":1,"row":2},{"column":15,"row":2}]]},{"rule":"B002","kind":"quoted","source":"x: \"++value\"\n","findings":[[{"column":5,"row":1},{"column":12,"row":1}]]},{"rule":"B002","kind":"normal","source":"++value\n","findings":[[{"column":1,"row":1},{"column":8,"row":1}]]},{"rule":"B022","kind":"quoted","source":"import contextlib\nx: \"contextlib.suppress()\"\n","findings":[[{"column":5,"row":2},{"column":26,"row":2}]]},{"rule":"B022","kind":"normal","source":"import contextlib\ncontextlib.suppress()\n","findings":[[{"column":1,"row":2},{"column":22,"row":2}]]}],"candidate_observation":"LOG001, B002 and B022 all returned empty diagnostics for the quoted examples"},
-  "expanded_snapshot": {"implemented_queries":104,"deferred":309,"cases":1967,"status":"passed reference and candidate for this exact fixture snapshot","symlink_temporary_root":"passed after canonicalization","wildcard_followup":{"cases":9,"failures":0}}
+  "historical_correctness": {
+    "status": "passed",
+    "selected_rules": 29,
+    "cases": 441,
+    "projects": {
+      "django": {
+        "findings": {
+          "B015": 3,
+          "B026": 7
+        }
+      },
+      "pandas": {
+        "findings": {
+          "B015": 194
+        }
+      },
+      "fastapi": {
+        "findings": {}
+      }
+    },
+    "conditions": [
+      "empty-tool-cache",
+      "retained-tool-cache",
+      "edited-tool-cache",
+      "edited-vs-fresh-cache"
+    ],
+    "trials_per_project": 6,
+    "initial_pandas_failure": {
+      "reference_count": 194,
+      "candidate_count": 197,
+      "missing": [],
+      "extra": [
+        [
+          "B002",
+          "asv_bench/benchmarks/join_merge.py",
+          "10804",
+          "10823"
+        ],
+        [
+          "B002",
+          "pandas/core/arrays/categorical.py",
+          "78202",
+          "78218"
+        ],
+        [
+          "B002",
+          "pandas/core/indexes/range.py",
+          "1556",
+          "1578"
+        ]
+      ]
+    },
+    "resolution": {
+      "commit": "e73df38",
+      "rule": "B002",
+      "cause": "Inner operator relation admitted binary subtraction instead of requiring a unary node",
+      "regression_cases_added": 5
+    }
+  },
+  "development_boundary": {
+    "scope": "outside measured54 snapshot and expanded1967 fixture snapshot",
+    "oracle": [
+      {
+        "rule": "LOG001",
+        "kind": "quoted",
+        "source": "import logging\nx: \"logging.Logger()\"\n",
+        "findings": [
+          [
+            {
+              "column": 5,
+              "row": 2
+            },
+            {
+              "column": 19,
+              "row": 2
+            }
+          ]
+        ]
+      },
+      {
+        "rule": "LOG001",
+        "kind": "normal",
+        "source": "import logging\nlogging.Logger()\n",
+        "findings": [
+          [
+            {
+              "column": 1,
+              "row": 2
+            },
+            {
+              "column": 15,
+              "row": 2
+            }
+          ]
+        ]
+      },
+      {
+        "rule": "B002",
+        "kind": "quoted",
+        "source": "x: \"++value\"\n",
+        "findings": [
+          [
+            {
+              "column": 5,
+              "row": 1
+            },
+            {
+              "column": 12,
+              "row": 1
+            }
+          ]
+        ]
+      },
+      {
+        "rule": "B002",
+        "kind": "normal",
+        "source": "++value\n",
+        "findings": [
+          [
+            {
+              "column": 1,
+              "row": 1
+            },
+            {
+              "column": 8,
+              "row": 1
+            }
+          ]
+        ]
+      },
+      {
+        "rule": "B022",
+        "kind": "quoted",
+        "source": "import contextlib\nx: \"contextlib.suppress()\"\n",
+        "findings": [
+          [
+            {
+              "column": 5,
+              "row": 2
+            },
+            {
+              "column": 26,
+              "row": 2
+            }
+          ]
+        ]
+      },
+      {
+        "rule": "B022",
+        "kind": "normal",
+        "source": "import contextlib\ncontextlib.suppress()\n",
+        "findings": [
+          [
+            {
+              "column": 1,
+              "row": 2
+            },
+            {
+              "column": 22,
+              "row": 2
+            }
+          ]
+        ]
+      }
+    ],
+    "candidate_observation": "LOG001, B002 and B022 all returned empty diagnostics for the quoted examples",
+    "initial_status": "three simple quoted-annotation cases confirmed missing candidate diagnostics;24 independent oracle cases retained for frontend correction",
+    "status": "separate corrected 25-case annotation cohort passes; separate typing cohort still has 4 misses out of 10; integrated migrated-profile certification pending",
+    "corrected_annotation_cohort": {
+      "candidate": {
+        "path": "/tmp/ryo-embedded-annotation-fields-worker",
+        "sha256": "7c2d384a0f973117a88e355097c38ebef9f60c06fbb3ea0f7243ee6af1b16014"
+      },
+      "reference": {
+        "version": "ruff 0.16.5",
+        "sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8"
+      },
+      "rule_head": "c7031be28874f86f77864d59758d531865542857",
+      "queries": {
+        "B002": "bac7818d523872d12471a1716d100b4d0d9426fe594682b31ec9c7b887b34616",
+        "B022": "53081fb020f28f383a347a3f29d6c50e2553c6f0f505d4900d45d52f60d86f37",
+        "LOG001": "7a0cb043f7d3978198c948f100a84a814ae4c03b0222525db768e2be5975767b",
+        "B004": "0c5bc7699b52606f41fd5d340a003fa6b212019fda571623b0b5c89edf7ed073",
+        "ASYNC115": "0b5b7c485490b13cc50fed0aa6a65cf883b5094d6e33c5b7cc88312bf790fc96",
+        "UP025": "c0df4086e04e879f7221e1289a53e9ff0c1de989f66b9e3d165b04ffae2d8552",
+        "SIM208": "232e73b5d5c2865ff35a5b68b8a8f3b555b39a60e5d4adaeea59dc66b34b5aa5",
+        "C408": "e3f851adb730a25ca3b5a23f100556c84e55a9d8ce364dae0b4c5545ec1a55ea",
+        "RUF032": "8b892852175428d15b6c9d72d6ab914a8ff9eadab929288f2df941cde4262bb6",
+        "EXE005": "8b45101d0a1303982a41d63ec364207f48bf21b3ebb393deba8d00df2d927f0f"
+      },
+      "cases": {
+        "B002": "46239a7f288aa6338bada7b7c83bc503e0b87eb3891e9db936259f7a780e073d",
+        "B022": "107b544ce1f4bd46dd129f32eec1abf7be754f48e37994ece3090c9e24bc46c1",
+        "LOG001": "ae46092e52a56e53583253e55c60a9d90f538af7f4938ec06f2a23ce2c922bb3",
+        "B004": "831a8fc9e746bc5fafa83e5e57e52307a1316038e9081218acd6b6e09531c1e2",
+        "ASYNC115": "7c416857623ea0e1f7321e11f89d95380dda2e39555ff0b114195ec1ff14a9d2",
+        "UP025": "4fc1693b12d8487d03312c2b8d372ae8bc30db72c9c72c0a54da6feca8b35ae1",
+        "SIM208": "db8aea13764dc75aea8d4bac1a765736e6f4bbd8db4e8b2f14e73abfbd104910",
+        "C408": "8aadd645c45e305f6382fb817f5786daf2f1a99812c3ebc0d5696418f16c36b9",
+        "RUF032": "2a05a826ea1ddc5341e78c49d02046d9366486a61f0282706485ee81c4d4992b",
+        "EXE005": "e38b821f8eb5ec24ae38d5d688296756e9c62dcc4ee137a61ecd32f7ce49eab3"
+      },
+      "annotation": {
+        "cases": 25,
+        "attempted": 25,
+        "decoded": 25,
+        "passed": 25,
+        "failures": 0,
+        "log": "/tmp/ruff-annotation-focused-fields.log",
+        "attempted_cases": [
+          {
+            "rule": "B002",
+            "case": "quoted-annotation-dispatch"
+          },
+          {
+            "rule": "B002",
+            "case": "escaped-annotation-host-span"
+          },
+          {
+            "rule": "B002",
+            "case": "concatenated-annotation-host-span"
+          },
+          {
+            "rule": "B002",
+            "case": "literal-annotation-string-is-data"
+          },
+          {
+            "rule": "B002",
+            "case": "annotated-metadata-is-data"
+          },
+          {
+            "rule": "B002",
+            "case": "relocated-annotation-preserves-multiplicity"
+          },
+          {
+            "rule": "B022",
+            "case": "quoted-annotation-dispatch"
+          },
+          {
+            "rule": "B022",
+            "case": "escaped-annotation-host-span"
+          },
+          {
+            "rule": "B022",
+            "case": "concatenated-annotation-host-span"
+          },
+          {
+            "rule": "B022",
+            "case": "literal-annotation-string-is-data"
+          },
+          {
+            "rule": "B022",
+            "case": "annotated-metadata-is-data"
+          },
+          {
+            "rule": "LOG001",
+            "case": "quoted-annotation-dispatch"
+          },
+          {
+            "rule": "LOG001",
+            "case": "escaped-annotation-host-span"
+          },
+          {
+            "rule": "LOG001",
+            "case": "concatenated-annotation-host-span"
+          },
+          {
+            "rule": "LOG001",
+            "case": "literal-annotation-string-is-data"
+          },
+          {
+            "rule": "LOG001",
+            "case": "annotated-metadata-is-data"
+          },
+          {
+            "rule": "LOG001",
+            "case": "relocated-annotation-preserves-multiplicity"
+          },
+          {
+            "rule": "LOG001",
+            "case": "invalid-annotation-does-not-block-native-findings"
+          },
+          {
+            "rule": "B004",
+            "case": "quoted-annotation-decoded-literal"
+          },
+          {
+            "rule": "ASYNC115",
+            "case": "escaped-annotation-decoded-number"
+          },
+          {
+            "rule": "UP025",
+            "case": "quoted-annotation-string-prefix"
+          },
+          {
+            "rule": "SIM208",
+            "case": "quoted-annotation-unary-expression"
+          },
+          {
+            "rule": "C408",
+            "case": "quoted-annotation-builtin-call"
+          },
+          {
+            "rule": "RUF032",
+            "case": "quoted-annotation-numeric-literal"
+          },
+          {
+            "rule": "EXE005",
+            "case": "quoted-annotation-comment-is-not-file-shebang"
+          }
+        ],
+        "log_sha256": "c8d1d449413d8a174d5ece77ca35bfdc563f24ac867962e4a37cdfd35fec0bfd"
+      }
+    }
+  },
+  "expanded_snapshot": {
+    "implemented_queries": 104,
+    "deferred": 309,
+    "cases": 1967,
+    "status": "passed reference and candidate for this exact fixture snapshot",
+    "symlink_temporary_root": "passed after canonicalization",
+    "wildcard_followup": {
+      "cases": 9,
+      "failures": 0
+    }
+  }
 }

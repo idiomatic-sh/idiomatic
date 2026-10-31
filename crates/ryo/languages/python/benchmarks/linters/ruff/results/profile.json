@@ -161,5 +161,68 @@
         "ts": 224075.496
       }
     ]
+  },
+  "original_rust_replay_peak_comparison": {
+    "scope": "unchanged original Rust replay; separate from Python benchmark timings",
+    "bound_bytes": 100000000,
+    "base_source": "648ae55ecd78b4b4af54b4bd3e9a0e40f687c2d3",
+    "head_source": "8ba81f85aed732bb270eace0f6796bc107e6621d",
+    "status": "both base and head fail unchanged bound; no introduced increase established",
+    "samples": [
+      {
+        "scope": "base",
+        "trial": 0,
+        "exit": 101,
+        "bytes": 106786816,
+        "sha256": "5e668c4e0be04a081acf42c84902abd86b0aa30b85b212426423ccb771db1d31",
+        "load_before": "19:11:24 up 9 days, 14:28,  0 users,  load average: 3.41, 2.62, 2.68",
+        "load_after": "19:11:28 up 9 days, 14:28,  0 users,  load average: 4.18, 2.79, 2.74"
+      },
+      {
+        "scope": "head",
+        "trial": 0,
+        "exit": 101,
+        "bytes": 105287680,
+        "sha256": "d205359a203f2d3cf628db99b58a5479befddeef6dd32ea850c27191277f2831",
+        "load_before": "19:11:28 up 9 days, 14:28,  0 users,  load average: 4.18, 2.79, 2.74",
+        "load_after": "19:11:31 up 9 days, 14:28,  0 users,  load average: 4.18, 2.79, 2.74"
+      },
+      {
+        "scope": "head",
+        "trial": 1,
+        "exit": 101,
+        "bytes": 110051328,
+        "sha256": "d205359a203f2d3cf628db99b58a5479befddeef6dd32ea850c27191277f2831",
+        "load_before": "19:11:31 up 9 days, 14:28,  0 users,  load average: 4.18, 2.79, 2.74",
+        "load_after": "19:11:34 up 9 days, 14:28,  0 users,  load average: 4.00, 2.78, 2.74"
+      },
+      {
+        "scope": "base",
+        "trial": 1,
+        "exit": 101,
+        "bytes": 108404736,
+        "sha256": "5e668c4e0be04a081acf42c84902abd86b0aa30b85b212426423ccb771db1d31",
+        "load_before": "19:11:34 up 9 days, 14:28,  0 users,  load average: 4.00, 2.78, 2.74",
+        "load_after": "19:11:37 up 9 days, 14:29,  0 users,  load average: 4.24, 2.85, 2.76"
+      },
+      {
+        "scope": "base",
+        "trial": 2,
+        "exit": 101,
+        "bytes": 107892736,
+        "sha256": "5e668c4e0be04a081acf42c84902abd86b0aa30b85b212426423ccb771db1d31",
+        "load_before": "19:11:37 up 9 days, 14:29,  0 users,  load average: 4.24, 2.85, 2.76",
+        "load_after": "19:11:40 up 9 days, 14:29,  0 users,  load average: 4.24, 2.85, 2.76"
+      },
+      {
+        "scope": "head",
+        "trial": 2,
+        "exit": 101,
+        "bytes": 107212800,
+        "sha256": "d205359a203f2d3cf628db99b58a5479befddeef6dd32ea850c27191277f2831",
+        "load_before": "19:11:40 up 9 days, 14:29,  0 users,  load average: 4.24, 2.85, 2.76",
+        "load_after": "19:11:43 up 9 days, 14:29,  0 users,  load average: 4.62, 2.95, 2.79"
+      }
+    ]
   }
 }
