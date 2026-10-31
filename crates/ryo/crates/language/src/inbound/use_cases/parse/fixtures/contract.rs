@@ -652,10 +652,7 @@ mod tests;
 
 /// Unknown or cross-file class sentinels cannot silently compare equal as structural identities.
 fn shape_representatives_valid(out: &Collect) -> bool {
-    use crate::domain::relations::{
-        service::node_file,
-        types::{FileId, NodeId},
-    };
+    use crate::domain::relations::{service::node_file, types::NodeId};
     let representatives: std::collections::BTreeSet<_> = out
         .rows()
         .into_iter()

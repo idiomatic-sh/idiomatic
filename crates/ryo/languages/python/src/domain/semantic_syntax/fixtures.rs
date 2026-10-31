@@ -23,7 +23,7 @@ pub(super) fn reparse(
         languages::contract::build(
             &parser,
             languages::ParseRequest {
-                path: path,
+                path,
                 file: languages::FileId(0),
                 bytes: ByteSlice(source.0.as_bytes()),
                 notes: languages::NoteRequest::Unwanted,

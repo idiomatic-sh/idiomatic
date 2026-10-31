@@ -366,6 +366,8 @@ fn scalar_properties(
                 format_args!("{conversion}"),
             )?;
         }
+    } else {
+        // Other syntax nodes carry no scalar parser payload.
     }
     Ok(())
 }

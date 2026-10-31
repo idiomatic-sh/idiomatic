@@ -236,6 +236,8 @@ fn key(
                 kind(tree, each),
                 languages::text_at(tree.elements, each),
             ));
+        } else {
+            // Delimiters and trivia do not contribute structural identity.
         }
     }
     Some(())

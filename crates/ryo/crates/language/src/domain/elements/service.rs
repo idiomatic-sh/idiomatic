@@ -647,7 +647,11 @@ pub fn enter_implied_node(builder: &mut TableBuilder<'_>, kind: KindBits) {
 /// Replacing a key replaces its value; properties do not add elements or source ranges.
 pub fn node_property(builder: &mut TableBuilder<'_>, property: PropertyId, value: NameText<'_>) {
     // Formatting a borrowed string into retained memory cannot fail.
-    let _ = node_property_fmt(builder, property, format_args!("{}", value.0));
+    let written = node_property_fmt(builder, property, format_args!("{}", value.0));
+    debug_assert!(
+        written.is_ok(),
+        "a borrowed string formats into retained storage without failure"
+    );
 }
 
 /// Format scalar parser metadata directly into retained storage, without a temporary string.

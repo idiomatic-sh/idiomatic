@@ -4,8 +4,11 @@
 use crate::inbound::contracts::parse::contract::ParseContract;
 use crate::outbound::notes::factory::postcard;
 use crate::outbound::syntax::factory::ruff_python_parser;
+#[cfg(test)]
+use ryo::languages::ReadItem;
+#[cfg(test)]
 use ryo::languages::contract::Reading;
-use ryo::languages::{self, ByteSlice, ReadItem, Symbols};
+use ryo::languages::{self, ByteSlice, Symbols};
 use std::sync::Arc;
 
 /// The path every source is read as, which a file cell of a row shows.
@@ -54,6 +57,7 @@ pub(crate) fn parsed(bytes: &'static [u8]) -> Result<Parsed, languages::ParseErr
 ///
 /// When the source cannot be read.
 #[must_use]
+#[cfg(test)]
 pub(crate) fn reading<Item>(source: &'static str) -> Reading
 where
     Item: ReadItem,

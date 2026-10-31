@@ -5,7 +5,7 @@ pub mod contracts;
 pub(crate) mod kinds;
 #[cfg(test)]
 pub(crate) mod projects;
-#[cfg(test)]
+#[cfg(any(test, feature = "fixtures"))]
 pub(crate) mod reading;
 #[cfg(not(bless))]
 mod relations;
