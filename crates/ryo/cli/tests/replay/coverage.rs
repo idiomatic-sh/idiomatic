@@ -218,11 +218,11 @@ fn the_unknown_reasons_of_the_linked_languages_are_numbered_apart() {
 const OPTIONAL_CAPABILITY_RULES: [(&str, &str); 6] = [
     (
         "identifier-positive",
-        "let rows = select * from identifier; emit rows subject file key(span);",
+        "let rows = select * from \"identifier\"; emit rows subject file key(span);",
     ),
     (
         "identifier-negative",
-        "let variables = select * from defines where kind = \"variable\"; let absent = antijoin(left=variables, right=identifier, left-on=[\"file\"], right-on=[\"file\"]); emit absent subject file key(span);",
+        "let variables = select * from \"defines\" where kind = \"variable\"; let absent = antijoin(left=variables, right=\"identifier\", left-on=[\"file\"], right-on=[\"file\"]); emit absent subject file key(span);",
     ),
     (
         "qualified-positive",
@@ -230,7 +230,7 @@ const OPTIONAL_CAPABILITY_RULES: [(&str, &str); 6] = [
     ),
     (
         "qualified-negative",
-        "let variables = select * from defines where kind = \"variable\"; let absent = antijoin(left=variables, right=\"qualified-name\", left-on=[\"file\"], right-on=[\"file\"]); emit absent subject file key(span);",
+        "let variables = select * from \"defines\" where kind = \"variable\"; let absent = antijoin(left=variables, right=\"qualified-name\", left-on=[\"file\"], right-on=[\"file\"]); emit absent subject file key(span);",
     ),
     (
         "embedded-positive",
@@ -238,7 +238,7 @@ const OPTIONAL_CAPABILITY_RULES: [(&str, &str); 6] = [
     ),
     (
         "embedded-negative",
-        "let variables = select * from defines where kind = \"variable\"; let absent = antijoin(left=variables, right=\"embedded-expression\", left-on=[\"file\"], right-on=[\"file\"]); emit absent subject file key(span);",
+        "let variables = select * from \"defines\" where kind = \"variable\"; let absent = antijoin(left=variables, right=\"embedded-expression\", left-on=[\"file\"], right-on=[\"file\"]); emit absent subject file key(span);",
     ),
 ];
 
