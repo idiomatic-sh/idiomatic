@@ -49,3 +49,6 @@ pub(crate) mod binding_observations;
 
 /// Lazy execution of static binding phases and alternatives.
 pub(crate) mod binding_analysis;
+
+/// Explicit uncertainty for repeated and exceptional namespace effects.
+pub(crate) mod binding_uncertainty;

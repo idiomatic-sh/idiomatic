@@ -98,6 +98,56 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || ("[(x := item) for item in items]\nuse(x)\n", "x"),
         expect: Expect::Value("possibly-unbound:1"),
     },
+    Case {
+        name: CaseName(
+            "loop read before later store retains real candidate and explicit uncertainty",
+        ),
+        word: Word::Succeeds,
+        input: || ("for item in items:\n    use(x)\n    x = 1\n", "x"),
+        expect: Expect::Value("uncertain:1"),
+    },
+    Case {
+        name: CaseName(
+            "loop-carried replacement preserves incoming and later declaration candidates",
+        ),
+        word: Word::Succeeds,
+        input: || ("x = 0\nfor item in items:\n    use(x)\n    x = 1\n", "x"),
+        expect: Expect::Value("uncertain:2"),
+    },
+    Case {
+        name: CaseName("current iteration unconditional store makes its later read precise"),
+        word: Word::Succeeds,
+        input: || ("for item in items:\n    x = 1\n    use(x)\n", "x"),
+        expect: Expect::Value("unique:1"),
+    },
+    Case {
+        name: CaseName("for iterable read does not inherit later iteration bindings"),
+        word: Word::Succeeds,
+        input: || ("for item in x:\n    x = 1\n", "x"),
+        expect: Expect::Value("unbound:0"),
+    },
+    Case {
+        name: CaseName("handler may observe a partially executed try body"),
+        word: Word::Succeeds,
+        input: || {
+            (
+                "try:\n    x = compute()\n    action()\nexcept Error:\n    use(x)\n",
+                "x",
+            )
+        },
+        expect: Expect::Value("uncertain:1"),
+    },
+    Case {
+        name: CaseName("handler-local store makes later handler use precise"),
+        word: Word::Succeeds,
+        input: || {
+            (
+                "try:\n    x = compute()\nexcept Error:\n    x = 1\n    use(x)\n",
+                "x",
+            )
+        },
+        expect: Expect::Value("unique:1"),
+    },
 ];
 fn subject((source, wanted): Input) -> Result<Value, Failure> {
     use crate::inbound::contracts::parse::contract::ParseContract;

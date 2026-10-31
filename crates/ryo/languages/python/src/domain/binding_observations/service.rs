@@ -70,6 +70,16 @@ fn read(
         name,
         &mut index.candidates,
     );
+    let state = crate::domain::binding_uncertainty::service::refine(
+        tree,
+        model,
+        step.occurrence,
+        step.phase,
+        name,
+        state,
+        &index.mutations,
+        &mut index.candidates,
+    );
     let certainty = match state {
         ReadState::UniqueDeclaration => UseCertainty::Unique,
         ReadState::AlternativeDeclarations

@@ -19,6 +19,7 @@ pub(crate) fn clear(index: &mut BindingAnalysisIndex) {
     index.uses.clear();
     index.shadows.clear();
     index.candidates.clear();
+    index.mutations.clear();
     index.phases.clear();
     index.branches.clear();
     index.arms.clear();
@@ -40,6 +41,7 @@ pub(crate) fn build(
         return;
     }
     schedule(tree, model, symbols, &mut index.schedule);
+    crate::domain::binding_uncertainty::service::prepare(tree, model, index);
     let mut frame = None;
     let mut context = ReadContext::Value;
     for cursor in 0..index.schedule.steps.len() {

@@ -326,6 +326,8 @@ pub(crate) struct BindingAnalysisIndex {
     pub arms: Vec<BindingFrameId>,
     /// Scratch for real lookup candidates, never builtin placeholders.
     pub candidates: Vec<crate::domain::binding_results::types::Candidate>,
+    /// Mutation identities indexed by namespace/name for conservative repeated and exceptional regions.
+    pub mutations: Vec<BindingMutation>,
     /// Evaluation-ordered events.
     pub events: Vec<crate::domain::binding_results::types::Event>,
     /// Explicit state for every analyzed reference.
@@ -334,4 +336,17 @@ pub(crate) struct BindingAnalysisIndex {
     pub uses: Vec<crate::domain::binding_results::types::Usage>,
     /// Replacement and lexical shadow edges.
     pub shadows: Vec<crate::domain::binding_results::types::Shadow>,
+}
+
+/// One real mutation in a static execution phase, indexed without cloning namespaces.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct BindingMutation {
+    /// Affected namespace and canonical name.
+    pub key: BindingKey,
+    /// Real mutation syntax identity.
+    pub occurrence: Position,
+    /// Deferred/immediate evaluation boundary.
+    pub phase: Position,
+    /// Store, deletion, or exception cleanup.
+    pub action: BindingAction,
 }
