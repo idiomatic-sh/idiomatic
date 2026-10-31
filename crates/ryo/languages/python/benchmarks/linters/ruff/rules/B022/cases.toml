@@ -92,3 +92,8 @@ expected = []
 name = "explicit-shadow-before-wildcard"
 files = { "case.py" = "import contextlib\ncontextlib = custom\nfrom m import *\ncontextlib.suppress()\n" }
 expected = []
+
+[[cases]]
+name = "quoted-annotation-dispatch"
+files = { "case.py" = "import contextlib\nx: \"contextlib.suppress()\"\n" }
+expected = [{ file = "case.py", start = 22, end = 43 }]

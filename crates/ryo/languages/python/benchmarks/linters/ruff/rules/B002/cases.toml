@@ -167,3 +167,8 @@ expected = [{ file = "case.py", start = 12, end = 15 }]
 name = "middle-fstring-bare-cr"
 files = { "case.py" = "f\"\"\"before\r{++x}\rafter\"\"\" # noqa: B002\r" }
 expected = []
+
+[[cases]]
+name = "quoted-annotation-dispatch"
+files = { "case.py" = "x: \"++value\"\n" }
+expected = [{ file = "case.py", start = 4, end = 11 }]
