@@ -5,10 +5,10 @@ use crate::domain::{
     suite::types::RunRequest,
 };
 use crate::outbound::{
-    linter::{factory, interface::LinterPort},
+    linter::{factory, interface::LinterPort as _},
     worker::{
         fixtures::{contract::check, data::report},
-        interface::WorkerPort,
+        interface::WorkerPort as _,
     },
 };
 use std::{
@@ -78,7 +78,7 @@ struct Output {
     fail_flush: bool,
 }
 impl Write for Output {
-    fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         if self.fail_write {
             return Err(io::Error::new(
                 io::ErrorKind::BrokenPipe,
@@ -89,8 +89,8 @@ impl Write for Output {
             .lock()
             .expect("capture")
             .bytes
-            .extend_from_slice(bytes);
-        Ok(bytes.len())
+            .extend_from_slice(buf);
+        Ok(buf.len())
     }
     fn flush(&mut self) -> io::Result<()> {
         if self.fail_flush {
@@ -110,13 +110,13 @@ fn classify(error: Error) -> Refusal {
             Refusal::Write
         }
         Error::Io(error) if error.to_string() == "fixture flush failure" => Refusal::Flush,
-        _ => Refusal::Unexpected,
+        Error::Io(_) | Error::Json(_) | Error::Toml(_) => Refusal::Unexpected,
     }
 }
 fn subject(operation: Input) -> Result<Value, Failure> {
     let capture = Arc::new(Mutex::new(Capture::default()));
     let output = Output {
-        capture: capture.clone(),
+        capture: Arc::clone(&capture),
         fail_write: matches!(operation, Operation::WriteFailure),
         fail_flush: matches!(operation, Operation::FlushFailure),
     };
@@ -128,8 +128,14 @@ fn subject(operation: Input) -> Result<Value, Failure> {
     };
     let payload = match operation {
         Operation::Malformed => "{".into(),
-        Operation::RoundTrip => parent.prepare(&request).map_err(classify)?.arguments[1].clone(),
-        _ => {
+        Operation::RoundTrip => parent
+            .prepare(&request)
+            .map_err(classify)?
+            .arguments
+            .get(1)
+            .cloned()
+            .ok_or(Refusal::Unexpected)?,
+        Operation::Contract | Operation::WriteFailure | Operation::FlushFailure => {
             r#"{"root":"workspace","rules":"rules","files":["source.txt"],"cache":"cache"}"#.into()
         }
     };

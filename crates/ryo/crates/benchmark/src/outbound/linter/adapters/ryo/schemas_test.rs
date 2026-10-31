@@ -52,10 +52,7 @@ fn subject(bytes: Input) -> Result<Value, Failure> {
                     ],
                 }
         })
-        .map_err(|error| match error {
-            crate::domain::diagnostics::errors::DiagnosticsError::Invalid(_) => (),
-            _ => (),
-        })
+        .map_err(|_rejected_report| ())
 }
 #[test]
 fn succeeds() {

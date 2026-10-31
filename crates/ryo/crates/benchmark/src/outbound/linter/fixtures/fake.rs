@@ -27,7 +27,7 @@ impl LinterPort for LinterFake {
         })
     }
     fn decode(&self, request: &RunRequest, output: ProcessOutput) -> Result<RunReport, Error> {
-        if output.status.0 > 1 {
+        if output.status.0 > 1_i32 {
             return Err(Error::Invalid("operational failure".into()));
         }
         Ok(RunReport {

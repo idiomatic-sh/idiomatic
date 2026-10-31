@@ -226,40 +226,7 @@ pub fn check(adapter: &impl ExecutionPort) {
 
         adapter
             .run(call)
-            .map(|output| {
-                use crate::domain::measurements::types::{ExecutionProfile, ResourceObservation};
-                assert_eq!(
-                    adapter.profile(),
-                    profile,
-                    "execution profile must remain immutable"
-                );
-                assert!(
-                    matches!(
-                        (&profile, output.resources),
-                        (ExecutionProfile::Wall, ResourceObservation::WallOnly)
-                            | (
-                                ExecutionProfile::Direct | ExecutionProfile::Isolated(_),
-                                ResourceObservation::Collected(_)
-                            )
-                    ),
-                    "resource observations must match the declared execution mode"
-                );
-                (
-                    output.status.0,
-                    if large {
-                        output.stdout.0.len() == 131_072
-                            && output.stdout.0.iter().all(|byte| *byte == 0)
-                    } else {
-                        output.stdout.0 == b"payload"
-                    },
-                    if large {
-                        output.stderr.0.len() == 131_072
-                            && output.stderr.0.iter().all(|byte| *byte == 0)
-                    } else {
-                        output.stderr.0 == b"issue"
-                    },
-                )
-            })
+            .map(|output| observe(adapter, &profile, output, large))
             .map_err(|error| match error {
                 Error::Io(error) if error.raw_os_error() == Some(8_i32) => {
                     Failure::ExecutableFormat
@@ -272,4 +239,43 @@ pub fn check(adapter: &impl ExecutionPort) {
     };
     run(CASES, Word::Succeeds, subject);
     run(CASES, Word::Refuses, subject);
+}
+
+/// Check profile stability, resource mode, and independently specified output streams.
+fn observe(
+    adapter: &impl ExecutionPort,
+    profile: &crate::domain::measurements::types::ExecutionProfile,
+    output: crate::domain::measurements::types::ProcessOutput,
+    large: bool,
+) -> Value {
+    use crate::domain::measurements::types::{ExecutionProfile, ResourceObservation};
+    assert_eq!(
+        adapter.profile(),
+        *profile,
+        "execution profile must remain immutable"
+    );
+    assert!(
+        matches!(
+            (profile, output.resources),
+            (ExecutionProfile::Wall, ResourceObservation::WallOnly)
+                | (
+                    ExecutionProfile::Direct | ExecutionProfile::Isolated(_),
+                    ResourceObservation::Collected(_)
+                )
+        ),
+        "resource observations must match the declared execution mode"
+    );
+    (
+        output.status.0,
+        if large {
+            output.stdout.0.len() == 131_072 && output.stdout.0.iter().all(|byte| *byte == 0)
+        } else {
+            output.stdout.0 == b"payload"
+        },
+        if large {
+            output.stderr.0.len() == 131_072 && output.stderr.0.iter().all(|byte| *byte == 0)
+        } else {
+            output.stderr.0 == b"issue"
+        },
+    )
 }

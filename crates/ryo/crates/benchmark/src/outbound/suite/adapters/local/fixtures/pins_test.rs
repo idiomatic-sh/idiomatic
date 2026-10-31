@@ -3,7 +3,9 @@ use super::super::adapter::SuiteLocalAdapter;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::suite::types::ArtifactPath;
 #[cfg(unix)]
-const CASES: &[Case<(&[&str], &str, bool), (), &str>] = &[
+type PinCase = Case<(&'static [&'static str], &'static str, bool), (), &'static str>;
+#[cfg(unix)]
+const CASES: &[PinCase] = &[
     Case {
         name: CaseName("matching executable bytes and version are accepted"),
         word: Word::Succeeds,
@@ -58,9 +60,13 @@ const CASES: &[Case<(&[&str], &str, bool), (), &str>] = &[
 ];
 
 #[cfg(unix)]
+#[expect(
+    clippy::expect_used,
+    reason = "fixed executable pin fixtures must be created before testing verification"
+)]
 fn verify_pin((sha256, version, executable): (&[&str], &str, bool)) -> Result<(), &'static str> {
     use crate::domain::{diagnostics::errors::DiagnosticsError as Error, suite::types::Tool};
-    use crate::outbound::suite::interface::SuitePort;
+    use crate::outbound::suite::interface::SuitePort as _;
     let directory = tempfile::tempdir().expect("tool directory");
     let path = directory.path().join("fixture");
     std::fs::write(&path, b"#!/bin/sh\necho fixture 1.0\n").expect("fixture bytes");
@@ -69,8 +75,8 @@ fn verify_pin((sha256, version, executable): (&[&str], &str, bool)) -> Result<()
         tool: "fixture".into(),
         version: version.into(),
         sha256: sha256.iter().map(|value| (*value).into()).collect(),
-        deferred: Default::default(),
-        pending: Default::default(),
+        deferred: std::collections::BTreeMap::default(),
+        pending: std::collections::BTreeMap::default(),
         defaults: vec!["E722".try_into().expect("rule identifier")],
     };
     SuiteLocalAdapter
@@ -78,13 +84,15 @@ fn verify_pin((sha256, version, executable): (&[&str], &str, bool)) -> Result<()
         .map_err(|error| match error {
             Error::Invalid(message) if message == "tool executable hash differs from pin" => "hash",
             Error::Invalid(message) if message == "tool version differs from pin" => "version",
-            _ => "unexpected error",
+            Error::Invalid(_) | Error::Io(_) | Error::Json(_) | Error::Toml(_) => {
+                "unexpected error"
+            }
         })
 }
 
 #[cfg(unix)]
 fn permissions(path: &std::path::Path, executable: bool) -> std::io::Result<()> {
-    use std::os::unix::fs::PermissionsExt;
+    use std::os::unix::fs::PermissionsExt as _;
     std::fs::set_permissions(
         path,
         std::fs::Permissions::from_mode(if executable { 0o700 } else { 0o600 }),
