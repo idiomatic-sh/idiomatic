@@ -1,36 +1,35 @@
-//! Catalog availability is independent of occurrences, embeddings and the consumer's target version.
+//! Catalog availability is independent of occurrences, embeddings and consumer target versions.
 use super::super::fixtures::contract::check;
 use super::item::ImplicitSymbolItem;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::fixtures::reading::{SHOWN, proposed};
 use ryo::languages::contract::Want;
+use std::collections::BTreeSet;
 type Input = &'static str;
 type Value = &'static str;
 type Failure = ();
-const EXPECTED: &str = "156|len:3.0|ExceptionGroup:3.11|aiter:3.10|anext:3.10|module-global:absent";
+const EXPECTED: &str = "171|builtin:ExceptionGroup:3.11|builtin:__name__:3.0|builtin:__spec__:3.4|builtin:aiter:3.10|builtin:anext:3.10|builtin:len:3.0|module-global:__annotate__:3.14|module-global:__annotations__:3.6|module-global:__cached__:3.2|module-global:__file__:3.0|module-global:__name__:3.0|module-global:__spec__:3.4|platform-builtin:WindowsError:3.0";
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("empty physical module still supplies builtin inventory"),
+        name: CaseName("empty physical module still supplies implicit namespace catalog"),
         word: Word::Succeeds,
         input: || "",
         expect: Expect::Value(EXPECTED),
     },
     Case {
-        name: CaseName("string literal does not need a Name occurrence for catalog lookup"),
+        name: CaseName("string literal has no bearing on catalog availability"),
         word: Word::Succeeds,
         input: || "'len'\n",
         expect: Expect::Value(EXPECTED),
     },
     Case {
-        name: CaseName(
-            "multiple embedded expressions cannot duplicate the physical module inventory",
-        ),
+        name: CaseName("embedded expressions do not duplicate module catalog"),
         word: Word::Succeeds,
         input: || "first: 'len'\nsecond: 'ExceptionGroup'\nthird: 'aiter'\n",
         expect: Expect::Value(EXPECTED),
     },
     Case {
-        name: CaseName("source errors do not change the known provider language catalog"),
+        name: CaseName("source diagnostics do not erase known catalog"),
         word: Word::Succeeds,
         input: || "if:\n    pass\n",
         expect: Expect::Value(EXPECTED),
@@ -42,51 +41,59 @@ fn subject(source: Input) -> Result<Value, Failure> {
     if !answer.causes.is_empty() {
         return Err(());
     }
-    let mut names = Vec::new();
-    for row in answer.rows {
+    let mut names = BTreeSet::new();
+    let mut observed = vec![answer.rows.len().to_string()];
+    let mut module_scope = None;
+    for row in &answer.rows {
         let [
             Want::Name(name),
-            Want::Number(_),
-            Want::Number(_),
+            Want::Name(kind),
+            Want::Node(scope),
+            Want::Number(major),
+            Want::Number(minor),
             Want::File(file),
-        ] = *row
+        ] = **row
         else {
             return Err(());
         };
         if *file != SHOWN {
             return Err(());
         }
-        names.push(*name);
+        if let Some(expected_scope) = module_scope {
+            assert_eq!(
+                *scope, expected_scope,
+                "catalog scope is the physical module root"
+            );
+        } else {
+            module_scope = Some(*scope);
+        }
+        assert!(
+            names.insert((*name, *kind)),
+            "one row per name and origin in the physical module"
+        );
+        for (wanted_kind, wanted_name) in [
+            ("builtin", "len"),
+            ("builtin", "ExceptionGroup"),
+            ("builtin", "aiter"),
+            ("builtin", "anext"),
+            ("builtin", "__name__"),
+            ("builtin", "__spec__"),
+            ("module-global", "__name__"),
+            ("module-global", "__annotations__"),
+            ("module-global", "__cached__"),
+            ("module-global", "__file__"),
+            ("module-global", "__annotate__"),
+            ("module-global", "__spec__"),
+            ("platform-builtin", "WindowsError"),
+        ] {
+            if *kind == wanted_kind && *name == wanted_name {
+                observed.push(format!("{kind}:{name}:{major}.{minor}"));
+            }
+        }
     }
-    names.sort_unstable();
-    names.dedup();
-    assert_eq!(
-        names.len(),
-        answer.rows.len(),
-        "one physical module emits each catalog name once"
-    );
-    let mut observed = vec![answer.rows.len().to_string()];
-    for wanted in ["len", "ExceptionGroup", "aiter", "anext"] {
-        let (major, minor) = answer
-            .rows
-            .iter()
-            .find_map(|row| match *row {
-                [
-                    Want::Name(name),
-                    Want::Number(major),
-                    Want::Number(minor),
-                    _,
-                ] if *name == wanted => Some((*major, *minor)),
-                _ => None,
-            })
-            .ok_or(())?;
-        observed.push(format!("{wanted}:{major}.{minor}"));
-    }
-    assert!(
-        !names.contains(&"__file__") && !names.contains(&"__name__"),
-        "implicit module globals are not builtin symbols"
-    );
-    observed.push("module-global:absent".to_owned());
+    let count = observed.remove(0);
+    observed.sort_unstable();
+    observed.insert(0, count);
     Ok(Box::leak(observed.join("|").into_boxed_str()))
 }
 #[test]
