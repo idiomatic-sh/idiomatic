@@ -15,5 +15,7 @@ let bad_metadata = select root, file, span from incorrect_metadata;
 let absent = union(left=absent_roots, right=absent_hosts);
 let absent_structure = union(left=absent, right=absent_children);
 let invalid = union(left=bad_metadata, right=outside_hosts);
-let violations = union(left=absent_structure, right=invalid);
+let duplicate_spans = select l.root as root, l.file as file, l.span as span from roots as l join roots as r on l.file = r.file and l.span = r.span where l.root != r.root;
+let invalid_identity = union(left=invalid, right=duplicate_spans);
+let violations = union(left=absent_structure, right=invalid_identity);
 emit violations subject file key(root, span);
