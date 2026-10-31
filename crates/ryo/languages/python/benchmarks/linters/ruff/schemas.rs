@@ -13,22 +13,31 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 #[derive(Debug, Deserialize)]
+/// One Ruff finding before source-coordinate normalization.
 struct FindingSchema {
+    /// Reported rule identifier, including explicit syntax diagnostics.
     code: String,
+    /// Source filename reported by the reference process.
     filename: String,
+    /// Inclusive start coordinate.
     location: LocationSchema,
+    /// Exclusive end coordinate.
     end_location: LocationSchema,
+    /// Notebook cell index, refused without an explicit source mapping.
     cell: Option<usize>,
 }
 #[derive(Debug, Deserialize)]
+/// One-based physical line and Unicode scalar column from Ruff JSON.
 struct LocationSchema {
+    /// One-based physical source line.
     row: usize,
+    /// One-based Unicode scalar column.
     column: usize,
 }
 
 /// Lint findings and warnings are valid; an operational exit is not.
 pub(super) fn check_status(output: &ProcessOutput) -> Result<(), Error> {
-    if matches!(output.status.0, 0 | 1) {
+    if matches!(output.status.0, 0_i32 | 1_i32) {
         return Ok(());
     }
     Err(Error::Invalid(format!(
@@ -40,9 +49,13 @@ pub(super) fn check_status(output: &ProcessOutput) -> Result<(), Error> {
 
 /// Decode against the exact source set already read by the adapter, including clean files.
 pub(super) fn decode(
+    /// Exact requested corpus and retained-state identity.
     request: &RunRequest,
+    /// Captured reference exit status and wire bytes.
     output: &ProcessOutput,
+    /// Explicit rule selection accepted from the reference.
     defaults: &BTreeSet<RuleId>,
+    /// Complete source texts against which all reported coordinates are checked.
     sources: &BTreeMap<RelativePath, SourceText>,
 ) -> Result<RunReport, Error> {
     RuffReportSchema {
@@ -56,9 +69,13 @@ pub(super) fn decode(
 
 /// A wire response accompanied by the exact requested source material.
 pub(super) struct RuffReportSchema<'a> {
+    /// Exact requested corpus and retained-state identity.
     request: &'a RunRequest,
+    /// Captured reference exit status and wire bytes.
     output: &'a ProcessOutput,
+    /// Explicit rule selection accepted from the reference.
     defaults: &'a BTreeSet<RuleId>,
+    /// Complete source texts against which all reported coordinates are checked.
     sources: &'a BTreeMap<RelativePath, SourceText>,
 }
 impl TryFrom<RuffReportSchema<'_>> for RunReport {
@@ -78,7 +95,7 @@ impl TryFrom<RuffReportSchema<'_>> for RunReport {
         }
         let raw: Vec<FindingSchema> = serde_json::from_slice(&output.stdout.0)
             .map_err(|error| Error::Json(Box::new(error)))?;
-        if (output.status.0 == 0) != raw.is_empty() {
+        if (output.status.0 == 0_i32) != raw.is_empty() {
             return Err(Error::Invalid(
                 "Ruff exit status contradicts findings".into(),
             ));
@@ -97,7 +114,9 @@ impl TryFrom<RuffReportSchema<'_>> for RunReport {
             }
             let relative = dunce::simplified(Path::new(&finding.filename))
                 .strip_prefix(dunce::simplified(&request.root))
-                .map_err(|_| Error::Invalid("Ruff returned a path outside the corpus".into()))?;
+                .map_err(|_outside_root| {
+                    Error::Invalid("Ruff returned a path outside the corpus".into())
+                })?;
             let file = relative
                 .to_str()
                 .ok_or_else(|| Error::Invalid("non-UTF8 Ruff filename".into()))?;
@@ -133,22 +152,33 @@ pub(super) fn offset(source: &str, row: usize, column: usize) -> Result<usize, E
         return Err(Error::Invalid("Ruff location is zero-based".into()));
     }
     let bytes = source.as_bytes();
-    let mut start = 0;
+    let mut start = 0_usize;
     for _ in 1..row {
-        let newline = bytes[start..]
+        let remaining = bytes
+            .get(start..)
+            .ok_or_else(|| Error::Invalid("Ruff row outside source".into()))?;
+        let relative_newline = remaining
             .iter()
             .position(|byte| matches!(byte, b'\r' | b'\n'))
-            .ok_or_else(|| Error::Invalid("Ruff row outside source".into()))?
-            + start;
-        start = newline + 1;
-        if bytes[newline] == b'\r' && bytes.get(start) == Some(&b'\n') {
-            start += 1;
+            .ok_or_else(|| Error::Invalid("Ruff row outside source".into()))?;
+        let newline = start
+            .checked_add(relative_newline)
+            .ok_or_else(|| Error::Invalid("Ruff row outside source".into()))?;
+        start = newline
+            .checked_add(1)
+            .ok_or_else(|| Error::Invalid("Ruff row outside source".into()))?;
+        if bytes.get(newline) == Some(&b'\r') && bytes.get(start) == Some(&b'\n') {
+            start = start
+                .checked_add(1)
+                .ok_or_else(|| Error::Invalid("Ruff row outside source".into()))?;
         }
     }
     if row == 1 && source.starts_with('\u{feff}') {
         start += '\u{feff}'.len_utf8();
     }
-    let tail = &source[start..];
+    let tail = source
+        .get(start..)
+        .ok_or_else(|| Error::Invalid("Ruff row outside source".into()))?;
     let line = tail.split(['\r', '\n']).next().unwrap_or("");
     let column = column - 1;
     let relative = if column == line.chars().count() {
@@ -159,5 +189,7 @@ pub(super) fn offset(source: &str, row: usize, column: usize) -> Result<usize, E
             .map(|(byte, _)| byte)
             .ok_or_else(|| Error::Invalid("Ruff column outside source".into()))?
     };
-    Ok(start + relative)
+    start
+        .checked_add(relative)
+        .ok_or_else(|| Error::Invalid("Ruff column outside source".into()))
 }

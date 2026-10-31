@@ -11,8 +11,11 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
+/// Executes the pinned Ruff protocol against an explicit source set.
 pub(crate) struct LinterRuffAdapter {
+    /// Exact executable selected by composition.
     executable: PathBuf,
+    /// Permitted rule identities in the compared reference profile.
     defaults: BTreeSet<RuleId>,
 }
 impl LinterPort for LinterRuffAdapter {
@@ -67,6 +70,7 @@ impl LinterPort for LinterRuffAdapter {
 }
 
 impl LinterRuffAdapter {
+    /// Bind the executable and selected rules before preparing invocations.
     pub(crate) fn new(settings: LinterRuffSettings) -> Self {
         Self {
             executable: settings.executable,
@@ -97,7 +101,7 @@ impl LinterRuffAdapter {
         for line in text.lines() {
             let path = Path::new(line)
                 .strip_prefix(root)
-                .map_err(|_| Error::Invalid(constants::DISCOVERED_OUTSIDE.into()))?;
+                .map_err(|_outside_root| Error::Invalid(constants::DISCOVERED_OUTSIDE.into()))?;
             let file = path
                 .to_str()
                 .ok_or_else(|| Error::Invalid(constants::NON_UTF8_PATH.into()))?;

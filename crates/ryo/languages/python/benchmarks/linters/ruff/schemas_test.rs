@@ -7,7 +7,7 @@ enum BoundaryFailure {
     Invalid,
     Unexpected,
 }
-fn failure(error: Error) -> BoundaryFailure {
+fn failure(error: &Error) -> BoundaryFailure {
     match error {
         Error::Invalid(_) => BoundaryFailure::Invalid,
         Error::Io(_) | Error::Json(_) | Error::Toml(_) => BoundaryFailure::Unexpected,
@@ -89,7 +89,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 ];
 
 fn subject((source, row, column): Input) -> Result<Value, Failure> {
-    offset(source, row, column).map_err(failure)
+    offset(source, row, column).map_err(|error| failure(&error))
 }
 
 #[test]

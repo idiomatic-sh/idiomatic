@@ -5,7 +5,7 @@ use ryo_benchmark::domain::{
     diagnostics::{errors::DiagnosticsError as Error, types::BenchmarkFinding},
     suite::types::WorkerRequest,
 };
-use ryo_benchmark::outbound::engine::{factory, interface::EnginePort};
+use ryo_benchmark::outbound::engine::{factory, interface::EnginePort as _};
 
 #[derive(Clone, Copy)]
 enum EngineScenario {
@@ -43,6 +43,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Error(BoundaryFailure::Io(std::io::ErrorKind::NotFound)),
     },
 ];
+#[expect(
+    clippy::expect_used,
+    reason = "the fixed fixture rule identifier must be valid for engine assertions"
+)]
 fn exercise(scenario: Input) -> Result<Value, Error> {
     let root = tempfile::tempdir()?;
     let rules = root.path().join("rules");
@@ -76,7 +80,8 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
         factory::local(ryo::linter::Languages(vec![ryo_python::linked()]), None).run(request);
     if matches!(scenario, EngineScenario::Unread) {
         assert!(
-            matches!(&result, Err(Error::Invalid(message)) if message.starts_with("incomplete candidate:") && message.contains("input.unknown"))
+            matches!(&result, Err(Error::Invalid(message)) if message.starts_with("incomplete candidate:") && message.contains("input.unknown")),
+            "unread input must be reported as incomplete candidate coverage"
         );
     }
     if matches!(scenario, EngineScenario::Partial) {

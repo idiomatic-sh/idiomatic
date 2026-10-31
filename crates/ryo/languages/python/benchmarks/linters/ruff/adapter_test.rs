@@ -8,7 +8,7 @@ use ryo_benchmark::domain::{
     suite::types::RunRequest,
 };
 use ryo_benchmark::outbound::linter::fixtures::contract::check;
-use ryo_benchmark::outbound::linter::interface::LinterPort;
+use ryo_benchmark::outbound::linter::interface::LinterPort as _;
 
 #[derive(Clone, Copy)]
 enum AdapterScenario {
@@ -125,6 +125,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 
+#[expect(
+    clippy::expect_used,
+    reason = "fixed fixture rule identifiers must be valid before testing the adapter"
+)]
 fn exercise(scenario: Input) -> Result<Value, Error> {
     let root = tempfile::tempdir()?;
     let executable = root.path().join("missing-ruff");
@@ -151,31 +155,7 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
         return ruff.prepare(&request).map(|_| false);
     }
     if matches!(scenario, AdapterScenario::Invocation) {
-        let invocation = ruff.prepare(&request)?;
-        let expected: Vec<std::ffi::OsString> = [
-            "check",
-            "--isolated",
-            "--output-format",
-            "json",
-            "--cache-dir",
-        ]
-        .into_iter()
-        .map(Into::into)
-        .chain([
-            request.state.join("ruff").into_os_string(),
-            "--select".into(),
-            "E722".into(),
-            "--".into(),
-            "case.py".into(),
-        ])
-        .collect();
-        return Ok(invocation.arguments == expected
-            && invocation
-                .environment
-                .get(std::ffi::OsStr::new("RAYON_NUM_THREADS"))
-                == Some(&"1".into())
-            && invocation.directory == request.root
-            && invocation.executable == executable);
+        return invocation_matches(&ruff, &request, &executable);
     }
     if !matches!(
         scenario,
@@ -210,24 +190,35 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
         "E722"
     };
     let end = if matches!(scenario, AdapterScenario::ReversedSpan) {
-        1
+        1_usize
     } else {
-        7
+        7_usize
     };
     let start = if matches!(scenario, AdapterScenario::ReversedSpan) {
-        7
+        7_usize
     } else {
-        1
+        1_usize
     };
     let finding = serde_json::to_vec(
-        &serde_json::json!([{"code":code,"filename":filename,"cell":null,"location":{"row":3,"column":start},"end_location":{"row":3,"column":end}}]),
+        &serde_json::json!([{"code":code,"filename":filename,"cell":null,"location":{"row":3_usize,"column":start},"end_location":{"row":3_usize,"column":end}}]),
     ).map_err(|error| Error::Json(Box::new(error)))?;
     let (status, stdout) = match scenario {
-        AdapterScenario::Operational => (2, b"[]".to_vec()),
-        AdapterScenario::MissingCleanFile | AdapterScenario::CleanWarning => (0, b"[]".to_vec()),
-        AdapterScenario::InvalidJson => (0, b"not json".to_vec()),
-        AdapterScenario::ContradictoryStatus => (0, finding),
-        _ => (1, finding),
+        AdapterScenario::Operational => (2_i32, b"[]".to_vec()),
+        AdapterScenario::MissingCleanFile | AdapterScenario::CleanWarning => {
+            (0_i32, b"[]".to_vec())
+        }
+        AdapterScenario::InvalidJson => (0_i32, b"not json".to_vec()),
+        AdapterScenario::ContradictoryStatus => (0_i32, finding),
+        AdapterScenario::Contract
+        | AdapterScenario::EmptyInput
+        | AdapterScenario::Invocation
+        | AdapterScenario::MissingExecutable
+        | AdapterScenario::WarningFinding
+        | AdapterScenario::UnrequestedFile
+        | AdapterScenario::DuplicateInput
+        | AdapterScenario::UnexpectedRule
+        | AdapterScenario::ReversedSpan
+        | AdapterScenario::CanonicalRoot => (1_i32, finding),
     };
     let report = ruff.decode(
         &request,
@@ -237,7 +228,7 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
             stderr: ryo_benchmark::domain::measurements::types::CapturedBytes(
                 b"warning: file-level noqa must be on its own line\n".to_vec(),
             ),
-            wall: Default::default(),
+            wall: std::time::Duration::default(),
             resources: ryo_benchmark::domain::measurements::types::ResourceObservation::WallOnly,
         },
     )?;
@@ -267,4 +258,36 @@ fn refuses() {
 #[test]
 fn fails() {
     run(CASES, Word::Fails, subject);
+}
+
+fn invocation_matches(
+    ruff: &LinterRuffAdapter,
+    request: &RunRequest,
+    executable: &std::path::Path,
+) -> Result<bool, Error> {
+    let invocation = ruff.prepare(request)?;
+    let expected: Vec<std::ffi::OsString> = [
+        "check",
+        "--isolated",
+        "--output-format",
+        "json",
+        "--cache-dir",
+    ]
+    .into_iter()
+    .map(Into::into)
+    .chain([
+        request.state.join("ruff").into_os_string(),
+        "--select".into(),
+        "E722".into(),
+        "--".into(),
+        "case.py".into(),
+    ])
+    .collect();
+    Ok(invocation.arguments == expected
+        && invocation
+            .environment
+            .get(std::ffi::OsStr::new("RAYON_NUM_THREADS"))
+            == Some(&"1".into())
+        && invocation.directory == request.root
+        && invocation.executable == executable)
 }
