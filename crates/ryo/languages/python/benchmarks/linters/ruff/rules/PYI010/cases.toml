@@ -108,3 +108,28 @@ expected = []
 name = "multiline-return"
 files = { "case.pyi" = "def f():\n    return (\n        1\n    )\n" }
 expected = [{"file" = "case.pyi", "start" = 13, "end" = 37}]
+
+[[cases]]
+name = "shared-block-suppressed"
+files = { "case.pyi" = "# ruff: disable[PYI010]\ndef f(): return 1\n\n# ruff: enable[PYI010]\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-reenabled"
+files = { "case.pyi" = "# ruff: disable[PYI010]\n# ruff: enable[PYI010]\ndef f(): return 1\n" }
+expected = [{ file = "case.pyi", start = 56, end = 64 }]
+
+[[cases]]
+name = "shared-block-unmatched-disable"
+files = { "case.pyi" = "# ruff: disable[PYI010]\ndef f(): return 1\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-wrong-code"
+files = { "case.pyi" = "# ruff: disable[E501]\ndef f(): return 1\n" }
+expected = [{ file = "case.pyi", start = 31, end = 39 }]
+
+[[cases]]
+name = "shared-file-ignore"
+files = { "case.pyi" = "# ruff: file-ignore[PYI010]\ndef f(): return 1\n" }
+expected = []

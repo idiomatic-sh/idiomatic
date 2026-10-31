@@ -68,3 +68,28 @@ expected = [{"file" = "case.pyi", "start" = 13, "end" = 16}, {"file" = "case.pyi
 name = "runtime-subscript"
 files = { "case.py" = "class C:\n    x = a[...]\n    y: int\n" }
 expected = []
+
+[[cases]]
+name = "shared-block-suppressed"
+files = { "case.pyi" = "# ruff: disable[PYI013]\nclass C:\n    x: int\n    ...\n\n# ruff: enable[PYI013]\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-reenabled"
+files = { "case.pyi" = "# ruff: disable[PYI013]\n# ruff: enable[PYI013]\nclass C:\n    x: int\n    ...\n" }
+expected = [{ file = "case.pyi", start = 71, end = 74 }]
+
+[[cases]]
+name = "shared-block-unmatched-disable"
+files = { "case.pyi" = "# ruff: disable[PYI013]\nclass C:\n    x: int\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-wrong-code"
+files = { "case.pyi" = "# ruff: disable[E501]\nclass C:\n    x: int\n    ...\n" }
+expected = [{ file = "case.pyi", start = 46, end = 49 }]
+
+[[cases]]
+name = "shared-file-ignore"
+files = { "case.pyi" = "# ruff: file-ignore[PYI013]\nclass C:\n    x: int\n    ...\n" }
+expected = []

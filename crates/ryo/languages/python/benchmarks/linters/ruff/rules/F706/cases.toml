@@ -68,3 +68,28 @@ expected = [{"file" = "case.py", "start" = 0, "end" = 13}]
 name = "unicode-offset"
 files = { "case.py" = "label = \"\u96ea\"\nreturn 1\n" }
 expected = [{"file" = "case.py", "start" = 14, "end" = 22}]
+
+[[cases]]
+name = "shared-block-suppressed"
+files = { "case.py" = "# ruff: disable[F706]\nreturn 1\n\n# ruff: enable[F706]\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-reenabled"
+files = { "case.py" = "# ruff: disable[F706]\n# ruff: enable[F706]\nreturn 1\n" }
+expected = [{ file = "case.py", start = 43, end = 51 }]
+
+[[cases]]
+name = "shared-block-unmatched-disable"
+files = { "case.py" = "# ruff: disable[F706]\nreturn 1\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-wrong-code"
+files = { "case.py" = "# ruff: disable[E501]\nreturn 1\n" }
+expected = [{ file = "case.py", start = 22, end = 30 }]
+
+[[cases]]
+name = "shared-file-ignore"
+files = { "case.py" = "# ruff: file-ignore[F706]\nreturn 1\n" }
+expected = []

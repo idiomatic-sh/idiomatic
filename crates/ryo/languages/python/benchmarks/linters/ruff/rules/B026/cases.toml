@@ -52,3 +52,38 @@ expected = [{ file = "case.py", start = 12, end = 17 }]
 name = "file-noqa"
 files = { "case.py" = "# ruff: noqa\ncall(key=1, *args)\n" }
 expected = []
+
+[[cases]]
+name = "shared-block-suppressed"
+files = { "case.py" = "# ruff: disable[B026]\ncall(key=1, *args)\n\n# ruff: enable[B026]\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-reenabled"
+files = { "case.py" = "# ruff: disable[B026]\n# ruff: enable[B026]\ncall(key=1, *args)\n" }
+expected = [{ file = "case.py", start = 55, end = 60 }]
+
+[[cases]]
+name = "shared-block-unmatched-disable"
+files = { "case.py" = "# ruff: disable[B026]\ncall(key=1, *args)\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-wrong-code"
+files = { "case.py" = "# ruff: disable[E501]\ncall(key=1, *args)\n" }
+expected = [{ file = "case.py", start = 34, end = 39 }]
+
+[[cases]]
+name = "shared-file-ignore"
+files = { "case.py" = "# ruff: file-ignore[B026]\ncall(key=1, *args)\n" }
+expected = []
+
+[[cases]]
+name = "redirected-range-code-RUF004"
+files = { "case.py" = "# ruff: disable[RUF004]\ncall(key=1, *args)\n" }
+expected = []
+
+[[cases]]
+name = "redirected-file-noqa-code-RUF004"
+files = { "case.py" = "# ruff: noqa: RUF004\ncall(key=1, *args)\n" }
+expected = []

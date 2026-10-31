@@ -57,3 +57,28 @@ expected = [{ file = "case.pyi", start = 0, end = 34 }]
 name = "file-noqa"
 files = { "case.pyi" = "# ruff: noqa\nfrom __future__ import annotations\n" }
 expected = []
+
+[[cases]]
+name = "shared-block-suppressed"
+files = { "case.pyi" = "# ruff: disable[PYI044]\nfrom __future__ import annotations\n\n# ruff: enable[PYI044]\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-reenabled"
+files = { "case.pyi" = "# ruff: disable[PYI044]\n# ruff: enable[PYI044]\nfrom __future__ import annotations\n" }
+expected = [{ file = "case.pyi", start = 47, end = 81 }]
+
+[[cases]]
+name = "shared-block-unmatched-disable"
+files = { "case.pyi" = "# ruff: disable[PYI044]\nfrom __future__ import annotations\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-wrong-code"
+files = { "case.pyi" = "# ruff: disable[E501]\nfrom __future__ import annotations\n" }
+expected = [{ file = "case.pyi", start = 22, end = 56 }]
+
+[[cases]]
+name = "shared-file-ignore"
+files = { "case.pyi" = "# ruff: file-ignore[PYI044]\nfrom __future__ import annotations\n" }
+expected = []

@@ -77,3 +77,88 @@ expected = [{ file = "case.py", start = 4, end = 11 }]
 name = "file-noqa"
 files = { "case.py" = "# ruff: noqa\nx = ++value\n" }
 expected = []
+
+[[cases]]
+name = "middle-fstring-noqa"
+files = { "case.py" = "f\"\"\"before\n{++x}\nafter\"\"\" # noqa: B002\n" }
+expected = []
+
+[[cases]]
+name = "middle-fstring-wrong-code"
+files = { "case.py" = "f\"\"\"before\n{++x}\nafter\"\"\" # noqa: E722\n" }
+expected = [{ file = "case.py", start = 12, end = 15 }]
+
+[[cases]]
+name = "nested-multiline-fstring-noqa"
+files = { "case.py" = "f\"\"\"outer\n{f'''inner\n{++x}\nend'''}\nouterend\"\"\" # noqa: B002\n" }
+expected = []
+
+[[cases]]
+name = "inner-fstring-noqa-does-not-suppress-outer"
+files = { "case.py" = "f\"\"\"before\n{++x} # noqa: B002\nafter\"\"\"\n" }
+expected = [{ file = "case.py", start = 12, end = 15 }]
+
+[[cases]]
+name = "continuation-noqa"
+files = { "case.py" = "value = ++x \\\n + 1 # noqa: B002\n" }
+expected = []
+
+[[cases]]
+name = "chained-continuation-noqa"
+files = { "case.py" = "value = ++x \\\n + 1 \\\n + 2 # noqa: B002\n" }
+expected = []
+
+[[cases]]
+name = "continuation-wrong-code"
+files = { "case.py" = "value = ++x \\\n + 1 # noqa: E722\n" }
+expected = [{ file = "case.py", start = 8, end = 11 }]
+
+[[cases]]
+name = "shared-block-suppressed"
+files = { "case.py" = "# ruff: disable[B002]\nx = ++value\n\n# ruff: enable[B002]\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-reenabled"
+files = { "case.py" = "# ruff: disable[B002]\n# ruff: enable[B002]\nx = ++value\n" }
+expected = [{ file = "case.py", start = 47, end = 54 }]
+
+[[cases]]
+name = "shared-block-unmatched-disable"
+files = { "case.py" = "# ruff: disable[B002]\nx = ++value\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-wrong-code"
+files = { "case.py" = "# ruff: disable[E501]\nx = ++value\n" }
+expected = [{ file = "case.py", start = 26, end = 33 }]
+
+[[cases]]
+name = "shared-file-ignore"
+files = { "case.py" = "# ruff: file-ignore[B002]\nx = ++value\n" }
+expected = []
+
+[[cases]]
+name = "ignore-outer-logical-expression"
+files = { "case.py" = "# ruff: ignore[B002]\nvalue = (\n    ++x\n)\n" }
+expected = []
+
+[[cases]]
+name = "ignore-inner-next-physical-line"
+files = { "case.py" = "value = (\n    # ruff: ignore[B002]\n    ++x,\n    ++y,\n)\n" }
+expected = [{ file = "case.py", start = 48, end = 51 }]
+
+[[cases]]
+name = "ignore-trailing-only-current-physical-line"
+files = { "case.py" = "value = (\n    ++x, # ruff: ignore[B002]\n    ++y,\n)\n" }
+expected = [{ file = "case.py", start = 44, end = 47 }]
+
+[[cases]]
+name = "ignore-trailing-multiline-string"
+files = { "case.py" = "f\"\"\"hello\n{++x}\nend\"\"\" # ruff: ignore[B002]\n" }
+expected = []
+
+[[cases]]
+name = "file-noqa-on-closing-fstring-line-is-not-standalone"
+files = { "case.py" = "f\"\"\"before\n{++x}\nafter\"\"\" # ruff: noqa: B002\n" }
+expected = [{ file = "case.py", start = 12, end = 15 }]

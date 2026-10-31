@@ -158,3 +158,28 @@ expected = [{"file" = "case.py", "start" = 1, "end" = 8}]
 name = "await-in-module-generator"
 files = { "case.py" = "(await x for x in items)\n" }
 expected = []
+
+[[cases]]
+name = "shared-block-suppressed"
+files = { "case.py" = "# ruff: disable[F704]\nyield 1\n\n# ruff: enable[F704]\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-reenabled"
+files = { "case.py" = "# ruff: disable[F704]\n# ruff: enable[F704]\nyield 1\n" }
+expected = [{ file = "case.py", start = 43, end = 50 }]
+
+[[cases]]
+name = "shared-block-unmatched-disable"
+files = { "case.py" = "# ruff: disable[F704]\nyield 1\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-wrong-code"
+files = { "case.py" = "# ruff: disable[E501]\nyield 1\n" }
+expected = [{ file = "case.py", start = 22, end = 29 }]
+
+[[cases]]
+name = "shared-file-ignore"
+files = { "case.py" = "# ruff: file-ignore[F704]\nyield 1\n" }
+expected = []

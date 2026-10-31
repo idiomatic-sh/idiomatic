@@ -93,3 +93,28 @@ expected = []
 name = "nested-loop-else-no-outer"
 files = { "case.py" = "def f():\n    for x in items:\n        pass\n    else:\n        continue\n" }
 expected = [{"file" = "case.py", "start" = 60, "end" = 68}]
+
+[[cases]]
+name = "shared-block-suppressed"
+files = { "case.py" = "# ruff: disable[F702]\ncontinue\n\n# ruff: enable[F702]\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-reenabled"
+files = { "case.py" = "# ruff: disable[F702]\n# ruff: enable[F702]\ncontinue\n" }
+expected = [{ file = "case.py", start = 43, end = 51 }]
+
+[[cases]]
+name = "shared-block-unmatched-disable"
+files = { "case.py" = "# ruff: disable[F702]\ncontinue\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-wrong-code"
+files = { "case.py" = "# ruff: disable[E501]\ncontinue\n" }
+expected = [{ file = "case.py", start = 22, end = 30 }]
+
+[[cases]]
+name = "shared-file-ignore"
+files = { "case.py" = "# ruff: file-ignore[F702]\ncontinue\n" }
+expected = []

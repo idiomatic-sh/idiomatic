@@ -57,3 +57,38 @@ expected = [{ file = "case.py", start = 0, end = 17 }]
 name = "file-noqa"
 files = { "case.py" = "# ruff: noqa\nself.assertEquals(1, 2)\n" }
 expected = []
+
+[[cases]]
+name = "shared-block-suppressed"
+files = { "case.py" = "# ruff: disable[UP005]\nself.assertEquals(1, 2)\n\n# ruff: enable[UP005]\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-reenabled"
+files = { "case.py" = "# ruff: disable[UP005]\n# ruff: enable[UP005]\nself.assertEquals(1, 2)\n" }
+expected = [{ file = "case.py", start = 45, end = 62 }]
+
+[[cases]]
+name = "shared-block-unmatched-disable"
+files = { "case.py" = "# ruff: disable[UP005]\nself.assertEquals(1, 2)\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-wrong-code"
+files = { "case.py" = "# ruff: disable[E501]\nself.assertEquals(1, 2)\n" }
+expected = [{ file = "case.py", start = 22, end = 39 }]
+
+[[cases]]
+name = "shared-file-ignore"
+files = { "case.py" = "# ruff: file-ignore[UP005]\nself.assertEquals(1, 2)\n" }
+expected = []
+
+[[cases]]
+name = "redirected-range-code-U005"
+files = { "case.py" = "# ruff: disable[U005]\nself.assertEquals(1, 2)\n" }
+expected = []
+
+[[cases]]
+name = "redirected-file-noqa-code-U005"
+files = { "case.py" = "# ruff: noqa: U005\nself.assertEquals(1, 2)\n" }
+expected = []

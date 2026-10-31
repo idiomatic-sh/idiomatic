@@ -57,3 +57,28 @@ expected = [{ file = "case.py", start = 0, end = 20 }]
 name = "file-noqa"
 files = { "case.py" = "# ruff: noqa\nassert (True, False)\n" }
 expected = []
+
+[[cases]]
+name = "shared-block-suppressed"
+files = { "case.py" = "# ruff: disable[F631]\nassert (True, False)\n\n# ruff: enable[F631]\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-reenabled"
+files = { "case.py" = "# ruff: disable[F631]\n# ruff: enable[F631]\nassert (True, False)\n" }
+expected = [{ file = "case.py", start = 43, end = 63 }]
+
+[[cases]]
+name = "shared-block-unmatched-disable"
+files = { "case.py" = "# ruff: disable[F631]\nassert (True, False)\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-wrong-code"
+files = { "case.py" = "# ruff: disable[E501]\nassert (True, False)\n" }
+expected = [{ file = "case.py", start = 22, end = 42 }]
+
+[[cases]]
+name = "shared-file-ignore"
+files = { "case.py" = "# ruff: file-ignore[F631]\nassert (True, False)\n" }
+expected = []

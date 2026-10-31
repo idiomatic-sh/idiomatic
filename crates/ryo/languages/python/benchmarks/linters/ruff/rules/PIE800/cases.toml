@@ -57,3 +57,28 @@ expected = [{ file = "case.py", start = 11, end = 19 }]
 name = "file-noqa"
 files = { "case.py" = "# ruff: noqa\nvalue = {**{\"a\": 1}}\n" }
 expected = []
+
+[[cases]]
+name = "shared-block-suppressed"
+files = { "case.py" = "# ruff: disable[PIE800]\nvalue = {**{\"a\": 1}}\n\n# ruff: enable[PIE800]\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-reenabled"
+files = { "case.py" = "# ruff: disable[PIE800]\n# ruff: enable[PIE800]\nvalue = {**{\"a\": 1}}\n" }
+expected = [{ file = "case.py", start = 58, end = 66 }]
+
+[[cases]]
+name = "shared-block-unmatched-disable"
+files = { "case.py" = "# ruff: disable[PIE800]\nvalue = {**{\"a\": 1}}\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-wrong-code"
+files = { "case.py" = "# ruff: disable[E501]\nvalue = {**{\"a\": 1}}\n" }
+expected = [{ file = "case.py", start = 33, end = 41 }]
+
+[[cases]]
+name = "shared-file-ignore"
+files = { "case.py" = "# ruff: file-ignore[PIE800]\nvalue = {**{\"a\": 1}}\n" }
+expected = []

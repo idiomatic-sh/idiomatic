@@ -58,3 +58,28 @@ expected = [{"file" = "case.pyi", "start" = 13, "end" = 17}, {"file" = "case.pyi
 name = "nested-class"
 files = { "case.pyi" = "class C:\n    class D: pass\n    pass\n" }
 expected = [{"file" = "case.pyi", "start" = 31, "end" = 35}]
+
+[[cases]]
+name = "shared-block-suppressed"
+files = { "case.pyi" = "# ruff: disable[PYI012]\nclass C:\n    x: int\n    pass\n\n# ruff: enable[PYI012]\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-reenabled"
+files = { "case.pyi" = "# ruff: disable[PYI012]\n# ruff: enable[PYI012]\nclass C:\n    x: int\n    pass\n" }
+expected = [{ file = "case.pyi", start = 71, end = 75 }]
+
+[[cases]]
+name = "shared-block-unmatched-disable"
+files = { "case.pyi" = "# ruff: disable[PYI012]\nclass C:\n    x: int\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-wrong-code"
+files = { "case.pyi" = "# ruff: disable[E501]\nclass C:\n    x: int\n    pass\n" }
+expected = [{ file = "case.pyi", start = 46, end = 50 }]
+
+[[cases]]
+name = "shared-file-ignore"
+files = { "case.pyi" = "# ruff: file-ignore[PYI012]\nclass C:\n    x: int\n    pass\n" }
+expected = []

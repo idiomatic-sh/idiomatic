@@ -57,3 +57,38 @@ expected = [{ file = "case.py", start = 0, end = 6 }]
 name = "file-noqa"
 files = { "case.py" = "# ruff: noqa\na == b\n" }
 expected = []
+
+[[cases]]
+name = "shared-block-suppressed"
+files = { "case.py" = "# ruff: disable[B015]\na == b\n\n# ruff: enable[B015]\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-reenabled"
+files = { "case.py" = "# ruff: disable[B015]\n# ruff: enable[B015]\na == b\n" }
+expected = [{ file = "case.py", start = 43, end = 49 }]
+
+[[cases]]
+name = "shared-block-unmatched-disable"
+files = { "case.py" = "# ruff: disable[B015]\na == b\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-wrong-code"
+files = { "case.py" = "# ruff: disable[E501]\na == b\n" }
+expected = [{ file = "case.py", start = 22, end = 28 }]
+
+[[cases]]
+name = "shared-file-ignore"
+files = { "case.py" = "# ruff: file-ignore[B015]\na == b\n" }
+expected = []
+
+[[cases]]
+name = "block-requires-whole-diagnostic-range"
+files = { "case.py" = "# ruff: disable[B015]\n(\na ==\n# ruff: enable[B015]\nb\n)\n" }
+expected = [{ file = "case.py", start = 24, end = 51 }]
+
+[[cases]]
+name = "ignore-needs-only-diagnostic-start"
+files = { "case.py" = "(\n a == # ruff: ignore[B015]\n b\n)\n" }
+expected = []

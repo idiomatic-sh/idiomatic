@@ -72,3 +72,38 @@ expected = [{ file = "case.py", start = 16, end = 57 }]
 name = "file-noqa"
 files = { "case.py" = "# ruff: noqa\ntry:\n    work()\nexcept ValueError:\n    raise\n" }
 expected = []
+
+[[cases]]
+name = "shared-block-suppressed"
+files = { "case.py" = "# ruff: disable[TRY203]\ntry:\n    work()\nexcept ValueError:\n    raise\n\n# ruff: enable[TRY203]\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-reenabled"
+files = { "case.py" = "# ruff: disable[TRY203]\n# ruff: enable[TRY203]\ntry:\n    work()\nexcept ValueError:\n    raise\n" }
+expected = [{ file = "case.py", start = 63, end = 91 }]
+
+[[cases]]
+name = "shared-block-unmatched-disable"
+files = { "case.py" = "# ruff: disable[TRY203]\ntry:\n    work()\nexcept ValueError:\n    raise\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-wrong-code"
+files = { "case.py" = "# ruff: disable[E501]\ntry:\n    work()\nexcept ValueError:\n    raise\n" }
+expected = [{ file = "case.py", start = 38, end = 66 }]
+
+[[cases]]
+name = "shared-file-ignore"
+files = { "case.py" = "# ruff: file-ignore[TRY203]\ntry:\n    work()\nexcept ValueError:\n    raise\n" }
+expected = []
+
+[[cases]]
+name = "redirected-range-code-TRY302"
+files = { "case.py" = "# ruff: disable[TRY302]\ntry:\n    work()\nexcept ValueError:\n    raise\n" }
+expected = []
+
+[[cases]]
+name = "redirected-file-noqa-code-TRY302"
+files = { "case.py" = "# ruff: noqa: TRY302\ntry:\n    work()\nexcept ValueError:\n    raise\n" }
+expected = []

@@ -82,3 +82,38 @@ expected = [{ file = "case.py", start = 7, end = 35 }]
 name = "file-noqa"
 files = { "case.py" = "# ruff: noqa\nimport xml.etree.cElementTree as ET\n" }
 expected = []
+
+[[cases]]
+name = "continued-import-noqa"
+files = { "case.py" = "from xml.etree import cElementTree \\\n    as ET  # noqa: UP023\n" }
+expected = []
+
+[[cases]]
+name = "continued-import-before-token-noqa"
+files = { "case.py" = "from xml.etree \\\n import cElementTree \\\n    as ET  # noqa: UP023\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-suppressed"
+files = { "case.py" = "# ruff: disable[UP023]\nimport xml.etree.cElementTree as ET\n\n# ruff: enable[UP023]\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-reenabled"
+files = { "case.py" = "# ruff: disable[UP023]\n# ruff: enable[UP023]\nimport xml.etree.cElementTree as ET\n" }
+expected = [{ file = "case.py", start = 52, end = 80 }]
+
+[[cases]]
+name = "shared-block-unmatched-disable"
+files = { "case.py" = "# ruff: disable[UP023]\nimport xml.etree.cElementTree as ET\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-wrong-code"
+files = { "case.py" = "# ruff: disable[E501]\nimport xml.etree.cElementTree as ET\n" }
+expected = [{ file = "case.py", start = 29, end = 57 }]
+
+[[cases]]
+name = "shared-file-ignore"
+files = { "case.py" = "# ruff: file-ignore[UP023]\nimport xml.etree.cElementTree as ET\n" }
+expected = []

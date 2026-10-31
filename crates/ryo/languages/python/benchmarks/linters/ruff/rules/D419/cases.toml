@@ -72,3 +72,88 @@ expected = [{ file = "case.py", start = 0, end = 2 }]
 name = "file-noqa"
 files = { "case.py" = "# ruff: noqa\n\"\"\n" }
 expected = []
+
+[[cases]]
+name = "raw-body-escape-0"
+files = { "case.py" = "\"\"\"\\n\"\"\"\n" }
+expected = []
+
+[[cases]]
+name = "raw-body-escape-1"
+files = { "case.py" = "def f():\n    \"\\t\"\n" }
+expected = []
+
+[[cases]]
+name = "raw-body-escape-2"
+files = { "case.py" = "'''\\x20'''\n" }
+expected = []
+
+[[cases]]
+name = "raw-body-escape-3"
+files = { "case.py" = "\"\\u0020\"\n" }
+expected = []
+
+[[cases]]
+name = "raw-body-escape-4"
+files = { "case.py" = "\"\\N{SPACE}\"\n" }
+expected = []
+
+[[cases]]
+name = "raw-body-escape-5"
+files = { "case.py" = "r\"\\t\"\n" }
+expected = []
+
+[[cases]]
+name = "raw-body-escape-6"
+files = { "case.py" = "\"\"\"\\\n\"\"\"\n" }
+expected = []
+
+[[cases]]
+name = "raw-body-whitespace-0"
+files = { "case.py" = "r\" \"\n" }
+expected = [{ file = "case.py", start = 0, end = 4 }]
+
+[[cases]]
+name = "raw-body-whitespace-1"
+files = { "case.py" = "u''' \n '''\n" }
+expected = [{ file = "case.py", start = 0, end = 10 }]
+
+[[cases]]
+name = "raw-body-whitespace-2"
+files = { "case.py" = "\"\"\"\t\"\"\"\n" }
+expected = [{ file = "case.py", start = 0, end = 7 }]
+
+[[cases]]
+name = "triple-string-followed-by-continuation"
+files = { "case.py" = "value = (\"\"\"\n\"\"\" \\\n) # noqa: D419\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-suppressed"
+files = { "case.py" = "# ruff: disable[D419]\n\"\"\n\n# ruff: enable[D419]\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-reenabled"
+files = { "case.py" = "# ruff: disable[D419]\n# ruff: enable[D419]\n\"\"\n" }
+expected = [{ file = "case.py", start = 43, end = 45 }]
+
+[[cases]]
+name = "shared-block-unmatched-disable"
+files = { "case.py" = "# ruff: disable[D419]\n\"\"\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-wrong-code"
+files = { "case.py" = "# ruff: disable[E501]\n\"\"\n" }
+expected = [{ file = "case.py", start = 22, end = 24 }]
+
+[[cases]]
+name = "shared-file-ignore"
+files = { "case.py" = "# ruff: file-ignore[D419]\n\"\"\n" }
+expected = []
+
+[[cases]]
+name = "file-noqa-on-closing-string-line-is-not-standalone"
+files = { "case.py" = "\"\"\" \n \"\"\" # ruff: noqa: D419\n" }
+expected = [{ file = "case.py", start = 0, end = 9 }]

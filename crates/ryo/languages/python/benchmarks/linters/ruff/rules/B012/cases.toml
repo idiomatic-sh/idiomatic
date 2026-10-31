@@ -72,3 +72,28 @@ expected = [{ file = "case.py", start = 52, end = 58 }]
 name = "file-noqa"
 files = { "case.py" = "# ruff: noqa\ndef f():\n    try:\n        pass\n    finally:\n        return\n" }
 expected = []
+
+[[cases]]
+name = "shared-block-suppressed"
+files = { "case.py" = "# ruff: disable[B012]\ndef f():\n    try:\n        pass\n    finally:\n        return\n\n# ruff: enable[B012]\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-reenabled"
+files = { "case.py" = "# ruff: disable[B012]\n# ruff: enable[B012]\ndef f():\n    try:\n        pass\n    finally:\n        return\n" }
+expected = [{ file = "case.py", start = 95, end = 101 }]
+
+[[cases]]
+name = "shared-block-unmatched-disable"
+files = { "case.py" = "# ruff: disable[B012]\ndef f():\n    try:\n        pass\n    finally:\n        return\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-wrong-code"
+files = { "case.py" = "# ruff: disable[E501]\ndef f():\n    try:\n        pass\n    finally:\n        return\n" }
+expected = [{ file = "case.py", start = 74, end = 80 }]
+
+[[cases]]
+name = "shared-file-ignore"
+files = { "case.py" = "# ruff: file-ignore[B012]\ndef f():\n    try:\n        pass\n    finally:\n        return\n" }
+expected = []
