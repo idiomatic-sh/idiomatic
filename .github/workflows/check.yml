@@ -53,6 +53,8 @@ jobs:
           cache-bin: false
           shared-key: ${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
           save-if: true
+          # Keep valid intermediate Cargo artifacts when a later quality check fails.
+          cache-on-failure: true
           workspaces: |
             crates/asymptote -> target
             crates/tastemaker -> target
