@@ -9,6 +9,28 @@ type Value = Reading;
 type Failure = ();
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
+        name: CaseName("attribute identifiers keep owners and original UTF-8 spans"),
+        word: Word::Succeeds,
+        input: || "ｏｓ.ｅｎｖｉｒｏｎ\n",
+        expect: Expect::Value(Reading {
+            rows: &[
+                &[
+                    want_node(3),
+                    want_name("os"),
+                    want_file(SHOWN),
+                    want_span((1, 1), (1, 7)),
+                ],
+                &[
+                    want_node(6),
+                    want_name("environ"),
+                    want_file(SHOWN),
+                    want_span((1, 8), (1, 29)),
+                ],
+            ],
+            causes: &[],
+        }),
+    },
+    Case {
         name: CaseName("name expression retains source extent after NFKC"),
         word: Word::Succeeds,
         input: || "𝗲𝘅𝗲𝗰\n",
