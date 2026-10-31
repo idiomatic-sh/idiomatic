@@ -8,7 +8,9 @@ use ryo_values::domain::descriptions::types::{FieldRequirement, OperatorDescript
 use ryo_values::domain::plans::types::QueryOperator;
 
 /// Every operator, in the order the documentation lists them.
-pub(crate) const OPERATORS: [QueryOperator; 17] = [
+pub(crate) const OPERATORS: [QueryOperator; 19] = [
+    QueryOperator::Replace,
+    QueryOperator::OrderedMatch,
     QueryOperator::Select,
     QueryOperator::Project,
     QueryOperator::Extend,
@@ -36,6 +38,10 @@ pub(crate) const OPERATORS: [QueryOperator; 17] = [
 )]
 pub(crate) fn describe(operator: QueryOperator) -> OperatorDescription {
     match operator {
+        QueryOperator::Replace => super::collections::operators::replace::constants::description(),
+        QueryOperator::OrderedMatch => {
+            super::collections::operators::ordered_match::constants::description()
+        }
         QueryOperator::Select => described(
             "select",
             "Keep rows for which every comparison is true.",
@@ -97,17 +103,17 @@ pub(crate) fn describe(operator: QueryOperator) -> OperatorDescription {
                 field("left", "Left input.", FieldRequirement::Required),
                 field("right", "Right input.", FieldRequirement::Required),
                 field(
-                    "left-on",
+                    ryo_values::domain::descriptions::constants::LEFT_ON,
                     "Left equality keys; empty for Cartesian product.",
                     FieldRequirement::Required,
                 ),
                 field(
-                    "right-on",
+                    ryo_values::domain::descriptions::constants::RIGHT_ON,
                     "Right equality keys.",
                     FieldRequirement::Required,
                 ),
                 field(
-                    "output",
+                    ryo_values::domain::descriptions::constants::OUTPUT,
                     "Output names and their explicit input sources.",
                     FieldRequirement::Required,
                 ),
@@ -160,12 +166,12 @@ pub(crate) fn describe(operator: QueryOperator) -> OperatorDescription {
                     FieldRequirement::Required,
                 ),
                 field(
-                    "left-on",
+                    ryo_values::domain::descriptions::constants::LEFT_ON,
                     "Nonempty left match keys.",
                     FieldRequirement::Required,
                 ),
                 field(
-                    "right-on",
+                    ryo_values::domain::descriptions::constants::RIGHT_ON,
                     "Nonempty right match keys.",
                     FieldRequirement::Required,
                 ),
@@ -233,7 +239,7 @@ pub(crate) fn describe(operator: QueryOperator) -> OperatorDescription {
                 ),
                 field("path", "Path column to match.", FieldRequirement::Required),
                 field(
-                    "pattern",
+                    ryo_values::domain::descriptions::constants::PATTERN,
                     "Anchored path pattern with named slots.",
                     FieldRequirement::Required,
                 ),
@@ -280,7 +286,11 @@ pub(crate) fn describe(operator: QueryOperator) -> OperatorDescription {
                     "Parameter of type list<set<string>>: the sets, in order.",
                     FieldRequirement::Required,
                 ),
-                field("output", "Output rank column.", FieldRequirement::Required),
+                field(
+                    ryo_values::domain::descriptions::constants::OUTPUT,
+                    "Output rank column.",
+                    FieldRequirement::Required,
+                ),
             ],
             &[],
             r#"param layers: list<set<string>>; let example = rank(from="defines", column=name, sets=$layers, output=layer); emit example subject file key(layer);"#,

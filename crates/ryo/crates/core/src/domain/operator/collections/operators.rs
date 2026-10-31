@@ -22,3 +22,6 @@ pub(crate) mod words;
 
 #[cfg(any(test, feature = "fixtures"))]
 pub(crate) mod fixtures;
+
+pub(crate) mod ordered_match;
+pub(crate) mod replace;

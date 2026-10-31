@@ -9,7 +9,8 @@ use ryo_values::domain::plans::types::PlanStep;
 /// Gives `visit` each input the operation reads.
 pub(crate) fn each_input(operation: &mut Operation, visit: &mut dyn FnMut(&mut Input)) {
     match operation {
-        Operation::Select { from, .. }
+        Operation::Replace { from, .. }
+        | Operation::Select { from, .. }
         | Operation::Project { from, .. }
         | Operation::Extend { from, .. }
         | Operation::GroupCount { from, .. }
@@ -17,7 +18,8 @@ pub(crate) fn each_input(operation: &mut Operation, visit: &mut dyn FnMut(&mut I
         | Operation::Capture { from, .. }
         | Operation::Rank { from, .. }
         | Operation::Words { from, .. } => visit(from),
-        Operation::Join { left, right, .. }
+        Operation::OrderedMatch { left, right, .. }
+        | Operation::Join { left, right, .. }
         | Operation::Union { left, right }
         | Operation::Intersection { left, right }
         | Operation::Difference { left, right }

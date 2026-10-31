@@ -151,6 +151,8 @@ fn columns_read(operation: &Operation, read: Input) -> Option<Vec<ColumnIndex>> 
         | Operation::Difference { .. }
         | Operation::Antijoin { .. }
         | Operation::GroupCount { .. }
+        | Operation::Replace { .. }
+        | Operation::OrderedMatch { .. }
         | Operation::GroupDigest { .. }
         | Operation::Capture { .. }
         | Operation::Words { .. }
@@ -260,6 +262,8 @@ fn reading_through(
         | Operation::Difference { .. }
         | Operation::Antijoin { .. }
         | Operation::GroupCount { .. }
+        | Operation::Replace { .. }
+        | Operation::OrderedMatch { .. }
         | Operation::GroupDigest { .. }
         | Operation::Capture { .. }
         | Operation::Words { .. }

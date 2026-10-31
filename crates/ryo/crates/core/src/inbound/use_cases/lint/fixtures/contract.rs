@@ -875,6 +875,8 @@ pub(crate) fn output_path(corpus: &Corpus, library: &dyn Fn(&[u8])) {
 /// `tests/fixtures/operators/<item>/expected.rs` states them.
 fn expected(operator: QueryOperator) -> Vec<Finding> {
     match operator {
+        QueryOperator::Replace => replace::expected(),
+        QueryOperator::OrderedMatch => ordered_match::expected(),
         QueryOperator::Antijoin => antijoin::expected(),
         QueryOperator::Axis => axis::expected(),
         QueryOperator::Capture => capture::expected(),
@@ -978,4 +980,13 @@ mod union {
 /// The findings `tests/fixtures/operators/words/expected.rs` states for the `words` operator.
 mod words {
     include!("../../../../../tests/fixtures/operators/words/expected.rs");
+}
+
+/// Literal replacement fixture, independent expected transformed names.
+mod replace {
+    include!("../../../../../tests/fixtures/operators/replace/expected.rs");
+}
+/// Ordered request/reply fixture, preserving explicit output projection.
+mod ordered_match {
+    include!("../../../../../tests/fixtures/operators/ordered_match/expected.rs");
 }

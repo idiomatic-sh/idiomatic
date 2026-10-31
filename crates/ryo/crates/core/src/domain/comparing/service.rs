@@ -79,7 +79,7 @@ fn holds(
     bindings: &[ParameterBinding],
     texts: &Texts<'_>,
     compiled: &mut hashbrown::HashMap<ComparisonSlot, CompiledGlobs>,
-    regexes: &mut crate::domain::matching::types::Patterns,
+    regexes: &mut crate::domain::table_scratch::types::Patterns,
 ) -> Result<Verdict, OperatingError> {
     let (mut left_made, mut right_made) = (MadeText::default(), MadeText::default());
     let left = resolve(&comparison.left, row, bindings, texts, &mut left_made)?;

@@ -99,8 +99,8 @@ const REGEX: &[Case<Input, Value, Failure>] = &[
 ];
 
 fn regex_evaluated(text: &Input) -> Result<Value, Failure> {
-    use crate::domain::matching::types::Patterns;
     use crate::domain::table_model::types::Verdict;
+    use crate::domain::table_scratch::types::Patterns;
     use crate::domain::table_texts::types::{Datum, TextView};
     use ryo_values::domain::plan_parts::types::{Operand, QueryLiteral, Test};
     use ryo_values::domain::plans::types::Operation;

@@ -247,3 +247,16 @@ impl std::fmt::Display for RefusedQuery {
         }
     }
 }
+
+/// What an operation reads: up to three inputs, as many as the operation names.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Inputs {
+    /// The inputs in the order the operator reads them; the places past `used` repeat the first.
+    pub list: [Input; 3],
+    /// How many of them the operation names.
+    pub used: InputCount,
+}
+
+/// How many inputs an operation reads.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct InputCount(pub usize);

@@ -10,7 +10,9 @@ use ryo_values::domain::plans::types::ParameterType;
 use ryo_values::domain::plans::types::QueryOperator;
 
 /// Every operator, in the order the language documents them.
-pub(crate) const OPERATORS: [QueryOperator; 17] = [
+pub(crate) const OPERATORS: [QueryOperator; 19] = [
+    QueryOperator::Replace,
+    QueryOperator::OrderedMatch,
     QueryOperator::Select,
     QueryOperator::Project,
     QueryOperator::Extend,
@@ -37,6 +39,8 @@ pub(crate) const SELECT: &str = "select";
 #[must_use]
 pub(crate) fn operator_name(operator: QueryOperator) -> &'static str {
     match operator {
+        QueryOperator::Replace => "replace",
+        QueryOperator::OrderedMatch => "ordered-match",
         QueryOperator::Select => SELECT,
         QueryOperator::Project => "project",
         QueryOperator::Extend => "extend",
@@ -69,20 +73,23 @@ pub(crate) fn operator_named(text: &str) -> Option<QueryOperator> {
 #[must_use]
 pub(crate) fn slot_name(slot: ArgumentSlot) -> &'static str {
     match slot {
+        ArgumentSlot::Replacement => ryo_values::domain::descriptions::constants::REPLACEMENT,
+        ArgumentSlot::LeftOrder => "left-order",
+        ArgumentSlot::RightOrder => "right-order",
         ArgumentSlot::From => "from",
         ArgumentSlot::Columns => ryo_values::domain::descriptions::constants::COLUMNS,
         ArgumentSlot::Values => "values",
         ArgumentSlot::Left => "left",
         ArgumentSlot::Right => "right",
-        ArgumentSlot::LeftOn => "left-on",
-        ArgumentSlot::RightOn => "right-on",
-        ArgumentSlot::Output => "output",
+        ArgumentSlot::LeftOn => ryo_values::domain::descriptions::constants::LEFT_ON,
+        ArgumentSlot::RightOn => ryo_values::domain::descriptions::constants::RIGHT_ON,
+        ArgumentSlot::Output => ryo_values::domain::descriptions::constants::OUTPUT,
         ArgumentSlot::Keys => "keys",
         ArgumentSlot::Distinct => "distinct",
         ArgumentSlot::Count => "count",
         ArgumentSlot::Digest => ryo_values::domain::descriptions::constants::DIGEST,
         ArgumentSlot::Path => "path",
-        ArgumentSlot::Pattern => "pattern",
+        ArgumentSlot::Pattern => ryo_values::domain::descriptions::constants::PATTERN,
         ArgumentSlot::Captures => "captures",
         ArgumentSlot::Text => "text",
         ArgumentSlot::Word => "word",
@@ -117,7 +124,7 @@ pub(crate) fn direction_named(text: &str) -> Option<Direction> {
 #[must_use]
 pub(crate) fn direction_name(direction: Direction) -> &'static str {
     match direction {
-        Direction::Parent => "parent",
+        Direction::Parent => ryo_language::domain::relations::constants::PARENT,
         Direction::Child => "child",
         Direction::Ancestor => "ancestor",
         Direction::Descendant => "descendant",

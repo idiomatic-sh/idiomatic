@@ -7,6 +7,16 @@ use ryo_values::domain::plan_parts::types::LiteralText;
 use ryo_values::domain::plan_parts::types::WholeNumber;
 use ryo_values::domain::stored_facts::types::ArenaBytes;
 
+/// A query's regular-expression pattern, keyed by its exact source text.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub(crate) struct RegexPattern(pub String);
+
+impl std::borrow::Borrow<str> for RegexPattern {
+    fn borrow(&self) -> &str {
+        &self.0
+    }
+}
+
 /// What a cell reads as when it is compared: numbers as numbers, names and files as their text.
 /// The text is borrowed from where it lives, so reading a cell allocates nothing.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]

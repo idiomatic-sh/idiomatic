@@ -24,6 +24,8 @@ pub(crate) fn kind_of(operation: &Operation) -> OperationKind {
         Operation::Intersection { .. } => OperationKind::Intersection,
         Operation::Difference { .. } => OperationKind::Difference,
         Operation::Antijoin { .. } => OperationKind::Antijoin,
+        Operation::Replace { .. } => OperationKind::Replace,
+        Operation::OrderedMatch { .. } => OperationKind::OrderedMatch,
         Operation::GroupCount { .. } => OperationKind::GroupCount,
         Operation::GroupDigest { .. } => OperationKind::GroupDigest,
         Operation::Capture { .. } => OperationKind::Capture,
@@ -50,6 +52,8 @@ fn comparisons_of(operation: &Operation) -> &[Comparison] {
         | Operation::Difference { .. }
         | Operation::Antijoin { .. }
         | Operation::GroupCount { .. }
+        | Operation::Replace { .. }
+        | Operation::OrderedMatch { .. }
         | Operation::GroupDigest { .. }
         | Operation::Capture { .. }
         | Operation::Rank { .. }
@@ -73,6 +77,8 @@ pub(crate) fn catalog() -> Vec<Feature> {
         OperationKind::Intersection,
         OperationKind::Difference,
         OperationKind::Antijoin,
+        OperationKind::Replace,
+        OperationKind::OrderedMatch,
         OperationKind::GroupCount,
         OperationKind::GroupDigest,
         OperationKind::Capture,

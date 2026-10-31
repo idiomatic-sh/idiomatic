@@ -83,6 +83,8 @@ fn operation_name(operation: &Operation) -> &'static str {
         } => "project-keyed",
         Operation::Project { .. } => "project",
         Operation::Join { .. } => "join",
+        Operation::Replace { .. } => "replace",
+        Operation::OrderedMatch { .. } => "ordered-match",
         Operation::GroupCount { .. } => "group-count",
         Operation::GroupDigest { .. } => "group-digest",
         Operation::Antijoin { .. } => "antijoin",

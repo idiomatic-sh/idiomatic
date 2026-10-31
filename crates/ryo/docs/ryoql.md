@@ -180,3 +180,36 @@ let per-file = group-count(from=functions, keys=["file"], count="functions");
 let crowded = select * from per-file where functions > 20;
 emit crowded subject "file" key("file");
 ```
+
+## Literal replacement and ordered matching
+
+`replace(from=rows, text="label", pattern="\s+", replacement="", output="compact")`
+appends a text column after replacing every non-overlapping regex match in the input
+column. The pattern and replacement are constant text. Replacement text is literal:
+`$1` and backslashes have no substitution meaning. The same Unicode regex grammar
+as `matches` applies; invalid patterns fail compilation even for an empty input.
+Zero-width matches follow the regex engine's forward-progress rules. Input rows and
+columns are retained, including rows whose text has no match. The output column
+must have a new name, and the input column must hold text.
+
+`ordered-match` pairs rows within equal typed key groups. It visits each left row
+in ascending numeric order and consumes the earliest still-unmatched right row
+whose numeric order is strictly greater. Earlier or equal right rows are discarded;
+an unmatched right row never consumes a future left row. Unmatched left rows have
+no output; an `antijoin` can recover them. Input iteration order has no effect.
+Order values must be unique within each side and key group; duplicates are errors,
+including groups having no counterpart. Key lists must have equal lengths and
+matching types; an empty list means one group. Output names and explicit sources
+use the existing `join` map syntax, so same-named input columns are unambiguous:
+
+```text
+let pairs = ordered-match(left=requests, right=replies,
+    left-on=["channel"], right-on=["channel"],
+    left-order="sequence", right-order="sequence",
+    output={request: [left, "id"], reply: [right, "id"]});
+```
+
+For left orders `[2, 3]` and right orders `[1, 4, 5]`, the pairs are `(2, 4)` and
+`(3, 5)`. For left `[2, 6]` and right `[3, 4, 7]`, the pairs are `(2, 3)` and
+`(6, 7)`. These rules apply independently to each key group. Output row order is
+not a query contract, as with other relational operators.

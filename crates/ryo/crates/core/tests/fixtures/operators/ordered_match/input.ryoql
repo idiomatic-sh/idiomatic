@@ -1,0 +1,3 @@
+let requests = extend(from="function", values={sequence: 1});
+let replies = extend(from="function", values={sequence: 2});
+let a = ordered-match(left=requests, right=replies, left-on=[file,name], right-on=[file,name], left-order="sequence", right-order="sequence", output={file: [left,file], name: [right,name]}); emit a subject file key(name);

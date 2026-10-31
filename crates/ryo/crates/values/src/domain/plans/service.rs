@@ -1,15 +1,17 @@
 //! The `plans` service: free functions named by verb over a compiled plan, with no IO and no ports.
 
-use super::types::{InputCount, Inputs, Operation, Plan, StepScope};
+use super::types::{Operation, Plan, StepScope};
 use crate::domain::plan_parts::service::step_in;
 use crate::domain::plan_parts::types::Input;
 use crate::domain::plan_parts::types::StepId;
+use crate::domain::plan_parts::types::{InputCount, Inputs};
 
 /// What an operation reads, in the order its operator reads its inputs.
 #[must_use]
 pub fn inputs_of(operation: &Operation) -> Inputs {
     let (first, second, third, used) = match operation {
-        Operation::Select { from, .. }
+        Operation::Replace { from, .. }
+        | Operation::Select { from, .. }
         | Operation::Project { from, .. }
         | Operation::Extend { from, .. }
         | Operation::GroupCount { from, .. }
@@ -17,7 +19,8 @@ pub fn inputs_of(operation: &Operation) -> Inputs {
         | Operation::Capture { from, .. }
         | Operation::Rank { from, .. }
         | Operation::Words { from, .. } => (*from, *from, *from, 1),
-        Operation::Join { left, right, .. }
+        Operation::OrderedMatch { left, right, .. }
+        | Operation::Join { left, right, .. }
         | Operation::Union { left, right }
         | Operation::Intersection { left, right }
         | Operation::Difference { left, right }

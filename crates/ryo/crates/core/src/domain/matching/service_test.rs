@@ -34,7 +34,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 ];
 
 fn subject((text, pattern): Input) -> Result<Value, Failure> {
-    let mut cache = super::types::Patterns::default();
+    let mut cache = crate::domain::table_scratch::types::Patterns::default();
     let first = matches(
         &Datum::Text(TextView(text)),
         &Datum::Text(TextView(pattern)),

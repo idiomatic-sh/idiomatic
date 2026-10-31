@@ -356,7 +356,7 @@ pub(crate) struct OperatorScratch {
     pub compiled_globs:
         hashbrown::HashMap<ComparisonSlot, crate::domain::globbing::types::CompiledGlobs>,
     /// Compiled regular expressions reused across rows, bounded by the matching service.
-    pub compiled_regexes: crate::domain::matching::types::Patterns,
+    pub compiled_regexes: Patterns,
     /// The kinds of a language by the name they are given: a name is the same kind in every file.
     pub kind_names: hashbrown::HashMap<KindTest, KindSetPlace>,
     /// The kinds each name stands for, as the sets `kind_names` numbers.
@@ -388,3 +388,12 @@ pub(crate) struct OperatorScratch {
     /// What the slots matched, for every path of `captures`, a way after a way.
     pub captured: Vec<Value>,
 }
+
+/// Compiled patterns, indexed by their exact source text.
+#[derive(Debug, Default)]
+pub(crate) struct Patterns(
+    pub  hashbrown::HashMap<
+        crate::domain::table_texts::types::RegexPattern,
+        regex_automata::meta::Regex,
+    >,
+);

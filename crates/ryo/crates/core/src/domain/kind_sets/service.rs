@@ -72,7 +72,7 @@ pub(crate) fn satisfies(test: Test, name: TextView<'_>, wanted: TextView<'_>) ->
         Test::Matches => crate::domain::matching::service::matches(
             &left,
             &right,
-            &mut crate::domain::matching::types::Patterns::default(),
+            &mut crate::domain::table_scratch::types::Patterns::default(),
         ),
         Test::LessThan
         | Test::LessThanOrEqual

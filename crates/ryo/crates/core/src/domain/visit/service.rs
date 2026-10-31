@@ -172,13 +172,15 @@ fn reads_role(operation: &Operation) -> RoleRead {
                         || *domain_id == role_column()
                         || compares_role(domain_filter) == RoleCompared::Compared))
         }
-        Operation::Extend { from, .. }
+        Operation::Replace { from, .. }
+        | Operation::Extend { from, .. }
         | Operation::GroupCount { from, .. }
         | Operation::GroupDigest { from, .. }
         | Operation::Capture { from, .. }
         | Operation::Rank { from, .. }
         | Operation::Words { from, .. } => edges(*from) == EdgeInput::Edges,
-        Operation::Union { left, right }
+        Operation::OrderedMatch { left, right, .. }
+        | Operation::Union { left, right }
         | Operation::Intersection { left, right }
         | Operation::Difference { left, right } => {
             edges(*left) == EdgeInput::Edges || edges(*right) == EdgeInput::Edges

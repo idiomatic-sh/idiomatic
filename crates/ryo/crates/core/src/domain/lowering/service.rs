@@ -325,6 +325,8 @@ fn shape_of(operation: &Operation, shapes: &[Option<LoweredShape>]) -> Option<Lo
         | Operation::Intersection { .. }
         | Operation::Difference { .. }
         | Operation::GroupCount { .. }
+        | Operation::Replace { .. }
+        | Operation::OrderedMatch { .. }
         | Operation::GroupDigest { .. }
         | Operation::Capture { .. }
         | Operation::Rank { .. }

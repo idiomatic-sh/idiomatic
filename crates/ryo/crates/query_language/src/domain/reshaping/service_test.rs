@@ -100,6 +100,8 @@ fn operation_name(operation: &Operation) -> &'static str {
         } => "project-keyed",
         Operation::Project { .. } => "project",
         Operation::Join { .. } => "join",
+        Operation::Replace { .. } => "replace",
+        Operation::OrderedMatch { .. } => "ordered-match",
         Operation::GroupCount { .. } => "group-count",
         Operation::GroupDigest { .. } => "group-digest",
         Operation::Antijoin { .. } => "antijoin",
@@ -172,7 +174,9 @@ fn subject(text: Input) -> Result<Value, Failure> {
                     QueryOperator::Rank => call_rank(&mut builder, &step.name, call)?,
                     QueryOperator::Rows => call_rows(&mut builder, &step.name, call)?,
                     QueryOperator::Words => call_words(&mut builder, &step.name, call)?,
-                    QueryOperator::Select
+                    QueryOperator::Replace
+                    | QueryOperator::OrderedMatch
+                    | QueryOperator::Select
                     | QueryOperator::Project
                     | QueryOperator::Extend
                     | QueryOperator::Join

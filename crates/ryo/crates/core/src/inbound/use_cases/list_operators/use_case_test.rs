@@ -15,7 +15,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
     name: CaseName("lists_the_seventeen_operators_in_documentation_order"),
     word: Word::Succeeds,
     input: || (),
-    expect: Expect::Value((17, true)),
+    expect: Expect::Value((19, true)),
 }];
 
 fn subject((): Input) -> Result<Value, Failure> {
@@ -26,6 +26,8 @@ fn subject((): Input) -> Result<Value, Failure> {
         .map(|operator| &*operator.name.0)
         .collect();
     let documented = [
+        "replace",
+        "ordered-match",
         "select",
         "project",
         "extend",

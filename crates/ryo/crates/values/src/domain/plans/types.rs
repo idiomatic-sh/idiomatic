@@ -191,6 +191,34 @@ pub enum Operation {
         /// The parameter holding the sets, in order.
         sets: ParameterId,
     },
+    /// Append text after literal replacement of every regex match.
+    Replace {
+        /// Input rows.
+        from: Input,
+        /// Text column to transform.
+        text: ColumnIndex,
+        /// Constant regular expression.
+        pattern: crate::domain::plan_parts::types::LiteralText,
+        /// Constant literal replacement text.
+        replacement: crate::domain::plan_parts::types::LiteralText,
+    },
+    /// Consume the earliest later right row for each ordered left row in an equal-key group.
+    OrderedMatch {
+        /// Left rows.
+        left: Input,
+        /// Right rows.
+        right: Input,
+        /// Left equality keys.
+        left_on: Vec<ColumnIndex>,
+        /// Right equality keys.
+        right_on: Vec<ColumnIndex>,
+        /// Unique numeric order within each left group.
+        left_order: ColumnIndex,
+        /// Unique numeric order within each right group.
+        right_order: ColumnIndex,
+        /// Explicit output projection.
+        output: Vec<JoinColumn>,
+    },
     /// Split a text column into words, one row for each.
     Words {
         /// What it splits.
@@ -259,6 +287,10 @@ pub enum Operation {
 /// The kinds of operation the language has, one variant each.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum OperationKind {
+    /// Literal regular-expression replacement.
+    Replace,
+    /// Ordered consumption of right rows.
+    OrderedMatch,
     /// `select`.
     Select,
     /// `project`.
@@ -323,23 +355,14 @@ pub struct Emit {
     pub headings: Vec<Heading>,
 }
 
-/// What an operation reads: up to three inputs, as many as the operation names.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Inputs {
-    /// The inputs in the order the operator reads them; the places past `used` repeat the first.
-    pub list: [Input; 3],
-    /// How many of them the operation names.
-    pub used: InputCount,
-}
-
-/// How many inputs an operation reads.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct InputCount(pub usize);
-
 /// The operators of the engine, one variant each, in the order the documentation lists them: the `select` sugar and every call a
 /// query can use.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum QueryOperator {
+    /// Literal regular-expression replacement.
+    Replace,
+    /// Ordered consumption of right rows.
+    OrderedMatch,
     /// `select ... from ... where ...`.
     Select,
     /// `project(from, columns)`.

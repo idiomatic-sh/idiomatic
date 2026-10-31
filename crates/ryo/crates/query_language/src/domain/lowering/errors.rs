@@ -6,6 +6,14 @@ use ryo_values::domain::program::types::QuerySpan;
 /// Why a program does not lower to a plan.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 pub(crate) enum LoweringError {
+    /// An appended output would hide an existing column.
+    #[error("output column `{name}` already exists")]
+    DuplicateOutput {
+        /// Repeated output name.
+        name: String,
+        /// Call containing the duplicate.
+        span: QuerySpan,
+    },
     /// A literal regular expression is invalid even if the query will read no rows.
     #[error("invalid regular expression: {reason}")]
     InvalidRegex {

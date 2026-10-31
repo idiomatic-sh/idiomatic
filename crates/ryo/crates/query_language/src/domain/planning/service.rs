@@ -21,7 +21,8 @@ pub(crate) fn next_step<T>(items: &[T]) -> parts::StepId {
 /// What a step reads, in the order its operator reads its inputs.
 pub(crate) fn inputs_of(operation: &plans::Operation) -> Vec<parts::Input> {
     match operation {
-        plans::Operation::Select { from, .. }
+        plans::Operation::Replace { from, .. }
+        | plans::Operation::Select { from, .. }
         | plans::Operation::Project { from, .. }
         | plans::Operation::Extend { from, .. }
         | plans::Operation::GroupCount { from, .. }
@@ -29,7 +30,8 @@ pub(crate) fn inputs_of(operation: &plans::Operation) -> Vec<parts::Input> {
         | plans::Operation::Capture { from, .. }
         | plans::Operation::Rank { from, .. }
         | plans::Operation::Words { from, .. } => vec![*from],
-        plans::Operation::Join { left, right, .. }
+        plans::Operation::OrderedMatch { left, right, .. }
+        | plans::Operation::Join { left, right, .. }
         | plans::Operation::Union { left, right }
         | plans::Operation::Intersection { left, right }
         | plans::Operation::Difference { left, right }
@@ -96,7 +98,8 @@ pub(crate) fn scope_of(
         .get(1)
         .map_or(&[][..], |input| input.fields.as_slice());
     let per_file = match operation {
-        plans::Operation::Select { .. }
+        plans::Operation::Replace { .. }
+        | plans::Operation::Select { .. }
         | plans::Operation::Extend { .. }
         | plans::Operation::Capture { .. }
         | plans::Operation::Rank { .. }
@@ -104,7 +107,10 @@ pub(crate) fn scope_of(
         plans::Operation::Project { .. } => {
             keyed(out) == FileOrigin::Stated || keyed(first) == FileOrigin::Unstated
         }
-        plans::Operation::Join {
+        plans::Operation::OrderedMatch {
+            left_on, right_on, ..
+        }
+        | plans::Operation::Join {
             left_on, right_on, ..
         }
         | plans::Operation::Antijoin {

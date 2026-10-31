@@ -93,6 +93,8 @@ pub(crate) fn make(
         | Operation::Intersection { .. }
         | Operation::Difference { .. }
         | Operation::GroupCount { .. }
+        | Operation::Replace { .. }
+        | Operation::OrderedMatch { .. }
         | Operation::GroupDigest { .. }
         | Operation::Capture { .. }
         | Operation::Rank { .. }
@@ -227,6 +229,8 @@ fn make_rows(
         | Operation::Intersection { .. }
         | Operation::Difference { .. }
         | Operation::GroupCount { .. }
+        | Operation::Replace { .. }
+        | Operation::OrderedMatch { .. }
         | Operation::GroupDigest { .. }
         | Operation::Capture { .. }
         | Operation::Rank { .. }

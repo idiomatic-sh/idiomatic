@@ -85,6 +85,8 @@ fn operation_name(operation: &Operation) -> &'static str {
         } => "project-keyed",
         Operation::Project { .. } => "project",
         Operation::Join { .. } => "join",
+        Operation::Replace { .. } => "replace",
+        Operation::OrderedMatch { .. } => "ordered-match",
         Operation::GroupCount { .. } => "group-count",
         Operation::GroupDigest { .. } => "group-digest",
         Operation::Antijoin { .. } => "antijoin",
@@ -147,7 +149,9 @@ fn subject(text: Input) -> Result<Value, Failure> {
                     QueryOperator::Closure | QueryOperator::Cycles => {
                         call_closure(&mut builder, &step.name, call, operator)?;
                     }
-                    QueryOperator::Select
+                    QueryOperator::Replace
+                    | QueryOperator::OrderedMatch
+                    | QueryOperator::Select
                     | QueryOperator::Project
                     | QueryOperator::Extend
                     | QueryOperator::Join

@@ -39,7 +39,10 @@ pub(crate) fn lower_call(
         QueryOperator::Select => return Err(bad_argument(call, None, ArgumentFault::NotACall)),
         QueryOperator::Project => call_project(builder, name, call)?,
         QueryOperator::Extend => call_extend(builder, name, call)?,
-        QueryOperator::Join => call_join(builder, name, call)?,
+        QueryOperator::Join | QueryOperator::OrderedMatch => call_join(builder, name, call)?,
+        QueryOperator::Replace => {
+            crate::domain::substituting::service::call_replace(builder, name, call)?
+        }
         QueryOperator::Union | QueryOperator::Intersection | QueryOperator::Difference => {
             call_set(builder, name, call, operator)?;
         }
@@ -263,9 +266,51 @@ pub(crate) fn call_join(
             words: column_of(side_fields, index).words,
         });
     }
-    push(
-        builder,
-        Some(name),
+    let operation = if operator_named(&call.name.0) == Some(QueryOperator::OrderedMatch) {
+        for (index, field) in kept.iter().enumerate() {
+            if kept[..index].iter().any(|before| before.name == field.name) {
+                return Err(LoweringError::DuplicateOutput {
+                    name: field.name.0.to_string(),
+                    span: call.span,
+                });
+            }
+        }
+        if left_on.len() != right_on.len()
+            || left_on.iter().zip(&right_on).any(|(left, right)| {
+                column_of(&left_fields, *left).kind != column_of(&right_fields, *right).kind
+            })
+        {
+            return Err(LoweringError::KindMismatch { span: call.span });
+        }
+        let left_order = position(
+            &left_fields,
+            QuerySpelling(
+                &crate::domain::resolving::service::word_of(call, ArgumentSlot::LeftOrder)?.0,
+            ),
+            call.span,
+        )?;
+        let right_order = position(
+            &right_fields,
+            QuerySpelling(
+                &crate::domain::resolving::service::word_of(call, ArgumentSlot::RightOrder)?.0,
+            ),
+            call.span,
+        )?;
+        if column_of(&left_fields, left_order).kind != CellKind::Number
+            || column_of(&right_fields, right_order).kind != CellKind::Number
+        {
+            return Err(LoweringError::KindMismatch { span: call.span });
+        }
+        plans::Operation::OrderedMatch {
+            left,
+            right,
+            left_on,
+            right_on,
+            left_order,
+            right_order,
+            output,
+        }
+    } else {
         plans::Operation::Join {
             left,
             right,
@@ -274,9 +319,9 @@ pub(crate) fn call_join(
             output,
             filter: Vec::new(),
             view: Vec::new(),
-        },
-        kept,
-    );
+        }
+    };
+    push(builder, Some(name), operation, kept);
     Ok(())
 }
 

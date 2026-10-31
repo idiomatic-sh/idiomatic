@@ -85,6 +85,8 @@ pub(crate) fn call_set(
         | QueryOperator::Join
         | QueryOperator::Antijoin
         | QueryOperator::GroupCount
+        | QueryOperator::Replace
+        | QueryOperator::OrderedMatch
         | QueryOperator::GroupDigest
         | QueryOperator::Capture
         | QueryOperator::Words

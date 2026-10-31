@@ -83,7 +83,9 @@ pub(crate) fn drop_uncertain(
                     .is_some_and(|kind| is_file_kind(*kind) == Keying::ByFile)
             })
             .map(|(place, _)| place),
-        Operation::Select { .. }
+        Operation::Replace { .. }
+        | Operation::OrderedMatch { .. }
+        | Operation::Select { .. }
         | Operation::Project { .. }
         | Operation::Extend { .. }
         | Operation::Join { .. }

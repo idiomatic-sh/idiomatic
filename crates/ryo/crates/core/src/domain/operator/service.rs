@@ -20,6 +20,9 @@ use super::collections::operators::rows::item::RowsItem;
 use super::collections::operators::select::item::SelectItem;
 use super::collections::operators::union::item::UnionItem;
 use super::collections::operators::words::item::WordsItem;
+use super::collections::operators::{
+    ordered_match::item::OrderedMatchItem, replace::item::ReplaceItem,
+};
 use super::types::{Pool, RowsFed};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::{Emit, Feed, OperatorContext, Room};
@@ -60,6 +63,10 @@ pub(crate) fn operate(
         }
         Operation::Difference { .. } => DifferenceItem.stream(operation, ins, context, room, emit),
         Operation::Antijoin { .. } => AntijoinItem.stream(operation, ins, context, room, emit),
+        Operation::Replace { .. } => ReplaceItem.stream(operation, ins, context, room, emit),
+        Operation::OrderedMatch { .. } => {
+            OrderedMatchItem.stream(operation, ins, context, room, emit)
+        }
         Operation::GroupCount { .. } => GroupCountItem.stream(operation, ins, context, room, emit),
         Operation::GroupDigest { .. } => {
             GroupDigestItem.stream(operation, ins, context, room, emit)
@@ -92,6 +99,8 @@ pub(crate) fn compute(
         Operation::Intersection { .. } => IntersectionItem.compute(operation, inputs, context, out),
         Operation::Difference { .. } => DifferenceItem.compute(operation, inputs, context, out),
         Operation::Antijoin { .. } => AntijoinItem.compute(operation, inputs, context, out),
+        Operation::Replace { .. } => ReplaceItem.compute(operation, inputs, context, out),
+        Operation::OrderedMatch { .. } => OrderedMatchItem.compute(operation, inputs, context, out),
         Operation::GroupCount { .. } => GroupCountItem.compute(operation, inputs, context, out),
         Operation::GroupDigest { .. } => GroupDigestItem.compute(operation, inputs, context, out),
         Operation::Capture { .. } => CaptureItem.compute(operation, inputs, context, out),
@@ -238,6 +247,8 @@ pub(crate) fn evaluate_cross(
                 | Operation::Union { .. }
                 | Operation::Intersection { .. }
                 | Operation::GroupCount { .. }
+                | Operation::Replace { .. }
+                | Operation::OrderedMatch { .. }
                 | Operation::GroupDigest { .. }
                 | Operation::Capture { .. }
                 | Operation::Rank { .. }
