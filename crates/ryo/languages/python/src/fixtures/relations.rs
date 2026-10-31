@@ -12,6 +12,7 @@ use ryo::languages::contract::{Expected, Unfilled, Unshown};
 mod identifier {
     include!("../../tests/fixtures/relations/identifier/expected.rs");
 }
+/// Independently specified lexical provenance fixtures.
 mod qualified_name {
     include!("../../tests/fixtures/relations/qualified_name/expected.rs");
 }

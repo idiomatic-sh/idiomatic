@@ -4,6 +4,7 @@ use ryo::languages::contract::{
     Expected, SourceLocationExpectedRow, expected_rows, file, node, number, span,
 };
 
+/// Independently specified source positions for the fixture.
 const ROWS: &[SourceLocationExpectedRow] = &[
     SourceLocationExpectedRow {
         id: node(0),

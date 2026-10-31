@@ -24,12 +24,9 @@ pub(crate) fn regions<'a>(
         build(tree, &mut cache.borrow_mut());
     }
     let index = cache.borrow();
-    if index.state == IndentationState::Complete {
-        Some(index)
-    } else {
-        None
-    }
+    (index.state == IndentationState::Complete).then_some(index)
 }
+/// Match lexical delimiters, refusing malformed or incomplete token streams.
 fn build(tree: &Tree<'_>, index: &mut IndentationIndex) {
     index.rows.clear();
     index.stack.clear();

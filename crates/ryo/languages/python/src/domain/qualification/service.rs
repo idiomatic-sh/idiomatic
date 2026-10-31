@@ -67,7 +67,7 @@ pub(crate) fn prepare<'a>(tree: &Tree<'_>, model: &'a Declarations) -> Ref<'a, Q
                         position: at,
                         kind: QualificationHazardKind::Delete(name),
                     }),
-                _ => None,
+                Kind::Node(_) | Kind::Token(_) | Kind::Extra(_) => None,
             };
             if let Some(event) = event {
                 index.hazards.push(event);
@@ -83,9 +83,9 @@ fn root(tree: &Tree<'_>, mut at: Position) -> Option<Position> {
         match kind(tree, at) {
             Kind::Node(Node::Name) => return Some(at),
             Kind::Node(Node::Attribute) => {
-                at = nth(tree, at, Category::Expression, CategoryIndex(0))?
+                at = nth(tree, at, Category::Expression, CategoryIndex(0))?;
             }
-            _ => return None,
+            Kind::Node(_) | Kind::Token(_) | Kind::Extra(_) => return None,
         }
     }
 }
@@ -101,7 +101,7 @@ fn uncertain(
     index: &QualificationIndex,
 ) -> Certainty {
     let binding_owner = binding
-        .and_then(|at| definition(tree, model, at))
+        .and_then(|binding_position| definition(tree, model, binding_position))
         .map(|found| found.owner);
     let initial = enclosing(tree, at);
     let mut scope = initial;
@@ -187,7 +187,10 @@ fn append_import(tree: &Tree<'_>, symbols: &mut languages::Symbols, alias: Posit
         .is_some()
     {
         push_identifier(tree, symbols, identifier);
-    } else if let Some(token) = name_token(tree, identifier) {
+    } else {
+        let Some(token) = name_token(tree, identifier) else {
+            return;
+        };
         languages::push_text(
             symbols,
             NameText(

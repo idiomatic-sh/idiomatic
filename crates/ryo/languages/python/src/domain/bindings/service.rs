@@ -95,7 +95,7 @@ pub(crate) fn resolve(
         let start = model.bindings.partition_point(|binding| binding.key < key);
         let end = model.bindings.partition_point(|binding| binding.key <= key);
         if (!class || scope == initial) && start < end {
-            let bindings = &model.bindings[start..end];
+            let bindings = model.bindings.get(start..end)?;
             let lexical = matches!(
                 kind(tree, lookup),
                 Kind::Node(

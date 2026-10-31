@@ -1,9 +1,15 @@
 //! Source provenance labels shared by the reader and independently asserted fixtures.
+/// The language builtin namespace supplies the name.
 pub(crate) const BUILTIN: &str = "builtin";
+/// A local binding supplies a value without an imported path.
 pub(crate) const LOCAL: &str = "local";
+/// No lexical declaration supplies a known canonical path.
 pub(crate) const UNRESOLVED: &str = "unresolved";
+/// Namespace events prevent a unique lexical origin.
 pub(crate) const AMBIGUOUS: &str = "ambiguous";
+/// Canonical module prefix for Python builtin identities.
 pub(crate) const BUILTIN_MODULE: &str = "builtins";
+/// Why an incomplete syntax tree cannot supply complete provenance facts.
 pub(crate) const INCOMPLETE: &str = "qualified names require a complete syntax tree";
 
 use super::types::{Builtin, Version};
@@ -13,7 +19,7 @@ pub(crate) const NOT_APPLICABLE: Version = Version {
     major: Integer(0),
     minor: Integer(0),
 };
-/// CPython 3.15.0rc2 builtin and default-site inventory, independently captured in standard fixtures.
+/// `CPython` 3.15.0rc2 builtin and default-site inventory, independently captured in standard fixtures.
 pub(crate) const BUILTIN_NAMES: &[NameText<'static>] = &[
     NameText("ArithmeticError"),
     NameText("AssertionError"),

@@ -2,6 +2,7 @@
 use ryo::languages::contract::{
     Expected, IdentifierExpectedRow, expected_rows, file, name, node, span,
 };
+/// Independently specified relation rows for the fixture.
 const ROWS: &[IdentifierExpectedRow] = &[IdentifierExpectedRow {
     id: node(2),
     name: name("exec"),
