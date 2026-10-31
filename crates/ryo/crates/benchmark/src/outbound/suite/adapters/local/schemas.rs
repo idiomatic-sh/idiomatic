@@ -5,50 +5,76 @@ use std::collections::BTreeMap;
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
+/// Pinned reference profile and explicit default-rule accounting.
 struct ToolSchema {
+    /// Reference tool name.
     tool: String,
+    /// Exact expected version output.
     version: String,
+    /// Trusted platform-specific SHA256 digests of the executable bytes.
     sha256: Vec<String>,
+    /// Resolved default rule inventory for the pinned tool.
     defaults: Vec<String>,
     #[serde(default)]
+    /// Capability groups whose rules remain blocked by documented limitations.
     deferred: BTreeMap<String, Vec<String>>,
     #[serde(default)]
+    /// Capability groups whose rules remain implementation work.
     pending: BTreeMap<String, Vec<String>>,
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
+/// Shared language corpus manifest.
 struct SuiteSchema {
+    /// Language identity for the corpus.
     language: String,
+    /// Pinned repositories included in the workload.
     projects: Vec<ProjectSchema>,
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
+/// One reproducible repository workload.
 struct ProjectSchema {
+    /// Stable project identity.
     name: String,
+    /// Repository URL used to obtain the source.
     repository: String,
+    /// Exact source revision to check out.
     revision: String,
+    /// Manifest-relative edit patch for incremental trials.
     patch: String,
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
+/// Independent rule examples and expected findings.
 struct CasesSchema {
+    /// Ordered set of executable examples.
     cases: Vec<CaseSchema>,
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
+/// One independent source example.
 struct CaseSchema {
+    /// Human-readable case identity.
     name: String,
+    /// Project-relative source paths mapped to complete source text.
     files: BTreeMap<String, String>,
+    /// Expected diagnostic ranges, preserving multiplicity.
     expected: Vec<ExpectedSchema>,
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
+/// Expected finding in one authored case.
 struct ExpectedSchema {
+    /// Project-relative source path.
     file: String,
+    /// Inclusive zero-based UTF-8 byte offset.
     start: usize,
+    /// Exclusive zero-based UTF-8 byte offset.
     end: usize,
 }
 
+/// Decode and validate a pinned reference profile.
 pub(super) fn tool(text: &str) -> Result<types::Tool, Error> {
     toml::from_str::<ToolSchema>(text)?.try_into()
 }
@@ -81,6 +107,7 @@ impl TryFrom<ToolSchema> for types::Tool {
         })
     }
 }
+/// Expand grouped capabilities while rejecting duplicate rule membership.
 fn dispositions(
     groups: BTreeMap<String, Vec<String>>,
 ) -> Result<BTreeMap<ryo::linter::RuleId, types::CapabilityName>, Error> {
@@ -109,9 +136,11 @@ fn dispositions(
     }
     Ok(rules)
 }
+/// Validate a rule identifier before it enters the benchmark domain.
 pub(super) fn rule(value: &str) -> Result<ryo::linter::RuleId, Error> {
     ryo::linter::RuleId::try_from(value).map_err(|error| Error::Invalid(error.to_string()))
 }
+/// Decode the shared language corpus manifest.
 pub(super) fn suite(text: &str) -> Result<types::Suite, Error> {
     Ok(toml::from_str::<SuiteSchema>(text)?.into())
 }
@@ -133,6 +162,7 @@ impl From<ProjectSchema> for types::Project {
         }
     }
 }
+/// Decode independent sources and expected byte ranges.
 pub(super) fn cases(text: &str) -> Result<types::Cases, Error> {
     Ok(toml::from_str::<CasesSchema>(text)?.into())
 }
