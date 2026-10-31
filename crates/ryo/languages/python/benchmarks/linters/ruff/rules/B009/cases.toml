@@ -1,0 +1,29 @@
+[[cases]]
+name = "unicode17-beria-erfe"
+files = { "case.py" = "getattr(obj, \"\\U00016EA0\")\n" }
+expected = [{ file = "case.py", start = 0, end = 26 }]
+
+[[cases]]
+name = "unicode17-tai-yo"
+files = { "case.py" = "getattr(obj, \"\\U0001E6C0\")\n" }
+expected = [{ file = "case.py", start = 0, end = 26 }]
+
+[[cases]]
+name = "unicode17-sidetic"
+files = { "case.py" = "getattr(obj, \"\\U00010940\")\n" }
+expected = [{ file = "case.py", start = 0, end = 26 }]
+
+[[cases]]
+name = "unicode16-control"
+files = { "case.py" = "getattr(obj, \"\u03c0\")\n" }
+expected = [{ file = "case.py", start = 0, end = 18 }]
+
+[[cases]]
+name = "keyword"
+files = { "case.py" = "getattr(obj, \"class\")\n" }
+expected = []
+
+[[cases]]
+name = "emoji"
+files = { "case.py" = "getattr(obj, \"\ud83d\ude00\")\n" }
+expected = []

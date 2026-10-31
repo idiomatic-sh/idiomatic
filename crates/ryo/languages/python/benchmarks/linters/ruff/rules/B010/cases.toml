@@ -1,0 +1,29 @@
+[[cases]]
+name = "unicode17-beria-erfe"
+files = { "case.py" = "setattr(obj, \"\\U00016EA0\", value)\n" }
+expected = [{ file = "case.py", start = 0, end = 33 }]
+
+[[cases]]
+name = "unicode17-tai-yo"
+files = { "case.py" = "setattr(obj, \"\\U0001E6C0\", value)\n" }
+expected = [{ file = "case.py", start = 0, end = 33 }]
+
+[[cases]]
+name = "unicode17-sidetic"
+files = { "case.py" = "setattr(obj, \"\\U00010940\", value)\n" }
+expected = [{ file = "case.py", start = 0, end = 33 }]
+
+[[cases]]
+name = "unicode16-control"
+files = { "case.py" = "setattr(obj, \"\u03c0\", value)\n" }
+expected = [{ file = "case.py", start = 0, end = 25 }]
+
+[[cases]]
+name = "keyword"
+files = { "case.py" = "setattr(obj, \"class\", value)\n" }
+expected = []
+
+[[cases]]
+name = "emoji"
+files = { "case.py" = "setattr(obj, \"\ud83d\ude00\", value)\n" }
+expected = []
