@@ -17,6 +17,12 @@ pub trait SuitePort {
     fn fingerprint(&self, paths: &[std::path::PathBuf]) -> Result<String, Error>;
     /// Materialize only the explicitly authored subset in an owned empty directory.
     fn stage(&self, directory: &Path, destination: &Path, audit: &Audit) -> Result<(), Error>;
+    /// Materialize the snapshot's independent case sources without executing contestants.
+    fn cases(
+        &self,
+        rules: &Path,
+        scratch: &Path,
+    ) -> Result<Vec<crate::domain::suite::types::PreparedCase>, Error>;
 
     /// Validate authored queries and cases against the pinned default inventory.
     ///

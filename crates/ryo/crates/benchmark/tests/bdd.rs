@@ -1,3 +1,4 @@
+//! Executable acceptance scenarios colocated with the shared benchmark operations.
 #[path = "../src/inbound/use_cases/audit/acceptance.rs"]
 mod audit;
 

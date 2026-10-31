@@ -53,7 +53,7 @@ fn audit(directory: &Path, tool: &Tool) -> Result<Audit, Error> {
                     "authored rule still has a deferred or pending disposition: {rule}"
                 )));
             }
-            implemented.insert(rule);
+            let _ = implemented.insert(rule);
         }
     }
     Ok(Audit {
@@ -80,8 +80,15 @@ fn verify_executable(path: &Path, tool: &Tool) -> Result<(), Error> {
 }
 
 #[derive(Debug)]
-pub struct SuiteLocalAdapter;
+pub(crate) struct SuiteLocalAdapter;
 impl crate::outbound::suite::interface::SuitePort for SuiteLocalAdapter {
+    fn cases(
+        &self,
+        rules: &Path,
+        scratch: &Path,
+    ) -> Result<Vec<crate::domain::suite::types::PreparedCase>, Error> {
+        prepare_cases(rules, scratch)
+    }
     fn stage(&self, directory: &Path, destination: &Path, audit: &Audit) -> Result<(), Error> {
         std::fs::create_dir(destination)?;
         std::fs::write(
@@ -152,60 +159,30 @@ fn fingerprint_path(path: &Path, hasher: &mut Sha256) -> Result<(), Error> {
 }
 
 use crate::domain::diagnostics::types::RunReport;
-use crate::inbound::use_cases::compare::service::compare;
-/// Check independently authored cases through both real process adapters.
-pub fn verify_cases(
-    reference: &dyn crate::outbound::linter::interface::LinterPort,
-    execution: &dyn crate::outbound::execution::interface::ExecutionPort,
-    candidate_executable: &std::path::Path,
-    rules: &std::path::Path,
-    scratch: &std::path::Path,
-) -> Result<usize, crate::domain::diagnostics::errors::Error> {
-    use crate::application::run::service::run;
+fn prepare_cases(
+    rules: &Path,
+    scratch: &Path,
+) -> Result<Vec<crate::domain::suite::types::PreparedCase>, Error> {
     use crate::domain::{
-        diagnostics::{errors::Error, types::Diagnostic},
-        suite::types::{Cases, RunRequest},
+        diagnostics::types::Diagnostic,
+        suite::types::{PreparedCase, RunRequest},
     };
-    use crate::outbound::linter::adapters::ryo::adapter::LinterRyoAdapter;
-    let mut failures = Vec::new();
-    let mut checked = 0;
-    let deferred = match rules.parent().map(|parent| parent.join("benchmark.toml")) {
-        Some(profile) if profile.is_file() => {
-            super::schemas::tool(&std::fs::read_to_string(profile)?)?.deferred
-        }
-        _ => Default::default(),
-    };
+    let mut prepared = Vec::new();
     for entry in std::fs::read_dir(rules)? {
         let entry = entry?;
         let rule = entry
             .file_name()
             .into_string()
             .map_err(|_| Error::Invalid("non-UTF8 rule".into()))?;
-        let query = match std::fs::read(entry.path().join("query.ryoql")) {
-            Ok(query) => query,
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                if !deferred.contains_key(&rule) {
-                    failures.push(format!("{rule}: query not implemented"));
-                }
-                continue;
-            }
-            Err(error) => return Err(error.into()),
-        };
+        drop(std::fs::read(entry.path().join("query.ryoql"))?);
         let cases: Cases =
             super::schemas::cases(&std::fs::read_to_string(entry.path().join("cases.toml"))?)?;
         validate_cases(&cases)?;
-        let selected = scratch.join(&rule).join("rules");
-        std::fs::create_dir_all(selected.join(&rule))?;
-        std::fs::write(selected.join(&rule).join("query.ryoql"), query)?;
-        let candidate = LinterRyoAdapter {
-            executable: candidate_executable.to_owned(),
-            rules: selected,
-        };
         for (index, case) in cases.cases.into_iter().enumerate() {
             let root = scratch.join(&rule).join(index.to_string());
             std::fs::create_dir_all(&root)?;
             for (file, source) in &case.files {
-                crate::domain::suite::service::relative_path(file)?;
+                relative_path(file)?;
                 let path = root.join(file);
                 std::fs::create_dir_all(
                     path.parent()
@@ -232,41 +209,16 @@ pub fn verify_cases(
                     .collect(),
             };
             expected.diagnostics.sort();
-            for (name, tool) in [
-                ("reference", reference),
-                (
-                    "candidate",
-                    &candidate as &dyn crate::outbound::linter::interface::LinterPort,
-                ),
-            ] {
-                match run(tool, execution, &request) {
-                    Ok(mut result) => {
-                        result
-                            .report
-                            .diagnostics
-                            .retain(|finding| finding.rule == rule);
-                        if let Err(difference) = compare(&expected, &result.report) {
-                            failures.push(format!(
-                                "{rule}/{} expected-vs-{name}: expected={:?}; actual={:?}",
-                                case.name, difference.reference, difference.candidate
-                            ));
-                        }
-                    }
-                    Err(error) => failures.push(format!("{rule}/{} {name}: {error}", case.name)),
-                }
-            }
-            checked += 1;
+            prepared.push(PreparedCase {
+                rule: rule.clone(),
+                name: case.name,
+                request,
+                expected,
+            });
         }
     }
-    if checked == 0 {
-        failures.push("no executable rule cases".into());
+    if prepared.is_empty() {
+        return Err(Error::Invalid("no executable rule cases".into()));
     }
-    if failures.is_empty() {
-        Ok(checked)
-    } else {
-        Err(Error::Invalid(format!(
-            "{checked} cases checked; failures:\n{}",
-            failures.join("\n")
-        )))
-    }
+    Ok(prepared)
 }

@@ -78,10 +78,7 @@ fn succeeds() {
 fn refuses() {
     #[cfg(unix)]
     run(PIN_CASES, Word::Refuses, verify_pin);
-    use super::adapter::verify_cases;
-    use crate::outbound::{
-        execution::fixtures::fake::ExecutionFake, linter::fixtures::fake::LinterFake,
-    };
+    use crate::outbound::suite::interface::SuitePort;
     for empty_rule in [false, true] {
         let rules = tempfile::tempdir().expect("rules");
         let scratch = tempfile::tempdir().expect("scratch");
@@ -95,23 +92,14 @@ fn refuses() {
             .expect("query");
             std::fs::write(directory.join("cases.toml"), "cases = []").expect("cases");
         }
-        let result = verify_cases(
-            &LinterFake::default(),
-            &ExecutionFake {
-                status: 0,
-                ..Default::default()
-            },
-            std::path::Path::new("unreachable"),
-            rules.path(),
-            scratch.path(),
-        );
+        let result = SuiteLocalAdapter.cases(rules.path(), scratch.path());
         let actual = result
             .expect_err("no cases cannot certify correctness")
             .to_string();
         let expected = if empty_rule {
             "a rule requires positive and negative cases"
         } else {
-            "0 cases checked; failures:\nno executable rule cases"
+            "no executable rule cases"
         };
         assert_eq!(actual, expected);
     }

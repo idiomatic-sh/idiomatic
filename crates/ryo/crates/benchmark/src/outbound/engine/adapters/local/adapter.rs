@@ -17,10 +17,20 @@ use crate::outbound::engine::interface::EnginePort;
 
 pub(crate) struct EngineLocalAdapter {
     languages: Languages,
+    trace: Option<std::path::PathBuf>,
 }
 impl EngineLocalAdapter {
     pub(crate) fn new(languages: Languages) -> Self {
-        Self { languages }
+        Self {
+            languages,
+            trace: None,
+        }
+    }
+    pub(crate) fn profiled(languages: Languages, trace: std::path::PathBuf) -> Self {
+        Self {
+            languages,
+            trace: Some(trace),
+        }
     }
 }
 impl std::fmt::Debug for EngineLocalAdapter {
@@ -32,6 +42,19 @@ impl std::fmt::Debug for EngineLocalAdapter {
 }
 impl EnginePort for EngineLocalAdapter {
     fn run(&self, request: WorkerRequest) -> Result<RunReport, Error> {
+        use tracing_subscriber::prelude::*;
+        let _trace = if let Some(path) = &self.trace {
+            let (layer, guard) = tracing_chrome::ChromeLayerBuilder::new().file(path).build();
+            tracing::subscriber::set_global_default(
+                tracing_subscriber::registry()
+                    .with(tracing_subscriber::filter::LevelFilter::INFO)
+                    .with(layer),
+            )
+            .map_err(|error| Error::Invalid(error.to_string()))?;
+            Some(guard)
+        } else {
+            None
+        };
         let mut rules = BTreeMap::new();
         for entry in std::fs::read_dir(&request.rules)? {
             let entry = entry?;
@@ -44,15 +67,20 @@ impl EnginePort for EngineLocalAdapter {
                 RuleId::try_from(id.as_str()).map_err(|error| Error::Invalid(error.to_string()))?;
             let query = RyoQlQuery::try_from(query.as_str())
                 .map_err(|error| Error::Invalid(error.to_string()))?;
-            rules.insert(
-                id,
-                Rule {
-                    query,
-                    parameters: BTreeMap::new(),
-                    include: vec![],
-                    exclude: vec![],
-                },
-            );
+            if rules
+                .insert(
+                    id,
+                    Rule {
+                        query,
+                        parameters: BTreeMap::new(),
+                        include: vec![],
+                        exclude: vec![],
+                    },
+                )
+                .is_some()
+            {
+                return Err(Error::Invalid("duplicate candidate rule identity".into()));
+            }
         }
         if rules.is_empty() {
             return Err(Error::Invalid("no candidate queries".into()));

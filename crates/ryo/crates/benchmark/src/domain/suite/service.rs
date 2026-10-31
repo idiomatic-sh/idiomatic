@@ -3,6 +3,7 @@ use super::types::{Audit, Cases};
 use crate::domain::diagnostics::errors::Error;
 use std::path::{Component, Path};
 
+/// Require a nonempty complete implementation inventory.
 pub fn require_complete(audit: &Audit) -> Result<(), Error> {
     if audit.implemented.is_empty() && audit.missing.is_empty() {
         return Err(Error::Invalid("empty audit is not default coverage".into()));
@@ -43,6 +44,7 @@ pub fn require_accounted(audit: &Audit, tool: &super::types::Tool) -> Result<(),
     Ok(())
 }
 
+/// Refuse absolute, empty and traversing paths before boundary access.
 pub fn relative_path(path: &str) -> Result<(), Error> {
     if path.is_empty()
         || Path::new(path)
@@ -54,6 +56,7 @@ pub fn relative_path(path: &str) -> Result<(), Error> {
     Ok(())
 }
 
+/// Require independent positive/negative cases with valid source spans and names.
 pub fn validate_cases(cases: &Cases) -> Result<(), Error> {
     if !cases.cases.iter().any(|case| case.expected.is_empty())
         || !cases.cases.iter().any(|case| !case.expected.is_empty())

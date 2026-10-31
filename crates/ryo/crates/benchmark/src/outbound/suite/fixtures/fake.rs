@@ -12,8 +12,21 @@ pub struct SuiteFake {
     pub profile: Option<Tool>,
     /// The projects available from this deterministic artifact source.
     pub projects: Option<Suite>,
+    /// Independent cases already materialized by the fixture.
+    pub prepared: Vec<crate::domain::suite::types::PreparedCase>,
 }
 impl SuitePort for SuiteFake {
+    fn cases(
+        &self,
+        _: &Path,
+        _: &Path,
+    ) -> Result<Vec<crate::domain::suite::types::PreparedCase>, Error> {
+        if self.prepared.is_empty() {
+            Err(Error::Invalid("no executable rule cases".into()))
+        } else {
+            Ok(self.prepared.clone())
+        }
+    }
     fn stage(&self, _: &Path, _: &Path, _: &Audit) -> Result<(), Error> {
         Err(Error::Invalid(
             "fixture cannot materialize external queries".into(),

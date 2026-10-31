@@ -70,6 +70,19 @@ pub struct Case {
     pub expected: Vec<Expected>,
 }
 
+/// An independently authored case materialized by the suite boundary.
+#[derive(Clone, Debug)]
+pub struct PreparedCase {
+    /// Selected default rule whose findings this case asserts.
+    pub rule: String,
+    /// Unique case name within that rule.
+    pub name: String,
+    /// Exact immutable source inputs supplied to both contestants.
+    pub request: RunRequest,
+    /// Independently authored findings and input coverage.
+    pub expected: crate::domain::diagnostics::types::RunReport,
+}
+
 /// One expected finding in a case, located by UTF-8 byte offsets.
 #[derive(Clone, Debug)]
 pub struct Expected {
@@ -148,6 +161,8 @@ pub struct Certificate {
     pub(crate) paths: Vec<PathBuf>,
     pub(crate) fingerprint: String,
     pub(crate) contestants: [PathBuf; 2],
+    pub(crate) probe: RunRequest,
+    pub(crate) profiles: [crate::domain::measurements::types::Invocation; 2],
     pub(crate) cases: usize,
 }
 

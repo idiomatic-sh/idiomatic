@@ -1,5 +1,5 @@
 //! Suite boundary.
-pub mod adapters;
+pub(crate) mod adapters;
 pub mod interface;
 
 pub mod factory;

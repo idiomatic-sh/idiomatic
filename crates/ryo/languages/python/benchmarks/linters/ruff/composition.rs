@@ -16,7 +16,7 @@ use ryo_benchmark::outbound::workspace::interface::WorkspacePort;
 use std::{path::PathBuf, sync::Arc};
 
 pub(crate) fn run() -> Result<(), Error> {
-    let mut args = std::env::args().skip(1);
+    let mut args = std::env::args().skip(1).filter(|argument| argument != "--bench");
     let suite_source = ryo_benchmark::outbound::suite::factory::local();
     let execution = ryo_benchmark::outbound::execution::factory::process();
     let workspaces = ryo_benchmark::outbound::workspace::factory::git();
@@ -24,9 +24,13 @@ pub(crate) fn run() -> Result<(), Error> {
     match command.as_deref() {
         Some("run-ryo") => {
             let input = args.next().ok_or_else(|| Error::Invalid("missing worker request".into()))?;
-            let engine = ryo_benchmark::outbound::engine::factory::local(ryo::linter::Languages(vec![ryo_python::linked()]));
+            let languages = ryo::linter::Languages(vec![ryo_python::linked()]);
+            let engine: Arc<dyn ryo_benchmark::outbound::engine::interface::EnginePort> = match std::env::var_os("RYO_BENCH_TRACE") {
+                Some(path) => Arc::new(ryo_benchmark::outbound::engine::factory::profiled(languages, path.into())),
+                None => Arc::new(ryo_benchmark::outbound::engine::factory::local(languages)),
+            };
             let transport = ryo_benchmark::outbound::worker::factory::json(input.into(), Box::new(std::io::stdout()));
-            RunRyoUseCaseImpl::new(Arc::new(engine), Arc::new(transport)).run_ryo()
+            RunRyoUseCaseImpl::new(engine, Arc::new(transport)).run_ryo()
         }
         Some("verify-cases") => {
             let executable = PathBuf::from(args.next().ok_or_else(|| Error::Invalid("expected Ruff executable".into()))?).canonicalize()?;
@@ -36,12 +40,16 @@ pub(crate) fn run() -> Result<(), Error> {
             tool.defaults = audit.authored().to_vec();
             let reference = reference(executable, tool)?;
             let scratch = tempfile::tempdir()?;
-            let count = ryo_benchmark::outbound::suite::adapters::local::adapter::verify_cases(&reference, &execution, &std::env::current_exe()?, &directory().join("rules"), scratch.path())?;
+            let profile = scratch.path().join("profile");
+            suite_source.stage(&directory(), &profile, &audit)?;
+            let candidate = ryo_benchmark::outbound::linter::factory::ryo(std::env::current_exe()?, profile.join("rules"));
+            let count = ryo_benchmark::application::cases::service::verify(&suite_source, &reference, &candidate, &execution, &profile.join("rules"), &scratch.path().join("cases"))?;
             println!("{count} cases passed against both contestants");
             Ok(())
         }
         Some("measure" | "measure-scoped" | "measure-scoped-valid") => {
             if cfg!(debug_assertions) { return Err(Error::Invalid("measurement requires a release-profile benchmark executable".into())); }
+            if std::env::var_os("RYO_BENCH_TRACE").is_some() { return Err(Error::Invalid("tracing is a separate diagnostic run, not a performance sample".into())); }
             let executable = PathBuf::from(args.next().ok_or_else(|| Error::Invalid("expected Ruff executable".into()))?).canonicalize()?;
             let cache = PathBuf::from(args.next().ok_or_else(|| Error::Invalid("expected owned cache directory".into()))?);
             std::fs::create_dir_all(&cache)?;
@@ -68,12 +76,12 @@ pub(crate) fn run() -> Result<(), Error> {
             std::fs::copy(std::env::current_exe()?, &candidate_executable)?;
             let candidate = ryo_benchmark::outbound::linter::factory::ryo(candidate_executable.clone(), selected_rules.clone());
             let case_scratch = tempfile::tempdir()?;
-            let certificate = ryo_benchmark::application::certify::service::certify(&suite_source, &reference, &execution, &selected_profile, &executable, &candidate_executable, &selected_rules, case_scratch.path(), scope)?;
+            let certificate = ryo_benchmark::application::certify::service::certify(&suite_source, &reference, &candidate, &execution, &selected_profile, &executable, &candidate_executable, &selected_rules, case_scratch.path(), scope)?;
             eprintln!("scope: {scope:?}; {} verified / {default_count} shipped defaults; {deferred_count} assessed deferrals; {pending_count} assessed pending; {} unassessed; {} authored outside subset; {} cases; certificate={}; artifacts={}", audit.authored_count(), default_count - authored_total - deferred_count - pending_count, authored_total - audit.authored_count(), certificate.cases(), certificate.fingerprint(), selected_profile.display());
             eprintln!("environment: os={} arch={} release=true workers=1; GNU time CPU=user+system, RSS=peak KiB converted to bytes; wall includes collector startup; normalization and certificate/source hashing excluded; OS page cache uncontrolled; retained cache hits unverified", std::env::consts::OS, std::env::consts::ARCH);
             let suite: Suite = suite_source.projects(&directory().join("../.."))?;
             if suite.language != "python" || !(2..=3).contains(&suite.projects.len()) { return Err(Error::Invalid("Python suite requires 2–3 projects".into())); }
-            let execution = ryo_benchmark::outbound::execution::factory::timed(suite.instrumentation.executable, suite.instrumentation.sha256);
+            let execution = ryo_benchmark::outbound::execution::factory::timed(suite.instrumentation.executable, ryo_benchmark::domain::measurements::types::ExecutableDigest(suite.instrumentation.sha256), std::env::var_os("PATH"));
             let evidence = ryo_benchmark::outbound::evidence::factory::bmf(Box::new(std::io::stdout()));
             let mut samples = Vec::new();
             let mut failures = Vec::new();
@@ -121,6 +129,9 @@ pub(crate) fn run() -> Result<(), Error> {
                     compare(&edited.candidate.report, &clean_candidate?.report).map_err(|difference| Error::Invalid(format!("candidate edited retained vs fresh mismatch: {difference:?}")))?;
                     for (condition, pair) in [("empty-tool-cache", cold), ("retained-tool-cache", retained), ("edited-tool-cache", edited)] {
                         for (contestant, measurement) in [("ruff", pair.reference), ("ryo", pair.candidate)] {
+                            let mut counts = std::collections::BTreeMap::new();
+                            for diagnostic in &measurement.report.diagnostics { *counts.entry(&diagnostic.rule).or_insert(0usize) += 1; }
+                            eprintln!("findings: project={} contestant={contestant} condition={condition} counts={counts:?}", project.name);
                             eprintln!("sample: project={} contestant={contestant} condition={condition} order={order:?} wall={:?} resources={:?}", project.name, measurement.wall, measurement.resources);
                             samples.push(Sample { name: format!("{}/{contestant}/{condition}", project.name), measurement });
                         }

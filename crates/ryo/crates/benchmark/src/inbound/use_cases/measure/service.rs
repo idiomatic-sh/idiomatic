@@ -1,12 +1,13 @@
 //! Correctness gates each measured sample, including cache and edited runs.
 use crate::application::run::service::run;
 use crate::domain::diagnostics::errors::Error;
+use crate::domain::diagnostics::service::compare;
 use crate::domain::measurements::types::{Pair, RunOrder};
 use crate::domain::suite::service::require_complete;
 use crate::domain::suite::types::RunRequest;
-use crate::inbound::use_cases::compare::service::compare;
 use crate::outbound::{execution::interface::ExecutionPort, linter::interface::LinterPort};
 
+/// Execute both contestants in the specified order and retain only exact agreement.
 pub fn measure(
     audit: &Audit,
     reference: &dyn LinterPort,
@@ -49,6 +50,15 @@ pub fn measure_certified(
     if suite.fingerprint(&certificate.paths)? != certificate.fingerprint {
         return Err(Error::Invalid(
             "certified profile, rules, cases or executable changed".into(),
+        ));
+    }
+    if [
+        reference.prepare(&certificate.probe)?,
+        candidate.prepare(&certificate.probe)?,
+    ] != certificate.profiles
+    {
+        return Err(Error::Invalid(
+            "contestant command profile differs from case certification".into(),
         ));
     }
     for (tool, expected) in [

@@ -15,6 +15,7 @@ use std::path::Path;
 pub fn certify(
     suite: &dyn SuitePort,
     reference: &dyn LinterPort,
+    candidate: &dyn LinterPort,
     execution: &dyn ExecutionPort,
     directory: &Path,
     reference_executable: &Path,
@@ -43,10 +44,17 @@ pub fn certify(
         contestants[1].clone(),
     ];
     let before = suite.fingerprint(&paths)?;
-    let cases = crate::outbound::suite::adapters::local::adapter::verify_cases(
+    let probe = crate::domain::suite::types::RunRequest {
+        root: directory.to_owned(),
+        files: vec!["__certificate_probe__.py".into()],
+        cache: scratch.join("identity"),
+    };
+    let profiles = [reference.prepare(&probe)?, candidate.prepare(&probe)?];
+    let cases = crate::application::cases::service::verify(
+        suite,
         reference,
+        candidate,
         execution,
-        candidate_executable,
         &directory.join("rules"),
         scratch,
     )?;
@@ -64,6 +72,8 @@ pub fn certify(
         paths,
         fingerprint: after,
         contestants,
+        probe,
+        profiles,
         cases,
     })
 }

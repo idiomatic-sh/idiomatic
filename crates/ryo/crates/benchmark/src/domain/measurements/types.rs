@@ -16,7 +16,7 @@ pub struct Measurement {
 use std::ffi::OsString;
 use std::path::PathBuf;
 /// A direct process invocation without shell argument interpretation.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Invocation {
     /// Program to launch directly.
     pub executable: PathBuf,
@@ -78,3 +78,7 @@ pub struct Sample {
     /// Full observation, including explicit resource availability.
     pub measurement: Measurement,
 }
+
+/// SHA-256 identity of an executable selected by the composition.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ExecutableDigest(pub String);

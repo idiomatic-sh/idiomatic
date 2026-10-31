@@ -5,6 +5,7 @@ use crate::domain::suite::types::RunRequest;
 use crate::outbound::execution::interface::ExecutionPort;
 use crate::outbound::linter::interface::LinterPort;
 
+/// Prepare and execute one contestant, then validate decoded input coverage.
 pub fn run(
     linter: &dyn LinterPort,
     execution: &dyn ExecutionPort,
