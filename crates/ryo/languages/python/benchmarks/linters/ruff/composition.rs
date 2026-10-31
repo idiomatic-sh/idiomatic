@@ -8,19 +8,23 @@ use ryo_benchmark::domain::measurements::types::{RunOrder, sample::value::Benchm
 use ryo_benchmark::domain::suite::service::require_accounted;
 use ryo_benchmark::domain::suite::types::{BenchmarkCoverage, RunRequest, Suite};
 use ryo_benchmark::inbound::use_cases::certify::{
-    interface::CertifyUseCase, use_case::CertifyUseCaseImpl,
+    interface::CertifyUseCase as _, use_case::CertifyUseCaseImpl,
 };
 use ryo_benchmark::inbound::use_cases::compare::{
-    interface::CompareUseCase, use_case::CompareUseCaseImpl,
+    interface::CompareUseCase as _, use_case::CompareUseCaseImpl,
 };
 use ryo_benchmark::inbound::use_cases::measure::{
-    interface::MeasureUseCase, use_case::MeasureUseCaseImpl,
+    interface::MeasureUseCase as _, use_case::MeasureUseCaseImpl,
 };
-use ryo_benchmark::outbound::evidence::interface::EvidencePort;
-use ryo_benchmark::outbound::suite::interface::SuitePort;
+use ryo_benchmark::outbound::evidence::interface::EvidencePort as _;
 use ryo_benchmark::outbound::suite::types::{ArtifactPath, ArtifactSet};
-use ryo_benchmark::outbound::workspace::interface::WorkspacePort;
+use ryo_benchmark::outbound::workspace::interface::WorkspacePort as _;
 use std::{path::PathBuf, sync::Arc};
+/// Dispatch benchmark commands and retain the complete certification-to-observation timeline.
+#[expect(
+    clippy::too_many_lines,
+    reason = "this outer composition keeps certification, explicit source filtering and cold/retained/edited equivalence in one ordered timeline; reusable algorithms live in the shared harness"
+)]
 pub(crate) fn run(
     output: &mut dyn std::io::Write,
     observations: &mut dyn std::io::Write,
@@ -28,7 +32,8 @@ pub(crate) fn run(
     let mut args = std::env::args()
         .skip(1)
         .filter(|argument| argument != constants::CARGO_BENCH_ARGUMENT);
-    let suite_source = Arc::new(ryo_benchmark::outbound::suite::factory::local());
+    let suite_source: Arc<dyn ryo_benchmark::outbound::suite::interface::SuitePort> =
+        Arc::new(ryo_benchmark::outbound::suite::factory::local());
     let comparison = CompareUseCaseImpl::new();
     let command = args.next();
     match command.as_deref() {
@@ -120,16 +125,17 @@ pub(crate) fn run(
             let selected_rules = selected_profile.join(constants::RULES_DIRECTORY);
             let candidate_executable = selected_scratch.join(constants::CANDIDATE_EXECUTABLE);
             let _bytes = std::fs::copy(std::env::current_exe()?, &candidate_executable)?;
-            let candidate = Arc::new(ryo_benchmark::outbound::linter::factory::ryo(
-                candidate_executable.clone(),
-                selected_rules.clone(),
-            ));
+            let candidate: Arc<dyn ryo_benchmark::outbound::linter::interface::LinterPort> =
+                Arc::new(ryo_benchmark::outbound::linter::factory::ryo(
+                    candidate_executable.clone(),
+                    selected_rules.clone(),
+                ));
             let case_scratch = tempfile::tempdir()?;
             let certificate = CertifyUseCaseImpl::new(
-                suite_source.clone(),
-                reference.clone(),
-                candidate.clone(),
-                execution.clone(),
+                Arc::<_>::clone(&suite_source),
+                Arc::<super::adapter::LinterRuffAdapter>::clone(&reference),
+                Arc::<_>::clone(&candidate),
+                Arc::<_>::clone(&execution),
             )
             .certify(
                 &selected_profile,
@@ -142,7 +148,11 @@ pub(crate) fn run(
             )?;
             writeln!(
                 observations,
-                "scope: {scope:?}; {} verified / {default_count} shipped defaults; {deferred_count} assessed deferrals; {pending_count} assessed pending; {} unassessed; {} authored outside subset; {} cases; certificate={}; artifacts={}",
+                "scope: {}; {} verified / {default_count} shipped defaults; {deferred_count} assessed deferrals; {pending_count} assessed pending; {} unassessed; {} authored outside subset; {} cases; certificate={}; artifacts={}",
+                match scope {
+                    BenchmarkCoverage::Accounted => constants::ACCOUNTED,
+                    BenchmarkCoverage::Interim => constants::INTERIM,
+                },
                 audit.authored_count(),
                 default_count - authored_total.0 - deferred_count - pending_count,
                 authored_total.0 - audit.authored_count().0,
@@ -156,10 +166,10 @@ pub(crate) fn run(
                 return Err(Error::Invalid(constants::PROJECT_COUNT_ERROR.into()));
             }
             let measurements = MeasureUseCaseImpl::new(
-                reference.clone(),
-                candidate.clone(),
-                execution.clone(),
-                suite_source.clone(),
+                Arc::<super::adapter::LinterRuffAdapter>::clone(&reference),
+                Arc::<_>::clone(&candidate),
+                Arc::<_>::clone(&execution),
+                Arc::<_>::clone(&suite_source),
             );
             let evidence =
                 ryo_benchmark::outbound::evidence::factory::bmf(Box::new(std::io::stdout()));
@@ -167,7 +177,7 @@ pub(crate) fn run(
             let mut failures = Vec::new();
             for project in suite.projects {
                 let observed = (|| -> Result<Vec<BenchmarkSample>, Error> {
-                    let mut samples = Vec::new();
+                    let mut project_samples = Vec::new();
                     let workspaces = ryo_benchmark::outbound::workspace::factory::git(
                         cache.join(constants::PROJECTS_DIRECTORY),
                     );
@@ -181,11 +191,15 @@ pub(crate) fn run(
                         });
                     writeln!(
                         observations,
-                        "{}: matched Python source scope {} files; excluded default-discovered formats {} files (source-kind capability gap): {:?}",
+                        "{}: matched Python source scope {} files; excluded default-discovered formats {} files (source-kind capability gap): {}",
                         project.name,
                         files.len(),
                         excluded.len(),
                         excluded
+                            .iter()
+                            .map(|path| path.0.as_ref())
+                            .collect::<Vec<_>>()
+                            .join(constants::PATH_SEPARATOR)
                     )?;
                     let tracked = workspaces.tracked_files(&workspace)?.0;
                     if files.iter().any(|file| {
@@ -276,7 +290,7 @@ pub(crate) fn run(
                         let counts = output::diagnostic_counts(&cold.reference().report);
                         writeln!(
                             observations,
-                            "{}: exact matching findings per rule: {counts:?}",
+                            "{}: exact matching findings per rule: {counts}",
                             project.name
                         )?;
                         let retained = measurements.measure(&certificate, &request, order)?;
@@ -331,19 +345,19 @@ pub(crate) fn run(
                                 ))
                             }));
                             for (contestant, sample) in contestants.into_iter().zip(named) {
-                                let counts =
+                                let observed_counts =
                                     output::diagnostic_counts(&sample.measurement().report);
                                 writeln!(
                                     observations,
-                                    "findings: project={} contestant={contestant} condition={condition} counts={counts:?}",
+                                    "findings: project={} contestant={contestant} condition={condition} counts={observed_counts}",
                                     project.name
                                 )?;
                                 output::observe_sample(observations, &sample, order)?;
-                                samples.push(sample);
+                                project_samples.push(sample);
                             }
                         }
                     }
-                    Ok(samples)
+                    Ok(project_samples)
                 })();
                 match observed {
                     Ok(observed) => samples.extend(observed),
@@ -368,19 +382,7 @@ pub(crate) fn run(
                 )))
             }
         }
-        Some(constants::AUDIT) => {
-            let tool = suite_source.profile(ArtifactPath(&commands::directory()))?;
-            let result = suite_source.audit(ArtifactPath(&commands::directory()), &tool)?;
-            writeln!(
-                output,
-                "{} {}: {} queries authored / {} shipped defaults (not a parity certificate)",
-                tool.tool,
-                tool.version,
-                result.authored_count(),
-                tool.defaults.len()
-            )?;
-            require_accounted(&result, &tool)
-        }
+        Some(constants::AUDIT) => commands::audit(suite_source.as_ref(), output),
         Some(constants::VERIFY_TOOL) => {
             let executable = PathBuf::from(
                 args.next()

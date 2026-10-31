@@ -33,7 +33,8 @@ fn reports() -> (RunReport, RunReport) {
 }
 /// Assert that equivalent diagnostic multisets agree.
 #[then("equivalent diagnostic multisets agree")]
-fn equivalent(_world: &mut crate::Behavior) {
+fn equivalent(world: &mut crate::Behavior) {
+    let _: &mut crate::Behavior = world;
     let (reference, candidate) = reports();
     assert_eq!(
         CompareUseCaseImpl::new().compare(&reference, &candidate),
@@ -43,7 +44,8 @@ fn equivalent(_world: &mut crate::Behavior) {
 }
 /// Assert that an extra diagnostic occurrence prevents agreement.
 #[then("an extra diagnostic occurrence prevents agreement")]
-fn duplicate(_world: &mut crate::Behavior) {
+fn duplicate(world: &mut crate::Behavior) {
+    let _: &mut crate::Behavior = world;
     let (reference, mut candidate) = reports();
     candidate.diagnostics.push(
         candidate

@@ -6,13 +6,18 @@ use crate::domain::{
 };
 use crate::outbound::suite::interface::SuitePort;
 use crate::outbound::suite::types::{ArtifactPath, ArtifactSet};
+#[expect(
+    clippy::partial_pub_fields,
+    clippy::field_scoped_visibility_modifiers,
+    reason = "crate-owned orchestration fixtures configure optional artifact availability; external callers supply prepared cases without forging internal source state"
+)]
 #[derive(Clone, Debug, Default)]
 /// Deterministic suite substitute for orchestration and contract tests.
 pub struct SuiteFake {
     /// The profile available from this deterministic artifact source.
-    pub profile: Option<Tool>,
+    pub(crate) profile: Option<Tool>,
     /// The projects available from this deterministic artifact source.
-    pub projects: Option<Suite>,
+    pub(crate) projects: Option<Suite>,
     /// Independent cases already materialized by the fixture.
     pub prepared: Vec<crate::domain::suite::types::PreparedCase>,
 }

@@ -17,7 +17,8 @@ use ryo_benchmark::{
 use std::sync::Arc;
 /// Assert that the collector preserves a missing executable error.
 #[then("the collector preserves a missing executable error")]
-fn succeeds(_world: &mut crate::Behavior) {
+fn succeeds(world: &mut crate::Behavior) {
+    let _: &mut crate::Behavior = world;
     let codec = Arc::new(CollectionFake::default());
     let request = codec
         .request(&Invocation {
@@ -41,7 +42,8 @@ fn succeeds(_world: &mut crate::Behavior) {
 }
 /// Assert that the collector refuses malformed input before execution.
 #[then("the collector refuses malformed input before execution")]
-fn refuses(_world: &mut crate::Behavior) {
+fn refuses(world: &mut crate::Behavior) {
+    let _: &mut crate::Behavior = world;
     let execution = Arc::new(ExecutionFake::default());
     let operation = CollectUseCaseImpl::new(
         Arc::new(CollectionFake::default()),

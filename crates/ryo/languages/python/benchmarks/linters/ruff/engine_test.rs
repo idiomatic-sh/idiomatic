@@ -85,10 +85,13 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
         );
     }
     if matches!(scenario, EngineScenario::Partial) {
-        assert!(matches!(&result, Err(Error::Invalid(message))
+        assert!(
+            matches!(&result, Err(Error::Invalid(message))
                 if message.starts_with("incomplete candidate:")
                     && !message.contains("unknowns=[]")
-                    && message.contains("unread=[]")));
+                    && message.contains("unread=[]")),
+            "partial relation availability must refuse despite complete file coverage"
+        );
     }
     let report = result?;
     Ok(

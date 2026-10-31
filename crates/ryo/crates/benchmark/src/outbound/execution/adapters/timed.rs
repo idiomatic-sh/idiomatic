@@ -1,20 +1,15 @@
 //! Fresh-process resource isolation.
-#[expect(
-    clippy::cfg_not_test,
-    reason = "the collector integration target tests this boundary with the real Cargo-built helper executable"
+#![cfg_attr(
+    not(test),
+    expect(
+        clippy::cfg_not_test,
+        reason = "these three production modules are exercised by the explicit collector integration target with the real Cargo-built helper"
+    )
 )]
 #[cfg(not(test))]
 pub(crate) mod adapter;
-#[expect(
-    clippy::cfg_not_test,
-    reason = "the collector integration target tests this boundary with the real Cargo-built helper executable"
-)]
 #[cfg(not(test))]
 mod constants;
 mod schemas;
-#[expect(
-    clippy::cfg_not_test,
-    reason = "the collector integration target tests this boundary with the real Cargo-built helper executable"
-)]
 #[cfg(not(test))]
 pub(crate) mod settings;

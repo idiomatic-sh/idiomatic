@@ -3,7 +3,13 @@ use super::super::adapter::SuiteLocalAdapter;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::suite::types::ArtifactPath;
 #[cfg(unix)]
-type PinCase = Case<(&'static [&'static str], &'static str, bool), (), &'static str>;
+type PinCase = Case<(&'static [&'static str], &'static str, bool), (), Failure>;
+#[derive(Debug, PartialEq, Eq)]
+enum Failure {
+    Hash,
+    Version,
+    Unexpected(String),
+}
 #[cfg(unix)]
 const CASES: &[PinCase] = &[
     Case {
@@ -37,13 +43,13 @@ const CASES: &[PinCase] = &[
         name: CaseName("an empty pin set refuses before executing"),
         word: Word::Refuses,
         input: || (&[], "1.0", false),
-        expect: Expect::Error("hash"),
+        expect: Expect::Error(Failure::Hash),
     },
     Case {
         name: CaseName("wrong digest refuses before attempting a non executable file"),
         word: Word::Refuses,
         input: || (&["wrong", "another-wrong-pin"], "1.0", false),
-        expect: Expect::Error("hash"),
+        expect: Expect::Error(Failure::Hash),
     },
     Case {
         name: CaseName("matching bytes do not bypass the expected version"),
@@ -55,7 +61,7 @@ const CASES: &[PinCase] = &[
                 true,
             )
         },
-        expect: Expect::Error("version"),
+        expect: Expect::Error(Failure::Version),
     },
 ];
 
@@ -64,7 +70,7 @@ const CASES: &[PinCase] = &[
     clippy::expect_used,
     reason = "fixed executable pin fixtures must be created before testing verification"
 )]
-fn verify_pin((sha256, version, executable): (&[&str], &str, bool)) -> Result<(), &'static str> {
+fn verify_pin((sha256, version, executable): (&[&str], &str, bool)) -> Result<(), Failure> {
     use crate::domain::{diagnostics::errors::DiagnosticsError as Error, suite::types::Tool};
     use crate::outbound::suite::interface::SuitePort as _;
     let directory = tempfile::tempdir().expect("tool directory");
@@ -82,10 +88,14 @@ fn verify_pin((sha256, version, executable): (&[&str], &str, bool)) -> Result<()
     SuiteLocalAdapter
         .verify_tool(ArtifactPath(&path), &tool)
         .map_err(|error| match error {
-            Error::Invalid(message) if message == "tool executable hash differs from pin" => "hash",
-            Error::Invalid(message) if message == "tool version differs from pin" => "version",
+            Error::Invalid(message) if message == "tool executable hash differs from pin" => {
+                Failure::Hash
+            }
+            Error::Invalid(message) if message == "tool version differs from pin" => {
+                Failure::Version
+            }
             Error::Invalid(_) | Error::Io(_) | Error::Json(_) | Error::Toml(_) => {
-                "unexpected error"
+                Failure::Unexpected(error.to_string())
             }
         })
 }

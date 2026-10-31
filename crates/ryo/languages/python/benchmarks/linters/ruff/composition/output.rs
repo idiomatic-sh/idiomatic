@@ -2,9 +2,10 @@
 use super::constants;
 use ryo_benchmark::domain::diagnostics::errors::DiagnosticsError as Error;
 use ryo_benchmark::domain::measurements::types::{RunOrder, sample::value::BenchmarkSample};
+/// Format per-rule multiplicities explicitly, without debug representations of nominal types.
 pub(super) fn diagnostic_counts(
     report: &ryo_benchmark::domain::diagnostics::types::RunReport,
-) -> std::collections::BTreeMap<&ryo::linter::RuleId, FindingCount> {
+) -> FindingCounts<'_> {
     let mut counts = std::collections::BTreeMap::new();
     for diagnostic in &report.diagnostics {
         counts
@@ -12,19 +13,24 @@ pub(super) fn diagnostic_counts(
             .or_insert_with(FindingCount::default)
             .0 += constants::ONE_FINDING;
     }
-    counts
+    FindingCounts(counts)
 }
 
+/// Write scalar child measurements and the explicit execution order.
 pub(super) fn observe_sample(
     output: &mut dyn std::io::Write,
     sample: &BenchmarkSample,
     order: RunOrder,
 ) -> Result<(), Error> {
     use ryo_benchmark::domain::measurements::types::ResourceObservation;
+    let order = match order {
+        RunOrder::ReferenceFirst => constants::REFERENCE_FIRST,
+        RunOrder::CandidateFirst => constants::CANDIDATE_FIRST,
+    };
     match sample.measurement().resources {
         ResourceObservation::Collected(resources) => writeln!(
             output,
-            "sample: name={} order={order:?} wall_seconds={} cpu_seconds={} rss_bytes={}",
+            "sample: name={} order={order} wall_seconds={} cpu_seconds={} rss_bytes={}",
             sample.name().0,
             sample.measurement().wall.as_secs_f64(),
             resources.cpu.as_secs_f64(),
@@ -32,7 +38,7 @@ pub(super) fn observe_sample(
         )?,
         ResourceObservation::WallOnly => writeln!(
             output,
-            "sample: name={} order={order:?} wall_seconds={} resources=absent",
+            "sample: name={} order={order} wall_seconds={} resources=absent",
             sample.name().0,
             sample.measurement().wall.as_secs_f64()
         )?,
@@ -40,9 +46,11 @@ pub(super) fn observe_sample(
     Ok(())
 }
 
+/// Number of finding occurrences for one rule, including duplicates.
 #[derive(Clone, Copy, Debug, Default)]
 pub(super) struct FindingCount(pub usize);
 
+/// Record collection semantics and limitations beside, rather than inside, timing output.
 pub(super) fn environment(output: &mut dyn std::io::Write) -> Result<(), Error> {
     writeln!(
         output,
@@ -51,4 +59,21 @@ pub(super) fn environment(output: &mut dyn std::io::Write) -> Result<(), Error> 
         std::env::consts::ARCH
     )?;
     Ok(())
+}
+
+/// Structured finding multiplicities with an explicit observation representation.
+#[derive(Debug)]
+pub(super) struct FindingCounts<'a>(
+    std::collections::BTreeMap<&'a ryo::linter::RuleId, FindingCount>,
+);
+impl std::fmt::Display for FindingCounts<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for (index, (rule, count)) in self.0.iter().enumerate() {
+            if index != 0_usize {
+                f.write_str(constants::FINDING_SEPARATOR)?;
+            }
+            write!(f, "{rule}={}", count.0)?;
+        }
+        Ok(())
+    }
 }

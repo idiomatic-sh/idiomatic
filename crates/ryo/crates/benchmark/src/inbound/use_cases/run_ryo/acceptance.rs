@@ -14,7 +14,8 @@ use ryo_benchmark::outbound::{
 use std::sync::Arc;
 /// Assert that the worker preserves the checked file list.
 #[then("the worker preserves the checked file list")]
-fn succeeds(_world: &mut crate::Behavior) {
+fn succeeds(world: &mut crate::Behavior) {
+    let _: &mut crate::Behavior = world;
     let transport = Arc::new(WorkerFake::new(request()));
     RunRyoUseCaseImpl::new(
         Arc::new(EngineFake::default()),
@@ -30,7 +31,8 @@ fn succeeds(_world: &mut crate::Behavior) {
 }
 /// Assert that the worker preserves an engine refusal.
 #[then("the worker preserves an engine refusal")]
-fn refuses(_world: &mut crate::Behavior) {
+fn refuses(world: &mut crate::Behavior) {
+    let _: &mut crate::Behavior = world;
     let transport = Arc::new(WorkerFake::new(request()));
     let error = RunRyoUseCaseImpl::new(
         Arc::new(EngineFake { refuses: true }),

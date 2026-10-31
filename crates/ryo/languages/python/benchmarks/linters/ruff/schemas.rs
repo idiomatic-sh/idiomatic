@@ -49,13 +49,13 @@ pub(super) fn check_status(output: &ProcessOutput) -> Result<(), Error> {
 
 /// Decode against the exact source set already read by the adapter, including clean files.
 pub(super) fn decode(
-    /// Exact requested corpus and retained-state identity.
+    // Exact requested corpus and retained-state identity.
     request: &RunRequest,
-    /// Captured reference exit status and wire bytes.
+    // Captured reference exit status and wire bytes.
     output: &ProcessOutput,
-    /// Explicit rule selection accepted from the reference.
+    // Explicit rule selection accepted from the reference.
     defaults: &BTreeSet<RuleId>,
-    /// Complete source texts against which all reported coordinates are checked.
+    // Complete source texts against which all reported coordinates are checked.
     sources: &BTreeMap<RelativePath, SourceText>,
 ) -> Result<RunReport, Error> {
     RuffReportSchema {

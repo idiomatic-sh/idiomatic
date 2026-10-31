@@ -5,11 +5,12 @@ use ryo_benchmark::domain::diagnostics::errors::DiagnosticsError as Error;
 use ryo_benchmark::domain::suite::types::CaseCount;
 use ryo_benchmark::domain::suite::types::Tool;
 use ryo_benchmark::inbound::use_cases::run_ryo::{
-    interface::RunRyoUseCase, use_case::RunRyoUseCaseImpl,
+    interface::RunRyoUseCase as _, use_case::RunRyoUseCaseImpl,
 };
 use ryo_benchmark::outbound::suite::{interface::SuitePort, types::ArtifactPath};
 use std::{path::PathBuf, sync::Arc};
 
+/// Execute one explicit child request, optionally writing a separately labelled trace.
 pub(super) fn worker(
     mut args: impl Iterator<Item = BenchmarkArgument>,
     tracing: WorkerTracing,
@@ -42,6 +43,7 @@ pub(super) fn worker(
     RunRyoUseCaseImpl::new(engine, Arc::new(transport)).run_ryo()
 }
 
+/// Verify pinned tools, complete rule accounting and independently authored findings.
 pub(super) fn verify_cases(
     mut args: impl Iterator<Item = BenchmarkArgument>,
 ) -> Result<CaseCount, Error> {
@@ -78,6 +80,7 @@ pub(super) fn verify_cases(
     Ok(count)
 }
 
+/// Compose the selected reference rule subset with its verified executable.
 pub(super) fn reference(executable: PathBuf, tool: Tool) -> LinterRuffAdapter {
     LinterRuffAdapter::new(LinterRuffSettings {
         executable,
@@ -87,15 +90,20 @@ pub(super) fn reference(executable: PathBuf, tool: Tool) -> LinterRuffAdapter {
 
 /// Text supplied as one executable command argument.
 pub(super) struct BenchmarkArgument(pub String);
+/// Whether this worker invocation records a separate profiling trace.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) enum WorkerTracing {
+    /// Ordinary correctness or timing invocation.
     Disabled,
+    /// Explicit profiling invocation excluded from timing observations.
     Enabled,
 }
+/// Locate this language-owned linter profile from the Cargo manifest.
 pub(super) fn directory() -> PathBuf {
     std::path::Path::new(constants::MANIFEST_DIRECTORY).join(constants::RUFF_DIRECTORY)
 }
 
+/// Copy exact collector bytes into the frozen workload and record their digest.
 pub(super) fn collector(
     suite: &dyn SuitePort,
     source: &std::path::Path,
@@ -108,11 +116,15 @@ pub(super) fn collector(
     Ok(CollectorIdentity { executable, digest })
 }
 
+/// Copied collector identity; certification subsequently seals these artifacts.
 pub(super) struct CollectorIdentity {
-    pub(super) executable: PathBuf,
-    pub(super) digest: ryo_benchmark::domain::suite::types::ArtifactDigest,
+    /// Frozen native collector path.
+    pub executable: PathBuf,
+    /// Digest computed from the copied bytes.
+    pub digest: ryo_benchmark::domain::suite::types::ArtifactDigest,
 }
 
+/// Compose the isolated collector and expose its exact identity in observations.
 pub(super) fn timed(
     identity: CollectorIdentity,
     observations: &mut dyn std::io::Write,
@@ -126,4 +138,22 @@ pub(super) fn timed(
     Ok(Arc::new(
         ryo_benchmark::outbound::execution::factory::timed(identity.executable, identity.digest),
     ))
+}
+
+/// Report authored coverage while refusing unaccounted shipped defaults.
+pub(super) fn audit(
+    suite_source: &dyn SuitePort,
+    output: &mut dyn std::io::Write,
+) -> Result<(), Error> {
+    let tool = suite_source.profile(ArtifactPath(&directory()))?;
+    let result = suite_source.audit(ArtifactPath(&directory()), &tool)?;
+    writeln!(
+        output,
+        "{} {}: {} queries authored / {} shipped defaults (not a parity certificate)",
+        tool.tool,
+        tool.version,
+        result.authored_count(),
+        tool.defaults.len()
+    )?;
+    ryo_benchmark::domain::suite::service::require_accounted(&result, &tool)
 }

@@ -5,7 +5,8 @@ use ryo_benchmark::inbound::use_cases::certify::fixtures::{Change, exercise};
 use ryo_benchmark::inbound::use_cases::certify::use_case::CertifyUseCaseImpl;
 /// Assert that matching reports release a measured pair.
 #[then("matching reports release a measured pair")]
-fn matching(_world: &mut crate::Behavior) {
+fn matching(world: &mut crate::Behavior) {
+    let _: &mut crate::Behavior = world;
     assert_eq!(
         exercise(Change::None, CertifyUseCaseImpl::new),
         Ok(CaseCount(2)),
@@ -14,7 +15,8 @@ fn matching(_world: &mut crate::Behavior) {
 }
 /// Assert that changed certified workload releases no measured pair.
 #[then("changed certified workload releases no measured pair")]
-fn changed(_world: &mut crate::Behavior) {
+fn changed(world: &mut crate::Behavior) {
+    let _: &mut crate::Behavior = world;
     assert_eq!(
         exercise(Change::Manifest, CertifyUseCaseImpl::new),
         Err(()),

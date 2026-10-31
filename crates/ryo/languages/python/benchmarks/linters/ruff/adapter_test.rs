@@ -184,24 +184,7 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
     } else {
         filename
     };
-    let code = if matches!(scenario, AdapterScenario::UnexpectedRule) {
-        "F401"
-    } else {
-        "E722"
-    };
-    let end = if matches!(scenario, AdapterScenario::ReversedSpan) {
-        1_usize
-    } else {
-        7_usize
-    };
-    let start = if matches!(scenario, AdapterScenario::ReversedSpan) {
-        7_usize
-    } else {
-        1_usize
-    };
-    let finding = serde_json::to_vec(
-        &serde_json::json!([{"code":code,"filename":filename,"cell":null,"location":{"row":3_usize,"column":start},"end_location":{"row":3_usize,"column":end}}]),
-    ).map_err(|error| Error::Json(Box::new(error)))?;
+    let finding = finding_bytes(scenario, &filename)?;
     let (status, stdout) = match scenario {
         AdapterScenario::Operational => (2_i32, b"[]".to_vec()),
         AdapterScenario::MissingCleanFile | AdapterScenario::CleanWarning => {
@@ -290,4 +273,26 @@ fn invocation_matches(
             == Some(&"1".into())
         && invocation.directory == request.root
         && invocation.executable == executable)
+}
+
+/// Build independent reference-wire coordinates for valid and deliberately invalid cases.
+fn finding_bytes(scenario: Input, filename: &std::path::Path) -> Result<Vec<u8>, Error> {
+    let code = if matches!(scenario, AdapterScenario::UnexpectedRule) {
+        "F401"
+    } else {
+        "E722"
+    };
+    let end = if matches!(scenario, AdapterScenario::ReversedSpan) {
+        1_usize
+    } else {
+        7_usize
+    };
+    let start = if matches!(scenario, AdapterScenario::ReversedSpan) {
+        7_usize
+    } else {
+        1_usize
+    };
+    serde_json::to_vec(
+        &serde_json::json!([{"code":code,"filename":filename,"cell":null,"location":{"row":3_usize,"column":start},"end_location":{"row":3_usize,"column":end}}]),
+    ).map_err(|error| Error::Json(Box::new(error)))
 }

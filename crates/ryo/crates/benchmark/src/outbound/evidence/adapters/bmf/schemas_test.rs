@@ -15,8 +15,9 @@ enum Scenario {
 }
 type Input = Scenario;
 type Value = serde_json::Value;
+type Failure = Refusal;
 #[derive(Debug, PartialEq, Eq)]
-enum Failure {
+enum Refusal {
     Absent,
     Inexact,
     Unexpected,

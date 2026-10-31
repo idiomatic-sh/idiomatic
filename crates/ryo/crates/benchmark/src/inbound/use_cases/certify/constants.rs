@@ -129,3 +129,14 @@ pub(super) const FIXTURE_NEGATIVE_NAME: &str = "negative";
 #[cfg(any(test, feature = "fixtures"))]
 /// Independent certification fixture negative source.
 pub(super) const FIXTURE_NEGATIVE_SOURCE: &str = "y";
+
+/// A setup failure invalidates the certification fixture rather than the product result.
+#[cfg(any(test, feature = "fixtures"))]
+pub(super) const FIXTURE_PRECONDITION: &str = "certification fixture precondition";
+/// Certificate identity must bind actual artifact content.
+#[cfg(any(test, feature = "fixtures"))]
+pub(super) const FIXTURE_DIGEST_REQUIRED: &str =
+    "certification must bind an actual artifact digest";
+/// Each controlled mutation has an independently specified diagnostic.
+#[cfg(any(test, feature = "fixtures"))]
+pub(super) const FIXTURE_REFUSAL_REQUIRED: &str = "mutation must produce its specific refusal";
