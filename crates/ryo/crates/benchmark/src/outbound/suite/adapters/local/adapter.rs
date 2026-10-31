@@ -158,7 +158,7 @@ impl SuitePort for SuiteLocalAdapter {
         )?;
         std::fs::create_dir(destination.join(constants::RULES))?;
         for rule in &audit.implemented {
-            relative_path(&rule.to_string())?;
+            relative_path(rule.to_string())?;
             let target = destination.join(constants::RULES).join(rule.to_string());
             std::fs::create_dir(&target)?;
             let bytes = std::fs::read(

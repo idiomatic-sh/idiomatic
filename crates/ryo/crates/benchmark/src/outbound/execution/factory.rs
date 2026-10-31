@@ -11,6 +11,10 @@ pub fn process() -> impl super::interface::ExecutionPort {
 /// that small pre-exec resident footprint as a floor; it excludes the parent harness.
 /// Wall and CPU measure the actual child, excluding helper startup and protocol IO.
 #[must_use]
+#[expect(
+    clippy::cfg_not_test,
+    reason = "the collector integration target tests this boundary with the real Cargo-built helper executable"
+)]
 #[cfg(not(test))]
 pub fn timed(
     executable: std::path::PathBuf,

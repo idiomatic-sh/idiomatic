@@ -10,9 +10,9 @@ use crate::outbound::suite::types::{ArtifactPath, ArtifactSet};
 /// Deterministic suite substitute for orchestration and contract tests.
 pub struct SuiteFake {
     /// The profile available from this deterministic artifact source.
-    pub(crate) profile: Option<Tool>,
+    pub profile: Option<Tool>,
     /// The projects available from this deterministic artifact source.
-    pub(crate) projects: Option<Suite>,
+    pub projects: Option<Suite>,
     /// Independent cases already materialized by the fixture.
     pub prepared: Vec<crate::domain::suite::types::PreparedCase>,
 }
