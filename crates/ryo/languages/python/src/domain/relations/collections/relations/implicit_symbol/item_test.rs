@@ -44,7 +44,7 @@ fn subject(source: Input) -> Result<Value, Failure> {
     let mut names = BTreeSet::new();
     let mut observed = vec![answer.rows.len().to_string()];
     let mut module_scope = None;
-    for row in &answer.rows {
+    for row in answer.rows {
         let [
             Want::Name(name),
             Want::Name(kind),
@@ -56,19 +56,19 @@ fn subject(source: Input) -> Result<Value, Failure> {
         else {
             return Err(());
         };
-        if *file != SHOWN {
+        if file != SHOWN {
             return Err(());
         }
         if let Some(expected_scope) = module_scope {
             assert_eq!(
-                *scope, expected_scope,
+                scope, expected_scope,
                 "catalog scope is the physical module root"
             );
         } else {
-            module_scope = Some(*scope);
+            module_scope = Some(scope);
         }
         assert!(
-            names.insert((*name, *kind)),
+            names.insert((name, kind)),
             "one row per name and origin in the physical module"
         );
         for (wanted_kind, wanted_name) in [
@@ -94,7 +94,7 @@ fn subject(source: Input) -> Result<Value, Failure> {
             ("module-global", "__warningregistry__"),
             ("platform-builtin", "WindowsError"),
         ] {
-            if *kind == wanted_kind && *name == wanted_name {
+            if kind == wanted_kind && name == wanted_name {
                 observed.push(format!("{kind}:{name}:{major}.{minor}"));
             }
         }

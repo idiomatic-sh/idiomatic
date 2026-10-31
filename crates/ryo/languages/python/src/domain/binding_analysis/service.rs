@@ -73,7 +73,7 @@ pub(crate) fn build(
                     return;
                 }
                 if let Some(completed) = frame.take() {
-                    index.phases.insert(step.phase, completed);
+                    let _ = index.phases.insert(step.phase, completed);
                 }
             }
             BindingAction::BeginAlternatives => {

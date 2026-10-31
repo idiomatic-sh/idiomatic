@@ -31,7 +31,7 @@ ryo::reads! {
   }
   given name = languages::intern_derived(symbols, tree.source, languages::NameText("WindowsError"));
   given kind = languages::intern_derived(symbols, tree.source, languages::NameText("platform-builtin"));
-  row {name:value(name),kind:value(kind),scope:node(at),since_major:value(3),since_minor:value(0),file:file,}
+  row {name:value(name),kind:value(kind),scope:node(at),since_major:value(languages::Integer(3)),since_minor:value(languages::Integer(0)),file:file,}
  }
 }
 
