@@ -2,7 +2,7 @@
 //! class scope boundaries, and comprehension scope. These expectations do not consult a linter.
 //! Source: <https://docs.python.org/3/reference/executionmodel.html#resolution-of-names>.
 
-use super::service::resolve;
+use super::service::{index, resolve};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::model::types::Declarations;
 use crate::domain::nodes::types::Node;
@@ -176,6 +176,23 @@ fn subject((source, wanted): Input) -> Value {
     };
     let mut model = Declarations::default();
     declare(&tree, &mut model);
+    index(&tree, &mut model);
+    let expected = model.bindings.clone();
+    // Rebuilding a retained file model must replace its index, never append to it.
+    index(&tree, &mut model);
+    assert_eq!(model.bindings, expected);
+    let empty = parsed(b"").expect("empty Python parses");
+    let empty_tree = Tree {
+        elements: &empty.elements,
+        source: ByteSlice(empty.bytes),
+        file: languages::FileId(0),
+    };
+    declare(&empty_tree, &mut model);
+    index(&empty_tree, &mut model);
+    assert!(model.bindings.is_empty());
+    declare(&tree, &mut model);
+    index(&tree, &mut model);
+    assert_eq!(model.bindings, expected);
     let occurrence = languages::positions(&file.elements)
         .filter(|at| {
             kind(&tree, *at) == Kind::Node(Node::Name)

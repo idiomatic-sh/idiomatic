@@ -250,10 +250,9 @@ pub(crate) fn context(tree: &Tree<'_>, at: Position) -> Context {
     clippy::wildcard_enum_match_arm,
     reason = "only `global` and `nonlocal` declare where a name is bound; every other kind declares nothing"
 )]
-/// Refills `model` with scope redirects, then indexes the file's lexical declarations.
+/// Refills the scope redirects of the file; declaration indexing is a separate phase.
 pub(crate) fn declare(tree: &Tree<'_>, model: &mut Declarations) {
     model.declared.clear();
-    model.bindings.clear();
     for at in languages::positions(tree.elements) {
         let redirect = match kind(tree, at) {
             Kind::Node(Node::Global) => BindingRedirect::Global,
@@ -271,5 +270,4 @@ pub(crate) fn declare(tree: &Tree<'_>, model: &mut Declarations) {
             }
         }
     }
-    crate::domain::bindings::service::index(tree, model);
 }

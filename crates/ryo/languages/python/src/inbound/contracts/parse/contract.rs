@@ -57,6 +57,7 @@ impl Parse for ParseContract {
 
     fn file_model(&self, tree: &languages::Tree<'_>, model: &mut Declarations) {
         declare(tree, model);
+        crate::domain::bindings::service::index(tree, model);
     }
 
     fn unknown_reasons(&self) -> &'static [UnknownName] {

@@ -3,8 +3,9 @@
 
 use ryo::languages::{self, Position, Symbol, Tree};
 
+use super::types::{BindingAvailability, ScopeExecution};
 use crate::domain::definitions::service::definition;
-use crate::domain::model::types::Declarations;
+use crate::domain::model::types::{BindingKey, Declarations, LexicalBinding};
 use crate::domain::nodes::types::Node;
 use crate::domain::scopes::service::{enclosing, redirected};
 use crate::domain::syntax::service::{kind, last, parent};
@@ -12,27 +13,35 @@ use crate::domain::syntax::types::Kind;
 
 /// Index each declaration once, after scope redirects have been collected.
 pub(crate) fn index(tree: &Tree<'_>, model: &mut Declarations) {
+    model.bindings.clear();
     for at in languages::positions(tree.elements) {
         if let Some(found) = definition(tree, model, at) {
-            model
-                .bindings
-                .entry((found.owner, found.name))
-                .or_default()
-                .push(at);
+            model.bindings.push(LexicalBinding {
+                key: BindingKey {
+                    scope: found.owner,
+                    name: found.name,
+                },
+                position: at,
+            });
         }
     }
+    model.bindings.sort_unstable();
 }
 
 /// Whether execution of this scope is deferred relative to its surrounding statements.
-fn deferred(tree: &Tree<'_>, scope: Position) -> bool {
-    matches!(
+fn execution(tree: &Tree<'_>, scope: Position) -> ScopeExecution {
+    if matches!(
         kind(tree, scope),
         Kind::Node(Node::FunctionDef | Node::Lambda | Node::GeneratorExp)
-    )
+    ) {
+        ScopeExecution::Deferred
+    } else {
+        ScopeExecution::Immediate
+    }
 }
 
 /// An assignment's right side is evaluated before its targets are bound.
-fn initialized(tree: &Tree<'_>, binding: Position, occurrence: Position) -> bool {
+fn availability(tree: &Tree<'_>, binding: Position, occurrence: Position) -> BindingAvailability {
     let mut above = binding;
     while above != parent(tree, above) {
         if matches!(
@@ -44,7 +53,11 @@ fn initialized(tree: &Tree<'_>, binding: Position, occurrence: Position) -> bool
                 Kind::Node(Node::FunctionDef | Node::ClassDef)
             ))
         {
-            return occurrence > last(tree, above) || occurrence < above;
+            return if occurrence > last(tree, above) || occurrence < above {
+                BindingAvailability::Available
+            } else {
+                BindingAvailability::Unavailable
+            };
         }
         if matches!(
             kind(tree, above),
@@ -54,7 +67,7 @@ fn initialized(tree: &Tree<'_>, binding: Position, occurrence: Position) -> bool
         }
         above = parent(tree, above);
     }
-    true
+    BindingAvailability::Available
 }
 
 /// The lexical declaration of a name expression. Function locals shadow outer names even before
@@ -73,11 +86,16 @@ pub(crate) fn resolve(
     let mut delayed = false;
     loop {
         let lookup = redirected(tree, model, scope, name);
-        delayed |= lookup != scope && deferred(tree, scope);
+        delayed |= lookup != scope && (execution(tree, scope) == ScopeExecution::Deferred);
         let class = kind(tree, lookup) == Kind::Node(Node::ClassDef);
-        if (!class || scope == initial)
-            && let Some(bindings) = model.bindings.get(&(lookup, name))
-        {
+        let key = BindingKey {
+            scope: lookup,
+            name,
+        };
+        let start = model.bindings.partition_point(|binding| binding.key < key);
+        let end = model.bindings.partition_point(|binding| binding.key <= key);
+        if (!class || scope == initial) && start < end {
+            let bindings = &model.bindings[start..end];
             let lexical = matches!(
                 kind(tree, lookup),
                 Kind::Node(
@@ -90,16 +108,19 @@ pub(crate) fn resolve(
                 )
             );
             if let Some(found) = bindings.iter().rev().find(|binding| {
-                (delayed || **binding < at)
-                    && (delayed || lexical || initialized(tree, **binding, at))
+                (delayed || binding.position < at)
+                    && (delayed
+                        || lexical
+                        || availability(tree, binding.position, at)
+                            == BindingAvailability::Available)
             }) {
-                return Some(*found);
+                return Some(found.position);
             }
             if lexical {
-                return bindings.first().copied();
+                return bindings.first().map(|binding| binding.position);
             }
         }
-        delayed |= deferred(tree, scope);
+        delayed |= execution(tree, scope) == ScopeExecution::Deferred;
         if lookup == Position(0) {
             return None;
         }
