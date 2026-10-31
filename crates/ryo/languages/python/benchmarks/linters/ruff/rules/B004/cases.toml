@@ -77,3 +77,8 @@ expected = []
 name = "argument-rank-skips-punctuation-and-trivia"
 files = { "case.py" = "hasattr( # comment before first argument\n    obj, # comment before second argument\n    \"__call__\",\n)\n" }
 expected = [{ file = "case.py", start = 0, end = 100 }]
+
+[[cases]]
+name = "quoted-annotation-decoded-literal"
+files = { "case.py" = "x: 'hasattr(obj, \"__call__\")'\n" }
+expected = [{ file = "case.py", start = 4, end = 28 }]

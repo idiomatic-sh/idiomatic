@@ -97,3 +97,8 @@ expected = []
 name = "annotated-metadata-is-data"
 files = { "case.py" = "import logging\nfrom typing import Annotated\nx: Annotated[int, \"logging.Logger()\"]\n" }
 expected = []
+
+[[cases]]
+name = "relocated-annotation-preserves-multiplicity"
+files = { "case.py" = "import logging\nx: \"tuple[logging.Logger(), logging.\\x4cogger()]\"\n" }
+expected = [{ file = "case.py", start = 18, end = 64 }, { file = "case.py", start = 18, end = 64 }]

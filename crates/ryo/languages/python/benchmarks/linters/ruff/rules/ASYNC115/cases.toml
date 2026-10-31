@@ -87,3 +87,8 @@ expected = []
 name = "positional-trivia-and-trailing-comma"
 files = { "case.py" = "import trio\ntrio.sleep(\n # before first\n 0,\n)\n" }
 expected = [{ file = "case.py", start = 12, end = 45 }]
+
+[[cases]]
+name = "escaped-annotation-decoded-number"
+files = { "case.py" = "import trio\nx: \"trio.sleep(\\x30)\"\n" }
+expected = [{ file = "case.py", start = 15, end = 33 }]

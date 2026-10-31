@@ -192,3 +192,8 @@ expected = []
 name = "annotated-metadata-is-data"
 files = { "case.py" = "from typing import Annotated\nx: Annotated[int, \"++value\"]\n" }
 expected = []
+
+[[cases]]
+name = "relocated-annotation-preserves-multiplicity"
+files = { "case.py" = "x: \"tuple[++value, \\x2b+other]\"\n" }
+expected = [{ file = "case.py", start = 3, end = 31 }, { file = "case.py", start = 3, end = 31 }]
