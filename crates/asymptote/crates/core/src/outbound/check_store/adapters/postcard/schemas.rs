@@ -400,7 +400,7 @@ fn scans(store: &StoreSchema, text: &dyn Fn(u32) -> Option<Box<str>>) -> Option<
             rules.remove(&row.tool_id)
         };
         scanned.push(Scanned {
-            failure_output: crate::domain::reports::types::FailureOutput::Unavailable,
+            failure_output: FailureOutput::Unavailable,
             run: Run {
                 tool: ToolId(text(row.tool_id)?),
                 status,

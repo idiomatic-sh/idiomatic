@@ -7,7 +7,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use super::errors::CheckError;
 use super::interface::CheckUseCase;
 use super::types::{
-    Against, CheckPorts, CheckReport, CheckRequest, FailedFix, Fixing, ReadFile, Reuse, ToolRun,
+    Against, CheckPorts, CheckReport, CheckRequest, FailedFix, Fixing, ReadFile, Reuse,
 };
 use crate::domain::inputs::service::named;
 use crate::domain::judgement::service::{compare, tail, verdict, with_perf};
@@ -403,10 +403,7 @@ impl CheckUseCase for CheckUseCaseImpl {
             .flat_map(|scanned| scanned.violations.iter().cloned())
             .collect();
         let runs: Vec<Run> = scanned.iter().map(|scanned| scanned.run.clone()).collect();
-        let failure_outputs: Vec<FailureOutput> = scanned
-            .iter()
-            .map(|scan| scan.failure_output.clone())
-            .collect();
+        let answered = super::service::answered(&scanned, reuses);
         let mut accepted = self.accepted(&head, &request.against)?;
         accepted.retain(|record| !excluded.contains(&record.key.tool));
         // The files the judgement rests on beyond the inputs, and the manifest, are recorded beside them, so `up` and
@@ -436,16 +433,7 @@ impl CheckUseCase for CheckUseCaseImpl {
         let _: Option<()> = self.ports.store.keep(&stored).ok(); // ignore: idiomatic.arch/no-ok-on-result - a check whose store cannot be saved still answers; the next one runs every tool
         Ok(CheckReport {
             root,
-            runs: runs
-                .into_iter()
-                .zip(reuses)
-                .zip(failure_outputs)
-                .map(|((run, reuse), failure_output)| ToolRun {
-                    run,
-                    reuse,
-                    failure_output,
-                })
-                .collect(),
+            runs: answered,
             outcome,
             verdict,
             against: request.against,

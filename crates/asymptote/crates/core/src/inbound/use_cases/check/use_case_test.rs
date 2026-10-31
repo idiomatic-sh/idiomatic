@@ -516,6 +516,69 @@ fn failed_beside_reused(scenario: Scenario) -> Result<String, Failure> {
     ))
 }
 
+/// Full failure streams survive the pipeline while the terminal tail and cache rules remain unchanged.
+fn captured_failure(scenario: &Scenario, scene: Scene) -> Result<String, Failure> {
+    let first = use_case(scenario).check(request())?;
+    let second = use_case(scenario).check(request())?;
+    assert_eq!(
+        scenario.tools.ran().len(),
+        2,
+        "failed output never becomes reusable"
+    );
+    assert!(
+        first
+            .runs
+            .iter()
+            .chain(&second.runs)
+            .all(|run| matches!(run.run.status, Status::Failed(_)) && run.reuse == Reuse::Ran),
+        "both verdict inputs remain failed"
+    );
+    let expected_stderr = if matches!(scene, Scene::LongStderrFailure) {
+        "first important error\n".repeat(400)
+    } else {
+        String::new()
+    };
+    let Some(run) = first.runs.first() else {
+        panic!("one failed tool");
+    };
+    let crate::domain::reports::types::FailureOutput::Captured {
+        stdout,
+        stderr,
+        inputs,
+    } = &run.failure_output
+    else {
+        panic!("current failed completion is captured");
+    };
+    assert_eq!(
+        stdout.0.as_ref(),
+        "diagnostic only on stdout",
+        "stdout is not discarded"
+    );
+    assert_eq!(
+        stderr.0.as_ref(),
+        expected_stderr,
+        "stderr is not truncated"
+    );
+    if matches!(scene, Scene::LongStderrFailure) {
+        let Status::Failed(crate::domain::judgement::types::Failure::Exited {
+            stderr: displayed,
+            ..
+        }) = &run.run.status
+        else {
+            panic!("exit failure");
+        };
+        assert!(
+            displayed.0.len() < stderr.0.len(),
+            "the terminal tail stays bounded independently of the full capture"
+        );
+    }
+    assert!(
+        matches!(inputs, crate::domain::reports::types::Stamped::Digested(_)),
+        "capture binds the command and input stamp"
+    );
+    Ok("retained full streams; failed twice".into())
+}
+
 fn told(scene: Input) -> Result<String, Failure> {
     let scenario = initial(scene);
     match scene {
@@ -532,68 +595,7 @@ fn told(scene: Input) -> Result<String, Failure> {
             })?;
             said(&scenario, request())
         }
-        Scene::StdoutFailure | Scene::LongStderrFailure => {
-            let first = use_case(&scenario).check(request())?;
-            let second = use_case(&scenario).check(request())?;
-            assert_eq!(
-                scenario.tools.ran().len(),
-                2,
-                "failed output never becomes reusable"
-            );
-            assert!(
-                first
-                    .runs
-                    .iter()
-                    .chain(&second.runs)
-                    .all(|run| matches!(run.run.status, Status::Failed(_))
-                        && run.reuse == Reuse::Ran),
-                "both verdict inputs remain failed"
-            );
-            let expected_stderr = if matches!(scene, Scene::LongStderrFailure) {
-                "first important error\n".repeat(400)
-            } else {
-                String::new()
-            };
-            let Some(run) = first.runs.first() else {
-                panic!("one failed tool");
-            };
-            let crate::domain::reports::types::FailureOutput::Captured {
-                stdout,
-                stderr,
-                inputs,
-            } = &run.failure_output
-            else {
-                panic!("current failed completion is captured");
-            };
-            assert_eq!(
-                stdout.0.as_ref(),
-                "diagnostic only on stdout",
-                "stdout is not discarded"
-            );
-            assert_eq!(
-                stderr.0.as_ref(),
-                expected_stderr,
-                "stderr is not truncated"
-            );
-            if matches!(scene, Scene::LongStderrFailure) {
-                let Status::Failed(crate::domain::judgement::types::Failure::Exited {
-                    stderr: displayed,
-                    ..
-                }) = &run.run.status
-                else {
-                    panic!("exit failure");
-                };
-                assert!(
-                    displayed.0.len() < stderr.0.len(),
-                    "the terminal tail stays bounded independently of the full capture"
-                );
-            }
-            assert!(
-                matches!(inputs, crate::domain::reports::types::Stamped::Digested(_)),
-                "capture binds the command and input stamp"
-            );
-            Ok("retained full streams; failed twice".into())
-        }
+        Scene::StdoutFailure | Scene::LongStderrFailure => captured_failure(&scenario, scene),
         Scene::First | Scene::Unreadable => said(&scenario, request()),
         Scene::ImprovedPlain | Scene::ImprovedFixing | Scene::ImprovedSince => improved(
             if matches!(scene, Scene::ImprovedFixing) {

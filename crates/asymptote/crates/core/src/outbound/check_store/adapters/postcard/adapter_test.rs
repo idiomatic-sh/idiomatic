@@ -109,6 +109,49 @@ fn checked() -> Stored {
     scenario.store.kept()
 }
 
+/// A newly persisted check atomically replaces the prior diagnostic artifact.
+fn diagnostics(
+    adapter: &impl crate::outbound::check_store::interface::CheckStorePort,
+    cache: &std::path::Path,
+) -> Result<Value, Failure> {
+    let mut stored = checked();
+    let crate::outbound::check_store::types::KeptReport::Kept(report) = &mut stored.report else {
+        panic!("checked report");
+    };
+    let report = std::sync::Arc::make_mut(report);
+    let scan = report.scanned.first_mut().expect("tool scan");
+    scan.run.status = crate::domain::judgement::types::Status::Failed(
+        crate::domain::judgement::types::Failure::Exited {
+            code: crate::domain::judgement::types::Code(7),
+            stderr: crate::domain::judgement::types::Tail::default(),
+        },
+    );
+    scan.failure_output = crate::domain::reports::types::FailureOutput::Captured {
+        stdout: crate::domain::reports::types::DiagnosticText("stdout-only failure".into()),
+        stderr: crate::domain::reports::types::DiagnosticText::default(),
+        inputs: scan.stamp.clone(),
+    };
+    adapter.keep(&stored)?;
+    let artifact: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(cache.join(DIAGNOSTICS)).expect("artifact"))
+            .expect("JSON artifact");
+    let store = std::fs::read(cache.join(FILE)).expect("store bytes");
+    assert_eq!(
+        artifact["store_digest"],
+        blake3::hash(&store).to_hex().to_string(),
+        "artifact names exact store bytes"
+    );
+    assert_eq!(
+        artifact["failures"][0]["output"]["Captured"]["stdout"], "stdout-only failure",
+        "full stdout retained"
+    );
+    adapter.keep(&checked())?;
+    let fresh: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(cache.join(DIAGNOSTICS)).expect("replacement"))
+            .expect("JSON artifact");
+    Ok(fresh["failures"].as_array().is_some_and(Vec::is_empty))
+}
+
 fn subject(question: Input) -> Result<Value, Failure> {
     let directory = tempfile::tempdir().expect("temporary product");
     let cache = directory.path().join("cache");
@@ -120,46 +163,7 @@ fn subject(question: Input) -> Result<Value, Failure> {
     };
     let adapter = open("build-1");
     match question {
-        Question::Diagnostics => {
-            let mut stored = checked();
-            let crate::outbound::check_store::types::KeptReport::Kept(report) = &mut stored.report
-            else {
-                panic!("checked report");
-            };
-            let report = std::sync::Arc::make_mut(report);
-            let scan = report.scanned.first_mut().expect("tool scan");
-            scan.run.status = crate::domain::judgement::types::Status::Failed(
-                crate::domain::judgement::types::Failure::Exited {
-                    code: crate::domain::judgement::types::Code(7),
-                    stderr: crate::domain::judgement::types::Tail::default(),
-                },
-            );
-            scan.failure_output = crate::domain::reports::types::FailureOutput::Captured {
-                stdout: crate::domain::reports::types::DiagnosticText("stdout-only failure".into()),
-                stderr: crate::domain::reports::types::DiagnosticText::default(),
-                inputs: scan.stamp.clone(),
-            };
-            adapter.keep(&stored)?;
-            let artifact: serde_json::Value =
-                serde_json::from_slice(&std::fs::read(cache.join(DIAGNOSTICS)).expect("artifact"))
-                    .expect("JSON artifact");
-            let store = std::fs::read(cache.join(FILE)).expect("store bytes");
-            assert_eq!(
-                artifact["store_digest"],
-                blake3::hash(&store).to_hex().to_string(),
-                "artifact names exact store bytes"
-            );
-            assert_eq!(
-                artifact["failures"][0]["output"]["Captured"]["stdout"], "stdout-only failure",
-                "full stdout retained"
-            );
-            adapter.keep(&checked())?;
-            let fresh: serde_json::Value = serde_json::from_slice(
-                &std::fs::read(cache.join(DIAGNOSTICS)).expect("replacement"),
-            )
-            .expect("JSON artifact");
-            Ok(fresh["failures"].as_array().is_some_and(Vec::is_empty))
-        }
+        Question::Diagnostics => diagnostics(&adapter, &cache),
         Question::Contract => {
             check(&adapter);
             Ok(open("build-1").load() != Stored::default())

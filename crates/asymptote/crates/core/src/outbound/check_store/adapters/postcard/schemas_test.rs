@@ -129,7 +129,7 @@ fn subject(question: Input) -> Result<Value, Failure> {
         Question::Diagnostics
         | Question::LegacyDiagnostics
         | Question::EmptyDiagnostics
-        | Question::DamagedDiagnostics => unreachable!("handled before the table fixture"),
+        | Question::DamagedDiagnostics => diagnostics(question),
         Question::Once => {
             let texts = read.strings.len();
             let distinct: std::collections::BTreeSet<&String> = read.strings.iter().collect();
@@ -196,10 +196,10 @@ fn diagnostics(question: Question) -> Result<Value, Failure> {
             let KeptReport::Kept(report) = loaded.report else {
                 return Err("legacy report".into());
             };
-            Ok(report.scanned.iter().all(|scan| {
-                matches!(scan.failure_output, FailureOutput::Unavailable)
+            Ok(report.scanned.iter().all(|loaded_scan| {
+                matches!(loaded_scan.failure_output, FailureOutput::Unavailable)
                     && matches!(
-                        scan.run.status,
+                        loaded_scan.run.status,
                         crate::domain::judgement::types::Status::Failed(_)
                     )
             }))

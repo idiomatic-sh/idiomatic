@@ -520,6 +520,49 @@ fn requested(
 }
 
 /// Answers the row's question, or says why the schemas refused it.
+/// JSON exposes full streams and the exact process status, including empty observed stderr.
+fn failure_json() -> Result<String, Failure> {
+    use asymptote_core::domain::reports::types::{DiagnosticText, FailureOutput, Stamped};
+    let mut checked = report(Verdict::Undetermined);
+    checked.runs.push(ToolRun {
+        run: Run {
+            tool: ToolId("stdout-tool".into()),
+            status: Status::Failed(RunFailure::Exited {
+                code: Code(7),
+                stderr: Tail::default(),
+            }),
+            inventory: Inventory::Undeclared,
+            reported: std::collections::BTreeSet::new(),
+        },
+        reuse: Reuse::Ran,
+        failure_output: FailureOutput::Captured {
+            stdout: DiagnosticText("full stdout\n".repeat(400).into()),
+            stderr: DiagnosticText::default(),
+            inputs: Stamped::Unstamped,
+        },
+    });
+    let json = serde_json::to_value(super::printed(&checked)).map_err(|error| error.to_string())?;
+    let tool = json["tools"]
+        .as_array()
+        .and_then(|tools| tools.last())
+        .ok_or("failed tool")?;
+    assert_eq!(tool["error"]["code"], 7_i32, "failure identity unchanged");
+    assert_eq!(
+        tool["diagnostics"]["stdout"],
+        "full stdout\n".repeat(400),
+        "complete stdout printed"
+    );
+    assert_eq!(
+        tool["diagnostics"]["stderr"], "",
+        "observed empty stderr retained"
+    );
+    assert_eq!(
+        tool["diagnostics"]["availability"], "captured",
+        "capture is explicit"
+    );
+    Ok("captured".to_owned())
+}
+
 fn subject(question: Input) -> Result<Value, Failure> {
     let text = match question {
         Question::Line(line) => {
@@ -579,48 +622,7 @@ fn subject(question: Input) -> Result<Value, Failure> {
             super::known(&request, None, &declared).map_err(|error| error.to_string())?;
             "known".to_owned()
         }
-        Question::FailureJson => {
-            use asymptote_core::domain::reports::types::{DiagnosticText, FailureOutput, Stamped};
-            let mut checked = report(Verdict::Undetermined);
-            checked.runs.push(ToolRun {
-                run: Run {
-                    tool: ToolId("stdout-tool".into()),
-                    status: Status::Failed(RunFailure::Exited {
-                        code: Code(7),
-                        stderr: Tail::default(),
-                    }),
-                    inventory: Inventory::Undeclared,
-                    reported: std::collections::BTreeSet::new(),
-                },
-                reuse: Reuse::Ran,
-                failure_output: FailureOutput::Captured {
-                    stdout: DiagnosticText("full stdout\n".repeat(400).into()),
-                    stderr: DiagnosticText::default(),
-                    inputs: Stamped::Unstamped,
-                },
-            });
-            let json = serde_json::to_value(super::printed(&checked))
-                .map_err(|error| error.to_string())?;
-            let tool = json["tools"]
-                .as_array()
-                .and_then(|tools| tools.last())
-                .ok_or("failed tool")?;
-            assert_eq!(tool["error"]["code"], 7, "failure identity unchanged");
-            assert_eq!(
-                tool["diagnostics"]["stdout"],
-                "full stdout\n".repeat(400),
-                "complete stdout printed"
-            );
-            assert_eq!(
-                tool["diagnostics"]["stderr"], "",
-                "observed empty stderr retained"
-            );
-            assert_eq!(
-                tool["diagnostics"]["availability"], "captured",
-                "capture is explicit"
-            );
-            "captured".to_owned()
-        }
+        Question::FailureJson => failure_json()?,
         Question::Said(layout) => said(layout),
         Question::Unanswered => {
             let products = vec![(".".to_owned(), Err(CheckError::NoHead))];
