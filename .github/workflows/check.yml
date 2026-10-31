@@ -73,8 +73,8 @@ jobs:
     needs: build
     strategy:
       fail-fast: false
-      # lint and check on every machine; clippy where clippy-sarif ships a prebuilt (Linux x64, macOS arm64), and the SDK's API once,
-      # on macOS, where cargo-public-api ships one: the API is the same on every platform.
+      # lint and check on every machine; clippy once, on Linux x64, and the SDK's API once, on macOS, where cargo-public-api ships a
+      # prebuilt: neither verdict depends on the platform.
       matrix:
         include:
           - { os: ubuntu-26.04, group: lint }
@@ -84,7 +84,6 @@ jobs:
           - { os: macos-26, group: check }
           - { os: windows-2025, group: check }
           - { os: ubuntu-26.04, group: clippy }
-          - { os: macos-26, group: clippy }
           - { os: macos-26, group: api }
     runs-on: ${{ matrix.os }}
     defaults:

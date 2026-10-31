@@ -41,9 +41,7 @@ jobs:
           - { runner: ubuntu-26.04-arm, group: release-tests }
           - { runner: macos-26, group: release-tests }
           - { runner: windows-2025, group: release-tests }
-          # clippy-sarif ships prebuilts for Linux x64 and macOS arm64 alone.
           - { runner: ubuntu-26.04, group: release-clippy }
-          - { runner: macos-26, group: release-clippy }
           - { runner: ubuntu-26.04, group: release-coverage }
           - { runner: ubuntu-26.04, group: release-msrv }
           - { runner: ubuntu-26.04, group: release-dylint }
