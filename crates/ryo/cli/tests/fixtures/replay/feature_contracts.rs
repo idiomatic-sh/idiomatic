@@ -27,6 +27,8 @@ const QUERIES: &[(&str, &str)] = &[
 
 /// Check invariants and require positive known-origin witnesses before returning measured feature feeds.
 fn measure() -> Result<BTreeMap<String, u64>, String> {
+    // COUNTING is shared with the other replay helpers, whose writers also run alone.
+    let _alone = crate::alone();
     let rules = QUERIES
         .iter()
         .map(|(name, query)| {
@@ -56,6 +58,12 @@ fn measure() -> Result<BTreeMap<String, u64>, String> {
     );
     super::base::COUNTING.store(false, std::sync::atomic::Ordering::Relaxed);
     let (rows, report) = ran?;
+    if !report.unread.is_empty() {
+        return Err(format!(
+            "Python feature contracts have {} unread selected files",
+            report.unread.len()
+        ));
+    }
     if !report.unknowns.is_empty() {
         return Err(format!(
             "Python feature contracts have {} undecided inputs",
