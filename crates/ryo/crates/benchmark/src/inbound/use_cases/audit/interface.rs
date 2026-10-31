@@ -1,5 +1,5 @@
 //! Audit the exact shipped-default inventory.
-use crate::domain::suite::types::Audit;
+use crate::domain::suite::types::audit::value::Audit;
 use crate::domain::{diagnostics::errors::Error, suite::types::Tool};
 use std::path::Path;
 /// Audit benchmark artifacts against a pinned default profile.

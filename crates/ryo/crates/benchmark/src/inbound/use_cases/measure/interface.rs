@@ -1,6 +1,6 @@
 //! Measure after default coverage and per-sample correctness hold.
 use crate::domain::measurements::types::{Pair, RunOrder};
-use crate::domain::suite::types::Audit;
+use crate::domain::suite::types::audit::value::Audit;
 use crate::domain::{diagnostics::errors::Error, suite::types::RunRequest};
 /// Release paired process observations only after the correctness gate succeeds.
 pub trait MeasureUseCase {

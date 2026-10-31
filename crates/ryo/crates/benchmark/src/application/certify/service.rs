@@ -3,7 +3,7 @@ use crate::domain::{
     diagnostics::errors::Error,
     suite::{
         service::require_accounted,
-        types::{Audit, Certificate},
+        types::{audit::value::Audit, certificate::value::Certificate},
     },
 };
 use crate::outbound::{
@@ -18,6 +18,7 @@ pub fn certify(
     candidate: &dyn LinterPort,
     execution: &dyn ExecutionPort,
     directory: &Path,
+    workload: &Path,
     reference_executable: &Path,
     candidate_executable: &Path,
     selected_rules: &Path,
@@ -39,6 +40,7 @@ pub fn certify(
     ];
     let paths = vec![
         directory.canonicalize()?,
+        workload.canonicalize()?,
         selected_rules.canonicalize()?,
         contestants[0].clone(),
         contestants[1].clone(),

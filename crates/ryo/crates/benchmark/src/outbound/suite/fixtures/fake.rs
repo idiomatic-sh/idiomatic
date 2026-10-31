@@ -1,7 +1,7 @@
 //! Empty in-memory suite preserves the distinction between defaults and implementations.
 use crate::domain::{
     diagnostics::errors::Error,
-    suite::types::{Audit, Suite, Tool},
+    suite::types::{Suite, Tool, audit::value::Audit},
 };
 use crate::outbound::suite::interface::SuitePort;
 use std::path::Path;
@@ -26,6 +26,11 @@ impl SuitePort for SuiteFake {
         } else {
             Ok(self.prepared.clone())
         }
+    }
+    fn stage_projects(&self, _: &Path, _: &Path) -> Result<(), Error> {
+        Err(Error::Invalid(
+            "fixture cannot materialize external projects".into(),
+        ))
     }
     fn stage(&self, _: &Path, _: &Path, _: &Audit) -> Result<(), Error> {
         Err(Error::Invalid(

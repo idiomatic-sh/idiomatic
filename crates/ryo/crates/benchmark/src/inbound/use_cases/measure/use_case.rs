@@ -1,7 +1,7 @@
 //! Both contestants use the same execution implementation.
 use super::interface::MeasureUseCase;
 use crate::domain::measurements::types::{Pair, RunOrder};
-use crate::domain::suite::types::Audit;
+use crate::domain::suite::types::audit::value::Audit;
 use crate::domain::{diagnostics::errors::Error, suite::types::RunRequest};
 use crate::outbound::{execution::interface::ExecutionPort, linter::interface::LinterPort};
 use std::sync::Arc;

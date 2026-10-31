@@ -13,7 +13,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
 }];
 fn subject(_: Input) -> Result<Value, Failure> {
     check(&SuiteLocalAdapter);
-    use crate::domain::suite::types::Audit;
+    use crate::domain::suite::types::audit::value::Audit;
     use crate::outbound::suite::interface::SuitePort;
     let directory = tempfile::tempdir().expect("source artifacts");
     let destination = tempfile::tempdir().expect("snapshot parent");
@@ -65,6 +65,69 @@ fn subject(_: Input) -> Result<Value, Failure> {
             .fingerprint(&[snapshot])
             .expect("changed seal")
     );
+    let oracle = directory.path().join("oracle");
+    std::fs::create_dir_all(oracle.join("rules/F621")).expect("oracle rule");
+    std::fs::write(
+        oracle.join("rules/F621/cases.toml"),
+        r#"[[cases]]
+name = "upstream inactive"
+files = { "input.py" = "a = 1" }
+expected = []
+"#,
+    )
+    .expect("oracle cases");
+    let tool = crate::domain::suite::types::Tool {
+        tool: "fixture".into(),
+        version: "1".into(),
+        sha256: "pin".into(),
+        defaults: vec!["F621".into()],
+        deferred: [("F621".into(), "upstream_inactive".into())].into(),
+        pending: Default::default(),
+    };
+    let audited = SuiteLocalAdapter
+        .audit(&oracle, &tool)
+        .expect("negative-only oracle evidence");
+    assert!(audited.implemented.is_empty());
+    assert_eq!(audited.missing, ["F621"]);
+    std::fs::write(oracle.join("rules/F621/query.ryoql"), "nonempty query")
+        .expect("authored query");
+    assert!(
+        SuiteLocalAdapter.audit(&oracle, &tool).is_err(),
+        "negative-only authored evidence cannot certify"
+    );
+    let shared = directory.path().join("shared");
+    std::fs::create_dir_all(shared.join("patches")).expect("patch directory");
+    std::fs::write(
+        shared.join("benchmark.toml"),
+        r#"language = "fixture"
+[[projects]]
+name = "project"
+repository = "https://example.invalid/project.git"
+revision = "revision"
+patch = "patches/project.patch"
+"#,
+    )
+    .expect("shared manifest");
+    std::fs::write(shared.join("patches/project.patch"), "original patch").expect("patch");
+    let frozen = destination.path().join("workload");
+    SuiteLocalAdapter
+        .stage_projects(&shared, &frozen)
+        .expect("freeze workload");
+    let seal = SuiteLocalAdapter
+        .fingerprint(&[frozen.clone()])
+        .expect("workload seal");
+    std::fs::write(shared.join("patches/project.patch"), "concurrent edit").expect("source edit");
+    assert_eq!(
+        std::fs::read_to_string(frozen.join("patches/project.patch")).unwrap(),
+        "original patch"
+    );
+    assert_eq!(
+        seal,
+        SuiteLocalAdapter.fingerprint(&[frozen.clone()]).unwrap()
+    );
+    std::fs::write(frozen.join("patches/project.patch"), "tampered snapshot")
+        .expect("snapshot edit");
+    assert_ne!(seal, SuiteLocalAdapter.fingerprint(&[frozen]).unwrap());
     Ok(())
 }
 #[test]
@@ -97,7 +160,7 @@ fn refuses() {
             .expect_err("no cases cannot certify correctness")
             .to_string();
         let expected = if empty_rule {
-            "a rule requires positive and negative cases"
+            "case evidence must be nonempty"
         } else {
             "no executable rule cases"
         };

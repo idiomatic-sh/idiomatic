@@ -4,7 +4,7 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::{
     diagnostics::{errors::Error, types::Diagnostic},
     measurements::types::RunOrder,
-    suite::types::{Audit, RunRequest},
+    suite::types::{RunRequest, audit::value::Audit},
 };
 use crate::outbound::{
     execution::fixtures::fake::ExecutionFake, linter::fixtures::fake::LinterFake,

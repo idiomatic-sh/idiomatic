@@ -9,17 +9,6 @@ pub struct Suite {
     pub language: String,
     /// Pinned repositories used for the common corpus.
     pub projects: Vec<Project>,
-    /// Exact resource collector executable used for every contestant.
-    pub instrumentation: Instrumentation,
-}
-
-/// Pinned external resource collection, shared across linters in one language.
-#[derive(Clone, Debug)]
-pub struct Instrumentation {
-    /// Absolute path to GNU time on the benchmark machine.
-    pub executable: PathBuf,
-    /// Approved executable digest, checked before each observed command.
-    pub sha256: String,
 }
 
 /// One repository pinned to an immutable commit and a deterministic edit.
@@ -105,67 +94,6 @@ pub struct RunRequest {
     pub cache: PathBuf,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-/// Default coverage produced by auditing a suite, never fabricated by a caller.
-///
-/// ```compile_fail
-/// use ryo_benchmark::domain::suite::types::Audit;
-/// let forged = Audit { implemented: Vec::new(), missing: Vec::new() };
-/// ```
-pub struct Audit {
-    pub(crate) implemented: Vec<String>,
-    pub(crate) missing: Vec<String>,
-}
-impl Audit {
-    /// Number of default rules with an authored query and valid case envelope.
-    pub fn authored_count(&self) -> usize {
-        self.implemented.len()
-    }
-    /// Authored subset; these rules still require executable correctness cases.
-    pub fn authored(&self) -> &[String] {
-        &self.implemented
-    }
-    /// Freeze an explicit nonempty subset; unselected authored rules remain outside coverage.
-    pub fn select(
-        &self,
-        rules: &[String],
-    ) -> Result<Self, super::super::diagnostics::errors::Error> {
-        let selected: std::collections::BTreeSet<_> = rules.iter().cloned().collect();
-        if selected.is_empty()
-            || selected.len() != rules.len()
-            || selected.iter().any(|rule| !self.implemented.contains(rule))
-        {
-            return Err(super::super::diagnostics::errors::Error::Invalid(
-                "selected subset must contain distinct authored default rules".into(),
-            ));
-        }
-        let mut missing = self.missing.clone();
-        missing.extend(
-            self.implemented
-                .iter()
-                .filter(|rule| !selected.contains(*rule))
-                .cloned(),
-        );
-        missing.sort();
-        Ok(Self {
-            implemented: selected.into_iter().collect(),
-            missing,
-        })
-    }
-}
-
-/// Evidence issued after actual cases pass, bound to exact artifacts and executables.
-#[derive(Clone, Debug)]
-pub struct Certificate {
-    pub(crate) coverage: Audit,
-    pub(crate) paths: Vec<PathBuf>,
-    pub(crate) fingerprint: String,
-    pub(crate) contestants: [PathBuf; 2],
-    pub(crate) probe: RunRequest,
-    pub(crate) profiles: [crate::domain::measurements::types::Invocation; 2],
-    pub(crate) cases: usize,
-}
-
 /// Whether the full inventory has been assessed or this is an interim authored subset.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CoverageScope {
@@ -174,17 +102,6 @@ pub enum CoverageScope {
     /// Unassessed defaults remain explicit and the certificate covers only authored rules.
     Interim,
 }
-impl Certificate {
-    /// Stable content identity of profile, rule/case bytes and contestant executables.
-    pub fn fingerprint(&self) -> &str {
-        &self.fingerprint
-    }
-    /// Number of independently authored cases that both contestants passed.
-    pub fn cases(&self) -> usize {
-        self.cases
-    }
-}
-
 /// Inputs supplied to the SDK worker inside the measured child.
 #[derive(Clone, Debug)]
 pub struct WorkerRequest {
@@ -197,3 +114,8 @@ pub struct WorkerRequest {
     /// Optional persistent SDK cache directory; absence disables disk caching.
     pub cache: Option<PathBuf>,
 }
+
+/// Audited implementation inventory.
+pub mod audit;
+/// Opaque case-certified evidence.
+pub mod certificate;

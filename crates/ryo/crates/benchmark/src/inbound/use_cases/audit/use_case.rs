@@ -1,6 +1,6 @@
 //! Audit delegates external artifact validation to its suite boundary.
 use super::interface::AuditUseCase;
-use crate::domain::suite::types::Audit;
+use crate::domain::suite::types::audit::value::Audit;
 use crate::domain::{diagnostics::errors::Error, suite::types::Tool};
 use crate::outbound::suite::interface::SuitePort;
 use std::{path::Path, sync::Arc};

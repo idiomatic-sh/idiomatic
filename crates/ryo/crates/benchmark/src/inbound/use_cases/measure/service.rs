@@ -35,11 +35,11 @@ pub fn measure(
     })
 }
 
-use crate::domain::suite::types::Audit;
+use crate::domain::suite::types::audit::value::Audit;
 
 /// Measure only the exact case-certified subset and immutable source bytes.
 pub fn measure_certified(
-    certificate: &crate::domain::suite::types::Certificate,
+    certificate: &crate::domain::suite::types::certificate::value::Certificate,
     suite: &dyn crate::outbound::suite::interface::SuitePort,
     reference: &dyn LinterPort,
     candidate: &dyn LinterPort,
@@ -85,6 +85,9 @@ pub fn measure_certified(
         request,
         order,
     )?;
+    if suite.fingerprint(&certificate.paths)? != certificate.fingerprint {
+        return Err(Error::Invalid("certified artifacts changed during paired observation".into()));
+    }
     if suite.fingerprint(&sources)? != before {
         return Err(Error::Invalid(
             "corpus source changed during paired observation".into(),

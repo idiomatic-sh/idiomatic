@@ -1,7 +1,7 @@
 //! Validate pins, cases and rule coverage before running contestants.
 use crate::domain::diagnostics::errors::Error;
-use crate::domain::suite::service::{relative_path, validate_cases};
-use crate::domain::suite::types::Audit;
+use crate::domain::suite::service::{relative_path, validate_case_sources, validate_cases};
+use crate::domain::suite::types::audit::value::Audit;
 use crate::domain::suite::types::{Cases, Tool};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
@@ -46,8 +46,9 @@ fn audit(directory: &Path, tool: &Tool) -> Result<Audit, Error> {
         }
         let cases: Cases =
             super::schemas::cases(&std::fs::read_to_string(entry.path().join("cases.toml"))?)?;
-        validate_cases(&cases)?;
+        validate_case_sources(&cases)?;
         if query.is_some() {
+            validate_cases(&cases)?;
             if tool.deferred.contains_key(&rule) || tool.pending.contains_key(&rule) {
                 return Err(Error::Invalid(format!(
                     "authored rule still has a deferred or pending disposition: {rule}"
@@ -88,6 +89,28 @@ impl crate::outbound::suite::interface::SuitePort for SuiteLocalAdapter {
         scratch: &Path,
     ) -> Result<Vec<crate::domain::suite::types::PreparedCase>, Error> {
         prepare_cases(rules, scratch)
+    }
+    fn stage_projects(&self, source: &Path, destination: &Path) -> Result<(), Error> {
+        let source = source.canonicalize()?;
+        let bytes = std::fs::read(source.join("benchmark.toml"))?;
+        let manifest = super::schemas::suite(
+            std::str::from_utf8(&bytes).map_err(|error| Error::Invalid(error.to_string()))?,
+        )?;
+        std::fs::create_dir(destination)?;
+        std::fs::write(destination.join("benchmark.toml"), bytes)?;
+        for project in manifest.projects {
+            relative_path(&project.patch)?;
+            let target = destination.join(&project.patch);
+            if let Some(parent) = target.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+            let patch = source.join(project.patch).canonicalize()?;
+            if !patch.starts_with(&source) {
+                return Err(Error::Invalid("patch escapes the shared suite directory".into()));
+            }
+            std::fs::write(target, std::fs::read(patch)?)?;
+        }
+        Ok(())
     }
     fn stage(&self, directory: &Path, destination: &Path, audit: &Audit) -> Result<(), Error> {
         std::fs::create_dir(destination)?;
@@ -174,9 +197,15 @@ fn prepare_cases(
             .file_name()
             .into_string()
             .map_err(|_| Error::Invalid("non-UTF8 rule".into()))?;
-        drop(std::fs::read(entry.path().join("query.ryoql"))?);
         let cases: Cases =
             super::schemas::cases(&std::fs::read_to_string(entry.path().join("cases.toml"))?)?;
+        validate_case_sources(&cases)?;
+        match std::fs::read_to_string(entry.path().join("query.ryoql")) {
+            Ok(query) if !query.trim().is_empty() => {}
+            Ok(_) => return Err(Error::Invalid(format!("empty query for {rule}"))),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(error) => return Err(error.into()),
+        }
         validate_cases(&cases)?;
         for (index, case) in cases.cases.into_iter().enumerate() {
             let root = scratch.join(&rule).join(index.to_string());

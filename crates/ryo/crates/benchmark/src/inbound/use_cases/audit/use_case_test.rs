@@ -2,7 +2,7 @@
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::diagnostics::errors::Error;
 use crate::domain::suite::service::require_complete;
-use crate::domain::suite::types::Audit;
+use crate::domain::suite::types::audit::value::Audit;
 type Input = Audit;
 type Value = ();
 #[derive(Debug, PartialEq, Eq)]

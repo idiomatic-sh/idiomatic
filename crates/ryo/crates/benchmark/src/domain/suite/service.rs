@@ -1,5 +1,5 @@
 //! Pure validation shared by artifact auditing and case execution.
-use super::types::{Audit, Cases};
+use super::types::{Cases, audit::value::Audit};
 use crate::domain::diagnostics::errors::Error;
 use std::path::{Component, Path};
 
@@ -64,6 +64,14 @@ pub fn validate_cases(cases: &Cases) -> Result<(), Error> {
         return Err(Error::Invalid(
             "a rule requires positive and negative cases".into(),
         ));
+    }
+    validate_case_sources(cases)
+}
+
+/// Validate case identity, source coverage and byte ranges without asserting a positive finding.
+pub fn validate_case_sources(cases: &Cases) -> Result<(), Error> {
+    if cases.cases.is_empty() {
+        return Err(Error::Invalid("case evidence must be nonempty".into()));
     }
     let mut names = std::collections::BTreeSet::new();
     for case in &cases.cases {

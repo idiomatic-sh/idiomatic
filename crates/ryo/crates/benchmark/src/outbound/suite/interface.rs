@@ -1,5 +1,5 @@
 //! Load and validate the suite's external artifacts.
-use crate::domain::suite::types::Audit;
+use crate::domain::suite::types::audit::value::Audit;
 use crate::domain::{
     diagnostics::errors::Error,
     suite::types::{Suite, Tool},
@@ -15,6 +15,8 @@ pub trait SuitePort {
     fn verify_tool(&self, executable: &Path, tool: &Tool) -> Result<(), Error>;
     /// Hash exact regular-file bytes and names, recursively for artifact directories.
     fn fingerprint(&self, paths: &[std::path::PathBuf]) -> Result<String, Error>;
+    /// Freeze the shared project manifest and every declared patch in an owned directory.
+    fn stage_projects(&self, source: &Path, destination: &Path) -> Result<(), Error>;
     /// Materialize only the explicitly authored subset in an owned empty directory.
     fn stage(&self, directory: &Path, destination: &Path, audit: &Audit) -> Result<(), Error>;
     /// Materialize the snapshot's independent case sources without executing contestants.

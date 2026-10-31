@@ -67,7 +67,7 @@ pub fn check(adapter: &impl SuitePort) {
 type Failure = Refusal;
 
 /// Produce the acceptance fixture through the real artifact boundary.
-pub fn audited(complete: bool) -> crate::domain::suite::types::Audit {
+pub fn audited(complete: bool) -> crate::domain::suite::types::audit::value::Audit {
     let directory = tempfile::tempdir().expect("audit fixture");
     std::fs::create_dir(directory.path().join("rules")).expect("rule root");
     if complete {
