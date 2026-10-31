@@ -5,6 +5,7 @@ use crate::outbound::repository::types::{Entries, Looks};
 use std::path::{Path, PathBuf};
 
 use super::schemas::{entry_of, text_of_file};
+use crate::domain::paths::constants::SEPARATOR;
 use crate::domain::paths::types::EntryName;
 use crate::domain::paths::types::FileText;
 use crate::domain::paths::types::Height;
@@ -105,7 +106,15 @@ impl RepositoryPort for RepositoryNativeAdapter {
         base.join(&*written.0)
             .strip_prefix(self.absolute())
             .map_or(Placement::Outside, |inside| {
-                Placement::Inside(RepoPath(inside.to_string_lossy().into()))
+                // Joined by `/` on every platform: a repository path is the same record everywhere.
+                Placement::Inside(RepoPath(
+                    inside
+                        .components()
+                        .map(|part| part.as_os_str().to_string_lossy())
+                        .collect::<Vec<_>>()
+                        .join(SEPARATOR)
+                        .into(),
+                ))
             })
     }
 }

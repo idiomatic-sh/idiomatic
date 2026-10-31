@@ -9,6 +9,7 @@ use super::constants::EXECUTABLE;
 use super::constants::{GIT_PATH, HOOKS};
 use crate::domain::git::constants::{GIT, HOOK_VARIABLES, NOT_A_REPOSITORY, TOP_LEVEL};
 use crate::domain::hooks::types::ScriptText;
+use crate::domain::inputs::constants::SEPARATOR;
 use crate::domain::manifest::types::{HookName, ProductRoot};
 use crate::outbound::hooks::errors::HooksError;
 use crate::outbound::hooks::interface::HooksPort;
@@ -51,12 +52,12 @@ fn printed(command: &mut Command, root: &ProductRoot) -> Result<GitAnswer, Hooks
 
 /// Where git keeps the hook `name` of the repository the product at `root` is in.
 fn path_of(root: &ProductRoot, name: &HookName) -> Result<PathBuf, HooksError> {
-    let answer = printed(
-        Command::new(GIT)
-            .args(GIT_PATH)
-            .arg(Path::new(HOOKS).join(&*name.0)),
-        root,
-    )?;
+    // Joined by `/` on every platform: git maps `hooks/<name>` to the common directory a linked worktree shares only
+    // when it is written so.
+    let mut hook = HOOKS.to_owned();
+    hook.push(SEPARATOR);
+    hook.push_str(&name.0);
+    let answer = printed(Command::new(GIT).args(GIT_PATH).arg(hook), root)?;
     Ok(Path::new(&*root.0).join(&*answer.0))
 }
 

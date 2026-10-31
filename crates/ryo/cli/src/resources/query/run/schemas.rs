@@ -106,11 +106,9 @@ pub(super) fn store(
     root: &RootPath,
 ) -> ryo_core::outbound::lint_store::types::Store {
     ryo_core::outbound::lint_store::types::Store {
+        // Joined by `/` on every platform: the directory is the same place written the same way everywhere.
         directory: ryo_core::outbound::lint_store::types::CacheDirectory(
-            std::path::Path::new(&*root.0)
-                .join(&*edge.store.0)
-                .to_string_lossy()
-                .into(),
+            [&*root.0, STORE_SEPARATOR, &*edge.store.0].concat().into(),
         ),
         build: edge.build.clone(),
     }
@@ -182,3 +180,6 @@ impl crate::outcome::remedy::Remedy for RunSchemaError {
 #[cfg(test)]
 #[path = "schemas_test.rs"]
 mod tests;
+
+/// What joins the project's root and the store's directory beneath it, on every platform.
+const STORE_SEPARATOR: &str = "/";

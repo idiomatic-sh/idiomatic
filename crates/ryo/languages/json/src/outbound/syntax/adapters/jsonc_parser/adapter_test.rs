@@ -388,7 +388,12 @@ fn subject(given: Input) -> Result<Value, Failure> {
                 ) else {
                     return Err(());
                 };
-                let shown = below.to_string_lossy();
+                // Joined by `/` on every platform, as the engine hands a language every path.
+                let shown = below
+                    .components()
+                    .map(|part| part.as_os_str().to_string_lossy())
+                    .collect::<Vec<_>>()
+                    .join("/");
                 if let Some(found) = against(&bytes, dialect(SourcePath(&shown)), &printed) {
                     differing.push(format!("{shown}: {found}"));
                 }

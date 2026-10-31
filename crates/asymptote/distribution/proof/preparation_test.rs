@@ -51,11 +51,26 @@ pub(crate) fn snapshot(target: &Path) -> std::io::Result<PathBuf> {
                     .current_dir(env!("CARGO_MANIFEST_DIR")),
             )?;
             run(Command::new("git")
-                .args(["clone", "--quiet", "--no-checkout"])
+                // Byte for byte and links as links, whatever the platform's git would convert.
+                .args([
+                    "clone",
+                    "--quiet",
+                    "--no-checkout",
+                    "--config",
+                    "core.autocrlf=false",
+                    "--config",
+                    "core.symlinks=true",
+                ])
                 .arg(checkout.trim_end())
                 .arg(&partial))?;
         } else {
             run(Command::new("git").args(["init", "--quiet"]).arg(&partial))?;
+            for setting in [["core.autocrlf", "false"], ["core.symlinks", "true"]] {
+                run(Command::new("git")
+                    .arg("config")
+                    .args(setting)
+                    .current_dir(&partial))?;
+            }
             let repository = pinned(target, "repository")?;
             // Never wait on a prompt for credentials: a repository or revision that cannot be fetched fails at once.
             run(Command::new("git")
@@ -272,7 +287,15 @@ pub(crate) fn checkout(
 ) -> std::io::Result<(PathBuf, PathBuf)> {
     let tree = scratch.join("tree");
     run(Command::new("git")
-        .args(["clone", "--quiet", "--local"])
+        .args([
+            "clone",
+            "--quiet",
+            "--local",
+            "--config",
+            "core.autocrlf=false",
+            "--config",
+            "core.symlinks=true",
+        ])
         .arg(snapshot)
         .arg(&tree))?;
     let directory = pinned(target, "directory")?;

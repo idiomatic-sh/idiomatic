@@ -90,11 +90,14 @@ fn inputs_in(fixtures: &Path, findings: &mut Findings) -> Vec<Input> {
     let mut found = Vec::new();
     let add = |folder: &Path, label: &str, category: Category, into: &mut Vec<Input>| {
         for path in files_in(folder) {
+            // Joined by `/` on every platform, as the engine hands a language every path.
             let name = path
                 .strip_prefix(folder)
                 .unwrap_or(&path)
-                .to_string_lossy()
-                .into_owned();
+                .components()
+                .map(|part| part.as_os_str().to_string_lossy())
+                .collect::<Vec<_>>()
+                .join("/");
             into.push(Input {
                 shown: format!("{label}/{name}"),
                 path,

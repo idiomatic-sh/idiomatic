@@ -98,7 +98,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Question::Stray,
         expect: Expect::Refusal(|error| {
-            if matches!(error, LockError::Malformed {operation,reason} if operation.ends_with("/.asymptote/operations/.0123.lock.writing") && reason == "its name is not a lowercase BLAKE3 digest")
+            if matches!(error, LockError::Malformed {operation,reason} if std::path::Path::new(operation).ends_with(".asymptote/operations/.0123.lock.writing") && reason == "its name is not a lowercase BLAKE3 digest")
             {
                 crate::cases::Selection::Matches
             } else {
@@ -148,7 +148,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Fails,
         input: || Question::Unreadable,
         expect: Expect::Refusal(|error| {
-            if matches!(error, LockError::Unreadable {path,reason} if path.ends_with("/.asymptote/operations") && !reason.is_empty())
+            if matches!(error, LockError::Unreadable {path,reason} if std::path::Path::new(path).ends_with(".asymptote/operations") && !reason.is_empty())
             {
                 crate::cases::Selection::Matches
             } else {

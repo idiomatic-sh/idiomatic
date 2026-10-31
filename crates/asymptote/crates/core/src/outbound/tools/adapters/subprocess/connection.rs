@@ -4,6 +4,8 @@
 use std::collections::BTreeSet;
 use std::sync::{Arc, Mutex, PoisonError};
 
+#[cfg(windows)]
+use super::constants::{TASKKILL, TASKKILL_TREE};
 use crate::outbound::tools::types::GroupId;
 
 /// The running tools' process groups, shared by the adapters bound to it and the edge that opened it.
@@ -45,8 +47,26 @@ impl ToolsConnection {
         }
     }
 
-    /// Kills nothing where a tool's job object already ends with the command.
-    #[cfg(not(unix))]
+    /// Kills every tool running now, with every process it started: Windows has no process groups, so each tool's
+    /// tree is ended by `taskkill`, as the job object would end it when the command exits.
+    #[cfg(windows)]
+    pub fn stop(&self) {
+        for group in self.groups().iter() {
+            // Best effort: a tree that already ended cannot be killed.
+            drop(
+                std::process::Command::new(TASKKILL)
+                    .args(TASKKILL_TREE)
+                    .arg(group.0.to_string())
+                    .stdin(std::process::Stdio::null())
+                    .stdout(std::process::Stdio::null())
+                    .stderr(std::process::Stdio::null())
+                    .status(),
+            );
+        }
+    }
+
+    /// Kills nothing where there is neither a process group nor a job object to end.
+    #[cfg(not(any(unix, windows)))]
     pub fn stop(&self) {}
 
     /// The running groups, under their lock.

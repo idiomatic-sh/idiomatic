@@ -43,3 +43,10 @@ pub(super) const PATH: &str = "PATH";
 /// The extensions Windows runs a program by, in the order its default `PATHEXT` lists them.
 #[cfg(windows)]
 pub(super) const EXTENSIONS: [&str; 4] = [".com", ".exe", ".bat", ".cmd"];
+
+/// The Windows command that ends a process and every process it started.
+#[cfg(windows)]
+pub(super) const TASKKILL: &str = "taskkill";
+/// `taskkill`'s arguments before the process id: the whole tree, forcibly.
+#[cfg(windows)]
+pub(super) const TASKKILL_TREE: [&str; 3] = ["/T", "/F", "/PID"];

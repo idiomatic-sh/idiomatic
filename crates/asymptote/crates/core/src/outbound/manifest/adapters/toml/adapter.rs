@@ -11,6 +11,7 @@ use super::constants::{
 use super::schemas::{manifest, written};
 use crate::domain::captures::service::{bind, captured, instance, pieces, substitute, unbound};
 use crate::domain::captures::types::{Captures, Written};
+use crate::domain::inputs::constants::SEPARATOR;
 use crate::domain::manifest::service::{pinned, repeated};
 use crate::domain::manifest::types::{
     Group, Manifest, Member, Pathspec, Pin, ProductRoot, Satisfaction, Tool, Version,
@@ -171,7 +172,9 @@ fn bindings(root: &Path, inputs: &[Pathspec]) -> Result<Vec<Captures>, ManifestE
 
 /// `read`'s tools, each whose inputs write a capture expanded into one tool per set of values they capture on disk at
 /// `root`, in their place: a directory that appears is a tool more, and one that goes is a tool less.
-fn expanded(root: &Path, path: &Path, read: Manifest) -> Result<Manifest, ManifestError> {
+fn expanded(root: &Path, read: Manifest) -> Result<Manifest, ManifestError> {
+    // The manifest as the person reads it in a message: its directory and the file joined by `/` on every platform.
+    let shown = || format!("{}{SEPARATOR}{FILE}", root.display());
     let mut tools: Vec<Tool> = Vec::with_capacity(read.tools.len());
     for tool in read.tools {
         let order = captured(&tool.inputs);
@@ -183,7 +186,7 @@ fn expanded(root: &Path, path: &Path, read: Manifest) -> Result<Manifest, Manife
         // A captured tool whose inputs match nothing on disk is refused, naming them: a mistyped input never drops it.
         if bound.is_empty() {
             return Err(ManifestError::Shape {
-                path: path.display().to_string(),
+                path: shown(),
                 reason: [
                     UNBOUND,
                     &*tool.id.0,
@@ -204,7 +207,7 @@ fn expanded(root: &Path, path: &Path, read: Manifest) -> Result<Manifest, Manife
     }
     if let Some(twice) = repeated(&tools) {
         return Err(ManifestError::Shape {
-            path: path.display().to_string(),
+            path: shown(),
             reason: [TWICE, &*twice.0, TWICE_END].concat(),
         });
     }
@@ -242,16 +245,20 @@ impl ManifestPort for ManifestTomlAdapter {
     }
 
     fn read(&self, root: &ProductRoot) -> Result<Manifest, ManifestError> {
-        let path = Path::new(&*root.0).join(FILE);
-        let text = std::fs::read_to_string(&path).map_err(|error| ManifestError::Unreadable {
-            path: path.display().to_string(),
-            reason: error.to_string(),
+        let base = Path::new(&*root.0);
+        // The manifest as the person reads it in a message: its directory and the file joined by `/` on every platform.
+        let shown = || format!("{}{SEPARATOR}{FILE}", base.display());
+        let text = std::fs::read_to_string(base.join(FILE)).map_err(|error| {
+            ManifestError::Unreadable {
+                path: shown(),
+                reason: error.to_string(),
+            }
         })?;
         let read = manifest(&text).map_err(|reason| ManifestError::Shape {
-            path: path.display().to_string(),
+            path: shown(),
             reason,
         })?;
-        expanded(Path::new(&*root.0), &path, read)
+        expanded(base, read)
     }
 
     fn members(&self, root: &ProductRoot) -> Result<Products, ManifestError> {
@@ -266,7 +273,7 @@ impl ManifestPort for ManifestTomlAdapter {
             .any(|directory| directory.join(FILE).is_file())
         {
             return Err(ManifestError::NotRoot {
-                path: base.join(FILE).display().to_string(),
+                path: format!("{}{SEPARATOR}{FILE}", base.display()),
             });
         }
         let mut members = std::collections::BTreeSet::new();
@@ -282,28 +289,35 @@ impl ManifestPort for ManifestTomlAdapter {
         }
         let mut roots = Vec::with_capacity(members.len());
         for directory in members {
-            let shown = directory
+            // Joined by `/` on every platform: it names the member in a message as the manifest wrote it.
+            let mut label = String::new();
+            for part in directory
                 .strip_prefix(base)
                 .unwrap_or(&directory)
-                .display()
-                .to_string();
+                .components()
+            {
+                if !label.is_empty() {
+                    label.push(SEPARATOR);
+                }
+                label.push_str(&part.as_os_str().to_string_lossy());
+            }
             let member = ProductRoot(directory.display().to_string().into());
             if !directory.join(FILE).is_file() {
                 return Err(ManifestError::Member {
-                    member: shown,
+                    member: label,
                     reason: NO_MANIFEST.to_owned(),
                 });
             }
             let read = self.read(&member)?;
             if !read.members.is_empty() {
                 return Err(ManifestError::Member {
-                    member: shown,
+                    member: label,
                     reason: NESTED.to_owned(),
                 });
             }
             if !read.hooks.is_empty() {
                 return Err(ManifestError::Member {
-                    member: shown,
+                    member: label,
                     reason: NESTED_HOOKS.to_owned(),
                 });
             }
@@ -355,12 +369,14 @@ impl ManifestPort for ManifestTomlAdapter {
 
     fn create(&self, root: &ProductRoot, manifest: &Manifest) -> Result<(), ManifestError> {
         let path = Path::new(&*root.0).join(FILE);
+        // The manifest as the person reads it in a message: its directory and the file joined by `/` on every platform.
+        let shown = || format!("{}{SEPARATOR}{FILE}", Path::new(&*root.0).display());
         let text = written(manifest).map_err(|reason| ManifestError::Shape {
-            path: path.display().to_string(),
+            path: shown(),
             reason,
         })?;
         let unwritable = |error: std::io::Error| ManifestError::Unwritable {
-            path: path.display().to_string(),
+            path: shown(),
             reason: error.to_string(),
         };
         let mut file = std::fs::OpenOptions::new()
