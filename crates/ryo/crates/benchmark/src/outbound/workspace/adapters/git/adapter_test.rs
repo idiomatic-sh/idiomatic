@@ -1,6 +1,6 @@
 //! Real local git repositories prove immutable pins and non-destructive restoration.
 use crate::domain::suite::types::Project;
-use crate::outbound::workspace::interface::WorkspacePort;
+use crate::outbound::workspace::interface::WorkspacePort as _;
 use std::{fs, path::Path, process::Command};
 fn git(root: &Path, args: &[&str]) -> String {
     let output = Command::new("git")

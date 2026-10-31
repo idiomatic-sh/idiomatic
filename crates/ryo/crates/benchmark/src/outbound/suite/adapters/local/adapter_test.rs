@@ -1,7 +1,9 @@
 //! The concrete local implementation executes the complete shared contract.
 use super::adapter::SuiteLocalAdapter;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::suite::types::audit::value::Audit;
 use crate::outbound::suite::fixtures::contract::check;
+use crate::outbound::suite::interface::SuitePort as _;
 use crate::outbound::suite::types::{ArtifactPath, ArtifactSet};
 type Input = bool;
 type Value = ();
@@ -26,8 +28,6 @@ fn subject(selected: Input) -> Result<Value, Failure> {
         return Err(());
     }
     check(&SuiteLocalAdapter);
-    use crate::domain::suite::types::audit::value::Audit;
-    use crate::outbound::suite::interface::SuitePort;
     let directory = tempfile::tempdir().expect("source artifacts");
     let bytes = directory.path().join("executable");
     std::fs::write(&bytes, b"abc").expect("digest fixture");
@@ -42,9 +42,53 @@ fn subject(selected: Input) -> Result<Value, Failure> {
         matches!(SuiteLocalAdapter.digest(ArtifactPath(directory.path())), Err(crate::domain::diagnostics::errors::DiagnosticsError::Invalid(message)) if message == "executable digest requires a regular file")
     );
     let destination = tempfile::tempdir().expect("snapshot parent");
-    std::fs::write(directory.path().join("benchmark.toml"), "profile bytes").expect("profile");
+    selected_snapshot(directory.path(), destination.path());
+    negative_only_evidence(directory.path());
+    workload_snapshot(directory.path(), destination.path());
+    Ok(())
+}
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+
+fn empty_cases_are_refused() {
+    for empty_rule in [false, true] {
+        let rules = tempfile::tempdir().expect("rules");
+        let scratch = tempfile::tempdir().expect("scratch");
+        if empty_rule {
+            let directory = rules.path().join("fixture");
+            std::fs::create_dir_all(&directory).expect("rule");
+            std::fs::write(
+                directory.join("query.ryoql"),
+                "let rows = select * from comment; emit rows subject file key(span);",
+            )
+            .expect("query");
+            std::fs::write(directory.join("cases.toml"), "cases = []").expect("cases");
+        }
+        let result =
+            SuiteLocalAdapter.cases(ArtifactPath(rules.path()), ArtifactPath(scratch.path()));
+        let actual = result
+            .expect_err("no cases cannot certify correctness")
+            .to_string();
+        let expected = if empty_rule {
+            "case evidence must be nonempty"
+        } else {
+            "no executable rule cases"
+        };
+        assert_eq!(actual, expected);
+    }
+}
+
+fn selected_snapshot(directory: &std::path::Path, destination: &std::path::Path) {
+    std::fs::write(directory.join("benchmark.toml"), "profile bytes").expect("profile");
     for rule in ["E722", "F704"] {
-        let root = directory.path().join("rules").join(rule);
+        let root = directory.join("rules").join(rule);
         std::fs::create_dir_all(&root).expect("rule root");
         std::fs::write(root.join("query.ryoql"), rule).expect("query");
         std::fs::write(root.join("cases.toml"), "case bytes").expect("cases");
@@ -75,13 +119,9 @@ fn subject(selected: Input) -> Result<Value, Failure> {
             .collect::<Vec<_>>(),
         ["F401", "F704"]
     );
-    let snapshot = destination.path().join("profile");
+    let snapshot = destination.join("profile");
     SuiteLocalAdapter
-        .stage(
-            ArtifactPath(directory.path()),
-            ArtifactPath(&snapshot),
-            &selected,
-        )
+        .stage(ArtifactPath(directory), ArtifactPath(&snapshot), &selected)
         .expect("staged subset");
     let children: Vec<_> = std::fs::read_dir(snapshot.join("rules"))
         .expect("snapshot rules")
@@ -89,17 +129,14 @@ fn subject(selected: Input) -> Result<Value, Failure> {
         .collect();
     assert_eq!(children, [std::ffi::OsString::from("E722")]);
     let fingerprint = SuiteLocalAdapter
-        .fingerprint(ArtifactSet(&[snapshot.clone()]))
+        .fingerprint(ArtifactSet(std::slice::from_ref(&snapshot)))
         .expect("seal");
-    std::fs::write(
-        directory.path().join("rules/F704/query.ryoql"),
-        "concurrent work",
-    )
-    .expect("unselected edit");
+    std::fs::write(directory.join("rules/F704/query.ryoql"), "concurrent work")
+        .expect("unselected edit");
     assert_eq!(
         fingerprint,
         SuiteLocalAdapter
-            .fingerprint(ArtifactSet(&[snapshot.clone()]))
+            .fingerprint(ArtifactSet(std::slice::from_ref(&snapshot)))
             .expect("unchanged seal")
     );
     std::fs::write(
@@ -113,7 +150,10 @@ fn subject(selected: Input) -> Result<Value, Failure> {
             .fingerprint(ArtifactSet(&[snapshot]))
             .expect("changed seal")
     );
-    let oracle = directory.path().join("oracle");
+}
+
+fn negative_only_evidence(directory: &std::path::Path) {
+    let oracle = directory.join("oracle");
     std::fs::create_dir_all(oracle.join("rules/F621")).expect("oracle rule");
     std::fs::write(
         oracle.join("rules/F621/cases.toml"),
@@ -134,7 +174,7 @@ expected = []
             "upstream_inactive".into(),
         )]
         .into(),
-        pending: Default::default(),
+        pending: std::collections::BTreeMap::default(),
     };
     let audited = SuiteLocalAdapter
         .audit(ArtifactPath(&oracle), &tool)
@@ -157,7 +197,10 @@ expected = []
             .to_string(),
         "a rule requires positive and negative cases"
     );
-    let shared = directory.path().join("shared");
+}
+
+fn workload_snapshot(directory: &std::path::Path, destination: &std::path::Path) {
+    let shared = directory.join("shared");
     std::fs::create_dir_all(shared.join("patches")).expect("patch directory");
     std::fs::write(
         shared.join("benchmark.toml"),
@@ -171,12 +214,12 @@ patch = "patches/project.patch"
     )
     .expect("shared manifest");
     std::fs::write(shared.join("patches/project.patch"), "original patch").expect("patch");
-    let frozen = destination.path().join("workload");
+    let frozen = destination.join("workload");
     SuiteLocalAdapter
         .stage_projects(ArtifactPath(&shared), ArtifactPath(&frozen))
         .expect("freeze workload");
     let seal = SuiteLocalAdapter
-        .fingerprint(ArtifactSet(&[frozen.clone()]))
+        .fingerprint(ArtifactSet(std::slice::from_ref(&frozen)))
         .expect("workload seal");
     std::fs::write(shared.join("patches/project.patch"), "concurrent edit").expect("source edit");
     assert_eq!(
@@ -186,7 +229,7 @@ patch = "patches/project.patch"
     assert_eq!(
         seal,
         SuiteLocalAdapter
-            .fingerprint(ArtifactSet(&[frozen.clone()]))
+            .fingerprint(ArtifactSet(std::slice::from_ref(&frozen)))
             .unwrap()
     );
     std::fs::write(frozen.join("patches/project.patch"), "tampered snapshot")
@@ -197,43 +240,4 @@ patch = "patches/project.patch"
             .fingerprint(ArtifactSet(&[frozen]))
             .unwrap()
     );
-    Ok(())
-}
-#[test]
-fn succeeds() {
-    run(CASES, Word::Succeeds, subject);
-}
-
-#[test]
-fn refuses() {
-    run(CASES, Word::Refuses, subject);
-}
-
-fn empty_cases_are_refused() {
-    use crate::outbound::suite::interface::SuitePort;
-    for empty_rule in [false, true] {
-        let rules = tempfile::tempdir().expect("rules");
-        let scratch = tempfile::tempdir().expect("scratch");
-        if empty_rule {
-            let directory = rules.path().join("fixture");
-            std::fs::create_dir(&directory).expect("rule");
-            std::fs::write(
-                directory.join("query.ryoql"),
-                "let rows = select * from comment; emit rows subject file key(span);",
-            )
-            .expect("query");
-            std::fs::write(directory.join("cases.toml"), "cases = []").expect("cases");
-        }
-        let result =
-            SuiteLocalAdapter.cases(ArtifactPath(rules.path()), ArtifactPath(scratch.path()));
-        let actual = result
-            .expect_err("no cases cannot certify correctness")
-            .to_string();
-        let expected = if empty_rule {
-            "case evidence must be nonempty"
-        } else {
-            "no executable rule cases"
-        };
-        assert_eq!(actual, expected);
-    }
 }
