@@ -8,7 +8,7 @@ use std::collections::BTreeSet;
 type Input = &'static str;
 type Value = &'static str;
 type Failure = ();
-const EXPECTED: &str = "171|builtin:ExceptionGroup:3.11|builtin:__name__:3.0|builtin:__spec__:3.4|builtin:aiter:3.10|builtin:anext:3.10|builtin:len:3.0|module-global:__annotate__:3.14|module-global:__annotations__:3.6|module-global:__cached__:3.2|module-global:__file__:3.0|module-global:__name__:3.0|module-global:__spec__:3.4|platform-builtin:WindowsError:3.0";
+const EXPECTED: &str = "171|builtin:ExceptionGroup:3.11|builtin:__doc__:3.0|builtin:__loader__:3.0|builtin:__name__:3.0|builtin:__package__:3.0|builtin:__spec__:3.4|builtin:aiter:3.10|builtin:anext:3.10|builtin:len:3.0|module-global:__annotate__:3.14|module-global:__annotations__:3.6|module-global:__builtins__:3.0|module-global:__cached__:3.2|module-global:__file__:3.0|module-global:__name__:3.0|module-global:__package__:3.0|module-global:__spec__:3.4|module-global:__warningregistry__:3.0|platform-builtin:WindowsError:3.0";
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("empty physical module still supplies implicit namespace catalog"),
@@ -77,13 +77,19 @@ fn subject(source: Input) -> Result<Value, Failure> {
             ("builtin", "aiter"),
             ("builtin", "anext"),
             ("builtin", "__name__"),
+            ("builtin", "__doc__"),
+            ("builtin", "__loader__"),
+            ("builtin", "__package__"),
             ("builtin", "__spec__"),
             ("module-global", "__name__"),
             ("module-global", "__annotations__"),
+            ("module-global", "__builtins__"),
             ("module-global", "__cached__"),
             ("module-global", "__file__"),
             ("module-global", "__annotate__"),
+            ("module-global", "__package__"),
             ("module-global", "__spec__"),
+            ("module-global", "__warningregistry__"),
             ("platform-builtin", "WindowsError"),
         ] {
             if *kind == wanted_kind && *name == wanted_name {
