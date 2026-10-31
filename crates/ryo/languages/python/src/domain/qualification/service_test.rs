@@ -35,6 +35,76 @@ type Value = Shown;
 type Failure = ();
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
+        name: CaseName("wildcard_preserves_builtin"),
+        word: Word::Succeeds,
+        input: || Input {
+            source: "from m import *\nexec(code)\n",
+            expression: "exec",
+        },
+        expect: Expect::Value(Shown {
+            path: Some("builtins.exec"),
+            provenance: "builtin",
+            major: 3,
+            minor: 0,
+        }),
+    },
+    Case {
+        name: CaseName("wildcard_unresolved_name"),
+        word: Word::Succeeds,
+        input: || Input {
+            source: "from m import *\nmissing_name()\n",
+            expression: "missing_name",
+        },
+        expect: Expect::Value(Shown {
+            path: None,
+            provenance: "ambiguous",
+            major: 0,
+            minor: 0,
+        }),
+    },
+    Case {
+        name: CaseName("wildcard_preserves_explicit_local"),
+        word: Word::Succeeds,
+        input: || Input {
+            source: "exec = custom\nfrom m import *\nexec(code)\n",
+            expression: "exec",
+        },
+        expect: Expect::Value(Shown {
+            path: None,
+            provenance: "local",
+            major: 0,
+            minor: 0,
+        }),
+    },
+    Case {
+        name: CaseName("assignment_after_wildcard_shadows_builtin"),
+        word: Word::Succeeds,
+        input: || Input {
+            source: "from m import *\nexec = custom\nexec(code)\n",
+            expression: "exec",
+        },
+        expect: Expect::Value(Shown {
+            path: None,
+            provenance: "local",
+            major: 0,
+            minor: 0,
+        }),
+    },
+    Case {
+        name: CaseName("wildcard_does_not_restore_deleted_import"),
+        word: Word::Succeeds,
+        input: || Input {
+            source: "import contextlib\ndel contextlib\nfrom m import *\ncontextlib.suppress()\n",
+            expression: "contextlib.suppress",
+        },
+        expect: Expect::Value(Shown {
+            path: None,
+            provenance: "ambiguous",
+            major: 0,
+            minor: 0,
+        }),
+    },
+    Case {
         name: CaseName("nfkc_builtin"),
         word: Word::Succeeds,
         input: || Input {
@@ -399,15 +469,15 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         }),
     },
     Case {
-        name: CaseName("wildcard_ambiguity"),
+        name: CaseName("wildcard_preserves_known_import"),
         word: Word::Succeeds,
         input: || Input {
             source: "import contextlib\nfrom m import *\ncontextlib.suppress()\n",
             expression: "contextlib.suppress",
         },
         expect: Expect::Value(Shown {
-            path: None,
-            provenance: "ambiguous",
+            path: Some("contextlib.suppress"),
+            provenance: "import",
             major: 0,
             minor: 0,
         }),

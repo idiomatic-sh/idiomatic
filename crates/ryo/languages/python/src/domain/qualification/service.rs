@@ -88,7 +88,9 @@ fn root(tree: &Tree<'_>, mut at: Position) -> Option<Position> {
         }
     }
 }
-/// Whether a namespace event can intervene between the chosen binding and the read.
+/// Whether lexical resolution has no named binding after namespace events.
+/// A wildcard does not erase an explicit lexical binding or builtin fallback: the
+/// relation describes static binding provenance, not which runtime object wins.
 fn uncertain(
     tree: &Tree<'_>,
     model: &Declarations,
@@ -105,7 +107,9 @@ fn uncertain(
     let mut timing = Timing::Immediate;
     loop {
         if index.hazards.iter().any(|event| {
-            event.scope == scope
+            binding.is_none()
+                && builtin(tree, at).is_none()
+                && event.scope == scope
                 && (scope == initial || kind(tree, scope) != Kind::Node(Node::ClassDef))
                 && (timing == Timing::Deferred || event.position < at)
                 && binding.is_none_or(|bound| event.position > bound)

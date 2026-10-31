@@ -148,36 +148,36 @@ pub(crate) struct SourceLocationReader<M>(
     pub std::marker::PhantomData<std::sync::atomic::AtomicPtr<M>>,
 );
 
-impl<M> crate::domain::answers::types::declared::Syntax for SourceLocationReader<M> {}
+impl<M> declared::Syntax for SourceLocationReader<M> {}
 
-impl<M: 'static> crate::domain::answers::types::ReadItem for SourceLocationReader<M> {
+impl<M: 'static> ReadItem for SourceLocationReader<M> {
     type Relation =
         crate::domain::relations::collections::relations::source_location::item::SourceLocation;
     type Model = M;
-    const READER: crate::domain::answers::types::Reader<
+    const READER: Reader<
         crate::domain::relations::collections::relations::source_location::item::SourceLocation,
         M,
-    > = crate::domain::answers::types::Reader {
-        reads: crate::domain::answers::types::Reads::Every,
+    > = Reader {
+        reads: Reads::Every,
         visit: &Self(std::marker::PhantomData),
-        expansions: crate::domain::answers::types::Expansions::Ignored,
+        expansions: Expansions::Ignored,
         relation: std::marker::PhantomData,
     };
 }
 
 impl<M>
-    crate::domain::answers::types::Visiting<
+    Visiting<
         crate::domain::relations::collections::relations::source_location::item::SourceLocation,
         M,
     > for SourceLocationReader<M>
 {
     fn visit(
         &self,
-        tree: &crate::domain::elements::types::Tree<'_>,
+        tree: &Tree<'_>,
         _model: &M,
-        _symbols: &mut crate::domain::symbols::types::Symbols,
-        position: crate::domain::relations::types::Position,
-        out: &mut dyn crate::domain::relations::types::Rows<crate::domain::relations::collections::relations::source_location::item::SourceLocationRow>,
+        _symbols: &mut Symbols,
+        position: Position,
+        out: &mut dyn Rows<crate::domain::relations::collections::relations::source_location::item::SourceLocationRow>,
     ) {
         use crate::domain::elements::service::{end_at, start_at};
         use crate::domain::location::{
