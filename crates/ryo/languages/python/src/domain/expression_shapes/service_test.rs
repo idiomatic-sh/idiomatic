@@ -46,6 +46,42 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(false),
     },
     Case {
+        name: CaseName("large binary integer normalizes to exact decimal magnitude"),
+        word: Word::Succeeds,
+        input: || {
+            (
+                "18446744073709551616\n0b10000000000000000000000000000000000000000000000000000000000000000\n",
+                "18446744073709551616",
+                "0b10000000000000000000000000000000000000000000000000000000000000000",
+            )
+        },
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("large octal integer normalizes to exact decimal magnitude"),
+        word: Word::Succeeds,
+        input: || {
+            (
+                "18446744073709551616\n0o2000000000000000000000\n",
+                "18446744073709551616",
+                "0o2000000000000000000000",
+            )
+        },
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("large hexadecimal separators do not change magnitude"),
+        word: Word::Succeeds,
+        input: || {
+            (
+                "18446744073709551616\n0x1_0000_0000_0000_0000\n",
+                "18446744073709551616",
+                "0x1_0000_0000_0000_0000",
+            )
+        },
+        expect: Expect::Value(true),
+    },
+    Case {
         name: CaseName("float spelling normalizes through typed bits"),
         word: Word::Succeeds,
         input: || ("1e0\n1.0\n", "1e0", "1.0"),
@@ -288,7 +324,9 @@ fn subject((source, left, right): Input) -> Result<Value, Failure> {
         .filter(|at| category(&tree, *at) == Category::Expression && written(&tree, *at).0 == right)
         .last()
         .expect("right occurrence");
-    let index = prepare(&tree, &model, &mut symbols).expect("complete source has shapes");
+    let index = prepare(&tree, &model, &mut symbols).unwrap_or_else(|| {
+        panic!("complete source has shapes: {source:?}; left={left:?}; right={right:?}")
+    });
     let a = shape_of(&index, first).expect("left shape");
     let b = shape_of(&index, last).expect("right shape");
     let reentrant = prepare(&tree, &model, &mut symbols).expect("immutable read can reenter");
