@@ -77,3 +77,63 @@ expected = []
 name = "explicit-shadow-before-wildcard"
 files = { "case.py" = "exec = custom\nfrom m import *\nexec(code)\n" }
 expected = []
+
+[[cases]]
+name = "runtime-lambda-shadow"
+files = { "case.py" = "(lambda exec: exec(code))(f)\n" }
+expected = []
+
+[[cases]]
+name = "embedded-lambda-shadow"
+files = { "case.py" = "x: \"(lambda exec: exec(code))(f)\"\n" }
+expected = []
+
+[[cases]]
+name = "runtime-lambda-builtin"
+files = { "case.py" = "(lambda value: exec(value))(code)\n" }
+expected = [{ file = "case.py", start = 15, end = 19 }]
+
+[[cases]]
+name = "embedded-lambda-builtin"
+files = { "case.py" = "x: \"(lambda value: exec(value))(code)\"\n" }
+expected = [{ file = "case.py", start = 19, end = 23 }]
+
+[[cases]]
+name = "runtime-comprehension-shadow"
+files = { "case.py" = "[exec(code) for exec in values]\n" }
+expected = []
+
+[[cases]]
+name = "embedded-comprehension-shadow"
+files = { "case.py" = "x: \"[exec(code) for exec in values]\"\n" }
+expected = []
+
+[[cases]]
+name = "runtime-comprehension-builtin"
+files = { "case.py" = "[exec(value) for value in values]\n" }
+expected = [{ file = "case.py", start = 1, end = 5 }]
+
+[[cases]]
+name = "embedded-comprehension-builtin"
+files = { "case.py" = "x: \"[exec(value) for value in values]\"\n" }
+expected = [{ file = "case.py", start = 5, end = 9 }]
+
+[[cases]]
+name = "runtime-walrus-shadow"
+files = { "case.py" = "((exec := custom), exec(code))\n" }
+expected = []
+
+[[cases]]
+name = "embedded-walrus-shadow"
+files = { "case.py" = "x: \"((exec := custom), exec(code))\"\n" }
+expected = []
+
+[[cases]]
+name = "runtime-lambda-default-builtin"
+files = { "case.py" = "(lambda exec=exec(code): exec)(f)\n" }
+expected = [{ file = "case.py", start = 13, end = 17 }]
+
+[[cases]]
+name = "embedded-lambda-default-builtin"
+files = { "case.py" = "x: \"(lambda exec=exec(code): exec)(f)\"\n" }
+expected = [{ file = "case.py", start = 17, end = 21 }]
