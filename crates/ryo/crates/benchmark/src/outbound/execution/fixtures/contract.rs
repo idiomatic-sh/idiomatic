@@ -226,7 +226,7 @@ pub fn check(adapter: &impl ExecutionPort) {
 
         adapter
             .run(call)
-            .map(|output| observe(adapter, &profile, output, large))
+            .map(|output| observe(adapter, &profile, &output, large))
             .map_err(|error| match error {
                 Error::Io(error) if error.raw_os_error() == Some(8_i32) => {
                     Failure::ExecutableFormat
@@ -245,7 +245,7 @@ pub fn check(adapter: &impl ExecutionPort) {
 fn observe(
     adapter: &impl ExecutionPort,
     profile: &crate::domain::measurements::types::ExecutionProfile,
-    output: crate::domain::measurements::types::ProcessOutput,
+    output: &crate::domain::measurements::types::ProcessOutput,
     large: bool,
 ) -> Value {
     use crate::domain::measurements::types::{ExecutionProfile, ResourceObservation};

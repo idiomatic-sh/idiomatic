@@ -21,7 +21,7 @@ fn git(root: &Path, args: &[&str]) -> String {
 fn pinned_clone_patch_restore_and_intervening_edit_refusal() {
     let temporary = tempfile::tempdir().expect("temporary directory");
     let source = temporary.path().join("source");
-    fs::create_dir(&source).expect("source");
+    fs::create_dir_all(&source).expect("source");
     drop(git(&source, &["init", "--quiet"]));
     fs::write(source.join("input.txt"), "before\n").expect("input");
     drop(git(&source, &["add", "input.txt"]));

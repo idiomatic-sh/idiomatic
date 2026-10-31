@@ -132,7 +132,7 @@ fn check(features: &[::std::path::PathBuf]) -> ::std::vec::Vec<usize> {
                     let background = expanded_feature
                         .background
                         .as_ref()
-                        .map_or(0, |background| background.steps.len());
+                        .map_or(0, |steps| steps.steps.len());
                     let direct: usize = expanded_feature
                         .scenarios
                         .iter()
@@ -146,7 +146,7 @@ fn check(features: &[::std::path::PathBuf]) -> ::std::vec::Vec<usize> {
                                 + rule
                                     .background
                                     .as_ref()
-                                    .map_or(0, |background| background.steps.len());
+                                    .map_or(0, |steps| steps.steps.len());
                             rule.scenarios
                                 .iter()
                                 .map(|scenario| scenario.steps.len() + rule_background)
