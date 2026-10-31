@@ -94,6 +94,9 @@ jobs:
           key: cargo-bin-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml') }}
       - name: The tools the checks run, each at the version declared for it
         run: uv run --script tools/install.py
+        env:
+          # cargo-binstall asks GitHub for each release: unauthenticated, the rate limit stalls it.
+          GH_TOKEN: ${{ github.token }}
       - run: asymptote check --root crates/${{ inputs.product }} --groups ${{ matrix.group }}
   build:
     needs: check
