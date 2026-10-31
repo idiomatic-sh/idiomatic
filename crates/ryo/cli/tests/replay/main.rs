@@ -11,6 +11,28 @@
     reason = "the replay tells the person running it each rule's verdict and what it could not feed, on stderr, which the test harness shows beside the failure"
 )]
 
+/// The allocator the command ships, so what a replay measures of memory (the warm peak) is what a user's run allocates: on
+/// Windows mimalloc, as ruff and uv ship it.
+#[cfg(target_os = "windows")]
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
+/// The allocator wherever jemalloc builds: jemalloc, as ruff and uv ship it.
+#[cfg(all(
+    not(target_os = "windows"),
+    not(target_os = "openbsd"),
+    not(target_os = "aix"),
+    not(target_os = "android"),
+    any(
+        target_arch = "x86_64",
+        target_arch = "aarch64",
+        target_arch = "powerpc64",
+        target_arch = "riscv64"
+    )
+))]
+#[global_allocator]
+static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
+
 #[path = "../fixtures/replay/answers.rs"]
 mod answers;
 #[path = "../fixtures/replay/base.rs"]

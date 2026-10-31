@@ -266,7 +266,14 @@ def test_only_the_release_job_that_uploads_is_handed_a_token_and_only_after_the_
         for tool in tomllib.loads(manifest.read_text())["tools"]
         if tool["group"].startswith("release")
     }
-    assert set(workflow["jobs"]["check"]["strategy"]["matrix"]["group"]) == released
+    rows = workflow["jobs"]["check"]["strategy"]["matrix"]["include"]
+    assert {row["group"] for row in rows} == released
+    # The tests on every machine the products ship to; every other group once, on Linux.
+    assert sorted(row["runner"] for row in rows if row["group"] == "release-tests") == sorted(
+        ["ubuntu-26.04", "ubuntu-26.04-arm", "macos-26", "windows-2025"]
+    )
+    assert all(row["runner"] == "ubuntu-26.04" for row in rows if row["group"] != "release-tests")
+    assert len(rows) == len({(row["runner"], row["group"]) for row in rows})
     (uploading,) = [step for step in publish["steps"] if "CARGO_REGISTRY_TOKEN" in step.get("env", {})]
     assert uploading["env"]["CARGO_REGISTRY_TOKEN"].startswith("${{ env.PUBLISH == 'true' &&")
     assert uploading["env"]["NODE_AUTH_TOKEN"].startswith("${{ env.PUBLISH == 'true' &&")

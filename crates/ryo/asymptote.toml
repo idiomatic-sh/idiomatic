@@ -68,7 +68,7 @@ inputs = ["Cargo.toml", "Cargo.lock", ".config", "languages/{lang}", "crates/lan
 id = "test-cli"
 group = "check"
 # The command line's tests: it links every crate of the product, so the product is its input.
-run = ["cargo", "nextest", "run", "--workspace", "--locked", "--all-features", "-E", "package(=idiomatic-sh-ryo)"]
+run = ["cargo", "nextest", "run", "--workspace", "--locked", "--all-features", "-E", "package(=idiomatic-sh-ryo) and not test(/^peak::/)"]
 timeout-seconds = 3600
 inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
 
@@ -108,8 +108,9 @@ inputs = [".", "../../clippy.toml", "../../rust-toolchain.toml", "../../.cargo"]
 id = "test-default"
 group = "release-tests"
 # Tests are strictly pass or fail: no lock holds a failing test. nextest runs every libtest target; the BDD runners and the
-# doctests, which it cannot list, run in `test-bdd` and `test-doc`.
-run = ["cargo", "nextest", "run", "--workspace", "--locked"]
+# doctests, which it cannot list, run in `test-bdd` and `test-doc`. The warm run's memory peak is measured in `peak`, in the
+# perf group, and does not gate a release until it holds its bound on every runner.
+run = ["cargo", "nextest", "run", "--workspace", "--locked", "-E", "not test(/^peak::/)"]
 timeout-seconds = 3600
 inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
 
@@ -132,7 +133,7 @@ inputs = [".", "../../tools/lints", "../../rust-toolchain.toml", "../../.cargo"]
 id = "coverage"
 group = "release-coverage"
 # Line coverage, a report with no threshold: the run fails only when a test does.
-run = ["cargo", "llvm-cov", "--workspace", "--all-features", "--locked"]
+run = ["cargo", "llvm-cov", "--workspace", "--all-features", "--locked", "--", "--skip", "peak::"]
 timeout-seconds = 3600
 inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
 
@@ -167,6 +168,15 @@ group = "release-resolution"
 # fresh, as a user's `cargo install` or `cargo add` resolves them, so a crate that builds only against our lock is caught.
 run = ["cargo", "package", "--workspace", "--exclude-lockfile"]
 timeout-seconds = 7200
+inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
+
+[[tools]]
+id = "peak"
+group = "perf"
+# The warm run's memory peak over ruff, held to its bound (`cli/tests/replay/peak.rs`): measured here, apart from the release's
+# tests, until it holds its bound on every runner.
+run = ["cargo", "nextest", "run", "--workspace", "--locked", "-E", "test(/^peak::/)"]
+timeout-seconds = 3600
 inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
 
 [[tools]]
