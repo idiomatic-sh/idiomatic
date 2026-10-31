@@ -77,3 +77,101 @@ expected = [{ file = "case.py", start = 14, end = 20 }]
 name = "only-first-noqa-directive-applies"
 files = { "case.py" = "try:\n    pass\nexcept:  # noqa: F401 # noqa: E722\n    pass\n" }
 expected = [{ file = "case.py", start = 14, end = 20 }]
+
+# Directive cases follow the pinned lexer: astral-sh/ruff@0.16.5, crates/ruff_linter/src/noqa.rs.
+# A malformed joined code invalidates the directive; a separated non-code starts trailing commentary.
+
+[[cases]]
+name = "squashed-code-list-target-last"
+files = { "case.py" = "try:\n    pass\nexcept:  # noqa: F401E722\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "squashed-invalid-code-rejects-all"
+files = { "case.py" = "try:\n    pass\nexcept:  # noqa: E722Ffoo\n    pass\n" }
+expected = [{ file = "case.py", start = 14, end = 20 }]
+
+[[cases]]
+name = "separated-uppercase-tail-is-comment"
+files = { "case.py" = "try:\n    pass\nexcept:  # noqa: E722 Ffoo\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "trailing-comment-cannot-supply-code"
+files = { "case.py" = "try:\n    pass\nexcept:  # noqa: F401 reason E722\n    pass\n" }
+expected = [{ file = "case.py", start = 14, end = 20 }]
+
+[[cases]]
+name = "first-invalid-directive-blocks-later"
+files = { "case.py" = "try:\n    pass\nexcept:  # noqaBAD # noqa:E722\n    pass\n" }
+expected = [{ file = "case.py", start = 14, end = 20 }]
+
+[[cases]]
+name = "embedded-marker-after-comment-text"
+files = { "case.py" = "try:\n    pass\nexcept:  # reason / path # noqa:E722\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "leading-extra-hash"
+files = { "case.py" = "try:\n    pass\nexcept:  # # noqa:E722\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "empty-code-list-items-are-warnings"
+files = { "case.py" = "try:\n    pass\nexcept:  # noqa: , , E722,,F401\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "later-squashed-invalid-code-rejects-all"
+files = { "case.py" = "try:\n    pass\nexcept:  # noqa: E722 F401E\n    pass\n" }
+expected = [{ file = "case.py", start = 14, end = 20 }]
+
+[[cases]]
+name = "nested-first-invalid-directive"
+files = { "case.py" = "try:\n    pass\nexcept:  # note # noqaBAD # noqa:E722\n    pass\n" }
+expected = [{ file = "case.py", start = 14, end = 20 }]
+
+[[cases]]
+name = "file-malformed-later-code-rejects-all"
+files = { "case.py" = "# ruff: noqa: E722,F401x\ntry:\n    pass\nexcept:\n    pass\n" }
+expected = [{ file = "case.py", start = 39, end = 45 }]
+
+[[cases]]
+name = "file-only-first-directive-applies"
+files = { "case.py" = "# ruff:noqa:F401 # ruff:noqa:E722\ntry:\n    pass\nexcept:\n    pass\n" }
+expected = [{ file = "case.py", start = 48, end = 54 }]
+
+[[cases]]
+name = "file-first-invalid-directive-blocks-later"
+files = { "case.py" = "# ruff:noqaBAD # ruff:noqa:E722\ntry:\n    pass\nexcept:\n    pass\n" }
+expected = [{ file = "case.py", start = 46, end = 52 }]
+
+[[cases]]
+name = "file-directive-search-ignores-inline-marker"
+files = { "case.py" = "# noqa:F401 # ruff:noqa:E722\ntry:\n    pass\nexcept:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "file-squashed-code-list"
+files = { "case.py" = "# flake8:noqa:F401E722\ntry:\n    pass\nexcept:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "file-tool-prefix-is-case-sensitive"
+files = { "case.py" = "# RUFF:noqa:E722\ntry:\n    pass\nexcept:\n    pass\n" }
+expected = [{ file = "case.py", start = 31, end = 37 }]
+
+[[cases]]
+name = "rule-codes-are-case-sensitive"
+files = { "case.py" = "try:\n    pass\nexcept:  # NoQa:e722\n    pass\n" }
+expected = [{ file = "case.py", start = 14, end = 20 }]
+
+[[cases]]
+name = "unicode-directive-whitespace"
+files = { "case.py" = "try:\n    pass\nexcept:  # noqa: E722\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "file-uppercase-trailing-comment"
+files = { "case.py" = "# ruff:noqa:E722 UPPERCASE reason\ntry:\n    pass\nexcept:\n    pass\n" }
+expected = []
