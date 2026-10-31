@@ -3,8 +3,8 @@ why = "Proves what is specific to one implementation after running the rows ever
 content = '''
 //! The {{ part }} adapter of the {{ port }} port: the core's contract rows run through it, then the cases specific to it.
 
-use crate::cases::{Case, Word, run};
-use crate::outbound::{{ port }}::fixtures::contract::CASES as CONTRACT;
+use {{ core }}::cases::{Case, Word, run};
+use {{ core }}::outbound::{{ port }}::fixtures::contract::CASES as CONTRACT;
 
 type Input = ();
 type Value = ();
@@ -26,6 +26,7 @@ fn succeeds() {
 '''
 
 [params]
+core = { type = "identifier", description = "The Rust crate that owns the port and contract." }
 port = { type = "identifier", from = "directory-name", description = "The outbound port the adapter implements, captured from the path of its part; the directory's own name where the part has no port." }
 part = { type = "identifier", from = "directory-name", description = "The adapter's directory name: the implementation." }
 
@@ -33,7 +34,7 @@ part = { type = "identifier", from = "directory-name", description = "The adapte
 id = 'example-adapter'
 scenario = 'The rendered template passes.'
 given.file = 'src/names/adapters/memory/adapter_test.rs'
-given.params = { port = 'names', part = 'memory' }
+given.params = { core = 'crate', port = 'names', part = 'memory' }
 given.files.'src/names/adapters/memory/adapter_test.rs' = '''
 //! The memory adapter of the names port: the core's contract rows run through it, then the cases specific to it.
 
@@ -77,7 +78,7 @@ fn rejects() {
 id = 'extra-content'
 scenario = 'A file may carry more than its template.'
 given.file = 'src/names/adapters/memory/adapter_test.rs'
-given.params = { port = 'names', part = 'memory' }
+given.params = { core = 'crate', port = 'names', part = 'memory' }
 given.files.'src/names/adapters/memory/adapter_test.rs' = '''
 //! The memory adapter of the names port: the core's contract rows run through it, then the cases specific to it.
 
@@ -123,7 +124,7 @@ fn rejects() {
 id = 'file-missing'
 scenario = 'The file is missing.'
 given.file = 'src/names/adapters/memory/adapter_test.rs'
-given.params = { port = 'names', part = 'memory' }
+given.params = { core = 'crate', port = 'names', part = 'memory' }
 then.findings = [
   { rule = 'adapter-test#count', path = '.' },
 ]
@@ -132,7 +133,7 @@ then.findings = [
 id = 'old-pointer-test'
 scenario = 'The pointer test the template no longer writes is no substitute for the table and the runners.'
 given.file = 'src/names/adapters/memory/adapter_test.rs'
-given.params = { port = 'names', part = 'memory' }
+given.params = { core = 'crate', port = 'names', part = 'memory' }
 given.files.'src/names/adapters/memory/adapter_test.rs' = '''
 //! What the memory names adapter promises beyond the core's contract.
 

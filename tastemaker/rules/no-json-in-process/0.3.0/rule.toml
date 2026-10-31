@@ -364,7 +364,7 @@ fn internal() { let _ = serde_json::json!({}); }
 given.files.'tastemaker.toml' = '''
 workspace = { name = "fixture", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
 rules = [{ rule = "idiomatic.arch/no-json-in-process", include = ["**"] }]
-specs = [{ spec = "idiomatic.arch/adapter", include = ["app/src/outbound/process/adapters/tool"] }]
+specs = [{ spec = "idiomatic.arch/adapter", params = { core = "crate", port = "process" }, include = ["app/src/outbound/process/adapters/tool"] }]
 '''
 then.only = ['idiomatic.arch/no-json-in-process', 'idiomatic.arch/no-json-in-process#unknown']
 then.findings = [{ path = 'app/src/domain/value.rs', line = 1 }]

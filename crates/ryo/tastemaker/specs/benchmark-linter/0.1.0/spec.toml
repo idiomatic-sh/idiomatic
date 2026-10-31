@@ -1,0 +1,43 @@
+description = "The language-local artifacts and entry points of one benchmark linter."
+why = "Placed beside the standard adapter spec at the same directory, this artifact spec owns Cargo runners, composition, tool pins and candidate rules. The adapter spec alone owns adapter, settings and schemas roles; neither scope exempts the other."
+templates = [
+  { template = "linter", file = "benchmark.toml", description = "Benchmark linter contract." },
+  { alias = "bench", template = "source", file = "bench.rs", imports = { default = "deny", allow = ["ryo_benchmark::*", "ryo::*", "std::*", "serde::*", "serde_json::*", "toml::*", "tempfile::*", "crate::*", "self::*", "super::*", "composition::*"] }, description = "The linter bench implementation." },
+  { alias = "tests", template = "source", file = "tests.rs", imports = { default = "deny", allow = ["ryo_benchmark::*", "ryo::*", "std::*", "serde::*", "serde_json::*", "toml::*", "tempfile::*", "crate::*", "self::*", "super::*"] }, description = "The linter tests implementation." },
+  { alias = "composition", template = "source", file = "composition.rs", imports = { default = "deny", allow = ["ryo_benchmark::*", "ryo::*", "std::*", "serde::*", "serde_json::*", "toml::*", "tempfile::*", "crate::*", "self::*", "super::*"] }, description = "The linter composition implementation." },
+  { alias = "engine-test", template = "source", file = "engine_test.rs", count = { min = 0 }, imports = { default = "deny", allow = ["ryo_benchmark::*", "ryo::*", "std::*", "serde::*", "serde_json::*", "toml::*", "tempfile::*", "crate::*", "self::*", "super::*"] }, description = "Optional real-SDK integration proof, compiled by the linter test target." },
+  { template = "query", file = "rules/{implemented}/query.ryoql", count = { min = 0 }, description = "Benchmark query contract." },
+  { template = "cases", file = "rules/{rule}/cases.toml", description = "Benchmark cases contract." },
+]
+rules = [
+  { rule = "idiomatic.arch/orphan-rust-files@0.1.0", include = ["*.rs"], description = "Every companion is reachable from its Cargo target." },
+  { rule = "companions", include = ["**"], description = "Each authored query has cases and the integration roles are complete." },
+]
+
+[[scenarios]]
+id = "authored-query-has-cases"
+scenario = "An authored rule and its cases remain colocated."
+given.files.'rules/F001/query.ryoql' = ''
+given.files.'rules/F001/cases.toml' = ''
+then.only = ['idiomatic.ryo/benchmark-linter/companions']
+[[scenarios]]
+id = "authored-query-missing-cases"
+scenario = "An implemented rule cannot lose its independent cases."
+given.files.'rules/F001/query.ryoql' = ''
+then.only = ['idiomatic.ryo/benchmark-linter/companions']
+then.findings = [{ rule = 'idiomatic.ryo/benchmark-linter/companions', path = 'rules/F001/query.ryoql' }]
+
+[[scenarios]]
+id = "private-engine-is-not-a-benchmark-dependency"
+scenario = "Benchmark entry points cannot import a private engine."
+given.files.'benchmark.toml' = ''
+given.files.'bench.rs' = 'use ryo_core::domain::engine::Engine;'
+given.files.'tests.rs' = ''
+given.files.'composition.rs' = ''
+given.files.'rules/F001/cases.toml' = ''
+then.findings = [
+  { rule = "idiomatic.ryo/benchmark-linter/source(bench)#imports", path = "bench.rs", line = 1 },
+  { rule = "idiomatic.arch/orphan-rust-files", path = "bench.rs" },
+  { rule = "idiomatic.arch/orphan-rust-files", path = "composition.rs" },
+  { rule = "idiomatic.arch/orphan-rust-files", path = "tests.rs" },
+]

@@ -1,79 +1,94 @@
 //! Real SDK evidence for missing files, unread inputs and typed findings.
+use super::{BoundaryFailure, failure};
+use ryo_benchmark::cases::{Case, CaseName, Expect, Word, run};
 use ryo_benchmark::domain::{
     diagnostics::{errors::Error, types::Diagnostic},
     suite::types::WorkerRequest,
 };
 use ryo_benchmark::outbound::engine::{factory, interface::EnginePort};
 
-fn rules(directory: &std::path::Path) -> std::path::PathBuf {
-    let root = directory.join("rules");
-    std::fs::create_dir_all(root.join("E722")).unwrap();
+#[derive(Clone, Copy)]
+enum EngineScenario {
+    Finding,
+    Missing,
+    Unread,
+}
+type Input = EngineScenario;
+type Value = bool;
+type Failure = BoundaryFailure;
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("sdk_preserves_checked_file_rule_and_byte_span"),
+        word: Word::Succeeds,
+        input: || EngineScenario::Finding,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("unread_input_is_not_checked"),
+        word: Word::Refuses,
+        input: || EngineScenario::Unread,
+        expect: Expect::Error(BoundaryFailure::Invalid),
+    },
+    Case {
+        name: CaseName("missing_listed_file_is_failure"),
+        word: Word::Fails,
+        input: || EngineScenario::Missing,
+        expect: Expect::Error(BoundaryFailure::Io(std::io::ErrorKind::NotFound)),
+    },
+];
+fn exercise(scenario: Input) -> Result<Value, Error> {
+    let root = tempfile::tempdir()?;
+    let rules = root.path().join("rules");
+    std::fs::create_dir_all(rules.join("E722"))?;
     std::fs::write(
-        root.join("E722/query.ryoql"),
+        rules.join("E722/query.ryoql"),
         include_str!("rules/E722/query.ryoql"),
-    )
-    .unwrap();
-    root
-}
-
-#[test]
-fn missing_listed_file_is_a_failure() {
-    let root = tempfile::tempdir().unwrap();
+    )?;
+    let file = match scenario {
+        EngineScenario::Finding => "input.py",
+        EngineScenario::Missing => "missing.py",
+        EngineScenario::Unread => "input.unknown",
+    };
+    if !matches!(scenario, EngineScenario::Missing) {
+        std::fs::write(
+            root.path().join(file),
+            "try:\n    pass\nexcept:\n    pass\n",
+        )?;
+    }
     let request = WorkerRequest {
         root: root.path().to_owned(),
-        rules: rules(root.path()),
-        files: vec!["missing.py".into()],
+        rules,
+        files: vec![file.into()],
         cache: None,
     };
-    let error = factory::local(ryo::linter::Languages(vec![ryo_python::linked()]))
-        .run(request)
-        .unwrap_err();
-    assert!(matches!(error, Error::Io(error) if error.kind() == std::io::ErrorKind::NotFound));
+    let result = factory::local(ryo::linter::Languages(vec![ryo_python::linked()])).run(request);
+    if matches!(scenario, EngineScenario::Unread) {
+        assert!(
+            matches!(&result, Err(Error::Invalid(message)) if message.starts_with("incomplete candidate:") && message.contains("input.unknown"))
+        );
+    }
+    let report = result?;
+    Ok(report.files == ["input.py"]
+        && report.diagnostics
+            == [Diagnostic {
+                rule: "E722".into(),
+                file: "input.py".into(),
+                start: 14,
+                end: 20,
+            }])
 }
-
-#[test]
-fn unread_input_is_not_reported_as_checked() {
-    let root = tempfile::tempdir().unwrap();
-    std::fs::write(root.path().join("input.unknown"), "x").unwrap();
-    let request = WorkerRequest {
-        root: root.path().to_owned(),
-        rules: rules(root.path()),
-        files: vec!["input.unknown".into()],
-        cache: None,
-    };
-    let error = factory::local(ryo::linter::Languages(vec![ryo_python::linked()]))
-        .run(request)
-        .unwrap_err();
-    assert!(
-        matches!(error, Error::Invalid(message) if message.starts_with("incomplete candidate:") && message.contains("input.unknown"))
-    );
+fn subject(input: Input) -> Result<Value, Failure> {
+    exercise(input).map_err(failure)
 }
-
 #[test]
-fn sdk_findings_preserve_rule_file_and_byte_span() {
-    let root = tempfile::tempdir().unwrap();
-    std::fs::write(
-        root.path().join("input.py"),
-        "try:\n    pass\nexcept:\n    pass\n",
-    )
-    .unwrap();
-    let request = WorkerRequest {
-        root: root.path().to_owned(),
-        rules: rules(root.path()),
-        files: vec!["input.py".into()],
-        cache: None,
-    };
-    let report = factory::local(ryo::linter::Languages(vec![ryo_python::linked()]))
-        .run(request)
-        .unwrap();
-    assert_eq!(report.files, ["input.py"]);
-    assert_eq!(
-        report.diagnostics,
-        [Diagnostic {
-            rule: "E722".into(),
-            file: "input.py".into(),
-            start: 14,
-            end: 20
-        }]
-    );
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+#[test]
+fn fails() {
+    run(CASES, Word::Fails, subject);
 }

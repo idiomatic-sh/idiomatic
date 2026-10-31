@@ -7,7 +7,7 @@ use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
 use std::path::Path;
 
-pub fn audit(directory: &Path, tool: &Tool) -> Result<Audit, Error> {
+fn audit(directory: &Path, tool: &Tool) -> Result<Audit, Error> {
     let defaults: BTreeSet<_> = tool.defaults.iter().cloned().collect();
     if defaults.is_empty() || defaults.len() != tool.defaults.len() {
         return Err(Error::Invalid(
@@ -47,7 +47,7 @@ pub fn audit(directory: &Path, tool: &Tool) -> Result<Audit, Error> {
     })
 }
 
-pub fn verify_executable(path: &Path, tool: &Tool) -> Result<(), Error> {
+fn verify_executable(path: &Path, tool: &Tool) -> Result<(), Error> {
     let digest = format!("{:x}", Sha256::digest(std::fs::read(path)?));
     if digest != tool.sha256 {
         return Err(Error::Invalid(
@@ -67,6 +67,16 @@ pub fn verify_executable(path: &Path, tool: &Tool) -> Result<(), Error> {
 #[derive(Debug)]
 pub struct SuiteLocalAdapter;
 impl crate::outbound::suite::interface::SuitePort for SuiteLocalAdapter {
+    fn profile(&self, directory: &Path) -> Result<Tool, Error> {
+        super::schemas::tool(&std::fs::read_to_string(directory.join("benchmark.toml"))?)
+    }
+    fn projects(&self, directory: &Path) -> Result<crate::domain::suite::types::Suite, Error> {
+        super::schemas::suite(&std::fs::read_to_string(directory.join("benchmark.toml"))?)
+    }
+    fn verify_tool(&self, executable: &Path, tool: &Tool) -> Result<(), Error> {
+        verify_executable(executable, tool)
+    }
+
     fn audit(&self, directory: &Path, tool: &Tool) -> Result<Audit, Error> {
         audit(directory, tool)
     }

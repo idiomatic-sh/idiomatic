@@ -200,5 +200,6 @@ readers-in-items = "0.1.0"
 
 [packages."idiomatic.ryo".specs]
 benchmark = "0.1.0"
+benchmark-linter = "0.1.0"
 contract = "0.1.0"
 language = "0.1.0"

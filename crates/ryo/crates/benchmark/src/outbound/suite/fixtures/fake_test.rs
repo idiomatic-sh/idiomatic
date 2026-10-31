@@ -5,5 +5,5 @@ use super::SuiteFake;
 
 #[test]
 fn succeeds() {
-    check(&SuiteFake);
+    check(&SuiteFake::default());
 }

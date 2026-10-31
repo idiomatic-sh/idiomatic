@@ -1,24 +1,13 @@
 description = "A language's comparative lint benchmark: shared project inputs and local linter integrations."
 why = "Project revisions and edit patches belong to the language. Each pinned linter owns its invocation, decoding, shipped-default profile and RyoQL rules. Case-only directories are pending test-first work, never implemented coverage. Every query requires cases. The shared benchmark crate audits these inputs before measuring; incomplete defaults never produce a parity or performance claim."
+specs = [
+  { spec = "idiomatic.ryo/benchmark-linter@0.1.0", include = ["linters/{linter}"], description = "The pinned profile, runners and rule assets of each linter." },
+  { alias = "linter-adapter", spec = "idiomatic.arch/adapter@0.2.0", include = ["linters/{linter}"], params = { core = "ryo_benchmark", port = "linter" }, description = "The shared harness owns the port; the existing adapter spec governs its external implementation." },
+]
 templates = [
-  { template = "manifest", file = "benchmark.toml", description = "Benchmark manifest contract." },
-  { template = "patch", file = "patches/{project}.patch", count = { min = 2, max = 3 }, description = "Benchmark patch contract." },
-  { template = "linter", file = "linters/{linter}/benchmark.toml", description = "Benchmark linter contract." },
-  { alias = "bench", template = "source", file = "linters/{linter}/bench.rs", imports = { default = "deny", allow = ["ryo_benchmark::*", "ryo::*", "std::*", "serde::*", "serde_json::*", "toml::*", "tempfile::*", "crate::*", "self::*", "super::*", "composition::*"] }, description = "The linter bench implementation." },
-  { alias = "tests", template = "source", file = "linters/{linter}/tests.rs", imports = { default = "deny", allow = ["ryo_benchmark::*", "ryo::*", "std::*", "serde::*", "serde_json::*", "toml::*", "tempfile::*", "crate::*", "self::*", "super::*"] }, description = "The linter tests implementation." },
-  { alias = "composition", template = "source", file = "linters/{linter}/composition.rs", imports = { default = "deny", allow = ["ryo_benchmark::*", "ryo::*", "std::*", "serde::*", "serde_json::*", "toml::*", "tempfile::*", "crate::*", "self::*", "super::*"] }, description = "The linter composition implementation." },
-  { alias = "adapter", template = "source", file = "linters/{linter}/adapter.rs", imports = { default = "deny", allow = ["ryo_benchmark::*", "ryo::*", "std::*", "serde::*", "serde_json::*", "toml::*", "tempfile::*", "crate::*", "self::*", "super::*"] }, description = "The linter adapter implementation." },
-  { alias = "adapter_test", template = "source", file = "linters/{linter}/adapter_test.rs", imports = { default = "deny", allow = ["ryo_benchmark::*", "ryo::*", "std::*", "serde::*", "serde_json::*", "toml::*", "tempfile::*", "crate::*", "self::*", "super::*"] }, description = "The linter adapter_test implementation." },
-  { alias = "schemas", template = "source", file = "linters/{linter}/schemas.rs", imports = { default = "deny", allow = ["ryo_benchmark::*", "ryo::*", "std::*", "serde::*", "serde_json::*", "toml::*", "tempfile::*", "crate::*", "self::*", "super::*"] }, description = "The linter schemas implementation." },
-  { alias = "schemas_test", template = "source", file = "linters/{linter}/schemas_test.rs", imports = { default = "deny", allow = ["ryo_benchmark::*", "ryo::*", "std::*", "serde::*", "serde_json::*", "toml::*", "tempfile::*", "crate::*", "self::*", "super::*"] }, description = "The linter schemas_test implementation." },
-  { alias = "settings", template = "source", file = "linters/{linter}/settings.rs", imports = { default = "deny", allow = ["ryo_benchmark::*", "ryo::*", "std::*", "serde::*", "serde_json::*", "toml::*", "tempfile::*", "crate::*", "self::*", "super::*"] }, description = "The linter settings implementation." },
-  { template = "query", file = "linters/{linter}/rules/{implemented}/query.ryoql", count = { min = 0 }, description = "Benchmark query contract." },
-  { template = "cases", file = "linters/{linter}/rules/{rule}/cases.toml", description = "Benchmark cases contract." },
+  { template = "manifest", file = "benchmark.toml", description = "The language's shared pinned workloads." },
+  { template = "patch", file = "patches/{project}.patch", count = { min = 2, max = 3 }, description = "Shared deterministic project edits." },
 ]
-rules = [
-  { rule = "companions", include = ["linters/**"], description = "Benchmark companions contract." },
-]
-
 [[scenarios]]
 id = "complete-shape"
 scenario = "All benchmark artifacts are placed."
@@ -37,6 +26,7 @@ given.files.'linters/tool/settings.rs' = ''
 given.files.'linters/tool/rules/F001/query.ryoql' = ''
 given.files.'linters/tool/rules/F001/cases.toml' = ''
 
+then.only = ["idiomatic.ryo/benchmark#closed", "idiomatic.ryo/benchmark-linter#closed", "idiomatic.ryo/benchmark-linter/companions"]
 [[scenarios]]
 id = "stray-artifact"
 scenario = "Unowned benchmark artifacts are rejected."
@@ -57,22 +47,4 @@ given.files.'linters/tool/rules/F001/cases.toml' = ''
 given.files.'reference/unowned.txt' = ''
 then.findings = [{ rule = 'benchmark#closed', path = 'reference/unowned.txt' }]
 
-[[scenarios]]
-id = "private-engine-is-not-a-benchmark-dependency"
-scenario = "The benchmark edge cannot bypass the public SDK and shared harness."
-given.files.'benchmark.toml' = ''
-given.files.'patches/one.patch' = ''
-given.files.'patches/two.patch' = ''
-given.files.'linters/tool/benchmark.toml' = ''
-given.files.'linters/tool/bench.rs' = 'use ryo_core::domain::engine::Engine;'
-given.files.'linters/tool/tests.rs' = ''
-given.files.'linters/tool/composition.rs' = ''
-given.files.'linters/tool/adapter.rs' = ''
-given.files.'linters/tool/adapter_test.rs' = ''
-given.files.'linters/tool/schemas.rs' = ''
-given.files.'linters/tool/schemas_test.rs' = ''
-given.files.'linters/tool/settings.rs' = ''
-given.files.'linters/tool/rules/F001/query.ryoql' = ''
-given.files.'linters/tool/rules/F001/cases.toml' = ''
-
-then.findings = [{ rule = "source(bench)#imports", path = "linters/tool/bench.rs", line = 1 }]
+then.only = ["idiomatic.ryo/benchmark#closed", "idiomatic.ryo/benchmark-linter#closed", "idiomatic.ryo/benchmark-linter/companions"]

@@ -2,18 +2,19 @@ description = "One adapter: an implementation of one outbound port of a core, it
 why = "An adapter holds one implementation of the core's port behind the port's name, so the core's use cases depend on the promise and the edge alone picks the implementation. The port is the core's, imported from the crate named in `core`; the adapter holds nothing of the core's logic and no interface of its own. Its struct is `<Port><Name>Adapter` and implements `<Port>Port`; it keeps no process-global state and reaches only its own port. The adapter spec places each adapter. Resources or filesystem identities supplied by the edge and any typed partition bindings belong to the adapter instance. Worker buffers and leases have explicit lifetimes; pure compute adapters need no external resource. Shared contract tests establish resource isolation and observable behavior, not constructor names alone."
 templates = [
   { template = "idiomatic.arch/adapter-connection@0.1.0", alias = "connection", file = "connection.rs", count = { min = 0 }, description = "Optional adapter-owned external resource handle opened at the edge, then injected through the factory; not a port data type." },
-  { template = "adapter", file = "adapter.rs", description = "One implementation of the outbound port its directory sits beneath: the struct `<Port><Part>Adapter` implementing the core's `<Port>Port`, which it imports from the core crate." },
-  { template = "adapter-test", file = "adapter_test.rs", description = "The proof of one adapter in the one test shape: the core's contract rows run through it, then the cases specific to it." },
+  { template = "adapter", file = "adapter.rs", params = { port = { param = "port" }, core = { param = "core" } }, description = "One implementation of the outbound port its directory sits beneath: the struct `<Port><Part>Adapter` implementing the core's `<Port>Port`, which it imports from the core crate." },
+  { template = "adapter-test", file = "adapter_test.rs", params = { port = { param = "port" }, core = { param = "core" } }, description = "The proof of one adapter in the one test shape: the core's contract rows run through it, then the cases specific to it." },
   { template = "adapter-fixture", file = "fixtures/{*fixture}", count = { min = 0 }, description = "One file of the adapter's `fixtures/` tree: the samples, oracles and expectations its test reads, at any depth beneath `fixtures/`." },
   { alias = "adapter-fixtures-module", template = "adapter-fixture", file = "fixtures.rs", count = { min = 0 }, params = { fixture = "fixtures.rs" }, description = "The module that declares an adapter's `fixtures/` files, present only when it has some." },
   { template = "idiomatic.arch/constants@0.1.0", file = "constants.rs", count = { min = 0 }, description = "The constants the part's code uses, when it has any: no literal sits in code." },
-  { template = "settings", file = "settings.rs", count = { min = 0 }, description = "The values one adapter is configured with, present only when it has some." },
+  { template = "settings", file = "settings.rs", count = { min = 0 }, params = { port = { param = "port" } }, description = "The values one adapter is configured with, present only when it has some." },
   { template = "idiomatic.arch/types@0.1.0", file = "types.rs", count = { min = 0 }, params = { kind = "adapter" }, description = "The part's own plain types when it has any (a command's or an entry's: the dependencies its composition is given)." },
   { template = "idiomatic.arch/errors@0.1.0", file = "errors.rs", count = { min = 0 }, params = { kind = "adapter" }, description = "The error the part produces, when it has one." },
   { template = "idiomatic.arch/schemas@0.1.0", file = "schemas.rs", count = { min = 0 }, params = { kind = "adapter" }, description = "The shape of the data the part does not control and its checked conversion into the core's types and back: the only file with a validation." },
   { template = "idiomatic.arch/schemas-test@0.1.0", file = "schemas_test.rs", count = { min = 0 }, params = { kind = "adapter" }, description = "The accepted and the refused inputs of the part's schemas." },
 ]
 rules = [
+  { rule = "adapter-binding", include = ["adapter.rs"], params = { core = { param = "core" }, port = { param = "port" } }, description = "The implementation uses the exact owning crate and outbound port bound by placement." },
   { rule = "idiomatic.arch/no-vacuous-tests@0.1.0", include = ["*_test.rs"], description = "Proofs execute a real subject over nonempty cases." },
   { rule = "adapter-name", include = ["adapter.rs"], description = "An adapter.rs holds one struct named <Port><Dir>Adapter that implements the trait of its port; any other struct in it is a handle that implements a trait the port returns." },
   { rule = "settings-name", include = ["settings.rs"], description = "An adapter's settings are one struct named <Port><Dir>Settings." },
@@ -43,8 +44,11 @@ rules = [
 ]
 
 [params]
+core = { type = "identifier", description = "The Rust crate that owns the implemented port and its shared contract." }
+port = { type = "identifier", from = "directory-name", description = "The implemented outbound port, explicitly bound for an adapter outside its owning crate." }
 
 [given]
+params = { core = "crate" }
 at = 'src/{port}/adapters/{adapter}'
 files.'Cargo.toml' = '''
 [package]
@@ -795,6 +799,7 @@ pub mod journal;
 pub mod cases;
 '''
 then.findings = [
+  { rule = 'idiomatic.arch/adapter/adapter-binding', path = 'src/journal/adapters/memory/adapter.rs' },
   { rule = 'idiomatic.arch/adapter/adapter#template', path = 'src/journal/adapters/memory/adapter.rs' },
   { rule = 'idiomatic.arch/adapter/adapter-name', path = 'src/journal/adapters/memory/adapter.rs', line = 3 },
 ]
@@ -2195,6 +2200,7 @@ pub mod journal;
 pub mod cases;
 '''
 then.findings = [
+  { rule = 'idiomatic.arch/adapter/adapter-binding', path = 'src/journal/adapters/memory/adapter.rs' },
   { rule = 'idiomatic.arch/adapter/adapter#template', path = 'src/journal/adapters/memory/adapter.rs' },
   { rule = 'idiomatic.arch/adapter/adapter-name', path = 'src/journal/adapters/memory/adapter.rs', line = 3 },
   { rule = 'idiomatic.arch/adapter/adapter-name', path = 'src/journal/adapters/memory/adapter.rs', line = 6 },

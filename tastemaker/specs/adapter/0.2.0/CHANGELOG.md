@@ -2,6 +2,10 @@
 
 ## 0.2.0
 
+An adapter can bind a port owned by another crate using explicit `core` and `port` parameters. The normal port placement supplies `core = "crate"`; a language-local benchmark supplies its shared harness crate. Templates import the owning port and contract, and `adapter-binding` checks that the imported owner is the trait actually implemented, including renamed imports. Importing the correct trait without implementing it does not satisfy the rule.
+
+IO, client and serialization boundaries recognize only the exact role files placed by this adapter spec. A similarly named unplaced file receives no privilege. Benchmark runners and rule assets remain owned by the peer benchmark artifact spec.
+
 The `adapter` template declares the adapter `pub(crate) struct <Port><Part>Adapter`, and its settings constructor `pub(crate) fn new`, where they were `pub`: the adapter lives in a private `adapters` module and only its port's factory, in the same crate, names it, so `pub` was unreachable and rustc's `unreachable_pub` (on in `cargo-workspace` 0.11.0) reported it. The template names the visibility, so a placed adapter is held to `pub(crate)` exactly. The scenarios' adapters follow. A product moves by placing `port` 0.2.0 (through `nu-hex` 0.2.0) and writing its adapters `pub(crate)`.
 
 ## 0.1.0

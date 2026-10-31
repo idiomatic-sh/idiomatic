@@ -1,28 +1,116 @@
-//! Ruff JSON decoding and Unicode scalar coordinates to UTF-8 bytes.
-use ryo_benchmark::domain::diagnostics::errors::Error;
+//! Private Ruff wire data, decoded without IO into canonical benchmark reports.
+use ryo::linter::{RelativePath, RuleId, SourceText};
+use ryo_benchmark::domain::{
+    diagnostics::{
+        errors::Error,
+        types::{Diagnostic, RunReport},
+    },
+    measurements::types::ProcessOutput,
+    suite::types::RunRequest,
+};
 use serde::Deserialize;
+use std::collections::{BTreeMap, BTreeSet};
+use std::path::Path;
 
 #[derive(Debug, Deserialize)]
-pub(crate) struct Finding {
-    pub code: String,
-    pub filename: String,
-    pub location: Location,
-    pub end_location: Location,
-    pub cell: Option<usize>,
+struct Finding {
+    code: String,
+    filename: String,
+    location: Location,
+    end_location: Location,
+    cell: Option<usize>,
 }
 #[derive(Debug, Deserialize)]
-pub(crate) struct Location {
-    pub row: usize,
-    pub column: usize,
+struct Location {
+    row: usize,
+    column: usize,
 }
 
-pub(crate) fn offset(source: &str, location: &Location) -> Result<usize, Error> {
-    if location.row == 0 || location.column == 0 {
+/// Lint findings and warnings are valid; an operational exit is not.
+pub(crate) fn check_status(output: &ProcessOutput) -> Result<(), Error> {
+    if matches!(output.status, 0 | 1) {
+        return Ok(());
+    }
+    Err(Error::Invalid(format!(
+        "Ruff failed ({}): {}",
+        output.status,
+        String::from_utf8_lossy(&output.stderr)
+    )))
+}
+
+/// Decode against the exact source set already read by the adapter, including clean files.
+pub(crate) fn decode(
+    request: &RunRequest,
+    output: &ProcessOutput,
+    defaults: &BTreeSet<RuleId>,
+    sources: &BTreeMap<RelativePath, SourceText>,
+) -> Result<RunReport, Error> {
+    check_status(output)?;
+    if request.files.len() != sources.len()
+        || request
+            .files
+            .iter()
+            .any(|file| !sources.contains_key(&RelativePath(file.clone().into_boxed_str())))
+    {
+        return Err(Error::Invalid("requested source set is incomplete".into()));
+    }
+    let raw: Vec<Finding> = serde_json::from_slice(&output.stdout)?;
+    if (output.status == 0) != raw.is_empty() {
+        return Err(Error::Invalid(
+            "Ruff exit status contradicts findings".into(),
+        ));
+    }
+    let mut diagnostics = Vec::new();
+    for finding in raw {
+        if finding.cell.is_some() {
+            return Err(Error::Invalid(
+                "notebook cell locations need a mapped source model".into(),
+            ));
+        }
+        let rule = RuleId::try_from(finding.code.as_str())
+            .map_err(|error| Error::Invalid(error.to_string()))?;
+        if !defaults.contains(&rule) && finding.code != "invalid-syntax" {
+            return Err(Error::Invalid(format!("unexpected rule {}", finding.code)));
+        }
+        let relative = Path::new(&finding.filename)
+            .strip_prefix(&request.root)
+            .map_err(|_| Error::Invalid("Ruff returned a path outside the corpus".into()))?;
+        let file = relative
+            .to_str()
+            .ok_or_else(|| Error::Invalid("non-UTF8 Ruff filename".into()))?;
+        let source = sources
+            .get(&RelativePath(file.into()))
+            .ok_or_else(|| Error::Invalid("Ruff returned an unrequested file".into()))?;
+        let start = offset(&source.0, finding.location.row, finding.location.column)?;
+        let end = offset(
+            &source.0,
+            finding.end_location.row,
+            finding.end_location.column,
+        )?;
+        if end < start {
+            return Err(Error::Invalid("Ruff span is reversed".into()));
+        }
+        diagnostics.push(Diagnostic {
+            rule: finding.code,
+            file: file.to_owned(),
+            start,
+            end,
+        });
+    }
+    Ok(RunReport {
+        diagnostics,
+        files: request.files.clone(),
+    })
+}
+
+/// Translate one-based Unicode scalar coordinates into a UTF-8 byte offset.
+pub(crate) fn offset(source: &str, row: usize, column: usize) -> Result<usize, Error> {
+    if row == 0 || column == 0 {
         return Err(Error::Invalid("Ruff location is zero-based".into()));
     }
     let bytes = source.as_bytes();
     let mut start = 0;
-    for _ in 1..location.row {
+    for _ in 1..row {
         let newline = bytes[start..]
             .iter()
             .position(|byte| matches!(byte, b'\r' | b'\n'))
@@ -33,12 +121,12 @@ pub(crate) fn offset(source: &str, location: &Location) -> Result<usize, Error> 
             start += 1;
         }
     }
-    if location.row == 1 && source.starts_with('\u{feff}') {
+    if row == 1 && source.starts_with('\u{feff}') {
         start += '\u{feff}'.len_utf8();
     }
     let tail = &source[start..];
     let line = tail.split(['\r', '\n']).next().unwrap_or("");
-    let column = location.column - 1;
+    let column = column - 1;
     let relative = if column == line.chars().count() {
         line.len()
     } else {

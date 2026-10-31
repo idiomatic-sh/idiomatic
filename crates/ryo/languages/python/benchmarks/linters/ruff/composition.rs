@@ -1,21 +1,22 @@
 //! Python composition provides its linked language only at this outer edge.
-use super::{adapter::Ruff, settings};
+use super::{adapter::LinterRuffAdapter, settings::LinterRuffSettings};
 use ryo_benchmark::application::run::service::run as execute;
 use ryo_benchmark::domain::diagnostics::errors::Error;
 use ryo_benchmark::domain::measurements::types::RunOrder;
 use ryo_benchmark::domain::suite::service::require_complete;
-use ryo_benchmark::domain::suite::types::{RunRequest, Suite};
+use ryo_benchmark::domain::suite::types::{RunRequest, Suite, Tool};
 use ryo_benchmark::inbound::use_cases::compare::service::compare;
 use ryo_benchmark::inbound::use_cases::measure::service::measure;
 use ryo_benchmark::inbound::use_cases::run_ryo::{
     interface::RunRyoUseCase, use_case::RunRyoUseCaseImpl,
 };
-use ryo_benchmark::outbound::suite::adapters::local::adapter::{audit, verify_executable};
+use ryo_benchmark::outbound::suite::interface::SuitePort;
 use ryo_benchmark::outbound::workspace::interface::WorkspacePort;
 use std::{path::PathBuf, sync::Arc};
 
 pub(crate) fn run() -> Result<(), Error> {
     let mut args = std::env::args().skip(1);
+    let suite_source = ryo_benchmark::outbound::suite::factory::local();
     let execution = ryo_benchmark::outbound::execution::factory::process();
     let workspaces = ryo_benchmark::outbound::workspace::factory::git();
     match args.next().as_deref() {
@@ -27,11 +28,11 @@ pub(crate) fn run() -> Result<(), Error> {
         }
         Some("verify-cases") => {
             let executable = PathBuf::from(args.next().ok_or_else(|| Error::Invalid("expected Ruff executable".into()))?).canonicalize()?;
-            let tool = settings::load()?;
-            verify_executable(&executable, &tool)?;
-            let reference = Ruff { executable, defaults: tool.defaults.into_iter().collect() };
+            let tool = suite_source.profile(&directory())?;
+            suite_source.verify_tool(&executable, &tool)?;
+            let reference = reference(executable, tool)?;
             let scratch = tempfile::tempdir()?;
-            let count = ryo_benchmark::outbound::suite::adapters::local::adapter::verify_cases(&reference, &execution, &std::env::current_exe()?, &settings::directory().join("rules"), scratch.path())?;
+            let count = ryo_benchmark::outbound::suite::adapters::local::adapter::verify_cases(&reference, &execution, &std::env::current_exe()?, &directory().join("rules"), scratch.path())?;
             println!("{count} cases passed against both contestants");
             Ok(())
         }
@@ -40,19 +41,19 @@ pub(crate) fn run() -> Result<(), Error> {
             let cache = PathBuf::from(args.next().ok_or_else(|| Error::Invalid("expected owned cache directory".into()))?);
             std::fs::create_dir_all(&cache)?;
             let cache = cache.canonicalize()?;
-            let tool = settings::load()?;
-            verify_executable(&executable, &tool)?;
-            let audit = audit(&settings::directory(), &tool)?;
+            let tool = suite_source.profile(&directory())?;
+            suite_source.verify_tool(&executable, &tool)?;
+            let audit = suite_source.audit(&directory(), &tool)?;
             require_complete(&audit)?;
-            let reference = Ruff { executable, defaults: tool.defaults.into_iter().collect() };
-            let candidate = ryo_benchmark::outbound::linter::factory::ryo(std::env::current_exe()?, settings::directory().join("rules"));
+            let reference = reference(executable, tool)?;
+            let candidate = ryo_benchmark::outbound::linter::factory::ryo(std::env::current_exe()?, directory().join("rules"));
             let case_scratch = tempfile::tempdir()?;
-            let _ = ryo_benchmark::outbound::suite::adapters::local::adapter::verify_cases(&reference, &execution, &std::env::current_exe()?, &settings::directory().join("rules"), case_scratch.path())?;
-            let suite: Suite = ryo_benchmark::outbound::suite::adapters::local::schemas::suite(&std::fs::read_to_string(settings::directory().join("../../benchmark.toml"))?)?;
+            let _ = ryo_benchmark::outbound::suite::adapters::local::adapter::verify_cases(&reference, &execution, &std::env::current_exe()?, &directory().join("rules"), case_scratch.path())?;
+            let suite: Suite = suite_source.projects(&directory().join("../.."))?;
             if suite.language != "python" || !(2..=3).contains(&suite.projects.len()) { return Err(Error::Invalid("Python suite requires 2–3 projects".into())); }
             for project in suite.projects {
                 let mut workspace = workspaces.prepare(&project, &cache.join("projects"))?;
-                let files = reference.files(workspace.root())?;
+                let files: Vec<String> = reference.files(workspace.root())?.into_iter().map(|path| path.0.into_string()).collect();
                 let tracked = workspaces.tracked_files(&workspace)?;
                 if files.iter().any(|file| !tracked.contains(file)) { return Err(Error::Invalid("Ruff discovered untracked source".into())); }
                 for order in [RunOrder::ReferenceFirst, RunOrder::CandidateFirst] {
@@ -65,7 +66,7 @@ pub(crate) fn run() -> Result<(), Error> {
                     let retained = measure(&audit, &reference, &candidate, &execution, &request, order)?;
                     compare(&cold.reference.report, &retained.reference.report).map_err(|difference| Error::Invalid(format!("reference retained-cache mismatch: {difference:?}")))?;
                     compare(&cold.candidate.report, &retained.candidate.report).map_err(|difference| Error::Invalid(format!("candidate retained-cache mismatch: {difference:?}")))?;
-                    workspaces.apply_patch(&mut workspace, &settings::directory().join("../..").join(&project.patch))?;
+                    workspaces.apply_patch(&mut workspace, &directory().join("../..").join(&project.patch))?;
                     let edited = measure(&audit, &reference, &candidate, &execution, &request, order);
                     let clean_reference = execute(&reference, &execution, &clean_request);
                     let clean_candidate = execute(&candidate, &execution, &clean_request);
@@ -79,15 +80,34 @@ pub(crate) fn run() -> Result<(), Error> {
             Ok(())
         }
         Some("audit") => {
-            let tool = settings::load()?;
-            let result = audit(&settings::directory(), &tool)?;
+            let tool = suite_source.profile(&directory())?;
+            let result = suite_source.audit(&directory(), &tool)?;
             println!("{} {}: {} queries authored / {} shipped defaults (not a parity certificate)", tool.tool, tool.version, result.authored_count(), tool.defaults.len());
             require_complete(&result)
         }
         Some("verify-tool") => {
             let executable = PathBuf::from(args.next().ok_or_else(|| Error::Invalid("expected executable path".into()))?);
-            verify_executable(&executable, &settings::load()?)
+            suite_source.verify_tool(&executable, &suite_source.profile(&directory())?)
         }
         _ => Err(Error::Invalid("usage: ruff benchmark: audit | verify-tool <executable> | measure <ruff> <fresh-cache> | run-ryo <json>".into())),
     }
+}
+
+fn directory() -> PathBuf {
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("benchmarks/linters/ruff")
+}
+
+fn reference(executable: PathBuf, tool: Tool) -> Result<LinterRuffAdapter, Error> {
+    let defaults = tool
+        .defaults
+        .into_iter()
+        .map(|code| {
+            ryo::linter::RuleId::try_from(code.as_str())
+                .map_err(|error| Error::Invalid(error.to_string()))
+        })
+        .collect::<Result<_, _>>()?;
+    Ok(LinterRuffAdapter::new(LinterRuffSettings {
+        executable,
+        defaults,
+    }))
 }
