@@ -7,6 +7,7 @@ use super::types::{
     ProductPath, ProductRoot, Reach, Reached, Release, Running, Satisfaction, Tool, Version,
     VersionPart,
 };
+use crate::domain::violations::constants::SEPARATOR;
 use crate::domain::violations::types::ToolId;
 
 /// The groups `words` name: every tool's when none is named, otherwise those, each once.
@@ -217,11 +218,14 @@ pub fn reach<S>(
                 |_| member.0.clone(),
                 // Separated by `/` on every platform: the path is the member's name in the output and the lock.
                 |path| {
-                    path.components()
-                        .map(|part| part.as_os_str().to_string_lossy())
-                        .collect::<Vec<_>>()
-                        .join("/")
-                        .into()
+                    let mut joined = String::new();
+                    for part in path.components() {
+                        if !joined.is_empty() {
+                            joined.push(SEPARATOR);
+                        }
+                        joined.push_str(&part.as_os_str().to_string_lossy());
+                    }
+                    joined.into()
                 },
             );
         products.push(reached(ProductPath(path), member));
