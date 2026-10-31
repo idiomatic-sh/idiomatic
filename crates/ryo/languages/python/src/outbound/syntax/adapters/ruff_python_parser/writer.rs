@@ -71,7 +71,16 @@ impl<'b, 'w, 't> Writer<'b, 'w, 't> {
             start,
             embedding: context,
             tree: languages::lossless(builder, start),
-            tokens,
+            // A parsed expression's outer parentheses and leading trivia are outside
+            // its AST span. They must not be written before its root is opened.
+            tokens: if context == AnnotationContext::Annotation {
+                tokens.in_range(ruff_text_size::TextRange::new(
+                    ruff_text_size::TextSize::new(start.0),
+                    ruff_text_size::TextSize::new(length.0),
+                ))
+            } else {
+                tokens
+            },
             next: TokenIndex(0),
             depth: Depth(0),
             ends: Vec::new(),

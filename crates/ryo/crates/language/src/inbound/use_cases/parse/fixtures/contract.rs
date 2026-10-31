@@ -249,6 +249,10 @@ fn read(
         wanted,
         &mut out,
     )?;
+    assert!(
+        embedded_roots_valid(&elements),
+        "an embedded expression root must be a node attached directly to its source carrier"
+    );
     if wanted.contains(&Relation::SemanticSyntax) {
         assert!(
             semantic_spans_valid(
@@ -641,3 +645,14 @@ pub fn flow(subject: &dyn ParseEngine, samples: &[SourceFile]) {
 #[cfg(test)]
 #[path = "contract_test.rs"]
 mod tests;
+
+/// Token trivia cannot masquerade as the root of an independently parsed expression.
+fn embedded_roots_valid(elements: &Elements) -> bool {
+    use crate::domain::elements::service::{flags_at, parent_at};
+    crate::domain::expansions::service::embedded_expressions(elements).all(|embedded| {
+        embedded.root < embedded.end
+            && flags_at(elements, embedded.root).0 & crate::domain::relations::constants::TOKEN.0
+                == 0
+            && parent_at(elements, embedded.root) == embedded.host
+    })
+}

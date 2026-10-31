@@ -7,6 +7,8 @@ use crate::domain::relations::{
 };
 #[derive(Clone, Copy, Debug)]
 enum Operation {
+    /// A leading token cannot claim the source carrier's expression-root identity.
+    EmbeddedRoot(bool),
     /// The semantic projection must preserve native identities and values.
     Projection(u64),
     /// A field predicate must preserve its native selected edges.
@@ -25,6 +27,18 @@ type Input = Operation;
 type Value = bool;
 type Failure = ();
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("embedded root is an actual node under its carrier"),
+        word: Word::Succeeds,
+        input: || Operation::EmbeddedRoot(false),
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("leading trivia cannot become an embedded expression root"),
+        word: Word::Succeeds,
+        input: || Operation::EmbeddedRoot(true),
+        expect: Expect::Value(false),
+    },
     Case {
         name: CaseName("parser implied semantic node retains absent span"),
         word: Word::Succeeds,
@@ -185,6 +199,37 @@ fn qualified(origin: &str, path: Option<&str>, major: u64, minor: u64) -> Result
 fn subject(operation: Input) -> Result<Value, Failure> {
     let mut output = Collect::default();
     match operation {
+        Operation::EmbeddedRoot(leading_token) => {
+            use crate::domain::{
+                elements::{
+                    service::{enter_node, leave_node, table_builder, token},
+                    types::Elements,
+                },
+                expansions::service::write_embedded,
+                relations::types::{EmbeddedMapping, KindBits, Offset, Position},
+                symbols::types::{ByteSlice, Symbols},
+            };
+            let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
+            let mut builder = table_builder(&mut elements, &mut symbols, ByteSlice(b"x"));
+            enter_node(&mut builder, KindBits(1), Offset(0));
+            leave_node(&mut builder, Offset(1));
+            write_embedded(
+                &mut builder,
+                Position(0),
+                ByteSlice(b"x"),
+                EmbeddedMapping::Exact(Offset(0)),
+                |logical| {
+                    if leading_token {
+                        token(logical, KindBits(2), Offset(0), Offset(0));
+                    }
+                    enter_node(logical, KindBits(3), Offset(0));
+                    token(logical, KindBits(2), Offset(0), Offset(1));
+                    leave_node(logical, Offset(1));
+                },
+            );
+            Ok(super::embedded_roots_valid(&elements))
+        }
+
         Operation::FieldProjection(field) => {
             output
                 .relations
