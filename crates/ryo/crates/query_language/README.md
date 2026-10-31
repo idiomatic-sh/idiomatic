@@ -68,6 +68,10 @@ The `query_language` domain's `rewriting` concept: the idiom of a plan that says
 
 The `query_language` domain's `selecting` concept: a `select` lowered to the join, the filter and the projection the query wrote.
 
+### substituting
+
+The `query_language` domain's `substituting` concept: validating and lowering literal regular-expression replacement and ordered request/reply matching, including their keys, ordering and output columns.
+
 ### syntax
 
 The `query_language` domain's `syntax` concept.

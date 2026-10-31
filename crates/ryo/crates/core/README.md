@@ -104,6 +104,10 @@ The core domain's `listing` concept: the record of every file a run listed, whet
 
 The core domain's `lowering` concept: which steps of a plan read only the tree of a file, and what each is when it runs over the positions of the elements.
 
+### matching
+
+The core domain's `matching` concept: cached regular-expression matches and literal text replacement over typed table cells.
+
 ### operands
 
 The core domain's `operands` concept: what one side of a comparison is for one row, borrowed from the row, the bound parameters or the plan.
