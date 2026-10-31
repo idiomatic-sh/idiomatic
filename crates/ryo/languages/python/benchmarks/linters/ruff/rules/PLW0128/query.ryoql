@@ -13,7 +13,9 @@ let descendants = select l.assignment as assignment, r.child as id from roots as
 let all_targets = union(left=roots, right=descendants);
 let names = select id, file, span from "syntax-tree" where kind = "name";
 let id_fields = select parent, child from "syntax-child" where field = "id";
-let identifiers = select id, text from "syntax-tree" where kind = "name-token" and not matches(text, "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$");
+let identifier_tokens = select id, text from "syntax-tree" where kind = "name-token";
+let dummy_identifiers = select id from identifier_tokens where matches(text, "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$");
+let identifiers = antijoin(left=identifier_tokens, right=dummy_identifiers, left-on=["id"], right-on=["id"]);
 let spelling = select l.parent as id, r.text as name from id_fields as l join identifiers as r on l.child = r.id;
 let named_targets = select l.assignment as assignment, l.id as id, r.name as name from all_targets as l join spelling as r on l.id = r.id;
 let ordered = select l.assignment as assignment, l.id as id, l.name as name, r."start-byte" as begin from named_targets as l join "source-location" as r on l.id = r.id;

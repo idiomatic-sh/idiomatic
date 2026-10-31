@@ -82,3 +82,8 @@ expected = []
 name = "noqa"
 files = { "case.py" = "import trio\ntrio.sleep(0) # noqa: ASYNC115\n" }
 expected = []
+
+[[cases]]
+name = "positional-trivia-and-trailing-comma"
+files = { "case.py" = "import trio\ntrio.sleep(\n # before first\n 0,\n)\n" }
+expected = [{ file = "case.py", start = 12, end = 45 }]

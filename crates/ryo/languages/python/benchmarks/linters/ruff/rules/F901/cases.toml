@@ -64,9 +64,9 @@ files = { "case.py" = "raise NotImplemented  # noqa: F901\n" }
 expected = []
 
 [[cases]]
-name = "range"
+name = "indented-range-does-not-cover-top-level"
 files = { "case.py" = " # ruff: disable[F901]\nraise NotImplemented\n# ruff: enable[F901]\n" }
-expected = []
+expected = [{ file = "case.py", start = 29, end = 43 }]
 
 [[cases]]
 name = "multiple"

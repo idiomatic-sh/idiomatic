@@ -62,3 +62,8 @@ expected = []
 name = "noqa"
 files = { "case.py" = "import datetime\ndatetime.datetime(2020, 1, 1) # noqa: DTZ001\n" }
 expected = []
+
+[[cases]]
+name = "positional-trivia-and-trailing-comma"
+files = { "case.py" = "from datetime import datetime\nx = datetime(\n # before first\n 2024,\n 1,\n 2,\n)\n" }
+expected = [{ file = "case.py", start = 34, end = 76 }]

@@ -57,3 +57,8 @@ expected = []
 name = "noqa"
 files = { "case.py" = "import copy, os\ncopy.copy(os.environ) # noqa: PLW1507\n" }
 expected = []
+
+[[cases]]
+name = "positional-trivia-and-trailing-comma"
+files = { "case.py" = "import copy, os\nx = copy.copy(\n # before first\n os.environ,\n)\n" }
+expected = [{ file = "case.py", start = 20, end = 61 }]
