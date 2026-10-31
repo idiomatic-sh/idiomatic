@@ -209,3 +209,68 @@ fn subject((source, wanted): Input) -> Result<Value, Failure> {
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
 }
+
+mod retained {
+    use crate::cases::{Case, CaseName, Expect, Word, run};
+    use crate::domain::{
+        binding_analysis::service::indexed,
+        model::types::{BindingAnalysisState, Declarations},
+    };
+    use crate::fixtures::reading::parsed;
+    use ryo::languages::{self, ByteSlice, Tree};
+    type Input = ();
+    type Value = &'static str;
+    type Failure = ();
+    const CASES: &[Case<Input, Value, Failure>] = &[Case {
+        name: CaseName(
+            "retained source revisions invalidate complete incomplete and empty binding results",
+        ),
+        word: Word::Succeeds,
+        input: || (),
+        expect: Expect::Value("complete:2|incomplete|complete:0|complete:1|complete:2"),
+    }];
+    fn subject(_: Input) -> Result<Value, Failure> {
+        use crate::inbound::contracts::parse::contract::ParseContract;
+        use crate::outbound::{notes::factory::postcard, syntax::factory::ruff_python_parser};
+        use ryo::languages::Parse as _;
+        use std::sync::Arc;
+        let parser = ParseContract::new(Arc::new(ruff_python_parser()), Arc::new(postcard()));
+        let mut model = Declarations::default();
+        let mut observed = Vec::new();
+        for source in [
+            "x = 1\nuse(x)\n",
+            "if:\n    pass\n",
+            "",
+            "missing\n",
+            "x = 1\nuse(x)\n",
+        ] {
+            let mut file = parsed(source.as_bytes()).map_err(|_| ())?;
+            let tree = Tree {
+                elements: &file.elements,
+                source: ByteSlice(file.bytes),
+                file: languages::FileId(0),
+            };
+            parser.file_model(&tree, &mut model);
+            assert_eq!(
+                model.binding_analysis.borrow().state,
+                BindingAnalysisState::Fresh,
+                "ordinary model preparation must not eagerly execute binding analysis"
+            );
+            let first = indexed(&tree, &model, &mut file.symbols).map(|index| index.reads.clone());
+            let second = indexed(&tree, &model, &mut file.symbols).map(|index| index.reads.clone());
+            assert_eq!(
+                first, second,
+                "reader request order must not duplicate or alter observations"
+            );
+            observed.push(first.map_or_else(
+                || "incomplete".to_owned(),
+                |reads| format!("complete:{}", reads.len()),
+            ));
+        }
+        Ok(Box::leak(observed.join("|").into_boxed_str()))
+    }
+    #[test]
+    fn succeeds() {
+        run(CASES, Word::Succeeds, subject);
+    }
+}
