@@ -197,3 +197,53 @@ expected = []
 name = "relocated-annotation-preserves-multiplicity"
 files = { "case.py" = "x: \"tuple[++value, \\x2b+other]\"\n" }
 expected = [{ file = "case.py", start = 3, end = 31 }, { file = "case.py", start = 3, end = 31 }]
+
+[[cases]]
+name = "typing-context-cast-type"
+files = { "case.py" = "from typing import cast\nx = cast(\"++value\", obj)\n" }
+expected = [{ file = "case.py", start = 34, end = 41 }]
+
+[[cases]]
+name = "typing-context-cast-value"
+files = { "case.py" = "from typing import cast\nx = cast(int, \"++value\")\n" }
+expected = []
+
+[[cases]]
+name = "typing-context-cast-shadow"
+files = { "case.py" = "def cast(*args): pass\nx = cast(\"++value\", obj)\n" }
+expected = []
+
+[[cases]]
+name = "typing-context-var-bound"
+files = { "case.py" = "from typing import TypeVar\nT = TypeVar(\"T\", bound=\"++value\")\n" }
+expected = [{ file = "case.py", start = 51, end = 58 }]
+
+[[cases]]
+name = "typing-context-var-constraint"
+files = { "case.py" = "from typing import TypeVar\nT = TypeVar(\"T\", \"++value\", int)\n" }
+expected = [{ file = "case.py", start = 45, end = 52 }]
+
+[[cases]]
+name = "typing-context-var-name"
+files = { "case.py" = "from typing import TypeVar\nT = TypeVar(\"++value\")\n" }
+expected = []
+
+[[cases]]
+name = "typing-context-var-shadow"
+files = { "case.py" = "def TypeVar(*args, **kwargs): pass\nT = TypeVar(\"T\", bound=\"++value\")\n" }
+expected = []
+
+[[cases]]
+name = "typing-context-alias-value"
+files = { "case.py" = "from typing import TypeAlias\nT: TypeAlias = \"++value\"\n" }
+expected = [{ file = "case.py", start = 45, end = 52 }]
+
+[[cases]]
+name = "typing-context-ordinary-value"
+files = { "case.py" = "T = \"++value\"\n" }
+expected = []
+
+[[cases]]
+name = "typing-context-alias-shadow"
+files = { "case.py" = "TypeAlias = object()\nT: TypeAlias = \"++value\"\n" }
+expected = []
