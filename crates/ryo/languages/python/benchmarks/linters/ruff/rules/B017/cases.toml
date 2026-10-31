@@ -92,3 +92,8 @@ expected = []
 name = "unicode-string"
 files = { "case.py" = "import pytest\npytest.raises(Exception, \"\u03bb\")\n" }
 expected = []
+
+[[cases]]
+name = "with-and-call-dispatch-preserve-multiplicity"
+files = { "case.py" = "with self.assertRaises(Exception, f):\n    pass\n" }
+expected = [{ file = "case.py", start = 5, end = 36 }, { file = "case.py", start = 5, end = 36 }]
