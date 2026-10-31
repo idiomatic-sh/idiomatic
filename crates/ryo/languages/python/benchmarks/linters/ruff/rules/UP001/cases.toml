@@ -62,3 +62,8 @@ expected = []
 name = "string"
 files = { "case.py" = "value = \"__metaclass__ = type\"\n" }
 expected = []
+
+[[cases]]
+name = "nfkc-semantic-identifier"
+files = { "case.py" = "__metaclass__ = \uff54\uff59\uff50\uff45\n" }
+expected = [{ file = "case.py", start = 0, end = 28 }]

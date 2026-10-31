@@ -77,3 +77,8 @@ expected = []
 name = "three"
 files = { "case.py" = "class C:\n    x = 1\n    x = 2\n    x = 3\n" }
 expected = [{ file = "case.py", start = 23, end = 28 }, { file = "case.py", start = 33, end = 38 }]
+
+[[cases]]
+name = "nfkc-semantic-identifier"
+files = { "case.py" = "class C:\n    x = 1\n    \uff58 = 2\n" }
+expected = [{ file = "case.py", start = 23, end = 30 }]

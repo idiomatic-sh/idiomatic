@@ -1,3 +1,6 @@
+let semantic_token_nodes = select id from "syntax-tree" where kind = "name-token";
+let semantic_identifier_children = select r.child as id, l.name as text from "identifier" as l join "syntax-child" as r on l.id = r.parent;
+let semantic_identifiers = select l.id as id, l.text as text from semantic_identifier_children as l join semantic_token_nodes as r on l.id = r.id;
 let assignments = select id, file, span from "syntax-tree" where kind = "assign";
 let targets = select parent, child from "syntax-child" where field = "targets";
 let counts = group-count(from=targets, keys=["parent"], count="count", distinct="child");
@@ -5,7 +8,7 @@ let single = select parent from counts where count = 1;
 let assignment_targets = select l.id as assignment, r.child as target from assignments as l join targets as r on l.id = r.parent;
 let single_targets = select l.assignment as assignment, l.target as target from assignment_targets as l join single as r on l.assignment = r.parent;
 let id_fields = select parent, child from "syntax-child" where field = "id";
-let identifiers = select id, text from "syntax-tree" where kind = "name-token";
+let identifiers = select id, text from semantic_identifiers;
 let names = select l.parent as id, r.text as name from id_fields as l join identifiers as r on l.child = r.id;
 let values = select parent, child from "syntax-child" where field = "value";
 let calls = select id, file, span from "syntax-tree" where kind = "call";

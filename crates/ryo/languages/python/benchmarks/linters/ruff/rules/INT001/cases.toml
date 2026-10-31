@@ -72,3 +72,8 @@ expected = []
 name = "nested"
 files = { "case.py" = "_(wrapper(f\"hello {name}\"))\n" }
 expected = []
+
+[[cases]]
+name = "nfkc-semantic-identifier"
+files = { "case.py" = "\uff47\uff45\uff54\uff54\uff45\uff58\uff54(f\"hello {name}\")\n" }
+expected = [{ file = "case.py", start = 22, end = 37 }]

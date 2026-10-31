@@ -107,3 +107,13 @@ expected = [{ file = "case.py", start = 16, end = 52 }]
 name = "keyword-precedence-valid"
 files = { "case.py" = "import datetime\ndatetime.datetime.now(None, tz=zone)\n" }
 expected = []
+
+[[cases]]
+name = "nfkc-semantic-keyword"
+files = { "case.py" = "from datetime import datetime\ndatetime.now(\uff54\uff5a=timezone)\n" }
+expected = []
+
+[[cases]]
+name = "nfkc-semantic-attribute"
+files = { "case.py" = "from datetime import datetime\ndatetime.now().\uff41\uff53\uff54\uff49\uff4d\uff45\uff5a\uff4f\uff4e\uff45()\n" }
+expected = []

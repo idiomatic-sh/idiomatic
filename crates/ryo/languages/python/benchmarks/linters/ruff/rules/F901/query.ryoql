@@ -1,3 +1,6 @@
+let semantic_token_nodes = select id from "syntax-tree" where kind = "name-token";
+let semantic_identifier_children = select r.child as id, l.name as text from "identifier" as l join "syntax-child" as r on l.id = r.parent;
+let semantic_identifiers = select l.id as id, l.text as text from semantic_identifier_children as l join semantic_token_nodes as r on l.id = r.id;
 let raises = select id from "syntax-tree" where kind = "raise";
 let exceptions = select parent, child from "syntax-child" where field = "exc";
 let raised = select r.child as id from raises as l join exceptions as r on l.id = r.parent;
@@ -8,7 +11,7 @@ let called_functions = select r.child as id from called as l join functions as r
 let values = union(left=raised, right=called_functions);
 let names = select id, file, span from "syntax-tree" where kind = "name";
 let identifiers = select parent, child from "syntax-child" where field = "id";
-let not_implemented = select id from "syntax-tree" where kind = "name-token" and text = "NotImplemented";
+let not_implemented = select id from semantic_identifiers where text = "NotImplemented";
 let matching_names = select l.parent as id from identifiers as l join not_implemented as r on l.child = r.id;
 let matching_values = select l.id as id from values as l join matching_names as r on l.id = r.id;
 let reportable = select l.id as id, l.file as file, l.span as span from names as l join matching_values as r on l.id = r.id;

@@ -1,8 +1,11 @@
+let semantic_token_nodes = select id from "syntax-tree" where kind = "name-token";
+let semantic_identifier_children = select r.child as id, l.name as text from "identifier" as l join "syntax-child" as r on l.id = r.parent;
+let semantic_identifiers = select l.id as id, l.text as text from semantic_identifier_children as l join semantic_token_nodes as r on l.id = r.id;
 let attributes = select id, file, span from "syntax-tree" where kind = "attribute";
 let attr_fields = select parent, child from "syntax-child" where field = "attr";
 let attr_tokens = select l.parent as parent, r.child as child from attr_fields as l join "syntax-child" as r on l.child = r.parent;
-let known_tokens = select id from "syntax-tree" where kind = "name-token" and matches(text, "^(?:assert_any_call|assert_called|assert_called_once|assert_called_once_with|assert_called_with|assert_has_calls|assert_not_called|assert_awaited|assert_awaited_once|assert_awaited_with|assert_awaited_once_with|assert_any_await|assert_has_awaits|assert_not_awaited)$");
-let missing_tokens = select id from "syntax-tree" where kind = "name-token" and matches(text, "^(?:any_call|called_once|called_once_with|called_with|has_calls|not_called|awaited|awaited_once|awaited_with|awaited_once_with|any_await|has_awaits|not_awaited)$");
+let known_tokens = select id from semantic_identifiers where matches(text, "^(?:assert_any_call|assert_called|assert_called_once|assert_called_once_with|assert_called_with|assert_has_calls|assert_not_called|assert_awaited|assert_awaited_once|assert_awaited_with|assert_awaited_once_with|assert_any_await|assert_has_awaits|assert_not_awaited)$");
+let missing_tokens = select id from semantic_identifiers where matches(text, "^(?:any_call|called_once|called_once_with|called_with|has_calls|not_called|awaited|awaited_once|awaited_with|awaited_once_with|any_await|has_awaits|not_awaited)$");
 let known_attributes = select l.parent as id from attr_tokens as l join known_tokens as r on l.child = r.id;
 let missing_attributes = select l.parent as id from attr_tokens as l join missing_tokens as r on l.child = r.id;
 let expressions = select id from "syntax-tree" where kind = "expr";

@@ -77,3 +77,8 @@ expected = [{ file = "case.py", start = 18, end = 32 }]
 name = "similar-keyword"
 files = { "case.py" = "import subprocess\nsubprocess.run([], checks=True)\n" }
 expected = [{ file = "case.py", start = 18, end = 32 }]
+
+[[cases]]
+name = "nfkc-semantic-keyword"
+files = { "case.py" = "import subprocess\nsubprocess.run(args, \uff43\uff48\uff45\uff43\uff4b=True)\n" }
+expected = []

@@ -1,3 +1,6 @@
+let semantic_token_nodes = select id from "syntax-tree" where kind = "name-token";
+let semantic_identifier_children = select r.child as id, l.name as text from "identifier" as l join "syntax-child" as r on l.id = r.parent;
+let semantic_identifiers = select l.id as id, l.text as text from semantic_identifier_children as l join semantic_token_nodes as r on l.id = r.id;
 let assignments = select id from "syntax-tree" where kind = "assign";
 let targets = select parent, child from "syntax-child" where field = "targets";
 let target_counts = group-count(from=targets, keys=["parent"], count="count", distinct="child");
@@ -7,12 +10,12 @@ let single_targets = select l.child as id from assignment_targets as l join sing
 let attributes = select id, file, span from "syntax-tree" where kind = "attribute";
 let values = select parent, child from "syntax-child" where field = "value";
 let names = select parent, child from "syntax-child" where field = "id";
-let os_tokens = select id from "syntax-tree" where kind = "name-token" and text = "os";
+let os_tokens = select id from semantic_identifiers where text = "os";
 let os_names = select l.parent as id from names as l join os_tokens as r on l.child = r.id;
 let on_os = select l.parent as id from values as l join os_names as r on l.child = r.id;
 let attr_fields = select parent, child from "syntax-child" where field = "attr";
 let attr_tokens = select l.parent as parent, r.child as child from attr_fields as l join "syntax-child" as r on l.child = r.parent;
-let environ_tokens = select id from "syntax-tree" where kind = "name-token" and text = "environ";
+let environ_tokens = select id from semantic_identifiers where text = "environ";
 let environ_attributes = select l.parent as id from attr_tokens as l join environ_tokens as r on l.child = r.id;
 let os_environ = select l.id as id from on_os as l join environ_attributes as r on l.id = r.id;
 let invalid = select l.id as id from single_targets as l join os_environ as r on l.id = r.id;

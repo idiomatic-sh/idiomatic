@@ -77,3 +77,8 @@ expected = []
 name = "parenthesized"
 files = { "case.py" = "(mock.assert_called)\n" }
 expected = [{ file = "case.py", start = 1, end = 19 }]
+
+[[cases]]
+name = "nfkc-semantic-identifier"
+files = { "case.py" = "mock.\uff41\uff53\uff53\uff45\uff52\uff54_\uff43\uff41\uff4c\uff4c\uff45\uff44\n" }
+expected = [{ file = "case.py", start = 0, end = 42 }]

@@ -1,3 +1,6 @@
+let semantic_token_nodes = select id from "syntax-tree" where kind = "name-token";
+let semantic_identifier_children = select r.child as id, l.name as text from "identifier" as l join "syntax-child" as r on l.id = r.parent;
+let semantic_identifiers = select l.id as id, l.text as text from semantic_identifier_children as l join semantic_token_nodes as r on l.id = r.id;
 let assignments = select id from "syntax-tree" where kind = "assign";
 let target_fields = select parent, child from "syntax-child" where field = "targets";
 let roots = select l.id as assignment, r.child as id from assignments as l join target_fields as r on l.id = r.parent;
@@ -13,7 +16,7 @@ let descendants = select l.assignment as assignment, r.child as id from roots as
 let all_targets = union(left=roots, right=descendants);
 let names = select id, file, span from "syntax-tree" where kind = "name";
 let id_fields = select parent, child from "syntax-child" where field = "id";
-let identifier_tokens = select id, text from "syntax-tree" where kind = "name-token";
+let identifier_tokens = select id, text from semantic_identifiers;
 let dummy_identifiers = select id from identifier_tokens where matches(text, "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$");
 let identifiers = antijoin(left=identifier_tokens, right=dummy_identifiers, left-on=["id"], right-on=["id"]);
 let spelling = select l.parent as id, r.text as name from id_fields as l join identifiers as r on l.child = r.id;

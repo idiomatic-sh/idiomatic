@@ -1,3 +1,6 @@
+let semantic_token_nodes = select id from "syntax-tree" where kind = "name-token";
+let semantic_identifier_children = select r.child as id, l.name as text from "identifier" as l join "syntax-child" as r on l.id = r.parent;
+let semantic_identifiers = select l.id as id, l.text as text from semantic_identifier_children as l join semantic_token_nodes as r on l.id = r.id;
 let calls = select id, file, span from "syntax-tree" where kind = "call";
 let functions = select parent, child from "syntax-child" where field = "func";
 let argument_nodes = select id from "syntax-tree" where kind = "call-arguments";
@@ -15,14 +18,14 @@ let keyword_fields = select parent, child from "syntax-child" where field = "key
 let keywords = select l.call as call, r.child as id from call_arguments as l join keyword_fields as r on l.id = r.parent;
 let arg_fields = select parent, child from "syntax-child" where field = "arg";
 let arg_tokens = select l.parent as keyword, r.child as token from arg_fields as l join "syntax-child" as r on l.child = r.parent;
-let identifiers = select id, text from "syntax-tree" where kind = "name-token";
+let identifiers = select id, text from semantic_identifiers;
 let named_keywords = select l.keyword as id, r.text as name from arg_tokens as l join identifiers as r on l.token = r.id;
 let unordered_keyword_names = select l.call as call, l.id as id, r.name as name from keywords as l join named_keywords as r on l.id = r.id;
 let ordered_keyword_names = select l.call as call, l.id as id, l.name as name, r."start-byte" as begin from unordered_keyword_names as l join "source-location" as r on l.id = r.id;
 let later_keyword_names = select l.id as id from ordered_keyword_names as l join ordered_keyword_names as r on l.call = r.call and l.name = r.name where l.begin > r.begin;
 let keyword_names = antijoin(left=unordered_keyword_names, right=later_keyword_names, left-on=["id"], right-on=["id"]);
 let id_fields = select parent, child from "syntax-child" where field = "id";
-let builtin_tokens = select id from "syntax-tree" where kind = "name-token" and text = "dict";
+let builtin_tokens = select id from semantic_identifiers where text = "dict";
 let spelled_functions = select l.parent as id from id_fields as l join builtin_tokens as r on l.child = r.id;
 let builtin_functions = select id from "qualified-name" where path = "builtins.dict" and provenance = "builtin" and ("since-major" < 3 or "since-major" = 3 and "since-minor" <= 10);
 let eligible_functions = select l.id as id from spelled_functions as l join builtin_functions as r on l.id = r.id;

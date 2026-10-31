@@ -77,3 +77,8 @@ expected = []
 name = "three"
 files = { "case.py" = "a, a, a = values\n" }
 expected = [{ file = "case.py", start = 3, end = 4 }, { file = "case.py", start = 6, end = 7 }]
+
+[[cases]]
+name = "nfkc-semantic-identifier"
+files = { "case.py" = "(x, \uff58) = values\n" }
+expected = [{ file = "case.py", start = 4, end = 7 }]

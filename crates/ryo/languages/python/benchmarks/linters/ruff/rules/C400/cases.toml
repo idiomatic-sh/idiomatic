@@ -82,3 +82,8 @@ expected = [{ file = "case.py", start = 0, end = 37 }]
 name = "list-not-generator"
 files = { "case.py" = "list([x for x in values])\n" }
 expected = []
+
+[[cases]]
+name = "nfkc-semantic-identifier"
+files = { "case.py" = "\uff4c\uff49\uff53\uff54(x for x in items)\n" }
+expected = [{ file = "case.py", start = 0, end = 30 }]
