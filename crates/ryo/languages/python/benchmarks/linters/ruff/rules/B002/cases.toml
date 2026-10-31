@@ -172,3 +172,23 @@ expected = []
 name = "quoted-annotation-dispatch"
 files = { "case.py" = "x: \"++value\"\n" }
 expected = [{ file = "case.py", start = 4, end = 11 }]
+
+[[cases]]
+name = "escaped-annotation-host-span"
+files = { "case.py" = "x: \"\\x2b+value\"\n" }
+expected = [{ file = "case.py", start = 3, end = 15 }]
+
+[[cases]]
+name = "concatenated-annotation-host-span"
+files = { "case.py" = "x: \"+\" \"+value\"\n" }
+expected = [{ file = "case.py", start = 3, end = 15 }]
+
+[[cases]]
+name = "literal-annotation-string-is-data"
+files = { "case.py" = "from typing import Literal\nx: Literal[\"++value\"]\n" }
+expected = []
+
+[[cases]]
+name = "annotated-metadata-is-data"
+files = { "case.py" = "from typing import Annotated\nx: Annotated[int, \"++value\"]\n" }
+expected = []

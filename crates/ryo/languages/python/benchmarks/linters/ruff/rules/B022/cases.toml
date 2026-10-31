@@ -97,3 +97,23 @@ expected = []
 name = "quoted-annotation-dispatch"
 files = { "case.py" = "import contextlib\nx: \"contextlib.suppress()\"\n" }
 expected = [{ file = "case.py", start = 22, end = 43 }]
+
+[[cases]]
+name = "escaped-annotation-host-span"
+files = { "case.py" = "import contextlib\nx: \"contextlib.\\x73uppress()\"\n" }
+expected = [{ file = "case.py", start = 21, end = 47 }]
+
+[[cases]]
+name = "concatenated-annotation-host-span"
+files = { "case.py" = "import contextlib\nx: \"contextlib.\" \"suppress()\"\n" }
+expected = [{ file = "case.py", start = 21, end = 47 }]
+
+[[cases]]
+name = "literal-annotation-string-is-data"
+files = { "case.py" = "import contextlib\nfrom typing import Literal\nx: Literal[\"contextlib.suppress()\"]\n" }
+expected = []
+
+[[cases]]
+name = "annotated-metadata-is-data"
+files = { "case.py" = "import contextlib\nfrom typing import Annotated\nx: Annotated[int, \"contextlib.suppress()\"]\n" }
+expected = []

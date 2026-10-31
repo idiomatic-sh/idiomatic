@@ -77,3 +77,23 @@ expected = [{ file = "case.py", start = 28, end = 38 }]
 name = "quoted-annotation-dispatch"
 files = { "case.py" = "import logging\nx: \"logging.Logger()\"\n" }
 expected = [{ file = "case.py", start = 19, end = 33 }]
+
+[[cases]]
+name = "escaped-annotation-host-span"
+files = { "case.py" = "import logging\nx: \"logging.\\x4cogger()\"\n" }
+expected = [{ file = "case.py", start = 18, end = 39 }]
+
+[[cases]]
+name = "concatenated-annotation-host-span"
+files = { "case.py" = "import logging\nx: \"logging.\" \"Logger()\"\n" }
+expected = [{ file = "case.py", start = 18, end = 39 }]
+
+[[cases]]
+name = "literal-annotation-string-is-data"
+files = { "case.py" = "import logging\nfrom typing import Literal\nx: Literal[\"logging.Logger()\"]\n" }
+expected = []
+
+[[cases]]
+name = "annotated-metadata-is-data"
+files = { "case.py" = "import logging\nfrom typing import Annotated\nx: Annotated[int, \"logging.Logger()\"]\n" }
+expected = []
