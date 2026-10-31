@@ -24,8 +24,11 @@ pub enum Operation {
     /// Both pipes produce more bytes than their kernel buffers hold.
     LargeStreams,
 }
+/// Process behavior to exercise.
 type Input = Operation;
+/// Exit status and stdout/stderr content checks.
 type Value = (i32, bool, bool);
+/// Classified child launch failure.
 type Failure = LaunchFailure;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 /// Launch and observation failures distinguished by the shared contract.

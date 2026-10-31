@@ -3,7 +3,9 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::diagnostics::errors::DiagnosticsError as Error;
 use crate::domain::suite::types::WorkerRequest;
 use crate::outbound::engine::interface::EnginePort;
+/// No variable input: this contract probes one fixed malformed request.
 type Input = ();
+/// Successful completion has no payload.
 type Value = ();
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 /// Canonical contract failure classifications.
@@ -44,4 +46,5 @@ pub fn check(adapter: &impl EnginePort) {
     run(CASES, Word::Refuses, subject);
 }
 
+/// Classified engine refusal.
 type Failure = Refusal;

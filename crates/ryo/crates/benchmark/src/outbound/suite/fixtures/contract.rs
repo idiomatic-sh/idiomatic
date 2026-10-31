@@ -27,7 +27,9 @@ pub enum Operation {
     /// Materialize missing independent cases.
     Cases,
 }
+/// Artifact operation to exercise.
 type Input = Operation;
+/// Counts of authored and missing default rules.
 type Value = (usize, usize);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 /// Canonical contract failure classifications.
@@ -172,4 +174,5 @@ pub fn check(adapter: &impl SuitePort) {
     run(CASES, Word::Refuses, subject);
 }
 
+/// Classified artifact validation refusal.
 type Failure = Refusal;

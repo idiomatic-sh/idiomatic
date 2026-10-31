@@ -4,7 +4,9 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::{diagnostics::errors::DiagnosticsError as Error, suite::types::Project};
 use crate::outbound::workspace::interface::WorkspacePort;
 use std::fs;
+/// Whether to request the immutable commit or a mutable revision.
 type Input = bool;
+/// Number of selected tracked source files.
 type Value = usize;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 /// Canonical contract failure classifications.
@@ -96,4 +98,5 @@ pub fn check(adapter: &impl WorkspacePort) {
     run(CASES, Word::Refuses, subject);
 }
 
+/// Classified repository pin refusal.
 type Failure = Refusal;

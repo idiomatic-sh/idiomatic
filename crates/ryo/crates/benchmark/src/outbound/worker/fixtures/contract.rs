@@ -10,8 +10,11 @@ pub enum Operation {
     /// Publish the canonical report through the injected transport.
     Respond,
 }
+/// Transport operation to exercise.
 type Input = Operation;
+/// Whether canonical request or response values survive transport.
 type Value = bool;
+/// Human-readable transport failure.
 type Failure = String;
 /// Canonical transport observations; adapter-specific tests inspect actual response bytes.
 pub const CASES: &[Case<Input, Value, Failure>] = &[

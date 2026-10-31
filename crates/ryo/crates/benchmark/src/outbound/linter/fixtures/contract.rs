@@ -70,8 +70,11 @@ pub fn check(adapter: &impl LinterPort) {
     run(CASES, Word::Refuses, subject);
 }
 
+/// Classified output normalization refusal.
 type Failure = Refusal;
 
+/// Independently specified process output and request.
 type Input = Given;
 
+/// Whether normalization preserves the expected report.
 type Value = bool;

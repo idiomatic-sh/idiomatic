@@ -23,8 +23,11 @@ pub enum Operation {
     /// Malformed output is refused.
     MalformedResponse,
 }
+/// Protocol operation to exercise.
 type Input = Operation;
+/// Whether decoded protocol values match the independently specified observation.
 type Value = bool;
+/// Human-readable protocol failure.
 type Failure = String;
 /// Each pair exercises both encoding and decoding methods.
 pub const CASES: &[Case<Input, Value, Failure>] = &[
