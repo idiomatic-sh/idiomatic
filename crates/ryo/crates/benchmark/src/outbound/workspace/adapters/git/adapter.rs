@@ -8,28 +8,32 @@ use crate::outbound::workspace::interface::{Workspace, WorkspacePort};
 use crate::outbound::workspace::types::{AppliedPatch, CommitRevision, TrackedFiles};
 use std::{
     fs,
-    io::Write,
+    io::Write as _,
     path::Path,
     process::{Command, Stdio},
 };
 
 #[derive(Debug)]
+/// Owns pinned repository clones and restores only patches applied by its handles.
 pub(crate) struct WorkspaceGitAdapter {
+    /// Explicit cache root for owned detached checkouts.
     settings: super::settings::WorkspaceGitSettings,
 }
 impl WorkspaceGitAdapter {
+    /// Bind the repository cache location supplied by composition.
     pub(crate) fn new(settings: super::settings::WorkspaceGitSettings) -> Self {
         Self { settings }
     }
 }
 
+/// Run an explicit Git command with prompts and hooks disabled.
 fn git(
     root: &Path,
     GitArguments(args): GitArguments<'_>,
     GitInput(input): GitInput<'_>,
 ) -> Result<GitOutput, Error> {
     let mut command = Command::new(constants::GIT);
-    let _ = command
+    let _configured = command
         .args([
             constants::CONFIG,
             constants::DISABLE_HOOKS,
@@ -42,7 +46,7 @@ fn git(
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
     if input.is_some() {
-        let _ = command.stdin(Stdio::piped());
+        let _configured_stdin = command.stdin(Stdio::piped());
     }
     let mut child = command.spawn()?;
     if let Some(bytes) = input {
@@ -61,6 +65,7 @@ fn git(
     }
     Ok(GitOutput(output.stdout))
 }
+/// Refuse tracked or untracked edits before changing an owned checkout.
 fn clean(root: &Path) -> Result<(), Error> {
     if !git(
         root,
@@ -78,6 +83,7 @@ fn clean(root: &Path) -> Result<(), Error> {
     }
     Ok(())
 }
+/// Require the checkout to remain at its pinned commit.
 fn head(workspace: &Workspace) -> Result<(), Error> {
     let actual = git(
         &workspace.root,
@@ -91,15 +97,23 @@ fn head(workspace: &Workspace) -> Result<(), Error> {
     Ok(())
 }
 impl WorkspacePort for WorkspaceGitAdapter {
+    #[expect(
+        clippy::create_dir,
+        reason = "a newly claimed clone must refuse a directory created concurrently by another owner"
+    )]
     fn prepare(&self, project: &Project) -> Result<Workspace, Error> {
         if project.name.0.is_empty()
             || !project
                 .name
                 .0
                 .bytes()
-                .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
+                .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-' || byte == b'_')
             || project.revision.0.len() != 40
-            || !project.revision.0.bytes().all(|b| b.is_ascii_hexdigit())
+            || !project
+                .revision
+                .0
+                .bytes()
+                .all(|byte| byte.is_ascii_hexdigit())
         {
             return Err(Error::Invalid(constants::UNPINNED.into()));
         }
@@ -181,11 +195,11 @@ impl WorkspacePort for WorkspaceGitAdapter {
             GitInput(None),
         )?
         .0;
-        let text =
-            String::from_utf8(raw).map_err(|_| Error::Invalid(constants::NON_UTF8.into()))?;
+        let text = String::from_utf8(raw)
+            .map_err(|_invalid_utf8| Error::Invalid(constants::NON_UTF8.into()))?;
         let mut files: Vec<String> = text
             .split('\0')
-            .filter(|p| !p.is_empty())
+            .filter(|path| !path.is_empty())
             .map(str::to_owned)
             .collect();
         files.sort();
@@ -249,7 +263,7 @@ impl WorkspacePort for WorkspaceGitAdapter {
                 GitInput(None),
             )?
             .0;
-            if &current != &applied.0 {
+            if current != applied.0 {
                 return Err(Error::Invalid(constants::EDITED.into()));
             }
             drop(git(
