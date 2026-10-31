@@ -68,3 +68,6 @@ pub(crate) const UNREAD_TEXT: &str =
 
 /// Canonical full identifier spelling when normalization changes its source text.
 pub(crate) const NORMALIZED_IDENTIFIER: ryo::languages::PropertyId = ryo::languages::PropertyId(1);
+
+/// An incomplete frontend cannot establish the complete identifier set.
+pub(crate) const IDENTIFIERS_INCOMPLETE: &str = "identifiers require a complete syntax tree";

@@ -3,6 +3,7 @@ use crate::domain::{
     model::types::Declarations,
     nodes::types::Node,
     syntax::{
+        constants::IDENTIFIERS_INCOMPLETE,
         service::{identifier_text, identifiers, kind_bits},
         types::Kind,
     },
@@ -20,7 +21,7 @@ ryo::reads! {
     row {id:node(identifier),name:value(name),file:file,span:span(identifier),}
    }
   }
-  None=>{partial "identifiers require a complete syntax tree" => languages::Missing::Any;}
+  None=>{partial IDENTIFIERS_INCOMPLETE => languages::Missing::Any;}
  }
  }
 }

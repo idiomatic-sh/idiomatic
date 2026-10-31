@@ -1,11 +1,9 @@
 //! Source provenance labels shared by the reader and independently asserted fixtures.
-pub(crate) const IMPORT: &str = "import";
 pub(crate) const BUILTIN: &str = "builtin";
 pub(crate) const LOCAL: &str = "local";
 pub(crate) const UNRESOLVED: &str = "unresolved";
 pub(crate) const AMBIGUOUS: &str = "ambiguous";
 pub(crate) const BUILTIN_MODULE: &str = "builtins";
-pub(crate) const DOT: &str = ".";
 pub(crate) const INCOMPLETE: &str = "qualified names require a complete syntax tree";
 
 use super::types::{Builtin, Version};

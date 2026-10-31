@@ -1,12 +1,12 @@
 //! Lexical import and builtin origins. Dynamic values are unknown, never guessed from spelling.
 use super::constants::{
-    ADDED_BUILTINS, AMBIGUOUS, BUILTIN, BUILTIN_MODULE, BUILTIN_NAMES, DOT, IMPORT, LOCAL,
-    NOT_APPLICABLE, PYTHON_THREE, UNRESOLVED,
+    ADDED_BUILTINS, AMBIGUOUS, BUILTIN, BUILTIN_MODULE, BUILTIN_NAMES, LOCAL, NOT_APPLICABLE,
+    PYTHON_THREE, UNRESOLVED,
 };
-use super::types::{Certainty, Origin, Qualified, Timing, Version};
+use super::types::{Certainty, Qualified, QualifiedOrigin, Timing, Version};
 use crate::domain::{
     bindings::service::resolve,
-    definitions::service::definition,
+    definitions::{constants::IMPORT, service::definition},
     extras::types::Extra,
     imports::service::{imported, push_module},
     model::types::{
@@ -14,6 +14,7 @@ use crate::domain::{
         QualificationState,
     },
     names::{
+        constants::DOT,
         service::{push_identifier, unknown},
         types::{Imported, Unresolved},
     },
@@ -151,19 +152,21 @@ fn origin(
     model: &Declarations,
     at: Position,
     index: &QualificationIndex,
-) -> Origin {
+) -> QualifiedOrigin {
     let Some(name) = name_of(tree, at) else {
-        return Origin::Unresolved;
+        return QualifiedOrigin::Unresolved;
     };
     let binding = resolve(tree, model, at, name);
     if uncertain(tree, model, at, name, binding, index) == Certainty::Uncertain {
-        return Origin::Ambiguous;
+        return QualifiedOrigin::Ambiguous;
     }
     match binding {
-        Some(binding) if kind(tree, binding) == Kind::Node(Node::Alias) => Origin::Import(binding),
-        Some(_) => Origin::Local,
-        None if builtin(tree, at).is_some() => Origin::Builtin,
-        None => Origin::Unresolved,
+        Some(binding) if kind(tree, binding) == Kind::Node(Node::Alias) => {
+            QualifiedOrigin::Import(binding)
+        }
+        Some(_) => QualifiedOrigin::Local,
+        None if builtin(tree, at).is_some() => QualifiedOrigin::Builtin,
+        None => QualifiedOrigin::Unresolved,
     }
 }
 /// Append the name an import makes available at its binding, not necessarily its full imported path.
@@ -219,26 +222,31 @@ pub(crate) fn qualify(
     symbols: &mut languages::Symbols,
 ) -> Qualified {
     let base = root(tree, at);
-    let origin = base.map_or(Origin::Unresolved, |base| origin(tree, model, base, index));
+    let origin = base.map_or(QualifiedOrigin::Unresolved, |base| {
+        origin(tree, model, base, index)
+    });
     let label = match origin {
-        Origin::Import(_) => IMPORT,
-        Origin::Builtin => BUILTIN,
-        Origin::Local => LOCAL,
-        Origin::Unresolved => UNRESOLVED,
-        Origin::Ambiguous => AMBIGUOUS,
+        QualifiedOrigin::Import(_) => IMPORT,
+        QualifiedOrigin::Builtin => BUILTIN,
+        QualifiedOrigin::Local => LOCAL,
+        QualifiedOrigin::Unresolved => UNRESOLVED,
+        QualifiedOrigin::Ambiguous => AMBIGUOUS,
     };
     let provenance = languages::intern_derived(symbols, tree.source, NameText(label));
-    let since = if origin == Origin::Builtin {
+    let since = if origin == QualifiedOrigin::Builtin {
         base.and_then(|base| builtin(tree, base))
             .unwrap_or(NOT_APPLICABLE)
     } else {
         NOT_APPLICABLE
     };
-    let path = if matches!(origin, Origin::Import(_) | Origin::Builtin) {
+    let path = if matches!(
+        origin,
+        QualifiedOrigin::Import(_) | QualifiedOrigin::Builtin
+    ) {
         let begin = languages::begin_name(symbols);
         match origin {
-            Origin::Import(alias) => append_import(tree, symbols, alias),
-            Origin::Builtin => {
+            QualifiedOrigin::Import(alias) => append_import(tree, symbols, alias),
+            QualifiedOrigin::Builtin => {
                 languages::push_text(symbols, NameText(BUILTIN_MODULE));
                 languages::push_text(symbols, NameText(DOT));
                 if let Some(token) = base.and_then(|base| name_token(tree, base)) {
@@ -254,7 +262,7 @@ pub(crate) fn qualify(
                     );
                 }
             }
-            Origin::Local | Origin::Unresolved | Origin::Ambiguous => {}
+            QualifiedOrigin::Local | QualifiedOrigin::Unresolved | QualifiedOrigin::Ambiguous => {}
         }
         append_attributes(tree, symbols, at);
         languages::end_name(symbols, tree.source, begin)

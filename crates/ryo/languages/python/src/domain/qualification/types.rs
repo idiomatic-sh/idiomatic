@@ -2,7 +2,7 @@
 use ryo::languages::{Position, Symbol};
 /// The source that supplies a dotted expression's root.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Origin {
+pub(crate) enum QualifiedOrigin {
     /// A specific import alias declares the root.
     Import(Position),
     /// The language builtin namespace supplies the root.
