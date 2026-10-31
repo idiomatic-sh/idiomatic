@@ -1,0 +1,16 @@
+description = "A Cargo benchmark executable's workflow boundary."
+why = "The executable workflow owns temporary artifacts and snapshot lifetimes, composes injected benchmark ports and writes through caller-owned writers. It is separate from a domain operation, library composition and individual benchmark workload. Its product must prove registration as a harness=false Cargo target; this role grants no authority to neighboring source files."
+templates = [
+  { template = "workflow", file = "composition.rs", description = "The executable orchestration called by the registered Cargo entry." },
+]
+[[scenarios]]
+id = "workflow-is-placed"
+scenario = "The explicit workflow file is owned."
+given.files.'composition.rs' = 'pub(crate) fn run() {}'
+then.only = ['idiomatic.arch/benchmark-executable#closed']
+[[scenarios]]
+id = "neighbor-is-not-a-workflow"
+scenario = "A neighboring implementation does not inherit executable ownership."
+given.files.'other.rs' = 'pub(crate) fn run() {}'
+then.only = ['idiomatic.arch/benchmark-executable#closed']
+then.findings = [{ rule = 'idiomatic.arch/benchmark-executable#closed', path = 'other.rs' }]

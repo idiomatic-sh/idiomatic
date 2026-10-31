@@ -1,0 +1,15 @@
+description = "The language-local Cargo benchmark executable's workflow boundary."
+why = "This module is called only by the explicit harness=false Cargo runner. It owns temporary artifact lifetimes and filesystem snapshots, passes explicit settings into shared ports, and writes observations through caller-owned writers. It is not a library composition or domain operation; target wiring is required by benchmark-targets and the linter companion rules."
+content = '''
+//! The Cargo benchmark executable owns its workload and artifact lifetimes.
+'''
+[given]
+file = "composition.rs"
+[[scenarios]]
+id = "present"
+scenario = "The executable workflow exists."
+given.files.'composition.rs' = 'pub(crate) fn run() {}'
+[[scenarios]]
+id = "missing"
+scenario = "The executable workflow cannot be absent."
+then.findings = [{ rule = "idiomatic.arch/benchmark-executable/workflow#count", path = "." }]

@@ -1,11 +1,5 @@
 language = "python"
 
-# GNU time from this Linux aarch64 benchmark environment. Other machines must
-# explicitly pin their own collector; a mismatch refuses measurement.
-[instrumentation]
-executable = "/usr/bin/time"
-sha256 = "8562b023b90a04c5ecc722d61da09eef3f01dd3d756e26fe7ec63ff4c55fb6cf"
-
 [[projects]]
 name = "django"
 repository = "https://github.com/django/django.git"
