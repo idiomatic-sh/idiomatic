@@ -262,7 +262,7 @@ unescaped_backticks = "deny"
 [workspace.metadata.bin]
 # The tools only this product runs; the shared ones are declared once, in `tools/install.py`.
 cargo-semver-checks = { version = "0.51.0", locked = true }
-cargo-public-api = { version = "0.52.0", locked = true }
+cargo-public-api = { version = "0.52.0", locked = true, unavailable = { x86_64-unknown-linux-gnu = "no Linux prebuilt: the api group runs on macOS", aarch64-unknown-linux-gnu = "no Linux prebuilt: the api group runs on macOS" } }
 
 # The replay of the recorded rules over ruff runs in `cargo test`: a debug build of the engine would take
 # many minutes over its 10 million rows.

@@ -2,7 +2,7 @@
 # sample whose toolchain is missing fails its test), `tools/install.py`, which installs every tool the
 # checks run at the version declared for it (the command-line tools built from this checkout among them), and one call of
 # `asymptote check --groups <group>` per job: first the `build` group on each platform, which compiles what the checks compile and
-# alone saves the build cache, then, from that cache, a job for each of the `lint` and `check` groups of the `asymptote.toml` files (the
+# alone saves the build cache, then, from that cache, a job for each of the `lint`, `check`, `clippy` and `api` groups of the `asymptote.toml` files (the
 # release workflow runs the `release-*` groups; the benches of `perf` run only when asked for with `--groups perf`).
 # It runs on every pull request and every push to main, and still by hand; the per-change gate stays
 # `asymptote check --hook pre-commit`, the git hook `asymptote init` installs, which runs the `lint` group. A pull request's `speed`
@@ -50,12 +50,22 @@ jobs:
         run: rustup toolchain install
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
+          cache-bin: false
           shared-key: ${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
           save-if: true
           workspaces: |
             crates/asymptote -> target
             crates/tastemaker -> target
             crates/ryo -> target
+      # The installed tools, restored whole while the tool table is unchanged: install.py then leaves every tool at its declared
+      # version as it is.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/.crates.toml
+            ~/.cargo/.crates2.json
+          key: cargo-bin-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml') }}
       - name: The tools the checks run, each at the version declared for it
         run: uv run --script tools/install.py
       - run: asymptote check --groups build
@@ -63,9 +73,19 @@ jobs:
     needs: build
     strategy:
       fail-fast: false
+      # lint and check on every machine; clippy where clippy-sarif ships a prebuilt (Linux x64, macOS arm64), and the SDK's API once,
+      # on macOS, where cargo-public-api ships one: the API is the same on every platform.
       matrix:
-        os: [ubuntu-26.04, macos-26, windows-2025]
-        group: [lint, check]
+        include:
+          - { os: ubuntu-26.04, group: lint }
+          - { os: macos-26, group: lint }
+          - { os: windows-2025, group: lint }
+          - { os: ubuntu-26.04, group: check }
+          - { os: macos-26, group: check }
+          - { os: windows-2025, group: check }
+          - { os: ubuntu-26.04, group: clippy }
+          - { os: macos-26, group: clippy }
+          - { os: macos-26, group: api }
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -92,12 +112,22 @@ jobs:
         run: rustup toolchain install
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
+          cache-bin: false
           shared-key: ${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
           save-if: false
           workspaces: |
             crates/asymptote -> target
             crates/tastemaker -> target
             crates/ryo -> target
+      # The installed tools, restored whole while the tool table is unchanged: install.py then leaves every tool at its declared
+      # version as it is.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/.crates.toml
+            ~/.cargo/.crates2.json
+          key: cargo-bin-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml') }}
       - name: The tools the checks run, each at the version declared for it
         run: uv run --script tools/install.py
       - run: asymptote check --groups ${{ matrix.group }}
@@ -130,12 +160,22 @@ jobs:
         run: rustup toolchain install
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
+          cache-bin: false
           shared-key: ${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
           save-if: false
           workspaces: |
             crates/asymptote -> target
             crates/tastemaker -> target
             crates/ryo -> target
+      # The installed tools, restored whole while the tool table is unchanged: install.py then leaves every tool at its declared
+      # version as it is.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/.crates.toml
+            ~/.cargo/.crates2.json
+          key: cargo-bin-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml') }}
       - name: The tools the checks run, each at the version declared for it
         run: uv run --script tools/install.py
       - run: asymptote check --groups speed

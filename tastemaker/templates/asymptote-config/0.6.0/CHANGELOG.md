@@ -9,7 +9,9 @@ before a publish (`cargo-clippy-default`, `test-default`, `cargo-hack`, `cargo-d
 its own: `release-tests` (`cargo-clippy-default`, `test-default`, `test-distribution`, `release-smoke`, the one stable build they
 share), `release-coverage` (`coverage`), `release-msrv` (`cargo-msrv`), `release-dylint` (`cargo-dylint`), `release-hack`
 (`cargo-hack`) and `release-resolution` (`fresh-resolution`); `asymptote check --groups release-tests,release-coverage,release-msrv,release-dylint,release-hack,release-resolution`
-runs all of them locally. `perf` is unchanged. `fresh-resolution` packages each published crate
+runs all of them locally. `cargo-clippy` is the `clippy` group, `cargo-clippy-default` the `release-clippy` group and `sdk-api`
+the `api` group, each run only where its tool ships a prebuilt (clippy-sarif: Linux x64 and macOS arm64; cargo-public-api: macOS). `perf`
+is unchanged. `fresh-resolution` packages each published crate
 without the workspace's `Cargo.lock` and builds it from its package, so its dependencies resolve as a user's do. The `test` group is gone. Clippy runs without `--jobs 2`.
 
 `test-all-features` is split by area: `test-core` and `test-cli` run `cargo nextest run --workspace --locked

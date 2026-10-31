@@ -29,7 +29,7 @@ timeout-seconds = 1800
 
 [[tools]]
 id = "cargo-clippy"
-group = "check"
+group = "clippy"
 # Every clippy and compiler warning is a SARIF result the lock ratchets (clippy-sarif,
 # pinned in Cargo.toml); a compile error or a denied lint fails the run, never clean.
 run = ["bash", "-c", "set -o pipefail; clippy-sarif --version </dev/null >&2 && CARGO_BUILD_JOBS=6 cargo clippy --workspace --all-targets --all-features --locked --message-format=json | clippy-sarif"]
@@ -39,7 +39,7 @@ inputs = [".", "../ryo", "../../clippy.toml", "../../rust-toolchain.toml", "../.
 
 [[tools]]
 id = "sdk-api"
-group = "check"
+group = "api"
 # The SDK's public API under [workspace.metadata.api]: what it leaks, what it records and what it breaks; a product that names none passes.
 run = ["uv", "run", "../../ci/scripts/checks/sdk_api.py"]
 timeout-seconds = 3600
@@ -88,7 +88,7 @@ inputs = [".", "../ryo", "../../tastemaker", "../../rust-toolchain.toml", "../..
 
 [[tools]]
 id = "cargo-clippy-default"
-group = "release-tests"
+group = "release-clippy"
 # The same, with the default features: code a feature turns off is compiled and linted as a user builds it.
 run = ["bash", "-c", "set -o pipefail; clippy-sarif --version </dev/null >&2 && CARGO_BUILD_JOBS=6 cargo clippy --workspace --all-targets --locked --message-format=json | clippy-sarif"]
 output = "sarif"

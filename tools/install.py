@@ -22,28 +22,50 @@ Where a version is declared:
 - the nightly toolchain, in `crates/ryo/Cargo.toml` (`[workspace.metadata.api] nightly`).
 - everything that is not Rust, in `TOOLS` below: it has no manifest here; the package managers ryo's tests compare against, which npm
   installs, in `NODE_TOOLS`.
-- `cargo-binstall`, which installs the prebuilt Rust tools, in `BOOTSTRAP` below: nothing can install it.
+- `cargo-binstall`, which installs the prebuilt Rust tools, in `BINSTALL` below: its official release archive for this machine, checked
+  against the SHA-256 recorded there, never compiled.
 
-A Rust tool is fetched prebuilt with `cargo binstall` and built with `cargo install` where there is no prebuilt one for this machine. A tool
-installed from a path is installed again when its version differs or a source file is newer than the installed command.
+A Rust tool is fetched prebuilt with `cargo binstall`, which may not compile it: no tool is compiled. A tool with no prebuilt release for a
+machine is named in its `unavailable` (the machine's target) with the reason, and is not installed there: the groups that run it do not run
+on that machine. Any other missing prebuilt fails the install. A tool whose release ships plain archives cargo-binstall does not find is in
+`ARCHIVES`, each archive's SHA-256 recorded. Our own tools are built from this checkout until they are published. A tool installed from a path is installed again when its
+version differs or a source file is newer than the installed command; any other tool whose installed version is the declared one is
+left as it is.
 """
 
 from __future__ import annotations
 
+import gzip
+import hashlib
+import io
 import json
 import os
 import re
 import shutil
 import subprocess
 import sys
+import tarfile
 import tomllib
-from dataclasses import dataclass
+import urllib.request
+import zipfile
+from dataclasses import dataclass, field
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
-# Installed by `cargo install`: nothing can install it.
-BOOTSTRAP = {"cargo-binstall": "1.23.0"}
+# cargo-binstall, from its release archive for this machine, each archive's SHA-256 as downloaded from the release.
+BINSTALL = {
+    "version": "1.23.0",
+    "sha256": {
+        "x86_64-unknown-linux-musl.tgz": "64bf954c68bb558431deeabecaec7687edd5541c2189ee263bb8bc18bc4fdf55",
+        "aarch64-unknown-linux-musl.tgz": "ba9b7bf426c7b7375825cd3fa367c3f8a632ca7c6c546fdcb738114b167f4103",
+        "x86_64-apple-darwin.zip": "5b4d6cd99651318e17a26ed9bab7505de0f496d88793a7735a0fc6e2079efe83",
+        "aarch64-apple-darwin.zip": "0f679c0bc992c6b84fdcbb0f65492588447d26596ef387cb6cb1ba41ad8ceb33",
+        "x86_64-pc-windows-msvc.zip": "f4641479477aca40387e88297e3813fab8e44a8d21f25faa44e0ff33e2bc1726",
+        "aarch64-pc-windows-msvc.zip": "a3996cbd0c7fa2be599bd52eaf70ccd8c0dce4cce8d01345d486f47b0e0ee0f9",
+    },
+}
+BINSTALL_URL = "https://github.com/cargo-bins/cargo-binstall/releases/download/v{version}/cargo-binstall-{asset}"
 
 
 def pinned(tool: str, root: Path = ROOT) -> str:
@@ -67,6 +89,8 @@ class Crate:
     bins: tuple[str, ...] = ()
     default_features: bool = True
     features: tuple[str, ...] = ()
+    # The machines (targets) it has no prebuilt release for, each with the reason: it is not installed there.
+    unavailable: dict[str, str] = field(default_factory=dict)
 
 
 # The Rust tools declared once for the whole repository: every tool more than one product's checks run, and the ones the release
@@ -81,10 +105,18 @@ ROOT_CRATES = [
     Crate("cargo-machete", "0.9.2"),
     Crate("cargo-hack", "0.6.45"),
     Crate("cargo-mutants", "27.1.0"),
-    Crate("clippy-sarif", "0.8.0"),
+    # Its release ships Linux x64 and macOS arm64 alone, the machines the `clippy` and `release-clippy` groups run on.
+    Crate(
+        "clippy-sarif",
+        "0.8.0",
+        unavailable={
+            "aarch64-unknown-linux-gnu": "no aarch64 Linux archive in its release",
+            "x86_64-pc-windows-msvc": "no Windows archive in its release",
+        },
+    ),
     Crate("cargo-llvm-cov", "0.9.1"),
-    Crate("cargo-msrv", "0.19.6"),
-    Crate("taplo-cli", "0.10.0", bins=("taplo",)),
+    # `release-msrv` runs on Linux x64.
+    Crate("cargo-msrv", "0.19.6", unavailable={"aarch64-unknown-linux-gnu": "no aarch64 Linux archive in its release"}),
     Crate("hyperfine", "1.20.0"),
     # Reclaims stale build directories; it works across workspaces.
     Crate("cargo-sweep", "0.8.0"),
@@ -127,6 +159,7 @@ def declared_crates(root: Path = ROOT, shared: list[Crate] = ROOT_CRATES) -> lis
                 bins=tuple(entry.get("bins", ())),
                 default_features=entry.get("default-features", True),
                 features=tuple(entry.get("features", ())),
+                unavailable=dict(entry.get("unavailable", {})),
             )
             if name in declared_once:
                 sys.exit(f"{manifest}: {name} is declared once for the repository, in tools/install.py's ROOT_CRATES")
@@ -256,14 +289,108 @@ def stale_crate(crate: Crate, installed: dict[str, tuple[str, str]]) -> str | No
     return None
 
 
-def install_crate(crate: Crate) -> None:
+def install_crate(crate: Crate, host: str) -> str:
+    """Installs `crate` on `host` and says how: built from this checkout, prebuilt, or not at all where it names `host` unavailable."""
     options = ([] if crate.default_features else ["--no-default-features"]) + (["--features", ",".join(crate.features)] if crate.features else [])
     if crate.path is not None:
         run(["cargo", "install", "--locked", "--force", *options, "--path", str(crate.path)])
-        return
-    if not options and run(["cargo", "binstall", "--no-confirm", "--locked", "--force", f"{crate.name}@{crate.version}"], check=False).returncode == 0:
-        return
-    run(["cargo", "install", "--locked", "--force", *options, "--version", crate.version, crate.name])
+        return "built from this checkout"
+    if host in crate.unavailable:
+        return f"not installed: {crate.unavailable[host]}"
+    if options:
+        sys.exit(f"{crate.name}: a prebuilt release has no features to choose")
+    argv = ["cargo", "binstall", "--no-confirm", "--locked", "--force", "--disable-strategies", "compile", f"{crate.name}@{crate.version}"]
+    if run(argv, check=False).returncode != 0:
+        sys.exit(f"{crate.name} {crate.version} has no prebuilt release for {host}: name {host} in its `unavailable` with the reason")
+    return "prebuilt"
+
+
+# The tools whose releases ship one gzipped executable per machine, which cargo-binstall does not find: the command, its version, the
+# archive for each target, and each archive's SHA-256 as downloaded from the release.
+ARCHIVES = {
+    "taplo": {
+        "version": "0.10.0",
+        "url": "https://github.com/tamasfe/taplo/releases/download/{version}/taplo-{asset}.gz",
+        "assets": {
+            "x86_64-unknown-linux-gnu": ("linux-x86_64", "8fe196b894ccf9072f98d4e1013a180306e17d244830b03986ee5e8eabeb6156"),
+            "aarch64-unknown-linux-gnu": ("linux-aarch64", "033681d01eec8376c3fd38fa3703c79316f5e14bb013d859943b60a07bccdcc3"),
+            "aarch64-apple-darwin": ("darwin-aarch64", "713734314c3e71894b9e77513c5349835eefbd52908445a0d73b0c7dc469347d"),
+            "x86_64-apple-darwin": ("darwin-x86_64", "898122cde3a0b1cd1cbc2d52d3624f23338218c91b5ddb71518236a4c2c10ef2"),
+            "x86_64-pc-windows-msvc": ("windows-x86_64", "550fdc955343f8a196447a05346ecf8827e391726e4ded577bb00a0a36cf220c"),
+            "aarch64-pc-windows-msvc": ("windows-aarch64", "c16a9a1248bdd746fde657b0196bfc47c8bede1e50ae73b7d9d33088a6682180"),
+        },
+    },
+}
+
+
+def fetched(url: str, sha256: str) -> bytes:
+    """The file at `url`, once its SHA-256 is `sha256`; the install stops on any other."""
+    print("+ fetch", url, flush=True)
+    with urllib.request.urlopen(url) as response:  # noqa: S310 - a fixed https URL
+        data = response.read()
+    digest = hashlib.sha256(data).hexdigest()
+    if digest != sha256:
+        sys.exit(f"{url}: SHA-256 {digest}, not the recorded {sha256}")
+    return data
+
+
+def install_archive(command: str, host: str, bin_dir: Path) -> str:
+    """Puts `command`'s release executable for `host` in `bin_dir` unless the one there answers its version."""
+    tool = ARCHIVES[command]
+    name = command + (".exe" if os.name == "nt" else "")
+    found = shutil.which(name, path=str(bin_dir))
+    if found and tool["version"] in run([found, "--version"], check=False, capture=True).stdout.split():
+        return "installed"
+    if host not in tool["assets"]:
+        sys.exit(f"{command} {tool['version']} has no archive recorded for {host}")
+    asset, sha256 = tool["assets"][host]
+    data = gzip.decompress(fetched(tool["url"].format(version=tool["version"], asset=asset), sha256))
+    bin_dir.mkdir(parents=True, exist_ok=True)
+    (bin_dir / name).write_bytes(data)
+    (bin_dir / name).chmod(0o755)
+    return "prebuilt archive"
+
+
+def host_target() -> str:
+    """This machine's target triple, as rustc names it."""
+    said = run(["rustc", "-vV"], capture=True).stdout
+    return next(line.removeprefix("host: ") for line in said.splitlines() if line.startswith("host: "))
+
+
+def binstall_asset(host: str) -> str:
+    """The cargo-binstall archive for `host`: Linux's static musl build on either libc, the platform's own elsewhere."""
+    arch = host.split("-", 1)[0]
+    if "-linux-" in host:
+        return f"{arch}-unknown-linux-musl.tgz"
+    if host.endswith("-apple-darwin"):
+        return f"{arch}-apple-darwin.zip"
+    if host.endswith("-pc-windows-msvc"):
+        return f"{arch}-pc-windows-msvc.zip"
+    sys.exit(f"no cargo-binstall archive is recorded for {host}")
+
+
+def binstall_installed() -> str:
+    """The version `cargo binstall -V` answers; empty where there is none."""
+    found = run(["cargo", "binstall", "-V"], check=False, capture=True)
+    return found.stdout.strip() if found.returncode == 0 else ""
+
+
+def install_binstall(host: str, bin_dir: Path) -> None:
+    """Puts cargo-binstall's release archive for `host` in `bin_dir`, once its SHA-256 is the one recorded in `BINSTALL`."""
+    asset = binstall_asset(host)
+    url = BINSTALL_URL.format(version=BINSTALL["version"], asset=asset)
+    archive = fetched(url, BINSTALL["sha256"][asset])
+    name = "cargo-binstall.exe" if os.name == "nt" else "cargo-binstall"
+    if asset.endswith(".zip"):
+        data = zipfile.ZipFile(io.BytesIO(archive)).read(name)
+    else:
+        member = tarfile.open(fileobj=io.BytesIO(archive), mode="r:gz").extractfile(name)
+        if member is None:
+            sys.exit(f"{url} holds no {name}")
+        data = member.read()
+    bin_dir.mkdir(parents=True, exist_ok=True)
+    (bin_dir / name).write_bytes(data)
+    (bin_dir / name).chmod(0o755)
 
 
 def main(argv: list[str]) -> int:
@@ -272,15 +399,18 @@ def main(argv: list[str]) -> int:
         return 2
     crates = [*ROOT_CRATES, *declared_crates()]
     dylint = dylint_version()
-    crates += [Crate("cargo-dylint", dylint), Crate("dylint-link", dylint)]
+    # `release-dylint` runs on Linux x64.
+    windows = {"x86_64-pc-windows-msvc": "no Windows archive in its release"}
+    crates += [Crate("cargo-dylint", dylint, unavailable=windows), Crate("dylint-link", dylint, unavailable=windows)]
+    host = host_target()
+    bin_dir = Path(os.environ.get("CARGO_HOME", Path.home() / ".cargo")) / "bin"
+    if binstall_installed() != BINSTALL["version"]:
+        install_binstall(host, bin_dir)
     installed = installed_crates()
-    for name, version in BOOTSTRAP.items():
-        if installed.get(name, ("",))[0] != version:
-            run(["cargo", "install", "--locked", "--force", "--version", version, name])
-    installed = installed_crates()
-    for crate in crates:
-        if stale_crate(crate, installed):
-            install_crate(crate)
+    how = {crate.name: install_crate(crate, host) for crate in crates if stale_crate(crate, installed)}
+    how |= {command: install_archive(command, host, bin_dir) for command in ARCHIVES}
+    for name, done in how.items():
+        print(f"{name}: {done}", flush=True)
     have = installed_python()
     for command, tool in TOOLS.items():
         why = None if have.get(tool["package"]) == tool["version"] else f"installed {have.get(tool['package'], 'nothing')}, declared {tool['version']}"

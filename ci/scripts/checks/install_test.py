@@ -87,7 +87,7 @@ def test_the_own_tools_of_the_repository_are_built_from_their_paths() -> None:
     assert crates["idiomatic-sh-asymptote"].path == (ROOT / "crates/asymptote/cli").resolve()
     assert crates["idiomatic-sh-ryo"].path == (ROOT / "crates/ryo/cli").resolve()
     assert (crates["idiomatic-sh-ryo"].bins, crates["idiomatic-sh-ryo"].version) == (("ryo",), install.workspace_version("ryo"))
-    assert crates["taplo-cli"].bins == ("taplo",)
+    assert install.ARCHIVES["taplo"]["version"] == "0.10.0"
 
 
 def test_the_dylint_and_dist_pins_are_read_from_the_files_that_hold_them() -> None:
@@ -100,7 +100,7 @@ def commands(tools: list[dict]) -> set[str]:
 
 
 def test_every_command_a_check_runs_bare_is_installed_by_the_script() -> None:
-    provided = set(install.TOOLS) | {
+    provided = set(install.TOOLS) | set(install.ARCHIVES) | {
         bin for crate in [*install.ROOT_CRATES, *install.declared_crates()] for bin in (crate.bins or (crate.name,))
     }
     for manifest_path in [ROOT / "asymptote.toml", *sorted(ROOT.glob("crates/*/asymptote.toml"))]:
@@ -114,3 +114,59 @@ def test_no_check_names_a_version_or_a_launcher() -> None:
         text = " ".join(" ".join(tool.get(key, [])) for tool in tomllib.loads(manifest_path.read_text())["tools"] for key in ("run", "fix"))
         for pinned in ("==", "--from", "uvx", "cargo bin"):
             assert pinned not in text, f"{manifest_path.relative_to(ROOT)} names {pinned!r} in a run or fix line"
+
+
+def test_a_tool_s_unavailable_machines_are_read_from_its_manifest(tmp_path) -> None:
+    manifest(tmp_path / "crates/a/Cargo.toml", 'tool = { version = "0.1.0", unavailable = { x86_64-unknown-linux-gnu = "no Linux archive" } }')
+    (crate,) = install.declared_crates(tmp_path, shared=[])
+    assert crate.unavailable == {"x86_64-unknown-linux-gnu": "no Linux archive"}
+
+
+def recorded(monkeypatch, returncode: int) -> list[list[str]]:
+    calls: list[list[str]] = []
+
+    def run(argv, check=True, capture=False):
+        calls.append(argv)
+        return subprocess.CompletedProcess(argv, returncode, "", "")
+
+    monkeypatch.setattr(install, "run", run)
+    return calls
+
+
+def test_a_tool_is_installed_prebuilt_and_never_compiled(monkeypatch) -> None:
+    calls = recorded(monkeypatch, 0)
+    assert install.install_crate(install.Crate("cargo-deny", "0.20.2"), "x86_64-unknown-linux-gnu") == "prebuilt"
+    (argv,) = calls
+    assert argv[:2] == ["cargo", "binstall"] and argv[-1] == "cargo-deny@0.20.2"
+    assert argv[argv.index("--disable-strategies") + 1] == "compile"
+
+
+def test_a_missing_prebuilt_fails_the_install(monkeypatch) -> None:
+    recorded(monkeypatch, 1)
+    with pytest.raises(SystemExit):
+        install.install_crate(install.Crate("cargo-deny", "0.20.2"), "x86_64-unknown-linux-gnu")
+
+
+def test_a_tool_is_not_installed_on_a_machine_it_names_unavailable(monkeypatch) -> None:
+    calls = recorded(monkeypatch, 0)
+    crate = install.Crate("cargo-msrv", "0.19.6", unavailable={"aarch64-unknown-linux-gnu": "no aarch64 Linux archive"})
+    assert install.install_crate(crate, "aarch64-unknown-linux-gnu") == "not installed: no aarch64 Linux archive"
+    assert calls == []
+    assert install.install_crate(crate, "x86_64-unknown-linux-gnu") == "prebuilt"
+
+
+def test_no_tool_is_compiled_from_a_registry() -> None:
+    source = (ROOT / "tools/install.py").read_text(encoding="utf-8")
+    assert '"cargo", "install", "--locked", "--force", *options, "--version"' not in source
+
+
+def test_every_unavailable_machine_gives_its_reason() -> None:
+    for crate in [*install.ROOT_CRATES, *install.declared_crates()]:
+        assert all(reason.strip() for reason in crate.unavailable.values()), crate.name
+
+
+def test_every_machine_the_checks_run_on_has_a_recorded_archive() -> None:
+    for host in ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu", "aarch64-apple-darwin", "x86_64-pc-windows-msvc"]:
+        assert len(install.BINSTALL["sha256"][install.binstall_asset(host)]) == 64
+        for tool in install.ARCHIVES.values():
+            assert len(tool["assets"][host][1]) == 64

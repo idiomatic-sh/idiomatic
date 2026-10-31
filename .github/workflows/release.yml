@@ -41,6 +41,9 @@ jobs:
           - { runner: ubuntu-26.04-arm, group: release-tests }
           - { runner: macos-26, group: release-tests }
           - { runner: windows-2025, group: release-tests }
+          # clippy-sarif ships prebuilts for Linux x64 and macOS arm64 alone.
+          - { runner: ubuntu-26.04, group: release-clippy }
+          - { runner: macos-26, group: release-clippy }
           - { runner: ubuntu-26.04, group: release-coverage }
           - { runner: ubuntu-26.04, group: release-msrv }
           - { runner: ubuntu-26.04, group: release-dylint }
@@ -75,12 +78,22 @@ jobs:
       # check workflow's jobs build, so it restores that workflow's cache and saves none.
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
+          cache-bin: false
           shared-key: ${{ matrix.group == 'release-tests' && format('{0}-{1}', runner.os, hashFiles('**/Cargo.lock')) || format('{0}-{1}', matrix.runner, matrix.group) }}
           save-if: ${{ matrix.group != 'release-tests' }}
           workspaces: |
             crates/asymptote -> target
             crates/tastemaker -> target
             crates/ryo -> target
+      # The installed tools, restored whole while the tool table is unchanged: install.py then leaves every tool at its declared
+      # version as it is.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/.crates.toml
+            ~/.cargo/.crates2.json
+          key: cargo-bin-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml') }}
       - name: The tools the checks run, each at the version declared for it
         run: uv run --script tools/install.py
       - run: asymptote check --root crates/${{ inputs.product }} --groups ${{ matrix.group }}
