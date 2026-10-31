@@ -286,16 +286,32 @@ pub(crate) fn prepare<'a>(
             let ExpressionShapeIndex {
                 classes, scratch, ..
             } = &mut *index;
-            if languages::children(tree.elements, at).any(|child| {
-                is_token(tree, child) == Leaf::Node
+            let unshaped_child = languages::children(tree.elements, at).find(|child| {
+                is_token(tree, *child) == Leaf::Node
                     && classes
                         .get(usize::try_from(child.0).unwrap_or(usize::MAX))
                         .is_none_or(Option::is_none)
-            }) {
+            });
+            if let Some(child) = unshaped_child {
+                #[cfg(test)]
+                eprintln!(
+                    "shape incomplete child: parent={at:?} {:?}; child={child:?} {:?}; field={:?}",
+                    kind(tree, at),
+                    kind(tree, child),
+                    field_of(tree, child),
+                );
                 index.state = ShapeState::Partial;
                 continue;
             }
             if key(tree, at, symbols, classes, scratch).is_none() {
+                #[cfg(test)]
+                eprintln!(
+                    "shape key absent: node={at:?} {:?}; literal={:?}; scalar-kind={:?}; interpolation={:?}",
+                    kind(tree, at),
+                    literal(tree, at),
+                    languages::property_at(tree.elements, at, SCALAR_KIND),
+                    interpolation(tree, at),
+                );
                 index.state = ShapeState::Partial;
                 continue;
             }
