@@ -8,6 +8,7 @@ path = "../../tastemaker"
 
 [packages."idiomatic.arch".rules]
 adapter-at-root = "0.1.0"
+adapter-writer-layering = "0.1.0"
 allow-attributes-per-file = "0.1.0"
 bdd-members = "0.1.0"
 bounded-store = "0.1.0"
@@ -149,6 +150,7 @@ use-case = "0.1.0"
 [packages."idiomatic.arch".templates]
 adapter-connection = "0.1.0"
 adapter-module = "0.2.0"
+adapter-writer = "0.1.0"
 allocation-test = "0.1.0"
 application = "0.1.0"
 application-module = "0.1.0"

@@ -7,7 +7,7 @@ let imports = project(from="static-import", columns=["occurrence", "file", "span
 let references = project(from="reference", columns=["occurrence", "file", "span", "target"]);
 let mentions = union(left=imports, right=references);
 let clients = select * from mentions where glob_any(target, $libraries);
-let governed-roles = select l."path" as "file" from "tastemaker.placed" as l where l."package" = "idiomatic.arch" and l."spec" = "adapter" and glob_any(l."template", "{adapter,adapter-connection,settings,schemas}");
+let governed-roles = select l."path" as "file" from "tastemaker.placed" as l where l."package" = "idiomatic.arch" and l."spec" = "adapter" and glob_any(l."template", "{adapter,adapter-connection,adapter-writer,settings,schemas}");
 let outside = antijoin(left=clients, right=governed-roles, left-on=["file"], right-on=["file"]);
 emit outside subject "file" key("span");
 '''
@@ -196,6 +196,8 @@ given.include = ["**"]
 given.exclude = []
 given.files.'edge/adapter.rs' = 'use rusqlite::Connection;'
 given.files.'edge/schemas.rs' = 'use rusqlite::Connection;'
+given.files.'edge/writer.rs' = 'use rusqlite::Connection;'
+given.files.'domain/writer.rs' = 'use rusqlite::Connection;'
 given.files.'domain/adapter.rs' = 'use rusqlite::Connection;'
 given.files.'tastemaker.toml' = '''
 workspace = { name = "fixture", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
@@ -205,4 +207,5 @@ specs = [{ spec = "idiomatic.arch/adapter", include = ["edge"], params = { core 
 then.only = ['idiomatic.arch/client-at-adapter', 'idiomatic.arch/client-at-adapter#unknown']
 then.findings = [
   { path = 'domain/adapter.rs', line = 1 },
+  { path = 'domain/writer.rs', line = 1 },
 ]

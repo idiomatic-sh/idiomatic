@@ -1,6 +1,7 @@
 description = "One adapter: an implementation of one outbound port of a core, its test running the core's contract, and its settings, schemas, types and errors."
 why = "An adapter holds one implementation of the core's port behind the port's name, so the core's use cases depend on the promise and the edge alone picks the implementation. The port is the core's, imported from the crate named in `core`; the adapter holds nothing of the core's logic and no interface of its own. Its struct is `<Port><Name>Adapter` and implements `<Port>Port`; it keeps no process-global state and reaches only its own port. The adapter spec places each adapter. Resources or filesystem identities supplied by the edge and any typed partition bindings belong to the adapter instance. Worker buffers and leases have explicit lifetimes; pure compute adapters need no external resource. Shared contract tests establish resource isolation and observable behavior, not constructor names alone."
 templates = [
+  { template = "idiomatic.arch/adapter-writer@0.1.0", alias = "writer", file = "writer.rs", count = { min = 0 }, description = "Optional adapter-owned external traversal and serialization, using its schemas and plain types." },
   { template = "idiomatic.arch/adapter-connection@0.1.0", alias = "connection", file = "connection.rs", count = { min = 0 }, description = "Optional adapter-owned external resource handle opened at the edge, then injected through the factory; not a port data type." },
   { template = "adapter", file = "adapter.rs", params = { port = { param = "port" }, core = { param = "core" } }, description = "One implementation of the outbound port its directory sits beneath: the struct `<Port><Part>Adapter` implementing the core's `<Port>Port`, which it imports from the core crate." },
   { template = "adapter-test", file = "adapter_test.rs", params = { port = { param = "port" }, core = { param = "core" } }, description = "The proof of one adapter in the one test shape: the core's contract rows run through it, then the cases specific to it." },
@@ -14,6 +15,8 @@ templates = [
   { template = "idiomatic.arch/schemas-test@0.1.0", file = "schemas_test.rs", count = { min = 0 }, params = { kind = "adapter" }, description = "The accepted and the refused inputs of the part's schemas." },
 ]
 rules = [
+  { rule = "idiomatic.arch/adapter-writer-layering@0.1.0", include = ["*.rs"], description = "Serialization follows adapter to writer to schemas/types, with no reverse edge." },
+  { rule = "idiomatic.arch/schema-visibility@0.1.0", include = ["writer.rs"], description = "Writer entry points stay private or pub(super), within the owning adapter." },
   { rule = "adapter-binding", include = ["adapter.rs"], params = { core = { param = "core" }, port = { param = "port" } }, description = "The implementation uses the exact owning crate and outbound port bound by placement." },
   { rule = "idiomatic.arch/no-vacuous-tests@0.1.0", include = ["*_test.rs"], description = "Proofs execute a real subject over nonempty cases." },
   { rule = "adapter-name", include = ["adapter.rs"], description = "An adapter.rs holds one struct named <Port><Dir>Adapter that implements the trait of its port; any other struct in it is a handle that implements a trait the port returns." },
@@ -21,8 +24,8 @@ rules = [
   { rule = "adapter-contract", include = ["adapter_test.rs"], description = "An adapter's test runs the contract rows the core exports for its port, or calls the exported check." },
   { rule = "adapter-scope", include = ["*.rs"], description = "An adapter reaches only its own port: no other hex's adapters or domain concepts, no use case or domain concept of the core, no second port." },
   { rule = "adapter-owns-no-adapter", include = ["*.rs"], exclude = ["*_test.rs", "fixtures.rs"], description = "An adapter never reaches another adapter: no path into another adapter directory, no other adapter type, no port trait but the one it implements, no factory." },
-  { rule = "no-wildcard-into-domain-enum", include = ["adapter.rs", "schemas.rs"], description = "A match in an adapter has no `_ =>` arm: a variant added to a domain enum is a compile error in every adapter that maps it." },
-  { rule = "stateless-adapters", include = ["adapter.rs", "types.rs", "errors.rs", "settings.rs", "connection.rs"], description = "An adapter has no process-global state: static and thread-local declarations are refused; injected connections and instance-owned cells are allowed." },
+  { rule = "no-wildcard-into-domain-enum", include = ["adapter.rs", "schemas.rs", "writer.rs"], description = "A match in an adapter has no `_ =>` arm: a variant added to a domain enum is a compile error in every adapter that maps it." },
+  { rule = "stateless-adapters", include = ["adapter.rs", "types.rs", "errors.rs", "settings.rs", "connection.rs", "writer.rs"], description = "An adapter has no process-global state: static and thread-local declarations are refused; injected connections and instance-owned cells are allowed." },
   { rule = "hollow-settings", include = ["settings.rs"], description = "An adapter's settings hold real values, never an empty struct." },
   { rule = "schemas-members", include = ["*.rs"], description = "An adapter that parses or writes an external format and whose port carries data has a schemas.rs and its test; one whose port carries none has neither; an adapter with no external format owes none." },
   { rule = "idiomatic.arch/no-inherent-impls@0.1.0", include = ["types.rs"], description = "A part's types.rs is its data and its trait impls: no `impl Type { }` block." },
@@ -4274,3 +4277,38 @@ pub struct NamesFileSettings {
 then.findings = [
   { rule = 'idiomatic.arch/adapter/adapter-owns-no-adapter', path = 'src/names/adapters/file/connection.rs', line = 3 },
 ]
+
+[[scenarios]]
+id = "adapter-with-writer"
+scenario = "adapter with writer is governed by the adapter role."
+given.files."src/journal.rs" = "//! The journal hex: the adapters of the core's `journal` port.\n\npub mod adapters;\n"
+given.files."src/journal/adapters.rs" = "//! The adapters of the journal port, one module each.\n\npub mod memory;\n"
+given.files."src/journal/adapters/memory.rs" = "//! The memory adapter of the journal port.\n\npub mod adapter;\n\n#[cfg(test)]\nmod adapter_test;\n\nmod writer;\n"
+given.files."src/journal/adapters/memory/adapter.rs" = "//! The journal port, implemented with memory.\n\nuse crate::outbound::journal::interface::JournalPort;\n\n/// The memory journal adapter.\n#[derive(Debug)]\npub(crate) struct JournalMemoryAdapter;\n\nimpl JournalPort for JournalMemoryAdapter {\n    fn flush(&self) {}\n}\n"
+given.files."src/journal/adapters/memory/adapter_test.rs" = "//! The memory adapter of the journal port: the core's contract rows run through it, then the cases specific to it.\n\nuse super::adapter::JournalMemoryAdapter;\nuse crate::cases::{Case, Expect, Word, run};\nuse crate::outbound::journal::interface::JournalPort;\nuse crate::outbound::journal::fixtures::contract::CASES as CONTRACT;\n\ntype Input = ();\ntype Value = ();\ntype Failure = ();\n\n/// The rows of what is specific to this adapter: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.\nconst CASES: &[Case<Input, Value, Failure>] = &[\n    Case {\n        name: \"flushes with nothing pending\",\n        word: Word::Succeeds,\n        input: || (),\n        expect: Expect::Value(()),\n    },\n];\n\n/// Calls the adapter on one input, for the contract's rows and for its own; the author states it.\nfn subject(input: Input) -> Result<Value, Failure> {\n    JournalMemoryAdapter.flush();\n    Ok(input)\n}\n\n#[test]\nfn succeeds() {\n    run(CONTRACT, Word::Succeeds, subject);\n    run(CASES, Word::Succeeds, subject);\n}\n\n#[test]\nfn refuses() {\n    run(CONTRACT, Word::Refuses, subject);\n}\n\n#[test]\nfn fails() {\n    run(CONTRACT, Word::Fails, subject);\n}\n\n#[test]\nfn rejects() {\n    run(CONTRACT, Word::Rejects, subject);\n}\n"
+given.files."src/lib.rs" = "pub mod journal;\n\n#[cfg(any(test, feature = \"fixtures\"))]\npub mod cases;\n"
+given.files."src/journal/adapters/memory/writer.rs" = "pub(super) fn write() {}"
+
+[[scenarios]]
+id = "writer-global-state"
+scenario = "writer global state is governed by the adapter role."
+given.files."src/journal.rs" = "//! The journal hex: the adapters of the core's `journal` port.\n\npub mod adapters;\n"
+given.files."src/journal/adapters.rs" = "//! The adapters of the journal port, one module each.\n\npub mod memory;\n"
+given.files."src/journal/adapters/memory.rs" = "//! The memory adapter of the journal port.\n\npub mod adapter;\n\n#[cfg(test)]\nmod adapter_test;\n\nmod writer;\n"
+given.files."src/journal/adapters/memory/adapter.rs" = "//! The journal port, implemented with memory.\n\nuse crate::outbound::journal::interface::JournalPort;\n\n/// The memory journal adapter.\n#[derive(Debug)]\npub(crate) struct JournalMemoryAdapter;\n\nimpl JournalPort for JournalMemoryAdapter {\n    fn flush(&self) {}\n}\n"
+given.files."src/journal/adapters/memory/adapter_test.rs" = "//! The memory adapter of the journal port: the core's contract rows run through it, then the cases specific to it.\n\nuse super::adapter::JournalMemoryAdapter;\nuse crate::cases::{Case, Expect, Word, run};\nuse crate::outbound::journal::interface::JournalPort;\nuse crate::outbound::journal::fixtures::contract::CASES as CONTRACT;\n\ntype Input = ();\ntype Value = ();\ntype Failure = ();\n\n/// The rows of what is specific to this adapter: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.\nconst CASES: &[Case<Input, Value, Failure>] = &[\n    Case {\n        name: \"flushes with nothing pending\",\n        word: Word::Succeeds,\n        input: || (),\n        expect: Expect::Value(()),\n    },\n];\n\n/// Calls the adapter on one input, for the contract's rows and for its own; the author states it.\nfn subject(input: Input) -> Result<Value, Failure> {\n    JournalMemoryAdapter.flush();\n    Ok(input)\n}\n\n#[test]\nfn succeeds() {\n    run(CONTRACT, Word::Succeeds, subject);\n    run(CASES, Word::Succeeds, subject);\n}\n\n#[test]\nfn refuses() {\n    run(CONTRACT, Word::Refuses, subject);\n}\n\n#[test]\nfn fails() {\n    run(CONTRACT, Word::Fails, subject);\n}\n\n#[test]\nfn rejects() {\n    run(CONTRACT, Word::Rejects, subject);\n}\n"
+given.files."src/lib.rs" = "pub mod journal;\n\n#[cfg(any(test, feature = \"fixtures\"))]\npub mod cases;\n"
+given.files."src/journal/adapters/memory/writer.rs" = "static COUNT: usize = 0;\npub(super) fn write() {}"
+then.findings = [{ rule = "idiomatic.arch/adapter/stateless-adapters", path = "src/journal/adapters/memory/writer.rs", line = 1 }]
+
+[[scenarios]]
+id = "writer-escapes-owner"
+scenario = "writer escapes owner is governed by the adapter role."
+given.files."src/journal.rs" = "//! The journal hex: the adapters of the core's `journal` port.\n\npub mod adapters;\n"
+given.files."src/journal/adapters.rs" = "//! The adapters of the journal port, one module each.\n\npub mod memory;\n"
+given.files."src/journal/adapters/memory.rs" = "//! The memory adapter of the journal port.\n\npub mod adapter;\n\n#[cfg(test)]\nmod adapter_test;\n\nmod writer;\n"
+given.files."src/journal/adapters/memory/adapter.rs" = "//! The journal port, implemented with memory.\n\nuse crate::outbound::journal::interface::JournalPort;\n\n/// The memory journal adapter.\n#[derive(Debug)]\npub(crate) struct JournalMemoryAdapter;\n\nimpl JournalPort for JournalMemoryAdapter {\n    fn flush(&self) {}\n}\n"
+given.files."src/journal/adapters/memory/adapter_test.rs" = "//! The memory adapter of the journal port: the core's contract rows run through it, then the cases specific to it.\n\nuse super::adapter::JournalMemoryAdapter;\nuse crate::cases::{Case, Expect, Word, run};\nuse crate::outbound::journal::interface::JournalPort;\nuse crate::outbound::journal::fixtures::contract::CASES as CONTRACT;\n\ntype Input = ();\ntype Value = ();\ntype Failure = ();\n\n/// The rows of what is specific to this adapter: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.\nconst CASES: &[Case<Input, Value, Failure>] = &[\n    Case {\n        name: \"flushes with nothing pending\",\n        word: Word::Succeeds,\n        input: || (),\n        expect: Expect::Value(()),\n    },\n];\n\n/// Calls the adapter on one input, for the contract's rows and for its own; the author states it.\nfn subject(input: Input) -> Result<Value, Failure> {\n    JournalMemoryAdapter.flush();\n    Ok(input)\n}\n\n#[test]\nfn succeeds() {\n    run(CONTRACT, Word::Succeeds, subject);\n    run(CASES, Word::Succeeds, subject);\n}\n\n#[test]\nfn refuses() {\n    run(CONTRACT, Word::Refuses, subject);\n}\n\n#[test]\nfn fails() {\n    run(CONTRACT, Word::Fails, subject);\n}\n\n#[test]\nfn rejects() {\n    run(CONTRACT, Word::Rejects, subject);\n}\n"
+given.files."src/lib.rs" = "pub mod journal;\n\n#[cfg(any(test, feature = \"fixtures\"))]\npub mod cases;\n"
+given.files."src/journal/adapters/memory/writer.rs" = "pub fn write() {}"
+then.findings = [{ rule = "idiomatic.arch/schema-visibility", path = "src/journal/adapters/memory/writer.rs", line = 1 }]

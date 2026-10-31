@@ -4,6 +4,9 @@ content = '''
 //! The syntax port, implemented with `{{ library }}`.
 
 pub(crate) mod adapter;
+{%- if present["writer"] | default(false) %}
+mod writer;
+{%- endif %}
 mod constants;
 #[cfg(any(test, feature = "fixtures"))]
 pub(crate) mod fixtures;
