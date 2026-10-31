@@ -292,8 +292,14 @@ fn placed_manifests(root: &Path) -> HostRelation {
             .map(|(path, template)| {
                 let relative = path.strip_prefix(root).expect("a path under the root");
                 HostRow(vec![
+                    // Joined by `/` on every platform, as Tastemaker names a placed file.
                     ryo_values::domain::records::types::Cell::File(
-                        relative.to_string_lossy().as_ref().into(),
+                        relative
+                            .components()
+                            .map(|part| part.as_os_str().to_string_lossy())
+                            .collect::<Vec<_>>()
+                            .join("/")
+                            .into(),
                     ),
                     text(""),
                     text(""),
