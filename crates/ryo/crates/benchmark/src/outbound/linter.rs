@@ -1,5 +1,5 @@
 //! Linter boundary.
-pub mod adapters;
+pub(crate) mod adapters;
 pub mod interface;
 
 #[cfg(any(test, feature = "fixtures"))]

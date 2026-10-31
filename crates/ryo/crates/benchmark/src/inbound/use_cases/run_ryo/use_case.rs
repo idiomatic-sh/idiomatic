@@ -1,26 +1,27 @@
-//! The SDK worker calls its injected engine boundary.
+//! The worker orchestrates transport and SDK evaluation without reading wire data.
 use super::interface::RunRyoUseCase;
-use crate::domain::diagnostics::{errors::Error, types::RunReport};
-use crate::domain::suite::types::WorkerRequest;
-use crate::outbound::engine::interface::EnginePort;
+use crate::domain::diagnostics::errors::Error;
+use crate::outbound::{engine::interface::EnginePort, worker::interface::WorkerPort};
 use std::sync::Arc;
-/// Run the candidate worker through its injected SDK boundary.
+/// Handles one child-process request through independently injected boundaries.
 pub struct RunRyoUseCaseImpl {
     engine: Arc<dyn EnginePort>,
+    worker: Arc<dyn WorkerPort>,
 }
 impl RunRyoUseCaseImpl {
-    /// Construct this operation with the dependencies chosen by its composition.
+    /// Bind the language-specific engine and shared process transport.
     #[must_use]
-    pub fn new(engine: Arc<dyn EnginePort>) -> Self {
-        Self { engine }
+    pub fn new(engine: Arc<dyn EnginePort>, worker: Arc<dyn WorkerPort>) -> Self {
+        Self { engine, worker }
     }
 }
 impl RunRyoUseCase for RunRyoUseCaseImpl {
-    fn run_ryo(&self, request: WorkerRequest) -> Result<RunReport, Error> {
-        self.engine.run(request)
+    fn run_ryo(&self) -> Result<(), Error> {
+        let request = self.worker.receive()?;
+        let report = self.engine.run(request)?;
+        self.worker.respond(&report)
     }
 }
-
 impl std::fmt::Debug for RunRyoUseCaseImpl {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter

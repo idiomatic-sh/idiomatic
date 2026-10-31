@@ -12,9 +12,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
     expect: Expect::Value(()),
 }];
 fn subject(_: Input) -> Result<Value, Failure> {
-    check(&EngineLocalAdapter {
-        languages: ryo::linter::Languages::default(),
-    });
+    check(&EngineLocalAdapter::new(ryo::linter::Languages::default()));
     Ok(())
 }
 #[test]

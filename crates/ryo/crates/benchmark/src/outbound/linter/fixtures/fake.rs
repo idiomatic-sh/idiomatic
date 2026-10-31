@@ -14,12 +14,15 @@ use std::path::PathBuf;
 pub struct LinterFake {
     /// Canonical findings returned by successful fixture decoding.
     pub diagnostics: Vec<Diagnostic>,
+    /// Labels carried through execution for call-order assertions.
+    pub arguments: Vec<std::ffi::OsString>,
 }
 impl LinterPort for LinterFake {
     fn prepare(&self, request: &RunRequest) -> Result<Invocation, Error> {
         Ok(Invocation {
             executable: PathBuf::from("fixture"),
-            arguments: Vec::new(),
+            arguments: self.arguments.clone(),
+            environment: Default::default(),
             directory: request.root.clone(),
         })
     }

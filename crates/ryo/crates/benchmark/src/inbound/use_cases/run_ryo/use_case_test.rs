@@ -1,45 +1,133 @@
-//! The worker forwards successful reports and dependency failures.
+//! Receive, engine and response failures stop the pipeline at the failed boundary.
 use super::{interface::RunRyoUseCase, use_case::RunRyoUseCaseImpl};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::diagnostics::errors::Error;
-use crate::domain::suite::types::WorkerRequest;
-use crate::outbound::engine::fixtures::fake::EngineFake;
-use std::sync::Arc;
-type Input = bool;
-type Value = bool;
-#[derive(Debug, PartialEq, Eq)]
+use crate::domain::{
+    diagnostics::{errors::Error, types::RunReport},
+    suite::types::WorkerRequest,
+};
+use crate::outbound::{
+    engine::interface::EnginePort,
+    worker::fixtures::{data::request, fake::WorkerFake},
+};
+use std::sync::{
+    Arc,
+    atomic::{AtomicUsize, Ordering},
+};
+#[derive(Clone, Copy, Debug)]
+enum Stage {
+    Complete,
+    Receive,
+    Engine,
+    Respond,
+}
+type Input = Stage;
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct Trace {
+    received: usize,
+    evaluated: usize,
+    responded: usize,
+    published: bool,
+}
+type Value = Trace;
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Refusal {
-    NoQueries,
+    Receive(Trace),
+    Engine(Trace),
+    Respond(Trace),
     Unexpected,
 }
+type Failure = Refusal;
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("worker preserves submitted files"),
+        name: CaseName("receive engine respond publishes the actual report"),
         word: Word::Succeeds,
-        input: || false,
-        expect: Expect::Value(true),
+        input: || Stage::Complete,
+        expect: Expect::Value(Trace {
+            received: 1,
+            evaluated: 1,
+            responded: 1,
+            published: true,
+        }),
     },
     Case {
-        name: CaseName("worker preserves engine refusal"),
+        name: CaseName("receive failure prevents engine and response"),
         word: Word::Fails,
-        input: || true,
-        expect: Expect::Error(Failure::NoQueries),
+        input: || Stage::Receive,
+        expect: Expect::Error(Refusal::Receive(Trace {
+            received: 1,
+            evaluated: 0,
+            responded: 0,
+            published: false,
+        })),
+    },
+    Case {
+        name: CaseName("engine failure prevents response"),
+        word: Word::Fails,
+        input: || Stage::Engine,
+        expect: Expect::Error(Refusal::Engine(Trace {
+            received: 1,
+            evaluated: 1,
+            responded: 0,
+            published: false,
+        })),
+    },
+    Case {
+        name: CaseName("response failure cannot report success"),
+        word: Word::Fails,
+        input: || Stage::Respond,
+        expect: Expect::Error(Refusal::Respond(Trace {
+            received: 1,
+            evaluated: 1,
+            responded: 1,
+            published: false,
+        })),
     },
 ];
-fn subject(refuses: Input) -> Result<Value, Failure> {
-    let worker = RunRyoUseCaseImpl::new(Arc::new(EngineFake { refuses }));
-    worker
-        .run_ryo(WorkerRequest {
-            root: ".".into(),
-            rules: "rules".into(),
-            files: vec!["input.txt".into()],
-            cache: None,
+#[derive(Debug)]
+struct Engine {
+    calls: AtomicUsize,
+    refuses: bool,
+}
+impl EnginePort for Engine {
+    fn run(&self, given: WorkerRequest) -> Result<RunReport, Error> {
+        let _previous = self.calls.fetch_add(1, Ordering::SeqCst);
+        if self.refuses {
+            return Err(Error::Invalid("fixture engine failure".into()));
+        }
+        Ok(RunReport {
+            files: given.files,
+            diagnostics: Vec::new(),
         })
-        .map(|report| report.files == ["input.txt"])
-        .map_err(|error| match error {
-            Error::Invalid(message) if message == "no candidate queries" => Failure::NoQueries,
-            _ => Failure::Unexpected,
-        })
+    }
+}
+fn subject(stage: Input) -> Result<Value, Failure> {
+    let mut transport = WorkerFake::new(request());
+    transport.refuse_receive = matches!(stage, Stage::Receive);
+    transport.refuse_respond = matches!(stage, Stage::Respond);
+    let transport = Arc::new(transport);
+    let engine = Arc::new(Engine {
+        calls: AtomicUsize::new(0),
+        refuses: matches!(stage, Stage::Engine),
+    });
+    let result = RunRyoUseCaseImpl::new(engine.clone(), transport.clone()).run_ryo();
+    let trace = Trace {
+        received: transport.receive_calls(),
+        evaluated: engine.calls.load(Ordering::SeqCst),
+        responded: transport.respond_calls(),
+        published: transport.reports()
+            == [RunReport {
+                files: request().files,
+                diagnostics: Vec::new(),
+            }],
+    };
+    result.map(|()| trace).map_err(|error| match error {
+        Error::Invalid(message) if message == "fixture receive failure" => Refusal::Receive(trace),
+        Error::Invalid(message) if message == "fixture engine failure" => Refusal::Engine(trace),
+        Error::Io(error) if error.kind() == std::io::ErrorKind::BrokenPipe => {
+            Refusal::Respond(trace)
+        }
+        _ => Refusal::Unexpected,
+    })
 }
 #[test]
 fn succeeds() {
@@ -49,5 +137,3 @@ fn succeeds() {
 fn fails() {
     run(CASES, Word::Fails, subject);
 }
-
-type Failure = Refusal;

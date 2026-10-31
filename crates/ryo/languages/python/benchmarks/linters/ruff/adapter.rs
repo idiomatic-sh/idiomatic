@@ -40,6 +40,9 @@ impl LinterPort for Ruff {
         Ok(Invocation {
             executable: self.executable.clone(),
             arguments,
+            environment: [("RAYON_NUM_THREADS".into(), "1".into())]
+                .into_iter()
+                .collect(),
             directory: request.root.clone(),
         })
     }

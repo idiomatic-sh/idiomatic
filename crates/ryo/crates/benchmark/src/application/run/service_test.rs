@@ -12,6 +12,7 @@ impl LinterPort for Empty {
         Ok(Invocation {
             executable: "unused".into(),
             arguments: vec![],
+            environment: Default::default(),
             directory: request.root.clone(),
         })
     }

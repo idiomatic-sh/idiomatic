@@ -11,6 +11,7 @@ impl ExecutionPort for ExecutionProcessAdapter {
         let start = Instant::now();
         let output = Command::new(invocation.executable)
             .args(invocation.arguments)
+            .envs(invocation.environment)
             .current_dir(invocation.directory)
             .output()?;
         let wall = start.elapsed();

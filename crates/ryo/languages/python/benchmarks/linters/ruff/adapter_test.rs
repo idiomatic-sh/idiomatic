@@ -52,6 +52,12 @@ fn invocation_is_isolated_without_selection_override() {
         cache: "/tmp/cache".into(),
     };
     let invocation = ruff.prepare(&request).unwrap();
+    assert_eq!(
+        invocation
+            .environment
+            .get(std::ffi::OsStr::new("RAYON_NUM_THREADS")),
+        Some(&std::ffi::OsString::from("1"))
+    );
     let args: Vec<_> = invocation
         .arguments
         .iter()

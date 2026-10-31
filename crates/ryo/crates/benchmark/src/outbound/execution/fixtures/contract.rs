@@ -27,8 +27,11 @@ fn invocation() -> Invocation {
         executable: "sh".into(),
         arguments: vec![
             "-c".into(),
-            "printf payload; printf issue >&2; exit 7".into(),
+            "printf %s \"$RYO_BENCH_FIXTURE\"; printf issue >&2; exit 7".into(),
         ],
+        environment: [("RYO_BENCH_FIXTURE".into(), "payload".into())]
+            .into_iter()
+            .collect(),
         directory: PathBuf::from("."),
     }
 }
@@ -36,6 +39,7 @@ fn missing() -> Invocation {
     Invocation {
         executable: "/ryo-benchmark-missing-program".into(),
         arguments: Vec::new(),
+        environment: Default::default(),
         directory: PathBuf::from("."),
     }
 }

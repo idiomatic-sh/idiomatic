@@ -26,6 +26,7 @@ impl LinterPort for LinterRyoAdapter {
                 "run-ryo".into(),
                 super::schemas::encode_request(worker)?.into(),
             ],
+            environment: Default::default(),
             directory: request.root.clone(),
         })
     }

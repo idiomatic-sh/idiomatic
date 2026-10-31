@@ -41,7 +41,10 @@ fn refuses() {
         }
         let result = verify_cases(
             &LinterFake::default(),
-            &ExecutionFake { status: 0 },
+            &ExecutionFake {
+                status: 0,
+                ..Default::default()
+            },
             std::path::Path::new("unreachable"),
             rules.path(),
             scratch.path(),

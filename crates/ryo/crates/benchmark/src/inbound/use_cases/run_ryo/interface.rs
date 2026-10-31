@@ -1,12 +1,10 @@
-//! Execute the LinterRyoAdapter child worker through the injected engine.
-use crate::domain::diagnostics::{errors::Error, types::RunReport};
-use crate::domain::suite::types::WorkerRequest;
-/// Run the candidate worker through its injected SDK boundary.
+//! Execute the worker using typed engine and process-transport boundaries.
+use crate::domain::diagnostics::errors::Error;
+/// One child-process request, candidate evaluation and flushed response.
 pub trait RunRyoUseCase {
-    /// Forward a worker request and preserve its report or failure.
+    /// Receive, evaluate and publish one report in that order.
     ///
     /// # Errors
-    ///
-    /// Returns the engine boundary failure when candidate evaluation cannot complete.
-    fn run_ryo(&self, request: WorkerRequest) -> Result<RunReport, Error>;
+    /// Propagates receive, engine and response failures without publishing a clean result.
+    fn run_ryo(&self) -> Result<(), Error>;
 }

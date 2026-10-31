@@ -1,5 +1,5 @@
 //! Local boundary implementation.
-pub mod adapter;
+pub(crate) mod adapter;
 
 #[cfg(test)]
 mod adapter_test;

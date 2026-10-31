@@ -20,6 +20,8 @@ pub struct Invocation {
     pub executable: PathBuf,
     /// Arguments passed to the program without shell expansion.
     pub arguments: Vec<OsString>,
+    /// Explicit environment overrides, such as a pinned worker count.
+    pub environment: std::collections::BTreeMap<OsString, OsString>,
     /// Working directory of the child process.
     pub directory: PathBuf,
 }
@@ -44,4 +46,13 @@ pub struct Pair {
     pub reference: Measurement,
     /// Observation produced by the SDK candidate worker.
     pub candidate: Measurement,
+}
+
+/// Which contestant gets first access in a paired observation.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RunOrder {
+    /// Observe the reference before the candidate.
+    ReferenceFirst,
+    /// Observe the candidate before the reference.
+    CandidateFirst,
 }

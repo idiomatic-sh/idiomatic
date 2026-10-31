@@ -1,5 +1,6 @@
 //! Measurement acceptance exercises the public operation with deterministic ports.
 use cucumber::then;
+use ryo_benchmark::domain::measurements::types::RunOrder;
 use ryo_benchmark::domain::suite::types::RunRequest;
 use ryo_benchmark::inbound::use_cases::measure::service::measure;
 use ryo_benchmark::outbound::suite::fixtures::contract::audited;
@@ -21,8 +22,12 @@ fn matching(world: &mut crate::Behavior) {
         &audit,
         &LinterFake::default(),
         &LinterFake::default(),
-        &ExecutionFake { status: 0 },
+        &ExecutionFake {
+            status: 0,
+            ..Default::default()
+        },
         &request(),
+        RunOrder::ReferenceFirst,
     )
     .expect("measured pair");
     assert_eq!(pair.reference.report, pair.candidate.report);
@@ -35,8 +40,12 @@ fn incomplete(world: &mut crate::Behavior) {
         &audit,
         &LinterFake::default(),
         &LinterFake::default(),
-        &ExecutionFake { status: 0 },
+        &ExecutionFake {
+            status: 0,
+            ..Default::default()
+        },
         &request(),
+        RunOrder::ReferenceFirst,
     )
     .expect_err("incomplete coverage");
     assert_eq!(

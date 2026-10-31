@@ -3,7 +3,7 @@ use ryo_benchmark::domain::{
     diagnostics::{errors::Error, types::Diagnostic},
     suite::types::WorkerRequest,
 };
-use ryo_benchmark::outbound::engine::adapters::local::adapter::run_ryo;
+use ryo_benchmark::outbound::engine::{factory, interface::EnginePort};
 
 fn rules(directory: &std::path::Path) -> std::path::PathBuf {
     let root = directory.join("rules");
@@ -25,7 +25,9 @@ fn missing_listed_file_is_a_failure() {
         files: vec!["missing.py".into()],
         cache: None,
     };
-    let error = run_ryo(ryo::linter::Languages(vec![ryo_python::linked()]), request).unwrap_err();
+    let error = factory::local(ryo::linter::Languages(vec![ryo_python::linked()]))
+        .run(request)
+        .unwrap_err();
     assert!(matches!(error, Error::Io(error) if error.kind() == std::io::ErrorKind::NotFound));
 }
 
@@ -39,7 +41,9 @@ fn unread_input_is_not_reported_as_checked() {
         files: vec!["input.unknown".into()],
         cache: None,
     };
-    let error = run_ryo(ryo::linter::Languages(vec![ryo_python::linked()]), request).unwrap_err();
+    let error = factory::local(ryo::linter::Languages(vec![ryo_python::linked()]))
+        .run(request)
+        .unwrap_err();
     assert!(
         matches!(error, Error::Invalid(message) if message.starts_with("incomplete candidate:") && message.contains("input.unknown"))
     );
@@ -59,7 +63,9 @@ fn sdk_findings_preserve_rule_file_and_byte_span() {
         files: vec!["input.py".into()],
         cache: None,
     };
-    let report = run_ryo(ryo::linter::Languages(vec![ryo_python::linked()]), request).unwrap();
+    let report = factory::local(ryo::linter::Languages(vec![ryo_python::linked()]))
+        .run(request)
+        .unwrap();
     assert_eq!(report.files, ["input.py"]);
     assert_eq!(
         report.diagnostics,
