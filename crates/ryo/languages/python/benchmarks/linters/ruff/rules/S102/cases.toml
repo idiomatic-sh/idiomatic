@@ -1,0 +1,59 @@
+[[cases]]
+name = "direct"
+files = { "case.py" = "exec(code)\n" }
+expected = [{ file = "case.py", start = 0, end = 4 }]
+
+[[cases]]
+name = "qualified"
+files = { "case.py" = "import builtins\nbuiltins.exec(code)\n" }
+expected = [{ file = "case.py", start = 16, end = 29 }]
+
+[[cases]]
+name = "alias"
+files = { "case.py" = "from builtins import exec as execute\nexecute(code)\n" }
+expected = [{ file = "case.py", start = 29, end = 36 }]
+
+[[cases]]
+name = "shadowed"
+files = { "case.py" = "def f(exec):\n    exec(code)\n" }
+expected = []
+
+[[cases]]
+name = "rebound"
+files = { "case.py" = "exec = custom\nexec(code)\n" }
+expected = []
+
+[[cases]]
+name = "attribute"
+files = { "case.py" = "obj.exec(code)\n" }
+expected = []
+
+[[cases]]
+name = "bare"
+files = { "case.py" = "value = exec\n" }
+expected = []
+
+[[cases]]
+name = "empty"
+files = { "case.py" = "exec()\n" }
+expected = [{ file = "case.py", start = 0, end = 4 }]
+
+[[cases]]
+name = "keyword"
+files = { "case.py" = "exec(source=code)\n" }
+expected = [{ file = "case.py", start = 0, end = 4 }]
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "exec(code) # noqa: S102\n" }
+expected = []
+
+[[cases]]
+name = "range"
+files = { "case.py" = "# ruff: disable[S102]\nexec(code)\n# ruff: enable[S102]\n" }
+expected = []
+
+[[cases]]
+name = "nested"
+files = { "case.py" = "result = wrapper(exec(code))\n" }
+expected = [{ file = "case.py", start = 17, end = 21 }]

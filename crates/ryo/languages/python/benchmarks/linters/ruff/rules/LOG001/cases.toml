@@ -1,0 +1,69 @@
+[[cases]]
+name = "module"
+files = { "case.py" = "import logging\nlogging.Logger(\"name\")\n" }
+expected = [{ file = "case.py", start = 15, end = 29 }]
+
+[[cases]]
+name = "alias"
+files = { "case.py" = "import logging as alias\nalias.Logger(\"name\")\n" }
+expected = [{ file = "case.py", start = 24, end = 36 }]
+
+[[cases]]
+name = "from-import"
+files = { "case.py" = "from logging import Logger as target\ntarget(\"name\")\n" }
+expected = [{ file = "case.py", start = 30, end = 36 }]
+
+[[cases]]
+name = "unimported"
+files = { "case.py" = "logging.Logger(\"name\")\n" }
+expected = []
+
+[[cases]]
+name = "shadowed"
+files = { "case.py" = "import logging\ndef f(logging):\n    logging.Logger(\"name\")\n" }
+expected = []
+
+[[cases]]
+name = "rebound"
+files = { "case.py" = "import logging\nlogging = other\nlogging.Logger(\"name\")\n" }
+expected = []
+
+[[cases]]
+name = "before-import"
+files = { "case.py" = "logging.Logger(\"name\")\nimport logging\n" }
+expected = []
+
+[[cases]]
+name = "deferred-body"
+files = { "case.py" = "def f():\n    logging.Logger(\"name\")\nimport logging\n" }
+expected = [{ file = "case.py", start = 13, end = 27 }]
+
+[[cases]]
+name = "ordinary-call"
+files = { "case.py" = "import logging\ndef f(x):\n    x()\n    logging.Logger(\"name\")\n" }
+expected = [{ file = "case.py", start = 37, end = 51 }]
+
+[[cases]]
+name = "attribute-only"
+files = { "case.py" = "import logging\nlogging.Logger\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "import logging\nlogging.Logger(\"name\") # noqa: LOG001\n" }
+expected = []
+
+[[cases]]
+name = "range"
+files = { "case.py" = "import logging\n# ruff: disable[LOG001]\nlogging.Logger(\"name\")\n# ruff: enable[LOG001]\n" }
+expected = []
+
+[[cases]]
+name = "getlogger"
+files = { "case.py" = "import logging\nlogging.getLogger(\"name\")\n" }
+expected = []
+
+[[cases]]
+name = "no-arguments"
+files = { "case.py" = "import logging\nlogging.Logger()\n" }
+expected = [{ file = "case.py", start = 15, end = 29 }]

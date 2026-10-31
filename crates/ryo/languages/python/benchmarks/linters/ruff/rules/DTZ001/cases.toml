@@ -1,0 +1,64 @@
+[[cases]]
+name = "missing"
+files = { "case.py" = "import datetime\ndatetime.datetime(2020, 1, 1)\n" }
+expected = [{ file = "case.py", start = 16, end = 45 }]
+
+[[cases]]
+name = "alias"
+files = { "case.py" = "from datetime import datetime as D\nD(2020, 1, 1)\n" }
+expected = [{ file = "case.py", start = 35, end = 48 }]
+
+[[cases]]
+name = "none"
+files = { "case.py" = "import datetime\ndatetime.datetime(2020, 1, 1, tzinfo=None)\n" }
+expected = [{ file = "case.py", start = 16, end = 58 }]
+
+[[cases]]
+name = "valid"
+files = { "case.py" = "import datetime\ndatetime.datetime(2020, 1, 1, tzinfo=zone)\n" }
+expected = []
+
+[[cases]]
+name = "positional"
+files = { "case.py" = "import datetime\ndatetime.datetime(2020, 1, 1, 0, 0, 0, 0, zone)\n" }
+expected = []
+
+[[cases]]
+name = "seventh-not-eighth"
+files = { "case.py" = "import datetime\ndatetime.datetime(2020, 1, 1, 0, 0, 0, zone)\n" }
+expected = [{ file = "case.py", start = 16, end = 60 }]
+
+[[cases]]
+name = "converted"
+files = { "case.py" = "import datetime\ndatetime.datetime(2020, 1, 1).replace(hour=1).astimezone()\n" }
+expected = []
+
+[[cases]]
+name = "starred"
+files = { "case.py" = "import datetime\ndatetime.datetime(*args)\n" }
+expected = [{ file = "case.py", start = 16, end = 40 }]
+
+[[cases]]
+name = "starred-with-keyword"
+files = { "case.py" = "import datetime\ndatetime.datetime(*args, tzinfo=zone)\n" }
+expected = []
+
+[[cases]]
+name = "unpacked-keyword"
+files = { "case.py" = "import datetime\ndatetime.datetime(**kwargs)\n" }
+expected = [{ file = "case.py", start = 16, end = 43 }]
+
+[[cases]]
+name = "shadowed"
+files = { "case.py" = "def f(datetime):\n    datetime.datetime(2020, 1, 1)\n" }
+expected = []
+
+[[cases]]
+name = "unimported"
+files = { "case.py" = "datetime.datetime(2020, 1, 1)\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "import datetime\ndatetime.datetime(2020, 1, 1) # noqa: DTZ001\n" }
+expected = []

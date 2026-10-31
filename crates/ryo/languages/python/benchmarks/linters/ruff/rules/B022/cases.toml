@@ -1,0 +1,79 @@
+[[cases]]
+name = "module"
+files = { "case.py" = "import contextlib\ncontextlib.suppress()\n" }
+expected = [{ file = "case.py", start = 18, end = 39 }]
+
+[[cases]]
+name = "alias"
+files = { "case.py" = "import contextlib as alias\nalias.suppress()\n" }
+expected = [{ file = "case.py", start = 27, end = 43 }]
+
+[[cases]]
+name = "from-import"
+files = { "case.py" = "from contextlib import suppress as target\ntarget()\n" }
+expected = [{ file = "case.py", start = 42, end = 50 }]
+
+[[cases]]
+name = "unimported"
+files = { "case.py" = "contextlib.suppress()\n" }
+expected = []
+
+[[cases]]
+name = "shadowed"
+files = { "case.py" = "import contextlib\ndef f(contextlib):\n    contextlib.suppress()\n" }
+expected = []
+
+[[cases]]
+name = "rebound"
+files = { "case.py" = "import contextlib\ncontextlib = other\ncontextlib.suppress()\n" }
+expected = []
+
+[[cases]]
+name = "before-import"
+files = { "case.py" = "contextlib.suppress()\nimport contextlib\n" }
+expected = []
+
+[[cases]]
+name = "deferred-body"
+files = { "case.py" = "def f():\n    contextlib.suppress()\nimport contextlib\n" }
+expected = [{ file = "case.py", start = 13, end = 34 }]
+
+[[cases]]
+name = "ordinary-call"
+files = { "case.py" = "import contextlib\ndef f(x):\n    x()\n    contextlib.suppress()\n" }
+expected = [{ file = "case.py", start = 40, end = 61 }]
+
+[[cases]]
+name = "attribute-only"
+files = { "case.py" = "import contextlib\ncontextlib.suppress\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "import contextlib\ncontextlib.suppress() # noqa: B022\n" }
+expected = []
+
+[[cases]]
+name = "range"
+files = { "case.py" = "import contextlib\n# ruff: disable[B022]\ncontextlib.suppress()\n# ruff: enable[B022]\n" }
+expected = []
+
+[[cases]]
+name = "positional"
+files = { "case.py" = "import contextlib\ncontextlib.suppress(ValueError)\n" }
+expected = []
+
+[[cases]]
+name = "starred"
+files = { "case.py" = "import contextlib\ncontextlib.suppress(*errors)\n" }
+expected = []
+
+[[cases]]
+name = "keyword-only"
+files = { "case.py" = "import contextlib\ncontextlib.suppress(error=ValueError)\n" }
+expected = [{ file = "case.py", start = 18, end = 55 }]
+
+[[cases]]
+name = "unpacked-keyword"
+files = { "case.py" = "import contextlib\ncontextlib.suppress(**errors)\n" }
+expected = [{ file = "case.py", start = 18, end = 47 }]

@@ -57,3 +57,68 @@ expected = [{ file = "case.py", start = 10, end = 40 }]
 name = "file-noqa"
 files = { "case.py" = "# ruff: noqa\n# comment\n#!/usr/bin/python\n" }
 expected = []
+
+[[cases]]
+name = "whitespace"
+files = { "case.py" = "\n \t\f#!/usr/bin/python\n" }
+expected = []
+
+[[cases]]
+name = "after-code"
+files = { "case.py" = "x = 1\n#!/usr/bin/python\n" }
+expected = [{ file = "case.py", start = 6, end = 23 }]
+
+[[cases]]
+name = "boundary-after-comment"
+files = { "case.py" = "# header\n#!/usr/bin/python\n" }
+expected = [{ file = "case.py", start = 9, end = 26 }]
+
+[[cases]]
+name = "boundary-inline"
+files = { "case.py" = "x = 1  #!/bin/sh\n" }
+expected = [{ file = "case.py", start = 7, end = 16 }]
+
+[[cases]]
+name = "second"
+files = { "case.py" = "#!/usr/bin/python\n#!/bin/sh\n" }
+expected = [{ file = "case.py", start = 18, end = 27 }]
+
+[[cases]]
+name = "ordinary"
+files = { "case.py" = "# !/usr/bin/python\n" }
+expected = []
+
+[[cases]]
+name = "string"
+files = { "case.py" = "x = \"#!/usr/bin/python\"\n" }
+expected = []
+
+[[cases]]
+name = "nested"
+files = { "case.py" = "def f():\n    #!/usr/bin/python\n    pass\n" }
+expected = [{ file = "case.py", start = 13, end = 30 }]
+
+[[cases]]
+name = "unicode"
+files = { "case.py" = "# caf\u00e9\n#!/bin/sh\n" }
+expected = [{ file = "case.py", start = 8, end = 17 }]
+
+[[cases]]
+name = "crlf"
+files = { "case.py" = "# header\r\n#!/bin/sh\r\n" }
+expected = [{ file = "case.py", start = 10, end = 19 }]
+
+[[cases]]
+name = "boundary-noqa"
+files = { "case.py" = "# header\n#!/bin/sh # noqa: EXE005\n" }
+expected = []
+
+[[cases]]
+name = "boundary-file-noqa"
+files = { "case.py" = "# ruff: noqa: EXE005\n#!/bin/sh\n" }
+expected = []
+
+[[cases]]
+name = "bare-marker"
+files = { "case.py" = "# header\n#!\n" }
+expected = [{ file = "case.py", start = 9, end = 11 }]

@@ -1,0 +1,59 @@
+[[cases]]
+name = "direct"
+files = { "case.py" = "import copy\nimport os\ncopy.copy(os.environ)\n" }
+expected = [{ file = "case.py", start = 22, end = 43 }]
+
+[[cases]]
+name = "aliases"
+files = { "case.py" = "from copy import copy as clone\nfrom os import environ as env\nclone(env)\n" }
+expected = [{ file = "case.py", start = 61, end = 71 }]
+
+[[cases]]
+name = "keyword"
+files = { "case.py" = "import copy, os\ncopy.copy(x=os.environ)\n" }
+expected = []
+
+[[cases]]
+name = "extra-keyword"
+files = { "case.py" = "import copy, os\ncopy.copy(os.environ, x=1)\n" }
+expected = []
+
+[[cases]]
+name = "extra-positional"
+files = { "case.py" = "import copy, os\ncopy.copy(os.environ, other)\n" }
+expected = []
+
+[[cases]]
+name = "starred"
+files = { "case.py" = "import copy, os\ncopy.copy(*os.environ)\n" }
+expected = []
+
+[[cases]]
+name = "different-value"
+files = { "case.py" = "import copy, os\ncopy.copy(os.environb)\n" }
+expected = []
+
+[[cases]]
+name = "deep-copy"
+files = { "case.py" = "import copy, os\ncopy.deepcopy(os.environ)\n" }
+expected = []
+
+[[cases]]
+name = "unimported"
+files = { "case.py" = "copy.copy(os.environ)\n" }
+expected = []
+
+[[cases]]
+name = "shadowed-copy"
+files = { "case.py" = "import copy, os\ndef f(copy):\n    copy.copy(os.environ)\n" }
+expected = []
+
+[[cases]]
+name = "shadowed-os"
+files = { "case.py" = "import copy, os\ndef f(os):\n    copy.copy(os.environ)\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "import copy, os\ncopy.copy(os.environ) # noqa: PLW1507\n" }
+expected = []

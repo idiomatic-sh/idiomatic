@@ -1,0 +1,59 @@
+[[cases]]
+name = "exit"
+files = { "case.py" = "exit()\n" }
+expected = [{ file = "case.py", start = 0, end = 4 }]
+
+[[cases]]
+name = "quit"
+files = { "case.py" = "quit(1)\n" }
+expected = [{ file = "case.py", start = 0, end = 4 }]
+
+[[cases]]
+name = "qualified"
+files = { "case.py" = "import builtins\nbuiltins.quit()\n" }
+expected = [{ file = "case.py", start = 16, end = 29 }]
+
+[[cases]]
+name = "alias"
+files = { "case.py" = "from builtins import exit as stop\nstop()\n" }
+expected = [{ file = "case.py", start = 29, end = 33 }]
+
+[[cases]]
+name = "shadowed"
+files = { "case.py" = "def f(exit):\n    exit()\n" }
+expected = []
+
+[[cases]]
+name = "rebound"
+files = { "case.py" = "quit = custom\nquit()\n" }
+expected = []
+
+[[cases]]
+name = "sys"
+files = { "case.py" = "import sys\nsys.exit()\n" }
+expected = []
+
+[[cases]]
+name = "attribute"
+files = { "case.py" = "obj.exit()\n" }
+expected = []
+
+[[cases]]
+name = "not-called"
+files = { "case.py" = "value = quit\n" }
+expected = []
+
+[[cases]]
+name = "too-many-args"
+files = { "case.py" = "quit(1, 2)\n" }
+expected = [{ file = "case.py", start = 0, end = 4 }]
+
+[[cases]]
+name = "unpacked"
+files = { "case.py" = "exit(**options)\n" }
+expected = [{ file = "case.py", start = 0, end = 4 }]
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "quit() # noqa: PLR1722\n" }
+expected = []

@@ -1,0 +1,79 @@
+[[cases]]
+name = "tuple"
+files = { "case.py" = "a, a = values\n" }
+expected = [{ file = "case.py", start = 3, end = 4 }]
+
+[[cases]]
+name = "list"
+files = { "case.py" = "[a, a] = values\n" }
+expected = [{ file = "case.py", start = 4, end = 5 }]
+
+[[cases]]
+name = "nested"
+files = { "case.py" = "a, [b, (a, b)] = values\n" }
+expected = [{ file = "case.py", start = 8, end = 9 }, { file = "case.py", start = 11, end = 12 }]
+
+[[cases]]
+name = "starred"
+files = { "case.py" = "a, *a = values\n" }
+expected = [{ file = "case.py", start = 4, end = 5 }]
+
+[[cases]]
+name = "chained"
+files = { "case.py" = "a = a = value\n" }
+expected = [{ file = "case.py", start = 4, end = 5 }]
+
+[[cases]]
+name = "unique"
+files = { "case.py" = "a, b = values\n" }
+expected = []
+
+[[cases]]
+name = "dummy"
+files = { "case.py" = "_, _ignore, _, _ignore = values\n" }
+expected = []
+
+[[cases]]
+name = "trailing-underscore"
+files = { "case.py" = "_a_, _a_ = values\n" }
+expected = [{ file = "case.py", start = 5, end = 8 }]
+
+[[cases]]
+name = "unicode"
+files = { "case.py" = "\u03b1, \u03b1 = values\n" }
+expected = [{ file = "case.py", start = 4, end = 6 }]
+
+[[cases]]
+name = "attribute"
+files = { "case.py" = "a, obj.a = values\n" }
+expected = []
+
+[[cases]]
+name = "subscript"
+files = { "case.py" = "a, data[a] = values\n" }
+expected = []
+
+[[cases]]
+name = "separate"
+files = { "case.py" = "a = 1\na = 2\n" }
+expected = []
+
+[[cases]]
+name = "loop"
+files = { "case.py" = "for a, a in values:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "annotated"
+files = { "case.py" = "a: int = a\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "a, a = values # noqa: PLW0128\n" }
+expected = []
+
+[[cases]]
+name = "three"
+files = { "case.py" = "a, a, a = values\n" }
+expected = [{ file = "case.py", start = 3, end = 4 }, { file = "case.py", start = 6, end = 7 }]
