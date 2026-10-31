@@ -9,24 +9,37 @@ use std::path::PathBuf;
 
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+/// Explicit candidate invocation at the JSON process boundary.
 struct RyoWorkerRequestSchema {
+    /// Project root against which explicit file paths are resolved.
     root: PathBuf,
+    /// Directory containing the selected RyoQL rule definitions.
     rules: PathBuf,
+    /// Exact project-relative file set covered by this request or report.
     files: Vec<String>,
+    /// Retained worker state directory, or no retained state for a fresh run.
     cache: Option<PathBuf>,
 }
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+/// Candidate findings and exact covered file set.
 struct RyoReportSchema {
+    /// Reported findings, preserving multiplicity and source offsets.
     diagnostics: Vec<RyoDiagnosticSchema>,
+    /// Exact project-relative file set covered by this request or report.
     files: Vec<String>,
 }
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+/// One finding with an unmodified source byte range.
 struct RyoDiagnosticSchema {
+    /// Stable rule identifier for this finding.
     rule: String,
+    /// Project-relative source path for this finding.
     file: String,
+    /// Inclusive zero-based UTF-8 byte offset.
     start: usize,
+    /// Exclusive zero-based UTF-8 byte offset.
     end: usize,
 }
 
@@ -72,10 +85,12 @@ impl TryFrom<RyoReportSchema> for RunReport {
         })
     }
 }
+/// Encode a typed candidate invocation for the child process.
 pub(super) fn encode_request(request: WorkerRequest) -> Result<String, Error> {
     serde_json::to_string(&RyoWorkerRequestSchema::from(request))
         .map_err(|error| Error::Json(Box::new(error)))
 }
+/// Decode candidate findings and validate each rule identifier.
 pub(super) fn decode_report(bytes: &[u8]) -> Result<RunReport, Error> {
     let wire: RyoReportSchema =
         serde_json::from_slice(bytes).map_err(|error| Error::Json(Box::new(error)))?;

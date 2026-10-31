@@ -8,22 +8,50 @@ use crate::domain::{
 /// Read external suite artifacts and audit their authored default coverage.
 pub trait SuitePort {
     /// Decode the pinned linter profile below its artifact directory.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for unreadable, malformed, or inconsistent profile artifacts.
     fn profile(&self, directory: ArtifactPath<'_>) -> Result<Tool, Error>;
     /// Decode the shared language project manifest below its artifact directory.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for unreadable or malformed project manifests.
     fn projects(&self, directory: ArtifactPath<'_>) -> Result<Suite, Error>;
     /// Check the executable's exact bytes and reported version against its profile.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for unreadable bytes, a digest mismatch, launch failure, or a version mismatch.
     fn verify_tool(&self, executable: ArtifactPath<'_>, tool: &Tool) -> Result<(), Error>;
     /// Hash exact regular-file bytes and names, recursively for artifact directories.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for unreadable artifacts or unsupported filesystem entries.
     fn fingerprint(&self, paths: ArtifactSet<'_>) -> Result<ArtifactDigest, Error>;
     /// Hash one regular file's exact bytes with unframed SHA256 for executable pinning.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the path is not a readable regular file.
     fn digest(&self, path: ArtifactPath<'_>) -> Result<ArtifactDigest, Error>;
     /// Freeze the shared project manifest and every declared patch in an owned directory.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for invalid patch paths, unreadable sources, or failed snapshot writes.
     fn stage_projects(
         &self,
         source: ArtifactPath<'_>,
         destination: ArtifactPath<'_>,
     ) -> Result<(), Error>;
     /// Materialize only the explicitly authored subset in an owned empty directory.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for an invalid destination or failed copying of audited rule artifacts.
     fn stage(
         &self,
         directory: ArtifactPath<'_>,
@@ -31,6 +59,10 @@ pub trait SuitePort {
         audit: &Audit,
     ) -> Result<(), Error>;
     /// Materialize the snapshot's independent case sources without executing contestants.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for malformed cases, invalid source paths, or failed materialization.
     fn cases(
         &self,
         rules: ArtifactPath<'_>,
