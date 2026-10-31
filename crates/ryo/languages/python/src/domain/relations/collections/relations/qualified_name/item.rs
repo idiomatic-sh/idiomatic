@@ -4,7 +4,7 @@ use crate::domain::{
     nodes::types::Node,
     qualification::{
         constants::INCOMPLETE,
-        service::{prepare, qualify},
+        service::{complete, qualify},
     },
     scopes::{service::context, types::Context},
     syntax::{
@@ -18,10 +18,9 @@ pub(crate) struct QualifiedNameItem;
 ryo::reads! {
     QualifiedNameItem => languages::QualifiedName, model(Declarations) |tree, model, at, symbols| {
         kinds:[Kind::Node(Node::Module)] as kind_bits,
-        when languages::diagnostics(tree.elements).next() {
-            Some(_)=>{partial INCOMPLETE => languages::Missing::Any;}
-            None=>{
-                given index = prepare(tree, model);
+        when complete(tree, model) {
+            None=>{partial INCOMPLETE => languages::Missing::Any;}
+            Some(index)=>{
                 each (languages::positions(tree.elements)) as expression {
                     require matches!(kind(tree, expression), Kind::Node(Node::Name | Node::Attribute));
                     require context(tree, expression) == Context::Load;

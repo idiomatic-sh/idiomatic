@@ -35,6 +35,17 @@ pub(crate) fn clear(index: &mut QualificationIndex) {
     index.hazards.clear();
     index.state = QualificationState::Fresh;
 }
+/// Read provenance only when the entire syntax tree is available.
+pub(crate) fn complete<'a>(
+    tree: &Tree<'_>,
+    model: &'a Declarations,
+) -> Option<Ref<'a, QualificationIndex>> {
+    if languages::diagnostics(tree.elements).next().is_some() {
+        return None;
+    }
+    Some(prepare(tree, model))
+}
+
 /// Index wildcard imports and deletion only if provenance is requested.
 pub(crate) fn prepare<'a>(tree: &Tree<'_>, model: &'a Declarations) -> Ref<'a, QualificationIndex> {
     if model.qualification.borrow().state == QualificationState::Fresh {
