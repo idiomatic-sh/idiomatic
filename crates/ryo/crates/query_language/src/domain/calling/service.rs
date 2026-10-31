@@ -7,7 +7,7 @@ use crate::domain::combining::service::call_set;
 use crate::domain::idioms::service::push_same_sets;
 use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::{
-    ArgumentFault, Builder, PlannedColumn, SearchMatch, Sourced, Uniqueness,
+    ArgumentFault, Builder, PlannedColumn, SearchMatch, Sourced, Uniqueness, Widened,
 };
 use crate::domain::planning::service::push;
 use crate::domain::reshaping::service::{
@@ -186,7 +186,7 @@ fn join_output(
     call: &syntax::Call,
     left_fields: &[PlannedColumn],
     right_fields: &[PlannedColumn],
-) -> Result<(Vec<parts::JoinColumn>, Vec<PlannedColumn>), LoweringError> {
+) -> Result<Widened, LoweringError> {
     let syntax::ArgumentValue::Map(entries) = argument_named(call, ArgumentSlot::Output)? else {
         return Err(bad_argument(
             call,
@@ -248,7 +248,10 @@ fn join_output(
             words: column_of(side_fields, index).words,
         });
     }
-    Ok((output, kept))
+    Ok(Widened {
+        output,
+        fields: kept,
+    })
 }
 
 /// Lowers a `join` call: the rows of its left input matched to those of its right on the named columns, as the step `name`.
@@ -275,7 +278,10 @@ pub(crate) fn call_join(
         &right_fields,
         &words_of(call, ArgumentSlot::RightOn)?,
     )?;
-    let (output, kept) = join_output(call, &left_fields, &right_fields)?;
+    let Widened {
+        output,
+        fields: kept,
+    } = join_output(call, &left_fields, &right_fields)?;
     let operation = if operator_named(&call.name.0) == Some(QueryOperator::OrderedMatch) {
         for (index, field) in kept.iter().enumerate() {
             if kept

@@ -66,9 +66,11 @@ fn indexed<'a>(
     Ok(rows)
 }
 
-/// Refuse a column index that the platform cannot address.
-fn column_index(column: ColumnIndex) -> Result<usize, OperatingError> {
-    usize::try_from(column.0).map_err(|_not_addressable| OperatingError::ShapeMismatch)
+/// Read a column's kind, refusing an index that the platform cannot address.
+fn column_kind(input: &Rows<'_>, column: ColumnIndex) -> Result<Option<CellKind>, OperatingError> {
+    let index =
+        usize::try_from(column.0).map_err(|_not_addressable| OperatingError::ShapeMismatch)?;
+    Ok(kinds_of(input).get(index).copied())
 }
 
 impl OperatorsItem for OrderedMatchItem {
@@ -93,15 +95,13 @@ impl OperatorsItem for OrderedMatchItem {
         let left = first(inputs)?;
         let right = second(inputs)?;
         if left_on.len() != right_on.len()
-            || kinds_of(left).get(column_index(*left_order)?) != Some(&CellKind::Number)
-            || kinds_of(right).get(column_index(*right_order)?) != Some(&CellKind::Number)
+            || column_kind(left, *left_order)? != Some(CellKind::Number)
+            || column_kind(right, *right_order)? != Some(CellKind::Number)
         {
             return Err(OperatingError::ShapeMismatch);
         }
         for (left_key, right_key) in left_on.iter().zip(right_on) {
-            if kinds_of(left).get(column_index(*left_key)?)
-                != kinds_of(right).get(column_index(*right_key)?)
-            {
+            if column_kind(left, *left_key)? != column_kind(right, *right_key)? {
                 return Err(OperatingError::ShapeMismatch);
             }
         }
@@ -115,15 +115,12 @@ impl OperatorsItem for OrderedMatchItem {
         let indexed_right = indexed(right, right_on, *right_order, &texts)?;
         reset(out, &[]);
         for column in output {
-            let kinds = match column.side {
-                Side::Left => kinds_of(left),
-                Side::Right => kinds_of(right),
+            let input = match column.side {
+                Side::Left => left,
+                Side::Right => right,
             };
-            out.kinds.push(
-                *kinds
-                    .get(column_index(column.column)?)
-                    .ok_or(OperatingError::ShapeMismatch)?,
-            );
+            out.kinds
+                .push(column_kind(input, column.column)?.ok_or(OperatingError::ShapeMismatch)?);
         }
         let mut left_buffer = Vec::new();
         let mut right_buffer = Vec::new();
