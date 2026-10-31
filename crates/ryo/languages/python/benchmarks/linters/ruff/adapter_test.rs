@@ -156,6 +156,8 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
         .map(Into::into)
         .chain([
             request.cache.join("ruff").into_os_string(),
+            "--select".into(),
+            "E722".into(),
             "--".into(),
             "case.py".into(),
         ])

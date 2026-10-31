@@ -14,6 +14,16 @@ pub struct SuiteFake {
     pub projects: Option<Suite>,
 }
 impl SuitePort for SuiteFake {
+    fn stage(&self, _: &Path, _: &Path, _: &Audit) -> Result<(), Error> {
+        Err(Error::Invalid(
+            "fixture cannot materialize external queries".into(),
+        ))
+    }
+    fn fingerprint(&self, _: &[std::path::PathBuf]) -> Result<String, Error> {
+        Err(Error::Invalid(
+            "fixture has no immutable artifact snapshot".into(),
+        ))
+    }
     fn profile(&self, _: &Path) -> Result<Tool, Error> {
         self.profile
             .clone()

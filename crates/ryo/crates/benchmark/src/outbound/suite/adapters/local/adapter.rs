@@ -67,6 +67,33 @@ fn verify_executable(path: &Path, tool: &Tool) -> Result<(), Error> {
 #[derive(Debug)]
 pub struct SuiteLocalAdapter;
 impl crate::outbound::suite::interface::SuitePort for SuiteLocalAdapter {
+    fn stage(&self, directory: &Path, destination: &Path, audit: &Audit) -> Result<(), Error> {
+        std::fs::create_dir(destination)?;
+        std::fs::write(
+            destination.join("benchmark.toml"),
+            std::fs::read(directory.join("benchmark.toml"))?,
+        )?;
+        std::fs::create_dir(destination.join("rules"))?;
+        for rule in &audit.implemented {
+            relative_path(rule)?;
+            let target = destination.join("rules").join(rule);
+            std::fs::create_dir(&target)?;
+            let bytes = std::fs::read(directory.join("rules").join(rule).join("query.ryoql"))?;
+            std::fs::write(target.join("query.ryoql"), bytes)?;
+            std::fs::write(
+                target.join("cases.toml"),
+                std::fs::read(directory.join("rules").join(rule).join("cases.toml"))?,
+            )?;
+        }
+        Ok(())
+    }
+    fn fingerprint(&self, paths: &[std::path::PathBuf]) -> Result<String, Error> {
+        let mut hasher = Sha256::new();
+        for path in paths {
+            fingerprint_path(path, &mut hasher)?;
+        }
+        Ok(format!("{:x}", hasher.finalize()))
+    }
     fn profile(&self, directory: &Path) -> Result<Tool, Error> {
         super::schemas::tool(&std::fs::read_to_string(directory.join("benchmark.toml"))?)
     }
@@ -80,6 +107,33 @@ impl crate::outbound::suite::interface::SuitePort for SuiteLocalAdapter {
     fn audit(&self, directory: &Path, tool: &Tool) -> Result<Audit, Error> {
         audit(directory, tool)
     }
+}
+
+fn fingerprint_path(path: &Path, hasher: &mut Sha256) -> Result<(), Error> {
+    let metadata = std::fs::symlink_metadata(path)?;
+    let name = path
+        .to_str()
+        .ok_or_else(|| Error::Invalid("non-UTF8 evidence path".into()))?;
+    hasher.update(name.len().to_le_bytes());
+    hasher.update(name.as_bytes());
+    if metadata.is_file() {
+        let bytes = std::fs::read(path)?;
+        hasher.update(bytes.len().to_le_bytes());
+        hasher.update(bytes);
+    } else if metadata.is_dir() {
+        let mut children = std::fs::read_dir(path)?
+            .map(|entry| entry.map(|entry| entry.path()))
+            .collect::<Result<Vec<_>, _>>()?;
+        children.sort();
+        for child in children {
+            fingerprint_path(&child, hasher)?;
+        }
+    } else {
+        return Err(Error::Invalid(
+            "evidence paths must be regular files or directories".into(),
+        ));
+    }
+    Ok(())
 }
 
 use crate::domain::diagnostics::types::RunReport;
@@ -100,6 +154,12 @@ pub fn verify_cases(
     use crate::outbound::linter::adapters::ryo::adapter::LinterRyoAdapter;
     let mut failures = Vec::new();
     let mut checked = 0;
+    let deferred = match rules.parent().map(|parent| parent.join("benchmark.toml")) {
+        Some(profile) if profile.is_file() => {
+            super::schemas::tool(&std::fs::read_to_string(profile)?)?.deferred
+        }
+        _ => Default::default(),
+    };
     for entry in std::fs::read_dir(rules)? {
         let entry = entry?;
         let rule = entry
@@ -109,7 +169,9 @@ pub fn verify_cases(
         let query = match std::fs::read(entry.path().join("query.ryoql")) {
             Ok(query) => query,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                failures.push(format!("{rule}: query not implemented"));
+                if !deferred.contains_key(&rule) {
+                    failures.push(format!("{rule}: query not implemented"));
+                }
                 continue;
             }
             Err(error) => return Err(error.into()),
@@ -169,7 +231,10 @@ pub fn verify_cases(
                             .diagnostics
                             .retain(|finding| finding.rule == rule);
                         if let Err(difference) = compare(&expected, &result.report) {
-                            failures.push(format!("{rule}/{} {name}: {difference:?}", case.name));
+                            failures.push(format!(
+                                "{rule}/{} expected-vs-{name}: expected={:?}; actual={:?}",
+                                case.name, difference.reference, difference.candidate
+                            ));
                         }
                     }
                     Err(error) => failures.push(format!("{rule}/{} {name}: {error}", case.name)),

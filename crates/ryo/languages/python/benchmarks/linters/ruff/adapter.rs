@@ -27,6 +27,8 @@ impl LinterPort for LinterRuffAdapter {
             constants::JSON.into(),
             constants::CACHE_DIR.into(),
             request.cache.join(constants::CACHE_NAME).into_os_string(),
+            "--select".into(),
+            self.defaults.iter().map(ToString::to_string).collect::<Vec<_>>().join(",").into(),
             constants::END_OPTIONS.into(),
         ];
         for file in &request.files {

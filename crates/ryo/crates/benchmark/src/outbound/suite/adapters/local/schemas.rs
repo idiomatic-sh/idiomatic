@@ -10,6 +10,8 @@ struct ToolSchema {
     version: String,
     sha256: String,
     defaults: Vec<String>,
+    #[serde(default)]
+    deferred: BTreeMap<String, String>,
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -59,6 +61,7 @@ pub(super) fn tool(text: &str) -> Result<types::Tool, Error> {
         version: wire.version,
         sha256: wire.sha256,
         defaults: wire.defaults,
+        deferred: wire.deferred,
     })
 }
 pub(super) fn suite(text: &str) -> Result<types::Suite, Error> {

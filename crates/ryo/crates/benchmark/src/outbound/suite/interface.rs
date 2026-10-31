@@ -13,6 +13,10 @@ pub trait SuitePort {
     fn projects(&self, directory: &Path) -> Result<Suite, Error>;
     /// Check the executable's exact bytes and reported version against its profile.
     fn verify_tool(&self, executable: &Path, tool: &Tool) -> Result<(), Error>;
+    /// Hash exact regular-file bytes and names, recursively for artifact directories.
+    fn fingerprint(&self, paths: &[std::path::PathBuf]) -> Result<String, Error>;
+    /// Materialize only the explicitly authored subset in an owned empty directory.
+    fn stage(&self, directory: &Path, destination: &Path, audit: &Audit) -> Result<(), Error>;
 
     /// Validate authored queries and cases against the pinned default inventory.
     ///

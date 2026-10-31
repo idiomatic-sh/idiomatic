@@ -35,3 +35,50 @@ pub fn measure(
 }
 
 use crate::domain::suite::types::Audit;
+
+/// Measure only the exact case-certified subset and immutable source bytes.
+pub fn measure_certified(
+    certificate: &crate::domain::suite::types::Certificate,
+    suite: &dyn crate::outbound::suite::interface::SuitePort,
+    reference: &dyn LinterPort,
+    candidate: &dyn LinterPort,
+    execution: &dyn ExecutionPort,
+    request: &RunRequest,
+    order: RunOrder,
+) -> Result<Pair, Error> {
+    if suite.fingerprint(&certificate.paths)? != certificate.fingerprint {
+        return Err(Error::Invalid(
+            "certified profile, rules, cases or executable changed".into(),
+        ));
+    }
+    for (tool, expected) in [
+        (reference, &certificate.contestants[0]),
+        (candidate, &certificate.contestants[1]),
+    ] {
+        if tool.prepare(request)?.executable.canonicalize()? != *expected {
+            return Err(Error::Invalid(
+                "contestant differs from case-certified executable".into(),
+            ));
+        }
+    }
+    let sources: Vec<_> = request
+        .files
+        .iter()
+        .map(|file| request.root.join(file))
+        .collect();
+    let before = suite.fingerprint(&sources)?;
+    let pair = measure(
+        &certificate.coverage,
+        reference,
+        candidate,
+        execution,
+        request,
+        order,
+    )?;
+    if suite.fingerprint(&sources)? != before {
+        return Err(Error::Invalid(
+            "corpus source changed during paired observation".into(),
+        ));
+    }
+    Ok(pair)
+}

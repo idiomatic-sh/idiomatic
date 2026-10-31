@@ -18,6 +18,31 @@ pub fn require_complete(audit: &Audit) -> Result<(), Error> {
     }
 }
 
+/// Every default is either authored or explicitly deferred; no gap becomes a match.
+pub fn require_accounted(audit: &Audit, tool: &super::types::Tool) -> Result<(), Error> {
+    if audit.implemented.is_empty() {
+        return Err(Error::Invalid("no authored default subset".into()));
+    }
+    for (rule, issue) in &tool.deferred {
+        if !audit.missing.contains(rule) || !issue.starts_with("ryo-") || issue.len() <= 4 {
+            return Err(Error::Invalid(format!(
+                "invalid default deferral: {rule} -> {issue}"
+            )));
+        }
+    }
+    let unaccounted: Vec<_> = audit
+        .missing
+        .iter()
+        .filter(|rule| !tool.deferred.contains_key(*rule))
+        .collect();
+    if !unaccounted.is_empty() {
+        return Err(Error::Invalid(format!(
+            "defaults lack implementation or explicit deferral: {unaccounted:?}"
+        )));
+    }
+    Ok(())
+}
+
 pub fn relative_path(path: &str) -> Result<(), Error> {
     if path.is_empty()
         || Path::new(path)

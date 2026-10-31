@@ -13,6 +13,58 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
 }];
 fn subject(_: Input) -> Result<Value, Failure> {
     check(&SuiteLocalAdapter);
+    use crate::domain::suite::types::Audit;
+    use crate::outbound::suite::interface::SuitePort;
+    let directory = tempfile::tempdir().expect("source artifacts");
+    let destination = tempfile::tempdir().expect("snapshot parent");
+    std::fs::write(directory.path().join("benchmark.toml"), "profile bytes").expect("profile");
+    for rule in ["E722", "F704"] {
+        let root = directory.path().join("rules").join(rule);
+        std::fs::create_dir_all(&root).expect("rule root");
+        std::fs::write(root.join("query.ryoql"), rule).expect("query");
+        std::fs::write(root.join("cases.toml"), "case bytes").expect("cases");
+    }
+    let inventory = Audit {
+        implemented: vec!["E722".into(), "F704".into()],
+        missing: vec!["F401".into()],
+    };
+    let selected = inventory.select(&["E722".into()]).expect("explicit subset");
+    assert_eq!(selected.implemented, ["E722"]);
+    assert_eq!(selected.missing, ["F401", "F704"]);
+    let snapshot = destination.path().join("profile");
+    SuiteLocalAdapter
+        .stage(directory.path(), &snapshot, &selected)
+        .expect("staged subset");
+    let children: Vec<_> = std::fs::read_dir(snapshot.join("rules"))
+        .expect("snapshot rules")
+        .map(|entry| entry.expect("entry").file_name())
+        .collect();
+    assert_eq!(children, [std::ffi::OsString::from("E722")]);
+    let fingerprint = SuiteLocalAdapter
+        .fingerprint(&[snapshot.clone()])
+        .expect("seal");
+    std::fs::write(
+        directory.path().join("rules/F704/query.ryoql"),
+        "concurrent work",
+    )
+    .expect("unselected edit");
+    assert_eq!(
+        fingerprint,
+        SuiteLocalAdapter
+            .fingerprint(&[snapshot.clone()])
+            .expect("unchanged seal")
+    );
+    std::fs::write(
+        snapshot.join("rules/E722/query.ryoql"),
+        "changed selected rule",
+    )
+    .expect("selected edit");
+    assert_ne!(
+        fingerprint,
+        SuiteLocalAdapter
+            .fingerprint(&[snapshot])
+            .expect("changed seal")
+    );
     Ok(())
 }
 #[test]
@@ -116,6 +168,7 @@ fn verify_pin((sha256, version, executable): (&str, &str, bool)) -> Result<(), &
         tool: "fixture".into(),
         version: version.into(),
         sha256: sha256.into(),
+        deferred: Default::default(),
         defaults: vec!["E722".into()],
     };
     SuiteLocalAdapter

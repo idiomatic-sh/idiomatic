@@ -214,3 +214,14 @@ group = "build"
 run = ["bash", "-c", "set -e; cargo clippy --workspace --all-targets --all-features --locked; cargo test --workspace --locked --all-features --no-run; cargo doc --workspace --no-deps --all-features --locked"]
 timeout-seconds = 7200
 inputs = [".", "../../clippy.toml", "../../rust-toolchain.toml", "../../.cargo"]
+
+[[tools]]
+id = "performance-python-ruff"
+group = "perf"
+# Complete default disposition accounting and case certification precede every run.
+# Both contestants select the same implemented shipped-default subset. Missing
+# tools, mismatched pins and unassessed defaults are failures, never skipped work.
+run = ["bash", "-c", "cargo bench --locked -p idiomatic-sh-ryo-python --bench ruff -- measure \"$(command -v ruff)\" target/benchmark/python"]
+output = "bmf"
+timeout-seconds = 14400
+inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
