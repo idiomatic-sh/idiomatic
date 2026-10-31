@@ -658,6 +658,7 @@ fn shape_representatives_valid(out: &Collect) -> bool {
     };
     let representatives: std::collections::BTreeSet<_> = out
         .rows()
+        .into_iter()
         .filter_map(|(relation, row)| {
             if relation != Relation::ExpressionShape {
                 return None;
@@ -669,6 +670,7 @@ fn shape_representatives_valid(out: &Collect) -> bool {
         })
         .collect();
     out.rows()
+        .into_iter()
         .filter(|(relation, _)| *relation == Relation::ExpressionShape)
         .all(|(_, row)| {
             let [id, shape, file, _] = row.as_slice() else {

@@ -108,7 +108,7 @@ fn constant(
         words.push(ShapeWord::Literal(string_value(tree, symbols, at)?));
     } else {
         // Scalars require the parser's typed payload, never physical carrier text.
-        languages::property_at(tree.elements, at, SCALAR_KIND)?;
+        let _scalar_kind = languages::property_at(tree.elements, at, SCALAR_KIND)?;
     }
     Some(())
 }

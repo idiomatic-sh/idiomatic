@@ -307,15 +307,15 @@ impl<'a> SourceOrderVisitor<'a> for Writer<'_, '_, '_> {
 /// Preserve scalar AST payloads without exposing parser types to semantic readers.
 /// The parser has already decoded literals; numeric variants remain distinct from runtime coercions.
 fn scalar_properties(
-    node: ruff_python_ast::AnyNodeRef<'_>,
-    builder: &mut ryo::languages::TableBuilder<'_>,
+    node: AnyNodeRef<'_>,
+    builder: &mut languages::TableBuilder<'_>,
 ) -> std::fmt::Result {
     use crate::domain::syntax::constants::{
         BOOLEAN_SCALAR, BYTES_SCALAR, COMPLEX_SCALAR, ELLIPSIS_SCALAR, FLOAT_SCALAR,
         INTEGER_SCALAR, INTERPOLATION_CONVERSION, INTERPOLATION_DEBUG, NONE_SCALAR,
         SCALAR_IMAGINARY, SCALAR_KIND, SCALAR_VALUE,
     };
-    use ruff_python_ast::{AnyNodeRef, Number};
+    use ruff_python_ast::Number;
     use ryo::languages::{NameText, node_property, node_property_fmt};
     if let AnyNodeRef::ExprNumberLiteral(literal) = node {
         match &literal.value {
