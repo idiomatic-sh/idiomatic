@@ -1,12 +1,12 @@
-let statements = select * from "syntax-tree" where kind = "continue";
-let loops = select id from "syntax-tree" where kind = "for" or kind = "while";
-let body_edges = select parent, child from "syntax-child" where field = "body";
+let statements = select * from "semantic-syntax" where kind = "continue";
+let loops = select id from "semantic-syntax" where kind = "for" or kind = "while";
+let body_edges = select parent, child from "semantic-child" where field = "body";
 let loop_bodies = select r.child as id from loops as l join body_edges as r on l.id = r.parent;
-let non_boundaries = select id from "syntax-tree" where kind != "function-def" and kind != "class-def" and kind != "lambda";
+let non_boundaries = select id from "semantic-syntax" where kind != "function-def" and kind != "class-def" and kind != "lambda";
 let body_nodes = select l.id as id from loop_bodies as l join non_boundaries as r on l.id = r.id;
-let scope_nodes = select id from "syntax-tree" where kind = "function-def" or kind = "class-def" or kind = "lambda";
+let scope_nodes = select id from "semantic-syntax" where kind = "function-def" or kind = "class-def" or kind = "lambda";
 let boundaries = union(left=body_nodes, right=scope_nodes);
-let ancestors = axis(from=statements, relation="syntax-child", direction=nearest-ancestor, domain=boundaries);
+let ancestors = axis(from=statements, relation="semantic-child", direction=nearest-ancestor, domain=boundaries);
 let valid_nested = select l.id as id from ancestors as l join body_nodes as r on l.related = r.id;
 let valid_direct = select l.id as id from statements as l join body_nodes as r on l.id = r.id;
 let valid = union(left=valid_nested, right=valid_direct);
@@ -181,5 +181,5 @@ let supp_ignore_hidden = select l.id as id from supp_original_locations as l joi
 let supp_block_or_file_hidden = union(left=supp_block_hidden, right=supp_file_hidden);
 let supp_range_hidden = union(left=supp_block_or_file_hidden, right=supp_ignore_hidden);
 let supp_after_ranges = antijoin(left=unsuppressed_files, right=supp_range_hidden, left-on=["id"], right-on=["id"]);
-let violations = select file, span from supp_after_ranges;
-emit violations subject file key(span);
+let violations = select id, file, span from supp_after_ranges;
+emit violations subject file key(id);

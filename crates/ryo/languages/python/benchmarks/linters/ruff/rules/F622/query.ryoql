@@ -1,14 +1,14 @@
-let containers = select id, file, span from "syntax-tree" where kind = "tuple" or kind = "list";
-let starred = select id from "syntax-tree" where kind = "starred";
-let elements = select parent, child from "syntax-child" where field = "elts";
+let containers = select id, file, span from "semantic-syntax" where kind = "tuple" or kind = "list";
+let starred = select id from "semantic-syntax" where kind = "starred";
+let elements = select parent, child from "semantic-child" where field = "elts";
 let star_elements = select l.parent as parent, l.child as child from elements as l join starred as r on l.child = r.id;
 let counts = group-count(from=star_elements, keys=["parent"], count="count", distinct="child");
 let duplicate = select parent from counts where count > 1;
-let stores = select id from "syntax-tree" where kind = "assign" or kind = "for" or kind = "async-for" or kind = "comprehension" or kind = "withitem";
-let target_fields = select parent, child from "syntax-child" where field = "targets" or field = "target" or field = "optional-vars";
+let stores = select id from "semantic-syntax" where kind = "assign" or kind = "for" or kind = "async-for" or kind = "comprehension" or kind = "withitem";
+let target_fields = select parent, child from "semantic-child" where field = "targets" or field = "target" or field = "optional-vars";
 let roots = select r.child as id from stores as l join target_fields as r on l.id = r.parent;
 let container_edges = select r.parent as parent, r.child as child from containers as l join elements as r on l.id = r.parent;
-let values = select parent, child from "syntax-child" where field = "value";
+let values = select parent, child from "semantic-child" where field = "value";
 let star_edges = select r.parent as parent, r.child as child from starred as l join values as r on l.id = r.parent;
 let edges = union(left=container_edges, right=star_edges);
 let descendants = closure(edges=edges, source="parent", destination="child");
@@ -185,5 +185,5 @@ let supp_ignore_hidden = select l.id as id from supp_original_locations as l joi
 let supp_block_or_file_hidden = union(left=supp_block_hidden, right=supp_file_hidden);
 let supp_range_hidden = union(left=supp_block_or_file_hidden, right=supp_ignore_hidden);
 let supp_after_ranges = antijoin(left=unsuppressed_files, right=supp_range_hidden, left-on=["id"], right-on=["id"]);
-let violations = select file, span from supp_after_ranges;
-emit violations subject file key(span);
+let violations = select id, file, span from supp_after_ranges;
+emit violations subject file key(id);

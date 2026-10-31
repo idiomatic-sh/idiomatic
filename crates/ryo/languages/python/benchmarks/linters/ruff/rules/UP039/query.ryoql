@@ -1,8 +1,8 @@
-let classes = select id from "syntax-tree" where kind = "class-def";
-let arguments = select id, file, span from "syntax-tree" where kind = "call-arguments";
-let class_children = select r.child as child from classes as l join "syntax-child" as r on l.id = r.parent;
+let classes = select id from "semantic-syntax" where kind = "class-def";
+let arguments = select id, file, span from "semantic-syntax" where kind = "call-arguments";
+let class_children = select r.child as child from classes as l join "semantic-child" as r on l.id = r.parent;
 let class_arguments = select r.id as id, r.file as file, r.span as span from class_children as l join arguments as r on l.child = r.id;
-let supplied = select parent from "syntax-child" where field = "bases" or field = "keywords";
+let supplied = select parent from "semantic-child" where field = "bases" or field = "keywords";
 let reportable = antijoin(left=class_arguments, right=supplied, left-on=["id"], right-on=["parent"]);
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id;
 let quoted = select id from "syntax-tree" where kind = "f-string-part" or kind = "string" and matches(text, "(?i)^[rub]*(?:\x22\x22\x22|'\x27')");
@@ -173,5 +173,5 @@ let supp_ignore_hidden = select l.id as id from supp_original_locations as l joi
 let supp_block_or_file_hidden = union(left=supp_block_hidden, right=supp_file_hidden);
 let supp_range_hidden = union(left=supp_block_or_file_hidden, right=supp_ignore_hidden);
 let supp_after_ranges = antijoin(left=unsuppressed_files, right=supp_range_hidden, left-on=["id"], right-on=["id"]);
-let violations = select file, span from supp_after_ranges;
-emit violations subject file key(span);
+let violations = select id, file, span from supp_after_ranges;
+emit violations subject file key(id);

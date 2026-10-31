@@ -1,10 +1,10 @@
-let expressions = select id, file, span from "syntax-tree" where kind = "if-exp";
-let body_fields = select parent, child from "syntax-child" where field = "body";
-let else_fields = select parent, child from "syntax-child" where field = "orelse";
-let body_tokens = select id from "syntax-tree" where kind = "name-token" and text = "True";
-let else_tokens = select id from "syntax-tree" where kind = "name-token" and text = "False";
-let body_literals = select l.parent as id from "syntax-child" as l join body_tokens as r on l.child = r.id;
-let else_literals = select l.parent as id from "syntax-child" as l join else_tokens as r on l.child = r.id;
+let expressions = select id, file, span from "semantic-syntax" where kind = "if-exp";
+let body_fields = select parent, child from "semantic-child" where field = "body";
+let else_fields = select parent, child from "semantic-child" where field = "orelse";
+let body_tokens = select id from "semantic-syntax" where kind = "name-token" and text = "True";
+let else_tokens = select id from "semantic-syntax" where kind = "name-token" and text = "False";
+let body_literals = select l.parent as id from "semantic-child" as l join body_tokens as r on l.child = r.id;
+let else_literals = select l.parent as id from "semantic-child" as l join else_tokens as r on l.child = r.id;
 let matching_body = select l.parent as id from body_fields as l join body_literals as r on l.child = r.id;
 let matching_else = select l.parent as id from else_fields as l join else_literals as r on l.child = r.id;
 let matching = select l.id as id from matching_body as l join matching_else as r on l.id = r.id;
@@ -178,5 +178,5 @@ let supp_ignore_hidden = select l.id as id from supp_original_locations as l joi
 let supp_block_or_file_hidden = union(left=supp_block_hidden, right=supp_file_hidden);
 let supp_range_hidden = union(left=supp_block_or_file_hidden, right=supp_ignore_hidden);
 let supp_after_ranges = antijoin(left=unsuppressed_files, right=supp_range_hidden, left-on=["id"], right-on=["id"]);
-let violations = select file, span from supp_after_ranges;
-emit violations subject file key(span);
+let violations = select id, file, span from supp_after_ranges;
+emit violations subject file key(id);

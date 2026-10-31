@@ -1,7 +1,7 @@
-let dictionaries = select id, file, span from "syntax-tree" where kind = "dict";
-let children = select parent, child, ordinal from "syntax-child";
-let members = select parent, child, ordinal from "syntax-child" where field = "keys" or field = "values";
-let stars = select id from "syntax-tree" where text = "**";
+let dictionaries = select id, file, span from "semantic-syntax" where kind = "dict";
+let children = select parent, child, ordinal from "semantic-child";
+let members = select parent, child, ordinal from "semantic-child" where field = "keys" or field = "values";
+let stars = select id from "semantic-syntax" where text = "**";
 let star_positions = select l.parent as parent, l.ordinal as ordinal from children as l join stars as r on l.child = r.id;
 let nested = select l.parent as parent, l.ordinal as ordinal, r.id as id, r.file as file, r.span as span from members as l join dictionaries as r on l.child = r.id;
 let pairs = select l.id as id, l.parent as parent, l.ordinal as ending, r.ordinal as beginning from nested as l join star_positions as r on l.parent = r.parent where r.ordinal < l.ordinal;
@@ -178,5 +178,5 @@ let supp_ignore_hidden = select l.id as id from supp_original_locations as l joi
 let supp_block_or_file_hidden = union(left=supp_block_hidden, right=supp_file_hidden);
 let supp_range_hidden = union(left=supp_block_or_file_hidden, right=supp_ignore_hidden);
 let supp_after_ranges = antijoin(left=unsuppressed_files, right=supp_range_hidden, left-on=["id"], right-on=["id"]);
-let violations = select file, span from supp_after_ranges;
-emit violations subject file key(span);
+let violations = select id, file, span from supp_after_ranges;
+emit violations subject file key(id);

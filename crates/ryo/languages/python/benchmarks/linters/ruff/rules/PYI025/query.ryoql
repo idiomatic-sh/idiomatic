@@ -1,11 +1,11 @@
 let imports = select occurrence as id, file, span from "static-import" where target = "collections.abc.Set" and binding != "AbstractSet";
-let statements = select id from "syntax-tree" where kind = "import-from";
-let aliases = select r.child as child from statements as l join "syntax-child" as r on l.id = r.parent;
+let statements = select id from "semantic-syntax" where kind = "import-from";
+let aliases = select r.child as child from statements as l join "semantic-child" as r on l.id = r.parent;
 let candidates = select l.id as id, l.file as file, l.span as span from imports as l join aliases as r on l.id = r.child;
-let asnames = select parent, child from "syntax-child" where field = "asname";
+let asnames = select parent, child from "semantic-child" where field = "asname";
 let unaliased = antijoin(left=candidates, right=asnames, left-on=["id"], right-on=["parent"]);
 let aliased = select r.child as child from candidates as l join asnames as r on l.id = r.parent;
-let bindings = select r.id as id, r.file as file, r.span as span from aliased as l join "syntax-tree" as r on l.child = r.id;
+let bindings = select r.id as id, r.file as file, r.span as span from aliased as l join "semantic-syntax" as r on l.child = r.id;
 let reportable = union(left=unaliased, right=bindings);
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id;
 let quoted = select id from "syntax-tree" where kind = "f-string-part" or kind = "string" and matches(text, "(?i)^[rub]*(?:\x22\x22\x22|'\x27')");
@@ -176,5 +176,5 @@ let supp_ignore_hidden = select l.id as id from supp_original_locations as l joi
 let supp_block_or_file_hidden = union(left=supp_block_hidden, right=supp_file_hidden);
 let supp_range_hidden = union(left=supp_block_or_file_hidden, right=supp_ignore_hidden);
 let supp_after_ranges = antijoin(left=unsuppressed_files, right=supp_range_hidden, left-on=["id"], right-on=["id"]);
-let violations = select file, span from supp_after_ranges;
-emit violations subject file key(span);
+let violations = select id, file, span from supp_after_ranges;
+emit violations subject file key(id);

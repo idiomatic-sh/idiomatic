@@ -1,13 +1,13 @@
-let scopes = select id from "syntax-tree" where kind = "module" or kind = "function-def" or kind = "async-function-def" or kind = "class-def";
-let bodies = select parent, child, ordinal from "syntax-child" where field = "body";
+let scopes = select id from "semantic-syntax" where kind = "module" or kind = "function-def" or kind = "async-function-def" or kind = "class-def";
+let bodies = select parent, child, ordinal from "semantic-child" where field = "body";
 let later = select l.child as child from bodies as l join bodies as r on l.parent = r.parent where l.ordinal > r.ordinal;
 let first = antijoin(left=bodies, right=later, left-on=["child"], right-on=["child"]);
 let first_in_scope = select r.child as child from scopes as l join first as r on l.id = r.parent;
-let statements = select id, file, span from "syntax-tree" where kind = "expr";
+let statements = select id, file, span from "semantic-syntax" where kind = "expr";
 let candidates = select r.id as id, r.file as file, r.span as span from first_in_scope as l join statements as r on l.child = r.id;
-let values = select parent, child from "syntax-child" where field = "value";
+let values = select parent, child from "semantic-child" where field = "value";
 let first_values = select l.id as parent, r.child as child from candidates as l join values as r on l.id = r.parent;
-let fstrings = select * from "syntax-tree" where kind = "joined-str";
+let fstrings = select * from "semantic-syntax" where kind = "joined-str";
 let bad = select l.parent as parent from first_values as l join fstrings as r on l.child = r.id;
 let reportable = select l.id as id, l.file as file, l.span as span from candidates as l join bad as r on l.id = r.parent;
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id;
@@ -179,5 +179,5 @@ let supp_ignore_hidden = select l.id as id from supp_original_locations as l joi
 let supp_block_or_file_hidden = union(left=supp_block_hidden, right=supp_file_hidden);
 let supp_range_hidden = union(left=supp_block_or_file_hidden, right=supp_ignore_hidden);
 let supp_after_ranges = antijoin(left=unsuppressed_files, right=supp_range_hidden, left-on=["id"], right-on=["id"]);
-let violations = select file, span from supp_after_ranges;
-emit violations subject file key(span);
+let violations = select id, file, span from supp_after_ranges;
+emit violations subject file key(id);

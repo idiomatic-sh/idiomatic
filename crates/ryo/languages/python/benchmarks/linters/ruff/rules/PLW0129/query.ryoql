@@ -1,9 +1,9 @@
-let assertions = select id from "syntax-tree" where kind = "assert";
-let tests = select parent, child from "syntax-child" where field = "test";
-let parts = select id from "syntax-tree" where kind = "string-part" or kind = "bytes-part";
-let literal_parents = select l.parent as id from "syntax-child" as l join parts as r on l.child = r.id;
-let literals = select r.id as id, r.file as file, r.span as span from literal_parents as l join "syntax-tree" as r on l.id = r.id;
-let fstrings = select id, file, span from "syntax-tree" where kind = "joined-str";
+let assertions = select id from "semantic-syntax" where kind = "assert";
+let tests = select parent, child from "semantic-child" where field = "test";
+let parts = select id from "semantic-syntax" where kind = "string-part" or kind = "bytes-part";
+let literal_parents = select l.parent as id from "semantic-child" as l join parts as r on l.child = r.id;
+let literals = select r.id as id, r.file as file, r.span as span from literal_parents as l join "semantic-syntax" as r on l.id = r.id;
+let fstrings = select id, file, span from "semantic-syntax" where kind = "joined-str";
 let strings = union(left=literals, right=fstrings);
 let asserted = select r.child as child from assertions as l join tests as r on l.id = r.parent;
 let reportable = select r.id as id, r.file as file, r.span as span from asserted as l join strings as r on l.child = r.id;
@@ -176,5 +176,5 @@ let supp_ignore_hidden = select l.id as id from supp_original_locations as l joi
 let supp_block_or_file_hidden = union(left=supp_block_hidden, right=supp_file_hidden);
 let supp_range_hidden = union(left=supp_block_or_file_hidden, right=supp_ignore_hidden);
 let supp_after_ranges = antijoin(left=unsuppressed_files, right=supp_range_hidden, left-on=["id"], right-on=["id"]);
-let violations = select file, span from supp_after_ranges;
-emit violations subject file key(span);
+let violations = select id, file, span from supp_after_ranges;
+emit violations subject file key(id);

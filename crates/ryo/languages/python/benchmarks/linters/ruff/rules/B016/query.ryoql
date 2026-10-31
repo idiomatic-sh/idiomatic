@@ -1,6 +1,6 @@
-let raises = select id from "syntax-tree" where kind = "raise";
-let values = select parent, child from "syntax-child" where field = "exc";
-let literals = select * from "syntax-tree" where kind = "constant";
+let raises = select id from "semantic-syntax" where kind = "raise";
+let values = select parent, child from "semantic-child" where field = "exc";
+let literals = select * from "semantic-syntax" where kind = "constant";
 let raised = select r.child as child from raises as l join values as r on l.id = r.parent;
 let reportable = select r.id as id, r.file as file, r.span as span from raised as l join literals as r on l.child = r.id;
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id;
@@ -172,5 +172,5 @@ let supp_ignore_hidden = select l.id as id from supp_original_locations as l joi
 let supp_block_or_file_hidden = union(left=supp_block_hidden, right=supp_file_hidden);
 let supp_range_hidden = union(left=supp_block_or_file_hidden, right=supp_ignore_hidden);
 let supp_after_ranges = antijoin(left=unsuppressed_files, right=supp_range_hidden, left-on=["id"], right-on=["id"]);
-let violations = select file, span from supp_after_ranges;
-emit violations subject file key(span);
+let violations = select id, file, span from supp_after_ranges;
+emit violations subject file key(id);

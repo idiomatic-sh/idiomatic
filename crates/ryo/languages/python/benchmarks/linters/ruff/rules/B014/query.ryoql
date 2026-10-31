@@ -1,9 +1,9 @@
-let handlers = select id from "syntax-tree" where kind = "except-handler";
-let types = select parent, child from "syntax-child" where field = "type";
+let handlers = select id from "semantic-syntax" where kind = "except-handler";
+let types = select parent, child from "semantic-child" where field = "type";
 let handled = select r.child as child from handlers as l join types as r on l.id = r.parent;
-let tuples = select id, file, span from "syntax-tree" where kind = "tuple";
+let tuples = select id, file, span from "semantic-syntax" where kind = "tuple";
 let exception_tuples = select r.id as id, r.file as file, r.span as span from handled as l join tuples as r on l.child = r.id;
-let elements = select parent, child from "syntax-child" where field = "elts";
+let elements = select parent, child from "semantic-child" where field = "elts";
 let named_elements = select l.parent as parent, l.child as child, r.target as target from elements as l join "reference" as r on l.child = r.occurrence;
 let duplicates = select l.parent as parent from named_elements as l join named_elements as r on l.parent = r.parent and l.target = r.target where l.child != r.child;
 let reportable = select l.id as id, l.file as file, l.span as span from exception_tuples as l join duplicates as r on l.id = r.parent;
@@ -176,5 +176,5 @@ let supp_ignore_hidden = select l.id as id from supp_original_locations as l joi
 let supp_block_or_file_hidden = union(left=supp_block_hidden, right=supp_file_hidden);
 let supp_range_hidden = union(left=supp_block_or_file_hidden, right=supp_ignore_hidden);
 let supp_after_ranges = antijoin(left=unsuppressed_files, right=supp_range_hidden, left-on=["id"], right-on=["id"]);
-let violations = select file, span from supp_after_ranges;
-emit violations subject file key(span);
+let violations = select id, file, span from supp_after_ranges;
+emit violations subject file key(id);

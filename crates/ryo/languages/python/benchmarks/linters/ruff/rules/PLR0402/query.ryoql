@@ -1,6 +1,6 @@
-let statements = select id from "syntax-tree" where kind = "import";
-let children = select r.child as child from statements as l join "syntax-child" as r on l.id = r.parent;
-let renamed = select parent from "syntax-child" where field = "asname";
+let statements = select id from "semantic-syntax" where kind = "import";
+let children = select r.child as child from statements as l join "semantic-child" as r on l.id = r.parent;
+let renamed = select parent from "semantic-child" where field = "asname";
 let imports = select occurrence as id, binding, target, file, span from "static-import";
 let explicit_aliases = select l.id as id, l.binding as binding, l.target as target, l.file as file, l.span as span from imports as l join renamed as r on l.id = r.parent;
 let split = capture(from=explicit_aliases, path="target", pattern="{*module}.{member}", captures=["module", "member"]);
@@ -175,5 +175,5 @@ let supp_ignore_hidden = select l.id as id from supp_original_locations as l joi
 let supp_block_or_file_hidden = union(left=supp_block_hidden, right=supp_file_hidden);
 let supp_range_hidden = union(left=supp_block_or_file_hidden, right=supp_ignore_hidden);
 let supp_after_ranges = antijoin(left=unsuppressed_files, right=supp_range_hidden, left-on=["id"], right-on=["id"]);
-let violations = select file, span from supp_after_ranges;
-emit violations subject file key(span);
+let violations = select id, file, span from supp_after_ranges;
+emit violations subject file key(id);

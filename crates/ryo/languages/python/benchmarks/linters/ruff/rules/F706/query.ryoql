@@ -1,10 +1,10 @@
-let statements = select * from "syntax-tree" where kind = "return";
-let scopes = select id, kind from "syntax-tree" where kind = "function-def" or kind = "class-def" or kind = "lambda";
-let bodies = select parent, child from "syntax-child" where field = "body";
+let statements = select * from "semantic-syntax" where kind = "return";
+let scopes = select id, kind from "semantic-syntax" where kind = "function-def" or kind = "class-def" or kind = "lambda";
+let bodies = select parent, child from "semantic-child" where field = "body";
 let regions = select r.child as id, l.kind as kind from scopes as l join bodies as r on l.id = r.parent;
 let boundaries = select id from regions;
 let functions = select id from regions where kind = "function-def" or kind = "lambda";
-let ancestors = axis(from=statements, relation="syntax-child", direction=nearest-ancestor, domain=boundaries);
+let ancestors = axis(from=statements, relation="semantic-child", direction=nearest-ancestor, domain=boundaries);
 let nested = select l.id as id from ancestors as l join functions as r on l.related = r.id;
 let direct = select l.id as id from statements as l join functions as r on l.id = r.id;
 let nested_only = antijoin(left=nested, right=regions, left-on=["id"], right-on=["id"]);
@@ -180,5 +180,5 @@ let supp_ignore_hidden = select l.id as id from supp_original_locations as l joi
 let supp_block_or_file_hidden = union(left=supp_block_hidden, right=supp_file_hidden);
 let supp_range_hidden = union(left=supp_block_or_file_hidden, right=supp_ignore_hidden);
 let supp_after_ranges = antijoin(left=unsuppressed_files, right=supp_range_hidden, left-on=["id"], right-on=["id"]);
-let violations = select file, span from supp_after_ranges;
-emit violations subject file key(span);
+let violations = select id, file, span from supp_after_ranges;
+emit violations subject file key(id);

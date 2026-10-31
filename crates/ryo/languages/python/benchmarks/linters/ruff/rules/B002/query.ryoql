@@ -1,9 +1,9 @@
-let unary = select id, file, span from "syntax-tree" where kind = "unary-op";
-let operators = select parent, child from "syntax-child" where field = "op";
-let signs = select id, text from "syntax-tree" where text = "+" or text = "-";
+let unary = select id, file, span from "semantic-syntax" where kind = "unary-op";
+let operators = select parent, child from "semantic-child" where field = "op";
+let signs = select id, text from "semantic-syntax" where text = "+" or text = "-";
 let all_signed = select l.parent as id, r.text as sign from operators as l join signs as r on l.child = r.id;
 let signed = select l.id as id, l.sign as sign from all_signed as l join unary as r on l.id = r.id;
-let operands = select parent, child from "syntax-child" where field = "operand";
+let operands = select parent, child from "semantic-child" where field = "operand";
 let inner_signs = select l.parent as id, r.sign as sign from operands as l join signed as r on l.child = r.id;
 let doubled = select l.id as id from signed as l join inner_signs as r on l.id = r.id and l.sign = r.sign;
 let reportable = select l.id as id, l.file as file, l.span as span from unary as l join doubled as r on l.id = r.id;
@@ -176,5 +176,5 @@ let supp_ignore_hidden = select l.id as id from supp_original_locations as l joi
 let supp_block_or_file_hidden = union(left=supp_block_hidden, right=supp_file_hidden);
 let supp_range_hidden = union(left=supp_block_or_file_hidden, right=supp_ignore_hidden);
 let supp_after_ranges = antijoin(left=unsuppressed_files, right=supp_range_hidden, left-on=["id"], right-on=["id"]);
-let violations = select file, span from supp_after_ranges;
-emit violations subject file key(span);
+let violations = select id, file, span from supp_after_ranges;
+emit violations subject file key(id);

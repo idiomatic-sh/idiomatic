@@ -1,6 +1,6 @@
-let imports = select id, file, span from "syntax-tree" where kind = "import-from" and matches(file, "\.pyi$");
+let imports = select id, file, span from "semantic-syntax" where kind = "import-from" and matches(file, "\.pyi$");
 let future = select occurrence from "static-import" where matches(target, "^\.*__future__\.annotations$");
-let parents = select l.parent as parent from "syntax-child" as l join future as r on l.child = r.occurrence;
+let parents = select l.parent as parent from "semantic-child" as l join future as r on l.child = r.occurrence;
 let reportable = select l.id as id, l.file as file, l.span as span from imports as l join parents as r on l.id = r.parent;
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id;
 let quoted = select id from "syntax-tree" where kind = "f-string-part" or kind = "string" and matches(text, "(?i)^[rub]*(?:\x22\x22\x22|'\x27')");
@@ -171,5 +171,5 @@ let supp_ignore_hidden = select l.id as id from supp_original_locations as l joi
 let supp_block_or_file_hidden = union(left=supp_block_hidden, right=supp_file_hidden);
 let supp_range_hidden = union(left=supp_block_or_file_hidden, right=supp_ignore_hidden);
 let supp_after_ranges = antijoin(left=unsuppressed_files, right=supp_range_hidden, left-on=["id"], right-on=["id"]);
-let violations = select file, span from supp_after_ranges;
-emit violations subject file key(span);
+let violations = select id, file, span from supp_after_ranges;
+emit violations subject file key(id);

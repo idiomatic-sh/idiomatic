@@ -1,11 +1,11 @@
-let handlers = select id from "syntax-tree" where kind = "except-handler";
-let types = select parent, child from "syntax-child" where field = "type";
+let handlers = select id from "semantic-syntax" where kind = "except-handler";
+let types = select parent, child from "semantic-child" where field = "type";
 let handled = select r.child as child from handlers as l join types as r on l.id = r.parent;
-let tuples = select * from "syntax-tree" where kind = "tuple";
-let elements = select parent, child from "syntax-child" where field = "elts";
+let tuples = select * from "semantic-syntax" where kind = "tuple";
+let elements = select parent, child from "semantic-child" where field = "elts";
 let counts = group-count(from=elements, keys=["parent"], count="count", distinct="child");
 let single = select parent from counts where count = 1;
-let starred = select id from "syntax-tree" where kind = "starred";
+let starred = select id from "semantic-syntax" where kind = "starred";
 let unpacked = select l.parent as parent from elements as l join starred as r on l.child = r.id;
 let eligible = antijoin(left=single, right=unpacked, left-on=["parent"], right-on=["parent"]);
 let selected = select l.id as id, l.file as file, l.span as span from tuples as l join eligible as r on l.id = r.parent;
@@ -179,5 +179,5 @@ let supp_ignore_hidden = select l.id as id from supp_original_locations as l joi
 let supp_block_or_file_hidden = union(left=supp_block_hidden, right=supp_file_hidden);
 let supp_range_hidden = union(left=supp_block_or_file_hidden, right=supp_ignore_hidden);
 let supp_after_ranges = antijoin(left=unsuppressed_files, right=supp_range_hidden, left-on=["id"], right-on=["id"]);
-let violations = select file, span from supp_after_ranges;
-emit violations subject file key(span);
+let violations = select id, file, span from supp_after_ranges;
+emit violations subject file key(id);

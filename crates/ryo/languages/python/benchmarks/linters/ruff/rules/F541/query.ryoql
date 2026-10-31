@@ -1,8 +1,8 @@
-let expressions = select id from "syntax-tree" where kind = "joined-str";
-let parts = select id, file, span from "syntax-tree" where kind = "f-string-part";
-let parented_parts = select l.parent as parent, r.id as id, r.file as file, r.span as span from "syntax-child" as l join parts as r on l.child = r.id;
-let placeholders = select id from "syntax-tree" where kind = "formatted-value";
-let interpolated_parts = select l.parent as parent from "syntax-child" as l join placeholders as r on l.child = r.id;
+let expressions = select id from "semantic-syntax" where kind = "joined-str";
+let parts = select id, file, span from "semantic-syntax" where kind = "f-string-part";
+let parented_parts = select l.parent as parent, r.id as id, r.file as file, r.span as span from "semantic-child" as l join parts as r on l.child = r.id;
+let placeholders = select id from "semantic-syntax" where kind = "formatted-value";
+let interpolated_parts = select l.parent as parent from "semantic-child" as l join placeholders as r on l.child = r.id;
 let interpolated_expressions = select l.parent as parent from parented_parts as l join interpolated_parts as r on l.id = r.parent;
 let static_expressions = antijoin(left=expressions, right=interpolated_expressions, left-on=["id"], right-on=["parent"]);
 let reportable = select r.id as id, r.file as file, r.span as span from static_expressions as l join parented_parts as r on l.id = r.parent;
@@ -175,5 +175,5 @@ let supp_ignore_hidden = select l.id as id from supp_original_locations as l joi
 let supp_block_or_file_hidden = union(left=supp_block_hidden, right=supp_file_hidden);
 let supp_range_hidden = union(left=supp_block_or_file_hidden, right=supp_ignore_hidden);
 let supp_after_ranges = antijoin(left=unsuppressed_files, right=supp_range_hidden, left-on=["id"], right-on=["id"]);
-let violations = select file, span from supp_after_ranges;
-emit violations subject file key(span);
+let violations = select id, file, span from supp_after_ranges;
+emit violations subject file key(id);
