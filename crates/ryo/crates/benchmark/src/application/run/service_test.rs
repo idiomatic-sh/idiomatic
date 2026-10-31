@@ -18,8 +18,22 @@ enum Scenario {
     MissingReference,
     NoCases,
     OmittedInput,
+    MissingQuery,
+    StartupFailure,
 }
 const CASES: &[Case<Scenario, usize, &'static str>] = &[
+    Case {
+        name: CaseName("candidate startup failure executes once before fixture comparisons"),
+        word: Word::Refuses,
+        input: || Scenario::StartupFailure,
+        expect: Expect::Error("candidate startup"),
+    },
+    Case {
+        name: CaseName("removed query refuses before either contestant executes"),
+        word: Word::Refuses,
+        input: || Scenario::MissingQuery,
+        expect: Expect::Error("unaccounted default"),
+    },
     Case {
         name: CaseName("both contestants establish the independent expectation"),
         word: Word::Succeeds,
@@ -90,6 +104,14 @@ fn subject(scenario: Scenario) -> Result<usize, &'static str> {
             },
         });
     }
+    suite.profile = Some(crate::domain::suite::types::Tool {
+        tool: "fixture".into(),
+        version: "1".into(),
+        sha256: vec!["pin".into()],
+        defaults: vec!["E722".try_into().unwrap(), "F901".try_into().unwrap()],
+        deferred: Default::default(),
+        pending: Default::default(),
+    });
     let reference = LinterFake {
         diagnostics: if matches!(scenario, Scenario::MissingReference) {
             Vec::new()
@@ -107,18 +129,37 @@ fn subject(scenario: Scenario) -> Result<usize, &'static str> {
         ..Default::default()
     };
     let execution = ExecutionFake {
-        status: 0,
+        status: if matches!(scenario, Scenario::StartupFailure) {
+            2
+        } else {
+            0
+        },
         ..Default::default()
     };
-    let result = verify(
-        &suite,
-        &reference,
-        &candidate,
-        &execution,
-        Path::new("rules"),
-        Path::new("scratch"),
-    );
-    if !matches!(scenario, Scenario::NoCases) {
+    let result = if matches!(scenario, Scenario::MissingQuery) {
+        super::service::verify_accounted(
+            &suite,
+            &reference,
+            &candidate,
+            &execution,
+            Path::new("profile"),
+            Path::new("scratch"),
+        )
+    } else {
+        verify(
+            &suite,
+            &reference,
+            &candidate,
+            &execution,
+            Path::new("rules"),
+            Path::new("scratch"),
+        )
+    };
+    if matches!(scenario, Scenario::MissingQuery) {
+        assert!(execution.history.lock().expect("history").is_empty());
+    } else if matches!(scenario, Scenario::StartupFailure) {
+        assert_eq!(execution.history.lock().expect("history").len(), 1);
+    } else if !matches!(scenario, Scenario::NoCases) {
         assert_eq!(execution.history.lock().expect("history").len(), 2);
     }
     result.map(|count| count.0).map_err(|error| {
@@ -127,6 +168,10 @@ fn subject(scenario: Scenario) -> Result<usize, &'static str> {
             "candidate mismatch"
         } else if message.contains("expected-vs-reference") {
             "reference mismatch"
+        } else if message == "operational failure" {
+            "candidate startup"
+        } else if message.contains("defaults lack implementation or explicit deferral") {
+            "unaccounted default"
         } else if message == "no executable rule cases" {
             "no cases"
         } else {

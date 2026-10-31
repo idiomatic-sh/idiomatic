@@ -56,22 +56,24 @@ pub(super) fn verify_cases(
     let mut tool = suite_source.profile(ArtifactPath(&directory()))?;
     suite_source.verify_tool(ArtifactPath(&executable), &tool)?;
     let audit = suite_source.audit(ArtifactPath(&directory()), &tool)?;
+    ryo_benchmark::domain::suite::service::require_accounted(&audit, &tool)?;
     tool.defaults = audit.authored().to_vec();
     let reference = Arc::new(reference(executable, tool));
     let scratch = tempfile::tempdir()?;
-    let profile = scratch.path().join(constants::PROFILE_DIRECTORY);
+    let root = scratch.path().canonicalize()?;
+    let profile = root.join(constants::PROFILE_DIRECTORY);
     suite_source.stage(ArtifactPath(&directory()), ArtifactPath(&profile), &audit)?;
     let candidate = Arc::new(ryo_benchmark::outbound::linter::factory::ryo(
         std::env::current_exe()?,
         profile.join(constants::RULES_DIRECTORY),
     ));
-    let count = ryo_benchmark::application::run::service::verify(
+    let count = ryo_benchmark::application::run::service::verify_accounted(
         suite_source.as_ref(),
         reference.as_ref(),
         candidate.as_ref(),
         execution.as_ref(),
-        &profile.join(constants::RULES_DIRECTORY),
-        &scratch.path().join(constants::CASES_DIRECTORY),
+        &profile,
+        &root.join(constants::CASES_DIRECTORY),
     )?;
     Ok(count)
 }

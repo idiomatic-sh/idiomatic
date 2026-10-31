@@ -95,8 +95,8 @@ impl TryFrom<RuffReportSchema<'_>> for RunReport {
             if !defaults.contains(&rule) && finding.code != "invalid-syntax" {
                 return Err(Error::Invalid(format!("unexpected rule {}", finding.code)));
             }
-            let relative = Path::new(&finding.filename)
-                .strip_prefix(&request.root)
+            let relative = dunce::simplified(Path::new(&finding.filename))
+                .strip_prefix(dunce::simplified(&request.root))
                 .map_err(|_| Error::Invalid("Ruff returned a path outside the corpus".into()))?;
             let file = relative
                 .to_str()

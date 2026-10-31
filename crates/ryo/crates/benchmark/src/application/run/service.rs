@@ -57,13 +57,26 @@ pub fn verify(
         crate::outbound::suite::types::ArtifactPath(scratch),
     )?;
     let count = cases.len();
+    let first = cases
+        .first()
+        .ok_or_else(|| Error::Invalid(super::constants::NO_CASES.into()))?;
+    // The normal candidate path loads and compiles the whole selected profile.
+    // Reuse its first result; a startup failure must not repeat for every fixture.
+    let mut initial = Some(run(candidate, execution, &first.request)?);
     let mut failures = Vec::new();
     for case in cases {
         for (name, tool) in [
             (super::constants::REFERENCE, reference),
             (super::constants::CANDIDATE, candidate),
         ] {
-            match run(tool, execution, &case.request) {
+            let result = if name == super::constants::CANDIDATE {
+                initial
+                    .take()
+                    .map_or_else(|| run(tool, execution, &case.request), Ok)
+            } else {
+                run(tool, execution, &case.request)
+            };
+            match result {
                 Ok(mut result) => {
                     result
                         .report
@@ -88,4 +101,27 @@ pub fn verify(
             failures.join(super::constants::LINE_SEPARATOR)
         )))
     }
+}
+
+/// Verify a complete accounted profile before either contestant can execute a case.
+pub fn verify_accounted(
+    suite: &dyn SuitePort,
+    reference: &dyn LinterPort,
+    candidate: &dyn LinterPort,
+    execution: &dyn ExecutionPort,
+    profile: &Path,
+    scratch: &Path,
+) -> Result<crate::domain::suite::types::CaseCount, Error> {
+    let path = crate::outbound::suite::types::ArtifactPath(profile);
+    let tool = suite.profile(path)?;
+    let audit = suite.audit(path, &tool)?;
+    crate::domain::suite::service::require_accounted(&audit, &tool)?;
+    verify(
+        suite,
+        reference,
+        candidate,
+        execution,
+        &profile.join(super::constants::RULES),
+        scratch,
+    )
 }

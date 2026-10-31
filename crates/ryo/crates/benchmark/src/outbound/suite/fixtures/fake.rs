@@ -75,9 +75,14 @@ impl SuitePort for SuiteFake {
                 "empty or duplicated default rule inventory".into(),
             ));
         }
+        let (implemented, missing) = tool
+            .defaults
+            .iter()
+            .cloned()
+            .partition(|rule| self.prepared.iter().any(|case| &case.rule == rule));
         Ok(Audit {
-            implemented: Vec::new(),
-            missing: tool.defaults.clone(),
+            implemented,
+            missing,
         })
     }
 }

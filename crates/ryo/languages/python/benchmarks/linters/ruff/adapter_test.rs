@@ -26,12 +26,19 @@ enum AdapterScenario {
     DuplicateInput,
     UnexpectedRule,
     ReversedSpan,
+    CanonicalRoot,
 }
 type Input = AdapterScenario;
 type Value = bool;
 type Failure = BoundaryFailure;
 
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("canonical root and ordinary diagnostic path identify the same file"),
+        word: Word::Succeeds,
+        input: || AdapterScenario::CanonicalRoot,
+        expect: Expect::Value(true),
+    },
     Case {
         name: CaseName("concrete_ruff_answers_shared_linter_contract"),
         word: Word::Succeeds,
@@ -191,6 +198,12 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
         } else {
             "case.py"
         });
+    let filename = if matches!(scenario, AdapterScenario::CanonicalRoot) {
+        request.root = root.path().canonicalize()?;
+        dunce::simplified(&filename.canonicalize()?).to_owned()
+    } else {
+        filename
+    };
     let code = if matches!(scenario, AdapterScenario::UnexpectedRule) {
         "F401"
     } else {

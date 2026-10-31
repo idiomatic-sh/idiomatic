@@ -1459,6 +1459,7 @@ version = "0.1.0"
 dependencies = [
  "dhat",
  "divan",
+ "dunce",
  "idiomatic-sh-ryo-benchmark",
  "idiomatic-sh-ryo-python",
  "idiomatic-sh-ryo-sdk",
