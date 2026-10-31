@@ -321,7 +321,8 @@ fn scalar_properties(
         match &literal.value {
             Number::Int(value) => {
                 node_property(builder, SCALAR_KIND, NameText(INTEGER_SCALAR));
-                node_property_fmt(builder, SCALAR_VALUE, format_args!("{value}"))?;
+                let canonical = canonical_integer(&value.to_string());
+                node_property(builder, SCALAR_VALUE, NameText(&canonical));
             }
             Number::Float(value) => {
                 node_property(builder, SCALAR_KIND, NameText(FLOAT_SCALAR));
@@ -370,4 +371,33 @@ fn scalar_properties(
         // Other syntax nodes carry no scalar parser payload.
     }
     Ok(())
+}
+
+/// Ruff retains the source spelling for integers larger than `u64`; normalize their radix so
+/// expression identity follows exact numeric magnitude rather than the literal's spelling.
+fn canonical_integer(value: &str) -> String {
+    let compact = value.replace('_', "");
+    let (radix, digits) = if let Some(digits) = compact.strip_prefix("0x").or_else(|| compact.strip_prefix("0X")) {
+        (16_u32, digits)
+    } else if let Some(digits) = compact.strip_prefix("0o").or_else(|| compact.strip_prefix("0O")) {
+        (8_u32, digits)
+    } else if let Some(digits) = compact.strip_prefix("0b").or_else(|| compact.strip_prefix("0B")) {
+        (2_u32, digits)
+    } else {
+        (10_u32, compact.as_str())
+    };
+    let mut decimal = vec![0_u8];
+    for digit in digits.chars().filter_map(|digit| digit.to_digit(radix)) {
+        let mut carry = digit;
+        for place in &mut decimal {
+            let value = u32::from(*place) * radix + carry;
+            *place = (value % 10) as u8;
+            carry = value / 10;
+        }
+        while carry != 0 {
+            decimal.push((carry % 10) as u8);
+            carry /= 10;
+        }
+    }
+    decimal.iter().rev().map(|digit| char::from(b'0' + *digit)).collect()
 }
