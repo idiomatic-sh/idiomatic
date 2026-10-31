@@ -38,7 +38,7 @@ impl ExecutionPort for ExecutionTimedAdapter {
             } else {
                 invocation.directory.join(&invocation.executable)
             };
-            let _metadata = std::fs::metadata(&path)?;
+            executable_access(&path)?;
             path
         } else {
             let search = invocation
@@ -47,19 +47,41 @@ impl ExecutionPort for ExecutionTimedAdapter {
                 .cloned()
                 .or_else(|| self.settings.path.clone())
                 .unwrap_or_default();
-            std::env::split_paths(&search)
-                .map(|entry| {
-                    let base = if entry.is_absolute() {
-                        entry
+            let mut found = None;
+            let mut denied = false;
+            for entry in std::env::split_paths(&search) {
+                let base = if entry.is_absolute() {
+                    entry
+                } else {
+                    invocation.directory.join(entry)
+                };
+                let path = base.join(&invocation.executable);
+                match executable_access(&path) {
+                    Ok(()) => {
+                        found = Some(path);
+                        break;
+                    }
+                    Err(error) if error.kind() == std::io::ErrorKind::PermissionDenied => {
+                        denied = true;
+                    }
+                    Err(error)
+                        if matches!(
+                            error.kind(),
+                            std::io::ErrorKind::NotFound | std::io::ErrorKind::NotADirectory
+                        ) => {}
+                    Err(error) => return Err(error.into()),
+                }
+            }
+            found.ok_or_else(|| {
+                std::io::Error::new(
+                    if denied {
+                        std::io::ErrorKind::PermissionDenied
                     } else {
-                        invocation.directory.join(entry)
-                    };
-                    base.join(&invocation.executable)
-                })
-                .find(|path| path.is_file())
-                .ok_or_else(|| {
-                    std::io::Error::new(std::io::ErrorKind::NotFound, constants::MISSING_CHILD)
-                })?
+                        std::io::ErrorKind::NotFound
+                    },
+                    constants::MISSING_CHILD,
+                )
+            })?
         };
         let metrics = tempfile::NamedTempFile::new()?;
         let mut command = Command::new(&self.settings.executable);
@@ -93,4 +115,25 @@ impl ExecutionPort for ExecutionTimedAdapter {
             resources: Some(resources),
         })
     }
+}
+
+/// Check effective-user execution permission without launching the measured child.
+#[cfg(unix)]
+fn executable_access(path: &std::path::Path) -> std::io::Result<()> {
+    if !std::fs::metadata(path)?.is_file() {
+        return Err(std::io::ErrorKind::PermissionDenied.into());
+    }
+    rustix::fs::accessat(
+        rustix::fs::CWD,
+        path,
+        rustix::fs::Access::EXEC_OK,
+        rustix::fs::AtFlags::EACCESS,
+    )
+    .map_err(std::io::Error::from)
+}
+
+/// GNU time instrumentation requires POSIX executable permission semantics.
+#[cfg(not(unix))]
+fn executable_access(_: &std::path::Path) -> std::io::Result<()> {
+    Err(std::io::ErrorKind::Unsupported.into())
 }

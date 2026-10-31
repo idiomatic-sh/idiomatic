@@ -1300,6 +1300,7 @@ dependencies = [
  "divan",
  "idiomatic-sh-ryo-benchmark",
  "idiomatic-sh-ryo-sdk",
+ "rustix",
  "serde",
  "serde_json",
  "sha2",

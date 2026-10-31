@@ -21,6 +21,13 @@ impl Default for ExecutionFake {
 }
 impl ExecutionPort for ExecutionFake {
     fn run(&self, invocation: Invocation) -> Result<ProcessOutput, Error> {
+        if invocation
+            .executable
+            .file_name()
+            .is_some_and(|name| name == "nonexecutable" || name == "directory")
+        {
+            return Err(std::io::Error::from(std::io::ErrorKind::PermissionDenied).into());
+        }
         if invocation.executable != Path::new("sh") && invocation.executable != Path::new("fixture")
         {
             return Err(std::io::Error::from(std::io::ErrorKind::NotFound).into());
@@ -31,6 +38,12 @@ impl ExecutionPort for ExecutionFake {
             .any(|argument| argument.to_string_lossy().ends_with("exit 127"))
         {
             127
+        } else if invocation
+            .arguments
+            .iter()
+            .any(|argument| argument.to_string_lossy().ends_with("exit 126"))
+        {
+            126
         } else {
             self.status
         };
