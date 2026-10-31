@@ -107,3 +107,18 @@ expected = []
 name = "redirected-file-noqa-code-TRY302"
 files = { "case.py" = "# ruff: noqa: TRY302\ntry:\n    work()\nexcept ValueError:\n    raise\n" }
 expected = []
+
+[[cases]]
+name = "nfkc-handler-binding"
+files = { "case.py" = "try:\n    f()\nexcept Exception as \uff45:\n    raise e\n" }
+expected = [{ file = "case.py", start = 13, end = 49 }]
+
+[[cases]]
+name = "nfkc-raised-name"
+files = { "case.py" = "try:\n    f()\nexcept Exception as e:\n    raise \uff45\n" }
+expected = [{ file = "case.py", start = 13, end = 49 }]
+
+[[cases]]
+name = "nfkc-different-name"
+files = { "case.py" = "try:\n    f()\nexcept Exception as \uff45:\n    raise other\n" }
+expected = []

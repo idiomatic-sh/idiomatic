@@ -92,3 +92,13 @@ expected = [{ file = "case.pyi", start = 22, end = 40 }]
 name = "shared-file-ignore"
 files = { "case.pyi" = "# ruff: file-ignore[PYI035]\n__all__: list[str]\n" }
 expected = []
+
+[[cases]]
+name = "nfkc-all-target"
+files = { "case.pyi" = "__\uff41\uff4c\uff4c__: list[str]\n" }
+expected = [{ file = "case.pyi", start = 0, end = 24 }]
+
+[[cases]]
+name = "nfkc-assigned-all"
+files = { "case.pyi" = "__\uff41\uff4c\uff4c__: list[str] = []\n" }
+expected = []

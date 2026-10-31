@@ -112,3 +112,18 @@ expected = []
 name = "pairing-alias-reordered"
 files = { "case.py" = "# ruff: disable[U005,E722]\n# ruff: enable[E722,U005]\nself.assertEquals(1, 2)\n" }
 expected = []
+
+[[cases]]
+name = "nfkc-method"
+files = { "case.py" = "self.\uff41\uff53\uff53\uff45\uff52\uff54\uff25\uff51\uff55\uff41\uff4c\uff53(a, b)\n" }
+expected = [{ file = "case.py", start = 0, end = 41 }]
+
+[[cases]]
+name = "nfkc-receiver"
+files = { "case.py" = "\uff53\uff45\uff4c\uff46.assertEquals(a, b)\n" }
+expected = [{ file = "case.py", start = 0, end = 25 }]
+
+[[cases]]
+name = "nfkc-other-receiver"
+files = { "case.py" = "other.\uff41\uff53\uff53\uff45\uff52\uff54\uff25\uff51\uff55\uff41\uff4c\uff53(a, b)\n" }
+expected = []

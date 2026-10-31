@@ -87,3 +87,13 @@ expected = [{ file = "case.py", start = 22, end = 34 }]
 name = "shared-file-ignore"
 files = { "case.py" = "# ruff: file-ignore[B032]\nvalues[0]: 1\n" }
 expected = []
+
+[[cases]]
+name = "nfkc-self-exempt"
+files = { "case.py" = "\uff53\uff45\uff4c\uff46.value: int\n" }
+expected = []
+
+[[cases]]
+name = "nfkc-other-receiver"
+files = { "case.py" = "\uff4f\uff54\uff48\uff45\uff52.value: int\n" }
+expected = [{ file = "case.py", start = 0, end = 26 }]

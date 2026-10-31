@@ -1,3 +1,6 @@
+let semantic_token_nodes = select id from "syntax-tree" where kind = "name-token";
+let semantic_identifier_children = select r.child as id, l.name as text from "identifier" as l join "syntax-child" as r on l.id = r.parent;
+let semantic_identifiers = select l.id as id, l.text as text from semantic_identifier_children as l join semantic_token_nodes as r on l.id = r.id;
 let handlers = select id, file, span from "syntax-tree" where kind = "except-handler";
 let bodies = select parent, child, ordinal from "syntax-child" where field = "body";
 let later = select l.child as child from bodies as l join bodies as r on l.parent = r.parent where l.ordinal > r.ordinal;
@@ -11,7 +14,7 @@ let bare = antijoin(left=starts_with_raise, right=raised_values, left-on=["id"],
 let bare_handlers = select handler from bare;
 let name_fields = select parent, child from "syntax-child" where field = "name";
 let alias_tokens = select l.parent as parent, r.child as child from name_fields as l join "syntax-child" as r on l.child = r.parent;
-let identifiers = select id, text from "syntax-tree" where kind = "name-token";
+let identifiers = select id, text from semantic_identifiers;
 let aliases = select l.parent as handler, r.text as name from alias_tokens as l join identifiers as r on l.child = r.id;
 let ids = select parent, child from "syntax-child" where field = "id";
 let names = select l.parent as id, r.text as name from ids as l join identifiers as r on l.child = r.id;

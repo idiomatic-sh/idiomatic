@@ -1,7 +1,10 @@
+let semantic_token_nodes = select id from "syntax-tree" where kind = "name-token";
+let semantic_identifier_children = select r.child as id, l.name as text from "identifier" as l join "syntax-child" as r on l.id = r.parent;
+let semantic_identifiers = select l.id as id, l.text as text from semantic_identifier_children as l join semantic_token_nodes as r on l.id = r.id;
 let aliases = select id, file, span from "syntax-tree" where kind = "alias";
 let asnames = select parent, child from "syntax-child" where field = "asname";
 let alias_tokens = select l.parent as alias, r.child as child from asnames as l join "syntax-child" as r on l.child = r.parent;
-let name_tokens = select id, text from "syntax-tree" where kind = "name-token";
+let name_tokens = select id, text from semantic_identifiers;
 let renamed = select l.alias as id, r.text as name from alias_tokens as l join name_tokens as r on l.child = r.id;
 let originals = select l.occurrence as id, l.target as target, r.name as name from "static-import" as l join renamed as r on l.occurrence = r.id;
 let direct = select id from originals where target = name;

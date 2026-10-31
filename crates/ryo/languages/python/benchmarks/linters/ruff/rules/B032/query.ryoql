@@ -1,3 +1,6 @@
+let semantic_token_nodes = select id from "syntax-tree" where kind = "name-token";
+let semantic_identifier_children = select r.child as id, l.name as text from "identifier" as l join "syntax-child" as r on l.id = r.parent;
+let semantic_identifiers = select l.id as id, l.text as text from semantic_identifier_children as l join semantic_token_nodes as r on l.id = r.id;
 let annotations = select * from "syntax-tree" where kind = "ann-assign";
 let values = select parent, child from "syntax-child" where field = "value";
 let unassigned = antijoin(left=annotations, right=values, left-on=["id"], right-on=["parent"]);
@@ -6,7 +9,7 @@ let subscripts = select id from "syntax-tree" where kind = "subscript";
 let attributes = select id from "syntax-tree" where kind = "attribute";
 let names = select id from "syntax-tree" where kind = "name";
 let identifiers = select parent, child from "syntax-child" where field = "id";
-let self_tokens = select id from "syntax-tree" where text = "self";
+let self_tokens = select id from semantic_identifiers where text = "self";
 let self_names = select l.parent as id from identifiers as l join self_tokens as r on l.child = r.id;
 let other_names = antijoin(left=names, right=self_names, left-on=["id"], right-on=["id"]);
 let named_bases = select l.parent as parent from values as l join names as r on l.child = r.id;

@@ -102,3 +102,13 @@ expected = [{ file = "case.py", start = 43, end = 50 }]
 name = "shared-file-ignore"
 files = { "case.py" = "# ruff: file-ignore[PLE1132]\nfunction(value=1, **{\"value\": 2})\n" }
 expected = []
+
+[[cases]]
+name = "nfkc-keyword"
+files = { "case.py" = "f(\uff58=1, **{\"x\": 2})\n" }
+expected = [{ file = "case.py", start = 12, end = 15 }]
+
+[[cases]]
+name = "nfkc-string-not-normalized"
+files = { "case.py" = "f(x=1, **{\"\uff58\": 2})\n" }
+expected = []

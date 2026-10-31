@@ -1,13 +1,16 @@
+let semantic_token_nodes = select id from "syntax-tree" where kind = "name-token";
+let semantic_identifier_children = select r.child as id, l.name as text from "identifier" as l join "syntax-child" as r on l.id = r.parent;
+let semantic_identifiers = select l.id as id, l.text as text from semantic_identifier_children as l join semantic_token_nodes as r on l.id = r.id;
 let attributes = select id, file, span from "syntax-tree" where kind = "attribute";
 let values = select parent, child from "syntax-child" where field = "value";
 let names = select id from "syntax-tree" where kind = "name";
 let name_fields = select parent, child from "syntax-child" where field = "id";
-let self_tokens = select id from "syntax-tree" where kind = "name-token" and text = "self";
+let self_tokens = select id from semantic_identifiers where text = "self";
 let self_names = select l.parent as id from name_fields as l join self_tokens as r on l.child = r.id;
 let on_self = select l.parent as id from values as l join self_names as r on l.child = r.id;
 let attr_fields = select parent, child from "syntax-child" where field = "attr";
 let attr_tokens = select l.parent as parent, r.child as child from attr_fields as l join "syntax-child" as r on l.child = r.parent;
-let deprecated = select id from "syntax-tree" where kind = "name-token" and matches(text, "^(?:assertAlmostEquals|assertEquals|assertNotAlmostEquals|assertNotEquals|assertNotRegexpMatches|assertRaisesRegexp|assertRegexpMatches|assert_|failIf|failIfAlmostEqual|failIfEqual|failUnless|failUnlessAlmostEqual|failUnlessEqual|failUnlessRaises)$");
+let deprecated = select id from semantic_identifiers where matches(text, "^(?:assertAlmostEquals|assertEquals|assertNotAlmostEquals|assertNotEquals|assertNotRegexpMatches|assertRaisesRegexp|assertRegexpMatches|assert_|failIf|failIfAlmostEqual|failIfEqual|failUnless|failUnlessAlmostEqual|failUnlessEqual|failUnlessRaises)$");
 let old_attributes = select l.parent as id from attr_tokens as l join deprecated as r on l.child = r.id;
 let self_deprecated = select l.id as id from on_self as l join old_attributes as r on l.id = r.id;
 let candidates = select l.id as id, l.file as file, l.span as span from attributes as l join self_deprecated as r on l.id = r.id;

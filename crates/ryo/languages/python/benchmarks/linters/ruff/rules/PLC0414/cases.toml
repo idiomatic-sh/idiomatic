@@ -112,3 +112,18 @@ expected = [{ file = "case.py", start = 29, end = 37 }]
 name = "shared-file-ignore"
 files = { "case.py" = "# ruff: file-ignore[PLC0414]\nimport os as os\n" }
 expected = []
+
+[[cases]]
+name = "nfkc-alias"
+files = { "case.py" = "import os as \uff4f\uff53\n" }
+expected = [{ file = "case.py", start = 7, end = 19 }]
+
+[[cases]]
+name = "nfkc-original"
+files = { "case.py" = "import \uff4f\uff53 as os\n" }
+expected = [{ file = "case.py", start = 7, end = 19 }]
+
+[[cases]]
+name = "nfkc-different-alias"
+files = { "case.py" = "import \uff4f\uff53 as other\n" }
+expected = []

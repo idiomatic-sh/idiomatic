@@ -1,3 +1,6 @@
+let semantic_token_nodes = select id from "syntax-tree" where kind = "name-token";
+let semantic_identifier_children = select r.child as id, l.name as text from "identifier" as l join "syntax-child" as r on l.id = r.parent;
+let semantic_identifiers = select l.id as id, l.text as text from semantic_identifier_children as l join semantic_token_nodes as r on l.id = r.id;
 let calls = select id from "syntax-tree" where kind = "call";
 let arguments = select id from "syntax-tree" where kind = "call-arguments";
 let argument_parents = select l.parent as parent, r.id as id from "syntax-child" as l join arguments as r on l.child = r.id;
@@ -6,7 +9,7 @@ let keyword_edges = select parent, child, ordinal from "syntax-child" where fiel
 let keywords = select r.parent as call, r.child as id, r.ordinal as ordinal from call_arguments as l join keyword_edges as r on l.id = r.parent;
 let arg_fields = select parent, child from "syntax-child" where field = "arg";
 let arg_tokens = select l.parent as keyword, r.child as child from arg_fields as l join "syntax-child" as r on l.child = r.parent;
-let identifiers = select id, text from "syntax-tree" where kind = "name-token";
+let identifiers = select id, text from semantic_identifiers;
 let arg_names = select l.keyword as keyword, r.text as name from arg_tokens as l join identifiers as r on l.child = r.id;
 let explicit_names = select l.call as call, r.name as name from keywords as l join arg_names as r on l.id = r.keyword;
 let unpacked = antijoin(left=keywords, right=arg_fields, left-on=["id"], right-on=["parent"]);

@@ -1,3 +1,6 @@
+let semantic_token_nodes = select id from "syntax-tree" where kind = "name-token";
+let semantic_identifier_children = select r.child as id, l.name as text from "identifier" as l join "syntax-child" as r on l.id = r.parent;
+let semantic_identifiers = select l.id as id, l.text as text from semantic_identifier_children as l join semantic_token_nodes as r on l.id = r.id;
 let classes = select id from "syntax-tree" where kind = "class-def";
 let bodies = select parent, child from "syntax-child" where field = "body";
 let direct = select r.child as child from classes as l join bodies as r on l.id = r.parent;
@@ -5,7 +8,7 @@ let assignments = select id, file, span from "syntax-tree" where kind = "assign"
 let statements = select r.id as id, r.file as file, r.span as span from direct as l join assignments as r on l.child = r.id;
 let targets = select parent, child from "syntax-child" where field = "targets" or field = "target";
 let name_fields = select parent, child from "syntax-child" where field = "id";
-let slots = select id from "syntax-tree" where kind = "name-token" and text = "__slots__";
+let slots = select id from semantic_identifiers where text = "__slots__";
 let slot_names = select l.parent as id from name_fields as l join slots as r on l.child = r.id;
 let slot_targets = select l.parent as parent from targets as l join slot_names as r on l.child = r.id;
 let values = select parent, child from "syntax-child" where field = "value";
