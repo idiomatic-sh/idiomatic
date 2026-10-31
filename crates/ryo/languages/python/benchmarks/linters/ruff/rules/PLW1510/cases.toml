@@ -11,7 +11,7 @@ expected = [{ file = "case.py", start = 27, end = 36 }]
 [[cases]]
 name = "from-import"
 files = { "case.py" = "from subprocess import run as target\ntarget([\"echo\"])\n" }
-expected = [{ file = "case.py", start = 30, end = 36 }]
+expected = [{ file = "case.py", start = 37, end = 43 }]
 
 [[cases]]
 name = "unimported"

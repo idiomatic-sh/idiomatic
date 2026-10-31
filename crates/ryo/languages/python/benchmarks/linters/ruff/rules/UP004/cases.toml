@@ -16,7 +16,7 @@ expected = [{ file = "case.py", start = 24, end = 39 }]
 [[cases]]
 name = "alias"
 files = { "case.py" = "from builtins import object as O\nclass C(O):\n    pass\n" }
-expected = [{ file = "case.py", start = 31, end = 32 }]
+expected = [{ file = "case.py", start = 41, end = 42 }]
 
 [[cases]]
 name = "repeated"

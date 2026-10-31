@@ -16,7 +16,7 @@ expected = [{ file = "case.py", start = 16, end = 29 }]
 [[cases]]
 name = "alias"
 files = { "case.py" = "from builtins import exit as stop\nstop()\n" }
-expected = [{ file = "case.py", start = 29, end = 33 }]
+expected = [{ file = "case.py", start = 34, end = 38 }]
 
 [[cases]]
 name = "shadowed"

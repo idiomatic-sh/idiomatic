@@ -1,12 +1,12 @@
 [[cases]]
 name = "any-list"
 files = { "case.py" = "any([x for x in values])\n" }
-expected = [{ file = "case.py", start = 0, end = 24 }]
+expected = [{ file = "case.py", start = 4, end = 23 }]
 
 [[cases]]
 name = "all-set"
 files = { "case.py" = "all({x for x in values})\n" }
-expected = [{ file = "case.py", start = 0, end = 24 }]
+expected = [{ file = "case.py", start = 4, end = 23 }]
 
 [[cases]]
 name = "generator"
@@ -26,7 +26,7 @@ expected = []
 [[cases]]
 name = "extra-positional"
 files = { "case.py" = "any([x for x in values], other)\n" }
-expected = [{ file = "case.py", start = 0, end = 31 }]
+expected = [{ file = "case.py", start = 4, end = 23 }]
 
 [[cases]]
 name = "keyword"
@@ -36,7 +36,7 @@ expected = []
 [[cases]]
 name = "alias"
 files = { "case.py" = "from builtins import any as some\nsome([x for x in values])\n" }
-expected = [{ file = "case.py", start = 33, end = 58 }]
+expected = [{ file = "case.py", start = 38, end = 57 }]
 
 [[cases]]
 name = "shadowed"
@@ -61,7 +61,7 @@ expected = []
 [[cases]]
 name = "await-filter"
 files = { "case.py" = "async def f():\n    any([x for x in values if await pred(x)])\n" }
-expected = [{ file = "case.py", start = 19, end = 60 }]
+expected = [{ file = "case.py", start = 23, end = 59 }]
 
 [[cases]]
 name = "noqa"
