@@ -207,6 +207,11 @@ impl Parse for ParseContract {
         languages::absent(AbsenceCause::NoSuchConstruct)
     }
 
+    fn qualified_name(&self) -> Support<Reader<languages::QualifiedName, ()>> {
+        // standard: WHATWG HTML, Parsing HTML documents, https://html.spec.whatwg.org/multipage/parsing.html defines document/link structure, not lexical import or builtin namespaces; embedded code is read by its own language.
+        languages::absent(AbsenceCause::NoSuchConstruct)
+    }
+
     fn resolves(&self) -> Support<Reader<languages::Resolves, ()>> {
         // standard: WHATWG HTML, Parsing HTML documents: https://html.spec.whatwg.org/multipage/parsing.html defines document nodes, not this programming-language or package construct.
         languages::absent(AbsenceCause::NoSuchConstruct)

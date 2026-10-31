@@ -229,6 +229,7 @@ fn read(
     wanted: &[Relation],
 ) -> Result<Collect, ParseError> {
     let mut out = Collect::default();
+    let mut symbols = Symbols::default();
     read_file(
         subject,
         ParseRequest {
@@ -239,11 +240,43 @@ fn read(
             fields: FieldRequest::Unwanted,
         },
         &mut Elements::default(),
-        &mut Symbols::default(),
+        &mut symbols,
         wanted,
         &mut out,
     )?;
+    for (relation, row) in out.rows() {
+        if relation == Relation::QualifiedName {
+            assert!(
+                qualified_name_valid(&row, &symbols, bytes),
+                "qualified-name must distinguish proven paths, unknown identities and builtin availability"
+            );
+        }
+    }
     Ok(out)
+}
+
+/// Every provider must distinguish a proven lexical path from an unknown value and explicit builtin availability.
+fn qualified_name_valid(row: &[u64], symbols: &Symbols, source: ByteSlice<'_>) -> bool {
+    use crate::domain::symbols::service::text_of;
+    use crate::domain::terms::{service::unknown_reason, types::Symbol};
+    let [_, path, provenance, major, minor, _, _] = row else {
+        return false;
+    };
+    let (Ok(path), Ok(provenance)) = (u32::try_from(*path), u32::try_from(*provenance)) else {
+        return false;
+    };
+    let path = Symbol(path);
+    let named = text_of(symbols, source, path).is_some_and(|name| !name.0.is_empty());
+    match text_of(symbols, source, Symbol(provenance)).map(|text| text.0) {
+        Some("builtin") => {
+            named && *major > 0 && i64::try_from(*major).is_ok() && i64::try_from(*minor).is_ok()
+        }
+        Some("import") => named && *major == 0 && *minor == 0,
+        Some("local" | "unresolved" | "ambiguous") => {
+            unknown_reason(path).is_some() && *major == 0 && *minor == 0
+        }
+        _ => false,
+    }
 }
 
 /// Runs the sample rows against one implementation.

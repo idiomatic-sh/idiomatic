@@ -24,3 +24,6 @@ pub(crate) mod syntax;
 pub(crate) mod tokens;
 
 pub(crate) mod indentation;
+
+/// Lexical import and builtin provenance.
+pub(crate) mod qualification;

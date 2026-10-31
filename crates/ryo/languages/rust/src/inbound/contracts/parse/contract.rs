@@ -171,6 +171,11 @@ impl Parse for ParseContract {
         languages::reads::<CallArgumentItem>()
     }
 
+    fn qualified_name(&self) -> Support<Reader<languages::QualifiedName, ()>> {
+        // Qualified source identities are applicable, but this provider has not implemented their reader.
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn resolves(&self) -> Support<Reader<languages::Resolves, ()>> {
         languages::reads::<ResolvesItem>()
     }

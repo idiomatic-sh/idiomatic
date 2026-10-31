@@ -227,6 +227,11 @@ impl Parse for ParseContract {
         >()
     }
 
+    fn qualified_name(&self) -> Support<Reader<languages::QualifiedName, ()>> {
+        // Qualified source identities are applicable, but this provider has not implemented their reader.
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn resolves(&self) -> Support<Reader<languages::Resolves, ()>> {
         languages::reads::<
             crate::domain::relations::collections::relations::resolves::item::ResolvesItem,

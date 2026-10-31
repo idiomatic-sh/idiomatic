@@ -28,7 +28,7 @@ pub use ryo_language::inbound::use_cases::parse::fixtures::expected_rows::{
     indent_region::IndentRegionExpectedRow, inherits::InheritsExpectedRow,
     mapping::MappingExpectedRow, mention::MentionExpectedRow,
     package_dependency::PackageDependencyExpectedRow, parameter::ParameterExpectedRow,
-    prose::ProseExpectedRow, reference::ReferenceExpectedRow, resolves::ResolvesExpectedRow,
+    prose::ProseExpectedRow, qualified_name::QualifiedNameExpectedRow, reference::ReferenceExpectedRow, resolves::ResolvesExpectedRow,
     scope::ScopeExpectedRow, sequence_element::SequenceElementExpectedRow,
     source_dependency::SourceDependencyExpectedRow, source_location::SourceLocationExpectedRow,
     static_call::StaticCallExpectedRow, static_import::StaticImportExpectedRow,

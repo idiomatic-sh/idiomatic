@@ -8,6 +8,10 @@
 use ryo::languages::Why;
 use ryo::languages::contract::{Expected, Unfilled, Unshown};
 
+/// Independently expected canonical lexical names.
+mod qualified_name {
+    include!("../../tests/fixtures/relations/qualified_name/expected.rs");
+}
 /// The rows the `resolves` relation must give for its fixture input.
 mod resolves {
     include!("../../tests/fixtures/relations/resolves/expected.rs");
@@ -106,6 +110,7 @@ pub(super) fn expected() -> Vec<Expected> {
         scope::expected(),
         static_call::expected(),
         resolves::expected(),
+        qualified_name::expected(),
         call_argument::expected(),
         static_import::expected(),
         string_literal::expected(),

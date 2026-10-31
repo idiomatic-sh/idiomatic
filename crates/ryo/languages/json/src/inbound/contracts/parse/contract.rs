@@ -194,6 +194,10 @@ impl Parse for ParseContract {
         languages::absent(AbsenceCause::NotCode)
     }
 
+    fn qualified_name(&self) -> Support<Reader<languages::QualifiedName, Model>> {
+        languages::absent(AbsenceCause::NotCode)
+    }
+
     fn resolves(&self) -> Support<Reader<languages::Resolves, Model>> {
         languages::absent(AbsenceCause::NotCode)
     }

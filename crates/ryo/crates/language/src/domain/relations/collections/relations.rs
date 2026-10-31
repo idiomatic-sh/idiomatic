@@ -36,3 +36,6 @@ pub mod visibility;
 pub mod workspace_member;
 
 pub mod indent_region;
+
+/// Canonical lexical name provenance.
+pub mod qualified_name;

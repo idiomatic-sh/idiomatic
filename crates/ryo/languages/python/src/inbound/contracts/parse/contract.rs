@@ -57,6 +57,7 @@ impl Parse for ParseContract {
 
     fn file_model(&self, tree: &languages::Tree<'_>, model: &mut Declarations) {
         crate::domain::indentation::service::clear(model.indentation.get_mut());
+        crate::domain::qualification::service::clear(model.qualification.get_mut());
         declare(tree, model);
         crate::domain::bindings::service::index(tree, model);
     }
@@ -163,6 +164,10 @@ impl Parse for ParseContract {
 
     fn static_call(&self) -> Support<Reader<languages::StaticCall, Declarations>> {
         languages::reads::<StaticCallItem>()
+    }
+
+    fn qualified_name(&self) -> Support<Reader<languages::QualifiedName, Declarations>> {
+        languages::reads::<crate::domain::relations::collections::relations::qualified_name::item::QualifiedNameItem>()
     }
 
     fn resolves(&self) -> Support<Reader<languages::Resolves, Declarations>> {

@@ -212,6 +212,11 @@ impl Parse for ParseContract {
         languages::absent(AbsenceCause::NoSuchConstruct)
     }
 
+    fn qualified_name(&self) -> Support<Reader<languages::QualifiedName, ()>> {
+        // Qualified source identities are applicable, but this provider has not implemented their reader.
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn resolves(&self) -> Support<Reader<languages::Resolves, ()>> {
         // standard: the CSS Syntax Module Level 3, §5.2 CSS Parsing Results: it has no type, so no type name is written in a type position.
         languages::absent(AbsenceCause::NoSuchConstruct)

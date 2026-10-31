@@ -38,6 +38,7 @@ fn subject((scope, name): Input) -> Value {
     let model = Declarations {
         bindings: Default::default(),
         indentation: Default::default(),
+        qualification: Default::default(),
         declared: vec![
             ScopeDeclaration {
                 scope: Position(3),

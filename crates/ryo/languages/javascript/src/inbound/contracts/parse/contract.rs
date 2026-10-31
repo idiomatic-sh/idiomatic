@@ -291,6 +291,11 @@ impl Parse for ParseContract {
         >()
     }
 
+    fn qualified_name(&self) -> Support<Reader<languages::QualifiedName, ()>> {
+        // Qualified source identities are applicable, but this provider has not implemented their reader.
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn resolves(&self) -> Support<Reader<languages::Resolves, ()>> {
         // standard: ECMA-262, ECMAScript Language: Functions and Classes, defines no type annotations, so no type name is written in a type position.
         languages::absent(AbsenceCause::NoSuchConstruct)

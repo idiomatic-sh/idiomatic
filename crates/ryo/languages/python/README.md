@@ -87,3 +87,26 @@ The standard is `CPython` 3.15.0rc2's `ast` and `token` (`tests/fixtures/standar
 - Tokens: a keyword is a `NAME` as Python's tokenizer gives it; the white space the tokenizer gives no token for is a `whitespace` extra, so the tokens spell the file; `?`, an unknown character and an `IPython` escape are `ERRORTOKEN`.
 - Stated exception, `suite/valid/inline/unary_plus_py315.py`: `CPython` folds the key `+1` of a mapping pattern into a `Constant`; the library keeps the `UnaryOp` written, so the tree has one node more than the standard's there. It is the one pinned file whose projected tree is not the standard's.
 - Accepted where `CPython` refuses: a `try` with `else` and no `except`, and an unknown `__future__` feature. The library reads both without an error; the language reports `CPython`'s message on the same line (`tests/fixtures/standard/refused/`).
+
+`qualified-name` describes lexical source provenance for load names and attribute expressions,
+including nested prefixes. `path` is a canonical import path or `builtins.<name>`; `provenance`
+is `import`, `builtin`, `local`, `unresolved`, or `ambiguous`. A local value or dynamic receiver
+has an unknown path, not a guessed name. Wildcard imports and intervening deletion preserve
+explicit uncertainty. Ordinary unknown expressions do not make unrelated proven origins partial;
+only an incomplete syntax tree makes the relation incomplete. The relation describes lexical
+origin, not runtime object identity or the absence of monkey-patching.
+
+The numeric `since-major` and `since-minor` columns say when a builtin root binding entered the language. These do not assert when an attribute
+of that builtin was introduced, or whether any named attribute exists.
+Consumers must compare both components with their target version: the provider's parser version
+is not a linter's target version. Non-builtin origins carry zero components, which mean
+inapplicable, not proof of availability. Imported builtin aliases retain import provenance;
+their lexical import path is independent of whether executing that import would succeed on a
+particular runtime. The first query consumers target Python 3.10; newer builtin identities must
+therefore be filtered by these columns.
+
+The shared parse contract rejects invented local paths, missing builtin availability, unknown
+provenance labels, and versioned import rows. Provider tests independently cover aliases,
+shadowing, scope timing, deletes, wildcard uncertainty, mixed dynamic/known calls, and model
+reuse. All languages inherit the row contract and must either implement the reader or declare
+it not yet read where the construct applies.

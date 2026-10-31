@@ -214,6 +214,11 @@ impl Parse for ParseContract {
         languages::absent(AbsenceCause::NoSuchConstruct)
     }
 
+    fn qualified_name(&self) -> Support<Reader<languages::QualifiedName, Sections>> {
+        // standard: CommonMark 0.31.2, Blocks and inlines, https://spec.commonmark.org/0.31.2/#blocks-and-inlines defines document/link structure, not lexical import or builtin namespaces; embedded code is read by its own language.
+        languages::absent(AbsenceCause::NoSuchConstruct)
+    }
+
     fn resolves(&self) -> Support<Reader<languages::Resolves, Sections>> {
         // standard: mdast.md, Nodes: mdast defines no type, so no type name is written in a type position.
         languages::absent(AbsenceCause::NoSuchConstruct)

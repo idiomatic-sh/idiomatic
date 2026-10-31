@@ -17,7 +17,7 @@ use crate::domain::tokens::types::Token;
     clippy::wildcard_enum_match_arm,
     reason = "a `from` import's module is its dots and its identifier before its first alias; the other kinds under it are its keywords and white space"
 )]
-fn push_module(tree: &Tree<'_>, symbols: &mut languages::Symbols, import: Position) {
+pub(crate) fn push_module(tree: &Tree<'_>, symbols: &mut languages::Symbols, import: Position) {
     for each in languages::children(tree.elements, import) {
         match kind(tree, each) {
             Kind::Token(Token::Dot) => languages::push_text(symbols, languages::NameText(DOT)),

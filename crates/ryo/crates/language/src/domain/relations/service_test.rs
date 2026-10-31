@@ -109,7 +109,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("every_relation_is_found_by_its_name"),
         word: Word::Succeeds,
         input: || every_relation_is_named_and_found_by_its_name,
-        expect: Expect::Value(34),
+        expect: Expect::Value(35),
     },
     Case {
         name: CaseName("a_name_no_relation_has_finds_nothing"),

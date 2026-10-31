@@ -25,3 +25,6 @@ pub(crate) mod resolves;
 pub(crate) mod fixtures;
 
 pub(crate) mod indent_region;
+
+/// Canonical lexical name provenance.
+pub(crate) mod qualified_name;

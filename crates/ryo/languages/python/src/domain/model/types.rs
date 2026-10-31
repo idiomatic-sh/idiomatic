@@ -52,4 +52,42 @@ pub(crate) struct Declarations {
     pub bindings: Vec<LexicalBinding>,
     /// Lazy lexical indentation regions retain their storage between files.
     pub indentation: RefCell<IndentationIndex>,
+    /// Lazy provenance uncertainty, invalidated with every parse.
+    pub qualification: RefCell<QualificationIndex>,
+}
+
+/// A lexical event that can invalidate otherwise known import or builtin provenance.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum QualificationHazardKind {
+    /// A wildcard import may bind any name.
+    Wildcard,
+    /// Deletion removes one binding without introducing a new declaration.
+    Delete(Symbol),
+}
+/// An event scoped and ordered independently of any linter.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct QualificationHazard {
+    /// The namespace modified by the event.
+    pub scope: Position,
+    /// The source position of the event.
+    pub position: Position,
+    /// The event's effect on lexical provenance.
+    pub kind: QualificationHazardKind,
+}
+/// Whether retained provenance events belong to the current parsed model.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) enum QualificationState {
+    /// The current source has not requested provenance.
+    #[default]
+    Fresh,
+    /// Events have been indexed for the current source.
+    Ready,
+}
+/// Lazily indexed uncertainty events; capacity survives reparsing.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct QualificationIndex {
+    /// Source-ordered namespace events.
+    pub hazards: Vec<QualificationHazard>,
+    /// Cache validity for the current file.
+    pub state: QualificationState,
 }
