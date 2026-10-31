@@ -163,6 +163,10 @@ fn subject(operation: Input) -> Result<Value, Failure> {
             let pointer = output.partials[0].1.as_ptr();
             output.clear();
             assert!(output.partials.is_empty());
+            assert_eq!(
+                output.cause_buffers.first().map(String::as_str),
+                Some("old long cause")
+            );
             <Collect as Rows<IndentRegionRow>>::partial(
                 &mut output,
                 ReportText("new cause"),
