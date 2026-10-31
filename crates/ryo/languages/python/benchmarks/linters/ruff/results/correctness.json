@@ -141,29 +141,12 @@
     "findings: project=fastapi contestant=ryo condition=edited-tool-cache counts={RuleId(\"E722\"): FindingCount(1), RuleId(\"PLC0414\"): FindingCount(23)}"
   ],
   "gate": {
-    "summary": {
-      "new": 12,
-      "resolved": 0,
-      "accepted": 188,
-      "unjudged": 0
-    },
+    "summary": {"new":12,"resolved":0,"accepted":188,"unjudged":0},
     "tools": [
-      {
-        "id": "cargo-fmt",
-        "reused": false
-      },
-      {
-        "id": "tastemaker",
-        "reused": false
-      },
-      {
-        "id": "cargo-machete",
-        "reused": false
-      },
-      {
-        "id": "cargo-deny",
-        "reused": false
-      },
+      {"id":"cargo-fmt","reused":false},
+      {"id":"tastemaker","reused":false},
+      {"id":"cargo-machete","reused":false},
+      {"id":"cargo-deny","reused":false},
       {
         "id": "test-core",
         "reused": false,
@@ -173,53 +156,23 @@
           "said": "   Compiling humantime-serde v1.1.1\n   Compiling automod v1.0.17\n   Compiling shlex v1.3.0\n   Compiling trycmd v0.15.11\n   Compiling cpu-time v1.0.0\n   Compiling trybuild v1.0.120\n    Finished `test` profile [optimized + debuginfo] target(s) in 1m 45s\nerror: creating test list failed\n\nCaused by:\n  for `idiomatic-sh-ryo-core::allocation`, command `/workspaces/idiomatic-public-benchmark/crates/ryo/target/debug/deps/allocation-21ff2e71c67ff2ef --list --format terse` exited with exit code 101\n  --- stdout:\n\n  --- stderr:\n\n  thread 'main' (1296728) panicked at crates/core/src/inbound/use_cases/lint/fixtures/contract.rs:518:41:\n  the corpus lints: Rule { id: \"operator:ordered-match\", reason: \"ordered-match requires unique order values within each side and key group\" }\n  note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n\n  ---"
         }
       },
-      {
-        "id": "test-language/css",
-        "reused": false
-      },
-      {
-        "id": "test-language/go",
-        "reused": false
-      },
-      {
-        "id": "test-language/html",
-        "reused": false
-      },
-      {
-        "id": "test-language/javascript",
-        "reused": false
-      },
-      {
-        "id": "test-language/json",
-        "reused": false
-      },
-      {
-        "id": "test-language/markdown",
-        "reused": false
-      },
-      {
-        "id": "test-language/python",
-        "reused": false
-      },
-      {
-        "id": "test-language/rust",
-        "reused": false
-      },
-      {
-        "id": "test-language/toml",
-        "reused": false
-      },
-      {
-        "id": "test-language/typescript",
-        "reused": false
-      },
+      {"id":"test-language/css","reused":false},
+      {"id":"test-language/go","reused":false},
+      {"id":"test-language/html","reused":false},
+      {"id":"test-language/javascript","reused":false},
+      {"id":"test-language/json","reused":false},
+      {"id":"test-language/markdown","reused":false},
+      {"id":"test-language/python","reused":false},
+      {"id":"test-language/rust","reused":false},
+      {"id":"test-language/toml","reused":false},
+      {"id":"test-language/typescript","reused":false},
       {
         "id": "test-cli",
         "reused": false,
         "error": {
           "ended": "exited",
           "code": 100,
-          "said": "\n    thread 'resources::operator::list::command_test::succeeds' (1301624) panicked at cli/src/cases.rs:113:9:\n    prints_all_seventeen: expected (17, Terminal), answered Ok((19, Terminal))\n    note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n\n  Cancelling due to test failure: 9 tests still running\n        PASS [   0.006s] ( 42/168) idiomatic-sh-ryo resources::operator::describe::command_test::succeeds\n        PASS [   0.002s] ( 43/168) idiomatic-sh-ryo resources::query::run::schemas::tests::succeeds\n        PASS [   0.005s] ( 44/168) idiomatic-sh-ryo resources::query::run::command_test::refuses\n        PASS [   0.003s] ( 45/168) idiomatic-sh-ryo resources::query::run::schemas::tests::fails\n        PASS [   0.003s] ( 46/168) idiomatic-sh-ryo resources::query::validate::command_test::succeeds\n        PASS [   0.004s] ( 47/168) idiomatic-sh-ryo resources::query::run::schemas::tests::refuses\n        PASS [   0.003s] ( 48/168) idiomatic-sh-ryo resources::query::validate::command_test::refuses\n        PASS [   0.015s] ( 49/168) idiomatic-sh-ryo resources::query::run::command_test::fails\n        PASS [   0.053s] ( 50/168) idiomatic-sh-ryo resources::query::run::command_test::succeeds\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n     Summary [   0.068s] 50/168 tests run: 49 passed, 1 failed, 1 skipped\n        FAIL [   0.004s] ( 41/168) idiomatic-sh-ryo resources::operator::list::command_test::succeeds\nwarning: 118/168 tests were not run due to test failure (run with --no-fail-fast to run all tests, or run with --max-fail)\nerror: test run failed"
+          "said": "\n    thread 'resources::operator::list::command_test::succeeds' (1301624) panicked at cli/src/cases.rs:113:9:\n    prints_all_seventeen: expected (17, Terminal), answered Ok((19, Terminal))\n    note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n\n  Cancelling due to test failure: 9 tests still running\n        PASS [   0.006s] ( 42/168) idiomatic-sh-ryo resources::operator::describe::command_test::succeeds\n        PASS [   0.002s] ( 43/168) idiomatic-sh-ryo resources::query::run::schemas::tests::succeeds\n        PASS [   0.005s] ( 44/168) idiomatic-sh-ryo resources::query::run::command_test::refuses\n        PASS [   0.003s] ( 45/168) idiomatic-sh-ryo resources::query::run::schemas::tests::fails\n        PASS [   0.003s] ( 46/168) idiomatic-sh-ryo resources::query::validate::command_test::succeeds\n        PASS [   0.004s] ( 47/168) idiomatic-sh-ryo resources::query::run::schemas::tests::refuses\n        PASS [   0.003s] ( 48/168) idiomatic-sh-ryo resources::query::validate::command_test::refuses\n        PASS [   0.015s] ( 49/168) idiomatic-sh-ryo resources::query::run::command_test::fails\n        PASS [   0.053s] ( 50/168) idiomatic-sh-ryo resources::query::run::command_test::succeeds\n────────────\n     Summary [   0.068s] 50/168 tests run: 49 passed, 1 failed, 1 skipped\n        FAIL [   0.004s] ( 41/168) idiomatic-sh-ryo resources::operator::list::command_test::succeeds\nwarning: 118/168 tests were not run due to test failure (run with --no-fail-fast to run all tests, or run with --max-fail)\nerror: test run failed"
         }
       },
       {
@@ -231,14 +184,8 @@
           "said": "    Finished `test` profile [optimized + debuginfo] target(s) in 0.11s\n     Running tests/bdd.rs (target/debug/deps/bdd-e10aa30df8a31d81)\n     Running tests/bdd.rs (target/debug/deps/bdd-e80c52335fbb74fb)\n\nthread 'main' (1301920) panicked at crates/core/tests/bdd.rs:182:5:\na step failed or was skipped\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\nerror: test failed, to rerun pass `-p idiomatic-sh-ryo-core --test bdd`"
         }
       },
-      {
-        "id": "test-doc",
-        "reused": false
-      },
-      {
-        "id": "cargo-doc",
-        "reused": false
-      },
+      {"id":"test-doc","reused":false},
+      {"id":"cargo-doc","reused":false},
       {
         "id": "peak",
         "reused": false,
@@ -248,22 +195,10 @@
           "said": "   Compiling idiomatic-sh-ryo-rust v0.1.0 (/workspaces/idiomatic-public-benchmark/crates/ryo/languages/rust)\n   Compiling idiomatic-sh-ryo-json v0.1.0 (/workspaces/idiomatic-public-benchmark/crates/ryo/languages/json)\n   Compiling idiomatic-sh-ryo-typescript v0.1.0 (/workspaces/idiomatic-public-benchmark/crates/ryo/languages/typescript)\n   Compiling idiomatic-sh-ryo-html v0.1.0 (/workspaces/idiomatic-public-benchmark/crates/ryo/languages/html)\n   Compiling idiomatic-sh-ryo-javascript v0.1.0 (/workspaces/idiomatic-public-benchmark/crates/ryo/languages/javascript)\n   Compiling idiomatic-sh-ryo-benchmark v0.1.0 (/workspaces/idiomatic-public-benchmark/crates/ryo/crates/benchmark)\n    Finished `test` profile [optimized + debuginfo] target(s) in 1m 08s\nerror: creating test list failed\n\nCaused by:\n  for `idiomatic-sh-ryo-core::allocation`, command `/workspaces/idiomatic-public-benchmark/crates/ryo/target/debug/deps/allocation-b19792a652d23c69 --list --format terse` exited with exit code 101\n  --- stdout:\n\n  --- stderr:\n\n  thread 'main' (1305558) panicked at crates/core/src/inbound/use_cases/lint/fixtures/contract.rs:518:41:\n  the corpus lints: Rule { id: \"operator:ordered-match\", reason: \"ordered-match requires unique order values within each side and key group\" }\n  note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n\n  ---"
         }
       },
-      {
-        "id": "performance",
-        "reused": false
-      },
-      {
-        "id": "performance-distribution",
-        "reused": false
-      },
-      {
-        "id": "performance-lint",
-        "reused": false
-      },
-      {
-        "id": "performance-python-ruff",
-        "reused": false
-      }
+      {"id":"performance","reused":false},
+      {"id":"performance-distribution","reused":false},
+      {"id":"performance-lint","reused":false},
+      {"id":"performance-python-ruff","reused":false}
     ],
     "new_violations": [
       {
@@ -408,179 +343,33 @@
     "status": "passed",
     "selected_rules": 29,
     "cases": 441,
-    "projects": {
-      "django": {
-        "findings": {
-          "B015": 3,
-          "B026": 7
-        }
-      },
-      "pandas": {
-        "findings": {
-          "B015": 194
-        }
-      },
-      "fastapi": {
-        "findings": {}
-      }
-    },
-    "conditions": [
-      "empty-tool-cache",
-      "retained-tool-cache",
-      "edited-tool-cache",
-      "edited-vs-fresh-cache"
-    ],
+    "projects": {"django":{"findings":{"B015":3,"B026":7}},"pandas":{"findings":{"B015":194}},"fastapi":{"findings":{}}},
+    "conditions": ["empty-tool-cache","retained-tool-cache","edited-tool-cache","edited-vs-fresh-cache"],
     "trials_per_project": 6,
     "initial_pandas_failure": {
       "reference_count": 194,
       "candidate_count": 197,
       "missing": [],
-      "extra": [
-        [
-          "B002",
-          "asv_bench/benchmarks/join_merge.py",
-          "10804",
-          "10823"
-        ],
-        [
-          "B002",
-          "pandas/core/arrays/categorical.py",
-          "78202",
-          "78218"
-        ],
-        [
-          "B002",
-          "pandas/core/indexes/range.py",
-          "1556",
-          "1578"
-        ]
-      ]
+      "extra": [["B002","asv_bench/benchmarks/join_merge.py","10804","10823"],["B002","pandas/core/arrays/categorical.py","78202","78218"],["B002","pandas/core/indexes/range.py","1556","1578"]]
     },
-    "resolution": {
-      "commit": "e73df38",
-      "rule": "B002",
-      "cause": "Inner operator relation admitted binary subtraction instead of requiring a unary node",
-      "regression_cases_added": 5
-    }
+    "resolution": {"commit":"e73df38","rule":"B002","cause":"Inner operator relation admitted binary subtraction instead of requiring a unary node","regression_cases_added":5}
   },
   "development_boundary": {
     "scope": "outside measured54 snapshot and expanded1967 fixture snapshot",
     "oracle": [
-      {
-        "rule": "LOG001",
-        "kind": "quoted",
-        "source": "import logging\nx: \"logging.Logger()\"\n",
-        "findings": [
-          [
-            {
-              "column": 5,
-              "row": 2
-            },
-            {
-              "column": 19,
-              "row": 2
-            }
-          ]
-        ]
-      },
-      {
-        "rule": "LOG001",
-        "kind": "normal",
-        "source": "import logging\nlogging.Logger()\n",
-        "findings": [
-          [
-            {
-              "column": 1,
-              "row": 2
-            },
-            {
-              "column": 15,
-              "row": 2
-            }
-          ]
-        ]
-      },
-      {
-        "rule": "B002",
-        "kind": "quoted",
-        "source": "x: \"++value\"\n",
-        "findings": [
-          [
-            {
-              "column": 5,
-              "row": 1
-            },
-            {
-              "column": 12,
-              "row": 1
-            }
-          ]
-        ]
-      },
-      {
-        "rule": "B002",
-        "kind": "normal",
-        "source": "++value\n",
-        "findings": [
-          [
-            {
-              "column": 1,
-              "row": 1
-            },
-            {
-              "column": 8,
-              "row": 1
-            }
-          ]
-        ]
-      },
-      {
-        "rule": "B022",
-        "kind": "quoted",
-        "source": "import contextlib\nx: \"contextlib.suppress()\"\n",
-        "findings": [
-          [
-            {
-              "column": 5,
-              "row": 2
-            },
-            {
-              "column": 26,
-              "row": 2
-            }
-          ]
-        ]
-      },
-      {
-        "rule": "B022",
-        "kind": "normal",
-        "source": "import contextlib\ncontextlib.suppress()\n",
-        "findings": [
-          [
-            {
-              "column": 1,
-              "row": 2
-            },
-            {
-              "column": 22,
-              "row": 2
-            }
-          ]
-        ]
-      }
+      {"rule":"LOG001","kind":"quoted","source":"import logging\nx: \"logging.Logger()\"\n","findings":[[{"column":5,"row":2},{"column":19,"row":2}]]},
+      {"rule":"LOG001","kind":"normal","source":"import logging\nlogging.Logger()\n","findings":[[{"column":1,"row":2},{"column":15,"row":2}]]},
+      {"rule":"B002","kind":"quoted","source":"x: \"++value\"\n","findings":[[{"column":5,"row":1},{"column":12,"row":1}]]},
+      {"rule":"B002","kind":"normal","source":"++value\n","findings":[[{"column":1,"row":1},{"column":8,"row":1}]]},
+      {"rule":"B022","kind":"quoted","source":"import contextlib\nx: \"contextlib.suppress()\"\n","findings":[[{"column":5,"row":2},{"column":26,"row":2}]]},
+      {"rule":"B022","kind":"normal","source":"import contextlib\ncontextlib.suppress()\n","findings":[[{"column":1,"row":2},{"column":22,"row":2}]]}
     ],
     "candidate_observation": "LOG001, B002 and B022 all returned empty diagnostics for the quoted examples",
     "initial_status": "three simple quoted-annotation cases confirmed missing candidate diagnostics;24 independent oracle cases retained for frontend correction",
     "status": "separate corrected 25-case annotation cohort passes; separate typing cohort still has 4 misses out of 10; integrated migrated-profile certification pending",
     "corrected_annotation_cohort": {
-      "candidate": {
-        "path": "/tmp/ryo-embedded-annotation-fields-worker",
-        "sha256": "7c2d384a0f973117a88e355097c38ebef9f60c06fbb3ea0f7243ee6af1b16014"
-      },
-      "reference": {
-        "version": "ruff 0.16.5",
-        "sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8"
-      },
+      "candidate": {"path":"/tmp/ryo-embedded-annotation-fields-worker","sha256":"7c2d384a0f973117a88e355097c38ebef9f60c06fbb3ea0f7243ee6af1b16014"},
+      "reference": {"version":"ruff 0.16.5","sha256":"52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8"},
       "rule_head": "c7031be28874f86f77864d59758d531865542857",
       "queries": {
         "B002": "bac7818d523872d12471a1716d100b4d0d9426fe594682b31ec9c7b887b34616",
@@ -614,106 +403,31 @@
         "failures": 0,
         "log": "/tmp/ruff-annotation-focused-fields.log",
         "attempted_cases": [
-          {
-            "rule": "B002",
-            "case": "quoted-annotation-dispatch"
-          },
-          {
-            "rule": "B002",
-            "case": "escaped-annotation-host-span"
-          },
-          {
-            "rule": "B002",
-            "case": "concatenated-annotation-host-span"
-          },
-          {
-            "rule": "B002",
-            "case": "literal-annotation-string-is-data"
-          },
-          {
-            "rule": "B002",
-            "case": "annotated-metadata-is-data"
-          },
-          {
-            "rule": "B002",
-            "case": "relocated-annotation-preserves-multiplicity"
-          },
-          {
-            "rule": "B022",
-            "case": "quoted-annotation-dispatch"
-          },
-          {
-            "rule": "B022",
-            "case": "escaped-annotation-host-span"
-          },
-          {
-            "rule": "B022",
-            "case": "concatenated-annotation-host-span"
-          },
-          {
-            "rule": "B022",
-            "case": "literal-annotation-string-is-data"
-          },
-          {
-            "rule": "B022",
-            "case": "annotated-metadata-is-data"
-          },
-          {
-            "rule": "LOG001",
-            "case": "quoted-annotation-dispatch"
-          },
-          {
-            "rule": "LOG001",
-            "case": "escaped-annotation-host-span"
-          },
-          {
-            "rule": "LOG001",
-            "case": "concatenated-annotation-host-span"
-          },
-          {
-            "rule": "LOG001",
-            "case": "literal-annotation-string-is-data"
-          },
-          {
-            "rule": "LOG001",
-            "case": "annotated-metadata-is-data"
-          },
-          {
-            "rule": "LOG001",
-            "case": "relocated-annotation-preserves-multiplicity"
-          },
-          {
-            "rule": "LOG001",
-            "case": "invalid-annotation-does-not-block-native-findings"
-          },
-          {
-            "rule": "B004",
-            "case": "quoted-annotation-decoded-literal"
-          },
-          {
-            "rule": "ASYNC115",
-            "case": "escaped-annotation-decoded-number"
-          },
-          {
-            "rule": "UP025",
-            "case": "quoted-annotation-string-prefix"
-          },
-          {
-            "rule": "SIM208",
-            "case": "quoted-annotation-unary-expression"
-          },
-          {
-            "rule": "C408",
-            "case": "quoted-annotation-builtin-call"
-          },
-          {
-            "rule": "RUF032",
-            "case": "quoted-annotation-numeric-literal"
-          },
-          {
-            "rule": "EXE005",
-            "case": "quoted-annotation-comment-is-not-file-shebang"
-          }
+          {"rule":"B002","case":"quoted-annotation-dispatch"},
+          {"rule":"B002","case":"escaped-annotation-host-span"},
+          {"rule":"B002","case":"concatenated-annotation-host-span"},
+          {"rule":"B002","case":"literal-annotation-string-is-data"},
+          {"rule":"B002","case":"annotated-metadata-is-data"},
+          {"rule":"B002","case":"relocated-annotation-preserves-multiplicity"},
+          {"rule":"B022","case":"quoted-annotation-dispatch"},
+          {"rule":"B022","case":"escaped-annotation-host-span"},
+          {"rule":"B022","case":"concatenated-annotation-host-span"},
+          {"rule":"B022","case":"literal-annotation-string-is-data"},
+          {"rule":"B022","case":"annotated-metadata-is-data"},
+          {"rule":"LOG001","case":"quoted-annotation-dispatch"},
+          {"rule":"LOG001","case":"escaped-annotation-host-span"},
+          {"rule":"LOG001","case":"concatenated-annotation-host-span"},
+          {"rule":"LOG001","case":"literal-annotation-string-is-data"},
+          {"rule":"LOG001","case":"annotated-metadata-is-data"},
+          {"rule":"LOG001","case":"relocated-annotation-preserves-multiplicity"},
+          {"rule":"LOG001","case":"invalid-annotation-does-not-block-native-findings"},
+          {"rule":"B004","case":"quoted-annotation-decoded-literal"},
+          {"rule":"ASYNC115","case":"escaped-annotation-decoded-number"},
+          {"rule":"UP025","case":"quoted-annotation-string-prefix"},
+          {"rule":"SIM208","case":"quoted-annotation-unary-expression"},
+          {"rule":"C408","case":"quoted-annotation-builtin-call"},
+          {"rule":"RUF032","case":"quoted-annotation-numeric-literal"},
+          {"rule":"EXE005","case":"quoted-annotation-comment-is-not-file-shebang"}
         ],
         "log_sha256": "c8d1d449413d8a174d5ece77ca35bfdc563f24ac867962e4a37cdfd35fec0bfd"
       }
@@ -725,9 +439,6 @@
     "cases": 1967,
     "status": "passed reference and candidate for this exact fixture snapshot",
     "symlink_temporary_root": "passed after canonicalization",
-    "wildcard_followup": {
-      "cases": 9,
-      "failures": 0
-    }
+    "wildcard_followup": {"cases":9,"failures":0}
   }
 }
