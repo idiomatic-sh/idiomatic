@@ -5,7 +5,7 @@ use crate::domain::{
         Event, EventKind, Read, ReadContext, ReadState, Shadow, ShadowRelationship, Usage,
         UseCertainty,
     },
-    binding_states::service::{assign, candidates, delete, lookup, wildcard},
+    binding_states::service::{annotate, assign, candidates, delete, lookup, wildcard},
     definitions::service::definition,
     fields::service::field_of,
     imports::service::imported,
@@ -108,7 +108,7 @@ fn read(
         }));
 }
 
-/// Save prior real declarations before replacement; policy decides whether redefinition matters.
+/// Save real declaration shadows independently of whether the declaration initializes a value.
 fn bind(
     tree: &Tree<'_>,
     model: &Declarations,
@@ -168,7 +168,20 @@ fn bind(
                 relationship: ShadowRelationship::Lexical,
             }),
     );
-    assign(&mut index.environments, frame, key, step.occurrence);
+    match step.action {
+        BindingAction::Bind => assign(&mut index.environments, frame, key, step.occurrence),
+        BindingAction::Annotation => annotate(&mut index.environments, frame, key, step.occurrence),
+        BindingAction::Read
+        | BindingAction::Delete
+        | BindingAction::Cleanup
+        | BindingAction::Global
+        | BindingAction::Nonlocal
+        | BindingAction::BeginPhase
+        | BindingAction::EndPhase
+        | BindingAction::BeginAlternatives
+        | BindingAction::NextAlternative
+        | BindingAction::EndAlternatives => {}
+    }
 }
 
 /// Record one actual syntax event. Control markers are consumed by the analysis orchestrator.
@@ -235,12 +248,12 @@ pub(crate) fn observe(
     });
     match event_kind {
         EventKind::Read => read(tree, model, frame, step, context, index),
-        EventKind::Bind => bind(tree, model, frame, step, index),
+        EventKind::Bind | EventKind::Annotation => bind(tree, model, frame, step, index),
         EventKind::Delete => {
             read(tree, model, frame, step, ReadContext::Deletion, index);
             delete(&mut index.environments, frame, BindingKey { scope, name });
         }
         EventKind::Cleanup => delete(&mut index.environments, frame, BindingKey { scope, name }),
-        EventKind::Annotation | EventKind::Global | EventKind::Nonlocal => {}
+        EventKind::Global | EventKind::Nonlocal => {}
     }
 }

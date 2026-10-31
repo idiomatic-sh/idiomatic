@@ -148,6 +148,53 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         },
         expect: Expect::Value("unique:1"),
     },
+    Case {
+        name: CaseName("local bare annotation blocks outer value only after its declaration"),
+        word: Word::Succeeds,
+        input: || ("x = 1\ndef f():\n    use(x)\n    x: int\n    use(x)\n", "x"),
+        expect: Expect::Value("unique:1|unbound:0"),
+    },
+    Case {
+        name: CaseName("local bare annotation blocks builtin fallback after declaration"),
+        word: Word::Succeeds,
+        input: || {
+            (
+                "def f():\n    len(items)\n    len: int\n    len(items)\n",
+                "len",
+            )
+        },
+        expect: Expect::Value("builtin:3.0:0|unbound:0"),
+    },
+    Case {
+        name: CaseName("module bare annotation preserves builtin fallback"),
+        word: Word::Succeeds,
+        input: || ("len: int\nlen(items)\n", "len"),
+        expect: Expect::Value("builtin:3.0:0"),
+    },
+    Case {
+        name: CaseName("module bare annotation does not initialize a missing value"),
+        word: Word::Succeeds,
+        input: || ("x: int\nuse(x)\n", "x"),
+        expect: Expect::Value("unbound:0"),
+    },
+    Case {
+        name: CaseName("assignment initializes a previously annotation-only local"),
+        word: Word::Succeeds,
+        input: || ("x = 0\ndef f():\n    x: int\n    x = 1\n    use(x)\n", "x"),
+        expect: Expect::Value("unique:1"),
+    },
+    Case {
+        name: CaseName("annotation does not replace an already initialized module value"),
+        word: Word::Succeeds,
+        input: || ("x = 1\nx: int\nuse(x)\n", "x"),
+        expect: Expect::Value("unique:1"),
+    },
+    Case {
+        name: CaseName("annotation does not replace an already initialized local value"),
+        word: Word::Succeeds,
+        input: || ("def f():\n    x = 1\n    x: int\n    use(x)\n", "x"),
+        expect: Expect::Value("unique:1"),
+    },
 ];
 fn subject((source, wanted): Input) -> Result<Value, Failure> {
     use crate::inbound::contracts::parse::contract::ParseContract;

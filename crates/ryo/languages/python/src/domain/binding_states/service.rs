@@ -240,3 +240,20 @@ pub(crate) fn has_wildcard(
         frame = parent;
     }
 }
+
+/// Keep an annotation-only declaration in its namespace without initializing a value.
+/// A later annotation never replaces an already established value or deletion.
+pub(crate) fn annotate(
+    state: &mut BindingEnvironments,
+    frame: BindingFrameId,
+    key: BindingKey,
+    declaration: Position,
+) {
+    if lookup(state, frame, key).is_some() {
+        return;
+    }
+    assign(state, frame, key, declaration);
+    if let Some(value) = state.slots.get_mut(&BindingFrameKey { frame, key }) {
+        value.absence = BindingAbsence::Possible;
+    }
+}

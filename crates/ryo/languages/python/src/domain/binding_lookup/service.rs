@@ -2,6 +2,8 @@
 use crate::domain::{
     binding_results::types::{Candidate, ReadState},
     binding_states::service::{candidates, has_wildcard, lookup},
+    fields::service::field_of,
+    labels::types::Field,
     model::types::{
         BindingAbsence, BindingEnvironments, BindingFrameId, BindingKey, BindingKnowledge,
         Declarations,
@@ -9,9 +11,19 @@ use crate::domain::{
     nodes::types::Node,
     qualification::service::builtin,
     scopes::service::{enclosing, redirected},
-    syntax::{service::kind, types::Kind},
+    syntax::{
+        service::{kind, nodes, parent},
+        types::Kind,
+    },
 };
 use ryo::languages::{Position, Symbol, Tree};
+
+/// Annotation declarations own a lexical name but do not supply an initialized value.
+fn annotation_only(tree: &Tree<'_>, at: Position) -> bool {
+    let statement = parent(tree, at);
+    kind(tree, statement) == Kind::Node(Node::AnnAssign)
+        && !nodes(tree, statement).any(|child| field_of(tree, child) == Field::Value)
+}
 
 /// Distinguish real alternatives from possible absence, with no shared fake binding identity.
 fn classified(
@@ -55,10 +67,15 @@ pub(crate) fn resolve(
             wildcard = BindingKnowledge::Uncertain;
         }
         if visible && let Some(value) = lookup(state, frame, BindingKey { scope, name }) {
-            output.extend(candidates(state, value).iter().map(|binding| Candidate {
-                binding: *binding,
-                scope,
-            }));
+            output.extend(
+                candidates(state, value)
+                    .iter()
+                    .filter(|binding| !annotation_only(tree, **binding))
+                    .map(|binding| Candidate {
+                        binding: *binding,
+                        scope,
+                    }),
+            );
             if value.knowledge == BindingKnowledge::Uncertain {
                 knowledge = BindingKnowledge::Uncertain;
             }
