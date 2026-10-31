@@ -6,12 +6,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 '''
 
 [given]
-file="source.rs"
+file = "source.rs"
 [[scenarios]]
-id="present"
-scenario="The process role is present."
-given.files.'source.rs'='''fn main() -> Result<(), Box<dyn std::error::Error>> { Ok(()) }'''
+id = "present"
+scenario = "The process role is present."
+given.files.'source.rs' = '''fn main() -> Result<(), Box<dyn std::error::Error>> { Ok(()) }'''
 [[scenarios]]
-id="missing"
-scenario="The process role is required."
-then.findings=[{rule="entry#count",path="."}]
+id = "missing"
+scenario = "The process role is required."
+then.findings = [{ rule = "entry#count", path = "." }]

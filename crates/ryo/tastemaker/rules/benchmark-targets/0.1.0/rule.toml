@@ -79,10 +79,10 @@ name="lint_cases"
 path="benchmarks/linters/tool/tests.rs"
 harness=false
 '''
-then.findings = [{path='language/benchmarks/linters/tool/tests.rs'}]
+then.findings = [{ path = 'language/benchmarks/linters/tool/tests.rs' }]
 [[scenarios]]
 id = 'schema-cases-missing-target'
 scenario = 'An unregistered correctness runner cannot prove schemas.'
 given.files.'language/benchmarks/linters/tool/tests.rs' = ''
 given.files.'language/Cargo.toml' = ''
-then.findings = [{path='language/benchmarks/linters/tool/tests.rs'}]
+then.findings = [{ path = 'language/benchmarks/linters/tool/tests.rs' }]

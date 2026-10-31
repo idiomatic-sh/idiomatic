@@ -19,4 +19,4 @@ mod schemas_test;
 id = 'unregistered'
 scenario = 'A target cannot leave the schema cases uncompiled.'
 given.files.'tests.rs' = 'mod schemas;'
-then.findings = [{rule = 'cargo-schema-tests#template', path = 'tests.rs'}]
+then.findings = [{ rule = 'cargo-schema-tests#template', path = 'tests.rs' }]

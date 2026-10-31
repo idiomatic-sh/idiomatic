@@ -25,13 +25,13 @@ message = "collector source is not registered as its required Cargo target"
 help = "Declare the main process in [[bin]] and the resource regression in [[test]], each with its explicit path."
 
 [given]
-include=["**"]
+include = ["**"]
 [[scenarios]]
-id="wired"
-scenario="Explicit binary and integration target registrations."
-given.files.'crate/src/main.rs'='fn main() {}'
-given.files.'crate/src/outbound/execution/adapters/timed/adapter_test.rs'=''
-given.files.'crate/Cargo.toml'='''
+id = "wired"
+scenario = "Explicit binary and integration target registrations."
+given.files.'crate/src/main.rs' = 'fn main() {}'
+given.files.'crate/src/outbound/execution/adapters/timed/adapter_test.rs' = ''
+given.files.'crate/Cargo.toml' = '''
 [[bin]]
 name="ryo-benchmark-collector"
 path="src/main.rs"
@@ -40,9 +40,9 @@ name="collector"
 path="src/outbound/execution/adapters/timed/adapter_test.rs"
 '''
 [[scenarios]]
-id="unwired"
-scenario="Source files without Cargo targets are refused."
-given.files.'crate/src/main.rs'='fn main() {}'
-given.files.'crate/src/outbound/execution/adapters/timed/adapter_test.rs'=''
-given.files.'crate/Cargo.toml'=''
-then.findings=[{path="crate/src/main.rs"},{path="crate/src/outbound/execution/adapters/timed/adapter_test.rs"}]
+id = "unwired"
+scenario = "Source files without Cargo targets are refused."
+given.files.'crate/src/main.rs' = 'fn main() {}'
+given.files.'crate/src/outbound/execution/adapters/timed/adapter_test.rs' = ''
+given.files.'crate/Cargo.toml' = ''
+then.findings = [{ path = "crate/src/main.rs" }, { path = "crate/src/outbound/execution/adapters/timed/adapter_test.rs" }]

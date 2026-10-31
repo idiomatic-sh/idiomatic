@@ -50,7 +50,7 @@ given.files.'tests.rs' = '''
 mod schemas;
 #[path = "schemas_test.rs"]
 mod schemas_test;
-''' 
+'''
 given.files.'composition.rs' = ''
 given.files.'rules/F001/cases.toml' = ''
 then.findings = [

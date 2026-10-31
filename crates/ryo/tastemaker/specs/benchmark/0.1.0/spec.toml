@@ -79,7 +79,7 @@ given.files.'linters/tool/schemas.rs' = '''
 pub(super) struct StoredSchema { pub(super) value: String }
 '''
 then.only = ['idiomatic.arch/schema-name']
-then.findings = [{rule='idiomatic.arch/schema-name', path='linters/tool/schemas.rs', line=2}]
+then.findings = [{ rule = 'idiomatic.arch/schema-name', path = 'linters/tool/schemas.rs', line = 2 }]
 
 [[scenarios]]
 id = "external-schema-tests-must-register-cases"
@@ -93,4 +93,4 @@ impl From<StoredSchema> for String {
 }
 '''
 then.only = ['idiomatic.ryo/benchmark-linter/cargo-schema-tests#template']
-then.findings = [{rule='idiomatic.ryo/benchmark-linter/cargo-schema-tests#template', path='linters/tool/tests.rs'}]
+then.findings = [{ rule = 'idiomatic.ryo/benchmark-linter/cargo-schema-tests#template', path = 'linters/tool/tests.rs' }]

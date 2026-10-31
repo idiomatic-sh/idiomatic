@@ -1469,10 +1469,10 @@ then.findings = [
 ]
 
 [[scenarios]]
-id="explicit-cargo-test-root"
-given.include=["app/**"]
-scenario="Cargo compiles an explicit relative integration target beneath src without a parent mod declaration."
-given.files.'app/Cargo.toml'='''
+id = "explicit-cargo-test-root"
+given.include = ["app/**"]
+scenario = "Cargo compiles an explicit relative integration target beneath src without a parent mod declaration."
+given.files.'app/Cargo.toml' = '''
 [package]
 name="app"
 version="0.1.0"
@@ -1481,14 +1481,14 @@ edition="2024"
 name="process"
 path="src/driver/adapter_test.rs"
 '''
-given.files.'app/src/lib.rs'='mod driver;'
-given.files.'app/src/driver.rs'=''
-given.files.'app/src/driver/adapter_test.rs'='#[test] fn observes_process() {}'
+given.files.'app/src/lib.rs' = 'mod driver;'
+given.files.'app/src/driver.rs' = ''
+given.files.'app/src/driver/adapter_test.rs' = '#[test] fn observes_process() {}'
 [[scenarios]]
-id="cargo-lookalike-is-not-a-target"
-given.include=["app/**"]
-scenario="A package metadata path does not make an undeclared adjacent test executable."
-given.files.'app/Cargo.toml'='''
+id = "cargo-lookalike-is-not-a-target"
+given.include = ["app/**"]
+scenario = "A package metadata path does not make an undeclared adjacent test executable."
+given.files.'app/Cargo.toml' = '''
 [package]
 name="app"
 version="0.1.0"
@@ -1496,7 +1496,7 @@ edition="2024"
 [package.metadata.proof]
 path="src/driver/adapter_test.rs"
 '''
-given.files.'app/src/lib.rs'='mod driver;'
-given.files.'app/src/driver.rs'=''
-given.files.'app/src/driver/adapter_test.rs'='#[test] fn observes_process() {}'
-then.findings=[{path="app/src/driver/adapter_test.rs",line=1}]
+given.files.'app/src/lib.rs' = 'mod driver;'
+given.files.'app/src/driver.rs' = ''
+given.files.'app/src/driver/adapter_test.rs' = '#[test] fn observes_process() {}'
+then.findings = [{ path = "app/src/driver/adapter_test.rs", line = 1 }]
