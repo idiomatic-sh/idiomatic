@@ -13,6 +13,7 @@ pub fn run(
     let invocation = linter.prepare(request)?;
     let output = execution.run(invocation)?;
     let wall = output.wall;
+    let resources = output.resources;
     let report = linter.decode(request, output)?;
     let mut expected = request.files.clone();
     expected.sort();
@@ -31,5 +32,9 @@ pub fn run(
             return Err(Error::Invalid(format!("invalid diagnostic: {finding:?}")));
         }
     }
-    Ok(Measurement { wall, report })
+    Ok(Measurement {
+        wall,
+        resources,
+        report,
+    })
 }

@@ -16,6 +16,13 @@ struct ToolSchema {
 struct SuiteSchema {
     language: String,
     projects: Vec<ProjectSchema>,
+    instrumentation: InstrumentationSchema,
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct InstrumentationSchema {
+    executable: std::path::PathBuf,
+    sha256: String,
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -58,6 +65,10 @@ pub(super) fn suite(text: &str) -> Result<types::Suite, Error> {
     let wire: SuiteSchema = toml::from_str(text)?;
     Ok(types::Suite {
         language: wire.language,
+        instrumentation: types::Instrumentation {
+            executable: wire.instrumentation.executable,
+            sha256: wire.instrumentation.sha256,
+        },
         projects: wire
             .projects
             .into_iter()

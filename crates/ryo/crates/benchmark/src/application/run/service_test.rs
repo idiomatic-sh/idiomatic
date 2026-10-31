@@ -30,6 +30,7 @@ impl ExecutionPort for Empty {
             stdout: vec![],
             stderr: vec![],
             wall: std::time::Duration::ZERO,
+            resources: None,
         })
     }
 }

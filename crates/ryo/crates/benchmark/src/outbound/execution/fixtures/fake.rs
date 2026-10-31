@@ -34,6 +34,7 @@ impl ExecutionPort for ExecutionFake {
             stdout: b"payload".to_vec(),
             stderr: b"issue".to_vec(),
             wall: Duration::ZERO,
+            resources: None,
         })
     }
 }

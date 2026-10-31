@@ -9,6 +9,17 @@ pub struct Suite {
     pub language: String,
     /// Pinned repositories used for the common corpus.
     pub projects: Vec<Project>,
+    /// Exact resource collector executable used for every contestant.
+    pub instrumentation: Instrumentation,
+}
+
+/// Pinned external resource collection, shared across linters in one language.
+#[derive(Clone, Debug)]
+pub struct Instrumentation {
+    /// Absolute path to GNU time on the benchmark machine.
+    pub executable: PathBuf,
+    /// Approved executable digest, checked before each observed command.
+    pub sha256: String,
 }
 
 /// One repository pinned to an immutable commit and a deterministic edit.

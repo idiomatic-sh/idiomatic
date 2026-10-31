@@ -161,6 +161,7 @@ fn subject(operation: Input) -> Result<Value, Failure> {
                         stdout: capture.bytes.clone(),
                         stderr: Vec::new(),
                         wall: Duration::ZERO,
+                        resources: None,
                     },
                 )
                 .map_err(classify)?;

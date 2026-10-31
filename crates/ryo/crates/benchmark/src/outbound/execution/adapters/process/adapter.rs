@@ -24,6 +24,7 @@ impl ExecutionPort for ExecutionProcessAdapter {
             stdout: output.stdout,
             stderr: output.stderr,
             wall,
+            resources: None,
         })
     }
 }

@@ -2,7 +2,7 @@
 use super::{adapter::LinterRuffAdapter, settings::LinterRuffSettings};
 use ryo_benchmark::application::run::service::run as execute;
 use ryo_benchmark::domain::diagnostics::errors::Error;
-use ryo_benchmark::domain::measurements::types::RunOrder;
+use ryo_benchmark::domain::measurements::types::{RunOrder, Sample};
 use ryo_benchmark::domain::suite::service::require_complete;
 use ryo_benchmark::domain::suite::types::{RunRequest, Suite, Tool};
 use ryo_benchmark::inbound::use_cases::compare::service::compare;
@@ -10,6 +10,7 @@ use ryo_benchmark::inbound::use_cases::measure::service::measure;
 use ryo_benchmark::inbound::use_cases::run_ryo::{
     interface::RunRyoUseCase, use_case::RunRyoUseCaseImpl,
 };
+use ryo_benchmark::outbound::evidence::interface::EvidencePort;
 use ryo_benchmark::outbound::suite::interface::SuitePort;
 use ryo_benchmark::outbound::workspace::interface::WorkspacePort;
 use std::{path::PathBuf, sync::Arc};
@@ -51,12 +52,15 @@ pub(crate) fn run() -> Result<(), Error> {
             let _ = ryo_benchmark::outbound::suite::adapters::local::adapter::verify_cases(&reference, &execution, &std::env::current_exe()?, &directory().join("rules"), case_scratch.path())?;
             let suite: Suite = suite_source.projects(&directory().join("../.."))?;
             if suite.language != "python" || !(2..=3).contains(&suite.projects.len()) { return Err(Error::Invalid("Python suite requires 2–3 projects".into())); }
+            let execution = ryo_benchmark::outbound::execution::factory::timed(suite.instrumentation.executable, suite.instrumentation.sha256);
+            let evidence = ryo_benchmark::outbound::evidence::factory::bmf(Box::new(std::io::stdout()));
+            let mut samples = Vec::new();
             for project in suite.projects {
                 let mut workspace = workspaces.prepare(&project, &cache.join("projects"))?;
                 let files: Vec<String> = reference.files(workspace.root())?.into_iter().map(|path| path.0.into_string()).collect();
                 let tracked = workspaces.tracked_files(&workspace)?;
                 if files.iter().any(|file| !tracked.contains(file)) { return Err(Error::Invalid("Ruff discovered untracked source".into())); }
-                for order in [RunOrder::ReferenceFirst, RunOrder::CandidateFirst] {
+                for order in [RunOrder::ReferenceFirst, RunOrder::CandidateFirst].into_iter().cycle().take(6) {
                     // A new owned directory makes both retained and clean baselines fresh,
                     // even if an earlier trial left caches behind in the caller's root.
                     let trial = tempfile::Builder::new().prefix("trial-").tempdir_in(&cache)?.keep();
@@ -74,10 +78,14 @@ pub(crate) fn run() -> Result<(), Error> {
                     let edited = edited?;
                     compare(&edited.reference.report, &clean_reference?.report).map_err(|difference| Error::Invalid(format!("reference edited retained vs fresh mismatch: {difference:?}")))?;
                     compare(&edited.candidate.report, &clean_candidate?.report).map_err(|difference| Error::Invalid(format!("candidate edited retained vs fresh mismatch: {difference:?}")))?;
-                    println!("{} {order:?} empty-tool-cache={:?}/{:?} retained-tool-cache={:?}/{:?} edited={:?}/{:?}; one worker each; OS page cache uncontrolled; cache hits unverified; trial={} (reference/ryo wall only)", project.name, cold.reference.wall, cold.candidate.wall, retained.reference.wall, retained.candidate.wall, edited.reference.wall, edited.candidate.wall, trial.display());
+                    for (condition, pair) in [("empty-tool-cache", cold), ("retained-tool-cache", retained), ("edited-tool-cache", edited)] {
+                        for (contestant, measurement) in [("ruff", pair.reference), ("ryo", pair.candidate)] {
+                            samples.push(Sample { name: format!("{}/{contestant}/{condition}", project.name), measurement });
+                        }
+                    }
                 }
             }
-            Ok(())
+            evidence.publish(&samples)
         }
         Some("audit") => {
             let tool = suite_source.profile(&directory())?;

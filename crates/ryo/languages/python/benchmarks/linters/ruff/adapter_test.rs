@@ -219,6 +219,7 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
             stdout,
             stderr: b"warning: file-level noqa must be on its own line\n".to_vec(),
             wall: Default::default(),
+            resources: None,
         },
     )?;
     let expected = if matches!(scenario, AdapterScenario::CleanWarning) {

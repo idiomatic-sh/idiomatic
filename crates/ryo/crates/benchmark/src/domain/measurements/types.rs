@@ -7,6 +7,8 @@ use std::time::Duration;
 pub struct Measurement {
     /// Child startup-to-exit elapsed wall time, excluding output normalization.
     pub wall: Duration,
+    /// Child CPU and resident memory, when collected by the execution boundary.
+    pub resources: Option<Resources>,
     /// Decoded findings and the exact submitted file list.
     pub report: RunReport,
 }
@@ -37,6 +39,17 @@ pub struct ProcessOutput {
     pub stderr: Vec<u8>,
     /// Elapsed wall time covering process startup, execution and waiting.
     pub wall: Duration,
+    /// Explicitly absent for portable wall-only execution.
+    pub resources: Option<Resources>,
+}
+
+/// OS observations for the child command, excluding the parent harness.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Resources {
+    /// User plus system CPU consumed by the child and waited-for descendants.
+    pub cpu: Duration,
+    /// Maximum resident set reported by GNU time, converted from KiB to bytes.
+    pub peak_rss_bytes: u64,
 }
 
 /// Reference and candidate observations retained after exact agreement.
@@ -55,4 +68,13 @@ pub enum RunOrder {
     ReferenceFirst,
     /// Observe the candidate before the reference.
     CandidateFirst,
+}
+
+/// One named contestant observation retained only after correctness checks pass.
+#[derive(Clone, Debug)]
+pub struct Sample {
+    /// Stable project/contestant/cache-condition identity in the BMF document.
+    pub name: String,
+    /// Full observation, including explicit resource availability.
+    pub measurement: Measurement,
 }

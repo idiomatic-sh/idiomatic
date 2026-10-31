@@ -58,6 +58,7 @@ pub fn check(adapter: &impl LinterPort) {
                 stdout: Vec::new(),
                 stderr: Vec::new(),
                 wall: Duration::ZERO,
+                resources: None,
             },
         ) {
             Err(Error::Invalid(_)) => Err(Failure::Operational),
