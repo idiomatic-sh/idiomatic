@@ -1,0 +1,64 @@
+[[cases]]
+name = "set"
+files = { "case.pyi" = "from collections.abc import Set\n" }
+expected = [{ file = "case.pyi", start = 28, end = 31 }]
+
+[[cases]]
+name = "recommended"
+files = { "case.pyi" = "from collections.abc import Set as AbstractSet\n" }
+expected = []
+
+[[cases]]
+name = "other-alias"
+files = { "case.pyi" = "from collections.abc import Set as Other\n" }
+expected = [{ file = "case.pyi", start = 35, end = 40 }]
+
+[[cases]]
+name = "same-alias"
+files = { "case.pyi" = "from collections.abc import Set as Set\n" }
+expected = [{ file = "case.pyi", start = 35, end = 38 }]
+
+[[cases]]
+name = "python"
+files = { "case.py" = "from collections.abc import Set\n" }
+expected = [{ file = "case.py", start = 28, end = 31 }]
+
+[[cases]]
+name = "relative"
+files = { "case.pyi" = "from .collections.abc import Set\n" }
+expected = []
+
+[[cases]]
+name = "other-set"
+files = { "case.pyi" = "from typing import Set\n" }
+expected = []
+
+[[cases]]
+name = "module-import"
+files = { "case.pyi" = "import collections.abc.Set\n" }
+expected = []
+
+[[cases]]
+name = "nested"
+files = { "case.pyi" = "def f():\n    from collections.abc import Set\n" }
+expected = [{ file = "case.pyi", start = 41, end = 44 }]
+
+[[cases]]
+name = "noqa"
+files = { "case.pyi" = "from collections.abc import Set # noqa\n" }
+expected = []
+
+[[cases]]
+name = "code-noqa"
+files = { "case.pyi" = "from collections.abc import Set # noqa: PYI025\n" }
+expected = []
+
+[[cases]]
+name = "other-code"
+files = { "case.pyi" = "from collections.abc import Set # noqa: F401\n" }
+expected = [{ file = "case.pyi", start = 28, end = 31 }]
+
+[[cases]]
+name = "file-noqa"
+files = { "case.pyi" = "# ruff: noqa\nfrom collections.abc import Set\n" }
+expected = []

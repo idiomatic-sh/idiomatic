@@ -1,0 +1,69 @@
+[[cases]]
+name = "string"
+files = { "case.py" = "class C:\n    __slots__ = \"name\"\n" }
+expected = [{ file = "case.py", start = 13, end = 31 }]
+
+[[cases]]
+name = "tuple"
+files = { "case.py" = "class C:\n    __slots__ = (\"name\",)\n" }
+expected = []
+
+[[cases]]
+name = "annotated"
+files = { "case.py" = "class C:\n    __slots__: str = \"name\"\n" }
+expected = [{ file = "case.py", start = 13, end = 36 }]
+
+[[cases]]
+name = "fstring"
+files = { "case.py" = "class C:\n    __slots__ = f\"{name}\"\n" }
+expected = [{ file = "case.py", start = 13, end = 34 }]
+
+[[cases]]
+name = "bytes"
+files = { "case.py" = "class C:\n    __slots__ = b\"name\"\n" }
+expected = []
+
+[[cases]]
+name = "module"
+files = { "case.py" = "__slots__ = \"name\"\n" }
+expected = []
+
+[[cases]]
+name = "indirect-body"
+files = { "case.py" = "class C:\n    if True:\n        __slots__ = \"name\"\n" }
+expected = []
+
+[[cases]]
+name = "multiassign"
+files = { "case.py" = "class C:\n    __slots__ = other = \"name\"\n" }
+expected = [{ file = "case.py", start = 13, end = 39 }]
+
+[[cases]]
+name = "annotation-only"
+files = { "case.py" = "class C:\n    __slots__: str\n" }
+expected = []
+
+[[cases]]
+name = "nested-class"
+files = { "case.py" = "class C:\n    class D:\n        __slots__ = \"name\"\n" }
+expected = [{ file = "case.py", start = 30, end = 48 }]
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "class C:\n    __slots__ = \"name\" # noqa\n" }
+expected = []
+
+[[cases]]
+name = "code-noqa"
+files = { "case.py" = "class C:\n    __slots__ = \"name\" # noqa: PLC0205\n" }
+expected = []
+
+[[cases]]
+name = "other-code"
+files = { "case.py" = "class C:\n    __slots__ = \"name\" # noqa: F401\n" }
+expected = [{ file = "case.py", start = 13, end = 31 }]
+
+[[cases]]
+name = "file-noqa"
+files = { "case.py" = "# ruff: noqa\nclass C:\n    __slots__ = \"name\"\n" }
+expected = []

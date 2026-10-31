@@ -436,7 +436,6 @@ statement_structure = ["F404", "F407", "F633", "F901", "PLC0105", "PLC0131", "PL
 typing_rules = ["FA100", "FA102", "PYI001", "PYI002", "PYI003", "PYI004", "PYI005", "PYI006", "PYI007", "PYI008", "PYI015", "PYI016", "PYI018", "PYI019", "PYI020", "PYI026", "PYI029", "PYI030", "PYI032", "PYI034", "PYI036", "PYI041", "PYI042", "PYI043", "PYI045", "PYI046", "PYI047", "PYI049", "PYI050", "PYI052", "PYI055", "PYI057", "PYI058", "PYI059", "PYI061", "PYI062", "PYI063", "PYI064", "PYI066", "RUF013", "RUF020", "RUF041", "RUF053", "TC004", "TC005", "TC007", "TC010"]
 
 [pending]
-expression_patterns = ["PIE800", "SIM210", "SIM211"]
-modernization = ["UP005", "UP023", "UP026"]
-statement_structure = ["B012", "B018", "D419", "F621", "F622", "PIE790", "PLC0205", "PLE0100", "PLE0101", "PLE0116", "PLE0704", "PLE1132", "PLE1142", "PLE1700", "PLR0402", "PLR1711", "PLW0120", "PLW0604", "RET501", "TRY203"]
-typing_rules = ["PYI025", "PYI035"]
+expression_patterns = ["SIM210", "SIM211"]
+modernization = ["UP023", "UP026"]
+statement_structure = ["B012", "B018", "F621", "F622", "PIE790", "PLE0100", "PLE0101", "PLE0116", "PLE0704", "PLE1132", "PLE1142", "PLE1700", "PLR1711", "PLW0120", "RET501", "TRY203"]

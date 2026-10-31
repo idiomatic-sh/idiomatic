@@ -1,0 +1,74 @@
+[[cases]]
+name = "module"
+files = { "case.py" = "\"\"\n" }
+expected = [{ file = "case.py", start = 0, end = 2 }]
+
+[[cases]]
+name = "function"
+files = { "case.py" = "def f():\n    \"   \"\n" }
+expected = [{ file = "case.py", start = 13, end = 18 }]
+
+[[cases]]
+name = "class"
+files = { "case.py" = "class C:\n    \"\"\"\n  \n\"\"\"\n" }
+expected = [{ file = "case.py", start = 13, end = 23 }]
+
+[[cases]]
+name = "nonempty"
+files = { "case.py" = "\"doc\"\n" }
+expected = []
+
+[[cases]]
+name = "second"
+files = { "case.py" = "pass\n\"\"\n" }
+expected = []
+
+[[cases]]
+name = "fstring"
+files = { "case.py" = "f\"\"\n" }
+expected = []
+
+[[cases]]
+name = "bytes"
+files = { "case.py" = "b\"\"\n" }
+expected = []
+
+[[cases]]
+name = "conditional"
+files = { "case.py" = "if True:\n    \"\"\n" }
+expected = []
+
+[[cases]]
+name = "paren"
+files = { "case.py" = "(\"\")\n" }
+expected = [{ file = "case.py", start = 1, end = 3 }]
+
+[[cases]]
+name = "concat"
+files = { "case.py" = "\" \" \" \"\n" }
+expected = []
+
+[[cases]]
+name = "async"
+files = { "case.py" = "async def f():\n    \"\"\n" }
+expected = [{ file = "case.py", start = 19, end = 21 }]
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "\"\" # noqa\n" }
+expected = []
+
+[[cases]]
+name = "code-noqa"
+files = { "case.py" = "\"\" # noqa: D419\n" }
+expected = []
+
+[[cases]]
+name = "other-code"
+files = { "case.py" = "\"\" # noqa: F401\n" }
+expected = [{ file = "case.py", start = 0, end = 2 }]
+
+[[cases]]
+name = "file-noqa"
+files = { "case.py" = "# ruff: noqa\n\"\"\n" }
+expected = []

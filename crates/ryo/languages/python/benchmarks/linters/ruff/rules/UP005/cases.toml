@@ -1,0 +1,59 @@
+[[cases]]
+name = "alias"
+files = { "case.py" = "self.assertEquals(1, 2)\n" }
+expected = [{ file = "case.py", start = 0, end = 17 }]
+
+[[cases]]
+name = "modern"
+files = { "case.py" = "self.assertEqual(1, 2)\n" }
+expected = []
+
+[[cases]]
+name = "other-object"
+files = { "case.py" = "other.assertEquals(1, 2)\n" }
+expected = []
+
+[[cases]]
+name = "nested-base"
+files = { "case.py" = "other.self.assertEquals(1, 2)\n" }
+expected = []
+
+[[cases]]
+name = "inner-attribute"
+files = { "case.py" = "value = self.assertEquals.__name__\n" }
+expected = []
+
+[[cases]]
+name = "reference"
+files = { "case.py" = "value = self.failUnlessRaises\n" }
+expected = []
+
+[[cases]]
+name = "parenthesized"
+files = { "case.py" = "(self).assertEquals(1, 2)\n" }
+expected = [{ file = "case.py", start = 0, end = 19 }]
+
+[[cases]]
+name = "unknown-alias"
+files = { "case.py" = "self.assertWhatever(1, 2)\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "self.assertEquals(1, 2) # noqa\n" }
+expected = []
+
+[[cases]]
+name = "code-noqa"
+files = { "case.py" = "self.assertEquals(1, 2) # noqa: UP005\n" }
+expected = []
+
+[[cases]]
+name = "other-code"
+files = { "case.py" = "self.assertEquals(1, 2) # noqa: F401\n" }
+expected = [{ file = "case.py", start = 0, end = 17 }]
+
+[[cases]]
+name = "file-noqa"
+files = { "case.py" = "# ruff: noqa\nself.assertEquals(1, 2)\n" }
+expected = []
