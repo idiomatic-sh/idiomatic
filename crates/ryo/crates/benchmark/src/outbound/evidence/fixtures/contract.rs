@@ -2,7 +2,7 @@
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::{
     diagnostics::types::RunReport,
-    measurements::types::{BenchmarkSample, Measurement, Resources},
+    measurements::types::{Measurement, Resources, sample::value::BenchmarkSample},
 };
 use crate::outbound::evidence::interface::EvidencePort;
 use std::time::Duration;

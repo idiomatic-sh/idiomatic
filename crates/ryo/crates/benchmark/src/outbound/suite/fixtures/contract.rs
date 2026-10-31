@@ -18,6 +18,8 @@ pub enum Operation {
     Verify,
     /// Hash a missing artifact.
     Fingerprint,
+    /// Hash one missing executable's exact bytes.
+    Digest,
     /// Stage a missing rule inventory.
     Stage,
     /// Stage a missing project manifest.
@@ -63,6 +65,12 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("missing fingerprint input is refused"),
         word: Word::Refuses,
         input: || Operation::Fingerprint,
+        expect: Expect::Error(Failure::MissingArtifact),
+    },
+    Case {
+        name: CaseName("missing executable digest input is refused"),
+        word: Word::Refuses,
+        input: || Operation::Digest,
         expect: Expect::Error(Failure::MissingArtifact),
     },
     Case {
@@ -138,11 +146,15 @@ pub fn check(adapter: &impl SuitePort) {
                     .stage(ArtifactPath(&missing), ArtifactPath(&destination), &audit)
                     .map(|()| (0, 0))
             }
+            Operation::Digest => adapter.digest(ArtifactPath(&missing)).map(|_| (0, 0)),
             Operation::StageProjects => adapter
                 .stage_projects(ArtifactPath(&missing), ArtifactPath(&destination))
                 .map(|()| (0, 0)),
             Operation::Cases => adapter
-                .cases(ArtifactPath(&temporary.path().join("rules")), ArtifactPath(&destination))
+                .cases(
+                    ArtifactPath(&temporary.path().join("rules")),
+                    ArtifactPath(&destination),
+                )
                 .map(|_| (0, 0)),
         };
         result.map_err(|error| match error {

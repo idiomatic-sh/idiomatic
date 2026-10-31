@@ -83,19 +83,21 @@ fn subject((complete, differs, order): Input) -> Result<Value, Failure> {
         status: 0,
         ..Default::default()
     };
-    drop(measure(&audit, &reference, &candidate, &execution, &request, order).map_err(|error| {
-        match error {
-            Error::Invalid(message)
-                if message == "default coverage incomplete: 1 missing rules: missing" =>
-            {
-                Failure::Incomplete
+    drop(
+        measure(&audit, &reference, &candidate, &execution, &request, order).map_err(|error| {
+            match error {
+                Error::Invalid(message)
+                    if message == "default coverage incomplete: 1 missing rules: missing" =>
+                {
+                    Failure::Incomplete
+                }
+                Error::Invalid(message) if message.starts_with("diagnostics differ:") => {
+                    Failure::Difference
+                }
+                _ => Failure::Unexpected,
             }
-            Error::Invalid(message) if message.starts_with("diagnostics differ:") => {
-                Failure::Difference
-            }
-            _ => Failure::Unexpected,
-        }
-    })?);
+        })?,
+    );
     let history = execution.history.lock().expect("fixture history");
     let labels: Vec<_> = history
         .iter()

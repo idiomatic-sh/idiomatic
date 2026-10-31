@@ -1,6 +1,7 @@
 //! Only this boundary knows the BMF field and metric names.
 use crate::domain::{
-    diagnostics::errors::DiagnosticsError as Error, measurements::types::BenchmarkSample,
+    diagnostics::errors::DiagnosticsError as Error,
+    measurements::types::sample::value::BenchmarkSample,
 };
 use serde::Serialize;
 use std::collections::BTreeMap;

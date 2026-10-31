@@ -4,7 +4,7 @@ mod constants;
 mod output;
 use ryo_benchmark::application::run::service::run as execute;
 use ryo_benchmark::domain::diagnostics::errors::DiagnosticsError as Error;
-use ryo_benchmark::domain::measurements::types::{BenchmarkSample, RunOrder};
+use ryo_benchmark::domain::measurements::types::{RunOrder, sample::value::BenchmarkSample};
 use ryo_benchmark::domain::suite::service::require_accounted;
 use ryo_benchmark::domain::suite::types::{BenchmarkCoverage, RunRequest, Suite};
 use ryo_benchmark::inbound::use_cases::certify::{
@@ -64,6 +64,11 @@ pub(crate) fn run(
                 args.next()
                     .ok_or_else(|| Error::Invalid(constants::EXPECTED_CACHE.into()))?,
             );
+            let collector_path = PathBuf::from(
+                args.next()
+                    .ok_or_else(|| Error::Invalid(constants::EXPECTED_COLLECTOR.into()))?,
+            )
+            .canonicalize()?;
             std::fs::create_dir_all(&cache)?;
             let cache = cache.canonicalize()?;
             let mut tool = suite_source.profile(ArtifactPath(&commands::directory()))?;
@@ -110,6 +115,8 @@ pub(crate) fn run(
                 ArtifactPath(&commands::directory().join(constants::LANGUAGE_DIRECTORY)),
                 ArtifactPath(&frozen_workload),
             )?;
+            let collector_settings =
+                commands::collector(suite_source.as_ref(), &collector_path, &frozen_workload)?;
             let selected_rules = selected_profile.join(constants::RULES_DIRECTORY);
             let candidate_executable = selected_scratch.join(constants::CANDIDATE_EXECUTABLE);
             let _bytes = std::fs::copy(std::env::current_exe()?, &candidate_executable)?;
@@ -143,17 +150,12 @@ pub(crate) fn run(
                 certificate.fingerprint(),
                 selected_profile.display()
             )?;
-            writeln!(
-                observations,
-                "environment: os={} arch={} release=true workers=1; Linux wait4 CPU=user+system, RSS=peak bytes; wall includes child spawn/wait and pipe collection; normalization and certificate/source hashing excluded; OS page cache uncontrolled; retained cache hits unverified",
-                std::env::consts::OS,
-                std::env::consts::ARCH
-            )?;
+            output::environment(observations)?;
             let suite: Suite = suite_source.projects(ArtifactPath(&frozen_workload))?;
             if suite.language.0 != constants::PYTHON || !(2..=3).contains(&suite.projects.len()) {
                 return Err(Error::Invalid(constants::PROJECT_COUNT_ERROR.into()));
             }
-            let execution = Arc::new(ryo_benchmark::outbound::execution::factory::timed());
+            let execution = commands::timed(collector_settings, observations)?;
             let measurements = MeasureUseCaseImpl::new(
                 reference.clone(),
                 candidate.clone(),
@@ -272,7 +274,7 @@ pub(crate) fn run(
                             ..request.clone()
                         };
                         let cold = measurements.measure(&certificate, &request, order)?;
-                        let counts = output::diagnostic_counts(&cold.reference.report);
+                        let counts = output::diagnostic_counts(&cold.reference().report);
                         writeln!(
                             observations,
                             "{}: exact matching findings per rule: {counts:?}",
@@ -280,14 +282,14 @@ pub(crate) fn run(
                         )?;
                         let retained = measurements.measure(&certificate, &request, order)?;
                         comparison
-                            .compare(&cold.reference.report, &retained.reference.report)
+                            .compare(&cold.reference().report, &retained.reference().report)
                             .map_err(|difference| {
                                 Error::Invalid(format!(
                                     "reference retained-cache mismatch: {difference:?}"
                                 ))
                             })?;
                         comparison
-                            .compare(&cold.candidate.report, &retained.candidate.report)
+                            .compare(&cold.candidate().report, &retained.candidate().report)
                             .map_err(|difference| {
                                 Error::Invalid(format!(
                                     "candidate retained-cache mismatch: {difference:?}"
@@ -303,14 +305,14 @@ pub(crate) fn run(
                         workspaces.reset(&mut workspace)?;
                         let edited = edited?;
                         comparison
-                            .compare(&edited.reference.report, &clean_reference?.report)
+                            .compare(&edited.reference().report, &clean_reference?.report)
                             .map_err(|difference| {
                                 Error::Invalid(format!(
                                     "reference edited retained vs fresh mismatch: {difference:?}"
                                 ))
                             })?;
                         comparison
-                            .compare(&edited.candidate.report, &clean_candidate?.report)
+                            .compare(&edited.candidate().report, &clean_candidate?.report)
                             .map_err(|difference| {
                                 Error::Invalid(format!(
                                     "candidate edited retained vs fresh mismatch: {difference:?}"
@@ -321,22 +323,22 @@ pub(crate) fn run(
                             (constants::RETAINED_CACHE_CONDITION, retained),
                             (constants::EDITED_CACHE_CONDITION, edited),
                         ] {
-                            for (contestant, measurement) in [
-                                (constants::REFERENCE_NAME, pair.reference),
-                                (constants::CANDIDATE_NAME, pair.candidate),
-                            ] {
-                                let counts = output::diagnostic_counts(&measurement.report);
+                            let contestants =
+                                [constants::REFERENCE_NAME, constants::CANDIDATE_NAME];
+                            let named = pair.samples(contestants.map(|contestant| {
+                                ryo_benchmark::domain::measurements::types::SampleName(format!(
+                                    "{}/{contestant}/{condition}",
+                                    project.name
+                                ))
+                            }));
+                            for (contestant, sample) in contestants.into_iter().zip(named) {
+                                let counts =
+                                    output::diagnostic_counts(&sample.measurement().report);
                                 writeln!(
                                     observations,
                                     "findings: project={} contestant={contestant} condition={condition} counts={counts:?}",
                                     project.name
                                 )?;
-                                let sample = BenchmarkSample {
-                                    name: ryo_benchmark::domain::measurements::types::SampleName(
-                                        format!("{}/{contestant}/{condition}", project.name),
-                                    ),
-                                    measurement,
-                                };
                                 output::observe_sample(observations, &sample, order)?;
                                 samples.push(sample);
                             }

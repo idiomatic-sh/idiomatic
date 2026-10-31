@@ -17,6 +17,9 @@ pub struct SuiteFake {
     pub prepared: Vec<crate::domain::suite::types::PreparedCase>,
 }
 impl SuitePort for SuiteFake {
+    fn digest(&self, _: ArtifactPath<'_>) -> Result<ArtifactDigest, Error> {
+        Err(std::io::Error::from(std::io::ErrorKind::NotFound).into())
+    }
     fn cases(
         &self,
         _: ArtifactPath<'_>,

@@ -2,7 +2,7 @@
 use crate::application::run::service::run;
 use crate::domain::diagnostics::errors::DiagnosticsError as Error;
 use crate::domain::diagnostics::service::compare;
-use crate::domain::measurements::types::{Pair, RunOrder};
+use crate::domain::measurements::types::{RunOrder, pair::value::Pair};
 use crate::domain::suite::service::require_complete;
 use crate::domain::suite::types::RunRequest;
 use crate::outbound::{execution::interface::ExecutionPort, linter::interface::LinterPort};

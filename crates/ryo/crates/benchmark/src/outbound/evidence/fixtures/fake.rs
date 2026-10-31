@@ -1,7 +1,8 @@
 //! The fake of the `evidence` port: publication acceptance without external effects.
 use super::super::interface::EvidencePort;
 use crate::domain::{
-    diagnostics::errors::DiagnosticsError as Error, measurements::types::BenchmarkSample,
+    diagnostics::errors::DiagnosticsError as Error,
+    measurements::types::sample::value::BenchmarkSample,
 };
 
 /// A deterministic publication stand-in for application tests.

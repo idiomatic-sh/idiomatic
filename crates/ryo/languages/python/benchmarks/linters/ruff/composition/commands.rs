@@ -19,24 +19,24 @@ pub(super) fn worker(
         .map(|argument| argument.0)
         .ok_or_else(|| Error::Invalid(constants::MISSING_WORKER_REQUEST.into()))?;
     let languages = ryo::linter::Languages(vec![ryo_python::linked()]);
-    let engine: Arc<dyn ryo_benchmark::outbound::engine::interface::EnginePort> = match if tracing == WorkerTracing::Enabled
-    {
-        Some(
-            args.next()
-                .map(|argument| argument.0)
-                .ok_or_else(|| Error::Invalid(constants::MISSING_TRACE.into()))?,
-        )
-    } else {
-        None
-    } {
-        Some(path) => Arc::new(ryo_benchmark::outbound::engine::factory::local(
-            languages,
-            Some(path.into()),
-        )),
-        None => Arc::new(ryo_benchmark::outbound::engine::factory::local(
-            languages, None,
-        )),
-    };
+    let engine: Arc<dyn ryo_benchmark::outbound::engine::interface::EnginePort> =
+        match if tracing == WorkerTracing::Enabled {
+            Some(
+                args.next()
+                    .map(|argument| argument.0)
+                    .ok_or_else(|| Error::Invalid(constants::MISSING_TRACE.into()))?,
+            )
+        } else {
+            None
+        } {
+            Some(path) => Arc::new(ryo_benchmark::outbound::engine::factory::local(
+                languages,
+                Some(path.into()),
+            )),
+            None => Arc::new(ryo_benchmark::outbound::engine::factory::local(
+                languages, None,
+            )),
+        };
     let transport =
         ryo_benchmark::outbound::worker::factory::json(input.into(), Box::new(std::io::stdout()));
     RunRyoUseCaseImpl::new(engine, Arc::new(transport)).run_ryo()
@@ -92,4 +92,36 @@ pub(super) enum WorkerTracing {
 }
 pub(super) fn directory() -> PathBuf {
     std::path::Path::new(constants::MANIFEST_DIRECTORY).join(constants::RUFF_DIRECTORY)
+}
+
+pub(super) fn collector(
+    suite: &dyn SuitePort,
+    source: &std::path::Path,
+    workload: &std::path::Path,
+) -> Result<CollectorIdentity, Error> {
+    let executable = workload.join(constants::COLLECTOR_EXECUTABLE);
+    let _bytes = std::fs::copy(source, &executable)?;
+    let digest = suite.digest(ArtifactPath(&executable))?;
+    std::fs::write(workload.join(constants::COLLECTOR_IDENTITY), &digest.0)?;
+    Ok(CollectorIdentity { executable, digest })
+}
+
+pub(super) struct CollectorIdentity {
+    pub(super) executable: PathBuf,
+    pub(super) digest: ryo_benchmark::domain::suite::types::ArtifactDigest,
+}
+
+pub(super) fn timed(
+    identity: CollectorIdentity,
+    observations: &mut dyn std::io::Write,
+) -> Result<Arc<dyn ryo_benchmark::outbound::execution::interface::ExecutionPort>, Error> {
+    writeln!(
+        observations,
+        "collector: executable={} sha256={}",
+        identity.executable.display(),
+        identity.digest
+    )?;
+    Ok(Arc::new(
+        ryo_benchmark::outbound::execution::factory::timed(identity.executable, identity.digest),
+    ))
 }

@@ -29,6 +29,18 @@ fn subject(selected: Input) -> Result<Value, Failure> {
     use crate::domain::suite::types::audit::value::Audit;
     use crate::outbound::suite::interface::SuitePort;
     let directory = tempfile::tempdir().expect("source artifacts");
+    let bytes = directory.path().join("executable");
+    std::fs::write(&bytes, b"abc").expect("digest fixture");
+    assert_eq!(
+        SuiteLocalAdapter
+            .digest(ArtifactPath(&bytes))
+            .expect("digest")
+            .0,
+        "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+    );
+    assert!(
+        matches!(SuiteLocalAdapter.digest(ArtifactPath(directory.path())), Err(crate::domain::diagnostics::errors::DiagnosticsError::Invalid(message)) if message == "executable digest requires a regular file")
+    );
     let destination = tempfile::tempdir().expect("snapshot parent");
     std::fs::write(directory.path().join("benchmark.toml"), "profile bytes").expect("profile");
     for rule in ["E722", "F704"] {

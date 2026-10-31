@@ -11,6 +11,7 @@ pub(super) const INVALID_RULE_ID_TEXT: &str = "non-UTF8 rule";
 pub(super) const INVALID_EVIDENCE_PATH: &str = "non-UTF8 evidence path";
 pub(super) const INVALID_EVIDENCE_KIND: &str =
     "evidence paths must be regular files or directories";
+pub(super) const INVALID_DIGEST_KIND: &str = "executable digest requires a regular file";
 pub(super) const TOOL_HASH_MISMATCH: &str = "tool executable hash differs from pin";
 pub(super) const TOOL_VERSION_MISMATCH: &str = "tool version differs from pin";
 pub(super) const PATCH_ESCAPE: &str = "patch escapes the shared suite directory";

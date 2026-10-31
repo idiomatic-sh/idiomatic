@@ -19,6 +19,8 @@ pub enum Change {
     Patch,
     /// Change the frozen project identity.
     Manifest,
+    /// Change the resource collector sealed inside the workload.
+    Collector,
     /// Change the authored query bytes.
     Query,
     /// Change the contestant executable bytes.
@@ -122,6 +124,11 @@ pub fn exercise(
         super::constants::FIXTURE_PATCH_CONTENT,
     )
     .unwrap();
+    std::fs::write(
+        workload.join(super::constants::FIXTURE_COLLECTOR_FILE),
+        super::constants::FIXTURE_TOOL_SCRIPT,
+    )
+    .unwrap();
     let suite = std::sync::Arc::new(crate::outbound::suite::factory::local());
     let reference = std::sync::Arc::new(Contestant {
         executable: executable.clone(),
@@ -173,6 +180,7 @@ pub fn exercise(
         Change::None => None,
         Change::Patch => Some(workload.join(super::constants::FIXTURE_PATCH_FILE)),
         Change::Manifest => Some(workload.join(super::constants::FIXTURE_PROFILE_FILE)),
+        Change::Collector => Some(workload.join(super::constants::FIXTURE_COLLECTOR_FILE)),
         Change::Query => Some(rules.join(super::constants::FIXTURE_QUERY_FILE)),
         Change::Executable => Some(executable),
         Change::Command => {

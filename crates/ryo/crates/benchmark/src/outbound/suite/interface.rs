@@ -15,6 +15,8 @@ pub trait SuitePort {
     fn verify_tool(&self, executable: ArtifactPath<'_>, tool: &Tool) -> Result<(), Error>;
     /// Hash exact regular-file bytes and names, recursively for artifact directories.
     fn fingerprint(&self, paths: ArtifactSet<'_>) -> Result<ArtifactDigest, Error>;
+    /// Hash one regular file's exact bytes with unframed SHA256 for executable pinning.
+    fn digest(&self, path: ArtifactPath<'_>) -> Result<ArtifactDigest, Error>;
     /// Freeze the shared project manifest and every declared patch in an owned directory.
     fn stage_projects(
         &self,

@@ -1,6 +1,7 @@
 //! Asymptote owns the ratchet; this port publishes only observed samples.
 use crate::domain::{
-    diagnostics::errors::DiagnosticsError as Error, measurements::types::BenchmarkSample,
+    diagnostics::errors::DiagnosticsError as Error,
+    measurements::types::sample::value::BenchmarkSample,
 };
 
 /// Publication boundary for complete, correctness-gated observations.

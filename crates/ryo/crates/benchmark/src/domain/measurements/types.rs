@@ -52,14 +52,8 @@ pub struct Resources {
     pub peak_rss_bytes: ResidentBytes,
 }
 
-/// Reference and candidate observations retained after exact agreement.
-#[derive(Clone, Debug)]
-pub struct Pair {
-    /// Observation produced by the pinned reference linter.
-    pub reference: Measurement,
-    /// Observation produced by the SDK candidate worker.
-    pub candidate: Measurement,
-}
+/// Correctness-gated paired observations.
+pub mod pair;
 
 /// Which contestant gets first access in a paired observation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -70,14 +64,8 @@ pub enum RunOrder {
     CandidateFirst,
 }
 
-/// One named contestant observation retained only after correctness checks pass.
-#[derive(Clone, Debug)]
-pub struct BenchmarkSample {
-    /// Stable project/contestant/cache-condition identity in the BMF document.
-    pub name: SampleName,
-    /// Full observation, including explicit resource availability.
-    pub measurement: Measurement,
-}
+/// Immutable observations accepted by the publication boundary.
+pub mod sample;
 
 /// Exit code returned by a successfully launched process.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

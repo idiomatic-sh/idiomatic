@@ -67,9 +67,18 @@ fn audit(directory: &Path, tool: &Tool) -> Result<Audit, Error> {
     })
 }
 
+fn digest(path: &Path) -> Result<ArtifactDigest, Error> {
+    if !std::fs::symlink_metadata(path)?.is_file() {
+        return Err(Error::Invalid(constants::INVALID_DIGEST_KIND.into()));
+    }
+    Ok(ArtifactDigest(format!(
+        "{:x}",
+        Sha256::digest(std::fs::read(path)?)
+    )))
+}
+
 fn verify_executable(path: &Path, tool: &Tool) -> Result<(), Error> {
-    let digest = format!("{:x}", Sha256::digest(std::fs::read(path)?));
-    if digest != tool.sha256.0 {
+    if digest(path)?.0 != tool.sha256.0 {
         return Err(Error::Invalid(constants::TOOL_HASH_MISMATCH.into()));
     }
     let output = std::process::Command::new(path)
@@ -87,6 +96,9 @@ fn verify_executable(path: &Path, tool: &Tool) -> Result<(), Error> {
 #[derive(Debug)]
 pub(crate) struct SuiteLocalAdapter;
 impl SuitePort for SuiteLocalAdapter {
+    fn digest(&self, ArtifactPath(path): ArtifactPath<'_>) -> Result<ArtifactDigest, Error> {
+        digest(path)
+    }
     fn cases(
         &self,
         ArtifactPath(rules): ArtifactPath<'_>,

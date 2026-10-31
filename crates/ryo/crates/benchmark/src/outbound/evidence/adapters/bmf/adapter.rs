@@ -1,7 +1,8 @@
 //! Atomic document encoding precedes writing to the injected destination.
 use super::{connection::EvidenceBmfConnection, constants, schemas};
 use crate::domain::{
-    diagnostics::errors::DiagnosticsError as Error, measurements::types::BenchmarkSample,
+    diagnostics::errors::DiagnosticsError as Error,
+    measurements::types::sample::value::BenchmarkSample,
 };
 use crate::outbound::evidence::interface::EvidencePort;
 use std::io::Write;

@@ -1,6 +1,6 @@
 //! Both contestants use the same execution implementation.
 use super::interface::MeasureUseCase;
-use crate::domain::measurements::types::{Pair, RunOrder};
+use crate::domain::measurements::types::{RunOrder, pair::value::Pair};
 use crate::domain::suite::types::certificate::value::Certificate;
 use crate::domain::{diagnostics::errors::DiagnosticsError as Error, suite::types::RunRequest};
 use crate::outbound::suite::interface::SuitePort;

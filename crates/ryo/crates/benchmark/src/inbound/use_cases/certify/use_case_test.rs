@@ -25,6 +25,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Error(()),
     },
     Case {
+        name: CaseName("changed collector refuses before execution"),
+        word: Word::Refuses,
+        input: || Change::Collector,
+        expect: Expect::Error(()),
+    },
+    Case {
         name: CaseName("query mutation refuses measurement"),
         word: Word::Refuses,
         input: || Change::Query,
