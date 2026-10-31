@@ -1,7 +1,7 @@
 //! Coverage acceptance gates the public benchmark operation.
 use cucumber::then;
 use ryo_benchmark::domain::suite::service::require_complete;
-use ryo_benchmark::outbound::suite::fixtures::contract::audited;
+use ryo_benchmark::outbound::suite::fixtures::driver::audited;
 #[then("complete default coverage permits measurement")]
 fn complete(world: &mut crate::Behavior) {
     let _ = world;

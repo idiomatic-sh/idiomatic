@@ -1,7 +1,7 @@
 //! Pinned workspace preparation and edit lifecycle are shared across adapters.
 use super::driver::git;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::{diagnostics::errors::Error, suite::types::Project};
+use crate::domain::{diagnostics::errors::DiagnosticsError as Error, suite::types::Project};
 use crate::outbound::workspace::interface::WorkspacePort;
 use std::fs;
 type Input = bool;
@@ -60,8 +60,12 @@ pub fn check(adapter: &impl WorkspacePort) {
     let subject = |valid| {
         let project = Project {
             name: "fixture".into(),
-            repository: source.to_string_lossy().into(),
-            revision: if valid { pin.clone() } else { "main".into() },
+            repository: source.to_string_lossy().into_owned().into(),
+            revision: if valid {
+                pin.clone().into()
+            } else {
+                "main".into()
+            },
             patch: "edit.patch".into(),
         };
         adapter

@@ -1,6 +1,6 @@
 //! Reproducible corpus worktrees, owned exclusively by the benchmark.
 use super::types::{AppliedPatch, CommitRevision, TrackedFiles};
-use crate::domain::{diagnostics::errors::Error, suite::types::Project};
+use crate::domain::{diagnostics::errors::DiagnosticsError as Error, suite::types::Project};
 use std::path::{Path, PathBuf};
 
 /// An owned checkout and the evidence needed to restore its current edit.

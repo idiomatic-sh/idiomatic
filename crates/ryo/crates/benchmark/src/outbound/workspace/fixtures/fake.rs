@@ -1,5 +1,5 @@
 //! In-memory workspace lifecycle for orchestration tests.
-use crate::domain::{diagnostics::errors::Error, suite::types::Project};
+use crate::domain::{diagnostics::errors::DiagnosticsError as Error, suite::types::Project};
 use crate::outbound::workspace::interface::{Workspace, WorkspacePort};
 use crate::outbound::workspace::types::{AppliedPatch, CommitRevision, TrackedFiles};
 use std::path::{Path, PathBuf};
@@ -8,18 +8,19 @@ use std::path::{Path, PathBuf};
 pub struct WorkspaceFake;
 impl WorkspacePort for WorkspaceFake {
     fn prepare(&self, project: &Project) -> Result<Workspace, Error> {
-        if project.name.is_empty()
-            || project.revision.len() != 40
+        if project.name.0.is_empty()
+            || project.revision.0.len() != 40
             || !project
                 .revision
+                .0
                 .bytes()
                 .all(|byte| byte.is_ascii_hexdigit())
         {
             return Err(Error::Invalid("invalid pin".into()));
         }
         Ok(Workspace {
-            root: PathBuf::from(&project.name),
-            revision: CommitRevision(project.revision.clone()),
+            root: PathBuf::from(&project.name.0),
+            revision: CommitRevision(project.revision.0.clone()),
             applied: None,
         })
     }

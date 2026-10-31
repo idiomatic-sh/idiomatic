@@ -1,5 +1,4 @@
 //! Real local git repositories prove immutable pins and non-destructive restoration.
-use super::adapter::WorkspaceGitAdapter;
 use crate::domain::suite::types::Project;
 use crate::outbound::workspace::interface::WorkspacePort;
 use std::{fs, path::Path, process::Command};
@@ -23,10 +22,10 @@ fn pinned_clone_patch_restore_and_intervening_edit_refusal() {
     let temporary = tempfile::tempdir().expect("temporary directory");
     let source = temporary.path().join("source");
     fs::create_dir(&source).expect("source");
-    git(&source, &["init", "--quiet"]);
+    drop(git(&source, &["init", "--quiet"]));
     fs::write(source.join("input.txt"), "before\n").expect("input");
-    git(&source, &["add", "input.txt"]);
-    git(
+    drop(git(&source, &["add", "input.txt"]));
+    drop(git(
         &source,
         &[
             "-c",
@@ -38,15 +37,15 @@ fn pinned_clone_patch_restore_and_intervening_edit_refusal() {
             "-m",
             "initial",
         ],
-    );
+    ));
     let project = Project {
         name: "fixture".into(),
-        repository: source.to_string_lossy().into(),
-        revision: git(&source, &["rev-parse", "HEAD"]),
+        repository: source.to_string_lossy().into_owned().into(),
+        revision: git(&source, &["rev-parse", "HEAD"]).into(),
         patch: "edit.patch".into(),
     };
     let cache = temporary.path().join("cache");
-    let adapter = WorkspaceGitAdapter::new(super::settings::WorkspaceGitSettings { cache });
+    let adapter = crate::outbound::workspace::factory::git(cache);
     let mut workspace = adapter.prepare(&project).expect("pinned clone");
     assert_eq!(
         adapter.tracked_files(&workspace).expect("files").0,
@@ -84,7 +83,7 @@ fn pinned_clone_patch_restore_and_intervening_edit_refusal() {
         fs::read_to_string(workspace.root().join("input.txt")).expect("read"),
         "before\n"
     );
-    adapter.prepare(&project).expect("clean reuse");
+    drop(adapter.prepare(&project).expect("clean reuse"));
     let invalid = Project {
         revision: "main".into(),
         ..project
@@ -100,9 +99,7 @@ fn pinned_clone_patch_restore_and_intervening_edit_refusal() {
 
 fn contract() {
     let cache = tempfile::tempdir().expect("isolated cache");
-    let adapter = WorkspaceGitAdapter::new(super::settings::WorkspaceGitSettings {
-        cache: cache.path().to_owned(),
-    });
+    let adapter = crate::outbound::workspace::factory::git(cache.path().to_owned());
     crate::outbound::workspace::fixtures::contract::check(&adapter);
 }
 

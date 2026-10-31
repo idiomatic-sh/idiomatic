@@ -1,8 +1,31 @@
 //! Missing implementations remain visible and an empty selection is not coverage.
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::{diagnostics::errors::Error, suite::types::Tool};
+use crate::domain::{diagnostics::errors::DiagnosticsError as Error, suite::types::Tool};
 use crate::outbound::suite::interface::SuitePort;
-type Input = bool;
+use crate::outbound::suite::types::{ArtifactPath, ArtifactSet};
+#[derive(Clone, Copy, Debug)]
+/// Artifact operations exercised against missing inputs as well as valid inventories.
+pub enum Operation {
+    /// Audit an inventory with one unimplemented default.
+    Audit,
+    /// Refuse an empty default inventory.
+    Empty,
+    /// Read a missing profile.
+    Profile,
+    /// Read a missing shared workload.
+    Projects,
+    /// Verify a missing executable.
+    Verify,
+    /// Hash a missing artifact.
+    Fingerprint,
+    /// Stage a missing rule inventory.
+    Stage,
+    /// Stage a missing project manifest.
+    StageProjects,
+    /// Materialize missing independent cases.
+    Cases,
+}
+type Input = Operation;
 type Value = (usize, usize);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 /// Canonical contract failure classifications.
@@ -11,19 +34,65 @@ pub enum Refusal {
     EmptyDefaults,
     /// The implementation returned an unexpected failure category.
     Unexpected,
+    /// The requested artifact does not exist.
+    MissingArtifact,
+    /// Empty materialized rule sources cannot establish correctness.
+    NoCases,
 }
 /// Named observations every implementation must satisfy.
 pub const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
+        name: CaseName("missing profile is refused"),
+        word: Word::Refuses,
+        input: || Operation::Profile,
+        expect: Expect::Error(Failure::MissingArtifact),
+    },
+    Case {
+        name: CaseName("missing shared manifest is refused"),
+        word: Word::Refuses,
+        input: || Operation::Projects,
+        expect: Expect::Error(Failure::MissingArtifact),
+    },
+    Case {
+        name: CaseName("missing executable is refused"),
+        word: Word::Refuses,
+        input: || Operation::Verify,
+        expect: Expect::Error(Failure::MissingArtifact),
+    },
+    Case {
+        name: CaseName("missing fingerprint input is refused"),
+        word: Word::Refuses,
+        input: || Operation::Fingerprint,
+        expect: Expect::Error(Failure::MissingArtifact),
+    },
+    Case {
+        name: CaseName("missing rule staging input is refused"),
+        word: Word::Refuses,
+        input: || Operation::Stage,
+        expect: Expect::Error(Failure::MissingArtifact),
+    },
+    Case {
+        name: CaseName("missing project staging input is refused"),
+        word: Word::Refuses,
+        input: || Operation::StageProjects,
+        expect: Expect::Error(Failure::MissingArtifact),
+    },
+    Case {
+        name: CaseName("empty case sources are refused"),
+        word: Word::Refuses,
+        input: || Operation::Cases,
+        expect: Expect::Error(Failure::NoCases),
+    },
+    Case {
         name: CaseName("missing implementation stays missing"),
         word: Word::Succeeds,
-        input: || true,
+        input: || Operation::Audit,
         expect: Expect::Value((0, 1)),
     },
     Case {
         name: CaseName("empty inventory is refused"),
         word: Word::Refuses,
-        input: || false,
+        input: || Operation::Empty,
         expect: Expect::Error(Failure::EmptyDefaults),
     },
 ];
@@ -35,72 +104,60 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
 pub fn check(adapter: &impl SuitePort) {
     let temporary = tempfile::tempdir().expect("suite fixture");
     std::fs::create_dir(temporary.path().join("rules")).expect("rules fixture");
-    let subject = |selected| {
+    let subject = |operation| {
+        let selected = !matches!(operation, Operation::Empty);
         let tool = Tool {
             tool: "fixture".into(),
             version: "1".into(),
-            sha256: String::new(),
+            sha256: String::new().into(),
             deferred: Default::default(),
             pending: Default::default(),
             defaults: if selected {
-                vec!["fixture".into()]
+                vec!["fixture".try_into().expect("rule identifier")]
             } else {
                 Vec::new()
             },
         };
-        adapter
-            .audit(temporary.path(), &tool)
-            .map(|audit| (audit.implemented.len(), audit.missing.len()))
-            .map_err(|error| match error {
-                Error::Invalid(message)
-                    if message == "empty or duplicated default rule inventory" =>
-                {
-                    Failure::EmptyDefaults
-                }
-                _ => Failure::Unexpected,
-            })
+        let missing = temporary.path().join("missing");
+        let destination = temporary.path().join("destination");
+        let result = match operation {
+            Operation::Audit | Operation::Empty => adapter
+                .audit(ArtifactPath(temporary.path()), &tool)
+                .map(|audit| (audit.implemented.len(), audit.missing.len())),
+            Operation::Profile => adapter.profile(ArtifactPath(&missing)).map(|_| (0, 0)),
+            Operation::Projects => adapter.projects(ArtifactPath(&missing)).map(|_| (0, 0)),
+            Operation::Verify => adapter
+                .verify_tool(ArtifactPath(&missing), &tool)
+                .map(|()| (0, 0)),
+            Operation::Fingerprint => adapter.fingerprint(ArtifactSet(&[missing])).map(|_| (0, 0)),
+            Operation::Stage => {
+                let audit = adapter
+                    .audit(ArtifactPath(temporary.path()), &tool)
+                    .expect("valid inventory");
+                adapter
+                    .stage(ArtifactPath(&missing), ArtifactPath(&destination), &audit)
+                    .map(|()| (0, 0))
+            }
+            Operation::StageProjects => adapter
+                .stage_projects(ArtifactPath(&missing), ArtifactPath(&destination))
+                .map(|()| (0, 0)),
+            Operation::Cases => adapter
+                .cases(ArtifactPath(&temporary.path().join("rules")), ArtifactPath(&destination))
+                .map(|_| (0, 0)),
+        };
+        result.map_err(|error| match error {
+            Error::Invalid(message) if message == "empty or duplicated default rule inventory" => {
+                Failure::EmptyDefaults
+            }
+            Error::Io(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                Failure::MissingArtifact
+            }
+            Error::Invalid(message) if message == "no executable rule cases" => Failure::NoCases,
+            _ => Failure::Unexpected,
+        })
     };
     run(CASES, Word::Succeeds, subject);
     run(CASES, Word::Refuses, subject);
 }
 
 type Failure = Refusal;
-
-/// Produce the acceptance fixture through the real artifact boundary.
-pub fn audited(complete: bool) -> crate::domain::suite::types::audit::value::Audit {
-    let directory = tempfile::tempdir().expect("audit fixture");
-    std::fs::create_dir(directory.path().join("rules")).expect("rule root");
-    if complete {
-        let rule = directory.path().join("rules/fixture");
-        std::fs::create_dir(&rule).expect("rule directory");
-        std::fs::write(
-            rule.join("query.ryoql"),
-            "let nodes = select * from \"syntax-tree\"; emit nodes subject file key(id);",
-        )
-        .expect("query");
-        std::fs::write(
-            rule.join("cases.toml"),
-            r#"[[cases]]
-name = "positive"
-files = { "input.txt" = "x" }
-expected = [{file="input.txt",start=0,end=1}]
-[[cases]]
-name = "negative"
-files = { "input.txt" = "" }
-expected = []
-"#,
-        )
-        .expect("cases");
-    }
-    let tool = Tool {
-        tool: "fixture".into(),
-        version: "1".into(),
-        sha256: String::new(),
-        deferred: Default::default(),
-        pending: Default::default(),
-        defaults: vec!["fixture".into()],
-    };
-    crate::outbound::suite::factory::local()
-        .audit(directory.path(), &tool)
-        .expect("audited fixture")
-}

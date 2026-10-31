@@ -3,7 +3,7 @@ use super::{
     constants,
     types::{GitArguments, GitInput, GitOutput},
 };
-use crate::domain::{diagnostics::errors::Error, suite::types::Project};
+use crate::domain::{diagnostics::errors::DiagnosticsError as Error, suite::types::Project};
 use crate::outbound::workspace::interface::{Workspace, WorkspacePort};
 use crate::outbound::workspace::types::{AppliedPatch, CommitRevision, TrackedFiles};
 use std::{
@@ -92,19 +92,20 @@ fn head(workspace: &Workspace) -> Result<(), Error> {
 }
 impl WorkspacePort for WorkspaceGitAdapter {
     fn prepare(&self, project: &Project) -> Result<Workspace, Error> {
-        if project.name.is_empty()
+        if project.name.0.is_empty()
             || !project
                 .name
+                .0
                 .bytes()
                 .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
-            || project.revision.len() != 40
-            || !project.revision.bytes().all(|b| b.is_ascii_hexdigit())
+            || project.revision.0.len() != 40
+            || !project.revision.0.bytes().all(|b| b.is_ascii_hexdigit())
         {
             return Err(Error::Invalid(constants::UNPINNED.into()));
         }
         let cache = &self.settings.cache;
         fs::create_dir_all(cache)?;
-        let root = cache.join(format!("{}-{}", project.name, project.revision));
+        let root = cache.join(format!("{}-{}", project.name.0, project.revision.0));
         let absent = match fs::metadata(&root) {
             Ok(_) => false,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => true,
@@ -123,7 +124,7 @@ impl WorkspacePort for WorkspaceGitAdapter {
                     constants::REMOTE,
                     constants::ADD,
                     constants::ORIGIN,
-                    &project.repository,
+                    &project.repository.0,
                 ]),
                 GitInput(None),
             )?);
@@ -134,7 +135,7 @@ impl WorkspacePort for WorkspaceGitAdapter {
                     constants::QUIET,
                     constants::SHALLOW,
                     constants::ORIGIN,
-                    &project.revision,
+                    &project.revision.0,
                 ]),
                 GitInput(None),
             )?);
@@ -144,14 +145,14 @@ impl WorkspacePort for WorkspaceGitAdapter {
                     constants::CHECKOUT,
                     constants::QUIET,
                     constants::DETACH,
-                    &project.revision,
+                    &project.revision.0,
                 ]),
                 GitInput(None),
             )?);
-            fs::write(root.join(constants::OWNER), project.repository.as_bytes())?;
+            fs::write(root.join(constants::OWNER), project.repository.0.as_bytes())?;
         }
         let marker = fs::read(root.join(constants::OWNER))?;
-        if marker != project.repository.as_bytes() {
+        if marker != project.repository.0.as_bytes() {
             return Err(Error::Invalid(constants::UNOWNED.into()));
         }
         let remote = git(
@@ -160,12 +161,12 @@ impl WorkspacePort for WorkspaceGitAdapter {
             GitInput(None),
         )?
         .0;
-        if String::from_utf8_lossy(&remote).trim() != project.repository {
+        if String::from_utf8_lossy(&remote).trim() != project.repository.0 {
             return Err(Error::Invalid(constants::REMOTE_CHANGED.into()));
         }
         let workspace = Workspace {
             root,
-            revision: CommitRevision(project.revision.clone()),
+            revision: CommitRevision(project.revision.0.clone()),
             applied: None,
         };
         head(&workspace)?;

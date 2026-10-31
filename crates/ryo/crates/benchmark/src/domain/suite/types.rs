@@ -1,4 +1,6 @@
 //! Immutable inputs and independently pinned shipped defaults.
+use crate::domain::diagnostics::types::SourceByteOffset;
+use ryo::linter::{RelativePath, RuleId, SourceText};
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
@@ -6,7 +8,7 @@ use std::path::PathBuf;
 #[derive(Clone, Debug)]
 pub struct Suite {
     /// The language identifier shared by the project inputs.
-    pub language: String,
+    pub language: SuiteLanguage,
     /// Pinned repositories used for the common corpus.
     pub projects: Vec<Project>,
 }
@@ -15,30 +17,30 @@ pub struct Suite {
 #[derive(Clone, Debug)]
 pub struct Project {
     /// Stable project identifier used to name its isolated checkout.
-    pub name: String,
+    pub name: ProjectName,
     /// Git remote from which the pinned commit is fetched.
-    pub repository: String,
+    pub repository: RepositoryUrl,
     /// Full immutable Git commit identifier.
-    pub revision: String,
+    pub revision: ProjectRevision,
     /// Edit patch path relative to the language benchmark directory.
-    pub patch: String,
+    pub patch: PathBuf,
 }
 
 /// The independently pinned reference executable and its shipped defaults.
 #[derive(Clone, Debug)]
 pub struct Tool {
     /// Reference executable identity reported by its version command.
-    pub tool: String,
+    pub tool: ToolName,
     /// Exact reference version required by this suite.
-    pub version: String,
+    pub version: ToolVersion,
     /// Expected SHA-256 digest of the reference executable.
-    pub sha256: String,
+    pub sha256: ToolDigest,
     /// Exact shipped-default rule identifiers for the pinned reference profile.
-    pub defaults: Vec<String>,
+    pub defaults: Vec<RuleId>,
     /// Deferred default rules mapped to a public capability identifier.
-    pub deferred: BTreeMap<String, String>,
+    pub deferred: BTreeMap<RuleId, CapabilityName>,
     /// Assessed tractable work still pending implementation, never counted as a deferral.
-    pub pending: BTreeMap<String, String>,
+    pub pending: BTreeMap<RuleId, CapabilityName>,
 }
 
 /// The correctness cases authored beside one candidate query.
@@ -52,9 +54,9 @@ pub struct Cases {
 #[derive(Clone, Debug)]
 pub struct Case {
     /// Human-readable identity of this correctness case.
-    pub name: String,
+    pub name: BenchmarkCaseName,
     /// Relative source paths and their complete UTF-8 contents.
-    pub files: BTreeMap<String, String>,
+    pub files: BTreeMap<RelativePath, SourceText>,
     /// Expected finding multiset; an empty list is a negative case.
     pub expected: Vec<Expected>,
 }
@@ -63,9 +65,9 @@ pub struct Case {
 #[derive(Clone, Debug)]
 pub struct PreparedCase {
     /// Selected default rule whose findings this case asserts.
-    pub rule: String,
+    pub rule: RuleId,
     /// Unique case name within that rule.
-    pub name: String,
+    pub name: BenchmarkCaseName,
     /// Exact immutable source inputs supplied to both contestants.
     pub request: RunRequest,
     /// Independently authored findings and input coverage.
@@ -76,11 +78,11 @@ pub struct PreparedCase {
 #[derive(Clone, Debug)]
 pub struct Expected {
     /// Relative path of a source supplied by the case.
-    pub file: String,
+    pub file: RelativePath,
     /// Inclusive start offset in UTF-8 bytes.
-    pub start: usize,
+    pub start: SourceByteOffset,
     /// Exclusive end offset in UTF-8 bytes.
-    pub end: usize,
+    pub end: SourceByteOffset,
 }
 
 /// Both contestants receive exactly this list, never independently walk the tree.
@@ -89,14 +91,14 @@ pub struct RunRequest {
     /// Root of the exact source snapshot supplied to both contestants.
     pub root: PathBuf,
     /// Shared explicit list of relative source paths.
-    pub files: Vec<String>,
+    pub files: Vec<RelativePath>,
     /// Directory beneath which contestants keep their separate caches.
-    pub cache: PathBuf,
+    pub state: PathBuf,
 }
 
 /// Whether the full inventory has been assessed or this is an interim authored subset.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum CoverageScope {
+pub enum BenchmarkCoverage {
     /// Every default is implemented or linked to an assessed capability deferral.
     Accounted,
     /// Unassessed defaults remain explicit and the certificate covers only authored rules.
@@ -110,12 +112,219 @@ pub struct WorkerRequest {
     /// Directory holding the selected candidate rule directories.
     pub rules: PathBuf,
     /// Explicit relative paths the worker must check.
-    pub files: Vec<String>,
+    pub files: Vec<RelativePath>,
     /// Optional persistent SDK cache directory; absence disables disk caching.
-    pub cache: Option<PathBuf>,
+    pub state: WorkerState,
 }
 
 /// Audited implementation inventory.
 pub mod audit;
 /// Opaque case-certified evidence.
 pub mod certificate;
+
+/// Language identifier for a shared corpus.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct SuiteLanguage(pub String);
+impl From<&str> for SuiteLanguage {
+    fn from(value: &str) -> Self {
+        Self(value.to_owned())
+    }
+}
+impl From<String> for SuiteLanguage {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
+impl std::fmt::Display for SuiteLanguage {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(formatter)
+    }
+}
+
+/// Stable benchmark project identity.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct ProjectName(pub String);
+impl From<&str> for ProjectName {
+    fn from(value: &str) -> Self {
+        Self(value.to_owned())
+    }
+}
+impl From<String> for ProjectName {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
+impl std::fmt::Display for ProjectName {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(formatter)
+    }
+}
+
+/// Repository remote used to obtain an immutable revision.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct RepositoryUrl(pub String);
+impl From<&str> for RepositoryUrl {
+    fn from(value: &str) -> Self {
+        Self(value.to_owned())
+    }
+}
+impl From<String> for RepositoryUrl {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
+impl std::fmt::Display for RepositoryUrl {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(formatter)
+    }
+}
+
+/// Full immutable Git commit identifier.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct ProjectRevision(pub String);
+impl From<&str> for ProjectRevision {
+    fn from(value: &str) -> Self {
+        Self(value.to_owned())
+    }
+}
+impl From<String> for ProjectRevision {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
+impl std::fmt::Display for ProjectRevision {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(formatter)
+    }
+}
+
+/// Pinned reference tool identity.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct ToolName(pub String);
+impl From<&str> for ToolName {
+    fn from(value: &str) -> Self {
+        Self(value.to_owned())
+    }
+}
+impl From<String> for ToolName {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
+impl std::fmt::Display for ToolName {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(formatter)
+    }
+}
+
+/// Exact reference release identity.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct ToolVersion(pub String);
+impl From<&str> for ToolVersion {
+    fn from(value: &str) -> Self {
+        Self(value.to_owned())
+    }
+}
+impl From<String> for ToolVersion {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
+impl std::fmt::Display for ToolVersion {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(formatter)
+    }
+}
+
+/// Expected executable SHA-256 digest.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct ToolDigest(pub String);
+impl From<&str> for ToolDigest {
+    fn from(value: &str) -> Self {
+        Self(value.to_owned())
+    }
+}
+impl From<String> for ToolDigest {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
+impl std::fmt::Display for ToolDigest {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(formatter)
+    }
+}
+
+/// Assessed capability identifier for a default disposition.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct CapabilityName(pub String);
+impl From<&str> for CapabilityName {
+    fn from(value: &str) -> Self {
+        Self(value.to_owned())
+    }
+}
+impl From<String> for CapabilityName {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
+impl std::fmt::Display for CapabilityName {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(formatter)
+    }
+}
+
+/// Stable human-readable identity of an independent case.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct BenchmarkCaseName(pub String);
+impl From<&str> for BenchmarkCaseName {
+    fn from(value: &str) -> Self {
+        Self(value.to_owned())
+    }
+}
+impl From<String> for BenchmarkCaseName {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
+impl std::fmt::Display for BenchmarkCaseName {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(formatter)
+    }
+}
+
+/// Whether a worker observation starts fresh or reuses explicitly retained state.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum WorkerState {
+    /// Do not retain disk state between observations.
+    Fresh,
+    /// Reuse only this observation's explicitly selected state directory.
+    Retained(PathBuf),
+}
+
+/// Stable digest of the complete requested artifact set.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ArtifactDigest(pub String);
+impl std::fmt::Display for ArtifactDigest {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(formatter)
+    }
+}
+
+/// Number of independently executed correctness cases.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct CaseCount(pub usize);
+
+/// Number of rules in a pinned coverage inventory.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct RuleCount(pub usize);
+impl std::fmt::Display for RuleCount {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(formatter)
+    }
+}
+impl std::fmt::Display for CaseCount {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(formatter)
+    }
+}

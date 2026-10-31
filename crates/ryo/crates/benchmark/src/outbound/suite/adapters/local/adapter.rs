@@ -1,8 +1,12 @@
 //! Validate pins, cases and rule coverage before running contestants.
-use crate::domain::diagnostics::errors::Error;
+use super::constants;
+use crate::domain::diagnostics::errors::DiagnosticsError as Error;
 use crate::domain::suite::service::{relative_path, validate_case_sources, validate_cases};
+use crate::domain::suite::types::ArtifactDigest;
 use crate::domain::suite::types::audit::value::Audit;
 use crate::domain::suite::types::{Cases, Tool};
+use crate::outbound::suite::interface::SuitePort;
+use crate::outbound::suite::types::{ArtifactPath, ArtifactSet};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
 use std::path::Path;
@@ -10,13 +14,11 @@ use std::path::Path;
 fn audit(directory: &Path, tool: &Tool) -> Result<Audit, Error> {
     let defaults: BTreeSet<_> = tool.defaults.iter().cloned().collect();
     if defaults.is_empty() || defaults.len() != tool.defaults.len() {
-        return Err(Error::Invalid(
-            "empty or duplicated default rule inventory".into(),
-        ));
+        return Err(Error::Invalid(constants::INVALID_DEFAULTS.into()));
     }
     for (rule, issue) in tool.deferred.iter().chain(&tool.pending) {
         if !defaults.contains(rule)
-            || issue.is_empty()
+            || issue.0.is_empty()
             || (tool.deferred.contains_key(rule) && tool.pending.contains_key(rule))
         {
             return Err(Error::Invalid(format!(
@@ -25,18 +27,19 @@ fn audit(directory: &Path, tool: &Tool) -> Result<Audit, Error> {
         }
     }
     let mut implemented = BTreeSet::new();
-    for entry in std::fs::read_dir(directory.join("rules"))? {
+    for entry in std::fs::read_dir(directory.join(constants::RULES))? {
         let entry = entry?;
         let rule = entry
             .file_name()
             .into_string()
-            .map_err(|_| Error::Invalid("non-UTF8 rule id".into()))?;
+            .map_err(|_| Error::Invalid(constants::INVALID_RULE_ID.into()))?;
+        let rule = super::schemas::rule(&rule)?;
         if !defaults.contains(&rule) {
             return Err(Error::Invalid(format!(
                 "rule {rule} is not a shipped default"
             )));
         }
-        let query = match std::fs::read_to_string(entry.path().join("query.ryoql")) {
+        let query = match std::fs::read_to_string(entry.path().join(constants::QUERY)) {
             Ok(query) => Some(query),
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
             Err(error) => return Err(error.into()),
@@ -44,8 +47,9 @@ fn audit(directory: &Path, tool: &Tool) -> Result<Audit, Error> {
         if query.as_ref().is_some_and(|query| query.trim().is_empty()) {
             return Err(Error::Invalid(format!("empty query for {rule}")));
         }
-        let cases: Cases =
-            super::schemas::cases(&std::fs::read_to_string(entry.path().join("cases.toml"))?)?;
+        let cases: Cases = super::schemas::cases(&std::fs::read_to_string(
+            entry.path().join(constants::CASES),
+        )?)?;
         validate_case_sources(&cases)?;
         if query.is_some() {
             validate_cases(&cases)?;
@@ -65,39 +69,43 @@ fn audit(directory: &Path, tool: &Tool) -> Result<Audit, Error> {
 
 fn verify_executable(path: &Path, tool: &Tool) -> Result<(), Error> {
     let digest = format!("{:x}", Sha256::digest(std::fs::read(path)?));
-    if digest != tool.sha256 {
-        return Err(Error::Invalid(
-            "tool executable hash differs from pin".into(),
-        ));
+    if digest != tool.sha256.0 {
+        return Err(Error::Invalid(constants::TOOL_HASH_MISMATCH.into()));
     }
-    let output = std::process::Command::new(path).arg("--version").output()?;
+    let output = std::process::Command::new(path)
+        .arg(constants::VERSION_ARGUMENT)
+        .output()?;
     if !output.status.success()
         || String::from_utf8_lossy(&output.stdout).trim()
             != format!("{} {}", tool.tool, tool.version)
     {
-        return Err(Error::Invalid("tool version differs from pin".into()));
+        return Err(Error::Invalid(constants::TOOL_VERSION_MISMATCH.into()));
     }
     Ok(())
 }
 
 #[derive(Debug)]
 pub(crate) struct SuiteLocalAdapter;
-impl crate::outbound::suite::interface::SuitePort for SuiteLocalAdapter {
+impl SuitePort for SuiteLocalAdapter {
     fn cases(
         &self,
-        rules: &Path,
-        scratch: &Path,
+        ArtifactPath(rules): ArtifactPath<'_>,
+        ArtifactPath(scratch): ArtifactPath<'_>,
     ) -> Result<Vec<crate::domain::suite::types::PreparedCase>, Error> {
         prepare_cases(rules, scratch)
     }
-    fn stage_projects(&self, source: &Path, destination: &Path) -> Result<(), Error> {
+    fn stage_projects(
+        &self,
+        ArtifactPath(source): ArtifactPath<'_>,
+        ArtifactPath(destination): ArtifactPath<'_>,
+    ) -> Result<(), Error> {
         let source = source.canonicalize()?;
-        let bytes = std::fs::read(source.join("benchmark.toml"))?;
+        let bytes = std::fs::read(source.join(constants::MANIFEST))?;
         let manifest = super::schemas::suite(
             std::str::from_utf8(&bytes).map_err(|error| Error::Invalid(error.to_string()))?,
         )?;
         std::fs::create_dir(destination)?;
-        std::fs::write(destination.join("benchmark.toml"), bytes)?;
+        std::fs::write(destination.join(constants::MANIFEST), bytes)?;
         for project in manifest.projects {
             relative_path(&project.patch)?;
             let target = destination.join(&project.patch);
@@ -106,50 +114,80 @@ impl crate::outbound::suite::interface::SuitePort for SuiteLocalAdapter {
             }
             let patch = source.join(project.patch).canonicalize()?;
             if !patch.starts_with(&source) {
-                return Err(Error::Invalid("patch escapes the shared suite directory".into()));
+                return Err(Error::Invalid(constants::PATCH_ESCAPE.into()));
             }
             std::fs::write(target, std::fs::read(patch)?)?;
         }
         Ok(())
     }
-    fn stage(&self, directory: &Path, destination: &Path, audit: &Audit) -> Result<(), Error> {
+    fn stage(
+        &self,
+        ArtifactPath(directory): ArtifactPath<'_>,
+        ArtifactPath(destination): ArtifactPath<'_>,
+        audit: &Audit,
+    ) -> Result<(), Error> {
         std::fs::create_dir(destination)?;
         std::fs::write(
-            destination.join("benchmark.toml"),
-            std::fs::read(directory.join("benchmark.toml"))?,
+            destination.join(constants::MANIFEST),
+            std::fs::read(directory.join(constants::MANIFEST))?,
         )?;
-        std::fs::create_dir(destination.join("rules"))?;
+        std::fs::create_dir(destination.join(constants::RULES))?;
         for rule in &audit.implemented {
-            relative_path(rule)?;
-            let target = destination.join("rules").join(rule);
+            relative_path(&rule.to_string())?;
+            let target = destination.join(constants::RULES).join(rule.to_string());
             std::fs::create_dir(&target)?;
-            let bytes = std::fs::read(directory.join("rules").join(rule).join("query.ryoql"))?;
-            std::fs::write(target.join("query.ryoql"), bytes)?;
+            let bytes = std::fs::read(
+                directory
+                    .join(constants::RULES)
+                    .join(rule.to_string())
+                    .join(constants::QUERY),
+            )?;
+            std::fs::write(target.join(constants::QUERY), bytes)?;
             std::fs::write(
-                target.join("cases.toml"),
-                std::fs::read(directory.join("rules").join(rule).join("cases.toml"))?,
+                target.join(constants::CASES),
+                std::fs::read(
+                    directory
+                        .join(constants::RULES)
+                        .join(rule.to_string())
+                        .join(constants::CASES),
+                )?,
             )?;
         }
         Ok(())
     }
-    fn fingerprint(&self, paths: &[std::path::PathBuf]) -> Result<String, Error> {
+    fn fingerprint(&self, ArtifactSet(paths): ArtifactSet<'_>) -> Result<ArtifactDigest, Error> {
         let mut hasher = Sha256::new();
         for path in paths {
             fingerprint_path(path, &mut hasher)?;
         }
-        Ok(format!("{:x}", hasher.finalize()))
+        Ok(ArtifactDigest(format!("{:x}", hasher.finalize())))
     }
-    fn profile(&self, directory: &Path) -> Result<Tool, Error> {
-        super::schemas::tool(&std::fs::read_to_string(directory.join("benchmark.toml"))?)
+    fn profile(&self, ArtifactPath(directory): ArtifactPath<'_>) -> Result<Tool, Error> {
+        super::schemas::tool(&std::fs::read_to_string(
+            directory.join(constants::MANIFEST),
+        )?)
     }
-    fn projects(&self, directory: &Path) -> Result<crate::domain::suite::types::Suite, Error> {
-        super::schemas::suite(&std::fs::read_to_string(directory.join("benchmark.toml"))?)
+    fn projects(
+        &self,
+        ArtifactPath(directory): ArtifactPath<'_>,
+    ) -> Result<crate::domain::suite::types::Suite, Error> {
+        super::schemas::suite(&std::fs::read_to_string(
+            directory.join(constants::MANIFEST),
+        )?)
     }
-    fn verify_tool(&self, executable: &Path, tool: &Tool) -> Result<(), Error> {
+    fn verify_tool(
+        &self,
+        ArtifactPath(executable): ArtifactPath<'_>,
+        tool: &Tool,
+    ) -> Result<(), Error> {
         verify_executable(executable, tool)
     }
 
-    fn audit(&self, directory: &Path, tool: &Tool) -> Result<Audit, Error> {
+    fn audit(
+        &self,
+        ArtifactPath(directory): ArtifactPath<'_>,
+        tool: &Tool,
+    ) -> Result<Audit, Error> {
         audit(directory, tool)
     }
 }
@@ -158,7 +196,7 @@ fn fingerprint_path(path: &Path, hasher: &mut Sha256) -> Result<(), Error> {
     let metadata = std::fs::symlink_metadata(path)?;
     let name = path
         .to_str()
-        .ok_or_else(|| Error::Invalid("non-UTF8 evidence path".into()))?;
+        .ok_or_else(|| Error::Invalid(constants::INVALID_EVIDENCE_PATH.into()))?;
     hasher.update(name.len().to_le_bytes());
     hasher.update(name.as_bytes());
     if metadata.is_file() {
@@ -174,9 +212,7 @@ fn fingerprint_path(path: &Path, hasher: &mut Sha256) -> Result<(), Error> {
             fingerprint_path(&child, hasher)?;
         }
     } else {
-        return Err(Error::Invalid(
-            "evidence paths must be regular files or directories".into(),
-        ));
+        return Err(Error::Invalid(constants::INVALID_EVIDENCE_KIND.into()));
     }
     Ok(())
 }
@@ -187,7 +223,7 @@ fn prepare_cases(
     scratch: &Path,
 ) -> Result<Vec<crate::domain::suite::types::PreparedCase>, Error> {
     use crate::domain::{
-        diagnostics::types::Diagnostic,
+        diagnostics::types::BenchmarkFinding,
         suite::types::{PreparedCase, RunRequest},
     };
     let mut prepared = Vec::new();
@@ -196,40 +232,45 @@ fn prepare_cases(
         let rule = entry
             .file_name()
             .into_string()
-            .map_err(|_| Error::Invalid("non-UTF8 rule".into()))?;
-        let cases: Cases =
-            super::schemas::cases(&std::fs::read_to_string(entry.path().join("cases.toml"))?)?;
+            .map_err(|_| Error::Invalid(constants::INVALID_RULE_ID_TEXT.into()))?;
+        let cases: Cases = super::schemas::cases(&std::fs::read_to_string(
+            entry.path().join(constants::CASES),
+        )?)?;
         validate_case_sources(&cases)?;
-        match std::fs::read_to_string(entry.path().join("query.ryoql")) {
+        match std::fs::read_to_string(entry.path().join(constants::QUERY)) {
             Ok(query) if !query.trim().is_empty() => {}
             Ok(_) => return Err(Error::Invalid(format!("empty query for {rule}"))),
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
             Err(error) => return Err(error.into()),
         }
         validate_cases(&cases)?;
+        let rule = super::schemas::rule(&rule)?;
         for (index, case) in cases.cases.into_iter().enumerate() {
-            let root = scratch.join(&rule).join(index.to_string());
+            let root = scratch.join(rule.to_string()).join(index.to_string());
             std::fs::create_dir_all(&root)?;
             for (file, source) in &case.files {
-                relative_path(file)?;
-                let path = root.join(file);
+                relative_path(file.0.as_ref())?;
+                let path = root.join(file.0.as_ref());
                 std::fs::create_dir_all(
                     path.parent()
-                        .ok_or_else(|| Error::Invalid("missing case parent".into()))?,
+                        .ok_or_else(|| Error::Invalid(constants::MISSING_CASE_PARENT.into()))?,
                 )?;
-                std::fs::write(path, source)?;
+                std::fs::write(path, source.0.as_bytes())?;
             }
             let request = RunRequest {
                 root,
                 files: case.files.keys().cloned().collect(),
-                cache: scratch.join("cache").join(&rule).join(index.to_string()),
+                state: scratch
+                    .join(constants::CACHE)
+                    .join(rule.to_string())
+                    .join(index.to_string()),
             };
             let mut expected = RunReport {
                 files: request.files.clone(),
                 diagnostics: case
                     .expected
                     .into_iter()
-                    .map(|finding| Diagnostic {
+                    .map(|finding| BenchmarkFinding {
                         rule: rule.clone(),
                         file: finding.file,
                         start: finding.start,
@@ -247,7 +288,7 @@ fn prepare_cases(
         }
     }
     if prepared.is_empty() {
-        return Err(Error::Invalid("no executable rule cases".into()));
+        return Err(Error::Invalid(constants::NO_EXECUTABLE_CASES.into()));
     }
     Ok(prepared)
 }
