@@ -66,6 +66,32 @@ pub(crate) fn build(languages: &[Language]) -> BuildIdentity {
         [
             language.name().0.to_string(),
             language.build().0.to_string(),
+            {
+                let mut capabilities: Vec<_> = language
+                    .parse_use_case()
+                    .capabilities()
+                    .iter()
+                    .map(|capability| {
+                        ryo_language::domain::relations::service::name(
+                            ryo_language::domain::relations::service::capability_relation(
+                                *capability,
+                            ),
+                        )
+                        .0
+                    })
+                    .collect();
+                capabilities.sort_unstable();
+                capabilities.dedup();
+                // Release identity plus length-delimited canonical names: declaration order is irrelevant.
+                let mut identity = language.build().0.to_string();
+                for capability in capabilities {
+                    identity.push(' ');
+                    identity.push_str(&capability.len().to_string());
+                    identity.push(':');
+                    identity.push_str(capability);
+                }
+                identity
+            },
         ]
     });
     for part in parts.into_iter().chain(linked) {
