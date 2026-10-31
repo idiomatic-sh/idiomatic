@@ -25,5 +25,5 @@ expected = []
 
 [[cases]]
 name = "emoji"
-files = { "case.py" = "getattr(obj, \"\ud83d\ude00\")\n" }
+files = { "case.py" = "getattr(obj, \"😀\")\n" }
 expected = []
