@@ -1,0 +1,71 @@
+[[cases]]
+name = "module-shadowed-local-read"
+comparison = "full"
+files = { "case.py" = "x = 1\ndef f():\n    print(x)\n    x = 2\n" }
+expected = [{ rule = "F823", file = "case.py", start = 25, end = 26 }]
+
+[[cases]]
+name = "local-before-read"
+comparison = "full"
+files = { "case.py" = "x = 1\ndef f():\n    x = 2\n    return x\n" }
+expected = []
+
+[[cases]]
+name = "no-outer-binding"
+comparison = "full"
+files = { "case.py" = "def f():\n    print(x)\n    x = 2\n" }
+expected = []
+
+[[cases]]
+name = "global-declaration"
+comparison = "full"
+files = { "case.py" = "x = 1\ndef f():\n    global x\n    print(x)\n    x = 2\n" }
+expected = []
+
+[[cases]]
+name = "closure-shadowed-local-read"
+comparison = "full"
+files = { "case.py" = "def outer():\n    x = 1\n    def inner():\n        print(x)\n        x = 2\n    return inner\n" }
+expected = [{ rule = "F823", file = "case.py", start = 54, end = 55 }]
+
+[[cases]]
+name = "nonlocal-declaration"
+comparison = "full"
+files = { "case.py" = "def outer():\n    x = 1\n    def inner():\n        nonlocal x\n        print(x)\n        x = 2\n    return inner\n" }
+expected = []
+
+[[cases]]
+name = "normalized-local-shadow"
+comparison = "full"
+files = { "case.py" = "x = 1\ndef f():\n    print(x)\n    ｘ = 2\n" }
+expected = [{ rule = "F823", file = "case.py", start = 25, end = 26 }]
+
+[[cases]]
+name = "read-before-delete"
+comparison = "full"
+files = { "case.py" = "x = 1\ndef f():\n    print(x)\n    del x\n" }
+expected = []
+
+[[cases]]
+name = "augmented-assignment"
+comparison = "full"
+files = { "case.py" = "x = 1\ndef f():\n    x += 1\n" }
+expected = [{ rule = "F823", file = "case.py", start = 19, end = 20 }]
+
+[[cases]]
+name = "deferred-lambda-before-assignment"
+comparison = "full"
+files = { "case.py" = "x = 1\ndef f():\n    g = lambda: x\n    x = 2\n    return g\n" }
+expected = []
+
+[[cases]]
+name = "parameter-is-bound"
+comparison = "full"
+files = { "case.py" = "x = 1\ndef f(x):\n    print(x)\n    x = 2\n" }
+expected = []
+
+[[cases]]
+name = "noqa-local-read"
+comparison = "full"
+files = { "case.py" = "x = 1\ndef f():\n    print(x)  # noqa: F823\n    x = 2\n" }
+expected = []

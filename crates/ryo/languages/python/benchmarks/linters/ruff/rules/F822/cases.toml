@@ -1,0 +1,71 @@
+[[cases]]
+name = "undefined-export"
+comparison = "full"
+files = { "case.py" = "__all__ = [\"missing\"]\n" }
+expected = [{ rule = "F822", file = "case.py", start = 11, end = 20 }]
+
+[[cases]]
+name = "defined-export"
+comparison = "full"
+files = { "case.py" = "x = 1\n__all__ = [\"x\"]\n" }
+expected = []
+
+[[cases]]
+name = "imported-export"
+comparison = "full"
+files = { "case.py" = "from module import x\n__all__ = [\"x\"]\n" }
+expected = []
+
+[[cases]]
+name = "later-module-definition"
+comparison = "full"
+files = { "case.py" = "__all__ = [\"x\"]\nx = 1\n" }
+expected = []
+
+[[cases]]
+name = "augmented-exports"
+comparison = "full"
+files = { "case.py" = "__all__ = []\n__all__ += [\"missing\"]\n" }
+expected = [{ rule = "F822", file = "case.py", start = 25, end = 34 }]
+
+[[cases]]
+name = "duplicate-missing-exports"
+comparison = "full"
+files = { "case.py" = "__all__ = [\"missing\", \"missing\"]\n" }
+expected = [{ rule = "F822", file = "case.py", start = 11, end = 20 }, { rule = "F822", file = "case.py", start = 22, end = 31 }]
+
+[[cases]]
+name = "deleted-export"
+comparison = "full"
+files = { "case.py" = "x = 1\ndel x\n__all__ = [\"x\"]\n" }
+expected = []
+
+[[cases]]
+name = "nested-local-not-exported"
+comparison = "full"
+files = { "case.py" = "def f():\n    x = 1\n__all__ = [\"x\"]\n" }
+expected = [{ rule = "F822", file = "case.py", start = 30, end = 33 }]
+
+[[cases]]
+name = "normalized-binding-export"
+comparison = "full"
+files = { "case.py" = "ｘ = 1\n__all__ = [\"x\"]\n" }
+expected = []
+
+[[cases]]
+name = "export-string-is-not-normalized"
+comparison = "full"
+files = { "case.py" = "x = 1\n__all__ = [\"ｘ\"]\n" }
+expected = [{ rule = "F822", file = "case.py", start = 17, end = 22 }]
+
+[[cases]]
+name = "wildcard-export-uncertainty"
+comparison = "full"
+files = { "case.py" = "from module import *\n__all__ = [\"missing\"]\n" }
+expected = []
+
+[[cases]]
+name = "noqa-export"
+comparison = "full"
+files = { "case.py" = "__all__ = [\"missing\"]  # noqa: F822\n" }
+expected = []

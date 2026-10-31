@@ -1,29 +1,89 @@
 [[cases]]
 name = "unused-import"
+comparison = "full"
 files = { "case.py" = "import os\n" }
-expected = [{ file = "case.py", start = 7, end = 9 }]
+expected = [{ file = "case.py", start = 7, end = 9, rule = "F401" }]
 
 [[cases]]
 name = "used-import"
+comparison = "full"
 files = { "case.py" = "import os\nprint(os.name)\n" }
 expected = []
 
 [[cases]]
 name = "parameter-shadow-does-not-use-import"
+comparison = "full"
 files = { "case.py" = "import os\ndef f(os):\n    return os.name\n" }
-expected = [{ file = "case.py", start = 7, end = 9 }]
+expected = [{ file = "case.py", start = 7, end = 9, rule = "F401" }]
 
 [[cases]]
 name = "explicit-reexport"
+comparison = "full"
 files = { "case.py" = "from os import path as path\n" }
 expected = []
 
 [[cases]]
 name = "all-export"
+comparison = "full"
 files = { "case.py" = "import os\n__all__ = [\"os\"]\n" }
 expected = []
 
 [[cases]]
 name = "annotation-use"
+comparison = "full"
 files = { "case.py" = "from typing import Any\ndef f(x: Any):\n    return x\n" }
 expected = []
+
+[[cases]]
+name = "overwritten-import-read"
+comparison = "full"
+files = { "case.py" = "import os\nos = 1\nprint(os)\n" }
+expected = []
+
+[[cases]]
+name = "deleted-import"
+comparison = "full"
+files = { "case.py" = "import os\ndel os\n" }
+expected = []
+
+[[cases]]
+name = "deferred-closure-before-import"
+comparison = "full"
+files = { "case.py" = "def f():\n    return os.name\nimport os\n" }
+expected = []
+
+[[cases]]
+name = "quoted-annotation-use"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\ndef f(x: \"Path\"):\n    return x\n" }
+expected = []
+
+[[cases]]
+name = "normalized-alias-used"
+comparison = "full"
+files = { "case.py" = "import os as ｏｓ\nprint(os.name)\n" }
+expected = []
+
+[[cases]]
+name = "normalized-redundant-alias-is-reexport"
+comparison = "full"
+files = { "case.py" = "import os as ｏｓ\n" }
+expected = []
+
+[[cases]]
+name = "stub-explicit-reexport"
+comparison = "full"
+files = { "case.pyi" = "from os import path as path\n" }
+expected = []
+
+[[cases]]
+name = "noqa-unused-import"
+comparison = "full"
+files = { "case.py" = "import os  # noqa: F401\n" }
+expected = []
+
+[[cases]]
+name = "normalized-distinct-unused-alias"
+comparison = "full"
+files = { "case.py" = "import os as ｘ\n" }
+expected = [{ rule = "F401", file = "case.py", start = 13, end = 16 }]
