@@ -215,6 +215,11 @@ impl Parse for ParseContract {
         languages::native_semantic_child()
     }
 
+    fn expression_shape(&self) -> Support<Reader<languages::ExpressionShape, Model>> {
+        // Data documents do not contain executable source expressions.
+        languages::absent(AbsenceCause::NotCode)
+    }
+
     fn identifier(&self) -> Support<Reader<languages::Identifier, Model>> {
         // Data keys are not programming-language lexical identifiers.
         languages::absent(AbsenceCause::NotCode)

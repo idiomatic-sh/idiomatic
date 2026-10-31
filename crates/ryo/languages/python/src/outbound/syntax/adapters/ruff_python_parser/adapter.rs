@@ -1,13 +1,13 @@
 //! Parse native source, report frontend diagnostics, and schedule embedded expression writing.
 use super::constants::NOT_UTF8;
 use super::schemas::{offset, readable};
-use super::types::{AnnotationContext, ByteIndex, Readable, Writer};
-use super::writer::append_annotation;
+use super::types::{AnnotationCandidate, AnnotationContext, ByteIndex, Readable, Writer};
 use crate::outbound::syntax::interface::SyntaxPort;
 use crate::outbound::syntax::types::SourceText;
 use ruff_python_ast::PythonVersion;
 use ruff_python_ast::visitor::source_order::SourceOrderVisitor as _;
 use ruff_python_parser::{Mode, ParseOptions, parse_unchecked};
+use ruff_text_size::Ranged as _;
 use ryo::languages::{self, Offset};
 use std::borrow::Cow;
 
@@ -85,5 +85,67 @@ impl SyntaxPort for SyntaxRuffPythonParserAdapter {
                 languages::EmbeddedMapping::Exact(Offset(0)),
             );
         }
+    }
+}
+
+/// Retain a parsed annotation's logical tokens independently of its physical source map.
+/// Simple annotations use the parser's original content coordinates. Complex strings
+/// are parsed again before relocation so semantic token text and child order survive.
+fn append_annotation(
+    builder: &mut languages::TableBuilder<'_>,
+    candidate: &AnnotationCandidate,
+    source: languages::NameText<'_>,
+    inherited: languages::EmbeddedMapping,
+) {
+    let Ok(annotation) =
+        ruff_python_parser::typing::parse_type_annotation(&candidate.literal, source.0)
+    else {
+        return;
+    };
+    let decoded;
+    let (parsed, source, start, length, mapping) = if annotation.kind().is_simple() {
+        let expression = annotation.expression();
+        (
+            annotation.parsed(),
+            source,
+            Offset(expression.start().to_u32()),
+            Offset(expression.end().to_u32()),
+            inherited,
+        )
+    } else {
+        let logical = candidate.literal.value.to_str();
+        let Ok(value) = ruff_python_parser::parse_expression(logical) else {
+            return;
+        };
+        decoded = value;
+        (
+            &decoded,
+            languages::NameText(logical),
+            Offset(0),
+            offset(ByteIndex(logical.len())),
+            languages::EmbeddedMapping::WholeHost,
+        )
+    };
+    let mut nested = Vec::new();
+    languages::write_embedded(
+        builder,
+        candidate.host,
+        languages::ByteSlice(source.0.as_bytes()),
+        mapping,
+        |logical| {
+            let mut writer = Writer::new(
+                logical,
+                parsed.tokens(),
+                source,
+                start,
+                length,
+                AnnotationContext::Annotation,
+            );
+            writer.visit_expr(parsed.expr());
+            nested = writer.annotations;
+        },
+    );
+    for nested_candidate in nested {
+        append_annotation(builder, &nested_candidate, source, mapping);
     }
 }

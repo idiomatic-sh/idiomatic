@@ -1,11 +1,11 @@
 //! Serialize native and embedded AST occurrences through one source-order writer.
 use super::constants::ELSE_WITHOUT_EXCEPT;
 use super::schemas::{
-    decoded_of, else_without_except, node_kind, offset, opens, token_kind, unknown_futures,
+    decoded_of, else_without_except, node_kind, opens, token_kind, unknown_futures,
 };
 use super::types::{
-    AnnotationCandidate, AnnotationContext, ByteIndex, Decoded, Depth, ParserRefusal, Said,
-    Strings, TokenIndex, Writer,
+    AnnotationCandidate, AnnotationContext, Decoded, Depth, ParserRefusal, Said, Strings,
+    TokenIndex, Writer,
 };
 use crate::domain::extras::types::Extra;
 use crate::domain::syntax::constants::{
@@ -232,6 +232,8 @@ impl<'a> SourceOrderVisitor<'a> for Writer<'_, '_, '_> {
                 }),
             );
         }
+        scalar_properties(node, self.tree.builder)
+            .expect("formatting parser scalars into memory is infallible");
         let canonical = if let AnyNodeRef::Identifier(identifier) = node {
             Some(identifier.as_str())
         } else if let AnyNodeRef::ExprName(name) = node {
@@ -302,64 +304,68 @@ impl<'a> SourceOrderVisitor<'a> for Writer<'_, '_, '_> {
     }
 }
 
-/// Retain a parsed annotation's logical tokens independently of its physical source map.
-/// Simple annotations use the parser's original content coordinates. Complex strings
-/// are parsed again before relocation so semantic token text and child order survive.
-pub(super) fn append_annotation(
-    builder: &mut languages::TableBuilder<'_>,
-    candidate: &AnnotationCandidate,
-    source: languages::NameText<'_>,
-    inherited: languages::EmbeddedMapping,
-) {
-    let Ok(annotation) =
-        ruff_python_parser::typing::parse_type_annotation(&candidate.literal, source.0)
-    else {
-        return;
+/// Preserve scalar AST payloads without exposing parser types to semantic readers.
+/// The parser has already decoded literals; numeric variants remain distinct from runtime coercions.
+fn scalar_properties(
+    node: ruff_python_ast::AnyNodeRef<'_>,
+    builder: &mut ryo::languages::TableBuilder<'_>,
+) -> std::fmt::Result {
+    use crate::domain::syntax::constants::{
+        BOOLEAN_SCALAR, BYTES_SCALAR, COMPLEX_SCALAR, ELLIPSIS_SCALAR, FLOAT_SCALAR,
+        INTEGER_SCALAR, INTERPOLATION_CONVERSION, INTERPOLATION_DEBUG, NONE_SCALAR,
+        SCALAR_IMAGINARY, SCALAR_KIND, SCALAR_VALUE,
     };
-    let decoded;
-    let (parsed, source, start, length, mapping) = if annotation.kind().is_simple() {
-        let expression = annotation.expression();
-        (
-            annotation.parsed(),
-            source,
-            Offset(expression.start().to_u32()),
-            Offset(expression.end().to_u32()),
-            inherited,
-        )
-    } else {
-        let logical = candidate.literal.value.to_str();
-        let Ok(value) = ruff_python_parser::parse_expression(logical) else {
-            return;
-        };
-        decoded = value;
-        (
-            &decoded,
-            languages::NameText(logical),
-            Offset(0),
-            offset(ByteIndex(logical.len())),
-            languages::EmbeddedMapping::WholeHost,
-        )
-    };
-    let mut nested = Vec::new();
-    languages::write_embedded(
-        builder,
-        candidate.host,
-        languages::ByteSlice(source.0.as_bytes()),
-        mapping,
-        |logical| {
-            let mut writer = Writer::new(
-                logical,
-                parsed.tokens(),
-                source,
-                start,
-                length,
-                AnnotationContext::Annotation,
-            );
-            writer.visit_expr(parsed.expr());
-            nested = writer.annotations;
-        },
-    );
-    for nested_candidate in nested {
-        append_annotation(builder, &nested_candidate, source, mapping);
+    use ruff_python_ast::{AnyNodeRef, Number};
+    use ryo::languages::{NameText, node_property, node_property_fmt};
+    if let AnyNodeRef::ExprNumberLiteral(literal) = node {
+        match &literal.value {
+            Number::Int(value) => {
+                node_property(builder, SCALAR_KIND, NameText(INTEGER_SCALAR));
+                node_property_fmt(builder, SCALAR_VALUE, format_args!("{value}"))?;
+            }
+            Number::Float(value) => {
+                node_property(builder, SCALAR_KIND, NameText(FLOAT_SCALAR));
+                node_property_fmt(builder, SCALAR_VALUE, format_args!("{}", value.to_bits()))?;
+            }
+            Number::Complex { real, imag } => {
+                node_property(builder, SCALAR_KIND, NameText(COMPLEX_SCALAR));
+                node_property_fmt(builder, SCALAR_VALUE, format_args!("{}", real.to_bits()))?;
+                node_property_fmt(
+                    builder,
+                    SCALAR_IMAGINARY,
+                    format_args!("{}", imag.to_bits()),
+                )?;
+            }
+        }
+    } else if let AnyNodeRef::ExprBooleanLiteral(literal) = node {
+        node_property(builder, SCALAR_KIND, NameText(BOOLEAN_SCALAR));
+        node_property_fmt(builder, SCALAR_VALUE, format_args!("{}", literal.value))?;
+    } else if matches!(node, AnyNodeRef::ExprNoneLiteral(_)) {
+        node_property(builder, SCALAR_KIND, NameText(NONE_SCALAR));
+    } else if matches!(node, AnyNodeRef::ExprEllipsisLiteral(_)) {
+        node_property(builder, SCALAR_KIND, NameText(ELLIPSIS_SCALAR));
+    } else if let AnyNodeRef::ExprBytesLiteral(literal) = node {
+        node_property(builder, SCALAR_KIND, NameText(BYTES_SCALAR));
+        node_property_fmt(
+            builder,
+            SCALAR_VALUE,
+            format_args!("{}", super::types::ScalarBytes(&literal.value)),
+        )?;
+    } else if let AnyNodeRef::InterpolatedElement(interpolation) = node {
+        if let Some(debug) = &interpolation.debug_text {
+            node_property_fmt(
+                builder,
+                INTERPOLATION_DEBUG,
+                format_args!("{}", super::types::DebugSpelling(debug.as_str())),
+            )?;
+        }
+        if let Some(conversion) = interpolation.conversion.to_char() {
+            node_property_fmt(
+                builder,
+                INTERPOLATION_CONVERSION,
+                format_args!("{conversion}"),
+            )?;
+        }
     }
+    Ok(())
 }

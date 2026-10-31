@@ -48,3 +48,6 @@ pub mod semantic_syntax;
 pub mod semantic_child;
 
 pub mod embedded_expression;
+
+/// Structural expression identity.
+pub mod expression_shape;

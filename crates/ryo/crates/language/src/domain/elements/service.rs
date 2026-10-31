@@ -646,24 +646,41 @@ pub fn enter_implied_node(builder: &mut TableBuilder<'_>, kind: KindBits) {
 /// Records a scalar parser property on the open node. Key zero is its published decoded value.
 /// Replacing a key replaces its value; properties do not add elements or source ranges.
 pub fn node_property(builder: &mut TableBuilder<'_>, property: PropertyId, value: NameText<'_>) {
+    // Formatting a borrowed string into retained memory cannot fail.
+    let _ = node_property_fmt(builder, property, format_args!("{}", value.0));
+}
+
+/// Format scalar parser metadata directly into retained storage, without a temporary string.
+/// A formatter failure leaves both the property and its stored bytes unchanged.
+///
+/// # Errors
+/// Returns the error of a supplied formatter; the storage writer itself is infallible.
+pub fn node_property_fmt(
+    builder: &mut TableBuilder<'_>,
+    property: PropertyId,
+    value: std::fmt::Arguments<'_>,
+) -> std::fmt::Result {
+    use std::fmt::Write as _;
     let builder = builder_engine(builder);
     if builder.writing == TableWriting::Discards {
-        return;
+        return Ok(());
     }
     let table = engine_mut(builder.elements);
     let Some(open) = table.open.last() else {
-        return;
+        return Ok(());
     };
     let element = open.position;
     let texts = &mut table.decoded_text.0;
-    let from = Offset(u32::try_from(texts.len()).unwrap_or(u32::MAX));
-    texts.extend_from_slice(value.0.as_bytes());
-    let to = Offset(u32::try_from(texts.len()).unwrap_or(u32::MAX));
+    let checkpoint = texts.len();
+    if let Err(error) = super::types::PropertyText(texts).write_fmt(value) {
+        texts.truncate(checkpoint);
+        return Err(error);
+    }
     let record = DecodedProperty {
         element,
         property,
-        from,
-        to,
+        from: Offset(u32::try_from(checkpoint).unwrap_or(u32::MAX)),
+        to: Offset(u32::try_from(texts.len()).unwrap_or(u32::MAX)),
     };
     let records = &mut table.decoded;
     match records.binary_search_by_key(&(element, property), |each| (each.element, each.property)) {
@@ -674,6 +691,7 @@ pub fn node_property(builder: &mut TableBuilder<'_>, property: PropertyId, value
         }
         Err(at) => records.insert(at, record),
     }
+    Ok(())
 }
 
 /// Whether tree preorder can be searched by monotonically increasing source starts.

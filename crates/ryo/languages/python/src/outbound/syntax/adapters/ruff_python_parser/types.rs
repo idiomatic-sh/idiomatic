@@ -96,3 +96,33 @@ pub(super) struct Writer<'b, 'w, 't> {
     /// Source spelling retained only to distinguish normalized identifiers.
     pub source: languages::NameText<'t>,
 }
+
+/// Decoded bytes displayed as an unambiguous scalar payload without allocating a temporary string.
+pub(super) struct ScalarBytes<'a>(pub &'a ruff_python_ast::BytesLiteralValue);
+impl std::fmt::Display for ScalarBytes<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for byte in self.0.bytes() {
+            write!(f, "{byte:02x}")?;
+        }
+        Ok(())
+    }
+}
+/// Debug text contributes to an interpolation's value; only physical newlines normalize.
+pub(super) struct DebugSpelling<'a>(pub &'a str);
+impl std::fmt::Display for DebugSpelling<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use std::fmt::Write as _;
+        let mut chars = self.0.chars().peekable();
+        while let Some(ch) = chars.next() {
+            if ch == '\r' {
+                if chars.peek() == Some(&'\n') {
+                    let _ = chars.next();
+                }
+                f.write_char('\n')?;
+            } else {
+                f.write_char(ch)?;
+            }
+        }
+        Ok(())
+    }
+}

@@ -20,6 +20,38 @@ type Input = fn() -> usize;
 type Value = usize;
 type Failure = ();
 
+struct RefusingScalar;
+impl std::fmt::Display for RefusingScalar {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("must roll back")?;
+        Err(std::fmt::Error)
+    }
+}
+fn formatted_properties_are_atomic_and_reuse_storage() -> usize {
+    use super::service::{node_property_fmt, property_at};
+    use crate::domain::relations::types::PropertyId;
+    let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
+    let mut builder = table_builder(&mut elements, &mut symbols, ByteSlice(b"x"));
+    enter_node(&mut builder, KindBits(1), Offset(0));
+    node_property_fmt(&mut builder, PropertyId(2), format_args!("{}:{}", 17, 23))
+        .expect("memory format");
+    assert!(
+        node_property_fmt(
+            &mut builder,
+            PropertyId(2),
+            format_args!("{RefusingScalar}")
+        )
+        .is_err()
+    );
+    node_property_fmt(&mut builder, PropertyId(3), format_args!("{}", 42))
+        .expect("next memory format");
+    leave_node(&mut builder, Offset(1));
+    usize::from(
+        property_at(&elements, Position(0), PropertyId(2)) == Some(NameText("17:23"))
+            && property_at(&elements, Position(0), PropertyId(3)) == Some(NameText("42"))
+            && super::service::engine(&elements).decoded_text.0.as_slice() == b"17:2342",
+    )
+}
 fn a_node_with_a_token_is_three_positions_with_its_root() -> usize {
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
     let source = ByteSlice(b"fn");
@@ -108,6 +140,12 @@ fn implied_nodes_keep_properties_without_claiming_bytes() -> usize {
 
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("failed scalar formatter preserves old property and retained bytes"),
+        word: Word::Succeeds,
+        input: || formatted_properties_are_atomic_and_reuse_storage,
+        expect: Expect::Value(1),
+    },
     Case {
         name: CaseName("clearing_elements_removes_previous_source_coordinates"),
         word: Word::Succeeds,

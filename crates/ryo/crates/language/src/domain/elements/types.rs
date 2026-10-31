@@ -368,3 +368,12 @@ pub enum SourceOrder {
     /// Tree construction reordered nodes or inserted unlocated nodes.
     Reordered,
 }
+
+/// A formatter writing directly into retained parser-property storage.
+pub(crate) struct PropertyText<'a>(pub &'a mut Vec<u8>);
+impl std::fmt::Write for PropertyText<'_> {
+    fn write_str(&mut self, text: &str) -> std::fmt::Result {
+        self.0.extend_from_slice(text.as_bytes());
+        Ok(())
+    }
+}

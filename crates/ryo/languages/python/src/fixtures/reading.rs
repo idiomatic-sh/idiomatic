@@ -65,3 +65,13 @@ where
     )
     .expect("the source is read")
 }
+
+/// Exercise the provider's real model initialization without requesting any semantic relation.
+pub(crate) fn initialize_model(
+    tree: &languages::Tree<'_>,
+    model: &mut crate::domain::model::types::Declarations,
+) {
+    use languages::Parse as _;
+    ParseContract::new(Arc::new(ruff_python_parser()), Arc::new(postcard()))
+        .file_model(tree, model);
+}

@@ -287,7 +287,7 @@ pub use ryo_language::domain::relations::types::Rows;
 pub use ryo_language::inbound::use_cases::project::types::Refused;
 
 pub use ryo_language::domain::elements::service::{
-    enter_implied_node, node_property, property_at, source_order,
+    enter_implied_node, node_property, node_property_fmt, property_at, source_order,
 };
 pub use ryo_language::domain::elements::types::SourceOrder;
 pub use ryo_language::domain::relations::constants::{IMPLIED, NO_SPAN};

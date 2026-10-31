@@ -29,3 +29,6 @@ pub(crate) mod indentation;
 pub(crate) mod qualification;
 
 pub(crate) mod semantic_syntax;
+
+/// Structural expression identity.
+pub(crate) mod expression_shapes;

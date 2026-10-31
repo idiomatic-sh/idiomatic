@@ -14,9 +14,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
     name: CaseName("lists_relations"),
     word: Word::Succeeds,
     input: || (),
-    // 32 syntax facts (including semantic syntax, semantic children and embedded roots),
+    // 33 syntax facts (including semantic syntax, semantic children and embedded roots),
     // five manifest facts, and two engine filesystem facts.
-    expect: Expect::Value(39),
+    expect: Expect::Value(40),
 }];
 
 fn subject((): Input) -> Result<Value, Failure> {

@@ -10,7 +10,7 @@ Feature: list_relations
 
       Examples:
         | name | input | expected |
-        | catalog | works | 39 relations |
+        | catalog | works | 40 relations |
 
     @refuses
     Scenario Outline: list_relations refuses

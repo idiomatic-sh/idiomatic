@@ -60,10 +60,12 @@ impl Parse for ParseContract {
             languages::OptionalCapability::Identifier,
             languages::OptionalCapability::QualifiedName,
             languages::OptionalCapability::EmbeddedExpression,
+            languages::OptionalCapability::ExpressionShape,
         ]
     }
 
     fn file_model(&self, tree: &languages::Tree<'_>, model: &mut Declarations) {
+        crate::domain::expression_shapes::service::clear(model.expression_shapes.get_mut());
         crate::domain::indentation::service::clear(model.indentation.get_mut());
         crate::domain::qualification::service::clear(model.qualification.get_mut());
         model.semantic.get_mut().roots.clear();
@@ -188,6 +190,10 @@ impl Parse for ParseContract {
 
     fn semantic_child(&self) -> Support<Reader<languages::SemanticChild, Self::FileModel>> {
         languages::reads::<crate::domain::relations::collections::relations::semantic_child::item::SemanticChildItem>()
+    }
+
+    fn expression_shape(&self) -> Support<Reader<languages::ExpressionShape, Declarations>> {
+        languages::reads::<crate::domain::relations::collections::relations::expression_shape::item::ExpressionShapeItem>()
     }
 
     fn identifier(&self) -> Support<Reader<languages::Identifier, Declarations>> {

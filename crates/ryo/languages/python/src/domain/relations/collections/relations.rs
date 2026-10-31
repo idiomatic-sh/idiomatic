@@ -37,3 +37,6 @@ pub(crate) mod semantic_syntax;
 pub(crate) mod semantic_child;
 
 pub(crate) mod embedded_expression;
+
+/// Structural expression identity.
+pub(crate) mod expression_shape;

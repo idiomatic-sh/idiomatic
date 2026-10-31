@@ -299,6 +299,10 @@ fn read(
             "native and semantic child field predicates must select the same edges"
         );
     }
+    assert!(
+        shape_representatives_valid(&out),
+        "expression shape classes must name real representative occurrences in the same file"
+    );
     for (relation, row) in out.rows() {
         if relation == Relation::Identifier {
             assert!(
@@ -645,6 +649,39 @@ pub fn flow(subject: &dyn ParseEngine, samples: &[SourceFile]) {
 #[cfg(test)]
 #[path = "contract_test.rs"]
 mod tests;
+
+/// Unknown or cross-file class sentinels cannot silently compare equal as structural identities.
+fn shape_representatives_valid(out: &Collect) -> bool {
+    use crate::domain::relations::{
+        service::node_file,
+        types::{FileId, NodeId},
+    };
+    let representatives: std::collections::BTreeSet<_> = out
+        .rows()
+        .filter_map(|(relation, row)| {
+            if relation != Relation::ExpressionShape {
+                return None;
+            }
+            let [id, shape, file, _] = row.as_slice() else {
+                return None;
+            };
+            (*id == *shape).then_some((*file, *shape))
+        })
+        .collect();
+    out.rows()
+        .filter(|(relation, _)| *relation == Relation::ExpressionShape)
+        .all(|(_, row)| {
+            let [id, shape, file, _] = row.as_slice() else {
+                return false;
+            };
+            let Ok(file) = u32::try_from(*file) else {
+                return false;
+            };
+            node_file(NodeId(*id)) == FileId(file)
+                && node_file(NodeId(*shape)) == FileId(file)
+                && representatives.contains(&(u64::from(file), *shape))
+        })
+}
 
 /// Token trivia cannot masquerade as the root of an independently parsed expression.
 fn embedded_roots_valid(elements: &Elements) -> bool {

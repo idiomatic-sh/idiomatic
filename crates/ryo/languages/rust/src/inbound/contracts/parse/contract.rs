@@ -189,6 +189,11 @@ impl Parse for ParseContract {
         languages::native_semantic_child()
     }
 
+    fn expression_shape(&self) -> Support<Reader<languages::ExpressionShape, ()>> {
+        // Parsed expression identity is not yet implemented by this provider.
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn identifier(&self) -> Support<Reader<languages::Identifier, ()>> {
         // Canonical identifier spelling is not yet exposed by this provider.
         languages::absent(AbsenceCause::NotYetRead)

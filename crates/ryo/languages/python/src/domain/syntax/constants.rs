@@ -78,3 +78,27 @@ pub(crate) const NORMALIZED_IDENTIFIER: ryo::languages::PropertyId = ryo::langua
 
 /// An incomplete frontend cannot establish the complete identifier set.
 pub(crate) const IDENTIFIERS_INCOMPLETE: &str = "identifiers require a complete syntax tree";
+
+/// Literal category preserved from the parser's typed scalar payload.
+pub(crate) const SCALAR_KIND: ryo::languages::PropertyId = ryo::languages::PropertyId(2);
+/// Canonical scalar payload, independent of its source spelling.
+pub(crate) const SCALAR_VALUE: ryo::languages::PropertyId = ryo::languages::PropertyId(3);
+/// The imaginary component of a complex scalar, as IEEE bits.
+pub(crate) const SCALAR_IMAGINARY: ryo::languages::PropertyId = ryo::languages::PropertyId(4);
+/// Meaningful debug text retained by a formatted/template interpolation.
+pub(crate) const INTERPOLATION_DEBUG: ryo::languages::PropertyId = ryo::languages::PropertyId(5);
+/// Explicit interpolation conversion, distinct from no conversion.
+pub(crate) const INTERPOLATION_CONVERSION: ryo::languages::PropertyId =
+    ryo::languages::PropertyId(6);
+/// Typed numeric payload categories; these are AST identity, not runtime equality.
+pub(crate) const INTEGER_SCALAR: &str = "integer";
+pub(crate) const FLOAT_SCALAR: &str = "float";
+pub(crate) const COMPLEX_SCALAR: &str = "complex";
+pub(crate) const BYTES_SCALAR: &str = "bytes";
+
+/// A parsed boolean is distinct from an integer of equal runtime value.
+pub(crate) const BOOLEAN_SCALAR: &str = "boolean";
+/// The unique None literal category.
+pub(crate) const NONE_SCALAR: &str = "none";
+/// The unique ellipsis literal category.
+pub(crate) const ELLIPSIS_SCALAR: &str = "ellipsis";

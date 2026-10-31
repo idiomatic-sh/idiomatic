@@ -501,4 +501,6 @@ pub enum OptionalCapability {
     QualifiedName,
     /// Explicit parsed expressions embedded in source carriers.
     EmbeddedExpression,
+    /// Collision-safe structural classes of parsed expression occurrences.
+    ExpressionShape,
 }

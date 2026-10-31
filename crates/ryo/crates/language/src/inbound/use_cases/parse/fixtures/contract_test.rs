@@ -7,8 +7,11 @@ use crate::domain::relations::{
 };
 #[derive(Clone, Copy, Debug)]
 enum Operation {
-    /// A leading token cannot claim the source carrier's expression-root identity.
+    /// Leading trivia is not an expression root.
     EmbeddedRoot(bool),
+    /// Classes must be backed by same-file representative rows.
+    Shapes(u32, bool),
+
     /// The semantic projection must preserve native identities and values.
     Projection(u64),
     /// A field predicate must preserve its native selected edges.
@@ -37,6 +40,24 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("leading trivia cannot become an embedded expression root"),
         word: Word::Succeeds,
         input: || Operation::EmbeddedRoot(true),
+        expect: Expect::Value(false),
+    },
+    Case {
+        name: CaseName("known class is backed by its own source occurrence"),
+        word: Word::Succeeds,
+        input: || Operation::Shapes(3, true),
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("unknown sentinel is not a structural class"),
+        word: Word::Succeeds,
+        input: || Operation::Shapes(3, false),
+        expect: Expect::Value(false),
+    },
+    Case {
+        name: CaseName("class from another file is refused"),
+        word: Word::Succeeds,
+        input: || Operation::Shapes(4, true),
         expect: Expect::Value(false),
     },
     Case {
@@ -228,6 +249,32 @@ fn subject(operation: Input) -> Result<Value, Failure> {
                 },
             );
             Ok(super::embedded_roots_valid(&elements))
+        }
+
+        Operation::Shapes(class_file, representative) => {
+            use crate::domain::relations::{
+                collections::relations::expression_shape::item::ExpressionShapeRow,
+                service::node_id,
+                types::{Offset, Position, Span},
+            };
+            let class = node_id(FileId(class_file), Position(6));
+            let row = ExpressionShapeRow {
+                id: node_id(FileId(3), Position(2)),
+                shape: class,
+                file: FileId(3),
+                span: Span {
+                    start: Offset(0),
+                    end: Offset(1),
+                },
+            };
+            <Collect as Rows<ExpressionShapeRow>>::write(&mut output, row);
+            if representative {
+                <Collect as Rows<ExpressionShapeRow>>::write(
+                    &mut output,
+                    ExpressionShapeRow { id: class, ..row },
+                );
+            }
+            Ok(super::shape_representatives_valid(&output))
         }
 
         Operation::FieldProjection(field) => {

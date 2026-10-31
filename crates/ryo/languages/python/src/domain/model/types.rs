@@ -46,6 +46,8 @@ pub(crate) struct LexicalBinding {
 /// File-local scope redirects and indexed declarations, shared by relation readers.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct Declarations {
+    /// Lazy canonical expression classes, invalidated between source revisions.
+    pub expression_shapes: RefCell<crate::domain::expression_shapes::types::ExpressionShapeIndex>,
     /// Every declared name.
     pub declared: Vec<ScopeDeclaration>,
     /// Definitions indexed by lexical scope and name, in source order.
