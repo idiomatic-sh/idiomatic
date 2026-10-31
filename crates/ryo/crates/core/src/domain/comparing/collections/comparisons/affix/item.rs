@@ -30,8 +30,8 @@ impl ComparisonsItem for AffixItem {
                 | Test::In
                 | Test::NotIn
                 | Test::GlobAny
-                | Test::NotGlobAny => Err(OperatingError::WrongTest),
-                Test::Matches => Err(OperatingError::WrongTest),
+                | Test::NotGlobAny
+                | Test::Matches => Err(OperatingError::WrongTest),
             };
         };
         let held = match test {
@@ -47,8 +47,8 @@ impl ComparisonsItem for AffixItem {
             | Test::In
             | Test::NotIn
             | Test::GlobAny
-            | Test::NotGlobAny => return Err(OperatingError::WrongTest),
-            Test::Matches => return Err(OperatingError::WrongTest),
+            | Test::NotGlobAny
+            | Test::Matches => return Err(OperatingError::WrongTest),
         };
         Ok(if held { Verdict::Holds } else { Verdict::Fails })
     }

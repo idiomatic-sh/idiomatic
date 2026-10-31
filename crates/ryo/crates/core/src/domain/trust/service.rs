@@ -99,22 +99,7 @@ fn uses_of(plan: &Plan) -> Vec<StepReads> {
         let mut parts: Vec<StepReads> = Vec::new();
         for input in given {
             parts.push(match input {
-                Input::Relation(relation) => {
-                    let kind = kind_place(*relation);
-                    let width = columns(*relation).len();
-                    StepReads {
-                        uses: vec![RelationRead {
-                            relation: *relation,
-                            kinds: Vec::new(),
-                        }],
-                        provenance: (0..width)
-                            .map(|place| {
-                                kind.filter(|column| usize::try_from(column.0) == Ok(place))
-                                    .map(|_| ReadIndex(0))
-                            })
-                            .collect(),
-                    }
-                }
+                Input::Relation(relation) => relation_reads(*relation),
                 Input::Step(id) => steps
                     .get(usize::try_from(id.0).unwrap_or(usize::MAX))
                     .cloned()
@@ -195,6 +180,24 @@ fn uses_of(plan: &Plan) -> Vec<StepReads> {
         steps.push(StepReads { uses, provenance });
     }
     steps
+}
+
+/// Provenance of the initial columns read directly from a declared relation.
+fn relation_reads(relation: Relation) -> StepReads {
+    let kind = kind_place(relation);
+    let width = columns(relation).len();
+    StepReads {
+        uses: vec![RelationRead {
+            relation,
+            kinds: Vec::new(),
+        }],
+        provenance: (0..width)
+            .map(|place| {
+                kind.filter(|column| usize::try_from(column.0) == Ok(place))
+                    .map(|_| ReadIndex(0))
+            })
+            .collect(),
+    }
 }
 
 /// The reads whose absence of rows each step trusts: for an antijoin or a difference, those its right input has; for a count or a

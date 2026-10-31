@@ -181,30 +181,12 @@ pub(crate) fn call_extend(
     Ok(())
 }
 
-/// Lowers a `join` call: the rows of its left input matched to those of its right on the named columns, as the step `name`.
-pub(crate) fn call_join(
-    builder: &mut Builder<'_>,
-    name: &syntax::StepName,
+/// Resolve each explicit join projection against its selected input side.
+fn join_output(
     call: &syntax::Call,
-) -> Result<(), LoweringError> {
-    let Sourced {
-        input: left,
-        fields: left_fields,
-    } = input_argument(builder, call, ArgumentSlot::Left)?;
-    let Sourced {
-        input: right,
-        fields: right_fields,
-    } = input_argument(builder, call, ArgumentSlot::Right)?;
-    let left_on = positions_of(
-        builder,
-        &left_fields,
-        &words_of(call, ArgumentSlot::LeftOn)?,
-    )?;
-    let right_on = positions_of(
-        builder,
-        &right_fields,
-        &words_of(call, ArgumentSlot::RightOn)?,
-    )?;
+    left_fields: &[PlannedColumn],
+    right_fields: &[PlannedColumn],
+) -> Result<(Vec<parts::JoinColumn>, Vec<PlannedColumn>), LoweringError> {
     let syntax::ArgumentValue::Map(entries) = argument_named(call, ArgumentSlot::Output)? else {
         return Err(bad_argument(
             call,
@@ -251,8 +233,8 @@ pub(crate) fn call_join(
             )
         })?;
         let side_fields = match side {
-            parts::Side::Left => &left_fields,
-            parts::Side::Right => &right_fields,
+            parts::Side::Left => left_fields,
+            parts::Side::Right => right_fields,
         };
         let index = position(side_fields, QuerySpelling(column), call.span)?;
         output.push(parts::JoinColumn {
@@ -266,6 +248,34 @@ pub(crate) fn call_join(
             words: column_of(side_fields, index).words,
         });
     }
+    Ok((output, kept))
+}
+
+/// Lowers a `join` call: the rows of its left input matched to those of its right on the named columns, as the step `name`.
+pub(crate) fn call_join(
+    builder: &mut Builder<'_>,
+    name: &syntax::StepName,
+    call: &syntax::Call,
+) -> Result<(), LoweringError> {
+    let Sourced {
+        input: left,
+        fields: left_fields,
+    } = input_argument(builder, call, ArgumentSlot::Left)?;
+    let Sourced {
+        input: right,
+        fields: right_fields,
+    } = input_argument(builder, call, ArgumentSlot::Right)?;
+    let left_on = positions_of(
+        builder,
+        &left_fields,
+        &words_of(call, ArgumentSlot::LeftOn)?,
+    )?;
+    let right_on = positions_of(
+        builder,
+        &right_fields,
+        &words_of(call, ArgumentSlot::RightOn)?,
+    )?;
+    let (output, kept) = join_output(call, &left_fields, &right_fields)?;
     let operation = if operator_named(&call.name.0) == Some(QueryOperator::OrderedMatch) {
         for (index, field) in kept.iter().enumerate() {
             if kept

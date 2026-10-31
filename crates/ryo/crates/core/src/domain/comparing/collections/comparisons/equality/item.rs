@@ -53,8 +53,8 @@ impl ComparisonsItem for EqualityItem {
             | Test::GlobAny
             | Test::NotGlobAny
             | Test::StartsWith
-            | Test::EndsWith => Err(OperatingError::WrongTest),
-            Test::Matches => Err(OperatingError::WrongTest),
+            | Test::EndsWith
+            | Test::Matches => Err(OperatingError::WrongTest),
         }
     }
 }

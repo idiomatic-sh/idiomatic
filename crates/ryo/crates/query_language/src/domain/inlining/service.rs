@@ -61,7 +61,7 @@ where
 
 /// The columns of the step `read` that the operation reads, when it reads only those and says so by what it keeps
 /// of them; nothing when it reads them all, or in a way this cannot cut.
-fn columns_read(operation: &Operation, read: Input) -> Option<Vec<ColumnIndex>> {
+fn reading_columns(operation: &Operation, read: Input) -> Option<Vec<ColumnIndex>> {
     let is = |input: &Input| *input == read;
     let mut used: Vec<ColumnIndex> = Vec::new();
     match operation {
@@ -163,6 +163,12 @@ fn columns_read(operation: &Operation, read: Input) -> Option<Vec<ColumnIndex>> 
         | Operation::Rows { .. }
         | Operation::Hosted { .. } => return None,
     }
+    Some(used)
+}
+
+/// Canonical distinct column indices needed from one input of an operation.
+fn columns_read(operation: &Operation, read: Input) -> Option<Vec<ColumnIndex>> {
+    let mut used = reading_columns(operation, read)?;
     used.sort();
     used.dedup();
     Some(used)

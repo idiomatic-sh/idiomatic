@@ -54,7 +54,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("ambiguous_output_map_refused"),
         word: Word::Refuses,
         input: || r#"let a = ordered-match(left="source-location", right="source-location", left-on=[file], right-on=[file], left-order="start-byte", right-order="end-byte", output={file: [left,file], file: [right,file]}); emit a subject file key(file);"#,
-        expect: Expect::Refusal(|e| selects(matches!(e, LoweringError::DuplicateOutput { .. }))),
+        expect: Expect::Refusal(|error| {
+            selects(matches!(error, LoweringError::DuplicateOutput { .. }))
+        }),
     },
     Case {
         name: CaseName("replace_appends_text"),
@@ -72,19 +74,25 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("invalid_regex_refused_without_rows"),
         word: Word::Refuses,
         input: || r#"let a = replace(from="function", text="name", pattern="[", replacement="", output="label"); emit a subject file key(label);"#,
-        expect: Expect::Refusal(|e| selects(matches!(e, LoweringError::InvalidRegex { .. }))),
+        expect: Expect::Refusal(|error| {
+            selects(matches!(error, LoweringError::InvalidRegex { .. }))
+        }),
     },
     Case {
         name: CaseName("numeric_text_refused"),
         word: Word::Refuses,
         input: || r#"let a = replace(from="source-location", text="start-byte", pattern="a", replacement="", output="label"); emit a subject file key(label);"#,
-        expect: Expect::Refusal(|e| selects(matches!(e, LoweringError::KindMismatch { .. }))),
+        expect: Expect::Refusal(|error| {
+            selects(matches!(error, LoweringError::KindMismatch { .. }))
+        }),
     },
     Case {
         name: CaseName("output_collision_refused"),
         word: Word::Refuses,
         input: || r#"let a = replace(from="function", text="name", pattern="a", replacement="", output="name"); emit a subject file key(name);"#,
-        expect: Expect::Refusal(|e| selects(matches!(e, LoweringError::DuplicateOutput { .. }))),
+        expect: Expect::Refusal(|error| {
+            selects(matches!(error, LoweringError::DuplicateOutput { .. }))
+        }),
     },
     Case {
         name: CaseName("explicit_projection_and_numeric_order"),
@@ -96,19 +104,25 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("text_order_refused"),
         word: Word::Refuses,
         input: || r#"let a = ordered-match(left="function", right="function", left-on=[file], right-on=[file], left-order="name", right-order="name", output={file: [left,file]}); emit a subject file key(file);"#,
-        expect: Expect::Refusal(|e| selects(matches!(e, LoweringError::KindMismatch { .. }))),
+        expect: Expect::Refusal(|error| {
+            selects(matches!(error, LoweringError::KindMismatch { .. }))
+        }),
     },
     Case {
         name: CaseName("unlike_group_keys_refused"),
         word: Word::Refuses,
         input: || r#"let a = ordered-match(left="source-location", right="source-location", left-on=[file], right-on=["start-byte"], left-order="start-byte", right-order="end-byte", output={file: [left,file]}); emit a subject file key(file);"#,
-        expect: Expect::Refusal(|e| selects(matches!(e, LoweringError::KindMismatch { .. }))),
+        expect: Expect::Refusal(|error| {
+            selects(matches!(error, LoweringError::KindMismatch { .. }))
+        }),
     },
     Case {
         name: CaseName("unequal_key_counts_refused"),
         word: Word::Refuses,
         input: || r#"let a = ordered-match(left="source-location", right="source-location", left-on=[file], right-on=[], left-order="start-byte", right-order="end-byte", output={file: [left,file]}); emit a subject file key(file);"#,
-        expect: Expect::Refusal(|e| selects(matches!(e, LoweringError::KindMismatch { .. }))),
+        expect: Expect::Refusal(|error| {
+            selects(matches!(error, LoweringError::KindMismatch { .. }))
+        }),
     },
 ];
 
