@@ -16,7 +16,7 @@ impl Default for ExecutionFake {
     fn default() -> Self {
         Self {
             status: 7,
-            history: Default::default(),
+            history: std::sync::Arc::default(),
         }
     }
 }
@@ -24,6 +24,10 @@ impl ExecutionPort for ExecutionFake {
     fn profile(&self) -> crate::domain::measurements::types::ExecutionProfile {
         crate::domain::measurements::types::ExecutionProfile::Wall
     }
+    #[expect(
+        clippy::expect_used,
+        reason = "a poisoned fixture history lock must fail the test"
+    )]
     fn run(&self, invocation: Invocation) -> Result<ProcessOutput, Error> {
         if invocation
             .executable
@@ -55,19 +59,19 @@ impl ExecutionPort for ExecutionFake {
             return Err(std::io::Error::from(std::io::ErrorKind::NotFound).into());
         }
         let status = if large {
-            0
+            0_i32
         } else if invocation
             .arguments
             .iter()
             .any(|argument| argument.to_string_lossy().ends_with("exit 127"))
         {
-            127
+            127_i32
         } else if invocation
             .arguments
             .iter()
             .any(|argument| argument.to_string_lossy().ends_with("exit 126"))
         {
-            126
+            126_i32
         } else {
             self.status
         };
@@ -78,12 +82,12 @@ impl ExecutionPort for ExecutionFake {
         Ok(ProcessOutput {
             status: ProcessExitCode(status),
             stdout: CapturedBytes(if large {
-                vec![0; 131072]
+                vec![0; 131_072]
             } else {
                 b"payload".to_vec()
             }),
             stderr: CapturedBytes(if large {
-                vec![0; 131072]
+                vec![0; 131_072]
             } else {
                 b"issue".to_vec()
             }),

@@ -1,13 +1,22 @@
 //! Independent artifact construction shared by acceptance proofs.
 use crate::domain::suite::types::Tool;
-use crate::outbound::suite::{interface::SuitePort, types::ArtifactPath};
+use crate::outbound::suite::{interface::SuitePort as _, types::ArtifactPath};
 /// Produce the acceptance fixture through the real artifact boundary.
+///
+/// # Panics
+///
+/// Panics when fixed fixture artifacts cannot be created or validated.
+#[must_use]
+#[expect(
+    clippy::expect_used,
+    reason = "fixture artifact setup must succeed before testing the port"
+)]
 pub fn audited(complete: bool) -> crate::domain::suite::types::audit::value::Audit {
     let directory = tempfile::tempdir().expect("audit fixture");
-    std::fs::create_dir(directory.path().join("rules")).expect("rule root");
+    std::fs::create_dir_all(directory.path().join("rules")).expect("rule root");
     if complete {
         let rule = directory.path().join("rules/fixture");
-        std::fs::create_dir(&rule).expect("rule directory");
+        std::fs::create_dir_all(&rule).expect("rule directory");
         std::fs::write(
             rule.join("query.ryoql"),
             "let nodes = select * from \"syntax-tree\"; emit nodes subject file key(id);",
@@ -31,8 +40,8 @@ expected = []
         tool: "fixture".into(),
         version: "1".into(),
         sha256: vec![String::new().into()],
-        deferred: Default::default(),
-        pending: Default::default(),
+        deferred: std::collections::BTreeMap::default(),
+        pending: std::collections::BTreeMap::default(),
         defaults: vec!["fixture".try_into().expect("rule identifier")],
     };
     crate::outbound::suite::factory::local()

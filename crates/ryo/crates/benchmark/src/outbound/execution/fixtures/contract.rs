@@ -62,18 +62,20 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("both output pipes drain beyond pipe capacity"),
         word: Word::Succeeds,
         input: || Operation::LargeStreams,
-        expect: Expect::Value((0, true, true)),
+        expect: Expect::Value((0_i32, true, true)),
     },
     Case {
         name: CaseName("valid child126 remains a normal exit"),
         word: Word::Succeeds,
         input: || {
             let mut call = invocation();
-            call.arguments[1] =
-                "printf %s \"$RYO_BENCH_FIXTURE\"; printf issue >&2; exit 126".into();
+            call.arguments = vec![
+                "-c".into(),
+                "printf %s \"$RYO_BENCH_FIXTURE\"; printf issue >&2; exit 126".into(),
+            ];
             Operation::Call(call)
         },
-        expect: Expect::Value((126, true, true)),
+        expect: Expect::Value((126_i32, true, true)),
     },
     Case {
         name: CaseName("a regular file without execute permission is a launch error"),
@@ -91,18 +93,20 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("PATH search continues past a nonexecutable shadow"),
         word: Word::Succeeds,
         input: || Operation::PathShadow,
-        expect: Expect::Value((7, true, true)),
+        expect: Expect::Value((7_i32, true, true)),
     },
     Case {
         name: CaseName("a valid child exit127 is not a launch failure"),
         word: Word::Succeeds,
         input: || {
             let mut call = invocation();
-            call.arguments[1] =
-                "printf %s \"$RYO_BENCH_FIXTURE\"; printf issue >&2; exit 127".into();
+            call.arguments = vec![
+                "-c".into(),
+                "printf %s \"$RYO_BENCH_FIXTURE\"; printf issue >&2; exit 127".into(),
+            ];
             Operation::Call(call)
         },
-        expect: Expect::Value((127, true, true)),
+        expect: Expect::Value((127_i32, true, true)),
     },
     Case {
         name: CaseName("missing bare command is a launch error"),
@@ -118,7 +122,7 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("status and both streams survive"),
         word: Word::Succeeds,
         input: || Operation::Call(invocation()),
-        expect: Expect::Value((7, true, true)),
+        expect: Expect::Value((7_i32, true, true)),
     },
     Case {
         name: CaseName("missing program is a launch error"),
@@ -127,6 +131,7 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Error(Failure::Kind(std::io::ErrorKind::NotFound)),
     },
 ];
+/// Build the canonical shell invocation with independent stdout and stderr.
 fn invocation() -> Invocation {
     Invocation {
         executable: "sh".into(),
@@ -140,11 +145,12 @@ fn invocation() -> Invocation {
         directory: PathBuf::from("."),
     }
 }
+/// Build a definitely absent executable invocation.
 fn missing() -> Invocation {
     Invocation {
         executable: "/ryo-benchmark-missing-program".into(),
         arguments: Vec::new(),
-        environment: Default::default(),
+        environment: std::collections::BTreeMap::default(),
         directory: PathBuf::from("."),
     }
 }
@@ -153,6 +159,10 @@ fn missing() -> Invocation {
 /// # Panics
 ///
 /// Panics when fixture setup fails or the implementation violates a contract observation.
+#[expect(
+    clippy::expect_used,
+    reason = "fixture setup failures must fail the contract test"
+)]
 pub fn check(adapter: &impl ExecutionPort) {
     let subject = |input| {
         let profile = adapter.profile();
@@ -168,7 +178,7 @@ pub fn check(adapter: &impl ExecutionPort) {
             }
             Operation::Directory => {
                 let path = temporary.path().join("directory");
-                std::fs::create_dir(&path).expect("fixture directory");
+                std::fs::create_dir_all(&path).expect("fixture directory");
                 call.executable = path;
             }
             Operation::InvalidFormat | Operation::MissingInterpreter => {
@@ -191,10 +201,13 @@ pub fn check(adapter: &impl ExecutionPort) {
                 call.executable = path;
             }
             Operation::Signaled => {
-                call.arguments[1] = "kill -TERM $$".into();
+                call.arguments = vec!["-c".into(), "kill -TERM $$".into()];
             }
             Operation::LargeStreams => {
-                call.arguments[1] = "head -c 131072 /dev/zero; head -c 131072 /dev/zero >&2".into();
+                call.arguments = vec![
+                    "-c".into(),
+                    "head -c 131072 /dev/zero; head -c 131072 /dev/zero >&2".into(),
+                ];
             }
             Operation::PathShadow => {
                 let path = temporary.path().join("sh");
@@ -234,13 +247,13 @@ pub fn check(adapter: &impl ExecutionPort) {
                 (
                     output.status.0,
                     if large {
-                        output.stdout.0.len() == 131072
+                        output.stdout.0.len() == 131_072
                             && output.stdout.0.iter().all(|byte| *byte == 0)
                     } else {
                         output.stdout.0 == b"payload"
                     },
                     if large {
-                        output.stderr.0.len() == 131072
+                        output.stderr.0.len() == 131_072
                             && output.stderr.0.iter().all(|byte| *byte == 0)
                     } else {
                         output.stderr.0 == b"issue"
@@ -248,9 +261,13 @@ pub fn check(adapter: &impl ExecutionPort) {
                 )
             })
             .map_err(|error| match error {
-                Error::Io(error) if error.raw_os_error() == Some(8) => Failure::ExecutableFormat,
+                Error::Io(error) if error.raw_os_error() == Some(8_i32) => {
+                    Failure::ExecutableFormat
+                }
                 Error::Io(error) => Failure::Kind(error.kind()),
-                _ => Failure::Kind(std::io::ErrorKind::Other),
+                Error::Invalid(_) | Error::Json(_) | Error::Toml(_) => {
+                    Failure::Kind(std::io::ErrorKind::Other)
+                }
             })
     };
     run(CASES, Word::Succeeds, subject);

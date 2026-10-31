@@ -50,7 +50,7 @@ pub fn check(adapter: &impl LinterPort) {
         Input::Prepare => adapter
             .prepare(&request)
             .map(|call| call.directory == request.root)
-            .map_err(|_| Failure::Unexpected),
+            .map_err(|_not_text| Failure::Unexpected),
         Input::OperationalFailure => match adapter.decode(
             &request,
             ProcessOutput {

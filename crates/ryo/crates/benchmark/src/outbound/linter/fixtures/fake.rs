@@ -22,7 +22,7 @@ impl LinterPort for LinterFake {
         Ok(Invocation {
             executable: PathBuf::from("fixture"),
             arguments: self.arguments.clone(),
-            environment: Default::default(),
+            environment: std::collections::BTreeMap::default(),
             directory: request.root.clone(),
         })
     }

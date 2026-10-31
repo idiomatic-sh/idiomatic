@@ -111,17 +111,21 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
 /// # Panics
 ///
 /// Panics when fixture setup fails or the implementation violates a contract observation.
+#[expect(
+    clippy::expect_used,
+    reason = "fixture setup failures must fail the contract test"
+)]
 pub fn check(adapter: &impl SuitePort) {
     let temporary = tempfile::tempdir().expect("suite fixture");
-    std::fs::create_dir(temporary.path().join("rules")).expect("rules fixture");
+    std::fs::create_dir_all(temporary.path().join("rules")).expect("rules fixture");
     let subject = |operation| {
         let selected = !matches!(operation, Operation::Empty);
         let tool = Tool {
             tool: "fixture".into(),
             version: "1".into(),
             sha256: vec![String::new().into()],
-            deferred: Default::default(),
-            pending: Default::default(),
+            deferred: std::collections::BTreeMap::default(),
+            pending: std::collections::BTreeMap::default(),
             defaults: if selected {
                 vec!["fixture".try_into().expect("rule identifier")]
             } else {
@@ -167,7 +171,9 @@ pub fn check(adapter: &impl SuitePort) {
                 Failure::MissingArtifact
             }
             Error::Invalid(message) if message == "no executable rule cases" => Failure::NoCases,
-            _ => Failure::Unexpected,
+            Error::Invalid(_) | Error::Io(_) | Error::Json(_) | Error::Toml(_) => {
+                Failure::Unexpected
+            }
         })
     };
     run(CASES, Word::Succeeds, subject);

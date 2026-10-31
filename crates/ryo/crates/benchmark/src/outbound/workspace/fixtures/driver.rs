@@ -1,6 +1,11 @@
 //! Git operations used only to construct independent workspace fixtures.
 use std::{path::Path, process::Command};
 
+/// Execute a fixture setup command and require successful UTF-8 output.
+#[expect(
+    clippy::expect_used,
+    reason = "fixture artifact setup must succeed before testing the port"
+)]
 pub(crate) fn git(root: &Path, args: &[&str]) -> String {
     let output = Command::new("git")
         .args(args)

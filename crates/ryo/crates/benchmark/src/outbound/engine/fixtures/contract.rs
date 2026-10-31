@@ -27,9 +27,13 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[Case {
 /// # Panics
 ///
 /// Panics when fixture setup fails or the implementation violates a contract observation.
+#[expect(
+    clippy::expect_used,
+    reason = "fixture setup failures must fail the contract test"
+)]
 pub fn check(adapter: &impl EnginePort) {
     let temporary = tempfile::tempdir().expect("rules directory");
-    let subject = |_| {
+    let subject = |()| {
         adapter
             .run(WorkerRequest {
                 root: temporary.path().into(),
@@ -40,7 +44,9 @@ pub fn check(adapter: &impl EnginePort) {
             .map(|_| ())
             .map_err(|error| match error {
                 Error::Invalid(message) if message == "no candidate queries" => Failure::NoQueries,
-                _ => Failure::Unexpected,
+                Error::Invalid(_) | Error::Io(_) | Error::Json(_) | Error::Toml(_) => {
+                    Failure::Unexpected
+                }
             })
     };
     run(CASES, Word::Refuses, subject);

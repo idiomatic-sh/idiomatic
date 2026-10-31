@@ -71,18 +71,19 @@ pub fn check(codec: &impl CollectionPort) {
     };
     run(CASES, Word::Succeeds, subject);
 }
+/// Exercise one protocol roundtrip against independently constructed values.
 fn observe(codec: &impl CollectionPort, operation: Operation) -> Result<bool, Error> {
     match operation {
         Operation::Invocation => {
             let mut call = Invocation {
                 executable: "/absolute/tool".into(),
                 arguments: vec!["argument with spaces".into()],
-                environment: Default::default(),
+                environment: std::collections::BTreeMap::default(),
                 directory: "/work tree".into(),
             };
             #[cfg(unix)]
             {
-                use std::os::unix::ffi::OsStringExt;
+                use std::os::unix::ffi::OsStringExt as _;
                 call.arguments
                     .push(std::ffi::OsString::from_vec(vec![255, 128, 65]));
             }
@@ -94,7 +95,7 @@ fn observe(codec: &impl CollectionPort, operation: Operation) -> Result<bool, Er
         Operation::Observation => {
             let resources = Resources {
                 cpu: Duration::from_millis(123),
-                peak_rss_bytes: ResidentBytes(456789),
+                peak_rss_bytes: ResidentBytes(456_789),
             };
             let response = codec.response(Ok(ProcessOutput {
                 status: ProcessExitCode(127),

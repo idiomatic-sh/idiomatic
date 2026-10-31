@@ -36,10 +36,14 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
 /// # Panics
 ///
 /// Panics when fixture setup fails or the implementation violates a contract observation.
+#[expect(
+    clippy::expect_used,
+    reason = "fixture setup failures must fail the contract test"
+)]
 pub fn check(adapter: &impl WorkspacePort) {
     let temporary = tempfile::tempdir().expect("fixture directory");
     let source = temporary.path().join("source");
-    fs::create_dir(&source).expect("fixture source");
+    fs::create_dir_all(&source).expect("fixture source");
     drop(git(&source, &["init", "--quiet"]));
     fs::write(source.join("input.txt"), "before\n").expect("fixture file");
     drop(git(&source, &["add", "input.txt"]));
@@ -91,7 +95,7 @@ pub fn check(adapter: &impl WorkspacePort) {
             .map(|files| files.0.len())
             .map_err(|error| match error {
                 Error::Invalid(_) => Failure::InvalidPin,
-                _ => Failure::Unexpected,
+                Error::Io(_) | Error::Json(_) | Error::Toml(_) => Failure::Unexpected,
             })
     };
     run(CASES, Word::Succeeds, subject);
