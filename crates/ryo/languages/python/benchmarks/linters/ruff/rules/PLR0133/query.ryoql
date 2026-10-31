@@ -9,7 +9,7 @@ let right_literal = select l.first as first from adjacent as l join literals as 
 let reportable = select r.id as id, r.file as file, r.span as span from right_literal as l join literals as r on l.first = r.id;
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id;
 let quoted = select id from "syntax-tree" where kind = "f-string-part" or kind = "string" and matches(text, "(?i)^[rub]*(?:\x22\x22\x22|'\x27')");
-let continued = select id from "syntax-tree" where kind = "whitespace" and matches(text, "\\\r?\n");
+let continued = select id from "syntax-tree" where kind = "whitespace" and matches(text, "\\(?:\r\n|\r|\n)");
 let mapped_tokens = union(left=quoted, right=continued);
 let mapping_ranges = select l.id as id, r.file as file, r."start-line" as line, r."end-line" as endline from mapped_tokens as l join "source-location" as r on l.id = r.id where r."start-line" < r."end-line";
 let mapping_edges = select l.id as origin, r.id as destination from mapping_ranges as l join mapping_ranges as r on l.file = r.file where l.line <= r.endline and r.line <= l.endline and l.endline < r.endline;

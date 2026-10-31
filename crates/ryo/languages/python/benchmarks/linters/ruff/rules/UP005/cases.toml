@@ -92,3 +92,23 @@ expected = []
 name = "redirected-file-noqa-code-U005"
 files = { "case.py" = "# ruff: noqa: U005\nself.assertEquals(1, 2)\n" }
 expected = []
+
+[[cases]]
+name = "pairing-alias-to-canonical"
+files = { "case.py" = "# ruff: disable[U005]\n# ruff: enable[UP005]\nself.assertEquals(1, 2)\n" }
+expected = []
+
+[[cases]]
+name = "pairing-canonical-to-alias"
+files = { "case.py" = "# ruff: disable[UP005]\n# ruff: enable[U005]\nself.assertEquals(1, 2)\n" }
+expected = []
+
+[[cases]]
+name = "pairing-duplicate-aliases"
+files = { "case.py" = "# ruff: disable[U005,UP005]\n# ruff: enable[UP005]\nself.assertEquals(1, 2)\n" }
+expected = []
+
+[[cases]]
+name = "pairing-alias-reordered"
+files = { "case.py" = "# ruff: disable[U005,E722]\n# ruff: enable[E722,U005]\nself.assertEquals(1, 2)\n" }
+expected = []

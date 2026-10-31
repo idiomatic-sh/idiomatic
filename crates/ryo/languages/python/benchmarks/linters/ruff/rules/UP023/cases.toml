@@ -117,3 +117,8 @@ expected = [{ file = "case.py", start = 29, end = 57 }]
 name = "shared-file-ignore"
 files = { "case.py" = "# ruff: file-ignore[UP023]\nimport xml.etree.cElementTree as ET\n" }
 expected = []
+
+[[cases]]
+name = "continuation-bare-cr"
+files = { "case.py" = "from xml.etree import cElementTree \\\r as ET # noqa: UP023\r" }
+expected = []

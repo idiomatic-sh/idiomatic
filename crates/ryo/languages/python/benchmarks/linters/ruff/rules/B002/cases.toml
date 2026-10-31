@@ -162,3 +162,8 @@ expected = []
 name = "file-noqa-on-closing-fstring-line-is-not-standalone"
 files = { "case.py" = "f\"\"\"before\n{++x}\nafter\"\"\" # ruff: noqa: B002\n" }
 expected = [{ file = "case.py", start = 12, end = 15 }]
+
+[[cases]]
+name = "middle-fstring-bare-cr"
+files = { "case.py" = "f\"\"\"before\r{++x}\rafter\"\"\" # noqa: B002\r" }
+expected = []

@@ -317,7 +317,7 @@ files = { "case.py" = "# ruff: disable[E722] intentional for this test\ntry:\n  
 expected = []
 
 [[cases]]
-name = "unicode-directive-whitespace"
+name = "range-unicode-directive-whitespace"
 files = { "case.py" = "#\u2003ruff\u2003:\u2003disable\u2003[E722\u2003,\u2003]\ntry:\n    pass\nexcept:\n    pass\n" }
 expected = []
 
@@ -345,3 +345,18 @@ expected = [{ file = "case.py", start = 59, end = 65 }]
 name = "raw-length-boundary-can-expire-before-handler"
 files = { "case.py" = "def f():\n        # ruff: disable[E722]\n\ttry:\n\t\tpass\n\texcept:\n\t\tpass\ntry:\n    pass\nexcept:\n    pass\n" }
 expected = [{ file = "case.py", start = 53, end = 59 }, { file = "case.py", start = 82, end = 88 }]
+
+[[cases]]
+name = "other-rule-alias-spelling-affects-pairing"
+files = { "case.py" = "# ruff: disable[E722,U005]\n# ruff: enable[E722,UP005]\ntry:\n pass\nexcept:\n pass\n" }
+expected = []
+
+[[cases]]
+name = "block-bare-cr"
+files = { "case.py" = "# ruff: disable[E722]\rtry:\r pass\rexcept:\r pass\r# ruff: enable[E722]\rtry:\r pass\rexcept:\r pass\r" }
+expected = [{ file = "case.py", start = 79, end = 85 }]
+
+[[cases]]
+name = "block-crlf"
+files = { "case.py" = "# ruff: disable[E722]\r\ntry:\r\n pass\r\nexcept:\r\n pass\r\n# ruff: enable[E722]\r\ntry:\r\n pass\r\nexcept:\r\n pass\r\n" }
+expected = [{ file = "case.py", start = 87, end = 93 }]
