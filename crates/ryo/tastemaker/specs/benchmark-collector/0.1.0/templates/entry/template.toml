@@ -1,0 +1,17 @@
+description = "Minimal collector process entry."
+why = "All child work and validation live in governed use-case and adapter primitives."
+content = '''
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+}
+'''
+
+[given]
+file="source.rs"
+[[scenarios]]
+id="present"
+scenario="The process role is present."
+given.files.'source.rs'='''fn main() -> Result<(), Box<dyn std::error::Error>> { Ok(()) }'''
+[[scenarios]]
+id="missing"
+scenario="The process role is required."
+then.findings=[{rule="entry#count",path="."}]

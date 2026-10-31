@@ -73,7 +73,19 @@ let other-paths = antijoin(left=path-decl-all, right=self-ids, left-on=["id"], r
 let other-path-rows = project(from=other-paths, columns=["file", "span", "name"]);
 let other-path-findings = extend(from=other-path-rows, values={"problem": "carries a `#[path]` attribute that does not name this file's own test: only `<file>_test.rs` beside `<file>.rs`, declared as `mod tests;`, is declared by `#[path]`"});
 let self-children = select l."module-path" as "module-path", l."child-path" as "child-path", l."child" as "child" from declarable as l join self-tests as r on l."child-path" = r."child-path";
-let expected = antijoin(left=declarable, right=self-children, left-on=["child-path"], right-on=["child-path"]);
+let cargo-entries = project(from="entry", columns=["file", "owner", "occurrence", "key", "decoded"]);
+let cargo-headings = select * from cargo-entries where key = "test" or key = "bin" or key = "bench";
+let cargo-elements = select r."occurrence" as "element" from cargo-headings as l join "sequence-element" as r on l."occurrence" = r."owner";
+let cargo-members = select * from "mapping" where kind = "sequence-member";
+let cargo-tables = select r."id" as "table" from cargo-elements as l join cargo-members as r on l."element" = r."owner";
+let cargo-paths = select * from cargo-entries where key = "path";
+let cargo-targets = select l."file" as "manifest", l."decoded" as "target" from cargo-paths as l join cargo-tables as r on l."owner" = r."table";
+let cargo-roots = capture(from=cargo-targets, path="manifest", pattern="{*root}/Cargo.toml", captures=["root"]);
+let cargo-sources = capture(from=cargo-roots, path="target", pattern="src/{*relative}", captures=["relative"]);
+let source-relative = capture(from=files, path="file", pattern="{*root}/src/{*relative}", captures=["root", "relative"]);
+let cargo-files = select l."file" as "child-path" from source-relative as l join cargo-sources as r on l."root" = r."root" and l."relative" = r."relative";
+let expected-self = antijoin(left=declarable, right=self-children, left-on=["child-path"], right-on=["child-path"]);
+let expected = antijoin(left=expected-self, right=cargo-files, left-on=["child-path"], right-on=["child-path"]);
 let plain-decls = antijoin(left=module-decls, right=path-decl-ids, left-on=["id"], right-on=["id"]);
 let extra = antijoin(left=plain-decls, right=declarable, left-on=["file", "name"], right-on=["module-path", "child"]);
 let extra-rows = project(from=extra, columns=["file", "span", "name"]);
@@ -1455,3 +1467,36 @@ given.files.'src/outbound/names/interface.rs' = '''
 then.findings = [
   { path = 'src/inbound/use_cases.rs', line = 5 },
 ]
+
+[[scenarios]]
+id="explicit-cargo-test-root"
+given.include=["app/**"]
+scenario="Cargo compiles an explicit relative integration target beneath src without a parent mod declaration."
+given.files.'app/Cargo.toml'='''
+[package]
+name="app"
+version="0.1.0"
+edition="2024"
+[[test]]
+name="process"
+path="src/driver/adapter_test.rs"
+'''
+given.files.'app/src/lib.rs'='mod driver;'
+given.files.'app/src/driver.rs'=''
+given.files.'app/src/driver/adapter_test.rs'='#[test] fn observes_process() {}'
+[[scenarios]]
+id="cargo-lookalike-is-not-a-target"
+given.include=["app/**"]
+scenario="A package metadata path does not make an undeclared adjacent test executable."
+given.files.'app/Cargo.toml'='''
+[package]
+name="app"
+version="0.1.0"
+edition="2024"
+[package.metadata.proof]
+path="src/driver/adapter_test.rs"
+'''
+given.files.'app/src/lib.rs'='mod driver;'
+given.files.'app/src/driver.rs'=''
+given.files.'app/src/driver/adapter_test.rs'='#[test] fn observes_process() {}'
+then.findings=[{path="app/src/driver/adapter_test.rs",line=1}]

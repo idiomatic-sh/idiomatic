@@ -148,6 +148,7 @@ use-case = "0.1.0"
 
 [packages."idiomatic.arch".templates]
 adapter-connection = "0.1.0"
+adapter-module = "0.2.0"
 allocation-test = "0.1.0"
 application = "0.1.0"
 application-module = "0.1.0"
@@ -204,6 +205,8 @@ readers-in-items = "0.1.0"
 
 [packages."idiomatic.ryo".specs]
 benchmark = "0.1.0"
+benchmark-collector = "0.1.0"
 benchmark-linter = "0.1.0"
+collector-execution = "0.1.0"
 contract = "0.1.0"
 language = "0.1.0"

@@ -1,0 +1,49 @@
+description="The production module of an execution adapter whose adjacent contract is a Cargo test root."
+why="The process contract must launch Cargo's built collector. Cargo owns adapter_test.rs directly; production compilation owns only adapter, settings, schemas, and constants. Common adapter semantic rules still govern the implementation and its adjacent test."
+content='''
+#[cfg(not(test))]
+pub(crate) mod adapter;
+#[cfg(not(test))]
+pub(crate) mod settings;
+mod schemas;
+#[cfg(not(test))]
+mod constants;
+'''
+[given]
+file="timed.rs"
+[[scenarios]]
+id="complete"
+scenario="All production modules remain compiled."
+given.files.'timed.rs'='''
+#[cfg(not(test))]
+pub(crate) mod adapter;
+#[cfg(not(test))]
+pub(crate) mod settings;
+mod schemas;
+#[cfg(not(test))]
+mod constants;
+'''
+[[scenarios]]
+id="missing-implementation"
+scenario="External test ownership cannot remove the production adapter."
+given.files.'timed.rs'='''
+#[cfg(not(test))]
+pub(crate) mod settings;
+mod schemas;
+#[cfg(not(test))]
+mod constants;
+'''
+then.findings=[{rule="cargo-adapter-module#template",path="timed.rs"}]
+
+[[scenarios]]
+id="unit-owned-production-adapter"
+scenario="The adapter stays exclusively compiled in the production library exercised by Cargo's integration target."
+given.files.'timed.rs'='''
+pub(crate) mod adapter;
+#[cfg(not(test))]
+pub(crate) mod settings;
+mod schemas;
+#[cfg(not(test))]
+mod constants;
+'''
+then.findings=[{rule="cargo-adapter-module#template",path="timed.rs"}]

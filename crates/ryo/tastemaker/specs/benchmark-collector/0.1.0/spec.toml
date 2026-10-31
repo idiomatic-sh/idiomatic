@@ -1,0 +1,40 @@
+description = "An isolated resource collector binary and its built-process regression target."
+why = "Linux child maxrss inherits the spawning process resident footprint. A small fresh collector must own actual contestant launch and wait4; its Cargo-built integration test proves isolation, CPU and memory units, protocol failure behavior, and pinned executable identity. This spec places only that executable and its integration target; nu-hex continues to govern all implementation and protocol code."
+specs = [{spec="idiomatic.ryo/collector-execution@0.1.0",include=["src/outbound/execution/adapters"],description="Explicit adapter integration target ownership."}]
+templates = [
+ { template = "entry", file = "src/main.rs", description = "A minimal process entry composes the collect use case and transfers one message through standard streams." },
+]
+rules = [
+ { rule = "targets", include = ["Cargo.toml", "src/main.rs", "src/outbound/execution/adapters/timed/adapter_test.rs"], description = "Both process entry and resource proof are explicit Cargo targets." },
+ { rule = "idiomatic.arch/test-shape@0.1.0", include = ["src/outbound/execution/adapters/timed/adapter_test.rs"], description = "Resource regressions use the shared case-table runner." },
+]
+[given]
+at = "collector"
+[[scenarios]]
+id = "placed"
+scenario = "Both explicit targets are owned."
+given.files.'collector/src/main.rs' = 'fn main() {}'
+given.files.'collector/src/outbound/execution/adapters/timed/adapter_test.rs' = ''
+given.files.'collector/Cargo.toml' = '''
+[[bin]]
+name="ryo-benchmark-collector"
+path="src/main.rs"
+[[test]]
+name="collector"
+path="src/outbound/execution/adapters/timed/adapter_test.rs"
+'''
+then.only = ["idiomatic.ryo/benchmark-collector/targets"]
+[[scenarios]]
+id = "unregistered"
+scenario = "An existing source file is not sufficient when Cargo does not own the process."
+given.files.'collector/src/main.rs' = 'fn main() {}'
+given.files.'collector/src/outbound/execution/adapters/timed/adapter_test.rs' = ''
+given.files.'collector/Cargo.toml' = ''
+then.only = ["idiomatic.ryo/benchmark-collector/targets"]
+then.findings = [{rule="targets",path="collector/src/main.rs"},{rule="targets",path="collector/src/outbound/execution/adapters/timed/adapter_test.rs"}]
+[[scenarios]]
+id = "stray"
+scenario = "Unrelated binary entries are not admitted."
+given.files.'collector/src/bin/unowned.rs' = 'fn main() {}'
+then.only = ["idiomatic.ryo/benchmark-collector#closed"]
+then.findings = [{rule="benchmark-collector#closed",path="collector/src/bin/unowned.rs"}]
