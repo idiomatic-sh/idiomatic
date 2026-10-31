@@ -82,3 +82,8 @@ expected = [{ file = "case.py", start = 30, end = 38 }]
 name = "shared-file-ignore"
 files = { "case.py" = "# ruff: file-ignore[UP025]\nvalue = u\"hello\"\n" }
 expected = []
+
+[[cases]]
+name = "quoted-annotation-string-prefix"
+files = { "case.py" = "x: \"list[u'foo']\"\n" }
+expected = [{ file = "case.py", start = 9, end = 15 }]

@@ -122,3 +122,8 @@ expected = []
 name = "bare-marker"
 files = { "case.py" = "# header\n#!\n" }
 expected = [{ file = "case.py", start = 9, end = 11 }]
+
+[[cases]]
+name = "quoted-annotation-comment-is-not-file-shebang"
+files = { "case.py" = "x: \"Foo #!/bin/sh\"\n" }
+expected = []

@@ -87,3 +87,8 @@ expected = [{ file = "case.py", start = 35, end = 38 }]
 name = "noqa"
 files = { "case.py" = "import decimal\ndecimal.Decimal(1.5) # noqa: RUF032\n" }
 expected = []
+
+[[cases]]
+name = "quoted-annotation-numeric-literal"
+files = { "case.py" = "from decimal import Decimal\nx: \"Decimal(1.2)\"\n" }
+expected = [{ file = "case.py", start = 40, end = 43 }]

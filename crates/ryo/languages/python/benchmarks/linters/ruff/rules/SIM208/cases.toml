@@ -72,3 +72,8 @@ expected = [{ file = "case.py", start = 30, end = 39 }]
 name = "shared-file-ignore"
 files = { "case.py" = "# ruff: file-ignore[SIM208]\nvalue = not not x\n" }
 expected = []
+
+[[cases]]
+name = "quoted-annotation-unary-expression"
+files = { "case.py" = "x: \"not not value\"\n" }
+expected = [{ file = "case.py", start = 4, end = 17 }]

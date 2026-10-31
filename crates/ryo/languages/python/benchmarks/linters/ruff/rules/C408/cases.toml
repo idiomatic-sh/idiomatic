@@ -77,3 +77,8 @@ expected = []
 name = "positional-trivia-and-trailing-comma"
 files = { "case.py" = "x = dict(\n # before first\n a=1,\n)\n" }
 expected = [{ file = "case.py", start = 4, end = 33 }]
+
+[[cases]]
+name = "quoted-annotation-builtin-call"
+files = { "case.py" = "x: \"dict()\"\n" }
+expected = [{ file = "case.py", start = 4, end = 10 }]
