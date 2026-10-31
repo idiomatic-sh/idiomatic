@@ -20,7 +20,7 @@ Cold performance is unacceptable: Django takes approximately **89.8 seconds and 
 
 Each value is the median of six observations; `measurements.json` retains min/max and CPU, and `observations.log` contains every sample and execution order. Retained-cache hits are not independently instrumented. Both contestants receive identical explicit source paths and selected rules. Edited results also match independent fresh-cache executions.
 
-Six deferred binding rules now also have **80 full-report reference acceptance cases**: F401 (15), F811 (12), F821 (16), F822 (12), F823 (12), F841 (13). These include parser diagnostic identities where applicable. They are pinned oracle expectations for future implementations, not candidate passes or additional authored rules; `fixtures.json` records their exact names and asset hashes.
+Six deferred binding rules now also have **80 full-report reference acceptance cases**: F401 (15), F811 (12), F821 (16), F822 (12), F823 (12), F841 (13). These include parser diagnostic identities where applicable. Each oracle invocation selected its enclosing rule alone. These are pinned expectations for future implementations, not candidate passes or additional authored rules; `fixtures.json` records their exact names and asset hashes. Promotion must either bind that single-rule execution profile or regenerate complete expectations for the broader selected profile; full-report comparison must never filter away other diagnostics.
 
 ## Newly discovered annotation boundary
 
