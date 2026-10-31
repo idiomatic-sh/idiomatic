@@ -1,0 +1,54 @@
+[[cases]]
+name = "async"
+files = { "case.py" = "async def f():\n    yield from values\n" }
+expected = [{ file = "case.py", start = 19, end = 36 }]
+
+[[cases]]
+name = "sync"
+files = { "case.py" = "def f():\n    yield from values\n" }
+expected = []
+
+[[cases]]
+name = "nested-sync"
+files = { "case.py" = "async def f():\n    def g():\n        yield from values\n" }
+expected = []
+
+[[cases]]
+name = "outer-async-default"
+files = { "case.py" = "async def f():\n    def g(value=(yield from values)):\n        pass\n" }
+expected = [{ file = "case.py", start = 32, end = 49 }]
+
+[[cases]]
+name = "nested-class"
+files = { "case.py" = "async def f():\n    class C:\n        yield from values\n" }
+expected = []
+
+[[cases]]
+name = "module"
+files = { "case.py" = "yield from values\n" }
+expected = []
+
+[[cases]]
+name = "async-yield"
+files = { "case.py" = "async def f():\n    yield values\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "async def f():\n    yield from values # noqa\n" }
+expected = []
+
+[[cases]]
+name = "code-noqa"
+files = { "case.py" = "async def f():\n    yield from values # noqa: PLE1700\n" }
+expected = []
+
+[[cases]]
+name = "other-code"
+files = { "case.py" = "async def f():\n    yield from values # noqa: F401\n" }
+expected = [{ file = "case.py", start = 19, end = 36 }]
+
+[[cases]]
+name = "file-noqa"
+files = { "case.py" = "# ruff: noqa\nasync def f():\n    yield from values\n" }
+expected = []
