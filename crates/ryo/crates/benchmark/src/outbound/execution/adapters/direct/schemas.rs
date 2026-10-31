@@ -2,8 +2,11 @@
 use crate::domain::{
     diagnostics::errors::DiagnosticsError as Error, measurements::types::Resources,
 };
-/// Per-child clocks and peak resident bytes returned by pinned wait4.
-struct ResourcesSchema(pub(super) wait4::ResourceUsage);
+/// Per-child clocks and peak resident bytes returned by pinned `wait4`.
+struct ResourcesSchema(
+    /// Native resource record collected for exactly one waited child.
+    wait4::ResourceUsage,
+);
 impl TryFrom<ResourcesSchema> for Resources {
     type Error = Error;
     fn try_from(ResourcesSchema(record): ResourcesSchema) -> Result<Self, Error> {
@@ -17,6 +20,7 @@ impl TryFrom<ResourcesSchema> for Resources {
         })
     }
 }
+/// Sum child CPU durations with overflow refusal and preserve peak resident bytes.
 pub(super) fn decode(record: wait4::ResourceUsage) -> Result<Resources, Error> {
     ResourcesSchema(record).try_into()
 }
