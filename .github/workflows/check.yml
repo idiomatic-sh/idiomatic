@@ -73,7 +73,20 @@ jobs:
         env:
           # cargo-binstall asks GitHub for each release: unauthenticated, the rate limit stalls it.
           GH_TOKEN: ${{ github.token }}
-      - run: asymptote check --groups build
+      - id: build_check
+        run: asymptote check --groups build
+      - name: Failed tool diagnostics
+        if: failure() && steps.build_check.outcome == 'failure'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: failed-tools-build-${{ runner.os }}-${{ github.run_attempt }}
+          path: |
+            .asymptote/cache/check.failures.json
+            crates/*/.asymptote/cache/check.failures.json
+            tools/lints/.asymptote/cache/check.failures.json
+          include-hidden-files: true
+          if-no-files-found: ignore
+          retention-days: 7
   check:
     needs: build
     strategy:
@@ -137,6 +150,18 @@ jobs:
           GH_TOKEN: ${{ github.token }}
       - id: quality
         run: asymptote check --groups ${{ matrix.group }}
+      - name: Failed tool diagnostics
+        if: failure() && steps.quality.outcome == 'failure'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: failed-tools-${{ matrix.group }}-${{ runner.os }}-${{ github.run_attempt }}
+          path: |
+            .asymptote/cache/check.failures.json
+            crates/*/.asymptote/cache/check.failures.json
+            tools/lints/.asymptote/cache/check.failures.json
+          include-hidden-files: true
+          if-no-files-found: ignore
+          retention-days: 7
       - name: SDK API comparison evidence
         if: failure() && matrix.group == 'api' && steps.quality.outcome == 'failure'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -199,4 +224,17 @@ jobs:
         env:
           # cargo-binstall asks GitHub for each release: unauthenticated, the rate limit stalls it.
           GH_TOKEN: ${{ github.token }}
-      - run: asymptote check --groups speed
+      - id: speed_check
+        run: asymptote check --groups speed
+      - name: Failed tool diagnostics
+        if: failure() && steps.speed_check.outcome == 'failure'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: failed-tools-speed-${{ runner.os }}-${{ github.run_attempt }}
+          path: |
+            .asymptote/cache/check.failures.json
+            crates/*/.asymptote/cache/check.failures.json
+            tools/lints/.asymptote/cache/check.failures.json
+          include-hidden-files: true
+          if-no-files-found: ignore
+          retention-days: 7

@@ -1,8 +1,8 @@
 //! `check`'s store: one postcard file of flat tables, read whole and replaced in one atomic write.
 #[cfg(unix)]
 use super::constants::ORDINARY_MODE;
-use super::constants::{FILE, GITIGNORE, GITIGNORE_TEXT, TAG, TAG_TEXT};
-use super::schemas::{read, write};
+use super::constants::{DIAGNOSTICS, FILE, GITIGNORE, GITIGNORE_TEXT, TAG, TAG_TEXT};
+use super::schemas::{diagnostic_artifact, read, write};
 use super::settings::CheckStorePostcardSettings;
 use crate::outbound::check_store::errors::CheckStoreError;
 use crate::outbound::check_store::interface::CheckStorePort;
@@ -79,12 +79,27 @@ impl CheckStorePort for CheckStorePostcardAdapter {
             }
         }
         let bytes = write(stored, &self.settings.build).map_err(|error| failure(&error))?;
+        let diagnostics = diagnostic_artifact(stored, &self.settings.build, &bytes)
+            .map_err(|error| failure(&error))?;
+        let mut artifact = ordinary()
+            .tempfile_in(&directory)
+            .map_err(|error| failure(&error))?;
+        artifact
+            .write_all(&diagnostics)
+            .map_err(|error| failure(&error))?;
         let mut writing = ordinary()
             .tempfile_in(&directory)
             .map_err(|error| failure(&error))?;
         writing.write_all(&bytes).map_err(|error| failure(&error))?;
         // The open handle is not needed: the store is read back by its name.
         drop(writing.persist(file).map_err(|error| failure(&error))?);
+        // Each artifact names the exact store digest. Even an interrupted two-file replacement cannot
+        // make an earlier artifact describe different store bytes. Empty current failures replace old ones.
+        drop(
+            artifact
+                .persist(directory.join(DIAGNOSTICS))
+                .map_err(|error| failure(&error))?,
+        );
         Ok(())
     }
 }

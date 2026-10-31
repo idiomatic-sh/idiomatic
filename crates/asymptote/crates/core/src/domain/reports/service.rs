@@ -148,6 +148,7 @@ pub fn observed(report: &Report) -> Observed {
 #[must_use]
 pub fn failed(tool: &ToolId, failure: Failure) -> Scanned {
     Scanned {
+        failure_output: crate::domain::reports::types::FailureOutput::Unavailable,
         run: Run {
             tool: tool.clone(),
             status: Status::Failed(failure),
@@ -173,6 +174,7 @@ pub fn completed(
     inputs: Vec<NamedInput>,
 ) -> Scanned {
     Scanned {
+        failure_output: crate::domain::reports::types::FailureOutput::Unavailable,
         run: Run {
             tool: tool.clone(),
             status: Status::Completed,

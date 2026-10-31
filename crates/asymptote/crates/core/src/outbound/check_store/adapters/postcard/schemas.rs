@@ -19,7 +19,8 @@ use crate::domain::operations::types::{BenchmarkName, MeasureName, Number, Revis
 use crate::domain::perf::types::{Measurement, Spread};
 use crate::domain::renames::types::Head;
 use crate::domain::reports::types::{
-    Digest, FileRecord, Keeping, Moment, NamedInput, Recorded, Report, Scanned, Size, Stamped,
+    DiagnosticText, Digest, FailureOutput, FileRecord, Keeping, Moment, NamedInput, Recorded,
+    Report, Scanned, Size, Stamped,
 };
 use crate::domain::violations::service::{level_of, word};
 use crate::domain::violations::types::{
@@ -399,6 +400,7 @@ fn scans(store: &StoreSchema, text: &dyn Fn(u32) -> Option<Box<str>>) -> Option<
             rules.remove(&row.tool_id)
         };
         scanned.push(Scanned {
+            failure_output: crate::domain::reports::types::FailureOutput::Unavailable,
             run: Run {
                 tool: ToolId(text(row.tool_id)?),
                 status,
@@ -474,19 +476,286 @@ impl TryFrom<StoreSchema> for Stored {
     }
 }
 
+/// Exact failure details; legacy rows keep only the category and exit code.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+enum FailureSchema {
+    /// A non-verdict exit, with its concise display tail.
+    Exited {
+        /// Native process exit status.
+        code: i32,
+        /// The bounded display tail, separately from full output.
+        stderr: String,
+    },
+    /// A signal ended the process.
+    Signalled {
+        /// The bounded display tail.
+        stderr: String,
+    },
+    /// The configured deadline expired.
+    TimedOut {
+        /// Deadline in seconds.
+        after: u64,
+    },
+    /// Starting the process failed.
+    Unstartable {
+        /// Exact launch error.
+        problem: String,
+    },
+    /// A successful process output could not be decoded.
+    Unreadable {
+        /// Exact decoder error.
+        problem: String,
+        /// Bounded display tail.
+        stderr: String,
+    },
+}
+
+impl From<&Failure> for FailureSchema {
+    fn from(failure: &Failure) -> Self {
+        match failure {
+            Failure::Exited { code, stderr } => Self::Exited {
+                code: code.0,
+                stderr: stderr.0.to_string(),
+            },
+            Failure::Signalled { stderr } => Self::Signalled {
+                stderr: stderr.0.to_string(),
+            },
+            Failure::TimedOut { after } => Self::TimedOut { after: after.0 },
+            Failure::Unstartable(problem) => Self::Unstartable {
+                problem: problem.0.to_string(),
+            },
+            Failure::Unreadable { problem, stderr } => Self::Unreadable {
+                problem: problem.0.to_string(),
+                stderr: stderr.0.to_string(),
+            },
+        }
+    }
+}
+
+impl From<FailureSchema> for Failure {
+    fn from(failure: FailureSchema) -> Self {
+        match failure {
+            FailureSchema::Exited { code, stderr } => Self::Exited {
+                code: Code(code),
+                stderr: Tail(stderr.into()),
+            },
+            FailureSchema::Signalled { stderr } => Self::Signalled {
+                stderr: Tail(stderr.into()),
+            },
+            FailureSchema::TimedOut { after } => Self::TimedOut {
+                after: Seconds(after),
+            },
+            FailureSchema::Unstartable { problem } => Self::Unstartable(Problem(problem.into())),
+            FailureSchema::Unreadable { problem, stderr } => Self::Unreadable {
+                problem: Problem(problem.into()),
+                stderr: Tail(stderr.into()),
+            },
+        }
+    }
+}
+
+/// Captured empty streams are distinct from an older record with no retained output.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+enum OutputSchema {
+    /// Older records contain no capture; their failure detail may also be unavailable.
+    Unavailable,
+    /// Both complete observed streams, including genuinely empty ones.
+    Captured {
+        /// Complete standard output.
+        stdout: String,
+        /// Complete standard error.
+        stderr: String,
+        /// Execution fingerprint, absent only when inputs could not be stamped.
+        inputs_digest: Option<String>,
+    },
+}
+
+impl From<&FailureOutput> for OutputSchema {
+    fn from(output: &FailureOutput) -> Self {
+        match output {
+            FailureOutput::Unavailable => Self::Unavailable,
+            FailureOutput::Captured {
+                stdout,
+                stderr,
+                inputs,
+            } => Self::Captured {
+                stdout: stdout.0.to_string(),
+                stderr: stderr.0.to_string(),
+                inputs_digest: match inputs {
+                    Stamped::Digested(digest) => Some(digest.0.to_string()),
+                    Stamped::Unstamped => None,
+                },
+            },
+        }
+    }
+}
+
+impl From<OutputSchema> for FailureOutput {
+    fn from(output: OutputSchema) -> Self {
+        match output {
+            OutputSchema::Unavailable => Self::Unavailable,
+            OutputSchema::Captured {
+                stdout,
+                stderr,
+                inputs_digest,
+            } => Self::Captured {
+                stdout: DiagnosticText(stdout.into()),
+                stderr: DiagnosticText(stderr.into()),
+                inputs: inputs_digest.map_or(Stamped::Unstamped, |digest| {
+                    Stamped::Digested(Digest(digest.into()))
+                }),
+            },
+        }
+    }
+}
+
+/// One failed scan's retained evidence, bound to its position and tool identity.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+struct DiagnosticSchema {
+    /// Position in this report; retained and current runs can share a tool name.
+    scan: usize,
+    /// Exact configured tool identifier.
+    tool: String,
+    /// Failure details; legacy records retain only category and exit code.
+    failure: FailureSchema,
+    /// Whether complete streams were retained.
+    output: OutputSchema,
+}
+
+/// A trailing extension leaves the original postcard tables readable without inventing legacy captures.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+struct DiagnosticsSchema {
+    /// Every failed scan, including its original report position.
+    failures: Vec<DiagnosticSchema>,
+}
+
+impl From<&Stored> for DiagnosticsSchema {
+    fn from(stored: &Stored) -> Self {
+        let failures = match &stored.report {
+            KeptReport::Nothing => Vec::new(),
+            KeptReport::Kept(report) => report
+                .scanned
+                .iter()
+                .enumerate()
+                .filter_map(|(scan, scanned)| {
+                    let Status::Failed(failure) = &scanned.run.status else {
+                        return None;
+                    };
+                    Some(DiagnosticSchema {
+                        scan,
+                        tool: scanned.run.tool.0.to_string(),
+                        failure: failure.into(),
+                        output: (&scanned.failure_output).into(),
+                    })
+                })
+                .collect(),
+        };
+        Self { failures }
+    }
+}
+
+/// A portable diagnostic artifact bound to the exact bytes of the check store.
+#[derive(Serialize)]
+struct FailureArtifactSchema {
+    /// Executing Asymptote build identity.
+    build: String,
+    /// Product revision, detached marker, or no report.
+    head: Option<String>,
+    /// BLAKE3 of the exact companion store bytes, binding all recorded inputs.
+    store_digest: String,
+    /// Only failures belonging to this check, never retained older failures.
+    failures: Vec<DiagnosticSchema>,
+}
+
+/// Full failures from this check only; an empty list replaces any earlier check's failures.
+pub(super) fn diagnostic_artifact(
+    stored: &Stored,
+    build: &Build,
+    bytes: &[u8],
+) -> Result<Vec<u8>, serde_json::Error> {
+    let mut diagnostics = DiagnosticsSchema::from(stored);
+    let head = match &stored.report {
+        KeptReport::Nothing => None,
+        KeptReport::Kept(report) => {
+            diagnostics.failures.retain(|failure| {
+                report
+                    .scanned
+                    .get(failure.scan)
+                    .is_some_and(|scan| scan.keeping == Keeping::Current)
+            });
+            Some(match &report.head {
+                Head::Commit(revision) => revision.0.to_string(),
+                Head::Detached => DETACHED.to_owned(),
+            })
+        }
+    };
+    serde_json::to_vec_pretty(&FailureArtifactSchema {
+        build: build.0.to_string(),
+        head,
+        store_digest: blake3::hash(bytes).to_hex().to_string(),
+        failures: diagnostics.failures,
+    })
+}
+
 /// What the store's bytes hold; bytes that do not decode as a store, that another build wrote, or whose rows name a
 /// text they do not hold, are none.
 pub(super) fn read(bytes: &[u8], build: &Build) -> Option<Stored> {
-    let store = postcard::from_bytes::<StoreSchema>(bytes).ok()?; // ignore: idiomatic.arch/no-ok-on-result - bytes that do not decode as a store are no store: it is rebuilt, never migrated
+    let (store, remaining) = postcard::take_from_bytes::<StoreSchema>(bytes).ok()?; // ignore: idiomatic.arch/no-ok-on-result - bytes that do not decode as a store are no store: it is rebuilt, never migrated
     if *store.build != *build.0 {
         return None;
     }
-    Stored::try_from(store).ok() // ignore: idiomatic.arch/no-ok-on-result - rows that name a text the store does not hold are no store: it is rebuilt, never migrated
+    let mut stored = Stored::try_from(store).ok()?; // ignore: idiomatic.arch/no-ok-on-result - malformed table references are a cold miss
+    if remaining.is_empty() {
+        return Some(stored);
+    }
+    let (extension, remainder) = postcard::take_from_bytes::<DiagnosticsSchema>(remaining).ok()?; // ignore: idiomatic.arch/no-ok-on-result - malformed diagnostic extensions are a cold miss
+    if !remainder.is_empty() {
+        return None;
+    }
+    match &mut stored.report {
+        KeptReport::Nothing if !extension.failures.is_empty() => return None,
+        KeptReport::Nothing => {}
+        KeptReport::Kept(report) => {
+            let report = Arc::make_mut(report);
+            let mut seen = BTreeSet::new();
+            for diagnostic in extension.failures {
+                if !seen.insert(diagnostic.scan) {
+                    return None;
+                }
+                let scan = report.scanned.get_mut(diagnostic.scan)?;
+                if scan.run.tool.0.as_ref() != diagnostic.tool
+                    || !matches!(scan.run.status, Status::Failed(_))
+                {
+                    return None;
+                }
+                let failure = Failure::from(diagnostic.failure);
+                // The extension may restore detail, never change a successful or differently failed run.
+                let restored = Status::Failed(failure);
+                if outcome(&restored, scan.keeping) != outcome(&scan.run.status, scan.keeping) {
+                    return None;
+                }
+                scan.run.status = restored;
+                scan.failure_output = diagnostic.output.into();
+            }
+            if report
+                .scanned
+                .iter()
+                .filter(|scan| matches!(scan.run.status, Status::Failed(_)))
+                .count()
+                != seen.len()
+            {
+                return None;
+            }
+        }
+    }
+    Some(stored)
 }
 
 /// The store's bytes for `stored`, kept by `build`.
 pub(super) fn write(stored: &Stored, build: &Build) -> Result<Vec<u8>, postcard::Error> {
-    postcard::to_allocvec(&StoreSchema::from(KeptSchema(stored, build)))
+    let mut bytes = postcard::to_allocvec(&StoreSchema::from(KeptSchema(stored, build)))?;
+    bytes.extend(postcard::to_allocvec(&DiagnosticsSchema::from(stored))?);
+    Ok(bytes)
 }
 
 #[cfg(test)]

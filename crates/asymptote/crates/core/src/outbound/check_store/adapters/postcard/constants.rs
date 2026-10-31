@@ -2,6 +2,8 @@
 
 /// The store's file, in the store's directory.
 pub(super) const FILE: &str = "check.store";
+/// Full failures from the check identified by its build, head and store digest.
+pub(super) const DIAGNOSTICS: &str = "check.failures.json";
 /// The mode a file is created with before the umask, as `std::fs::write` creates one: a temporary file starts private,
 /// `0o600`, which a file renamed into place would keep.
 #[cfg(unix)]

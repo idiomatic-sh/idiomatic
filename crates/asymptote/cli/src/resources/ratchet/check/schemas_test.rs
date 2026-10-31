@@ -46,6 +46,8 @@ enum Question {
     Known(Vec<&'static str>),
     /// The JSON of a run with a new violation an in-source ignore suppresses, a resolved record and an unjudged one.
     Judged,
+    /// Full failure stdout is exposed without treating unavailable as empty.
+    FailureJson,
 }
 
 /// The perf outcomes a run comes to.
@@ -75,6 +77,12 @@ type Value = std::borrow::Cow<'static, str>;
 type Failure = String;
 
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("json_exposes_full_captured_failure_streams"),
+        word: Word::Succeeds,
+        input: || Question::FailureJson,
+        expect: Expect::Value(std::borrow::Cow::Borrowed("captured")),
+    },
     Case {
         name: CaseName(
             "suppressed_findings_are_their_own_list_with_their_reason_and_records_keep_their_counts",
@@ -464,6 +472,7 @@ fn said(layout: Layout) -> String {
         },
     });
     checked.runs.push(ToolRun {
+        failure_output: asymptote_core::domain::reports::types::FailureOutput::Unavailable,
         run: Run {
             tool: ToolId("bench".into()),
             status: Status::Failed(RunFailure::Exited {
@@ -569,6 +578,48 @@ fn subject(question: Input) -> Result<Value, Failure> {
             ];
             super::known(&request, None, &declared).map_err(|error| error.to_string())?;
             "known".to_owned()
+        }
+        Question::FailureJson => {
+            use asymptote_core::domain::reports::types::{DiagnosticText, FailureOutput, Stamped};
+            let mut checked = report(Verdict::Undetermined);
+            checked.runs.push(ToolRun {
+                run: Run {
+                    tool: ToolId("stdout-tool".into()),
+                    status: Status::Failed(RunFailure::Exited {
+                        code: Code(7),
+                        stderr: Tail::default(),
+                    }),
+                    inventory: Inventory::Undeclared,
+                    reported: std::collections::BTreeSet::new(),
+                },
+                reuse: Reuse::Ran,
+                failure_output: FailureOutput::Captured {
+                    stdout: DiagnosticText("full stdout\n".repeat(400).into()),
+                    stderr: DiagnosticText::default(),
+                    inputs: Stamped::Unstamped,
+                },
+            });
+            let json = serde_json::to_value(super::printed(&checked))
+                .map_err(|error| error.to_string())?;
+            let tool = json["tools"]
+                .as_array()
+                .and_then(|tools| tools.last())
+                .ok_or("failed tool")?;
+            assert_eq!(tool["error"]["code"], 7, "failure identity unchanged");
+            assert_eq!(
+                tool["diagnostics"]["stdout"],
+                "full stdout\n".repeat(400),
+                "complete stdout printed"
+            );
+            assert_eq!(
+                tool["diagnostics"]["stderr"], "",
+                "observed empty stderr retained"
+            );
+            assert_eq!(
+                tool["diagnostics"]["availability"], "captured",
+                "capture is explicit"
+            );
+            "captured".to_owned()
         }
         Question::Said(layout) => said(layout),
         Question::Unanswered => {

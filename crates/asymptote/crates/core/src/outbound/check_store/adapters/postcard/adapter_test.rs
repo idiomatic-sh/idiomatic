@@ -1,7 +1,7 @@
 //! The disk store's lifecycle and the shared port contract: what is kept reads back whole through a new adapter,
 //! another build reads it as empty, a failed write keeps the previous store, damaged bytes are a cold miss, and the
 //! store has the mode any written file has.
-use super::constants::FILE;
+use super::constants::{DIAGNOSTICS, FILE};
 use crate::cases::{Case, CaseName, Expect, Selection, Word, run};
 use crate::inbound::use_cases::check::{fixtures, interface::CheckUseCase as _};
 use crate::outbound::check_store::errors::CheckStoreError;
@@ -16,6 +16,8 @@ use crate::outbound::check_store::{
 enum Question {
     Contract,
     Reopened,
+    /// The current artifact replaces stale failed output after a successful check.
+    Diagnostics,
     OtherBuild,
     FailedWrite,
     Corrupt,
@@ -27,6 +29,12 @@ type Input = Question;
 type Value = bool;
 type Failure = CheckStoreError;
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("current_failure_artifact_replaces_stale_output"),
+        word: Word::Succeeds,
+        input: || Question::Diagnostics,
+        expect: Expect::Value(true),
+    },
     Case {
         name: CaseName("the_adapter_passes_the_port_contract"),
         word: Word::Succeeds,
@@ -112,6 +120,46 @@ fn subject(question: Input) -> Result<Value, Failure> {
     };
     let adapter = open("build-1");
     match question {
+        Question::Diagnostics => {
+            let mut stored = checked();
+            let crate::outbound::check_store::types::KeptReport::Kept(report) = &mut stored.report
+            else {
+                panic!("checked report");
+            };
+            let report = std::sync::Arc::make_mut(report);
+            let scan = report.scanned.first_mut().expect("tool scan");
+            scan.run.status = crate::domain::judgement::types::Status::Failed(
+                crate::domain::judgement::types::Failure::Exited {
+                    code: crate::domain::judgement::types::Code(7),
+                    stderr: crate::domain::judgement::types::Tail::default(),
+                },
+            );
+            scan.failure_output = crate::domain::reports::types::FailureOutput::Captured {
+                stdout: crate::domain::reports::types::DiagnosticText("stdout-only failure".into()),
+                stderr: crate::domain::reports::types::DiagnosticText::default(),
+                inputs: scan.stamp.clone(),
+            };
+            adapter.keep(&stored)?;
+            let artifact: serde_json::Value =
+                serde_json::from_slice(&std::fs::read(cache.join(DIAGNOSTICS)).expect("artifact"))
+                    .expect("JSON artifact");
+            let store = std::fs::read(cache.join(FILE)).expect("store bytes");
+            assert_eq!(
+                artifact["store_digest"],
+                blake3::hash(&store).to_hex().to_string(),
+                "artifact names exact store bytes"
+            );
+            assert_eq!(
+                artifact["failures"][0]["output"]["Captured"]["stdout"], "stdout-only failure",
+                "full stdout retained"
+            );
+            adapter.keep(&checked())?;
+            let fresh: serde_json::Value = serde_json::from_slice(
+                &std::fs::read(cache.join(DIAGNOSTICS)).expect("replacement"),
+            )
+            .expect("JSON artifact");
+            Ok(fresh["failures"].as_array().is_some_and(Vec::is_empty))
+        }
         Question::Contract => {
             check(&adapter);
             Ok(open("build-1").load() != Stored::default())

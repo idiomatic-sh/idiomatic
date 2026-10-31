@@ -333,6 +333,7 @@ fn expected_report(
     CheckReport {
         root,
         runs: vec![ToolRun {
+            failure_output: crate::domain::reports::types::FailureOutput::Unavailable,
             run: Run {
                 tool: ToolId("lint".into()),
                 status: Status::Completed,

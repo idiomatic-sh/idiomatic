@@ -9,6 +9,14 @@ use crate::outbound::check_store::types::{Build, Stored};
 enum Question {
     /// Whether a checked product, its violations, inputs and file records among it, reads back as written.
     RoundTrip,
+    /// Complete failure details and streams survive the extension.
+    Diagnostics,
+    /// An old record is explicitly unavailable, never captured empty.
+    LegacyDiagnostics,
+    /// Empty observed streams remain captured empty.
+    EmptyDiagnostics,
+    /// Truncated or extra extension bytes cannot fabricate a valid report.
+    DamagedDiagnostics,
     /// Whether every text of the store is held once.
     Once,
     /// Whether a store whose texts were dropped is refused.
@@ -21,6 +29,30 @@ type Value = bool;
 /// Why the store could not be written.
 type Failure = String;
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("failure_streams_and_exact_identity_round_trip"),
+        word: Word::Succeeds,
+        input: || Question::Diagnostics,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("legacy_failure_output_is_explicitly_unavailable"),
+        word: Word::Succeeds,
+        input: || Question::LegacyDiagnostics,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("observed_empty_streams_are_not_unavailable"),
+        word: Word::Succeeds,
+        input: || Question::EmptyDiagnostics,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("malformed_diagnostic_extensions_are_refused"),
+        word: Word::Succeeds,
+        input: || Question::DamagedDiagnostics,
+        expect: Expect::Value(true),
+    },
     Case {
         name: CaseName("a_checked_product_reads_back_as_written"),
         word: Word::Succeeds,
@@ -48,6 +80,15 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 ];
 
 fn subject(question: Input) -> Result<Value, Failure> {
+    if matches!(
+        question,
+        Question::Diagnostics
+            | Question::LegacyDiagnostics
+            | Question::EmptyDiagnostics
+            | Question::DamagedDiagnostics
+    ) {
+        return diagnostics(question);
+    }
     let scenario = fixtures::scenario();
     drop(
         fixtures::use_case(&scenario)
@@ -85,6 +126,10 @@ fn subject(question: Input) -> Result<Value, Failure> {
             let same = matches!(question, Question::AfterFailure) || again == stored;
             Ok(same && rewritten == bytes)
         }
+        Question::Diagnostics
+        | Question::LegacyDiagnostics
+        | Question::EmptyDiagnostics
+        | Question::DamagedDiagnostics => unreachable!("handled before the table fixture"),
         Question::Once => {
             let texts = read.strings.len();
             let distinct: std::collections::BTreeSet<&String> = read.strings.iter().collect();
@@ -94,6 +139,81 @@ fn subject(question: Input) -> Result<Value, Failure> {
             strings: Vec::new(),
             ..read
         }) == Err(())),
+    }
+}
+
+/// Exercise the production codec, including legacy bytes made with the unchanged original schema.
+fn diagnostics(question: Question) -> Result<Value, Failure> {
+    use crate::domain::judgement::types::{Failure as RunFailure, Problem, Tail};
+    use crate::domain::renames::types::Head;
+    use crate::domain::reports::types::{DiagnosticText, Digest, FailureOutput, Report, Stamped};
+    use crate::domain::violations::types::ToolId;
+    use crate::outbound::check_store::types::KeptReport;
+    let mut scan = crate::domain::reports::service::failed(
+        &ToolId("stdout-only".into()),
+        RunFailure::Unreadable {
+            problem: Problem("exact decoder refusal".into()),
+            stderr: Tail("last line".into()),
+        },
+    );
+    let empty = matches!(question, Question::EmptyDiagnostics);
+    scan.failure_output = FailureOutput::Captured {
+        stdout: DiagnosticText(
+            if empty {
+                String::new()
+            } else {
+                "first diagnostic\n".repeat(400)
+            }
+            .into(),
+        ),
+        stderr: DiagnosticText(
+            if empty {
+                String::new()
+            } else {
+                "early error\n".repeat(400)
+            }
+            .into(),
+        ),
+        inputs: Stamped::Digested(Digest("command-and-input-fingerprint".into())),
+    };
+    let stored = Stored {
+        report: KeptReport::Kept(std::sync::Arc::new(Report {
+            head: Head::Detached,
+            scanned: vec![scan],
+        })),
+        ..Stored::default()
+    };
+    let build = Build("capture-build".into());
+    let bytes = super::write(&stored, &build).map_err(|error| error.to_string())?;
+    match question {
+        Question::Diagnostics | Question::EmptyDiagnostics => {
+            Ok(super::read(&bytes, &build) == Some(stored))
+        }
+        Question::LegacyDiagnostics => {
+            let old = postcard::to_allocvec(&StoreSchema::from(KeptSchema(&stored, &build)))
+                .map_err(|error| error.to_string())?;
+            let loaded = super::read(&old, &build).ok_or("legacy record")?;
+            let KeptReport::Kept(report) = loaded.report else {
+                return Err("legacy report".into());
+            };
+            Ok(report.scanned.iter().all(|scan| {
+                matches!(scan.failure_output, FailureOutput::Unavailable)
+                    && matches!(
+                        scan.run.status,
+                        crate::domain::judgement::types::Status::Failed(_)
+                    )
+            }))
+        }
+        Question::DamagedDiagnostics => {
+            let mut extra = bytes.clone();
+            extra.push(1);
+            let mut truncated = bytes;
+            let _removed = truncated.pop();
+            Ok(super::read(&extra, &build).is_none() && super::read(&truncated, &build).is_none())
+        }
+        Question::RoundTrip | Question::AfterFailure | Question::Once | Question::Unnamed => {
+            Err("a diagnostic case is required".into())
+        }
     }
 }
 
