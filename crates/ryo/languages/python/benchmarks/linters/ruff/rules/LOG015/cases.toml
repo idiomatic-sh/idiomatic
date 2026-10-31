@@ -72,3 +72,18 @@ expected = []
 name = "log"
 files = { "case.py" = "import logging\nlogging.log(10, \"message\")\n" }
 expected = [{ file = "case.py", start = 15, end = 41 }]
+
+[[cases]]
+name = "wildcard-preserves-known-origin"
+files = { "case.py" = "import logging\nfrom m import *\nlogging.info(\"x\")\n" }
+expected = [{ file = "case.py", start = 31, end = 48 }]
+
+[[cases]]
+name = "explicit-shadow-after-wildcard"
+files = { "case.py" = "import logging\nfrom m import *\nlogging = custom\nlogging.info(\"x\")\n" }
+expected = []
+
+[[cases]]
+name = "explicit-shadow-before-wildcard"
+files = { "case.py" = "import logging\nlogging = custom\nfrom m import *\nlogging.info(\"x\")\n" }
+expected = []

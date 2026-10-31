@@ -62,3 +62,18 @@ expected = [{ file = "case.py", start = 17, end = 21 }]
 name = "nfkc-identifier-spelling"
 files = { "case.py" = "\uff45\uff58\uff45\uff43(code)\n" }
 expected = [{ file = "case.py", start = 0, end = 12 }]
+
+[[cases]]
+name = "wildcard-preserves-known-origin"
+files = { "case.py" = "from m import *\nexec(code)\n" }
+expected = [{ file = "case.py", start = 16, end = 20 }]
+
+[[cases]]
+name = "explicit-shadow-after-wildcard"
+files = { "case.py" = "from m import *\nexec = custom\nexec(code)\n" }
+expected = []
+
+[[cases]]
+name = "explicit-shadow-before-wildcard"
+files = { "case.py" = "exec = custom\nfrom m import *\nexec(code)\n" }
+expected = []

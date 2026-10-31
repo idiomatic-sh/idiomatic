@@ -77,3 +77,18 @@ expected = [{ file = "case.py", start = 18, end = 55 }]
 name = "unpacked-keyword"
 files = { "case.py" = "import contextlib\ncontextlib.suppress(**errors)\n" }
 expected = [{ file = "case.py", start = 18, end = 47 }]
+
+[[cases]]
+name = "wildcard-preserves-known-origin"
+files = { "case.py" = "import contextlib\nfrom m import *\ncontextlib.suppress()\n" }
+expected = [{ file = "case.py", start = 34, end = 55 }]
+
+[[cases]]
+name = "explicit-shadow-after-wildcard"
+files = { "case.py" = "import contextlib\nfrom m import *\ncontextlib = custom\ncontextlib.suppress()\n" }
+expected = []
+
+[[cases]]
+name = "explicit-shadow-before-wildcard"
+files = { "case.py" = "import contextlib\ncontextlib = custom\nfrom m import *\ncontextlib.suppress()\n" }
+expected = []
