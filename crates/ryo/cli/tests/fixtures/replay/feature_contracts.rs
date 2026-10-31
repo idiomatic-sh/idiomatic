@@ -1,12 +1,17 @@
 //! Real Python corpus witnesses for shared facts and operators introduced after the Rust recordings.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
+use std::path::Path;
 use std::sync::{Arc, OnceLock};
 
 use super::base::{Pending, Recording, rule_of};
 
 /// These queries assert lexical invariants; only the explicitly named provenance witness emits rows.
 const QUERIES: &[(&str, &str)] = &[
+    (
+        "semantic-projection-invariants",
+        include_str!("../feature_contracts/semantic/query.ryoql"),
+    ),
     (
         "identifier-invariants",
         include_str!("../feature_contracts/identifiers/query.ryoql"),
@@ -25,28 +30,75 @@ const QUERIES: &[(&str, &str)] = &[
     ),
 ];
 
+/// Real upstream annotation occurrences, with an independently counted root inventory.
+const EMBEDDED_QUERIES: &[(&str, &str)] = &[
+    (
+        "embedded-root-invariants",
+        include_str!("../feature_contracts/embedded/query.ryoql"),
+    ),
+    (
+        "embedded-root-witness",
+        include_str!("../feature_contracts/embedded/witness.ryoql"),
+    ),
+];
+
 /// Check invariants and require positive known-origin witnesses before returning measured feature feeds.
 fn measure() -> Result<BTreeMap<String, u64>, String> {
     // COUNTING is shared with the other replay helpers, whose writers also run alone.
     let _alone = crate::alone();
-    let rules = QUERIES
+    super::base::COUNTING.store(true, std::sync::atomic::Ordering::Relaxed);
+    let measured = (|| {
+        let (mut feeds, _) = measure_corpus(
+            &super::base::snapshot::ruff(),
+            QUERIES,
+            &["scripts/**/*.py", "python/**/*.py"],
+            "known-origin-witness",
+        )?;
+        // One upstream generated visitor API, not repeated or synthesized locally.
+        // CPython's AST independently counts 1,712 quoted annotation occurrences.
+        let (embedded, roots) = measure_corpus(
+            &super::base::snapshot::target("libcst-annotations"),
+            EMBEDDED_QUERIES,
+            &["libcst/_typed_visitor.py"],
+            "embedded-root-witness",
+        )?;
+        if roots != 1_712 {
+            return Err(format!("LibCST has {roots} embedded roots, expected 1712"));
+        }
+        for (feature, count) in embedded {
+            let total = feeds.entry(feature).or_default();
+            *total = total
+                .checked_add(count)
+                .ok_or("feature row count overflow")?;
+        }
+        Ok(feeds)
+    })();
+    super::base::COUNTING.store(false, std::sync::atomic::Ordering::Relaxed);
+    measured
+}
+
+/// Require a whole real corpus, independent invariants and distinct positive witnesses.
+fn measure_corpus(
+    root: &Path,
+    queries: &[(&str, &str)],
+    include: &[&str],
+    witness: &str,
+) -> Result<(BTreeMap<String, u64>, usize), String> {
+    let rules = queries
         .iter()
         .map(|(name, query)| {
             rule_of(&Recording {
                 name: (*name).to_owned(),
                 query: (*query).to_owned(),
                 parameters: Vec::new(),
-                // The pinned project's executable Python tools and package, independently tokenized:
-                // 43 files and 1,218 INDENT tokens, excluding intentionally invalid parser fixtures.
-                include: vec!["scripts/**/*.py".to_owned(), "python/**/*.py".to_owned()],
+                include: include.iter().map(|path| (*path).to_owned()).collect(),
                 exclude: Vec::new(),
                 pending: Pending::Missing,
             })
         })
         .collect();
-    super::base::COUNTING.store(true, std::sync::atomic::Ordering::Relaxed);
     let ran = super::base::lint_report_with_languages(
-        &super::base::snapshot::ruff(),
+        root,
         rules,
         Arc::new(ryo_core::outbound::facts::factory::memory()),
         Arc::new(ryo_core::outbound::lint_store::fixtures::fake::LintStoreFake::default()),
@@ -56,7 +108,6 @@ fn measure() -> Result<BTreeMap<String, u64>, String> {
             ryo_python::linked(),
         )],
     );
-    super::base::COUNTING.store(false, std::sync::atomic::Ordering::Relaxed);
     let (rows, report) = ran?;
     if !report.unread.is_empty() {
         return Err(format!(
@@ -70,25 +121,29 @@ fn measure() -> Result<BTreeMap<String, u64>, String> {
             report.unknowns.len()
         ));
     }
-    if rows.iter().any(|row| {
-        row.first()
-            .is_none_or(|rule| rule != "known-origin-witness")
-    }) {
-        return Err(
-            "a Python identifier, source interval or qualified-origin invariant failed".to_owned(),
-        );
+    if rows
+        .iter()
+        .any(|row| row.first().is_none_or(|rule| rule != witness))
+    {
+        return Err(format!(
+            "Python feature invariants failed beside {witness}: {rows:?}"
+        ));
     }
     if rows.len() < 1_000 {
         return Err(format!(
-            "Python feature contracts have only {} known-origin witnesses",
+            "Python feature contracts have only {} {witness} rows",
             rows.len()
         ));
     }
-    Ok(report
+    if rows.iter().collect::<BTreeSet<_>>().len() != rows.len() {
+        return Err(format!("{witness} contains duplicate identities"));
+    }
+    let feeds = report
         .features
         .iter()
         .map(|entry| (super::answers::feature_name(entry.feature), entry.rows.0))
-        .collect())
+        .collect();
+    Ok((feeds, rows.len()))
 }
 
 /// Reuse the real corpus result across concurrent replay assertions.
