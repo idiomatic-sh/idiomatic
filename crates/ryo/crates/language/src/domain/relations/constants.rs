@@ -161,4 +161,8 @@ pub const OPTIONAL_CAPABILITIES: &[super::types::OptionalCapability] = &[
     super::types::OptionalCapability::QualifiedName,
     super::types::OptionalCapability::EmbeddedExpression,
     super::types::OptionalCapability::ExpressionShape,
+    super::types::OptionalCapability::BindingEvent,
+    super::types::OptionalCapability::BindingRead,
+    super::types::OptionalCapability::BindingUse,
+    super::types::OptionalCapability::BindingShadow,
 ];

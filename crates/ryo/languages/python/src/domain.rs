@@ -32,3 +32,5 @@ pub(crate) mod semantic_syntax;
 
 /// Structural expression identity.
 pub(crate) mod expression_shapes;
+/// Sparse environments used by optional static binding analysis.
+pub(crate) mod binding_states;

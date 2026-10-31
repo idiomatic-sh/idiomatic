@@ -100,6 +100,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Scenario::Catalog,
         expect: Expect::Value(20 + 14 + 8 + 40),
+        expect: Expect::Value(20 + 14 + 8 + 43),
     },
     Case {
         name: CaseName("a_select_is_fed_the_rows_of_its_input"),

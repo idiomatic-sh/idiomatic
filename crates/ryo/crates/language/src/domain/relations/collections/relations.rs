@@ -51,3 +51,14 @@ pub mod embedded_expression;
 
 /// Structural expression identity.
 pub mod expression_shape;
+/// Optional static binding analysis.
+pub mod binding_event;
+
+/// Optional static binding analysis.
+pub mod binding_read;
+
+/// Optional static binding analysis.
+pub mod binding_use;
+
+/// Optional static binding analysis.
+pub mod binding_shadow;

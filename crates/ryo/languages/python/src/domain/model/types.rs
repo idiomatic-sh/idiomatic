@@ -27,7 +27,7 @@ pub(crate) struct ScopeDeclaration {
 }
 
 /// A name within one lexical scope, independent of its declaration position.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(crate) struct BindingKey {
     /// The lexical scope owning the declaration.
     pub scope: Position,
@@ -161,4 +161,66 @@ pub(crate) struct ExpressionShapeIndex {
     pub scratch: Vec<ShapeWord>,
     /// Current parse validity.
     pub state: ShapeState,
+/// A sparse environment frame; branches inherit their entry state without copying it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(crate) struct BindingFrameId(pub usize);
+/// A frame and normalized lexical namespace key.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(crate) struct BindingFrameKey {
+    /// Sparse environment identity.
+    pub frame: BindingFrameId,
+    /// Namespace and canonical name.
+    pub key: BindingKey,
+}
+/// Whether a statically explored path can lack a declaration.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum BindingAbsence {
+    /// Every explored alternative contains a declaration.
+    Excluded,
+    /// At least one explored alternative lacks a declaration (including deletion).
+    Possible,
+}
+/// Whether all applicable binding effects have a supported static interpretation.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum BindingKnowledge {
+    /// The candidate set and possible absence are established by supported language events.
+    Known,
+    /// An unsupported or namespace-wide effect may supply additional candidates.
+    Uncertain,
+}
+/// An arena-backed set of real declarations, with absence distinct from uncertainty.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct BindingAlternatives {
+    /// Real declaration occurrences in the retained candidate arena.
+    pub candidates: std::ops::Range<usize>,
+    /// Whether an alternative can have no declaration.
+    pub absence: BindingAbsence,
+    /// Whether the known alternatives exhaust this static analysis.
+    pub knowledge: BindingKnowledge,
+}
+/// One evaluation environment and its sparse mutation keys.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct BindingFrame {
+    /// Inherited environment; completed outer phases are never mutated by this frame.
+    pub parent: Option<BindingFrameId>,
+    /// Real execution-boundary syntax identity.
+    pub phase: Position,
+    /// Mutations first introduced by this frame, in the shared key arena.
+    pub touched: Vec<BindingKey>,
+}
+/// Capacity-retaining sparse environments. No entry exists until binding analysis is requested.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct BindingEnvironments {
+    /// Frames are recycled between source revisions.
+    pub frames: Vec<BindingFrame>,
+    /// Number of frames belonging to the current source revision.
+    pub active: usize,
+    /// Only changed namespace keys are stored in each frame.
+    pub slots: std::collections::HashMap<BindingFrameKey, BindingAlternatives>,
+    /// Candidate identities are real definitions, never unknown-node sentinels.
+    pub candidates: Vec<Position>,
+    /// Retained union scratch; not stored once per branch or read.
+    pub union: Vec<Position>,
+    /// Retained deduplicated mutation keys during joins.
+    pub keys: Vec<BindingKey>,
 }

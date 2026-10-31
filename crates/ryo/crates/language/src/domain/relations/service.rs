@@ -31,6 +31,10 @@ macro_rules! each_relation {
                 StaticCall static_call StaticCallRow StaticCallColumn;
                 CallArgument call_argument CallArgumentRow CallArgumentColumn;
                 Resolves resolves ResolvesRow ResolvesColumn;
+                BindingEvent binding_event BindingEventRow BindingEventColumn;
+                BindingRead binding_read BindingReadRow BindingReadColumn;
+                BindingUse binding_use BindingUseRow BindingUseColumn;
+                BindingShadow binding_shadow BindingShadowRow BindingShadowColumn;
                 QualifiedName qualified_name QualifiedNameRow QualifiedNameColumn;
                 Identifier identifier IdentifierRow IdentifierColumn;
                 ExpressionShape expression_shape ExpressionShapeRow ExpressionShapeColumn;
@@ -392,5 +396,9 @@ pub const fn capability_relation(capability: super::types::OptionalCapability) -
         OptionalCapability::QualifiedName => Relation::QualifiedName,
         OptionalCapability::EmbeddedExpression => Relation::EmbeddedExpression,
         OptionalCapability::ExpressionShape => Relation::ExpressionShape,
+        OptionalCapability::BindingEvent => Relation::BindingEvent,
+        OptionalCapability::BindingRead => Relation::BindingRead,
+        OptionalCapability::BindingUse => Relation::BindingUse,
+        OptionalCapability::BindingShadow => Relation::BindingShadow,
     }
 }

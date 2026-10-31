@@ -503,4 +503,12 @@ pub enum OptionalCapability {
     EmbeddedExpression,
     /// Collision-safe structural classes of parsed expression occurrences.
     ExpressionShape,
+    /// Ordered static name events within explicit evaluation phases.
+    BindingEvent,
+    /// Static reference classification; definite absence, possible absence and unsupported knowledge are distinct.
+    BindingRead,
+    /// Known real declaration candidates for a semantic reference; unresolved references have no fake target edge.
+    BindingUse,
+    /// Concrete replacement and lexical-shadow associations between distinct declaration occurrences.
+    BindingShadow,
 }

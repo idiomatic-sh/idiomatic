@@ -20,7 +20,9 @@ pub use ryo_language::inbound::use_cases::parse::fixtures::expected::{
 };
 pub use ryo_language::inbound::use_cases::parse::fixtures::expected_rows::{
     analyzed_source::AnalyzedSourceExpectedRow, annotates::AnnotatesExpectedRow,
-    assigns::AssignsExpectedRow, call_argument::CallArgumentExpectedRow,
+    assigns::AssignsExpectedRow, binding_event::BindingEventExpectedRow,
+    binding_read::BindingReadExpectedRow, binding_shadow::BindingShadowExpectedRow,
+    binding_use::BindingUseExpectedRow, call_argument::CallArgumentExpectedRow,
     comment::CommentExpectedRow, decorates::DecoratesExpectedRow, defines::DefinesExpectedRow,
     directive::DirectiveExpectedRow, embedded_expression::EmbeddedExpressionExpectedRow,
     entry::EntryExpectedRow, expression_shape::ExpressionShapeExpectedRow,
