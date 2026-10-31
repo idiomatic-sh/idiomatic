@@ -31,7 +31,7 @@
   "call_graph": "dwarf,8192",
   "samples": 8914,
   "lost_samples": 5,
-  "lost_samples_note": "No zero-loss assertion inferred from aggregate sample count; raw perf stderr retained in profile text.",
+  "lost_samples_note": "Perf report explicitly reports five lost samples. No zero-loss claim is made.",
   "unmatched_end_events": 0,
   "unclosed_spans": 0,
   "event_count": 7,
@@ -64,5 +64,102 @@
     "read_row_self_percent": 33.11,
     "materialize_ancestor_percent": 31.3,
     "stream_lookup_ancestor_percent": 31.29
+  },
+  "perf_record_stderr": "[ perf record: Woken up 289 times to write data ]\nWarning:\nProcessed 11683 events and lost 1 chunks!\n\nCheck IO/CPU overload!\n\n[ perf record: Captured and wrote 72.863 MB /tmp/ryo-benchmark-evidence/final.stack.data (8914 samples) ]\n",
+  "retained_cache_trace": {
+    "trace_only_not_timing_sample": true,
+    "source_commit": "2bee81b878a3923773905eee5e2468ed8a29ec04",
+    "candidate_sha256": "79e2ccb0e0a3b631441488141766bafc9a2b7a0c3a4aab75e78691b197c9024c",
+    "profile_sha256": "9c348bdf2ee727dfbc44b7eaac6e2fb84ba3c04bb54afaa7e0e4dd15a2a73a01",
+    "source_fingerprint": "bbd95a92f564a597d21ba8b16d5c8d1d6ba3d82d189190c63c9dde1f8766bc5f",
+    "files": 2874,
+    "diagnostics": {
+      "PIE800": 2,
+      "PLR1711": 5,
+      "B026": 7,
+      "PLW0120": 1,
+      "B015": 3,
+      "PLC3002": 1
+    },
+    "retained_cache": "/tmp/ryo-final-profile-m786tpbt/cache",
+    "cache_provenance": "exact store populated by separate frozen54 cold profile",
+    "wall_seconds_with_tracing": 0.23299998498987406,
+    "inclusive_phase_ms": {
+      "compile": 192.06589499999998,
+      "list": 4.382035000000004,
+      "read": 2.467460000000021
+    },
+    "cache_hit_count": "not directly instrumented",
+    "events": [
+      {
+        "args": {
+          "name": "main"
+        },
+        "name": "thread_name",
+        "ph": "M",
+        "pid": 1,
+        "tid": 0
+      },
+      {
+        ".file": "crates/core/src/inbound/use_cases/lint/use_case.rs",
+        ".line": 1288,
+        "cat": "ryo_core::inbound::use_cases::lint::use_case",
+        "name": "compile",
+        "ph": "B",
+        "pid": 1,
+        "tid": 0,
+        "ts": 17770.685
+      },
+      {
+        ".file": "crates/core/src/inbound/use_cases/lint/use_case.rs",
+        ".line": 1288,
+        "cat": "ryo_core::inbound::use_cases::lint::use_case",
+        "name": "compile",
+        "ph": "E",
+        "pid": 1,
+        "tid": 0,
+        "ts": 209836.58
+      },
+      {
+        ".file": "crates/core/src/inbound/use_cases/lint/use_case.rs",
+        ".line": 1298,
+        "cat": "ryo_core::inbound::use_cases::lint::use_case",
+        "name": "list",
+        "ph": "B",
+        "pid": 1,
+        "tid": 0,
+        "ts": 209854.372
+      },
+      {
+        ".file": "crates/core/src/inbound/use_cases/lint/use_case.rs",
+        ".line": 1298,
+        "cat": "ryo_core::inbound::use_cases::lint::use_case",
+        "name": "list",
+        "ph": "E",
+        "pid": 1,
+        "tid": 0,
+        "ts": 214236.407
+      },
+      {
+        ".file": "crates/core/src/inbound/use_cases/lint/use_case.rs",
+        ".line": 828,
+        "cat": "ryo_core::inbound::use_cases::lint::use_case",
+        "name": "read",
+        "ph": "B",
+        "pid": 1,
+        "tid": 0,
+        "ts": 221608.036
+      },
+      {
+        ".file": "crates/core/src/inbound/use_cases/lint/use_case.rs",
+        ".line": 828,
+        "cat": "ryo_core::inbound::use_cases::lint::use_case",
+        "name": "read",
+        "ph": "E",
+        "pid": 1,
+        "tid": 0,
+        "ts": 224075.496
+      }
+    ]
   }
 }

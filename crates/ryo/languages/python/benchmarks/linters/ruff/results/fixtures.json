@@ -3,341 +3,182 @@
   "scope": "authored 54 rules; shared .py/.pyi source kinds; 359 other defaults deferred",
   "cases": 1124,
   "rules": [
-    {
-      "rule": "B002",
-      "query_sha256": "f287286a167f58eac222189fb3ac617f3cfbe3a7fc85693b1eb188d2a8f79e9a",
-      "cases_sha256": "c7a716fe418585ec9e66b8a29495984990c8a95bc2328975cdc9455d9b3da0c7",
-      "case_count": 34
-    },
-    {
-      "rule": "B012",
-      "query_sha256": "2e12e9e16d91b6477a896c00e442281c53995d32f405696e1991d7ee27c0ddd6",
-      "cases_sha256": "ac2d480f57620af46ceea245e7f93ed22ef9924df882f34a2f5ad053235b1639",
-      "case_count": 20
-    },
-    {
-      "rule": "B013",
-      "query_sha256": "2f5b7d34400cf1dfae4699abebe5ba6594bc3a197cd671f088e5baeaf36c1723",
-      "cases_sha256": "b97c4e89dba59439254ad02644371d5d1250c86ecea4f3c162d5a090d8c1081f",
-      "case_count": 16
-    },
-    {
-      "rule": "B014",
-      "query_sha256": "51730f581eb0e1eb4990e3d0f7f85346e3dfe2f37064a63cc6fc68cbcddbcc97",
-      "cases_sha256": "8c2c158e84f9c109d166af7a2af4c0694233a05632c0fd2875d2552ea51eed86",
-      "case_count": 18
-    },
-    {
-      "rule": "B015",
-      "query_sha256": "22bf0309a1f519dbb5e6a6acdb413afef82a39da83e4ea331e3a421ded08f1ff",
-      "cases_sha256": "14c51b4d812e777aa93a5c7d655c3f2eebf0203d98fb9af007979856fe6046d0",
-      "case_count": 19
-    },
-    {
-      "rule": "B016",
-      "query_sha256": "e33bfb657458d5c497ebba4e10cc12dbfb35a431f10be31ed8c2392792f99a1c",
-      "cases_sha256": "562ced71425514320e2001bb5600130219511f04b7a514e425ffe8f6cc8fa728",
-      "case_count": 24
-    },
-    {
-      "rule": "B021",
-      "query_sha256": "4147485fb2a69949915f888a43da816da0ff4e6f164b594284e7a6b22d8f790d",
-      "cases_sha256": "de8dbc101ff1e85ba788392a489247f8a479d45cc504689d2e1ab5da927b4947",
-      "case_count": 23
-    },
-    {
-      "rule": "B025",
-      "query_sha256": "39c2f84df120682e74e2cba8bd00aa60e57ea40bcce649b3a1a48d6bc21e4d4c",
-      "cases_sha256": "96f4b2d96be4f8324a012c6927de4a173457f72131aa3e00f721a7f526a3a2e5",
-      "case_count": 17
-    },
-    {
-      "rule": "B026",
-      "query_sha256": "69003f7ac030e714123642b40dc314f70fe701e4d74b56e9a2a4af260ae38cef",
-      "cases_sha256": "9f326cfafa14b4c0df1dd68bd5c4f48e5c3180bbb9b83dbf465f66c1e5cb71eb",
-      "case_count": 18
-    },
-    {
-      "rule": "B029",
-      "query_sha256": "4418e939e9aff5473d3461732dd463213f8313a4ef2e26a69a793484650dd6d0",
-      "cases_sha256": "ba7e5cf345e253a3176c01ae8089a4f435a7618ebfdf5ee943cbde4be1308eb0",
-      "case_count": 14
-    },
-    {
-      "rule": "B032",
-      "query_sha256": "2c27ce15a567d0fec748332ed66e57dce341caf41fe1a4988d000224bab4e9f0",
-      "cases_sha256": "b60f3b2806c741e1594e2145b85c23542ab323b9225d9c7a261da18d2b7325f5",
-      "case_count": 18
-    },
-    {
-      "rule": "D419",
-      "query_sha256": "4d0da22bd93a955e731e1e638d51645fd27cb43a601d5ab6d2ddfbed100887e8",
-      "cases_sha256": "2a491b80ccbbf7cbbe1c8d1d2b156374e11a13bd26ca5ff2600b58108217bc3d",
-      "case_count": 32
-    },
-    {
-      "rule": "E722",
-      "query_sha256": "14fd1fda63d2417e7a1d9cd51ba6383f43b6cf5741da519cbf32a65b2e3487b8",
-      "cases_sha256": "a907cf3176b05947ba38ffcd681c9b6823ef585b9fbd6916708b2b2f2c307e07",
-      "case_count": 72
-    },
-    {
-      "rule": "F541",
-      "query_sha256": "f2d9e83836ae565fe24fe394c9c5400b3fdfafd19c5f27aa9ecafaa6ca85496d",
-      "cases_sha256": "4664a76961251c71a0245c73280a8f543be5673e6ee9cd0f3aea9705a918e527",
-      "case_count": 21
-    },
-    {
-      "rule": "F622",
-      "query_sha256": "3c38b237def6950aaf894956c4cfba53ffda1df667216957c731906488c8e445",
-      "cases_sha256": "27820b4b3f08961ee9a4e53912b02e2b7b98264340fe709df91a417ae1c592e7",
-      "case_count": 21
-    },
-    {
-      "rule": "F631",
-      "query_sha256": "d9556f634b2c9a47822a275771ed1ee27ba0303d3196a8e6600b1fe95b57ba67",
-      "cases_sha256": "9da0beefba4a41f1f38d57f3981688de346dd174bb31c718d4c24d02e5df2468",
-      "case_count": 17
-    },
-    {
-      "rule": "F634",
-      "query_sha256": "d06609fa3c3de99e3baa90b86a7047a8510be159206572828a0b891bf451d8da",
-      "cases_sha256": "b1227f977ec86f4de0eec7c3375381711f369d92b5dfc2a84aa6f87e4d914edb",
-      "case_count": 16
-    },
-    {
-      "rule": "F701",
-      "query_sha256": "d95b959164d27277b7850079ae23d373a3ae70d76fb8e5a8b62434c839c31703",
-      "cases_sha256": "b026145c8c07a38c88cd069a76de651f0cf1644fd0cebea6df2e15212e76a243",
-      "case_count": 24
-    },
-    {
-      "rule": "F702",
-      "query_sha256": "c822bc90900bc3e126558851710fd1922b67b3b3dc440a28b7170ca85a4e4cd7",
-      "cases_sha256": "ec0b79686a9e82086f362bf50879c3cb86e4636cd825c5cbdba95a3d40bd0037",
-      "case_count": 24
-    },
-    {
-      "rule": "F704",
-      "query_sha256": "0862dca64fc604ab60c29b9ea3d9a85109b80da922a4364e0f89f3090684076d",
-      "cases_sha256": "d65bdae707b3dd4c54f2046920bfa4986ee473fb5a269ed83a5cb62ab6c1be6e",
-      "case_count": 37
-    },
-    {
-      "rule": "F706",
-      "query_sha256": "e67bfecc167932539cccef06f0d205ade01345612298aabbfa024206876befe2",
-      "cases_sha256": "d5d4f5eba6be3f4779d4df9e6ec9bc6be397386045d6aaf7d7e7b216286abe5d",
-      "case_count": 19
-    },
-    {
-      "rule": "F707",
-      "query_sha256": "d2a4491c74dfffd10a2193c713ddd95813c875b1a6a3b57bb6c18415ba99de86",
-      "cases_sha256": "1de0f6ec03d68ba676e208441d7f040814c078f261015657da01d83fab5bf3d1",
-      "case_count": 14
-    },
-    {
-      "rule": "PIE800",
-      "query_sha256": "98e9059cb365fa9dbaa07b9a6ba00ab5568200b23e0e1440c5c9d597dbc59558",
-      "cases_sha256": "b899f358e6d3c45aeb468df0d443239b7ff2007315d66aec4f05a5b08ac58e48",
-      "case_count": 17
-    },
-    {
-      "rule": "PLC0205",
-      "query_sha256": "74be353bf23207b960430ba6f14fc4cce7834d081ef57f3e3ada4bc4b128d5a2",
-      "cases_sha256": "22b86fae85b2208d435889ba863fd2fab469bd27debadb55918111b35f7e2a58",
-      "case_count": 19
-    },
-    {
-      "rule": "PLC0414",
-      "query_sha256": "c403f802e16d733fd904eed9a9f7d9980cfbc861b866c60a4a0db8dbf1763482",
-      "cases_sha256": "32958121cb46af8b1e147b68486c216650383ea54a88465c475fe9dae66a9bff",
-      "case_count": 23
-    },
-    {
-      "rule": "PLC3002",
-      "query_sha256": "e9fcfa6b54b3bf4cce1db4af1874d84f37fd8554439cea37b372b75a917c6074",
-      "cases_sha256": "9dfcd01626947d4e1e9fb0ad6a686f869ab6dd954c4d8a9aeb254c31b9a033fc",
-      "case_count": 16
-    },
-    {
-      "rule": "PLE1132",
-      "query_sha256": "83c87fc9911f7552b6ce4781c168f9f3e395b7393a01b06213d585c0d408fc02",
-      "cases_sha256": "3c1fa78fc0405d7f1c4e9f6cbb3ed8616a53a379355e22d5f1a6828dae1fe435",
-      "case_count": 21
-    },
-    {
-      "rule": "PLR0133",
-      "query_sha256": "cd74be2b9c5ab1fd91e0a62e78eacf7f5ce705c9decb79960399aef42c1270b5",
-      "cases_sha256": "aee8f16474b5124a114bf2c78b1990a7e909033008c21fe5ae0cde0d4a541833",
-      "case_count": 19
-    },
-    {
-      "rule": "PLR0402",
-      "query_sha256": "ee294982af5517fff246676b582b78cfd1677a0acfe54c231fb484112df8f87c",
-      "cases_sha256": "80fad09db7721d6922a35c68d95ebd0cb4a747342874be1e7798175f84dac251",
-      "case_count": 16
-    },
-    {
-      "rule": "PLR1711",
-      "query_sha256": "28bb1b04155b4dba2de054f96b59136f5b99d0514136b5aad2f11cc9f84318c8",
-      "cases_sha256": "f919d6a6125504fd6161b3ff4e00b20a93d30784837b3764a1907dab622780d0",
-      "case_count": 21
-    },
-    {
-      "rule": "PLW0120",
-      "query_sha256": "d50d16a311e867bb6aa3e608b84c1ea45494ee53049b314b889acabcb50b41b3",
-      "cases_sha256": "32602aa75bdd7bb581a5d479dfc6cdc2b47bd872d90c5a5471ba07b8bca82b4f",
-      "case_count": 20
-    },
-    {
-      "rule": "PLW0129",
-      "query_sha256": "c64066fe569afdef37be69b25dc320507acb21cd93fd180a783b3be36ec5750f",
-      "cases_sha256": "4903634e202bdda9cdd7c1b19b6450e74c7264b6a2e1714f0c2ec227fbc76861",
-      "case_count": 21
-    },
-    {
-      "rule": "PLW0131",
-      "query_sha256": "17c7dc1b4faa9bdd320675e942d56c1d1d16ae9547526d2aca6d21bb4e23ce5f",
-      "cases_sha256": "278787f8cac4c45288dacd2b24e7ab3764e891ba110b07615bb5e19c11c71e93",
-      "case_count": 14
-    },
-    {
-      "rule": "PLW0604",
-      "query_sha256": "9d738ede2db6afabcf3ac41d30b72204759cb89a4bfbe9f7db70b474c18396ea",
-      "cases_sha256": "2aa90c56853bd289d2001511b382b08ddead74ee04e4f81ec229a2609492d2cd",
-      "case_count": 16
-    },
-    {
-      "rule": "PLW0711",
-      "query_sha256": "b94b47c1d091f41d3f2f5618a4b737df6b67f27dccb0734b074ac95955055684",
-      "cases_sha256": "7f8a547dcf09674fa228923d0fca44c673a5125e2702580e7d8d55024e962827",
-      "case_count": 16
-    },
-    {
-      "rule": "PYI009",
-      "query_sha256": "6a0701f2fd4ba3d7964c27699dea637e057141a94e6c52e71d5833fbcf405c96",
-      "cases_sha256": "bd969a2b7f015f9437bad1676a4fb84376da7c93c07e015e42c9fe156cf8f334",
-      "case_count": 22
-    },
-    {
-      "rule": "PYI010",
-      "query_sha256": "d7d3cab5b8a0cce9428d7cbcd1973f328135316f4354652e3ba24935164405d8",
-      "cases_sha256": "61c9b558cf86bfa76e6a7f67287e4419f5ea2c1e0cf5a9f767b769d1a68d6dca",
-      "case_count": 27
-    },
-    {
-      "rule": "PYI012",
-      "query_sha256": "9ca1c07fbdf86af1ab5266fefea27b9753bd2c1b819f0d141e11eee08d730f94",
-      "cases_sha256": "1ef018da9e6beecf7ea47721e30a97f7a6af81477e3750223a3d8963e91411d6",
-      "case_count": 17
-    },
-    {
-      "rule": "PYI013",
-      "query_sha256": "7d01178fb326365bd2d018f6347f1a1715f6c0764c468317220e0e4e833fab99",
-      "cases_sha256": "2c1bc13236ca0a1a54d84efb277f2f6373391f6754798a93b20a3ed45c1bae42",
-      "case_count": 19
-    },
-    {
-      "rule": "PYI017",
-      "query_sha256": "f9961b0f161aa2441fc630da02011394731df192a38e389577e9fb96114a2a37",
-      "cases_sha256": "09d3fa6a653d7cf300c0c104e5fc9943400b8e36c80cd744b6491287cfb0517d",
-      "case_count": 17
-    },
-    {
-      "rule": "PYI025",
-      "query_sha256": "b197c0af720975bc825afd476a9a921741b7600ee6ebf457660953119dc9bfe2",
-      "cases_sha256": "02b8f8b09ec041e46c72a5c760862f897894c56044725ec70b9f7b91dcf548e2",
-      "case_count": 18
-    },
-    {
-      "rule": "PYI033",
-      "query_sha256": "f42b3e09dabf151669b31d34af108a0ae7d729a8d8710ec63580523478e84e81",
-      "cases_sha256": "ad5f5620cc0b6ad83f9ee0209b83d0645542c05124bf575bca71a9a6ad6feb67",
-      "case_count": 18
-    },
-    {
-      "rule": "PYI035",
-      "query_sha256": "d5271ab6409e3d733be9272051706d31c4e2469be0fd490e58d76152d304f022",
-      "cases_sha256": "2e76818f17ab977772318a600067be426af7a1d6d32653997b695c898190cc67",
-      "case_count": 19
-    },
-    {
-      "rule": "PYI044",
-      "query_sha256": "ca06436d8406787967d3b2ee32badecda3a8c6924b75cdfcc37f6e95b16f246d",
-      "cases_sha256": "2f813ec1bcfbcb577e6a6a4fc385aea72b4e5c3a6c719e8a286a2e7922a897c4",
-      "case_count": 17
-    },
-    {
-      "rule": "PYI048",
-      "query_sha256": "2e5b3ab76884485e4bcc7238ab77a012b809321f7973070fb0d20e55a3c5216a",
-      "cases_sha256": "90f688c998fc6b2093f727803f47d341684ebdd8c782456acfdaddb114e1b8e8",
-      "case_count": 21
-    },
-    {
-      "rule": "RUF040",
-      "query_sha256": "5cfca7f4ea90b0102b22176d50bffa2c6399fb2abf3345ae09f9585051ceb0bb",
-      "cases_sha256": "dddf733b76f004184f577283f302ec33a2f82beceb38a430d8580e19b7990145",
-      "case_count": 19
-    },
-    {
-      "rule": "SIM208",
-      "query_sha256": "e58160c20551d69005f0cb84ed16d994aa8a0432b9b12162fe5a509567679c88",
-      "cases_sha256": "2d019ff5374db3d942e3025315e1b057eccd9193b4baffb4a71eb5a783a9eab0",
-      "case_count": 15
-    },
-    {
-      "rule": "SIM210",
-      "query_sha256": "38bb967df258202d563da9d4fbd0abc61f3ca5f087c8c9c78e5c0a61d927d8e5",
-      "cases_sha256": "76a1c31f4152f4008210d5e4a2dadc438c1e7f2ab5d12a5fec848ae2c890ed01",
-      "case_count": 17
-    },
-    {
-      "rule": "SIM211",
-      "query_sha256": "bcd1d7a6aa61cc184daeadc4e1dabde844a9a3304644e434d63a584325f67047",
-      "cases_sha256": "5905b4449f7b5f63edec42ec1d30df56bdf0f4e0d819556f3e7bfee93f0fee94",
-      "case_count": 17
-    },
-    {
-      "rule": "TRY203",
-      "query_sha256": "1176083b0872f7b0a163c5d67d639a15a96d20fb9b9c1cce837ef0e4849219bf",
-      "cases_sha256": "56415c73496f4fc205271867105122fc2bc2d5d47e1b45ffee0eb5c0f5851e48",
-      "case_count": 22
-    },
-    {
-      "rule": "UP005",
-      "query_sha256": "08bc63201a704b0d957b3ef6d0861bcce3168cc5e864f0c07c199b0300e210ed",
-      "cases_sha256": "90325d9d09c8a72d179c4d43586ae1066c3683809c7009662fec768692d9c23c",
-      "case_count": 23
-    },
-    {
-      "rule": "UP023",
-      "query_sha256": "3482066e1720d4660f6501ca1f58c2c61d3dea32b59d3cc106936a9379795219",
-      "cases_sha256": "ba63de1ddcb517c9b32674e28cc7b54d2ad222ac4437cd7fdc36e9d42d6388b6",
-      "case_count": 25
-    },
-    {
-      "rule": "UP025",
-      "query_sha256": "9789b51da338408f23a6f65d2649cc6161fc68b1d97497b9f5abe7ec6fa5b0f5",
-      "cases_sha256": "70bf80bfd4bb49f17cb282552acdf81365caf12afa4fe2239d13b3166f395d14",
-      "case_count": 17
-    },
-    {
-      "rule": "UP039",
-      "query_sha256": "19997344b80e6aaf5ed68b41dbd937ffbf2d490e990bcc0abe5011d90f4b374a",
-      "cases_sha256": "2f6660fe2285ccc4d72d5e6db87b34fe2dcc3783cfe74c8ac414aa9570ec1f06",
-      "case_count": 17
-    }
+    {"rule":"B002","query_sha256":"f287286a167f58eac222189fb3ac617f3cfbe3a7fc85693b1eb188d2a8f79e9a","cases_sha256":"c7a716fe418585ec9e66b8a29495984990c8a95bc2328975cdc9455d9b3da0c7","case_count":34},
+    {"rule":"B012","query_sha256":"2e12e9e16d91b6477a896c00e442281c53995d32f405696e1991d7ee27c0ddd6","cases_sha256":"ac2d480f57620af46ceea245e7f93ed22ef9924df882f34a2f5ad053235b1639","case_count":20},
+    {"rule":"B013","query_sha256":"2f5b7d34400cf1dfae4699abebe5ba6594bc3a197cd671f088e5baeaf36c1723","cases_sha256":"b97c4e89dba59439254ad02644371d5d1250c86ecea4f3c162d5a090d8c1081f","case_count":16},
+    {"rule":"B014","query_sha256":"51730f581eb0e1eb4990e3d0f7f85346e3dfe2f37064a63cc6fc68cbcddbcc97","cases_sha256":"8c2c158e84f9c109d166af7a2af4c0694233a05632c0fd2875d2552ea51eed86","case_count":18},
+    {"rule":"B015","query_sha256":"22bf0309a1f519dbb5e6a6acdb413afef82a39da83e4ea331e3a421ded08f1ff","cases_sha256":"14c51b4d812e777aa93a5c7d655c3f2eebf0203d98fb9af007979856fe6046d0","case_count":19},
+    {"rule":"B016","query_sha256":"e33bfb657458d5c497ebba4e10cc12dbfb35a431f10be31ed8c2392792f99a1c","cases_sha256":"562ced71425514320e2001bb5600130219511f04b7a514e425ffe8f6cc8fa728","case_count":24},
+    {"rule":"B021","query_sha256":"4147485fb2a69949915f888a43da816da0ff4e6f164b594284e7a6b22d8f790d","cases_sha256":"de8dbc101ff1e85ba788392a489247f8a479d45cc504689d2e1ab5da927b4947","case_count":23},
+    {"rule":"B025","query_sha256":"39c2f84df120682e74e2cba8bd00aa60e57ea40bcce649b3a1a48d6bc21e4d4c","cases_sha256":"96f4b2d96be4f8324a012c6927de4a173457f72131aa3e00f721a7f526a3a2e5","case_count":17},
+    {"rule":"B026","query_sha256":"69003f7ac030e714123642b40dc314f70fe701e4d74b56e9a2a4af260ae38cef","cases_sha256":"9f326cfafa14b4c0df1dd68bd5c4f48e5c3180bbb9b83dbf465f66c1e5cb71eb","case_count":18},
+    {"rule":"B029","query_sha256":"4418e939e9aff5473d3461732dd463213f8313a4ef2e26a69a793484650dd6d0","cases_sha256":"ba7e5cf345e253a3176c01ae8089a4f435a7618ebfdf5ee943cbde4be1308eb0","case_count":14},
+    {"rule":"B032","query_sha256":"2c27ce15a567d0fec748332ed66e57dce341caf41fe1a4988d000224bab4e9f0","cases_sha256":"b60f3b2806c741e1594e2145b85c23542ab323b9225d9c7a261da18d2b7325f5","case_count":18},
+    {"rule":"D419","query_sha256":"4d0da22bd93a955e731e1e638d51645fd27cb43a601d5ab6d2ddfbed100887e8","cases_sha256":"2a491b80ccbbf7cbbe1c8d1d2b156374e11a13bd26ca5ff2600b58108217bc3d","case_count":32},
+    {"rule":"E722","query_sha256":"14fd1fda63d2417e7a1d9cd51ba6383f43b6cf5741da519cbf32a65b2e3487b8","cases_sha256":"a907cf3176b05947ba38ffcd681c9b6823ef585b9fbd6916708b2b2f2c307e07","case_count":72},
+    {"rule":"F541","query_sha256":"f2d9e83836ae565fe24fe394c9c5400b3fdfafd19c5f27aa9ecafaa6ca85496d","cases_sha256":"4664a76961251c71a0245c73280a8f543be5673e6ee9cd0f3aea9705a918e527","case_count":21},
+    {"rule":"F622","query_sha256":"3c38b237def6950aaf894956c4cfba53ffda1df667216957c731906488c8e445","cases_sha256":"27820b4b3f08961ee9a4e53912b02e2b7b98264340fe709df91a417ae1c592e7","case_count":21},
+    {"rule":"F631","query_sha256":"d9556f634b2c9a47822a275771ed1ee27ba0303d3196a8e6600b1fe95b57ba67","cases_sha256":"9da0beefba4a41f1f38d57f3981688de346dd174bb31c718d4c24d02e5df2468","case_count":17},
+    {"rule":"F634","query_sha256":"d06609fa3c3de99e3baa90b86a7047a8510be159206572828a0b891bf451d8da","cases_sha256":"b1227f977ec86f4de0eec7c3375381711f369d92b5dfc2a84aa6f87e4d914edb","case_count":16},
+    {"rule":"F701","query_sha256":"d95b959164d27277b7850079ae23d373a3ae70d76fb8e5a8b62434c839c31703","cases_sha256":"b026145c8c07a38c88cd069a76de651f0cf1644fd0cebea6df2e15212e76a243","case_count":24},
+    {"rule":"F702","query_sha256":"c822bc90900bc3e126558851710fd1922b67b3b3dc440a28b7170ca85a4e4cd7","cases_sha256":"ec0b79686a9e82086f362bf50879c3cb86e4636cd825c5cbdba95a3d40bd0037","case_count":24},
+    {"rule":"F704","query_sha256":"0862dca64fc604ab60c29b9ea3d9a85109b80da922a4364e0f89f3090684076d","cases_sha256":"d65bdae707b3dd4c54f2046920bfa4986ee473fb5a269ed83a5cb62ab6c1be6e","case_count":37},
+    {"rule":"F706","query_sha256":"e67bfecc167932539cccef06f0d205ade01345612298aabbfa024206876befe2","cases_sha256":"d5d4f5eba6be3f4779d4df9e6ec9bc6be397386045d6aaf7d7e7b216286abe5d","case_count":19},
+    {"rule":"F707","query_sha256":"d2a4491c74dfffd10a2193c713ddd95813c875b1a6a3b57bb6c18415ba99de86","cases_sha256":"1de0f6ec03d68ba676e208441d7f040814c078f261015657da01d83fab5bf3d1","case_count":14},
+    {"rule":"PIE800","query_sha256":"98e9059cb365fa9dbaa07b9a6ba00ab5568200b23e0e1440c5c9d597dbc59558","cases_sha256":"b899f358e6d3c45aeb468df0d443239b7ff2007315d66aec4f05a5b08ac58e48","case_count":17},
+    {"rule":"PLC0205","query_sha256":"74be353bf23207b960430ba6f14fc4cce7834d081ef57f3e3ada4bc4b128d5a2","cases_sha256":"22b86fae85b2208d435889ba863fd2fab469bd27debadb55918111b35f7e2a58","case_count":19},
+    {"rule":"PLC0414","query_sha256":"c403f802e16d733fd904eed9a9f7d9980cfbc861b866c60a4a0db8dbf1763482","cases_sha256":"32958121cb46af8b1e147b68486c216650383ea54a88465c475fe9dae66a9bff","case_count":23},
+    {"rule":"PLC3002","query_sha256":"e9fcfa6b54b3bf4cce1db4af1874d84f37fd8554439cea37b372b75a917c6074","cases_sha256":"9dfcd01626947d4e1e9fb0ad6a686f869ab6dd954c4d8a9aeb254c31b9a033fc","case_count":16},
+    {"rule":"PLE1132","query_sha256":"83c87fc9911f7552b6ce4781c168f9f3e395b7393a01b06213d585c0d408fc02","cases_sha256":"3c1fa78fc0405d7f1c4e9f6cbb3ed8616a53a379355e22d5f1a6828dae1fe435","case_count":21},
+    {"rule":"PLR0133","query_sha256":"cd74be2b9c5ab1fd91e0a62e78eacf7f5ce705c9decb79960399aef42c1270b5","cases_sha256":"aee8f16474b5124a114bf2c78b1990a7e909033008c21fe5ae0cde0d4a541833","case_count":19},
+    {"rule":"PLR0402","query_sha256":"ee294982af5517fff246676b582b78cfd1677a0acfe54c231fb484112df8f87c","cases_sha256":"80fad09db7721d6922a35c68d95ebd0cb4a747342874be1e7798175f84dac251","case_count":16},
+    {"rule":"PLR1711","query_sha256":"28bb1b04155b4dba2de054f96b59136f5b99d0514136b5aad2f11cc9f84318c8","cases_sha256":"f919d6a6125504fd6161b3ff4e00b20a93d30784837b3764a1907dab622780d0","case_count":21},
+    {"rule":"PLW0120","query_sha256":"d50d16a311e867bb6aa3e608b84c1ea45494ee53049b314b889acabcb50b41b3","cases_sha256":"32602aa75bdd7bb581a5d479dfc6cdc2b47bd872d90c5a5471ba07b8bca82b4f","case_count":20},
+    {"rule":"PLW0129","query_sha256":"c64066fe569afdef37be69b25dc320507acb21cd93fd180a783b3be36ec5750f","cases_sha256":"4903634e202bdda9cdd7c1b19b6450e74c7264b6a2e1714f0c2ec227fbc76861","case_count":21},
+    {"rule":"PLW0131","query_sha256":"17c7dc1b4faa9bdd320675e942d56c1d1d16ae9547526d2aca6d21bb4e23ce5f","cases_sha256":"278787f8cac4c45288dacd2b24e7ab3764e891ba110b07615bb5e19c11c71e93","case_count":14},
+    {"rule":"PLW0604","query_sha256":"9d738ede2db6afabcf3ac41d30b72204759cb89a4bfbe9f7db70b474c18396ea","cases_sha256":"2aa90c56853bd289d2001511b382b08ddead74ee04e4f81ec229a2609492d2cd","case_count":16},
+    {"rule":"PLW0711","query_sha256":"b94b47c1d091f41d3f2f5618a4b737df6b67f27dccb0734b074ac95955055684","cases_sha256":"7f8a547dcf09674fa228923d0fca44c673a5125e2702580e7d8d55024e962827","case_count":16},
+    {"rule":"PYI009","query_sha256":"6a0701f2fd4ba3d7964c27699dea637e057141a94e6c52e71d5833fbcf405c96","cases_sha256":"bd969a2b7f015f9437bad1676a4fb84376da7c93c07e015e42c9fe156cf8f334","case_count":22},
+    {"rule":"PYI010","query_sha256":"d7d3cab5b8a0cce9428d7cbcd1973f328135316f4354652e3ba24935164405d8","cases_sha256":"61c9b558cf86bfa76e6a7f67287e4419f5ea2c1e0cf5a9f767b769d1a68d6dca","case_count":27},
+    {"rule":"PYI012","query_sha256":"9ca1c07fbdf86af1ab5266fefea27b9753bd2c1b819f0d141e11eee08d730f94","cases_sha256":"1ef018da9e6beecf7ea47721e30a97f7a6af81477e3750223a3d8963e91411d6","case_count":17},
+    {"rule":"PYI013","query_sha256":"7d01178fb326365bd2d018f6347f1a1715f6c0764c468317220e0e4e833fab99","cases_sha256":"2c1bc13236ca0a1a54d84efb277f2f6373391f6754798a93b20a3ed45c1bae42","case_count":19},
+    {"rule":"PYI017","query_sha256":"f9961b0f161aa2441fc630da02011394731df192a38e389577e9fb96114a2a37","cases_sha256":"09d3fa6a653d7cf300c0c104e5fc9943400b8e36c80cd744b6491287cfb0517d","case_count":17},
+    {"rule":"PYI025","query_sha256":"b197c0af720975bc825afd476a9a921741b7600ee6ebf457660953119dc9bfe2","cases_sha256":"02b8f8b09ec041e46c72a5c760862f897894c56044725ec70b9f7b91dcf548e2","case_count":18},
+    {"rule":"PYI033","query_sha256":"f42b3e09dabf151669b31d34af108a0ae7d729a8d8710ec63580523478e84e81","cases_sha256":"ad5f5620cc0b6ad83f9ee0209b83d0645542c05124bf575bca71a9a6ad6feb67","case_count":18},
+    {"rule":"PYI035","query_sha256":"d5271ab6409e3d733be9272051706d31c4e2469be0fd490e58d76152d304f022","cases_sha256":"2e76818f17ab977772318a600067be426af7a1d6d32653997b695c898190cc67","case_count":19},
+    {"rule":"PYI044","query_sha256":"ca06436d8406787967d3b2ee32badecda3a8c6924b75cdfcc37f6e95b16f246d","cases_sha256":"2f813ec1bcfbcb577e6a6a4fc385aea72b4e5c3a6c719e8a286a2e7922a897c4","case_count":17},
+    {"rule":"PYI048","query_sha256":"2e5b3ab76884485e4bcc7238ab77a012b809321f7973070fb0d20e55a3c5216a","cases_sha256":"90f688c998fc6b2093f727803f47d341684ebdd8c782456acfdaddb114e1b8e8","case_count":21},
+    {"rule":"RUF040","query_sha256":"5cfca7f4ea90b0102b22176d50bffa2c6399fb2abf3345ae09f9585051ceb0bb","cases_sha256":"dddf733b76f004184f577283f302ec33a2f82beceb38a430d8580e19b7990145","case_count":19},
+    {"rule":"SIM208","query_sha256":"e58160c20551d69005f0cb84ed16d994aa8a0432b9b12162fe5a509567679c88","cases_sha256":"2d019ff5374db3d942e3025315e1b057eccd9193b4baffb4a71eb5a783a9eab0","case_count":15},
+    {"rule":"SIM210","query_sha256":"38bb967df258202d563da9d4fbd0abc61f3ca5f087c8c9c78e5c0a61d927d8e5","cases_sha256":"76a1c31f4152f4008210d5e4a2dadc438c1e7f2ab5d12a5fec848ae2c890ed01","case_count":17},
+    {"rule":"SIM211","query_sha256":"bcd1d7a6aa61cc184daeadc4e1dabde844a9a3304644e434d63a584325f67047","cases_sha256":"5905b4449f7b5f63edec42ec1d30df56bdf0f4e0d819556f3e7bfee93f0fee94","case_count":17},
+    {"rule":"TRY203","query_sha256":"1176083b0872f7b0a163c5d67d639a15a96d20fb9b9c1cce837ef0e4849219bf","cases_sha256":"56415c73496f4fc205271867105122fc2bc2d5d47e1b45ffee0eb5c0f5851e48","case_count":22},
+    {"rule":"UP005","query_sha256":"08bc63201a704b0d957b3ef6d0861bcce3168cc5e864f0c07c199b0300e210ed","cases_sha256":"90325d9d09c8a72d179c4d43586ae1066c3683809c7009662fec768692d9c23c","case_count":23},
+    {"rule":"UP023","query_sha256":"3482066e1720d4660f6501ca1f58c2c61d3dea32b59d3cc106936a9379795219","cases_sha256":"ba63de1ddcb517c9b32674e28cc7b54d2ad222ac4437cd7fdc36e9d42d6388b6","case_count":25},
+    {"rule":"UP025","query_sha256":"9789b51da338408f23a6f65d2649cc6161fc68b1d97497b9f5abe7ec6fa5b0f5","cases_sha256":"70bf80bfd4bb49f17cb282552acdf81365caf12afa4fe2239d13b3166f395d14","case_count":17},
+    {"rule":"UP039","query_sha256":"19997344b80e6aaf5ed68b41dbd937ffbf2d490e990bcc0abe5011d90f4b374a","cases_sha256":"2f6660fe2285ccc4d72d5e6db87b34fe2dcc3783cfe74c8ac414aa9570ec1f06","case_count":17}
   ],
-  "reference": {
-    "version": "0.16.5",
-    "sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8"
-  },
-  "candidate": {
-    "path": "/workspaces/idiomatic-public-benchmark/crates/ryo/target/debug/deps/ruff-251eb3fc7abb334a",
-    "sha256": "7e16d9cb848bd931d7c23dc56cc3f0ab301e04c5e99067d000dde68341d8de9c"
-  },
+  "reference": {"version":"0.16.5","sha256":"52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8"},
+  "candidate": {"path":"/workspaces/idiomatic-public-benchmark/crates/ryo/target/debug/deps/ruff-251eb3fc7abb334a","sha256":"7e16d9cb848bd931d7c23dc56cc3f0ab301e04c5e99067d000dde68341d8de9c"},
   "result": "1124 independently authored expectations matched pinned Ruff and candidate; standalone differential check, not shared measurement certificate",
   "log": "/tmp/ruff-suppression-complete.log",
   "timed_instance_certificate": "aa5fad8634b9dc88942dba0870fe46374ebfe67173f90f12633a171857be6834",
-  "timed_instance_cases_passed": 1124
+  "timed_instance_cases_passed": 1124,
+  "expanded_snapshot": {
+    "status": "1967 cases passed against both contestants",
+    "rules": [
+      {"rule":"ASYNC115","query_sha256":"2e6bbae6429b05ee2a0087a2d03751a986986615119377351d058b338469cadc","cases_sha256":"15b9fb2b2e552682dbdff84bab958c851682e1c39daf5a84e18debe23b1e97df","case_count":18},
+      {"rule":"B002","query_sha256":"f287286a167f58eac222189fb3ac617f3cfbe3a7fc85693b1eb188d2a8f79e9a","cases_sha256":"c7a716fe418585ec9e66b8a29495984990c8a95bc2328975cdc9455d9b3da0c7","case_count":34},
+      {"rule":"B003","query_sha256":"e2df177e2ae2f8c1e0e25d335237c637ee8612ef46a47b5acce03d36b9f1fa21","cases_sha256":"59c1d5ce308e54946bf695955b464e99f959827dc9dc77cc13d7207190fb8816","case_count":15},
+      {"rule":"B004","query_sha256":"70a660ea24b8c3a142afb7b48232566566cc4d0c93897c6b3863a32592904bb7","cases_sha256":"958a88256ec39afe8a77d7b3ef7b2405280839aef34ca1ee29bdb94af978877f","case_count":16},
+      {"rule":"B012","query_sha256":"2e12e9e16d91b6477a896c00e442281c53995d32f405696e1991d7ee27c0ddd6","cases_sha256":"ac2d480f57620af46ceea245e7f93ed22ef9924df882f34a2f5ad053235b1639","case_count":20},
+      {"rule":"B013","query_sha256":"2f5b7d34400cf1dfae4699abebe5ba6594bc3a197cd671f088e5baeaf36c1723","cases_sha256":"b97c4e89dba59439254ad02644371d5d1250c86ecea4f3c162d5a090d8c1081f","case_count":16},
+      {"rule":"B014","query_sha256":"51730f581eb0e1eb4990e3d0f7f85346e3dfe2f37064a63cc6fc68cbcddbcc97","cases_sha256":"8c2c158e84f9c109d166af7a2af4c0694233a05632c0fd2875d2552ea51eed86","case_count":18},
+      {"rule":"B015","query_sha256":"22bf0309a1f519dbb5e6a6acdb413afef82a39da83e4ea331e3a421ded08f1ff","cases_sha256":"14c51b4d812e777aa93a5c7d655c3f2eebf0203d98fb9af007979856fe6046d0","case_count":19},
+      {"rule":"B016","query_sha256":"e33bfb657458d5c497ebba4e10cc12dbfb35a431f10be31ed8c2392792f99a1c","cases_sha256":"562ced71425514320e2001bb5600130219511f04b7a514e425ffe8f6cc8fa728","case_count":24},
+      {"rule":"B017","query_sha256":"8c17207c3338c86416aa1a78e1c9e83738f6cfa752753b65dc0f1adfe561ecd8","cases_sha256":"72a0bc391707ac1ce79f8ae5e1b988043624de56837fc490f5b28f583ce5efa1","case_count":20},
+      {"rule":"B021","query_sha256":"4147485fb2a69949915f888a43da816da0ff4e6f164b594284e7a6b22d8f790d","cases_sha256":"de8dbc101ff1e85ba788392a489247f8a479d45cc504689d2e1ab5da927b4947","case_count":23},
+      {"rule":"B022","query_sha256":"2926f5e450ebd03d89af605e01c6110b50694cd8390513baf5a75f7cd4325dc9","cases_sha256":"7c81cd6d432afd7a5af0764c56fc7859c3d9b1fc5c3a801e8d7e97f927dece8b","case_count":16},
+      {"rule":"B025","query_sha256":"39c2f84df120682e74e2cba8bd00aa60e57ea40bcce649b3a1a48d6bc21e4d4c","cases_sha256":"96f4b2d96be4f8324a012c6927de4a173457f72131aa3e00f721a7f526a3a2e5","case_count":17},
+      {"rule":"B026","query_sha256":"69003f7ac030e714123642b40dc314f70fe701e4d74b56e9a2a4af260ae38cef","cases_sha256":"9f326cfafa14b4c0df1dd68bd5c4f48e5c3180bbb9b83dbf465f66c1e5cb71eb","case_count":18},
+      {"rule":"B029","query_sha256":"4418e939e9aff5473d3461732dd463213f8313a4ef2e26a69a793484650dd6d0","cases_sha256":"ba7e5cf345e253a3176c01ae8089a4f435a7618ebfdf5ee943cbde4be1308eb0","case_count":14},
+      {"rule":"B032","query_sha256":"825f431e8ea5c98ac5dba1b609d81f0789eb7dc38ca99c7475acf738fa0724ed","cases_sha256":"004662e7a84908619126d680c98f62b16f2be4831a9668109d43371b26653a05","case_count":20},
+      {"rule":"C400","query_sha256":"64ab00f9c36d28fdee4a356c3fdfb7d1ae221c7ddad584cf3a08de7d69f2a519","cases_sha256":"58f65813c83611e4f54ff065dc854a964014c22f93c174b0b04937d63f9ead47","case_count":18},
+      {"rule":"C401","query_sha256":"8634a36b1e3b500b3bab3ba2b9b1f8243fd01ed96f176b3b701ccc1f7e6eb1c9","cases_sha256":"44ba9854ffe00e68c39b8f1c4f4cc16b0f692622ef6837a2ec8ff378a650fef5","case_count":17},
+      {"rule":"C402","query_sha256":"e6b2ba16caa262fcfc4f341ada6b939184c70edc24595cca802aec024aa35478","cases_sha256":"9a685cde386d295898b91519dda4eae5eac9d3e86fb220020218d0724adeaca2","case_count":19},
+      {"rule":"C403","query_sha256":"88a556fd87c5bef24459ce65efc5eb59e29f33358fd30412982f00af925dabad","cases_sha256":"2b66408246baabc0c9616393e26e8ba3a2b86549553e58e4af08b558b8d36330","case_count":15},
+      {"rule":"C404","query_sha256":"657b2e1f14e1e2f2e468e705179767029560114898fdb6cf08a0f0143f197820","cases_sha256":"d50cb75512bc7d237595e9efe1612bc912cb459189de61cbffedcdd1977bbf72","case_count":19},
+      {"rule":"C405","query_sha256":"796a11d25b3db9490b9ee26f2d8232262f17be7addb8cc8144a4cbd0b29a3721","cases_sha256":"5276f7cc1ac7190affc88dccb6285e436de32860125110e6ae8e562b460d8203","case_count":19},
+      {"rule":"C406","query_sha256":"0bac54a7e60090aba6acbff995b5c0db7b5f285847009777561a3b6302f4a233","cases_sha256":"571b8a2d5b7729d0ee2dcdf5971419b75ff920b50a16c06b5891058853582969","case_count":23},
+      {"rule":"C408","query_sha256":"6d28cc4233330d3b8f027b680e754a50ce028fb1b708c99a02c229da73232744","cases_sha256":"0b5ade427ccbb1034461547b81bdcf8e565636018105068a6a8013fa786d5b15","case_count":16},
+      {"rule":"C409","query_sha256":"397245ad05612b9fe70b56ab1a02ca1b6548e7cc53597b510a50509150eb6d23","cases_sha256":"edbf2e1df1db0bc578c7c8a0eea30d40a2f769411f49573e3258b4a9cfbc5bf6","case_count":19},
+      {"rule":"C410","query_sha256":"e6c2fc587327a740058328a351783512cf8fe998a6646b47a474ba0a2116f8cc","cases_sha256":"6e65e4e8c577bec1a1a0fd74165ec45cddfdb271e39949d1368ca05aa93c33e7","case_count":19},
+      {"rule":"C411","query_sha256":"6ce2376b8a56d16f24f77f03d736880ba663074dd8498254db04f02b7562fb37","cases_sha256":"069040ad4c94e24733a30a23808c6d9c4e3e80ca86cab4b858541ce2280b5b5d","case_count":15},
+      {"rule":"C413","query_sha256":"956e3e9ed945affc8a9820ba810a93f908841de3ea7fec98b53d9b3cba0d77cd","cases_sha256":"624420128cd569298cba7f65ac3246f5a2fad3dc01fc97aac67dba5f0eb79bfd","case_count":13},
+      {"rule":"C415","query_sha256":"911737eb4fca195845b6a0b646cca5d753e6aa8a2fa076b828fe39f6787c66ae","cases_sha256":"5b9b150be26e7ad2bebf221b58ad7a5ac0ce59a52f2fb5816cb331b2a636590b","case_count":16},
+      {"rule":"C418","query_sha256":"b049e1c51fb3a3dee5f5609921208502d4bd92181885e36e4f97a3a1cc20bf39","cases_sha256":"2ea82efc158b7a969e660391204fcaf2e13f9e057388553bfff82e05d652abe6","case_count":19},
+      {"rule":"C419","query_sha256":"40fe62be10c5d6e4ef13886d44adb5d1dd8e3ddd5bfcc524070838052b3d8060","cases_sha256":"0b93a870df0a497e67188f8fd7f824c6bfe3b93a584cfc7332c3b995d1ecd512","case_count":14},
+      {"rule":"D419","query_sha256":"4d0da22bd93a955e731e1e638d51645fd27cb43a601d5ab6d2ddfbed100887e8","cases_sha256":"2a491b80ccbbf7cbbe1c8d1d2b156374e11a13bd26ca5ff2600b58108217bc3d","case_count":32},
+      {"rule":"DTZ001","query_sha256":"7cb79ea37a523ca0519ca0d56d24af200d352f350d8f128ac83562843bcbd070","cases_sha256":"4e0cd369e23bf0086620d9f3dc0281abebfbda21e78f3233e84e87b9c6d7d009","case_count":14},
+      {"rule":"DTZ002","query_sha256":"81f82ddf67ac8e27b04000fad1e47129cb038493aa00ba9b9a9b07cf16edc2b3","cases_sha256":"22d7ceaf1e4e2632ac2d0ee30a993373586dadd59b8c37154e582b0287ac9929","case_count":20},
+      {"rule":"DTZ003","query_sha256":"bf245a5bc0bf5186197f95e7e8999de356d2e97182235424e5ed5008d76e19d5","cases_sha256":"8c81c2b76f8eeae3b203ee21fb171180865f8e50c7d9c9d1d748009ead8f2a24","case_count":20},
+      {"rule":"DTZ004","query_sha256":"176f066cf73b5f347d1833c210710d68d05169b81707ee0753407def15d36766","cases_sha256":"cc57e146680fbcbea515ec41ea521253aa5d85247231e1c6671af8e0a945a2bc","case_count":20},
+      {"rule":"DTZ005","query_sha256":"8e1ffd018b3b05f7375d5cef6a5d7ae2d15506d18c6d6c0e659ecea5dea3afd6","cases_sha256":"6d11b21caa34cce623711eebd58627b4edcbb6208fc6f5933f6262746e1856e2","case_count":24},
+      {"rule":"DTZ006","query_sha256":"b72c7cbe3537c28624318825264e6424b4725036029bb4afe2ea3c8925af6fa2","cases_sha256":"2d2bed4ee343f7f1136c07bd12e34329ae27bda1bb0be510aafc981508ba71e5","case_count":22},
+      {"rule":"DTZ011","query_sha256":"270d657fc129598ab14daeb5e034ed683487f5f0ba9022f977ee2212e423a639","cases_sha256":"0c4b3b8656c298c9820365f92c70fe4b18373da5697ecefc9f37bc2507871eeb","case_count":14},
+      {"rule":"DTZ012","query_sha256":"7dca690b0f3d79478073562dc29d474016e1aab59037fe9a4ae1a0bffa4c0eb1","cases_sha256":"f8ef8122d176008fed16f5a7fc040a931e2656e32068d0786aa3e3ad965368f2","case_count":14},
+      {"rule":"E722","query_sha256":"14fd1fda63d2417e7a1d9cd51ba6383f43b6cf5741da519cbf32a65b2e3487b8","cases_sha256":"a907cf3176b05947ba38ffcd681c9b6823ef585b9fbd6916708b2b2f2c307e07","case_count":72},
+      {"rule":"EXE005","query_sha256":"8b45101d0a1303982a41d63ec364207f48bf21b3ebb393deba8d00df2d927f0f","cases_sha256":"559a1323775275944a10f469b972d32567d5b6e650e4630c5626c758e2150d14","case_count":25},
+      {"rule":"F541","query_sha256":"f2d9e83836ae565fe24fe394c9c5400b3fdfafd19c5f27aa9ecafaa6ca85496d","cases_sha256":"4664a76961251c71a0245c73280a8f543be5673e6ee9cd0f3aea9705a918e527","case_count":21},
+      {"rule":"F622","query_sha256":"3c38b237def6950aaf894956c4cfba53ffda1df667216957c731906488c8e445","cases_sha256":"27820b4b3f08961ee9a4e53912b02e2b7b98264340fe709df91a417ae1c592e7","case_count":21},
+      {"rule":"F631","query_sha256":"d9556f634b2c9a47822a275771ed1ee27ba0303d3196a8e6600b1fe95b57ba67","cases_sha256":"9da0beefba4a41f1f38d57f3981688de346dd174bb31c718d4c24d02e5df2468","case_count":17},
+      {"rule":"F634","query_sha256":"d06609fa3c3de99e3baa90b86a7047a8510be159206572828a0b891bf451d8da","cases_sha256":"b1227f977ec86f4de0eec7c3375381711f369d92b5dfc2a84aa6f87e4d914edb","case_count":16},
+      {"rule":"F701","query_sha256":"d95b959164d27277b7850079ae23d373a3ae70d76fb8e5a8b62434c839c31703","cases_sha256":"b026145c8c07a38c88cd069a76de651f0cf1644fd0cebea6df2e15212e76a243","case_count":24},
+      {"rule":"F702","query_sha256":"c822bc90900bc3e126558851710fd1922b67b3b3dc440a28b7170ca85a4e4cd7","cases_sha256":"ec0b79686a9e82086f362bf50879c3cb86e4636cd825c5cbdba95a3d40bd0037","case_count":24},
+      {"rule":"F704","query_sha256":"0862dca64fc604ab60c29b9ea3d9a85109b80da922a4364e0f89f3090684076d","cases_sha256":"d65bdae707b3dd4c54f2046920bfa4986ee473fb5a269ed83a5cb62ab6c1be6e","case_count":37},
+      {"rule":"F706","query_sha256":"e67bfecc167932539cccef06f0d205ade01345612298aabbfa024206876befe2","cases_sha256":"d5d4f5eba6be3f4779d4df9e6ec9bc6be397386045d6aaf7d7e7b216286abe5d","case_count":19},
+      {"rule":"F707","query_sha256":"d2a4491c74dfffd10a2193c713ddd95813c875b1a6a3b57bb6c18415ba99de86","cases_sha256":"1de0f6ec03d68ba676e208441d7f040814c078f261015657da01d83fab5bf3d1","case_count":14},
+      {"rule":"F901","query_sha256":"0988d93bf2909e7a44da2adc1174d7dc9d0cdcd1e816c22dc0a9fca8ab08c8bd","cases_sha256":"dfab5d54da8a7f15a132691a4b2a9fad93487d45e937888842e3c60e46f1a5cf","case_count":16},
+      {"rule":"INT001","query_sha256":"3b330de06da2f5340fdc4d07f3f5a37aa9dbc9c859f6d3c86ef2c54ab6e7d71b","cases_sha256":"314f2978ec7b1ac0f104f465bd70ccf1fb3af58ea1c843aa8853a4dadea23090","case_count":16},
+      {"rule":"INT002","query_sha256":"3aaa208b1e7507ceb3c5488ff50fb23e373ec8794e1fb747e29866b80a4360f1","cases_sha256":"ca2db5e5b3d15564901ada7d3ae7e6cefd1180998e64ea77ef5a9aaf5f29f9cd","case_count":15},
+      {"rule":"INT003","query_sha256":"212e095a0870e205e6f4f479ac29b0256b12ea4992d4dc5d8b204296506b43aa","cases_sha256":"f699eb8898043877667c363ec6061e7aa19a291ca31fe15535ab6b45b119528e","case_count":15},
+      {"rule":"LOG001","query_sha256":"1e7b834ce09e744db62d066f790ca41aaa58f8911e1850e7d82531530aa4050e","cases_sha256":"20129c4f5cbba2692ee334e30d1a1b2cdd24d3f5bb8b2c1e48aa3f9eff3379c7","case_count":15},
+      {"rule":"LOG015","query_sha256":"f2c71c7e3a40dd4cbd432071b0000702b033c48dd0c17e7bf677b2c0caec4c40","cases_sha256":"18b74a1292df6364cc5dd20fe7ecc32b0dadaf34e198eb2a31e0cabf5d8f6c6b","case_count":15},
+      {"rule":"PGH005","query_sha256":"4114750a3f43bdc130600f6521b7d9eeadaac80ebba29f5b430b419a6161a292","cases_sha256":"1691e0a9063cf8dcb3cdd000697f0090948ec4d2775da618f2442587c839e653","case_count":17},
+      {"rule":"PIE794","query_sha256":"b18ff741b9a6983d27507e1a6a51f1e6754375ded6cfdaf758c7187050617d15","cases_sha256":"1d90d40cef01f05910fb2890cd52b09cc8fef94a3280106d6689eed91fcc255b","case_count":17},
+      {"rule":"PIE800","query_sha256":"98e9059cb365fa9dbaa07b9a6ba00ab5568200b23e0e1440c5c9d597dbc59558","cases_sha256":"b899f358e6d3c45aeb468df0d443239b7ff2007315d66aec4f05a5b08ac58e48","case_count":17},
+      {"rule":"PLC0205","query_sha256":"847eda6df77e7f13f4c15da7ff00ebb7ae60cff56e2add362ce503cc2188c1ea","cases_sha256":"de2d89045062aecc7c8909d7f7da1a009c43753e7dd97c475a39ca59f76c42e5","case_count":21},
+      {"rule":"PLC0414","query_sha256":"cf4d752bba2ca155cea1f3f3e2536cffa793f118dfd1d142acbcc760342220b5","cases_sha256":"4227681cff9381b9b30bc3a5b8977a82fd6696c49dc65ea8328f39d35f0091fd","case_count":26},
+      {"rule":"PLC3002","query_sha256":"e9fcfa6b54b3bf4cce1db4af1874d84f37fd8554439cea37b372b75a917c6074","cases_sha256":"9dfcd01626947d4e1e9fb0ad6a686f869ab6dd954c4d8a9aeb254c31b9a033fc","case_count":16},
+      {"rule":"PLE1132","query_sha256":"e75d392f85146672408ee36954560f96b34b25cee48dccc46e8cf9a27c15e0ea","cases_sha256":"37c31a3ad247fe5392eaa431e69070a0189ab1340dd83eb5f6cd1d76434c0133","case_count":23},
+      {"rule":"PLR0133","query_sha256":"cd74be2b9c5ab1fd91e0a62e78eacf7f5ce705c9decb79960399aef42c1270b5","cases_sha256":"aee8f16474b5124a114bf2c78b1990a7e909033008c21fe5ae0cde0d4a541833","case_count":19},
+      {"rule":"PLR0402","query_sha256":"ee294982af5517fff246676b582b78cfd1677a0acfe54c231fb484112df8f87c","cases_sha256":"80fad09db7721d6922a35c68d95ebd0cb4a747342874be1e7798175f84dac251","case_count":16},
+      {"rule":"PLR1711","query_sha256":"28bb1b04155b4dba2de054f96b59136f5b99d0514136b5aad2f11cc9f84318c8","cases_sha256":"f919d6a6125504fd6161b3ff4e00b20a93d30784837b3764a1907dab622780d0","case_count":21},
+      {"rule":"PLR1722","query_sha256":"c2770eb24e63e71cf7a65a9f43c4c25d78c9c73278a021812a1d1b2176d4afa7","cases_sha256":"d838dc4c855c45b38c78381241a68d5f2ad82909c9e05039926d3f3ec0fe6671","case_count":12},
+      {"rule":"PLW0120","query_sha256":"d50d16a311e867bb6aa3e608b84c1ea45494ee53049b314b889acabcb50b41b3","cases_sha256":"32602aa75bdd7bb581a5d479dfc6cdc2b47bd872d90c5a5471ba07b8bca82b4f","case_count":20},
+      {"rule":"PLW0128","query_sha256":"2feed950acb1a743bd2434194826e279f514782c17b202e0467fb4d012114b1a","cases_sha256":"8aa42094412af64ddd640b877812d74a1db95a3dd2ec894f2a695137de867ffa","case_count":17},
+      {"rule":"PLW0129","query_sha256":"c64066fe569afdef37be69b25dc320507acb21cd93fd180a783b3be36ec5750f","cases_sha256":"4903634e202bdda9cdd7c1b19b6450e74c7264b6a2e1714f0c2ec227fbc76861","case_count":21},
+      {"rule":"PLW0131","query_sha256":"17c7dc1b4faa9bdd320675e942d56c1d1d16ae9547526d2aca6d21bb4e23ce5f","cases_sha256":"278787f8cac4c45288dacd2b24e7ab3764e891ba110b07615bb5e19c11c71e93","case_count":14},
+      {"rule":"PLW0604","query_sha256":"9d738ede2db6afabcf3ac41d30b72204759cb89a4bfbe9f7db70b474c18396ea","cases_sha256":"2aa90c56853bd289d2001511b382b08ddead74ee04e4f81ec229a2609492d2cd","case_count":16},
+      {"rule":"PLW0711","query_sha256":"b94b47c1d091f41d3f2f5618a4b737df6b67f27dccb0734b074ac95955055684","cases_sha256":"7f8a547dcf09674fa228923d0fca44c673a5125e2702580e7d8d55024e962827","case_count":16},
+      {"rule":"PLW1507","query_sha256":"ea1eb778dc353fb95133d9093314a9152d70aa88ed8e8a537624b45642be5d4c","cases_sha256":"2151a884b56ddaf3b5563760a1a07567b6d60961c5e05fa9b3e144e448c8de74","case_count":13},
+      {"rule":"PLW1509","query_sha256":"0873141ecc4f92ec0054520daed8077ff9dbc1c2eac16807b365f36e97508e3b","cases_sha256":"cfbac09c0805bcc02f5830fe479ec6f4ce5201420fa8e1d060996b9c5ac11444","case_count":12},
+      {"rule":"PLW1510","query_sha256":"2adfa083fb6f968ce9a69b51b54a8fbee43fd6a50afbffb07f05a5765e618c8f","cases_sha256":"ddc5dbf76bdb39b56360f223a9f10c7a7936c5ae48953472725731fbe25cc214","case_count":17},
+      {"rule":"PYI001","query_sha256":"6f3534218235d888223106c2be05d85531c26a5f781bb55d1812d273f8f8a580","cases_sha256":"de514a2b539eac6a2c9769c36193d62239158baacd21170524eefed1e9fad590","case_count":14},
+      {"rule":"PYI009","query_sha256":"6a0701f2fd4ba3d7964c27699dea637e057141a94e6c52e71d5833fbcf405c96","cases_sha256":"bd969a2b7f015f9437bad1676a4fb84376da7c93c07e015e42c9fe156cf8f334","case_count":22},
+      {"rule":"PYI010","query_sha256":"d7d3cab5b8a0cce9428d7cbcd1973f328135316f4354652e3ba24935164405d8","cases_sha256":"61c9b558cf86bfa76e6a7f67287e4419f5ea2c1e0cf5a9f767b769d1a68d6dca","case_count":27},
+      {"rule":"PYI012","query_sha256":"9ca1c07fbdf86af1ab5266fefea27b9753bd2c1b819f0d141e11eee08d730f94","cases_sha256":"1ef018da9e6beecf7ea47721e30a97f7a6af81477e3750223a3d8963e91411d6","case_count":17},
+      {"rule":"PYI013","query_sha256":"7d01178fb326365bd2d018f6347f1a1715f6c0764c468317220e0e4e833fab99","cases_sha256":"2c1bc13236ca0a1a54d84efb277f2f6373391f6754798a93b20a3ed45c1bae42","case_count":19},
+      {"rule":"PYI017","query_sha256":"f9961b0f161aa2441fc630da02011394731df192a38e389577e9fb96114a2a37","cases_sha256":"09d3fa6a653d7cf300c0c104e5fc9943400b8e36c80cd744b6491287cfb0517d","case_count":17},
+      {"rule":"PYI025","query_sha256":"b197c0af720975bc825afd476a9a921741b7600ee6ebf457660953119dc9bfe2","cases_sha256":"02b8f8b09ec041e46c72a5c760862f897894c56044725ec70b9f7b91dcf548e2","case_count":18},
+      {"rule":"PYI033","query_sha256":"f42b3e09dabf151669b31d34af108a0ae7d729a8d8710ec63580523478e84e81","cases_sha256":"ad5f5620cc0b6ad83f9ee0209b83d0645542c05124bf575bca71a9a6ad6feb67","case_count":18},
+      {"rule":"PYI035","query_sha256":"f650506a24c06b6351a2e0efc082166f7a87b39fd1ecbae6fa751c4a929a01f5","cases_sha256":"286d8dc433372e134d4f99c411f9ca19ede681f1626ed65eb405c52c64944991","case_count":21},
+      {"rule":"PYI044","query_sha256":"ca06436d8406787967d3b2ee32badecda3a8c6924b75cdfcc37f6e95b16f246d","cases_sha256":"2f813ec1bcfbcb577e6a6a4fc385aea72b4e5c3a6c719e8a286a2e7922a897c4","case_count":17},
+      {"rule":"PYI048","query_sha256":"2e5b3ab76884485e4bcc7238ab77a012b809321f7973070fb0d20e55a3c5216a","cases_sha256":"90f688c998fc6b2093f727803f47d341684ebdd8c782456acfdaddb114e1b8e8","case_count":21},
+      {"rule":"RUF032","query_sha256":"3d34315e8289a58f9b83e77edd5e5fb167c60aa1429708ce428453e9c854b444","cases_sha256":"66087a8411353cceefa9e175bc8624557fae405e3ef8d5b0106ac97eec7b4881","case_count":18},
+      {"rule":"RUF040","query_sha256":"5cfca7f4ea90b0102b22176d50bffa2c6399fb2abf3345ae09f9585051ceb0bb","cases_sha256":"dddf733b76f004184f577283f302ec33a2f82beceb38a430d8580e19b7990145","case_count":19},
+      {"rule":"S102","query_sha256":"ebcf3f1ff513fda1bf96477867c508e071c0c0b14101b706a6fbd81593ea9913","cases_sha256":"ec99bea7861e41f4f3a03783569228f928dc036cdac66dabfa8f28929907c053","case_count":13},
+      {"rule":"S110","query_sha256":"52c5e333dded224f4e24f788edad6fed85399f47a890cddde4bcbbc20df44706","cases_sha256":"82f90d1e952b51a8c3ff2fee0a080cc91142163ee7537543a3e33b4bef4375d8","case_count":14},
+      {"rule":"S112","query_sha256":"d515f025f0821adbc77fd20c7d0b7a09d1e19d20ef6bb9eb571b93f2e89ab3dc","cases_sha256":"5dea6c28469726b9b17916dc9cae3432f5a476645a86928a35b6d75eae34932a","case_count":14},
+      {"rule":"SIM208","query_sha256":"e58160c20551d69005f0cb84ed16d994aa8a0432b9b12162fe5a509567679c88","cases_sha256":"2d019ff5374db3d942e3025315e1b057eccd9193b4baffb4a71eb5a783a9eab0","case_count":15},
+      {"rule":"SIM210","query_sha256":"38bb967df258202d563da9d4fbd0abc61f3ca5f087c8c9c78e5c0a61d927d8e5","cases_sha256":"76a1c31f4152f4008210d5e4a2dadc438c1e7f2ab5d12a5fec848ae2c890ed01","case_count":17},
+      {"rule":"SIM211","query_sha256":"bcd1d7a6aa61cc184daeadc4e1dabde844a9a3304644e434d63a584325f67047","cases_sha256":"5905b4449f7b5f63edec42ec1d30df56bdf0f4e0d819556f3e7bfee93f0fee94","case_count":17},
+      {"rule":"TRY002","query_sha256":"b3656ea6793953a4e42f3cda5f91aea6fb0710f8c36203e1ae907139b0719f6a","cases_sha256":"97ade056f93ae6fbbb00cbd0368b3f83982c497f1a77719898dc045956ff650b","case_count":12},
+      {"rule":"TRY203","query_sha256":"c1d4ef747f96165cca9ca869bba94b1cbd131e9d511d45703885874541880d67","cases_sha256":"b259be1e81271b765ededc597dc5e87280e9b717211987c93840fe8431390fe2","case_count":25},
+      {"rule":"UP001","query_sha256":"15c06e4341be4542c1a2528d94297f57c51d3a85616b05a0f319861f833afead","cases_sha256":"e0fd91a4a0506be3d4c2d0f9f0d8e29852c9b3073728937ccfb5ab3e052bf588","case_count":14},
+      {"rule":"UP004","query_sha256":"ed6ca4f694ed2579dff774e86f6ec694447f86a85ac90c57c89fcf2074ac6e41","cases_sha256":"b0988a7e0466d9f153a29f2d425a2139d84120b4aa976f0daceec97dbd591bb6","case_count":11},
+      {"rule":"UP005","query_sha256":"c24ffa4506c239b083c7c9d456648b1693845d5267397d13134d613ec44cc281","cases_sha256":"1dc8332f42091ba5ba7bc4f4843b526a1114c7c22627ea66bdd5812315af63c9","case_count":26},
+      {"rule":"UP023","query_sha256":"3482066e1720d4660f6501ca1f58c2c61d3dea32b59d3cc106936a9379795219","cases_sha256":"ba63de1ddcb517c9b32674e28cc7b54d2ad222ac4437cd7fdc36e9d42d6388b6","case_count":25},
+      {"rule":"UP025","query_sha256":"9789b51da338408f23a6f65d2649cc6161fc68b1d97497b9f5abe7ec6fa5b0f5","cases_sha256":"70bf80bfd4bb49f17cb282552acdf81365caf12afa4fe2239d13b3166f395d14","case_count":17},
+      {"rule":"UP039","query_sha256":"19997344b80e6aaf5ed68b41dbd937ffbf2d490e990bcc0abe5011d90f4b374a","cases_sha256":"2f6660fe2285ccc4d72d5e6db87b34fe2dcc3783cfe74c8ac414aa9570ec1f06","case_count":17}
+    ],
+    "query_asset_commit": "f01f16fc",
+    "profile_sha256": "0da2f5c0a92e946031a3b1d447565df25739a9c56ce2ed5167b1c30deada886c",
+    "candidate_sha256": "a82328a5e1c5c1c686bbf956723f61dc0ad9eae63ffb3f6978cea2522df7e0b5",
+    "reference_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+    "worker_provenance": "Local validation build based on36c80075 with in-progress harness boundary fixes; exact executable hash recorded. Not a clean-source corpus measurement certificate.",
+    "additional_cohorts": {"wildcard":{"cases":9,"failures":0},"quoted_annotations":{"oracle_cases":24,"candidate_compared":3,"confirmed_candidate_misses":3,"remaining_candidate_comparisons":"pending generic frontend fix"}}
+  },
+  "timed_instance_source_commit": "2bee81b878a3923773905eee5e2468ed8a29ec04",
+  "timed_instance_candidate_sha256": "79e2ccb0e0a3b631441488141766bafc9a2b7a0c3a4aab75e78691b197c9024c"
 }
