@@ -102,3 +102,8 @@ expected = []
 name = "relocated-annotation-preserves-multiplicity"
 files = { "case.py" = "import logging\nx: \"tuple[logging.Logger(), logging.\\x4cogger()]\"\n" }
 expected = [{ file = "case.py", start = 18, end = 64 }, { file = "case.py", start = 18, end = 64 }]
+
+[[cases]]
+name = "invalid-annotation-does-not-block-native-findings"
+files = { "case.py" = "import logging\nx: \"not valid [\"\nlogging.Logger()\n" }
+expected = [{ file = "case.py", start = 32, end = 46 }]
