@@ -109,7 +109,7 @@ pub(crate) fn replay(recordings: &[Recording]) -> Result<Replayed, String> {
 }
 
 /// A feature as the listings write it: `operation:join`, `family:glob-any`, `direction:nearest-ancestor`, `relation:syntax-tree`.
-fn feature_name(feature: ryo_values::domain::plans::types::Feature) -> String {
+pub(crate) fn feature_name(feature: ryo_values::domain::plans::types::Feature) -> String {
     use ryo_values::domain::plans::types::Feature;
     match feature {
         Feature::Operation(kind) => format!("operation:{kind:?}"),
@@ -368,9 +368,18 @@ fn findings(live: &[&Recording], outcome: &Replayed) -> String {
 fn features(outcome: &Replayed) -> String {
     // Each feature of the language is fed at least this many rows over ruff, unless `fixtures/unfed.toml` says why not.
     const FED: u64 = 1_000;
+    let mut fed = outcome.fed.clone();
+    #[cfg(feature = "python")]
+    match super::feature_contracts::measured() {
+        Ok(measured) => {
+            for (name, rows) in measured {
+                *fed.entry(name.clone()).or_default() += rows;
+            }
+        }
+        Err(failure) => return failure.clone(),
+    }
     let unfed = recorded_unfed();
-    let short: Vec<String> = outcome
-        .fed
+    let short: Vec<String> = fed
         .iter()
         .filter(|(name, rows)| **rows < FED && !unfed.contains(name))
         .map(|(name, rows)| format!("{name} ({rows} rows)"))
@@ -380,7 +389,7 @@ fn features(outcome: &Replayed) -> String {
     }
     let gone: Vec<&String> = unfed
         .iter()
-        .filter(|name| outcome.fed.get(*name).is_none_or(|rows| *rows >= FED))
+        .filter(|name| fed.get(*name).is_none_or(|rows| *rows >= FED))
         .collect();
     match (short.first(), gone.first()) {
         (Some(first), _) => format!(
