@@ -1,5 +1,5 @@
 description = "Positive and negative multi-file cases with byte spans."
-why = "The benchmark audit validates content before execution; scaffolded placeholders are not acceptance evidence."
+why = "The benchmark audit validates content before execution; scaffolded placeholders are not acceptance evidence. Upstream fixtures supply input provenance, not automatically compatible expected results: capture complete reference diagnostics under this benchmark's exact pinned executable, selected rules, target version, preview and options. A helper named default or for_rule can override shipped defaults. Preserve filename and package context explicitly; never silently add context files to the selected input set. The shared reference-case comparison and profile-bound certificate enforce the resulting expectations; copying upstream snapshots without recapturing that profile is not acceptance evidence."
 content = ''
 
 [given]
