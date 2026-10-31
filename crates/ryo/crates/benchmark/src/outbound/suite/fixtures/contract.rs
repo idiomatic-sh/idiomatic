@@ -41,6 +41,7 @@ pub fn check(adapter: &impl SuitePort) {
             version: "1".into(),
             sha256: String::new(),
             deferred: Default::default(),
+            pending: Default::default(),
             defaults: if selected {
                 vec!["fixture".into()]
             } else {
@@ -96,6 +97,7 @@ expected = []
         version: "1".into(),
         sha256: String::new(),
         deferred: Default::default(),
+        pending: Default::default(),
         defaults: vec!["fixture".into()],
     };
     crate::outbound::suite::factory::local()

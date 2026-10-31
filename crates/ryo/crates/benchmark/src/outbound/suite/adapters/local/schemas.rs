@@ -11,7 +11,9 @@ struct ToolSchema {
     sha256: String,
     defaults: Vec<String>,
     #[serde(default)]
-    deferred: BTreeMap<String, String>,
+    deferred: BTreeMap<String, Vec<String>>,
+    #[serde(default)]
+    pending: BTreeMap<String, Vec<String>>,
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -61,9 +63,34 @@ pub(super) fn tool(text: &str) -> Result<types::Tool, Error> {
         version: wire.version,
         sha256: wire.sha256,
         defaults: wire.defaults,
-        deferred: wire.deferred,
+        deferred: dispositions(wire.deferred)?,
+        pending: dispositions(wire.pending)?,
     })
 }
+fn dispositions(groups: BTreeMap<String, Vec<String>>) -> Result<BTreeMap<String, String>, Error> {
+    let mut rules = BTreeMap::new();
+    for (capability, members) in groups {
+        if capability.is_empty()
+            || !capability
+                .bytes()
+                .all(|byte| byte.is_ascii_lowercase() || byte == b'_')
+            || members.is_empty()
+        {
+            return Err(Error::Invalid(
+                "capability groups require a stable name and rules".into(),
+            ));
+        }
+        for rule in members {
+            if rules.insert(rule, capability.clone()).is_some() {
+                return Err(Error::Invalid(
+                    "rule appears in multiple capability groups".into(),
+                ));
+            }
+        }
+    }
+    Ok(rules)
+}
+
 pub(super) fn suite(text: &str) -> Result<types::Suite, Error> {
     let wire: SuiteSchema = toml::from_str(text)?;
     Ok(types::Suite {

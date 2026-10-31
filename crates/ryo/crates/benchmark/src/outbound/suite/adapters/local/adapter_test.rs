@@ -169,6 +169,7 @@ fn verify_pin((sha256, version, executable): (&str, &str, bool)) -> Result<(), &
         version: version.into(),
         sha256: sha256.into(),
         deferred: Default::default(),
+        pending: Default::default(),
         defaults: vec!["E722".into()],
     };
     SuiteLocalAdapter

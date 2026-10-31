@@ -24,7 +24,7 @@ pub fn require_accounted(audit: &Audit, tool: &super::types::Tool) -> Result<(),
         return Err(Error::Invalid("no authored default subset".into()));
     }
     for (rule, issue) in &tool.deferred {
-        if !audit.missing.contains(rule) || !issue.starts_with("ryo-") || issue.len() <= 4 {
+        if !audit.missing.contains(rule) || issue.is_empty() {
             return Err(Error::Invalid(format!(
                 "invalid default deferral: {rule} -> {issue}"
             )));

@@ -14,6 +14,16 @@ fn audit(directory: &Path, tool: &Tool) -> Result<Audit, Error> {
             "empty or duplicated default rule inventory".into(),
         ));
     }
+    for (rule, issue) in tool.deferred.iter().chain(&tool.pending) {
+        if !defaults.contains(rule)
+            || issue.is_empty()
+            || (tool.deferred.contains_key(rule) && tool.pending.contains_key(rule))
+        {
+            return Err(Error::Invalid(format!(
+                "invalid or overlapping default disposition: {rule} -> {issue}"
+            )));
+        }
+    }
     let mut implemented = BTreeSet::new();
     for entry in std::fs::read_dir(directory.join("rules"))? {
         let entry = entry?;
@@ -38,6 +48,11 @@ fn audit(directory: &Path, tool: &Tool) -> Result<Audit, Error> {
             super::schemas::cases(&std::fs::read_to_string(entry.path().join("cases.toml"))?)?;
         validate_cases(&cases)?;
         if query.is_some() {
+            if tool.deferred.contains_key(&rule) || tool.pending.contains_key(&rule) {
+                return Err(Error::Invalid(format!(
+                    "authored rule still has a deferred or pending disposition: {rule}"
+                )));
+            }
             implemented.insert(rule);
         }
     }

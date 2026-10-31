@@ -57,6 +57,7 @@ pub(crate) fn run() -> Result<(), Error> {
             if scope == CoverageScope::Accounted { require_accounted(&audit, &tool)?; }
             let default_count = tool.defaults.len();
             let deferred_count = tool.deferred.len();
+            let pending_count = tool.pending.len();
             tool.defaults = audit.authored().to_vec();
             let reference = reference(executable.clone(), tool)?;
             let selected_scratch = tempfile::Builder::new().prefix("certification-").tempdir_in(&cache)?.keep();
@@ -68,7 +69,7 @@ pub(crate) fn run() -> Result<(), Error> {
             let candidate = ryo_benchmark::outbound::linter::factory::ryo(candidate_executable.clone(), selected_rules.clone());
             let case_scratch = tempfile::tempdir()?;
             let certificate = ryo_benchmark::application::certify::service::certify(&suite_source, &reference, &execution, &selected_profile, &executable, &candidate_executable, &selected_rules, case_scratch.path(), scope)?;
-            eprintln!("scope: {scope:?}; {} verified / {default_count} shipped defaults; {deferred_count} assessed deferrals; {} unassessed; {} authored outside subset; {} cases; certificate={}; artifacts={}", audit.authored_count(), default_count - authored_total - deferred_count, authored_total - audit.authored_count(), certificate.cases(), certificate.fingerprint(), selected_profile.display());
+            eprintln!("scope: {scope:?}; {} verified / {default_count} shipped defaults; {deferred_count} assessed deferrals; {pending_count} assessed pending; {} unassessed; {} authored outside subset; {} cases; certificate={}; artifacts={}", audit.authored_count(), default_count - authored_total - deferred_count - pending_count, authored_total - audit.authored_count(), certificate.cases(), certificate.fingerprint(), selected_profile.display());
             eprintln!("environment: os={} arch={} release=true workers=1; GNU time CPU=user+system, RSS=peak KiB converted to bytes; wall includes collector startup; normalization and certificate/source hashing excluded; OS page cache uncontrolled; retained cache hits unverified", std::env::consts::OS, std::env::consts::ARCH);
             let suite: Suite = suite_source.projects(&directory().join("../.."))?;
             if suite.language != "python" || !(2..=3).contains(&suite.projects.len()) { return Err(Error::Invalid("Python suite requires 2–3 projects".into())); }

@@ -46,8 +46,10 @@ pub struct Tool {
     pub sha256: String,
     /// Exact shipped-default rule identifiers for the pinned reference profile.
     pub defaults: Vec<String>,
-    /// Deferred default rules mapped to their capability-gap Beads issue.
+    /// Deferred default rules mapped to a public capability identifier.
     pub deferred: BTreeMap<String, String>,
+    /// Assessed tractable work still pending implementation, never counted as a deferral.
+    pub pending: BTreeMap<String, String>,
 }
 
 /// The correctness cases authored beside one candidate query.
