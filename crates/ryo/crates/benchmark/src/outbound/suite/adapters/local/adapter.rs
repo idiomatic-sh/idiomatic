@@ -7,10 +7,11 @@ use crate::domain::suite::types::audit::value::Audit;
 use crate::domain::suite::types::{Cases, Tool};
 use crate::outbound::suite::interface::SuitePort;
 use crate::outbound::suite::types::{ArtifactPath, ArtifactSet};
-use sha2::{Digest, Sha256};
+use sha2::{Digest as _, Sha256};
 use std::collections::BTreeSet;
 use std::path::Path;
 
+/// Validate default dispositions and require independent sources for every authored query.
 fn audit(directory: &Path, tool: &Tool) -> Result<Audit, Error> {
     let defaults: BTreeSet<_> = tool.defaults.iter().cloned().collect();
     if defaults.is_empty() || defaults.len() != tool.defaults.len() {
@@ -32,7 +33,7 @@ fn audit(directory: &Path, tool: &Tool) -> Result<Audit, Error> {
         let rule = entry
             .file_name()
             .into_string()
-            .map_err(|_| Error::Invalid(constants::INVALID_RULE_ID.into()))?;
+            .map_err(|_invalid_utf8| Error::Invalid(constants::INVALID_RULE_ID.into()))?;
         let rule = super::schemas::rule(&rule)?;
         if !defaults.contains(&rule) {
             return Err(Error::Invalid(format!(
@@ -58,7 +59,7 @@ fn audit(directory: &Path, tool: &Tool) -> Result<Audit, Error> {
                     "authored rule still has a deferred or pending disposition: {rule}"
                 )));
             }
-            let _ = implemented.insert(rule);
+            let _already_present = implemented.insert(rule);
         }
     }
     Ok(Audit {
@@ -67,6 +68,7 @@ fn audit(directory: &Path, tool: &Tool) -> Result<Audit, Error> {
     })
 }
 
+/// Hash one regular file without directory framing.
 fn digest(path: &Path) -> Result<ArtifactDigest, Error> {
     if !std::fs::symlink_metadata(path)?.is_file() {
         return Err(Error::Invalid(constants::INVALID_DIGEST_KIND.into()));
@@ -77,6 +79,7 @@ fn digest(path: &Path) -> Result<ArtifactDigest, Error> {
     )))
 }
 
+/// Verify executable bytes before checking the exact version response.
 fn verify_executable(path: &Path, tool: &Tool) -> Result<(), Error> {
     let actual = digest(path)?;
     if !tool.sha256.iter().any(|expected| expected.0 == actual.0) {
@@ -95,6 +98,7 @@ fn verify_executable(path: &Path, tool: &Tool) -> Result<(), Error> {
 }
 
 #[derive(Debug)]
+/// Reads and freezes validated benchmark artifacts from the local filesystem.
 pub(crate) struct SuiteLocalAdapter;
 impl SuitePort for SuiteLocalAdapter {
     fn digest(&self, ArtifactPath(path): ArtifactPath<'_>) -> Result<ArtifactDigest, Error> {
@@ -107,6 +111,10 @@ impl SuitePort for SuiteLocalAdapter {
     ) -> Result<Vec<crate::domain::suite::types::PreparedCase>, Error> {
         prepare_cases(rules, scratch)
     }
+    #[expect(
+        clippy::create_dir,
+        reason = "snapshot staging must refuse an existing destination rather than merge artifacts"
+    )]
     fn stage_projects(
         &self,
         ArtifactPath(source): ArtifactPath<'_>,
@@ -133,6 +141,10 @@ impl SuitePort for SuiteLocalAdapter {
         }
         Ok(())
     }
+    #[expect(
+        clippy::create_dir,
+        reason = "snapshot staging must refuse an existing destination rather than merge artifacts"
+    )]
     fn stage(
         &self,
         ArtifactPath(directory): ArtifactPath<'_>,
@@ -205,6 +217,7 @@ impl SuitePort for SuiteLocalAdapter {
     }
 }
 
+/// Hash artifact names and contents with deterministic recursive framing.
 fn fingerprint_path(path: &Path, hasher: &mut Sha256) -> Result<(), Error> {
     let metadata = std::fs::symlink_metadata(path)?;
     let name = path
@@ -231,6 +244,7 @@ fn fingerprint_path(path: &Path, hasher: &mut Sha256) -> Result<(), Error> {
 }
 
 use crate::domain::diagnostics::types::RunReport;
+/// Materialize validated independent sources into isolated per-case directories.
 fn prepare_cases(
     rules: &Path,
     scratch: &Path,
@@ -245,7 +259,7 @@ fn prepare_cases(
         let rule = entry
             .file_name()
             .into_string()
-            .map_err(|_| Error::Invalid(constants::INVALID_RULE_ID_TEXT.into()))?;
+            .map_err(|_invalid_utf8| Error::Invalid(constants::INVALID_RULE_ID_TEXT.into()))?;
         let cases: Cases = super::schemas::cases(&std::fs::read_to_string(
             entry.path().join(constants::CASES),
         )?)?;
