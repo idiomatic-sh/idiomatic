@@ -3,7 +3,7 @@ let classes = select id from "syntax-tree" where kind = "class-def";
 let argument_nodes = select id from "syntax-tree" where kind = "call-arguments";
 let class_arguments = select l.parent as owner, r.id as id from "syntax-child" as l join argument_nodes as r on l.child = r.id;
 let class_argument_nodes = select r.id as id from classes as l join class_arguments as r on l.id = r.owner;
-let arguments = select parent, child from "syntax-child" where field = "args";
+let arguments = select parent, child from "syntax-child" where field = "bases";
 let bases = select r.child as id from class_argument_nodes as l join arguments as r on l.id = r.parent;
 let objects = select id from qualified_names where path = "builtins.object" and (provenance != "builtin" or since_major < 3 or since_major = 3 and since_minor <= 10);
 let invalid = select l.id as id from bases as l join objects as r on l.id = r.id;
