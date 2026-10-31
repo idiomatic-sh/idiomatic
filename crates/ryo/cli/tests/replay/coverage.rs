@@ -213,3 +213,90 @@ fn the_unknown_reasons_of_the_linked_languages_are_numbered_apart() {
         );
     }
 }
+
+/// Optional semantic facts are unavailable from Rust, rather than a known empty set.
+const OPTIONAL_CAPABILITY_RULES: [(&str, &str); 6] = [
+    (
+        "identifier-positive",
+        "let rows = select * from identifier; emit rows subject file key(span);",
+    ),
+    (
+        "identifier-negative",
+        "let variables = select * from defines where kind = \"variable\"; let absent = antijoin(left=variables, right=identifier, left-on=[\"file\"], right-on=[\"file\"]); emit absent subject file key(span);",
+    ),
+    (
+        "qualified-positive",
+        "let rows = select * from \"qualified-name\"; emit rows subject file key(span);",
+    ),
+    (
+        "qualified-negative",
+        "let variables = select * from defines where kind = \"variable\"; let absent = antijoin(left=variables, right=\"qualified-name\", left-on=[\"file\"], right-on=[\"file\"]); emit absent subject file key(span);",
+    ),
+    (
+        "embedded-positive",
+        "let rows = select * from \"embedded-expression\"; emit rows subject file key(span);",
+    ),
+    (
+        "embedded-negative",
+        "let variables = select * from defines where kind = \"variable\"; let absent = antijoin(left=variables, right=\"embedded-expression\", left-on=[\"file\"], right-on=[\"file\"]); emit absent subject file key(span);",
+    ),
+];
+
+#[test]
+fn unadvertised_semantics_are_unknown_and_never_prove_absence_cold_or_warm() {
+    let _beside = crate::beside();
+    let root = directory(&[("input.rs", "fn example() { let value = 1; }")]);
+    let kept = Arc::new(ryo_core::outbound::lint_store::fixtures::fake::LintStoreFake::default());
+    for phase in ["cold", "warm"] {
+        let rules = OPTIONAL_CAPABILITY_RULES
+            .iter()
+            .chain(std::iter::once(&("witness", SELECTS)))
+            .map(|(id, query)| crate::rule_from_query(id, query, &["**".to_owned()]))
+            .collect();
+        let (rows, report) = base::lint_report(
+            root.path(),
+            rules,
+            Arc::new(ryo_core::outbound::facts::factory::memory()),
+            kept.clone(),
+        )
+        .expect("optional capability queries compile and execute");
+        assert!(
+            report.unread.is_empty(),
+            "{phase}: every input must be read"
+        );
+        assert_eq!(
+            rows.len(),
+            1,
+            "{phase}: only the known variable witness is emitted: {rows:?}"
+        );
+        assert_eq!(
+            rows.first().and_then(|row| row.first()).map(String::as_str),
+            Some("witness")
+        );
+        let mut actual: Vec<_> = report
+            .unknowns
+            .iter()
+            .map(|unknown| (unknown.rule.0.to_string(), unknown.path.0.to_string()))
+            .collect();
+        actual.sort();
+        let mut expected: Vec<_> = OPTIONAL_CAPABILITY_RULES
+            .iter()
+            .map(|(rule, _)| pair(rule, "input.rs"))
+            .collect();
+        expected.sort();
+        assert_eq!(
+            actual, expected,
+            "{phase}: every optional query must fail closed"
+        );
+        assert!(
+            report
+                .unknowns
+                .iter()
+                .all(|unknown| unknown.message.0.contains(
+                    "The requested optional capability is unavailable from this provider."
+                )),
+            "{phase}: the unknown must explain the unavailable capability: {:?}",
+            report.unknowns
+        );
+    }
+}
