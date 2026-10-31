@@ -118,7 +118,9 @@ impl Parse for ParseContract {
     }
 
     fn indent_region(&self) -> Support<Reader<languages::IndentRegion, ()>> {
-        // Lexical INDENT/DEDENT tokens define this relation, not visual whitespace alone.
+        // standard: CSS Syntax Level 3, Tokenization: whitespace produces whitespace tokens;
+        // blocks use delimiter tokens, with no lexical INDENT/DEDENT suite regions.
+        // https://www.w3.org/TR/css-syntax-3/#tokenization
         languages::absent(AbsenceCause::NoSuchConstruct)
     }
 

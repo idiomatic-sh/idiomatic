@@ -95,7 +95,9 @@ impl Parse for ParseContract {
     }
 
     fn indent_region(&self) -> Support<Reader<languages::IndentRegion, ()>> {
-        // Lexical INDENT/DEDENT tokens define this relation, not visual whitespace alone.
+        // standard: HTML Standard, Tokenization: the token vocabulary comprises tags,
+        // characters, comments, DOCTYPE and EOF, with no lexical INDENT/DEDENT regions.
+        // https://html.spec.whatwg.org/multipage/parsing.html#tokenization
         languages::absent(AbsenceCause::NoSuchConstruct)
     }
 

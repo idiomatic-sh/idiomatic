@@ -200,7 +200,9 @@ impl Parse for ParseContract {
     }
 
     fn indent_region(&self) -> Support<Reader<languages::IndentRegion, ()>> {
-        // Lexical INDENT/DEDENT tokens define this relation, not visual whitespace alone.
+        // standard: Rust Reference, Whitespace: nonempty whitespace separates tokens;
+        // lexical INDENT/DEDENT suite regions are not part of its whitespace grammar.
+        // https://doc.rust-lang.org/reference/whitespace.html
         languages::absent(AbsenceCause::NoSuchConstruct)
     }
 

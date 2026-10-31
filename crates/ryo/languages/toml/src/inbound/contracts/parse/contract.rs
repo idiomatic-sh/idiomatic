@@ -120,7 +120,9 @@ impl Parse for ParseContract {
     }
 
     fn indent_region(&self) -> Support<Reader<languages::IndentRegion, Model>> {
-        // Lexical INDENT/DEDENT tokens define this relation, not visual whitespace alone.
+        // standard: TOML 1.0.0, Arrays and Table: indentation is ignored as whitespace;
+        // table headers and array brackets do not form lexical INDENT/DEDENT regions.
+        // https://toml.io/en/v1.0.0#table
         languages::absent(AbsenceCause::NoSuchConstruct)
     }
 

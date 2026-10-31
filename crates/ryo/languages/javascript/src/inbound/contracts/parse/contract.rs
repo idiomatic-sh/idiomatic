@@ -159,7 +159,9 @@ impl Parse for ParseContract {
     }
 
     fn indent_region(&self) -> Support<Reader<languages::IndentRegion, ()>> {
-        // Lexical INDENT/DEDENT tokens define this relation, not visual whitespace alone.
+        // standard: ECMAScript, Lexical Grammar: whitespace separates tokens and line
+        // terminators affect syntax, but neither defines lexical INDENT/DEDENT suite regions.
+        // https://tc39.es/ecma262/multipage/ecmascript-language-lexical-grammar.html
         languages::absent(AbsenceCause::NoSuchConstruct)
     }
 

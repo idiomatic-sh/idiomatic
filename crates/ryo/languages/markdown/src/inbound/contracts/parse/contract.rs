@@ -122,7 +122,10 @@ impl Parse for ParseContract {
     }
 
     fn indent_region(&self) -> Support<Reader<languages::IndentRegion, Sections>> {
-        // Lexical INDENT/DEDENT tokens define this relation, not visual whitespace alone.
+        // standard: CommonMark 0.31.2 sections 4.4, 5.2 and Appendix parsing strategy:
+        // indentation affects code blocks and list continuation, but block-specific line rules
+        // do not define a lexical INDENT/DEDENT token stack. This absence is not a claim that
+        // Markdown ignores indentation. https://spec.commonmark.org/0.31.2/#phase-1-block-structure
         languages::absent(AbsenceCause::NoSuchConstruct)
     }
 

@@ -95,7 +95,9 @@ impl Parse for ParseContract {
     }
 
     fn indent_region(&self) -> Support<Reader<languages::IndentRegion, Model>> {
-        // Lexical INDENT/DEDENT tokens define this relation, not visual whitespace alone.
+        // standard: RFC 8259 section 2: JSON structural tokens delimit arrays and objects;
+        // spaces, tabs and line endings are insignificant whitespace, not INDENT/DEDENT regions.
+        // https://www.rfc-editor.org/rfc/rfc8259.txt
         languages::absent(AbsenceCause::NoSuchConstruct)
     }
 

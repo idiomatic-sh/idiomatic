@@ -182,7 +182,9 @@ impl Parse for ParseContract {
     }
 
     fn indent_region(&self) -> Support<Reader<languages::IndentRegion, ()>> {
-        // Lexical INDENT/DEDENT tokens define this relation, not visual whitespace alone.
+        // standard: TypeScript 5.9.3 reference compiler scanner, scan(): horizontal
+        // whitespace and newlines are trivia, with no lexical INDENT/DEDENT suite tokens.
+        // https://github.com/microsoft/TypeScript/blob/v5.9.3/src/compiler/scanner.ts
         languages::absent(AbsenceCause::NoSuchConstruct)
     }
 

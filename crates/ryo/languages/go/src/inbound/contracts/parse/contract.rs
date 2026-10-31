@@ -121,7 +121,9 @@ impl Parse for ParseContract {
     }
 
     fn indent_region(&self) -> Support<Reader<languages::IndentRegion, ()>> {
-        // Lexical INDENT/DEDENT tokens define this relation, not visual whitespace alone.
+        // standard: Go Specification, Tokens and Blocks: whitespace separates tokens and
+        // newlines can insert semicolons; blocks are brace-delimited, not INDENT/DEDENT regions.
+        // https://go.dev/ref/spec#Tokens
         languages::absent(AbsenceCause::NoSuchConstruct)
     }
 
