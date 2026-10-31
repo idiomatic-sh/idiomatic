@@ -58,7 +58,12 @@ fn path_of(root: &ProductRoot, name: &HookName) -> Result<PathBuf, HooksError> {
     hook.push(SEPARATOR);
     hook.push_str(&name.0);
     let answer = printed(Command::new(GIT).args(GIT_PATH).arg(hook), root)?;
-    Ok(Path::new(&*root.0).join(&*answer.0))
+    // Joined by `/` on every platform when git answers a path from the product, so the hook is named the same way everywhere;
+    // an absolute answer (a hooks directory set elsewhere) is the hook's place as it is.
+    if Path::new(&*answer.0).is_absolute() {
+        return Ok(PathBuf::from(&*answer.0));
+    }
+    Ok(PathBuf::from(format!("{}{SEPARATOR}{}", root.0, answer.0)))
 }
 
 /// Makes the script at `path` executable.

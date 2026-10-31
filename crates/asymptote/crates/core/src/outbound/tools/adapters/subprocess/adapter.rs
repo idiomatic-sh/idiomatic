@@ -87,7 +87,7 @@ impl ToolsPort for ToolsSubprocessAdapter {
         let status = loop {
             match child.try_wait() {
                 Ok(Some(status)) => break Some(status),
-                Ok(None) => {}
+                Ok(None) => self.connection.end_if_stopping(child.as_mut()),
                 Err(error) => {
                     self.connection.ended(group);
                     return unstartable(error);

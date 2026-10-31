@@ -87,7 +87,7 @@ fn stopped() -> bool {
     }
     connection.stop();
     let ended = ran.join().expect("the run ends");
-    // Windows has no signals: a tree `taskkill` ended exits with a failing code.
+    // Windows has no signals: a job the run ended exits with a failing code.
     let killed = if cfg!(unix) {
         ended.ending == Ending::Signalled
     } else {

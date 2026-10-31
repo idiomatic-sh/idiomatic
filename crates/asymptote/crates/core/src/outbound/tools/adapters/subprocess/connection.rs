@@ -2,10 +2,9 @@
 //! edge can stop them all when a signal ends the command.
 
 use std::collections::BTreeSet;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, PoisonError};
 
-#[cfg(windows)]
-use super::constants::{TASKKILL, TASKKILL_TREE};
 use crate::outbound::tools::types::GroupId;
 
 /// The running tools' process groups, shared by the adapters bound to it and the edge that opened it.
@@ -13,6 +12,8 @@ use crate::outbound::tools::types::GroupId;
 pub struct ToolsConnection {
     /// The groups of the tools running now.
     running: Arc<Mutex<BTreeSet<GroupId>>>,
+    /// Whether the command is stopping: a run looking at its child ends it.
+    stopped: Arc<AtomicBool>,
 }
 
 impl ToolsConnection {
@@ -35,6 +36,7 @@ impl ToolsConnection {
     /// Kills every tool running now, with everything in its process group.
     #[cfg(unix)]
     pub fn stop(&self) {
+        self.stopped.store(true, Ordering::SeqCst);
         for group in self.groups().iter() {
             if let Ok(group) = i32::try_from(group.0) {
                 // Best effort: a group that already ended cannot be killed.
@@ -47,21 +49,18 @@ impl ToolsConnection {
         }
     }
 
-    /// Kills every tool running now, with every process it started: Windows has no process groups, so each tool's
-    /// tree is ended by `taskkill`, as the job object would end it when the command exits.
+    /// Ends every tool running now and any started after, with every process each started: Windows has no process groups,
+    /// so each tool's run, which holds its job object, ends the job when it next looks at its child.
     #[cfg(windows)]
     pub fn stop(&self) {
-        for group in self.groups().iter() {
-            // Best effort: a tree that already ended cannot be killed.
-            drop(
-                std::process::Command::new(TASKKILL)
-                    .args(TASKKILL_TREE)
-                    .arg(group.0.to_string())
-                    .stdin(std::process::Stdio::null())
-                    .stdout(std::process::Stdio::null())
-                    .stderr(std::process::Stdio::null())
-                    .status(),
-            );
+        self.stopped.store(true, Ordering::SeqCst);
+    }
+
+    /// Ends `child`, with everything it started (its group, or on Windows its job), when the command is stopping.
+    pub(super) fn end_if_stopping(&self, child: &mut dyn process_wrap::std::ChildWrapper) {
+        if self.stopped.load(Ordering::SeqCst) {
+            // Best effort: a tool that already ended cannot be ended.
+            drop(child.start_kill());
         }
     }
 

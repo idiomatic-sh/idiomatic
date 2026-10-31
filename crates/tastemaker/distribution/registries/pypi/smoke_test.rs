@@ -77,7 +77,7 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
         .args(["venv", "--python", PYTHON])
         .arg(&environment))?;
     let scripts = environment.join(if cfg!(windows) { "Scripts" } else { "bin" });
-    let python = scripts.join("python");
+    let python = scripts.join(["python", std::env::consts::EXE_SUFFIX].concat());
     run(Command::new("uv")
         .args(["pip", "install", "--no-index", "--no-deps", "--python"])
         .arg(&python)

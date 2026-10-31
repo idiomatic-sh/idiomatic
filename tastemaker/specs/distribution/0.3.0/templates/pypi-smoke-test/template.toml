@@ -68,7 +68,7 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
     let environment = directory.join("environment");
     run(Command::new("uv").args(["venv", "--python", PYTHON]).arg(&environment))?;
     let scripts = environment.join(if cfg!(windows) { "Scripts" } else { "bin" });
-    let python = scripts.join("python");
+    let python = scripts.join(["python", std::env::consts::EXE_SUFFIX].concat());
     run(Command::new("uv")
         .args(["pip", "install", "--no-index", "--no-deps", "--python"])
         .arg(&python)
@@ -225,7 +225,7 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
     let environment = directory.join("environment");
     run(Command::new(PYTHON).args(["-m", "venv"]).arg(&environment))?;
     let scripts = environment.join(if cfg!(windows) { "Scripts" } else { "bin" });
-    let python = scripts.join("python");
+    let python = scripts.join(["python", std::env::consts::EXE_SUFFIX].concat());
     run(Command::new(&python)
         .args(["-m", "pip", "install", "--no-index", "--no-deps"])
         .arg(&wheel))?;
@@ -382,7 +382,7 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
     let environment = directory.join("environment");
     run(Command::new(PYTHON).args(["-m", "venv"]).arg(&environment))?;
     let scripts = environment.join(if cfg!(windows) { "Scripts" } else { "bin" });
-    let python = scripts.join("python");
+    let python = scripts.join(["python", std::env::consts::EXE_SUFFIX].concat());
     run(Command::new(&python)
         .args(["-m", "pip", "install", "--no-index", "--no-deps"])
         .arg(&wheel))?;
@@ -482,7 +482,7 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
     let environment = directory.join("environment");
     run(Command::new(PYTHON).args(["-m", "venv"]).arg(&environment))?;
     let scripts = environment.join(if cfg!(windows) { "Scripts" } else { "bin" });
-    let python = scripts.join("python");
+    let python = scripts.join(["python", std::env::consts::EXE_SUFFIX].concat());
     run(Command::new(&python)
         .args(["-m", "pip", "install", "--no-index", "--no-deps"])
         .arg(&wheel))?;

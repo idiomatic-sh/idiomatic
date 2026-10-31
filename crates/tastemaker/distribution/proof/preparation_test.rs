@@ -239,8 +239,18 @@ fn bind(isolated: &Path, destination: &Path) -> std::io::Result<()> {
     std::os::unix::fs::symlink(isolated, destination)
 }
 
+/// Binds `destination` to the isolated copy of an external dependency, as a symbolic link to a directory or a file.
+#[cfg(windows)]
+fn bind(isolated: &Path, destination: &Path) -> std::io::Result<()> {
+    if isolated.is_dir() {
+        std::os::windows::fs::symlink_dir(isolated, destination)
+    } else {
+        std::os::windows::fs::symlink_file(isolated, destination)
+    }
+}
+
 /// A file system without symbolic links cannot bind an external dependency.
-#[cfg(not(unix))]
+#[cfg(not(any(unix, windows)))]
 fn bind(_isolated: &Path, _destination: &Path) -> std::io::Result<()> {
     Err(std::io::Error::other(
         "external directory bindings require symlink support",

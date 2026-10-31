@@ -161,7 +161,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Fails,
         input: || Question::Unwritable,
         expect: Expect::Refusal(|error| {
-            if matches!(error, LockError::Unwritable {path,reason} if path.contains("/.asymptote/") && !reason.is_empty())
+            if matches!(error, LockError::Unwritable {path,reason} if std::path::Path::new(path).components().any(|part| part.as_os_str() == ".asymptote") && !reason.is_empty())
             {
                 crate::cases::Selection::Matches
             } else {
