@@ -91,6 +91,29 @@ fn subject(input: Input) -> Result<Value, Failure> {
 
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
+        name: CaseName("adjacent_large_integer_orders_remain_distinct"),
+        word: Word::Succeeds,
+        input: || Input {
+            left: &[(1, 9_007_199_254_740_992), (1, 9_007_199_254_740_993)],
+            right: &[(1, 9_007_199_254_740_993), (1, 9_007_199_254_740_994)],
+            expected: &[
+                (9_007_199_254_740_992, 9_007_199_254_740_993),
+                (9_007_199_254_740_993, 9_007_199_254_740_994),
+            ],
+        },
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("full_signed_integer_order_domain"),
+        word: Word::Succeeds,
+        input: || Input {
+            left: &[(1, i64::MIN)],
+            right: &[(1, i64::MAX)],
+            expected: &[(i64::MIN, i64::MAX)],
+        },
+        expect: Expect::Value(true),
+    },
+    Case {
         name: CaseName("two_requests_two_replies"),
         word: Word::Succeeds,
         input: || Input {
