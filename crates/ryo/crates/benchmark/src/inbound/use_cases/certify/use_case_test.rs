@@ -68,12 +68,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 #[test]
-#[cfg(unix)]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
 }
 #[test]
-#[cfg(unix)]
 fn refuses() {
     run(CASES, Word::Refuses, subject);
 }

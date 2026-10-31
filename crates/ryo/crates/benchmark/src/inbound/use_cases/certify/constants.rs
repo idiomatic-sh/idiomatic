@@ -26,10 +26,19 @@ pub(super) const FIXTURE_PROFILE_DIRECTORY: &str = "profile";
 pub(super) const FIXTURE_RULE_DIRECTORY_NAME: &str = "rules";
 #[cfg(any(test, feature = "fixtures"))]
 /// Independent certification fixture tool file.
+#[cfg(not(windows))]
 pub(super) const FIXTURE_TOOL_FILE: &str = "tool";
+/// Windows command scripts require their explicit extension for native process launch.
+#[cfg(all(windows, any(test, feature = "fixtures")))]
+pub(super) const FIXTURE_TOOL_FILE: &str = "tool.cmd";
 #[cfg(any(test, feature = "fixtures"))]
 /// Independent certification fixture tool script.
+#[cfg(not(windows))]
 pub(super) const FIXTURE_TOOL_SCRIPT: &str = "#!/bin/sh\necho fixture 1\n";
+/// Fixed Windows fixture with no argument interpolation; verification supplies only `--version`.
+/// `std::process::Command` launches `.cmd` files through the platform command processor.
+#[cfg(all(windows, any(test, feature = "fixtures")))]
+pub(super) const FIXTURE_TOOL_SCRIPT: &str = "@echo fixture 1\r\n";
 #[cfg(any(test, feature = "fixtures"))]
 /// Independent certification fixture profile file.
 pub(super) const FIXTURE_PROFILE_FILE: &str = "benchmark.toml";

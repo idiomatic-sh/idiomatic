@@ -1,5 +1,5 @@
 //! Receive, engine and response failures stop the pipeline at the failed boundary.
-use super::{interface::RunRyoUseCase, use_case::RunRyoUseCaseImpl};
+use super::{interface::RunRyoUseCase as _, use_case::RunRyoUseCaseImpl};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::{
     diagnostics::{errors::DiagnosticsError as Error, types::RunReport},
@@ -89,13 +89,13 @@ struct Engine {
     refuses: bool,
 }
 impl EnginePort for Engine {
-    fn run(&self, given: WorkerRequest) -> Result<RunReport, Error> {
+    fn run(&self, request: WorkerRequest) -> Result<RunReport, Error> {
         let _previous = self.calls.fetch_add(1, Ordering::SeqCst);
         if self.refuses {
             return Err(Error::Invalid("fixture engine failure".into()));
         }
         Ok(RunReport {
-            files: given.files,
+            files: request.files,
             diagnostics: Vec::new(),
         })
     }
@@ -109,7 +109,11 @@ fn subject(stage: Input) -> Result<Value, Failure> {
         calls: AtomicUsize::new(0),
         refuses: matches!(stage, Stage::Engine),
     });
-    let result = RunRyoUseCaseImpl::new(engine.clone(), transport.clone()).run_ryo();
+    let result = RunRyoUseCaseImpl::new(
+        Arc::<Engine>::clone(&engine),
+        Arc::<WorkerFake>::clone(&transport),
+    )
+    .run_ryo();
     let trace = Trace {
         received: transport.receive_calls(),
         evaluated: engine.calls.load(Ordering::SeqCst),
@@ -126,7 +130,7 @@ fn subject(stage: Input) -> Result<Value, Failure> {
         Error::Io(error) if error.kind() == std::io::ErrorKind::BrokenPipe => {
             Refusal::Respond(trace)
         }
-        _ => Refusal::Unexpected,
+        Error::Invalid(_) | Error::Io(_) | Error::Json(_) | Error::Toml(_) => Refusal::Unexpected,
     })
 }
 #[test]

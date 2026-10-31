@@ -2,13 +2,17 @@
 use super::value::Certificate;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::suite::types::{RunRequest, audit::value::Audit};
-use crate::outbound::linter::{fixtures::fake::LinterFake, interface::LinterPort};
+use crate::outbound::linter::{fixtures::fake::LinterFake, interface::LinterPort as _};
 const CASES: &[Case<(), (bool, usize), ()>] = &[Case {
     name: CaseName("evidence exposes only its content identity and verified count"),
     word: Word::Succeeds,
     input: || (),
     expect: Expect::Value((true, 2)),
 }];
+#[expect(
+    clippy::unnecessary_wraps,
+    reason = "the shared case runner compares subjects through a uniform Result contract"
+)]
 fn subject(_: ()) -> Result<(bool, usize), ()> {
     let request = RunRequest {
         root: ".".into(),

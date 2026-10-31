@@ -1,10 +1,10 @@
 //! Minimal process composition; contestant clocks start inside the direct observer.
 use ryo_benchmark::{
-    inbound::use_cases::collect::{interface::CollectUseCase, use_case::CollectUseCaseImpl},
+    inbound::use_cases::collect::{interface::CollectUseCase as _, use_case::CollectUseCaseImpl},
     outbound::{collection, execution},
 };
 use std::{
-    io::{Read, Write},
+    io::{Read as _, Write as _},
     sync::Arc,
 };
 fn main() -> Result<(), Box<dyn std::error::Error>> {

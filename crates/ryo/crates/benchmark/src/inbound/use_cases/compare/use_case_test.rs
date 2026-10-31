@@ -1,5 +1,5 @@
 //! Exact diagnostic multisets and submitted-file sets determine agreement.
-use super::{interface::CompareUseCase, use_case::CompareUseCaseImpl};
+use super::{interface::CompareUseCase as _, use_case::CompareUseCaseImpl};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::diagnostics::types::Difference;
 use crate::domain::diagnostics::types::RunReport;
@@ -35,6 +35,10 @@ fn missing_file() -> Input {
     candidate.files.clear();
     (reference, candidate)
 }
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "the shared case runner hands each independently constructed input to the subject by value"
+)]
 fn subject(input: Input) -> Result<Value, Failure> {
     CompareUseCaseImpl::new().compare(&input.0, &input.1)
 }

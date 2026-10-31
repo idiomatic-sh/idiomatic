@@ -1,5 +1,5 @@
 //! Invalid requests never launch; child failures are encoded rather than mistaken for codec failure.
-use super::{interface::CollectUseCase, use_case::CollectUseCaseImpl};
+use super::{interface::CollectUseCase as _, use_case::CollectUseCaseImpl};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::{
     diagnostics::errors::DiagnosticsError as Error,
@@ -9,7 +9,7 @@ use crate::domain::{
     },
 };
 use crate::outbound::{
-    collection::{self, interface::CollectionPort, types::CollectorMessage},
+    collection::{self, interface::CollectionPort as _, types::CollectorMessage},
     execution::interface::ExecutionPort,
 };
 use std::{
@@ -77,9 +77,9 @@ fn subject(operation: Input) -> Result<Value, Failure> {
     let codec = Arc::new(collection::fixtures::fake::CollectionFake::default());
     let calls = Arc::new(AtomicUsize::new(0));
     let collect = CollectUseCaseImpl::new(
-        codec.clone(),
+        Arc::<collection::fixtures::fake::CollectionFake>::clone(&codec),
         Arc::new(Execution {
-            calls: calls.clone(),
+            calls: Arc::clone(&calls),
             operation,
         }),
     );
@@ -90,10 +90,10 @@ fn subject(operation: Input) -> Result<Value, Failure> {
             .request(&Invocation {
                 executable: "fixture".into(),
                 arguments: Vec::new(),
-                environment: Default::default(),
+                environment: std::collections::BTreeMap::default(),
                 directory: "/tmp".into(),
             })
-            .map_err(|_| ())?
+            .map_err(|_error| ())?
     };
     let response = collect.collect(&request);
     if matches!(operation, Operation::Malformed) {
@@ -103,14 +103,14 @@ fn subject(operation: Input) -> Result<Value, Failure> {
         );
     }
     let decoded = codec
-        .observation(&response.map_err(|_| ())?)
-        .map_err(|_| ())?;
+        .observation(&response.map_err(|_error| ())?)
+        .map_err(|_error| ())?;
     let expected = match operation {
         Operation::Success => {
-            matches!(decoded,Ok(output) if output.status.0==126 && output.stdout.0==[255] && matches!(output.resources,ResourceObservation::Collected(Resources{peak_rss_bytes:ResidentBytes(12345),..})))
+            matches!(decoded,Ok(output) if output.status.0==126_i32 && output.stdout.0==[255_u8] && matches!(output.resources,ResourceObservation::Collected(Resources{peak_rss_bytes:ResidentBytes(12345),..})))
         }
         Operation::LaunchFailure => {
-            matches!(decoded,Err(Error::Io(error)) if error.raw_os_error()==Some(2))
+            matches!(decoded,Err(Error::Io(error)) if error.raw_os_error()==Some(2_i32))
         }
         Operation::Malformed => false,
     };

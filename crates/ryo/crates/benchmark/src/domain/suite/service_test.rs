@@ -40,6 +40,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Error(Failure::Empty),
     },
 ];
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "the shared case runner hands each independently constructed input to the subject by value"
+)]
 fn subject(input: Input) -> Result<Value, Failure> {
     require_complete(&input).map_err(|error| match error {
         Error::Invalid(message)
@@ -50,7 +54,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
         Error::Invalid(message) if message == "empty audit is not default coverage" => {
             Failure::Empty
         }
-        _ => Failure::Unexpected,
+        Error::Invalid(_) | Error::Io(_) | Error::Json(_) | Error::Toml(_) => Failure::Unexpected,
     })
 }
 #[test]

@@ -94,7 +94,9 @@ fn subject((complete, differs, order): Input) -> Result<Value, Failure> {
                 Error::Invalid(message) if message.starts_with("diagnostics differ:") => {
                     Failure::Difference
                 }
-                _ => Failure::Unexpected,
+                Error::Invalid(_) | Error::Io(_) | Error::Json(_) | Error::Toml(_) => {
+                    Failure::Unexpected
+                }
             }
         })?,
     );
@@ -107,7 +109,7 @@ fn subject((complete, differs, order): Input) -> Result<Value, Failure> {
             _ => Err(Failure::Unexpected),
         })
         .collect::<Result<_, _>>()?;
-    labels.try_into().map_err(|_| Failure::Unexpected)
+    labels.try_into().map_err(|_error| Failure::Unexpected)
 }
 #[test]
 fn succeeds() {

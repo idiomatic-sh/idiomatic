@@ -51,7 +51,9 @@ fn subject(scenario: Input) -> Result<serde_json::Value, Failure> {
             ),
             measurement: Measurement {
                 wall: Duration::from_millis(millis),
-                resources: if !matches!(scenario, Scenario::Absent) {
+                resources: if matches!(scenario, Scenario::Absent) {
+                    crate::domain::measurements::types::ResourceObservation::WallOnly
+                } else {
                     crate::domain::measurements::types::ResourceObservation::Collected(Resources {
                         cpu: Duration::from_millis(millis * 2),
                         peak_rss_bytes: crate::domain::measurements::types::ResidentBytes(
@@ -62,8 +64,6 @@ fn subject(scenario: Input) -> Result<serde_json::Value, Failure> {
                             },
                         ),
                     })
-                } else {
-                    crate::domain::measurements::types::ResourceObservation::WallOnly
                 },
                 report: RunReport {
                     diagnostics: Vec::new(),
@@ -93,9 +93,9 @@ fn subject(scenario: Input) -> Result<serde_json::Value, Failure> {
     })?;
     let actual: serde_json::Value = serde_json::from_slice(&bytes).expect("BMF JSON");
     let expected = serde_json::json!({ "project/ryo/empty-tool-cache": {
-        "wall-ms": { "value": 5.0, "lower_value": 2.0, "upper_value": 8.0 },
-        "cpu-ms": { "value": 10.0, "lower_value": 4.0, "upper_value": 16.0 },
-        "peak-rss-bytes": { "value": 5120.0, "lower_value": 2048.0, "upper_value": 8192.0 }
+        "wall-ms": { "value": 5.0_f64, "lower_value": 2.0_f64, "upper_value": 8.0_f64 },
+        "cpu-ms": { "value": 10.0_f64, "lower_value": 4.0_f64, "upper_value": 16.0_f64 },
+        "peak-rss-bytes": { "value": 5120.0_f64, "lower_value": 2048.0_f64, "upper_value": 8192.0_f64 }
     }});
     assert_eq!(actual, expected);
     Ok(serde_json::Value::Null)

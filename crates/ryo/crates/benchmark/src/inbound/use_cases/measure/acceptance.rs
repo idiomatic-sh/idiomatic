@@ -3,16 +3,21 @@ use cucumber::then;
 use ryo_benchmark::domain::suite::types::CaseCount;
 use ryo_benchmark::inbound::use_cases::certify::fixtures::{Change, exercise};
 use ryo_benchmark::inbound::use_cases::certify::use_case::CertifyUseCaseImpl;
+/// Assert that matching reports release a measured pair.
 #[then("matching reports release a measured pair")]
-fn matching(world: &mut crate::Behavior) {
-    let _ = world;
+fn matching(_world: &mut crate::Behavior) {
     assert_eq!(
         exercise(Change::None, CertifyUseCaseImpl::new),
-        Ok(CaseCount(2))
+        Ok(CaseCount(2)),
+        "both independent cases must be verified"
     );
 }
+/// Assert that changed certified workload releases no measured pair.
 #[then("changed certified workload releases no measured pair")]
-fn changed(world: &mut crate::Behavior) {
-    let _ = world;
-    assert_eq!(exercise(Change::Manifest, CertifyUseCaseImpl::new), Err(()));
+fn changed(_world: &mut crate::Behavior) {
+    assert_eq!(
+        exercise(Change::Manifest, CertifyUseCaseImpl::new),
+        Err(()),
+        "mutated certified artifacts must refuse measurement"
+    );
 }

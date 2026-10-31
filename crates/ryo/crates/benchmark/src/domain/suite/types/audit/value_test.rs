@@ -32,6 +32,10 @@ const CASES: &[Case<Vec<ryo::linter::RuleId>, usize, ()>] = &[
         expect: Expect::Error(()),
     },
 ];
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "the shared case runner hands each independently constructed input to the subject by value"
+)]
 fn subject(rules: Vec<ryo::linter::RuleId>) -> Result<usize, ()> {
     let audit = Audit {
         implemented: vec![ryo::linter::RuleId::try_from("A").unwrap()],
@@ -41,7 +45,7 @@ fn subject(rules: Vec<ryo::linter::RuleId>) -> Result<usize, ()> {
     audit
         .select(&rules)
         .map(|selected| selected.authored().len())
-        .map_err(|_| ())
+        .map_err(|_error| ())
 }
 #[test]
 fn succeeds() {

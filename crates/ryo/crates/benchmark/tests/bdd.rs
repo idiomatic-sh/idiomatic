@@ -17,6 +17,7 @@ mod certify;
 #[path = "../src/inbound/use_cases/collect/acceptance.rs"]
 mod collect;
 
+/// Stateless world: each acceptance step constructs independently owned boundaries.
 #[derive(Debug, Default, cucumber::World)]
 struct Behavior;
 
@@ -127,28 +128,28 @@ fn check(features: &[::std::path::PathBuf]) -> ::std::vec::Vec<usize> {
             ::std::assert!(expanded.is_ok(), "every outline expands");
             expanded
                 .iter()
-                .map(|feature| {
-                    let background = feature
+                .map(|expanded_feature| {
+                    let background = expanded_feature
                         .background
                         .as_ref()
                         .map_or(0, |background| background.steps.len());
-                    let direct: usize = feature
+                    let direct: usize = expanded_feature
                         .scenarios
                         .iter()
                         .map(|scenario| scenario.steps.len() + background)
                         .sum();
-                    let rules: usize = feature
+                    let rules: usize = expanded_feature
                         .rules
                         .iter()
                         .map(|rule| {
-                            let background = background
+                            let rule_background = background
                                 + rule
                                     .background
                                     .as_ref()
                                     .map_or(0, |background| background.steps.len());
                             rule.scenarios
                                 .iter()
-                                .map(|scenario| scenario.steps.len() + background)
+                                .map(|scenario| scenario.steps.len() + rule_background)
                                 .sum::<usize>()
                         })
                         .sum();

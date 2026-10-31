@@ -49,8 +49,12 @@ fn missing_file() -> Input {
     candidate.files.clear();
     (reference, candidate)
 }
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "the shared case runner hands each independently constructed input to the subject by value"
+)]
 fn subject(input: Input) -> Result<Value, Failure> {
-    compare(&input.0, &input.1).map_err(|_| ())
+    compare(&input.0, &input.1).map_err(|_error| ())
 }
 #[test]
 fn succeeds() {

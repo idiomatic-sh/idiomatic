@@ -103,7 +103,6 @@ impl crate::outbound::execution::interface::ExecutionPort for Observations {
         Ok(output)
     }
 }
-#[cfg(unix)]
 /// Execute the public certificate and measurement operations with a controlled mutation.
 ///
 /// # Errors
@@ -131,6 +130,7 @@ pub fn exercise(
         std::sync::Arc<dyn crate::outbound::execution::interface::ExecutionPort>,
     ) -> super::use_case::CertifyUseCaseImpl,
 ) -> Result<crate::domain::suite::types::CaseCount, ()> {
+    #[cfg(unix)]
     use std::os::unix::fs::PermissionsExt as _;
     let root = tempfile::tempdir().expect("certification fixture precondition");
     let directory = root
@@ -142,6 +142,7 @@ pub fn exercise(
     let executable = root.path().join(super::constants::FIXTURE_TOOL_FILE);
     let bytes = super::constants::FIXTURE_TOOL_SCRIPT.as_bytes();
     std::fs::write(&executable, bytes).expect("certification fixture precondition");
+    #[cfg(unix)]
     std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755))
         .expect("certification fixture precondition");
     std::fs::write(
@@ -335,20 +336,6 @@ pub fn exercise(
             Err(())
         }
     }
-}
-
-#[cfg(not(unix))]
-/// Signal that this executable fixture requires Unix process semantics.
-pub fn exercise(
-    _: Change,
-    _constructor: impl FnOnce(
-        std::sync::Arc<dyn crate::outbound::suite::interface::SuitePort>,
-        std::sync::Arc<dyn LinterPort>,
-        std::sync::Arc<dyn LinterPort>,
-        std::sync::Arc<dyn crate::outbound::execution::interface::ExecutionPort>,
-    ) -> super::use_case::CertifyUseCaseImpl,
-) -> Result<crate::domain::suite::types::CaseCount, ()> {
-    Err(())
 }
 
 /// Encode independent positive and negative case records.

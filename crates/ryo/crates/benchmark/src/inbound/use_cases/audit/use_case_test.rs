@@ -1,5 +1,5 @@
 //! The public audit operation preserves the suite boundary's inventory and refusals.
-use super::{interface::AuditUseCase, use_case::AuditUseCaseImpl};
+use super::{interface::AuditUseCase as _, use_case::AuditUseCaseImpl};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::suite::types::Tool;
 use crate::outbound::suite::fixtures::fake::SuiteFake;
@@ -36,8 +36,8 @@ fn subject(nonempty: Input) -> Result<Value, Failure> {
         } else {
             vec![]
         },
-        deferred: Default::default(),
-        pending: Default::default(),
+        deferred: std::collections::BTreeMap::default(),
+        pending: std::collections::BTreeMap::default(),
     };
     AuditUseCaseImpl::new(Arc::new(SuiteFake::default()))
         .audit(std::path::Path::new("."), &tool)
@@ -48,7 +48,10 @@ fn subject(nonempty: Input) -> Result<Value, Failure> {
             {
                 Refusal::InvalidInventory
             }
-            _ => Refusal::Unexpected,
+            crate::domain::diagnostics::errors::DiagnosticsError::Invalid(_)
+            | crate::domain::diagnostics::errors::DiagnosticsError::Io(_)
+            | crate::domain::diagnostics::errors::DiagnosticsError::Json(_)
+            | crate::domain::diagnostics::errors::DiagnosticsError::Toml(_) => Refusal::Unexpected,
         })
 }
 #[test]

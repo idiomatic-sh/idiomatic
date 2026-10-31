@@ -1,12 +1,21 @@
 //! Comparison acceptance proves multiset semantics through the public operation.
+#![expect(
+    clippy::expect_used,
+    reason = "acceptance assertions must fail the scenario on unexpected success or refusal"
+)]
 use cucumber::then;
 use ryo_benchmark::domain::diagnostics::types::{BenchmarkFinding, RunReport};
 use ryo_benchmark::inbound::use_cases::compare::{
-    interface::CompareUseCase, use_case::CompareUseCaseImpl,
+    interface::CompareUseCase as _, use_case::CompareUseCaseImpl,
 };
+/// Build the same two findings in opposite traversal orders.
 fn reports() -> (RunReport, RunReport) {
     let fixture = ryo_benchmark::outbound::worker::fixtures::data::report();
-    let mut first = fixture.diagnostics[0].clone();
+    let mut first = fixture
+        .diagnostics
+        .first()
+        .expect("fixture finding")
+        .clone();
     first.start = ryo_benchmark::domain::diagnostics::types::SourceByteOffset(0);
     first.end = ryo_benchmark::domain::diagnostics::types::SourceByteOffset(1);
     let second = BenchmarkFinding {
@@ -22,25 +31,33 @@ fn reports() -> (RunReport, RunReport) {
     candidate.diagnostics.reverse();
     (reference, candidate)
 }
+/// Assert that equivalent diagnostic multisets agree.
 #[then("equivalent diagnostic multisets agree")]
-fn equivalent(world: &mut crate::Behavior) {
-    let _ = world;
+fn equivalent(_world: &mut crate::Behavior) {
     let (reference, candidate) = reports();
     assert_eq!(
         CompareUseCaseImpl::new().compare(&reference, &candidate),
-        Ok(())
+        Ok(()),
+        "diagnostic order must not affect equality"
     );
 }
+/// Assert that an extra diagnostic occurrence prevents agreement.
 #[then("an extra diagnostic occurrence prevents agreement")]
-fn duplicate(world: &mut crate::Behavior) {
-    let _ = world;
+fn duplicate(_world: &mut crate::Behavior) {
     let (reference, mut candidate) = reports();
-    candidate.diagnostics.push(candidate.diagnostics[0].clone());
+    candidate.diagnostics.push(
+        candidate
+            .diagnostics
+            .first()
+            .expect("candidate finding")
+            .clone(),
+    );
     let difference = CompareUseCaseImpl::new()
         .compare(&reference, &candidate)
         .expect_err("duplicate occurrence");
     assert_eq!(
         (difference.reference.len(), difference.candidate.len()),
-        (2, 3)
+        (2, 3),
+        "duplicate occurrence must survive normalization"
     );
 }

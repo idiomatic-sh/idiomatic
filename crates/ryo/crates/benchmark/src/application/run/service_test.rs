@@ -82,36 +82,7 @@ fn subject(scenario: Scenario) -> Result<usize, &'static str> {
                 "input coverage"
             });
     }
-    let expected = BenchmarkFinding {
-        rule: ryo::linter::RuleId::try_from("E722").unwrap(),
-        file: ryo::linter::RelativePath("case.py".into()),
-        start: crate::domain::diagnostics::types::SourceByteOffset(0),
-        end: crate::domain::diagnostics::types::SourceByteOffset(6),
-    };
-    let mut suite = SuiteFake::default();
-    if !matches!(scenario, Scenario::NoCases) {
-        suite.prepared.push(PreparedCase {
-            rule: ryo::linter::RuleId::try_from("E722").unwrap(),
-            name: "positive".into(),
-            request: RunRequest {
-                root: ".".into(),
-                files: vec![ryo::linter::RelativePath("case.py".into())],
-                state: "cache".into(),
-            },
-            expected: RunReport {
-                files: vec![ryo::linter::RelativePath("case.py".into())],
-                diagnostics: vec![expected.clone()],
-            },
-        });
-    }
-    suite.profile = Some(crate::domain::suite::types::Tool {
-        tool: "fixture".into(),
-        version: "1".into(),
-        sha256: vec!["pin".into()],
-        defaults: vec!["E722".try_into().unwrap(), "F901".try_into().unwrap()],
-        deferred: Default::default(),
-        pending: Default::default(),
-    });
+    let (suite, expected) = prepared(scenario);
     let reference = LinterFake {
         diagnostics: if matches!(scenario, Scenario::MissingReference) {
             Vec::new()
@@ -161,6 +132,11 @@ fn subject(scenario: Scenario) -> Result<usize, &'static str> {
         assert_eq!(execution.history.lock().expect("history").len(), 1);
     } else if !matches!(scenario, Scenario::NoCases) {
         assert_eq!(execution.history.lock().expect("history").len(), 2);
+    } else {
+        assert!(
+            execution.history.lock().expect("history").is_empty(),
+            "no cases must launch no contestants"
+        );
     }
     result.map(|count| count.0).map_err(|error| {
         let message = error.to_string();
@@ -199,7 +175,7 @@ impl LinterPort for Empty {
         Ok(Invocation {
             executable: "unused".into(),
             arguments: vec![],
-            environment: Default::default(),
+            environment: std::collections::BTreeMap::default(),
             directory: request.root.clone(),
         })
     }
@@ -223,4 +199,39 @@ impl ExecutionPort for Empty {
             resources: crate::domain::measurements::types::ResourceObservation::WallOnly,
         })
     }
+}
+
+/// Construct authored evidence independently from either contestant response.
+fn prepared(scenario: Scenario) -> (SuiteFake, BenchmarkFinding) {
+    let expected = BenchmarkFinding {
+        rule: ryo::linter::RuleId::try_from("E722").unwrap(),
+        file: ryo::linter::RelativePath("case.py".into()),
+        start: crate::domain::diagnostics::types::SourceByteOffset(0),
+        end: crate::domain::diagnostics::types::SourceByteOffset(6),
+    };
+    let mut suite = SuiteFake::default();
+    if !matches!(scenario, Scenario::NoCases) {
+        suite.prepared.push(PreparedCase {
+            rule: ryo::linter::RuleId::try_from("E722").unwrap(),
+            name: "positive".into(),
+            request: RunRequest {
+                root: ".".into(),
+                files: vec![ryo::linter::RelativePath("case.py".into())],
+                state: "cache".into(),
+            },
+            expected: RunReport {
+                files: vec![ryo::linter::RelativePath("case.py".into())],
+                diagnostics: vec![expected.clone()],
+            },
+        });
+    }
+    suite.profile = Some(crate::domain::suite::types::Tool {
+        tool: "fixture".into(),
+        version: "1".into(),
+        sha256: vec!["pin".into()],
+        defaults: vec!["E722".try_into().unwrap(), "F901".try_into().unwrap()],
+        deferred: std::collections::BTreeMap::default(),
+        pending: std::collections::BTreeMap::default(),
+    });
+    (suite, expected)
 }

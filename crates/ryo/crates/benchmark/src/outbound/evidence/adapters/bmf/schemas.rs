@@ -94,7 +94,7 @@ pub(super) fn encode(samples: &[BenchmarkSample]) -> Result<Vec<u8>, Error> {
                 let lower_middle = lower
                     .last()
                     .ok_or_else(|| Error::Invalid(super::constants::EMPTY_METRIC.into()))?;
-                (lower_middle + upper_middle) / 2.0
+                (lower_middle + upper_middle) / 2.0_f64
             } else {
                 *upper_middle
             };
