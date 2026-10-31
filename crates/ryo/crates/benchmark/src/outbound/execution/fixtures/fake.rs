@@ -21,6 +21,9 @@ impl Default for ExecutionFake {
     }
 }
 impl ExecutionPort for ExecutionFake {
+    fn profile(&self) -> crate::domain::measurements::types::ExecutionProfile {
+        crate::domain::measurements::types::ExecutionProfile::Wall
+    }
     fn run(&self, invocation: Invocation) -> Result<ProcessOutput, Error> {
         if invocation
             .executable

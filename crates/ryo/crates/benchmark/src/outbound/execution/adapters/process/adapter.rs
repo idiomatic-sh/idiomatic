@@ -8,6 +8,9 @@ use std::time::Instant;
 #[derive(Debug)]
 pub(crate) struct ExecutionProcessAdapter;
 impl ExecutionPort for ExecutionProcessAdapter {
+    fn profile(&self) -> crate::domain::measurements::types::ExecutionProfile {
+        crate::domain::measurements::types::ExecutionProfile::Wall
+    }
     fn run(&self, invocation: Invocation) -> Result<ProcessOutput, Error> {
         let start = Instant::now();
         let output = Command::new(invocation.executable)

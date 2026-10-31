@@ -47,6 +47,11 @@ pub(super) fn measure_certified(
     request: &RunRequest,
     order: RunOrder,
 ) -> Result<Pair, Error> {
+    if execution.profile() != certificate.execution {
+        return Err(Error::Invalid(
+            super::constants::CHANGED_INSTRUMENTATION.into(),
+        ));
+    }
     if suite.fingerprint(crate::outbound::suite::types::ArtifactSet(
         &certificate.paths,
     ))? != certificate.fingerprint
@@ -82,6 +87,11 @@ pub(super) fn measure_certified(
         request,
         order,
     )?;
+    if execution.profile() != certificate.execution {
+        return Err(Error::Invalid(
+            super::constants::CHANGED_INSTRUMENTATION.into(),
+        ));
+    }
     if suite.fingerprint(crate::outbound::suite::types::ArtifactSet(
         &certificate.paths,
     ))? != certificate.fingerprint

@@ -7,6 +7,24 @@ type Value = crate::domain::suite::types::CaseCount;
 type Failure = ();
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
+        name: CaseName("execution mode mismatch refuses before launch"),
+        word: Word::Refuses,
+        input: || Change::Instrumentation,
+        expect: Expect::Error(()),
+    },
+    Case {
+        name: CaseName("collector pin mismatch refuses before launch"),
+        word: Word::Refuses,
+        input: || Change::CollectorPin,
+        expect: Expect::Error(()),
+    },
+    Case {
+        name: CaseName("collector path mismatch refuses before launch"),
+        word: Word::Refuses,
+        input: || Change::CollectorPath,
+        expect: Expect::Error(()),
+    },
+    Case {
         name: CaseName("unchanged certified workload measures"),
         word: Word::Succeeds,
         input: || Change::None,

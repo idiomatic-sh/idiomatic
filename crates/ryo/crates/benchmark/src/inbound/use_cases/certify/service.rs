@@ -46,13 +46,19 @@ pub(super) fn certify(
         reference_executable.to_owned(),
         candidate_executable.to_owned(),
     ];
-    let paths = vec![
+    let execution_profile = execution.profile();
+    let mut paths = vec![
         directory.to_owned(),
         workload.to_owned(),
         selected_rules.to_owned(),
         contestants[0].clone(),
         contestants[1].clone(),
     ];
+    if let crate::domain::measurements::types::ExecutionProfile::Isolated(collector) =
+        &execution_profile
+    {
+        paths.push(collector.executable.clone());
+    }
     let before = suite.fingerprint(crate::outbound::suite::types::ArtifactSet(&paths))?;
     let probe = crate::domain::suite::types::RunRequest {
         root: directory.to_owned(),
@@ -71,7 +77,7 @@ pub(super) fn certify(
         scratch,
     )?;
     let after = suite.fingerprint(crate::outbound::suite::types::ArtifactSet(&paths))?;
-    if before != after {
+    if before != after || execution.profile() != execution_profile {
         return Err(Error::Invalid(super::constants::CHANGED_EVIDENCE.into()));
     }
     Ok(Certificate {
@@ -84,6 +90,7 @@ pub(super) fn certify(
         contestants,
         probe,
         profiles,
+        execution: execution_profile,
         cases,
     })
 }

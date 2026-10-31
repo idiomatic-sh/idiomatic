@@ -166,6 +166,9 @@ impl LinterPort for Empty {
     }
 }
 impl ExecutionPort for Empty {
+    fn profile(&self) -> crate::domain::measurements::types::ExecutionProfile {
+        crate::domain::measurements::types::ExecutionProfile::Wall
+    }
     fn run(&self, _: Invocation) -> Result<ProcessOutput, Error> {
         Ok(ProcessOutput {
             status: crate::domain::measurements::types::ProcessExitCode(0),

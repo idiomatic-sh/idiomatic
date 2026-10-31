@@ -21,6 +21,15 @@ impl ExecutionTimedAdapter {
     }
 }
 impl ExecutionPort for ExecutionTimedAdapter {
+    fn profile(&self) -> crate::domain::measurements::types::ExecutionProfile {
+        use crate::domain::measurements::types::{
+            CollectorDigest, CollectorProfile, ExecutionProfile,
+        };
+        ExecutionProfile::Isolated(CollectorProfile {
+            executable: self.settings.executable.clone(),
+            digest: CollectorDigest(self.settings.digest.0.clone()),
+        })
+    }
     fn run(&self, invocation: Invocation) -> Result<ProcessOutput, Error> {
         let bytes = std::fs::read(&self.settings.executable)?;
         if format!("{:x}", Sha256::digest(&bytes)) != self.settings.digest.0 {

@@ -117,6 +117,7 @@ pub(crate) fn run(
             )?;
             let collector_settings =
                 commands::collector(suite_source.as_ref(), &collector_path, &frozen_workload)?;
+            let execution = commands::timed(collector_settings, observations)?;
             let selected_rules = selected_profile.join(constants::RULES_DIRECTORY);
             let candidate_executable = selected_scratch.join(constants::CANDIDATE_EXECUTABLE);
             let _bytes = std::fs::copy(std::env::current_exe()?, &candidate_executable)?;
@@ -155,7 +156,6 @@ pub(crate) fn run(
             if suite.language.0 != constants::PYTHON || !(2..=3).contains(&suite.projects.len()) {
                 return Err(Error::Invalid(constants::PROJECT_COUNT_ERROR.into()));
             }
-            let execution = commands::timed(collector_settings, observations)?;
             let measurements = MeasureUseCaseImpl::new(
                 reference.clone(),
                 candidate.clone(),

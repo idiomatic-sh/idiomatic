@@ -53,6 +53,9 @@ struct Execution {
     operation: Operation,
 }
 impl ExecutionPort for Execution {
+    fn profile(&self) -> crate::domain::measurements::types::ExecutionProfile {
+        crate::domain::measurements::types::ExecutionProfile::Wall
+    }
     fn run(&self, _: Invocation) -> Result<ProcessOutput, Error> {
         let _before = self.calls.fetch_add(1, Ordering::SeqCst);
         if matches!(self.operation, Operation::LaunchFailure) {

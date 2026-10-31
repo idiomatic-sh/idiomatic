@@ -152,6 +152,7 @@ fn missing() -> Invocation {
 /// Panics when fixture setup fails or the implementation violates a contract observation.
 pub fn check(adapter: &impl ExecutionPort) {
     let subject = |input| {
+        let profile = adapter.profile();
         let temporary = tempfile::tempdir().expect("isolated permission fixture");
         let mut call = invocation();
         let large = matches!(input, Operation::LargeStreams);
@@ -210,6 +211,23 @@ pub fn check(adapter: &impl ExecutionPort) {
         adapter
             .run(call)
             .map(|output| {
+                use crate::domain::measurements::types::{ExecutionProfile, ResourceObservation};
+                assert_eq!(
+                    adapter.profile(),
+                    profile,
+                    "execution profile must remain immutable"
+                );
+                assert!(
+                    matches!(
+                        (&profile, output.resources),
+                        (ExecutionProfile::Wall, ResourceObservation::WallOnly)
+                            | (
+                                ExecutionProfile::Direct | ExecutionProfile::Isolated(_),
+                                ResourceObservation::Collected(_)
+                            )
+                    ),
+                    "resource observations must match the declared execution mode"
+                );
                 (
                     output.status.0,
                     if large {

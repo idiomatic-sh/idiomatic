@@ -15,6 +15,7 @@ pub struct Certificate {
     pub(crate) contestants: [PathBuf; 2],
     pub(crate) probe: RunRequest,
     pub(crate) profiles: [crate::domain::measurements::types::Invocation; 2],
+    pub(crate) execution: crate::domain::measurements::types::ExecutionProfile,
     pub(crate) cases: crate::domain::suite::types::CaseCount,
 }
 

@@ -11,6 +11,9 @@ use crate::outbound::execution::interface::ExecutionPort;
 #[derive(Debug)]
 pub(crate) struct ExecutionDirectAdapter;
 impl ExecutionPort for ExecutionDirectAdapter {
+    fn profile(&self) -> crate::domain::measurements::types::ExecutionProfile {
+        crate::domain::measurements::types::ExecutionProfile::Direct
+    }
     #[cfg(target_os = "linux")]
     fn run(&self, invocation: Invocation) -> Result<ProcessOutput, Error> {
         use std::io::Read;

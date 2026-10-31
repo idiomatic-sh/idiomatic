@@ -21,6 +21,12 @@ pub enum Change {
     Manifest,
     /// Change the resource collector sealed inside the workload.
     Collector,
+    /// Change the collection mode without changing any certified file.
+    Instrumentation,
+    /// Change the collector's configured pin without changing its bytes.
+    CollectorPin,
+    /// Change the collector's configured path without changing its original bytes.
+    CollectorPath,
     /// Change the authored query bytes.
     Query,
     /// Change the contestant executable bytes.
@@ -62,12 +68,26 @@ impl LinterPort for Contestant {
         })
     }
 }
-#[derive(Debug, Default)]
-struct Observations(crate::outbound::execution::fixtures::fake::ExecutionFake);
+#[derive(Debug)]
+struct Observations(
+    crate::outbound::execution::fixtures::fake::ExecutionFake,
+    std::sync::Mutex<crate::domain::measurements::types::ExecutionProfile>,
+);
 impl crate::outbound::execution::interface::ExecutionPort for Observations {
+    fn profile(&self) -> crate::domain::measurements::types::ExecutionProfile {
+        self.1.lock().unwrap().clone()
+    }
     fn run(&self, mut invocation: Invocation) -> Result<ProcessOutput, Error> {
         invocation.executable = super::constants::FIXTURE_FAKE_PROGRAM.into();
-        crate::outbound::execution::interface::ExecutionPort::run(&self.0, invocation)
+        let mut output =
+            crate::outbound::execution::interface::ExecutionPort::run(&self.0, invocation)?;
+        output.resources = crate::domain::measurements::types::ResourceObservation::Collected(
+            crate::domain::measurements::types::Resources {
+                cpu: std::time::Duration::from_millis(1),
+                peak_rss_bytes: crate::domain::measurements::types::ResidentBytes(4096),
+            },
+        );
+        Ok(output)
     }
 }
 #[cfg(unix)]
@@ -143,6 +163,17 @@ pub fn exercise(
             status: 0,
             ..Default::default()
         },
+        std::sync::Mutex::new(
+            crate::domain::measurements::types::ExecutionProfile::Isolated(
+                crate::domain::measurements::types::CollectorProfile {
+                    executable: workload.join(super::constants::FIXTURE_COLLECTOR_FILE),
+                    digest: crate::domain::measurements::types::CollectorDigest(format!(
+                        "{:x}",
+                        Sha256::digest(super::constants::FIXTURE_TOOL_SCRIPT.as_bytes())
+                    )),
+                },
+            ),
+        ),
     ));
     let operation = constructor(
         suite.clone(),
@@ -181,6 +212,23 @@ pub fn exercise(
         Change::Patch => Some(workload.join(super::constants::FIXTURE_PATCH_FILE)),
         Change::Manifest => Some(workload.join(super::constants::FIXTURE_PROFILE_FILE)),
         Change::Collector => Some(workload.join(super::constants::FIXTURE_COLLECTOR_FILE)),
+        Change::Instrumentation => {
+            *execution.1.lock().unwrap() =
+                crate::domain::measurements::types::ExecutionProfile::Wall;
+            None
+        }
+        Change::CollectorPin | Change::CollectorPath => {
+            if let crate::domain::measurements::types::ExecutionProfile::Isolated(profile) =
+                &mut *execution.1.lock().unwrap()
+            {
+                if matches!(change, Change::CollectorPin) {
+                    profile.digest.0 = super::constants::FIXTURE_ALTERED_BYTES.into();
+                } else {
+                    profile.executable = super::constants::FIXTURE_ALTERED_BYTES.into();
+                }
+            }
+            None
+        }
         Change::Query => Some(rules.join(super::constants::FIXTURE_QUERY_FILE)),
         Change::Executable => Some(executable),
         Change::Command => {
@@ -217,6 +265,9 @@ pub fn exercise(
             );
             let expected = match change {
                 Change::Command => super::constants::FIXTURE_EXPECTED_COMMAND_REFUSAL,
+                Change::Instrumentation | Change::CollectorPin | Change::CollectorPath => {
+                    super::constants::FIXTURE_EXPECTED_INSTRUMENTATION_REFUSAL
+                }
                 _ => super::constants::FIXTURE_EXPECTED_ARTIFACT_REFUSAL,
             };
             assert_eq!(error.to_string(), expected);

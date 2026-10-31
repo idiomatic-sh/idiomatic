@@ -26,6 +26,7 @@ fn subject(_: ()) -> Result<(bool, usize), ()> {
         contestants: ["first".into(), "second".into()],
         probe: request,
         profiles: [profile.clone(), profile],
+        execution: crate::domain::measurements::types::ExecutionProfile::Wall,
         cases: crate::domain::suite::types::CaseCount(2),
     };
     Ok((

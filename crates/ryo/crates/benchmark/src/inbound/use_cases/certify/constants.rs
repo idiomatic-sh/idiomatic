@@ -55,6 +55,9 @@ pub(super) const FIXTURE_NO_EARLY_EXECUTION: &str = "refusal must precede proces
 pub(super) const FIXTURE_EXPECTED_COMMAND_REFUSAL: &str =
     "contestant command profile differs from case certification";
 #[cfg(any(test, feature = "fixtures"))]
+pub(super) const FIXTURE_EXPECTED_INSTRUMENTATION_REFUSAL: &str =
+    "execution profile differs from case certification";
+#[cfg(any(test, feature = "fixtures"))]
 pub(super) const FIXTURE_EXPECTED_ARTIFACT_REFUSAL: &str =
     "certified profile, rules, cases or executable changed";
 #[cfg(any(test, feature = "fixtures"))]

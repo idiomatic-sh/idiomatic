@@ -91,3 +91,27 @@ pub enum ResourceObservation {
     /// CPU and peak memory came from the owned child process.
     Collected(Resources),
 }
+
+/// Exact execution mode and instrumentation configuration bound by certification.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ExecutionProfile {
+    /// Portable process execution records elapsed wall time only.
+    Wall,
+    /// Native resource collection in the spawning process.
+    Direct,
+    /// A separately executed, pinned collector owns contestant launch.
+    Isolated(CollectorProfile),
+}
+
+/// Identity of the collector executable and its exact byte pin.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CollectorProfile {
+    /// Actual collector program passed to process spawning.
+    pub executable: PathBuf,
+    /// Unframed SHA256 of that program's bytes.
+    pub digest: CollectorDigest,
+}
+
+/// Raw SHA256 identifying an instrumentation executable.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CollectorDigest(pub String);
