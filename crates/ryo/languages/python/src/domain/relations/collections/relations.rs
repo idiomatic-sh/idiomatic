@@ -51,3 +51,6 @@ pub(crate) mod binding_use;
 
 /// Generic static binding analysis.
 pub(crate) mod binding_shadow;
+
+/// Optional builtin inventory independent of Name expressions.
+pub(crate) mod implicit_symbol;

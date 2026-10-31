@@ -74,6 +74,8 @@ pub(crate) struct Event {
 /// Semantic events, excluding the scheduler's branch/phase control markers.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum EventKind {
+    /// A namespace-wide import supplies no single declaration name.
+    Wildcard,
     /// Read a name.
     Read,
     /// Introduce a concrete declaration identity.

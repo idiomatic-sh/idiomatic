@@ -62,3 +62,6 @@ pub mod binding_use;
 
 /// Optional static binding analysis.
 pub mod binding_shadow;
+
+/// Optional occurrence-independent language builtin catalog.
+pub mod implicit_symbol;

@@ -2,7 +2,7 @@
 use super::super::fixtures::contract::check;
 use super::item::BindingEventItem;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::fixtures::reading::reading;
+use crate::fixtures::reading::proposed;
 use ryo::languages::contract::Reading;
 type Input = &'static str;
 type Value = Reading;
@@ -31,6 +31,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn succeeds() {
     check::<BindingEventItem>();
     run(CASES, Word::Succeeds, |input| {
-        Ok(reading::<BindingEventItem>(input))
+        Ok(proposed::<BindingEventItem>(input))
     });
 }

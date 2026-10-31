@@ -23,7 +23,7 @@ macro_rules! binding_event {
         columns {
         /// Real syntax occurrence; declaration events reuse defines.id and cleanup uses its handler.
         occurrence Occurrence: NodeId => Node;
-        /// Canonical identifier, or the explicit wildcard spelling for namespace-wide events.
+        /// Canonical identifier; unknown for namespace-wide events with no single binding name.
         name Name: Symbol => Symbol;
         /// Affected namespace; read events retain their lexical scope.
         scope Scope: NodeId => Node;

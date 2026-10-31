@@ -18,8 +18,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
     // five manifest facts, and two engine filesystem facts.
     expect: Expect::Value(40),
     // 36 syntax facts (including semantic syntax, semantic children and embedded roots),
+    // 37 syntax facts (including semantic syntax, semantic children and embedded roots),
     // five manifest facts, and two engine filesystem facts.
-    expect: Expect::Value(43),
+    expect: Expect::Value(44),
 }];
 
 fn subject((): Input) -> Result<Value, Failure> {

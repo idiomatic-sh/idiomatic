@@ -78,4 +78,45 @@ pub(crate) fn initialize_model(
     use languages::Parse as _;
     ParseContract::new(Arc::new(ruff_python_parser()), Arc::new(postcard()))
         .file_model(tree, model);
+/// Exercise an authored reader directly before its optional capability is advertised.
+/// Uses the same typed reader and shared row collector; production capability gating is unchanged.
+#[must_use]
+#[cfg(test)]
+pub(crate) fn proposed<Item>(source: &'static str) -> Reading
+where
+    Item: ReadItem<Model = crate::domain::model::types::Declarations>,
+    languages::contract::Collect:
+        languages::Rows<<Item::Relation as languages::CatalogRelation>::Row>,
+{
+    use languages::{CatalogRelation as _, Parse as _};
+    let mut file = parsed(source.as_bytes()).expect("Python retains malformed source diagnostics");
+    let tree = languages::Tree {
+        elements: &file.elements,
+        source: ByteSlice(file.bytes),
+        file: languages::FileId(0),
+    };
+    let parse = ParseContract::new(Arc::new(ruff_python_parser()), Arc::new(postcard()));
+    let mut model = crate::domain::model::types::Declarations::default();
+    parse.file_model(&tree, &mut model);
+    let mut out = languages::contract::Collect::default();
+    for at in languages::positions(tree.elements) {
+        let selected = match Item::READER.reads {
+            languages::Reads::Every => true,
+            languages::Reads::Kinds(kinds) => {
+                kinds.contains(&languages::kind_at(tree.elements, at))
+            }
+        };
+        if selected {
+            Item::READER
+                .visit
+                .visit(&tree, &model, &mut file.symbols, at, &mut out);
+        }
+    }
+    languages::contract::written(
+        out,
+        file.symbols,
+        (&[SHOWN], file.bytes),
+        (languages::SourcePath(SHOWN), Item::Relation::relation()),
+        parse.unknown_reasons(),
+    )
 }

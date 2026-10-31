@@ -194,19 +194,26 @@ pub(crate) fn observe(
     ordinal: Integer,
     index: &mut BindingAnalysisIndex,
 ) {
-    let event_kind = match step.action {
-        BindingAction::Read => EventKind::Read,
-        BindingAction::Bind => EventKind::Bind,
-        BindingAction::Annotation => EventKind::Annotation,
-        BindingAction::Delete => EventKind::Delete,
-        BindingAction::Cleanup => EventKind::Cleanup,
-        BindingAction::Global => EventKind::Global,
-        BindingAction::Nonlocal => EventKind::Nonlocal,
-        BindingAction::BeginPhase
-        | BindingAction::EndPhase
-        | BindingAction::BeginAlternatives
-        | BindingAction::NextAlternative
-        | BindingAction::EndAlternatives => return,
+    let event_kind = if step.action == BindingAction::Bind
+        && kind(tree, step.occurrence) == Kind::Node(Node::Alias)
+        && imported(tree, step.occurrence) == Imported::Everything
+    {
+        EventKind::Wildcard
+    } else {
+        match step.action {
+            BindingAction::Read => EventKind::Read,
+            BindingAction::Bind => EventKind::Bind,
+            BindingAction::Annotation => EventKind::Annotation,
+            BindingAction::Delete => EventKind::Delete,
+            BindingAction::Cleanup => EventKind::Cleanup,
+            BindingAction::Global => EventKind::Global,
+            BindingAction::Nonlocal => EventKind::Nonlocal,
+            BindingAction::BeginPhase
+            | BindingAction::EndPhase
+            | BindingAction::BeginAlternatives
+            | BindingAction::NextAlternative
+            | BindingAction::EndAlternatives => return,
+        }
     };
     if matches!(event_kind, EventKind::Global | EventKind::Nonlocal) {
         for occurrence in nodes(tree, step.occurrence) {
@@ -247,6 +254,7 @@ pub(crate) fn observe(
         kind: event_kind,
     });
     match event_kind {
+        EventKind::Wildcard => wildcard(&mut index.environments, frame, scope),
         EventKind::Read => read(tree, model, frame, step, context, index),
         EventKind::Bind | EventKind::Annotation => bind(tree, model, frame, step, index),
         EventKind::Delete => {

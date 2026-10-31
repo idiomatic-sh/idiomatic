@@ -224,6 +224,7 @@ const OPTIONAL_CAPABILITY_RULES: [(&str, &str); 8] = [
         "shape-negative",
         "let variables = select * from \"defines\" where kind = \"variable\"; let absent = antijoin(left=variables, right=\"expression-shape\", left-on=[\"file\"], right-on=[\"file\"]); emit absent subject file key(span);",
     ),
+const OPTIONAL_CAPABILITY_RULES: [(&str, &str); 16] = [
     (
         "identifier-positive",
         "let rows = select * from \"identifier\"; emit rows subject file key(span);",
@@ -247,6 +248,46 @@ const OPTIONAL_CAPABILITY_RULES: [(&str, &str); 8] = [
     (
         "embedded-negative",
         "let variables = select * from \"defines\" where kind = \"variable\"; let absent = antijoin(left=variables, right=\"embedded-expression\", left-on=[\"file\"], right-on=[\"file\"]); emit absent subject file key(span);",
+    ),
+    (
+        "binding-event-positive",
+        "let variables = select * from \"defines\" where kind = \"variable\"; let rows = select l.id as id, l.file as file, l.span as span from variables as l join \"binding-event\" as r on l.file = r.file; emit rows subject file key(span);",
+    ),
+    (
+        "binding-event-negative",
+        "let variables = select * from \"defines\" where kind = \"variable\"; let absent = antijoin(left=variables, right=\"binding-event\", left-on=[\"file\"], right-on=[\"file\"]); emit absent subject file key(span);",
+    ),
+    (
+        "binding-read-positive",
+        "let variables = select * from \"defines\" where kind = \"variable\"; let rows = select l.id as id, l.file as file, l.span as span from variables as l join \"binding-read\" as r on l.file = r.file; emit rows subject file key(span);",
+    ),
+    (
+        "binding-read-negative",
+        "let variables = select * from \"defines\" where kind = \"variable\"; let absent = antijoin(left=variables, right=\"binding-read\", left-on=[\"file\"], right-on=[\"file\"]); emit absent subject file key(span);",
+    ),
+    (
+        "binding-use-positive",
+        "let variables = select * from \"defines\" where kind = \"variable\"; let rows = select l.id as id, l.file as file, l.span as span from variables as l join \"binding-use\" as r on l.file = r.file; emit rows subject file key(span);",
+    ),
+    (
+        "binding-use-negative",
+        "let variables = select * from \"defines\" where kind = \"variable\"; let absent = antijoin(left=variables, right=\"binding-use\", left-on=[\"file\"], right-on=[\"file\"]); emit absent subject file key(span);",
+    ),
+    (
+        "binding-shadow-positive",
+        "let variables = select * from \"defines\" where kind = \"variable\"; let rows = select l.id as id, l.file as file, l.span as span from variables as l join \"binding-shadow\" as r on l.file = r.file; emit rows subject file key(span);",
+    ),
+    (
+        "binding-shadow-negative",
+        "let variables = select * from \"defines\" where kind = \"variable\"; let absent = antijoin(left=variables, right=\"binding-shadow\", left-on=[\"file\"], right-on=[\"file\"]); emit absent subject file key(span);",
+    ),
+    (
+        "implicit-symbol-positive",
+        "let variables = select * from \"defines\" where kind = \"variable\"; let rows = select l.id as id, l.file as file, l.span as span from variables as l join \"implicit-symbol\" as r on l.file = r.file; emit rows subject file key(span);",
+    ),
+    (
+        "implicit-symbol-negative",
+        "let variables = select * from \"defines\" where kind = \"variable\"; let absent = antijoin(left=variables, right=\"implicit-symbol\", left-on=[\"file\"], right-on=[\"file\"]); emit absent subject file key(span);",
     ),
 ];
 

@@ -511,4 +511,6 @@ pub enum OptionalCapability {
     BindingUse,
     /// Concrete replacement and lexical-shadow associations between distinct declaration occurrences.
     BindingShadow,
+    /// Canonical builtin catalog without requiring a matching source occurrence.
+    ImplicitSymbol,
 }

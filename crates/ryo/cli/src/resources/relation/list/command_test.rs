@@ -30,6 +30,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
     input: || vec![],
     expect: Expect::Value((40, crate::output::Format::Terminal)),
     expect: Expect::Value((43, crate::output::Format::Terminal)),
+    expect: Expect::Value((44, crate::output::Format::Terminal)),
 }];
 
 /// Runs `relation list` on one command line and returns what it printed or the outcome it ended with.

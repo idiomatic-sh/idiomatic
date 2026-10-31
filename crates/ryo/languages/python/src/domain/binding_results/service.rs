@@ -4,6 +4,7 @@ use ryo::languages::Integer;
 /// Event category.
 pub(crate) const fn event(kind: EventKind) -> &'static str {
     match kind {
+        EventKind::Wildcard => "wildcard",
         EventKind::Read => "read",
         EventKind::Bind => "bind",
         EventKind::Annotation => "annotation",

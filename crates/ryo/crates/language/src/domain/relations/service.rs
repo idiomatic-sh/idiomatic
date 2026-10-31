@@ -35,6 +35,7 @@ macro_rules! each_relation {
                 BindingRead binding_read BindingReadRow BindingReadColumn;
                 BindingUse binding_use BindingUseRow BindingUseColumn;
                 BindingShadow binding_shadow BindingShadowRow BindingShadowColumn;
+                ImplicitSymbol implicit_symbol ImplicitSymbolRow ImplicitSymbolColumn;
                 QualifiedName qualified_name QualifiedNameRow QualifiedNameColumn;
                 Identifier identifier IdentifierRow IdentifierColumn;
                 ExpressionShape expression_shape ExpressionShapeRow ExpressionShapeColumn;
@@ -400,5 +401,6 @@ pub const fn capability_relation(capability: super::types::OptionalCapability) -
         OptionalCapability::BindingRead => Relation::BindingRead,
         OptionalCapability::BindingUse => Relation::BindingUse,
         OptionalCapability::BindingShadow => Relation::BindingShadow,
+        OptionalCapability::ImplicitSymbol => Relation::ImplicitSymbol,
     }
 }

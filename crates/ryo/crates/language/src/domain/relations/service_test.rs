@@ -111,6 +111,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || optional_promises_are_closed,
         expect: Expect::Value(5),
         expect: Expect::Value(8),
+        expect: Expect::Value(9),
     },
     Case {
         name: CaseName("every_relation_is_found_by_its_name"),
@@ -118,6 +119,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || every_relation_is_named_and_found_by_its_name,
         expect: Expect::Value(40),
         expect: Expect::Value(43),
+        expect: Expect::Value(44),
     },
     Case {
         name: CaseName("a_name_no_relation_has_finds_nothing"),
@@ -185,6 +187,7 @@ fn optional_promises_are_closed() -> usize {
         OptionalCapability::BindingRead,
         OptionalCapability::BindingUse,
         OptionalCapability::BindingShadow,
+        OptionalCapability::ImplicitSymbol,
     ];
     capabilities
         .into_iter()

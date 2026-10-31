@@ -247,6 +247,11 @@ impl Parse for ParseContract {
 
     fn expression_shape(&self) -> Support<Reader<languages::ExpressionShape, ()>> {
         // Parsed expression identity is not yet implemented by this provider.
+    fn implicit_symbol(&self) -> Support<Reader<languages::ImplicitSymbol, Self::FileModel>> {
+        // This optional provider catalog is not yet implemented or advertised here.
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn binding_event(&self) -> Support<Reader<languages::BindingEvent, Self::FileModel>> {
         // This optional analysis is not yet implemented or advertised by this provider.
         languages::absent(AbsenceCause::NotYetRead)

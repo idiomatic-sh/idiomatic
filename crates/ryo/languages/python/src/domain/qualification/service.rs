@@ -138,13 +138,20 @@ fn uncertain(
 }
 /// The version introducing a builtin, independent of the consumer's target version.
 pub(crate) fn builtin(tree: &Tree<'_>, at: Position) -> Option<Version> {
-    let name = identifier_text(tree, parent(tree, name_token(tree, at)?)).0;
-    BUILTIN_NAMES.iter().any(|entry| entry.0 == name).then(|| {
-        ADDED_BUILTINS
-            .iter()
-            .find(|entry| entry.name.0 == name)
-            .map_or(PYTHON_THREE, |entry| entry.since)
-    })
+    builtin_named(identifier_text(tree, parent(tree, name_token(tree, at)?)))
+}
+
+/// Availability from the same canonical inventory for source reads and occurrence-free catalogs.
+pub(crate) fn builtin_named(name: NameText<'_>) -> Option<Version> {
+    BUILTIN_NAMES
+        .iter()
+        .any(|entry| entry.0 == name.0)
+        .then(|| {
+            ADDED_BUILTINS
+                .iter()
+                .find(|entry| entry.name.0 == name.0)
+                .map_or(PYTHON_THREE, |entry| entry.since)
+        })
 }
 /// The lexical origin selected by the same shadowing rules as `resolves`.
 fn origin(
