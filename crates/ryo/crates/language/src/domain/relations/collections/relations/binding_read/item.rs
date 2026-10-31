@@ -1,6 +1,6 @@
 //! Static reference classification; definite absence, possible absence and unsupported knowledge are distinct.
 use super::super::interface::RelationsItem;
-use crate::domain::relations::types::{FileId, NodeId, Span};
+use crate::domain::relations::types::{FileId, Integer, NodeId, Span};
 use crate::domain::terms::types::Symbol;
 /// Static reference classification; definite absence, possible absence and unsupported knowledge are distinct.
 #[derive(Clone, Copy, Debug)]
@@ -31,8 +31,12 @@ macro_rules! binding_read {
         phase Phase: NodeId => Node;
         /// Value, type or deletion context; never a lint policy.
         context Context: Symbol => Symbol;
-        /// Unique declaration, alternative declarations, possibly-unbound, unbound, builtin, or uncertain. These are static associations, not runtime initialization assertions.
+        /// Unique declaration, alternative declarations, possibly-unbound, unbound, builtin, declaration-or-builtin, or uncertain. These are static associations, not runtime initialization assertions.
         state State: Symbol => Symbol;
+        /// First major language version supplying a statically associated builtin; applicable only when state is builtin or declaration-or-builtin. Zero otherwise is inapplicable, not an availability claim.
+        since_major SinceMajor: Integer => Number;
+        /// First minor language version supplying that builtin; applicable only when state is builtin or declaration-or-builtin. Target-version policy belongs to the consumer.
+        since_minor SinceMinor: Integer => Number;
         /// Source file defining these identities.
         file File: FileId => File;
         /// Original occurrence extent, independent of evaluation order.

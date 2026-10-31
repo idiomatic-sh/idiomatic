@@ -34,3 +34,12 @@ pub(crate) mod semantic_syntax;
 pub(crate) mod expression_shapes;
 /// Sparse environments used by optional static binding analysis.
 pub(crate) mod binding_states;
+
+/// Ordered language events and explicitly deferred evaluation phases.
+pub(crate) mod binding_schedule;
+
+/// Static binding observations with explicit absence and uncertainty.
+pub(crate) mod binding_results;
+
+/// Static lookup preserves branch absence and real candidate identities.
+pub(crate) mod binding_lookup;

@@ -224,3 +224,64 @@ pub(crate) struct BindingEnvironments {
     /// Retained deduplicated mutation keys during joins.
     pub keys: Vec<BindingKey>,
 }
+
+/// One language operation or structured-control delimiter in a static evaluation schedule.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum BindingAction {
+    Read,
+    Bind,
+    Annotation,
+    Delete,
+    Cleanup,
+    Global,
+    Nonlocal,
+    BeginPhase,
+    EndPhase,
+    BeginAlternatives,
+    NextAlternative,
+    EndAlternatives,
+}
+/// A real syntax occurrence scheduled inside one execution boundary.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct BindingStep {
+    /// The actual occurrence, also used for implicit handler cleanup.
+    pub occurrence: Position,
+    /// Real module, callable, generator or deferred annotation identity.
+    pub phase: Position,
+    /// Language action, not a diagnostic or runtime initialization claim.
+    pub action: BindingAction,
+}
+/// Deferred regions have grammar-specific entry points.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum BindingPhaseKind {
+    Callable,
+    Generator,
+    Type,
+}
+/// A deferred region waits for its enclosing execution phase to complete.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct BindingPhase {
+    /// Real syntax root and public phase identity.
+    pub root: Position,
+    /// The execution boundary whose completed environment it inherits.
+    pub parent: Position,
+    /// Which grammar fields execute on entry.
+    pub kind: BindingPhaseKind,
+}
+/// Whether native annotations use deferred source-name evaluation.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) enum BindingAnnotationTiming {
+    #[default]
+    Immediate,
+    Deferred,
+}
+/// Reusable event and deferred-region buffers; constructed only on demand.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct BindingSchedule {
+    /// Native annotation timing; quoted expressions are always separate deferred regions.
+    pub annotations: BindingAnnotationTiming,
+    /// Static event order, including structured alternatives rather than last-arm wins.
+    pub steps: Vec<BindingStep>,
+    /// Deferred regions in dependency order.
+    pub phases: Vec<BindingPhase>,
+}

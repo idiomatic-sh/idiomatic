@@ -137,7 +137,7 @@ fn uncertain(
     }
 }
 /// The version introducing a builtin, independent of the consumer's target version.
-fn builtin(tree: &Tree<'_>, at: Position) -> Option<Version> {
+pub(crate) fn builtin(tree: &Tree<'_>, at: Position) -> Option<Version> {
     let name = identifier_text(tree, parent(tree, name_token(tree, at)?)).0;
     BUILTIN_NAMES.iter().any(|entry| entry.0 == name).then(|| {
         ADDED_BUILTINS

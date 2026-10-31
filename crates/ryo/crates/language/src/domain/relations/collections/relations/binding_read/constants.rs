@@ -20,6 +20,8 @@ pub fn column_name(column: BindingReadColumn) -> &'static str {
         BindingReadColumn::Phase => "phase",
         BindingReadColumn::Context => "context",
         BindingReadColumn::State => "state",
+        BindingReadColumn::SinceMajor => "since-major",
+        BindingReadColumn::SinceMinor => "since-minor",
         BindingReadColumn::File => "file",
         BindingReadColumn::Span => "span",
     }
