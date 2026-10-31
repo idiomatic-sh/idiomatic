@@ -10,8 +10,8 @@ use crate::domain::{
     nodes::types::Node,
     syntax::{
         constants::{
-            INTERPOLATION_CONVERSION, INTERPOLATION_DEBUG, SCALAR_IMAGINARY, SCALAR_KIND,
-            SCALAR_VALUE,
+            BYTES_SCALAR, INTERPOLATION_CONVERSION, INTERPOLATION_DEBUG, SCALAR_IMAGINARY,
+            SCALAR_KIND, SCALAR_VALUE,
         },
         service::{identifier_text, is_token, kind, literal},
         types::{Kind, Leaf, Literal},
@@ -104,7 +104,12 @@ fn constant(
     symbols: &mut Symbols,
     words: &mut Vec<ShapeWord>,
 ) -> Option<()> {
-    if literal(tree, at) == Literal::String {
+    if languages::property_at(tree.elements, at, SCALAR_KIND)
+        .is_some_and(|kind| kind.0 == BYTES_SCALAR)
+    {
+        // Bytes share the parser's string-part node shape, but their decoded scalar payload is
+        // already present and must not be sent through the text-only string decoder.
+    } else if literal(tree, at) == Literal::String {
         words.push(ShapeWord::Literal(string_value(tree, symbols, at)?));
     } else {
         // Scalars require the parser's typed payload, never physical carrier text.
