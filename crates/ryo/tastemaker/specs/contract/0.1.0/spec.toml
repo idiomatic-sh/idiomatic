@@ -61,6 +61,42 @@ impl Parse for ParseContract {
 
     fn file_model(&self, _tree: &languages::Tree<'_>, _model: &mut ()) {}
 
+    fn capabilities(&self) -> &'static [languages::OptionalCapability] {
+        &[]
+    }
+
+    fn semantic_syntax(&self) -> Support<Reader<languages::SemanticSyntax, Self::FileModel>> {
+        languages::native_semantic_syntax()
+    }
+
+    fn semantic_child(&self) -> Support<Reader<languages::SemanticChild, Self::FileModel>> {
+        languages::native_semantic_child()
+    }
+
+    fn source_location(&self) -> Support<Reader<languages::SourceLocation, Self::FileModel>> {
+        languages::source_locations()
+    }
+
+    fn identifier(&self) -> Support<Reader<languages::Identifier, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn qualified_name(&self) -> Support<Reader<languages::QualifiedName, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn embedded_expression(&self) -> Support<Reader<languages::EmbeddedExpression, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn expression_shape(&self) -> Support<Reader<languages::ExpressionShape, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn indent_region(&self) -> Support<Reader<languages::IndentRegion, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn unknown_reasons(&self) -> &'static [UnknownName] {
         &[]
     }
@@ -314,6 +350,42 @@ impl Parse for ParseContract {
     type FileModel = ();
 
     fn file_model(&self, _tree: &languages::Tree<'_>, _model: &mut ()) {}
+
+    fn capabilities(&self) -> &'static [languages::OptionalCapability] {
+        &[]
+    }
+
+    fn semantic_syntax(&self) -> Support<Reader<languages::SemanticSyntax, Self::FileModel>> {
+        languages::native_semantic_syntax()
+    }
+
+    fn semantic_child(&self) -> Support<Reader<languages::SemanticChild, Self::FileModel>> {
+        languages::native_semantic_child()
+    }
+
+    fn source_location(&self) -> Support<Reader<languages::SourceLocation, Self::FileModel>> {
+        languages::source_locations()
+    }
+
+    fn identifier(&self) -> Support<Reader<languages::Identifier, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn qualified_name(&self) -> Support<Reader<languages::QualifiedName, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn embedded_expression(&self) -> Support<Reader<languages::EmbeddedExpression, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn expression_shape(&self) -> Support<Reader<languages::ExpressionShape, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn indent_region(&self) -> Support<Reader<languages::IndentRegion, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
 
     fn unknown_reasons(&self) -> &'static [UnknownName] {
         &[]
@@ -711,6 +783,42 @@ impl Parse for ParseContract {
 
     fn file_model(&self, _tree: &languages::Tree<'_>, _model: &mut ()) {}
 
+    fn capabilities(&self) -> &'static [languages::OptionalCapability] {
+        &[]
+    }
+
+    fn semantic_syntax(&self) -> Support<Reader<languages::SemanticSyntax, Self::FileModel>> {
+        languages::native_semantic_syntax()
+    }
+
+    fn semantic_child(&self) -> Support<Reader<languages::SemanticChild, Self::FileModel>> {
+        languages::native_semantic_child()
+    }
+
+    fn source_location(&self) -> Support<Reader<languages::SourceLocation, Self::FileModel>> {
+        languages::source_locations()
+    }
+
+    fn identifier(&self) -> Support<Reader<languages::Identifier, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn qualified_name(&self) -> Support<Reader<languages::QualifiedName, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn embedded_expression(&self) -> Support<Reader<languages::EmbeddedExpression, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn expression_shape(&self) -> Support<Reader<languages::ExpressionShape, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn indent_region(&self) -> Support<Reader<languages::IndentRegion, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn unknown_reasons(&self) -> &'static [UnknownName] {
         &[]
     }
@@ -973,6 +1081,42 @@ impl Parse for ParseContract {
     type FileModel = ();
 
     fn file_model(&self, _tree: &languages::Tree<'_>, _model: &mut ()) {}
+
+    fn capabilities(&self) -> &'static [languages::OptionalCapability] {
+        &[]
+    }
+
+    fn semantic_syntax(&self) -> Support<Reader<languages::SemanticSyntax, Self::FileModel>> {
+        languages::native_semantic_syntax()
+    }
+
+    fn semantic_child(&self) -> Support<Reader<languages::SemanticChild, Self::FileModel>> {
+        languages::native_semantic_child()
+    }
+
+    fn source_location(&self) -> Support<Reader<languages::SourceLocation, Self::FileModel>> {
+        languages::source_locations()
+    }
+
+    fn identifier(&self) -> Support<Reader<languages::Identifier, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn qualified_name(&self) -> Support<Reader<languages::QualifiedName, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn embedded_expression(&self) -> Support<Reader<languages::EmbeddedExpression, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn expression_shape(&self) -> Support<Reader<languages::ExpressionShape, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn indent_region(&self) -> Support<Reader<languages::IndentRegion, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
 
     fn unknown_reasons(&self) -> &'static [UnknownName] {
         &[]

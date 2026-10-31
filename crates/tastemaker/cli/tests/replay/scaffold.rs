@@ -181,6 +181,39 @@ fn a_fresh_language_compiles_and_lacks_no_part() {
         assert!(body.contains(expected), "{path} lacks {expected}");
     }
 
+    let contract =
+        std::fs::read_to_string(language.join("src/inbound/contracts/parse/contract.rs"))
+            .expect("the generated parse contract");
+    assert!(
+        contract.contains("fn capabilities(&self) -> &'static [languages::OptionalCapability] {\n        &[]\n    }"),
+        "a fresh language must not advertise unimplemented optional capabilities"
+    );
+    for reader in [
+        "native_semantic_syntax",
+        "native_semantic_child",
+        "source_locations",
+    ] {
+        assert!(
+            contract.contains(&format!("languages::{reader}()")),
+            "missing shared reader {reader}"
+        );
+    }
+    for (method, relation) in [
+        ("identifier", "Identifier"),
+        ("qualified_name", "QualifiedName"),
+        ("embedded_expression", "EmbeddedExpression"),
+        ("expression_shape", "ExpressionShape"),
+        ("indent_region", "IndentRegion"),
+    ] {
+        let answer = format!(
+            "fn {method}(&self) -> Support<Reader<languages::{relation}, Self::FileModel>> {{\n        languages::absent(AbsenceCause::NotYetRead)\n    }}"
+        );
+        assert!(
+            contract.contains(&answer),
+            "{method} must remain explicitly unread until implemented"
+        );
+    }
+
     run(
         Command::new("cargo")
             .args([
