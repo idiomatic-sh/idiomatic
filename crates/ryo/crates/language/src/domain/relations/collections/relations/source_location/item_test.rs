@@ -6,14 +6,24 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::relations::types::{Bits, FileId, Integer, NodeId, Offset, Span};
 
 type Input = ();
-type Value = [Bits; 5];
+type Value = [Bits; 9];
 type Failure = ();
 
 const CASES: &[Case<Input, Value, Failure>] = &[Case {
     name: CaseName("coordinates_have_distinct_columns"),
     word: Word::Succeeds,
     input: || (),
-    expect: Expect::Value([Bits(3), Bits(5), Bits(30_064_771_083), Bits(13), Bits(17)]),
+    expect: Expect::Value([
+        Bits(3),
+        Bits(5),
+        Bits(30_064_771_083),
+        Bits(13),
+        Bits(17),
+        Bits(7),
+        Bits(11),
+        Bits(2),
+        Bits(4),
+    ]),
 }];
 
 fn subject((): Input) -> Result<Value, Failure> {
@@ -26,6 +36,10 @@ fn subject((): Input) -> Result<Value, Failure> {
         },
         start_line: Integer(13),
         end_line: Integer(17),
+        start_byte: Integer(7),
+        end_byte: Integer(11),
+        start_column: Integer(2),
+        end_column: Integer(4),
     }))
 }
 

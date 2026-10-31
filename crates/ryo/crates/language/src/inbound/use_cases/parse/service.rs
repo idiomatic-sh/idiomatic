@@ -206,7 +206,10 @@ pub(crate) fn walk_in<L>(
 {
     let mut model: Box<L::FileModel> = take_scratch(elements);
     if wanted.contains(&Relation::SourceLocation) {
-        crate::domain::location::service::index(elements, source);
+        crate::domain::location::service::index(
+            &mut engine_mut(elements).line_starts,
+            crate::domain::location::types::SourceLineBytes(source.0),
+        );
     }
     walk_with(
         language, elements, &mut model, symbols, source, file, wanted, out,

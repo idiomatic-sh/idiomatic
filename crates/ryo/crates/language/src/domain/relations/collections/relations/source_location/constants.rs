@@ -11,7 +11,7 @@ pub fn name() -> &'static str {
 /// What the relation contains.
 #[must_use]
 pub fn summary() -> &'static str {
-    "The one-based start and exclusive-end lines of every syntax node and token."
+    "One-based lines, zero-based UTF-8 byte offsets and byte columns for syntax nodes and tokens."
 }
 
 /// The query name of a column.
@@ -23,5 +23,9 @@ pub fn column_name(column: SourceLocationColumn) -> &'static str {
         SourceLocationColumn::Span => "span",
         SourceLocationColumn::StartLine => "start-line",
         SourceLocationColumn::EndLine => "end-line",
+        SourceLocationColumn::StartByte => "start-byte",
+        SourceLocationColumn::EndByte => "end-byte",
+        SourceLocationColumn::StartColumn => "start-column",
+        SourceLocationColumn::EndColumn => "end-column",
     }
 }

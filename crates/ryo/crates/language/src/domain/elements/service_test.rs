@@ -109,6 +109,34 @@ fn implied_nodes_keep_properties_without_claiming_bytes() -> usize {
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
+        name: CaseName("clearing_elements_removes_previous_source_coordinates"),
+        word: Word::Succeeds,
+        input: || {
+            || {
+                use crate::domain::location::{
+                    service::{column, index, line},
+                    types::{SourceLineBytes, SourceLineOffset},
+                };
+                let mut elements = Elements::default();
+                index(
+                    &mut super::service::engine_mut(&mut elements).line_starts,
+                    SourceLineBytes(b"old\nfile\n"),
+                );
+                super::service::clear_elements(&mut elements);
+                index(
+                    &mut super::service::engine_mut(&mut elements).line_starts,
+                    SourceLineBytes("é".as_bytes()),
+                );
+                let index = &super::service::engine(&elements).line_starts;
+                usize::from(
+                    line(index, SourceLineOffset(2)).0 == 1
+                        && column(index, SourceLineOffset(2)).0 == 2,
+                )
+            }
+        },
+        expect: Expect::Value(1),
+    },
+    Case {
         name: CaseName("a_write_at_a_position_past_the_table_crashes_instead_of_being_lost"),
         word: Word::Succeeds,
         input: || a_write_past_the_table_crashes,

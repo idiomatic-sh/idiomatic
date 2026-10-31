@@ -34,6 +34,14 @@ macro_rules! source_location {
                 start_line StartLine: Integer => Number;
                 /// The one-based line of the exclusive end endpoint.
                 end_line EndLine: Integer => Number;
+                /// The zero-based UTF-8 byte offset of the start endpoint.
+                start_byte StartByte: Integer => Number;
+                /// The zero-based UTF-8 byte offset of the exclusive end endpoint.
+                end_byte EndByte: Integer => Number;
+                /// The zero-based UTF-8 byte column of the start endpoint.
+                start_column StartColumn: Integer => Number;
+                /// The zero-based UTF-8 byte column of the exclusive end endpoint.
+                end_column EndColumn: Integer => Number;
             }
         }
     };
@@ -69,6 +77,10 @@ impl<M> crate::domain::answers::types::Visiting<SourceLocation, M> for SourceLoc
         out: &mut dyn crate::domain::relations::types::Rows<SourceLocationRow>,
     ) {
         use crate::domain::elements::service::{end_at, start_at};
+        use crate::domain::location::{
+            service::{column, line},
+            types::SourceLineOffset,
+        };
         let span = Span {
             start: start_at(tree.elements, position),
             end: end_at(tree.elements, position),
@@ -78,12 +90,17 @@ impl<M> crate::domain::answers::types::Visiting<SourceLocation, M> for SourceLoc
         {
             return;
         }
+        let index = &crate::domain::elements::service::engine(tree.elements).line_starts;
         out.write(SourceLocationRow {
             id: crate::domain::relations::service::node_id(tree.file, position),
             file: tree.file,
             span,
-            start_line: crate::domain::location::service::line(tree.elements, span.start),
-            end_line: crate::domain::location::service::line(tree.elements, span.end),
+            start_line: Integer(line(index, SourceLineOffset(span.start.0)).0),
+            end_line: Integer(line(index, SourceLineOffset(span.end.0)).0),
+            start_byte: Integer(i64::from(span.start.0)),
+            end_byte: Integer(i64::from(span.end.0)),
+            start_column: Integer(column(index, SourceLineOffset(span.start.0)).0),
+            end_column: Integer(column(index, SourceLineOffset(span.end.0)).0),
         });
     }
 }

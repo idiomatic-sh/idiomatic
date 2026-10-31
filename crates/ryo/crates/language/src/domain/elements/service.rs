@@ -46,7 +46,7 @@ pub fn clear_elements(elements: &mut Elements) {
         *added = Count(0);
     }
     let engine = engine_mut(elements);
-    engine.line_starts.clear();
+    engine.line_starts.0.clear();
     engine.source_order = SourceOrder::Forward;
     engine.field_names.clear();
     engine.expanded.clear();

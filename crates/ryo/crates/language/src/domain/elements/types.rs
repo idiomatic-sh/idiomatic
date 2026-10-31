@@ -155,7 +155,7 @@ pub struct TableState(ElementsEngine);
 #[derive(Debug, Default)]
 pub(crate) struct ElementsEngine {
     /// Source line starts, populated only when source-location is requested; storage is reused.
-    pub line_starts: Vec<Offset>,
+    pub line_starts: crate::domain::location::types::SourceLineIndex,
     /// Whether native preorder also follows increasing source starts.
     pub source_order: SourceOrder,
     /// What each kind is called, by the number of the kind, as the file's names; no symbol for a kind none of its elements has.
