@@ -267,7 +267,11 @@ fn read(source: &'static str, cache: &mut RefCell<IndentationIndex>) -> Value {
                     .find(|parent| parent.id == region.parent)
                     .expect("parent region");
                 let symbol = prefix(&tree, &mut symbols, region);
-                let raw = &source[region.span.start.0 as usize..region.indentation_end.0 as usize];
+                let start = usize::try_from(region.span.start.0).expect("source start fits usize");
+                let end = usize::try_from(region.indentation_end.0).expect("source end fits usize");
+                let raw = source
+                    .get(start..end)
+                    .expect("indentation endpoints are UTF-8 boundaries");
                 assert_eq!(
                     languages::text_of(&symbols, tree.source, symbol).map(|text| text.0),
                     Some(raw)
@@ -276,18 +280,17 @@ fn read(source: &'static str, cache: &mut RefCell<IndentationIndex>) -> Value {
                     start: region.span.start.0,
                     end: region.span.end.0,
                     parent_start: parent.span.start.0,
-                    indentation: &source
-                        [region.span.start.0 as usize..region.indentation_end.0 as usize],
+                    indentation: raw,
                 }
             })
             .collect::<Vec<_>>()
             .leak()
     })
 }
-fn subject(input: Input) -> Result<Value, Failure> {
+fn subject(input: Input) -> Value {
     let mut cache = RefCell::new(IndentationIndex::default());
     match input {
-        Input::Source(source) => Ok(read(source, &mut cache)),
+        Input::Source(source) => read(source, &mut cache),
         Input::Reused => {
             assert!(read("if yes:\n    pass", &mut cache).is_some());
             assert!(read("if:\n    pass\n", &mut cache).is_none());
@@ -301,11 +304,11 @@ fn subject(input: Input) -> Result<Value, Failure> {
                     indentation: ""
                 }])
             );
-            Ok(read("if yes:\n    pass", &mut cache))
+            read("if yes:\n    pass", &mut cache)
         }
     }
 }
 #[test]
 fn succeeds() {
-    run(CASES, Word::Succeeds, subject);
+    run(CASES, Word::Succeeds, |input| Ok(subject(input)));
 }

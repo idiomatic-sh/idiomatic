@@ -466,7 +466,7 @@ fn observe(input: Input, model: &mut Declarations) -> Value {
         answer.since.minor.0,
     )
 }
-fn subject(input: Input) -> Result<Value, ()> {
+fn subject(input: Input) -> Value {
     assert_eq!(
         BUILTIN_NAMES.iter().map(|name| name.0).collect::<Vec<_>>(),
         include_str!("../../../tests/fixtures/standard/builtin_names.txt")
@@ -475,7 +475,7 @@ fn subject(input: Input) -> Result<Value, ()> {
     );
     let mut model = Declarations::default();
     let first = observe(input, &mut model);
-    let _ = observe(("from m import *\nexec(x)\n", "exec"), &mut model);
+    let _: Value = observe(("from m import *\nexec(x)\n", "exec"), &mut model);
     clear(model.qualification.get_mut());
     let empty = parsed(b"").expect("empty source");
     let tree = Tree {
@@ -496,9 +496,9 @@ fn subject(input: Input) -> Result<Value, ()> {
         assert!((first.2, first.3) > (3, 10));
         assert!((first.2, first.3) <= (3, 11));
     }
-    Ok(first)
+    first
 }
 #[test]
 fn succeeds() {
-    run(CASES, Word::Succeeds, subject);
+    run(CASES, Word::Succeeds, |input| Ok(subject(input)));
 }

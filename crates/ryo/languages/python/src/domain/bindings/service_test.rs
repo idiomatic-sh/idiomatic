@@ -203,9 +203,12 @@ fn subject((source, wanted): Input) -> Value {
         })
         .last()?;
     let binding = resolve(&tree, &model, occurrence, name_of(&tree, occurrence)?)?;
-    let offset = languages::start_at(tree.elements, binding).0 as usize;
+    let Ok(offset) = usize::try_from(languages::start_at(tree.elements, binding).0) else {
+        return None;
+    };
     Some(
-        source[..offset]
+        source
+            .get(..offset)?
             .bytes()
             .filter(|byte| *byte == b'\n')
             .count()
