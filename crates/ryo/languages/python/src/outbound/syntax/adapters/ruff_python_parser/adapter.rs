@@ -21,6 +21,7 @@ use ruff_text_size::Ranged as _;
 use ryo::languages::{self, Offset};
 
 use crate::domain::extras::types::Extra;
+use crate::domain::syntax::constants::NORMALIZED_IDENTIFIER;
 use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
@@ -126,6 +127,8 @@ struct Writer<'b, 'w, 't> {
     refused: Vec<ParserRefusal>,
     /// How long the file is.
     length: Offset,
+    /// Source spelling retained only to distinguish normalized identifiers.
+    source: languages::NameText<'t>,
 }
 
 impl Writer<'_, '_, '_> {
@@ -222,6 +225,32 @@ impl<'a> SourceOrderVisitor<'a> for Writer<'_, '_, '_> {
             kind_bits(node_kind(node.kind(), strings)),
             start,
         );
+        let canonical = if let AnyNodeRef::Identifier(identifier) = node {
+            Some(identifier.as_str())
+        } else if let AnyNodeRef::ExprName(name) = node {
+            Some(name.id.as_str())
+        } else {
+            None
+        };
+        if let Some(canonical) = canonical {
+            let raw = self
+                .source
+                .0
+                .get(usize::from(node.start())..usize::from(node.end()))
+                .unwrap_or_default();
+            if raw != canonical {
+                languages::node_property(
+                    self.tree.builder,
+                    NORMALIZED_IDENTIFIER,
+                    languages::NameText(canonical),
+                );
+                languages::node_property(
+                    self.tree.builder,
+                    languages::PropertyId(0),
+                    languages::NameText(canonical.split('.').next().unwrap_or(canonical)),
+                );
+            }
+        }
         if let Some(opened) = opens(node.kind()) {
             self.strings.push(opened);
         }
@@ -281,6 +310,7 @@ impl SyntaxPort for SyntaxRuffPythonParserAdapter {
             refused: Vec::new(),
             parsed_tokens: parsed.tokens(),
             length,
+            source: languages::NameText(&source),
         };
         writer.visit_mod(parsed.syntax());
         if source.len() == text.0.len() && matches!(source, Cow::Owned(_)) {

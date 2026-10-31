@@ -151,7 +151,19 @@ pub(crate) fn name_token(tree: &Tree<'_>, at: Position) -> Option<Position> {
 /// The name the identifier or name expression at `at` writes, as a name.
 #[must_use]
 pub(crate) fn name_of(tree: &Tree<'_>, at: Position) -> Option<languages::Symbol> {
-    name_token(tree, at).map(|token| languages::text_at(tree.elements, token))
+    let token = name_token(tree, at)?;
+    let owner = parent(tree, token);
+    if languages::property_at(
+        tree.elements,
+        owner,
+        super::constants::NORMALIZED_IDENTIFIER,
+    )
+    .is_some()
+    {
+        Some(languages::text_at(tree.elements, owner))
+    } else {
+        Some(languages::text_at(tree.elements, token))
+    }
 }
 
 /// The place of the `number`-th thing the parser reported about the file, as a node id of the file: a report is known by its number.
@@ -248,4 +260,11 @@ pub(crate) fn standing(tree: &Tree<'_>, at: Position) -> Standing {
     } else {
         Standing::Own
     }
+}
+
+/// A semantic identifier's canonical spelling; raw syntax tokens retain the original spelling.
+#[must_use]
+pub(crate) fn identifier_text<'a>(tree: &'a Tree<'a>, at: Position) -> Text<'a> {
+    languages::property_at(tree.elements, at, super::constants::NORMALIZED_IDENTIFIER)
+        .map_or_else(|| written(tree, at), |name| Text(name.0))
 }

@@ -23,7 +23,7 @@ use crate::domain::{
         types::{CategoryIndex, Context},
     },
     syntax::{
-        service::{child, kind, name_of, name_token, nodes, parent, written},
+        service::{child, identifier_text, kind, name_of, name_token, nodes, parent},
         types::Kind,
     },
 };
@@ -133,7 +133,7 @@ fn uncertain(
 }
 /// The version introducing a builtin, independent of the consumer's target version.
 fn builtin(tree: &Tree<'_>, at: Position) -> Option<Version> {
-    let name = written(tree, name_token(tree, at)?).0;
+    let name = identifier_text(tree, parent(tree, name_token(tree, at)?)).0;
     BUILTIN_NAMES.iter().any(|entry| entry.0 == name).then(|| {
         ADDED_BUILTINS
             .iter()
@@ -181,7 +181,16 @@ fn append_import(tree: &Tree<'_>, symbols: &mut languages::Symbols, alias: Posit
     {
         push_identifier(tree, symbols, identifier);
     } else if let Some(token) = name_token(tree, identifier) {
-        languages::push_text(symbols, NameText(written(tree, token).0));
+        languages::push_text(
+            symbols,
+            NameText(
+                identifier_text(tree, parent(tree, token))
+                    .0
+                    .split('.')
+                    .next()
+                    .unwrap_or_default(),
+            ),
+        );
     }
 }
 /// Append attributes from inner to outer while retaining exactly the declared root origin.
@@ -229,7 +238,16 @@ pub(crate) fn qualify(
                 languages::push_text(symbols, NameText(BUILTIN_MODULE));
                 languages::push_text(symbols, NameText(DOT));
                 if let Some(token) = base.and_then(|base| name_token(tree, base)) {
-                    languages::push_text(symbols, NameText(written(tree, token).0));
+                    languages::push_text(
+                        symbols,
+                        NameText(
+                            identifier_text(tree, parent(tree, token))
+                                .0
+                                .split('.')
+                                .next()
+                                .unwrap_or_default(),
+                        ),
+                    );
                 }
             }
             Origin::Local | Origin::Unresolved | Origin::Ambiguous => {}

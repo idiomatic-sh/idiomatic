@@ -35,6 +35,118 @@ type Value = Shown;
 type Failure = ();
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
+        name: CaseName("nfkc_builtin"),
+        word: Word::Succeeds,
+        input: || Input {
+            source: "𝗲𝘅𝗲𝗰(code)\n",
+            expression: "𝗲𝘅𝗲𝗰",
+        },
+        expect: Expect::Value(Shown {
+            path: Some("builtins.exec"),
+            provenance: "builtin",
+            major: 3,
+            minor: 0,
+        }),
+    },
+    Case {
+        name: CaseName("nfkc_import_alias"),
+        word: Word::Succeeds,
+        input: || Input {
+            source: "import logging as 𝗹𝗼𝗴\nlog.Logger()\n",
+            expression: "log.Logger",
+        },
+        expect: Expect::Value(Shown {
+            path: Some("logging.Logger"),
+            provenance: "import",
+            major: 0,
+            minor: 0,
+        }),
+    },
+    Case {
+        name: CaseName("nfkc_import_module"),
+        word: Word::Succeeds,
+        input: || Input {
+            source: "import 𝗹𝗼𝗴𝗴𝗶𝗻𝗴\nlogging.Logger()\n",
+            expression: "logging.Logger",
+        },
+        expect: Expect::Value(Shown {
+            path: Some("logging.Logger"),
+            provenance: "import",
+            major: 0,
+            minor: 0,
+        }),
+    },
+    Case {
+        name: CaseName("nfkc_import_attribute"),
+        word: Word::Succeeds,
+        input: || Input {
+            source: "import logging\nlogging.𝗟𝗼𝗴𝗴𝗲𝗿()\n",
+            expression: "logging.𝗟𝗼𝗴𝗴𝗲𝗿",
+        },
+        expect: Expect::Value(Shown {
+            path: Some("logging.Logger"),
+            provenance: "import",
+            major: 0,
+            minor: 0,
+        }),
+    },
+    Case {
+        name: CaseName("nfkc_builtin_shadow"),
+        word: Word::Succeeds,
+        input: || Input {
+            source: "𝗲𝘅𝗲𝗰 = custom\nexec(code)\n",
+            expression: "exec",
+        },
+        expect: Expect::Value(Shown {
+            path: None,
+            provenance: "local",
+            major: 0,
+            minor: 0,
+        }),
+    },
+    Case {
+        name: CaseName("nfkc_dotted_import"),
+        word: Word::Succeeds,
+        input: || Input {
+            source: "import 𝘅𝗺𝗹.etree\nxml.etree.parse()\n",
+            expression: "xml.etree.parse",
+        },
+        expect: Expect::Value(Shown {
+            path: Some("xml.etree.parse"),
+            provenance: "import",
+            major: 0,
+            minor: 0,
+        }),
+    },
+    Case {
+        name: CaseName("nfkc_from_import"),
+        word: Word::Succeeds,
+        input: || Input {
+            source: "from builtins import 𝗲𝘅𝗲𝗰 as execute\nexecute(code)\n",
+            expression: "execute",
+        },
+        expect: Expect::Value(Shown {
+            path: Some("builtins.exec"),
+            provenance: "import",
+            major: 0,
+            minor: 0,
+        }),
+    },
+    Case {
+        name: CaseName("nfkc_parameter_shadow"),
+        word: Word::Succeeds,
+        input: || Input {
+            source: "def f(𝗲𝘅𝗲𝗰):\n    exec(code)\n",
+            expression: "exec",
+        },
+        expect: Expect::Value(Shown {
+            path: None,
+            provenance: "local",
+            major: 0,
+            minor: 0,
+        }),
+    },
+    Case {
         name: CaseName("module_import"),
         word: Word::Succeeds,
         input: || Input {
@@ -522,6 +634,23 @@ fn observe(input: Input, model: &mut Declarations) -> Value {
     declare(&tree, model);
     index(&tree, model);
     let mut symbols = file.symbols;
+    for token in languages::positions(tree.elements).filter(|at| {
+        matches!(
+            kind(&tree, *at),
+            Kind::Token(crate::domain::tokens::types::Token::Name)
+        )
+    }) {
+        assert_eq!(
+            languages::text_of(
+                &symbols,
+                tree.source,
+                languages::text_at(tree.elements, token)
+            )
+            .map(|value| value.0),
+            Some(written(&tree, token).0)
+        );
+    }
+
     let at = languages::positions(tree.elements)
         .filter(|at| {
             matches!(kind(&tree, *at), Kind::Node(Node::Name | Node::Attribute))

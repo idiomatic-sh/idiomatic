@@ -65,3 +65,6 @@ pub(crate) const TRIVIA: &str =
 #[cfg(any(test, feature = "fixtures"))]
 pub(crate) const UNREAD_TEXT: &str =
     "text the lexer could not read as any token: `syntax_error` reads what the library said of it";
+
+/// Canonical full identifier spelling when normalization changes its source text.
+pub(crate) const NORMALIZED_IDENTIFIER: ryo::languages::PropertyId = ryo::languages::PropertyId(1);
