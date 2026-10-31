@@ -22,9 +22,11 @@ Each value is the median of six observations; `measurements.json` retains min/ma
 
 ## Newly discovered annotation boundary
 
-Additional pinned-oracle probes showed that Ruff dispatches LOG001, B002 and B022 inside quoted annotations, including `x: "++value"`; the original candidate missed all three. A generic embedded-expression frontend and an end-to-end planner demand correction now pass a separate **25-case annotation cohort** on worker `7c2d384a0f973117a88e355097c38ebef9f60c06fbb3ea0f7243ee6af1b16014`. The planner regression matters: direct provider fixtures requested child-field metadata explicitly and therefore did not expose the missing demand from semantic-child queries.
+Additional pinned-oracle probes showed that Ruff dispatches LOG001, B002 and B022 inside quoted annotations, including `x: "++value"`; the original candidate missed all three. A generic embedded-expression frontend, an end-to-end planner demand correction and virtual-scope binding fixes now pass a separate **47-case development cohort** on worker `6e781441ebba0db79844ad3db6d333c8b145f86975054e9baa7df0de106f2902`: 25 annotation cases, ten typing-context cases and twelve scope cases. The planner regression matters: direct provider fixtures requested child-field metadata explicitly and therefore did not expose the missing demand from semantic-child queries. The scope cases caught three false positives from lambda, comprehension and assignment-expression shadowing before the correction.
 
-A separate ten-case typing-call/context cohort still has four candidate misses. Full shared-harness certification of the migrated query heads is pending. These development cohorts remain distinct from the completed 1,967-case expanded snapshot and the measured 54-rule baseline; none retroactively expands their evidence.
+These changes remain isolated pending integration, governance and scoped review. Full shared-harness certification of the migrated 104 query heads is pending. The 47-case evidence in `correctness.json` preserves exact attempted identities, assets and executable hashes; it does not retroactively expand the completed 1,967-case snapshot or measured 54-rule baseline.
+
+A separate frontend gap remains explicit: for `global x\nnonlocal x\n`, pinned Ruff reports PLE0115 at bytes 7..8 and `invalid-syntax` at bytes 9..19. PLE0115 remains deferred. Its case-only fixtures now use the shared full-report mode, which requires explicit diagnostic identities and compares every finding. Shared regression tests prove that a matching lint cannot hide a missing parser diagnostic. The isolated real-query execution against this new mode is still pending; this is not a passing frontend parity claim.
 
 ## Scope, identity and measurement
 
