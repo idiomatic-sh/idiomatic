@@ -14,7 +14,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
     name: CaseName("lists_relations"),
     word: Word::Succeeds,
     input: || (),
-    expect: Expect::Value(32),
+    expect: Expect::Value(36),
 }];
 
 fn subject((): Input) -> Result<Value, Failure> {

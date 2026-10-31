@@ -12,7 +12,7 @@ type Failure = ListOperatorsError;
 
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[Case {
-    name: CaseName("lists_the_seventeen_operators_in_documentation_order"),
+    name: CaseName("lists_the_nineteen_operators_in_documentation_order"),
     word: Word::Succeeds,
     input: || (),
     expect: Expect::Value((19, true)),
