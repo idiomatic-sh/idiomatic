@@ -7,25 +7,42 @@ use crate::domain::{
 };
 use std::time::Duration;
 
-type Input = bool;
+#[derive(Clone, Copy)]
+enum Scenario {
+    Resources,
+    Absent,
+    InexactResident,
+}
+type Input = Scenario;
 type Value = serde_json::Value;
-type Failure = bool;
+#[derive(Debug, PartialEq, Eq)]
+enum Failure {
+    Absent,
+    Inexact,
+    Unexpected,
+}
 
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
+        name: CaseName("resident-byte evidence never silently rounds an integer"),
+        word: Word::Refuses,
+        input: || Scenario::InexactResident,
+        expect: Expect::Error(Failure::Inexact),
+    },
+    Case {
         name: CaseName("median and bounds preserve independent metric scales"),
         word: Word::Succeeds,
-        input: || true,
+        input: || Scenario::Resources,
         expect: Expect::Value(serde_json::Value::Null),
     },
     Case {
         name: CaseName("wall only sample cannot masquerade as full evidence"),
         word: Word::Refuses,
-        input: || false,
-        expect: Expect::Error(true),
+        input: || Scenario::Absent,
+        expect: Expect::Error(Failure::Absent),
     },
 ];
-fn subject(resources: bool) -> Result<serde_json::Value, bool> {
+fn subject(scenario: Input) -> Result<serde_json::Value, Failure> {
     let samples: Vec<_> = [2, 8, 4, 6]
         .into_iter()
         .map(|millis| BenchmarkSample {
@@ -34,11 +51,15 @@ fn subject(resources: bool) -> Result<serde_json::Value, bool> {
             ),
             measurement: Measurement {
                 wall: Duration::from_millis(millis),
-                resources: if resources {
+                resources: if !matches!(scenario, Scenario::Absent) {
                     crate::domain::measurements::types::ResourceObservation::Collected(Resources {
                         cpu: Duration::from_millis(millis * 2),
                         peak_rss_bytes: crate::domain::measurements::types::ResidentBytes(
-                            millis * 1024,
+                            if matches!(scenario, Scenario::InexactResident) {
+                                super::super::constants::MAX_EXACT_RESIDENT + 1
+                            } else {
+                                millis * 1024
+                            },
                         ),
                     })
                 } else {
@@ -51,7 +72,25 @@ fn subject(resources: bool) -> Result<serde_json::Value, bool> {
             },
         })
         .collect();
-    let bytes = schemas::encode(&samples).map_err(|_| true)?;
+    let bytes = schemas::encode(&samples).map_err(|error| {
+        use crate::domain::diagnostics::errors::DiagnosticsError;
+        match error {
+            DiagnosticsError::Invalid(message)
+                if message == super::super::constants::INEXACT_RESIDENT =>
+            {
+                Failure::Inexact
+            }
+            DiagnosticsError::Invalid(message)
+                if message == super::super::constants::MISSING_RESOURCES =>
+            {
+                Failure::Absent
+            }
+            DiagnosticsError::Invalid(_)
+            | DiagnosticsError::Io(_)
+            | DiagnosticsError::Json(_)
+            | DiagnosticsError::Toml(_) => Failure::Unexpected,
+        }
+    })?;
     let actual: serde_json::Value = serde_json::from_slice(&bytes).expect("BMF JSON");
     let expected = serde_json::json!({ "project/ryo/empty-tool-cache": {
         "wall-ms": { "value": 5.0, "lower_value": 2.0, "upper_value": 8.0 },

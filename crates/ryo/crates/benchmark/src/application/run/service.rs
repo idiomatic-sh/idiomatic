@@ -6,6 +6,9 @@ use crate::outbound::execution::interface::ExecutionPort;
 use crate::outbound::linter::interface::LinterPort;
 
 /// Prepare and execute one contestant, then validate decoded input coverage.
+///
+/// # Errors
+/// Propagates preparation, launch or decoding errors and refuses invalid input coverage or ranges.
 pub fn run(
     linter: &dyn LinterPort,
     execution: &dyn ExecutionPort,
@@ -18,7 +21,10 @@ pub fn run(
     let report = linter.decode(request, output)?;
     let mut expected = request.files.clone();
     expected.sort();
-    if expected.windows(2).any(|pair| pair[0] == pair[1]) {
+    if expected
+        .windows(2)
+        .any(|pair| matches!(pair, [first, second] if first == second))
+    {
         return Err(Error::Invalid(
             crate::domain::diagnostics::constants::DUPLICATE_INPUT.into(),
         ));
@@ -44,6 +50,9 @@ use crate::domain::diagnostics::service::compare;
 use crate::outbound::suite::interface::SuitePort;
 use std::path::Path;
 /// Verify each rule's independently authored findings through both selected contestants.
+///
+/// # Errors
+/// Refuses missing cases, startup failures and differences against independently authored findings.
 pub fn verify(
     suite: &dyn SuitePort,
     reference: &dyn LinterPort,
@@ -104,6 +113,9 @@ pub fn verify(
 }
 
 /// Verify a complete accounted profile before either contestant can execute a case.
+///
+/// # Errors
+/// Refuses unaccounted defaults before executing any case and propagates verification failures.
 pub fn verify_accounted(
     suite: &dyn SuitePort,
     reference: &dyn LinterPort,

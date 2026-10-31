@@ -34,4 +34,7 @@ pub struct Difference {
 
 /// Position in the source byte stream, distinct from Unicode columns or query offsets.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct SourceByteOffset(pub usize);
+pub struct SourceByteOffset(
+    /// Zero-based UTF-8 byte position within the source.
+    pub usize,
+);

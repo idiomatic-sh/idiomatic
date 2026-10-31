@@ -50,11 +50,11 @@ pub struct Case<I, V, E> {
 /// # Panics
 ///
 /// When a row's expectation is not met, or its kind does not match its word.
-pub fn run<I, V: PartialEq + Debug, E: PartialEq + Debug>(
-    cases: &[Case<I, V, E>],
-    word: Word,
-    subject: impl Fn(I) -> Result<V, E>,
-) {
+pub fn run<I, V, E>(cases: &[Case<I, V, E>], word: Word, subject: impl Fn(I) -> Result<V, E>)
+where
+    V: PartialEq + Debug,
+    E: PartialEq + Debug,
+{
     assert!(
         cases.iter().any(|case| case.word == word),
         "no row has the case word {word:?}: a runner with nothing to run proves nothing"

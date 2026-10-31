@@ -6,6 +6,7 @@ use crate::outbound::suite::interface::SuitePort;
 use std::{path::Path, sync::Arc};
 /// Audit benchmark artifacts against a pinned default profile.
 pub struct AuditUseCaseImpl {
+    /// Artifact validation and exact content fingerprinting boundary.
     suite: Arc<dyn SuitePort>,
 }
 impl AuditUseCaseImpl {
@@ -23,9 +24,8 @@ impl AuditUseCase for AuditUseCaseImpl {
 }
 
 impl std::fmt::Debug for AuditUseCaseImpl {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct(std::any::type_name::<Self>())
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct(std::any::type_name::<Self>())
             .finish_non_exhaustive()
     }
 }

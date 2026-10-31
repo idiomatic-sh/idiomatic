@@ -8,9 +8,13 @@ use crate::outbound::{execution::interface::ExecutionPort, linter::interface::Li
 use std::sync::Arc;
 /// Release paired process observations only after the correctness gate succeeds.
 pub struct MeasureUseCaseImpl {
+    /// Pinned reference tool preparation and decoding boundary.
     reference: Arc<dyn LinterPort>,
+    /// Candidate tool preparation and decoding boundary.
     candidate: Arc<dyn LinterPort>,
+    /// Process launch and resource observation boundary.
     execution: Arc<dyn ExecutionPort>,
+    /// Artifact validation and exact content fingerprinting boundary.
     suite: Arc<dyn SuitePort>,
 }
 impl MeasureUseCaseImpl {
@@ -50,9 +54,8 @@ impl MeasureUseCase for MeasureUseCaseImpl {
 }
 
 impl std::fmt::Debug for MeasureUseCaseImpl {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct(std::any::type_name::<Self>())
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct(std::any::type_name::<Self>())
             .finish_non_exhaustive()
     }
 }

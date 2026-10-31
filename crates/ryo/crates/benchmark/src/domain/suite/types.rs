@@ -124,7 +124,10 @@ pub mod certificate;
 
 /// Language identifier for a shared corpus.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct SuiteLanguage(pub String);
+pub struct SuiteLanguage(
+    /// Language identifier shared by the project corpus.
+    pub String,
+);
 impl From<&str> for SuiteLanguage {
     fn from(value: &str) -> Self {
         Self(value.to_owned())
@@ -136,14 +139,17 @@ impl From<String> for SuiteLanguage {
     }
 }
 impl std::fmt::Display for SuiteLanguage {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(formatter)
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
     }
 }
 
 /// Stable benchmark project identity.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct ProjectName(pub String);
+pub struct ProjectName(
+    /// Stable project name used in paths and observations.
+    pub String,
+);
 impl From<&str> for ProjectName {
     fn from(value: &str) -> Self {
         Self(value.to_owned())
@@ -155,14 +161,17 @@ impl From<String> for ProjectName {
     }
 }
 impl std::fmt::Display for ProjectName {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(formatter)
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
     }
 }
 
 /// Repository remote used to obtain an immutable revision.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct RepositoryUrl(pub String);
+pub struct RepositoryUrl(
+    /// Git remote used to fetch the pinned project.
+    pub String,
+);
 impl From<&str> for RepositoryUrl {
     fn from(value: &str) -> Self {
         Self(value.to_owned())
@@ -174,14 +183,17 @@ impl From<String> for RepositoryUrl {
     }
 }
 impl std::fmt::Display for RepositoryUrl {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(formatter)
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
     }
 }
 
 /// Full immutable Git commit identifier.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct ProjectRevision(pub String);
+pub struct ProjectRevision(
+    /// Immutable Git commit identifier.
+    pub String,
+);
 impl From<&str> for ProjectRevision {
     fn from(value: &str) -> Self {
         Self(value.to_owned())
@@ -193,14 +205,17 @@ impl From<String> for ProjectRevision {
     }
 }
 impl std::fmt::Display for ProjectRevision {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(formatter)
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
     }
 }
 
 /// Pinned reference tool identity.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct ToolName(pub String);
+pub struct ToolName(
+    /// Reference tool name reported by its version command.
+    pub String,
+);
 impl From<&str> for ToolName {
     fn from(value: &str) -> Self {
         Self(value.to_owned())
@@ -212,14 +227,17 @@ impl From<String> for ToolName {
     }
 }
 impl std::fmt::Display for ToolName {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(formatter)
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
     }
 }
 
 /// Exact reference release identity.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct ToolVersion(pub String);
+pub struct ToolVersion(
+    /// Exact required reference version.
+    pub String,
+);
 impl From<&str> for ToolVersion {
     fn from(value: &str) -> Self {
         Self(value.to_owned())
@@ -231,14 +249,17 @@ impl From<String> for ToolVersion {
     }
 }
 impl std::fmt::Display for ToolVersion {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(formatter)
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
     }
 }
 
 /// Expected executable SHA-256 digest.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct ToolDigest(pub String);
+pub struct ToolDigest(
+    /// Expected SHA256 hexadecimal digest of executable bytes.
+    pub String,
+);
 impl From<&str> for ToolDigest {
     fn from(value: &str) -> Self {
         Self(value.to_owned())
@@ -250,14 +271,17 @@ impl From<String> for ToolDigest {
     }
 }
 impl std::fmt::Display for ToolDigest {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(formatter)
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
     }
 }
 
 /// Assessed capability identifier for a default disposition.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct CapabilityName(pub String);
+pub struct CapabilityName(
+    /// Public capability identifier explaining an explicit deferral.
+    pub String,
+);
 impl From<&str> for CapabilityName {
     fn from(value: &str) -> Self {
         Self(value.to_owned())
@@ -269,14 +293,17 @@ impl From<String> for CapabilityName {
     }
 }
 impl std::fmt::Display for CapabilityName {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(formatter)
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
     }
 }
 
 /// Stable human-readable identity of an independent case.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct BenchmarkCaseName(pub String);
+pub struct BenchmarkCaseName(
+    /// Unique human-readable case name within its rule.
+    pub String,
+);
 impl From<&str> for BenchmarkCaseName {
     fn from(value: &str) -> Self {
         Self(value.to_owned())
@@ -288,8 +315,8 @@ impl From<String> for BenchmarkCaseName {
     }
 }
 impl std::fmt::Display for BenchmarkCaseName {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(formatter)
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
     }
 }
 
@@ -304,27 +331,36 @@ pub enum WorkerState {
 
 /// Stable digest of the complete requested artifact set.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ArtifactDigest(pub String);
+pub struct ArtifactDigest(
+    /// Framed artifact fingerprint, or raw executable hash when explicitly requested.
+    pub String,
+);
 impl std::fmt::Display for ArtifactDigest {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(formatter)
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
     }
 }
 
 /// Number of independently executed correctness cases.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct CaseCount(pub usize);
+pub struct CaseCount(
+    /// Number of independently authored cases checked.
+    pub usize,
+);
 
 /// Number of rules in a pinned coverage inventory.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct RuleCount(pub usize);
+pub struct RuleCount(
+    /// Number of rule identities in the audited inventory.
+    pub usize,
+);
 impl std::fmt::Display for RuleCount {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(formatter)
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
     }
 }
 impl std::fmt::Display for CaseCount {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(formatter)
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
     }
 }

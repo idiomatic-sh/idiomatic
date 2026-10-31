@@ -1,4 +1,8 @@
 //! Executable certification scenarios shared by unit and acceptance proofs.
+#![expect(
+    clippy::expect_used,
+    reason = "fixture setup and fake state are test preconditions; a panic fails the unit or acceptance proof that calls this module"
+)]
 use crate::domain::{
     diagnostics::{
         errors::DiagnosticsError as Error,
@@ -8,7 +12,7 @@ use crate::domain::{
     suite::types::{BenchmarkCoverage, RunRequest},
 };
 use crate::outbound::linter::interface::LinterPort;
-use sha2::{Digest, Sha256};
+use sha2::{Digest as _, Sha256};
 use std::path::PathBuf;
 #[derive(Clone, Copy, Debug)]
 /// The independently controlled mutation applied after case certification.
@@ -35,8 +39,11 @@ pub enum Change {
     Command,
 }
 #[derive(Clone, Debug)]
+/// Deterministic contestant whose findings depend only on the fixture source.
 struct Contestant {
+    /// Executable identity used by preparation and certificate checks.
     executable: PathBuf,
+    /// Mutable arguments used to prove command-profile drift is refused.
     arguments: Vec<std::ffi::OsString>,
 }
 impl LinterPort for Contestant {
@@ -44,7 +51,7 @@ impl LinterPort for Contestant {
         Ok(Invocation {
             executable: self.executable.clone(),
             arguments: self.arguments.clone(),
-            environment: Default::default(),
+            environment: std::collections::BTreeMap::default(),
             directory: request.root.clone(),
         })
     }
@@ -53,9 +60,11 @@ impl LinterPort for Contestant {
             .files
             .iter()
             .filter_map(|file| {
-                let source = std::fs::read_to_string(request.root.join(file.0.as_ref())).unwrap();
+                let source = std::fs::read_to_string(request.root.join(file.0.as_ref()))
+                    .expect("certification fixture precondition");
                 (source == super::constants::FIXTURE_POSITIVE_SOURCE).then(|| BenchmarkFinding {
-                    rule: ryo::linter::RuleId::try_from(super::constants::FIXTURE_RULE_ID).unwrap(),
+                    rule: ryo::linter::RuleId::try_from(super::constants::FIXTURE_RULE_ID)
+                        .expect("certification fixture precondition"),
                     file: file.clone(),
                     start: crate::domain::diagnostics::types::SourceByteOffset(0),
                     end: crate::domain::diagnostics::types::SourceByteOffset(1),
@@ -69,13 +78,17 @@ impl LinterPort for Contestant {
     }
 }
 #[derive(Debug)]
+/// Records launches while allowing independent collection-profile mutation.
 struct Observations(
     crate::outbound::execution::fixtures::fake::ExecutionFake,
     std::sync::Mutex<crate::domain::measurements::types::ExecutionProfile>,
 );
 impl crate::outbound::execution::interface::ExecutionPort for Observations {
     fn profile(&self) -> crate::domain::measurements::types::ExecutionProfile {
-        self.1.lock().unwrap().clone()
+        self.1
+            .lock()
+            .expect("certification fixture precondition")
+            .clone()
     }
     fn run(&self, mut invocation: Invocation) -> Result<ProcessOutput, Error> {
         invocation.executable = super::constants::FIXTURE_FAKE_PROGRAM.into();
@@ -92,6 +105,23 @@ impl crate::outbound::execution::interface::ExecutionPort for Observations {
 }
 #[cfg(unix)]
 /// Execute the public certificate and measurement operations with a controlled mutation.
+///
+/// # Errors
+/// Answers unit refusal only after asserting the precise diagnostic and absence of launches.
+/// # Panics
+/// Panics on fixture setup failure or an unexpected observation.
+#[expect(
+    clippy::result_unit_err,
+    reason = "the scenario asserts the complete refusal before returning its case-table marker"
+)]
+#[expect(
+    clippy::too_many_lines,
+    reason = "this single certification timeline preserves the before/after mutation and launch assertions together"
+)]
+#[expect(
+    clippy::clone_on_ref_ptr,
+    reason = "clones coerce concrete fake Arcs into independently injected trait-object ports"
+)]
 pub fn exercise(
     change: Change,
     constructor: impl FnOnce(
@@ -101,17 +131,19 @@ pub fn exercise(
         std::sync::Arc<dyn crate::outbound::execution::interface::ExecutionPort>,
     ) -> super::use_case::CertifyUseCaseImpl,
 ) -> Result<crate::domain::suite::types::CaseCount, ()> {
-    use std::os::unix::fs::PermissionsExt;
-    let root = tempfile::tempdir().unwrap();
+    use std::os::unix::fs::PermissionsExt as _;
+    let root = tempfile::tempdir().expect("certification fixture precondition");
     let directory = root
         .path()
         .join(super::constants::FIXTURE_PROFILE_DIRECTORY);
     let rules = directory.join(super::constants::FIXTURE_RULE_DIRECTORY_NAME);
-    std::fs::create_dir_all(rules.join(super::constants::FIXTURE_RULE_ID)).unwrap();
+    std::fs::create_dir_all(rules.join(super::constants::FIXTURE_RULE_ID))
+        .expect("certification fixture precondition");
     let executable = root.path().join(super::constants::FIXTURE_TOOL_FILE);
     let bytes = super::constants::FIXTURE_TOOL_SCRIPT.as_bytes();
-    std::fs::write(&executable, bytes).unwrap();
-    std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+    std::fs::write(&executable, bytes).expect("certification fixture precondition");
+    std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755))
+        .expect("certification fixture precondition");
     std::fs::write(
         directory.join(super::constants::FIXTURE_PROFILE_FILE),
         format!(
@@ -119,36 +151,36 @@ pub fn exercise(
             Sha256::digest(bytes)
         ),
     )
-    .unwrap();
+    .expect("certification fixture precondition");
     std::fs::write(
         rules.join(super::constants::FIXTURE_QUERY_FILE),
         super::constants::FIXTURE_QUERY_CONTENT,
     )
-    .unwrap();
+    .expect("certification fixture precondition");
     std::fs::write(
         rules.join(super::constants::FIXTURE_CASES_FILE),
-        toml::to_string(&case_document()).unwrap(),
+        toml::to_string(&case_document()).expect("certification fixture precondition"),
     )
-    .unwrap();
+    .expect("certification fixture precondition");
     let workload = root
         .path()
         .join(super::constants::FIXTURE_WORKLOAD_DIRECTORY);
-    std::fs::create_dir(&workload).unwrap();
+    std::fs::create_dir_all(&workload).expect("certification fixture precondition");
     std::fs::write(
         workload.join(super::constants::FIXTURE_PROFILE_FILE),
         super::constants::FIXTURE_PROJECT_CONTENT,
     )
-    .unwrap();
+    .expect("certification fixture precondition");
     std::fs::write(
         workload.join(super::constants::FIXTURE_PATCH_FILE),
         super::constants::FIXTURE_PATCH_CONTENT,
     )
-    .unwrap();
+    .expect("certification fixture precondition");
     std::fs::write(
         workload.join(super::constants::FIXTURE_COLLECTOR_FILE),
         super::constants::FIXTURE_TOOL_SCRIPT,
     )
-    .unwrap();
+    .expect("certification fixture precondition");
     let suite = std::sync::Arc::new(crate::outbound::suite::factory::local());
     let reference = std::sync::Arc::new(Contestant {
         executable: executable.clone(),
@@ -191,15 +223,18 @@ pub fn exercise(
         &root.path().join(super::constants::FIXTURE_CASE_DIRECTORY),
         BenchmarkCoverage::Accounted,
     )
-    .unwrap();
-    assert!(!certificate.fingerprint().0.is_empty());
+    .expect("certification fixture precondition");
+    assert!(
+        !certificate.fingerprint().0.is_empty(),
+        "certification must bind an actual artifact digest"
+    );
     let measured_root = root.path().join(super::constants::FIXTURE_SOURCE_DIRECTORY);
-    std::fs::create_dir(&measured_root).unwrap();
+    std::fs::create_dir_all(&measured_root).expect("certification fixture precondition");
     std::fs::write(
         measured_root.join(super::constants::FIXTURE_SOURCE_FILE),
         super::constants::FIXTURE_POSITIVE_SOURCE,
     )
-    .unwrap();
+    .expect("certification fixture precondition");
     let request = RunRequest {
         root: measured_root,
         files: vec![ryo::linter::RelativePath(
@@ -213,13 +248,19 @@ pub fn exercise(
         Change::Manifest => Some(workload.join(super::constants::FIXTURE_PROFILE_FILE)),
         Change::Collector => Some(workload.join(super::constants::FIXTURE_COLLECTOR_FILE)),
         Change::Instrumentation => {
-            *execution.1.lock().unwrap() =
+            *execution
+                .1
+                .lock()
+                .expect("certification fixture precondition") =
                 crate::domain::measurements::types::ExecutionProfile::Wall;
             None
         }
         Change::CollectorPin | Change::CollectorPath => {
             if let crate::domain::measurements::types::ExecutionProfile::Isolated(profile) =
-                &mut *execution.1.lock().unwrap()
+                &mut *execution
+                    .1
+                    .lock()
+                    .expect("certification fixture precondition")
             {
                 if matches!(change, Change::CollectorPin) {
                     profile.digest.0 = super::constants::FIXTURE_ALTERED_BYTES.into();
@@ -239,17 +280,23 @@ pub fn exercise(
         }
     };
     if let Some(path) = changed {
-        std::fs::write(path, super::constants::FIXTURE_ALTERED_BYTES).unwrap();
+        std::fs::write(path, super::constants::FIXTURE_ALTERED_BYTES)
+            .expect("certification fixture precondition");
     }
-    let prior = execution.0.history.lock().unwrap().len();
-    let operation = crate::inbound::use_cases::measure::use_case::MeasureUseCaseImpl::new(
+    let prior = execution
+        .0
+        .history
+        .lock()
+        .expect("certification fixture precondition")
+        .len();
+    let measurement = crate::inbound::use_cases::measure::use_case::MeasureUseCaseImpl::new(
         reference.clone(),
         candidate.clone(),
         execution.clone(),
         suite.clone(),
     );
     let result = crate::inbound::use_cases::measure::interface::MeasureUseCase::measure(
-        &operation,
+        &measurement,
         &certificate,
         &request,
         RunOrder::ReferenceFirst,
@@ -259,7 +306,12 @@ pub fn exercise(
         Err(error) => {
             assert_eq!(
                 prior,
-                execution.0.history.lock().unwrap().len(),
+                execution
+                    .0
+                    .history
+                    .lock()
+                    .expect("certification fixture precondition")
+                    .len(),
                 "{}",
                 super::constants::FIXTURE_NO_EARLY_EXECUTION
             );
@@ -268,9 +320,18 @@ pub fn exercise(
                 Change::Instrumentation | Change::CollectorPin | Change::CollectorPath => {
                     super::constants::FIXTURE_EXPECTED_INSTRUMENTATION_REFUSAL
                 }
-                _ => super::constants::FIXTURE_EXPECTED_ARTIFACT_REFUSAL,
+                Change::None
+                | Change::Patch
+                | Change::Manifest
+                | Change::Collector
+                | Change::Query
+                | Change::Executable => super::constants::FIXTURE_EXPECTED_ARTIFACT_REFUSAL,
             };
-            assert_eq!(error.to_string(), expected);
+            assert_eq!(
+                error.to_string(),
+                expected,
+                "mutation must produce its specific refusal"
+            );
             Err(())
         }
     }
@@ -290,6 +351,7 @@ pub fn exercise(
     Err(())
 }
 
+/// Encode independent positive and negative case records.
 fn case_document() -> toml::Value {
     use super::constants;
     let record = |name: toml::Value, source: toml::Value, expected: Vec<toml::Value>| {

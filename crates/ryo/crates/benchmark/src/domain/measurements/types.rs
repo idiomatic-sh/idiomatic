@@ -69,19 +69,31 @@ pub mod sample;
 
 /// Exit code returned by a successfully launched process.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct ProcessExitCode(pub i32);
+pub struct ProcessExitCode(
+    /// Exit status reported by the operating system.
+    pub i32,
+);
 
 /// Captured process stream bytes, not source text or a machine path.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct CapturedBytes(pub Vec<u8>);
+pub struct CapturedBytes(
+    /// Unmodified bytes captured from one process stream.
+    pub Vec<u8>,
+);
 
 /// Peak resident memory expressed in bytes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct ResidentBytes(pub u64);
+pub struct ResidentBytes(
+    /// Peak resident memory in bytes.
+    pub u64,
+);
 
 /// Stable identity of a project, contestant and cache condition.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct SampleName(pub String);
+pub struct SampleName(
+    /// Project, contestant and cache-condition identity.
+    pub String,
+);
 
 /// Whether the execution boundary actually collected child resources.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -114,4 +126,7 @@ pub struct CollectorProfile {
 
 /// Raw SHA256 identifying an instrumentation executable.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct CollectorDigest(pub String);
+pub struct CollectorDigest(
+    /// Expected SHA256 hexadecimal digest of collector bytes.
+    pub String,
+);

@@ -16,38 +16,28 @@ use std::num::NonZeroUsize;
 
 use crate::outbound::engine::interface::EnginePort;
 
+/// Runs authored queries through the SDK with the injected language registry.
 #[derive(Debug)]
 pub(crate) struct EngineLocalAdapter {
+    /// Frontends selected by the outer language composition.
     languages: Languages,
+    /// Optional trace destination for a separately labelled profiling invocation.
     trace: Option<std::path::PathBuf>,
 }
 impl EngineLocalAdapter {
+    /// Bind language support and optional profiling output once at composition.
     pub(crate) fn new(languages: Languages, trace: Option<std::path::PathBuf>) -> Self {
         Self { languages, trace }
     }
-}
-impl EnginePort for EngineLocalAdapter {
-    fn run(&self, request: WorkerRequest) -> Result<RunReport, Error> {
-        use tracing_subscriber::prelude::*;
-        let _trace = if let Some(path) = &self.trace {
-            let (layer, guard) = tracing_chrome::ChromeLayerBuilder::new().file(path).build();
-            tracing::subscriber::set_global_default(
-                tracing_subscriber::registry()
-                    .with(tracing_subscriber::filter::LevelFilter::INFO)
-                    .with(layer),
-            )
-            .map_err(|error| Error::Invalid(error.to_string()))?;
-            Some(guard)
-        } else {
-            None
-        };
+    /// Load all selected query files, refusing duplicate or empty inventories.
+    fn load_rules(directory: &std::path::Path) -> Result<BTreeMap<RuleId, Rule>, Error> {
         let mut rules = BTreeMap::new();
-        for entry in std::fs::read_dir(&request.rules)? {
+        for entry in std::fs::read_dir(directory)? {
             let entry = entry?;
             let id = entry
                 .file_name()
                 .into_string()
-                .map_err(|_| Error::Invalid(constants::NON_UTF8_RULE.into()))?;
+                .map_err(|_name| Error::Invalid(constants::NON_UTF8_RULE.into()))?;
             let query = std::fs::read_to_string(entry.path().join(constants::QUERY_FILE))?;
             let id =
                 RuleId::try_from(id.as_str()).map_err(|error| Error::Invalid(error.to_string()))?;
@@ -71,6 +61,25 @@ impl EnginePort for EngineLocalAdapter {
         if rules.is_empty() {
             return Err(Error::Invalid(constants::EMPTY_RULES.into()));
         }
+        Ok(rules)
+    }
+}
+impl EnginePort for EngineLocalAdapter {
+    fn run(&self, request: WorkerRequest) -> Result<RunReport, Error> {
+        use tracing_subscriber::prelude::*;
+        let _trace = if let Some(path) = &self.trace {
+            let (layer, guard) = tracing_chrome::ChromeLayerBuilder::new().file(path).build();
+            tracing::subscriber::set_global_default(
+                tracing_subscriber::registry()
+                    .with(tracing_subscriber::filter::LevelFilter::INFO)
+                    .with(layer),
+            )
+            .map_err(|error| Error::Invalid(error.to_string()))?;
+            Some(guard)
+        } else {
+            None
+        };
+        let rules = Self::load_rules(&request.rules)?;
         let mut sources = Vec::new();
         let mut accepted = std::collections::BTreeSet::new();
         for file in &request.files {
@@ -124,10 +133,10 @@ impl EnginePort for EngineLocalAdapter {
                 .columns
                 .iter()
                 .filter_map(|column| {
-                    if column.name.0.as_ref() == constants::SPAN_COLUMN {
-                        if let Slot::Is(Cell::Span(span)) = &column.value {
-                            return Some(*span);
-                        }
+                    if column.name.0.as_ref() == constants::SPAN_COLUMN
+                        && let Slot::Is(Cell::Span(span)) = &column.value
+                    {
+                        return Some(*span);
                     }
                     None
                 })
@@ -138,8 +147,14 @@ impl EnginePort for EngineLocalAdapter {
             diagnostics.push(BenchmarkFinding {
                 rule: finding.rule,
                 file,
-                start: crate::domain::diagnostics::types::SourceByteOffset(span.start.0 as usize),
-                end: crate::domain::diagnostics::types::SourceByteOffset(span.end.0 as usize),
+                start: crate::domain::diagnostics::types::SourceByteOffset(
+                    usize::try_from(span.start.0)
+                        .map_err(|error| Error::Invalid(error.to_string()))?,
+                ),
+                end: crate::domain::diagnostics::types::SourceByteOffset(
+                    usize::try_from(span.end.0)
+                        .map_err(|error| Error::Invalid(error.to_string()))?,
+                ),
             });
         }
         Ok(RunReport {

@@ -12,6 +12,10 @@ use crate::outbound::{
 use std::path::Path;
 
 /// Execute independent cases, then seal the unchanged artifacts and both executable bytes.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "this orchestration forwards explicit sealed workload identities through four independently injected ports"
+)]
 pub(super) fn certify(
     suite: &dyn SuitePort,
     reference: &dyn LinterPort,

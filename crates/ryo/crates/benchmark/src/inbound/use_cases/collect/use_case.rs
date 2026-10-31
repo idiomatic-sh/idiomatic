@@ -10,7 +10,9 @@ use crate::{
 use std::sync::Arc;
 /// Collector operation with explicit boundaries.
 pub struct CollectUseCaseImpl {
+    /// Structured collector protocol boundary.
     codec: Arc<dyn CollectionPort>,
+    /// Process launch and resource observation boundary.
     execution: Arc<dyn ExecutionPort>,
 }
 impl CollectUseCaseImpl {

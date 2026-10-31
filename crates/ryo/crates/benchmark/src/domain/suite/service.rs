@@ -4,6 +4,9 @@ use crate::domain::diagnostics::errors::DiagnosticsError as Error;
 use std::path::{Component, Path};
 
 /// Require a nonempty complete implementation inventory.
+///
+/// # Errors
+/// Refuses an empty inventory or any missing default implementation.
 pub fn require_complete(audit: &Audit) -> Result<(), Error> {
     if audit.implemented.is_empty() && audit.missing.is_empty() {
         return Err(Error::Invalid(super::constants::EMPTY_AUDIT.into()));
@@ -25,6 +28,9 @@ pub fn require_complete(audit: &Audit) -> Result<(), Error> {
 }
 
 /// Every default is either authored or explicitly deferred; no gap becomes a match.
+///
+/// # Errors
+/// Refuses an empty implementation subset, invalid deferrals or unaccounted defaults.
 pub fn require_accounted(audit: &Audit, tool: &super::types::Tool) -> Result<(), Error> {
     if audit.implemented.is_empty() {
         return Err(Error::Invalid(super::constants::EMPTY_SUBSET.into()));
@@ -50,6 +56,9 @@ pub fn require_accounted(audit: &Audit, tool: &super::types::Tool) -> Result<(),
 }
 
 /// Refuse absolute, empty and traversing paths before boundary access.
+///
+/// # Errors
+/// Refuses empty, absolute, traversing or otherwise non-normal relative paths.
 pub fn relative_path(path: impl AsRef<Path>) -> Result<(), Error> {
     let path = path.as_ref();
     if path.as_os_str().is_empty()
@@ -57,12 +66,18 @@ pub fn relative_path(path: impl AsRef<Path>) -> Result<(), Error> {
             .components()
             .any(|component| !matches!(component, Component::Normal(_)))
     {
-        return Err(Error::Invalid(format!("unsafe corpus path {path:?}")));
+        return Err(Error::Invalid(format!(
+            "unsafe corpus path {}",
+            path.display()
+        )));
     }
     Ok(())
 }
 
 /// Require independent positive/negative cases with valid source spans and names.
+///
+/// # Errors
+/// Refuses missing positive or negative expectations and invalid case sources.
 pub fn validate_cases(cases: &Cases) -> Result<(), Error> {
     if !cases.cases.iter().any(|case| case.expected.is_empty())
         || !cases.cases.iter().any(|case| !case.expected.is_empty())
@@ -73,6 +88,9 @@ pub fn validate_cases(cases: &Cases) -> Result<(), Error> {
 }
 
 /// Validate case identity, source coverage and byte ranges without asserting a positive finding.
+///
+/// # Errors
+/// Refuses empty cases, duplicate names, unsafe paths or spans outside supplied sources.
 pub fn validate_case_sources(cases: &Cases) -> Result<(), Error> {
     if cases.cases.is_empty() {
         return Err(Error::Invalid(super::constants::EMPTY_CASES.into()));

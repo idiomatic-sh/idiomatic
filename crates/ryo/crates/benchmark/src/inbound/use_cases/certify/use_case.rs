@@ -9,9 +9,13 @@ use crate::outbound::{
 use std::sync::Arc;
 /// Establish independent correctness evidence for the selected execution profile.
 pub struct CertifyUseCaseImpl {
+    /// Artifact validation and exact content fingerprinting boundary.
     suite: Arc<dyn SuitePort>,
+    /// Pinned reference tool preparation and decoding boundary.
     reference: Arc<dyn LinterPort>,
+    /// Candidate tool preparation and decoding boundary.
     candidate: Arc<dyn LinterPort>,
+    /// Process launch and resource observation boundary.
     execution: Arc<dyn ExecutionPort>,
 }
 impl CertifyUseCaseImpl {
@@ -57,9 +61,8 @@ impl CertifyUseCase for CertifyUseCaseImpl {
     }
 }
 impl std::fmt::Debug for CertifyUseCaseImpl {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct(std::any::type_name::<Self>())
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct(std::any::type_name::<Self>())
             .finish_non_exhaustive()
     }
 }

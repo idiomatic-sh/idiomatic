@@ -5,7 +5,9 @@ use crate::outbound::{engine::interface::EnginePort, worker::interface::WorkerPo
 use std::sync::Arc;
 /// Handles one child-process request through independently injected boundaries.
 pub struct RunRyoUseCaseImpl {
+    /// SDK evaluation boundary selected by the language composition.
     engine: Arc<dyn EnginePort>,
+    /// Child request and response transport boundary.
     worker: Arc<dyn WorkerPort>,
 }
 impl RunRyoUseCaseImpl {
@@ -23,9 +25,8 @@ impl RunRyoUseCase for RunRyoUseCaseImpl {
     }
 }
 impl std::fmt::Debug for RunRyoUseCaseImpl {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct(std::any::type_name::<Self>())
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct(std::any::type_name::<Self>())
             .finish_non_exhaustive()
     }
 }

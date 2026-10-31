@@ -3,6 +3,9 @@ use crate::domain::diagnostics::types::Difference;
 use crate::domain::diagnostics::types::RunReport;
 
 /// Compare canonical finding multisets and exact submitted-file coverage.
+///
+/// # Errors
+/// Returns both normalized finding multisets when their multiplicity or input coverage differs.
 pub fn compare(reference: &RunReport, candidate: &RunReport) -> Result<(), Difference> {
     let mut left = reference.diagnostics.clone();
     let mut right = candidate.diagnostics.clone();
