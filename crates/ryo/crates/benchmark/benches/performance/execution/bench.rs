@@ -5,7 +5,7 @@
 )]
 use ryo_benchmark::domain::measurements::types::Invocation;
 use ryo_benchmark::outbound::execution::{
-    factory::{process, timed},
+    factory::{direct, process, timed},
     interface::ExecutionPort,
 };
 fn invocation() -> Invocation {
@@ -29,7 +29,19 @@ fn process_child(bencher: divan::Bencher<'_, '_>) {
 }
 #[divan::bench]
 fn timed_child(bencher: divan::Bencher<'_, '_>) {
-    let adapter = timed();
+    use sha2::{Digest, Sha256};
+    let bench = std::env::current_exe().expect("running benchmark executable");
+    let executable = bench
+        .parent()
+        .expect("deps directory")
+        .parent()
+        .expect("profile directory")
+        .join("ryo-benchmark-collector");
+    let digest = ryo_benchmark::domain::suite::types::ArtifactDigest(format!(
+        "{:x}",
+        Sha256::digest(std::fs::read(&executable).expect("collector bytes"))
+    ));
+    let adapter = timed(executable, digest);
     let input = invocation();
     bencher.bench_local(|| {
         let output = adapter
@@ -43,4 +55,11 @@ fn timed_child(bencher: divan::Bencher<'_, '_>) {
         ));
         divan::black_box(output)
     });
+}
+
+#[divan::bench]
+fn direct_child(bencher: divan::Bencher<'_, '_>) {
+    let adapter = direct();
+    let input = invocation();
+    bencher.bench_local(|| adapter.run(input.clone()).expect("direct child starts"));
 }

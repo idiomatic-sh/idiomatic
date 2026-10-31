@@ -1,5 +1,5 @@
-//! Execution observation failures.
-pub(super) const SIGNAL: &str = "contestant terminated by signal";
-pub(super) const PIPE: &str = "configured child output pipe is missing";
-pub(super) const READER: &str = "child output reader panicked";
-pub(super) const CPU: &str = "child CPU duration overflow";
+//! Collector operational refusals.
+pub(super) const DIGEST: &str = "collector executable digest changed";
+pub(super) const PIPE: &str = "collector input pipe missing";
+pub(super) const WRITER: &str = "collector input writer panicked";
+pub(super) const FAILED: &str = "collector process failed";

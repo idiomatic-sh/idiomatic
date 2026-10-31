@@ -6,3 +6,5 @@ pub mod linter;
 pub mod suite;
 pub mod worker;
 pub mod workspace;
+
+pub mod collection;

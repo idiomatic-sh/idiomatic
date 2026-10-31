@@ -1,24 +1,112 @@
-//! Checked conversion of the collector's typed per-child resource record.
+//! Private wire forms preserve native OS strings and exact resource units.
+use crate::domain::measurements::types::CapturedBytes as CollectorMessage;
 use crate::domain::{
-    diagnostics::errors::DiagnosticsError as Error, measurements::types::Resources,
+    diagnostics::errors::DiagnosticsError as Error,
+    measurements::types::{
+        CapturedBytes, Invocation, ProcessExitCode, ProcessOutput, ResidentBytes,
+        ResourceObservation, Resources,
+    },
 };
-/// Per-child clocks and peak resident bytes returned by pinned wait4.
-struct ResourcesSchema(pub(super) wait4::ResourceUsage);
-impl TryFrom<ResourcesSchema> for Resources {
-    type Error = Error;
-    fn try_from(ResourcesSchema(record): ResourcesSchema) -> Result<Self, Error> {
-        let cpu = record
-            .utime
-            .checked_add(record.stime)
-            .ok_or_else(|| Error::Invalid(super::constants::CPU.into()))?;
-        Ok(Resources {
-            cpu,
-            peak_rss_bytes: crate::domain::measurements::types::ResidentBytes(record.maxrss),
-        })
+use serde::{Deserialize, Serialize};
+use std::{ffi::OsString, time::Duration};
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct EnvironmentSchema {
+    name: OsString,
+    value: OsString,
+}
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct InvocationSchema {
+    executable: OsString,
+    arguments: Vec<OsString>,
+    environment: Vec<EnvironmentSchema>,
+    directory: OsString,
+}
+impl From<&Invocation> for InvocationSchema {
+    fn from(call: &Invocation) -> Self {
+        Self {
+            executable: call.executable.clone().into_os_string(),
+            arguments: call.arguments.clone(),
+            environment: call
+                .environment
+                .iter()
+                .map(|(name, value)| EnvironmentSchema {
+                    name: name.clone(),
+                    value: value.clone(),
+                })
+                .collect(),
+            directory: call.directory.clone().into_os_string(),
+        }
     }
 }
-pub(super) fn decode(record: wait4::ResourceUsage) -> Result<Resources, Error> {
-    ResourcesSchema(record).try_into()
+impl From<InvocationSchema> for Invocation {
+    fn from(call: InvocationSchema) -> Self {
+        Self {
+            executable: call.executable.into(),
+            arguments: call.arguments,
+            environment: call
+                .environment
+                .into_iter()
+                .map(|row| (row.name, row.value))
+                .collect(),
+            directory: call.directory.into(),
+        }
+    }
+}
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ObservationSchema {
+    status: i32,
+    stdout: Vec<u8>,
+    stderr: Vec<u8>,
+    wall: Duration,
+    cpu: Duration,
+    rss: u64,
+}
+impl From<ObservationSchema> for ProcessOutput {
+    fn from(output: ObservationSchema) -> Self {
+        Self {
+            status: ProcessExitCode(output.status),
+            stdout: CapturedBytes(output.stdout),
+            stderr: CapturedBytes(output.stderr),
+            wall: output.wall,
+            resources: ResourceObservation::Collected(Resources {
+                cpu: output.cpu,
+                peak_rss_bytes: ResidentBytes(output.rss),
+            }),
+        }
+    }
+}
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "result", deny_unknown_fields)]
+enum ResponseSchema {
+    Observed { output: ObservationSchema },
+    LaunchFailed { errno: i32 },
+    Failed { message: String },
+}
+impl From<ResponseSchema> for Result<ProcessOutput, Error> {
+    fn from(wire: ResponseSchema) -> Self {
+        match wire {
+            ResponseSchema::Observed { output } => Ok(output.into()),
+            ResponseSchema::LaunchFailed { errno } => {
+                Err(std::io::Error::from_raw_os_error(errno).into())
+            }
+            ResponseSchema::Failed { message } => Err(Error::Invalid(message)),
+        }
+    }
+}
+pub(super) fn request(call: &Invocation) -> Result<CollectorMessage, Error> {
+    serde_json::to_vec(&InvocationSchema::from(call))
+        .map(CollectorMessage)
+        .map_err(|error| Error::Json(Box::new(error)))
+}
+pub(super) fn observation(
+    message: &CollectorMessage,
+) -> Result<Result<ProcessOutput, Error>, Error> {
+    serde_json::from_slice::<ResponseSchema>(&message.0)
+        .map(Into::into)
+        .map_err(|error| Error::Json(Box::new(error)))
 }
 
 #[cfg(test)]

@@ -5,3 +5,5 @@ pub mod measure;
 pub mod run_ryo;
 
 pub mod certify;
+
+pub mod collect;

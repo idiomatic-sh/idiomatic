@@ -14,6 +14,9 @@ mod run_ryo;
 #[path = "../src/inbound/use_cases/certify/acceptance.rs"]
 mod certify;
 
+#[path = "../src/inbound/use_cases/collect/acceptance.rs"]
+mod collect;
+
 #[derive(Debug, Default, cucumber::World)]
 struct Behavior;
 

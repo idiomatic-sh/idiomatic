@@ -49,3 +49,11 @@ fixtures = []
 
 [lints]
 workspace = true
+
+[[bin]]
+name = "ryo-benchmark-collector"
+path = "src/main.rs"
+
+[[test]]
+name = "collector"
+path = "src/outbound/execution/adapters/timed/adapter_test.rs"

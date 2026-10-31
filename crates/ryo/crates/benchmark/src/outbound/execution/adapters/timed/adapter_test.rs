@@ -1,17 +1,150 @@
-//! Resource instrumentation preserves the execution port's process observations.
-use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::outbound::execution::fixtures::contract::check;
-type Input = ();
+//! Built collector regression: resources belong to the actual child, not its large parent.
+use ryo_benchmark::outbound::execution::fixtures::contract::check as check_contract;
+use ryo_benchmark::{
+    cases::{Case, CaseName, Expect, Word, run},
+    domain::{
+        diagnostics::errors::DiagnosticsError,
+        measurements::types::{Invocation, ResourceObservation},
+        suite::types::ArtifactDigest,
+    },
+    outbound::execution::{self, interface::ExecutionPort},
+};
+use sha2::{Digest, Sha256};
+use std::{path::PathBuf, time::Duration};
+#[derive(Clone, Copy, Debug)]
+enum Probe {
+    Contract,
+    ParentMemory,
+    CpuAndMemory,
+    Sleep,
+    ChangedCollector,
+}
+type Input = Probe;
 type Value = ();
-type Failure = crate::outbound::execution::fixtures::contract::LaunchFailure;
-const CASES: &[Case<Input, Value, Failure>] = &[Case {
-    name: CaseName("timed execution honors process contract"),
-    word: Word::Succeeds,
-    input: || (),
-    expect: Expect::Value(()),
-}];
-fn subject(_: Input) -> Result<Value, Failure> {
-    check(&crate::outbound::execution::factory::timed());
+type Failure = String;
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("sleeping child wall time is not fabricated CPU time"),
+        word: Word::Succeeds,
+        input: || Probe::Sleep,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("isolated collector preserves launch semantics and both streams"),
+        word: Word::Succeeds,
+        input: || Probe::Contract,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("tiny child does not inherit256MiB resident parent"),
+        word: Word::Succeeds,
+        input: || Probe::ParentMemory,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("busy allocated child has measured CPU and resident bytes"),
+        word: Word::Succeeds,
+        input: || Probe::CpuAndMemory,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("changed collector bytes refuse measurement"),
+        word: Word::Succeeds,
+        input: || Probe::ChangedCollector,
+        expect: Expect::Value(()),
+    },
+];
+fn settings() -> Result<(PathBuf, ArtifactDigest), std::io::Error> {
+    let executable = PathBuf::from(env!("CARGO_BIN_EXE_ryo-benchmark-collector"));
+    let digest = ArtifactDigest(format!("{:x}", Sha256::digest(std::fs::read(&executable)?)));
+    Ok((executable, digest))
+}
+fn subject(probe: Input) -> Result<Value, Failure> {
+    check(probe).map_err(|error| error.to_string())
+}
+fn check(probe: Probe) -> Result<(), Box<dyn std::error::Error>> {
+    let (executable, mut digest) = settings()?;
+    if matches!(probe, Probe::ChangedCollector) {
+        digest = ArtifactDigest("incorrect".into());
+    }
+    let execution = execution::factory::timed(executable, digest);
+    if matches!(probe, Probe::Contract) {
+        check_contract(&execution);
+        return Ok(());
+    }
+    let mut invocation = Invocation {
+        executable: PathBuf::from("/usr/bin/true"),
+        arguments: Vec::new(),
+        environment: Default::default(),
+        directory: PathBuf::from("/tmp"),
+    };
+    if matches!(probe, Probe::ChangedCollector) {
+        assert!(matches!(
+            execution.run(invocation),
+            Err(DiagnosticsError::Invalid(_))
+        ));
+        return Ok(());
+    }
+    let parent = if matches!(probe, Probe::ParentMemory) {
+        vec![1_u8; 256 * 1024 * 1024]
+    } else {
+        Vec::new()
+    };
+    let _resident = std::hint::black_box(&parent);
+    if matches!(probe, Probe::CpuAndMemory) {
+        invocation.executable = PathBuf::from("/usr/bin/python3");
+        invocation.arguments = vec![
+            "-c".into(),
+            "import time; allocation=bytearray(64*1024*1024); end=time.process_time()+0.2
+while time.process_time()<end: pass"
+                .into(),
+        ];
+    }
+    if matches!(probe, Probe::Sleep) {
+        invocation.executable = PathBuf::from("/usr/bin/python3");
+        invocation.arguments = vec!["-c".into(), "import time; time.sleep(0.25)".into()];
+    }
+    let output = execution.run(invocation)?;
+    assert_eq!(output.status.0, 0);
+    assert!(output.wall > Duration::ZERO);
+    let ResourceObservation::Collected(resources) = output.resources else {
+        panic!("collector omitted resources")
+    };
+    match probe {
+        Probe::ParentMemory => assert!(
+            resources.peak_rss_bytes.0 > 0 && resources.peak_rss_bytes.0 < 64 * 1024 * 1024,
+            "tiny child RSS={} inherited parent",
+            resources.peak_rss_bytes.0
+        ),
+        Probe::CpuAndMemory => {
+            assert!(
+                resources.cpu >= Duration::from_millis(180),
+                "CPU={:?}",
+                resources.cpu
+            );
+            assert!(
+                resources.cpu <= output.wall + Duration::from_millis(50),
+                "CPU exceeds wall for single-thread child"
+            );
+            assert!(
+                resources.peak_rss_bytes.0 > 60 * 1024 * 1024
+                    && resources.peak_rss_bytes.0 < 160 * 1024 * 1024,
+                "RSS={}",
+                resources.peak_rss_bytes.0
+            );
+        }
+        Probe::Sleep => {
+            assert!(output.wall >= Duration::from_millis(200));
+            assert!(
+                resources.cpu < output.wall / 2,
+                "sleep CPU={:?} wall={:?}",
+                resources.cpu,
+                output.wall
+            );
+        }
+        Probe::Contract | Probe::ChangedCollector => unreachable!(),
+    }
+    drop(std::hint::black_box(parent));
     Ok(())
 }
 #[test]

@@ -6,9 +6,24 @@ pub fn process() -> impl super::interface::ExecutionPort {
     ExecutionProcessAdapter
 }
 
-/// Construct direct per-child Linux CPU and peak-RSS instrumentation.
-/// Other platforms refuse measurement rather than report cumulative process usage.
+/// Construct isolated per-child Linux CPU and peak-RSS instrumentation.
+/// The helper launches the actual child from a small resident process. Linux includes
+/// that small pre-exec resident footprint as a floor; it excludes the parent harness.
+/// Wall and CPU measure the actual child, excluding helper startup and protocol IO.
 #[must_use]
-pub fn timed() -> impl super::interface::ExecutionPort {
-    super::adapters::timed::adapter::ExecutionTimedAdapter
+#[cfg(not(test))]
+pub fn timed(
+    executable: std::path::PathBuf,
+    digest: crate::domain::suite::types::ArtifactDigest,
+) -> impl super::interface::ExecutionPort {
+    super::adapters::timed::adapter::ExecutionTimedAdapter::new(
+        super::adapters::timed::settings::ExecutionTimedSettings { executable, digest },
+    )
+}
+
+/// Direct resource observation, exclusively for the fresh collector process.
+/// A resident caller's memory can otherwise contaminate Linux exec-time RSS.
+#[must_use]
+pub fn direct() -> impl super::interface::ExecutionPort {
+    super::adapters::direct::adapter::ExecutionDirectAdapter
 }
