@@ -59,5 +59,10 @@
     }
   ],
   "lost_chunks": 1,
-  "loss_evidence": "perf report: Total Lost Samples: 5; perf record reported one lost chunk"
+  "loss_evidence": "perf report: Total Lost Samples: 5; perf record reported one lost chunk",
+  "observed_hot_path": {
+    "read_row_self_percent": 33.11,
+    "materialize_ancestor_percent": 31.3,
+    "stream_lookup_ancestor_percent": 31.29
+  }
 }
