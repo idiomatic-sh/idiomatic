@@ -1,0 +1,70 @@
+
+[[cases]]
+name = "nonempty"
+files = { "case.pyi" = "class C:\n    x: int\n    ...\n" }
+expected = [{"file" = "case.pyi", "start" = 24, "end" = 27}]
+
+[[cases]]
+name = "empty"
+files = { "case.pyi" = "class C: ...\n" }
+expected = []
+
+[[cases]]
+name = "docstring"
+files = { "case.pyi" = "class C:\n    \"doc\"\n    ...\n" }
+expected = [{"file" = "case.pyi", "start" = 23, "end" = 26}]
+
+[[cases]]
+name = "function"
+files = { "case.pyi" = "def f():\n    x = 1\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "nested-if"
+files = { "case.pyi" = "class C:\n    x: int\n    if ready:\n        ...\n" }
+expected = []
+
+[[cases]]
+name = "parentheses"
+files = { "case.pyi" = "class C:\n    x: int\n    (...)\n" }
+expected = [{"file" = "case.pyi", "start" = 24, "end" = 29}]
+
+[[cases]]
+name = "runtime"
+files = { "case.py" = "class C:\n    x: int\n    ...\n" }
+expected = [{"file" = "case.py", "start" = 24, "end" = 27}]
+
+[[cases]]
+name = "noqa"
+files = { "case.pyi" = "class C:\n    x: int\n    ... # noqa\n" }
+expected = []
+
+[[cases]]
+name = "code-noqa"
+files = { "case.pyi" = "class C:\n    x: int\n    ... # noqa: PYI013\n" }
+expected = []
+
+[[cases]]
+name = "other-code"
+files = { "case.pyi" = "class C:\n    x: int\n    ... # noqa: F401\n" }
+expected = [{"file" = "case.pyi", "start" = 24, "end" = 27}]
+
+[[cases]]
+name = "file-noqa"
+files = { "case.pyi" = "# ruff: noqa\nclass C:\n    x: int\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "ellipsis-assignment"
+files = { "case.pyi" = "class C:\n    x = ...\n    y: int\n" }
+expected = []
+
+[[cases]]
+name = "two-ellipses"
+files = { "case.pyi" = "class C:\n    ...\n    ...\n" }
+expected = [{"file" = "case.pyi", "start" = 13, "end" = 16}, {"file" = "case.pyi", "start" = 21, "end" = 24}]
+
+[[cases]]
+name = "runtime-subscript"
+files = { "case.py" = "class C:\n    x = a[...]\n    y: int\n" }
+expected = []

@@ -1,0 +1,80 @@
+
+[[cases]]
+name = "multiple"
+files = { "case.pyi" = "def function():\n    x = 1\n    return x\n" }
+expected = [{"file" = "case.pyi", "start" = 4, "end" = 12}]
+
+[[cases]]
+name = "async"
+files = { "case.pyi" = "async def function():\n    x = 1\n    return x\n" }
+expected = [{"file" = "case.pyi", "start" = 10, "end" = 18}]
+
+[[cases]]
+name = "docstring"
+files = { "case.pyi" = "def function():\n    \"doc\"\n    ...\n" }
+expected = [{"file" = "case.pyi", "start" = 4, "end" = 12}]
+
+[[cases]]
+name = "single-block"
+files = { "case.pyi" = "def function():\n    if ready:\n        x = 1\n        return x\n" }
+expected = []
+
+[[cases]]
+name = "empty"
+files = { "case.pyi" = "def function(): ...\n" }
+expected = []
+
+[[cases]]
+name = "class"
+files = { "case.pyi" = "class C:\n    x: int\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "unicode"
+files = { "case.pyi" = "def caf\u00e9():\n    x = 1\n    return x\n" }
+expected = [{"file" = "case.pyi", "start" = 4, "end" = 9}]
+
+[[cases]]
+name = "runtime"
+files = { "case.py" = "def function():\n    x = 1\n    return x\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+files = { "case.pyi" = "def function(): # noqa\n    x = 1\n    return x\n" }
+expected = []
+
+[[cases]]
+name = "code-noqa"
+files = { "case.pyi" = "def function(): # noqa: PYI048\n    x = 1\n    return x\n" }
+expected = []
+
+[[cases]]
+name = "other-code"
+files = { "case.pyi" = "def function(): # noqa: F401\n    x = 1\n    return x\n" }
+expected = [{"file" = "case.pyi", "start" = 4, "end" = 12}]
+
+[[cases]]
+name = "file-noqa"
+files = { "case.pyi" = "# ruff: noqa\ndef function():\n    x = 1\n    return x\n" }
+expected = []
+
+[[cases]]
+name = "decorated"
+files = { "case.pyi" = "@decorate\ndef function():\n    pass\n    pass\n" }
+expected = [{"file" = "case.pyi", "start" = 14, "end" = 22}]
+
+[[cases]]
+name = "multiline-header"
+files = { "case.pyi" = "def function(\n    x: int,\n):\n    pass\n    pass\n" }
+expected = [{"file" = "case.pyi", "start" = 4, "end" = 12}]
+
+[[cases]]
+name = "multiline-header-noqa"
+files = { "case.pyi" = "def function(\n    x: int,\n): # noqa: PYI048\n    pass\n    pass\n" }
+expected = [{"file" = "case.pyi", "start" = 4, "end" = 12}]
+
+[[cases]]
+name = "multiline-header-initial-noqa"
+files = { "case.pyi" = "def function( # noqa: PYI048\n    x: int,\n):\n    pass\n    pass\n" }
+expected = []
