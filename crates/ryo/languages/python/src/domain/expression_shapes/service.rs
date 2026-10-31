@@ -295,7 +295,7 @@ pub(crate) fn prepare<'a>(
                 classes, scratch, ..
             } = &mut *index;
             if languages::children(tree.elements, at).any(|child| {
-                is_token(tree, *child) == Leaf::Node
+                is_token(tree, child) == Leaf::Node
                     && classes
                         .get(usize::try_from(child.0).unwrap_or(usize::MAX))
                         .is_none_or(Option::is_none)
