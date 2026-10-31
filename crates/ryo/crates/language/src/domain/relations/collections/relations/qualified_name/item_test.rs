@@ -20,7 +20,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
         Bits(3),
         Bits(11),
         Bits(17),
-        Bits(47244640269),
+        Bits(47_244_640_269),
     ]),
 }];
 fn subject(_: Input) -> Result<Value, Failure> {

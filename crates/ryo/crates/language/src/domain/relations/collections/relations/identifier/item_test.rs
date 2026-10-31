@@ -13,7 +13,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
     name: CaseName("canonical identifier keeps original byte span"),
     word: Word::Succeeds,
     input: || (),
-    expect: Expect::Value([Bits(3), Bits(5), Bits(7), Bits(47244640269)]),
+    expect: Expect::Value([Bits(3), Bits(5), Bits(7), Bits(47_244_640_269)]),
 }];
 fn subject(_: Input) -> Result<Value, Failure> {
     Ok(Identifier::words(IdentifierRow {

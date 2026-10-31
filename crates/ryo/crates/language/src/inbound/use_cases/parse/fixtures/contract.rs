@@ -82,7 +82,7 @@ pub struct Collect {
     /// The relations said to be partly read in one file of the run, each with the file and its cause.
     pub partials_at: Vec<(Relation, FileId, String)>,
     /// Reusable cause buffers after clear, so the collector adds no warmed allocations.
-    cause_buffers: Vec<String>,
+    pub cause_buffers: Vec<String>,
 }
 
 impl Collect {
@@ -269,7 +269,7 @@ fn identifier_valid(row: &[u64], symbols: &Symbols, source: ByteSlice<'_>) -> bo
     let Ok(name) = u32::try_from(*name) else {
         return false;
     };
-    let start = span >> 32;
+    let start = span >> 32_u32;
     let end = span & u64::from(u32::MAX);
     crate::domain::symbols::service::text_of(
         symbols,

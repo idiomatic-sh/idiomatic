@@ -96,6 +96,36 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(false),
     },
 ];
+fn qualified(origin: &str, path: Option<&str>, major: u64, minor: u64) -> Result<Value, Failure> {
+    use crate::domain::symbols::{
+        service::intern_derived,
+        types::{ByteSlice, Symbols},
+    };
+    use crate::domain::terms::{
+        service::unknown_symbol,
+        types::{NameText, UnknownReason},
+    };
+    let source = ByteSlice(b"");
+    let mut symbols = Symbols::default();
+    let path = path.map_or_else(
+        || unknown_symbol(UnknownReason(23)),
+        |text| intern_derived(&mut symbols, source, NameText(text)),
+    );
+    let provenance = intern_derived(&mut symbols, source, NameText(origin));
+    Ok(super::qualified_name_valid(
+        &[
+            0,
+            u64::from(path.0),
+            u64::from(provenance.0),
+            major,
+            minor,
+            0,
+            0,
+        ],
+        &symbols,
+        source,
+    ))
+}
 fn subject(operation: Input) -> Result<Value, Failure> {
     let mut output = Collect::default();
     match operation {
@@ -123,36 +153,7 @@ fn subject(operation: Input) -> Result<Value, Failure> {
             ))
         }
 
-        Operation::Qualified(origin, path, major, minor) => {
-            use crate::domain::symbols::{
-                service::intern_derived,
-                types::{ByteSlice, Symbols},
-            };
-            use crate::domain::terms::{
-                service::unknown_symbol,
-                types::{NameText, UnknownReason},
-            };
-            let source = ByteSlice(b"");
-            let mut symbols = Symbols::default();
-            let path = path.map_or_else(
-                || unknown_symbol(UnknownReason(23)),
-                |text| intern_derived(&mut symbols, source, NameText(text)),
-            );
-            let provenance = intern_derived(&mut symbols, source, NameText(origin));
-            Ok(super::qualified_name_valid(
-                &[
-                    0,
-                    u64::from(path.0),
-                    u64::from(provenance.0),
-                    major,
-                    minor,
-                    0,
-                    0,
-                ],
-                &symbols,
-                source,
-            ))
-        }
+        Operation::Qualified(origin, path, major, minor) => qualified(origin, path, major, minor),
         Operation::Partial => {
             <Collect as Rows<IndentRegionRow>>::partial(
                 &mut output,

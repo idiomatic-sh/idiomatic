@@ -40,12 +40,15 @@ where
 
 /// Offers the engine's indexed coordinates while each provider explicitly declares support.
 #[must_use]
-pub fn source_locations<M: 'static>() -> Support<
+pub fn source_locations<M>() -> Support<
     Reader<
         crate::domain::relations::collections::relations::source_location::item::SourceLocation,
         M,
     >,
-> {
+>
+where
+    M: 'static,
+{
     reads::<super::types::SourceLocationReader<M>>()
 }
 
