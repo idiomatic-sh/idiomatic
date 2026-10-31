@@ -85,14 +85,14 @@ def problems(workflow: dict) -> list[str]:
         if len(positions) > 1:
             found.append(f"{name} calls asymptote check {len(positions)} times")
         elif positions:
-            run = re.sub(r"\$\{\{[^}]*\}\}", "value", job["steps"][positions[0]]["run"].strip())
+            run = re.sub(r"\$\{\{.*?\}\}", "value", job["steps"][positions[0]]["run"].strip())
             if any(not step.get("uses", "").startswith(UPLOAD) for step in job["steps"][positions[0] + 1 :]):
                 found.append(f"{name} does not end in its asymptote check step")
             if not CHECK.fullmatch(run):
                 found.append(f"{name} runs {run!r}, not one `asymptote check [--root <dir>] [--groups <groups>]`")
         else:
             steps = [step for step in job["steps"] if "run" in step and step.get("name") != RELEASE_STEP]
-            runs = [re.sub(r"\$\{\{[^}]*\}\}", "value", step["run"].strip()) for step in steps]
+            runs = [re.sub(r"\$\{\{.*?\}\}", "value", step["run"].strip()) for step in steps]
             runs = [each for each in runs if each not in SETUP]
             if len(runs) > 1 or any(not COMMAND.fullmatch(each) for each in runs):
                 found.append(f"{name} does not check and does not run exactly one job command: {runs}")
@@ -257,7 +257,7 @@ def test_only_the_release_job_that_uploads_is_handed_a_token_and_only_after_the_
     (command,) = [step["run"] for step in publish["steps"] if "ci/release/command.py" in step.get("run", "")]
     assert "--product ${{ inputs.product }}" in command
     (checking,) = [step["run"] for step in workflow["jobs"]["check"]["steps"] if "asymptote check" in step.get("run", "")]
-    assert checking == "asymptote check --root crates/${{ inputs.product }} --groups ${{ matrix.group }}"
+    assert checking == "asymptote check --root ${{ matrix.root || format('crates/{0}', inputs.product) }} --groups ${{ matrix.group }}"
     # Every product's release tools, one job per group: each group a product's asymptote.toml names beside lint, check, perf and
     # build is a row of the matrix, and every row is a group some product names.
     released = {
@@ -267,12 +267,18 @@ def test_only_the_release_job_that_uploads_is_handed_a_token_and_only_after_the_
         if tool["group"].startswith("release")
     }
     rows = workflow["jobs"]["check"]["strategy"]["matrix"]["include"]
-    assert {row["group"] for row in rows} == released
+    assert {row["group"] for row in rows} == released | {"lint", "clippy", "api", "check"}
+    # The check workflow's groups too, the release being the only gate: lint from the root, the tests on every machine.
+    assert [row.get("root") for row in rows if row["group"] == "lint"] == ["."]
+    assert sorted(row["runner"] for row in rows if row["group"] == "check") == sorted(
+        ["ubuntu-26.04", "ubuntu-26.04-arm", "macos-26", "windows-2025"]
+    )
+    assert [row["runner"] for row in rows if row["group"] == "api"] == ["macos-26"]
     # The tests on every machine the products ship to; every other group once, on Linux.
     assert sorted(row["runner"] for row in rows if row["group"] == "release-tests") == sorted(
         ["ubuntu-26.04", "ubuntu-26.04-arm", "macos-26", "windows-2025"]
     )
-    assert all(row["runner"] == "ubuntu-26.04" for row in rows if row["group"] != "release-tests")
+    assert all(row["runner"] == "ubuntu-26.04" for row in rows if row["group"] not in {"release-tests", "check", "api"})
     assert len(rows) == len({(row["runner"], row["group"]) for row in rows})
     (uploading,) = [step for step in publish["steps"] if "CARGO_REGISTRY_TOKEN" in step.get("env", {})]
     assert uploading["env"]["CARGO_REGISTRY_TOKEN"].startswith("${{ env.PUBLISH == 'true' &&")

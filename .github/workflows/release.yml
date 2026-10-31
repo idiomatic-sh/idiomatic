@@ -33,10 +33,19 @@ jobs:
   check:
     strategy:
       fail-fast: false
-      # One job per independent build: the tools of a group share one, and no two groups do. The tests run on every machine; the
-      # groups whose verdict is the same on every platform run once, on Linux.
+      # One job per independent build: the tools of a group share one, and no two groups do. The tests (check, release-tests) run on
+      # every machine; the groups whose verdict is the same on every platform run once, on Linux, but the SDK's API, on macOS, where
+      # cargo-public-api ships a prebuilt. The release is the only gate, so it runs the check workflow's groups too: lint from the
+      # repository's root, which runs the root's tools and every product's.
       matrix:
         include:
+          - { runner: ubuntu-26.04, group: lint, root: . }
+          - { runner: ubuntu-26.04, group: clippy }
+          - { runner: macos-26, group: api }
+          - { runner: ubuntu-26.04, group: check }
+          - { runner: ubuntu-26.04-arm, group: check }
+          - { runner: macos-26, group: check }
+          - { runner: windows-2025, group: check }
           - { runner: ubuntu-26.04, group: release-tests }
           - { runner: ubuntu-26.04-arm, group: release-tests }
           - { runner: macos-26, group: release-tests }
@@ -72,13 +81,12 @@ jobs:
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
       - name: Rust toolchain (rust-toolchain.toml)
         run: rustup toolchain install
-      # A cache per machine and group, since each group builds with its own toolchain or flags; `release-tests` builds what the
-      # check workflow's jobs build, so it restores that workflow's cache and saves none.
+      # A cache per machine and group, since each group builds with its own toolchain, features or flags.
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           cache-bin: false
-          shared-key: ${{ matrix.group == 'release-tests' && format('{0}-{1}', runner.os, hashFiles('**/Cargo.lock')) || format('{0}-{1}', matrix.runner, matrix.group) }}
-          save-if: ${{ matrix.group != 'release-tests' }}
+          shared-key: ${{ matrix.runner }}-${{ matrix.group }}
+          save-if: true
           workspaces: |
             crates/asymptote -> target
             crates/tastemaker -> target
@@ -97,7 +105,7 @@ jobs:
         env:
           # cargo-binstall asks GitHub for each release: unauthenticated, the rate limit stalls it.
           GH_TOKEN: ${{ github.token }}
-      - run: asymptote check --root crates/${{ inputs.product }} --groups ${{ matrix.group }}
+      - run: asymptote check --root ${{ matrix.root || format('crates/{0}', inputs.product) }} --groups ${{ matrix.group }}
   build:
     needs: check
     strategy:

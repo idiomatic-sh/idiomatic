@@ -215,7 +215,14 @@ pub fn reach<S>(
             .strip_prefix(base)
             .map_or_else(
                 |_| member.0.clone(),
-                |path| path.display().to_string().into(),
+                // Separated by `/` on every platform: the path is the member's name in the output and the lock.
+                |path| {
+                    path.components()
+                        .map(|part| part.as_os_str().to_string_lossy())
+                        .collect::<Vec<_>>()
+                        .join("/")
+                        .into()
+                },
             );
         products.push(reached(ProductPath(path), member));
     }
