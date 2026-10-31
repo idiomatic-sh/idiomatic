@@ -20,6 +20,8 @@ Cold performance is unacceptable: Django takes approximately **89.8 seconds and 
 
 Each value is the median of six observations; `measurements.json` retains min/max and CPU, and `observations.log` contains every sample and execution order. Retained-cache hits are not independently instrumented. Both contestants receive identical explicit source paths and selected rules. Edited results also match independent fresh-cache executions.
 
+Six deferred binding rules now also have **80 full-report reference acceptance cases**: F401 (15), F811 (12), F821 (16), F822 (12), F823 (12), F841 (13). These include parser diagnostic identities where applicable. They are pinned oracle expectations for future implementations, not candidate passes or additional authored rules; `fixtures.json` records their exact names and asset hashes.
+
 ## Newly discovered annotation boundary
 
 Additional pinned-oracle probes showed that Ruff dispatches LOG001, B002 and B022 inside quoted annotations, including `x: "++value"`; the original candidate missed all three. A generic embedded-expression frontend, an end-to-end planner demand correction and virtual-scope binding fixes now pass a separate **47-case development cohort** on worker `6e781441ebba0db79844ad3db6d333c8b145f86975054e9baa7df0de106f2902`: 25 annotation cases, ten typing-context cases and twelve scope cases. The planner regression matters: direct provider fixtures requested child-field metadata explicitly and therefore did not expose the missing demand from semantic-child queries. The scope cases caught three false positives from lambda, comprehension and assignment-expression shadowing before the correction.
