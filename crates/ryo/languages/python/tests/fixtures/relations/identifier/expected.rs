@@ -1,4 +1,4 @@
-//! Unicode source spelling and canonical lexical identity are independently specified.
+// Unicode source spelling and canonical lexical identity are independently specified.
 use ryo::languages::contract::{
     Expected, IdentifierExpectedRow, expected_rows, file, name, node, span,
 };
