@@ -40,7 +40,7 @@ pub(crate) fn shape_of(index: &ExpressionShapeIndex, at: Position) -> Option<Pos
         .flatten()
 }
 /// Intern a full key. Hash collisions share a bucket, never an expression identity.
-fn intern(index: &mut ExpressionShapeIndex, at: Position, hash: ShapeHash) -> Position {
+pub(super) fn intern(index: &mut ExpressionShapeIndex, at: Position, hash: ShapeHash) -> Position {
     let mut candidate = index.buckets.get(&hash).copied();
     while let Some(place) = candidate {
         let Some(record) = index.records.get(place.0) else {
