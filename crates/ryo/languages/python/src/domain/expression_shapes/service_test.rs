@@ -22,7 +22,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(true),
     },
     Case {
-        name: CaseName("arbitrary precision integers preserve their exact magnitude"),
+        name: CaseName("equal huge integers in different radices stay structurally distinct"),
         word: Word::Succeeds,
         input: || {
             (
@@ -31,10 +31,22 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 "0xA0000000000000000",
             )
         },
+        expect: Expect::Value(false),
+    },
+    Case {
+        name: CaseName("identical huge integer spellings have equal shapes"),
+        word: Word::Succeeds,
+        input: || {
+            (
+                "184467440737095516160\n184467440737095516160\n",
+                "184467440737095516160",
+                "184467440737095516160",
+            )
+        },
         expect: Expect::Value(true),
     },
     Case {
-        name: CaseName("unequal large integer payloads do not saturate"),
+        name: CaseName("unequal huge integer payloads remain distinct"),
         word: Word::Succeeds,
         input: || {
             (
@@ -44,42 +56,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             )
         },
         expect: Expect::Value(false),
-    },
-    Case {
-        name: CaseName("large binary integer normalizes to exact decimal magnitude"),
-        word: Word::Succeeds,
-        input: || {
-            (
-                "18446744073709551616\n0b10000000000000000000000000000000000000000000000000000000000000000\n",
-                "18446744073709551616",
-                "0b10000000000000000000000000000000000000000000000000000000000000000",
-            )
-        },
-        expect: Expect::Value(true),
-    },
-    Case {
-        name: CaseName("large octal integer normalizes to exact decimal magnitude"),
-        word: Word::Succeeds,
-        input: || {
-            (
-                "18446744073709551616\n0o2000000000000000000000\n",
-                "18446744073709551616",
-                "0o2000000000000000000000",
-            )
-        },
-        expect: Expect::Value(true),
-    },
-    Case {
-        name: CaseName("large hexadecimal separators do not change magnitude"),
-        word: Word::Succeeds,
-        input: || {
-            (
-                "18446744073709551616\n0x1_0000_0000_0000_0000\n",
-                "18446744073709551616",
-                "0x1_0000_0000_0000_0000",
-            )
-        },
-        expect: Expect::Value(true),
     },
     Case {
         name: CaseName("float spelling normalizes through typed bits"),
@@ -254,6 +230,30 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || ("f'{x}a' 'b'\nf'{x}ab'\n", "f'{x}a' 'b'", "f'{x}ab'"),
         expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("f-string escape spellings share decoded literal text"),
+        word: Word::Succeeds,
+        input: || ("f'{x}\\n'\nf'{x}\\x0a'\n", "f'{x}\\n'", "f'{x}\\x0a'"),
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("f-string escaped braces share decoded literal text"),
+        word: Word::Succeeds,
+        input: || {
+            (
+                "f'{{{x}}}'\nf'\\x7b{x}\\x7d'\n",
+                "f'{{{x}}}'",
+                "f'\\x7b{x}\\x7d'",
+            )
+        },
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("unequal f-string literal fragments remain distinct"),
+        word: Word::Succeeds,
+        input: || ("f'{x}a'\nf'{x}b'\n", "f'{x}a'", "f'{x}b'"),
+        expect: Expect::Value(false),
     },
 ];
 fn subject((source, left, right): Input) -> Result<Value, Failure> {

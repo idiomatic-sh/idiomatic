@@ -6,7 +6,6 @@ use crate::domain::{
     extras::types::Extra,
     fields::service::field_of,
     labels::types::Field,
-    names::service::string_value,
     nodes::types::Node,
     syntax::{
         constants::{
@@ -21,6 +20,26 @@ use crate::domain::{
 use ryo::languages::{self, NameText, Position, Symbols, Tree};
 use std::cell::Ref;
 use std::hash::{Hash, Hasher};
+
+/// Concatenate only parser-decoded string token payloads; source spelling is never a fallback.
+fn decoded_string_value(
+    tree: &Tree<'_>,
+    symbols: &mut Symbols,
+    at: Position,
+) -> Option<languages::Symbol> {
+    let from = languages::begin_name(symbols);
+    let mut found = false;
+    for token in below(tree, at).filter(|each| {
+        matches!(
+            kind(tree, *each),
+            Kind::Token(Token::String | Token::FstringMiddle | Token::TstringMiddle)
+        )
+    }) {
+        languages::push_text(symbols, languages::decoded_at(tree.elements, token)?);
+        found = true;
+    }
+    found.then(|| languages::end_name(symbols, tree.source, from))
+}
 /// Invalidate source-dependent classes while retaining all backing capacity.
 pub(crate) fn clear(index: &mut ExpressionShapeIndex) {
     index.classes.clear();
@@ -120,7 +139,7 @@ fn constant(
             })
     {
         if interpolation(tree, at) == crate::domain::syntax::types::Interpolation::Static {
-            words.push(ShapeWord::Literal(string_value(tree, symbols, at)?));
+            words.push(ShapeWord::Literal(decoded_string_value(tree, symbols, at)?));
         } else {
             segments(tree, at, symbols, classes, words);
             merge_literals(tree, symbols, words);
@@ -145,7 +164,7 @@ fn segments(
                 segments(tree, each, symbols, classes, words)
             }
             Kind::Extra(Extra::StringPart) => {
-                if let Some(value) = string_value(tree, symbols, each) {
+                if let Some(value) = decoded_string_value(tree, symbols, each) {
                     words.push(ShapeWord::Literal(value));
                 }
             }

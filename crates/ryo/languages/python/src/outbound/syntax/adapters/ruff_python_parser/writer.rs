@@ -321,13 +321,7 @@ fn scalar_properties(
         match &literal.value {
             Number::Int(value) => {
                 node_property(builder, SCALAR_KIND, NameText(INTEGER_SCALAR));
-                if let Some(small) = value.as_u64() {
-                    node_property_fmt(builder, SCALAR_VALUE, format_args!("{small}"))?;
-                } else {
-                    let spelling = value.to_string();
-                    let canonical = canonical_integer(&spelling);
-                    node_property(builder, SCALAR_VALUE, NameText(&canonical));
-                }
+                node_property_fmt(builder, SCALAR_VALUE, format_args!("{value}"))?;
             }
             Number::Float(value) => {
                 node_property(builder, SCALAR_KIND, NameText(FLOAT_SCALAR));
@@ -376,90 +370,4 @@ fn scalar_properties(
         // Other syntax nodes carry no scalar parser payload.
     }
     Ok(())
-}
-
-/// Ruff retains the source spelling for integers larger than `u64`; normalize their radix so
-/// expression identity follows exact numeric magnitude rather than the literal's spelling.
-fn canonical_integer(value: &str) -> String {
-    let (radix, digits, prefixed) = if let Some(digits) = value
-        .strip_prefix("0x")
-        .or_else(|| value.strip_prefix("0X"))
-    {
-        (16_u32, digits, true)
-    } else if let Some(digits) = value
-        .strip_prefix("0o")
-        .or_else(|| value.strip_prefix("0O"))
-    {
-        (8_u32, digits, true)
-    } else if let Some(digits) = value
-        .strip_prefix("0b")
-        .or_else(|| value.strip_prefix("0B"))
-    {
-        (2_u32, digits, true)
-    } else {
-        // Large decimal values need only have valid separators removed.
-        let Some(decimal) = integer_digits(value, 10, false) else {
-            return value.to_owned();
-        };
-        return decimal
-            .into_iter()
-            .map(|digit| char::from(b'0' + digit as u8))
-            .collect();
-    };
-    let Some(digits) = integer_digits(digits, radix, prefixed) else {
-        return value.to_owned();
-    };
-    let mut decimal = vec![0_u8];
-    for digit in digits {
-        let mut carry = digit;
-        for place in &mut decimal {
-            let value = u32::from(*place) * radix + carry;
-            *place = (value % 10) as u8;
-            carry = value / 10;
-        }
-        while carry != 0 {
-            decimal.push((carry % 10) as u8);
-            carry /= 10;
-        }
-    }
-    decimal
-        .iter()
-        .rev()
-        .map(|digit| char::from(b'0' + *digit))
-        .collect()
-}
-
-/// Return validated digits; Python permits one separator after a base prefix and separators only
-/// between digits elsewhere. Invalid text remains opaque to the canonicalizer.
-fn integer_digits(value: &str, radix: u32, after_prefix: bool) -> Option<Vec<u32>> {
-    let mut digits = Vec::with_capacity(value.len());
-    let mut previous_separator = false;
-    for (index, character) in value.chars().enumerate() {
-        if character == '_' {
-            let allowed_prefix_separator = after_prefix && index == 0;
-            if previous_separator || (digits.is_empty() && !allowed_prefix_separator) {
-                return None;
-            }
-            previous_separator = true;
-        } else {
-            digits.push(character.to_digit(radix)?);
-            previous_separator = false;
-        }
-    }
-    if digits.is_empty() || previous_separator {
-        None
-    } else {
-        Some(digits)
-    }
-}
-
-#[cfg(test)]
-mod integer_tests {
-    use super::canonical_integer;
-
-    #[test]
-    fn malformed_radix_spelling_stays_unmodified() {
-        assert_eq!(canonical_integer("0xNotAnInteger"), "0xNotAnInteger");
-        assert_eq!(canonical_integer("0x__10"), "0x__10");
-    }
 }
