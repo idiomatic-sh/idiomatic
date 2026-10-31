@@ -1,0 +1,79 @@
+[[cases]]
+name = "explicit"
+files = { "case.py" = "function(value=1, **{\"value\": 2})\n" }
+expected = [{ file = "case.py", start = 21, end = 28 }]
+
+[[cases]]
+name = "before-explicit"
+files = { "case.py" = "function(**{\"value\": 1}, value=2)\n" }
+expected = [{ file = "case.py", start = 12, end = 19 }]
+
+[[cases]]
+name = "in-dict"
+files = { "case.py" = "function(**{\"value\": 1, \"value\": 2})\n" }
+expected = [{ file = "case.py", start = 24, end = 31 }]
+
+[[cases]]
+name = "across-dicts"
+files = { "case.py" = "function(**{\"value\": 1}, **{\"value\": 2})\n" }
+expected = [{ file = "case.py", start = 28, end = 35 }]
+
+[[cases]]
+name = "different"
+files = { "case.py" = "function(value=1, **{\"other\": 2})\n" }
+expected = []
+
+[[cases]]
+name = "nested-unpack"
+files = { "case.py" = "function(value=1, **{**{\"value\": 2}})\n" }
+expected = []
+
+[[cases]]
+name = "fstring"
+files = { "case.py" = "function(value=1, **{f\"value\": 2})\n" }
+expected = []
+
+[[cases]]
+name = "positional"
+files = { "case.py" = "function({\"value\": 1, \"value\": 2})\n" }
+expected = []
+
+[[cases]]
+name = "class"
+files = { "case.py" = "class C(value=1, **{\"value\": 2}):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "escaped"
+files = { "case.py" = "function(value=1, **{\"val\\u0075e\": 2})\n" }
+expected = [{ file = "case.py", start = 21, end = 33 }]
+
+[[cases]]
+name = "non-string"
+files = { "case.py" = "function(**{1: 1, 1: 2})\n" }
+expected = []
+
+[[cases]]
+name = "concatenated"
+files = { "case.py" = "function(value=1, **{\"val\" \"ue\": 2})\n" }
+expected = [{ file = "case.py", start = 21, end = 31 }]
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "function(value=1, **{\"value\": 2}) # noqa\n" }
+expected = []
+
+[[cases]]
+name = "code-noqa"
+files = { "case.py" = "function(value=1, **{\"value\": 2}) # noqa: PLE1132\n" }
+expected = []
+
+[[cases]]
+name = "other-code"
+files = { "case.py" = "function(value=1, **{\"value\": 2}) # noqa: F401\n" }
+expected = [{ file = "case.py", start = 21, end = 28 }]
+
+[[cases]]
+name = "file-noqa"
+files = { "case.py" = "# ruff: noqa\nfunction(value=1, **{\"value\": 2})\n" }
+expected = []

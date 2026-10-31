@@ -1,0 +1,74 @@
+[[cases]]
+name = "for"
+files = { "case.py" = "for x in values:\n    pass\nelse:\n    pass\n" }
+expected = [{ file = "case.py", start = 26, end = 30 }]
+
+[[cases]]
+name = "while"
+files = { "case.py" = "while condition:\n    pass\nelse:\n    pass\n" }
+expected = [{ file = "case.py", start = 26, end = 30 }]
+
+[[cases]]
+name = "break"
+files = { "case.py" = "for x in values:\n    break\nelse:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "conditional-break"
+files = { "case.py" = "for x in values:\n    if condition:\n        break\nelse:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "inner-loop"
+files = { "case.py" = "for x in values:\n    for y in values:\n        break\nelse:\n    pass\n" }
+expected = [{ file = "case.py", start = 52, end = 56 }]
+
+[[cases]]
+name = "inner-loop-else"
+files = { "case.py" = "for x in values:\n    for y in values:\n        pass\n    else:\n        break\nelse:\n    pass\n" }
+expected = [{ file = "case.py", start = 55, end = 59 }]
+
+[[cases]]
+name = "finally-break"
+files = { "case.py" = "for x in values:\n    try:\n        pass\n    finally:\n        break\nelse:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "except-break"
+files = { "case.py" = "for x in values:\n    try:\n        pass\n    except:\n        break\nelse:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "no-else"
+files = { "case.py" = "for x in values:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "continue"
+files = { "case.py" = "for x in values:\n    continue\nelse:\n    pass\n" }
+expected = [{ file = "case.py", start = 30, end = 34 }]
+
+[[cases]]
+name = "nested-function"
+files = { "case.py" = "for x in values:\n    def f():\n        break\nelse:\n    pass\n" }
+expected = [{ file = "case.py", start = 44, end = 48 }]
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "for x in values:\n    pass\nelse: # noqa\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "code-noqa"
+files = { "case.py" = "for x in values:\n    pass\nelse: # noqa: PLW0120\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "other-code"
+files = { "case.py" = "for x in values:\n    pass\nelse: # noqa: F401\n    pass\n" }
+expected = [{ file = "case.py", start = 26, end = 30 }]
+
+[[cases]]
+name = "file-noqa"
+files = { "case.py" = "# ruff: noqa\nfor x in values:\n    pass\nelse:\n    pass\n" }
+expected = []

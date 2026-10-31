@@ -1,0 +1,4 @@
+[[cases]]
+name = "continue-finally-valid-at-default-target"
+files = { "case.py" = "while True:\n    try:\n        pass\n    finally:\n        continue\n" }
+expected = []

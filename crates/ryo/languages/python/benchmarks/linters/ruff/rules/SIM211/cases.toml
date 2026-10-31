@@ -1,0 +1,59 @@
+[[cases]]
+name = "direct"
+files = { "case.py" = "value = False if condition else True\n" }
+expected = [{ file = "case.py", start = 8, end = 36 }]
+
+[[cases]]
+name = "reverse"
+files = { "case.py" = "value = True if condition else False\n" }
+expected = []
+
+[[cases]]
+name = "same"
+files = { "case.py" = "value = False if condition else False\n" }
+expected = []
+
+[[cases]]
+name = "number"
+files = { "case.py" = "value = 0 if condition else 1\n" }
+expected = []
+
+[[cases]]
+name = "comparison"
+files = { "case.py" = "value = False if a == b else True\n" }
+expected = [{ file = "case.py", start = 8, end = 33 }]
+
+[[cases]]
+name = "shadow-bool"
+files = { "case.py" = "bool = replacement\nvalue = False if condition else True\n" }
+expected = [{ file = "case.py", start = 27, end = 55 }]
+
+[[cases]]
+name = "parentheses"
+files = { "case.py" = "value = (False) if condition else (True)\n" }
+expected = [{ file = "case.py", start = 8, end = 40 }]
+
+[[cases]]
+name = "nested"
+files = { "case.py" = "def f():\n    return False if condition else True\n" }
+expected = [{ file = "case.py", start = 20, end = 48 }]
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "value = False if condition else True # noqa\n" }
+expected = []
+
+[[cases]]
+name = "code-noqa"
+files = { "case.py" = "value = False if condition else True # noqa: SIM211\n" }
+expected = []
+
+[[cases]]
+name = "other-code"
+files = { "case.py" = "value = False if condition else True # noqa: F401\n" }
+expected = [{ file = "case.py", start = 8, end = 36 }]
+
+[[cases]]
+name = "file-noqa"
+files = { "case.py" = "# ruff: noqa\nvalue = False if condition else True\n" }
+expected = []

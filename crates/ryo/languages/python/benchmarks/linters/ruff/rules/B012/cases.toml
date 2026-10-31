@@ -1,0 +1,74 @@
+[[cases]]
+name = "return"
+files = { "case.py" = "def f():\n    try:\n        pass\n    finally:\n        return\n" }
+expected = [{ file = "case.py", start = 52, end = 58 }]
+
+[[cases]]
+name = "continue"
+files = { "case.py" = "for x in values:\n    try:\n        pass\n    finally:\n        continue\n" }
+expected = [{ file = "case.py", start = 60, end = 68 }]
+
+[[cases]]
+name = "break"
+files = { "case.py" = "for x in values:\n    try:\n        pass\n    finally:\n        break\n" }
+expected = [{ file = "case.py", start = 60, end = 65 }]
+
+[[cases]]
+name = "inner-loop-break"
+files = { "case.py" = "try:\n    pass\nfinally:\n    for x in values:\n        break\n" }
+expected = []
+
+[[cases]]
+name = "inner-loop-return"
+files = { "case.py" = "def f():\n    try:\n        pass\n    finally:\n        for x in values:\n            return x\n" }
+expected = [{ file = "case.py", start = 81, end = 89 }]
+
+[[cases]]
+name = "if-body"
+files = { "case.py" = "def f():\n    try:\n        pass\n    finally:\n        if condition:\n            return\n" }
+expected = [{ file = "case.py", start = 78, end = 84 }]
+
+[[cases]]
+name = "else-not-walked"
+files = { "case.py" = "def f():\n    try:\n        pass\n    finally:\n        if condition:\n            pass\n        else:\n            return\n" }
+expected = []
+
+[[cases]]
+name = "inner-function"
+files = { "case.py" = "try:\n    pass\nfinally:\n    def f():\n        return\n" }
+expected = []
+
+[[cases]]
+name = "except-not-walked"
+files = { "case.py" = "def f():\n    try:\n        pass\n    finally:\n        try:\n            pass\n        except:\n            return\n" }
+expected = []
+
+[[cases]]
+name = "match"
+files = { "case.py" = "def f():\n    try:\n        pass\n    finally:\n        match value:\n            case 1:\n                return\n" }
+expected = [{ file = "case.py", start = 101, end = 107 }]
+
+[[cases]]
+name = "ordinary-return"
+files = { "case.py" = "def f():\n    return\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "def f():\n    try:\n        pass\n    finally:\n        return # noqa\n" }
+expected = []
+
+[[cases]]
+name = "code-noqa"
+files = { "case.py" = "def f():\n    try:\n        pass\n    finally:\n        return # noqa: B012\n" }
+expected = []
+
+[[cases]]
+name = "other-code"
+files = { "case.py" = "def f():\n    try:\n        pass\n    finally:\n        return # noqa: F401\n" }
+expected = [{ file = "case.py", start = 52, end = 58 }]
+
+[[cases]]
+name = "file-noqa"
+files = { "case.py" = "# ruff: noqa\ndef f():\n    try:\n        pass\n    finally:\n        return\n" }
+expected = []
