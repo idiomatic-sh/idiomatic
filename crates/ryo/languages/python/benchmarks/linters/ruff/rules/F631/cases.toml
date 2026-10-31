@@ -1,0 +1,59 @@
+[[cases]]
+name = "tuple"
+files = { "case.py" = "assert (True, False)\n" }
+expected = [{ file = "case.py", start = 0, end = 20 }]
+
+[[cases]]
+name = "empty"
+files = { "case.py" = "assert ()\n" }
+expected = []
+
+[[cases]]
+name = "message"
+files = { "case.py" = "assert (True,), \"message\"\n" }
+expected = [{ file = "case.py", start = 0, end = 25 }]
+
+[[cases]]
+name = "list"
+files = { "case.py" = "assert [False]\n" }
+expected = []
+
+[[cases]]
+name = "starred"
+files = { "case.py" = "assert (*items,)\n" }
+expected = [{ file = "case.py", start = 0, end = 16 }]
+
+[[cases]]
+name = "nested"
+files = { "case.py" = "def f():\n    assert ((False,),)\n" }
+expected = [{ file = "case.py", start = 13, end = 31 }]
+
+[[cases]]
+name = "multiline"
+files = { "case.py" = "assert (\n    False,\n)\n" }
+expected = [{ file = "case.py", start = 0, end = 21 }]
+
+[[cases]]
+name = "multiline-string-noqa"
+files = { "case.py" = "assert (\"\"\"bad\nmore\"\"\",) # noqa\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "assert (True, False) # noqa\n" }
+expected = []
+
+[[cases]]
+name = "code-noqa"
+files = { "case.py" = "assert (True, False) # noqa: F631\n" }
+expected = []
+
+[[cases]]
+name = "other-code"
+files = { "case.py" = "assert (True, False) # noqa: F401\n" }
+expected = [{ file = "case.py", start = 0, end = 20 }]
+
+[[cases]]
+name = "file-noqa"
+files = { "case.py" = "# ruff: noqa\nassert (True, False)\n" }
+expected = []

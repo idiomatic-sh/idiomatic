@@ -1,0 +1,44 @@
+[[cases]]
+name = "first"
+files = { "case.py" = "try:\n    pass\nexcept:\n    pass\nexcept ValueError:\n    pass\n" }
+expected = [{ file = "case.py", start = 14, end = 20 }]
+
+[[cases]]
+name = "last"
+files = { "case.py" = "try:\n    pass\nexcept ValueError:\n    pass\nexcept:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "only"
+files = { "case.py" = "try:\n    pass\nexcept:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "two"
+files = { "case.py" = "try:\n    pass\nexcept:\n    pass\nexcept:\n    pass\n" }
+expected = [{ file = "case.py", start = 14, end = 20 }]
+
+[[cases]]
+name = "nested"
+files = { "case.py" = "try:\n    try:\n        pass\n    except:\n        pass\nexcept ValueError:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "try:\n    pass\nexcept: # noqa\n    pass\nexcept ValueError:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "code-noqa"
+files = { "case.py" = "try:\n    pass\nexcept: # noqa: F707\n    pass\nexcept ValueError:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "other-code"
+files = { "case.py" = "try:\n    pass\nexcept: # noqa: F401\n    pass\nexcept ValueError:\n    pass\n" }
+expected = [{ file = "case.py", start = 14, end = 20 }]
+
+[[cases]]
+name = "file-noqa"
+files = { "case.py" = "# ruff: noqa\ntry:\n    pass\nexcept:\n    pass\nexcept ValueError:\n    pass\n" }
+expected = []

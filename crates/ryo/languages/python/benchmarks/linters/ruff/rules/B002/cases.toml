@@ -1,0 +1,54 @@
+[[cases]]
+name = "increment"
+files = { "case.py" = "x = ++value\n" }
+expected = [{ file = "case.py", start = 4, end = 11 }]
+
+[[cases]]
+name = "decrement"
+files = { "case.py" = "x = --value\n" }
+expected = [{ file = "case.py", start = 4, end = 11 }]
+
+[[cases]]
+name = "mixed"
+files = { "case.py" = "x = +-value\n" }
+expected = []
+
+[[cases]]
+name = "parenthesized"
+files = { "case.py" = "x = +(+value)\n" }
+expected = [{ file = "case.py", start = 4, end = 13 }]
+
+[[cases]]
+name = "single"
+files = { "case.py" = "x = +value\n" }
+expected = []
+
+[[cases]]
+name = "spaces"
+files = { "case.py" = "x = - -value\n" }
+expected = [{ file = "case.py", start = 4, end = 12 }]
+
+[[cases]]
+name = "logical"
+files = { "case.py" = "x = not not value\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "x = ++value # noqa\n" }
+expected = []
+
+[[cases]]
+name = "code-noqa"
+files = { "case.py" = "x = ++value # noqa: B002\n" }
+expected = []
+
+[[cases]]
+name = "other-code"
+files = { "case.py" = "x = ++value # noqa: F401\n" }
+expected = [{ file = "case.py", start = 4, end = 11 }]
+
+[[cases]]
+name = "file-noqa"
+files = { "case.py" = "# ruff: noqa\nx = ++value\n" }
+expected = []

@@ -1,0 +1,44 @@
+[[cases]]
+name = "walrus"
+files = { "case.py" = "(value := 1)\n" }
+expected = [{ file = "case.py", start = 1, end = 11 }]
+
+[[cases]]
+name = "if"
+files = { "case.py" = "if (value := 1):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "argument"
+files = { "case.py" = "print(value := 1)\n" }
+expected = []
+
+[[cases]]
+name = "function"
+files = { "case.py" = "def f():\n    (value := 1)\n" }
+expected = [{ file = "case.py", start = 14, end = 24 }]
+
+[[cases]]
+name = "ordinary"
+files = { "case.py" = "value = 1\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "(value := 1) # noqa\n" }
+expected = []
+
+[[cases]]
+name = "code-noqa"
+files = { "case.py" = "(value := 1) # noqa: PLW0131\n" }
+expected = []
+
+[[cases]]
+name = "other-code"
+files = { "case.py" = "(value := 1) # noqa: F401\n" }
+expected = [{ file = "case.py", start = 1, end = 11 }]
+
+[[cases]]
+name = "file-noqa"
+files = { "case.py" = "# ruff: noqa\n(value := 1)\n" }
+expected = []

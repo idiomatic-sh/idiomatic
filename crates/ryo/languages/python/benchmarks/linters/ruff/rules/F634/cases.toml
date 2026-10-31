@@ -1,0 +1,54 @@
+[[cases]]
+name = "tuple"
+files = { "case.py" = "if (True, False):\n    pass\n" }
+expected = [{ file = "case.py", start = 3, end = 16 }]
+
+[[cases]]
+name = "empty"
+files = { "case.py" = "if ():\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "while"
+files = { "case.py" = "while (False,):\n    break\n" }
+expected = []
+
+[[cases]]
+name = "elif"
+files = { "case.py" = "if False:\n    pass\nelif (False,):\n    pass\n" }
+expected = [{ file = "case.py", start = 24, end = 32 }]
+
+[[cases]]
+name = "conditional-expression"
+files = { "case.py" = "value = 1 if (False,) else 2\n" }
+expected = []
+
+[[cases]]
+name = "starred"
+files = { "case.py" = "if (*items,):\n    pass\n" }
+expected = [{ file = "case.py", start = 3, end = 12 }]
+
+[[cases]]
+name = "list"
+files = { "case.py" = "if [False]:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "if (True, False): # noqa\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "code-noqa"
+files = { "case.py" = "if (True, False): # noqa: F634\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "other-code"
+files = { "case.py" = "if (True, False): # noqa: F401\n    pass\n" }
+expected = [{ file = "case.py", start = 3, end = 16 }]
+
+[[cases]]
+name = "file-noqa"
+files = { "case.py" = "# ruff: noqa\nif (True, False):\n    pass\n" }
+expected = []
