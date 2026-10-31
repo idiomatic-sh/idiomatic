@@ -17,7 +17,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 want_node(2),
                 want_name("exec"),
                 want_file(SHOWN),
-                want_span((1, 1), (1, 5)),
+                want_span((1, 1), (1, 17)),
             ]],
             causes: &[],
         }),

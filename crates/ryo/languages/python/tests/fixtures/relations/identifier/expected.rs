@@ -6,7 +6,7 @@ const ROWS: &[IdentifierExpectedRow] = &[IdentifierExpectedRow {
     id: node(2),
     name: name("exec"),
     file: file("identifier/input.py"),
-    span: span((1, 1), (1, 5)),
+    span: span((1, 1), (1, 17)),
 }];
 /// One canonical identifier at its original Unicode source occurrence.
 pub(super) fn expected() -> Expected {
