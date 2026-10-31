@@ -77,7 +77,8 @@ fn publishes_dry_run() {
                     "--format-version",
                     "1",
                     "--locked",
-                    "--offline",
+                    // Online: the packages of the ryo crates this one depends on include ones for other platforms, which a
+                    // machine that built only for itself has not downloaded.
                     "--all-features",
                 ])
                 .current_dir(env!("CARGO_MANIFEST_DIR")),

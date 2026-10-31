@@ -285,7 +285,7 @@ fn failure(error: impl std::fmt::Display) -> RepositoryError {
 }
 
 /// Writes `bad\xff.txt`, a name that is not UTF-8, into `directory`.
-#[cfg(unix)]
+#[cfg(all(unix, not(target_os = "macos")))]
 fn not_utf8(directory: &std::path::Path) -> Result<(), RepositoryError> {
     use std::os::unix::ffi::OsStrExt as _;
     std::fs::write(
@@ -295,8 +295,9 @@ fn not_utf8(directory: &std::path::Path) -> Result<(), RepositoryError> {
     .map_err(failure)
 }
 
-/// A system whose names are UTF-16 cannot write a name that is not UTF-8: the walk's refusal is the one it would give.
-#[cfg(not(unix))]
+/// A system whose names are UTF-16, or macOS, whose file system takes only UTF-8 names, cannot write a name that is not UTF-8:
+/// the walk's refusal is the one it would give.
+#[cfg(any(not(unix), target_os = "macos"))]
 fn not_utf8(directory: &std::path::Path) -> Result<(), RepositoryError> {
     Err(RepositoryError::Read {
         path: directory.join("bad").display().to_string(),

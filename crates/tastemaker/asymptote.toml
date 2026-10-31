@@ -122,8 +122,9 @@ inputs = [".", "../ryo", "../../tools/lints", "../../rust-toolchain.toml", "../.
 [[tools]]
 id = "coverage"
 group = "release-coverage"
-# Line coverage, a report with no threshold: the run fails only when a test does.
-run = ["cargo", "llvm-cov", "--workspace", "--all-features", "--locked"]
+# Line coverage, a report with no threshold: the run fails only when a test does. The validation's timing bound is held in
+# test-default and test-cli, never here: an instrumented build is not the product's speed.
+run = ["cargo", "llvm-cov", "--workspace", "--all-features", "--locked", "--", "--skip", "validate::validating_the_repository_s_definitions_stays_within_its_bounds"]
 timeout-seconds = 3600
 inputs = [".", "../ryo", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
 
