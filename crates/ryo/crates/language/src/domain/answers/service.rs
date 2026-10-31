@@ -46,7 +46,7 @@ pub fn source_locations<M: 'static>() -> Support<
         M,
     >,
 > {
-    reads::<crate::domain::relations::collections::relations::source_location::item::SourceLocationReader<M>>()
+    reads::<super::types::SourceLocationReader<M>>()
 }
 
 /// For `impl ParseUseCase`: answers every syntax relation as not in the language. It is for the test doubles of this crate

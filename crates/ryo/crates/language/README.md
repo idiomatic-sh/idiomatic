@@ -32,6 +32,10 @@ The language domain's `kind_index` concept: the positions of a table grouped by 
 
 The language domain's `kinds` concept: how a language's kinds of node and token are numbered in the element table, named and listed, made from its own vocabularies.
 
+### location
+
+Indexed source byte offsets, physical lines, and columns shared by every language provider.
+
 ### reasons
 
 The language domain's `reasons` concept: what a language's tool or library said when a use case failed.

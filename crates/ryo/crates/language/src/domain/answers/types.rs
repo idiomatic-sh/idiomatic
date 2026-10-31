@@ -141,3 +141,69 @@ pub enum Expansions {
     /// It does not: it reads the file's own tree.
     Ignored,
 }
+
+/// The engine-owned reader; every provider delegates to the same indexed source coordinates.
+#[derive(Debug)]
+pub(crate) struct SourceLocationReader<M>(
+    pub std::marker::PhantomData<std::sync::atomic::AtomicPtr<M>>,
+);
+
+impl<M> crate::domain::answers::types::declared::Syntax for SourceLocationReader<M> {}
+
+impl<M: 'static> crate::domain::answers::types::ReadItem for SourceLocationReader<M> {
+    type Relation =
+        crate::domain::relations::collections::relations::source_location::item::SourceLocation;
+    type Model = M;
+    const READER: crate::domain::answers::types::Reader<
+        crate::domain::relations::collections::relations::source_location::item::SourceLocation,
+        M,
+    > = crate::domain::answers::types::Reader {
+        reads: crate::domain::answers::types::Reads::Every,
+        visit: &Self(std::marker::PhantomData),
+        expansions: crate::domain::answers::types::Expansions::Ignored,
+        relation: std::marker::PhantomData,
+    };
+}
+
+impl<M>
+    crate::domain::answers::types::Visiting<
+        crate::domain::relations::collections::relations::source_location::item::SourceLocation,
+        M,
+    > for SourceLocationReader<M>
+{
+    fn visit(
+        &self,
+        tree: &crate::domain::elements::types::Tree<'_>,
+        _model: &M,
+        _symbols: &mut crate::domain::symbols::types::Symbols,
+        position: crate::domain::relations::types::Position,
+        out: &mut dyn crate::domain::relations::types::Rows<crate::domain::relations::collections::relations::source_location::item::SourceLocationRow>,
+    ) {
+        use crate::domain::elements::service::{end_at, start_at};
+        use crate::domain::location::{
+            service::{column, line},
+            types::SourceLineOffset,
+        };
+        let span = crate::domain::relations::types::Span {
+            start: start_at(tree.elements, position),
+            end: end_at(tree.elements, position),
+        };
+        if span.start > span.end
+            || usize::try_from(span.end.0).unwrap_or(usize::MAX) > tree.source.0.len()
+        {
+            return;
+        }
+        let index = &crate::domain::elements::service::engine(tree.elements).line_starts;
+        out.write(crate::domain::relations::collections::relations::source_location::item::SourceLocationRow {
+            id: crate::domain::relations::service::node_id(tree.file, position),
+            file: tree.file,
+            span,
+            start_line: crate::domain::relations::types::Integer(line(index, SourceLineOffset(span.start.0)).0),
+            end_line: crate::domain::relations::types::Integer(line(index, SourceLineOffset(span.end.0)).0),
+            start_byte: crate::domain::relations::types::Integer(i64::from(span.start.0)),
+            end_byte: crate::domain::relations::types::Integer(i64::from(span.end.0)),
+            start_column: crate::domain::relations::types::Integer(column(index, SourceLineOffset(span.start.0)).0),
+            end_column: crate::domain::relations::types::Integer(column(index, SourceLineOffset(span.end.0)).0),
+        });
+    }
+}
