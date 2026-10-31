@@ -13,7 +13,7 @@ use crate::domain::{
             BYTES_SCALAR, INTERPOLATION_CONVERSION, INTERPOLATION_DEBUG, SCALAR_IMAGINARY,
             SCALAR_KIND, SCALAR_VALUE,
         },
-        service::{identifier_text, is_token, kind, literal},
+        service::{identifier_text, interpolation, is_token, kind, literal},
         types::{Kind, Leaf, Literal},
     },
     tokens::types::Token,
@@ -102,6 +102,7 @@ fn constant(
     tree: &Tree<'_>,
     at: Position,
     symbols: &mut Symbols,
+    classes: &[Option<Position>],
     words: &mut Vec<ShapeWord>,
 ) -> Option<()> {
     if languages::property_at(tree.elements, at, SCALAR_KIND)
@@ -110,7 +111,12 @@ fn constant(
         // Bytes share the parser's string-part node shape, but their decoded scalar payload is
         // already present and must not be sent through the text-only string decoder.
     } else if literal(tree, at) == Literal::String {
-        words.push(ShapeWord::Literal(string_value(tree, symbols, at)?));
+        if interpolation(tree, at) == crate::domain::syntax::types::Interpolation::Static {
+            words.push(ShapeWord::Literal(string_value(tree, symbols, at)?));
+        } else {
+            segments(tree, at, symbols, classes, words);
+            merge_literals(tree, symbols, words);
+        }
     } else {
         // Scalars require the parser's typed payload, never physical carrier text.
         let _scalar_kind = languages::property_at(tree.elements, at, SCALAR_KIND)?;
@@ -212,7 +218,7 @@ fn key(
             return Some(());
         }
         Kind::Node(Node::Constant) => {
-            return constant(tree, at, symbols, words);
+            return constant(tree, at, symbols, classes, words);
         }
         Kind::Node(Node::JoinedStr | Node::TemplateStr) => {
             segments(tree, at, symbols, classes, words);
