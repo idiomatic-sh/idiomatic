@@ -745,6 +745,15 @@ then.findings = [
   { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
   { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
   { rule = 'idiomatic.ryo/contract/contract-implements', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
 ]
 
 [[scenarios]]

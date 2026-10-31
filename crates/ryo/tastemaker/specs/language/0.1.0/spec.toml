@@ -14403,7 +14403,7 @@ The release or commit of the suite that is pinned here.
 '''
 then.only = ['idiomatic.ryo/language/thiserror-in-errors']
 then.findings = [
-  { rule = 'idiomatic.ryo/language/thiserror-in-errors', path = 'demo/src/inbound/contracts/parse/contract.rs', line = 174 },
+  { rule = 'idiomatic.ryo/language/thiserror-in-errors', path = 'demo/src/inbound/contracts/parse/contract.rs', line = 210 },
 ]
 
 [[scenarios]]
@@ -15348,7 +15348,7 @@ The release or commit of the suite that is pinned here.
 '''
 then.only = ['idiomatic.ryo/language/error-shape']
 then.findings = [
-  { rule = 'idiomatic.ryo/language/error-shape', path = 'demo/src/inbound/contracts/parse/contract.rs', line = 177 },
+  { rule = 'idiomatic.ryo/language/error-shape', path = 'demo/src/inbound/contracts/parse/contract.rs', line = 213 },
 ]
 
 [[scenarios]]
@@ -18175,5 +18175,5 @@ The release or commit of the suite that is pinned here.
 '''
 then.only = ['idiomatic.arch/io-at-boundary']
 then.findings = [
-  { rule = 'idiomatic.arch/io-at-boundary', path = 'demo/src/inbound/contracts/parse/contract.rs', line = 175 },
+  { rule = 'idiomatic.arch/io-at-boundary', path = 'demo/src/inbound/contracts/parse/contract.rs', line = 211 },
 ]
