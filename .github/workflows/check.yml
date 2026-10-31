@@ -6,7 +6,8 @@
 # release workflow runs the `release-*` groups; the benches of `perf` run only when asked for with `--groups perf`).
 # It runs on every pull request and every push to main, and still by hand; the per-change gate stays
 # `asymptote check --hook pre-commit`, the git hook `asymptote init` installs, which runs the `lint` group. A pull request's `speed`
-# job then runs the `speed` group on Linux, the change benched against main: a measure more than 15% slower fails it.
+# job then runs the `speed` group on Linux, the change benched against main: a measure more than 15% slower fails it. Manual
+# validation runs the same group, including Ryo's existing Rust warm-memory guard.
 name: check
 on:
   pull_request:
@@ -175,7 +176,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
   speed:
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     needs: check
     runs-on: ubuntu-26.04
     defaults:
