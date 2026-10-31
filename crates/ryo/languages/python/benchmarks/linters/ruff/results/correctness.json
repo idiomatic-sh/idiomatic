@@ -1,25 +1,59 @@
 {
-  "reference_count": 194,
-  "candidate_count": 197,
-  "missing": [],
-  "extra": [
-    [
-      "B002",
-      "asv_bench/benchmarks/join_merge.py",
-      "10804",
-      "10823"
-    ],
-    [
-      "B002",
-      "pandas/core/arrays/categorical.py",
-      "78202",
-      "78218"
-    ],
-    [
-      "B002",
-      "pandas/core/indexes/range.py",
-      "1556",
-      "1578"
+  "status": "passed",
+  "selected_rules": 29,
+  "cases": 441,
+  "projects": {
+    "django": {
+      "findings": {
+        "B015": 3,
+        "B026": 7
+      }
+    },
+    "pandas": {
+      "findings": {
+        "B015": 194
+      }
+    },
+    "fastapi": {
+      "findings": {}
+    }
+  },
+  "conditions": [
+    "empty-tool-cache",
+    "retained-tool-cache",
+    "edited-tool-cache",
+    "edited-vs-fresh-cache"
+  ],
+  "trials_per_project": 6,
+  "initial_pandas_failure": {
+    "reference_count": 194,
+    "candidate_count": 197,
+    "missing": [],
+    "extra": [
+      [
+        "B002",
+        "asv_bench/benchmarks/join_merge.py",
+        "10804",
+        "10823"
+      ],
+      [
+        "B002",
+        "pandas/core/arrays/categorical.py",
+        "78202",
+        "78218"
+      ],
+      [
+        "B002",
+        "pandas/core/indexes/range.py",
+        "1556",
+        "1578"
+      ]
     ]
-  ]
+  },
+  "resolution": {
+    "commit": "e73df38",
+    "rule": "B002",
+    "cause": "Inner operator relation admitted binary subtraction instead of requiring a unary node",
+    "regression_cases_added": 5
+  }
 }

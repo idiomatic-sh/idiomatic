@@ -1,97 +1,180 @@
 {
-  "ruff_version": "0.16.5",
-  "ruff_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
-  "worker_sha256": "8dc5e52d911a5aa7a0a8a0ffcb841e9d21b453e317d8a6ddb286c503707c4b66",
-  "results": [
-    {
-      "rule": "B002",
-      "cases": 11,
-      "query_sha256": "922dbce934e3bebb925a6e2c3892ee054a86c7efcd45de49c70f16da8207b091",
-      "cases_sha256": "cce57e296b45ee92940c61dc31a5790faeed9423eb1a7efbcebbcf0bbd1ce9f8"
-    },
-    {
-      "rule": "B013",
-      "cases": 11,
-      "query_sha256": "d064896254bbd56e905ff0d2d609a29c3ec579c98422e5e5671021f65b8df358",
-      "cases_sha256": "22c676cc8d1fb15e4402b991a2d9df4474281f55a27cbf30d13a80188b3e057c"
-    },
-    {
-      "rule": "B015",
-      "cases": 12,
-      "query_sha256": "b3aec67dc5a3580f18989ba95257f2deceb9b6b762e9762e5e9b41213bb22f5b",
-      "cases_sha256": "fee92f9685590a4f3f634fd09143148725969099cae77f6b56676f254cfa5b18"
-    },
-    {
-      "rule": "B016",
-      "cases": 19,
-      "query_sha256": "dae4f0ae376d7766e75f6f447ea3f5509d940f6f45af70ea22d46517a7a144d1",
-      "cases_sha256": "cc43972ce38fe37c752fc0d6be824c938ae2e257651fd4e19b9b3efa87e72093"
-    },
-    {
-      "rule": "B021",
-      "cases": 18,
-      "query_sha256": "295f69a947faa7cfb13392cb112defc2d706f121aed0346c5d53ed5c43678276",
-      "cases_sha256": "5812bf6c0250a83217352b69bee44879417768837dd322c7017ac810af568dd8"
-    },
-    {
-      "rule": "B026",
-      "cases": 11,
-      "query_sha256": "a9da44cab186a0485e8dd5573acb4a633a184ba61a7c93e17dfee9bb4fa29fe1",
-      "cases_sha256": "ac8da474c2fdfaa149b2145dc355bd047e0da053b19cef454db164836f8f2328"
-    },
-    {
-      "rule": "B029",
-      "cases": 9,
-      "query_sha256": "c94768f23bb25ff359a86b8773522b3e4eb9b87e6bd3f8d8f3c73dfbf98c4fe8",
-      "cases_sha256": "887194091dc144479c22a79370e442ee83027a7e81ba2b5dee40ab2a381346e6"
-    },
-    {
-      "rule": "B032",
-      "cases": 13,
-      "query_sha256": "be7578adcd5260b0bd41148cf115bae7fda7a5358292a146899fa0a905312cde",
-      "cases_sha256": "85815dd78d92925bb6296baa5878e9f030370454593b3eac8762c841a76ad7e4"
-    },
-    {
-      "rule": "E722",
-      "cases": 35,
-      "query_sha256": "266e371220d9a4c123094752a08cdd3c14604b90f1634947311a1264fd85ea9f",
-      "cases_sha256": "35163dc64996caa07844c15cb730b1b8ccd48d51b83d675181c00a07bce82196"
-    },
-    {
-      "rule": "F631",
-      "cases": 12,
-      "query_sha256": "8a48b9974f3c8239f5c785012e075628a440c2332b8b89bb5163d021b6a2c26c",
-      "cases_sha256": "93f83536bc4fe4de6fe0a2babef2f358760b643a4ba61320da4a733295d4c217"
-    },
-    {
-      "rule": "F634",
-      "cases": 11,
-      "query_sha256": "fcc43deee7a7532db069ff125bd27252dc4ff936a2239b22d33283c166590157",
-      "cases_sha256": "845c839f1cb4c7e07e2ed0e61365ff7ded7577d3b6312852145f61fe651393a5"
-    },
-    {
-      "rule": "F707",
-      "cases": 9,
-      "query_sha256": "8ff317b9494ba200761e4e24d050a46eb8eab4c83e4b38f7bc6c128490b66224",
-      "cases_sha256": "b6ef87a67000e254c762ebe840ae929bbebb27a3e4f50f47e8b7dcf1f2a46961"
-    },
-    {
-      "rule": "PLW0129",
+  "total": 441,
+  "status": "all passed against both contestants before corpus execution",
+  "rules": {
+    "B002": {
       "cases": 16,
-      "query_sha256": "b60841d18669bc079311d7031ad45ad24f6c3d6a2e954e01ee2bb5de89041763",
-      "cases_sha256": "54bfdb18140782035ba6b17a688b1f8a052d6ba5ffc9e2f62b363972f7409721"
+      "positive": 6,
+      "negative": 10,
+      "sha256": "52831809cfe589a7f44e35346ef85ee5295685e852d418feb0a7296e445bdf86"
     },
-    {
-      "rule": "PLW0131",
+    "B013": {
+      "cases": 11,
+      "positive": 4,
+      "negative": 7,
+      "sha256": "22c676cc8d1fb15e4402b991a2d9df4474281f55a27cbf30d13a80188b3e057c"
+    },
+    "B014": {
+      "cases": 13,
+      "positive": 5,
+      "negative": 8,
+      "sha256": "254a3dac68d65f2e603a2b16d3a0e6d33deaa39c6e8f9710d873fcdd8a60ca32"
+    },
+    "B015": {
+      "cases": 12,
+      "positive": 6,
+      "negative": 6,
+      "sha256": "fee92f9685590a4f3f634fd09143148725969099cae77f6b56676f254cfa5b18"
+    },
+    "B016": {
+      "cases": 19,
+      "positive": 8,
+      "negative": 11,
+      "sha256": "cc43972ce38fe37c752fc0d6be824c938ae2e257651fd4e19b9b3efa87e72093"
+    },
+    "B021": {
+      "cases": 18,
+      "positive": 11,
+      "negative": 7,
+      "sha256": "5812bf6c0250a83217352b69bee44879417768837dd322c7017ac810af568dd8"
+    },
+    "B025": {
+      "cases": 12,
+      "positive": 6,
+      "negative": 6,
+      "sha256": "ef66cb6b5a8fe738f37c54d64c547593b772fb37c5150ce2017dd439e339ffac"
+    },
+    "B026": {
+      "cases": 11,
+      "positive": 5,
+      "negative": 6,
+      "sha256": "ac8da474c2fdfaa149b2145dc355bd047e0da053b19cef454db164836f8f2328"
+    },
+    "B029": {
       "cases": 9,
-      "query_sha256": "72eec7f98c150e3995e694e936775ff025e87497944e909b702af60630aeaedf",
-      "cases_sha256": "89269bf2d80bf63ecb05df6bb4d93b571bb617b817a1fc9a3ad950ae19131647"
+      "positive": 4,
+      "negative": 5,
+      "sha256": "887194091dc144479c22a79370e442ee83027a7e81ba2b5dee40ab2a381346e6"
     },
-    {
-      "rule": "SIM208",
+    "B032": {
+      "cases": 13,
+      "positive": 5,
+      "negative": 8,
+      "sha256": "85815dd78d92925bb6296baa5878e9f030370454593b3eac8762c841a76ad7e4"
+    },
+    "E722": {
+      "cases": 35,
+      "positive": 20,
+      "negative": 15,
+      "sha256": "35163dc64996caa07844c15cb730b1b8ccd48d51b83d675181c00a07bce82196"
+    },
+    "F541": {
+      "cases": 16,
+      "positive": 9,
+      "negative": 7,
+      "sha256": "09a227eb286f117fe618433892ec8ab325a7b90dd7bb38c78c019d6971d208f9"
+    },
+    "F631": {
+      "cases": 12,
+      "positive": 6,
+      "negative": 6,
+      "sha256": "93f83536bc4fe4de6fe0a2babef2f358760b643a4ba61320da4a733295d4c217"
+    },
+    "F634": {
+      "cases": 11,
+      "positive": 4,
+      "negative": 7,
+      "sha256": "845c839f1cb4c7e07e2ed0e61365ff7ded7577d3b6312852145f61fe651393a5"
+    },
+    "F701": {
+      "cases": 19,
+      "positive": 8,
+      "negative": 11,
+      "sha256": "8bbec92a007caf4169ba695bee2e9f1a2e6fde6ea637e83893763bc16f426485"
+    },
+    "F702": {
+      "cases": 19,
+      "positive": 8,
+      "negative": 11,
+      "sha256": "90ecff290d54459027f55b983f6a598e0190b38ab3b1f674650457597fc94204"
+    },
+    "F704": {
+      "cases": 32,
+      "positive": 19,
+      "negative": 13,
+      "sha256": "d906369c7ec52857091ec18c359a5eb9a608bf50f7dfa826f28681738adda469"
+    },
+    "F706": {
+      "cases": 14,
+      "positive": 8,
+      "negative": 6,
+      "sha256": "a2b6aedcaf86da00168ad5e0de2d0d8552e6183ae9e2d76ba1a74e3490927542"
+    },
+    "F707": {
+      "cases": 9,
+      "positive": 3,
+      "negative": 6,
+      "sha256": "b6ef87a67000e254c762ebe840ae929bbebb27a3e4f50f47e8b7dcf1f2a46961"
+    },
+    "PLW0129": {
+      "cases": 16,
+      "positive": 7,
+      "negative": 9,
+      "sha256": "54bfdb18140782035ba6b17a688b1f8a052d6ba5ffc9e2f62b363972f7409721"
+    },
+    "PLW0131": {
+      "cases": 9,
+      "positive": 3,
+      "negative": 6,
+      "sha256": "89269bf2d80bf63ecb05df6bb4d93b571bb617b817a1fc9a3ad950ae19131647"
+    },
+    "PYI009": {
+      "cases": 17,
+      "positive": 8,
+      "negative": 9,
+      "sha256": "96cd18053585938d47692e38664ebc0658e15c16b4517339e7d242b4f9bf0fb7"
+    },
+    "PYI010": {
+      "cases": 22,
+      "positive": 11,
+      "negative": 11,
+      "sha256": "00fa2191266387ea69494c7a93a5cbff03d11236dc982dc11370ceb2b811865f"
+    },
+    "PYI012": {
+      "cases": 12,
+      "positive": 5,
+      "negative": 7,
+      "sha256": "facf0e55496bb2de2a06fd882868d822bd09198d6ef1a5a88bddb03dda5c40dc"
+    },
+    "PYI013": {
+      "cases": 14,
+      "positive": 6,
+      "negative": 8,
+      "sha256": "fc4d2b3827cb58e126b586e1b1f266e9f8b0a426483e750b5706a170cd3e0ab0"
+    },
+    "PYI048": {
+      "cases": 16,
+      "positive": 8,
+      "negative": 8,
+      "sha256": "2c56d19514f772d3e6cc75122d49122240f3357f334d20d346b588341e16bc65"
+    },
+    "SIM208": {
       "cases": 10,
-      "query_sha256": "644c4a4436ee2048cf9a535eabde22cc71b5500ed661c3eebde72224055f9245",
-      "cases_sha256": "b6beb3aa4b0ed1cac06ee67e25d6b8cb193003aa5b3f1b24701fe727ca790dee"
+      "positive": 5,
+      "negative": 5,
+      "sha256": "b6beb3aa4b0ed1cac06ee67e25d6b8cb193003aa5b3f1b24701fe727ca790dee"
+    },
+    "UP025": {
+      "cases": 12,
+      "positive": 5,
+      "negative": 7,
+      "sha256": "9c58bf47e5ed38a1a0ea2e29fb9786f4f53a71bb7067b29b99ae84a8e0435850"
+    },
+    "UP039": {
+      "cases": 12,
+      "positive": 5,
+      "negative": 7,
+      "sha256": "936d8d36f792144f9cf63e01301bca78c71d4c16d3ed68aa6b9410e5023a6a53"
     }
-  ]
+  }
 }
