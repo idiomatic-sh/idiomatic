@@ -170,3 +170,20 @@ def test_every_machine_the_checks_run_on_has_a_recorded_archive() -> None:
         assert len(install.BINSTALL["sha256"][install.binstall_asset(host)]) == 64
         for tool in install.ARCHIVES.values():
             assert len(tool["assets"][host][1]) == 64
+
+
+def test_windows_binary_names_use_exe_once(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("CARGO_HOME", str(tmp_path))
+    crate = install.Crate("own-tool", "1.0.0", bins=("tm", "helper.exe"))
+    assert install.command_paths(crate, windows=True) == (tmp_path / "bin/tm.exe", tmp_path / "bin/helper.exe")
+    assert install.command_paths(crate, windows=False) == (tmp_path / "bin/tm", tmp_path / "bin/helper.exe")
+
+
+def test_all_declared_binaries_are_required_even_when_one_is_installed(tmp_path, monkeypatch) -> None:
+    first, second = tmp_path / "tm.exe", tmp_path / "helper.exe"
+    first.write_bytes(b"first executable")
+    monkeypatch.setattr(install, "command_paths", lambda crate: (first, second))
+    crate = install.Crate("own-tool", "1.0.0", bins=("tm", "helper"))
+    assert install.command_time(crate) == 0.0
+    second.write_bytes(b"second executable")
+    assert install.command_time(crate) == min(first.stat().st_mtime, second.stat().st_mtime)

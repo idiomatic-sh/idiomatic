@@ -254,11 +254,19 @@ def newest(paths: list[Path]) -> float:
     return latest
 
 
-def command_time(crate: Crate) -> float:
-    """When the command a path-installed crate left was written; 0 where there is none."""
+def command_paths(crate: Crate, windows: bool | None = None) -> tuple[Path, ...]:
+    """Every declared installed binary, using the platform's executable suffix."""
     home = Path(os.environ.get("CARGO_HOME", Path.home() / ".cargo"))
-    times = [(home / "bin" / bin).stat().st_mtime for bin in crate.bins or (crate.name,) if (home / "bin" / bin).exists()]
-    return min(times, default=0.0)
+    suffix = ".exe" if (os.name == "nt" if windows is None else windows) else ""
+    return tuple(home / "bin" / (name if name.endswith(suffix) else name + suffix) for name in crate.bins or (crate.name,))
+
+
+def command_time(crate: Crate) -> float:
+    """The oldest expected binary timestamp; missing even one binary requires installation."""
+    commands = command_paths(crate)
+    if not all(command.is_file() for command in commands):
+        return 0.0
+    return min(command.stat().st_mtime for command in commands)
 
 
 def meets(installed: str, declared: str) -> bool:
