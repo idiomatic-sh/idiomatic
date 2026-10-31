@@ -1,4 +1,4 @@
-//! Direct Linux wait4 observes the exact child started by std::process::Command.
+//! Direct Linux `wait4` observes the exact child started by `std::process::Command`.
 #[cfg(target_os = "linux")]
 use super::{constants, schemas};
 use crate::domain::measurements::types::{CapturedBytes, ProcessExitCode, ResourceObservation};
@@ -9,6 +9,7 @@ use crate::domain::{
 use crate::outbound::execution::interface::ExecutionPort;
 
 #[derive(Debug)]
+/// Collects resources for one directly owned child on Linux.
 pub(crate) struct ExecutionDirectAdapter;
 impl ExecutionPort for ExecutionDirectAdapter {
     fn profile(&self) -> crate::domain::measurements::types::ExecutionProfile {
@@ -16,10 +17,10 @@ impl ExecutionPort for ExecutionDirectAdapter {
     }
     #[cfg(target_os = "linux")]
     fn run(&self, invocation: Invocation) -> Result<ProcessOutput, Error> {
-        use std::io::Read;
+        use std::io::Read as _;
         use std::process::{Command, Stdio};
         use std::time::Instant;
-        use wait4::Wait4;
+        use wait4::Wait4 as _;
 
         let start = Instant::now();
         let mut child = Command::new(invocation.executable)
@@ -30,11 +31,11 @@ impl ExecutionPort for ExecutionDirectAdapter {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()?;
-        let mut stdout = child
+        let mut stdout_pipe = child
             .stdout
             .take()
             .ok_or_else(|| Error::Invalid(constants::PIPE.into()))?;
-        let mut stderr = child
+        let mut stderr_pipe = child
             .stderr
             .take()
             .ok_or_else(|| Error::Invalid(constants::PIPE.into()))?;
@@ -43,19 +44,19 @@ impl ExecutionPort for ExecutionDirectAdapter {
         let (usage, stdout, stderr) = std::thread::scope(|scope| -> Result<_, Error> {
             let output = scope.spawn(move || {
                 let mut bytes = Vec::new();
-                stdout.read_to_end(&mut bytes).map(|_| bytes)
+                stdout_pipe.read_to_end(&mut bytes).map(|_| bytes)
             });
             let errors = scope.spawn(move || {
                 let mut bytes = Vec::new();
-                stderr.read_to_end(&mut bytes).map(|_| bytes)
+                stderr_pipe.read_to_end(&mut bytes).map(|_| bytes)
             });
             let usage = child.wait4()?;
             let stdout = output
                 .join()
-                .map_err(|_| Error::Invalid(constants::READER.into()))??;
+                .map_err(|_reader_panicked| Error::Invalid(constants::READER.into()))??;
             let stderr = errors
                 .join()
-                .map_err(|_| Error::Invalid(constants::READER.into()))??;
+                .map_err(|_reader_panicked| Error::Invalid(constants::READER.into()))??;
             Ok((usage, stdout, stderr))
         })?;
         let wall = start.elapsed();

@@ -8,9 +8,12 @@ use crate::domain::{
 use crate::outbound::linter::interface::LinterPort;
 use std::path::PathBuf;
 #[derive(Debug)]
+/// Constructs explicit candidate invocations and validates their reports.
 pub(crate) struct LinterRyoAdapter {
-    pub(crate) executable: PathBuf,
-    pub(crate) rules: PathBuf,
+    /// Pinned candidate executable.
+    pub executable: PathBuf,
+    /// Frozen directory of selected rule queries.
+    pub rules: PathBuf,
 }
 impl LinterPort for LinterRyoAdapter {
     fn prepare(&self, request: &RunRequest) -> Result<Invocation, Error> {
@@ -28,12 +31,12 @@ impl LinterPort for LinterRyoAdapter {
                 super::constants::WORKER.into(),
                 super::schemas::encode_request(worker)?.into(),
             ],
-            environment: Default::default(),
+            environment: std::collections::BTreeMap::default(),
             directory: request.root.clone(),
         })
     }
     fn decode(&self, _: &RunRequest, output: ProcessOutput) -> Result<RunReport, Error> {
-        if output.status.0 != 0 || !output.stderr.0.is_empty() {
+        if output.status.0 != 0_i32 || !output.stderr.0.is_empty() {
             return Err(Error::Invalid(format!(
                 "candidate failed ({}): {}",
                 output.status.0,

@@ -5,17 +5,20 @@ use crate::domain::{
     measurements::types::{Invocation, ProcessOutput},
 };
 use crate::outbound::execution::interface::ExecutionPort;
-use sha2::{Digest, Sha256};
+use sha2::{Digest as _, Sha256};
 use std::{
-    io::Write,
+    io::Write as _,
     process::{Command, Stdio},
 };
 
 #[derive(Debug)]
+/// Runs the pinned isolated collector and decodes the actual child observation.
 pub(crate) struct ExecutionTimedAdapter {
+    /// Explicit collector executable and its required digest.
     settings: ExecutionTimedSettings,
 }
 impl ExecutionTimedAdapter {
+    /// Bind immutable collector identity before any invocation is launched.
     pub(crate) fn new(settings: ExecutionTimedSettings) -> Self {
         Self { settings }
     }
@@ -51,7 +54,7 @@ impl ExecutionPort for ExecutionTimedAdapter {
             let output = child.wait_with_output()?;
             writer
                 .join()
-                .map_err(|_| Error::Invalid(constants::WRITER.into()))??;
+                .map_err(|_writer_panicked| Error::Invalid(constants::WRITER.into()))??;
             Ok(output)
         })?;
         if !output.status.success() {

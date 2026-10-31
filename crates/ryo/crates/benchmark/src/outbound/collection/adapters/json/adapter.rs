@@ -6,6 +6,7 @@ use crate::domain::{
 };
 use crate::outbound::collection::{interface::CollectionPort, types::CollectorMessage};
 #[derive(Debug)]
+/// Validates collector wire messages independently of process execution.
 pub(crate) struct CollectionJsonAdapter;
 impl CollectionPort for CollectionJsonAdapter {
     fn request(&self, invocation: &Invocation) -> Result<CollectorMessage, Error> {

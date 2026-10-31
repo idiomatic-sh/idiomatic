@@ -6,11 +6,15 @@ use crate::outbound::worker::interface::WorkerPort;
 use std::{ffi::OsString, io::Write};
 
 #[derive(Debug)]
+/// Receives one explicit request and publishes reports to the injected stream.
 pub(crate) struct WorkerJsonAdapter {
+    /// Immutable command-line request payload.
     payload: OsString,
+    /// Synchronized output connection owned by this adapter.
     connection: WorkerJsonConnection,
 }
 impl WorkerJsonAdapter {
+    /// Bind the request and output stream supplied by executable composition.
     pub(crate) fn new(payload: OsString, output: Box<dyn Write + Send>) -> Self {
         Self {
             payload,

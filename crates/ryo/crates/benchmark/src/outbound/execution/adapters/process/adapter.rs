@@ -6,6 +6,7 @@ use crate::outbound::execution::interface::ExecutionPort;
 use std::process::Command;
 use std::time::Instant;
 #[derive(Debug)]
+/// Executes a child with wall time and captured output, without resource claims.
 pub(crate) struct ExecutionProcessAdapter;
 impl ExecutionPort for ExecutionProcessAdapter {
     fn profile(&self) -> crate::domain::measurements::types::ExecutionProfile {
