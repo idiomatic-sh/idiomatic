@@ -136,10 +136,13 @@ fn segments(
             Kind::Extra(Extra::FStringPart | Extra::TStringPart) => {
                 segments(tree, each, symbols, classes, words)
             }
-            Kind::Extra(Extra::StringPart) | Kind::Node(Node::Constant) => {
+            Kind::Extra(Extra::StringPart) => {
                 if let Some(value) = string_value(tree, symbols, each) {
                     words.push(ShapeWord::Literal(value));
                 }
+            }
+            Kind::Node(Node::Constant) => {
+                let _ = constant(tree, each, symbols, classes, words);
             }
             Kind::Node(Node::FormattedValue | Node::Interpolation) => {
                 child(words, classes, Field::Values, each)
