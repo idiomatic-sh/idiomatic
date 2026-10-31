@@ -18,7 +18,7 @@ templates = [
   { template = "dist-workspace", file = "registries/npm/dist-workspace.toml", count = { when = { condition = "npm" }, then = 1, else = 0 }, params = { languages = { param = "languages" } }, description = "npm's build: the cargo-dist configuration of an archive per platform, with no installer, hosting or generated CI." },
   { template = "npm-package", file = "registries/npm/package.json", count = { when = { condition = "npm" }, then = 1, else = 0 }, params = { command = { param = "command" }, organization = { param = "organization" }, product = { param = "product" } }, description = "The package a user installs from npm: it runs the launcher and carries neither a binary nor an install script." },
   { template = "npm-launcher", file = "registries/npm/launcher.js", count = { when = { condition = "npm" }, then = 1, else = 0 }, params = { command = { param = "command" }, organization = { param = "organization" }, product = { param = "product" } }, description = "The npm command, which finds the platform package installed for this machine and runs its binary." },
-  { template = "npm-platform", file = "registries/npm/platforms/{target}/package.json", count = { when = { condition = "npm" }, then = 6, else = 0 }, params = { organization = { param = "organization" }, product = { param = "product" } }, description = "One platform's npm package, which carries that platform's binary and installs only on a matching machine." },
+  { template = "npm-platform", file = "registries/npm/platforms/{target}/package.json", count = { when = { condition = "npm" }, then = 8, else = 0 }, params = { organization = { param = "organization" }, product = { param = "product" } }, description = "One platform's npm package, which carries that platform's binary and installs only on a matching machine." },
   { template = "npm-smoke-test", file = "registries/npm/smoke_test.rs", count = { when = { condition = "npm" }, then = 1, else = 0 }, params = { command = { param = "command" }, organization = { param = "organization" }, product = { param = "product" }, languages = { param = "languages" } }, description = "npm's proof: it packs and installs the packages offline, runs the command and holds its languages; it runs no target." },
   { template = "target-pin", alias = "npm-target-pin", file = "registries/npm/targets/{npm_project}/pin.toml", count = { min = 0 }, description = "A target's pin: the repository, the revision every release is proven on, and the directory the command runs in." },
   { template = "target-configuration", alias = "npm-target-configuration", file = "registries/npm/targets/{npm_project}/configuration.toml", count = { min = 0 }, params = { product = { param = "product" } }, description = "A target's configuration: what the product checks the project with." },
@@ -1425,7 +1425,7 @@ members = ["cargo:../../../cli"]
 [dist]
 cargo-dist-version = "0.33.0"
 dist = true
-targets = ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "aarch64-unknown-linux-musl", "x86_64-apple-darwin", "aarch64-apple-darwin"]
+targets = ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "aarch64-unknown-linux-musl", "x86_64-apple-darwin", "aarch64-apple-darwin", "x86_64-pc-windows-msvc", "aarch64-pc-windows-msvc"]
 source-tarball = false
 unix-archive = ".tar.gz"
 windows-archive = ".zip"
@@ -1510,6 +1510,22 @@ given.files.'registries/npm/platforms/aarch64-apple-darwin/package.json' = '''
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/package.json' = '''
+{
+  "name": "@idiomatic-sh/tastemaker-aarch64-pc-windows-msvc",
+  "description": "The tastemaker binary for aarch64-pc-windows-msvc, run by @idiomatic-sh/tastemaker.",
+  "os": [
+    "win32"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "files": [
+    "bin"
+  ],
+  "preferUnplugged": true
+}
+'''
 given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-aarch64-unknown-linux-musl",
@@ -1535,6 +1551,22 @@ given.files.'registries/npm/platforms/x86_64-apple-darwin/package.json' = '''
   "description": "The tastemaker binary for x86_64-apple-darwin, run by @idiomatic-sh/tastemaker.",
   "os": [
     "darwin"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "files": [
+    "bin"
+  ],
+  "preferUnplugged": true
+}
+'''
+given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/package.json' = '''
+{
+  "name": "@idiomatic-sh/tastemaker-x86_64-pc-windows-msvc",
+  "description": "The tastemaker binary for x86_64-pc-windows-msvc, run by @idiomatic-sh/tastemaker.",
+  "os": [
+    "win32"
   ],
   "cpu": [
     "x64"
@@ -4157,6 +4189,22 @@ given.files.'registries/npm/platforms/aarch64-apple-darwin/package.json' = '''
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/package.json' = '''
+{
+  "name": "@idiomatic-sh/tastemaker-aarch64-pc-windows-msvc",
+  "description": "The tastemaker binary for aarch64-pc-windows-msvc, run by @idiomatic-sh/tastemaker.",
+  "os": [
+    "win32"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "files": [
+    "bin"
+  ],
+  "preferUnplugged": true
+}
+'''
 given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-aarch64-unknown-linux-musl",
@@ -4182,6 +4230,22 @@ given.files.'registries/npm/platforms/x86_64-apple-darwin/package.json' = '''
   "description": "The tastemaker binary for x86_64-apple-darwin, run by @idiomatic-sh/tastemaker.",
   "os": [
     "darwin"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "files": [
+    "bin"
+  ],
+  "preferUnplugged": true
+}
+'''
+given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/package.json' = '''
+{
+  "name": "@idiomatic-sh/tastemaker-x86_64-pc-windows-msvc",
+  "description": "The tastemaker binary for x86_64-pc-windows-msvc, run by @idiomatic-sh/tastemaker.",
+  "os": [
+    "win32"
   ],
   "cpu": [
     "x64"
@@ -6738,7 +6802,7 @@ members = ["cargo:../../../cli"]
 cargo-dist-version = "0.33.0"
 dist = true
 installers = ["npm"]
-targets = ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "aarch64-unknown-linux-musl", "x86_64-apple-darwin", "aarch64-apple-darwin"]
+targets = ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "aarch64-unknown-linux-musl", "x86_64-apple-darwin", "aarch64-apple-darwin", "x86_64-pc-windows-msvc", "aarch64-pc-windows-msvc"]
 source-tarball = false
 unix-archive = ".tar.gz"
 windows-archive = ".zip"
@@ -6823,6 +6887,22 @@ given.files.'registries/npm/platforms/aarch64-apple-darwin/package.json' = '''
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/package.json' = '''
+{
+  "name": "@idiomatic-sh/tastemaker-aarch64-pc-windows-msvc",
+  "description": "The tastemaker binary for aarch64-pc-windows-msvc, run by @idiomatic-sh/tastemaker.",
+  "os": [
+    "win32"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "files": [
+    "bin"
+  ],
+  "preferUnplugged": true
+}
+'''
 given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-aarch64-unknown-linux-musl",
@@ -6848,6 +6928,22 @@ given.files.'registries/npm/platforms/x86_64-apple-darwin/package.json' = '''
   "description": "The tastemaker binary for x86_64-apple-darwin, run by @idiomatic-sh/tastemaker.",
   "os": [
     "darwin"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "files": [
+    "bin"
+  ],
+  "preferUnplugged": true
+}
+'''
+given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/package.json' = '''
+{
+  "name": "@idiomatic-sh/tastemaker-x86_64-pc-windows-msvc",
+  "description": "The tastemaker binary for x86_64-pc-windows-msvc, run by @idiomatic-sh/tastemaker.",
+  "os": [
+    "win32"
   ],
   "cpu": [
     "x64"
@@ -9404,7 +9500,7 @@ members = ["cargo:../../../cli"]
 [dist]
 cargo-dist-version = "0.33.0"
 dist = true
-targets = ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "aarch64-unknown-linux-musl", "x86_64-apple-darwin", "aarch64-apple-darwin"]
+targets = ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "aarch64-unknown-linux-musl", "x86_64-apple-darwin", "aarch64-apple-darwin", "x86_64-pc-windows-msvc", "aarch64-pc-windows-msvc"]
 source-tarball = false
 unix-archive = ".tar.gz"
 windows-archive = ".zip"
@@ -9489,6 +9585,22 @@ given.files.'registries/npm/platforms/aarch64-apple-darwin/package.json' = '''
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/package.json' = '''
+{
+  "name": "@idiomatic-sh/tastemaker-aarch64-pc-windows-msvc",
+  "description": "The tastemaker binary for aarch64-pc-windows-msvc, run by @idiomatic-sh/tastemaker.",
+  "os": [
+    "win32"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "files": [
+    "bin"
+  ],
+  "preferUnplugged": true
+}
+'''
 given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-aarch64-unknown-linux-musl",
@@ -9514,6 +9626,22 @@ given.files.'registries/npm/platforms/x86_64-apple-darwin/package.json' = '''
   "description": "The tastemaker binary for x86_64-apple-darwin, run by @idiomatic-sh/tastemaker.",
   "os": [
     "darwin"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "files": [
+    "bin"
+  ],
+  "preferUnplugged": true
+}
+'''
+given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/package.json' = '''
+{
+  "name": "@idiomatic-sh/tastemaker-x86_64-pc-windows-msvc",
+  "description": "The tastemaker binary for x86_64-pc-windows-msvc, run by @idiomatic-sh/tastemaker.",
+  "os": [
+    "win32"
   ],
   "cpu": [
     "x64"
@@ -12067,7 +12195,7 @@ members = ["cargo:../../../cli"]
 [dist]
 cargo-dist-version = "0.33.0"
 dist = true
-targets = ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "aarch64-unknown-linux-musl", "x86_64-apple-darwin", "aarch64-apple-darwin"]
+targets = ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "aarch64-unknown-linux-musl", "x86_64-apple-darwin", "aarch64-apple-darwin", "x86_64-pc-windows-msvc", "aarch64-pc-windows-msvc"]
 source-tarball = false
 unix-archive = ".tar.gz"
 windows-archive = ".zip"
@@ -12152,6 +12280,22 @@ given.files.'registries/npm/platforms/aarch64-apple-darwin/package.json' = '''
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/package.json' = '''
+{
+  "name": "@idiomatic-sh/tastemaker-aarch64-pc-windows-msvc",
+  "description": "The tastemaker binary for aarch64-pc-windows-msvc, run by @idiomatic-sh/tastemaker.",
+  "os": [
+    "win32"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "files": [
+    "bin"
+  ],
+  "preferUnplugged": true
+}
+'''
 given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-aarch64-unknown-linux-musl",
@@ -12177,6 +12321,22 @@ given.files.'registries/npm/platforms/x86_64-apple-darwin/package.json' = '''
   "description": "The tastemaker binary for x86_64-apple-darwin, run by @idiomatic-sh/tastemaker.",
   "os": [
     "darwin"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "files": [
+    "bin"
+  ],
+  "preferUnplugged": true
+}
+'''
+given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/package.json' = '''
+{
+  "name": "@idiomatic-sh/tastemaker-x86_64-pc-windows-msvc",
+  "description": "The tastemaker binary for x86_64-pc-windows-msvc, run by @idiomatic-sh/tastemaker.",
+  "os": [
+    "win32"
   ],
   "cpu": [
     "x64"
@@ -14412,7 +14572,7 @@ members = ["cargo:../../../cli"]
 [dist]
 cargo-dist-version = "0.33.0"
 dist = true
-targets = ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "aarch64-unknown-linux-musl", "x86_64-apple-darwin", "aarch64-apple-darwin"]
+targets = ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "aarch64-unknown-linux-musl", "x86_64-apple-darwin", "aarch64-apple-darwin", "x86_64-pc-windows-msvc", "aarch64-pc-windows-msvc"]
 source-tarball = false
 unix-archive = ".tar.gz"
 windows-archive = ".zip"
@@ -14497,6 +14657,22 @@ given.files.'registries/npm/platforms/aarch64-apple-darwin/package.json' = '''
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/package.json' = '''
+{
+  "name": "@idiomatic-sh/tastemaker-aarch64-pc-windows-msvc",
+  "description": "The tastemaker binary for aarch64-pc-windows-msvc, run by @idiomatic-sh/tastemaker.",
+  "os": [
+    "win32"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "files": [
+    "bin"
+  ],
+  "preferUnplugged": true
+}
+'''
 given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-aarch64-unknown-linux-musl",
@@ -14522,6 +14698,22 @@ given.files.'registries/npm/platforms/x86_64-apple-darwin/package.json' = '''
   "description": "The tastemaker binary for x86_64-apple-darwin, run by @idiomatic-sh/tastemaker.",
   "os": [
     "darwin"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "files": [
+    "bin"
+  ],
+  "preferUnplugged": true
+}
+'''
+given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/package.json' = '''
+{
+  "name": "@idiomatic-sh/tastemaker-x86_64-pc-windows-msvc",
+  "description": "The tastemaker binary for x86_64-pc-windows-msvc, run by @idiomatic-sh/tastemaker.",
+  "os": [
+    "win32"
   ],
   "cpu": [
     "x64"
@@ -17080,7 +17272,7 @@ members = ["cargo:../../../cli"]
 [dist]
 cargo-dist-version = "0.33.0"
 dist = true
-targets = ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "aarch64-unknown-linux-musl", "x86_64-apple-darwin", "aarch64-apple-darwin"]
+targets = ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "aarch64-unknown-linux-musl", "x86_64-apple-darwin", "aarch64-apple-darwin", "x86_64-pc-windows-msvc", "aarch64-pc-windows-msvc"]
 source-tarball = false
 unix-archive = ".tar.gz"
 windows-archive = ".zip"
@@ -17165,6 +17357,22 @@ given.files.'registries/npm/platforms/aarch64-apple-darwin/package.json' = '''
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/package.json' = '''
+{
+  "name": "@idiomatic-sh/tastemaker-aarch64-pc-windows-msvc",
+  "description": "The tastemaker binary for aarch64-pc-windows-msvc, run by @idiomatic-sh/tastemaker.",
+  "os": [
+    "win32"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "files": [
+    "bin"
+  ],
+  "preferUnplugged": true
+}
+'''
 given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-aarch64-unknown-linux-musl",
@@ -17190,6 +17398,22 @@ given.files.'registries/npm/platforms/x86_64-apple-darwin/package.json' = '''
   "description": "The tastemaker binary for x86_64-apple-darwin, run by @idiomatic-sh/tastemaker.",
   "os": [
     "darwin"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "files": [
+    "bin"
+  ],
+  "preferUnplugged": true
+}
+'''
+given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/package.json' = '''
+{
+  "name": "@idiomatic-sh/tastemaker-x86_64-pc-windows-msvc",
+  "description": "The tastemaker binary for x86_64-pc-windows-msvc, run by @idiomatic-sh/tastemaker.",
+  "os": [
+    "win32"
   ],
   "cpu": [
     "x64"
@@ -19745,7 +19969,7 @@ members = ["cargo:../../../cli"]
 [dist]
 cargo-dist-version = "0.33.0"
 dist = true
-targets = ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "aarch64-unknown-linux-musl", "x86_64-apple-darwin", "aarch64-apple-darwin"]
+targets = ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "aarch64-unknown-linux-musl", "x86_64-apple-darwin", "aarch64-apple-darwin", "x86_64-pc-windows-msvc", "aarch64-pc-windows-msvc"]
 source-tarball = false
 unix-archive = ".tar.gz"
 windows-archive = ".zip"
@@ -19830,6 +20054,22 @@ given.files.'registries/npm/platforms/aarch64-apple-darwin/package.json' = '''
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/package.json' = '''
+{
+  "name": "@idiomatic-sh/tastemaker-aarch64-pc-windows-msvc",
+  "description": "The tastemaker binary for aarch64-pc-windows-msvc, run by @idiomatic-sh/tastemaker.",
+  "os": [
+    "win32"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "files": [
+    "bin"
+  ],
+  "preferUnplugged": true
+}
+'''
 given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-aarch64-unknown-linux-musl",
@@ -19855,6 +20095,22 @@ given.files.'registries/npm/platforms/x86_64-apple-darwin/package.json' = '''
   "description": "The tastemaker binary for x86_64-apple-darwin, run by @idiomatic-sh/tastemaker.",
   "os": [
     "darwin"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "files": [
+    "bin"
+  ],
+  "preferUnplugged": true
+}
+'''
+given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/package.json' = '''
+{
+  "name": "@idiomatic-sh/tastemaker-x86_64-pc-windows-msvc",
+  "description": "The tastemaker binary for x86_64-pc-windows-msvc, run by @idiomatic-sh/tastemaker.",
+  "os": [
+    "win32"
   ],
   "cpu": [
     "x64"
@@ -22341,7 +22597,7 @@ members = ["cargo:../../../cli"]
 [dist]
 cargo-dist-version = "0.33.0"
 dist = true
-targets = ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "aarch64-unknown-linux-musl", "x86_64-apple-darwin", "aarch64-apple-darwin"]
+targets = ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "aarch64-unknown-linux-musl", "x86_64-apple-darwin", "aarch64-apple-darwin", "x86_64-pc-windows-msvc", "aarch64-pc-windows-msvc"]
 source-tarball = false
 unix-archive = ".tar.gz"
 windows-archive = ".zip"
@@ -22380,6 +22636,22 @@ given.files.'registries/npm/platforms/aarch64-apple-darwin/package.json' = '''
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/package.json' = '''
+{
+  "name": "@idiomatic-sh/tastemaker-aarch64-pc-windows-msvc",
+  "description": "The tastemaker binary for aarch64-pc-windows-msvc, run by @idiomatic-sh/tastemaker.",
+  "os": [
+    "win32"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "files": [
+    "bin"
+  ],
+  "preferUnplugged": true
+}
+'''
 given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-aarch64-unknown-linux-musl",
@@ -22405,6 +22677,22 @@ given.files.'registries/npm/platforms/x86_64-apple-darwin/package.json' = '''
   "description": "The tastemaker binary for x86_64-apple-darwin, run by @idiomatic-sh/tastemaker.",
   "os": [
     "darwin"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "files": [
+    "bin"
+  ],
+  "preferUnplugged": true
+}
+'''
+given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/package.json' = '''
+{
+  "name": "@idiomatic-sh/tastemaker-x86_64-pc-windows-msvc",
+  "description": "The tastemaker binary for x86_64-pc-windows-msvc, run by @idiomatic-sh/tastemaker.",
+  "os": [
+    "win32"
   ],
   "cpu": [
     "x64"
@@ -24960,7 +25248,7 @@ members = ["cargo:../../../cli"]
 [dist]
 cargo-dist-version = "0.33.0"
 dist = true
-targets = ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "aarch64-unknown-linux-musl", "x86_64-apple-darwin", "aarch64-apple-darwin"]
+targets = ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "aarch64-unknown-linux-musl", "x86_64-apple-darwin", "aarch64-apple-darwin", "x86_64-pc-windows-msvc", "aarch64-pc-windows-msvc"]
 source-tarball = false
 unix-archive = ".tar.gz"
 windows-archive = ".zip"
@@ -27517,7 +27805,7 @@ members = ["cargo:../../../cli"]
 [dist]
 cargo-dist-version = "0.33.0"
 dist = true
-targets = ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "aarch64-unknown-linux-musl", "x86_64-apple-darwin", "aarch64-apple-darwin"]
+targets = ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "aarch64-unknown-linux-musl", "x86_64-apple-darwin", "aarch64-apple-darwin", "x86_64-pc-windows-msvc", "aarch64-pc-windows-msvc"]
 source-tarball = false
 unix-archive = ".tar.gz"
 windows-archive = ".zip"
@@ -27602,6 +27890,22 @@ given.files.'registries/npm/platforms/aarch64-apple-darwin/package.json' = '''
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/package.json' = '''
+{
+  "name": "@idiomatic-sh/tastemaker-aarch64-pc-windows-msvc",
+  "description": "The tastemaker binary for aarch64-pc-windows-msvc, run by @idiomatic-sh/tastemaker.",
+  "os": [
+    "win32"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "files": [
+    "bin"
+  ],
+  "preferUnplugged": true
+}
+'''
 given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-aarch64-unknown-linux-musl",
@@ -27627,6 +27931,22 @@ given.files.'registries/npm/platforms/x86_64-apple-darwin/package.json' = '''
   "description": "The tastemaker binary for x86_64-apple-darwin, run by @idiomatic-sh/tastemaker.",
   "os": [
     "darwin"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "files": [
+    "bin"
+  ],
+  "preferUnplugged": true
+}
+'''
+given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/package.json' = '''
+{
+  "name": "@idiomatic-sh/tastemaker-x86_64-pc-windows-msvc",
+  "description": "The tastemaker binary for x86_64-pc-windows-msvc, run by @idiomatic-sh/tastemaker.",
+  "os": [
+    "win32"
   ],
   "cpu": [
     "x64"
@@ -30185,7 +30505,7 @@ members = ["cargo:../../../cli"]
 [dist]
 cargo-dist-version = "0.33.0"
 dist = true
-targets = ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "aarch64-unknown-linux-musl", "x86_64-apple-darwin", "aarch64-apple-darwin"]
+targets = ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "aarch64-unknown-linux-musl", "x86_64-apple-darwin", "aarch64-apple-darwin", "x86_64-pc-windows-msvc", "aarch64-pc-windows-msvc"]
 source-tarball = false
 unix-archive = ".tar.gz"
 windows-archive = ".zip"
@@ -30270,6 +30590,22 @@ given.files.'registries/npm/platforms/aarch64-apple-darwin/package.json' = '''
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/package.json' = '''
+{
+  "name": "@idiomatic-sh/tastemaker-aarch64-pc-windows-msvc",
+  "description": "The tastemaker binary for aarch64-pc-windows-msvc, run by @idiomatic-sh/tastemaker.",
+  "os": [
+    "win32"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "files": [
+    "bin"
+  ],
+  "preferUnplugged": true
+}
+'''
 given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-aarch64-unknown-linux-musl",
@@ -30295,6 +30631,22 @@ given.files.'registries/npm/platforms/x86_64-apple-darwin/package.json' = '''
   "description": "The tastemaker binary for x86_64-apple-darwin, run by @idiomatic-sh/tastemaker.",
   "os": [
     "darwin"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "files": [
+    "bin"
+  ],
+  "preferUnplugged": true
+}
+'''
+given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/package.json' = '''
+{
+  "name": "@idiomatic-sh/tastemaker-x86_64-pc-windows-msvc",
+  "description": "The tastemaker binary for x86_64-pc-windows-msvc, run by @idiomatic-sh/tastemaker.",
+  "os": [
+    "win32"
   ],
   "cpu": [
     "x64"
@@ -32853,7 +33205,7 @@ members = ["cargo:../../../cli"]
 [dist]
 cargo-dist-version = "0.33.0"
 dist = true
-targets = ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "aarch64-unknown-linux-musl", "x86_64-apple-darwin", "aarch64-apple-darwin"]
+targets = ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "aarch64-unknown-linux-musl", "x86_64-apple-darwin", "aarch64-apple-darwin", "x86_64-pc-windows-msvc", "aarch64-pc-windows-msvc"]
 source-tarball = false
 unix-archive = ".tar.gz"
 windows-archive = ".zip"
@@ -32938,6 +33290,22 @@ given.files.'registries/npm/platforms/aarch64-apple-darwin/package.json' = '''
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/package.json' = '''
+{
+  "name": "@idiomatic-sh/tastemaker-aarch64-pc-windows-msvc",
+  "description": "The tastemaker binary for aarch64-pc-windows-msvc, run by @idiomatic-sh/tastemaker.",
+  "os": [
+    "win32"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "files": [
+    "bin"
+  ],
+  "preferUnplugged": true
+}
+'''
 given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-aarch64-unknown-linux-musl",
@@ -32963,6 +33331,22 @@ given.files.'registries/npm/platforms/x86_64-apple-darwin/package.json' = '''
   "description": "The tastemaker binary for x86_64-apple-darwin, run by @idiomatic-sh/tastemaker.",
   "os": [
     "darwin"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "files": [
+    "bin"
+  ],
+  "preferUnplugged": true
+}
+'''
+given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/package.json' = '''
+{
+  "name": "@idiomatic-sh/tastemaker-x86_64-pc-windows-msvc",
+  "description": "The tastemaker binary for x86_64-pc-windows-msvc, run by @idiomatic-sh/tastemaker.",
+  "os": [
+    "win32"
   ],
   "cpu": [
     "x64"
@@ -35519,7 +35903,7 @@ members = ["cargo:../../../cli"]
 [dist]
 cargo-dist-version = "0.33.0"
 dist = true
-targets = ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "aarch64-unknown-linux-musl", "x86_64-apple-darwin", "aarch64-apple-darwin"]
+targets = ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "aarch64-unknown-linux-musl", "x86_64-apple-darwin", "aarch64-apple-darwin", "x86_64-pc-windows-msvc", "aarch64-pc-windows-msvc"]
 source-tarball = false
 unix-archive = ".tar.gz"
 windows-archive = ".zip"
@@ -35604,6 +35988,22 @@ given.files.'registries/npm/platforms/aarch64-apple-darwin/package.json' = '''
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/package.json' = '''
+{
+  "name": "@idiomatic-sh/tastemaker-aarch64-pc-windows-msvc",
+  "description": "The tastemaker binary for aarch64-pc-windows-msvc, run by @idiomatic-sh/tastemaker.",
+  "os": [
+    "win32"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "files": [
+    "bin"
+  ],
+  "preferUnplugged": true
+}
+'''
 given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-aarch64-unknown-linux-musl",
@@ -35629,6 +36029,22 @@ given.files.'registries/npm/platforms/x86_64-apple-darwin/package.json' = '''
   "description": "The tastemaker binary for x86_64-apple-darwin, run by @idiomatic-sh/tastemaker.",
   "os": [
     "darwin"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "files": [
+    "bin"
+  ],
+  "preferUnplugged": true
+}
+'''
+given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/package.json' = '''
+{
+  "name": "@idiomatic-sh/tastemaker-x86_64-pc-windows-msvc",
+  "description": "The tastemaker binary for x86_64-pc-windows-msvc, run by @idiomatic-sh/tastemaker.",
+  "os": [
+    "win32"
   ],
   "cpu": [
     "x64"
@@ -38163,7 +38579,7 @@ members = ["cargo:../../../cli"]
 [dist]
 cargo-dist-version = "0.33.0"
 dist = true
-targets = ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "aarch64-unknown-linux-musl", "x86_64-apple-darwin", "aarch64-apple-darwin"]
+targets = ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "aarch64-unknown-linux-musl", "x86_64-apple-darwin", "aarch64-apple-darwin", "x86_64-pc-windows-msvc", "aarch64-pc-windows-msvc"]
 source-tarball = false
 unix-archive = ".tar.gz"
 windows-archive = ".zip"
@@ -38248,6 +38664,22 @@ given.files.'registries/npm/platforms/aarch64-apple-darwin/package.json' = '''
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/package.json' = '''
+{
+  "name": "@idiomatic-sh/tastemaker-aarch64-pc-windows-msvc",
+  "description": "The tastemaker binary for aarch64-pc-windows-msvc, run by @idiomatic-sh/tastemaker.",
+  "os": [
+    "win32"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "files": [
+    "bin"
+  ],
+  "preferUnplugged": true
+}
+'''
 given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-aarch64-unknown-linux-musl",
@@ -38273,6 +38705,22 @@ given.files.'registries/npm/platforms/x86_64-apple-darwin/package.json' = '''
   "description": "The tastemaker binary for x86_64-apple-darwin, run by @idiomatic-sh/tastemaker.",
   "os": [
     "darwin"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "files": [
+    "bin"
+  ],
+  "preferUnplugged": true
+}
+'''
+given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/package.json' = '''
+{
+  "name": "@idiomatic-sh/tastemaker-x86_64-pc-windows-msvc",
+  "description": "The tastemaker binary for x86_64-pc-windows-msvc, run by @idiomatic-sh/tastemaker.",
+  "os": [
+    "win32"
   ],
   "cpu": [
     "x64"
@@ -40827,7 +41275,7 @@ members = ["cargo:../../../cli"]
 [dist]
 cargo-dist-version = "0.33.0"
 dist = true
-targets = ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "aarch64-unknown-linux-musl", "x86_64-apple-darwin", "aarch64-apple-darwin"]
+targets = ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "aarch64-unknown-linux-musl", "x86_64-apple-darwin", "aarch64-apple-darwin", "x86_64-pc-windows-msvc", "aarch64-pc-windows-msvc"]
 source-tarball = false
 unix-archive = ".tar.gz"
 windows-archive = ".zip"
@@ -40912,6 +41360,22 @@ given.files.'registries/npm/platforms/aarch64-apple-darwin/package.json' = '''
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/package.json' = '''
+{
+  "name": "@idiomatic-sh/tastemaker-aarch64-pc-windows-msvc",
+  "description": "The tastemaker binary for aarch64-pc-windows-msvc, run by @idiomatic-sh/tastemaker.",
+  "os": [
+    "win32"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "files": [
+    "bin"
+  ],
+  "preferUnplugged": true
+}
+'''
 given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-aarch64-unknown-linux-musl",
@@ -40937,6 +41401,22 @@ given.files.'registries/npm/platforms/x86_64-apple-darwin/package.json' = '''
   "description": "The tastemaker binary for x86_64-apple-darwin, run by @idiomatic-sh/tastemaker.",
   "os": [
     "darwin"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "files": [
+    "bin"
+  ],
+  "preferUnplugged": true
+}
+'''
+given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/package.json' = '''
+{
+  "name": "@idiomatic-sh/tastemaker-x86_64-pc-windows-msvc",
+  "description": "The tastemaker binary for x86_64-pc-windows-msvc, run by @idiomatic-sh/tastemaker.",
+  "os": [
+    "win32"
   ],
   "cpu": [
     "x64"
@@ -43496,7 +43976,7 @@ members = ["cargo:../../../cli"]
 [dist]
 cargo-dist-version = "0.33.0"
 dist = true
-targets = ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "aarch64-unknown-linux-musl", "x86_64-apple-darwin", "aarch64-apple-darwin"]
+targets = ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "aarch64-unknown-linux-musl", "x86_64-apple-darwin", "aarch64-apple-darwin", "x86_64-pc-windows-msvc", "aarch64-pc-windows-msvc"]
 source-tarball = false
 unix-archive = ".tar.gz"
 windows-archive = ".zip"
@@ -43581,6 +44061,22 @@ given.files.'registries/npm/platforms/aarch64-apple-darwin/package.json' = '''
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/package.json' = '''
+{
+  "name": "@idiomatic-sh/tastemaker-aarch64-pc-windows-msvc",
+  "description": "The tastemaker binary for aarch64-pc-windows-msvc, run by @idiomatic-sh/tastemaker.",
+  "os": [
+    "win32"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "files": [
+    "bin"
+  ],
+  "preferUnplugged": true
+}
+'''
 given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-aarch64-unknown-linux-musl",
@@ -43606,6 +44102,22 @@ given.files.'registries/npm/platforms/x86_64-apple-darwin/package.json' = '''
   "description": "The tastemaker binary for x86_64-apple-darwin, run by @idiomatic-sh/tastemaker.",
   "os": [
     "darwin"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "files": [
+    "bin"
+  ],
+  "preferUnplugged": true
+}
+'''
+given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/package.json' = '''
+{
+  "name": "@idiomatic-sh/tastemaker-x86_64-pc-windows-msvc",
+  "description": "The tastemaker binary for x86_64-pc-windows-msvc, run by @idiomatic-sh/tastemaker.",
+  "os": [
+    "win32"
   ],
   "cpu": [
     "x64"
@@ -46164,7 +46676,7 @@ members = ["cargo:../../../cli"]
 [dist]
 cargo-dist-version = "0.33.0"
 dist = true
-targets = ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "aarch64-unknown-linux-musl", "x86_64-apple-darwin", "aarch64-apple-darwin"]
+targets = ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "aarch64-unknown-linux-musl", "x86_64-apple-darwin", "aarch64-apple-darwin", "x86_64-pc-windows-msvc", "aarch64-pc-windows-msvc"]
 source-tarball = false
 unix-archive = ".tar.gz"
 windows-archive = ".zip"
@@ -46249,6 +46761,22 @@ given.files.'registries/npm/platforms/aarch64-apple-darwin/package.json' = '''
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/package.json' = '''
+{
+  "name": "@idiomatic-sh/tastemaker-aarch64-pc-windows-msvc",
+  "description": "The tastemaker binary for aarch64-pc-windows-msvc, run by @idiomatic-sh/tastemaker.",
+  "os": [
+    "win32"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "files": [
+    "bin"
+  ],
+  "preferUnplugged": true
+}
+'''
 given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-aarch64-unknown-linux-musl",
@@ -46274,6 +46802,22 @@ given.files.'registries/npm/platforms/x86_64-apple-darwin/package.json' = '''
   "description": "The tastemaker binary for x86_64-apple-darwin, run by @idiomatic-sh/tastemaker.",
   "os": [
     "darwin"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "files": [
+    "bin"
+  ],
+  "preferUnplugged": true
+}
+'''
+given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/package.json' = '''
+{
+  "name": "@idiomatic-sh/tastemaker-x86_64-pc-windows-msvc",
+  "description": "The tastemaker binary for x86_64-pc-windows-msvc, run by @idiomatic-sh/tastemaker.",
+  "os": [
+    "win32"
   ],
   "cpu": [
     "x64"

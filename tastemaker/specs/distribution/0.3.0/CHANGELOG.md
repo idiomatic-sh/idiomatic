@@ -2,9 +2,6 @@
 
 ## 0.3.0
 
-Edited in place: the release ships six targets, Linux (gnu and musl, x64 and arm64) and macOS (x64 and arm64); Windows, whose
-tests do not pass yet, ships from the next release, so `dist-workspace` names six targets and `npm-platform` places six packages.
-
 Edited in place: no file of the distribution lies on a ring of module dependencies (`module-cycles`). `smoke-test` names no registry's module: `REGISTRIES`, its `Install` and `Languages`, and `every_registry_is_declared` are `target-test`'s, which names each registry's `command` and `languages` through `super::`, so the registries' `super::` helpers and the root no longer name each other (the `no-registry-check` scenario moved with them). `target-preparation` holds `table` and `pinned` and names the root's `output` and `run`; its `checkout` binds the dependencies alone, and `target-test`'s `checkout` places the configuration and prepares the policy around it, so preparation names nothing of `target-test`. `bench-main` reads `target_test::REGISTRIES` and calls `target_test::checkout`.
 
 Edited in place: no smoke test runs a target. `smoke-test` no longer has `targets_have_their_findings`, the registries'
