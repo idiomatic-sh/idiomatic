@@ -1,4 +1,4 @@
-//! The `resolves` relation: a type name written in a type position, with the declaration or import that binds it in the file.
+//! The `resolves` relation: a name occurrence, with the declaration or import that binds it in the file.
 
 use super::super::interface::RelationsItem;
 use crate::domain::relations::types::{FileId, NodeId, Span};
@@ -31,9 +31,9 @@ macro_rules! resolves {
             },
             class Code,
             columns {
-                /// The type name: its file and where it starts.
+                /// The name occurrence: its file and where it starts.
                 occurrence Occurrence: NodeId => Node;
-                /// What holds the type: the declaration or the signature it is written in, by its file and where it starts.
+                /// What holds the occurrence: its lexical scope or enclosing declaration.
                 owner Owner: NodeId => Node;
                 /// The name, as written.
                 name Name: Symbol => Symbol;

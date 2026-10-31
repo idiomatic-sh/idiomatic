@@ -1,5 +1,6 @@
 //! The python domain: its nodes, tokens and extras, its files, its scopes and its names, and the readers of its relations.
 
+pub(crate) mod bindings;
 pub(crate) mod definitions;
 pub(crate) mod dependencies;
 pub(crate) mod extras;

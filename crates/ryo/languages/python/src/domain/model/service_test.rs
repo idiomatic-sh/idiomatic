@@ -36,6 +36,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 fn subject((scope, name): Input) -> Value {
     let model = Declarations {
+        bindings: Default::default(),
         declared: vec![
             ScopeDeclaration {
                 scope: Position(3),
