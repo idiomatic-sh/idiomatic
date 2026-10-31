@@ -21,19 +21,42 @@ type Input = fn() -> Given;
 type Value = &'static str;
 type Failure = ();
 
-fn plan_comparing_kind(test: Test, right: Operand) -> Plan {
+/// Both places where a plan can constrain the kind of a source relation.
+#[derive(Clone, Copy)]
+enum KindSite {
+    /// A direct relation selection.
+    Select,
+    /// A filter on the right relation of a join.
+    Join,
+}
+
+fn plan_comparing_kind(test: Test, right: Operand, relation: Relation, site: KindSite) -> Plan {
+    let source = ryo_values::domain::plan_parts::types::Input::Relation(relation);
+    let comparisons = vec![Comparison {
+        test,
+        left: Operand::Column(ColumnIndex(1)),
+        right,
+    }];
+    let operation = match site {
+        KindSite::Select => Operation::Select {
+            from: source,
+            comparisons,
+            kept: Vec::new(),
+        },
+        KindSite::Join => Operation::Join {
+            left: ryo_values::domain::plan_parts::types::Input::Relation(Relation::SyntaxTree),
+            right: source,
+            left_on: Vec::new(),
+            right_on: Vec::new(),
+            output: Vec::new(),
+            filter: comparisons,
+            view: Vec::new(),
+        },
+    };
     Plan {
         parameters: Vec::new(),
         steps: vec![PlanStep {
-            operation: Operation::Select {
-                from: ryo_values::domain::plan_parts::types::Input::Relation(Relation::SyntaxTree),
-                comparisons: vec![Comparison {
-                    test,
-                    left: Operand::Column(ColumnIndex(1)),
-                    right,
-                }],
-                kept: Vec::new(),
-            },
+            operation,
             scope: StepScope::PerFile,
         }],
         emit: Emit {
@@ -193,14 +216,28 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 
-fn subject(input: Input) -> Value {
+fn message(input: Input, relation: Relation, site: KindSite) -> Value {
     let (test, right, bound) = input();
-    let plan = plan_comparing_kind(test, right);
+    let plan = plan_comparing_kind(test, right, relation, site);
     let vocabularies = vocabularies();
     let message = first_unknown(&[plan], &[bound], &vocabularies)
         .map(|unknown| unknown_message(&unknown.word, &vocabularies).0)
         .unwrap_or_default();
     Box::leak(message)
+}
+
+fn subject(input: Input) -> Value {
+    let expected = message(input, Relation::SyntaxTree, KindSite::Select);
+    for relation in [Relation::SyntaxTree, Relation::SemanticSyntax] {
+        for site in [KindSite::Select, KindSite::Join] {
+            assert_eq!(
+                message(input, relation, site),
+                expected,
+                "kind validation must agree for native and semantic selections and right joins"
+            );
+        }
+    }
+    expected
 }
 
 #[test]

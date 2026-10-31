@@ -786,6 +786,25 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Refusal(|error| selects(matches!(error, LintError::UnknownKind { .. }))),
     },
     Case {
+        name: CaseName("an_unknown_semantic_kind_is_refused_before_a_file_is_read"),
+        word: Word::Refuses,
+        input: || {
+            Scenario::Lint(|| {
+                let mut query = QueryLanguageFake::comparing_a_kind();
+                for step in &mut query.plan.steps {
+                    if let Operation::Select { from, .. } = &mut step.operation {
+                        *from = PlanInput::Relation(Relation::SemanticSyntax);
+                    }
+                }
+                Given {
+                    query: Arc::new(query),
+                    ..violations()
+                }
+            })
+        },
+        expect: Expect::Refusal(|error| selects(matches!(error, LintError::UnknownKind { .. }))),
+    },
+    Case {
         name: CaseName("a_language_that_writes_a_node_past_its_file_is_refused_naming_it"),
         word: Word::Refuses,
         input: || {

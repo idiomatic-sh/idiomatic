@@ -25,18 +25,23 @@ const KIND_COLUMN: ColumnIndex = ColumnIndex(1);
 /// bound to.
 #[must_use]
 pub(crate) fn kinds_asked(plan: &Plan, bound: &[ParameterBinding]) -> Vec<AskedKind> {
-    let tree = Input::Relation(Relation::SyntaxTree);
     let mut asked = Vec::new();
     for step in &plan.steps {
         if let Operation::Select {
             from, comparisons, ..
         } = &step.operation
-            && *from == tree
+            && matches!(
+                from,
+                Input::Relation(Relation::SyntaxTree | Relation::SemanticSyntax)
+            )
         {
             asked_in(comparisons, bound, &mut asked);
         }
         if let Operation::Join { right, filter, .. } = &step.operation
-            && *right == tree
+            && matches!(
+                right,
+                Input::Relation(Relation::SyntaxTree | Relation::SemanticSyntax)
+            )
         {
             asked_in(filter, bound, &mut asked);
         }
