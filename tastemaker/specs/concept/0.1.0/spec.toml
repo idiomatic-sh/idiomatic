@@ -5,6 +5,9 @@ specs = [
   { spec = "idiomatic.arch/collection@0.1.0", include = ["collections/{collection}"], count = { min = 0 }, params = { item-trait = { param = "item-trait" } }, description = "The collections of this part: each a collection of items sharing one trait." },
 ]
 templates = [
+  { template = "idiomatic.arch/value-module@0.1.0", file = "types/{value}.rs", count = { min = 0 }, description = "An optional behavior-owning value module with its adjacent implementation and proof." },
+  { template = "idiomatic.arch/value@0.1.0", file = "types/{value}/value.rs", count = { min = 0 }, description = "A value owns private representation and pure behavior, including checked construction." },
+  { template = "idiomatic.arch/value-test@0.1.0", file = "types/{value}/value_test.rs", count = { min = 0 }, description = "Every behavior-owning value has its independent adjacent proof." },
   { template = "service", file = "service.rs", count = { min = 0 }, description = "The concept's service: free functions named by verb over the domain's types, with no port and no IO." },
   { template = "idiomatic.arch/unit-test@0.1.0", file = "service_test.rs", count = { when = { condition = "has-service" }, then = 1, else = 0 }, params = { kind = "concept" }, description = "The proof of the concept's service, on values alone." },
   { template = "concept-fixtures", file = "fixtures.rs", count = { min = 0 }, description = "The concept's test support, when its tests or the tests of the concepts that read through it need more than literals: declared by the module file under the `fixtures` gate." },
@@ -15,6 +18,7 @@ templates = [
   { alias = "collection-module", template = "idiomatic.arch/collection@0.1.0", file = "collections/{collection}.rs", count = { min = 0 }, params = { item-trait = { param = "item-trait" } }, description = "One collection of the part: its interface and its items in order." },
 ]
 rules = [
+  { rule = "value-companions", include = ["types/**"], description = "Every behavior value has its module, implementation and adjacent proof; arbitrary helpers remain closed." },
   { rule = "idiomatic.arch/orphan-rust-files@0.1.0", include = ["**"], exclude = ["**/tests/fixtures/**", "**/tests/ui/**"], description = "Every Rust file of the concept is a module the crate reaches: a file its module files do not declare is never compiled." },
   { rule = "idiomatic.arch/no-vacuous-tests@0.1.0", include = ["*_test.rs"], description = "Proofs execute a real subject over nonempty cases." },
   { rule = "service-has-fn", include = ["service.rs"], description = "A service declares at least one free function: a concept that declares none has no service.rs." },
@@ -1598,3 +1602,45 @@ fn succeeds() {
 then.findings = [
   { rule = 'idiomatic.arch/collection(collection-module)#template', path = 'src/domain/polite/collections/shapes.rs' },
 ]
+
+
+[[scenarios]]
+id = "behavior-value-files-are-placed"
+scenario = "A private domain value and its adjacent proof use the established value templates."
+given.files.'src/domain/greeting/types/token.rs' = '''
+//! One value with behaviour: its declaration and impls, and its proof.
+pub mod value;
+#[cfg(test)]
+mod value_test;
+'''
+given.files.'src/domain/greeting/types/token/value.rs' = '''
+//! One value: its declaration and its hand-written impls, trait impls included.
+pub struct Token(String);
+'''
+given.files.'src/domain/greeting/types/token/value_test.rs' = '''
+//! Proves one value's behaviour.
+'''
+then.only = ['idiomatic.arch/concept#closed']
+
+[[scenarios]]
+id = "behavior-value-rejects-arbitrary-helper"
+scenario = "The value role does not open the directory to arbitrary implementation helpers."
+given.files.'src/domain/greeting/types/token/helper.rs' = 'pub fn bypass() {}'
+then.only = ['idiomatic.arch/concept#closed']
+then.findings = [{ rule = 'idiomatic.arch/concept#closed', path = 'src/domain/greeting/types/token/helper.rs' }]
+
+[[scenarios]]
+id = "behavior-value-requires-proof"
+scenario = "A declared value module cannot omit its adjacent proof."
+given.files.'src/domain/greeting/types/token.rs' = '''
+//! One value with behaviour: its declaration and impls, and its proof.
+pub mod value;
+#[cfg(test)]
+mod value_test;
+'''
+given.files.'src/domain/greeting/types/token/value.rs' = '''
+//! One value: its declaration and its hand-written impls, trait impls included.
+pub struct Token(String);
+'''
+then.only = ['idiomatic.arch/concept/value-companions']
+then.findings = [{ rule = 'idiomatic.arch/concept/value-companions', path = 'src/domain/greeting/types/token/value.rs' }]
