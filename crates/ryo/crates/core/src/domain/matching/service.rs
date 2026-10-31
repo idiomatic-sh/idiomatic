@@ -60,10 +60,14 @@ pub(crate) fn replace(
     let mut output = String::with_capacity(text.0.len());
     let mut end = 0;
     for found in regex.find_iter(text.0) {
-        output.push_str(&text.0[end..found.start()]);
+        output.push_str(
+            text.0
+                .get(end..found.start())
+                .ok_or(OperatingError::ShapeMismatch)?,
+        );
         output.push_str(replacement.0);
         end = found.end();
     }
-    output.push_str(&text.0[end..]);
+    output.push_str(text.0.get(end..).ok_or(OperatingError::ShapeMismatch)?);
     Ok(LiteralText(output.into()))
 }

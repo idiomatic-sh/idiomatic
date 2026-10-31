@@ -41,7 +41,7 @@ pub(crate) fn lower_call(
         QueryOperator::Extend => call_extend(builder, name, call)?,
         QueryOperator::Join | QueryOperator::OrderedMatch => call_join(builder, name, call)?,
         QueryOperator::Replace => {
-            crate::domain::substituting::service::call_replace(builder, name, call)?
+            crate::domain::substituting::service::call_replace(builder, name, call)?;
         }
         QueryOperator::Union | QueryOperator::Intersection | QueryOperator::Difference => {
             call_set(builder, name, call, operator)?;
@@ -268,7 +268,11 @@ pub(crate) fn call_join(
     }
     let operation = if operator_named(&call.name.0) == Some(QueryOperator::OrderedMatch) {
         for (index, field) in kept.iter().enumerate() {
-            if kept[..index].iter().any(|before| before.name == field.name) {
+            if kept
+                .iter()
+                .take(index)
+                .any(|before| before.name == field.name)
+            {
                 return Err(LoweringError::DuplicateOutput {
                     name: field.name.0.to_string(),
                     span: call.span,
@@ -276,8 +280,8 @@ pub(crate) fn call_join(
             }
         }
         if left_on.len() != right_on.len()
-            || left_on.iter().zip(&right_on).any(|(left, right)| {
-                column_of(&left_fields, *left).kind != column_of(&right_fields, *right).kind
+            || left_on.iter().zip(&right_on).any(|(left_key, right_key)| {
+                column_of(&left_fields, *left_key).kind != column_of(&right_fields, *right_key).kind
             })
         {
             return Err(LoweringError::KindMismatch { span: call.span });

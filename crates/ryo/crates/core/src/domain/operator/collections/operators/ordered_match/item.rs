@@ -59,7 +59,7 @@ fn indexed<'a>(
     rows.sort_unstable();
     if rows
         .windows(2)
-        .any(|pair| pair[0].keys == pair[1].keys && pair[0].order == pair[1].order)
+        .any(|pair| matches!(pair, [first, second] if first.keys == second.keys && first.order == second.order))
     {
         return Err(OperatingError::DuplicateOrder);
     }
@@ -88,13 +88,20 @@ impl OperatorsItem for OrderedMatchItem {
         let left = first(inputs)?;
         let right = second(inputs)?;
         if left_on.len() != right_on.len()
-            || kinds_of(left).get(left_order.0 as usize) != Some(&CellKind::Number)
-            || kinds_of(right).get(right_order.0 as usize) != Some(&CellKind::Number)
+            || kinds_of(left)
+                .get(usize::try_from(left_order.0).map_err(|_| OperatingError::ShapeMismatch)?)
+                != Some(&CellKind::Number)
+            || kinds_of(right)
+                .get(usize::try_from(right_order.0).map_err(|_| OperatingError::ShapeMismatch)?)
+                != Some(&CellKind::Number)
         {
             return Err(OperatingError::ShapeMismatch);
         }
         for (left_key, right_key) in left_on.iter().zip(right_on) {
-            if kinds_of(left).get(left_key.0 as usize) != kinds_of(right).get(right_key.0 as usize)
+            if kinds_of(left)
+                .get(usize::try_from(left_key.0).map_err(|_| OperatingError::ShapeMismatch)?)
+                != kinds_of(right)
+                    .get(usize::try_from(right_key.0).map_err(|_| OperatingError::ShapeMismatch)?)
             {
                 return Err(OperatingError::ShapeMismatch);
             }
@@ -115,7 +122,10 @@ impl OperatorsItem for OrderedMatchItem {
             };
             out.kinds.push(
                 *kinds
-                    .get(column.column.0 as usize)
+                    .get(
+                        usize::try_from(column.column.0)
+                            .map_err(|_| OperatingError::ShapeMismatch)?,
+                    )
                     .ok_or(OperatingError::ShapeMismatch)?,
             );
         }
