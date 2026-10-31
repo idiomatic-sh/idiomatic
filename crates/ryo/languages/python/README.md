@@ -37,9 +37,13 @@ The python domain's `links` concept: which file of the repository each import of
 
 The python domain's `manifests` concept: one reader for each relation the language reads from the manifests of a project and the links between its files.
 
+### indentation
+
+Lexical `indent-region` facts pair actual INDENT and DEDENT tokens, preserving raw tabs and form feeds. The root is the module node, covers `0..EOF`, and parents itself; other IDs are INDENT tokens and their half-open byte intervals end at matching DEDENT.end. Leading comments before INDENT stay outside the interval; trailing comments before DEDENT stay inside. Parser diagnostics or an unbalanced stream make the relation partial. A root-only reader builds this index lazily and reuses storage between files.
+
 ### model
 
-The python domain's `model` concept: the `global` and `nonlocal` names of every scope of a file, worked out once for its readers.
+The file model retains scope redirects, a sorted lexical binding index, and reusable lazy indentation storage. Parsing invalidates indentation state; requesting the relation computes it once.
 
 ### names
 

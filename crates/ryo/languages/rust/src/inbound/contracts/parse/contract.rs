@@ -199,6 +199,11 @@ impl Parse for ParseContract {
         languages::source_locations()
     }
 
+    fn indent_region(&self) -> Support<Reader<languages::IndentRegion, ()>> {
+        // Lexical INDENT/DEDENT tokens define this relation, not visual whitespace alone.
+        languages::absent(AbsenceCause::NoSuchConstruct)
+    }
+
     fn syntax_tree(&self) -> Support<Reader<languages::SyntaxTree, ()>> {
         languages::reads::<SyntaxTreeItem>()
     }

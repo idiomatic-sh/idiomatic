@@ -81,6 +81,8 @@ pub struct Collect {
     pub partials: Vec<(Relation, String, Missing)>,
     /// The relations said to be partly read in one file of the run, each with the file and its cause.
     pub partials_at: Vec<(Relation, FileId, String)>,
+    /// Reusable cause buffers after clear, so the collector adds no warmed allocations.
+    cause_buffers: Vec<String>,
 }
 
 impl Collect {
@@ -88,7 +90,18 @@ impl Collect {
     pub fn clear(&mut self) {
         self.relations.clear();
         self.words.clear();
-        self.partials.clear();
+        self.cause_buffers
+            .extend(self.partials.drain(..).map(|(_, cause, _)| cause));
+        self.cause_buffers
+            .extend(self.partials_at.drain(..).map(|(_, _, cause)| cause));
+    }
+
+    /// Reuses a cause buffer retained from the previous file.
+    fn cause(&mut self, text: &str) -> String {
+        let mut buffer = self.cause_buffers.pop().unwrap_or_default();
+        buffer.clear();
+        buffer.push_str(text);
+        buffer
     }
 
     /// How many rows were written of `relation`.
@@ -143,13 +156,15 @@ macro_rules! writers {
 
                 fn partial(&mut self, cause: $crate::domain::relations::types::ReportText<'_>, missing: Missing) {
                     if !self.partials.iter().any(|(relation, each, how)| *relation == Relation::$variant && each == cause.0 && *how == missing) {
-                        self.partials.push((Relation::$variant, cause.0.to_owned(), missing));
+                        let cause = self.cause(cause.0);
+                        self.partials.push((Relation::$variant, cause, missing));
                     }
                 }
 
                 fn partial_at(&mut self, file: $crate::domain::relations::types::FileId, cause: $crate::domain::relations::types::ReportText<'_>, _missing: Missing) {
                     if !self.partials_at.iter().any(|(relation, at, each)| *relation == Relation::$variant && *at == file && each == cause.0) {
-                        self.partials_at.push((Relation::$variant, file, cause.0.to_owned()));
+                        let cause = self.cause(cause.0);
+                        self.partials_at.push((Relation::$variant, file, cause));
                     }
                 }
             }
@@ -187,7 +202,7 @@ const SAMPLE_ROWS: &[Case<Scenario, bool, ParseError>] = &[
         expect: Expect::Value(true),
     },
     Case {
-        name: CaseName("empty_file_gives_zero_rows_and_is_complete"),
+        name: CaseName("empty_file_has_only_supported_root_rows_and_is_complete"),
         word: Word::Succeeds,
         input: || Scenario::Empty,
         expect: Expect::Value(true),
@@ -266,12 +281,12 @@ fn rows(subject: &dyn ParseEngine, samples: &[SourceFile]) {
             Ok(all()
                 .iter()
                 .filter(|relation| is_declaring(**relation) == RelationDeclaring::Declares)
-                // An empty file still has its module, which is a scope: the one row it gives.
+                // An empty file still has its module scope and lexical root interval when read.
                 .all(|relation| {
                     out.count(*relation)
                         == usize::from(
-                            *relation == Relation::Scope
-                                && subject.absence_of(Relation::Scope).is_none(),
+                            matches!(*relation, Relation::Scope | Relation::IndentRegion)
+                                && subject.absence_of(*relation).is_none(),
                         )
                 }))
         }
@@ -439,3 +454,7 @@ pub fn flow(subject: &dyn ParseEngine, samples: &[SourceFile]) {
         "the files read in another order by ten workers give different rows"
     );
 }
+
+#[cfg(test)]
+#[path = "contract_test.rs"]
+mod tests;

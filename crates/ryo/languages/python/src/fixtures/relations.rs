@@ -86,6 +86,11 @@ mod source_location {
     include!("../../tests/fixtures/relations/source_location/expected.rs");
 }
 
+/// The independently authored lexical-region fixture.
+mod indent_region {
+    include!("../../tests/fixtures/relations/indent_region/expected.rs");
+}
+
 /// The expected rows of every relation the language reads from trees, one entry for each.
 pub(super) fn expected() -> Vec<Expected> {
     vec![
@@ -108,6 +113,7 @@ pub(super) fn expected() -> Vec<Expected> {
         syntax_error::expected(),
         syntax_tree::expected(),
         source_location::expected(),
+        indent_region::expected(),
     ]
 }
 

@@ -188,7 +188,7 @@ const _: () = assert!(size_of::<Value>() == 16, "a cell is sixteen bytes");
 pub enum Class {
     /// The shape of the tree itself, which every language has.
     Structure,
-    /// Text that is written in a file whatever it holds: comments and string literals.
+    /// Text written in a file whatever it holds: comments, string literals, and lexical indentation.
     Literal,
     /// Code: declarations, scopes, references and what they say of one another.
     Code,

@@ -1,7 +1,9 @@
 //! The types of the `model` concept: plain data, public fields and derives, with no constructor and no inherent impl. What the
 //! language works out of a file once, before its readers run.
 
+use crate::domain::indentation::types::IndentationIndex;
 use ryo::languages::{Position, Symbol};
+use std::cell::RefCell;
 
 /// Where a scope says a name it assigns is bound instead of in itself.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -48,4 +50,6 @@ pub(crate) struct Declarations {
     pub declared: Vec<ScopeDeclaration>,
     /// Definitions indexed by lexical scope and name, in source order.
     pub bindings: Vec<LexicalBinding>,
+    /// Lazy lexical indentation regions retain their storage between files.
+    pub indentation: RefCell<IndentationIndex>,
 }

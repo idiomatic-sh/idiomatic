@@ -34,3 +34,5 @@ pub mod syntax_error;
 pub mod syntax_tree;
 pub mod visibility;
 pub mod workspace_member;
+
+pub mod indent_region;

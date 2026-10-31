@@ -56,6 +56,7 @@ impl Parse for ParseContract {
     type FileModel = Declarations;
 
     fn file_model(&self, tree: &languages::Tree<'_>, model: &mut Declarations) {
+        crate::domain::indentation::service::clear(model.indentation.get_mut());
         declare(tree, model);
         crate::domain::bindings::service::index(tree, model);
     }
@@ -202,6 +203,13 @@ impl Parse for ParseContract {
 
     fn source_location(&self) -> Support<Reader<languages::SourceLocation, Declarations>> {
         languages::source_locations()
+    }
+
+    fn indent_region(&self) -> Support<Reader<languages::IndentRegion, Declarations>> {
+        // Lexical INDENT/DEDENT tokens define this relation, not visual whitespace alone.
+        languages::reads::<
+            crate::domain::relations::collections::relations::indent_region::item::IndentRegionItem,
+        >()
     }
 
     fn mention(&self) -> Support<Reader<languages::Mention, Declarations>> {

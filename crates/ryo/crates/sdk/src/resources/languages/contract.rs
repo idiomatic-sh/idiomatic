@@ -25,16 +25,16 @@ pub use ryo_language::inbound::use_cases::parse::fixtures::expected_rows::{
     directive::DirectiveExpectedRow, entry::EntryExpectedRow, file_package::FilePackageExpectedRow,
     filesystem_file::FilesystemFileExpectedRow,
     filesystem_line_count::FilesystemLineCountExpectedRow, function::FunctionExpectedRow,
-    inherits::InheritsExpectedRow, mapping::MappingExpectedRow, mention::MentionExpectedRow,
+    indent_region::IndentRegionExpectedRow, inherits::InheritsExpectedRow,
+    mapping::MappingExpectedRow, mention::MentionExpectedRow,
     package_dependency::PackageDependencyExpectedRow, parameter::ParameterExpectedRow,
     prose::ProseExpectedRow, reference::ReferenceExpectedRow, resolves::ResolvesExpectedRow,
     scope::ScopeExpectedRow, sequence_element::SequenceElementExpectedRow,
     source_dependency::SourceDependencyExpectedRow, source_location::SourceLocationExpectedRow,
-    static_call::StaticCallExpectedRow,
-    static_import::StaticImportExpectedRow, string_literal::StringLiteralExpectedRow,
-    syntax_child::SyntaxChildExpectedRow, syntax_error::SyntaxErrorExpectedRow,
-    syntax_tree::SyntaxTreeExpectedRow, visibility::VisibilityExpectedRow,
-    workspace_member::WorkspaceMemberExpectedRow,
+    static_call::StaticCallExpectedRow, static_import::StaticImportExpectedRow,
+    string_literal::StringLiteralExpectedRow, syntax_child::SyntaxChildExpectedRow,
+    syntax_error::SyntaxErrorExpectedRow, syntax_tree::SyntaxTreeExpectedRow,
+    visibility::VisibilityExpectedRow, workspace_member::WorkspaceMemberExpectedRow,
 };
 pub use ryo_language::inbound::use_cases::parse::fixtures::items::check as check_item;
 pub use ryo_language::inbound::use_cases::parse::fixtures::reading::{Reading, written};

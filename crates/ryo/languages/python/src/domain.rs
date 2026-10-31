@@ -22,3 +22,5 @@ pub(crate) mod scopes;
 pub(crate) mod siblings;
 pub(crate) mod syntax;
 pub(crate) mod tokens;
+
+pub(crate) mod indentation;
