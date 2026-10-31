@@ -3,14 +3,11 @@ use super::service::resolve;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::{
     binding_results::types::ReadState,
-    binding_states::service::{assign, join, open},
+    binding_states::service::{assign, join, open, wildcard},
     definitions::service::definition,
     model::types::{BindingEnvironments, BindingKey, Declarations},
     nodes::types::Node,
-    qualification::{
-        service::{prepare, qualify},
-        types::Version,
-    },
+    qualification::service::{prepare, qualify},
     scopes::{
         service::{context, enclosing},
         types::Context,
@@ -26,6 +23,7 @@ use ryo::languages::{self, ByteSlice, Integer, Position, Tree};
 enum Environment {
     BeforeStore,
     ConditionalStore,
+    Wildcard,
 }
 type Input = (&'static str, &'static str, Environment);
 type Value = (ReadState, usize, &'static str);
@@ -42,10 +40,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             )
         },
         expect: Expect::Value((
-            ReadState::Builtin(Version {
-                major: Integer(3),
-                minor: Integer(0),
-            }),
+            ReadState::Builtin {
+                since_major: Integer(3),
+                since_minor: Integer(0),
+            },
             0,
             "local",
         )),
@@ -61,10 +59,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             )
         },
         expect: Expect::Value((
-            ReadState::DeclarationOrBuiltin(Version {
-                major: Integer(3),
-                minor: Integer(0),
-            }),
+            ReadState::DeclarationOrBuiltin {
+                since_major: Integer(3),
+                since_minor: Integer(0),
+            },
             1,
             "local",
         )),
@@ -104,10 +102,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             )
         },
         expect: Expect::Value((
-            ReadState::Builtin(Version {
-                major: Integer(3),
-                minor: Integer(11),
-            }),
+            ReadState::Builtin {
+                since_major: Integer(3),
+                since_minor: Integer(11),
+            },
             0,
             "builtin",
         )),
@@ -117,13 +115,44 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || ("aiter(items)\n", "aiter", Environment::BeforeStore),
         expect: Expect::Value((
-            ReadState::Builtin(Version {
-                major: Integer(3),
-                minor: Integer(10),
-            }),
+            ReadState::Builtin {
+                since_major: Integer(3),
+                since_minor: Integer(10),
+            },
             0,
             "builtin",
         )),
+    },
+    Case {
+        name: CaseName("namespace-wide imports leave known builtin association intact"),
+        word: Word::Succeeds,
+        input: || {
+            (
+                "from m import *\nexec(code)\n",
+                "exec",
+                Environment::Wildcard,
+            )
+        },
+        expect: Expect::Value((
+            ReadState::Builtin {
+                since_major: Integer(3),
+                since_minor: Integer(0),
+            },
+            0,
+            "builtin",
+        )),
+    },
+    Case {
+        name: CaseName("namespace-wide import uncertainty is not proven unbound"),
+        word: Word::Succeeds,
+        input: || {
+            (
+                "from m import *\nmissing()\n",
+                "missing",
+                Environment::Wildcard,
+            )
+        },
+        expect: Expect::Value((ReadState::Uncertain, 0, "ambiguous")),
     },
 ];
 fn subject((source, wanted, environment): Input) -> Result<Value, Failure> {
@@ -165,6 +194,9 @@ fn subject((source, wanted, environment): Input) -> Result<Value, Failure> {
             declaration,
         );
         join(&mut environments, frame, &[arm, frame]);
+    }
+    if let Environment::Wildcard = environment {
+        wildcard(&mut environments, frame, scope);
     }
     let mut candidates = Vec::new();
     let observed = resolve(

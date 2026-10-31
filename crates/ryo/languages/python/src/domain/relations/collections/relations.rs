@@ -40,3 +40,14 @@ pub(crate) mod embedded_expression;
 
 /// Structural expression identity.
 pub(crate) mod expression_shape;
+/// Generic static binding analysis.
+pub(crate) mod binding_event;
+
+/// Generic static binding analysis.
+pub(crate) mod binding_read;
+
+/// Generic static binding analysis.
+pub(crate) mod binding_use;
+
+/// Generic static binding analysis.
+pub(crate) mod binding_shadow;

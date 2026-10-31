@@ -59,6 +59,8 @@ pub(crate) struct Declarations {
     pub qualification: RefCell<QualificationIndex>,
     /// Enabled embedded-expression roots, computed only for semantic readers.
     pub semantic: RefCell<SemanticIndex>,
+    /// Lazy static binding observations; no analysis occurs for queries that do not request them.
+    pub binding_analysis: RefCell<BindingAnalysisIndex>,
 }
 
 /// A lexical event that can invalidate otherwise known import or builtin provenance.
@@ -205,8 +207,10 @@ pub(crate) struct BindingFrame {
     pub parent: Option<BindingFrameId>,
     /// Real execution-boundary syntax identity.
     pub phase: Position,
-    /// Mutations first introduced by this frame, in the shared key arena.
+    /// Mutation keys first introduced by this frame; capacity is retained across files.
     pub touched: Vec<BindingKey>,
+    /// Namespaces with wildcard effects, without inventing specific names.
+    pub hazards: Vec<Position>,
 }
 /// Capacity-retaining sparse environments. No entry exists until binding analysis is requested.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -284,4 +288,50 @@ pub(crate) struct BindingSchedule {
     pub steps: Vec<BindingStep>,
     /// Deferred regions in dependency order.
     pub phases: Vec<BindingPhase>,
+}
+
+/// Whether the current source has a complete static event analysis.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) enum BindingAnalysisState {
+    /// No consumer has requested this source's binding observations.
+    #[default]
+    Fresh,
+    /// All requested observations were constructed from supported syntax.
+    Complete,
+    /// Frontend or unsupported effects prevent complete relation enumeration.
+    Incomplete,
+}
+/// One nested alternative group, storing only frame identities.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct BindingBranch {
+    /// Entry environment receiving the joined result.
+    pub target: BindingFrameId,
+    /// Offset into retained completed-arm scratch.
+    pub start: usize,
+}
+/// Capacity-retaining lazy binding analysis, shared by the four relation readers.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct BindingAnalysisIndex {
+    /// Current source lifecycle.
+    pub state: BindingAnalysisState,
+    /// Evaluation schedule; deferred phases are distinct from physical source order.
+    pub schedule: BindingSchedule,
+    /// Sparse branch and phase environments.
+    pub environments: BindingEnvironments,
+    /// Completed or active phase environments, keyed by real syntax boundary.
+    pub phases: std::collections::HashMap<Position, BindingFrameId>,
+    /// Nested branch entry frames.
+    pub branches: Vec<BindingBranch>,
+    /// Completed alternatives, reused by nested joins.
+    pub arms: Vec<BindingFrameId>,
+    /// Scratch for real lookup candidates, never builtin placeholders.
+    pub candidates: Vec<crate::domain::binding_results::types::Candidate>,
+    /// Evaluation-ordered events.
+    pub events: Vec<crate::domain::binding_results::types::Event>,
+    /// Explicit state for every analyzed reference.
+    pub reads: Vec<crate::domain::binding_results::types::Read>,
+    /// Real declaration associations.
+    pub uses: Vec<crate::domain::binding_results::types::Usage>,
+    /// Replacement and lexical shadow edges.
+    pub shadows: Vec<crate::domain::binding_results::types::Shadow>,
 }

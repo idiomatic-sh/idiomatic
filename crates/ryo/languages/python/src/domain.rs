@@ -43,3 +43,9 @@ pub(crate) mod binding_results;
 
 /// Static lookup preserves branch absence and real candidate identities.
 pub(crate) mod binding_lookup;
+
+/// Static event observations preserve real source identities.
+pub(crate) mod binding_observations;
+
+/// Lazy execution of static binding phases and alternatives.
+pub(crate) mod binding_analysis;

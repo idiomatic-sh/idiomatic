@@ -1,7 +1,7 @@
 //! Resolve static candidates without changing lexical resolves or asserting runtime initialization.
 use crate::domain::{
     binding_results::types::{Candidate, ReadState},
-    binding_states::service::{candidates, lookup},
+    binding_states::service::{candidates, has_wildcard, lookup},
     model::types::{
         BindingAbsence, BindingEnvironments, BindingFrameId, BindingKey, BindingKnowledge,
         Declarations,
@@ -47,9 +47,13 @@ pub(crate) fn resolve(
     let initial = enclosing(tree, reference);
     let mut scope = redirected(tree, model, initial, name);
     let mut knowledge = BindingKnowledge::Known;
+    let mut wildcard = BindingKnowledge::Known;
     loop {
         // Class namespaces are visible to their own body, not closure lexical lookup.
         let visible = scope == initial || kind(tree, scope) != Kind::Node(Node::ClassDef);
+        if visible && has_wildcard(state, frame, scope) == BindingKnowledge::Uncertain {
+            wildcard = BindingKnowledge::Uncertain;
+        }
         if visible && let Some(value) = lookup(state, frame, BindingKey { scope, name }) {
             output.extend(candidates(state, value).iter().map(|binding| Candidate {
                 binding: *binding,
@@ -85,11 +89,20 @@ pub(crate) fn resolve(
     }
     if let Some(version) = builtin(tree, reference) {
         if output.is_empty() {
-            ReadState::Builtin(version)
+            ReadState::Builtin {
+                since_major: version.major,
+                since_minor: version.minor,
+            }
         } else {
-            ReadState::DeclarationOrBuiltin(version)
+            ReadState::DeclarationOrBuiltin {
+                since_major: version.major,
+                since_minor: version.minor,
+            }
         }
     } else {
+        if wildcard == BindingKnowledge::Uncertain {
+            knowledge = BindingKnowledge::Uncertain;
+        }
         classified(output, BindingAbsence::Possible, knowledge)
     }
 }

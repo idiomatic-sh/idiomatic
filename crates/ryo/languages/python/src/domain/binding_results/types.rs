@@ -1,5 +1,4 @@
 //! Real source identities and explicit states; no placeholder declaration represents a builtin or absence.
-use crate::domain::qualification::types::Version;
 use ryo::languages::{Integer, Position, Symbol};
 
 /// Static association at a read, not an assertion of runtime initialization.
@@ -14,9 +13,19 @@ pub(crate) enum ReadState {
     /// Supported analysis found no supplying declaration or builtin.
     Unbound,
     /// Static builtin association; version policy remains with the consumer.
-    Builtin(Version),
+    Builtin {
+        /// Major component from the shared builtin inventory.
+        since_major: Integer,
+        /// Minor component from the shared builtin inventory.
+        since_minor: Integer,
+    },
     /// A real declaration on some alternatives, builtin fallback on all remaining alternatives.
-    DeclarationOrBuiltin(Version),
+    DeclarationOrBuiltin {
+        /// Major component from the shared builtin inventory.
+        since_major: Integer,
+        /// Minor component from the shared builtin inventory.
+        since_minor: Integer,
+    },
     /// Namespace effects prevent a complete association, distinct from known absence.
     Uncertain,
 }

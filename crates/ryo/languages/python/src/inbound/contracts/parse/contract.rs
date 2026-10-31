@@ -68,6 +68,7 @@ impl Parse for ParseContract {
         crate::domain::expression_shapes::service::clear(model.expression_shapes.get_mut());
         crate::domain::indentation::service::clear(model.indentation.get_mut());
         crate::domain::qualification::service::clear(model.qualification.get_mut());
+        crate::domain::binding_analysis::service::clear(model.binding_analysis.get_mut());
         model.semantic.get_mut().roots.clear();
         model.semantic.get_mut().state = crate::domain::model::types::QualificationState::Fresh;
         declare(tree, model);

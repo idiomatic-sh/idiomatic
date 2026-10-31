@@ -14,6 +14,7 @@ pub(crate) fn clear(state: &mut BindingEnvironments) {
     state.keys.clear();
     for frame in &mut state.frames {
         frame.touched.clear();
+        frame.hazards.clear();
     }
 }
 
@@ -29,11 +30,13 @@ pub(crate) fn open(
         frame.parent = parent;
         frame.phase = phase;
         frame.touched.clear();
+        frame.hazards.clear();
     } else {
         state.frames.push(BindingFrame {
             parent,
             phase,
             touched: Vec::new(),
+            hazards: Vec::new(),
         });
     }
     id
@@ -144,6 +147,24 @@ pub(crate) fn join(
     target: BindingFrameId,
     arms: &[BindingFrameId],
 ) {
+    // Namespace hazards are monotonically conservative across alternatives. Copy only
+    // newly introduced hazard identities, never the complete inherited environment.
+    for arm in arms {
+        let count = state
+            .frames
+            .get(arm.0)
+            .map_or(0, |frame| frame.hazards.len());
+        for offset in 0..count {
+            if let Some(scope) = state
+                .frames
+                .get(arm.0)
+                .and_then(|frame| frame.hazards.get(offset))
+                .copied()
+            {
+                wildcard(state, target, scope);
+            }
+        }
+    }
     state.keys.clear();
     for arm in arms {
         if *arm != target
@@ -189,5 +210,33 @@ pub(crate) fn join(
                 knowledge,
             },
         );
+    }
+}
+
+/// Record a namespace-wide import effect without inventing an arbitrary name or binding.
+pub(crate) fn wildcard(state: &mut BindingEnvironments, frame: BindingFrameId, scope: Position) {
+    if let Some(frame) = state.frames.get_mut(frame.0)
+        && !frame.hazards.contains(&scope)
+    {
+        frame.hazards.push(scope);
+    }
+}
+/// Whether an unresolved name may come from an inherited namespace-wide effect.
+pub(crate) fn has_wildcard(
+    state: &BindingEnvironments,
+    mut frame: BindingFrameId,
+    scope: Position,
+) -> BindingKnowledge {
+    loop {
+        let Some(current) = state.frames.get(frame.0) else {
+            return BindingKnowledge::Known;
+        };
+        if current.hazards.contains(&scope) {
+            return BindingKnowledge::Uncertain;
+        }
+        let Some(parent) = current.parent else {
+            return BindingKnowledge::Known;
+        };
+        frame = parent;
     }
 }
