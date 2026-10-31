@@ -1,0 +1,64 @@
+[[cases]]
+name = "module"
+files = { "case.py" = "__metaclass__ = type\n" }
+expected = [{ file = "case.py", start = 0, end = 20 }]
+
+[[cases]]
+name = "class"
+files = { "case.py" = "class C:\n    __metaclass__ = type\n" }
+expected = [{ file = "case.py", start = 13, end = 33 }]
+
+[[cases]]
+name = "function"
+files = { "case.py" = "def f():\n    __metaclass__ = type\n" }
+expected = [{ file = "case.py", start = 13, end = 33 }]
+
+[[cases]]
+name = "shadowed"
+files = { "case.py" = "def f(type):\n    __metaclass__ = type\n" }
+expected = [{ file = "case.py", start = 17, end = 37 }]
+
+[[cases]]
+name = "qualified"
+files = { "case.py" = "import builtins\n__metaclass__ = builtins.type\n" }
+expected = []
+
+[[cases]]
+name = "different-value"
+files = { "case.py" = "__metaclass__ = Meta\n" }
+expected = []
+
+[[cases]]
+name = "chained"
+files = { "case.py" = "__metaclass__ = other = type\n" }
+expected = []
+
+[[cases]]
+name = "unpacked"
+files = { "case.py" = "__metaclass__, other = type, value\n" }
+expected = []
+
+[[cases]]
+name = "annotated"
+files = { "case.py" = "__metaclass__: object = type\n" }
+expected = []
+
+[[cases]]
+name = "attribute"
+files = { "case.py" = "C.__metaclass__ = type\n" }
+expected = []
+
+[[cases]]
+name = "parentheses"
+files = { "case.py" = "(__metaclass__) = (type)\n" }
+expected = [{ file = "case.py", start = 0, end = 24 }]
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "__metaclass__ = type # noqa: UP001\n" }
+expected = []
+
+[[cases]]
+name = "string"
+files = { "case.py" = "value = \"__metaclass__ = type\"\n" }
+expected = []

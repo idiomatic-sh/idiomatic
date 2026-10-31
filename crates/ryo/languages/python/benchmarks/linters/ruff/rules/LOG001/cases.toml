@@ -67,3 +67,8 @@ expected = []
 name = "no-arguments"
 files = { "case.py" = "import logging\nlogging.Logger()\n" }
 expected = [{ file = "case.py", start = 15, end = 29 }]
+
+[[cases]]
+name = "nfkc-identifier-spelling"
+files = { "case.py" = "import logging as \uff4c\uff4f\uff47\nlog.Logger(\"name\")\n" }
+expected = [{ file = "case.py", start = 28, end = 38 }]

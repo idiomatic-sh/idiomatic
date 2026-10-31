@@ -1,0 +1,54 @@
+[[cases]]
+name = "simple"
+files = { "case.py" = "class C(object):\n    pass\n" }
+expected = [{ file = "case.py", start = 8, end = 14 }]
+
+[[cases]]
+name = "multiple"
+files = { "case.py" = "class C(Base, object):\n    pass\n" }
+expected = [{ file = "case.py", start = 14, end = 20 }]
+
+[[cases]]
+name = "qualified"
+files = { "case.py" = "import builtins\nclass C(builtins.object):\n    pass\n" }
+expected = [{ file = "case.py", start = 24, end = 39 }]
+
+[[cases]]
+name = "alias"
+files = { "case.py" = "from builtins import object as O\nclass C(O):\n    pass\n" }
+expected = [{ file = "case.py", start = 31, end = 32 }]
+
+[[cases]]
+name = "repeated"
+files = { "case.py" = "class C(object, object):\n    pass\n" }
+expected = [{ file = "case.py", start = 8, end = 14 }, { file = "case.py", start = 16, end = 22 }]
+
+[[cases]]
+name = "shadowed"
+files = { "case.py" = "def f(object):\n    class C(object):\n        pass\n" }
+expected = []
+
+[[cases]]
+name = "class-body-binding"
+files = { "case.py" = "class C(object):\n    object = custom\n" }
+expected = [{ file = "case.py", start = 8, end = 14 }]
+
+[[cases]]
+name = "not-base"
+files = { "case.py" = "class C(metaclass=object):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "starred"
+files = { "case.py" = "class C(*object):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "subscript"
+files = { "case.py" = "class C(object[T]):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "class C(object): # noqa: UP004\n    pass\n" }
+expected = []

@@ -67,3 +67,8 @@ expected = []
 name = "range"
 files = { "case.py" = "# ruff: disable[B003]\nos.environ = {}\n# ruff: enable[B003]\n" }
 expected = []
+
+[[cases]]
+name = "nfkc-identifier-spelling"
+files = { "case.py" = "\uff4f\uff53.\uff45\uff4e\uff56\uff49\uff52\uff4f\uff4e = {}\n" }
+expected = [{ file = "case.py", start = 0, end = 28 }]

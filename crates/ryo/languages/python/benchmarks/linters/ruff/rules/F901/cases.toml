@@ -72,3 +72,8 @@ expected = []
 name = "multiple"
 files = { "case.py" = "raise NotImplemented; raise NotImplemented()\n" }
 expected = [{ file = "case.py", start = 6, end = 20 }, { file = "case.py", start = 28, end = 42 }]
+
+[[cases]]
+name = "nfkc-identifier-spelling"
+files = { "case.py" = "raise \uff2e\uff4f\uff54\uff29\uff4d\uff50\uff4c\uff45\uff4d\uff45\uff4e\uff54\uff45\uff44\n" }
+expected = [{ file = "case.py", start = 6, end = 48 }]

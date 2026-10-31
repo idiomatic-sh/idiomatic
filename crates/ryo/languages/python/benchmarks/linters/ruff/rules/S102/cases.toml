@@ -57,3 +57,8 @@ expected = []
 name = "nested"
 files = { "case.py" = "result = wrapper(exec(code))\n" }
 expected = [{ file = "case.py", start = 17, end = 21 }]
+
+[[cases]]
+name = "nfkc-identifier-spelling"
+files = { "case.py" = "\uff45\uff58\uff45\uff43(code)\n" }
+expected = [{ file = "case.py", start = 0, end = 12 }]
