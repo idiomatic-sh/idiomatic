@@ -20,6 +20,26 @@ type Failure = QueryLanguageError;
 /// value or error variant.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
+        name: CaseName("invalid_literal_regex_is_refused_without_reading_any_input"),
+        word: Word::Refuses,
+        input: || {
+            QueryText(r#"let rows = select * from "comment" where matches(text, "["); emit rows subject file key(span);"#.into())
+        },
+        expect: Expect::Refusal(|error| {
+            selects(error.to_string().contains("invalid regular expression"))
+        }),
+    },
+    Case {
+        name: CaseName("a_prior_filter_cannot_hide_an_invalid_literal_regex"),
+        word: Word::Refuses,
+        input: || {
+            QueryText(r#"let rows = select * from "comment" where text = "never-present" and matches(text, "["); emit rows subject file key(span);"#.into())
+        },
+        expect: Expect::Refusal(|error| {
+            selects(error.to_string().contains("invalid regular expression"))
+        }),
+    },
+    Case {
         name: CaseName("a_query_whose_step_has_another_name_compiles"),
         word: Word::Succeeds,
         input: || {
@@ -42,6 +62,11 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 /// Calls the adapter on one input, for the contract's rows and for its own.
 fn subject(text: &Input) -> Result<Value, Failure> {
+    compile_query(text).map(|_| true)
+}
+
+/// Uses the real parser and lowering pipeline, including raw string-literal handling.
+fn compile_query(text: &Input) -> Result<ryo_values::domain::plans::types::Plan, Failure> {
     let compile = Arc::new(CompileUseCaseImpl::new(
         Arc::new(ryo_query_language::outbound::syntax::factory::winnow()),
         Arc::new(ryo_query_language::outbound::catalog::factory::language()),
@@ -50,9 +75,66 @@ fn subject(text: &Input) -> Result<Value, Failure> {
         Arc::new(ryo_query_language::outbound::syntax::factory::winnow()),
         Arc::new(ryo_query_language::outbound::catalog::factory::language()),
     ));
-    QueryLanguageUseCaseAdapter::new(compile, typecheck)
-        .compile(text, &[])
-        .map(|_| true)
+    QueryLanguageUseCaseAdapter::new(compile, typecheck).compile(text, &[])
+}
+
+/// Raw query backslashes must reach the regex evaluator unchanged.
+const REGEX: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("raw_regex_whitespace_escape_survives_parser_and_evaluation"),
+        word: Word::Succeeds,
+        input: || {
+            QueryText(r#"let rows = select * from "comment" where matches(text, "\s+noqa"); emit rows subject file key(span);"#.into())
+        },
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("doubled_query_backslash_matches_literal_backslash_not_whitespace"),
+        word: Word::Succeeds,
+        input: || {
+            QueryText(r#"let rows = select * from "comment" where matches(text, "\\s+noqa"); emit rows subject file key(span);"#.into())
+        },
+        expect: Expect::Value(false),
+    },
+];
+
+fn regex_evaluated(text: &Input) -> Result<Value, Failure> {
+    use crate::domain::matching::types::Patterns;
+    use crate::domain::table_model::types::Verdict;
+    use crate::domain::table_texts::types::{Datum, TextView};
+    use ryo_values::domain::plan_parts::types::{Operand, QueryLiteral, Test};
+    use ryo_values::domain::plans::types::Operation;
+    let plan = compile_query(text)?;
+    let patterns: Vec<_> = plan
+        .steps
+        .iter()
+        .filter_map(|step| {
+            let Operation::Select { comparisons, .. } = &step.operation else {
+                return None;
+            };
+            comparisons.iter().find_map(|comparison| {
+                if comparison.test != Test::Matches {
+                    return None;
+                }
+                let Operand::Literal(QueryLiteral::Text(pattern)) = &comparison.right else {
+                    return None;
+                };
+                Some(pattern)
+            })
+        })
+        .collect();
+    assert_eq!(
+        patterns.len(),
+        1,
+        "the parsed predicate must reach the executable plan"
+    );
+    let verdict = crate::domain::matching::service::matches(
+        &Datum::Text(TextView("\tnoqa")),
+        &Datum::Text(TextView(&patterns[0].0)),
+        &mut Patterns::default(),
+    )
+    .expect("the query contains a valid regular expression");
+    Ok(verdict == Verdict::Holds)
 }
 
 /// The rows of the examples the operators print: no input, and the count of examples that do not compile as the value.
@@ -82,6 +164,7 @@ fn succeeds() {
     run(CONTRACT, Word::Succeeds, |text| subject(&text));
     run(CASES, Word::Succeeds, |text| subject(&text));
     run(EXAMPLES, Word::Succeeds, |()| Ok(uncompiled()));
+    run(REGEX, Word::Succeeds, |text| regex_evaluated(&text));
 }
 
 #[test]

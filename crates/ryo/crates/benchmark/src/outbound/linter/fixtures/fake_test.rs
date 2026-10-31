@@ -5,5 +5,5 @@ use super::LinterFake;
 
 #[test]
 fn succeeds() {
-    check(&LinterFake);
+    check(&LinterFake::default());
 }

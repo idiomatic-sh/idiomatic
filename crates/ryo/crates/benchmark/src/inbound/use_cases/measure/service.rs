@@ -2,8 +2,8 @@
 use crate::application::run::service::run;
 use crate::domain::diagnostics::errors::Error;
 use crate::domain::measurements::types::Pair;
+use crate::domain::suite::service::require_complete;
 use crate::domain::suite::types::RunRequest;
-use crate::inbound::use_cases::audit::service::require_complete;
 use crate::inbound::use_cases::compare::service::compare;
 use crate::outbound::{execution::interface::ExecutionPort, linter::interface::LinterPort};
 

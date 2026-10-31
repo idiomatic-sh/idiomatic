@@ -5,7 +5,8 @@ use crate::domain::{
 };
 use crate::outbound::suite::interface::SuitePort;
 use std::path::Path;
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
+/// Deterministic suite substitute for orchestration and contract tests.
 pub struct SuiteFake;
 impl SuitePort for SuiteFake {
     fn audit(&self, _: &Path, tool: &Tool) -> Result<Audit, Error> {

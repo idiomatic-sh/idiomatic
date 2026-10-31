@@ -53,3 +53,6 @@ pub(crate) const STARTS_WITH: &str = "starts_with";
 
 /// The name of a test that takes two texts, as a refusal writes it.
 pub(crate) const ENDS_WITH: &str = "ends_with";
+
+/// The regular-expression text predicate's query name.
+pub(crate) const MATCHES: &str = "matches";

@@ -6,6 +6,14 @@ use ryo_values::domain::program::types::QuerySpan;
 /// Why a program does not lower to a plan.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 pub(crate) enum LoweringError {
+    /// A literal regular expression is invalid even if the query will read no rows.
+    #[error("invalid regular expression: {reason}")]
+    InvalidRegex {
+        /// The pattern compiler's explanation.
+        reason: String,
+        /// The comparison containing the invalid pattern.
+        span: QuerySpan,
+    },
     /// A query reads a relation ryo does not own.
     #[error("no relation named `{name}`")]
     UnknownRelation {

@@ -1,10 +1,11 @@
 //! Validate pins, cases and rule coverage before running contestants.
 use crate::domain::diagnostics::errors::Error;
+use crate::domain::suite::service::{relative_path, validate_cases};
 use crate::domain::suite::types::Audit;
 use crate::domain::suite::types::{Cases, Tool};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
-use std::path::{Component, Path};
+use std::path::Path;
 
 pub fn audit(directory: &Path, tool: &Tool) -> Result<Audit, Error> {
     let defaults: BTreeSet<_> = tool.defaults.iter().cloned().collect();
@@ -35,35 +36,7 @@ pub fn audit(directory: &Path, tool: &Tool) -> Result<Audit, Error> {
         }
         let cases: Cases =
             super::schemas::cases(&std::fs::read_to_string(entry.path().join("cases.toml"))?)?;
-        if !cases.cases.iter().any(|case| case.expected.is_empty())
-            || !cases.cases.iter().any(|case| !case.expected.is_empty())
-        {
-            return Err(Error::Invalid(format!(
-                "{rule} requires positive and negative cases"
-            )));
-        }
-        for case in cases.cases {
-            if case.files.is_empty() || case.name.trim().is_empty() {
-                return Err(Error::Invalid(format!("invalid case for {rule}")));
-            }
-            for name in case.files.keys() {
-                relative_path(name)?;
-            }
-            for expected in case.expected {
-                let source = case
-                    .files
-                    .get(&expected.file)
-                    .ok_or_else(|| Error::Invalid("expected finding outside case".into()))?;
-                if expected.start > expected.end
-                    || !source.is_char_boundary(expected.start)
-                    || !source.is_char_boundary(expected.end)
-                {
-                    return Err(Error::Invalid(
-                        "expected finding has invalid UTF-8 span".into(),
-                    ));
-                }
-            }
-        }
+        validate_cases(&cases)?;
         if query.is_some() {
             implemented.insert(rule);
         }
@@ -72,29 +45,6 @@ pub fn audit(directory: &Path, tool: &Tool) -> Result<Audit, Error> {
         missing: defaults.difference(&implemented).cloned().collect(),
         implemented: implemented.into_iter().collect(),
     })
-}
-
-pub fn require_complete(audit: &Audit) -> Result<(), Error> {
-    if audit.missing.is_empty() {
-        Ok(())
-    } else {
-        Err(Error::Invalid(format!(
-            "default coverage incomplete: {} missing rules: {}",
-            audit.missing.len(),
-            audit.missing.join(", ")
-        )))
-    }
-}
-
-pub fn relative_path(path: &str) -> Result<(), Error> {
-    if path.is_empty()
-        || Path::new(path)
-            .components()
-            .any(|component| !matches!(component, Component::Normal(_)))
-    {
-        return Err(Error::Invalid(format!("unsafe corpus path {path:?}")));
-    }
-    Ok(())
 }
 
 pub fn verify_executable(path: &Path, tool: &Tool) -> Result<(), Error> {
@@ -156,6 +106,7 @@ pub fn verify_cases(
         };
         let cases: Cases =
             super::schemas::cases(&std::fs::read_to_string(entry.path().join("cases.toml"))?)?;
+        validate_cases(&cases)?;
         let selected = scratch.join(&rule).join("rules");
         std::fs::create_dir_all(selected.join(&rule))?;
         std::fs::write(selected.join(&rule).join("query.ryoql"), query)?;
@@ -167,7 +118,7 @@ pub fn verify_cases(
             let root = scratch.join(&rule).join(index.to_string());
             std::fs::create_dir_all(&root)?;
             for (file, source) in &case.files {
-                crate::outbound::suite::adapters::local::adapter::relative_path(file)?;
+                crate::domain::suite::service::relative_path(file)?;
                 let path = root.join(file);
                 std::fs::create_dir_all(
                     path.parent()
@@ -216,6 +167,9 @@ pub fn verify_cases(
             }
             checked += 1;
         }
+    }
+    if checked == 0 {
+        failures.push("no executable rule cases".into());
     }
     if failures.is_empty() {
         Ok(checked)

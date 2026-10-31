@@ -1,13 +1,20 @@
 //! Deterministic linter output for orchestration tests.
 use crate::domain::measurements::types::{Invocation, ProcessOutput};
 use crate::domain::{
-    diagnostics::{errors::Error, types::RunReport},
+    diagnostics::{
+        errors::Error,
+        types::{Diagnostic, RunReport},
+    },
     suite::types::RunRequest,
 };
 use crate::outbound::linter::interface::LinterPort;
 use std::path::PathBuf;
 #[derive(Debug, Default)]
-pub struct LinterFake;
+/// Deterministic linter substitute for orchestration and contract tests.
+pub struct LinterFake {
+    /// Canonical findings returned by successful fixture decoding.
+    pub diagnostics: Vec<Diagnostic>,
+}
 impl LinterPort for LinterFake {
     fn prepare(&self, request: &RunRequest) -> Result<Invocation, Error> {
         Ok(Invocation {
@@ -22,7 +29,7 @@ impl LinterPort for LinterFake {
         }
         Ok(RunReport {
             files: request.files.clone(),
-            diagnostics: Vec::new(),
+            diagnostics: self.diagnostics.clone(),
         })
     }
 }

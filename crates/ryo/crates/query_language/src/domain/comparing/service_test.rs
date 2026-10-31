@@ -61,6 +61,12 @@ const FUNCTION_COMPARED_WITH_A_NUMBER: &str = "let a = select * from \"function\
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
+        name: CaseName("invalid_literal_regex_is_refused_before_rows_are_available"),
+        word: Word::Refuses,
+        input: || r#"let a = select * from "comment" where matches(text, "["); emit a subject file key(span);"#,
+        expect: Expect::Refusal(|error| selects(matches!(error, LoweringError::InvalidRegex { reason, .. } if !reason.is_empty()))),
+    },
+    Case {
         name: CaseName("a_filter_is_one_select_step"),
         word: Word::Succeeds,
         input: || FILTERED,

@@ -80,3 +80,40 @@ fn discovery_failure_is_not_empty_success() {
     };
     assert!(ruff.files(std::path::Path::new("/tmp")).is_err());
 }
+
+#[test]
+fn valid_lint_json_with_a_warning_is_not_an_operational_failure() {
+    let root = tempfile::tempdir().unwrap();
+    let path = root.path().join("case.py");
+    std::fs::write(&path, "try:\n    pass\nexcept: # ruff: noqa\n    pass\n").unwrap();
+    let ruff = Ruff {
+        executable: "ruff".into(),
+        defaults: ["E722".into()].into_iter().collect(),
+    };
+    let request = RunRequest {
+        root: root.path().to_owned(),
+        files: vec!["case.py".into()],
+        cache: root.path().join("cache"),
+    };
+    let stdout = serde_json::to_vec(&serde_json::json!([{"code":"E722","filename":path,"cell":null,"location":{"row":3,"column":1},"end_location":{"row":3,"column":7}}])).unwrap();
+    let report = ruff
+        .decode(
+            &request,
+            ProcessOutput {
+                status: 1,
+                stdout,
+                stderr: b"warning: file-level noqa must be on its own line\n".to_vec(),
+                wall: Default::default(),
+            },
+        )
+        .unwrap();
+    assert_eq!(
+        report.diagnostics,
+        [ryo_benchmark::domain::diagnostics::types::Diagnostic {
+            rule: "E722".into(),
+            file: "case.py".into(),
+            start: 14,
+            end: 20
+        }]
+    );
+}

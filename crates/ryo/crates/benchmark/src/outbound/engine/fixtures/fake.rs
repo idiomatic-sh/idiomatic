@@ -2,8 +2,10 @@
 use crate::domain::diagnostics::{errors::Error, types::RunReport};
 use crate::domain::suite::types::WorkerRequest;
 use crate::outbound::engine::interface::EnginePort;
-#[derive(Debug, Default)]
+#[derive(Clone, Copy, Debug, Default)]
+/// Deterministic engine substitute for orchestration and contract tests.
 pub struct EngineFake {
+    /// Whether candidate evaluation returns the fixture refusal.
     pub refuses: bool,
 }
 impl EnginePort for EngineFake {

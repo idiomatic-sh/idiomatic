@@ -35,6 +35,7 @@ pub(super) fn unresolved(error: LoweringError) -> CompileError {
             message: error.to_string(),
         },
         LoweringError::UnknownStep { span, .. }
+        | LoweringError::InvalidRegex { span, .. }
         | LoweringError::UnknownColumn { span, .. }
         | LoweringError::UnknownSide { span, .. }
         | LoweringError::UnknownSideColumn { span, .. }

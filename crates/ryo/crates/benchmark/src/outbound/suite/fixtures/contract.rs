@@ -4,11 +4,15 @@ use crate::domain::{diagnostics::errors::Error, suite::types::Tool};
 use crate::outbound::suite::interface::SuitePort;
 type Input = bool;
 type Value = (usize, usize);
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// Canonical contract failure classifications.
 pub enum Refusal {
+    /// The reference default inventory is empty.
     EmptyDefaults,
+    /// The implementation returned an unexpected failure category.
     Unexpected,
 }
+/// Named observations every implementation must satisfy.
 pub const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("missing implementation stays missing"),
@@ -23,6 +27,11 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Error(Failure::EmptyDefaults),
     },
 ];
+/// Run the shared observations against the supplied implementation.
+///
+/// # Panics
+///
+/// Panics when fixture setup fails or the implementation violates a contract observation.
 pub fn check(adapter: &impl SuitePort) {
     let temporary = tempfile::tempdir().expect("suite fixture");
     std::fs::create_dir(temporary.path().join("rules")).expect("rules fixture");
@@ -54,3 +63,40 @@ pub fn check(adapter: &impl SuitePort) {
 }
 
 type Failure = Refusal;
+
+/// Produce the acceptance fixture through the real artifact boundary.
+pub fn audited(complete: bool) -> crate::domain::suite::types::Audit {
+    let directory = tempfile::tempdir().expect("audit fixture");
+    std::fs::create_dir(directory.path().join("rules")).expect("rule root");
+    if complete {
+        let rule = directory.path().join("rules/fixture");
+        std::fs::create_dir(&rule).expect("rule directory");
+        std::fs::write(
+            rule.join("query.ryoql"),
+            "let nodes = select * from \"syntax-tree\"; emit nodes subject file key(id);",
+        )
+        .expect("query");
+        std::fs::write(
+            rule.join("cases.toml"),
+            r#"[[cases]]
+name = "positive"
+files = { "input.txt" = "x" }
+expected = [{file="input.txt",start=0,end=1}]
+[[cases]]
+name = "negative"
+files = { "input.txt" = "" }
+expected = []
+"#,
+        )
+        .expect("cases");
+    }
+    let tool = Tool {
+        tool: "fixture".into(),
+        version: "1".into(),
+        sha256: String::new(),
+        defaults: vec!["fixture".into()],
+    };
+    crate::outbound::suite::factory::local()
+        .audit(directory.path(), &tool)
+        .expect("audited fixture")
+}

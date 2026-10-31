@@ -2,8 +2,12 @@
 use super::interface::CompareUseCase;
 use crate::domain::diagnostics::types::Difference;
 use crate::domain::diagnostics::types::RunReport;
+/// Compare exact finding multisets and submitted-file coverage.
+#[derive(Clone, Copy, Debug, Default)]
 pub struct CompareUseCaseImpl;
 impl CompareUseCaseImpl {
+    /// Construct this operation with the dependencies chosen by its composition.
+    #[must_use]
     pub fn new() -> Self {
         Self
     }

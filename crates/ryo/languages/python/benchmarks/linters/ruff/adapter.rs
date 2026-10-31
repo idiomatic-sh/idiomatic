@@ -34,7 +34,7 @@ impl LinterPort for Ruff {
             "--".into(),
         ];
         for file in &request.files {
-            ryo_benchmark::outbound::suite::adapters::local::adapter::relative_path(file)?;
+            ryo_benchmark::domain::suite::service::relative_path(file)?;
             arguments.push(file.into());
         }
         Ok(Invocation {
@@ -44,7 +44,7 @@ impl LinterPort for Ruff {
         })
     }
     fn decode(&self, request: &RunRequest, output: ProcessOutput) -> Result<RunReport, Error> {
-        if !matches!(output.status, 0 | 1) || !output.stderr.is_empty() {
+        if !matches!(output.status, 0 | 1) {
             return Err(Error::Invalid(format!(
                 "Ruff failed ({}): {}",
                 output.status,

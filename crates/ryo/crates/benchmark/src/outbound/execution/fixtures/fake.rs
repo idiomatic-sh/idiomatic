@@ -3,8 +3,10 @@ use crate::domain::diagnostics::errors::Error;
 use crate::domain::measurements::types::{Invocation, ProcessOutput};
 use crate::outbound::execution::interface::ExecutionPort;
 use std::{path::Path, time::Duration};
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
+/// Deterministic execution substitute for orchestration and contract tests.
 pub struct ExecutionFake {
+    /// Exit status returned for supported fixture invocations.
     pub status: i32,
 }
 impl Default for ExecutionFake {

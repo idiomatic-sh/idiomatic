@@ -5,15 +5,22 @@ use crate::domain::{diagnostics::errors::Error, suite::types::RunRequest};
 use crate::outbound::linter::interface::LinterPort;
 use std::{path::PathBuf, time::Duration};
 #[derive(Clone, Copy, Debug)]
+/// Operations covered by the shared linter contract.
 pub enum Given {
+    /// Prepare the requested working directory.
     Prepare,
+    /// Decode an operational process failure.
     OperationalFailure,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// Canonical contract failure classifications.
 pub enum Refusal {
+    /// The process reported an operational failure.
     Operational,
+    /// The implementation returned an unexpected failure category.
     Unexpected,
 }
+/// Named observations every implementation must satisfy.
 pub const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("prepare uses requested working directory"),
@@ -28,6 +35,11 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Error(Failure::Operational),
     },
 ];
+/// Run the shared observations against the supplied implementation.
+///
+/// # Panics
+///
+/// Panics when fixture setup fails or the implementation violates a contract observation.
 pub fn check(adapter: &impl LinterPort) {
     let request = RunRequest {
         root: PathBuf::new(),

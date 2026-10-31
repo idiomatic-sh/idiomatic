@@ -6,7 +6,7 @@ use ryo_language::domain::relations::types::CellKind;
 use ryo_language::domain::terms::service::{owner_of, words_of};
 use ryo_language::domain::terms::types::Vocabulary;
 
-use super::constants::{ENDS_WITH, STARTS_WITH, WORD_SEPARATOR, arity, function_name};
+use super::constants::{ENDS_WITH, MATCHES, STARTS_WITH, WORD_SEPARATOR, arity, function_name};
 use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::{
     Addressable, Builder, Compatibility, PlannedColumn, ResolvedOperand, SearchMatch, Typed,
@@ -246,7 +246,7 @@ pub(crate) fn comparison_of(
     let test = test_of(filter.test);
     let affix = match test {
         parts::Test::StartsWith => Some(STARTS_WITH),
-        parts::Test::Matches => Some("matches"),
+        parts::Test::Matches => Some(MATCHES),
         parts::Test::EndsWith => Some(ENDS_WITH),
         parts::Test::Equal
         | parts::Test::NotEqual
@@ -278,6 +278,19 @@ pub(crate) fn comparison_of(
         return Err(LoweringError::KindMismatch { span: filter.span });
     }
     check_words(filter, &left, &right, columns.fields)?;
+    // Literal patterns are checked before optimization or execution, including empty inputs.
+    // Dynamic patterns remain checked by the executor when their values are available.
+    // The executor builds its bounded cache separately: this validation cost is query compilation.
+    if test == parts::Test::Matches
+        && let parts::Operand::Literal(parts::QueryLiteral::Text(pattern)) = &right
+    {
+        let _compiled = regex_automata::meta::Regex::new(&pattern.0).map_err(|error| {
+            LoweringError::InvalidRegex {
+                reason: error.to_string(),
+                span: filter.span,
+            }
+        })?;
+    }
     Ok(parts::Comparison { test, left, right })
 }
 

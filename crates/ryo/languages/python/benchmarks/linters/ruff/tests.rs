@@ -2,6 +2,7 @@
 mod adapter;
 #[path = "adapter_test.rs"]
 mod adapter_test;
+mod engine_test;
 mod schemas;
 #[path = "schemas_test.rs"]
 mod schemas_test;

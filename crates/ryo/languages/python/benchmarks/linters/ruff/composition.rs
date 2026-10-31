@@ -2,9 +2,9 @@
 use super::{adapter::Ruff, settings};
 use ryo_benchmark::application::run::service::run as execute;
 use ryo_benchmark::domain::diagnostics::errors::Error;
+use ryo_benchmark::domain::suite::service::require_complete;
 use ryo_benchmark::domain::suite::types::WorkerRequest;
 use ryo_benchmark::domain::suite::types::{RunRequest, Suite};
-use ryo_benchmark::inbound::use_cases::audit::service::require_complete;
 use ryo_benchmark::inbound::use_cases::compare::service::compare;
 use ryo_benchmark::inbound::use_cases::measure::service::measure;
 use ryo_benchmark::outbound::{
@@ -78,7 +78,7 @@ pub(crate) fn run() -> Result<(), Error> {
         Some("audit") => {
             let tool = settings::load()?;
             let result = audit(&settings::directory(), &tool)?;
-            println!("{} {}: {} queries authored / {} shipped defaults (not a parity certificate)", tool.tool, tool.version, result.implemented.len(), tool.defaults.len());
+            println!("{} {}: {} queries authored / {} shipped defaults (not a parity certificate)", tool.tool, tool.version, result.authored_count(), tool.defaults.len());
             require_complete(&result)
         }
         Some("verify-tool") => {

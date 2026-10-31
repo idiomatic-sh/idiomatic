@@ -5,11 +5,15 @@ use crate::outbound::workspace::interface::WorkspacePort;
 use std::{fs, path::Path, process::Command};
 type Input = bool;
 type Value = usize;
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// Canonical contract failure classifications.
 pub enum Refusal {
+    /// The requested revision is not an immutable commit pin.
     InvalidPin,
+    /// The implementation returned an unexpected failure category.
     Unexpected,
 }
+/// Named observations every implementation must satisfy.
 pub const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("commit pins select tracked input"),
@@ -40,14 +44,19 @@ fn git(root: &Path, args: &[&str]) -> String {
         .trim()
         .into()
 }
+/// Run the shared observations against the supplied implementation.
+///
+/// # Panics
+///
+/// Panics when fixture setup fails or the implementation violates a contract observation.
 pub fn check(adapter: &impl WorkspacePort) {
     let temporary = tempfile::tempdir().expect("fixture directory");
     let source = temporary.path().join("source");
     fs::create_dir(&source).expect("fixture source");
-    git(&source, &["init", "--quiet"]);
+    drop(git(&source, &["init", "--quiet"]));
     fs::write(source.join("input.txt"), "before\n").expect("fixture file");
-    git(&source, &["add", "input.txt"]);
-    git(
+    drop(git(&source, &["add", "input.txt"]));
+    drop(git(
         &source,
         &[
             "-c",
@@ -59,7 +68,7 @@ pub fn check(adapter: &impl WorkspacePort) {
             "-m",
             "fixture",
         ],
-    );
+    ));
     let pin = git(&source, &["rev-parse", "HEAD"]);
     let cache = temporary.path().join("cache");
     let subject = |valid| {

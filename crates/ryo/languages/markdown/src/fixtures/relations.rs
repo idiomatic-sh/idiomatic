@@ -45,6 +45,11 @@ mod syntax_tree {
     include!("../../tests/fixtures/relations/syntax_tree/expected.rs");
 }
 
+/// Independently expected source coordinates for a minimal input.
+mod source_location {
+    include!("../../tests/fixtures/relations/source_location/expected.rs");
+}
+
 /// The rows of every relation.
 pub(super) fn expected() -> Vec<Expected> {
     vec![
@@ -57,6 +62,7 @@ pub(super) fn expected() -> Vec<Expected> {
         syntax_child::expected(),
         syntax_error::expected(),
         syntax_tree::expected(),
+        source_location::expected(),
     ]
 }
 

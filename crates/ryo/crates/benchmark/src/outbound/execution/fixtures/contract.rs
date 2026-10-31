@@ -7,6 +7,7 @@ use std::path::PathBuf;
 type Input = Invocation;
 type Value = (i32, bool, bool);
 type Failure = std::io::ErrorKind;
+/// Named observations every implementation must satisfy.
 pub const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("status and both streams survive"),
@@ -38,6 +39,11 @@ fn missing() -> Invocation {
         directory: PathBuf::from("."),
     }
 }
+/// Run the shared observations against the supplied implementation.
+///
+/// # Panics
+///
+/// Panics when fixture setup fails or the implementation violates a contract observation.
 pub fn check(adapter: &impl ExecutionPort) {
     let subject = |call| {
         adapter

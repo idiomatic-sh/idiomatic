@@ -95,6 +95,7 @@ templates = [
   { template = "language-relation-input", file = "tests/fixtures/relations/{relation}/input.*", description = "`tests/fixtures/relations/{relation}/input.*` of a language: `input.<extension>`, or `input.<file name>` for a file the language reads only by its whole name (`input.go.mod`)." },
 ]
 rules = [
+  { rule = "idiomatic.ryo/benchmark-outside-runtime@0.1.0", include = ["src/**"], description = "The benchmark is allowed only in the development edge, never provider source." },
   { rule = "idiomatic.ryo/benchmark-targets@0.1.0", include = ["Cargo.toml", "benchmarks/linters/*/bench.rs", "benchmarks/linters/*/tests.rs"], description = "Each local benchmark executable is reachable through Cargo." },
   { rule = "bench-registers-workloads", include = ["benches/performance.rs"], description = "A language's bench, which exists exactly when it has a workload, registers at least one workload, a function with `#[divan::bench]`." },
   { rule = "bench-checks-growth", include = ["benches/performance.rs"], description = "A language's bench, which exists exactly when it has a workload, checks the growth of the parse: a function `complexity` against a `GROWTH_LIMIT`, called only under `BENCH_FLAG`." },

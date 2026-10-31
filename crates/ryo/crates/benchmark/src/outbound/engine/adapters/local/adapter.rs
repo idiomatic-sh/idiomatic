@@ -3,11 +3,11 @@ use crate::domain::diagnostics::{
     errors::Error,
     types::{Diagnostic, RunReport},
 };
+use crate::domain::suite::service::relative_path;
 use crate::domain::suite::types::WorkerRequest;
-use crate::outbound::suite::adapters::local::adapter::relative_path;
 use ryo::linter::{
-    self, Cache, Cell, Corpus, Languages, LintRequest, MemoryBudget, RelativePath, Rule, RuleId,
-    Slot, WorkerPool, Workers,
+    self, Cache, CaseSource, Cell, Corpus, Languages, LintRequest, MemoryBudget, RelativePath,
+    Rule, RuleId, Slot, SourceText, WorkerPool, Workers,
 };
 use ryo::query::RyoQlQuery;
 use std::collections::BTreeMap;
@@ -39,8 +39,21 @@ pub fn run_ryo(languages: Languages, request: WorkerRequest) -> Result<RunReport
     if rules.is_empty() {
         return Err(Error::Invalid("no candidate queries".into()));
     }
+    let mut sources = Vec::new();
+    let mut accepted = std::collections::BTreeSet::new();
     for file in &request.files {
         relative_path(file)?;
+        if !accepted.insert(file.clone()) {
+            return Err(Error::Invalid("duplicate input path".into()));
+        }
+        let source = std::fs::read_to_string(request.root.join(file))?;
+        sources.push(CaseSource {
+            path: RelativePath(file.clone().into_boxed_str()),
+            text: SourceText(source.into_boxed_str()),
+        });
+    }
+    if sources.is_empty() {
+        return Err(Error::Invalid("empty candidate corpus".into()));
     }
     let pool = WorkerPool::from(Workers(NonZeroUsize::MIN));
     let cache = request.cache.map_or(Cache::None, Cache::At);
@@ -54,13 +67,7 @@ pub fn run_ryo(languages: Languages, request: WorkerRequest) -> Result<RunReport
             rules,
             files: vec![],
             hosted: vec![],
-            corpus: Corpus::Listed(
-                request
-                    .files
-                    .iter()
-                    .map(|path| RelativePath(path.clone().into_boxed_str()))
-                    .collect(),
-            ),
+            corpus: Corpus::Given(sources),
             beside: vec![],
         },
     )
@@ -102,7 +109,7 @@ pub fn run_ryo(languages: Languages, request: WorkerRequest) -> Result<RunReport
     }
     Ok(RunReport {
         diagnostics,
-        files: request.files,
+        files: accepted.into_iter().collect(),
     })
 }
 

@@ -190,6 +190,7 @@ dependencies = ["idiomatic.arch"]
 
 [packages."idiomatic.ryo".rules]
 absence-cites-the-standard = "0.1.0"
+benchmark-outside-runtime = "0.1.0"
 benchmark-targets = "0.1.0"
 extras-iff-variant = "0.1.0"
 language-depends-on-ryo-only = "0.1.0"

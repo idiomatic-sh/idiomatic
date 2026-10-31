@@ -1478,6 +1478,7 @@ dependencies = [
  "divan",
  "idiomatic-sh-ryo-language",
  "idiomatic-sh-ryo-values",
+ "regex-automata",
  "thiserror",
  "tokio",
  "winnow 0.7.15",

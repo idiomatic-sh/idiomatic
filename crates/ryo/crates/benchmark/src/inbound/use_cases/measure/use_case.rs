@@ -5,12 +5,15 @@ use crate::domain::suite::types::Audit;
 use crate::domain::{diagnostics::errors::Error, suite::types::RunRequest};
 use crate::outbound::{execution::interface::ExecutionPort, linter::interface::LinterPort};
 use std::sync::Arc;
+/// Release paired process observations only after the correctness gate succeeds.
 pub struct MeasureUseCaseImpl {
     reference: Arc<dyn LinterPort>,
     candidate: Arc<dyn LinterPort>,
     execution: Arc<dyn ExecutionPort>,
 }
 impl MeasureUseCaseImpl {
+    /// Construct this operation with the dependencies chosen by its composition.
+    #[must_use]
     pub fn new(
         reference: Arc<dyn LinterPort>,
         candidate: Arc<dyn LinterPort>,
@@ -32,5 +35,13 @@ impl MeasureUseCase for MeasureUseCaseImpl {
             self.execution.as_ref(),
             request,
         )
+    }
+}
+
+impl std::fmt::Debug for MeasureUseCaseImpl {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct(std::any::type_name::<Self>())
+            .finish_non_exhaustive()
     }
 }

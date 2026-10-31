@@ -2,7 +2,8 @@
 use crate::domain::{diagnostics::errors::Error, suite::types::Project};
 use crate::outbound::workspace::interface::{Workspace, WorkspacePort};
 use std::path::Path;
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
+/// Deterministic workspace substitute for orchestration and contract tests.
 pub struct WorkspaceFake;
 impl WorkspacePort for WorkspaceFake {
     fn prepare(&self, project: &Project, cache: &Path) -> Result<Workspace, Error> {
