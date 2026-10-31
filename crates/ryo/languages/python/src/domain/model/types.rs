@@ -232,17 +232,29 @@ pub(crate) struct BindingEnvironments {
 /// One language operation or structured-control delimiter in a static evaluation schedule.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum BindingAction {
+    /// Read an existing name.
     Read,
+    /// Introduce a real declaration identity.
     Bind,
+    /// Declare a type without initializing a value.
     Annotation,
+    /// Explicitly delete a name.
     Delete,
+    /// Remove an exception target at handler exit.
     Cleanup,
+    /// Declare module namespace routing.
     Global,
+    /// Declare enclosing function namespace routing.
     Nonlocal,
+    /// Begin an immediate or deferred evaluation boundary.
     BeginPhase,
+    /// Finish a phase before dependent phases inherit it.
     EndPhase,
+    /// Fork alternatives from the current environment.
     BeginAlternatives,
+    /// Finish one arm and restart from the same entry environment.
     NextAlternative,
+    /// Join all completed arms with explicit possible absence.
     EndAlternatives,
 }
 /// A real syntax occurrence scheduled inside one execution boundary.
@@ -258,8 +270,11 @@ pub(crate) struct BindingStep {
 /// Deferred regions have grammar-specific entry points.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum BindingPhaseKind {
+    /// Callable body evaluated after its enclosing definition phase.
     Callable,
+    /// Generator target/filter/result evaluated separately from its first iterable.
     Generator,
+    /// Deferred native or embedded type expression.
     Type,
 }
 /// A deferred region waits for its enclosing execution phase to complete.
@@ -275,8 +290,10 @@ pub(crate) struct BindingPhase {
 /// Whether native annotations use deferred source-name evaluation.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) enum BindingAnnotationTiming {
+    /// Native annotation expressions execute in the enclosing phase.
     #[default]
     Immediate,
+    /// Future annotations defer native annotation name lookup.
     Deferred,
 }
 /// Reusable event and deferred-region buffers; constructed only on demand.

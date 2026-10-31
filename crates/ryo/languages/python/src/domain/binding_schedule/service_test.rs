@@ -119,7 +119,7 @@ fn subject(source: Input) -> Result<Value, Failure> {
         observed.push(format!(
             "{action}:{}@{}",
             name.0,
-            kind_name(kind(&tree, step.phase))
+            kind_name(kind(&tree, step.phase)).0
         ));
     }
     let first = plan.steps.clone();
