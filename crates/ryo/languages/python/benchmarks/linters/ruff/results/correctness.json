@@ -2845,5 +2845,3373 @@
       }
     ],
     "host_load_scope_note": "Periodic host observations begin during release build and continue through the completed Django checkpoint, including early pandas setup. They are not per-sample isolation measurements. Raw process observations remain in the execution artifact; no unrelated command arguments were collected."
+  },
+  "expanded_corpus_complete": {
+    "status": "passed all three project comparisons and all six alternating trials; overall quality gate remains unresolved",
+    "published_utc": "2026-10-31T23:29:53.895967+00:00",
+    "identity": {
+      "source": "743cd0d9020e3bd4adedd6145a559bfccce8089b",
+      "mode": "release",
+      "scope": "104 implemented rules; accounted valid Python subset; final replay coverage gate outstanding",
+      "collector_sha256": "d0ac3a53e6b771423db506e01a90eaef7754c3f10df7d241eded744d598ce2be",
+      "worker_sha256": "1d9205d12d11da6e5f43b80dde36d89203960894671a07ac8da78bfc6c793797",
+      "reference_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+      "command": [
+        "/tmp/benchmark-expanded-corpus/worker",
+        "measure-valid",
+        "/home/vscode/.local/bin/ruff",
+        "/workspaces/idiomatic-public-benchmark/crates/ryo/languages/python/target/benchmark/python",
+        "/tmp/benchmark-expanded-corpus/collector"
+      ]
+    },
+    "certificate": "d22786917ae7276e8c36c41ff7bb36f9f7069dacac7bdc8f1f3c9014668cb891",
+    "default_rules": 413,
+    "implemented_rules": 104,
+    "deferred_rules": 309,
+    "cases": 2023,
+    "samples": 108,
+    "projects": {
+      "django": {
+        "files": 2874,
+        "bytes": 18487487,
+        "digest": "bbd95a92f564a597d21ba8b16d5c8d1d6ba3d82d189190c63c9dde1f8766bc5f",
+        "clean_findings": 1275,
+        "edited_findings": 1276,
+        "clean_positive_rule_count": 25,
+        "finding_counts": {
+          "empty-tool-cache": {
+            "B004": 1,
+            "B015": 3,
+            "B017": 8,
+            "B026": 7,
+            "C401": 4,
+            "C408": 2,
+            "C419": 4,
+            "DTZ001": 841,
+            "DTZ002": 17,
+            "DTZ005": 132,
+            "DTZ006": 6,
+            "DTZ011": 95,
+            "DTZ012": 1,
+            "PIE794": 1,
+            "PIE800": 2,
+            "PLC3002": 1,
+            "PLR1711": 5,
+            "PLR1722": 3,
+            "PLW0120": 1,
+            "PLW1510": 16,
+            "RUF032": 30,
+            "S102": 6,
+            "S110": 9,
+            "TRY002": 79,
+            "UP004": 1
+          },
+          "retained-tool-cache": {
+            "B004": 1,
+            "B015": 3,
+            "B017": 8,
+            "B026": 7,
+            "C401": 4,
+            "C408": 2,
+            "C419": 4,
+            "DTZ001": 841,
+            "DTZ002": 17,
+            "DTZ005": 132,
+            "DTZ006": 6,
+            "DTZ011": 95,
+            "DTZ012": 1,
+            "PIE794": 1,
+            "PIE800": 2,
+            "PLC3002": 1,
+            "PLR1711": 5,
+            "PLR1722": 3,
+            "PLW0120": 1,
+            "PLW1510": 16,
+            "RUF032": 30,
+            "S102": 6,
+            "S110": 9,
+            "TRY002": 79,
+            "UP004": 1
+          },
+          "edited-tool-cache": {
+            "B004": 1,
+            "B015": 3,
+            "B017": 8,
+            "B026": 7,
+            "C401": 4,
+            "C408": 2,
+            "C419": 4,
+            "DTZ001": 841,
+            "DTZ002": 17,
+            "DTZ005": 132,
+            "DTZ006": 6,
+            "DTZ011": 95,
+            "DTZ012": 1,
+            "E722": 1,
+            "PIE794": 1,
+            "PIE800": 2,
+            "PLC3002": 1,
+            "PLR1711": 5,
+            "PLR1722": 3,
+            "PLW0120": 1,
+            "PLW1510": 16,
+            "RUF032": 30,
+            "S102": 6,
+            "S110": 9,
+            "TRY002": 79,
+            "UP004": 1
+          }
+        },
+        "discovery_and_exclusion_lines": [
+          "django: matched Python source scope 2875 files; excluded default-discovered formats 1 files (source-kind capability gap): pyproject.toml",
+          "django: excluded invalid Python (pinned Ruff parser), path=tests/test_runner_apps/tagged/tests_syntax_error.py range=131..143; frontend parser capability gap",
+          "django: measured source files=2874 bytes=18487487 digest=bbd95a92f564a597d21ba8b16d5c8d1d6ba3d82d189190c63c9dde1f8766bc5f input-profile=pinned-reference-valid-python"
+        ]
+      },
+      "pandas": {
+        "files": 1553,
+        "bytes": 21856668,
+        "digest": "171895bd5d609c2119e4b94734a293d6ea5410d07acf9c2be30b94058b9ddffb",
+        "clean_findings": 5167,
+        "edited_findings": 5168,
+        "clean_positive_rule_count": 12,
+        "finding_counts": {
+          "empty-tool-cache": {
+            "B015": 194,
+            "DTZ001": 4859,
+            "DTZ002": 36,
+            "DTZ005": 39,
+            "DTZ006": 3,
+            "DTZ011": 13,
+            "DTZ012": 3,
+            "S110": 5,
+            "SIM210": 1,
+            "SIM211": 3,
+            "TRY002": 10,
+            "TRY203": 1
+          },
+          "retained-tool-cache": {
+            "B015": 194,
+            "DTZ001": 4859,
+            "DTZ002": 36,
+            "DTZ005": 39,
+            "DTZ006": 3,
+            "DTZ011": 13,
+            "DTZ012": 3,
+            "S110": 5,
+            "SIM210": 1,
+            "SIM211": 3,
+            "TRY002": 10,
+            "TRY203": 1
+          },
+          "edited-tool-cache": {
+            "B015": 194,
+            "DTZ001": 4859,
+            "DTZ002": 36,
+            "DTZ005": 39,
+            "DTZ006": 3,
+            "DTZ011": 13,
+            "DTZ012": 3,
+            "E722": 1,
+            "S110": 5,
+            "SIM210": 1,
+            "SIM211": 3,
+            "TRY002": 10,
+            "TRY203": 1
+          }
+        },
+        "discovery_and_exclusion_lines": [
+          "pandas: matched Python source scope 1553 files; excluded default-discovered formats 2 files (source-kind capability gap): doc/source/user_guide/style.ipynb, pyproject.toml",
+          "pandas: measured source files=1553 bytes=21856668 digest=171895bd5d609c2119e4b94734a293d6ea5410d07acf9c2be30b94058b9ddffb input-profile=pinned-reference-valid-python"
+        ]
+      },
+      "fastapi": {
+        "files": 1239,
+        "bytes": 3692435,
+        "digest": "453eefe0f737157ebe28b9c7a3a309e0b76215877caf89622be441b4a1eee46f",
+        "clean_findings": 162,
+        "edited_findings": 163,
+        "clean_positive_rule_count": 6,
+        "finding_counts": {
+          "empty-tool-cache": {
+            "DTZ001": 29,
+            "LOG015": 100,
+            "PLC0414": 23,
+            "PLW1510": 3,
+            "RUF032": 2,
+            "S110": 5
+          },
+          "retained-tool-cache": {
+            "DTZ001": 29,
+            "LOG015": 100,
+            "PLC0414": 23,
+            "PLW1510": 3,
+            "RUF032": 2,
+            "S110": 5
+          },
+          "edited-tool-cache": {
+            "DTZ001": 29,
+            "E722": 1,
+            "LOG015": 100,
+            "PLC0414": 23,
+            "PLW1510": 3,
+            "RUF032": 2,
+            "S110": 5
+          }
+        },
+        "discovery_and_exclusion_lines": [
+          "fastapi: matched Python source scope 1239 files; excluded default-discovered formats 1 files (source-kind capability gap): pyproject.toml",
+          "fastapi: measured source files=1239 bytes=3692435 digest=453eefe0f737157ebe28b9c7a3a309e0b76215877caf89622be441b4a1eee46f input-profile=pinned-reference-valid-python"
+        ]
+      }
+    },
+    "snapshot_manifest": {
+      "snapshot": "/workspaces/idiomatic-public-benchmark/crates/ryo/languages/python/target/benchmark/python/certification-F12HbU",
+      "status": "2023 cases certified against both contestants using frozen execution profile",
+      "profile_sha256": "0da2f5c0a92e946031a3b1d447565df25739a9c56ce2ed5167b1c30deada886c",
+      "profile_text": "# Shipped defaults independently matched to tagged upstream DEFAULT_SELECTORS:\n# https://github.com/astral-sh/ruff/blob/0.16.5/crates/ruff_linter/src/settings/mod.rs\n# Native executable pins extracted from official Ruff 0.16.5 wheels after checking\n# each wheel against https://pypi.org/pypi/ruff/0.16.5/json .\n# The certificate additionally binds the exact executable used by a particular run.\ntool = \"ruff\"\nversion = \"0.16.5\"\nsha256 = [\n  # manylinux_2_17_aarch64.manylinux2014_aarch64; wheel SHA256:\n  # 7b719b0a1f4d59710d283ab2965f621684a108a9e41da622e3b23f0326cd0025\n  \"52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8\",\n  # manylinux_2_17_x86_64.manylinux2014_x86_64; wheel SHA256:\n  # ef0f69e191a13a3c9816f63163c88790cb12cd157bbbb384e9c44745702ab105\n  \"024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32\",\n  # macosx_11_0_arm64; wheel SHA256:\n  # c5ae9a7b9a8875131f40f8fe967cc86abf899779efd663cb7ce3d572d01da7eb\n  \"515c8e5e3c8c3cd9785f421e050c98748420aae9a02459b7232c89a46bbadba4\",\n  # macosx_10_12_x86_64; wheel SHA256:\n  # eda58a5802de40e7ed5b32b64e0b32539338cc6fcd2c78f61e3ad6a0d79f51c3\n  \"894431afcb8addcd8e3752e53634fdb0a6f9063153cd62ed730ce59d02878487\",\n  # win_amd64; wheel SHA256:\n  # ddc6385fb2137f616357ca03d6c74f4be987f80fed4008566b754f6032b8546f\n  \"29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e\",\n]\ndefaults = [\n  \"ASYNC100\", \"ASYNC105\", \"ASYNC115\", \"ASYNC116\", \"ASYNC210\", \"ASYNC220\", \"ASYNC221\", \"ASYNC222\",\n  \"ASYNC230\", \"ASYNC251\", \"B002\", \"B003\", \"B004\", \"B005\", \"B006\", \"B008\",\n  \"B009\", \"B010\", \"B012\", \"B013\", \"B014\", \"B015\", \"B016\", \"B017\",\n  \"B018\", \"B019\", \"B020\", \"B021\", \"B022\", \"B023\", \"B025\", \"B026\",\n  \"B029\", \"B030\", \"B031\", \"B032\", \"B033\", \"B035\", \"B039\", \"BLE001\",\n  \"C400\", \"C401\", \"C402\", \"C403\", \"C404\", \"C405\", \"C406\", \"C408\",\n  \"C409\", \"C410\", \"C411\", \"C413\", \"C414\", \"C415\", \"C417\", \"C418\",\n  \"C419\", \"D419\", \"DTZ001\", \"DTZ002\", \"DTZ003\", \"DTZ004\", \"DTZ005\", \"DTZ006\",\n  \"DTZ007\", \"DTZ011\", \"DTZ012\", \"DTZ901\", \"E722\", \"E902\", \"EXE001\", \"EXE002\",\n  \"EXE004\", \"EXE005\", \"F401\", \"F402\", \"F404\", \"F407\", \"F501\", \"F502\",\n  \"F503\", \"F504\", \"F505\", \"F506\", \"F507\", \"F508\", \"F509\", \"F521\",\n  \"F522\", \"F523\", \"F524\", \"F525\", \"F541\", \"F601\", \"F602\", \"F621\",\n  \"F622\", \"F631\", \"F632\", \"F633\", \"F634\", \"F701\", \"F702\", \"F704\",\n  \"F706\", \"F707\", \"F811\", \"F821\", \"F822\", \"F823\", \"F841\", \"F842\",\n  \"F901\", \"FA100\", \"FA102\", \"FLY002\", \"FURB105\", \"FURB122\", \"FURB129\", \"FURB132\",\n  \"FURB136\", \"FURB157\", \"FURB161\", \"FURB162\", \"FURB163\", \"FURB166\", \"FURB167\", \"FURB168\",\n  \"FURB169\", \"FURB177\", \"FURB181\", \"FURB188\", \"FURB192\", \"G010\", \"G101\", \"G201\",\n  \"G202\", \"I001\", \"INT001\", \"INT002\", \"INT003\", \"ISC004\", \"LOG001\", \"LOG002\",\n  \"LOG009\", \"LOG014\", \"LOG015\", \"N999\", \"PERF101\", \"PERF102\", \"PERF402\", \"PGH005\",\n  \"PIE790\", \"PIE794\", \"PIE796\", \"PIE800\", \"PIE804\", \"PIE807\", \"PIE808\", \"PIE810\",\n  \"PLC0105\", \"PLC0131\", \"PLC0132\", \"PLC0205\", \"PLC0206\", \"PLC0208\", \"PLC0414\", \"PLC3002\",\n  \"PLE0100\", \"PLE0101\", \"PLE0115\", \"PLE0116\", \"PLE0117\", \"PLE0118\", \"PLE0303\", \"PLE0304\",\n  \"PLE0305\", \"PLE0307\", \"PLE0308\", \"PLE0309\", \"PLE0604\", \"PLE0605\", \"PLE0643\", \"PLE0704\",\n  \"PLE1132\", \"PLE1142\", \"PLE1205\", \"PLE1206\", \"PLE1300\", \"PLE1307\", \"PLE1310\", \"PLE1507\",\n  \"PLE1519\", \"PLE1520\", \"PLE1700\", \"PLE2502\", \"PLE2510\", \"PLE2512\", \"PLE2513\", \"PLE2514\",\n  \"PLE2515\", \"PLR0124\", \"PLR0133\", \"PLR0206\", \"PLR0402\", \"PLR1704\", \"PLR1708\", \"PLR1711\",\n  \"PLR1716\", \"PLR1722\", \"PLR1730\", \"PLR1733\", \"PLR1736\", \"PLR2044\", \"PLW0120\", \"PLW0127\",\n  \"PLW0128\", \"PLW0129\", \"PLW0131\", \"PLW0133\", \"PLW0177\", \"PLW0211\", \"PLW0245\", \"PLW0406\",\n  \"PLW0602\", \"PLW0604\", \"PLW0642\", \"PLW0711\", \"PLW1501\", \"PLW1507\", \"PLW1508\", \"PLW1509\",\n  \"PLW1510\", \"PLW2101\", \"PT010\", \"PT014\", \"PT020\", \"PT025\", \"PT026\", \"PT031\",\n  \"PTH124\", \"PTH210\", \"PYI001\", \"PYI002\", \"PYI003\", \"PYI004\", \"PYI005\", \"PYI006\",\n  \"PYI007\", \"PYI008\", \"PYI009\", \"PYI010\", \"PYI012\", \"PYI013\", \"PYI015\", \"PYI016\",\n  \"PYI017\", \"PYI018\", \"PYI019\", \"PYI020\", \"PYI025\", \"PYI026\", \"PYI029\", \"PYI030\",\n  \"PYI032\", \"PYI033\", \"PYI034\", \"PYI035\", \"PYI036\", \"PYI041\", \"PYI042\", \"PYI043\",\n  \"PYI044\", \"PYI045\", \"PYI046\", \"PYI047\", \"PYI048\", \"PYI049\", \"PYI050\", \"PYI052\",\n  \"PYI055\", \"PYI057\", \"PYI058\", \"PYI059\", \"PYI061\", \"PYI062\", \"PYI063\", \"PYI064\",\n  \"PYI066\", \"RET501\", \"RUF007\", \"RUF008\", \"RUF009\", \"RUF010\", \"RUF012\", \"RUF013\",\n  \"RUF015\", \"RUF016\", \"RUF017\", \"RUF018\", \"RUF019\", \"RUF020\", \"RUF022\", \"RUF023\",\n  \"RUF024\", \"RUF026\", \"RUF028\", \"RUF030\", \"RUF032\", \"RUF033\", \"RUF034\", \"RUF040\",\n  \"RUF041\", \"RUF046\", \"RUF048\", \"RUF049\", \"RUF051\", \"RUF053\", \"RUF057\", \"RUF058\",\n  \"RUF059\", \"RUF063\", \"RUF068\", \"RUF100\", \"RUF101\", \"RUF200\", \"S102\", \"S110\",\n  \"S112\", \"SIM101\", \"SIM102\", \"SIM103\", \"SIM107\", \"SIM113\", \"SIM114\", \"SIM115\",\n  \"SIM117\", \"SIM118\", \"SIM201\", \"SIM202\", \"SIM208\", \"SIM210\", \"SIM211\", \"SIM220\",\n  \"SIM221\", \"SIM222\", \"SIM223\", \"SIM401\", \"SIM905\", \"SIM911\", \"T100\", \"TC004\",\n  \"TC005\", \"TC007\", \"TC010\", \"TRY002\", \"TRY004\", \"TRY201\", \"TRY203\", \"TRY401\",\n  \"UP001\", \"UP003\", \"UP004\", \"UP005\", \"UP006\", \"UP007\", \"UP008\", \"UP009\",\n  \"UP010\", \"UP011\", \"UP012\", \"UP014\", \"UP017\", \"UP018\", \"UP019\", \"UP020\",\n  \"UP021\", \"UP022\", \"UP023\", \"UP024\", \"UP025\", \"UP026\", \"UP028\", \"UP029\",\n  \"UP030\", \"UP031\", \"UP032\", \"UP033\", \"UP034\", \"UP035\", \"UP036\", \"UP037\",\n  \"UP039\", \"UP040\", \"UP041\", \"UP043\", \"UP044\", \"UP045\", \"UP046\", \"UP047\",\n  \"UP049\", \"UP050\", \"W605\", \"YTT101\", \"YTT102\", \"YTT103\", \"YTT201\", \"YTT202\",\n  \"YTT203\", \"YTT204\", \"YTT301\", \"YTT302\", \"YTT303\",\n]\n\n[deferred]\nexecution_context = [\"PLE1142\", \"PLE1700\"]\napi_patterns = [\"ASYNC100\", \"ASYNC105\", \"ASYNC116\", \"ASYNC210\", \"ASYNC220\", \"ASYNC221\", \"ASYNC222\", \"ASYNC230\", \"ASYNC251\", \"B009\", \"B010\", \"B019\", \"B039\", \"BLE001\", \"DTZ007\", \"DTZ901\", \"G010\", \"G101\", \"G201\", \"G202\", \"LOG002\", \"LOG009\", \"LOG014\", \"PLE1507\", \"PLE1519\", \"PLE1520\", \"PLW0133\", \"PLW0245\", \"PLW1501\", \"PLW1508\", \"PLW2101\", \"PT010\", \"PT014\", \"PT020\", \"PT025\", \"PT026\", \"PT031\", \"PTH124\", \"PTH210\", \"RUF026\", \"RUF030\", \"RUF033\", \"RUF049\", \"RUF058\", \"RUF063\", \"T100\", \"TRY004\", \"TRY401\", \"YTT101\", \"YTT102\", \"YTT103\", \"YTT201\", \"YTT202\", \"YTT203\", \"YTT204\", \"YTT301\", \"YTT302\", \"YTT303\"]\nbinding_rules = [\"B020\", \"B023\", \"B031\", \"F402\", \"F842\", \"PLE0115\", \"PLE0117\", \"PLE0118\", \"PLR1704\", \"PLW0602\", \"PLW0642\", \"RUF059\", \"TRY201\"]\ncollection_patterns = [\"C414\", \"C417\", \"FURB105\", \"FURB122\", \"FURB129\", \"FURB132\", \"FURB136\", \"FURB157\", \"FURB161\", \"FURB162\", \"FURB163\", \"FURB166\", \"FURB167\", \"FURB168\", \"FURB169\", \"FURB177\", \"FURB181\", \"FURB188\", \"FURB192\", \"PERF101\", \"PERF102\", \"PERF402\", \"PIE804\", \"PIE807\", \"PIE808\", \"PIE810\", \"RUF007\", \"RUF015\", \"RUF017\", \"RUF024\", \"RUF046\", \"RUF048\", \"RUF057\"]\nexecutable_metadata = [\"EXE001\", \"EXE002\"]\nexpression_patterns = [\"B005\", \"B006\", \"B008\", \"B018\", \"B030\", \"B033\", \"B035\", \"F601\", \"F602\", \"F632\", \"FLY002\", \"PIE796\", \"PLE0303\", \"PLE0304\", \"PLE0305\", \"PLE0307\", \"PLE0308\", \"PLE0309\", \"PLE0604\", \"PLE0605\", \"PLE0643\", \"PLE1205\", \"PLE1206\", \"PLE1300\", \"PLE1307\", \"PLE1310\", \"PLR0124\", \"PLR1716\", \"PLR1730\", \"PLR1733\", \"PLR1736\", \"PLW0127\", \"PLW0177\", \"RUF008\", \"RUF009\", \"RUF010\", \"RUF012\", \"RUF016\", \"RUF018\", \"RUF019\", \"RUF022\", \"RUF023\", \"RUF034\", \"RUF051\", \"RUF068\", \"SIM101\", \"SIM102\", \"SIM103\", \"SIM107\", \"SIM113\", \"SIM114\", \"SIM115\", \"SIM117\", \"SIM118\", \"SIM201\", \"SIM202\", \"SIM220\", \"SIM221\", \"SIM222\", \"SIM223\", \"SIM401\", \"SIM905\", \"SIM911\"]\nformat_grammar = [\"F501\", \"F502\", \"F503\", \"F504\", \"F505\", \"F506\", \"F507\", \"F508\", \"F509\", \"F521\", \"F522\", \"F523\", \"F524\", \"F525\"]\nimport_ordering = [\"I001\"]\nmodernization = [\"UP003\", \"UP006\", \"UP007\", \"UP008\", \"UP009\", \"UP010\", \"UP011\", \"UP012\", \"UP014\", \"UP017\", \"UP018\", \"UP019\", \"UP020\", \"UP021\", \"UP022\", \"UP024\", \"UP026\", \"UP028\", \"UP029\", \"UP030\", \"UP031\", \"UP032\", \"UP033\", \"UP034\", \"UP035\", \"UP036\", \"UP037\", \"UP040\", \"UP041\", \"UP043\", \"UP044\", \"UP045\", \"UP046\", \"UP047\", \"UP049\", \"UP050\"]\nname_binding = [\"F401\", \"F811\", \"F821\", \"F822\", \"F823\", \"F841\"]\nreference_profile = [\"PLE0116\"]\nsource_diagnostics = [\"E902\", \"ISC004\", \"N999\", \"PLE2502\", \"PLE2510\", \"PLE2512\", \"PLE2513\", \"PLE2514\", \"PLE2515\", \"PLR2044\", \"RUF028\", \"RUF100\", \"RUF101\", \"RUF200\"]\nsource_ranges = [\"EXE004\", \"W605\"]\nstatement_structure = [\"F404\", \"F407\", \"F633\", \"PIE790\", \"PLC0105\", \"PLC0131\", \"PLC0132\", \"PLC0206\", \"PLC0208\", \"PLE0100\", \"PLE0101\", \"PLE0704\", \"PLR0206\", \"PLR1708\", \"PLW0211\", \"PLW0406\", \"RET501\"]\ntyping_rules = [\"FA100\", \"FA102\", \"PYI002\", \"PYI003\", \"PYI004\", \"PYI005\", \"PYI006\", \"PYI007\", \"PYI008\", \"PYI015\", \"PYI016\", \"PYI018\", \"PYI019\", \"PYI020\", \"PYI026\", \"PYI029\", \"PYI030\", \"PYI032\", \"PYI034\", \"PYI036\", \"PYI041\", \"PYI042\", \"PYI043\", \"PYI045\", \"PYI046\", \"PYI047\", \"PYI049\", \"PYI050\", \"PYI052\", \"PYI055\", \"PYI057\", \"PYI058\", \"PYI059\", \"PYI061\", \"PYI062\", \"PYI063\", \"PYI064\", \"PYI066\", \"RUF013\", \"RUF020\", \"RUF041\", \"RUF053\", \"TC004\", \"TC005\", \"TC007\", \"TC010\"]\nupstream_inactive = [\"F621\"]\n",
+      "workload_text": "language = \"python\"\n\n[[projects]]\nname = \"django\"\nrepository = \"https://github.com/django/django.git\"\nrevision = \"36b5f39d9372147f0e758f590e35ee2b2bc317dd\"\npatch = \"patches/django.patch\"\n\n[[projects]]\nname = \"pandas\"\nrepository = \"https://github.com/pandas-dev/pandas.git\"\nrevision = \"366ccdfcd8ed1e5543bfb6d4ee0c9bc519898670\"\npatch = \"patches/pandas.patch\"\n\n[[projects]]\nname = \"fastapi\"\nrepository = \"https://github.com/fastapi/fastapi.git\"\nrevision = \"8322a4445a3b25acd9b26b61192571b2d92f9bcd\"\npatch = \"patches/fastapi.patch\"\n",
+      "patches": {
+        "django.patch": {
+          "sha256": "8ef945ab23ae3132fefe5161474c4092ed53b74b6f7b489c6c24ba0257a4f95f",
+          "text": "diff --git a/django/utils/module_loading.py b/django/utils/module_loading.py\n--- a/django/utils/module_loading.py\n+++ b/django/utils/module_loading.py\n@@ -78,3 +78,3 @@\n         package_path = package.__path__\n-    except AttributeError:\n+    except:\n         # package isn't a package.\n"
+        },
+        "fastapi.patch": {
+          "sha256": "86cba5abbc846e00bccafff4b47f3735741e4310ca567699b0d41d6b9419f945",
+          "text": "diff --git a/fastapi/dependencies/utils.py b/fastapi/dependencies/utils.py\n--- a/fastapi/dependencies/utils.py\n+++ b/fastapi/dependencies/utils.py\n@@ -90,3 +90,3 @@\n         assert __version__ > \"0.0.12\"\n-    except (ImportError, AssertionError):\n+    except:\n         try:\n"
+        },
+        "pandas.patch": {
+          "sha256": "b6940e252a4664b64681b49a1d7fe5ce75d36c867beffcbef88f669aa63437d9",
+          "text": "diff --git a/pandas/__init__.py b/pandas/__init__.py\n--- a/pandas/__init__.py\n+++ b/pandas/__init__.py\n@@ -184,3 +184,3 @@\n     _built_with_meson = True\n-except ImportError:\n+except:\n     from pandas._version import get_versions\n"
+        }
+      },
+      "rules": {
+        "ASYNC115": {
+          "query_sha256": "0b5b7c485490b13cc50fed0aa6a65cf883b5094d6e33c5b7cc88312bf790fc96",
+          "cases_sha256": "7c416857623ea0e1f7321e11f89d95380dda2e39555ff0b114195ec1ff14a9d2",
+          "cases": 19
+        },
+        "B002": {
+          "query_sha256": "bac7818d523872d12471a1716d100b4d0d9426fe594682b31ec9c7b887b34616",
+          "cases_sha256": "46239a7f288aa6338bada7b7c83bc503e0b87eb3891e9db936259f7a780e073d",
+          "cases": 50
+        },
+        "B003": {
+          "query_sha256": "0bfc978260d545f85508be1b79437a3b43c3db64f3767a912810b2192ec58ab5",
+          "cases_sha256": "59c1d5ce308e54946bf695955b464e99f959827dc9dc77cc13d7207190fb8816",
+          "cases": 15
+        },
+        "B004": {
+          "query_sha256": "0c5bc7699b52606f41fd5d340a003fa6b212019fda571623b0b5c89edf7ed073",
+          "cases_sha256": "831a8fc9e746bc5fafa83e5e57e52307a1316038e9081218acd6b6e09531c1e2",
+          "cases": 17
+        },
+        "B012": {
+          "query_sha256": "c214c429914e83b48aaaf9a80b59fb6d150f564314454d2e59d69b1901aa2fde",
+          "cases_sha256": "ac2d480f57620af46ceea245e7f93ed22ef9924df882f34a2f5ad053235b1639",
+          "cases": 20
+        },
+        "B013": {
+          "query_sha256": "e6dbe228e06b8dcaf47b92716bd425fb1b01254580c4f9786e7861f41c2ae3ac",
+          "cases_sha256": "b97c4e89dba59439254ad02644371d5d1250c86ecea4f3c162d5a090d8c1081f",
+          "cases": 16
+        },
+        "B014": {
+          "query_sha256": "cba4d69423d31e264716cb35d367235402b3fec7e5bd80b352265f42dce81432",
+          "cases_sha256": "8c2c158e84f9c109d166af7a2af4c0694233a05632c0fd2875d2552ea51eed86",
+          "cases": 18
+        },
+        "B015": {
+          "query_sha256": "3271cb578ab9a587ececb0acd7d2227165626d432710f94275d8d395af2cb50e",
+          "cases_sha256": "14c51b4d812e777aa93a5c7d655c3f2eebf0203d98fb9af007979856fe6046d0",
+          "cases": 19
+        },
+        "B016": {
+          "query_sha256": "e2633807886838a37cd7b5009e11033827323f8207e7405c6a1512318331246f",
+          "cases_sha256": "562ced71425514320e2001bb5600130219511f04b7a514e425ffe8f6cc8fa728",
+          "cases": 24
+        },
+        "B017": {
+          "query_sha256": "c45b26c509e3f52c754c92e2964cd067d5027dd4bb1404e6127069b5826aa0fd",
+          "cases_sha256": "72a0bc391707ac1ce79f8ae5e1b988043624de56837fc490f5b28f583ce5efa1",
+          "cases": 20
+        },
+        "B021": {
+          "query_sha256": "b91b5dd31ee427df4a176f74446b07534aff7f2e96cb1db16620913201746909",
+          "cases_sha256": "de8dbc101ff1e85ba788392a489247f8a479d45cc504689d2e1ab5da927b4947",
+          "cases": 23
+        },
+        "B022": {
+          "query_sha256": "53081fb020f28f383a347a3f29d6c50e2553c6f0f505d4900d45d52f60d86f37",
+          "cases_sha256": "107b544ce1f4bd46dd129f32eec1abf7be754f48e37994ece3090c9e24bc46c1",
+          "cases": 24
+        },
+        "B025": {
+          "query_sha256": "c74cf921ad55b7e2ea2ef85d472306ec7d4271213b7574b64d7b71abf1ec86ad",
+          "cases_sha256": "96f4b2d96be4f8324a012c6927de4a173457f72131aa3e00f721a7f526a3a2e5",
+          "cases": 17
+        },
+        "B026": {
+          "query_sha256": "11188c9f6503ee4281bde54e9f4c5fd82872c7a7287e50afe5a12f5fba087320",
+          "cases_sha256": "9f326cfafa14b4c0df1dd68bd5c4f48e5c3180bbb9b83dbf465f66c1e5cb71eb",
+          "cases": 18
+        },
+        "B029": {
+          "query_sha256": "8d7daf00071fe21b51349d9c6424904f422b7e831202a86410ca32fa3f6dd1c1",
+          "cases_sha256": "ba7e5cf345e253a3176c01ae8089a4f435a7618ebfdf5ee943cbde4be1308eb0",
+          "cases": 14
+        },
+        "B032": {
+          "query_sha256": "7e8aca338eb67d3b7b8c7e1e29da4a2515fc4d4d03064ca04cf9056fc04aba53",
+          "cases_sha256": "004662e7a84908619126d680c98f62b16f2be4831a9668109d43371b26653a05",
+          "cases": 20
+        },
+        "C400": {
+          "query_sha256": "0ca1fa4474f59849943005970909150cd84f444cf39a3aac6164a4e81eb61663",
+          "cases_sha256": "58f65813c83611e4f54ff065dc854a964014c22f93c174b0b04937d63f9ead47",
+          "cases": 18
+        },
+        "C401": {
+          "query_sha256": "9c8899adec1ea57552c77328200ea64d2be763347753eee78cc83de12271838e",
+          "cases_sha256": "44ba9854ffe00e68c39b8f1c4f4cc16b0f692622ef6837a2ec8ff378a650fef5",
+          "cases": 17
+        },
+        "C402": {
+          "query_sha256": "b24589d08e91bad6e6b70008379ac552da0c2f47ec72c3242334c86c63bfe868",
+          "cases_sha256": "9a685cde386d295898b91519dda4eae5eac9d3e86fb220020218d0724adeaca2",
+          "cases": 19
+        },
+        "C403": {
+          "query_sha256": "79899f3817a7827d5bb1f7ea2152d853fc80a07c2b6563798300ce277c6a24ab",
+          "cases_sha256": "2b66408246baabc0c9616393e26e8ba3a2b86549553e58e4af08b558b8d36330",
+          "cases": 15
+        },
+        "C404": {
+          "query_sha256": "570be0dded2eccc83f6ba9549b7dcb71538436d1325f0d3d7c666d6619ac0f32",
+          "cases_sha256": "d50cb75512bc7d237595e9efe1612bc912cb459189de61cbffedcdd1977bbf72",
+          "cases": 19
+        },
+        "C405": {
+          "query_sha256": "1012cf7cb2315ca220395014bb5df72aea5abf45db96afa3467759a4dd66daa7",
+          "cases_sha256": "5276f7cc1ac7190affc88dccb6285e436de32860125110e6ae8e562b460d8203",
+          "cases": 19
+        },
+        "C406": {
+          "query_sha256": "e893ccc847475597f5cd1c99abcc4d35a38e98494e6a0d7cd3932f3e86c37d66",
+          "cases_sha256": "571b8a2d5b7729d0ee2dcdf5971419b75ff920b50a16c06b5891058853582969",
+          "cases": 23
+        },
+        "C408": {
+          "query_sha256": "e3f851adb730a25ca3b5a23f100556c84e55a9d8ce364dae0b4c5545ec1a55ea",
+          "cases_sha256": "8aadd645c45e305f6382fb817f5786daf2f1a99812c3ebc0d5696418f16c36b9",
+          "cases": 17
+        },
+        "C409": {
+          "query_sha256": "91b2abe9f3d0eea442b86468a0107a90401ca3da4bd4d0b18b41303930a6eaf0",
+          "cases_sha256": "edbf2e1df1db0bc578c7c8a0eea30d40a2f769411f49573e3258b4a9cfbc5bf6",
+          "cases": 19
+        },
+        "C410": {
+          "query_sha256": "93cb600378f7e7439877ab5c9a5e5838b0b10ec6f388bbdd4f2ddce9eff25a5b",
+          "cases_sha256": "6e65e4e8c577bec1a1a0fd74165ec45cddfdb271e39949d1368ca05aa93c33e7",
+          "cases": 19
+        },
+        "C411": {
+          "query_sha256": "2f423a0ce0bf201c2dba0024bb38e400647cb297bb62fa54c1365c5548d41626",
+          "cases_sha256": "069040ad4c94e24733a30a23808c6d9c4e3e80ca86cab4b858541ce2280b5b5d",
+          "cases": 15
+        },
+        "C413": {
+          "query_sha256": "b241e858414d5395423f0adedcd569c8d8cccb49081b11f062f678d06709edde",
+          "cases_sha256": "624420128cd569298cba7f65ac3246f5a2fad3dc01fc97aac67dba5f0eb79bfd",
+          "cases": 13
+        },
+        "C415": {
+          "query_sha256": "b87172a09609228e7a3b495e253dfcfc58d5b405e5fa0cbca8e086668fe4060f",
+          "cases_sha256": "5b9b150be26e7ad2bebf221b58ad7a5ac0ce59a52f2fb5816cb331b2a636590b",
+          "cases": 16
+        },
+        "C418": {
+          "query_sha256": "5959a3c2304d753c25d741469c3b8ab490b2fc8f3ef3d98f0ab4a2a94a862dc9",
+          "cases_sha256": "2ea82efc158b7a969e660391204fcaf2e13f9e057388553bfff82e05d652abe6",
+          "cases": 19
+        },
+        "C419": {
+          "query_sha256": "c3e9dbe286f29112188ec97c0e68ee678450a06dcdeebe095cc6a319ecbe98dc",
+          "cases_sha256": "0b93a870df0a497e67188f8fd7f824c6bfe3b93a584cfc7332c3b995d1ecd512",
+          "cases": 14
+        },
+        "D419": {
+          "query_sha256": "3d0d5ee3c7d6e3b63851e347a70585ed5b6075adcf45944deefaa9dea7ccd7e7",
+          "cases_sha256": "2a491b80ccbbf7cbbe1c8d1d2b156374e11a13bd26ca5ff2600b58108217bc3d",
+          "cases": 32
+        },
+        "DTZ001": {
+          "query_sha256": "854c7e531f6387348f2770a0472e5e98517531e83ceefe2d299177058eaa3486",
+          "cases_sha256": "4e0cd369e23bf0086620d9f3dc0281abebfbda21e78f3233e84e87b9c6d7d009",
+          "cases": 14
+        },
+        "DTZ002": {
+          "query_sha256": "a9ca95bd69d295d9ed00ea5494f699ccb3b150b8b00c84828c50eb762c767834",
+          "cases_sha256": "22d7ceaf1e4e2632ac2d0ee30a993373586dadd59b8c37154e582b0287ac9929",
+          "cases": 20
+        },
+        "DTZ003": {
+          "query_sha256": "b83ad730b65042d2991e4c1a56e7fd4ba704184a8f6750f2914a5fcf2b9a681a",
+          "cases_sha256": "8c81c2b76f8eeae3b203ee21fb171180865f8e50c7d9c9d1d748009ead8f2a24",
+          "cases": 20
+        },
+        "DTZ004": {
+          "query_sha256": "2e77d81eb49b15ea6a9075d8b98e096cfbd213286ed29417057d64deb4080e14",
+          "cases_sha256": "cc57e146680fbcbea515ec41ea521253aa5d85247231e1c6671af8e0a945a2bc",
+          "cases": 20
+        },
+        "DTZ005": {
+          "query_sha256": "facbd75bccf1033d3f4dc067514c670b53b0e5e68100e4bec1989ee113b76c9a",
+          "cases_sha256": "6d11b21caa34cce623711eebd58627b4edcbb6208fc6f5933f6262746e1856e2",
+          "cases": 24
+        },
+        "DTZ006": {
+          "query_sha256": "4e20283d0602ef48a8c9838541f6a4551b947528b709cec8786a51ee64efa4f1",
+          "cases_sha256": "2d2bed4ee343f7f1136c07bd12e34329ae27bda1bb0be510aafc981508ba71e5",
+          "cases": 22
+        },
+        "DTZ011": {
+          "query_sha256": "63c6e70a6399fa24d1d5d56f10e9c3b07fa9db101932442e0a3680c8e65cc172",
+          "cases_sha256": "0c4b3b8656c298c9820365f92c70fe4b18373da5697ecefc9f37bc2507871eeb",
+          "cases": 14
+        },
+        "DTZ012": {
+          "query_sha256": "de10daf73ab43063d042416a53abf0a78d70d5026bd8ffef04d14e28b4991983",
+          "cases_sha256": "f8ef8122d176008fed16f5a7fc040a931e2656e32068d0786aa3e3ad965368f2",
+          "cases": 14
+        },
+        "E722": {
+          "query_sha256": "cdcca980d4a6d8e771e40b46306e5afcb9b12ad3bbb69af38d3114c8b1737a9a",
+          "cases_sha256": "a907cf3176b05947ba38ffcd681c9b6823ef585b9fbd6916708b2b2f2c307e07",
+          "cases": 72
+        },
+        "EXE005": {
+          "query_sha256": "8b45101d0a1303982a41d63ec364207f48bf21b3ebb393deba8d00df2d927f0f",
+          "cases_sha256": "e38b821f8eb5ec24ae38d5d688296756e9c62dcc4ee137a61ecd32f7ce49eab3",
+          "cases": 26
+        },
+        "F541": {
+          "query_sha256": "0e864c9e60ad92c10d6bed2854dbf26a072df4e8a54dda22026a02ac99701e0a",
+          "cases_sha256": "4664a76961251c71a0245c73280a8f543be5673e6ee9cd0f3aea9705a918e527",
+          "cases": 21
+        },
+        "F622": {
+          "query_sha256": "4cb96e2e74212994e3c8108dc214050d52f191f7cacb6f330a1bfb859b0d3e35",
+          "cases_sha256": "27820b4b3f08961ee9a4e53912b02e2b7b98264340fe709df91a417ae1c592e7",
+          "cases": 21
+        },
+        "F631": {
+          "query_sha256": "67e664bb5ec084ee2f46a4f877149063eca75dd8a42acd6896329e7fabe7f1f2",
+          "cases_sha256": "9da0beefba4a41f1f38d57f3981688de346dd174bb31c718d4c24d02e5df2468",
+          "cases": 17
+        },
+        "F634": {
+          "query_sha256": "e661ec39dc264f289c8cc798aa0a7efe4a0316f69ba277fc29c775eb65ef234c",
+          "cases_sha256": "b1227f977ec86f4de0eec7c3375381711f369d92b5dfc2a84aa6f87e4d914edb",
+          "cases": 16
+        },
+        "F701": {
+          "query_sha256": "9cd535db68134543efa97b0426432cf8c9cd60a3ed5cda386270e6373c7bbc1e",
+          "cases_sha256": "b026145c8c07a38c88cd069a76de651f0cf1644fd0cebea6df2e15212e76a243",
+          "cases": 24
+        },
+        "F702": {
+          "query_sha256": "f1e980ceb8ee2b4c706175e1f31063f6ad01f675f9c706802b26cca46940ea19",
+          "cases_sha256": "ec0b79686a9e82086f362bf50879c3cb86e4636cd825c5cbdba95a3d40bd0037",
+          "cases": 24
+        },
+        "F704": {
+          "query_sha256": "dd5fd7576e305aef4959eba70774532fa19b75678a1a283a7d0edc86a9be8bf8",
+          "cases_sha256": "d65bdae707b3dd4c54f2046920bfa4986ee473fb5a269ed83a5cb62ab6c1be6e",
+          "cases": 37
+        },
+        "F706": {
+          "query_sha256": "d54bd88744dffc1128583aa1f80921bb91ecf401aa4313361fd0501ffb509e5e",
+          "cases_sha256": "d5d4f5eba6be3f4779d4df9e6ec9bc6be397386045d6aaf7d7e7b216286abe5d",
+          "cases": 19
+        },
+        "F707": {
+          "query_sha256": "378985064556f59eae006b12c0b6c629e05358a81d9c10b441f9a3721d7faf3e",
+          "cases_sha256": "1de0f6ec03d68ba676e208441d7f040814c078f261015657da01d83fab5bf3d1",
+          "cases": 14
+        },
+        "F901": {
+          "query_sha256": "199b3cc488125c37af52ff41e794a79e6a20c55abcca2e5ae75a670b121ec498",
+          "cases_sha256": "dfab5d54da8a7f15a132691a4b2a9fad93487d45e937888842e3c60e46f1a5cf",
+          "cases": 16
+        },
+        "INT001": {
+          "query_sha256": "9d5008e082d831d053f24c30240ec84f8d5b58907d2888302c34f59f4f925e2f",
+          "cases_sha256": "314f2978ec7b1ac0f104f465bd70ccf1fb3af58ea1c843aa8853a4dadea23090",
+          "cases": 16
+        },
+        "INT002": {
+          "query_sha256": "788c677cd6c1e014694f4d829673d33692db0e9c4faa4ded43bf62f34212bf10",
+          "cases_sha256": "ca2db5e5b3d15564901ada7d3ae7e6cefd1180998e64ea77ef5a9aaf5f29f9cd",
+          "cases": 15
+        },
+        "INT003": {
+          "query_sha256": "6b3eaaf8a698d3f195df5d120951c12d0b322beecc04cf38e3ff43a0c04d29d3",
+          "cases_sha256": "f699eb8898043877667c363ec6061e7aa19a291ca31fe15535ab6b45b119528e",
+          "cases": 15
+        },
+        "LOG001": {
+          "query_sha256": "7a0cb043f7d3978198c948f100a84a814ae4c03b0222525db768e2be5975767b",
+          "cases_sha256": "ae46092e52a56e53583253e55c60a9d90f538af7f4938ec06f2a23ce2c922bb3",
+          "cases": 22
+        },
+        "LOG015": {
+          "query_sha256": "194f18f05099793235c9f113d83fba1ca1a96951c02e8f40cf13f6dafb3501b1",
+          "cases_sha256": "4e5b3a75ff43ff9c10d04aade98be1cc38e56d4cd0a499d942a2e5ce4a344c55",
+          "cases": 18
+        },
+        "PGH005": {
+          "query_sha256": "1d9837b8d52e653ccc0389c8ce871abdf57b46fa15efb846d071e0d7801eff06",
+          "cases_sha256": "1691e0a9063cf8dcb3cdd000697f0090948ec4d2775da618f2442587c839e653",
+          "cases": 17
+        },
+        "PIE794": {
+          "query_sha256": "2dca7a5dec08711e39b5154bb7797e1b6241cb5b4f13f65e44ccd7f704365368",
+          "cases_sha256": "1d90d40cef01f05910fb2890cd52b09cc8fef94a3280106d6689eed91fcc255b",
+          "cases": 17
+        },
+        "PIE800": {
+          "query_sha256": "454a926fab5320a9646bce7f6dba56532de43eb9230ccec6e1e98321b3335993",
+          "cases_sha256": "b899f358e6d3c45aeb468df0d443239b7ff2007315d66aec4f05a5b08ac58e48",
+          "cases": 17
+        },
+        "PLC0205": {
+          "query_sha256": "713d6a70e522087ea02469b4841d24d6f271fe53612e0aac9d3f3592c627dcca",
+          "cases_sha256": "de2d89045062aecc7c8909d7f7da1a009c43753e7dd97c475a39ca59f76c42e5",
+          "cases": 21
+        },
+        "PLC0414": {
+          "query_sha256": "cb45b0c80bcfc206026827b8210c66fc82b2a28a718756e1cc4c19cf038e2980",
+          "cases_sha256": "4227681cff9381b9b30bc3a5b8977a82fd6696c49dc65ea8328f39d35f0091fd",
+          "cases": 26
+        },
+        "PLC3002": {
+          "query_sha256": "2590a2d6a0a361fe5b436b8335b6be6f7088de755f40536edf2b359b7d9fe947",
+          "cases_sha256": "9dfcd01626947d4e1e9fb0ad6a686f869ab6dd954c4d8a9aeb254c31b9a033fc",
+          "cases": 16
+        },
+        "PLE1132": {
+          "query_sha256": "514bcfa98f779683cfa61b382c5eb619815cda6e62355204d2cb1d6bd8da6b29",
+          "cases_sha256": "37c31a3ad247fe5392eaa431e69070a0189ab1340dd83eb5f6cd1d76434c0133",
+          "cases": 23
+        },
+        "PLR0133": {
+          "query_sha256": "0107a5203b041c9e39b06d9e66cd170ffd4ede794f0634c61f0fcc337deddc72",
+          "cases_sha256": "aee8f16474b5124a114bf2c78b1990a7e909033008c21fe5ae0cde0d4a541833",
+          "cases": 19
+        },
+        "PLR0402": {
+          "query_sha256": "ab4ffdbaa02c34a6b24cdaaed8df451cc42e574eb7572c20ba21e8af79f0b484",
+          "cases_sha256": "80fad09db7721d6922a35c68d95ebd0cb4a747342874be1e7798175f84dac251",
+          "cases": 16
+        },
+        "PLR1711": {
+          "query_sha256": "809b0dc94fada26ed0fecc55989db6120119b3b0abc02e1ff1b1d2570db16614",
+          "cases_sha256": "f919d6a6125504fd6161b3ff4e00b20a93d30784837b3764a1907dab622780d0",
+          "cases": 21
+        },
+        "PLR1722": {
+          "query_sha256": "a6b22885420eec6ee37abe985808d328260f553b75918ef30859cad3143eade0",
+          "cases_sha256": "d838dc4c855c45b38c78381241a68d5f2ad82909c9e05039926d3f3ec0fe6671",
+          "cases": 12
+        },
+        "PLW0120": {
+          "query_sha256": "6d2c1398220800bca14b9cdae1cbdf949cbcf31276850c30302e896e6604a494",
+          "cases_sha256": "32602aa75bdd7bb581a5d479dfc6cdc2b47bd872d90c5a5471ba07b8bca82b4f",
+          "cases": 20
+        },
+        "PLW0128": {
+          "query_sha256": "c5f54fb32b8bbcd6e1a34bbaaaa3179066104e1a76afb561f86027c615ffb2b0",
+          "cases_sha256": "8aa42094412af64ddd640b877812d74a1db95a3dd2ec894f2a695137de867ffa",
+          "cases": 17
+        },
+        "PLW0129": {
+          "query_sha256": "088f0e60092b7999631381acc49f2740aa6da655f9b9a96cc671cc99e35f162d",
+          "cases_sha256": "4903634e202bdda9cdd7c1b19b6450e74c7264b6a2e1714f0c2ec227fbc76861",
+          "cases": 21
+        },
+        "PLW0131": {
+          "query_sha256": "eb90e3fab38d241aeac68346112a6299b74436bcc0d89cb183beb918895d15e9",
+          "cases_sha256": "278787f8cac4c45288dacd2b24e7ab3764e891ba110b07615bb5e19c11c71e93",
+          "cases": 14
+        },
+        "PLW0604": {
+          "query_sha256": "31d791aad33f8ce5864326f15286a5fe5d484ee054c2accf5895a5d758640696",
+          "cases_sha256": "2aa90c56853bd289d2001511b382b08ddead74ee04e4f81ec229a2609492d2cd",
+          "cases": 16
+        },
+        "PLW0711": {
+          "query_sha256": "2058ba8762e32c8bd79e38f597194a8238ce6685eb064c92dc2659395d53582a",
+          "cases_sha256": "7f8a547dcf09674fa228923d0fca44c673a5125e2702580e7d8d55024e962827",
+          "cases": 16
+        },
+        "PLW1507": {
+          "query_sha256": "1b82b6be11e715fa4dc128ffc28aa8307667dd80b8c4a37a28eca2b69b847dc1",
+          "cases_sha256": "2151a884b56ddaf3b5563760a1a07567b6d60961c5e05fa9b3e144e448c8de74",
+          "cases": 13
+        },
+        "PLW1509": {
+          "query_sha256": "01b69093a98f16464d80b176262bde9f90aad5336697665255c661d3d841de6a",
+          "cases_sha256": "cfbac09c0805bcc02f5830fe479ec6f4ce5201420fa8e1d060996b9c5ac11444",
+          "cases": 12
+        },
+        "PLW1510": {
+          "query_sha256": "6576ba6add3eab70462f46f88a7a9ccb8d1fdf740db50b0f34d36d815a8629f8",
+          "cases_sha256": "ddc5dbf76bdb39b56360f223a9f10c7a7936c5ae48953472725731fbe25cc214",
+          "cases": 17
+        },
+        "PYI001": {
+          "query_sha256": "c3e51345c3b46902613fe41a9705ab156d1ad0fb6ab4e9e40a74a795f2f65b47",
+          "cases_sha256": "de514a2b539eac6a2c9769c36193d62239158baacd21170524eefed1e9fad590",
+          "cases": 14
+        },
+        "PYI009": {
+          "query_sha256": "56f4065a7f06a5bf7cff833a748d219b0acfe32f49e2ff38266d87faee998a5d",
+          "cases_sha256": "bd969a2b7f015f9437bad1676a4fb84376da7c93c07e015e42c9fe156cf8f334",
+          "cases": 22
+        },
+        "PYI010": {
+          "query_sha256": "0bdeee17d9456e891ebf0656815835377f5a2d6990df5ff552c779e1d33b0bb6",
+          "cases_sha256": "61c9b558cf86bfa76e6a7f67287e4419f5ea2c1e0cf5a9f767b769d1a68d6dca",
+          "cases": 27
+        },
+        "PYI012": {
+          "query_sha256": "2532b30323a3b5c35767a3984ae21ff6776312633bbe26bda5c7bf54e989c254",
+          "cases_sha256": "1ef018da9e6beecf7ea47721e30a97f7a6af81477e3750223a3d8963e91411d6",
+          "cases": 17
+        },
+        "PYI013": {
+          "query_sha256": "756b8bcb7b580ef36722f2ca90940447b3dba00e83c88b5065f73b34ea2a4c2e",
+          "cases_sha256": "2c1bc13236ca0a1a54d84efb277f2f6373391f6754798a93b20a3ed45c1bae42",
+          "cases": 19
+        },
+        "PYI017": {
+          "query_sha256": "2d82257d9cc6c18f29ae152e39f0cb3d30caf2af1b091cd1f6ce06a1d7d1d046",
+          "cases_sha256": "09d3fa6a653d7cf300c0c104e5fc9943400b8e36c80cd744b6491287cfb0517d",
+          "cases": 17
+        },
+        "PYI025": {
+          "query_sha256": "0264e01e95a17c2b5eeec12a656096384230a75095fbfb30c3744c7719639778",
+          "cases_sha256": "02b8f8b09ec041e46c72a5c760862f897894c56044725ec70b9f7b91dcf548e2",
+          "cases": 18
+        },
+        "PYI033": {
+          "query_sha256": "f42b3e09dabf151669b31d34af108a0ae7d729a8d8710ec63580523478e84e81",
+          "cases_sha256": "ad5f5620cc0b6ad83f9ee0209b83d0645542c05124bf575bca71a9a6ad6feb67",
+          "cases": 18
+        },
+        "PYI035": {
+          "query_sha256": "a97873bc23cb9ce0a7622dffbdf5343dcd397e4a67d8cea7e0c67fd9785557f3",
+          "cases_sha256": "286d8dc433372e134d4f99c411f9ca19ede681f1626ed65eb405c52c64944991",
+          "cases": 21
+        },
+        "PYI044": {
+          "query_sha256": "f3ce62cb097413ba304ef8c71e5c67708318c5586789dd552c01d612b3b90e2a",
+          "cases_sha256": "2f813ec1bcfbcb577e6a6a4fc385aea72b4e5c3a6c719e8a286a2e7922a897c4",
+          "cases": 17
+        },
+        "PYI048": {
+          "query_sha256": "03bad2fbb224e9479345fcee712f44ad64b603679561299ea57b31dea93d5996",
+          "cases_sha256": "90f688c998fc6b2093f727803f47d341684ebdd8c782456acfdaddb114e1b8e8",
+          "cases": 21
+        },
+        "RUF032": {
+          "query_sha256": "8b892852175428d15b6c9d72d6ab914a8ff9eadab929288f2df941cde4262bb6",
+          "cases_sha256": "2a05a826ea1ddc5341e78c49d02046d9366486a61f0282706485ee81c4d4992b",
+          "cases": 19
+        },
+        "RUF040": {
+          "query_sha256": "6afecb8d582152dd781b0fbe890617144efdd7d25096edb1be24bd7ab7e161ff",
+          "cases_sha256": "dddf733b76f004184f577283f302ec33a2f82beceb38a430d8580e19b7990145",
+          "cases": 19
+        },
+        "S102": {
+          "query_sha256": "caf7c7cf5c853fa0df8d591ae70a081d4095224ac7e40504b85b6331f2ee2ad1",
+          "cases_sha256": "b0f0b36ff43d9ec999111694bf24f3317314858aca8ca86e0bc5a9b193834030",
+          "cases": 28
+        },
+        "S110": {
+          "query_sha256": "edacf7165cb5fb038e5a0dd2d28352c62a5103cca1d7b32bd46ee4297df15afe",
+          "cases_sha256": "82f90d1e952b51a8c3ff2fee0a080cc91142163ee7537543a3e33b4bef4375d8",
+          "cases": 14
+        },
+        "S112": {
+          "query_sha256": "b8c4826a76fc34d112b7bed697fc09a6db068e33545bee84f59d7721b11cace6",
+          "cases_sha256": "5dea6c28469726b9b17916dc9cae3432f5a476645a86928a35b6d75eae34932a",
+          "cases": 14
+        },
+        "SIM208": {
+          "query_sha256": "232e73b5d5c2865ff35a5b68b8a8f3b555b39a60e5d4adaeea59dc66b34b5aa5",
+          "cases_sha256": "db8aea13764dc75aea8d4bac1a765736e6f4bbd8db4e8b2f14e73abfbd104910",
+          "cases": 16
+        },
+        "SIM210": {
+          "query_sha256": "3a34d229727ed9eeebb8381439b70c875c488ffdcc2c17bd5140e19a7391677e",
+          "cases_sha256": "76a1c31f4152f4008210d5e4a2dadc438c1e7f2ab5d12a5fec848ae2c890ed01",
+          "cases": 17
+        },
+        "SIM211": {
+          "query_sha256": "899c2d6d0fadc45f93c2105e60ac79c3b9d1c006208c6ca42fa7301680ae1f5e",
+          "cases_sha256": "5905b4449f7b5f63edec42ec1d30df56bdf0f4e0d819556f3e7bfee93f0fee94",
+          "cases": 17
+        },
+        "TRY002": {
+          "query_sha256": "dc7f7a1f652d663224f13e6bc9923e2f601efe17ac449e3f229f95414851e4f4",
+          "cases_sha256": "97ade056f93ae6fbbb00cbd0368b3f83982c497f1a77719898dc045956ff650b",
+          "cases": 12
+        },
+        "TRY203": {
+          "query_sha256": "42e3cfdd8513ce455e71083b561e818c1a2af55890782e04159f500540e55db8",
+          "cases_sha256": "b259be1e81271b765ededc597dc5e87280e9b717211987c93840fe8431390fe2",
+          "cases": 25
+        },
+        "UP001": {
+          "query_sha256": "d900f118a73a8297f964c6d4534411245c20fcce9294240e0b5828ea54469ae2",
+          "cases_sha256": "e0fd91a4a0506be3d4c2d0f9f0d8e29852c9b3073728937ccfb5ab3e052bf588",
+          "cases": 14
+        },
+        "UP004": {
+          "query_sha256": "90c6b8c92d222c53e47ffe5a87e9e1011f74c93b9f32a6def7349490f8593d43",
+          "cases_sha256": "b0988a7e0466d9f153a29f2d425a2139d84120b4aa976f0daceec97dbd591bb6",
+          "cases": 11
+        },
+        "UP005": {
+          "query_sha256": "635a8401a8b798998b3e9e6532c614471456457d3969870fdcf4f578f7b92028",
+          "cases_sha256": "1dc8332f42091ba5ba7bc4f4843b526a1114c7c22627ea66bdd5812315af63c9",
+          "cases": 26
+        },
+        "UP023": {
+          "query_sha256": "4f9ff90ef7f0e4d012d9ead0dbb6e2378bc55c3027fb2a55c771a4c85dbc21bc",
+          "cases_sha256": "ba63de1ddcb517c9b32674e28cc7b54d2ad222ac4437cd7fdc36e9d42d6388b6",
+          "cases": 25
+        },
+        "UP025": {
+          "query_sha256": "c0df4086e04e879f7221e1289a53e9ff0c1de989f66b9e3d165b04ffae2d8552",
+          "cases_sha256": "4fc1693b12d8487d03312c2b8d372ae8bc30db72c9c72c0a54da6feca8b35ae1",
+          "cases": 18
+        },
+        "UP039": {
+          "query_sha256": "844388bad03c4653c9d36cfb18816533a4099194427877e7a7209acf42506bee",
+          "cases_sha256": "2f6660fe2285ccc4d72d5e6db87b34fe2dcc3783cfe74c8ac414aa9570ec1f06",
+          "cases": 17
+        }
+      },
+      "certificate": "d22786917ae7276e8c36c41ff7bb36f9f7069dacac7bdc8f1f3c9014668cb891",
+      "certification_observed_utc": "2026-10-31T20:41:39.148057+00:00"
+    },
+    "series": {
+      "django/ruff/empty-tool-cache": {
+        "count": 6,
+        "median": {
+          "wall_seconds": 0.343160149,
+          "cpu_seconds": 0.3380085,
+          "rss_bytes": 43511808.0
+        },
+        "samples": [
+          {
+            "order": "ReferenceFirst",
+            "wall_seconds": 0.340722414,
+            "cpu_seconds": 0.336895,
+            "rss_bytes": 43872256
+          },
+          {
+            "order": "CandidateFirst",
+            "wall_seconds": 0.362522868,
+            "cpu_seconds": 0.35489,
+            "rss_bytes": 42766336
+          },
+          {
+            "order": "ReferenceFirst",
+            "wall_seconds": 0.33105964,
+            "cpu_seconds": 0.327028,
+            "rss_bytes": 44564480
+          },
+          {
+            "order": "CandidateFirst",
+            "wall_seconds": 0.342053913,
+            "cpu_seconds": 0.333651,
+            "rss_bytes": 42786816
+          },
+          {
+            "order": "ReferenceFirst",
+            "wall_seconds": 0.344266385,
+            "cpu_seconds": 0.339122,
+            "rss_bytes": 43917312
+          },
+          {
+            "order": "CandidateFirst",
+            "wall_seconds": 0.361184796,
+            "cpu_seconds": 0.349931,
+            "rss_bytes": 43151360
+          }
+        ]
+      },
+      "django/ryo/empty-tool-cache": {
+        "count": 6,
+        "median": {
+          "wall_seconds": 291.8693322235,
+          "cpu_seconds": 291.72722699999997,
+          "rss_bytes": 8380125184.0
+        },
+        "samples": [
+          {
+            "order": "ReferenceFirst",
+            "wall_seconds": 291.29898523,
+            "cpu_seconds": 291.226615,
+            "rss_bytes": 8380661760
+          },
+          {
+            "order": "CandidateFirst",
+            "wall_seconds": 292.439679217,
+            "cpu_seconds": 292.227839,
+            "rss_bytes": 8379248640
+          },
+          {
+            "order": "ReferenceFirst",
+            "wall_seconds": 285.303874719,
+            "cpu_seconds": 285.215264,
+            "rss_bytes": 8379408384
+          },
+          {
+            "order": "CandidateFirst",
+            "wall_seconds": 292.590892196,
+            "cpu_seconds": 292.520141,
+            "rss_bytes": 8380039168
+          },
+          {
+            "order": "ReferenceFirst",
+            "wall_seconds": 290.302054413,
+            "cpu_seconds": 290.120504,
+            "rss_bytes": 8380211200
+          },
+          {
+            "order": "CandidateFirst",
+            "wall_seconds": 293.639538644,
+            "cpu_seconds": 293.546124,
+            "rss_bytes": 8380715008
+          }
+        ]
+      },
+      "django/ruff/retained-tool-cache": {
+        "count": 6,
+        "median": {
+          "wall_seconds": 0.136027875,
+          "cpu_seconds": 0.1306795,
+          "rss_bytes": 42078208.0
+        },
+        "samples": [
+          {
+            "order": "ReferenceFirst",
+            "wall_seconds": 0.130173551,
+            "cpu_seconds": 0.125511,
+            "rss_bytes": 42147840
+          },
+          {
+            "order": "CandidateFirst",
+            "wall_seconds": 0.153707898,
+            "cpu_seconds": 0.1446,
+            "rss_bytes": 42008576
+          },
+          {
+            "order": "ReferenceFirst",
+            "wall_seconds": 0.134675043,
+            "cpu_seconds": 0.130538,
+            "rss_bytes": 41394176
+          },
+          {
+            "order": "CandidateFirst",
+            "wall_seconds": 0.14410378,
+            "cpu_seconds": 0.139769,
+            "rss_bytes": 41103360
+          },
+          {
+            "order": "ReferenceFirst",
+            "wall_seconds": 0.137380707,
+            "cpu_seconds": 0.130821,
+            "rss_bytes": 43122688
+          },
+          {
+            "order": "CandidateFirst",
+            "wall_seconds": 0.132377872,
+            "cpu_seconds": 0.128911,
+            "rss_bytes": 42160128
+          }
+        ]
+      },
+      "django/ryo/retained-tool-cache": {
+        "count": 6,
+        "median": {
+          "wall_seconds": 0.398160426,
+          "cpu_seconds": 0.3981045,
+          "rss_bytes": 60516352.0
+        },
+        "samples": [
+          {
+            "order": "ReferenceFirst",
+            "wall_seconds": 0.398873909,
+            "cpu_seconds": 0.398827,
+            "rss_bytes": 60518400
+          },
+          {
+            "order": "CandidateFirst",
+            "wall_seconds": 0.396764776,
+            "cpu_seconds": 0.396421,
+            "rss_bytes": 60514304
+          },
+          {
+            "order": "ReferenceFirst",
+            "wall_seconds": 0.423287957,
+            "cpu_seconds": 0.423199,
+            "rss_bytes": 60510208
+          },
+          {
+            "order": "CandidateFirst",
+            "wall_seconds": 0.397446943,
+            "cpu_seconds": 0.397382,
+            "rss_bytes": 60514304
+          },
+          {
+            "order": "ReferenceFirst",
+            "wall_seconds": 0.397313185,
+            "cpu_seconds": 0.397231,
+            "rss_bytes": 60567552
+          },
+          {
+            "order": "CandidateFirst",
+            "wall_seconds": 0.399830717,
+            "cpu_seconds": 0.399715,
+            "rss_bytes": 60571648
+          }
+        ]
+      },
+      "django/ruff/edited-tool-cache": {
+        "count": 6,
+        "median": {
+          "wall_seconds": 0.13068131500000002,
+          "cpu_seconds": 0.12692949999999997,
+          "rss_bytes": 42160128.0
+        },
+        "samples": [
+          {
+            "order": "ReferenceFirst",
+            "wall_seconds": 0.131001014,
+            "cpu_seconds": 0.127595,
+            "rss_bytes": 42713088
+          },
+          {
+            "order": "CandidateFirst",
+            "wall_seconds": 0.137284094,
+            "cpu_seconds": 0.133854,
+            "rss_bytes": 42000384
+          },
+          {
+            "order": "ReferenceFirst",
+            "wall_seconds": 0.13571405,
+            "cpu_seconds": 0.132532,
+            "rss_bytes": 42319872
+          },
+          {
+            "order": "CandidateFirst",
+            "wall_seconds": 0.126220162,
+            "cpu_seconds": 0.12268,
+            "rss_bytes": 41488384
+          },
+          {
+            "order": "ReferenceFirst",
+            "wall_seconds": 0.130361616,
+            "cpu_seconds": 0.123333,
+            "rss_bytes": 42389504
+          },
+          {
+            "order": "CandidateFirst",
+            "wall_seconds": 0.129680271,
+            "cpu_seconds": 0.126264,
+            "rss_bytes": 41566208
+          }
+        ]
+      },
+      "django/ryo/edited-tool-cache": {
+        "count": 6,
+        "median": {
+          "wall_seconds": 0.5074702685000001,
+          "cpu_seconds": 0.5073205000000001,
+          "rss_bytes": 114307072.0
+        },
+        "samples": [
+          {
+            "order": "ReferenceFirst",
+            "wall_seconds": 0.507855837,
+            "cpu_seconds": 0.507709,
+            "rss_bytes": 114294784
+          },
+          {
+            "order": "CandidateFirst",
+            "wall_seconds": 0.625133902,
+            "cpu_seconds": 0.604323,
+            "rss_bytes": 114139136
+          },
+          {
+            "order": "ReferenceFirst",
+            "wall_seconds": 0.556498992,
+            "cpu_seconds": 0.552333,
+            "rss_bytes": 114315264
+          },
+          {
+            "order": "CandidateFirst",
+            "wall_seconds": 0.480730157,
+            "cpu_seconds": 0.480576,
+            "rss_bytes": 114315264
+          },
+          {
+            "order": "ReferenceFirst",
+            "wall_seconds": 0.5070847,
+            "cpu_seconds": 0.506932,
+            "rss_bytes": 114302976
+          },
+          {
+            "order": "CandidateFirst",
+            "wall_seconds": 0.493585668,
+            "cpu_seconds": 0.493517,
+            "rss_bytes": 114311168
+          }
+        ]
+      },
+      "pandas/ruff/empty-tool-cache": {
+        "count": 6,
+        "median": {
+          "wall_seconds": 0.42356884699999997,
+          "cpu_seconds": 0.4111625,
+          "rss_bytes": 52588544.0
+        },
+        "samples": [
+          {
+            "order": "ReferenceFirst",
+            "wall_seconds": 0.418188461,
+            "cpu_seconds": 0.412962,
+            "rss_bytes": 52469760
+          },
+          {
+            "order": "CandidateFirst",
+            "wall_seconds": 0.42652723,
+            "cpu_seconds": 0.419586,
+            "rss_bytes": 52207616
+          },
+          {
+            "order": "ReferenceFirst",
+            "wall_seconds": 0.427120573,
+            "cpu_seconds": 0.409363,
+            "rss_bytes": 52858880
+          },
+          {
+            "order": "CandidateFirst",
+            "wall_seconds": 0.42902784,
+            "cpu_seconds": 0.419205,
+            "rss_bytes": 52236288
+          },
+          {
+            "order": "ReferenceFirst",
+            "wall_seconds": 0.395402885,
+            "cpu_seconds": 0.390487,
+            "rss_bytes": 53096448
+          },
+          {
+            "order": "CandidateFirst",
+            "wall_seconds": 0.420610464,
+            "cpu_seconds": 0.409134,
+            "rss_bytes": 52707328
+          }
+        ]
+      },
+      "pandas/ryo/empty-tool-cache": {
+        "count": 6,
+        "median": {
+          "wall_seconds": 325.1567698495,
+          "cpu_seconds": 325.04879800000003,
+          "rss_bytes": 6546153472.0
+        },
+        "samples": [
+          {
+            "order": "ReferenceFirst",
+            "wall_seconds": 339.312161908,
+            "cpu_seconds": 338.663534,
+            "rss_bytes": 6546264064
+          },
+          {
+            "order": "CandidateFirst",
+            "wall_seconds": 325.752677992,
+            "cpu_seconds": 325.652694,
+            "rss_bytes": 6546128896
+          },
+          {
+            "order": "ReferenceFirst",
+            "wall_seconds": 326.348691894,
+            "cpu_seconds": 326.183449,
+            "rss_bytes": 6546034688
+          },
+          {
+            "order": "CandidateFirst",
+            "wall_seconds": 324.043234234,
+            "cpu_seconds": 323.979671,
+            "rss_bytes": 6546075648
+          },
+          {
+            "order": "ReferenceFirst",
+            "wall_seconds": 324.560861707,
+            "cpu_seconds": 324.444902,
+            "rss_bytes": 6546178048
+          },
+          {
+            "order": "CandidateFirst",
+            "wall_seconds": 321.8737627,
+            "cpu_seconds": 321.767159,
+            "rss_bytes": 6546247680
+          }
+        ]
+      },
+      "pandas/ruff/retained-tool-cache": {
+        "count": 6,
+        "median": {
+          "wall_seconds": 0.18637007849999998,
+          "cpu_seconds": 0.181323,
+          "rss_bytes": 52754432.0
+        },
+        "samples": [
+          {
+            "order": "ReferenceFirst",
+            "wall_seconds": 0.186464269,
+            "cpu_seconds": 0.182689,
+            "rss_bytes": 52658176
+          },
+          {
+            "order": "CandidateFirst",
+            "wall_seconds": 0.184200782,
+            "cpu_seconds": 0.179957,
+            "rss_bytes": 52850688
+          },
+          {
+            "order": "ReferenceFirst",
+            "wall_seconds": 0.196577562,
+            "cpu_seconds": 0.189463,
+            "rss_bytes": 53329920
+          },
+          {
+            "order": "CandidateFirst",
+            "wall_seconds": 0.186275888,
+            "cpu_seconds": 0.177531,
+            "rss_bytes": 52088832
+          },
+          {
+            "order": "ReferenceFirst",
+            "wall_seconds": 0.218356949,
+            "cpu_seconds": 0.217161,
+            "rss_bytes": 53137408
+          },
+          {
+            "order": "CandidateFirst",
+            "wall_seconds": 0.182687476,
+            "cpu_seconds": 0.178054,
+            "rss_bytes": 52416512
+          }
+        ]
+      },
+      "pandas/ryo/retained-tool-cache": {
+        "count": 6,
+        "median": {
+          "wall_seconds": 0.3957373965,
+          "cpu_seconds": 0.39570249999999996,
+          "rss_bytes": 70705152.0
+        },
+        "samples": [
+          {
+            "order": "ReferenceFirst",
+            "wall_seconds": 0.392779334,
+            "cpu_seconds": 0.392795,
+            "rss_bytes": 70705152
+          },
+          {
+            "order": "CandidateFirst",
+            "wall_seconds": 0.396789621,
+            "cpu_seconds": 0.396616,
+            "rss_bytes": 70705152
+          },
+          {
+            "order": "ReferenceFirst",
+            "wall_seconds": 0.396234688,
+            "cpu_seconds": 0.396113,
+            "rss_bytes": 70701056
+          },
+          {
+            "order": "CandidateFirst",
+            "wall_seconds": 0.395470275,
+            "cpu_seconds": 0.39546,
+            "rss_bytes": 70705152
+          },
+          {
+            "order": "ReferenceFirst",
+            "wall_seconds": 0.396004518,
+            "cpu_seconds": 0.395945,
+            "rss_bytes": 70742016
+          },
+          {
+            "order": "CandidateFirst",
+            "wall_seconds": 0.392322496,
+            "cpu_seconds": 0.39235,
+            "rss_bytes": 70803456
+          }
+        ]
+      },
+      "pandas/ruff/edited-tool-cache": {
+        "count": 6,
+        "median": {
+          "wall_seconds": 0.18280091650000002,
+          "cpu_seconds": 0.17819000000000002,
+          "rss_bytes": 52248576.0
+        },
+        "samples": [
+          {
+            "order": "ReferenceFirst",
+            "wall_seconds": 0.183709583,
+            "cpu_seconds": 0.178925,
+            "rss_bytes": 52080640
+          },
+          {
+            "order": "CandidateFirst",
+            "wall_seconds": 0.183331776,
+            "cpu_seconds": 0.17918,
+            "rss_bytes": 52375552
+          },
+          {
+            "order": "ReferenceFirst",
+            "wall_seconds": 0.181472371,
+            "cpu_seconds": 0.17681,
+            "rss_bytes": 53497856
+          },
+          {
+            "order": "CandidateFirst",
+            "wall_seconds": 0.182207244,
+            "cpu_seconds": 0.177413,
+            "rss_bytes": 52121600
+          },
+          {
+            "order": "ReferenceFirst",
+            "wall_seconds": 0.182270057,
+            "cpu_seconds": 0.177455,
+            "rss_bytes": 53063680
+          },
+          {
+            "order": "CandidateFirst",
+            "wall_seconds": 0.19275658,
+            "cpu_seconds": 0.185685,
+            "rss_bytes": 52011008
+          }
+        ]
+      },
+      "pandas/ryo/edited-tool-cache": {
+        "count": 6,
+        "median": {
+          "wall_seconds": 0.576490109,
+          "cpu_seconds": 0.5763199999999999,
+          "rss_bytes": 182153216.0
+        },
+        "samples": [
+          {
+            "order": "ReferenceFirst",
+            "wall_seconds": 0.578816099,
+            "cpu_seconds": 0.578653,
+            "rss_bytes": 182149120
+          },
+          {
+            "order": "CandidateFirst",
+            "wall_seconds": 0.569548022,
+            "cpu_seconds": 0.569347,
+            "rss_bytes": 182140928
+          },
+          {
+            "order": "ReferenceFirst",
+            "wall_seconds": 0.574164119,
+            "cpu_seconds": 0.573987,
+            "rss_bytes": 182149120
+          },
+          {
+            "order": "CandidateFirst",
+            "wall_seconds": 0.571709177,
+            "cpu_seconds": 0.57154,
+            "rss_bytes": 182218752
+          },
+          {
+            "order": "ReferenceFirst",
+            "wall_seconds": 0.582082682,
+            "cpu_seconds": 0.581464,
+            "rss_bytes": 182161408
+          },
+          {
+            "order": "CandidateFirst",
+            "wall_seconds": 0.599790752,
+            "cpu_seconds": 0.599657,
+            "rss_bytes": 182157312
+          }
+        ]
+      },
+      "fastapi/ruff/empty-tool-cache": {
+        "count": 6,
+        "median": {
+          "wall_seconds": 0.0631666075,
+          "cpu_seconds": 0.059112,
+          "rss_bytes": 24614912.0
+        },
+        "samples": [
+          {
+            "order": "ReferenceFirst",
+            "wall_seconds": 0.064157193,
+            "cpu_seconds": 0.058849,
+            "rss_bytes": 24539136
+          },
+          {
+            "order": "CandidateFirst",
+            "wall_seconds": 0.062780976,
+            "cpu_seconds": 0.059375,
+            "rss_bytes": 24403968
+          },
+          {
+            "order": "ReferenceFirst",
+            "wall_seconds": 0.063547025,
+            "cpu_seconds": 0.057343,
+            "rss_bytes": 24690688
+          },
+          {
+            "order": "CandidateFirst",
+            "wall_seconds": 0.06278619,
+            "cpu_seconds": 0.059457,
+            "rss_bytes": 25444352
+          },
+          {
+            "order": "ReferenceFirst",
+            "wall_seconds": 0.061974976,
+            "cpu_seconds": 0.057241,
+            "rss_bytes": 25239552
+          },
+          {
+            "order": "CandidateFirst",
+            "wall_seconds": 0.075818929,
+            "cpu_seconds": 0.071357,
+            "rss_bytes": 24297472
+          }
+        ]
+      },
+      "fastapi/ryo/empty-tool-cache": {
+        "count": 6,
+        "median": {
+          "wall_seconds": 40.5684698895,
+          "cpu_seconds": 40.5571575,
+          "rss_bytes": 3748411392.0
+        },
+        "samples": [
+          {
+            "order": "ReferenceFirst",
+            "wall_seconds": 40.549209214,
+            "cpu_seconds": 40.532928,
+            "rss_bytes": 3748364288
+          },
+          {
+            "order": "CandidateFirst",
+            "wall_seconds": 40.583007477,
+            "cpu_seconds": 40.569615,
+            "rss_bytes": 3748466688
+          },
+          {
+            "order": "ReferenceFirst",
+            "wall_seconds": 40.621555534,
+            "cpu_seconds": 40.587399,
+            "rss_bytes": 3748249600
+          },
+          {
+            "order": "CandidateFirst",
+            "wall_seconds": 40.553932302,
+            "cpu_seconds": 40.5447,
+            "rss_bytes": 3748458496
+          },
+          {
+            "order": "ReferenceFirst",
+            "wall_seconds": 40.72653788,
+            "cpu_seconds": 40.710159,
+            "rss_bytes": 3748155392
+          },
+          {
+            "order": "CandidateFirst",
+            "wall_seconds": 40.408619194,
+            "cpu_seconds": 40.396761,
+            "rss_bytes": 3748503552
+          }
+        ]
+      },
+      "fastapi/ruff/retained-tool-cache": {
+        "count": 6,
+        "median": {
+          "wall_seconds": 0.020620658,
+          "cpu_seconds": 0.0167765,
+          "rss_bytes": 21772288.0
+        },
+        "samples": [
+          {
+            "order": "ReferenceFirst",
+            "wall_seconds": 0.02086322,
+            "cpu_seconds": 0.0178,
+            "rss_bytes": 21512192
+          },
+          {
+            "order": "CandidateFirst",
+            "wall_seconds": 0.019404205,
+            "cpu_seconds": 0.015492,
+            "rss_bytes": 21630976
+          },
+          {
+            "order": "ReferenceFirst",
+            "wall_seconds": 0.021644276,
+            "cpu_seconds": 0.017641,
+            "rss_bytes": 21913600
+          },
+          {
+            "order": "CandidateFirst",
+            "wall_seconds": 0.02023003,
+            "cpu_seconds": 0.016598,
+            "rss_bytes": 22286336
+          },
+          {
+            "order": "ReferenceFirst",
+            "wall_seconds": 0.021120078,
+            "cpu_seconds": 0.016955,
+            "rss_bytes": 22192128
+          },
+          {
+            "order": "CandidateFirst",
+            "wall_seconds": 0.020378096,
+            "cpu_seconds": 0.01635,
+            "rss_bytes": 21106688
+          }
+        ]
+      },
+      "fastapi/ryo/retained-tool-cache": {
+        "count": 6,
+        "median": {
+          "wall_seconds": 0.3736140575,
+          "cpu_seconds": 0.37357450000000003,
+          "rss_bytes": 40318976.0
+        },
+        "samples": [
+          {
+            "order": "ReferenceFirst",
+            "wall_seconds": 0.369426024,
+            "cpu_seconds": 0.369384,
+            "rss_bytes": 40321024
+          },
+          {
+            "order": "CandidateFirst",
+            "wall_seconds": 0.373149084,
+            "cpu_seconds": 0.373107,
+            "rss_bytes": 40316928
+          },
+          {
+            "order": "ReferenceFirst",
+            "wall_seconds": 0.37136294,
+            "cpu_seconds": 0.371312,
+            "rss_bytes": 40374272
+          },
+          {
+            "order": "CandidateFirst",
+            "wall_seconds": 0.375227379,
+            "cpu_seconds": 0.375138,
+            "rss_bytes": 40300544
+          },
+          {
+            "order": "ReferenceFirst",
+            "wall_seconds": 0.375476881,
+            "cpu_seconds": 0.375418,
+            "rss_bytes": 40308736
+          },
+          {
+            "order": "CandidateFirst",
+            "wall_seconds": 0.374079031,
+            "cpu_seconds": 0.374042,
+            "rss_bytes": 40374272
+          }
+        ]
+      },
+      "fastapi/ruff/edited-tool-cache": {
+        "count": 6,
+        "median": {
+          "wall_seconds": 0.0200302485,
+          "cpu_seconds": 0.0164155,
+          "rss_bytes": 22169600.0
+        },
+        "samples": [
+          {
+            "order": "ReferenceFirst",
+            "wall_seconds": 0.019354246,
+            "cpu_seconds": 0.016133,
+            "rss_bytes": 21839872
+          },
+          {
+            "order": "CandidateFirst",
+            "wall_seconds": 0.019296121,
+            "cpu_seconds": 0.015918,
+            "rss_bytes": 21884928
+          },
+          {
+            "order": "ReferenceFirst",
+            "wall_seconds": 0.020563308,
+            "cpu_seconds": 0.016932,
+            "rss_bytes": 22474752
+          },
+          {
+            "order": "CandidateFirst",
+            "wall_seconds": 0.019611192,
+            "cpu_seconds": 0.015676,
+            "rss_bytes": 22454272
+          },
+          {
+            "order": "ReferenceFirst",
+            "wall_seconds": 0.020663659,
+            "cpu_seconds": 0.017426,
+            "rss_bytes": 22474752
+          },
+          {
+            "order": "CandidateFirst",
+            "wall_seconds": 0.020449305,
+            "cpu_seconds": 0.016698,
+            "rss_bytes": 21839872
+          }
+        ]
+      },
+      "fastapi/ryo/edited-tool-cache": {
+        "count": 6,
+        "median": {
+          "wall_seconds": 1.2099927435,
+          "cpu_seconds": 1.209052,
+          "rss_bytes": 596764672.0
+        },
+        "samples": [
+          {
+            "order": "ReferenceFirst",
+            "wall_seconds": 1.203303702,
+            "cpu_seconds": 1.20321,
+            "rss_bytes": 596738048
+          },
+          {
+            "order": "CandidateFirst",
+            "wall_seconds": 1.20340336,
+            "cpu_seconds": 1.202801,
+            "rss_bytes": 596766720
+          },
+          {
+            "order": "ReferenceFirst",
+            "wall_seconds": 1.210341096,
+            "cpu_seconds": 1.209107,
+            "rss_bytes": 596836352
+          },
+          {
+            "order": "CandidateFirst",
+            "wall_seconds": 1.211428421,
+            "cpu_seconds": 1.209612,
+            "rss_bytes": 596684800
+          },
+          {
+            "order": "ReferenceFirst",
+            "wall_seconds": 1.21067054,
+            "cpu_seconds": 1.209839,
+            "rss_bytes": 596762624
+          },
+          {
+            "order": "CandidateFirst",
+            "wall_seconds": 1.209644391,
+            "cpu_seconds": 1.208997,
+            "rss_bytes": 596819968
+          }
+        ]
+      }
+    },
+    "bmf": {
+      "django/ruff/edited-tool-cache": {
+        "cpu-ms": {
+          "value": 126.92949999999999,
+          "lower_value": 122.67999999999999,
+          "upper_value": 133.854
+        },
+        "peak-rss-bytes": {
+          "value": 42160128.0,
+          "lower_value": 41488384.0,
+          "upper_value": 42713088.0
+        },
+        "wall-ms": {
+          "value": 130.681315,
+          "lower_value": 126.220162,
+          "upper_value": 137.28409399999998
+        }
+      },
+      "django/ruff/empty-tool-cache": {
+        "cpu-ms": {
+          "value": 338.00849999999997,
+          "lower_value": 327.02799999999996,
+          "upper_value": 354.89
+        },
+        "peak-rss-bytes": {
+          "value": 43511808.0,
+          "lower_value": 42766336.0,
+          "upper_value": 44564480.0
+        },
+        "wall-ms": {
+          "value": 343.160149,
+          "lower_value": 331.05964,
+          "upper_value": 362.522868
+        }
+      },
+      "django/ruff/retained-tool-cache": {
+        "cpu-ms": {
+          "value": 130.6795,
+          "lower_value": 125.51100000000001,
+          "upper_value": 144.6
+        },
+        "peak-rss-bytes": {
+          "value": 42078208.0,
+          "lower_value": 41103360.0,
+          "upper_value": 43122688.0
+        },
+        "wall-ms": {
+          "value": 136.027875,
+          "lower_value": 130.173551,
+          "upper_value": 153.707898
+        }
+      },
+      "django/ryo/edited-tool-cache": {
+        "cpu-ms": {
+          "value": 507.32050000000004,
+          "lower_value": 480.576,
+          "upper_value": 604.3230000000001
+        },
+        "peak-rss-bytes": {
+          "value": 114307072.0,
+          "lower_value": 114139136.0,
+          "upper_value": 114315264.0
+        },
+        "wall-ms": {
+          "value": 507.47026850000003,
+          "lower_value": 480.73015699999996,
+          "upper_value": 625.1339019999999
+        }
+      },
+      "django/ryo/empty-tool-cache": {
+        "cpu-ms": {
+          "value": 291727.227,
+          "lower_value": 285215.26399999997,
+          "upper_value": 293546.124
+        },
+        "peak-rss-bytes": {
+          "value": 8380125184.0,
+          "lower_value": 8379248640.0,
+          "upper_value": 8380715008.0
+        },
+        "wall-ms": {
+          "value": 291869.3322235,
+          "lower_value": 285303.874719,
+          "upper_value": 293639.538644
+        }
+      },
+      "django/ryo/retained-tool-cache": {
+        "cpu-ms": {
+          "value": 398.10450000000003,
+          "lower_value": 396.42100000000005,
+          "upper_value": 423.199
+        },
+        "peak-rss-bytes": {
+          "value": 60516352.0,
+          "lower_value": 60510208.0,
+          "upper_value": 60571648.0
+        },
+        "wall-ms": {
+          "value": 398.16042600000003,
+          "lower_value": 396.764776,
+          "upper_value": 423.287957
+        }
+      },
+      "fastapi/ruff/edited-tool-cache": {
+        "cpu-ms": {
+          "value": 16.4155,
+          "lower_value": 15.675999999999998,
+          "upper_value": 17.426000000000002
+        },
+        "peak-rss-bytes": {
+          "value": 22169600.0,
+          "lower_value": 21839872.0,
+          "upper_value": 22474752.0
+        },
+        "wall-ms": {
+          "value": 20.0302485,
+          "lower_value": 19.296121,
+          "upper_value": 20.663659000000003
+        }
+      },
+      "fastapi/ruff/empty-tool-cache": {
+        "cpu-ms": {
+          "value": 59.111999999999995,
+          "lower_value": 57.241,
+          "upper_value": 71.357
+        },
+        "peak-rss-bytes": {
+          "value": 24614912.0,
+          "lower_value": 24297472.0,
+          "upper_value": 25444352.0
+        },
+        "wall-ms": {
+          "value": 63.1666075,
+          "lower_value": 61.974976,
+          "upper_value": 75.818929
+        }
+      },
+      "fastapi/ruff/retained-tool-cache": {
+        "cpu-ms": {
+          "value": 16.776500000000002,
+          "lower_value": 15.492,
+          "upper_value": 17.8
+        },
+        "peak-rss-bytes": {
+          "value": 21772288.0,
+          "lower_value": 21106688.0,
+          "upper_value": 22286336.0
+        },
+        "wall-ms": {
+          "value": 20.620658,
+          "lower_value": 19.404205,
+          "upper_value": 21.644276
+        }
+      },
+      "fastapi/ryo/edited-tool-cache": {
+        "cpu-ms": {
+          "value": 1209.0520000000001,
+          "lower_value": 1202.801,
+          "upper_value": 1209.8390000000002
+        },
+        "peak-rss-bytes": {
+          "value": 596764672.0,
+          "lower_value": 596684800.0,
+          "upper_value": 596836352.0
+        },
+        "wall-ms": {
+          "value": 1209.9927435,
+          "lower_value": 1203.303702,
+          "upper_value": 1211.4284209999998
+        }
+      },
+      "fastapi/ryo/empty-tool-cache": {
+        "cpu-ms": {
+          "value": 40557.1575,
+          "lower_value": 40396.761,
+          "upper_value": 40710.159
+        },
+        "peak-rss-bytes": {
+          "value": 3748411392.0,
+          "lower_value": 3748155392.0,
+          "upper_value": 3748503552.0
+        },
+        "wall-ms": {
+          "value": 40568.469889500004,
+          "lower_value": 40408.619194000006,
+          "upper_value": 40726.53788
+        }
+      },
+      "fastapi/ryo/retained-tool-cache": {
+        "cpu-ms": {
+          "value": 373.5745,
+          "lower_value": 369.384,
+          "upper_value": 375.41799999999995
+        },
+        "peak-rss-bytes": {
+          "value": 40318976.0,
+          "lower_value": 40300544.0,
+          "upper_value": 40374272.0
+        },
+        "wall-ms": {
+          "value": 373.6140575,
+          "lower_value": 369.42602400000004,
+          "upper_value": 375.476881
+        }
+      },
+      "pandas/ruff/edited-tool-cache": {
+        "cpu-ms": {
+          "value": 178.19,
+          "lower_value": 176.81,
+          "upper_value": 185.685
+        },
+        "peak-rss-bytes": {
+          "value": 52248576.0,
+          "lower_value": 52011008.0,
+          "upper_value": 53497856.0
+        },
+        "wall-ms": {
+          "value": 182.8009165,
+          "lower_value": 181.47237099999998,
+          "upper_value": 192.75658
+        }
+      },
+      "pandas/ruff/empty-tool-cache": {
+        "cpu-ms": {
+          "value": 411.1625,
+          "lower_value": 390.48699999999997,
+          "upper_value": 419.586
+        },
+        "peak-rss-bytes": {
+          "value": 52588544.0,
+          "lower_value": 52207616.0,
+          "upper_value": 53096448.0
+        },
+        "wall-ms": {
+          "value": 423.568847,
+          "lower_value": 395.40288499999997,
+          "upper_value": 429.02783999999997
+        }
+      },
+      "pandas/ruff/retained-tool-cache": {
+        "cpu-ms": {
+          "value": 181.32299999999998,
+          "lower_value": 177.531,
+          "upper_value": 217.161
+        },
+        "peak-rss-bytes": {
+          "value": 52754432.0,
+          "lower_value": 52088832.0,
+          "upper_value": 53329920.0
+        },
+        "wall-ms": {
+          "value": 186.3700785,
+          "lower_value": 182.68747599999998,
+          "upper_value": 218.356949
+        }
+      },
+      "pandas/ryo/edited-tool-cache": {
+        "cpu-ms": {
+          "value": 576.32,
+          "lower_value": 569.3470000000001,
+          "upper_value": 599.657
+        },
+        "peak-rss-bytes": {
+          "value": 182153216.0,
+          "lower_value": 182140928.0,
+          "upper_value": 182218752.0
+        },
+        "wall-ms": {
+          "value": 576.4901090000001,
+          "lower_value": 569.548022,
+          "upper_value": 599.790752
+        }
+      },
+      "pandas/ryo/empty-tool-cache": {
+        "cpu-ms": {
+          "value": 325048.798,
+          "lower_value": 321767.159,
+          "upper_value": 338663.53400000004
+        },
+        "peak-rss-bytes": {
+          "value": 6546153472.0,
+          "lower_value": 6546034688.0,
+          "upper_value": 6546264064.0
+        },
+        "wall-ms": {
+          "value": 325156.7698495,
+          "lower_value": 321873.76269999996,
+          "upper_value": 339312.161908
+        }
+      },
+      "pandas/ryo/retained-tool-cache": {
+        "cpu-ms": {
+          "value": 395.7025,
+          "lower_value": 392.34999999999997,
+          "upper_value": 396.61600000000004
+        },
+        "peak-rss-bytes": {
+          "value": 70705152.0,
+          "lower_value": 70701056.0,
+          "upper_value": 70803456.0
+        },
+        "wall-ms": {
+          "value": 395.7373965,
+          "lower_value": 392.322496,
+          "upper_value": 396.78962099999995
+        }
+      }
+    },
+    "positive_clean_corpus_rules": [
+      "B004",
+      "B015",
+      "B017",
+      "B026",
+      "C401",
+      "C408",
+      "C419",
+      "DTZ001",
+      "DTZ002",
+      "DTZ005",
+      "DTZ006",
+      "DTZ011",
+      "DTZ012",
+      "LOG015",
+      "PIE794",
+      "PIE800",
+      "PLC0414",
+      "PLC3002",
+      "PLR1711",
+      "PLR1722",
+      "PLW0120",
+      "PLW1510",
+      "RUF032",
+      "S102",
+      "S110",
+      "SIM210",
+      "SIM211",
+      "TRY002",
+      "TRY203",
+      "UP004"
+    ],
+    "positive_only_edited_corpus_rules": [
+      "E722"
+    ],
+    "positive_only_independent_fixture_rules": [
+      "ASYNC115",
+      "B002",
+      "B003",
+      "B012",
+      "B013",
+      "B014",
+      "B016",
+      "B021",
+      "B022",
+      "B025",
+      "B029",
+      "B032",
+      "C400",
+      "C402",
+      "C403",
+      "C404",
+      "C405",
+      "C406",
+      "C409",
+      "C410",
+      "C411",
+      "C413",
+      "C415",
+      "C418",
+      "D419",
+      "DTZ003",
+      "DTZ004",
+      "EXE005",
+      "F541",
+      "F622",
+      "F631",
+      "F634",
+      "F701",
+      "F702",
+      "F704",
+      "F706",
+      "F707",
+      "F901",
+      "INT001",
+      "INT002",
+      "INT003",
+      "LOG001",
+      "PGH005",
+      "PLC0205",
+      "PLE1132",
+      "PLR0133",
+      "PLR0402",
+      "PLW0128",
+      "PLW0129",
+      "PLW0131",
+      "PLW0604",
+      "PLW0711",
+      "PLW1507",
+      "PLW1509",
+      "PYI001",
+      "PYI009",
+      "PYI010",
+      "PYI012",
+      "PYI013",
+      "PYI017",
+      "PYI025",
+      "PYI033",
+      "PYI035",
+      "PYI044",
+      "PYI048",
+      "RUF040",
+      "S112",
+      "SIM208",
+      "UP001",
+      "UP005",
+      "UP023",
+      "UP025",
+      "UP039"
+    ],
+    "observations": "collector: executable=/workspaces/idiomatic-public-benchmark/crates/ryo/languages/python/target/benchmark/python/certification-F12HbU/workload/collector sha256=d0ac3a53e6b771423db506e01a90eaef7754c3f10df7d241eded744d598ce2be\nscope: Accounted; 104 verified / 413 shipped defaults; 309 assessed deferrals; 0 assessed pending; 0 unassessed; 0 authored outside subset; 2023 cases; certificate=d22786917ae7276e8c36c41ff7bb36f9f7069dacac7bdc8f1f3c9014668cb891; artifacts=/workspaces/idiomatic-public-benchmark/crates/ryo/languages/python/target/benchmark/python/certification-F12HbU/profile\nenvironment: os=linux arch=aarch64 release=true workers=1; isolated collector Linux wait4 CPU=user+system, RSS=child peak bytes; child wall includes spawn/wait and pipe collection; collector launch, normalization and certificate/source hashing excluded; OS page cache uncontrolled; retained cache hits unverified\ndjango: matched Python source scope 2875 files; excluded default-discovered formats 1 files (source-kind capability gap): pyproject.toml\ndjango: excluded invalid Python (pinned Ruff parser), path=tests/test_runner_apps/tagged/tests_syntax_error.py range=131..143; frontend parser capability gap\ndjango: measured source files=2874 bytes=18487487 digest=bbd95a92f564a597d21ba8b16d5c8d1d6ba3d82d189190c63c9dde1f8766bc5f input-profile=pinned-reference-valid-python\ndjango: exact matching findings per rule: B004=1, B015=3, B017=8, B026=7, C401=4, C408=2, C419=4, DTZ001=841, DTZ002=17, DTZ005=132, DTZ006=6, DTZ011=95, DTZ012=1, PIE794=1, PIE800=2, PLC3002=1, PLR1711=5, PLR1722=3, PLW0120=1, PLW1510=16, RUF032=30, S102=6, S110=9, TRY002=79, UP004=1\nfindings: project=django contestant=ruff condition=empty-tool-cache counts=B004=1, B015=3, B017=8, B026=7, C401=4, C408=2, C419=4, DTZ001=841, DTZ002=17, DTZ005=132, DTZ006=6, DTZ011=95, DTZ012=1, PIE794=1, PIE800=2, PLC3002=1, PLR1711=5, PLR1722=3, PLW0120=1, PLW1510=16, RUF032=30, S102=6, S110=9, TRY002=79, UP004=1\nsample: name=django/ruff/empty-tool-cache order=ReferenceFirst wall_seconds=0.340722414 cpu_seconds=0.336895 rss_bytes=43872256\nfindings: project=django contestant=ryo condition=empty-tool-cache counts=B004=1, B015=3, B017=8, B026=7, C401=4, C408=2, C419=4, DTZ001=841, DTZ002=17, DTZ005=132, DTZ006=6, DTZ011=95, DTZ012=1, PIE794=1, PIE800=2, PLC3002=1, PLR1711=5, PLR1722=3, PLW0120=1, PLW1510=16, RUF032=30, S102=6, S110=9, TRY002=79, UP004=1\nsample: name=django/ryo/empty-tool-cache order=ReferenceFirst wall_seconds=291.29898523 cpu_seconds=291.226615 rss_bytes=8380661760\nfindings: project=django contestant=ruff condition=retained-tool-cache counts=B004=1, B015=3, B017=8, B026=7, C401=4, C408=2, C419=4, DTZ001=841, DTZ002=17, DTZ005=132, DTZ006=6, DTZ011=95, DTZ012=1, PIE794=1, PIE800=2, PLC3002=1, PLR1711=5, PLR1722=3, PLW0120=1, PLW1510=16, RUF032=30, S102=6, S110=9, TRY002=79, UP004=1\nsample: name=django/ruff/retained-tool-cache order=ReferenceFirst wall_seconds=0.130173551 cpu_seconds=0.125511 rss_bytes=42147840\nfindings: project=django contestant=ryo condition=retained-tool-cache counts=B004=1, B015=3, B017=8, B026=7, C401=4, C408=2, C419=4, DTZ001=841, DTZ002=17, DTZ005=132, DTZ006=6, DTZ011=95, DTZ012=1, PIE794=1, PIE800=2, PLC3002=1, PLR1711=5, PLR1722=3, PLW0120=1, PLW1510=16, RUF032=30, S102=6, S110=9, TRY002=79, UP004=1\nsample: name=django/ryo/retained-tool-cache order=ReferenceFirst wall_seconds=0.398873909 cpu_seconds=0.398827 rss_bytes=60518400\nfindings: project=django contestant=ruff condition=edited-tool-cache counts=B004=1, B015=3, B017=8, B026=7, C401=4, C408=2, C419=4, DTZ001=841, DTZ002=17, DTZ005=132, DTZ006=6, DTZ011=95, DTZ012=1, E722=1, PIE794=1, PIE800=2, PLC3002=1, PLR1711=5, PLR1722=3, PLW0120=1, PLW1510=16, RUF032=30, S102=6, S110=9, TRY002=79, UP004=1\nsample: name=django/ruff/edited-tool-cache order=ReferenceFirst wall_seconds=0.131001014 cpu_seconds=0.127595 rss_bytes=42713088\nfindings: project=django contestant=ryo condition=edited-tool-cache counts=B004=1, B015=3, B017=8, B026=7, C401=4, C408=2, C419=4, DTZ001=841, DTZ002=17, DTZ005=132, DTZ006=6, DTZ011=95, DTZ012=1, E722=1, PIE794=1, PIE800=2, PLC3002=1, PLR1711=5, PLR1722=3, PLW0120=1, PLW1510=16, RUF032=30, S102=6, S110=9, TRY002=79, UP004=1\nsample: name=django/ryo/edited-tool-cache order=ReferenceFirst wall_seconds=0.507855837 cpu_seconds=0.507709 rss_bytes=114294784\ndjango: exact matching findings per rule: B004=1, B015=3, B017=8, B026=7, C401=4, C408=2, C419=4, DTZ001=841, DTZ002=17, DTZ005=132, DTZ006=6, DTZ011=95, DTZ012=1, PIE794=1, PIE800=2, PLC3002=1, PLR1711=5, PLR1722=3, PLW0120=1, PLW1510=16, RUF032=30, S102=6, S110=9, TRY002=79, UP004=1\nfindings: project=django contestant=ruff condition=empty-tool-cache counts=B004=1, B015=3, B017=8, B026=7, C401=4, C408=2, C419=4, DTZ001=841, DTZ002=17, DTZ005=132, DTZ006=6, DTZ011=95, DTZ012=1, PIE794=1, PIE800=2, PLC3002=1, PLR1711=5, PLR1722=3, PLW0120=1, PLW1510=16, RUF032=30, S102=6, S110=9, TRY002=79, UP004=1\nsample: name=django/ruff/empty-tool-cache order=CandidateFirst wall_seconds=0.362522868 cpu_seconds=0.35489 rss_bytes=42766336\nfindings: project=django contestant=ryo condition=empty-tool-cache counts=B004=1, B015=3, B017=8, B026=7, C401=4, C408=2, C419=4, DTZ001=841, DTZ002=17, DTZ005=132, DTZ006=6, DTZ011=95, DTZ012=1, PIE794=1, PIE800=2, PLC3002=1, PLR1711=5, PLR1722=3, PLW0120=1, PLW1510=16, RUF032=30, S102=6, S110=9, TRY002=79, UP004=1\nsample: name=django/ryo/empty-tool-cache order=CandidateFirst wall_seconds=292.439679217 cpu_seconds=292.227839 rss_bytes=8379248640\nfindings: project=django contestant=ruff condition=retained-tool-cache counts=B004=1, B015=3, B017=8, B026=7, C401=4, C408=2, C419=4, DTZ001=841, DTZ002=17, DTZ005=132, DTZ006=6, DTZ011=95, DTZ012=1, PIE794=1, PIE800=2, PLC3002=1, PLR1711=5, PLR1722=3, PLW0120=1, PLW1510=16, RUF032=30, S102=6, S110=9, TRY002=79, UP004=1\nsample: name=django/ruff/retained-tool-cache order=CandidateFirst wall_seconds=0.153707898 cpu_seconds=0.1446 rss_bytes=42008576\nfindings: project=django contestant=ryo condition=retained-tool-cache counts=B004=1, B015=3, B017=8, B026=7, C401=4, C408=2, C419=4, DTZ001=841, DTZ002=17, DTZ005=132, DTZ006=6, DTZ011=95, DTZ012=1, PIE794=1, PIE800=2, PLC3002=1, PLR1711=5, PLR1722=3, PLW0120=1, PLW1510=16, RUF032=30, S102=6, S110=9, TRY002=79, UP004=1\nsample: name=django/ryo/retained-tool-cache order=CandidateFirst wall_seconds=0.396764776 cpu_seconds=0.396421 rss_bytes=60514304\nfindings: project=django contestant=ruff condition=edited-tool-cache counts=B004=1, B015=3, B017=8, B026=7, C401=4, C408=2, C419=4, DTZ001=841, DTZ002=17, DTZ005=132, DTZ006=6, DTZ011=95, DTZ012=1, E722=1, PIE794=1, PIE800=2, PLC3002=1, PLR1711=5, PLR1722=3, PLW0120=1, PLW1510=16, RUF032=30, S102=6, S110=9, TRY002=79, UP004=1\nsample: name=django/ruff/edited-tool-cache order=CandidateFirst wall_seconds=0.137284094 cpu_seconds=0.133854 rss_bytes=42000384\nfindings: project=django contestant=ryo condition=edited-tool-cache counts=B004=1, B015=3, B017=8, B026=7, C401=4, C408=2, C419=4, DTZ001=841, DTZ002=17, DTZ005=132, DTZ006=6, DTZ011=95, DTZ012=1, E722=1, PIE794=1, PIE800=2, PLC3002=1, PLR1711=5, PLR1722=3, PLW0120=1, PLW1510=16, RUF032=30, S102=6, S110=9, TRY002=79, UP004=1\nsample: name=django/ryo/edited-tool-cache order=CandidateFirst wall_seconds=0.625133902 cpu_seconds=0.604323 rss_bytes=114139136\ndjango: exact matching findings per rule: B004=1, B015=3, B017=8, B026=7, C401=4, C408=2, C419=4, DTZ001=841, DTZ002=17, DTZ005=132, DTZ006=6, DTZ011=95, DTZ012=1, PIE794=1, PIE800=2, PLC3002=1, PLR1711=5, PLR1722=3, PLW0120=1, PLW1510=16, RUF032=30, S102=6, S110=9, TRY002=79, UP004=1\nfindings: project=django contestant=ruff condition=empty-tool-cache counts=B004=1, B015=3, B017=8, B026=7, C401=4, C408=2, C419=4, DTZ001=841, DTZ002=17, DTZ005=132, DTZ006=6, DTZ011=95, DTZ012=1, PIE794=1, PIE800=2, PLC3002=1, PLR1711=5, PLR1722=3, PLW0120=1, PLW1510=16, RUF032=30, S102=6, S110=9, TRY002=79, UP004=1\nsample: name=django/ruff/empty-tool-cache order=ReferenceFirst wall_seconds=0.33105964 cpu_seconds=0.327028 rss_bytes=44564480\nfindings: project=django contestant=ryo condition=empty-tool-cache counts=B004=1, B015=3, B017=8, B026=7, C401=4, C408=2, C419=4, DTZ001=841, DTZ002=17, DTZ005=132, DTZ006=6, DTZ011=95, DTZ012=1, PIE794=1, PIE800=2, PLC3002=1, PLR1711=5, PLR1722=3, PLW0120=1, PLW1510=16, RUF032=30, S102=6, S110=9, TRY002=79, UP004=1\nsample: name=django/ryo/empty-tool-cache order=ReferenceFirst wall_seconds=285.303874719 cpu_seconds=285.215264 rss_bytes=8379408384\nfindings: project=django contestant=ruff condition=retained-tool-cache counts=B004=1, B015=3, B017=8, B026=7, C401=4, C408=2, C419=4, DTZ001=841, DTZ002=17, DTZ005=132, DTZ006=6, DTZ011=95, DTZ012=1, PIE794=1, PIE800=2, PLC3002=1, PLR1711=5, PLR1722=3, PLW0120=1, PLW1510=16, RUF032=30, S102=6, S110=9, TRY002=79, UP004=1\nsample: name=django/ruff/retained-tool-cache order=ReferenceFirst wall_seconds=0.134675043 cpu_seconds=0.130538 rss_bytes=41394176\nfindings: project=django contestant=ryo condition=retained-tool-cache counts=B004=1, B015=3, B017=8, B026=7, C401=4, C408=2, C419=4, DTZ001=841, DTZ002=17, DTZ005=132, DTZ006=6, DTZ011=95, DTZ012=1, PIE794=1, PIE800=2, PLC3002=1, PLR1711=5, PLR1722=3, PLW0120=1, PLW1510=16, RUF032=30, S102=6, S110=9, TRY002=79, UP004=1\nsample: name=django/ryo/retained-tool-cache order=ReferenceFirst wall_seconds=0.423287957 cpu_seconds=0.423199 rss_bytes=60510208\nfindings: project=django contestant=ruff condition=edited-tool-cache counts=B004=1, B015=3, B017=8, B026=7, C401=4, C408=2, C419=4, DTZ001=841, DTZ002=17, DTZ005=132, DTZ006=6, DTZ011=95, DTZ012=1, E722=1, PIE794=1, PIE800=2, PLC3002=1, PLR1711=5, PLR1722=3, PLW0120=1, PLW1510=16, RUF032=30, S102=6, S110=9, TRY002=79, UP004=1\nsample: name=django/ruff/edited-tool-cache order=ReferenceFirst wall_seconds=0.13571405 cpu_seconds=0.132532 rss_bytes=42319872\nfindings: project=django contestant=ryo condition=edited-tool-cache counts=B004=1, B015=3, B017=8, B026=7, C401=4, C408=2, C419=4, DTZ001=841, DTZ002=17, DTZ005=132, DTZ006=6, DTZ011=95, DTZ012=1, E722=1, PIE794=1, PIE800=2, PLC3002=1, PLR1711=5, PLR1722=3, PLW0120=1, PLW1510=16, RUF032=30, S102=6, S110=9, TRY002=79, UP004=1\nsample: name=django/ryo/edited-tool-cache order=ReferenceFirst wall_seconds=0.556498992 cpu_seconds=0.552333 rss_bytes=114315264\ndjango: exact matching findings per rule: B004=1, B015=3, B017=8, B026=7, C401=4, C408=2, C419=4, DTZ001=841, DTZ002=17, DTZ005=132, DTZ006=6, DTZ011=95, DTZ012=1, PIE794=1, PIE800=2, PLC3002=1, PLR1711=5, PLR1722=3, PLW0120=1, PLW1510=16, RUF032=30, S102=6, S110=9, TRY002=79, UP004=1\nfindings: project=django contestant=ruff condition=empty-tool-cache counts=B004=1, B015=3, B017=8, B026=7, C401=4, C408=2, C419=4, DTZ001=841, DTZ002=17, DTZ005=132, DTZ006=6, DTZ011=95, DTZ012=1, PIE794=1, PIE800=2, PLC3002=1, PLR1711=5, PLR1722=3, PLW0120=1, PLW1510=16, RUF032=30, S102=6, S110=9, TRY002=79, UP004=1\nsample: name=django/ruff/empty-tool-cache order=CandidateFirst wall_seconds=0.342053913 cpu_seconds=0.333651 rss_bytes=42786816\nfindings: project=django contestant=ryo condition=empty-tool-cache counts=B004=1, B015=3, B017=8, B026=7, C401=4, C408=2, C419=4, DTZ001=841, DTZ002=17, DTZ005=132, DTZ006=6, DTZ011=95, DTZ012=1, PIE794=1, PIE800=2, PLC3002=1, PLR1711=5, PLR1722=3, PLW0120=1, PLW1510=16, RUF032=30, S102=6, S110=9, TRY002=79, UP004=1\nsample: name=django/ryo/empty-tool-cache order=CandidateFirst wall_seconds=292.590892196 cpu_seconds=292.520141 rss_bytes=8380039168\nfindings: project=django contestant=ruff condition=retained-tool-cache counts=B004=1, B015=3, B017=8, B026=7, C401=4, C408=2, C419=4, DTZ001=841, DTZ002=17, DTZ005=132, DTZ006=6, DTZ011=95, DTZ012=1, PIE794=1, PIE800=2, PLC3002=1, PLR1711=5, PLR1722=3, PLW0120=1, PLW1510=16, RUF032=30, S102=6, S110=9, TRY002=79, UP004=1\nsample: name=django/ruff/retained-tool-cache order=CandidateFirst wall_seconds=0.14410378 cpu_seconds=0.139769 rss_bytes=41103360\nfindings: project=django contestant=ryo condition=retained-tool-cache counts=B004=1, B015=3, B017=8, B026=7, C401=4, C408=2, C419=4, DTZ001=841, DTZ002=17, DTZ005=132, DTZ006=6, DTZ011=95, DTZ012=1, PIE794=1, PIE800=2, PLC3002=1, PLR1711=5, PLR1722=3, PLW0120=1, PLW1510=16, RUF032=30, S102=6, S110=9, TRY002=79, UP004=1\nsample: name=django/ryo/retained-tool-cache order=CandidateFirst wall_seconds=0.397446943 cpu_seconds=0.397382 rss_bytes=60514304\nfindings: project=django contestant=ruff condition=edited-tool-cache counts=B004=1, B015=3, B017=8, B026=7, C401=4, C408=2, C419=4, DTZ001=841, DTZ002=17, DTZ005=132, DTZ006=6, DTZ011=95, DTZ012=1, E722=1, PIE794=1, PIE800=2, PLC3002=1, PLR1711=5, PLR1722=3, PLW0120=1, PLW1510=16, RUF032=30, S102=6, S110=9, TRY002=79, UP004=1\nsample: name=django/ruff/edited-tool-cache order=CandidateFirst wall_seconds=0.126220162 cpu_seconds=0.12268 rss_bytes=41488384\nfindings: project=django contestant=ryo condition=edited-tool-cache counts=B004=1, B015=3, B017=8, B026=7, C401=4, C408=2, C419=4, DTZ001=841, DTZ002=17, DTZ005=132, DTZ006=6, DTZ011=95, DTZ012=1, E722=1, PIE794=1, PIE800=2, PLC3002=1, PLR1711=5, PLR1722=3, PLW0120=1, PLW1510=16, RUF032=30, S102=6, S110=9, TRY002=79, UP004=1\nsample: name=django/ryo/edited-tool-cache order=CandidateFirst wall_seconds=0.480730157 cpu_seconds=0.480576 rss_bytes=114315264\ndjango: exact matching findings per rule: B004=1, B015=3, B017=8, B026=7, C401=4, C408=2, C419=4, DTZ001=841, DTZ002=17, DTZ005=132, DTZ006=6, DTZ011=95, DTZ012=1, PIE794=1, PIE800=2, PLC3002=1, PLR1711=5, PLR1722=3, PLW0120=1, PLW1510=16, RUF032=30, S102=6, S110=9, TRY002=79, UP004=1\nfindings: project=django contestant=ruff condition=empty-tool-cache counts=B004=1, B015=3, B017=8, B026=7, C401=4, C408=2, C419=4, DTZ001=841, DTZ002=17, DTZ005=132, DTZ006=6, DTZ011=95, DTZ012=1, PIE794=1, PIE800=2, PLC3002=1, PLR1711=5, PLR1722=3, PLW0120=1, PLW1510=16, RUF032=30, S102=6, S110=9, TRY002=79, UP004=1\nsample: name=django/ruff/empty-tool-cache order=ReferenceFirst wall_seconds=0.344266385 cpu_seconds=0.339122 rss_bytes=43917312\nfindings: project=django contestant=ryo condition=empty-tool-cache counts=B004=1, B015=3, B017=8, B026=7, C401=4, C408=2, C419=4, DTZ001=841, DTZ002=17, DTZ005=132, DTZ006=6, DTZ011=95, DTZ012=1, PIE794=1, PIE800=2, PLC3002=1, PLR1711=5, PLR1722=3, PLW0120=1, PLW1510=16, RUF032=30, S102=6, S110=9, TRY002=79, UP004=1\nsample: name=django/ryo/empty-tool-cache order=ReferenceFirst wall_seconds=290.302054413 cpu_seconds=290.120504 rss_bytes=8380211200\nfindings: project=django contestant=ruff condition=retained-tool-cache counts=B004=1, B015=3, B017=8, B026=7, C401=4, C408=2, C419=4, DTZ001=841, DTZ002=17, DTZ005=132, DTZ006=6, DTZ011=95, DTZ012=1, PIE794=1, PIE800=2, PLC3002=1, PLR1711=5, PLR1722=3, PLW0120=1, PLW1510=16, RUF032=30, S102=6, S110=9, TRY002=79, UP004=1\nsample: name=django/ruff/retained-tool-cache order=ReferenceFirst wall_seconds=0.137380707 cpu_seconds=0.130821 rss_bytes=43122688\nfindings: project=django contestant=ryo condition=retained-tool-cache counts=B004=1, B015=3, B017=8, B026=7, C401=4, C408=2, C419=4, DTZ001=841, DTZ002=17, DTZ005=132, DTZ006=6, DTZ011=95, DTZ012=1, PIE794=1, PIE800=2, PLC3002=1, PLR1711=5, PLR1722=3, PLW0120=1, PLW1510=16, RUF032=30, S102=6, S110=9, TRY002=79, UP004=1\nsample: name=django/ryo/retained-tool-cache order=ReferenceFirst wall_seconds=0.397313185 cpu_seconds=0.397231 rss_bytes=60567552\nfindings: project=django contestant=ruff condition=edited-tool-cache counts=B004=1, B015=3, B017=8, B026=7, C401=4, C408=2, C419=4, DTZ001=841, DTZ002=17, DTZ005=132, DTZ006=6, DTZ011=95, DTZ012=1, E722=1, PIE794=1, PIE800=2, PLC3002=1, PLR1711=5, PLR1722=3, PLW0120=1, PLW1510=16, RUF032=30, S102=6, S110=9, TRY002=79, UP004=1\nsample: name=django/ruff/edited-tool-cache order=ReferenceFirst wall_seconds=0.130361616 cpu_seconds=0.123333 rss_bytes=42389504\nfindings: project=django contestant=ryo condition=edited-tool-cache counts=B004=1, B015=3, B017=8, B026=7, C401=4, C408=2, C419=4, DTZ001=841, DTZ002=17, DTZ005=132, DTZ006=6, DTZ011=95, DTZ012=1, E722=1, PIE794=1, PIE800=2, PLC3002=1, PLR1711=5, PLR1722=3, PLW0120=1, PLW1510=16, RUF032=30, S102=6, S110=9, TRY002=79, UP004=1\nsample: name=django/ryo/edited-tool-cache order=ReferenceFirst wall_seconds=0.5070847 cpu_seconds=0.506932 rss_bytes=114302976\ndjango: exact matching findings per rule: B004=1, B015=3, B017=8, B026=7, C401=4, C408=2, C419=4, DTZ001=841, DTZ002=17, DTZ005=132, DTZ006=6, DTZ011=95, DTZ012=1, PIE794=1, PIE800=2, PLC3002=1, PLR1711=5, PLR1722=3, PLW0120=1, PLW1510=16, RUF032=30, S102=6, S110=9, TRY002=79, UP004=1\nfindings: project=django contestant=ruff condition=empty-tool-cache counts=B004=1, B015=3, B017=8, B026=7, C401=4, C408=2, C419=4, DTZ001=841, DTZ002=17, DTZ005=132, DTZ006=6, DTZ011=95, DTZ012=1, PIE794=1, PIE800=2, PLC3002=1, PLR1711=5, PLR1722=3, PLW0120=1, PLW1510=16, RUF032=30, S102=6, S110=9, TRY002=79, UP004=1\nsample: name=django/ruff/empty-tool-cache order=CandidateFirst wall_seconds=0.361184796 cpu_seconds=0.349931 rss_bytes=43151360\nfindings: project=django contestant=ryo condition=empty-tool-cache counts=B004=1, B015=3, B017=8, B026=7, C401=4, C408=2, C419=4, DTZ001=841, DTZ002=17, DTZ005=132, DTZ006=6, DTZ011=95, DTZ012=1, PIE794=1, PIE800=2, PLC3002=1, PLR1711=5, PLR1722=3, PLW0120=1, PLW1510=16, RUF032=30, S102=6, S110=9, TRY002=79, UP004=1\nsample: name=django/ryo/empty-tool-cache order=CandidateFirst wall_seconds=293.639538644 cpu_seconds=293.546124 rss_bytes=8380715008\nfindings: project=django contestant=ruff condition=retained-tool-cache counts=B004=1, B015=3, B017=8, B026=7, C401=4, C408=2, C419=4, DTZ001=841, DTZ002=17, DTZ005=132, DTZ006=6, DTZ011=95, DTZ012=1, PIE794=1, PIE800=2, PLC3002=1, PLR1711=5, PLR1722=3, PLW0120=1, PLW1510=16, RUF032=30, S102=6, S110=9, TRY002=79, UP004=1\nsample: name=django/ruff/retained-tool-cache order=CandidateFirst wall_seconds=0.132377872 cpu_seconds=0.128911 rss_bytes=42160128\nfindings: project=django contestant=ryo condition=retained-tool-cache counts=B004=1, B015=3, B017=8, B026=7, C401=4, C408=2, C419=4, DTZ001=841, DTZ002=17, DTZ005=132, DTZ006=6, DTZ011=95, DTZ012=1, PIE794=1, PIE800=2, PLC3002=1, PLR1711=5, PLR1722=3, PLW0120=1, PLW1510=16, RUF032=30, S102=6, S110=9, TRY002=79, UP004=1\nsample: name=django/ryo/retained-tool-cache order=CandidateFirst wall_seconds=0.399830717 cpu_seconds=0.399715 rss_bytes=60571648\nfindings: project=django contestant=ruff condition=edited-tool-cache counts=B004=1, B015=3, B017=8, B026=7, C401=4, C408=2, C419=4, DTZ001=841, DTZ002=17, DTZ005=132, DTZ006=6, DTZ011=95, DTZ012=1, E722=1, PIE794=1, PIE800=2, PLC3002=1, PLR1711=5, PLR1722=3, PLW0120=1, PLW1510=16, RUF032=30, S102=6, S110=9, TRY002=79, UP004=1\nsample: name=django/ruff/edited-tool-cache order=CandidateFirst wall_seconds=0.129680271 cpu_seconds=0.126264 rss_bytes=41566208\nfindings: project=django contestant=ryo condition=edited-tool-cache counts=B004=1, B015=3, B017=8, B026=7, C401=4, C408=2, C419=4, DTZ001=841, DTZ002=17, DTZ005=132, DTZ006=6, DTZ011=95, DTZ012=1, E722=1, PIE794=1, PIE800=2, PLC3002=1, PLR1711=5, PLR1722=3, PLW0120=1, PLW1510=16, RUF032=30, S102=6, S110=9, TRY002=79, UP004=1\nsample: name=django/ryo/edited-tool-cache order=CandidateFirst wall_seconds=0.493585668 cpu_seconds=0.493517 rss_bytes=114311168\npandas: matched Python source scope 1553 files; excluded default-discovered formats 2 files (source-kind capability gap): doc/source/user_guide/style.ipynb, pyproject.toml\npandas: measured source files=1553 bytes=21856668 digest=171895bd5d609c2119e4b94734a293d6ea5410d07acf9c2be30b94058b9ddffb input-profile=pinned-reference-valid-python\npandas: exact matching findings per rule: B015=194, DTZ001=4859, DTZ002=36, DTZ005=39, DTZ006=3, DTZ011=13, DTZ012=3, S110=5, SIM210=1, SIM211=3, TRY002=10, TRY203=1\nfindings: project=pandas contestant=ruff condition=empty-tool-cache counts=B015=194, DTZ001=4859, DTZ002=36, DTZ005=39, DTZ006=3, DTZ011=13, DTZ012=3, S110=5, SIM210=1, SIM211=3, TRY002=10, TRY203=1\nsample: name=pandas/ruff/empty-tool-cache order=ReferenceFirst wall_seconds=0.418188461 cpu_seconds=0.412962 rss_bytes=52469760\nfindings: project=pandas contestant=ryo condition=empty-tool-cache counts=B015=194, DTZ001=4859, DTZ002=36, DTZ005=39, DTZ006=3, DTZ011=13, DTZ012=3, S110=5, SIM210=1, SIM211=3, TRY002=10, TRY203=1\nsample: name=pandas/ryo/empty-tool-cache order=ReferenceFirst wall_seconds=339.312161908 cpu_seconds=338.663534 rss_bytes=6546264064\nfindings: project=pandas contestant=ruff condition=retained-tool-cache counts=B015=194, DTZ001=4859, DTZ002=36, DTZ005=39, DTZ006=3, DTZ011=13, DTZ012=3, S110=5, SIM210=1, SIM211=3, TRY002=10, TRY203=1\nsample: name=pandas/ruff/retained-tool-cache order=ReferenceFirst wall_seconds=0.186464269 cpu_seconds=0.182689 rss_bytes=52658176\nfindings: project=pandas contestant=ryo condition=retained-tool-cache counts=B015=194, DTZ001=4859, DTZ002=36, DTZ005=39, DTZ006=3, DTZ011=13, DTZ012=3, S110=5, SIM210=1, SIM211=3, TRY002=10, TRY203=1\nsample: name=pandas/ryo/retained-tool-cache order=ReferenceFirst wall_seconds=0.392779334 cpu_seconds=0.392795 rss_bytes=70705152\nfindings: project=pandas contestant=ruff condition=edited-tool-cache counts=B015=194, DTZ001=4859, DTZ002=36, DTZ005=39, DTZ006=3, DTZ011=13, DTZ012=3, E722=1, S110=5, SIM210=1, SIM211=3, TRY002=10, TRY203=1\nsample: name=pandas/ruff/edited-tool-cache order=ReferenceFirst wall_seconds=0.183709583 cpu_seconds=0.178925 rss_bytes=52080640\nfindings: project=pandas contestant=ryo condition=edited-tool-cache counts=B015=194, DTZ001=4859, DTZ002=36, DTZ005=39, DTZ006=3, DTZ011=13, DTZ012=3, E722=1, S110=5, SIM210=1, SIM211=3, TRY002=10, TRY203=1\nsample: name=pandas/ryo/edited-tool-cache order=ReferenceFirst wall_seconds=0.578816099 cpu_seconds=0.578653 rss_bytes=182149120\npandas: exact matching findings per rule: B015=194, DTZ001=4859, DTZ002=36, DTZ005=39, DTZ006=3, DTZ011=13, DTZ012=3, S110=5, SIM210=1, SIM211=3, TRY002=10, TRY203=1\nfindings: project=pandas contestant=ruff condition=empty-tool-cache counts=B015=194, DTZ001=4859, DTZ002=36, DTZ005=39, DTZ006=3, DTZ011=13, DTZ012=3, S110=5, SIM210=1, SIM211=3, TRY002=10, TRY203=1\nsample: name=pandas/ruff/empty-tool-cache order=CandidateFirst wall_seconds=0.42652723 cpu_seconds=0.419586 rss_bytes=52207616\nfindings: project=pandas contestant=ryo condition=empty-tool-cache counts=B015=194, DTZ001=4859, DTZ002=36, DTZ005=39, DTZ006=3, DTZ011=13, DTZ012=3, S110=5, SIM210=1, SIM211=3, TRY002=10, TRY203=1\nsample: name=pandas/ryo/empty-tool-cache order=CandidateFirst wall_seconds=325.752677992 cpu_seconds=325.652694 rss_bytes=6546128896\nfindings: project=pandas contestant=ruff condition=retained-tool-cache counts=B015=194, DTZ001=4859, DTZ002=36, DTZ005=39, DTZ006=3, DTZ011=13, DTZ012=3, S110=5, SIM210=1, SIM211=3, TRY002=10, TRY203=1\nsample: name=pandas/ruff/retained-tool-cache order=CandidateFirst wall_seconds=0.184200782 cpu_seconds=0.179957 rss_bytes=52850688\nfindings: project=pandas contestant=ryo condition=retained-tool-cache counts=B015=194, DTZ001=4859, DTZ002=36, DTZ005=39, DTZ006=3, DTZ011=13, DTZ012=3, S110=5, SIM210=1, SIM211=3, TRY002=10, TRY203=1\nsample: name=pandas/ryo/retained-tool-cache order=CandidateFirst wall_seconds=0.396789621 cpu_seconds=0.396616 rss_bytes=70705152\nfindings: project=pandas contestant=ruff condition=edited-tool-cache counts=B015=194, DTZ001=4859, DTZ002=36, DTZ005=39, DTZ006=3, DTZ011=13, DTZ012=3, E722=1, S110=5, SIM210=1, SIM211=3, TRY002=10, TRY203=1\nsample: name=pandas/ruff/edited-tool-cache order=CandidateFirst wall_seconds=0.183331776 cpu_seconds=0.17918 rss_bytes=52375552\nfindings: project=pandas contestant=ryo condition=edited-tool-cache counts=B015=194, DTZ001=4859, DTZ002=36, DTZ005=39, DTZ006=3, DTZ011=13, DTZ012=3, E722=1, S110=5, SIM210=1, SIM211=3, TRY002=10, TRY203=1\nsample: name=pandas/ryo/edited-tool-cache order=CandidateFirst wall_seconds=0.569548022 cpu_seconds=0.569347 rss_bytes=182140928\npandas: exact matching findings per rule: B015=194, DTZ001=4859, DTZ002=36, DTZ005=39, DTZ006=3, DTZ011=13, DTZ012=3, S110=5, SIM210=1, SIM211=3, TRY002=10, TRY203=1\nfindings: project=pandas contestant=ruff condition=empty-tool-cache counts=B015=194, DTZ001=4859, DTZ002=36, DTZ005=39, DTZ006=3, DTZ011=13, DTZ012=3, S110=5, SIM210=1, SIM211=3, TRY002=10, TRY203=1\nsample: name=pandas/ruff/empty-tool-cache order=ReferenceFirst wall_seconds=0.427120573 cpu_seconds=0.409363 rss_bytes=52858880\nfindings: project=pandas contestant=ryo condition=empty-tool-cache counts=B015=194, DTZ001=4859, DTZ002=36, DTZ005=39, DTZ006=3, DTZ011=13, DTZ012=3, S110=5, SIM210=1, SIM211=3, TRY002=10, TRY203=1\nsample: name=pandas/ryo/empty-tool-cache order=ReferenceFirst wall_seconds=326.348691894 cpu_seconds=326.183449 rss_bytes=6546034688\nfindings: project=pandas contestant=ruff condition=retained-tool-cache counts=B015=194, DTZ001=4859, DTZ002=36, DTZ005=39, DTZ006=3, DTZ011=13, DTZ012=3, S110=5, SIM210=1, SIM211=3, TRY002=10, TRY203=1\nsample: name=pandas/ruff/retained-tool-cache order=ReferenceFirst wall_seconds=0.196577562 cpu_seconds=0.189463 rss_bytes=53329920\nfindings: project=pandas contestant=ryo condition=retained-tool-cache counts=B015=194, DTZ001=4859, DTZ002=36, DTZ005=39, DTZ006=3, DTZ011=13, DTZ012=3, S110=5, SIM210=1, SIM211=3, TRY002=10, TRY203=1\nsample: name=pandas/ryo/retained-tool-cache order=ReferenceFirst wall_seconds=0.396234688 cpu_seconds=0.396113 rss_bytes=70701056\nfindings: project=pandas contestant=ruff condition=edited-tool-cache counts=B015=194, DTZ001=4859, DTZ002=36, DTZ005=39, DTZ006=3, DTZ011=13, DTZ012=3, E722=1, S110=5, SIM210=1, SIM211=3, TRY002=10, TRY203=1\nsample: name=pandas/ruff/edited-tool-cache order=ReferenceFirst wall_seconds=0.181472371 cpu_seconds=0.17681 rss_bytes=53497856\nfindings: project=pandas contestant=ryo condition=edited-tool-cache counts=B015=194, DTZ001=4859, DTZ002=36, DTZ005=39, DTZ006=3, DTZ011=13, DTZ012=3, E722=1, S110=5, SIM210=1, SIM211=3, TRY002=10, TRY203=1\nsample: name=pandas/ryo/edited-tool-cache order=ReferenceFirst wall_seconds=0.574164119 cpu_seconds=0.573987 rss_bytes=182149120\npandas: exact matching findings per rule: B015=194, DTZ001=4859, DTZ002=36, DTZ005=39, DTZ006=3, DTZ011=13, DTZ012=3, S110=5, SIM210=1, SIM211=3, TRY002=10, TRY203=1\nfindings: project=pandas contestant=ruff condition=empty-tool-cache counts=B015=194, DTZ001=4859, DTZ002=36, DTZ005=39, DTZ006=3, DTZ011=13, DTZ012=3, S110=5, SIM210=1, SIM211=3, TRY002=10, TRY203=1\nsample: name=pandas/ruff/empty-tool-cache order=CandidateFirst wall_seconds=0.42902784 cpu_seconds=0.419205 rss_bytes=52236288\nfindings: project=pandas contestant=ryo condition=empty-tool-cache counts=B015=194, DTZ001=4859, DTZ002=36, DTZ005=39, DTZ006=3, DTZ011=13, DTZ012=3, S110=5, SIM210=1, SIM211=3, TRY002=10, TRY203=1\nsample: name=pandas/ryo/empty-tool-cache order=CandidateFirst wall_seconds=324.043234234 cpu_seconds=323.979671 rss_bytes=6546075648\nfindings: project=pandas contestant=ruff condition=retained-tool-cache counts=B015=194, DTZ001=4859, DTZ002=36, DTZ005=39, DTZ006=3, DTZ011=13, DTZ012=3, S110=5, SIM210=1, SIM211=3, TRY002=10, TRY203=1\nsample: name=pandas/ruff/retained-tool-cache order=CandidateFirst wall_seconds=0.186275888 cpu_seconds=0.177531 rss_bytes=52088832\nfindings: project=pandas contestant=ryo condition=retained-tool-cache counts=B015=194, DTZ001=4859, DTZ002=36, DTZ005=39, DTZ006=3, DTZ011=13, DTZ012=3, S110=5, SIM210=1, SIM211=3, TRY002=10, TRY203=1\nsample: name=pandas/ryo/retained-tool-cache order=CandidateFirst wall_seconds=0.395470275 cpu_seconds=0.39546 rss_bytes=70705152\nfindings: project=pandas contestant=ruff condition=edited-tool-cache counts=B015=194, DTZ001=4859, DTZ002=36, DTZ005=39, DTZ006=3, DTZ011=13, DTZ012=3, E722=1, S110=5, SIM210=1, SIM211=3, TRY002=10, TRY203=1\nsample: name=pandas/ruff/edited-tool-cache order=CandidateFirst wall_seconds=0.182207244 cpu_seconds=0.177413 rss_bytes=52121600\nfindings: project=pandas contestant=ryo condition=edited-tool-cache counts=B015=194, DTZ001=4859, DTZ002=36, DTZ005=39, DTZ006=3, DTZ011=13, DTZ012=3, E722=1, S110=5, SIM210=1, SIM211=3, TRY002=10, TRY203=1\nsample: name=pandas/ryo/edited-tool-cache order=CandidateFirst wall_seconds=0.571709177 cpu_seconds=0.57154 rss_bytes=182218752\npandas: exact matching findings per rule: B015=194, DTZ001=4859, DTZ002=36, DTZ005=39, DTZ006=3, DTZ011=13, DTZ012=3, S110=5, SIM210=1, SIM211=3, TRY002=10, TRY203=1\nfindings: project=pandas contestant=ruff condition=empty-tool-cache counts=B015=194, DTZ001=4859, DTZ002=36, DTZ005=39, DTZ006=3, DTZ011=13, DTZ012=3, S110=5, SIM210=1, SIM211=3, TRY002=10, TRY203=1\nsample: name=pandas/ruff/empty-tool-cache order=ReferenceFirst wall_seconds=0.395402885 cpu_seconds=0.390487 rss_bytes=53096448\nfindings: project=pandas contestant=ryo condition=empty-tool-cache counts=B015=194, DTZ001=4859, DTZ002=36, DTZ005=39, DTZ006=3, DTZ011=13, DTZ012=3, S110=5, SIM210=1, SIM211=3, TRY002=10, TRY203=1\nsample: name=pandas/ryo/empty-tool-cache order=ReferenceFirst wall_seconds=324.560861707 cpu_seconds=324.444902 rss_bytes=6546178048\nfindings: project=pandas contestant=ruff condition=retained-tool-cache counts=B015=194, DTZ001=4859, DTZ002=36, DTZ005=39, DTZ006=3, DTZ011=13, DTZ012=3, S110=5, SIM210=1, SIM211=3, TRY002=10, TRY203=1\nsample: name=pandas/ruff/retained-tool-cache order=ReferenceFirst wall_seconds=0.218356949 cpu_seconds=0.217161 rss_bytes=53137408\nfindings: project=pandas contestant=ryo condition=retained-tool-cache counts=B015=194, DTZ001=4859, DTZ002=36, DTZ005=39, DTZ006=3, DTZ011=13, DTZ012=3, S110=5, SIM210=1, SIM211=3, TRY002=10, TRY203=1\nsample: name=pandas/ryo/retained-tool-cache order=ReferenceFirst wall_seconds=0.396004518 cpu_seconds=0.395945 rss_bytes=70742016\nfindings: project=pandas contestant=ruff condition=edited-tool-cache counts=B015=194, DTZ001=4859, DTZ002=36, DTZ005=39, DTZ006=3, DTZ011=13, DTZ012=3, E722=1, S110=5, SIM210=1, SIM211=3, TRY002=10, TRY203=1\nsample: name=pandas/ruff/edited-tool-cache order=ReferenceFirst wall_seconds=0.182270057 cpu_seconds=0.177455 rss_bytes=53063680\nfindings: project=pandas contestant=ryo condition=edited-tool-cache counts=B015=194, DTZ001=4859, DTZ002=36, DTZ005=39, DTZ006=3, DTZ011=13, DTZ012=3, E722=1, S110=5, SIM210=1, SIM211=3, TRY002=10, TRY203=1\nsample: name=pandas/ryo/edited-tool-cache order=ReferenceFirst wall_seconds=0.582082682 cpu_seconds=0.581464 rss_bytes=182161408\npandas: exact matching findings per rule: B015=194, DTZ001=4859, DTZ002=36, DTZ005=39, DTZ006=3, DTZ011=13, DTZ012=3, S110=5, SIM210=1, SIM211=3, TRY002=10, TRY203=1\nfindings: project=pandas contestant=ruff condition=empty-tool-cache counts=B015=194, DTZ001=4859, DTZ002=36, DTZ005=39, DTZ006=3, DTZ011=13, DTZ012=3, S110=5, SIM210=1, SIM211=3, TRY002=10, TRY203=1\nsample: name=pandas/ruff/empty-tool-cache order=CandidateFirst wall_seconds=0.420610464 cpu_seconds=0.409134 rss_bytes=52707328\nfindings: project=pandas contestant=ryo condition=empty-tool-cache counts=B015=194, DTZ001=4859, DTZ002=36, DTZ005=39, DTZ006=3, DTZ011=13, DTZ012=3, S110=5, SIM210=1, SIM211=3, TRY002=10, TRY203=1\nsample: name=pandas/ryo/empty-tool-cache order=CandidateFirst wall_seconds=321.8737627 cpu_seconds=321.767159 rss_bytes=6546247680\nfindings: project=pandas contestant=ruff condition=retained-tool-cache counts=B015=194, DTZ001=4859, DTZ002=36, DTZ005=39, DTZ006=3, DTZ011=13, DTZ012=3, S110=5, SIM210=1, SIM211=3, TRY002=10, TRY203=1\nsample: name=pandas/ruff/retained-tool-cache order=CandidateFirst wall_seconds=0.182687476 cpu_seconds=0.178054 rss_bytes=52416512\nfindings: project=pandas contestant=ryo condition=retained-tool-cache counts=B015=194, DTZ001=4859, DTZ002=36, DTZ005=39, DTZ006=3, DTZ011=13, DTZ012=3, S110=5, SIM210=1, SIM211=3, TRY002=10, TRY203=1\nsample: name=pandas/ryo/retained-tool-cache order=CandidateFirst wall_seconds=0.392322496 cpu_seconds=0.39235 rss_bytes=70803456\nfindings: project=pandas contestant=ruff condition=edited-tool-cache counts=B015=194, DTZ001=4859, DTZ002=36, DTZ005=39, DTZ006=3, DTZ011=13, DTZ012=3, E722=1, S110=5, SIM210=1, SIM211=3, TRY002=10, TRY203=1\nsample: name=pandas/ruff/edited-tool-cache order=CandidateFirst wall_seconds=0.19275658 cpu_seconds=0.185685 rss_bytes=52011008\nfindings: project=pandas contestant=ryo condition=edited-tool-cache counts=B015=194, DTZ001=4859, DTZ002=36, DTZ005=39, DTZ006=3, DTZ011=13, DTZ012=3, E722=1, S110=5, SIM210=1, SIM211=3, TRY002=10, TRY203=1\nsample: name=pandas/ryo/edited-tool-cache order=CandidateFirst wall_seconds=0.599790752 cpu_seconds=0.599657 rss_bytes=182157312\nfastapi: matched Python source scope 1239 files; excluded default-discovered formats 1 files (source-kind capability gap): pyproject.toml\nfastapi: measured source files=1239 bytes=3692435 digest=453eefe0f737157ebe28b9c7a3a309e0b76215877caf89622be441b4a1eee46f input-profile=pinned-reference-valid-python\nfastapi: exact matching findings per rule: DTZ001=29, LOG015=100, PLC0414=23, PLW1510=3, RUF032=2, S110=5\nfindings: project=fastapi contestant=ruff condition=empty-tool-cache counts=DTZ001=29, LOG015=100, PLC0414=23, PLW1510=3, RUF032=2, S110=5\nsample: name=fastapi/ruff/empty-tool-cache order=ReferenceFirst wall_seconds=0.064157193 cpu_seconds=0.058849 rss_bytes=24539136\nfindings: project=fastapi contestant=ryo condition=empty-tool-cache counts=DTZ001=29, LOG015=100, PLC0414=23, PLW1510=3, RUF032=2, S110=5\nsample: name=fastapi/ryo/empty-tool-cache order=ReferenceFirst wall_seconds=40.549209214 cpu_seconds=40.532928 rss_bytes=3748364288\nfindings: project=fastapi contestant=ruff condition=retained-tool-cache counts=DTZ001=29, LOG015=100, PLC0414=23, PLW1510=3, RUF032=2, S110=5\nsample: name=fastapi/ruff/retained-tool-cache order=ReferenceFirst wall_seconds=0.02086322 cpu_seconds=0.0178 rss_bytes=21512192\nfindings: project=fastapi contestant=ryo condition=retained-tool-cache counts=DTZ001=29, LOG015=100, PLC0414=23, PLW1510=3, RUF032=2, S110=5\nsample: name=fastapi/ryo/retained-tool-cache order=ReferenceFirst wall_seconds=0.369426024 cpu_seconds=0.369384 rss_bytes=40321024\nfindings: project=fastapi contestant=ruff condition=edited-tool-cache counts=DTZ001=29, E722=1, LOG015=100, PLC0414=23, PLW1510=3, RUF032=2, S110=5\nsample: name=fastapi/ruff/edited-tool-cache order=ReferenceFirst wall_seconds=0.019354246 cpu_seconds=0.016133 rss_bytes=21839872\nfindings: project=fastapi contestant=ryo condition=edited-tool-cache counts=DTZ001=29, E722=1, LOG015=100, PLC0414=23, PLW1510=3, RUF032=2, S110=5\nsample: name=fastapi/ryo/edited-tool-cache order=ReferenceFirst wall_seconds=1.203303702 cpu_seconds=1.20321 rss_bytes=596738048\nfastapi: exact matching findings per rule: DTZ001=29, LOG015=100, PLC0414=23, PLW1510=3, RUF032=2, S110=5\nfindings: project=fastapi contestant=ruff condition=empty-tool-cache counts=DTZ001=29, LOG015=100, PLC0414=23, PLW1510=3, RUF032=2, S110=5\nsample: name=fastapi/ruff/empty-tool-cache order=CandidateFirst wall_seconds=0.062780976 cpu_seconds=0.059375 rss_bytes=24403968\nfindings: project=fastapi contestant=ryo condition=empty-tool-cache counts=DTZ001=29, LOG015=100, PLC0414=23, PLW1510=3, RUF032=2, S110=5\nsample: name=fastapi/ryo/empty-tool-cache order=CandidateFirst wall_seconds=40.583007477 cpu_seconds=40.569615 rss_bytes=3748466688\nfindings: project=fastapi contestant=ruff condition=retained-tool-cache counts=DTZ001=29, LOG015=100, PLC0414=23, PLW1510=3, RUF032=2, S110=5\nsample: name=fastapi/ruff/retained-tool-cache order=CandidateFirst wall_seconds=0.019404205 cpu_seconds=0.015492 rss_bytes=21630976\nfindings: project=fastapi contestant=ryo condition=retained-tool-cache counts=DTZ001=29, LOG015=100, PLC0414=23, PLW1510=3, RUF032=2, S110=5\nsample: name=fastapi/ryo/retained-tool-cache order=CandidateFirst wall_seconds=0.373149084 cpu_seconds=0.373107 rss_bytes=40316928\nfindings: project=fastapi contestant=ruff condition=edited-tool-cache counts=DTZ001=29, E722=1, LOG015=100, PLC0414=23, PLW1510=3, RUF032=2, S110=5\nsample: name=fastapi/ruff/edited-tool-cache order=CandidateFirst wall_seconds=0.019296121 cpu_seconds=0.015918 rss_bytes=21884928\nfindings: project=fastapi contestant=ryo condition=edited-tool-cache counts=DTZ001=29, E722=1, LOG015=100, PLC0414=23, PLW1510=3, RUF032=2, S110=5\nsample: name=fastapi/ryo/edited-tool-cache order=CandidateFirst wall_seconds=1.20340336 cpu_seconds=1.202801 rss_bytes=596766720\nfastapi: exact matching findings per rule: DTZ001=29, LOG015=100, PLC0414=23, PLW1510=3, RUF032=2, S110=5\nfindings: project=fastapi contestant=ruff condition=empty-tool-cache counts=DTZ001=29, LOG015=100, PLC0414=23, PLW1510=3, RUF032=2, S110=5\nsample: name=fastapi/ruff/empty-tool-cache order=ReferenceFirst wall_seconds=0.063547025 cpu_seconds=0.057343 rss_bytes=24690688\nfindings: project=fastapi contestant=ryo condition=empty-tool-cache counts=DTZ001=29, LOG015=100, PLC0414=23, PLW1510=3, RUF032=2, S110=5\nsample: name=fastapi/ryo/empty-tool-cache order=ReferenceFirst wall_seconds=40.621555534 cpu_seconds=40.587399 rss_bytes=3748249600\nfindings: project=fastapi contestant=ruff condition=retained-tool-cache counts=DTZ001=29, LOG015=100, PLC0414=23, PLW1510=3, RUF032=2, S110=5\nsample: name=fastapi/ruff/retained-tool-cache order=ReferenceFirst wall_seconds=0.021644276 cpu_seconds=0.017641 rss_bytes=21913600\nfindings: project=fastapi contestant=ryo condition=retained-tool-cache counts=DTZ001=29, LOG015=100, PLC0414=23, PLW1510=3, RUF032=2, S110=5\nsample: name=fastapi/ryo/retained-tool-cache order=ReferenceFirst wall_seconds=0.37136294 cpu_seconds=0.371312 rss_bytes=40374272\nfindings: project=fastapi contestant=ruff condition=edited-tool-cache counts=DTZ001=29, E722=1, LOG015=100, PLC0414=23, PLW1510=3, RUF032=2, S110=5\nsample: name=fastapi/ruff/edited-tool-cache order=ReferenceFirst wall_seconds=0.020563308 cpu_seconds=0.016932 rss_bytes=22474752\nfindings: project=fastapi contestant=ryo condition=edited-tool-cache counts=DTZ001=29, E722=1, LOG015=100, PLC0414=23, PLW1510=3, RUF032=2, S110=5\nsample: name=fastapi/ryo/edited-tool-cache order=ReferenceFirst wall_seconds=1.210341096 cpu_seconds=1.209107 rss_bytes=596836352\nfastapi: exact matching findings per rule: DTZ001=29, LOG015=100, PLC0414=23, PLW1510=3, RUF032=2, S110=5\nfindings: project=fastapi contestant=ruff condition=empty-tool-cache counts=DTZ001=29, LOG015=100, PLC0414=23, PLW1510=3, RUF032=2, S110=5\nsample: name=fastapi/ruff/empty-tool-cache order=CandidateFirst wall_seconds=0.06278619 cpu_seconds=0.059457 rss_bytes=25444352\nfindings: project=fastapi contestant=ryo condition=empty-tool-cache counts=DTZ001=29, LOG015=100, PLC0414=23, PLW1510=3, RUF032=2, S110=5\nsample: name=fastapi/ryo/empty-tool-cache order=CandidateFirst wall_seconds=40.553932302 cpu_seconds=40.5447 rss_bytes=3748458496\nfindings: project=fastapi contestant=ruff condition=retained-tool-cache counts=DTZ001=29, LOG015=100, PLC0414=23, PLW1510=3, RUF032=2, S110=5\nsample: name=fastapi/ruff/retained-tool-cache order=CandidateFirst wall_seconds=0.02023003 cpu_seconds=0.016598 rss_bytes=22286336\nfindings: project=fastapi contestant=ryo condition=retained-tool-cache counts=DTZ001=29, LOG015=100, PLC0414=23, PLW1510=3, RUF032=2, S110=5\nsample: name=fastapi/ryo/retained-tool-cache order=CandidateFirst wall_seconds=0.375227379 cpu_seconds=0.375138 rss_bytes=40300544\nfindings: project=fastapi contestant=ruff condition=edited-tool-cache counts=DTZ001=29, E722=1, LOG015=100, PLC0414=23, PLW1510=3, RUF032=2, S110=5\nsample: name=fastapi/ruff/edited-tool-cache order=CandidateFirst wall_seconds=0.019611192 cpu_seconds=0.015676 rss_bytes=22454272\nfindings: project=fastapi contestant=ryo condition=edited-tool-cache counts=DTZ001=29, E722=1, LOG015=100, PLC0414=23, PLW1510=3, RUF032=2, S110=5\nsample: name=fastapi/ryo/edited-tool-cache order=CandidateFirst wall_seconds=1.211428421 cpu_seconds=1.209612 rss_bytes=596684800\nfastapi: exact matching findings per rule: DTZ001=29, LOG015=100, PLC0414=23, PLW1510=3, RUF032=2, S110=5\nfindings: project=fastapi contestant=ruff condition=empty-tool-cache counts=DTZ001=29, LOG015=100, PLC0414=23, PLW1510=3, RUF032=2, S110=5\nsample: name=fastapi/ruff/empty-tool-cache order=ReferenceFirst wall_seconds=0.061974976 cpu_seconds=0.057241 rss_bytes=25239552\nfindings: project=fastapi contestant=ryo condition=empty-tool-cache counts=DTZ001=29, LOG015=100, PLC0414=23, PLW1510=3, RUF032=2, S110=5\nsample: name=fastapi/ryo/empty-tool-cache order=ReferenceFirst wall_seconds=40.72653788 cpu_seconds=40.710159 rss_bytes=3748155392\nfindings: project=fastapi contestant=ruff condition=retained-tool-cache counts=DTZ001=29, LOG015=100, PLC0414=23, PLW1510=3, RUF032=2, S110=5\nsample: name=fastapi/ruff/retained-tool-cache order=ReferenceFirst wall_seconds=0.021120078 cpu_seconds=0.016955 rss_bytes=22192128\nfindings: project=fastapi contestant=ryo condition=retained-tool-cache counts=DTZ001=29, LOG015=100, PLC0414=23, PLW1510=3, RUF032=2, S110=5\nsample: name=fastapi/ryo/retained-tool-cache order=ReferenceFirst wall_seconds=0.375476881 cpu_seconds=0.375418 rss_bytes=40308736\nfindings: project=fastapi contestant=ruff condition=edited-tool-cache counts=DTZ001=29, E722=1, LOG015=100, PLC0414=23, PLW1510=3, RUF032=2, S110=5\nsample: name=fastapi/ruff/edited-tool-cache order=ReferenceFirst wall_seconds=0.020663659 cpu_seconds=0.017426 rss_bytes=22474752\nfindings: project=fastapi contestant=ryo condition=edited-tool-cache counts=DTZ001=29, E722=1, LOG015=100, PLC0414=23, PLW1510=3, RUF032=2, S110=5\nsample: name=fastapi/ryo/edited-tool-cache order=ReferenceFirst wall_seconds=1.21067054 cpu_seconds=1.209839 rss_bytes=596762624\nfastapi: exact matching findings per rule: DTZ001=29, LOG015=100, PLC0414=23, PLW1510=3, RUF032=2, S110=5\nfindings: project=fastapi contestant=ruff condition=empty-tool-cache counts=DTZ001=29, LOG015=100, PLC0414=23, PLW1510=3, RUF032=2, S110=5\nsample: name=fastapi/ruff/empty-tool-cache order=CandidateFirst wall_seconds=0.075818929 cpu_seconds=0.071357 rss_bytes=24297472\nfindings: project=fastapi contestant=ryo condition=empty-tool-cache counts=DTZ001=29, LOG015=100, PLC0414=23, PLW1510=3, RUF032=2, S110=5\nsample: name=fastapi/ryo/empty-tool-cache order=CandidateFirst wall_seconds=40.408619194 cpu_seconds=40.396761 rss_bytes=3748503552\nfindings: project=fastapi contestant=ruff condition=retained-tool-cache counts=DTZ001=29, LOG015=100, PLC0414=23, PLW1510=3, RUF032=2, S110=5\nsample: name=fastapi/ruff/retained-tool-cache order=CandidateFirst wall_seconds=0.020378096 cpu_seconds=0.01635 rss_bytes=21106688\nfindings: project=fastapi contestant=ryo condition=retained-tool-cache counts=DTZ001=29, LOG015=100, PLC0414=23, PLW1510=3, RUF032=2, S110=5\nsample: name=fastapi/ryo/retained-tool-cache order=CandidateFirst wall_seconds=0.374079031 cpu_seconds=0.374042 rss_bytes=40374272\nfindings: project=fastapi contestant=ruff condition=edited-tool-cache counts=DTZ001=29, E722=1, LOG015=100, PLC0414=23, PLW1510=3, RUF032=2, S110=5\nsample: name=fastapi/ruff/edited-tool-cache order=CandidateFirst wall_seconds=0.020449305 cpu_seconds=0.016698 rss_bytes=21839872\nfindings: project=fastapi contestant=ryo condition=edited-tool-cache counts=DTZ001=29, E722=1, LOG015=100, PLC0414=23, PLW1510=3, RUF032=2, S110=5\nsample: name=fastapi/ryo/edited-tool-cache order=CandidateFirst wall_seconds=1.209644391 cpu_seconds=1.208997 rss_bytes=596819968\n",
+    "artifact_hashes": {
+      "observations.log": "4e29d801da384c17de6d86eddc6c97c0e740fbec2e189f63e968c64a646b32bb",
+      "measurements.json": "98f834fa1326f492995a84fcc3c47e478b34839171769386d9c966768ca154aa",
+      "snapshot.json": "c15880d353ac71f5f9a13dce7313dd752829f00f5843a5cfe857b1bbfe37061e",
+      "identity.json": "3e430cb1685191c076fec557ca1f9af1d473a3c1e827c616931de72ff8f09818",
+      "host-load.jsonl": "18e226b860acfc9912c6e707a11be038f0de138121d75d17d84e04a746e968ca"
+    },
+    "host_qualification": "Shared host; our local builds/oracle work paused under the project flock. Unrelated processes and OS page cache not isolated. Periodic load observations below include build/case phases. No engine-only inference from the historical54 workload.",
+    "host_load_observations": [
+      {
+        "utc": "2026-10-31T20:25:49.940524+00:00",
+        "stage": "build/cases",
+        "load_average": [
+          3.587890625,
+          3.03662109375,
+          2.71337890625
+        ]
+      },
+      {
+        "utc": "2026-10-31T20:26:49.944182+00:00",
+        "stage": "build/cases",
+        "load_average": [
+          2.9697265625,
+          2.9541015625,
+          2.7060546875
+        ]
+      },
+      {
+        "utc": "2026-10-31T20:27:49.948598+00:00",
+        "stage": "build/cases",
+        "load_average": [
+          2.18896484375,
+          2.720703125,
+          2.63818359375
+        ]
+      },
+      {
+        "utc": "2026-10-31T20:28:49.959761+00:00",
+        "stage": "build/cases",
+        "load_average": [
+          2.48193359375,
+          2.6728515625,
+          2.625
+        ]
+      },
+      {
+        "utc": "2026-10-31T20:29:49.966777+00:00",
+        "stage": "build/cases",
+        "load_average": [
+          2.19677734375,
+          2.53759765625,
+          2.57958984375
+        ]
+      },
+      {
+        "utc": "2026-10-31T20:30:49.980589+00:00",
+        "stage": "build/cases",
+        "load_average": [
+          1.67529296875,
+          2.31787109375,
+          2.4990234375
+        ]
+      },
+      {
+        "utc": "2026-10-31T20:31:49.993234+00:00",
+        "stage": "build/cases",
+        "load_average": [
+          2.197265625,
+          2.32568359375,
+          2.48681640625
+        ]
+      },
+      {
+        "utc": "2026-10-31T20:32:49.996444+00:00",
+        "stage": "build/cases",
+        "load_average": [
+          2.45751953125,
+          2.3720703125,
+          2.4912109375
+        ]
+      },
+      {
+        "utc": "2026-10-31T20:33:50.001911+00:00",
+        "stage": "build/cases",
+        "load_average": [
+          2.30908203125,
+          2.359375,
+          2.47900390625
+        ]
+      },
+      {
+        "utc": "2026-10-31T20:34:50.005208+00:00",
+        "stage": "build/cases",
+        "load_average": [
+          2.205078125,
+          2.30908203125,
+          2.451171875
+        ]
+      },
+      {
+        "utc": "2026-10-31T20:35:50.016114+00:00",
+        "stage": "build/cases",
+        "load_average": [
+          1.58984375,
+          2.1005859375,
+          2.3681640625
+        ]
+      },
+      {
+        "utc": "2026-10-31T20:36:50.022679+00:00",
+        "stage": "build/cases",
+        "load_average": [
+          1.779296875,
+          2.0634765625,
+          2.33837890625
+        ]
+      },
+      {
+        "utc": "2026-10-31T20:37:50.030714+00:00",
+        "stage": "build/cases",
+        "load_average": [
+          1.80224609375,
+          2.0185546875,
+          2.30517578125
+        ]
+      },
+      {
+        "utc": "2026-10-31T20:38:50.039820+00:00",
+        "stage": "build/cases",
+        "load_average": [
+          1.91357421875,
+          2.01220703125,
+          2.28271484375
+        ]
+      },
+      {
+        "utc": "2026-10-31T20:39:50.044669+00:00",
+        "stage": "build/cases",
+        "load_average": [
+          1.92041015625,
+          1.99462890625,
+          2.2587890625
+        ]
+      },
+      {
+        "utc": "2026-10-31T20:40:50.048193+00:00",
+        "stage": "build/cases",
+        "load_average": [
+          2.04443359375,
+          2.00048828125,
+          2.2431640625
+        ]
+      },
+      {
+        "utc": "2026-10-31T20:41:50.062511+00:00",
+        "stage": "corpus/certification",
+        "load_average": [
+          2.3857421875,
+          2.09521484375,
+          2.259765625
+        ]
+      },
+      {
+        "utc": "2026-10-31T20:42:50.078312+00:00",
+        "stage": "corpus/certification",
+        "load_average": [
+          2.28466796875,
+          2.15869140625,
+          2.27294921875
+        ]
+      },
+      {
+        "utc": "2026-10-31T20:43:50.085410+00:00",
+        "stage": "corpus/certification",
+        "load_average": [
+          1.728515625,
+          2.03271484375,
+          2.22265625
+        ]
+      },
+      {
+        "utc": "2026-10-31T20:44:50.112388+00:00",
+        "stage": "corpus/certification",
+        "load_average": [
+          1.90576171875,
+          2.03759765625,
+          2.21142578125
+        ]
+      },
+      {
+        "utc": "2026-10-31T20:45:50.124337+00:00",
+        "stage": "corpus/certification",
+        "load_average": [
+          2.4033203125,
+          2.12841796875,
+          2.228515625
+        ]
+      },
+      {
+        "utc": "2026-10-31T20:46:50.135608+00:00",
+        "stage": "corpus/certification",
+        "load_average": [
+          1.81884765625,
+          2.0224609375,
+          2.1845703125
+        ]
+      },
+      {
+        "utc": "2026-10-31T20:47:50.147956+00:00",
+        "stage": "corpus/certification",
+        "load_average": [
+          2.01611328125,
+          2.0341796875,
+          2.177734375
+        ]
+      },
+      {
+        "utc": "2026-10-31T20:48:50.152824+00:00",
+        "stage": "corpus/certification",
+        "load_average": [
+          1.71337890625,
+          1.94873046875,
+          2.1396484375
+        ]
+      },
+      {
+        "utc": "2026-10-31T20:49:50.157037+00:00",
+        "stage": "corpus/certification",
+        "load_average": [
+          1.9765625,
+          1.96484375,
+          2.12890625
+        ]
+      },
+      {
+        "utc": "2026-10-31T20:50:50.161064+00:00",
+        "stage": "corpus/certification",
+        "load_average": [
+          1.984375,
+          1.97265625,
+          2.1181640625
+        ]
+      },
+      {
+        "utc": "2026-10-31T20:51:50.170199+00:00",
+        "stage": "timing",
+        "load_average": [
+          2.31982421875,
+          2.07080078125,
+          2.140625
+        ]
+      },
+      {
+        "utc": "2026-10-31T20:52:50.184664+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.80712890625,
+          1.97705078125,
+          2.1025390625
+        ]
+      },
+      {
+        "utc": "2026-10-31T20:53:50.189223+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.90087890625,
+          1.96923828125,
+          2.0888671875
+        ]
+      },
+      {
+        "utc": "2026-10-31T20:54:50.203594+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.79541015625,
+          1.92919921875,
+          2.06689453125
+        ]
+      },
+      {
+        "utc": "2026-10-31T20:55:50.217604+00:00",
+        "stage": "timing",
+        "load_average": [
+          2.564453125,
+          2.09033203125,
+          2.11083984375
+        ]
+      },
+      {
+        "utc": "2026-10-31T20:56:50.232301+00:00",
+        "stage": "timing",
+        "load_average": [
+          2.658203125,
+          2.1708984375,
+          2.1328125
+        ]
+      },
+      {
+        "utc": "2026-10-31T20:57:50.240801+00:00",
+        "stage": "timing",
+        "load_average": [
+          2.22705078125,
+          2.13720703125,
+          2.1220703125
+        ]
+      },
+      {
+        "utc": "2026-10-31T20:58:50.244933+00:00",
+        "stage": "timing",
+        "load_average": [
+          2.4560546875,
+          2.24365234375,
+          2.16162109375
+        ]
+      },
+      {
+        "utc": "2026-10-31T20:59:50.259147+00:00",
+        "stage": "timing",
+        "load_average": [
+          2.4951171875,
+          2.26513671875,
+          2.1728515625
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:00:50.267007+00:00",
+        "stage": "timing",
+        "load_average": [
+          2.2080078125,
+          2.24169921875,
+          2.17041015625
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:01:50.271284+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.79345703125,
+          2.11865234375,
+          2.13232421875
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:02:50.279065+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.95263671875,
+          2.10888671875,
+          2.126953125
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:03:50.289571+00:00",
+        "stage": "timing",
+        "load_average": [
+          2.28369140625,
+          2.16650390625,
+          2.1435546875
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:04:50.303858+00:00",
+        "stage": "timing",
+        "load_average": [
+          2.197265625,
+          2.14013671875,
+          2.1328125
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:05:50.308841+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.94970703125,
+          2.08154296875,
+          2.11083984375
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:06:50.314307+00:00",
+        "stage": "timing",
+        "load_average": [
+          2.00439453125,
+          2.0791015625,
+          2.10546875
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:07:50.318778+00:00",
+        "stage": "timing",
+        "load_average": [
+          2.24267578125,
+          2.115234375,
+          2.11181640625
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:08:50.326690+00:00",
+        "stage": "timing",
+        "load_average": [
+          2.125,
+          2.10693359375,
+          2.10595703125
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:09:50.333779+00:00",
+        "stage": "timing",
+        "load_average": [
+          2.0205078125,
+          2.060546875,
+          2.087890625
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:10:50.338640+00:00",
+        "stage": "timing",
+        "load_average": [
+          2.201171875,
+          2.10888671875,
+          2.1015625
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:11:50.343983+00:00",
+        "stage": "timing",
+        "load_average": [
+          2.07470703125,
+          2.08642578125,
+          2.09130859375
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:12:50.352031+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.904296875,
+          2.02587890625,
+          2.06982421875
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:13:50.355793+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.99658203125,
+          2.02197265625,
+          2.0654296875
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:14:50.366182+00:00",
+        "stage": "timing",
+        "load_average": [
+          2.4296875,
+          2.15185546875,
+          2.10693359375
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:15:50.380141+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.7626953125,
+          2.0263671875,
+          2.06494140625
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:16:50.388015+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.669921875,
+          1.9580078125,
+          2.0380859375
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:17:50.396681+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.7421875,
+          1.92138671875,
+          2.01708984375
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:18:50.403572+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.9208984375,
+          1.9501953125,
+          2.017578125
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:19:50.419514+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.84716796875,
+          1.94091796875,
+          2.0068359375
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:20:50.424462+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.544921875,
+          1.84326171875,
+          1.9697265625
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:21:50.430332+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.5009765625,
+          1.7666015625,
+          1.93408203125
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:22:50.437373+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.625,
+          1.7490234375,
+          1.916015625
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:23:50.506247+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.689453125,
+          1.7236328125,
+          1.896484375
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:24:50.514300+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.6474609375,
+          1.6865234375,
+          1.8720703125
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:25:50.519583+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.55517578125,
+          1.65283203125,
+          1.8486328125
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:26:50.524990+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.48828125,
+          1.62255859375,
+          1.82421875
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:27:50.536522+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.21875,
+          1.521484375,
+          1.7763671875
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:28:50.542759+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.84228515625,
+          1.61767578125,
+          1.7919921875
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:29:50.551998+00:00",
+        "stage": "timing",
+        "load_average": [
+          2.287109375,
+          1.7705078125,
+          1.833984375
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:30:50.555930+00:00",
+        "stage": "timing",
+        "load_average": [
+          2.3828125,
+          1.92626953125,
+          1.88720703125
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:31:50.559765+00:00",
+        "stage": "timing",
+        "load_average": [
+          2.01904296875,
+          1.8974609375,
+          1.880859375
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:32:50.565865+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.90478515625,
+          1.88671875,
+          1.87939453125
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:33:50.570219+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.908203125,
+          1.892578125,
+          1.884765625
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:34:50.579141+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.81591796875,
+          1.89111328125,
+          1.888671875
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:35:50.582816+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.82470703125,
+          1.86962890625,
+          1.8818359375
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:36:50.596853+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.912109375,
+          1.8955078125,
+          1.89306640625
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:37:50.602506+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.7421875,
+          1.85302734375,
+          1.880859375
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:38:50.607921+00:00",
+        "stage": "timing",
+        "load_average": [
+          2.0380859375,
+          1.93798828125,
+          1.91064453125
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:39:50.612900+00:00",
+        "stage": "timing",
+        "load_average": [
+          2.33251953125,
+          2.029296875,
+          1.9423828125
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:40:50.621614+00:00",
+        "stage": "timing",
+        "load_average": [
+          2.89501953125,
+          2.21435546875,
+          2.0107421875
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:41:50.628544+00:00",
+        "stage": "timing",
+        "load_average": [
+          2.39794921875,
+          2.189453125,
+          2.01171875
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:42:50.636526+00:00",
+        "stage": "timing",
+        "load_average": [
+          2.291015625,
+          2.1875,
+          2.01904296875
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:43:50.645627+00:00",
+        "stage": "timing",
+        "load_average": [
+          2.7265625,
+          2.24609375,
+          2.046875
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:44:50.655668+00:00",
+        "stage": "timing",
+        "load_average": [
+          3.16552734375,
+          2.56494140625,
+          2.1767578125
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:45:50.671565+00:00",
+        "stage": "timing",
+        "load_average": [
+          2.42138671875,
+          2.4482421875,
+          2.16064453125
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:46:50.690557+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.52001953125,
+          2.18212890625,
+          2.0849609375
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:47:50.698371+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.189453125,
+          1.96435546875,
+          2.0146484375
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:48:50.712775+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.099609375,
+          1.80029296875,
+          1.95361328125
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:49:50.724609+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.07666015625,
+          1.6669921875,
+          1.89599609375
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:50:50.740540+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.06689453125,
+          1.55810546875,
+          1.84326171875
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:51:50.757796+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.0224609375,
+          1.4541015625,
+          1.78759765625
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:52:50.773660+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.005859375,
+          1.369140625,
+          1.73486328125
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:53:50.780280+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.25048828125,
+          1.36328125,
+          1.708984375
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:54:50.788031+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.09033203125,
+          1.29443359375,
+          1.662109375
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:55:50.795055+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.03125,
+          1.23828125,
+          1.61767578125
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:56:50.809723+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.009765625,
+          1.1923828125,
+          1.57666015625
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:57:50.819731+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.14990234375,
+          1.18798828125,
+          1.54736328125
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:58:50.835907+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.0947265625,
+          1.16552734375,
+          1.517578125
+        ]
+      },
+      {
+        "utc": "2026-10-31T21:59:50.843838+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.03271484375,
+          1.1328125,
+          1.482421875
+        ]
+      },
+      {
+        "utc": "2026-10-31T22:00:50.852794+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.009765625,
+          1.10595703125,
+          1.4482421875
+        ]
+      },
+      {
+        "utc": "2026-10-31T22:01:50.863971+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.001953125,
+          1.08349609375,
+          1.4189453125
+        ]
+      },
+      {
+        "utc": "2026-10-31T22:02:50.870621+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.0,
+          1.06591796875,
+          1.3896484375
+        ]
+      },
+      {
+        "utc": "2026-10-31T22:03:50.891287+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.03271484375,
+          1.0654296875,
+          1.3662109375
+        ]
+      },
+      {
+        "utc": "2026-10-31T22:04:50.905105+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.009765625,
+          1.05126953125,
+          1.341796875
+        ]
+      },
+      {
+        "utc": "2026-10-31T22:05:50.923573+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.0556640625,
+          1.0556640625,
+          1.32421875
+        ]
+      },
+      {
+        "utc": "2026-10-31T22:06:50.941647+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.154296875,
+          1.07666015625,
+          1.31201171875
+        ]
+      },
+      {
+        "utc": "2026-10-31T22:07:50.950073+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.05517578125,
+          1.05908203125,
+          1.28857421875
+        ]
+      },
+      {
+        "utc": "2026-10-31T22:08:50.968473+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.01806640625,
+          1.046875,
+          1.2666015625
+        ]
+      },
+      {
+        "utc": "2026-10-31T22:09:50.981973+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.09716796875,
+          1.06591796875,
+          1.2607421875
+        ]
+      },
+      {
+        "utc": "2026-10-31T22:10:50.997118+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.03369140625,
+          1.0517578125,
+          1.2431640625
+        ]
+      },
+      {
+        "utc": "2026-10-31T22:11:51.015299+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.01025390625,
+          1.0400390625,
+          1.2255859375
+        ]
+      },
+      {
+        "utc": "2026-10-31T22:12:51.021274+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.001953125,
+          1.02880859375,
+          1.2080078125
+        ]
+      },
+      {
+        "utc": "2026-10-31T22:13:51.029436+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.0,
+          1.02294921875,
+          1.1904296875
+        ]
+      },
+      {
+        "utc": "2026-10-31T22:14:51.049133+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.08935546875,
+          1.046875,
+          1.1845703125
+        ]
+      },
+      {
+        "utc": "2026-10-31T22:15:51.061688+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.03076171875,
+          1.03515625,
+          1.171875
+        ]
+      },
+      {
+        "utc": "2026-10-31T22:16:51.076742+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.14501953125,
+          1.05810546875,
+          1.17138671875
+        ]
+      },
+      {
+        "utc": "2026-10-31T22:17:51.085799+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.05126953125,
+          1.04638671875,
+          1.15966796875
+        ]
+      },
+      {
+        "utc": "2026-10-31T22:18:51.099689+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.0166015625,
+          1.03466796875,
+          1.14794921875
+        ]
+      },
+      {
+        "utc": "2026-10-31T22:19:51.105120+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.00439453125,
+          1.02587890625,
+          1.13623046875
+        ]
+      },
+      {
+        "utc": "2026-10-31T22:20:51.111332+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.17578125,
+          1.080078125,
+          1.1474609375
+        ]
+      },
+      {
+        "utc": "2026-10-31T22:21:51.127575+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.11572265625,
+          1.07958984375,
+          1.1416015625
+        ]
+      },
+      {
+        "utc": "2026-10-31T22:22:51.142710+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.04052734375,
+          1.06201171875,
+          1.1298828125
+        ]
+      },
+      {
+        "utc": "2026-10-31T22:23:51.150979+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.0126953125,
+          1.048828125,
+          1.1181640625
+        ]
+      },
+      {
+        "utc": "2026-10-31T22:24:51.168346+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.0029296875,
+          1.037109375,
+          1.1064453125
+        ]
+      },
+      {
+        "utc": "2026-10-31T22:25:51.183865+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.04345703125,
+          1.04248046875,
+          1.1005859375
+        ]
+      },
+      {
+        "utc": "2026-10-31T22:26:51.195313+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.103515625,
+          1.06103515625,
+          1.10009765625
+        ]
+      },
+      {
+        "utc": "2026-10-31T22:27:51.210330+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.03564453125,
+          1.04833984375,
+          1.08935546875
+        ]
+      },
+      {
+        "utc": "2026-10-31T22:28:51.225117+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.08056640625,
+          1.0654296875,
+          1.09033203125
+        ]
+      },
+      {
+        "utc": "2026-10-31T22:29:51.231039+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.11572265625,
+          1.08154296875,
+          1.09130859375
+        ]
+      },
+      {
+        "utc": "2026-10-31T22:30:51.250218+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.08544921875,
+          1.080078125,
+          1.0888671875
+        ]
+      },
+      {
+        "utc": "2026-10-31T22:31:51.262347+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.02978515625,
+          1.0625,
+          1.0830078125
+        ]
+      },
+      {
+        "utc": "2026-10-31T22:32:51.280685+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.0087890625,
+          1.04931640625,
+          1.0771484375
+        ]
+      },
+      {
+        "utc": "2026-10-31T22:33:51.294179+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.05517578125,
+          1.05419921875,
+          1.0771484375
+        ]
+      },
+      {
+        "utc": "2026-10-31T22:34:51.300113+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.19970703125,
+          1.10205078125,
+          1.09130859375
+        ]
+      },
+      {
+        "utc": "2026-10-31T22:35:51.315372+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.1455078125,
+          1.09716796875,
+          1.09033203125
+        ]
+      },
+      {
+        "utc": "2026-10-31T22:36:51.326565+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.05126953125,
+          1.0771484375,
+          1.08447265625
+        ]
+      },
+      {
+        "utc": "2026-10-31T22:37:51.333394+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.04931640625,
+          1.0751953125,
+          1.08447265625
+        ]
+      },
+      {
+        "utc": "2026-10-31T22:38:51.348246+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.0546875,
+          1.07470703125,
+          1.08447265625
+        ]
+      },
+      {
+        "utc": "2026-10-31T22:39:51.359504+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.01806640625,
+          1.0576171875,
+          1.07861328125
+        ]
+      },
+      {
+        "utc": "2026-10-31T22:40:51.367330+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.0048828125,
+          1.0458984375,
+          1.07275390625
+        ]
+      },
+      {
+        "utc": "2026-10-31T22:41:51.385396+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.0,
+          1.0341796875,
+          1.06689453125
+        ]
+      },
+      {
+        "utc": "2026-10-31T22:42:51.403222+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.04296875,
+          1.03955078125,
+          1.06689453125
+        ]
+      },
+      {
+        "utc": "2026-10-31T22:43:51.418619+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.087890625,
+          1.044921875,
+          1.06689453125
+        ]
+      },
+      {
+        "utc": "2026-10-31T22:44:51.434010+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.06787109375,
+          1.0498046875,
+          1.06689453125
+        ]
+      },
+      {
+        "utc": "2026-10-31T22:45:51.449580+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.02294921875,
+          1.0380859375,
+          1.06103515625
+        ]
+      },
+      {
+        "utc": "2026-10-31T22:46:51.462608+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.07080078125,
+          1.0556640625,
+          1.06640625
+        ]
+      },
+      {
+        "utc": "2026-10-31T22:47:51.478263+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.02001953125,
+          1.0439453125,
+          1.06103515625
+        ]
+      },
+      {
+        "utc": "2026-10-31T22:48:51.493431+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.00537109375,
+          1.0322265625,
+          1.05517578125
+        ]
+      },
+      {
+        "utc": "2026-10-31T22:49:51.508073+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.0,
+          1.02490234375,
+          1.04931640625
+        ]
+      },
+      {
+        "utc": "2026-10-31T22:50:51.523941+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.0,
+          1.01904296875,
+          1.04345703125
+        ]
+      },
+      {
+        "utc": "2026-10-31T22:51:51.539501+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.0,
+          1.01318359375,
+          1.03759765625
+        ]
+      },
+      {
+        "utc": "2026-10-31T22:52:51.547923+00:00",
+        "stage": "timing",
+        "load_average": [
+          1.0,
+          1.00732421875,
+          1.03173828125
+        ]
+      },
+      {
+        "utc": "2026-10-31T22:53:51.555192+00:00",
+        "stage": "completed",
+        "load_average": [
+          0.919921875,
+          0.98486328125,
+          1.0205078125
+        ]
+      }
+    ],
+    "measurement_method": "Pinned isolated helper reports actual child wall (spawn through wait and pipe collection), user+system CPU and peak RSS. Helper startup/IPC, hashing and normalization excluded. Roughly2MiB inherited pre-exec floor remains. Each accepted trial passed edited-vs-independent-fresh comparison before publication.",
+    "baseline_seeded": false,
+    "gate_status": "Configured full lint/check/performance gate not passed; source corrections remain under validation. No failed or unknown tool was accepted or rebaselined."
   }
 }
