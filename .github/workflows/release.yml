@@ -1,8 +1,8 @@
 # The release workflow on GitHub Actions, its thin edge, as ruff's is. Each run releases ONE product, the `product` input: each
 # product is released on its own. Ryo is published first: tastemaker depends on ryo's crates, which must be on crates.io before
 # tastemaker's publish. `asymptote check --root crates/<product> --groups <group>` runs each of that product's `release-*` groups
-# (its packaging tests, one job per group and machine) on four machines first; then the `build` job builds that product's wheel (Ryo's only for its binary) on each
-# of eight targets' own machines through PyO3/maturin-action (the manylinux 2_17 and musllinux_1_2 containers on Linux), one matrix
+# (its packaging tests, one job per group and machine) on three machines first (Linux x64 and arm64, macOS; Windows ships from 0.1.1); then the `build` job builds that product's wheel (Ryo's only for its binary) on each
+# of six targets' own machines through PyO3/maturin-action (the manylinux 2_17 and musllinux_1_2 containers on Linux), one matrix
 # whose rows run the same steps; then the `publish` job runs `ci/release/command.py --product <product>` once over what the rows built:
 # it makes the product's npm packages and its GitHub Release archives from the wheels' binaries, hands every package to its registry's
 # dry run, and, when it publishes, uploads to crates.io, then npm and PyPI, and last creates each product's GitHub Release with `gh`.
@@ -45,11 +45,9 @@ jobs:
           - { runner: ubuntu-26.04, group: check }
           - { runner: ubuntu-26.04-arm, group: check }
           - { runner: macos-26, group: check }
-          - { runner: windows-2025, group: check }
           - { runner: ubuntu-26.04, group: release-tests }
           - { runner: ubuntu-26.04-arm, group: release-tests }
           - { runner: macos-26, group: release-tests }
-          - { runner: windows-2025, group: release-tests }
           - { runner: ubuntu-26.04, group: release-clippy }
           - { runner: ubuntu-26.04, group: release-coverage }
           - { runner: ubuntu-26.04, group: release-msrv }
@@ -118,8 +116,6 @@ jobs:
           - { target: aarch64-unknown-linux-musl, runner: ubuntu-26.04-arm, manylinux: musllinux_1_2 }
           - { target: x86_64-apple-darwin, runner: macos-26, macosx-deployment-target: "10.12" }
           - { target: aarch64-apple-darwin, runner: macos-26, macosx-deployment-target: "11.0" }
-          - { target: x86_64-pc-windows-msvc, runner: windows-2025 }
-          - { target: aarch64-pc-windows-msvc, runner: windows-2025 }
     runs-on: ${{ matrix.runner }}
     env:
       # The repository's .cargo/config.toml links with mold on Linux, which the build containers lack, and links the C runtime

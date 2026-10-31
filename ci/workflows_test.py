@@ -271,12 +271,12 @@ def test_only_the_release_job_that_uploads_is_handed_a_token_and_only_after_the_
     # The check workflow's groups too, the release being the only gate: lint from the root, the tests on every machine.
     assert [row.get("root") for row in rows if row["group"] == "lint"] == ["."]
     assert sorted(row["runner"] for row in rows if row["group"] == "check") == sorted(
-        ["ubuntu-26.04", "ubuntu-26.04-arm", "macos-26", "windows-2025"]
+        ["ubuntu-26.04", "ubuntu-26.04-arm", "macos-26"]
     )
     assert [row["runner"] for row in rows if row["group"] == "api"] == ["macos-26"]
     # The tests on every machine the products ship to; every other group once, on Linux.
     assert sorted(row["runner"] for row in rows if row["group"] == "release-tests") == sorted(
-        ["ubuntu-26.04", "ubuntu-26.04-arm", "macos-26", "windows-2025"]
+        ["ubuntu-26.04", "ubuntu-26.04-arm", "macos-26"]
     )
     assert all(row["runner"] == "ubuntu-26.04" for row in rows if row["group"] not in {"release-tests", "check", "api"})
     assert len(rows) == len({(row["runner"], row["group"]) for row in rows})
@@ -300,8 +300,6 @@ def test_the_release_builds_every_target_in_one_matrix_whose_rows_run_the_same_s
         "aarch64-unknown-linux-musl",
         "x86_64-apple-darwin",
         "aarch64-apple-darwin",
-        "x86_64-pc-windows-msvc",
-        "aarch64-pc-windows-msvc",
     ]
     assert [step["uses"].split("@")[0] for step in build["steps"]] == [
         "actions/checkout",
