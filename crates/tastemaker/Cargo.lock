@@ -1339,6 +1339,7 @@ version = "0.1.0"
 dependencies = [
  "idiomatic-sh-ryo-language",
  "idiomatic-sh-ryo-values",
+ "regex-automata",
  "thiserror",
  "winnow 0.7.15",
 ]
