@@ -1,44 +1,42 @@
-# Ruff subset benchmark: 29-rule corpus evidence
+# Ruff benchmark: completed 54-rule baseline
 
-**All three project comparisons passed** for this immutable **29-rule subset** of Ruff 0.16.5's 413 shipped defaults. Both contestants selected exactly the same rules and source files. All **441 independent cases** passed before corpus execution, followed by six alternating-order trials per project, exact finding multisets, and retained/edited results checked against independent fresh-cache executions. This is scoped parity evidence, not a claim of full-default coverage.
+All three pinned project comparisons passed for **54 rules and 1,124 independent cases**, with **108 measured samples** across six alternating-order trials per project. The other **359 shipped defaults were explicitly deferred** at this checkpoint. This is a baseline for continued rule authoring, not full-default parity or the stopping point for implementation.
 
-The earlier 15-rule attempt exposed three B002 false positives in pandas. Its [report and raw evidence remain in commit 2e000d0](https://github.com/idiomatic-sh/idiomatic/tree/2e000d0/crates/ryo/languages/python/benchmarks/linters/ruff/results). The inner-operator relation had admitted binary subtraction; requiring a unary node fixed the mismatch. Five independent regression cases now cover it. `correctness.json` preserves the original mismatch and records the successful rerun. The 29-rule timings below are a larger workload than that first 15-rule report and must not be interpreted as a regression of an unchanged workload.
+**The configured lint/check/performance gate failed**, although this benchmark completed. Four other tools failed (core tests/allocation listing, peak, CLI operator catalog, core BDD), and governance reported 12 new findings. Asymptote correctly refused to seed the new benchmark while tool results were unknown. Corrections and broader rule validation are in progress; no unrelated regression was accepted. `correctness.json` preserves the complete gate result.
+
+Cold performance is unacceptable: Django takes approximately **89.8 seconds and 2.73 GiB** in Ryo versus **0.312 seconds and 33.2 MiB** in Ruff. Cached results do not erase this cost.
 
 | Project | Tool-cache condition | Ruff wall ms | Ryo wall ms | Ryo / Ruff | Peak RSS MiB Ruff / Ryo |
 | --- | --- | ---: | ---: | ---: | ---: |
-| django | empty-tool-cache | 299.41 | 9135.59 | 30.51× | 33.0 / 346.9 |
-| django | retained-tool-cache | 34.67 | 48.49 | 1.40× | 26.2 / 44.8 |
-| django | edited-tool-cache | 34.57 | 59.29 | 1.71× | 26.5 / 48.8 |
-| pandas | empty-tool-cache | 351.77 | 12109.20 | 34.42× | 28.9 / 263.2 |
-| pandas | retained-tool-cache | 42.73 | 46.42 | 1.09× | 26.2 / 47.1 |
-| pandas | edited-tool-cache | 42.17 | 63.33 | 1.50× | 26.2 / 56.1 |
-| fastapi | empty-tool-cache | 64.77 | 1668.19 | 25.75× | 23.2 / 167.0 |
-| fastapi | retained-tool-cache | 14.31 | 33.44 | 2.34× | 17.3 / 14.6 |
-| fastapi | edited-tool-cache | 16.61 | 67.81 | 4.08× | 20.2 / 50.9 |
+| django | empty-tool-cache | 312.16 | 89808.16 | 287.70× | 33.2 / 2792.7 |
+| django | retained-tool-cache | 45.34 | 232.55 | 5.13× | 26.8 / 46.4 |
+| django | edited-tool-cache | 38.81 | 263.92 | 6.80× | 27.0 / 75.1 |
+| pandas | empty-tool-cache | 370.34 | 121123.44 | 327.06× | 28.9 / 1922.6 |
+| pandas | retained-tool-cache | 46.52 | 221.55 | 4.76× | 26.9 / 48.5 |
+| pandas | edited-tool-cache | 47.28 | 295.95 | 6.26× | 26.5 / 105.0 |
+| fastapi | empty-tool-cache | 64.05 | 16709.05 | 260.87× | 22.7 / 1405.7 |
+| fastapi | retained-tool-cache | 17.38 | 210.61 | 12.12× | 19.2 / 24.8 |
+| fastapi | edited-tool-cache | 18.73 | 491.36 | 26.23× | 19.8 / 317.8 |
 
-Each value is the median of six observations. `measurements.json` also contains min/max bounds and CPU measurements; `observations.log` retains individual samples, order, input counts/digests, exclusions, and exact findings. Baseline positive corpus findings were Django B015=3/B026=7, pandas B015=194, and FastAPI none. Other selected rules are supported by independent positive/negative cases, not falsely described as receiving positive coverage from these corpora. Each reversible patch adds a bare exception; edited findings are checked against both the reference and fresh candidate executions.
+Each value is the median of six observations; `measurements.json` retains min/max and CPU, and `observations.log` contains every sample and execution order. Retained-cache hits are not independently instrumented. Both contestants receive identical explicit source paths and selected rules. Edited results also match independent fresh-cache executions.
 
-## Input scope and reproducibility
+## Scope, identity and measurement
 
-- django: measured source files=2874 bytes=18487487 digest=db19ff616a6faa1ecb2cb37587e86807e256fc28ca027d259c7a8a397555b12e input-profile=pinned-reference-valid-python
-- pandas: measured source files=1553 bytes=21856668 digest=6547b49479f1ebb3cacabd1df1b35a6dc8e215a289322d7c38e85586613ca6a0 input-profile=pinned-reference-valid-python
-- fastapi: measured source files=1239 bytes=3692435 digest=0cfc138cd248b721c12e1eb5374db27671d954db715ff9550d8e6d0c7c1bf256 input-profile=pinned-reference-valid-python
+The measured source is commit `2bee81b878a3923773905eee5e2468ed8a29ec04`; the exact profile, project revisions, patches, executable hashes and certificate are archived in `identity.json`. Later source changes and additional authored rules are outside this measurement. The 54-rule positive corpus findings are Django B015=3, B026=7, PIE800=2, PLC3002=1, PLR1711=5, PLW0120=1; pandas B015=194, SIM210=1, SIM211=3, TRY203=1; FastAPI PLC0414=23. Each edit adds E722=1. Other rules receive positive coverage from independent fixtures, not from these corpus findings.
 
-All projects use the immutable commits and patches in the shared Python benchmark manifest. The complete discovered Python-file profile first failed on Django's intentional syntax-error fixture `tests/test_runner_apps/tagged/tests_syntax_error.py`: the candidate reports requested relations as partial rather than matching Ruff's parser-error findings. The subsequent valid-Python profile explicitly excluded that file from both contestants using the pinned Ruff parser's diagnostic, with path/range recorded. Ruff-valid files are never removed just because Ryo cannot parse them. Default-discovered notebooks/TOML are separately inventoried exclusions. Frontend syntax and source-kind parity remain capability gaps.
+Input discovery is explicitly scoped to `.py`/`.pyi`. Notebook/TOML paths and Django's intentional syntax-error fixture are enumerated in the raw observations; the latter is excluded from both contestants only after the pinned reference identifies invalid Python. Full-input parser parity remains a documented gap. File counts, byte counts and content fingerprints are preserved per project.
 
-The captured inventory contained 29 authored rules, 26 assessed deferrals and 358 assessed pending rules. That intermediate profile was not a committed source blob; its exact recovered bytes are archived in `identity.json` under the original SHA256. Subsequent source assessment reclassified the difficult portions without changing this run's immutable profile. Neither deferred nor pending work is counted matched. `identity.json` pins the actual executable/profile/query bytes; `environment.txt` records host/toolchain/build metadata.
+The isolated collector measures actual child user+system CPU and peak RSS using Linux wait4. Wall time covers child spawn, wait and pipe collection; helper startup/IPC, hashing and normalization are excluded. The tiny helper's approximately 2 MiB inherited pre-exec floor remains a limitation. OS page cache is uncontrolled. This differs from the historical 29-rule GNU time instrumentation: historical identities and correctness evidence are retained, and historical measurements remain available in commit `2bee81b8`. No cross-profile speedup or regression is inferred.
 
-Execution uses Linux aarch64, release optimization level 3, one processing worker per contestant, and a pinned GNU time collector. Wall time includes collector/child startup, query compilation and serialization. Normalization, artifact certification and source hashing occur outside timing. CPU is user+system time with hundredth-second precision: zero means below the clock's resolution, not zero work. RSS is the OS maximum resident set, not cumulative allocations. Empty means a new tool cache; OS page cache is uncontrolled. Retained-cache hits were not instrumented. Build/benchmark jobs used the same host lock; load averages were not sampled for this exploratory run, so these observations are not a seeded quiet-machine ratchet baseline.
+## Profile and engine learning
 
-## Engine findings
+One separate Django cold profile used the exact measured executable, input fingerprint and 19 findings. Instrumented wall time was 91.647 seconds: reading/evaluation consumed 91,312 ms, compilation 189 ms, listing 1.6 ms. Of 8,914 CPU sample events, `read_row` accounts for 33.11% self time; 31.30 percentage points are below materialization, predominantly through `stream_lookup`. **Five samples were lost** (one reported lost chunk). `profile.json`, `trace.json` and `profile.txt` preserve the evidence; profiling is excluded from the timing samples.
 
-Two bounded profiles used the same 29 queries and asserted the identical Django source digest and 10 findings. Existing entered spans recorded **9,362 ms in the core file-processing `read` phase**, **22.36 ms compiling rule plans**, and **1.58 ms listing inputs**. The `read` span includes model/fact work and per-file query evaluation; it is not just filesystem reading. This rules out plan compilation as the dominant cost of this workload. `trace.json` contains all seven trace events, and `profile.json` records timings, executable identity, source identity and start/end machine load.
+This directly identifies row materialization as a substantial cost. Eager right-side relation materialization, repeated suppression subplans across rules and broad interval joins are follow-on hypotheses to test separately; this profile does not establish their individual contribution or promise a particular speedup. Rule coverage remains the current priority.
 
-A separate 99 Hz user-CPU sample collected **899 samples with zero lost samples**. Self-sample shares were `table_model::read_row` **39.93%**, `comparing::holds_one` **8.01%**, `table_model::materialize` **6.90%**, and `table_model::index` **4.34%**. Call stacks place row reading/materialization under join `stream_lookup`; the top three table-model operations alone account for about **51%** of self samples. These are one-run sampling estimates, not a promised speedup. The [table implementation](https://github.com/idiomatic-sh/idiomatic/blob/86c7144/crates/ryo/crates/core/src/domain/table_model/service.rs) reconstructs rows and materializes/indexes lookup tables. The next bounded experiment should replay this join workload and test reuse of compatible per-file row/index views and shared suppression plans, while checking exact answers. Unconditional lexical-index construction is a separate design concern; this profile does not justify calling it the dominant bottleneck.
+## Enforced learning
 
-The competitor provides concrete design comparisons. At the pinned [Ruff 0.16.5 AST checker](https://github.com/astral-sh/ruff/blob/0.16.5/crates/ruff_linter/src/checkers/ast/mod.rs), rules share a checker that builds semantic context during traversal, with deferred annotation work handled explicitly. Its [lint pipeline](https://github.com/astral-sh/ruff/blob/0.16.5/crates/ruff_linter/src/linter.rs) shares parsed tokens/AST and dispatches categories based on enabled rules, while keeping syntax-error behavior separate from AST checks. Its [cache](https://github.com/astral-sh/ruff/blob/0.16.5/crates/ruff/src/cache.rs) stores per-package diagnostic data with settings/version identity and file modification/permission keys. These observations motivate shared query subplans and demand-driven facts in Ryo; copying cache-key shortcuts without preserving Ryo's correctness guarantees is not a proposed fix.
-
-This dated 29-rule experiment predates the completed 54-rule authoring checkpoint and review-driven fixes. Final corpus measurements for that larger profile remain pending; this historical report is not readiness approval.
+The shared harness refuses unknown/unread candidate relations, missing or extra source files, unequal finding multisets, empty case evidence, unpinned tools and changed certified workload or instrumentation. Compile-fail proofs protect the certificate and publishable sample constructors. Actual collector integration cases exercise CPU, memory, launch failures, stream draining and isolation from a large parent. Positive/negative query cases are colocated with every authored rule and governed by Tastemaker. The configured correctness check runs real reference/candidate cases; the new review adds complete default accounting at that boundary so deleting an authored query cannot silently reduce coverage. These are shared protections inherited by subsequent language benchmarks, rather than documentation-only lessons.
 
 ## Default-rule assessment and follow-on work
 

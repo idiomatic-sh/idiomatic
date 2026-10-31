@@ -1,9 +1,9 @@
 [
 {"args":{"name":"main"},"name":"thread_name","ph":"M","pid":1,"tid":0},
-{".file":"crates/core/src/inbound/use_cases/lint/use_case.rs",".line":1288,"cat":"ryo_core::inbound::use_cases::lint::use_case","name":"compile","ph":"B","pid":1,"tid":0,"ts":20680.466},
-{".file":"crates/core/src/inbound/use_cases/lint/use_case.rs",".line":1288,"cat":"ryo_core::inbound::use_cases::lint::use_case","name":"compile","ph":"E","pid":1,"tid":0,"ts":43039.649},
-{".file":"crates/core/src/inbound/use_cases/lint/use_case.rs",".line":1298,"cat":"ryo_core::inbound::use_cases::lint::use_case","name":"list","ph":"B","pid":1,"tid":0,"ts":43050.69},
-{".file":"crates/core/src/inbound/use_cases/lint/use_case.rs",".line":1298,"cat":"ryo_core::inbound::use_cases::lint::use_case","name":"list","ph":"E","pid":1,"tid":0,"ts":44628.697},
-{".file":"crates/core/src/inbound/use_cases/lint/use_case.rs",".line":828,"cat":"ryo_core::inbound::use_cases::lint::use_case","name":"read","ph":"B","pid":1,"tid":0,"ts":45753.452},
-{".file":"crates/core/src/inbound/use_cases/lint/use_case.rs",".line":828,"cat":"ryo_core::inbound::use_cases::lint::use_case","name":"read","ph":"E","pid":1,"tid":0,"ts":9408184.569}
+{".file":"crates/core/src/inbound/use_cases/lint/use_case.rs",".line":1288,"cat":"ryo_core::inbound::use_cases::lint::use_case","name":"compile","ph":"B","pid":1,"tid":0,"ts":17140.687},
+{".file":"crates/core/src/inbound/use_cases/lint/use_case.rs",".line":1288,"cat":"ryo_core::inbound::use_cases::lint::use_case","name":"compile","ph":"E","pid":1,"tid":0,"ts":206093.171},
+{".file":"crates/core/src/inbound/use_cases/lint/use_case.rs",".line":1298,"cat":"ryo_core::inbound::use_cases::lint::use_case","name":"list","ph":"B","pid":1,"tid":0,"ts":206116.754},
+{".file":"crates/core/src/inbound/use_cases/lint/use_case.rs",".line":1298,"cat":"ryo_core::inbound::use_cases::lint::use_case","name":"list","ph":"E","pid":1,"tid":0,"ts":207720.347},
+{".file":"crates/core/src/inbound/use_cases/lint/use_case.rs",".line":828,"cat":"ryo_core::inbound::use_cases::lint::use_case","name":"read","ph":"B","pid":1,"tid":0,"ts":214053.719},
+{".file":"crates/core/src/inbound/use_cases/lint/use_case.rs",".line":828,"cat":"ryo_core::inbound::use_cases::lint::use_case","name":"read","ph":"E","pid":1,"tid":0,"ts":91526205.304}
 ]

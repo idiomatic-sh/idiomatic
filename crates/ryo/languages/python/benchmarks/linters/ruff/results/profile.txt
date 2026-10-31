@@ -1,41 +1,428 @@
 # To display the perf.data header info, please use --header/--header-only options.
 #
 #
-# Total Lost Samples: 0
+# Total Lost Samples: 5
 #
-# Samples: 899  of event 'cpu-clock:u'
-# Event count (approx.): 9080807990
+# Samples: 8K of event 'cpu-clock:u'
+# Event count (approx.): 90040403140
 #
-# Overhead  Symbol                                                                                                                                                                                                                                                                                                                                     IPC   [IPC Coverage]
-# ........  .........................................................................................................................................................................................................................................................................................................................................  ....................
+# Overhead  Command    Shared Object     Symbol                                                                                                                                                                                                                                                                                                                               
+# ........  .........  ................  .....................................................................................................................................................................................................................................................................................................................................
 #
-    39.93%  [.] _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain11table_model7service8read_row                                                                                                                                                                                                                                                                 -      -            
-     8.01%  [.] _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain9comparing7service9holds_one                                                                                                                                                                                                                                                                   -      -            
-     6.90%  [.] _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain11table_model7service11materialize                                                                                                                                                                                                                                                             -      -            
-     4.34%  [.] _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain11table_model7service5index                                                                                                                                                                                                                                                                    -      -            
-     4.00%  [.] _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain11table_cells7service15read_tree_cells                                                                                                                                                                                                                                                         -      -            
-     3.00%  [.] _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain11table_model7service8hash_row                                                                                                                                                                                                                                                                 -      -            
-     2.89%  [.] _RNvNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators6select4item9tree_each                                                                                                                                                                                                                                   -      -            
-     2.00%  [.] _RNvNtNtNtCshXgPjfacqVJ_12ryo_language6domain7symbols7service7hash_of                                                                                                                                                                                                                                                                  -      -            
-     1.45%  [.] _RINvMsj_NtCsi2GJixwxVUa_5alloc3vecINtB6_3VecNtNtNtNtCshXgPjfacqVJ_12ryo_language6domain9relations5types8PositionE16extend_desugaredNtNtNtBM_8elements5types8ChildrenECskNLQv11mg7z_8ryo_core                                                                                                                                          -      -            
-     1.45%  [.] _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain5joins7service5union                                                                                                                                                                                                                                                                           -      -            
-     1.33%  [.] 0x00000000000a3144                                                                                                                                                                                                                                                                                                                     -      -            
-     1.22%  [.] _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain9tree_join7service5probe                                                                                                                                                                                                                                                                       -      -            
-     1.00%  [.] _RNvNtNtCsfo0Ls1ZyrQZ_4core3str8converts9from_utf8                                                                                                                                                                                                                                                                                     -      -            
-     1.00%  [.] _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain11shared_walk7service8consider                                                                                                                                                                                                                                                                 -      -            
-     1.00%  [.] 0x00000000000a3094                                                                                                                                                                                                                                                                                                                     -      -            
-     0.89%  [.] _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain9comparing7service5holds                                                                                                                                                                                                                                                                       -      -            
-     0.89%  [.] _RNvXs1_NtNtNtNtNtNtCshXgPjfacqVJ_12ryo_language6domain9relations11collections9relations15source_location4itemINtB5_20SourceLocationReaderNtNtNtNtCs3w1sxXSheVu_10ryo_python6domain5model5types12DeclarationsEINtNtNtBf_7answers5types8VisitingNtB5_14SourceLocationB2b_E5visitB2j_                                                    -      -            
-     0.89%  [.] memcpy$plt                                                                                                                                                                                                                                                                                                                             -      -            
-     0.67%  [.] _RNvNtNtNtCshXgPjfacqVJ_12ryo_language6domain8elements7service4push                                                                                                                                                                                                                                                                    -      -            
-     0.56%  [.] _RINvNtNtNtNtCshXgPjfacqVJ_12ryo_language7inbound9use_cases5parse7service7walk_inNtNtNtNtNtCs3w1sxXSheVu_10ryo_python7inbound9contracts5parse8contract13ParseContractEB1q_                                                                                                                                                             -      -            
-     0.56%  [.] _RINvNtNtNtNtCshXgPjfacqVJ_12ryo_language7inbound9use_cases5parse7service8build_inNtNtNtNtNtCs3w1sxXSheVu_10ryo_python7inbound9contracts5parse8contract13ParseContractEB1r_                                                                                                                                                            -      -            
-     0.56%  [.] _RNvMNtCsgErAXpw11WJ_18ruff_python_parser5lexerNtB2_5Lexer10next_token                                                                                                                                                                                                                                                                 -      -            
-     0.56%  [.] _RNvNtNtNtCshXgPjfacqVJ_12ryo_language6domain7symbols7service7hash_in                                                                                                                                                                                                                                                                  -      -            
-     0.56%  [.] _RNvXNtNtNtCskNLQv11mg7z_8ryo_core6domain6replay5typesINtB2_4PipeNCNvXNtNtNtNtNtB6_8operator11collections9operators6select4itemNtB15_10SelectItemNtNtB19_9interface13OperatorsItem6stream0ENtNtNtB6_9operating5types4Emit3rowB8_                                                                                                       -      -            
-     0.56%  [.] cfree                                                                                                                                                                                                                                                                                                                                  -      -            
+    33.11%  candidate  candidate         [.] _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain11table_model7service8read_row
+            |
+            ---_RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain11table_model7service8read_row
+               |          
+               |--31.30%--_RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain11table_model7service11materialize
+               |          |          
+               |           --31.29%--_RNvNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators4join4item13stream_lookup
+               |                     _RNvXNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators4join4itemNtB2_8JoinItemNtNtB6_9interface13OperatorsItem6stream
+               |                     _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7pass_on
+               |                     |          
+               |                     |--21.14%--_RNvMs_NtNtNtCskNLQv11mg7z_8ryo_core11application13file_analysis7serviceNtB4_12FileAnalysis9read_file
+               |                     |          _RNvMs_NtNtNtCskNLQv11mg7z_8ryo_core11application13file_analysis7serviceNtB4_12FileAnalysis10visit_file
+               |                     |          _RNCNvMs_NtNtNtNtCskNLQv11mg7z_8ryo_core7inbound9use_cases4lint8use_caseNtB6_15LintUseCaseImpl7visited0Be_
+               |                     |          
+               |                      --10.15%--_RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7deliver
+               |                                |          
+               |                                |--5.13%--_RNvXNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators6select4itemNtB2_10SelectItemNtNtB6_9interface13OperatorsItem6stream
+               |                                |          _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7pass_on
+               |                                |          _RNvMs_NtNtNtCskNLQv11mg7z_8ryo_core11application13file_analysis7serviceNtB4_12FileAnalysis9read_file
+               |                                |          _RNvMs_NtNtNtCskNLQv11mg7z_8ryo_core11application13file_analysis7serviceNtB4_12FileAnalysis10visit_file
+               |                                |          
+               |                                 --5.03%--_RNvXNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators5union4itemNtB2_9UnionItemNtNtB6_9interface13OperatorsItem6stream
+               |                                           _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7pass_on
+               |                                           _RNvMs_NtNtNtCskNLQv11mg7z_8ryo_core11application13file_analysis7serviceNtB4_12FileAnalysis9read_file
+               |                                           _RNvMs_NtNtNtCskNLQv11mg7z_8ryo_core11application13file_analysis7serviceNtB4_12FileAnalysis10visit_file
+               |          
+                --1.68%--_RNvNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators6select4item11select_rows
+                          _RNvXNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators6select4itemNtB2_10SelectItemNtNtB6_9interface13OperatorsItem6stream
+                          _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7pass_on
+                          |          
+                          |--0.91%--_RNvMs_NtNtNtCskNLQv11mg7z_8ryo_core11application13file_analysis7serviceNtB4_12FileAnalysis9read_file
+                          |          _RNvMs_NtNtNtCskNLQv11mg7z_8ryo_core11application13file_analysis7serviceNtB4_12FileAnalysis10visit_file
+                          |          _RNCNvMs_NtNtNtNtCskNLQv11mg7z_8ryo_core7inbound9use_cases4lint8use_caseNtB6_15LintUseCaseImpl7visited0Be_
+                          |          
+                           --0.77%--_RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7deliver
+                                     |          
+                                      --0.76%--_RNvXNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators5union4itemNtB2_9UnionItemNtNtB6_9interface13OperatorsItem6stream
+                                                _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7pass_on
+                                                _RNvMs_NtNtNtCskNLQv11mg7z_8ryo_core11application13file_analysis7serviceNtB4_12FileAnalysis9read_file
+                                                _RNvMs_NtNtNtCskNLQv11mg7z_8ryo_core11application13file_analysis7serviceNtB4_12FileAnalysis10visit_file
+
+    13.64%  candidate  candidate         [.] _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain9comparing7service9holds_one
+            |
+            ---_RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain9comparing7service9holds_one
+               |          
+               |--11.62%--_RNvNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators6select4item11select_rows
+               |          _RNvXNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators6select4itemNtB2_10SelectItemNtNtB6_9interface13OperatorsItem6stream
+               |          _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7pass_on
+               |          |          
+               |          |--8.05%--_RNvMs_NtNtNtCskNLQv11mg7z_8ryo_core11application13file_analysis7serviceNtB4_12FileAnalysis9read_file
+               |          |          _RNvMs_NtNtNtCskNLQv11mg7z_8ryo_core11application13file_analysis7serviceNtB4_12FileAnalysis10visit_file
+               |          |          _RNCNvMs_NtNtNtNtCskNLQv11mg7z_8ryo_core7inbound9use_cases4lint8use_caseNtB6_15LintUseCaseImpl7visited0Be_
+               |          |          
+               |           --3.57%--_RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7deliver
+               |                     |          
+               |                      --3.56%--_RNvXNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators5union4itemNtB2_9UnionItemNtNtB6_9interface13OperatorsItem6stream
+               |                                _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7pass_on
+               |                                |          
+               |                                 --3.51%--_RNvMs_NtNtNtCskNLQv11mg7z_8ryo_core11application13file_analysis7serviceNtB4_12FileAnalysis9read_file
+               |                                           _RNvMs_NtNtNtCskNLQv11mg7z_8ryo_core11application13file_analysis7serviceNtB4_12FileAnalysis10visit_file
+               |          
+                --1.49%--_RNvNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators6select4item9tree_each
+                          |          
+                           --1.48%--_RNvNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators6select4item11select_rows
+                                     _RNvXNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators6select4itemNtB2_10SelectItemNtNtB6_9interface13OperatorsItem6stream
+                                     _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7pass_on
+                                     |          
+                                      --1.01%--_RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7deliver
+
+     7.40%  candidate  candidate         [.] _RNvXNtNtNtCskNLQv11mg7z_8ryo_core6domain6replay5typesINtB2_4PipeNCNvNtNtNtNtNtB6_8operator11collections9operators4join4item13stream_lookup0ENtNtNtB6_9operating5types4Emit3rowB8_
+            |
+            ---_RNvXNtNtNtCskNLQv11mg7z_8ryo_core6domain6replay5typesINtB2_4PipeNCNvNtNtNtNtNtB6_8operator11collections9operators4join4item13stream_lookup0ENtNtNtB6_9operating5types4Emit3rowB8_
+               _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8fragment7service4emit
+               _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7pass_on
+               _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7deliver
+               _RNvNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators4join4item13stream_lookup
+               _RNvXNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators4join4itemNtB2_8JoinItemNtNtB6_9interface13OperatorsItem6stream
+               _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7pass_on
+               |          
+                --7.39%--_RNvMs_NtNtNtCskNLQv11mg7z_8ryo_core11application13file_analysis7serviceNtB4_12FileAnalysis9read_file
+                          _RNvMs_NtNtNtCskNLQv11mg7z_8ryo_core11application13file_analysis7serviceNtB4_12FileAnalysis10visit_file
+
+     4.26%  candidate  candidate         [.] _RINvNtNtNtNtCsfo0Ls1ZyrQZ_4core5slice4sort8unstable9quicksort9quicksortjNCINvMB8_Sj16sort_unstable_byNCNvNtNtNtCskNLQv11mg7z_8ryo_core6domain9positions7service6sorteds_0E0EB1L_
+            |
+            ---_RINvNtNtNtNtCsfo0Ls1ZyrQZ_4core5slice4sort8unstable9quicksort9quicksortjNCINvMB8_Sj16sort_unstable_byNCNvNtNtNtCskNLQv11mg7z_8ryo_core6domain9positions7service6sorteds_0E0EB1L_
+               |          
+               |--3.26%--_RINvNtNtNtNtCsfo0Ls1ZyrQZ_4core5slice4sort8unstable9quicksort9quicksortjNCINvMB8_Sj16sort_unstable_byNCNvNtNtNtCskNLQv11mg7z_8ryo_core6domain9positions7service6sorteds_0E0EB1L_
+               |          |          
+               |          |--2.37%--_RINvNtNtNtNtCsfo0Ls1ZyrQZ_4core5slice4sort8unstable9quicksort9quicksortjNCINvMB8_Sj16sort_unstable_byNCNvNtNtNtCskNLQv11mg7z_8ryo_core6domain9positions7service6sorteds_0E0EB1L_
+               |          |          |          
+               |          |          |--1.55%--_RINvNtNtNtNtCsfo0Ls1ZyrQZ_4core5slice4sort8unstable9quicksort9quicksortjNCINvMB8_Sj16sort_unstable_byNCNvNtNtNtCskNLQv11mg7z_8ryo_core6domain9positions7service6sorteds_0E0EB1L_
+               |          |          |          |          
+               |          |          |          |--0.89%--_RINvNtNtNtNtCsfo0Ls1ZyrQZ_4core5slice4sort8unstable9quicksort9quicksortjNCINvMB8_Sj16sort_unstable_byNCNvNtNtNtCskNLQv11mg7z_8ryo_core6domain9positions7service6sorteds_0E0EB1L_
+               |          |          |          |          
+               |          |          |           --0.66%--_RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain9positions7service6sorted
+               |          |          |                     _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain9positions7service6firsts
+               |          |          |                     _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain5joins7service5union
+               |          |          |                     _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8fragment7service9make_rows
+               |          |          |                     _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8fragment7service4make
+               |          |          |                     _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8fragment7service4make
+               |          |          |                     _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7pass_on
+               |          |          |                     _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7deliver
+               |          |          |                     _RNvNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators4join4item13stream_lookup
+               |          |          |                     _RNvXNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators4join4itemNtB2_8JoinItemNtNtB6_9interface13OperatorsItem6stream
+               |          |          |                     _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7pass_on
+               |          |          |                     _RNvMs_NtNtNtCskNLQv11mg7z_8ryo_core11application13file_analysis7serviceNtB4_12FileAnalysis9read_file
+               |          |          |          
+               |          |           --0.82%--_RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain9positions7service6sorted
+               |          |                     _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain9positions7service6firsts
+               |          |                     _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain5joins7service5union
+               |          |                     _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8fragment7service9make_rows
+               |          |                     _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8fragment7service4make
+               |          |                     _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8fragment7service4make
+               |          |                     _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7pass_on
+               |          |                     _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7deliver
+               |          |                     _RNvNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators4join4item13stream_lookup
+               |          |                     _RNvXNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators4join4itemNtB2_8JoinItemNtNtB6_9interface13OperatorsItem6stream
+               |          |                     _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7pass_on
+               |          |                     _RNvMs_NtNtNtCskNLQv11mg7z_8ryo_core11application13file_analysis7serviceNtB4_12FileAnalysis9read_file
+               |          |          
+               |           --0.90%--_RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain9positions7service6sorted
+               |                     _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain9positions7service6firsts
+               |                     _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain5joins7service5union
+               |                     _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8fragment7service9make_rows
+               |                     _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8fragment7service4make
+               |                     _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8fragment7service4make
+               |                     _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7pass_on
+               |                     _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7deliver
+               |                     _RNvNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators4join4item13stream_lookup
+               |                     _RNvXNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators4join4itemNtB2_8JoinItemNtNtB6_9interface13OperatorsItem6stream
+               |                     _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7pass_on
+               |                     _RNvMs_NtNtNtCskNLQv11mg7z_8ryo_core11application13file_analysis7serviceNtB4_12FileAnalysis9read_file
+               |          
+                --1.00%--_RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain9positions7service6sorted
+                          _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain9positions7service6firsts
+                          |          
+                           --0.99%--_RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain5joins7service5union
+                                     _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8fragment7service9make_rows
+                                     _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8fragment7service4make
+                                     _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8fragment7service4make
+                                     _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7pass_on
+                                     _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7deliver
+                                     _RNvNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators4join4item13stream_lookup
+                                     _RNvXNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators4join4itemNtB2_8JoinItemNtNtB6_9interface13OperatorsItem6stream
+                                     _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7pass_on
+                                     _RNvMs_NtNtNtCskNLQv11mg7z_8ryo_core11application13file_analysis7serviceNtB4_12FileAnalysis9read_file
+
+     3.97%  candidate  candidate         [.] _RNvNtNtNtCshXgPjfacqVJ_12ryo_language6domain7symbols7service7hash_of
+            |
+            ---_RNvNtNtNtCshXgPjfacqVJ_12ryo_language6domain7symbols7service7hash_of
+               _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain9comparing7service9holds_one
+               |          
+               |--3.32%--_RNvNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators6select4item11select_rows
+               |          _RNvXNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators6select4itemNtB2_10SelectItemNtNtB6_9interface13OperatorsItem6stream
+               |          _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7pass_on
+               |          |          
+               |          |--2.29%--_RNvMs_NtNtNtCskNLQv11mg7z_8ryo_core11application13file_analysis7serviceNtB4_12FileAnalysis9read_file
+               |          |          _RNvMs_NtNtNtCskNLQv11mg7z_8ryo_core11application13file_analysis7serviceNtB4_12FileAnalysis10visit_file
+               |          |          _RNCNvMs_NtNtNtNtCskNLQv11mg7z_8ryo_core7inbound9use_cases4lint8use_caseNtB6_15LintUseCaseImpl7visited0Be_
+               |          |          
+               |           --1.03%--_RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7deliver
+               |                     _RNvXNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators5union4itemNtB2_9UnionItemNtNtB6_9interface13OperatorsItem6stream
+               |                     _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7pass_on
+               |                     _RNvMs_NtNtNtCskNLQv11mg7z_8ryo_core11application13file_analysis7serviceNtB4_12FileAnalysis9read_file
+               |                     _RNvMs_NtNtNtCskNLQv11mg7z_8ryo_core11application13file_analysis7serviceNtB4_12FileAnalysis10visit_file
+               |          
+                --0.57%--_RNvNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators6select4item9tree_each
+                          _RNvNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators6select4item11select_rows
+                          _RNvXNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators6select4itemNtB2_10SelectItemNtNtB6_9interface13OperatorsItem6stream
+                          _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7pass_on
+
+     3.35%  candidate  candidate         [.] _RNvNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators6select4item11select_rows
+            |
+            ---_RNvNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators6select4item11select_rows
+               _RNvXNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators6select4itemNtB2_10SelectItemNtNtB6_9interface13OperatorsItem6stream
+               _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7pass_on
+               |          
+               |--2.40%--_RNvMs_NtNtNtCskNLQv11mg7z_8ryo_core11application13file_analysis7serviceNtB4_12FileAnalysis9read_file
+               |          _RNvMs_NtNtNtCskNLQv11mg7z_8ryo_core11application13file_analysis7serviceNtB4_12FileAnalysis10visit_file
+               |          _RNCNvMs_NtNtNtNtCskNLQv11mg7z_8ryo_core7inbound9use_cases4lint8use_caseNtB6_15LintUseCaseImpl7visited0Be_
+               |          
+                --0.95%--_RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7deliver
+                          |          
+                           --0.89%--_RNvXNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators5union4itemNtB2_9UnionItemNtNtB6_9interface13OperatorsItem6stream
+                                     _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7pass_on
+                                     |          
+                                      --0.83%--_RNvMs_NtNtNtCskNLQv11mg7z_8ryo_core11application13file_analysis7serviceNtB4_12FileAnalysis9read_file
+                                                _RNvMs_NtNtNtCskNLQv11mg7z_8ryo_core11application13file_analysis7serviceNtB4_12FileAnalysis10visit_file
+
+     3.09%  candidate  candidate         [.] _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain11table_model7service11materialize
+            |
+            ---_RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain11table_model7service11materialize
+               _RNvNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators4join4item13stream_lookup
+               _RNvXNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators4join4itemNtB2_8JoinItemNtNtB6_9interface13OperatorsItem6stream
+               _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7pass_on
+               |          
+               |--2.05%--_RNvMs_NtNtNtCskNLQv11mg7z_8ryo_core11application13file_analysis7serviceNtB4_12FileAnalysis9read_file
+               |          _RNvMs_NtNtNtCskNLQv11mg7z_8ryo_core11application13file_analysis7serviceNtB4_12FileAnalysis10visit_file
+               |          _RNCNvMs_NtNtNtNtCskNLQv11mg7z_8ryo_core7inbound9use_cases4lint8use_caseNtB6_15LintUseCaseImpl7visited0Be_
+               |          
+                --1.03%--_RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7deliver
+                          |          
+                           --0.54%--_RNvXNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators6select4itemNtB2_10SelectItemNtNtB6_9interface13OperatorsItem6stream
+                                     _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7pass_on
+                                     _RNvMs_NtNtNtCskNLQv11mg7z_8ryo_core11application13file_analysis7serviceNtB4_12FileAnalysis9read_file
+                                     _RNvMs_NtNtNtCskNLQv11mg7z_8ryo_core11application13file_analysis7serviceNtB4_12FileAnalysis10visit_file
+
+     2.97%  candidate  candidate         [.] _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain5joins7service5union
+            |
+            ---_RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain5joins7service5union
+               _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8fragment7service9make_rows
+               _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8fragment7service4make
+               _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8fragment7service4make
+               |          
+                --2.92%--_RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7pass_on
+                          _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7deliver
+                          _RNvNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators4join4item13stream_lookup
+                          _RNvXNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators4join4itemNtB2_8JoinItemNtNtB6_9interface13OperatorsItem6stream
+                          _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7pass_on
+                          _RNvMs_NtNtNtCskNLQv11mg7z_8ryo_core11application13file_analysis7serviceNtB4_12FileAnalysis9read_file
+
+     1.92%  candidate  candidate         [.] _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain11table_model7service5index
+            |
+            ---_RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain11table_model7service5index
+               |          
+                --1.86%--_RNvXNtNtNtCskNLQv11mg7z_8ryo_core6domain6replay5typesINtB2_4PipeNCNvNtNtNtNtNtB6_8operator11collections9operators4join4item13stream_lookup0ENtNtNtB6_9operating5types4Emit3rowB8_
+                          _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8fragment7service4emit
+                          _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7pass_on
+                          _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7deliver
+                          _RNvNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators4join4item13stream_lookup
+                          _RNvXNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators4join4itemNtB2_8JoinItemNtNtB6_9interface13OperatorsItem6stream
+                          _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7pass_on
+                          |          
+                          |--1.23%--_RNvMs_NtNtNtCskNLQv11mg7z_8ryo_core11application13file_analysis7serviceNtB4_12FileAnalysis9read_file
+                          |          _RNvMs_NtNtNtCskNLQv11mg7z_8ryo_core11application13file_analysis7serviceNtB4_12FileAnalysis10visit_file
+                          |          
+                           --0.63%--_RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7deliver
+                                     _RNvXNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators6select4itemNtB2_10SelectItemNtNtB6_9interface13OperatorsItem6stream
+                                     _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7pass_on
+
+     1.77%  candidate  candidate         [.] _RINvNtNtNtNtCsfo0Ls1ZyrQZ_4core5slice4sort6shared9smallsort18small_sort_networkjNCINvMB8_Sj16sort_unstable_byNCNvNtNtNtCskNLQv11mg7z_8ryo_core6domain9positions7service6sorteds_0E0EB1T_
+            |
+            ---_RINvNtNtNtNtCsfo0Ls1ZyrQZ_4core5slice4sort6shared9smallsort18small_sort_networkjNCINvMB8_Sj16sort_unstable_byNCNvNtNtNtCskNLQv11mg7z_8ryo_core6domain9positions7service6sorteds_0E0EB1T_
+               |          
+                --1.75%--_RINvNtNtNtNtCsfo0Ls1ZyrQZ_4core5slice4sort8unstable9quicksort9quicksortjNCINvMB8_Sj16sort_unstable_byNCNvNtNtNtCskNLQv11mg7z_8ryo_core6domain9positions7service6sorteds_0E0EB1L_
+                          |          
+                           --1.62%--_RINvNtNtNtNtCsfo0Ls1ZyrQZ_4core5slice4sort8unstable9quicksort9quicksortjNCINvMB8_Sj16sort_unstable_byNCNvNtNtNtCskNLQv11mg7z_8ryo_core6domain9positions7service6sorteds_0E0EB1L_
+                                     |          
+                                      --1.36%--_RINvNtNtNtNtCsfo0Ls1ZyrQZ_4core5slice4sort8unstable9quicksort9quicksortjNCINvMB8_Sj16sort_unstable_byNCNvNtNtNtCskNLQv11mg7z_8ryo_core6domain9positions7service6sorteds_0E0EB1L_
+                                                |          
+                                                 --1.01%--_RINvNtNtNtNtCsfo0Ls1ZyrQZ_4core5slice4sort8unstable9quicksort9quicksortjNCINvMB8_Sj16sort_unstable_byNCNvNtNtNtCskNLQv11mg7z_8ryo_core6domain9positions7service6sorteds_0E0EB1L_
+                                                           |          
+                                                            --0.66%--_RINvNtNtNtNtCsfo0Ls1ZyrQZ_4core5slice4sort8unstable9quicksort9quicksortjNCINvMB8_Sj16sort_unstable_byNCNvNtNtNtCskNLQv11mg7z_8ryo_core6domain9positions7service6sorteds_0E0EB1L_
+
+     1.56%  candidate  candidate         [.] _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain11table_model7service8hash_row
+            |
+            ---_RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain11table_model7service8hash_row
+               _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain11table_model7service5index
+               |          
+                --1.53%--_RNvXNtNtNtCskNLQv11mg7z_8ryo_core6domain6replay5typesINtB2_4PipeNCNvNtNtNtNtNtB6_8operator11collections9operators4join4item13stream_lookup0ENtNtNtB6_9operating5types4Emit3rowB8_
+                          _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8fragment7service4emit
+                          _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7pass_on
+                          _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7deliver
+                          _RNvNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators4join4item13stream_lookup
+                          _RNvXNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators4join4itemNtB2_8JoinItemNtNtB6_9interface13OperatorsItem6stream
+                          _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7pass_on
+                          |          
+                          |--0.91%--_RNvMs_NtNtNtCskNLQv11mg7z_8ryo_core11application13file_analysis7serviceNtB4_12FileAnalysis9read_file
+                          |          _RNvMs_NtNtNtCskNLQv11mg7z_8ryo_core11application13file_analysis7serviceNtB4_12FileAnalysis10visit_file
+                          |          
+                           --0.62%--_RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7deliver
+                                     |          
+                                      --0.61%--_RNvXNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators6select4itemNtB2_10SelectItemNtNtB6_9interface13OperatorsItem6stream
+                                                _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7pass_on
+
+     1.47%  candidate  candidate         [.] _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8fragment7service4emit
+            |
+            ---_RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8fragment7service4emit
+               _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7pass_on
+               |          
+                --1.40%--_RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7deliver
+                          _RNvNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators4join4item13stream_lookup
+                          _RNvXNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators4join4itemNtB2_8JoinItemNtNtB6_9interface13OperatorsItem6stream
+                          _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7pass_on
+                          |          
+                           --1.39%--_RNvMs_NtNtNtCskNLQv11mg7z_8ryo_core11application13file_analysis7serviceNtB4_12FileAnalysis9read_file
+                                     _RNvMs_NtNtNtCskNLQv11mg7z_8ryo_core11application13file_analysis7serviceNtB4_12FileAnalysis10visit_file
+
+     1.46%  candidate  candidate         [.] _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain9positions7service5value
+            |
+            ---_RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain9positions7service5value
+               _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8fragment7service4emit
+               _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7pass_on
+               |          
+                --1.44%--_RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7deliver
+                          _RNvNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators4join4item13stream_lookup
+                          _RNvXNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators4join4itemNtB2_8JoinItemNtNtB6_9interface13OperatorsItem6stream
+                          _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7pass_on
+                          |          
+                           --1.42%--_RNvMs_NtNtNtCskNLQv11mg7z_8ryo_core11application13file_analysis7serviceNtB4_12FileAnalysis9read_file
+                                     _RNvMs_NtNtNtCskNLQv11mg7z_8ryo_core11application13file_analysis7serviceNtB4_12FileAnalysis10visit_file
+
+     1.18%  candidate  candidate         [.] _RNvNtNtNtCshXgPjfacqVJ_12ryo_language6domain7symbols7service7hash_in
+            |
+            ---_RNvNtNtNtCshXgPjfacqVJ_12ryo_language6domain7symbols7service7hash_in
+               _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain9comparing7service9holds_one
+               |          
+                --0.98%--_RNvNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators6select4item11select_rows
+                          _RNvXNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators6select4itemNtB2_10SelectItemNtNtB6_9interface13OperatorsItem6stream
+                          _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7pass_on
+                          |          
+                           --0.74%--_RNvMs_NtNtNtCskNLQv11mg7z_8ryo_core11application13file_analysis7serviceNtB4_12FileAnalysis9read_file
+                                     _RNvMs_NtNtNtCskNLQv11mg7z_8ryo_core11application13file_analysis7serviceNtB4_12FileAnalysis10visit_file
+                                     _RNCNvMs_NtNtNtNtCskNLQv11mg7z_8ryo_core7inbound9use_cases4lint8use_caseNtB6_15LintUseCaseImpl7visited0Be_
+
+     0.94%  candidate  candidate         [.] _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain11table_cells7service15read_tree_cells
+            |
+            ---_RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain11table_cells7service15read_tree_cells
+               |          
+                --0.76%--_RNvNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators6select4item9tree_each
+                          _RNvNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators6select4item11select_rows
+                          _RNvXNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators6select4itemNtB2_10SelectItemNtNtB6_9interface13OperatorsItem6stream
+                          _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7pass_on
+
+     0.91%  candidate  candidate         [.] _RNvNtNtCsfo0Ls1ZyrQZ_4core3str8converts9from_utf8
+            |
+            ---_RNvNtNtCsfo0Ls1ZyrQZ_4core3str8converts9from_utf8
+               |          
+                --0.70%--_RNvNtNtNtCshXgPjfacqVJ_12ryo_language6domain7symbols7service7text_of
+                          _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain9comparing7service9holds_one
+                          |          
+                           --0.66%--_RNvNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators6select4item11select_rows
+                                     _RNvXNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators6select4itemNtB2_10SelectItemNtNtB6_9interface13OperatorsItem6stream
+                                     _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7pass_on
+                                     |          
+                                      --0.59%--_RNvMs_NtNtNtCskNLQv11mg7z_8ryo_core11application13file_analysis7serviceNtB4_12FileAnalysis9read_file
+                                                _RNvMs_NtNtNtCskNLQv11mg7z_8ryo_core11application13file_analysis7serviceNtB4_12FileAnalysis10visit_file
+                                                _RNCNvMs_NtNtNtNtCskNLQv11mg7z_8ryo_core7inbound9use_cases4lint8use_caseNtB6_15LintUseCaseImpl7visited0Be_
+
+     0.88%  candidate  candidate         [.] _RNvMs_NtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain9tree_join11collections10strategies4hash4itemNtB4_8HashItem4find
+            |
+            ---_RNvMs_NtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain9tree_join11collections10strategies4hash4itemNtB4_8HashItem4find
+               |          
+                --0.85%--_RNvXNtNtNtCskNLQv11mg7z_8ryo_core6domain6replay5typesINtB2_4PipeNCNvNtNtNtNtNtB6_8operator11collections9operators4join4item13stream_lookup0ENtNtNtB6_9operating5types4Emit3rowB8_
+                          _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8fragment7service4emit
+                          _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7pass_on
+                          _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7deliver
+                          _RNvNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators4join4item13stream_lookup
+                          _RNvXNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators4join4itemNtB2_8JoinItemNtNtB6_9interface13OperatorsItem6stream
+                          _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7pass_on
+                          |          
+                           --0.84%--_RNvMs_NtNtNtCskNLQv11mg7z_8ryo_core11application13file_analysis7serviceNtB4_12FileAnalysis9read_file
+                                     _RNvMs_NtNtNtCskNLQv11mg7z_8ryo_core11application13file_analysis7serviceNtB4_12FileAnalysis10visit_file
+
+     0.82%  candidate  candidate         [.] _RNvXs_NtNtNtCskNLQv11mg7z_8ryo_core6domain6replay5typesNtB4_7CollectNtNtNtB8_9operating5types4Emit3row
+            |
+            ---_RNvXs_NtNtNtCskNLQv11mg7z_8ryo_core6domain6replay5typesNtB4_7CollectNtNtNtB8_9operating5types4Emit3row
+
+     0.81%  candidate  libc.so.6         [.] memcmp
+            |
+            ---memcmp
+
+     0.79%  candidate  candidate         [.] _RNvNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators6select4item9tree_each
+            |
+            ---_RNvNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators6select4item9tree_each
+               |          
+                --0.76%--_RNvNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators6select4item11select_rows
+                          _RNvXNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators6select4itemNtB2_10SelectItemNtNtB6_9interface13OperatorsItem6stream
+                          _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7pass_on
+
+     0.77%  candidate  libc.so.6         [.] 0x00000000000a31b0
+            |
+            ---0xffff94fe31b0
+               _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain11table_model7service11materialize
+               _RNvNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators4join4item13stream_lookup
+               _RNvXNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators4join4itemNtB2_8JoinItemNtNtB6_9interface13OperatorsItem6stream
+               _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7pass_on
+
+     0.75%  candidate  candidate         [.] memcpy$plt
+            |
+            ---memcpy$plt
+               |          
+                --0.56%--_RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain11table_model7service11materialize
+                          _RNvNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators4join4item13stream_lookup
+                          _RNvXNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators4join4itemNtB2_8JoinItemNtNtB6_9interface13OperatorsItem6stream
+                          _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7pass_on
+
+     0.70%  candidate  candidate         [.] _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain11table_dedup7service11find_or_add
+            |
+            ---_RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain11table_dedup7service11find_or_add
+
+     0.68%  candidate  libc.so.6         [.] 0x00000000000a31a0
+            |
+            ---0xffff94fe31a0
+               _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain11table_model7service11materialize
+               _RNvNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators4join4item13stream_lookup
+               _RNvXNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators4join4itemNtB2_8JoinItemNtNtB6_9interface13OperatorsItem6stream
+               _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7pass_on
+               |          
+                --0.53%--_RNvMs_NtNtNtCskNLQv11mg7z_8ryo_core11application13file_analysis7serviceNtB4_12FileAnalysis9read_file
+                          _RNvMs_NtNtNtCskNLQv11mg7z_8ryo_core11application13file_analysis7serviceNtB4_12FileAnalysis10visit_file
+                          _RNCNvMs_NtNtNtNtCskNLQv11mg7z_8ryo_core7inbound9use_cases4lint8use_caseNtB6_15LintUseCaseImpl7visited0Be_
+
+     0.58%  candidate  candidate         [.] _RNvNtNtNtCshXgPjfacqVJ_12ryo_language6domain7symbols7service7text_of
+            |
+            ---_RNvNtNtNtCshXgPjfacqVJ_12ryo_language6domain7symbols7service7text_of
+               _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain9comparing7service9holds_one
+               |          
+                --0.55%--_RNvNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators6select4item11select_rows
+                          _RNvXNtNtNtNtNtNtCskNLQv11mg7z_8ryo_core6domain8operator11collections9operators6select4itemNtB2_10SelectItemNtNtB6_9interface13OperatorsItem6stream
+                          _RNvNtNtNtCskNLQv11mg7z_8ryo_core6domain8pipeline7service7pass_on
 
 
+
 #
-# (Tip: To see call chains by final symbol taking CPU time (bottom up) use perf report -G)
+# (Tip: To compare hot regions in two workloads use perf record -b -o file ... ; perf diff --stream file1 file2)
 #
