@@ -129,6 +129,7 @@ workspace-membership = "0.1.0"
 [packages."idiomatic.arch".specs]
 adapter = "0.2.0"
 application-service = "0.1.0"
+benchmark-executable = "0.1.0"
 cli = "0.12.0"
 collection = "0.1.0"
 command = "0.2.0"
@@ -183,6 +184,9 @@ ui-pass = "0.1.0"
 ui-stderr = "0.1.0"
 unchecked = "0.1.0"
 unit-test = "0.1.0"
+value = "0.1.0"
+value-module = "0.1.0"
+value-test = "0.1.0"
 
 [packages."idiomatic.ryo"]
 path = "tastemaker"

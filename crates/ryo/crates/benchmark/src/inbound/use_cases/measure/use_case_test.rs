@@ -2,7 +2,7 @@
 use super::service::measure;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::{
-    diagnostics::{errors::Error, types::Diagnostic},
+    diagnostics::{errors::DiagnosticsError as Error, types::BenchmarkFinding},
     measurements::types::RunOrder,
     suite::types::{RunRequest, audit::value::Audit},
 };
@@ -17,7 +17,7 @@ enum Contestant {
 }
 type Value = [Contestant; 2];
 #[derive(Debug, PartialEq, Eq)]
-enum Failure {
+enum Refusal {
     Incomplete,
     Difference,
     Unexpected,
@@ -50,17 +50,17 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 ];
 fn subject((complete, differs, order): Input) -> Result<Value, Failure> {
     let audit = Audit {
-        implemented: vec!["fixture".into()],
+        implemented: vec![ryo::linter::RuleId::try_from("fixture").unwrap()],
         missing: if complete {
             Vec::new()
         } else {
-            vec!["missing".into()]
+            vec![ryo::linter::RuleId::try_from("missing").unwrap()]
         },
     };
     let request = RunRequest {
         root: ".".into(),
-        cache: "cache".into(),
-        files: vec!["input.txt".into()],
+        state: "cache".into(),
+        files: vec![ryo::linter::RelativePath("input.txt".into())],
     };
     let reference = LinterFake {
         arguments: vec!["reference".into()],
@@ -69,11 +69,11 @@ fn subject((complete, differs, order): Input) -> Result<Value, Failure> {
     let candidate = LinterFake {
         arguments: vec!["candidate".into()],
         diagnostics: if differs {
-            vec![Diagnostic {
-                rule: "fixture".into(),
-                file: "input.txt".into(),
-                start: 0,
-                end: 1,
+            vec![BenchmarkFinding {
+                rule: ryo::linter::RuleId::try_from("fixture").unwrap(),
+                file: ryo::linter::RelativePath("input.txt".into()),
+                start: crate::domain::diagnostics::types::SourceByteOffset(0),
+                end: crate::domain::diagnostics::types::SourceByteOffset(1),
             }]
         } else {
             Vec::new()
@@ -83,7 +83,7 @@ fn subject((complete, differs, order): Input) -> Result<Value, Failure> {
         status: 0,
         ..Default::default()
     };
-    measure(&audit, &reference, &candidate, &execution, &request, order).map_err(|error| {
+    drop(measure(&audit, &reference, &candidate, &execution, &request, order).map_err(|error| {
         match error {
             Error::Invalid(message)
                 if message == "default coverage incomplete: 1 missing rules: missing" =>
@@ -95,7 +95,7 @@ fn subject((complete, differs, order): Input) -> Result<Value, Failure> {
             }
             _ => Failure::Unexpected,
         }
-    })?;
+    })?);
     let history = execution.history.lock().expect("fixture history");
     let labels: Vec<_> = history
         .iter()
@@ -115,3 +115,5 @@ fn succeeds() {
 fn refuses() {
     run(CASES, Word::Refuses, subject);
 }
+
+type Failure = Refusal;

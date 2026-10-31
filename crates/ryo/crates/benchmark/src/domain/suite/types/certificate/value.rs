@@ -5,26 +5,26 @@ use std::path::PathBuf;
 ///
 /// ```compile_fail
 /// use ryo_benchmark::domain::suite::types::certificate::value::Certificate;
-/// fn forge(evidence: &mut Certificate) { evidence.fingerprint = String::new(); }
+/// fn forge(evidence: &mut Certificate) { evidence.fingerprint = evidence.fingerprint().clone(); }
 /// ```
 #[derive(Clone, Debug)]
 pub struct Certificate {
     pub(crate) coverage: Audit,
     pub(crate) paths: Vec<PathBuf>,
-    pub(crate) fingerprint: String,
+    pub(crate) fingerprint: crate::domain::suite::types::ArtifactDigest,
     pub(crate) contestants: [PathBuf; 2],
     pub(crate) probe: RunRequest,
     pub(crate) profiles: [crate::domain::measurements::types::Invocation; 2],
-    pub(crate) cases: usize,
+    pub(crate) cases: crate::domain::suite::types::CaseCount,
 }
 
 impl Certificate {
     /// Stable content identity of profile, rule/case bytes and contestant executables.
-    pub fn fingerprint(&self) -> &str {
+    pub fn fingerprint(&self) -> &crate::domain::suite::types::ArtifactDigest {
         &self.fingerprint
     }
     /// Number of independently authored cases that both contestants passed.
-    pub fn cases(&self) -> usize {
+    pub fn cases(&self) -> crate::domain::suite::types::CaseCount {
         self.cases
     }
 }

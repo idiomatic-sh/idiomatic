@@ -3,3 +3,5 @@ pub mod audit;
 pub mod compare;
 pub mod measure;
 pub mod run_ryo;
+
+pub mod certify;

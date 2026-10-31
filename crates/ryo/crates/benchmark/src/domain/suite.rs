@@ -3,3 +3,8 @@
 pub mod service;
 /// Canonical values used by this domain concept.
 pub mod types;
+
+pub(crate) mod constants;
+
+#[cfg(test)]
+mod service_test;

@@ -1,8 +1,9 @@
 //! Both contestants use the same execution implementation.
 use super::interface::MeasureUseCase;
 use crate::domain::measurements::types::{Pair, RunOrder};
-use crate::domain::suite::types::audit::value::Audit;
-use crate::domain::{diagnostics::errors::Error, suite::types::RunRequest};
+use crate::domain::suite::types::certificate::value::Certificate;
+use crate::domain::{diagnostics::errors::DiagnosticsError as Error, suite::types::RunRequest};
+use crate::outbound::suite::interface::SuitePort;
 use crate::outbound::{execution::interface::ExecutionPort, linter::interface::LinterPort};
 use std::sync::Arc;
 /// Release paired process observations only after the correctness gate succeeds.
@@ -10,6 +11,7 @@ pub struct MeasureUseCaseImpl {
     reference: Arc<dyn LinterPort>,
     candidate: Arc<dyn LinterPort>,
     execution: Arc<dyn ExecutionPort>,
+    suite: Arc<dyn SuitePort>,
 }
 impl MeasureUseCaseImpl {
     /// Construct this operation with the dependencies chosen by its composition.
@@ -18,18 +20,26 @@ impl MeasureUseCaseImpl {
         reference: Arc<dyn LinterPort>,
         candidate: Arc<dyn LinterPort>,
         execution: Arc<dyn ExecutionPort>,
+        suite: Arc<dyn SuitePort>,
     ) -> Self {
         Self {
             reference,
             candidate,
             execution,
+            suite,
         }
     }
 }
 impl MeasureUseCase for MeasureUseCaseImpl {
-    fn measure(&self, audit: &Audit, request: &RunRequest, order: RunOrder) -> Result<Pair, Error> {
-        super::service::measure(
-            audit,
+    fn measure(
+        &self,
+        certificate: &Certificate,
+        request: &RunRequest,
+        order: RunOrder,
+    ) -> Result<Pair, Error> {
+        super::service::measure_certified(
+            certificate,
+            self.suite.as_ref(),
             self.reference.as_ref(),
             self.candidate.as_ref(),
             self.execution.as_ref(),

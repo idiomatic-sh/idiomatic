@@ -1,5 +1,5 @@
 //! Preparation and decoding are deliberately outside the measured interval.
-use crate::domain::diagnostics::errors::Error;
+use crate::domain::diagnostics::errors::DiagnosticsError as Error;
 use crate::domain::measurements::types::Measurement;
 use crate::domain::suite::types::RunRequest;
 use crate::outbound::execution::interface::ExecutionPort;
@@ -19,14 +19,14 @@ pub fn run(
     let mut expected = request.files.clone();
     expected.sort();
     if expected.windows(2).any(|pair| pair[0] == pair[1]) {
-        return Err(Error::Invalid("duplicate input path".into()));
+        return Err(Error::Invalid(
+            crate::domain::diagnostics::constants::DUPLICATE_INPUT.into(),
+        ));
     }
     let mut actual = report.files.clone();
     actual.sort();
     if actual != expected {
-        return Err(Error::Invalid(
-            "tool input coverage differs from requested corpus".into(),
-        ));
+        return Err(Error::Invalid(super::constants::INPUT_COVERAGE.into()));
     }
     for finding in &report.diagnostics {
         if actual.binary_search(&finding.file).is_err() || finding.start > finding.end {
@@ -38,4 +38,54 @@ pub fn run(
         resources,
         report,
     })
+}
+
+use crate::domain::diagnostics::service::compare;
+use crate::outbound::suite::interface::SuitePort;
+use std::path::Path;
+/// Verify each rule's independently authored findings through both selected contestants.
+pub fn verify(
+    suite: &dyn SuitePort,
+    reference: &dyn LinterPort,
+    candidate: &dyn LinterPort,
+    execution: &dyn ExecutionPort,
+    rules: &Path,
+    scratch: &Path,
+) -> Result<crate::domain::suite::types::CaseCount, Error> {
+    let cases = suite.cases(
+        crate::outbound::suite::types::ArtifactPath(rules),
+        crate::outbound::suite::types::ArtifactPath(scratch),
+    )?;
+    let count = cases.len();
+    let mut failures = Vec::new();
+    for case in cases {
+        for (name, tool) in [
+            (super::constants::REFERENCE, reference),
+            (super::constants::CANDIDATE, candidate),
+        ] {
+            match run(tool, execution, &case.request) {
+                Ok(mut result) => {
+                    result
+                        .report
+                        .diagnostics
+                        .retain(|finding| finding.rule == case.rule);
+                    if let Err(difference) = compare(&case.expected, &result.report) {
+                        failures.push(format!(
+                            "{}/{} expected-vs-{name}: expected={:?}; actual={:?}",
+                            case.rule, case.name, difference.reference, difference.candidate
+                        ));
+                    }
+                }
+                Err(error) => failures.push(format!("{}/{} {name}: {error}", case.rule, case.name)),
+            }
+        }
+    }
+    if failures.is_empty() {
+        Ok(crate::domain::suite::types::CaseCount(count))
+    } else {
+        Err(Error::Invalid(format!(
+            "{count} cases checked; failures:\n{}",
+            failures.join(super::constants::LINE_SEPARATOR)
+        )))
+    }
 }

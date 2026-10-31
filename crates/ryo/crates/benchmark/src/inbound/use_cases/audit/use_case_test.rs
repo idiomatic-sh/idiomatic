@@ -1,57 +1,55 @@
-//! Coverage gates require the entire pinned default inventory.
+//! The public audit operation preserves the suite boundary's inventory and refusals.
+use super::{interface::AuditUseCase, use_case::AuditUseCaseImpl};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::diagnostics::errors::Error;
-use crate::domain::suite::service::require_complete;
-use crate::domain::suite::types::audit::value::Audit;
-type Input = Audit;
-type Value = ();
+use crate::domain::suite::types::Tool;
+use crate::outbound::suite::fixtures::fake::SuiteFake;
+use std::sync::Arc;
+type Input = bool;
+type Value = usize;
 #[derive(Debug, PartialEq, Eq)]
 enum Refusal {
-    Incomplete,
-    Empty,
+    InvalidInventory,
     Unexpected,
 }
+type Failure = Refusal;
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("complete defaults accepted"),
+        name: CaseName("the boundary inventory remains unauthored"),
         word: Word::Succeeds,
-        input: || Audit {
-            implemented: vec!["fixture".into()],
-            missing: Vec::new(),
-        },
-        expect: Expect::Value(()),
+        input: || true,
+        expect: Expect::Value(0),
     },
     Case {
-        name: CaseName("one missing default prevents measurement"),
+        name: CaseName("an empty default inventory refuses"),
         word: Word::Refuses,
-        input: || Audit {
-            implemented: Vec::new(),
-            missing: vec!["fixture".into()],
-        },
-        expect: Expect::Error(Failure::Incomplete),
-    },
-    Case {
-        name: CaseName("empty internal audit is refused"),
-        word: Word::Refuses,
-        input: || Audit {
-            implemented: Vec::new(),
-            missing: Vec::new(),
-        },
-        expect: Expect::Error(Failure::Empty),
+        input: || false,
+        expect: Expect::Error(Refusal::InvalidInventory),
     },
 ];
-fn subject(input: Input) -> Result<Value, Failure> {
-    require_complete(&input).map_err(|error| match error {
-        Error::Invalid(message)
-            if message == "default coverage incomplete: 1 missing rules: fixture" =>
-        {
-            Failure::Incomplete
-        }
-        Error::Invalid(message) if message == "empty audit is not default coverage" => {
-            Failure::Empty
-        }
-        _ => Failure::Unexpected,
-    })
+fn subject(nonempty: Input) -> Result<Value, Failure> {
+    let tool = Tool {
+        tool: "fixture".into(),
+        version: "1".into(),
+        sha256: "pin".into(),
+        defaults: if nonempty {
+            vec!["A".try_into().expect("rule")]
+        } else {
+            vec![]
+        },
+        deferred: Default::default(),
+        pending: Default::default(),
+    };
+    AuditUseCaseImpl::new(Arc::new(SuiteFake::default()))
+        .audit(std::path::Path::new("."), &tool)
+        .map(|audit| audit.authored_count().0)
+        .map_err(|error| match error {
+            crate::domain::diagnostics::errors::DiagnosticsError::Invalid(message)
+                if message == "empty or duplicated default rule inventory" =>
+            {
+                Refusal::InvalidInventory
+            }
+            _ => Refusal::Unexpected,
+        })
 }
 #[test]
 fn succeeds() {
@@ -61,5 +59,3 @@ fn succeeds() {
 fn refuses() {
     run(CASES, Word::Refuses, subject);
 }
-
-type Failure = Refusal;

@@ -1,6 +1,6 @@
 //! A complete disposition inventory is distinct from verified subset coverage.
 use crate::domain::{
-    diagnostics::errors::Error,
+    diagnostics::errors::DiagnosticsError as Error,
     suite::{
         service::require_accounted,
         types::{audit::value::Audit, certificate::value::Certificate},
@@ -12,7 +12,7 @@ use crate::outbound::{
 use std::path::Path;
 
 /// Execute independent cases, then seal the unchanged artifacts and both executable bytes.
-pub fn certify(
+pub(super) fn certify(
     suite: &dyn SuitePort,
     reference: &dyn LinterPort,
     candidate: &dyn LinterPort,
@@ -23,48 +23,56 @@ pub fn certify(
     candidate_executable: &Path,
     selected_rules: &Path,
     scratch: &Path,
-    scope: crate::domain::suite::types::CoverageScope,
+    scope: crate::domain::suite::types::BenchmarkCoverage,
 ) -> Result<Certificate, Error> {
-    let tool = suite.profile(directory)?;
-    suite.verify_tool(reference_executable, &tool)?;
-    let audit = suite.audit(directory, &tool)?;
-    if scope == crate::domain::suite::types::CoverageScope::Accounted {
+    let tool = suite.profile(crate::outbound::suite::types::ArtifactPath(directory))?;
+    suite.verify_tool(
+        crate::outbound::suite::types::ArtifactPath(reference_executable),
+        &tool,
+    )?;
+    let audit = suite.audit(
+        crate::outbound::suite::types::ArtifactPath(directory),
+        &tool,
+    )?;
+    if scope == crate::domain::suite::types::BenchmarkCoverage::Accounted {
         require_accounted(&audit, &tool)?;
     }
     if audit.implemented.is_empty() {
-        return Err(Error::Invalid("no authored default subset".into()));
+        return Err(Error::Invalid(
+            crate::domain::suite::constants::EMPTY_SUBSET.into(),
+        ));
     }
     let contestants = [
-        reference_executable.canonicalize()?,
-        candidate_executable.canonicalize()?,
+        reference_executable.to_owned(),
+        candidate_executable.to_owned(),
     ];
     let paths = vec![
-        directory.canonicalize()?,
-        workload.canonicalize()?,
-        selected_rules.canonicalize()?,
+        directory.to_owned(),
+        workload.to_owned(),
+        selected_rules.to_owned(),
         contestants[0].clone(),
         contestants[1].clone(),
     ];
-    let before = suite.fingerprint(&paths)?;
+    let before = suite.fingerprint(crate::outbound::suite::types::ArtifactSet(&paths))?;
     let probe = crate::domain::suite::types::RunRequest {
         root: directory.to_owned(),
-        files: vec!["__certificate_probe__.py".into()],
-        cache: scratch.join("identity"),
+        files: vec![ryo::linter::RelativePath(
+            super::constants::PROFILE_PROBE.into(),
+        )],
+        state: scratch.join(super::constants::IDENTITY_STATE),
     };
     let profiles = [reference.prepare(&probe)?, candidate.prepare(&probe)?];
-    let cases = crate::application::cases::service::verify(
+    let cases = crate::application::run::service::verify(
         suite,
         reference,
         candidate,
         execution,
-        &directory.join("rules"),
+        &directory.join(super::constants::RULE_DIRECTORY),
         scratch,
     )?;
-    let after = suite.fingerprint(&paths)?;
+    let after = suite.fingerprint(crate::outbound::suite::types::ArtifactSet(&paths))?;
     if before != after {
-        return Err(Error::Invalid(
-            "certification inputs changed during cases".into(),
-        ));
+        return Err(Error::Invalid(super::constants::CHANGED_EVIDENCE.into()));
     }
     Ok(Certificate {
         coverage: Audit {

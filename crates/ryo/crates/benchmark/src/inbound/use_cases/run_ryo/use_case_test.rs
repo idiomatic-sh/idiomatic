@@ -2,7 +2,7 @@
 use super::{interface::RunRyoUseCase, use_case::RunRyoUseCaseImpl};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::{
-    diagnostics::{errors::Error, types::RunReport},
+    diagnostics::{errors::DiagnosticsError as Error, types::RunReport},
     suite::types::WorkerRequest,
 };
 use crate::outbound::{

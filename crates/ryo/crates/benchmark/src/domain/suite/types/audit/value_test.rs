@@ -1,17 +1,17 @@
 //! Proves one value's behaviour.
 use super::value::Audit;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-const CASES: &[Case<Vec<String>, usize, ()>] = &[
+const CASES: &[Case<Vec<ryo::linter::RuleId>, usize, ()>] = &[
     Case {
         name: CaseName("authored subset is retained"),
         word: Word::Succeeds,
-        input: || vec!["A".into()],
+        input: || vec![ryo::linter::RuleId::try_from("A").unwrap()],
         expect: Expect::Value(1),
     },
     Case {
         name: CaseName("missing rule cannot be selected"),
         word: Word::Refuses,
-        input: || vec!["B".into()],
+        input: || vec![ryo::linter::RuleId::try_from("B").unwrap()],
         expect: Expect::Error(()),
     },
     Case {
@@ -23,16 +23,21 @@ const CASES: &[Case<Vec<String>, usize, ()>] = &[
     Case {
         name: CaseName("duplicate selection cannot certify"),
         word: Word::Refuses,
-        input: || vec!["A".into(), "A".into()],
+        input: || {
+            vec![
+                ryo::linter::RuleId::try_from("A").unwrap(),
+                ryo::linter::RuleId::try_from("A").unwrap(),
+            ]
+        },
         expect: Expect::Error(()),
     },
 ];
-fn subject(rules: Vec<String>) -> Result<usize, ()> {
+fn subject(rules: Vec<ryo::linter::RuleId>) -> Result<usize, ()> {
     let audit = Audit {
-        implemented: vec!["A".into()],
-        missing: vec!["B".into()],
+        implemented: vec![ryo::linter::RuleId::try_from("A").unwrap()],
+        missing: vec![ryo::linter::RuleId::try_from("B").unwrap()],
     };
-    assert_eq!(audit.authored_count(), 1);
+    assert_eq!(audit.authored_count().0, 1);
     audit
         .select(&rules)
         .map(|selected| selected.authored().len())

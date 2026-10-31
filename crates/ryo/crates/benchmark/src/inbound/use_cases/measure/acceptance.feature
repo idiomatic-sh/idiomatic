@@ -4,5 +4,5 @@ Feature: measure
     Then matching reports release a measured pair
 
   @refuses
-  Scenario: Coverage is incomplete
-    Then incomplete coverage releases no measured pair
+  Scenario: Certified workload changed
+    Then changed certified workload releases no measured pair

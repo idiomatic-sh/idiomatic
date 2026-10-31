@@ -12,23 +12,26 @@ const CASES: &[Case<(), (bool, usize), ()>] = &[Case {
 fn subject(_: ()) -> Result<(bool, usize), ()> {
     let request = RunRequest {
         root: ".".into(),
-        files: vec!["file".into()],
-        cache: "cache".into(),
+        files: vec![ryo::linter::RelativePath("file".into())],
+        state: "cache".into(),
     };
     let profile = LinterFake::default().prepare(&request).unwrap();
     let certificate = Certificate {
         coverage: Audit {
-            implemented: vec!["A".into()],
+            implemented: vec![ryo::linter::RuleId::try_from("A").unwrap()],
             missing: vec![],
         },
         paths: vec![],
-        fingerprint: "sealed".into(),
+        fingerprint: crate::domain::suite::types::ArtifactDigest("sealed".into()),
         contestants: ["first".into(), "second".into()],
         probe: request,
         profiles: [profile.clone(), profile],
-        cases: 2,
+        cases: crate::domain::suite::types::CaseCount(2),
     };
-    Ok((certificate.fingerprint() == "sealed", certificate.cases()))
+    Ok((
+        certificate.fingerprint().0 == "sealed",
+        certificate.cases().0,
+    ))
 }
 #[test]
 fn succeeds() {

@@ -1,6 +1,6 @@
 //! The worker orchestrates transport and SDK evaluation without reading wire data.
 use super::interface::RunRyoUseCase;
-use crate::domain::diagnostics::errors::Error;
+use crate::domain::diagnostics::errors::DiagnosticsError as Error;
 use crate::outbound::{engine::interface::EnginePort, worker::interface::WorkerPort};
 use std::sync::Arc;
 /// Handles one child-process request through independently injected boundaries.

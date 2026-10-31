@@ -1,5 +1,5 @@
 //! Exact diagnostic multisets and submitted-file sets determine agreement.
-use super::service::compare;
+use super::{interface::CompareUseCase, use_case::CompareUseCaseImpl};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::diagnostics::types::Difference;
 use crate::domain::diagnostics::types::RunReport;
@@ -25,7 +25,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 ];
 fn matching() -> Input {
     let report = RunReport {
-        files: vec!["input.txt".into()],
+        files: vec![ryo::linter::RelativePath("input.txt".into())],
         diagnostics: Vec::new(),
     };
     (report.clone(), report)
@@ -36,7 +36,7 @@ fn missing_file() -> Input {
     (reference, candidate)
 }
 fn subject(input: Input) -> Result<Value, Failure> {
-    compare(&input.0, &input.1)
+    CompareUseCaseImpl::new().compare(&input.0, &input.1)
 }
 #[test]
 fn succeeds() {
