@@ -1,5 +1,5 @@
 //! Lazily intern bottom-up parsed expression keys; source formatting and runtime value equality are separate.
-use super::types::{
+use crate::domain::model::types::{
     ExpressionShapeIndex, ShapeHash, ShapeRecord, ShapeRecordIndex, ShapeState, ShapeWord,
 };
 use crate::domain::{
@@ -13,7 +13,7 @@ use crate::domain::{
             INTERPOLATION_CONVERSION, INTERPOLATION_DEBUG, SCALAR_IMAGINARY, SCALAR_KIND,
             SCALAR_VALUE,
         },
-        service::{identifier_text, is_token, kind, literal, written},
+        service::{identifier_text, is_token, kind, literal},
         types::{Kind, Leaf, Literal},
     },
     tokens::types::Token,
@@ -98,15 +98,19 @@ fn significant(token: Token) -> bool {
     )
 }
 /// Preserve the parser's literal category and payload, or its already-decoded text.
-fn constant(tree: &Tree<'_>, at: Position, symbols: &mut Symbols, words: &mut Vec<ShapeWord>) {
+fn constant(
+    tree: &Tree<'_>,
+    at: Position,
+    symbols: &mut Symbols,
+    words: &mut Vec<ShapeWord>,
+) -> Option<()> {
     if literal(tree, at) == Literal::String {
-        if let Some(value) = string_value(tree, symbols, at) {
-            words.push(ShapeWord::Literal(value));
-        }
-    } else if languages::property_at(tree.elements, at, SCALAR_KIND).is_none() {
-        let value = languages::intern_derived(symbols, tree.source, NameText(written(tree, at).0));
-        words.push(ShapeWord::LiteralKeyword(value));
+        words.push(ShapeWord::Literal(string_value(tree, symbols, at)?));
+    } else {
+        // Scalars require the parser's typed payload, never physical carrier text.
+        languages::property_at(tree.elements, at, SCALAR_KIND)?;
     }
+    Some(())
 }
 /// Flatten only concatenation wrappers; expressions nested in interpolations remain child classes.
 fn segments(
@@ -175,7 +179,7 @@ fn key(
     symbols: &mut Symbols,
     classes: &[Option<Position>],
     words: &mut Vec<ShapeWord>,
-) {
+) -> Option<()> {
     words.clear();
     let node = kind(tree, at);
     words.push(ShapeWord::Kind(node));
@@ -200,16 +204,15 @@ fn key(
                 tree.source,
                 NameText(identifier_text(tree, at).0),
             )));
-            return;
+            return Some(());
         }
         Kind::Node(Node::Constant) => {
-            constant(tree, at, symbols, words);
-            return;
+            return constant(tree, at, symbols, words);
         }
         Kind::Node(Node::JoinedStr | Node::TemplateStr) => {
             segments(tree, at, symbols, classes, words);
             merge_literals(tree, symbols, words);
-            return;
+            return Some(());
         }
         Kind::Extra(Extra::CallArguments) => {
             for wanted in [Field::Args, Field::Keywords] {
@@ -219,7 +222,7 @@ fn key(
                     child(words, classes, wanted, each);
                 }
             }
-            return;
+            return Some(());
         }
         _ => {}
     }
@@ -235,6 +238,7 @@ fn key(
             ));
         }
     }
+    Some(())
 }
 /// Build at most once per parse. Incomplete frontend output has no apparently known class rows.
 pub(crate) fn prepare<'a>(
@@ -275,7 +279,10 @@ pub(crate) fn prepare<'a>(
                 index.state = ShapeState::Partial;
                 continue;
             }
-            key(tree, at, symbols, classes, scratch);
+            if key(tree, at, symbols, classes, scratch).is_none() {
+                index.state = ShapeState::Partial;
+                continue;
+            }
             let mut hasher = std::collections::hash_map::DefaultHasher::new();
             index.scratch.hash(&mut hasher);
             let class = intern(&mut index, at, ShapeHash(hasher.finish()));

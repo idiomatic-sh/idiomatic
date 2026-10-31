@@ -1,7 +1,7 @@
 //! Independent AST identity examples; no reference linter supplies these expected classes.
 use super::service::{clear, intern, prepare, shape_of};
-use super::types::{ExpressionShapeIndex, ShapeHash, ShapeState, ShapeWord};
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::model::types::{ExpressionShapeIndex, ShapeHash, ShapeState, ShapeWord};
 use crate::domain::{
     model::types::Declarations,
     nodes::types::Category,
@@ -13,6 +13,14 @@ type Input = (&'static str, &'static str, &'static str);
 type Value = bool;
 type Failure = ();
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName(
+            "relocated literal values compare logically and inactive candidates stay hidden",
+        ),
+        word: Word::Succeeds,
+        input: || ("embedding witness", "", ""),
+        expect: Expect::Value(true),
+    },
     Case {
         name: CaseName("arbitrary precision integers preserve their exact magnitude"),
         word: Word::Succeeds,
@@ -213,6 +221,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 fn subject((source, left, right): Input) -> Result<Value, Failure> {
+    if source == "embedding witness" {
+        return embedded_shapes();
+    }
     if source == "collision witness" {
         let mut index = ExpressionShapeIndex::default();
         index
@@ -293,6 +304,79 @@ fn subject((source, left, right): Input) -> Result<Value, Failure> {
     assert_eq!(Some(a), shape_of(&reparsed, first));
     Ok(a == b)
 }
+
+/// Whole-host relocation must not use carrier text as the embedded literal value.
+fn embedded_shapes() -> Result<Value, Failure> {
+    use crate::domain::{
+        semantic_syntax::{
+            service::{positions, visibility},
+            types::Visibility,
+        },
+        syntax::constants::{BOOLEAN_SCALAR, SCALAR_KIND, SCALAR_VALUE},
+    };
+    let file = parsed(b"True\nvalue: \"tuple[Tr\\x75e, False]\"\nordinary('hidden + value')\n")
+        .expect("valid independently authored source");
+    let tree = Tree {
+        elements: &file.elements,
+        source: ByteSlice(file.bytes),
+        file: languages::FileId(0),
+    };
+    let mut symbols = file.symbols;
+    let mut model = Declarations::default();
+    initialize_model(&tree, &mut model);
+    let expected: Vec<_> = positions(&tree)
+        .map(|at| (at, visibility(&tree, &model, at, &mut symbols)))
+        .collect();
+    assert!(
+        model.expression_shapes.borrow().classes.is_empty(),
+        "semantic reads do not build structural keys"
+    );
+    let first = prepare(&tree, &model, &mut symbols).expect("complete semantic shapes");
+    let values: Vec<_> = expected
+        .iter()
+        .filter_map(|(at, visible)| {
+            if *visible != Visibility::Visible
+                || languages::property_at(tree.elements, *at, SCALAR_KIND).map(|value| value.0)
+                    != Some(BOOLEAN_SCALAR)
+            {
+                return None;
+            }
+            Some((
+                languages::property_at(tree.elements, *at, SCALAR_VALUE)
+                    .expect("boolean payload")
+                    .0,
+                shape_of(&first, *at).expect("visible boolean shape"),
+            ))
+        })
+        .collect();
+    let truths: Vec<_> = values
+        .iter()
+        .filter(|(value, _)| *value == "true")
+        .map(|(_, shape)| *shape)
+        .collect();
+    let falsehoods: Vec<_> = values
+        .iter()
+        .filter(|(value, _)| *value == "false")
+        .map(|(_, shape)| *shape)
+        .collect();
+    assert_eq!(truths.len(), 2);
+    assert_eq!(falsehoods.len(), 1);
+    assert_eq!(truths.first(), truths.last());
+    assert_ne!(truths.first(), falsehoods.first());
+    for (at, visible) in &expected {
+        if *visible == Visibility::Hidden {
+            assert!(shape_of(&first, *at).is_none());
+        }
+    }
+    let classes = first.classes.clone();
+    drop(first);
+    initialize_model(&tree, &mut model);
+    let shape_first = prepare(&tree, &model, &mut symbols)
+        .expect("shape-first read initializes semantic visibility");
+    assert_eq!(classes, shape_first.classes);
+    Ok(true)
+}
+
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
