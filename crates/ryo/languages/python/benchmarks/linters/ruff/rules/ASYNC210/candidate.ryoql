@@ -2,7 +2,7 @@ let calls = select id, file from "semantic-syntax" where kind = "call";
 let function_fields = select parent, child from "semantic-child" where field = "func";
 let call_functions = select l.parent as call, l.child as function from function_fields as l join calls as r on l.parent = r.id;
 let blocking_functions = select id from "qualified-name" where path = "urllib.request.urlopen" or path = "urllib3.request" or path = "httpx.request" or path = "httpx.get" or path = "httpx.post" or path = "httpx.delete" or path = "httpx.patch" or path = "httpx.put" or path = "httpx.head" or path = "httpx.connect" or path = "httpx.options" or path = "httpx.trace" or path = "requests.request" or path = "requests.get" or path = "requests.post" or path = "requests.delete" or path = "requests.patch" or path = "requests.put" or path = "requests.head" or path = "requests.connect" or path = "requests.options" or path = "requests.trace";
-let blocking_calls = select l.call as call, l.function as function from call_functions as l join blocking_functions as r on l.function = r.id;
+let blocking_calls = select l.call as id, l.call as call, l.function as function from call_functions as l join blocking_functions as r on l.function = r.id;
 let scopes = select id, file from "semantic-syntax" where kind = "function-def" or kind = "async-function-def" or kind = "class-def" or kind = "lambda";
 let nearest_scopes = axis(from=blocking_calls, relation="semantic-child", direction=nearest-ancestor, domain=scopes);
 let async_scopes = select id from "semantic-syntax" where kind = "async-function-def";

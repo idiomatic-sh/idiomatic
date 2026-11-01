@@ -2,7 +2,7 @@ let calls = select id, file from "semantic-syntax" where kind = "call";
 let function_fields = select parent, child from "semantic-child" where field = "func";
 let call_functions = select l.parent as call, l.child as function from function_fields as l join calls as r on l.parent = r.id;
 let wait_functions = select id from "qualified-name" where path = "os.wait" or path = "os.wait3" or path = "os.wait4" or path = "os.waitid" or path = "os.waitpid";
-let wait_calls = select l.call as call, l.function as function from call_functions as l join wait_functions as r on l.function = r.id;
+let wait_calls = select l.call as id, l.call as call, l.function as function from call_functions as l join wait_functions as r on l.function = r.id;
 let scopes = select id, file from "semantic-syntax" where kind = "function-def" or kind = "async-function-def" or kind = "class-def" or kind = "lambda";
 let nearest_scopes = axis(from=wait_calls, relation="semantic-child", direction=nearest-ancestor, domain=scopes);
 let async_scopes = select id from "semantic-syntax" where kind = "async-function-def";
