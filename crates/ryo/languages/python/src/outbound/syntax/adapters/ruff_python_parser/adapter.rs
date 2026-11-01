@@ -469,7 +469,11 @@ impl SyntaxPort for SyntaxRuffPythonParserAdapter {
             AnnotationContext::Runtime,
         );
         writer.visit_mod(parsed.syntax());
-        let semantic_errors = semantic_syntax_errors(parsed.syntax());
+        let semantic_errors = if parsed.errors().is_empty() {
+            semantic_syntax_errors(parsed.syntax())
+        } else {
+            Vec::new()
+        };
         if source.len() == text.0.len() && matches!(source, Cow::Owned(_)) {
             let mut at = 0_usize;
             for chunk in text.0.utf8_chunks() {

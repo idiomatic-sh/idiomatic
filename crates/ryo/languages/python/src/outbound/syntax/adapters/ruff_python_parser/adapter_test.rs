@@ -72,6 +72,45 @@ fn target_version_syntax_warning_preserves_the_tree() {
 }
 
 #[test]
+fn semantic_syntax_checks_only_run_after_an_accepted_parse() {
+    let diagnostics_for = |source: &str| {
+        let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
+        let mut builder =
+            languages::table_builder(&mut elements, &mut symbols, ByteSlice(source.as_bytes()));
+        SyntaxRuffPythonParserAdapter.read(
+            SourceText(source.as_bytes()),
+            PythonSourceKind::Python,
+            &PythonParserSettings::new(PythonTargetVersion::Py310),
+            &mut builder,
+        );
+        let diagnostics: Vec<_> = languages::diagnostics(&elements)
+            .map(|diagnostic| {
+                (
+                    diagnostic.phase.name().to_owned(),
+                    diagnostic.code.as_str().to_owned(),
+                )
+            })
+            .collect();
+        (languages::syntax_acceptance(&elements), diagnostics)
+    };
+
+    let (accepted, semantic_errors) = diagnostics_for("nonlocal x\n");
+    assert_eq!(accepted, languages::SyntaxAcceptance::Accepted);
+    assert!(semantic_errors.iter().any(|(phase, code)| {
+        phase == "validation" && code == "nonlocal-at-module"
+    }));
+
+    let (rejected, parse_errors) = diagnostics_for("nonlocal x\nx =\n");
+    assert_eq!(rejected, languages::SyntaxAcceptance::Rejected);
+    assert!(parse_errors.iter().any(|(phase, code)| {
+        phase == "parse" && code == "parser-error"
+    }));
+    assert!(!parse_errors.iter().any(|(phase, code)| {
+        phase == "validation" && code == "nonlocal-at-module"
+    }));
+}
+
+#[test]
 fn parser_errors_distinguish_complete_tokens_from_lexical_failure() {
     let impacts = |source: &str| {
         let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
