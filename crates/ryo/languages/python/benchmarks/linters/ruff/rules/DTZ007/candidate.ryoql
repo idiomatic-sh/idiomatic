@@ -1,4 +1,4 @@
-let qualified_names = select id, path, provenance, "since-major" as since_major, "since-minor" as since_minor from "qualified-name";
+let qualified_names = select q.id as id, q.path as path, q.provenance as provenance, q."since-major" as since_major, q."since-minor" as since_minor from "qualified-name" as q;
 let strptime_functions = select id from qualified_names where path = "datetime.datetime.strptime" and (provenance != "builtin" or since_major < 3 or since_major = 3 and since_minor <= 10);
 let calls = select id, file, span from "semantic-syntax" where kind = "call";
 let function_fields = select parent, child from "semantic-child" where field = "func";
