@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import os
 import re
 import subprocess
 import sys
@@ -261,6 +262,12 @@ def test_path_install_stamp_rebuilds_on_source_change_or_missing_binary(tmp_path
     source.write_text("fn main() { println!(\"changed\"); }\n")
     assert "source fingerprint differs" in install.stale_crate(crate, installed)
     install.record_path_install(crate, install.path_source_fingerprint(crate))
+    binary.write_text("tampered")
+    assert "installed binary differs" in install.stale_crate(crate, installed)
+    binary.write_text("installed")
+    install.path_stamp(crate).write_text("not json")
+    assert "source fingerprint differs" in install.stale_crate(crate, installed)
+    install.record_path_install(crate, install.path_source_fingerprint(crate))
     binary.unlink()
     assert "command is missing" in install.stale_crate(crate, installed)
 
@@ -281,3 +288,53 @@ def test_failed_path_install_does_not_write_success_stamp(tmp_path, monkeypatch)
     with pytest.raises(subprocess.CalledProcessError):
         install.install_crate(crate, "x86_64-unknown-linux-gnu")
     assert not install.path_stamp(crate).exists()
+
+
+def test_path_source_fingerprint_is_stable_across_hash_seeds(tmp_path) -> None:
+    first = tmp_path / "one" / "workspace" / "tool"
+    second = tmp_path / "two" / "workspace" / "tool"
+    for root, source in ((first, "fn one() {}\n"), (second, "fn two() {}\n")):
+        (root / "src").mkdir(parents=True)
+        (root / "src/main.rs").write_text(source)
+        (root / "Cargo.toml").write_text("[package]\nname='tool'\nversion='1.0.0'\n")
+        (root.parent / "Cargo.toml").write_text("[workspace]\n")
+        (root.parent / ".cargo").mkdir()
+        (root.parent / ".cargo/config.toml").write_text("[build]\njobs=1\n")
+    script = """
+import importlib.util, sys
+from pathlib import Path
+spec = importlib.util.spec_from_file_location('install', sys.argv[1])
+module = importlib.util.module_from_spec(spec)
+sys.modules['install'] = module
+spec.loader.exec_module(module)
+crate = module.Crate('own-tool', '1.0.0', path=Path(sys.argv[2]))
+module.source_roots = lambda _crate: [Path(sys.argv[3]), Path(sys.argv[4])]
+module.cargo_identity = lambda: 'cargo deterministic test identity\\n'
+module.rustc_identity = lambda: 'rustc deterministic test identity\\n'
+print(module.path_source_fingerprint(crate))
+"""
+    answers = set()
+    for seed in ("1", "2", "random"):
+        environment = {
+            **os.environ,
+            "PYTHONHASHSEED": seed,
+            "CARGO_HOME": str(tmp_path / "cargo-home"),
+        }
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                script,
+                str(ROOT / "tools/install.py"),
+                str(first),
+                str(first),
+                str(second),
+            ],
+            check=True,
+            text=True,
+            encoding="utf-8",
+            capture_output=True,
+            env=environment,
+        )
+        answers.add(result.stdout.strip())
+    assert len(answers) == 1

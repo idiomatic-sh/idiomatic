@@ -291,6 +291,7 @@ def path_source_fingerprint(crate: Crate) -> str:
     }
     add("build-environment", json.dumps(build_environment, sort_keys=True, separators=(",", ":")).encode())
     roots = source_roots(crate)
+    source_files: list[tuple[str, bytes]] = []
     for package_root in roots:
         try:
             package_id = package_root.relative_to(ROOT).as_posix()
@@ -301,29 +302,34 @@ def path_source_fingerprint(crate: Crate) -> str:
             for name in sorted(files):
                 path = Path(directory) / name
                 relative = path.relative_to(package_root).as_posix()
-                add(f"{package_id}/{relative}", path.read_bytes())
+                source_files.append((f"{package_id}/{relative}", path.read_bytes()))
+    for label, content in sorted(source_files):
+        add(label, content)
     # Cargo's resolution and build configuration can live above every package directory.
     ancestors = {
         ancestor
         for package_root in [*roots, *([crate.path] if crate.path is not None else [])]
         for ancestor in (package_root, *package_root.parents)
     }
-    for directory in sorted(ancestors, key=lambda path: len(path.parts)):
+    context_files: list[tuple[str, bytes]] = []
+    for directory in ancestors:
         for name in ("Cargo.lock", "Cargo.toml", "rust-toolchain", "rust-toolchain.toml", "config", "config.toml"):
             path = directory / name
             if path.is_file():
                 label = path.relative_to(ROOT).as_posix() if path.is_relative_to(ROOT) else f"{directory.name}/{name}"
-                add(label, path.read_bytes())
+                context_files.append((label, path.read_bytes()))
         for config_name in ("config", "config.toml"):
             cargo_config = directory / ".cargo" / config_name
             if cargo_config.is_file():
                 label = cargo_config.relative_to(ROOT).as_posix() if cargo_config.is_relative_to(ROOT) else f".cargo/{config_name}"
-                add(label, cargo_config.read_bytes())
+                context_files.append((label, cargo_config.read_bytes()))
     cargo_home = Path(os.environ.get("CARGO_HOME", Path.home() / ".cargo"))
     for config_name in ("config", "config.toml"):
         cargo_config = cargo_home / config_name
         if cargo_config.is_file():
-            add(f"CARGO_HOME/{config_name}", cargo_config.read_bytes())
+            context_files.append((f"CARGO_HOME/{config_name}", cargo_config.read_bytes()))
+    for label, content in sorted(context_files):
+        add(label, content)
     return digest.hexdigest()
 
 
@@ -333,16 +339,29 @@ def path_stamp(crate: Crate) -> Path:
     return bin_dir / f".idiomatic-{crate.name.replace('/', '_')}.source.json"
 
 
-def stamped_fingerprint(crate: Crate) -> str | None:
-    """The source fingerprint recorded only after a successful path install."""
+def path_install_receipt(crate: Crate) -> dict[str, object] | None:
+    """The validated source and installed-binary identity recorded after a successful path install."""
     try:
         record = json.loads(path_stamp(crate).read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return None
     if not isinstance(record, dict):
         return None
-    fingerprint = record.get("fingerprint")
-    return fingerprint if isinstance(fingerprint, str) else None
+    if not isinstance(record.get("fingerprint"), str) or not isinstance(record.get("binaries"), dict):
+        return None
+    binaries = record["binaries"]
+    if not all(isinstance(name, str) and isinstance(digest, str) for name, digest in binaries.items()):
+        return None
+    return record
+
+
+def installed_binary_hashes(crate: Crate) -> dict[str, str]:
+    """SHA-256 for every declared installed binary, streaming large executables."""
+    found: dict[str, str] = {}
+    for command in command_paths(crate):
+        with command.open("rb") as binary:
+            found[command.name] = hashlib.file_digest(binary, "sha256").hexdigest()
+    return found
 
 
 def record_path_install(crate: Crate, fingerprint: str) -> None:
@@ -350,7 +369,8 @@ def record_path_install(crate: Crate, fingerprint: str) -> None:
     destination = path_stamp(crate)
     destination.parent.mkdir(parents=True, exist_ok=True)
     temporary = destination.with_name(f"{destination.name}.{os.getpid()}.tmp")
-    temporary.write_text(json.dumps({"fingerprint": fingerprint}, sort_keys=True) + "\n", encoding="utf-8")
+    record = {"binaries": installed_binary_hashes(crate), "fingerprint": fingerprint}
+    temporary.write_text(json.dumps(record, sort_keys=True) + "\n", encoding="utf-8")
     os.replace(temporary, destination)
 
 
@@ -395,10 +415,13 @@ def stale_crate(crate: Crate, installed: dict[str, tuple[str, str]]) -> str | No
     if crate.path is not None:
         if str(crate.path) not in have[1]:
             return f"built from {have[1] or 'a registry'}, declared from {crate.path} (source differs)"
-        if stamped_fingerprint(crate) != path_source_fingerprint(crate):
+        receipt = path_install_receipt(crate)
+        if receipt is None or receipt["fingerprint"] != path_source_fingerprint(crate):
             return f"built from {have[1]}, declared from {crate.path} (source fingerprint differs)"
         if command_time(crate) == 0.0:
             return f"built from {have[1]}, declared from {crate.path} (a command is missing)"
+        if receipt["binaries"] != installed_binary_hashes(crate):
+            return f"built from {have[1]}, declared from {crate.path} (installed binary differs)"
     return None
 
 
