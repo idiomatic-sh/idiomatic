@@ -1029,12 +1029,15 @@ impl CheckUseCaseImpl {
         files.par_extend(read.par_iter().zip(package_stamps.0.par_iter()).map(
             |(packaged, stamp)| {
                 digested(
+                    // Joined by `/` on every platform, as `answered` takes the package's directory off it again.
                     CheckedPath(
-                        std::path::Path::new(&*packaged.directory.0)
-                            .join(&*packaged.file.0)
-                            .display()
-                            .to_string()
-                            .into(),
+                        [
+                            &*packaged.directory.0,
+                            crate::domain::applications::constants::PATH_SEPARATOR,
+                            &*packaged.file.0,
+                        ]
+                        .concat()
+                        .into(),
                     ),
                     *stamp,
                     &|| self.packages.read(&packaged.directory, &packaged.file).ok(), // ignore: idiomatic.arch/no-ok-on-result - a package file that does not read digests as no file, so the kept answer is not reused and the check reads it again
