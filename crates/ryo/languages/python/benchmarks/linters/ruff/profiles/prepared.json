@@ -452,7 +452,9 @@
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/UP025/query.ryoql": "c0df4086e04e879f7221e1289a53e9ff0c1de989f66b9e3d165b04ffae2d8552",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/UP025/cases.toml": "4fc1693b12d8487d03312c2b8d372ae8bc30db72c9c72c0a54da6feca8b35ae1",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/UP039/query.ryoql": "844388bad03c4653c9d36cfb18816533a4099194427877e7a7209acf42506bee",
-    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/UP039/cases.toml": "2f6660fe2285ccc4d72d5e6db87b34fe2dcc3783cfe74c8ac414aa9570ec1f06"
+    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/UP039/cases.toml": "2f6660fe2285ccc4d72d5e6db87b34fe2dcc3783cfe74c8ac414aa9570ec1f06",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/shape-110/oracle.json": "13d0e1ff6f3fe7ac6e1cdf41323e352a92a9eebf407b286744bac15a9f8ce2c7",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/shape-110/expectations.json": "c478c94db1646ba0102bd10551ef864440ecadaf53b305d614ac1fbb36650a9e"
   },
   "combined_profiles": {
     "shape-110": {
@@ -799,9 +801,15 @@
         "crates/ryo/languages/python/benchmarks/linters/ruff/rules/UP025/query.ryoql",
         "crates/ryo/languages/python/benchmarks/linters/ruff/rules/UP025/cases.toml",
         "crates/ryo/languages/python/benchmarks/linters/ruff/rules/UP039/query.ryoql",
-        "crates/ryo/languages/python/benchmarks/linters/ruff/rules/UP039/cases.toml"
+        "crates/ryo/languages/python/benchmarks/linters/ruff/rules/UP039/cases.toml",
+        "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/shape-110/oracle.json",
+        "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/shape-110/expectations.json"
       ],
-      "scope": "Combined 110-rule selection for complete candidate loading. Existing 2023 cases retain Rule-scoped comparison; all 105 shape candidate cases use full-report comparison under the combined selection. This is not a 2128-case full-report proof."
+      "scope": "Combined 110-rule selection for complete candidate loading. Existing 2023 cases retain Rule-scoped comparison; all 105 shape candidate cases use full-report comparison under the combined selection. This is not a 2128-case full-report proof.",
+      "oracle_file": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/shape-110/oracle.json",
+      "oracle_sha256": "13d0e1ff6f3fe7ac6e1cdf41323e352a92a9eebf407b286744bac15a9f8ce2c7",
+      "expectations_file": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/shape-110/expectations.json",
+      "expectations_sha256": "c478c94db1646ba0102bd10551ef864440ecadaf53b305d614ac1fbb36650a9e"
     }
   }
 }

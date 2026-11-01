@@ -23,6 +23,8 @@ templates = [
   { alias = "result-identity", template = "evidence", file = "results/identity.json", count = { min = 0, max = 1 }, description = "Pinned inputs and contestant artifact identities." },
   { alias = "acceptance-profiles", template = "evidence", file = "profiles/prepared.json", count = { min = 0, max = 1 }, description = "Hash-pinned candidate acceptance profile inputs and exact case inventories." },
   { alias = "acceptance-profile", template = "linter", file = "profiles/{rule}/benchmark.toml", count = { min = 0 }, description = "One-rule tool selection for isolated candidate acceptance." },
+  { alias = "combined-profile-oracle", template = "evidence", file = "profiles/shape-110/oracle.json", count = { min = 0, max = 1 }, description = "Full pinned Ruff outputs for shape fixtures under the combined 110-rule selection." },
+  { alias = "combined-profile-expectations", template = "evidence", file = "profiles/shape-110/expectations.json", count = { min = 0, max = 1 }, description = "Reviewed expected-output overlay for combined-only cross-rule findings." },
   { template = "query", file = "rules/{implemented}/query.ryoql", count = { min = 0 }, description = "Benchmark query contract." },
   { alias = "candidate-query", template = "query", file = "rules/{rule}/candidate.ryoql", count = { min = 0 }, description = "Unpromoted query candidate, kept outside the shipped-rule audit." },
   { template = "cases", file = "rules/{rule}/cases.toml", description = "Benchmark cases contract." },
@@ -100,3 +102,18 @@ scenario = "Candidate assets use their explicit path instead of becoming an unow
 given.files.'profiles/F401/query.ryoql' = ''
 then.only = ['idiomatic.arch/benchmark-executable#closed']
 then.findings = [{ rule = 'idiomatic.arch/benchmark-executable#closed', path = 'profiles/F401/query.ryoql' }]
+
+[[scenarios]]
+id = "shape-combined-evidence-is-placed"
+scenario = "The combined candidate profile records its pinned reference outputs and scope overlay."
+given.files.'profiles/shape-110/benchmark.toml' = ''
+given.files.'profiles/shape-110/oracle.json' = ''
+given.files.'profiles/shape-110/expectations.json' = ''
+then.only = ['idiomatic.ryo/benchmark-linter#closed']
+
+[[scenarios]]
+id = "unplaced-shape-combined-evidence-is-refused"
+scenario = "Combined candidate profiles cannot hide unreviewed files."
+given.files.'profiles/shape-110/unreviewed.txt' = ''
+then.only = ['idiomatic.arch/benchmark-executable#closed']
+then.findings = [{ rule = 'idiomatic.arch/benchmark-executable#closed', path = 'profiles/shape-110/unreviewed.txt' }]
