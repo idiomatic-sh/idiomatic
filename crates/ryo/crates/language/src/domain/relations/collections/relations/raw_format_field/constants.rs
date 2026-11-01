@@ -1,14 +1,17 @@
 //! Public vocabulary of raw-format-field.
 use super::item::RawFormatFieldColumn;
 /// Relation catalog name.
+#[must_use]
 pub fn name() -> &'static str {
     "raw-format-field"
 }
 /// Relation promise, independent of any diagnostic rule.
+#[must_use]
 pub fn summary() -> &'static str {
     "Ordered fields from complete raw-token parses; malformed segments contribute no fields."
 }
 /// Public name of one typed column.
+#[must_use]
 pub fn column_name(column: RawFormatFieldColumn) -> &'static str {
     match column {
         RawFormatFieldColumn::Id => "id",

@@ -17,6 +17,9 @@ enum EngineScenario {
     Partial,
     InvalidSyntax,
     LexicallyCompleteSyntaxError,
+    PreservedSemanticSyntaxError,
+    PreservedStubSemanticSyntaxError,
+    OrdinaryAnnotationNamedExpression,
     InvalidSyntaxProjectionDisabled,
     CustomFrontendProjection,
     FutureFeatureProjection,
@@ -46,6 +49,24 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("frontend_projection_keeps_parse_diagnostics_with_complete_tokens"),
         word: Word::Succeeds,
         input: || EngineScenario::LexicallyCompleteSyntaxError,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("frontend_projection_keeps_semantic_parse_diagnostics_and_ast_facts"),
+        word: Word::Succeeds,
+        input: || EngineScenario::PreservedSemanticSyntaxError,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("stub_semantic_parse_diagnostic_keeps_f821_and_frontend_rows"),
+        word: Word::Succeeds,
+        input: || EngineScenario::PreservedStubSemanticSyntaxError,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("ordinary_annotation_keeps_f821_without_syntax_row"),
+        word: Word::Succeeds,
+        input: || EngineScenario::OrdinaryAnnotationNamedExpression,
         expect: Expect::Value(true),
     },
     Case {
@@ -144,10 +165,8 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
     let result = run_with_projection(scenario, request);
     check_expected_failure(scenario, &result);
     let report = result?;
-    Ok(
-        report.files == [ryo::linter::RelativePath("input.py".into())]
-            && report.diagnostics == expected_diagnostics(scenario)?,
-    )
+    let expected = expected_diagnostics(scenario)?;
+    Ok(report.files == [ryo::linter::RelativePath(file.into())] && report.diagnostics == expected)
 }
 
 #[test]
@@ -209,6 +228,8 @@ fn input_file(scenario: EngineScenario) -> &'static str {
         | EngineScenario::Partial
         | EngineScenario::InvalidSyntax
         | EngineScenario::LexicallyCompleteSyntaxError
+        | EngineScenario::PreservedSemanticSyntaxError
+        | EngineScenario::OrdinaryAnnotationNamedExpression
         | EngineScenario::InvalidSyntaxProjectionDisabled
         | EngineScenario::CustomFrontendProjection
         | EngineScenario::FutureFeatureProjection
@@ -217,6 +238,7 @@ fn input_file(scenario: EngineScenario) -> &'static str {
         | EngineScenario::ProjectionCacheQueryChange
         | EngineScenario::QueryModuleInlineEquivalence
         | EngineScenario::TargetConfigurationCacheChange => "input.py",
+        EngineScenario::PreservedStubSemanticSyntaxError => "input.pyi",
     }
 }
 
@@ -228,6 +250,11 @@ fn source_for(scenario: EngineScenario) -> &'static str {
         | EngineScenario::CustomFrontendProjection
         | EngineScenario::FrontendRuleCollision => "global x\nnonlocal x\n",
         EngineScenario::LexicallyCompleteSyntaxError => "value = ur\"hello\"\n",
+        EngineScenario::PreservedSemanticSyntaxError => {
+            "from __future__ import annotations\ndef f(x: (a := b)): ...\n"
+        }
+        EngineScenario::PreservedStubSemanticSyntaxError
+        | EngineScenario::OrdinaryAnnotationNamedExpression => "def f(x: (a := b)): ...\n",
         EngineScenario::FutureFeatureProjection | EngineScenario::UnknownFutureWithoutConsumer => {
             "from __future__ import no_such_feature\n"
         }
@@ -251,6 +278,19 @@ fn write_rule_fixtures(rules: &std::path::Path, scenario: EngineScenario) -> Res
         e722.join("query.ryoql"),
         include_str!("rules/E722/query.ryoql"),
     )?;
+    if matches!(
+        scenario,
+        EngineScenario::PreservedSemanticSyntaxError
+            | EngineScenario::PreservedStubSemanticSyntaxError
+            | EngineScenario::OrdinaryAnnotationNamedExpression
+    ) {
+        let f821 = rules.join("F821");
+        std::fs::create_dir_all(&f821)?;
+        std::fs::write(
+            f821.join("query.ryoql"),
+            include_str!("rules/F821/candidate.ryoql"),
+        )?;
+    }
     if scenario == EngineScenario::FutureFeatureProjection {
         let f407 = rules.join("F407");
         std::fs::create_dir_all(&f407)?;
@@ -353,9 +393,53 @@ fn check_expected_failure(
 
 fn expected_diagnostics(scenario: EngineScenario) -> Result<Vec<BenchmarkFinding>, Error> {
     use ryo_benchmark::domain::diagnostics::types::SourceByteOffset as At;
+    if matches!(
+        scenario,
+        EngineScenario::PreservedSemanticSyntaxError
+            | EngineScenario::PreservedStubSemanticSyntaxError
+    ) {
+        let (file, syntax_start, syntax_end, name_start, name_end) =
+            if scenario == EngineScenario::PreservedSemanticSyntaxError {
+                ("input.py", 45, 51, 50, 51)
+            } else {
+                ("input.pyi", 10, 16, 15, 16)
+            };
+        return Ok(vec![
+            BenchmarkFinding {
+                rule: ryo::linter::RuleId::try_from("F821")
+                    .map_err(|error| Error::Invalid(error.to_string()))?,
+                file: ryo::linter::RelativePath(file.into()),
+                start: At(name_start),
+                end: At(name_end),
+            },
+            BenchmarkFinding {
+                rule: ryo::linter::RuleId::try_from("invalid-syntax")
+                    .map_err(|error| Error::Invalid(error.to_string()))?,
+                file: ryo::linter::RelativePath(file.into()),
+                start: At(syntax_start),
+                end: At(syntax_end),
+            },
+        ]);
+    }
+    if scenario == EngineScenario::OrdinaryAnnotationNamedExpression {
+        return Ok(vec![BenchmarkFinding {
+            rule: ryo::linter::RuleId::try_from("F821")
+                .map_err(|error| Error::Invalid(error.to_string()))?,
+            file: ryo::linter::RelativePath("input.py".into()),
+            start: At(15),
+            end: At(16),
+        }]);
+    }
     let (rule, start, end) = match scenario {
         EngineScenario::InvalidSyntax => ("invalid-syntax", 9, 19),
         EngineScenario::LexicallyCompleteSyntaxError => ("invalid-syntax", 10, 17),
+        EngineScenario::PreservedSemanticSyntaxError
+        | EngineScenario::PreservedStubSemanticSyntaxError
+        | EngineScenario::OrdinaryAnnotationNamedExpression => {
+            return Err(Error::Invalid(
+                "semantic syntax scenario bypassed its dedicated expectation".to_owned(),
+            ));
+        }
         EngineScenario::InvalidSyntaxProjectionDisabled
         | EngineScenario::UnknownFutureWithoutConsumer => {
             return Ok(Vec::new());

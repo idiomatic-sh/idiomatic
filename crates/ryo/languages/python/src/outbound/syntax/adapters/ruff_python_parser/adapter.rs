@@ -462,10 +462,6 @@ fn has_future_annotations(module: &ruff_python_ast::ModModule) -> bool {
 }
 
 /// Ruff rejects assignment expressions inside stub annotations and postponed runtime annotations.
-#[expect(
-    clippy::too_many_lines,
-    reason = "one visitor checks annotation contexts while walking nested declarations"
-)]
 fn annotation_named_expression_syntax_errors(
     module: &ruff_python_ast::ModModule,
 ) -> Vec<SemanticSyntaxDiagnostic> {
@@ -546,7 +542,10 @@ fn annotation_named_expression_syntax_errors(
                         range: named.range(),
                         code: PARSER_ERROR,
                         phase: DiagnosticPhase::Parse,
-                        impact: TreeImpact::LexicallyComplete,
+                        // Ruff reports this as invalid syntax, but the parsed AST and lexical
+                        // stream remain complete. Keep semantic reads available to rules such
+                        // as F821 while exposing the parser diagnostic.
+                        impact: TreeImpact::Preserved,
                     });
                 }
             }

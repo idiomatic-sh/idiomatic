@@ -139,36 +139,48 @@ fn named_expression_in_stub_annotation_is_a_parse_diagnostic_only_for_stubs() {
                 )
             })
             .collect();
-        (languages::syntax_acceptance(&elements), diagnostics)
+        (
+            languages::syntax_acceptance(&elements),
+            languages::has_incomplete_syntax(&elements),
+            diagnostics,
+        )
     };
 
     let source = "def f(x: (a := b)): ...\n";
-    let (stub_acceptance, stub_diagnostics) = diagnostics_for(source, PythonSourceKind::Stub);
+    let (stub_acceptance, stub_incomplete, stub_diagnostics) =
+        diagnostics_for(source, PythonSourceKind::Stub);
     assert_eq!(stub_acceptance, languages::SyntaxAcceptance::Accepted);
+    assert!(
+        !stub_incomplete,
+        "semantic syntax diagnostics preserve AST facts"
+    );
     assert_eq!(
         stub_diagnostics,
         [(
             "parse".to_owned(),
-            "lexically-complete".to_owned(),
+            "preserved".to_owned(),
             "parser-error".to_owned(),
             10,
             16
         )]
     );
 
-    let (python_acceptance, python_diagnostics) = diagnostics_for(source, PythonSourceKind::Python);
+    let (python_acceptance, python_incomplete, python_diagnostics) =
+        diagnostics_for(source, PythonSourceKind::Python);
     assert_eq!(python_acceptance, languages::SyntaxAcceptance::Accepted);
+    assert!(!python_incomplete);
     assert!(python_diagnostics.is_empty());
 
     let future_source = "from __future__ import annotations\ndef f(x: (a := b)): ...\n";
-    let (future_acceptance, future_diagnostics) =
+    let (future_acceptance, future_incomplete, future_diagnostics) =
         diagnostics_for(future_source, PythonSourceKind::Python);
     assert_eq!(future_acceptance, languages::SyntaxAcceptance::Accepted);
+    assert!(!future_incomplete);
     assert_eq!(
         future_diagnostics,
         [(
             "parse".to_owned(),
-            "lexically-complete".to_owned(),
+            "preserved".to_owned(),
             "parser-error".to_owned(),
             45,
             51

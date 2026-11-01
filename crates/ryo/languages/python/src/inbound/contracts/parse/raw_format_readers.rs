@@ -10,7 +10,9 @@ use crate::domain::{
 use crate::outbound::format_syntax::adapters::ruff_literal_cformat::RuffLiteralCFormat;
 use ryo::languages;
 
+/// Reads one parse outcome for each original raw string token.
 pub(super) struct RawFormatSegmentItem;
+/// Reads fields parsed independently from each original raw string token.
 pub(super) struct RawFormatFieldItem;
 
 ryo::reads! {
@@ -32,8 +34,7 @@ ryo::reads! {
             }
         }
         when state(&index) {
-            FormatParseState::Fresh => { partial INCOMPLETE => languages::Missing::Any; }
-            FormatParseState::Partial => { partial INCOMPLETE => languages::Missing::Any; }
+            FormatParseState::Fresh | FormatParseState::Partial => { partial INCOMPLETE => languages::Missing::Any; }
             FormatParseState::Complete => {}
         }
     }
@@ -66,8 +67,7 @@ ryo::reads! {
             }
         }
         when state(&index) {
-            FormatParseState::Fresh => { partial INCOMPLETE => languages::Missing::Any; }
-            FormatParseState::Partial => { partial INCOMPLETE => languages::Missing::Any; }
+            FormatParseState::Fresh | FormatParseState::Partial => { partial INCOMPLETE => languages::Missing::Any; }
             FormatParseState::Complete => {}
         }
     }
@@ -100,9 +100,10 @@ mod tests {
         assert!(fields.causes.is_empty());
         assert_eq!(fields.rows.len(), 3);
         for (at, row) in fields.rows.iter().enumerate() {
+            let expected_index = i64::try_from(at).unwrap_or(i64::MAX);
             assert_eq!(row[2], Want::Number(2));
-            assert_eq!(row[3], Want::Number(at as i64));
-            assert_eq!(row[4], Want::Number(at as i64));
+            assert_eq!(row[3], Want::Number(expected_index));
+            assert_eq!(row[4], Want::Number(expected_index));
         }
         assert_eq!(fields.rows[0][6], Want::Name("x"));
         assert_eq!(fields.rows[1][6], Want::Name("x"));

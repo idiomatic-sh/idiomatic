@@ -25,7 +25,13 @@ fn fstring_fragments_are_scoped_and_decoded() {
         .iter()
         .map(|row| match row[2] {
             Want::Name(value) => value,
-            _ => panic!("fragment value is decoded text"),
+            Want::Unlocated
+            | Want::Node(_)
+            | Want::Unknown(_)
+            | Want::File(_)
+            | Want::Span(..)
+            | Want::Number(_)
+            | Want::Flag(_) => panic!("fragment value is decoded text"),
         })
         .collect::<Vec<_>>();
     assert_eq!(

@@ -61,7 +61,12 @@ fn canonical_columns(
             .cells
             .copy_within(at * width..(at + 1) * width, at * after);
         for (place, column) in columns.iter().enumerate() {
-            let value = table.cells[at * after + column.0 as usize];
+            let index = usize::try_from(column.0).map_err(|_| OperatingError::ShapeMismatch)?;
+            let cell = at
+                .checked_mul(after)
+                .and_then(|row| row.checked_add(index))
+                .ok_or(OperatingError::ShapeMismatch)?;
+            let value = *table.cells.get(cell).ok_or(OperatingError::ShapeMismatch)?;
             let texts = Texts {
                 symbols,
                 source: texts_source,
@@ -90,7 +95,15 @@ fn canonical_columns(
             } else {
                 value
             };
-            table.cells[at * after + width + place] = canonical;
+            let cell = at
+                .checked_mul(after)
+                .and_then(|row| row.checked_add(width))
+                .and_then(|row| row.checked_add(place))
+                .ok_or(OperatingError::ShapeMismatch)?;
+            *table
+                .cells
+                .get_mut(cell)
+                .ok_or(OperatingError::ShapeMismatch)? = canonical;
         }
     }
     for (place, column) in columns.iter_mut().enumerate() {

@@ -12,9 +12,12 @@ use crate::domain::{
 use crate::outbound::format_syntax::adapters::ruff_literal_cformat::RuffLiteralCFormat;
 use ryo::languages;
 
+/// Reads whole-token percent-format parse summaries.
 pub(super) struct FormatParseItem;
+/// Reads ordered conversion fields from whole-token percent-format strings.
 pub(super) struct FormatFieldItem;
 
+/// Interns text in the Python composition's source arena.
 pub(super) fn intern(
     symbols: &mut languages::Symbols,
     source: languages::ByteSlice<'_>,
@@ -23,6 +26,7 @@ pub(super) fn intern(
     languages::intern_derived(symbols, source, languages::NameText(value))
 }
 
+/// Returns the parse summary and its stable outcome label.
 pub(super) fn summary_of(
     result: Option<&FormatParseResult>,
     unknown: bool,
@@ -36,6 +40,7 @@ pub(super) fn summary_of(
     }
 }
 
+/// Returns the error category, character and scalar index, or empty defaults.
 pub(super) fn error_parts(result: Option<&FormatParseResult>) -> (&'static str, String, i64) {
     let Some(FormatParseResult::Malformed(error)) = result else {
         return ("none", String::new(), 0);
@@ -53,6 +58,7 @@ pub(super) fn error_parts(result: Option<&FormatParseResult>) -> (&'static str, 
     (category, character, index)
 }
 
+/// Converts a boolean to the relation's typed flag.
 pub(super) fn flag(value: bool) -> languages::Flag {
     if value {
         languages::Flag::Raised
@@ -61,6 +67,7 @@ pub(super) fn flag(value: bool) -> languages::Flag {
     }
 }
 
+/// Names how a field obtains its width or precision.
 pub(super) fn width_mode(value: FormatQuantityMode) -> &'static str {
     match value {
         FormatQuantityMode::None => "none",
@@ -70,6 +77,7 @@ pub(super) fn width_mode(value: FormatQuantityMode) -> &'static str {
     }
 }
 
+/// Names the precision mode using the same vocabulary as width.
 fn precision_mode(value: FormatQuantityMode) -> &'static str {
     width_mode(value)
 }
@@ -93,8 +101,7 @@ ryo::reads! {
             row { id: node(occurrence.node), dialect: value(dialect), representation: value(representation), outcome: value(outcome), error_category: value(error_category), error_character: value(error_character), error_index: value(error_index), positional_consumption: value(positional_consumption), mapping_present: value(flag(summary.0.mapping_present)), dynamic_width: value(flag(summary.0.dynamic_width)), dynamic_precision: value(flag(summary.0.dynamic_precision)), file: file, span: span(occurrence.node), }
         }
         when state(&index) {
-            FormatParseState::Partial => { partial INCOMPLETE => languages::Missing::Any; }
-            FormatParseState::Fresh => { partial INCOMPLETE => languages::Missing::Any; }
+            FormatParseState::Partial | FormatParseState::Fresh => { partial INCOMPLETE => languages::Missing::Any; }
             FormatParseState::Complete => {}
         }
     }
@@ -126,7 +133,13 @@ mod tests {
             .iter()
             .map(|row| match row[3] {
                 Want::Name(value) => value,
-                _ => panic!("format outcome is a name"),
+                Want::Unlocated
+                | Want::Node(_)
+                | Want::Unknown(_)
+                | Want::File(_)
+                | Want::Span(..)
+                | Want::Number(_)
+                | Want::Flag(_) => panic!("format outcome is a name"),
             })
             .collect::<Vec<_>>();
         assert_eq!(
@@ -216,8 +229,7 @@ ryo::reads! {
             }
         }
         when state(&index) {
-            FormatParseState::Partial => { partial INCOMPLETE => languages::Missing::Any; }
-            FormatParseState::Fresh => { partial INCOMPLETE => languages::Missing::Any; }
+            FormatParseState::Partial | FormatParseState::Fresh => { partial INCOMPLETE => languages::Missing::Any; }
             FormatParseState::Complete => {}
         }
     }

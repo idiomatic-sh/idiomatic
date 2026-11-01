@@ -15,6 +15,7 @@ pub(super) struct BraceFormatParseItem;
 /// Ordered selector rows for parsed fields.
 pub(super) struct BraceFormatFieldItem;
 
+/// Interns text in the Python composition's source arena.
 fn intern(
     symbols: &mut languages::Symbols,
     source: languages::ByteSlice<'_>,
@@ -23,6 +24,7 @@ fn intern(
     languages::intern_derived(symbols, source, languages::NameText(value))
 }
 
+/// Converts a boolean to the relation's typed flag.
 fn flag(value: bool) -> languages::Flag {
     if value {
         languages::Flag::Raised
@@ -31,6 +33,7 @@ fn flag(value: bool) -> languages::Flag {
     }
 }
 
+/// Returns stable outcome and error labels for one source string.
 fn outcome(result: Option<&BraceFormatResult>, unknown: bool) -> (&'static str, &'static str) {
     match result {
         Some(BraceFormatResult::Parsed(_)) => ("parsed", "none"),
@@ -41,6 +44,7 @@ fn outcome(result: Option<&BraceFormatResult>, unknown: bool) -> (&'static str, 
     }
 }
 
+/// Names a malformed brace-format error for relation rows.
 fn error_name(error: BraceFormatError) -> &'static str {
     match error {
         BraceFormatError::UnmatchedBracket => "unmatched-bracket",
@@ -55,6 +59,7 @@ fn error_name(error: BraceFormatError) -> &'static str {
     }
 }
 
+/// Returns automatic, indexed, keyword and nested-field counts.
 fn counts(result: Option<&BraceFormatResult>) -> [i64; 4] {
     let Some(BraceFormatResult::Parsed(parsed)) = result else {
         return [0; 4];

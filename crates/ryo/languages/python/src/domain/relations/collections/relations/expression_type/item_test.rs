@@ -16,7 +16,13 @@ fn classifies_literals_unions_unknowns_and_type_errors() {
         .iter()
         .filter_map(|row| match row[2] {
             Want::Name(name) => Some(name),
-            _ => None,
+            Want::Unlocated
+            | Want::Node(_)
+            | Want::Unknown(_)
+            | Want::File(_)
+            | Want::Span(..)
+            | Want::Number(_)
+            | Want::Flag(_) => None,
         })
         .collect::<Vec<_>>();
     let resolutions = report
@@ -24,7 +30,13 @@ fn classifies_literals_unions_unknowns_and_type_errors() {
         .iter()
         .filter_map(|row| match row[1] {
             Want::Name(name) => Some(name),
-            _ => None,
+            Want::Unlocated
+            | Want::Node(_)
+            | Want::Unknown(_)
+            | Want::File(_)
+            | Want::Span(..)
+            | Want::Number(_)
+            | Want::Flag(_) => None,
         })
         .collect::<Vec<_>>();
     for expected in [

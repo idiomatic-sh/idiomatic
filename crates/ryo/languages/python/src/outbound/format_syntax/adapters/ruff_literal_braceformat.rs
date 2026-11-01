@@ -301,7 +301,10 @@ mod tests {
             RuffLiteralBraceFormat::parse("{key..name}"),
             BraceFormatResult::Malformed(BraceFormatError::EmptyAttribute)
         ));
-        let huge = format!("{{{}}}", "9".repeat(usize::BITS as usize / 3 + 2));
+        let huge = format!(
+            "{{{}}}",
+            "9".repeat(usize::try_from(usize::BITS).unwrap_or(usize::MAX) / 3 + 2)
+        );
         assert!(
             matches!(RuffLiteralBraceFormat::parse(&huge), BraceFormatResult::Parsed(parsed) if matches!(&parsed.fields[0].selector, BraceSelector::Keyword(_)))
         );

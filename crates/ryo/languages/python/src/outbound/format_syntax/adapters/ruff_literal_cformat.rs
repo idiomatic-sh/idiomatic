@@ -273,7 +273,9 @@ mod tests {
     fn parsed(source: &str) -> ParsedFormat {
         match RuffLiteralCFormat::parse(source, FormatDialect::PercentString) {
             FormatParseResult::Parsed(parsed) => parsed,
-            other => panic!("expected parsed format for {source:?}, got {other:?}"),
+            FormatParseResult::Malformed(_) | FormatParseResult::Unavailable => {
+                panic!("expected parsed format for {source:?}, got a non-parsed result")
+            }
         }
     }
 

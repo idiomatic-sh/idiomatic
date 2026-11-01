@@ -28,6 +28,7 @@ use ryo_values::domain::plans::service::{inputs_of, named};
 use ryo_values::domain::plans::types::{Plan, StepScope};
 use std::sync::atomic::{AtomicU64, Ordering};
 
+/// Supplies distinct IDs to nested diagnostic step invocations.
 static NEXT_DIAGNOSTIC_STEP_ID: AtomicU64 = AtomicU64::new(1);
 
 /// Notes that the step `consumer` was fed `rows` rows.
@@ -118,14 +119,14 @@ where
         operation,
     );
     let outcome = pass_on_inner(stepper, id, context, emit);
-    let parent_step_index = stepper.current.0;
+    let completed_parent_step_index = stepper.current.0;
     tracing::trace!(
         target: "ryo::diagnostic::rule_step",
         event = "rule_step_end",
         invocation_id,
         step_index = id.0,
-        parent_step_index,
-        nested = parent_step_index != id.0,
+        parent_step_index = completed_parent_step_index,
+        nested = completed_parent_step_index != id.0,
         operation,
         elapsed_ns = u64::try_from(started.elapsed().as_nanos()).unwrap_or(u64::MAX),
         outcome = if outcome.is_ok() { "ok" } else { "error" },
@@ -133,6 +134,7 @@ where
     outcome
 }
 
+/// Executes one step and forwards its rows to the receiver.
 fn pass_on_inner<'a, 'f>(
     stepper: &mut Stepper<'a, 'f>,
     id: StepPlace,
@@ -215,6 +217,7 @@ where
     outcome
 }
 
+/// Returns the stable diagnostic label for an operation.
 fn operation_name(operation: &ryo_values::domain::plans::types::Operation) -> &'static str {
     use ryo_values::domain::plans::types::Operation;
     match operation {
@@ -235,6 +238,7 @@ fn operation_name(operation: &ryo_values::domain::plans::types::Operation) -> &'
         Operation::Words { .. } => "words",
         Operation::Axis { .. } => "axis",
         Operation::Closure { .. } => "closure",
+        Operation::OrderedDfs { .. } => "ordered-dfs",
         Operation::Cycles { .. } => "cycles",
         Operation::Rows { .. } => "rows",
         Operation::Hosted { .. } => "hosted",
