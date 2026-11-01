@@ -1,0 +1,152 @@
+{
+  "schema": "exact-python-compile-classification/v1",
+  "automatic_discrepancy_admission": false,
+  "authoritative_records_modified": false,
+  "cases": [
+    {
+      "case_pair_index_zero_based": 140,
+      "name": "future-scope-class-forward-type",
+      "filename": "case.py",
+      "source_sha256": "d05bcc7fa381a7bebde2bb737b87bc2efacfcce2105fc9b8d0466bd4486e699c",
+      "classification": "compile rejection confirmed; F821 recovery policy remains unadjudicated",
+      "supported_conclusion": "The exact source is rejected at the illegal nested future import in all four interpreters. CPython3.10 error span equals the candidate invalid-syntax span.",
+      "limits": "No program executes and CPython produces no undefined-name recovery report. These observations cannot prove or waive the extra F821 diagnostic, nor prove Ruff recovery wrong.",
+      "cpython310_syntax_byte_span": [
+        10,
+        44
+      ],
+      "accepted_by_version": {
+        "3.10.19": false,
+        "3.13.5": false,
+        "3.14.0": false,
+        "3.15.0rc2": false
+      },
+      "minimal_correct_layer": "Keep canonical frontend syntax/module activation; any chosen invalid-program lint recovery policy or version/reference discrepancy belongs to the explicitly reviewed diagnostic contract. No source or rule fix is implied by this evidence."
+    },
+    {
+      "case_pair_index_zero_based": 144,
+      "name": "future-scope-except-restoration",
+      "filename": "case.py",
+      "source_sha256": "ee214fc7124c6aa4abdfec0d14600153faefd3e73d8d8e373154f66ef5958926",
+      "classification": "compile rejection confirmed; F821 recovery policy remains unadjudicated",
+      "supported_conclusion": "The exact source is rejected at the illegal nested future import in all four interpreters. CPython3.10 error span equals the candidate invalid-syntax span.",
+      "limits": "No program executes and CPython produces no undefined-name recovery report. These observations cannot prove or waive the extra F821 diagnostic, nor prove Ruff recovery wrong.",
+      "cpython310_syntax_byte_span": [
+        28,
+        62
+      ],
+      "accepted_by_version": {
+        "3.10.19": false,
+        "3.13.5": false,
+        "3.14.0": false,
+        "3.15.0rc2": false
+      },
+      "minimal_correct_layer": "Keep canonical frontend syntax/module activation; any chosen invalid-program lint recovery policy or version/reference discrepancy belongs to the explicitly reviewed diagnostic contract. No source or rule fix is implied by this evidence."
+    },
+    {
+      "case_pair_index_zero_based": 145,
+      "name": "future-scope-function-forward-type",
+      "filename": "case.py",
+      "source_sha256": "34dafa33ddb16a5fbe1ff16004da12388f7bca5900bf368bd82f7ee80b1f4d63",
+      "classification": "compile rejection confirmed; F821 recovery policy remains unadjudicated",
+      "supported_conclusion": "The exact source is rejected at the illegal nested future import in all four interpreters. CPython3.10 error span equals the candidate invalid-syntax span.",
+      "limits": "No program executes and CPython produces no undefined-name recovery report. These observations cannot prove or waive the extra F821 diagnostic, nor prove Ruff recovery wrong.",
+      "cpython310_syntax_byte_span": [
+        14,
+        48
+      ],
+      "accepted_by_version": {
+        "3.10.19": false,
+        "3.13.5": false,
+        "3.14.0": false,
+        "3.15.0rc2": false
+      },
+      "minimal_correct_layer": "Keep canonical frontend syntax/module activation; any chosen invalid-program lint recovery policy or version/reference discrepancy belongs to the explicitly reviewed diagnostic contract. No source or rule fix is implied by this evidence."
+    },
+    {
+      "case_pair_index_zero_based": 148,
+      "name": "future-scope-if-else-inheritance",
+      "filename": "case.py",
+      "source_sha256": "c05496b0d40c3990889372b8dce4439b25f7a0df82285309ab217c5ac289caf4",
+      "classification": "compile rejection confirmed; F821 recovery policy remains unadjudicated",
+      "supported_conclusion": "The exact source is rejected at the illegal nested future import in all four interpreters. CPython3.10 error span equals the candidate invalid-syntax span.",
+      "limits": "No program executes and CPython produces no undefined-name recovery report. These observations cannot prove or waive the extra F821 diagnostic, nor prove Ruff recovery wrong.",
+      "cpython310_syntax_byte_span": [
+        10,
+        44
+      ],
+      "accepted_by_version": {
+        "3.10.19": false,
+        "3.13.5": false,
+        "3.14.0": false,
+        "3.15.0rc2": false
+      },
+      "minimal_correct_layer": "Keep canonical frontend syntax/module activation; any chosen invalid-program lint recovery policy or version/reference discrepancy belongs to the explicitly reviewed diagnostic contract. No source or rule fix is implied by this evidence."
+    },
+    {
+      "case_pair_index_zero_based": 149,
+      "name": "future-scope-if-restoration",
+      "filename": "case.py",
+      "source_sha256": "fa0d30a3c4f91ab73cbff5b34acc6d50b6dbc58e60fe648cac3243db881d96f2",
+      "classification": "compile rejection confirmed; F821 recovery policy remains unadjudicated",
+      "supported_conclusion": "The exact source is rejected at the illegal nested future import in all four interpreters. CPython3.10 error span equals the candidate invalid-syntax span.",
+      "limits": "No program executes and CPython produces no undefined-name recovery report. These observations cannot prove or waive the extra F821 diagnostic, nor prove Ruff recovery wrong.",
+      "cpython310_syntax_byte_span": [
+        10,
+        44
+      ],
+      "accepted_by_version": {
+        "3.10.19": false,
+        "3.13.5": false,
+        "3.14.0": false,
+        "3.15.0rc2": false
+      },
+      "minimal_correct_layer": "Keep canonical frontend syntax/module activation; any chosen invalid-program lint recovery policy or version/reference discrepancy belongs to the explicitly reviewed diagnostic contract. No source or rule fix is implied by this evidence."
+    },
+    {
+      "case_pair_index_zero_based": 158,
+      "name": "future-scope-relative-future-flag",
+      "filename": "case.py",
+      "source_sha256": "de499f755a304d8f3c7cf65caf2c8a0204a7dbfc1200cfc8b55f46dd30c49334",
+      "classification": "exact version-specific compiler behavior confirmed; diagnostic contract review required",
+      "supported_conclusion": "CPython3.10 agrees with pinned Ruff rejection. CPython3.13 accepts the exact source. CPython3.14/3.15 reject, but plain signatures with the same walrus also reject in those native annotation modes.",
+      "limits": "Do not call this a universal Ruff/CPython bug or use newer rejection as evidence of relative future activation. The Python3.10 documented absolute future-statement grammar and the exact3.10 implementation differ; acceptance requires explicit intended-contract adjudication, not an automatic exception.",
+      "cpython310_syntax_byte_span": null,
+      "accepted_by_version": {
+        "3.10.19": false,
+        "3.13.5": true,
+        "3.14.0": false,
+        "3.15.0rc2": false
+      },
+      "minimal_correct_layer": "Keep canonical frontend syntax/module activation; any chosen invalid-program lint recovery policy or version/reference discrepancy belongs to the explicitly reviewed diagnostic contract. No source or rule fix is implied by this evidence."
+    },
+    {
+      "case_pair_index_zero_based": 160,
+      "name": "future-scope-try-handler-inheritance",
+      "filename": "case.py",
+      "source_sha256": "93b0c20d76592354772ca176650a8f3465fc5cf6203b8285aa848e29dea548f6",
+      "classification": "compile rejection confirmed; F821 recovery policy remains unadjudicated",
+      "supported_conclusion": "The exact source is rejected at the illegal nested future import in all four interpreters. CPython3.10 error span equals the candidate invalid-syntax span.",
+      "limits": "No program executes and CPython produces no undefined-name recovery report. These observations cannot prove or waive the extra F821 diagnostic, nor prove Ruff recovery wrong.",
+      "cpython310_syntax_byte_span": [
+        6,
+        40
+      ],
+      "accepted_by_version": {
+        "3.10.19": false,
+        "3.13.5": false,
+        "3.14.0": false,
+        "3.15.0rc2": false
+      },
+      "minimal_correct_layer": "Keep canonical frontend syntax/module activation; any chosen invalid-program lint recovery policy or version/reference discrepancy belongs to the explicitly reviewed diagnostic contract. No source or rule fix is implied by this evidence."
+    }
+  ],
+  "control_conclusions": {
+    "3.10.19": "Relative ordinary signature enables annotations future flag; plain walrus signature accepted; absolute future walrus signature rejected.",
+    "3.13.5": "Relative ordinary signature has no annotations future flag; exact relative walrus and plain walrus signatures accepted; absolute future walrus rejected.",
+    "3.14.0-and-3.15.0rc2": "Relative ordinary signature has no annotations future flag; both plain and relative walrus signatures rejected by native annotation restrictions."
+  },
+  "provenance_correction": "Earlier order-reference-receipts.json links were pinned Ruff observations, not independent CPython evidence. This bundle contains fresh exact-source independent compile-only observations with source/script/executable/output hashes.",
+  "authority": "https://docs.python.org/3.10/reference/simple_stmts.html#future-statements",
+  "limits": "Compiler outcomes do not define linter recovery diagnostics. All207 authoritative pairs and32 raw mismatches are unchanged."
+}
