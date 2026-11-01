@@ -67,6 +67,7 @@ fn compute_with_scratch(
     let rows: Vec<Rows<'_>> = inputs.iter().map(|table| Rows::Computed(table)).collect();
     let mut out = Table::default();
     let mut context = OperatorContext {
+        stored_indexes: None,
         bindings,
         symbols: &mut symbols,
         source: SourceView(&[]),
@@ -108,7 +109,12 @@ fn assert_pairs(out: &Table, expected: &[[i64; 2]]) {
     let mut actual: Vec<_> = out
         .cells
         .chunks_exact(2)
-        .map(|row| [row[0], row[1]])
+        .map(|row| {
+            [
+                *row.first().expect("source column"),
+                *row.get(1).expect("destination column"),
+            ]
+        })
         .collect();
     actual.sort_unstable();
     let mut expected: Vec<_> = expected
@@ -181,21 +187,21 @@ fn disconnected_sources() -> Result<Value, OperatingError> {
 fn scratch_is_reused_and_cleared() -> Result<Value, OperatingError> {
     let mut scratch = OperatorScratch::default();
     scratch.other.push(Cell::Number(Integer(999)));
-    let out = closure(&numbers(&[&[1, 2], &[2, 3], &[1, 4]]), &mut scratch)?;
-    assert_pairs(&out, &[[1, 2], [1, 3], [1, 4], [2, 3]]);
+    let initial = closure(&numbers(&[&[1, 2], &[2, 3], &[1, 4]]), &mut scratch)?;
+    assert_pairs(&initial, &[[1, 2], [1, 3], [1, 4], [2, 3]]);
     let capacity = scratch.other.capacity();
-    let out = closure(&numbers(&[&[5, 6]]), &mut scratch)?;
-    assert_pairs(&out, &[[5, 6]]);
+    let later = closure(&numbers(&[&[5, 6]]), &mut scratch)?;
+    assert_pairs(&later, &[[5, 6]]);
     assert_eq!(scratch.other, [Cell::Number(Integer(5))]);
     let empty = Table {
         kinds: vec![CellKind::Number; 2],
         ..Table::default()
     };
-    let out = closure(&empty, &mut scratch)?;
-    assert_pairs(&out, &[]);
+    let cleared = closure(&empty, &mut scratch)?;
+    assert_pairs(&cleared, &[]);
     assert!(scratch.other.is_empty());
     assert_eq!(scratch.other.capacity(), capacity);
-    Ok(out.count.0)
+    Ok(cleared.count.0)
 }
 
 fn interleaved_work_and_output_are_bounded() -> Result<Value, OperatingError> {
@@ -257,7 +263,11 @@ fn assert_rows(out: &Table, width: usize, expected: &[&[i64]]) {
         .collect();
     let mut wanted: Vec<Vec<_>> = expected
         .iter()
-        .map(|r| r.iter().map(|n| Cell::Number(Integer(*n))).collect())
+        .map(|row| {
+            row.iter()
+                .map(|number| Cell::Number(Integer(*number)))
+                .collect()
+        })
         .collect();
     actual.sort_unstable();
     wanted.sort_unstable();
@@ -341,23 +351,23 @@ fn partitioned_cycles_and_disconnected_starts() -> Result<Value, OperatingError>
 
 fn partitioned_and_old_paths_reuse_scratch() -> Result<Value, OperatingError> {
     let mut scratch = OperatorScratch::default();
-    let out = grouped(&numbers(&[&[1, 2, 10], &[2, 3, 20]]), &[2], &mut scratch)?;
-    assert_rows(&out, 3, &[&[10, 1, 2], &[20, 2, 3]]);
-    let out = closure(&numbers(&[&[1, 2], &[2, 3]]), &mut scratch)?;
-    assert_pairs(&out, &[[1, 2], [1, 3], [2, 3]]);
+    let partitioned = grouped(&numbers(&[&[1, 2, 10], &[2, 3, 20]]), &[2], &mut scratch)?;
+    assert_rows(&partitioned, 3, &[&[10, 1, 2], &[20, 2, 3]]);
+    let ordinary = closure(&numbers(&[&[1, 2], &[2, 3]]), &mut scratch)?;
+    assert_pairs(&ordinary, &[[1, 2], [1, 3], [2, 3]]);
     let empty = Table {
         kinds: vec![CellKind::Number; 3],
         ..Table::default()
     };
-    let out = grouped(&empty, &[2], &mut scratch)?;
-    assert_rows(&out, 3, &[]);
+    let empty_output = grouped(&empty, &[2], &mut scratch)?;
+    assert_rows(&empty_output, 3, &[]);
     assert!(scratch.other.is_empty());
     assert_eq!(scratch.domain.count.0, 0);
-    let out = grouped(&numbers(&[&[8, 9, 30]]), &[2], &mut scratch)?;
-    assert_rows(&out, 3, &[&[30, 8, 9]]);
-    let out = grouped(&numbers(&[&[1, 2], &[2, 3]]), &[], &mut scratch)?;
-    assert_pairs(&out, &[[1, 2], [1, 3], [2, 3]]);
-    Ok(out.count.0)
+    let later_partition = grouped(&numbers(&[&[8, 9, 30]]), &[2], &mut scratch)?;
+    assert_rows(&later_partition, 3, &[&[30, 8, 9]]);
+    let unpartitioned = grouped(&numbers(&[&[1, 2], &[2, 3]]), &[], &mut scratch)?;
+    assert_pairs(&unpartitioned, &[[1, 2], [1, 3], [2, 3]]);
+    Ok(unpartitioned.count.0)
 }
 
 fn file_partitions_keep_reused_node_ids_separate() -> Result<Value, OperatingError> {
@@ -388,7 +398,7 @@ fn file_partitions_keep_reused_node_ids_separate() -> Result<Value, OperatingErr
     assert!(
         !out.cells
             .chunks_exact(3)
-            .any(|row| row[1] == Cell::Node(NodeId(1)) && row[2] == Cell::Node(NodeId(3)))
+            .any(|row| matches!(row, [_, Cell::Node(NodeId(1)), Cell::Node(NodeId(3))]))
     );
     Ok(out.count.0)
 }

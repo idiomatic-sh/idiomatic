@@ -21,7 +21,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
 )]
 fn subject(_: Input) -> Result<Value, Failure> {
     check(&LinterRyoAdapter {
-        project_context_mode: Default::default(),
+        project_context_mode: crate::domain::suite::types::ProjectContextMode::default(),
         executable: "fixture".into(),
         rules: "rules".into(),
         query_modules: BTreeMap::default(),
@@ -43,13 +43,13 @@ fn oversized_request_is_staged_as_json_file_instead_of_argv()
     let request = RunRequest {
         context_manifest: None,
         root: root.path().to_owned(),
-        files: (0..8_000)
+        files: (0_usize..8_000_usize)
             .map(|index| RelativePath(format!("sources/module_{index:05}.py").into_boxed_str()))
             .collect(),
         state: state.clone(),
     };
     let adapter = LinterRyoAdapter {
-        project_context_mode: Default::default(),
+        project_context_mode: crate::domain::suite::types::ProjectContextMode::default(),
         executable: "candidate".into(),
         rules: "rules".into(),
         query_modules: BTreeMap::new(),

@@ -63,6 +63,7 @@ fn consider(
     let comparisons = class.comparisons.as_slice();
     let index = usize::try_from(position.0).unwrap_or(usize::MAX);
     let mut context = OperatorContext {
+        stored_indexes: None,
         bindings: bound,
         symbols: &mut *pass.symbols,
         source: pass.source,
@@ -221,6 +222,7 @@ pub(crate) fn walk(shared: &mut MergedWalk, walking: Walking<'_>) {
             continue;
         };
         let mut context = OperatorContext {
+            stored_indexes: None,
             bindings: bound,
             symbols: &mut *symbols,
             source: SourceView(source.0),

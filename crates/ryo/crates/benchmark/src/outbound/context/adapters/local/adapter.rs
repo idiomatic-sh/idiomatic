@@ -3,7 +3,7 @@ use crate::domain::diagnostics::{errors::DiagnosticsError as Error, types::Proje
 use crate::domain::suite::types::{
     ArtifactDigest, CaseContext, ContextManifest, ProjectContextMode,
 };
-use sha2::{Digest, Sha256};
+use sha2::{Digest as _, Sha256};
 use std::collections::BTreeMap;
 use std::path::{Component, Path, PathBuf};
 
@@ -45,7 +45,7 @@ fn resolve(manifest: &ContextManifest, path: &Path) -> Result<PathBuf, Error> {
             Component::Normal(name) => resolved.push(name),
             Component::CurDir => {}
             Component::ParentDir if resolved.pop() => {}
-            _ => {
+            Component::Prefix(_) | Component::RootDir | Component::ParentDir => {
                 return Err(Error::Invalid(format!(
                     "context dependency escapes boundary: {}",
                     path.display()
@@ -80,12 +80,8 @@ fn no_symlinks(boundary: &Path, relative: &Path) -> Result<(), Error> {
 }
 
 /// Content seal includes declared absences and stable logical location, never temporary physical directories.
-pub(crate) fn fingerprint(manifest: &ContextManifest) -> Result<ArtifactDigest, Error> {
+pub(crate) fn fingerprint(manifest: &ContextManifest) -> ArtifactDigest {
     let mut hash = Sha256::new();
-    fn frame(hash: &mut Sha256, bytes: &[u8]) {
-        hash.update(u64::try_from(bytes.len()).unwrap_or(u64::MAX).to_le_bytes());
-        hash.update(bytes);
-    }
     frame(&mut hash, b"listed-disk-context-v1");
     frame(
         &mut hash,
@@ -107,7 +103,7 @@ pub(crate) fn fingerprint(manifest: &ContextManifest) -> Result<ArtifactDigest, 
         frame(&mut hash, b"missing");
         frame(&mut hash, path.as_os_str().as_encoded_bytes());
     }
-    Ok(ArtifactDigest(format!("{:x}", hash.finalize())))
+    ArtifactDigest(format!("{:x}", hash.finalize()))
 }
 
 /// Validate found and missing dependencies without treating unreadable files as missing.
@@ -122,7 +118,10 @@ pub(crate) fn validate(manifest: &ContextManifest, actual_root: &Path) -> Result
     }
     let mut missing = manifest.missing.clone();
     missing.sort();
-    if missing.windows(2).any(|pair| pair[0] == pair[1]) {
+    if missing
+        .windows(2)
+        .any(|pair| matches!(pair, [first, second] if first == second))
+    {
         return Err(Error::Invalid("duplicate missing context path".into()));
     }
     for (path, expected) in manifest
@@ -265,7 +264,7 @@ pub(crate) fn receipt(
         mode: ProjectContextMode::ListedDisk,
         logical_root: manifest.logical_root.clone(),
         actual_root: actual_root.to_owned(),
-        manifest_hash: fingerprint(manifest)?,
+        manifest_hash: fingerprint(manifest),
         dependencies: observed,
     })
 }
@@ -291,4 +290,10 @@ pub(crate) fn verify_receipt(
         return Err(Error::Invalid("context receipt identity disagrees".into()));
     }
     Ok(())
+}
+
+/// Hash one length-framed field without delimiter ambiguity.
+fn frame(hash: &mut Sha256, bytes: &[u8]) {
+    hash.update(u64::try_from(bytes.len()).unwrap_or(u64::MAX).to_le_bytes());
+    hash.update(bytes);
 }

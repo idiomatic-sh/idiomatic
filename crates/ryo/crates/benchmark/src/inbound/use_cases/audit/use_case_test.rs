@@ -28,7 +28,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 ];
 fn subject(nonempty: Input) -> Result<Value, Failure> {
     let tool = Tool {
-        project_context_mode: Default::default(),
+        project_context_mode: crate::domain::suite::types::ProjectContextMode::default(),
         tool: "fixture".into(),
         version: "1".into(),
         sha256: vec!["pin".into()],

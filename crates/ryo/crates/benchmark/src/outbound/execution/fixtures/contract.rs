@@ -267,7 +267,8 @@ fn observe(
     );
     assert_eq!(
         output.signal,
-        (output.status.0 < 0).then_some(-output.status.0)
+        (output.status.0 < 0_i32).then_some(-output.status.0),
+        "a signaled child must preserve its signal independently of measured resources"
     );
     (
         output.status.0,

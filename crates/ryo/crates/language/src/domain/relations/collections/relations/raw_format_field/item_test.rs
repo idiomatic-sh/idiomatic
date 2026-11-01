@@ -1,5 +1,5 @@
 //! Global order and local conversion identity remain separate typed columns.
-use super::super::interface::RelationsItem;
+use super::super::interface::RelationsItem as _;
 use super::item::{RawFormatField, RawFormatFieldRow};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::relations::types::{Bits, FileId, Integer, NodeId, Offset, Span};
@@ -44,7 +44,7 @@ fn subject(_: Input) -> Result<Vec<Bits>, Failure> {
             Bits(9),
             Bits(10),
             Bits(11),
-            Bits((12_u64 << 32) | 13)
+            Bits((0xc_u64 << 32_u32) | 0xd)
         ]
     );
     Ok(Vec::new())

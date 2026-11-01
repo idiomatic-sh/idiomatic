@@ -1,5 +1,5 @@
 //! Typed item contract for brace-format outcomes.
-use super::super::interface::RelationsItem;
+use super::super::interface::RelationsItem as _;
 use super::item::{BraceFormatParse, BraceFormatParseRow};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::relations::types::{Bits, FileId, Integer, NodeId, Offset, Span};
@@ -21,7 +21,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
         Bits(7),
         Bits(8),
         Bits(9),
-        Bits((10_u64 << 32) | 10),
+        Bits((0xa_u64 << 32_u32) | 0xa),
     ]),
 }];
 fn subject(_: Input) -> Result<Value, Failure> {

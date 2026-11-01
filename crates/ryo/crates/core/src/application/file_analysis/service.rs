@@ -55,6 +55,7 @@ use crate::outbound::corpus::types::PathStat;
 use crate::outbound::digest::interface::DigestPort;
 use crate::outbound::digest::types::{DigestBytes, DigestWords};
 use crate::outbound::facts::interface::FactsWorker;
+use crate::outbound::facts::types::ResidentStability;
 use crate::outbound::facts::types::WordsToKeep;
 use ryo_values::domain::records::types::Unread;
 use ryo_values::domain::stored_facts::types::ReadInPart;
@@ -290,6 +291,23 @@ impl FileAnalysis {
         skipped
     }
 
+    /// Admit sharing only for an audited provider's complete physical read of an active relation.
+    pub(super) fn indexes_for(
+        tables: &Tables,
+        facts: &dyn FactsWorker,
+        wanted: &[Relation],
+        physical_partials: &[crate::domain::coverage::types::Partial],
+    ) -> Option<crate::domain::stored_indexes::types::FileIndexes> {
+        if tables.language.is_none() || facts.resident_stability() != ResidentStability::Stable {
+            return None;
+        }
+        crate::domain::stored_indexes::service::new(
+            wanted,
+            physical_partials,
+            crate::domain::stored_indexes::service::LIMIT,
+        )
+    }
+
     /// The rest of a visit of a file the language read: the per-file steps of the rules that govern it run on its rows, the words of
     /// what leaves it wait in the buckets, and the rows are released.
     fn read_file(
@@ -306,12 +324,20 @@ impl FileAnalysis {
             .as_ref()
             .map(|_| Self::gate_rules(tables, &visit.setting, file, acceptance));
         let active_wanted = Self::active_wanted(tables, &visit.setting, acceptance);
+        // Keep physical reader partiality before any rule's Rows output can relax evaluation coverage.
+        let physical_partials = tables.partials.clone();
         // Only relation views needed by active rules are demanded after acceptance is known.
         for relation in active_wanted.iter() {
             if let Err(error) = facts.rows(*relation) {
                 return Err(error.into());
             }
         }
+        let mut stored_indexes = Self::indexes_for(
+            tables,
+            facts.as_ref(),
+            active_wanted.as_ref(),
+            &physical_partials,
+        );
         // The steps of the rules that select from the elements are decided in one pass over them.
         {
             let Tables {
@@ -344,12 +370,40 @@ impl FileAnalysis {
         if let Some(scoped_mask) = scoped_mask {
             tables.mask = scoped_mask;
         }
+        Self::evaluate_file_rules(
+            tables,
+            facts.as_mut(),
+            visit,
+            file,
+            skipped.as_deref(),
+            stored_indexes.as_mut(),
+        )?;
+        if let Some(indexes) = stored_indexes.as_ref() {
+            tracing::trace!(target: "ryo::diagnostic::stored_join", event = "file_indexes", file = file.0,
+                entries = indexes.entries.len(), eligible_relations = indexes.eligible.len(),
+                retained_bytes = indexes.bytes, physical_builds = indexes.builds,
+                reuses = indexes.reuses, refusals = indexes.refusals);
+        }
+        // No index handle or allocation survives release or the next visit, even for the same FileId.
+        drop(stored_indexes);
+        settle_file(tables, visit.setting.answering);
+        Ok(facts.release()?)
+    }
+
+    /// Evaluate active rules against the same immutable physical file generation.
+    fn evaluate_file_rules(
+        tables: &mut Tables,
+        facts: &mut dyn FactsWorker,
+        visit: &FileVisit<'_>,
+        file: FileId,
+        skipped: Option<&[bool]>,
+        mut stored_indexes: Option<&mut crate::domain::stored_indexes::types::FileIndexes>,
+    ) -> Result<(), FileAnalysisError> {
         for rule in (0..visit.setting.plans.len()).map(RuleIndex) {
             if governs_rule(tables, rule) == Governing::DoesNotGovern {
                 continue;
             }
             if skipped
-                .as_ref()
                 .and_then(|skipped| skipped.get(rule.0))
                 .copied()
                 .unwrap_or(false)
@@ -386,16 +440,20 @@ impl FileAnalysis {
                     file = file_path,
                 );
             }
-            let evaluated =
-                evaluate_rule(tables, &visit.setting, rule, file, &|relation| match rows
-                    .rows(relation)
-                {
+            let evaluated = evaluate_rule(
+                tables,
+                &visit.setting,
+                rule,
+                file,
+                stored_indexes.as_deref_mut(),
+                &|relation| match rows.rows(relation) {
                     Ok(view) => Some(view),
                     Err(error) => {
                         *refused.borrow_mut() = Some(error);
                         None
                     }
-                });
+                },
+            );
             let outcome = match refused.take() {
                 Some(error) => Err(FileAnalysisError::from(error)),
                 None => evaluated.map_err(FileAnalysisError::from),
@@ -432,8 +490,7 @@ impl FileAnalysis {
                 }
             }
         }
-        settle_file(tables, visit.setting.answering);
-        Ok(facts.release()?)
+        Ok(())
     }
 
     /// The visit of one file, in the worker that took its job: read it, decide which rules govern it, parse it, and run their
@@ -707,13 +764,13 @@ impl FileAnalysis {
                     index_kinds(&mut worker.tables.elements);
                     Self::read_file(worker, visit, number)?;
                 } else {
-                    let acceptance = syntax_acceptance(&worker.tables.elements);
-                    if Self::may_gate_rules(setting, acceptance) {
+                    let unavailable_acceptance = syntax_acceptance(&worker.tables.elements);
+                    if Self::may_gate_rules(setting, unavailable_acceptance) {
                         drop(Self::gate_rules(
                             &mut worker.tables,
                             setting,
                             number,
-                            acceptance,
+                            unavailable_acceptance,
                         ));
                     }
                 }

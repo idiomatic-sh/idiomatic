@@ -14,6 +14,7 @@ use ryo::linter::{
 use ryo::query::RyoQlQuery;
 use std::collections::BTreeMap;
 use std::num::NonZeroUsize;
+use tracing_subscriber::prelude::*;
 
 use crate::outbound::engine::interface::EnginePort;
 
@@ -63,39 +64,7 @@ impl EngineLocalAdapter {
         applicability_by_rule: &BTreeMap<String, String>,
         frontend_diagnostic: Option<FrontendDiagnosticProjection>,
     ) -> Result<BTreeMap<RuleId, Rule>, Error> {
-        let profile = directory
-            .parent()
-            .ok_or_else(|| Error::Invalid("rules directory has no profile root".into()))?;
-        let root = profile.canonicalize()?;
-        let mut modules = Vec::with_capacity(registry.len());
-        for (id, relative) in registry {
-            let _module = ryo::query::QueryModuleSource::try_new(id, "module source")
-                .map_err(|error| Error::Invalid(error.to_string()))?;
-            relative_path(relative)?;
-            let mut current = root.clone();
-            for component in relative.components() {
-                current.push(component);
-                let metadata = std::fs::symlink_metadata(&current)?;
-                if metadata.file_type().is_symlink() {
-                    return Err(Error::Invalid(format!(
-                        "query module is a symlink: {}",
-                        relative.display()
-                    )));
-                }
-            }
-            let canonical = current.canonicalize()?;
-            if !canonical.starts_with(&root) || !canonical.is_file() {
-                return Err(Error::Invalid(format!(
-                    "query module is outside profile or not a file: {}",
-                    relative.display()
-                )));
-            }
-            let source = std::fs::read_to_string(canonical)?;
-            modules.push(
-                ryo::query::QueryModuleSource::try_new(id, &source)
-                    .map_err(|error| Error::Invalid(error.to_string()))?,
-            );
-        }
+        let modules = query_modules(directory, registry)?;
         let mut rules = BTreeMap::new();
         let mut mapped_rules = std::collections::BTreeSet::new();
         for entry in std::fs::read_dir(directory)? {
@@ -209,31 +178,7 @@ impl EngineLocalAdapter {
 }
 impl EnginePort for EngineLocalAdapter {
     fn run(&self, request: WorkerRequest) -> Result<RunReport, Error> {
-        match (request.project_context_mode, &request.context_manifest) {
-            (crate::domain::suite::types::ProjectContextMode::Isolated, None) => {}
-            (crate::domain::suite::types::ProjectContextMode::ListedDisk, Some(manifest)) => {
-                crate::outbound::context::adapters::local::adapter::validate(
-                    manifest,
-                    &request.root,
-                )?;
-                let requested: std::collections::BTreeSet<_> = request
-                    .files
-                    .iter()
-                    .map(|file| manifest.logical_root.join(file.0.as_ref()))
-                    .collect();
-                if requested != manifest.source_files.keys().cloned().collect() {
-                    return Err(Error::Invalid(
-                        "context source seal differs from requested inventory".into(),
-                    ));
-                }
-            }
-            _ => {
-                return Err(Error::Invalid(
-                    "worker context mode requires a matching explicit manifest".into(),
-                ));
-            }
-        }
-        use tracing_subscriber::prelude::*;
+        validate_context(&request)?;
         let _trace = if let Some(path) = &self.trace {
             let (layer, guard) = tracing_chrome::ChromeLayerBuilder::new().file(path).build();
             tracing::subscriber::set_global_default(
@@ -261,24 +206,7 @@ impl EnginePort for EngineLocalAdapter {
             .len()
             .saturating_sub(usize::from(self.frontend_diagnostic.is_some()));
         let selected_pairs = selected_rule_count.saturating_mul(request.files.len());
-        let mut sources = Vec::new();
-        let mut accepted = std::collections::BTreeSet::new();
-        for file in &request.files {
-            relative_path(file.0.as_ref())?;
-            if !accepted.insert(file.clone()) {
-                return Err(Error::Invalid(
-                    crate::domain::diagnostics::constants::DUPLICATE_INPUT.into(),
-                ));
-            }
-            let source = std::fs::read_to_string(request.root.join(file.0.as_ref()))?;
-            sources.push(CaseSource {
-                path: file.clone(),
-                text: SourceText(source.into_boxed_str()),
-            });
-        }
-        if sources.is_empty() {
-            return Err(Error::Invalid(constants::EMPTY_CORPUS.into()));
-        }
+        let (sources, accepted) = source_inputs(&request)?;
         let pool = WorkerPool::from(Workers(NonZeroUsize::MIN));
         let cache = match request.state {
             crate::domain::suite::types::WorkerState::Fresh => Cache::None,
@@ -336,39 +264,7 @@ impl EnginePort for EngineLocalAdapter {
                 )
             })
             .transpose()?;
-        let mut diagnostics = Vec::new();
-        for finding in report.findings {
-            let Slot::Is(Cell::File(file)) = finding.subject else {
-                return Err(Error::Invalid(constants::INVALID_SUBJECT.into()));
-            };
-            let spans: Vec<_> = finding
-                .columns
-                .iter()
-                .filter_map(|column| {
-                    if column.name.0.as_ref() == constants::SPAN_COLUMN
-                        && let Slot::Is(Cell::Span(span)) = &column.value
-                    {
-                        return Some(*span);
-                    }
-                    None
-                })
-                .collect();
-            let [span] = spans.as_slice() else {
-                return Err(Error::Invalid(constants::INVALID_SPAN.into()));
-            };
-            diagnostics.push(BenchmarkFinding {
-                rule: finding.rule,
-                file,
-                start: crate::domain::diagnostics::types::SourceByteOffset(
-                    usize::try_from(span.start.0)
-                        .map_err(|error| Error::Invalid(error.to_string()))?,
-                ),
-                end: crate::domain::diagnostics::types::SourceByteOffset(
-                    usize::try_from(span.end.0)
-                        .map_err(|error| Error::Invalid(error.to_string()))?,
-                ),
-            });
-        }
+        let diagnostics = diagnostic_findings(report.findings)?;
         Ok(RunReport {
             project_context,
             diagnostics,
@@ -384,177 +280,140 @@ impl EnginePort for EngineLocalAdapter {
     }
 }
 
-#[cfg(test)]
-#[expect(
-    clippy::inline_modules,
-    reason = "these worker registry tests stay next to the local adapter contract"
-)]
-mod query_module_tests {
-    use super::{EngineLocalAdapter, RuleApplicability, RuleId, linter};
-    use std::{collections::BTreeMap, path::PathBuf};
-
-    fn profile() -> (tempfile::TempDir, PathBuf) {
-        let root = tempfile::tempdir().expect("profile root");
-        let rules = root.path().join("rules");
-        std::fs::create_dir_all(rules.join("F401")).expect("rule directory");
-        std::fs::write(
-            rules.join("F401/query.ryoql"),
-            "import shared from \"python/ruff/suppress\";",
-        )
-        .expect("query source");
-        (root, rules)
-    }
-
-    #[test]
-    fn worker_reads_explicit_module_text_from_the_frozen_profile() {
-        let (root, rules) = profile();
-        let module = root.path().join("fragments/suppress.ryoql");
-        std::fs::create_dir_all(module.parent().expect("module parent")).expect("module folder");
-        let text = "input source: relation<id: node>;\n";
-        std::fs::write(&module, text).expect("module source");
-        let registry = BTreeMap::from([(
-            "python/ruff/suppress".to_owned(),
-            PathBuf::from("fragments/suppress.ryoql"),
-        )]);
-        let queries = EngineLocalAdapter::load_rules(&rules, &registry, &BTreeMap::default(), None)
-            .expect("module bundle is loaded in the worker");
-        assert_eq!(queries.len(), 1);
-        assert_eq!(
-            queries.values().next().expect("rule").query.root_text(),
-            "import shared from \"python/ruff/suppress\";"
-        );
-        assert_eq!(
-            queries.values().next().expect("rule").applicability,
-            RuleApplicability::Always
+/// Load and validate every declared module inside the same sealed profile boundary.
+fn query_modules(
+    directory: &std::path::Path,
+    registry: &BTreeMap<String, std::path::PathBuf>,
+) -> Result<Vec<ryo::query::QueryModuleSource>, Error> {
+    let profile = directory
+        .parent()
+        .ok_or_else(|| Error::Invalid("rules directory has no profile root".into()))?;
+    let root = profile.canonicalize()?;
+    let mut modules = Vec::with_capacity(registry.len());
+    for (id, relative) in registry {
+        let _module = ryo::query::QueryModuleSource::try_new(id, "module source")
+            .map_err(|error| Error::Invalid(error.to_string()))?;
+        relative_path(relative)?;
+        let mut current = root.clone();
+        for component in relative.components() {
+            current.push(component);
+            let metadata = std::fs::symlink_metadata(&current)?;
+            if metadata.file_type().is_symlink() {
+                return Err(Error::Invalid(format!(
+                    "query module is a symlink: {}",
+                    relative.display()
+                )));
+            }
+        }
+        let canonical = current.canonicalize()?;
+        if !canonical.starts_with(&root) || !canonical.is_file() {
+            return Err(Error::Invalid(format!(
+                "query module is outside profile or not a file: {}",
+                relative.display()
+            )));
+        }
+        let source = std::fs::read_to_string(canonical)?;
+        modules.push(
+            ryo::query::QueryModuleSource::try_new(id, &source)
+                .map_err(|error| Error::Invalid(error.to_string()))?,
         );
     }
-
-    #[test]
-    fn selected_rules_receive_the_pinned_syntax_applicability() {
-        let (_root, rules) = profile();
-        let applicability = BTreeMap::from([("F401".to_owned(), "accepted-syntax".to_owned())]);
-        let queries =
-            EngineLocalAdapter::load_rules(&rules, &BTreeMap::default(), &applicability, None)
-                .expect("complete applicability map loads");
-        assert_eq!(
-            queries.values().next().expect("rule").applicability,
-            RuleApplicability::AcceptedSyntax
-        );
-    }
-
-    #[test]
-    fn explicit_applicability_must_match_every_loaded_rule() {
-        let (_root, rules) = profile();
-        let applicability = BTreeMap::from([
-            ("F401".to_owned(), "accepted-syntax".to_owned()),
-            ("F402".to_owned(), "always".to_owned()),
-        ]);
-        let error =
-            EngineLocalAdapter::load_rules(&rules, &BTreeMap::default(), &applicability, None)
-                .expect_err("extra applicability entry is refused");
-        assert!(error.to_string().contains("does not exactly match"));
-    }
-
-    #[test]
-    fn explicit_applicability_rejects_unknown_policy_values() {
-        let (_root, rules) = profile();
-        let applicability = BTreeMap::from([("F401".to_owned(), "parse-only".to_owned())]);
-        let error =
-            EngineLocalAdapter::load_rules(&rules, &BTreeMap::default(), &applicability, None)
-                .expect_err("unknown applicability is refused");
-        assert!(error.to_string().contains("unsupported applicability"));
-    }
-
-    #[test]
-    fn typed_syntax_skips_require_matching_policy_input_and_projection() -> Result<(), String> {
-        let (_root, _directory) = profile();
-        let path = linter::RelativePath("input.py".into());
-        let skipped = linter::Skipped {
-            rule: RuleId::try_from("F401").map_err(|error| error.to_string())?,
-            path: path.clone(),
-            reason: linter::SkipReason::SyntaxRejected,
-        };
-        let files = std::collections::BTreeSet::from([path]);
-        let policy = BTreeMap::from([("F401".to_owned(), "accepted-syntax".to_owned())]);
-        let selected = std::collections::BTreeSet::from([
-            RuleId::try_from("F401").map_err(|error| error.to_string())?
-        ]);
-        assert!(
-            EngineLocalAdapter::validate_skips(
-                &[skipped.clone()],
-                &selected,
-                &policy,
-                &files,
-                true
-            )
-            .is_ok()
-        );
-        assert!(
-            EngineLocalAdapter::validate_skips(
-                &[skipped.clone()],
-                &selected,
-                &policy,
-                &files,
-                false
-            )
-            .is_err()
-        );
-        assert!(
-            EngineLocalAdapter::validate_skips(
-                &[skipped.clone(), skipped.clone()],
-                &selected,
-                &policy,
-                &files,
-                true
-            )
-            .is_err()
-        );
-
-        assert!(
-            EngineLocalAdapter::validate_skips(
-                &[skipped.clone()],
-                &selected,
-                &BTreeMap::new(),
-                &files,
-                true
-            )
-            .is_err()
-        );
-        let other_file = std::collections::BTreeSet::from([linter::RelativePath("else.py".into())]);
-        assert!(
-            EngineLocalAdapter::validate_skips(&[skipped], &selected, &policy, &other_file, true)
-                .is_err()
-        );
-        Ok(())
-    }
-
-    #[test]
-    fn worker_refuses_module_paths_outside_the_profile() {
-        let (_root, rules) = profile();
-        let registry = BTreeMap::from([(
-            "python/ruff/suppress".to_owned(),
-            PathBuf::from("../outside.ryoql"),
-        )]);
-        let error = EngineLocalAdapter::load_rules(&rules, &registry, &BTreeMap::default(), None)
-            .expect_err("traversal is refused");
-        assert!(error.to_string().contains("unsafe corpus path"));
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn worker_refuses_symlinked_module_paths() {
-        let (root, rules) = profile();
-        std::fs::create_dir_all(root.path().join("fragments")).expect("module folder");
-        let target = root.path().join("outside.ryoql");
-        std::fs::write(&target, "module bytes").expect("module source");
-        std::os::unix::fs::symlink(&target, root.path().join("fragments/suppress.ryoql"))
-            .expect("symlink fixture");
-        let registry = BTreeMap::from([(
-            "python/ruff/suppress".to_owned(),
-            PathBuf::from("fragments/suppress.ryoql"),
-        )]);
-        let error = EngineLocalAdapter::load_rules(&rules, &registry, &BTreeMap::default(), None)
-            .expect_err("symlink is refused");
-        assert!(error.to_string().contains("query module is a symlink"));
-    }
+    Ok(modules)
 }
+
+/// Require the declared context mode and exact source inventory before initializing the SDK.
+fn validate_context(request: &WorkerRequest) -> Result<(), Error> {
+    match (request.project_context_mode, &request.context_manifest) {
+        (crate::domain::suite::types::ProjectContextMode::Isolated, None) => {}
+        (crate::domain::suite::types::ProjectContextMode::ListedDisk, Some(manifest)) => {
+            crate::outbound::context::adapters::local::adapter::validate(manifest, &request.root)?;
+            let requested: std::collections::BTreeSet<_> = request
+                .files
+                .iter()
+                .map(|file| manifest.logical_root.join(file.0.as_ref()))
+                .collect();
+            if requested != manifest.source_files.keys().cloned().collect() {
+                return Err(Error::Invalid(
+                    "context source seal differs from requested inventory".into(),
+                ));
+            }
+        }
+        _ => {
+            return Err(Error::Invalid(
+                "worker context mode requires a matching explicit manifest".into(),
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// Read each explicitly requested source once, retaining its exact ordered inventory.
+fn source_inputs(
+    request: &WorkerRequest,
+) -> Result<
+    (
+        Vec<CaseSource>,
+        std::collections::BTreeSet<linter::RelativePath>,
+    ),
+    Error,
+> {
+    let mut sources = Vec::new();
+    let mut accepted = std::collections::BTreeSet::new();
+    for file in &request.files {
+        relative_path(file.0.as_ref())?;
+        if !accepted.insert(file.clone()) {
+            return Err(Error::Invalid(
+                crate::domain::diagnostics::constants::DUPLICATE_INPUT.into(),
+            ));
+        }
+        let source = std::fs::read_to_string(request.root.join(file.0.as_ref()))?;
+        sources.push(CaseSource {
+            path: file.clone(),
+            text: SourceText(source.into_boxed_str()),
+        });
+    }
+    if sources.is_empty() {
+        return Err(Error::Invalid(constants::EMPTY_CORPUS.into()));
+    }
+    Ok((sources, accepted))
+}
+
+/// Decode the explicit file/span projection, refusing malformed candidate rows.
+fn diagnostic_findings(findings: Vec<linter::Finding>) -> Result<Vec<BenchmarkFinding>, Error> {
+    let mut diagnostics = Vec::new();
+    for finding in findings {
+        let Slot::Is(Cell::File(file)) = finding.subject else {
+            return Err(Error::Invalid(constants::INVALID_SUBJECT.into()));
+        };
+        let spans: Vec<_> = finding
+            .columns
+            .iter()
+            .filter_map(|column| {
+                if column.name.0.as_ref() == constants::SPAN_COLUMN
+                    && let Slot::Is(Cell::Span(span)) = &column.value
+                {
+                    return Some(*span);
+                }
+                None
+            })
+            .collect();
+        let [span] = spans.as_slice() else {
+            return Err(Error::Invalid(constants::INVALID_SPAN.into()));
+        };
+        diagnostics.push(BenchmarkFinding {
+            rule: finding.rule,
+            file,
+            start: crate::domain::diagnostics::types::SourceByteOffset(
+                usize::try_from(span.start.0).map_err(|error| Error::Invalid(error.to_string()))?,
+            ),
+            end: crate::domain::diagnostics::types::SourceByteOffset(
+                usize::try_from(span.end.0).map_err(|error| Error::Invalid(error.to_string()))?,
+            ),
+        });
+    }
+    Ok(diagnostics)
+}
+
+#[cfg(test)]
+#[path = "query_module_tests.rs"]
+mod query_module_tests;

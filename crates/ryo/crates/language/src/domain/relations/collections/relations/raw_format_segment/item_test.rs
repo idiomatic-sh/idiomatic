@@ -1,5 +1,5 @@
 //! Raw segment identity and malformed-state columns survive typed row encoding.
-use super::super::interface::RelationsItem;
+use super::super::interface::RelationsItem as _;
 use super::item::{RawFormatSegment, RawFormatSegmentRow};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::relations::types::{Bits, FileId, Flag, Integer, NodeId, Offset, Span};
@@ -48,7 +48,7 @@ fn subject(_: Input) -> Result<Vec<Bits>, Failure> {
             Bits(0),
             Bits(1),
             Bits(13),
-            Bits((14_u64 << 32) | 15)
+            Bits((0xe_u64 << 32_u32) | 0xf)
         ]
     );
     Ok(Vec::new())

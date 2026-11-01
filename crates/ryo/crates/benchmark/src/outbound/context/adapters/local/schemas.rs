@@ -8,9 +8,12 @@ use std::{collections::BTreeMap, path::PathBuf};
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
+/// Explicit project lookup mode on the worker wire.
 pub(crate) enum ModeSchema {
     #[default]
+    /// Source-only execution with no external project lookup.
     Isolated,
+    /// Disk lookup constrained by the sealed context manifest.
     ListedDisk,
 }
 impl From<ModeSchema> for ProjectContextMode {
@@ -32,11 +35,17 @@ impl From<ProjectContextMode> for ModeSchema {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
+/// Exact declared inventory used to validate context lookups.
 pub(crate) struct ManifestSchema {
+    /// Physical boundary containing every declared context path.
     boundary: PathBuf,
+    /// Stable run-root path within the context boundary.
     logical_root: PathBuf,
+    /// Auxiliary relative paths and SHA-256 content seals.
     auxiliary_files: BTreeMap<PathBuf, String>,
+    /// Input source paths and SHA-256 content seals.
     source_files: BTreeMap<PathBuf, String>,
+    /// Explicitly declared absent context paths.
     missing: Vec<PathBuf>,
 }
 impl From<ManifestSchema> for ContextManifest {
@@ -80,11 +89,17 @@ impl From<ContextManifest> for ManifestSchema {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
+/// Actual dependency observations and the manifest identity that governed them.
 pub(crate) struct ReceiptSchema {
+    /// Project context mode used for this candidate.
     mode: ModeSchema,
+    /// Stable run-root path within the context boundary.
     logical_root: PathBuf,
+    /// Physical run root of this invocation.
     actual_root: PathBuf,
+    /// Stable content seal of the declared context inventory.
     manifest_hash: String,
+    /// Actual dependency paths and optional opaque content fingerprints.
     dependencies: BTreeMap<PathBuf, Option<[u8; 16]>>,
 }
 impl From<ProjectContextReceipt> for ReceiptSchema {

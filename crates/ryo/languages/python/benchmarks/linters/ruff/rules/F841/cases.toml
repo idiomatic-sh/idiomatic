@@ -261,3 +261,225 @@ name = "root-statement-with-4-True"
 comparison = "full"
 files = { "case.py" = "async def f():\n    async with manager as value:\n        callback = lambda parameter: 1\n    return value\n" }
 expected = [{ rule = "F841", file = "case.py", start = 56, end = 64 }]
+
+[[cases]]
+name = "cross-PYI019-tagged-PYI019_0.pyi"
+comparison = "full"
+files = { "PYI019_0.pyi" = "from typing import TypeVar, Self, Type\n\n_S = TypeVar(\"_S\", bound=BadClass)\n_S2 = TypeVar(\"_S2\", BadClass, GoodClass)\n\nclass BadClass:\n    def __new__(cls: type[_S], *args: str, **kwargs: int) -> _S: ...  # PYI019\n\n\n    def bad_instance_method(self: _S, arg: bytes) -> _S: ...  # PYI019\n\n\n    @classmethod\n    def bad_class_method(cls: type[_S], arg: int) -> _S: ...  # PYI019\n\n\n    @classmethod\n    def bad_posonly_class_method(cls: type[_S], /) -> _S: ...  # PYI019\n\n\n    @classmethod\n    def excluded_edge_case(cls: Type[_S], arg: int) -> _S: ...  # Ok\n\n\nclass GoodClass:\n    def __new__(cls: type[Self], *args: list[int], **kwargs: set[str]) -> Self: ...\n    def good_instance_method_1(self: Self, arg: bytes) -> Self: ...\n    def good_instance_method_2(self, arg1: _S2, arg2: _S2) -> _S2: ...\n    @classmethod\n    def good_cls_method_1(cls: type[Self], arg: int) -> Self: ...\n    @classmethod\n    def good_cls_method_2(cls, arg1: _S, arg2: _S) -> _S: ...\n    @staticmethod\n    def static_method(arg1: _S) -> _S: ...\n\n\n# Python > 3.12\nclass PEP695BadDunderNew[T]:\n  def __new__[S](cls: type[S], *args: Any, ** kwargs: Any) -> S: ...  # PYI019\n\n\n  def generic_instance_method[S](self: S) -> S: ...  # PYI019\n\n\nclass PEP695GoodDunderNew[T]:\n  def __new__(cls, *args: Any, **kwargs: Any) -> Self: ...\n\n\nclass CustomClassMethod:\n   # Should be recognised as a classmethod decorator\n   # due to `foo_classmethod being listed in `pep8_naming.classmethod-decorators`\n   # in the settings for this test:\n   @foo_classmethod\n   def foo[S](cls: type[S]) -> S: ...  # PYI019\n\n\n_S695 = TypeVar(\"_S695\", bound=\"PEP695Fix\")\n\n\nclass PEP695Fix:\n    def __new__[S: PEP695Fix](cls: type[S]) -> S: ...\n\n    def __init_subclass__[S](cls: type[S]) -> S: ...\n\n    def __neg__[S: PEP695Fix](self: S) -> S: ...\n\n    def __pos__[S](self: S) -> S: ...\n\n    def __add__[S: PEP695Fix](self: S, other: S) -> S: ...\n\n    def __sub__[S](self: S, other: S) -> S: ...\n\n    @classmethod\n    def class_method_bound[S: PEP695Fix](cls: type[S]) -> S: ...\n\n    @classmethod\n    def class_method_unbound[S](cls: type[S]) -> S: ...\n\n    def instance_method_bound[S: PEP695Fix](self: S) -> S: ...\n\n    def instance_method_unbound[S](self: S) -> S: ...\n\n    def instance_method_bound_with_another_parameter[S: PEP695Fix](self: S, other: S) -> S: ...\n\n    def instance_method_unbound_with_another_parameter[S](self: S, other: S) -> S: ...\n\n    def multiple_type_vars[S, *Ts, T](self: S, other: S, /, *args: *Ts, a: T, b: list[T]) -> S: ...\n\n    def mixing_old_and_new_style_type_vars[T](self: _S695, a: T, b: T) -> _S695: ...\n\n\nclass InvalidButWeDoNotPanic:\n    @classmethod\n    def m[S](cls: type[S], /) -> S[int]: ...\n    def n(self: S) -> S[int]: ...\n\n\nimport builtins\n\nclass UsesFullyQualifiedType:\n    @classmethod\n    def m[S](cls: builtins.type[S]) -> S: ...  # False negative (#15821)\n\n\ndef shadowed_type():\n    type = 1\n    class A:\n        @classmethod\n        def m[S](cls: type[S]) -> S: ...  # no error here\n\n\nclass SubscriptReturnType:\n    @classmethod\n    def m[S](cls: type[S]) -> type[S]: ...  # PYI019\n\n\nclass PEP695TypeParameterAtTheVeryEndOfTheList:\n    def f[T, S](self: S) -> S: ...\n\n\nclass PEP695Again:\n    def mixing_and_nested[T](self: _S695, a: list[_S695], b: dict[_S695, str | T | set[_S695]]) -> _S695: ...\n    def also_uses_s695_but_should_not_be_edited(self, v: set[tuple[_S695]]) -> _S695: ...\n\n    @classmethod\n    def comment_in_fix_range[T, S](\n        cls: type[  # Lorem ipsum\n            S\n        ],\n        a: T,\n        b: tuple[S, T]\n    ) -> S: ...\n\n    def comment_outside_fix_range[T, S](\n        self: S,\n        a: T,\n        b: tuple[\n            # Lorem ipsum\n            S, T\n        ]\n    ) -> S: ...\n\n\nclass SelfNotUsedInReturnAnnotation:\n    def m[S](self: S, other: S) -> int: ...\n    @classmethod\n    def n[S](cls: type[S], other: S) -> int: ...\n\n\nclass _NotATypeVar: ...\n\n# Our stable-mode logic uses heuristics and thinks this is a `TypeVar`\n# because `self` and the return annotation use the same name as their annotation,\n# but our preview-mode logic is smarter about this.\nclass Foo:\n    def x(self: _NotATypeVar) -> _NotATypeVar: ...\n    @classmethod\n    def y(self: type[_NotATypeVar]) -> _NotATypeVar: ...\n\nclass NoReturnAnnotations:\n    def m[S](self: S, other: S): ...\n    @classmethod\n    def n[S](cls: type[S], other: S): ...\n\nclass MultipleBoundParameters:\n    def m[S: int, T: int](self: S, other: T) -> S: ...\n    def n[T: (int, str), S: (int, str)](self: S, other: T) -> S: ...\n\n\nMetaType = TypeVar(\"MetaType\")\n\nclass MetaTestClass(type):\n    def m(cls: MetaType) -> MetaType:\n        return cls\n\n\nfrom __future__ import annotations\n\n\nclass BadClassWithStringTypeHints:\n    def bad_instance_method_with_string_annotations(self: \"_S\", arg: str) -> \"_S\": ... # PYI019\n\n    @classmethod\n    def bad_class_method_with_string_annotations(cls: \"type[_S]\") -> \"_S\": ... # PYI019\n\n\n    @classmethod\n    def bad_class_method_with_mixed_annotations_1(cls: \"type[_S]\") -> _S: ... # PYI019\n\n\n    @classmethod\n    def bad_class_method_with_mixed_annotations_1(cls: type[_S]) -> \"_S\": ... # PYI019\n\n\nclass BadSubscriptReturnTypeWithStringTypeHints:\n    @classmethod\n    def m[S](cls: \"type[S]\") -> \"type[S]\": ...  # PYI019\n\n\nclass GoodClassWithStringTypeHints:\n    @classmethod\n    def good_cls_method_with_mixed_annotations(cls: \"type[Self]\", arg: str) -> Self: ...\n    @staticmethod\n    def good_static_method_with_string_annotations(arg: \"_S\") -> \"_S\": ...\n    @classmethod\n    def good_class_method_with_args_string_annotations(cls, arg1: \"_S\", arg2: \"_S\") -> \"_S\": ...\n\n" }
+expected = [{ end = 2884, file = "PYI019_0.pyi", rule = "F841", start = 2880 }, { end = 1065, file = "PYI019_0.pyi", rule = "invalid-syntax", start = 1062 }, { end = 1083, file = "PYI019_0.pyi", rule = "invalid-syntax", start = 1080 }, { end = 1180, file = "PYI019_0.pyi", rule = "invalid-syntax", start = 1177 }, { end = 1240, file = "PYI019_0.pyi", rule = "invalid-syntax", start = 1237 }, { end = 1532, file = "PYI019_0.pyi", rule = "invalid-syntax", start = 1529 }, { end = 1661, file = "PYI019_0.pyi", rule = "invalid-syntax", start = 1647 }, { end = 1715, file = "PYI019_0.pyi", rule = "invalid-syntax", start = 1712 }, { end = 1770, file = "PYI019_0.pyi", rule = "invalid-syntax", start = 1756 }, { end = 1809, file = "PYI019_0.pyi", rule = "invalid-syntax", start = 1806 }, { end = 1859, file = "PYI019_0.pyi", rule = "invalid-syntax", start = 1845 }, { end = 1908, file = "PYI019_0.pyi", rule = "invalid-syntax", start = 1905 }, { end = 1996, file = "PYI019_0.pyi", rule = "invalid-syntax", start = 1982 }, { end = 2070, file = "PYI019_0.pyi", rule = "invalid-syntax", start = 2067 }, { end = 2139, file = "PYI019_0.pyi", rule = "invalid-syntax", start = 2125 }, { end = 2194, file = "PYI019_0.pyi", rule = "invalid-syntax", start = 2191 }, { end = 2281, file = "PYI019_0.pyi", rule = "invalid-syntax", start = 2267 }, { end = 2369, file = "PYI019_0.pyi", rule = "invalid-syntax", start = 2366 }, { end = 2437, file = "PYI019_0.pyi", rule = "invalid-syntax", start = 2426 }, { end = 2470, file = "PYI019_0.pyi", rule = "invalid-syntax", start = 2467 }, { end = 2546, file = "PYI019_0.pyi", rule = "invalid-syntax", start = 2543 }, { end = 2647, file = "PYI019_0.pyi", rule = "invalid-syntax", start = 2644 }, { end = 2792, file = "PYI019_0.pyi", rule = "invalid-syntax", start = 2789 }, { end = 2939, file = "PYI019_0.pyi", rule = "invalid-syntax", start = 2936 }, { end = 3039, file = "PYI019_0.pyi", rule = "invalid-syntax", start = 3036 }, { end = 3145, file = "PYI019_0.pyi", rule = "invalid-syntax", start = 3139 }, { end = 3214, file = "PYI019_0.pyi", rule = "invalid-syntax", start = 3211 }, { end = 3438, file = "PYI019_0.pyi", rule = "invalid-syntax", start = 3432 }, { end = 3592, file = "PYI019_0.pyi", rule = "invalid-syntax", start = 3586 }, { end = 3763, file = "PYI019_0.pyi", rule = "invalid-syntax", start = 3760 }, { end = 3824, file = "PYI019_0.pyi", rule = "invalid-syntax", start = 3821 }, { end = 4269, file = "PYI019_0.pyi", rule = "invalid-syntax", start = 4266 }, { end = 4323, file = "PYI019_0.pyi", rule = "invalid-syntax", start = 4320 }, { end = 4410, file = "PYI019_0.pyi", rule = "invalid-syntax", start = 4394 }, { end = 4479, file = "PYI019_0.pyi", rule = "invalid-syntax", start = 4449 }, { end = 5195, file = "PYI019_0.pyi", rule = "invalid-syntax", start = 5192 }]
+
+[[cases]]
+name = "cross-PLE0117-own-global-conflict-with-real-outer-binding"
+comparison = "full"
+files = { "case.py" = "def outer():\n    value=1\n    def inner():\n        global value\n        nonlocal value\n" }
+expected = []
+
+[[cases]]
+name = "cross-PLE0117-own-local-is-not-an-outer-nonlocal-binding"
+comparison = "full"
+files = { "case.py" = "def f():\n    value=1\n    nonlocal value\n" }
+expected = [{ end = 18, file = "case.py", rule = "F841", start = 13 }]
+
+[[cases]]
+name = "cross-PYI019-outer-shadow-future"
+comparison = "full"
+files = { "case.py" = "from __future__ import annotations\nfrom typing import TypeVar\nT=TypeVar(\"T\")\ndef f():\n T=int\n class C:\n  def m(self:T): ...\n" }
+expected = [{ end = 88, file = "case.py", rule = "F841", start = 87 }]
+
+[[cases]]
+name = "cross-PYI019-outer-shadow-pyi"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nT=TypeVar(\"T\")\ndef f():\n T=int\n class C:\n  def m(self:T): ...\n" }
+expected = [{ end = 53, file = "case.pyi", rule = "F841", start = 52 }]
+
+[[cases]]
+name = "cross-PYI019-local-future-typevar-pyi"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\ndef f():\n class C:\n  def m(self:T): ...\n T=TypeVar(\"T\")\n" }
+expected = []
+
+[[cases]]
+name="nonlocal-policy-global-no-valid-nonlocal"
+comparison="full"
+files={"case.py"="def f():\n global value\n nonlocal value\n"}
+expected=[]
+
+[[cases]]
+name="nonlocal-policy-nonlocal-then-global"
+comparison="full"
+files={"case.py"="def outer():\n value=1\n def f():\n  nonlocal value\n  global value\n"}
+expected=[]
+
+[[cases]]
+name="nonlocal-policy-own-local-and-valid-nonlocal"
+comparison="full"
+files={"case.py"="def outer():\n value=1\n def f():\n  value=2\n  nonlocal value\n"}
+expected=[]
+
+[[cases]]
+name="nonlocal-policy-repeated-global"
+comparison="full"
+files={"case.py"="def f():\n global value\n global value\n"}
+expected=[]
+
+[[cases]]
+name="nonlocal-policy-assignment-before-global"
+comparison="full"
+files={"case.py"="def f():\n value=1\n global value\n"}
+expected=[]
+
+[[cases]]
+name="nonlocal-policy-module-global"
+comparison="full"
+files={"case.py"="global value\n"}
+expected=[]
+
+[[cases]]
+name="nonlocal-policy-class-global"
+comparison="full"
+files={"case.py"="class C:\n global value\n"}
+expected=[]
+
+[[cases]]
+name="nonlocal-policy-conditional-delete"
+comparison="full"
+files={"case.py"="def f():\n global value\n if flag:\n  del value\n"}
+expected=[]
+
+[[cases]]
+name="nonlocal-policy-delete-before-global"
+comparison="full"
+files={"case.py"="def f():\n del value\n global value\n"}
+expected=[]
+
+[[cases]]
+name="nonlocal-policy-skip-class-namespace"
+comparison="full"
+files={"case.py"="def outer():\n value=1\n class C:\n  value=2\n  def f(self):\n   global value\n   nonlocal value\n"}
+expected=[]
+
+[[cases]]
+name="nonlocal-policy-deleted-outer"
+comparison="full"
+files={"case.py"="def outer():\n value=1\n del value\n def f():\n  global value\n  nonlocal value\n"}
+expected=[]
+
+[[cases]]
+name="nonlocal-policy-annotation-outer"
+comparison="full"
+files={"case.py"="def outer():\n value:int\n def f():\n  global value\n  nonlocal value\n"}
+expected=[]
+
+[[cases]]
+name="nonlocal-policy-invalid-outer-nonlocal"
+comparison="full"
+files={"case.py"="def outer():\n nonlocal value\n def f():\n  global value\n  nonlocal value\n"}
+expected=[]
+
+[[cases]]
+name="nonlocal-policy-default-real-binding"
+comparison="full"
+files={"case.py"="def outer():\n def inner(x=(value:=1)):\n  global value\n  nonlocal value\n"}
+expected=[]
+
+[[cases]]
+name="nonlocal-policy-builtin-forward-preference"
+comparison="full"
+files={"case.pyi"="def f():\n type=1\n class C:\n  def m(self)->type: ...\n"}
+expected=[{rule="F841", file="case.pyi", start=10, end=14}]
+
+[[cases]]
+name="nonlocal-policy-deleted-module-builtin-does-not-win"
+comparison="full"
+files={"case.pyi"="del type\ndef f():\n type=1\n class C:\n  def m(self)->type: ...\n"}
+expected=[]
+
+[[cases]]
+name="nonlocal-policy-nearer-function-over-type-parameter"
+comparison="full"
+files={"case.py"="def outer[T]():\n def middle():\n  T=1\n  def inner():\n   global T\n   nonlocal T\n"}
+expected=[{rule="invalid-syntax", file="case.py", start=9, end=12}]
+
+[[cases]]
+name="nonlocal-policy-class-type-parameter"
+comparison="full"
+files={"case.py"="class C[T]:\n def f(self):\n  global T\n  nonlocal T\n"}
+expected=[{rule="invalid-syntax", file="case.py", start=7, end=10}]
+
+[[cases]]
+name="nonlocal-policy-nested-function-type-parameter"
+comparison="full"
+files={"case.py"="def outer[T]():\n def f():\n  global T\n  nonlocal T\n"}
+expected=[{rule="invalid-syntax", file="case.py", start=9, end=12}]
+
+[[cases]]
+name="nonlocal-policy-local-stub-class-header-is-late"
+comparison="full"
+files={"case.pyi"="def outer():\n class C((value:=object)):\n  def f(self):\n   global value\n   nonlocal value\n"}
+expected=[]
+
+[[cases]]
+name="nonlocal-policy-early-annotation-before-late-future"
+comparison="full"
+files={"case.py"="def f(x:(value:=object)):\n global value\n nonlocal value\nfrom __future__ import annotations\n"}
+expected=[]
+
+[[cases]]
+name="nonlocal-policy-future-annotation-not-visible"
+comparison="full"
+files={"case.py"="from __future__ import annotations\ndef f(x:(value:=object)):\n global value\n nonlocal value\n"}
+expected=[{rule="invalid-syntax", file="case.py", start=44, end=57}]
+
+[[cases]]
+name="nonlocal-policy-type-scope-class-body-py"
+comparison="full"
+files={"case.py"="class C((value:=object)):\n global value\n nonlocal value\n"}
+expected=[]
+
+[[cases]]
+name="nonlocal-policy-type-scope-class-body-pyi"
+comparison="full"
+files={"case.pyi"="class C((value:=object)):\n global value\n nonlocal value\n"}
+expected=[]
+
+[[cases]]
+name="nonlocal-policy-type-scope-class-method-py"
+comparison="full"
+files={"case.py"="class C((value:=object)):\n def f(self):\n  global value\n  nonlocal value\n"}
+expected=[]
+
+[[cases]]
+name="nonlocal-policy-type-scope-class-method-pyi"
+comparison="full"
+files={"case.pyi"="class C((value:=object)):\n def f(self):\n  global value\n  nonlocal value\n"}
+expected=[]
+
+[[cases]]
+name="nonlocal-policy-type-scope-annotation-py"
+comparison="full"
+files={"case.py"="def f(x:(value:=object)):\n global value\n nonlocal value\n"}
+expected=[]
+
+[[cases]]
+name="nonlocal-policy-type-scope-annotation-pyi"
+comparison="full"
+files={"case.pyi"="def f(x:(value:=object)):\n global value\n nonlocal value\n"}
+expected=[{rule="invalid-syntax", file="case.pyi", start=9, end=22}]
+
+[[cases]]
+name="nonlocal-policy-type-scope-parameter-py"
+comparison="full"
+files={"case.py"="def f[T]():\n global T\n nonlocal T\n"}
+expected=[{rule="invalid-syntax", file="case.py", start=5, end=8}]
+
+[[cases]]
+name="nonlocal-policy-type-scope-parameter-pyi"
+comparison="full"
+files={"case.pyi"="def f[T]():\n global T\n nonlocal T\n"}
+expected=[{rule="invalid-syntax", file="case.pyi", start=5, end=8}]
+
+[[cases]]
+name="nonlocal-policy-delayed-annotation-keeps-outer-value"
+comparison="full"
+files={"case.py"="def outer():\n value=1\n value:int\n def inner():\n  global value\n  nonlocal value\n"}
+expected=[]

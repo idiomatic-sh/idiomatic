@@ -1,0 +1,24 @@
+{
+  "schema": "terminal-source-check/v1",
+  "status": "complete",
+  "passed": true,
+  "command": [
+    "python3",
+    "languages/python/benchmarks/linters/ruff/verify_profiles.py",
+    "--self-test"
+  ],
+  "cwd": "/workspaces/idiomatic-benchmark-guards/crates/ryo",
+  "runner_sha256": "cae1bd2dab71fa97efbab336a5ecc97c9fe831eab581af3fff28decfcca62cd6",
+  "started_utc": "2026-11-01T14:50:58.814708+00:00",
+  "completed_utc": "2026-11-01T14:51:30.657126+00:00",
+  "exit_code": 0,
+  "error": null,
+  "source_stable": true,
+  "stdout_sha256": "c5b5aed3b20fad130bcaa49d410d8cdc2f99cd7cbf47398e45dd5ca7a74e9002",
+  "stderr_sha256": "94ab79a480217f0a61ee613390e0732bb10ba43d6becd0cb3a9c4232b2e5c650",
+  "head": "48acfc0321046a0a3d0c44b5d122dbe09eb51cc6",
+  "source_tree_sha256": "314ca2cb8f5c523371adf05caab4e42d13cbfdd85bbca08bb55ff41ff912b183",
+  "raw_receipt_path": "/tmp/proof-context-helper-final-selftest-20261101/result.json",
+  "raw_receipt_sha256": "4e6f96a9159fb2faaa1c57572b11383b80c6607497a3a9c0cc2e4e9735f1fb6c",
+  "scope": "Only the exact command and recorded source identity; later changes are not covered."
+}

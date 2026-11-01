@@ -1,0 +1,207 @@
+{
+  "schema": "actual-proof-assets/v1",
+  "profiles": [
+    {
+      "rule": "PLW0406",
+      "profile_file": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PLW0406/benchmark.toml",
+      "settings": {
+        "defaults": [
+          "PLW0406"
+        ],
+        "parser_configuration": "python-target=3.10",
+        "project_context_mode": "listed-disk"
+      },
+      "module_registry": {
+        "python/ruff/suppress": "fragments/suppress.ryoql",
+        "python/ruff/text-units": "fragments/text-units.ryoql"
+      },
+      "query": {
+        "canonical_path": "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PLW0406/candidate.ryoql",
+        "proof_sha256": "f79d6ea92595289218894271769bd1a8635d70b1324221865952a928065740dc"
+      },
+      "modules": {
+        "python/ruff/suppress": {
+          "canonical_path": "crates/ryo/languages/python/benchmarks/linters/ruff/fragments/suppress.ryoql",
+          "proof_sha256": "5ea3e0a1f045bf62b81e17c8c536a5ed47ba02859ff9544d769618c5fc762bde"
+        },
+        "python/ruff/text-units": {
+          "canonical_path": "crates/ryo/languages/python/benchmarks/linters/ruff/fragments/text-units.ryoql",
+          "proof_sha256": "e9beaf583559c23cf68c94cbc41e2ef9ae8d7d65e6dc4e702b625138fbc70b0e"
+        }
+      },
+      "proof_root": "/tmp/plw0406-context-097f-sol",
+      "case_records_sha256": "8fd746d2e7e60addd039b1718ab73c2bf225c5afa6bad4beaeb578053102b107"
+    },
+    {
+      "rule": "F821",
+      "profile_file": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/F821/benchmark.toml",
+      "settings": {
+        "defaults": [
+          "F821"
+        ],
+        "parser_configuration": "python-target=3.10",
+        "project_context_mode": "isolated"
+      },
+      "module_registry": {
+        "python/ruff/suppress": "fragments/suppress.ryoql",
+        "python/ruff/deferred-read-resolutions": "fragments/deferred-read-resolutions.ryoql",
+        "python/ruff/type-definition-context": "fragments/type-definition-context.ryoql",
+        "python/ruff/lookup-symbol-events": "fragments/lookup-symbol-events.ryoql",
+        "python/ruff/lookup-read-events": "fragments/lookup-read-events.ryoql",
+        "python/ruff/eager-before-future": "fragments/eager-before-future.ryoql"
+      },
+      "query": {
+        "canonical_path": "crates/ryo/languages/python/benchmarks/linters/ruff/rules/F821/candidate.ryoql",
+        "proof_sha256": "895981df04a12d4049016daa96b693b67e679e40e28a0c8a66e77b473dbd741b"
+      },
+      "modules": {
+        "python/ruff/suppress": {
+          "canonical_path": "crates/ryo/languages/python/benchmarks/linters/ruff/fragments/suppress.ryoql",
+          "proof_sha256": "5ea3e0a1f045bf62b81e17c8c536a5ed47ba02859ff9544d769618c5fc762bde"
+        },
+        "python/ruff/deferred-read-resolutions": {
+          "canonical_path": "crates/ryo/languages/python/benchmarks/linters/ruff/fragments/deferred-read-resolutions.ryoql",
+          "proof_sha256": "4846dd9383a7804a42d9ba82d412d108e2d5b8f35d76e1fc446082571f7ad5de"
+        },
+        "python/ruff/type-definition-context": {
+          "canonical_path": "crates/ryo/languages/python/benchmarks/linters/ruff/fragments/type-definition-context.ryoql",
+          "proof_sha256": "a0451b6cf5bebeea9a8cae4fe8c66555d66bca72fdfa1c64c1f159e2d9d957ce"
+        },
+        "python/ruff/lookup-symbol-events": {
+          "canonical_path": "crates/ryo/languages/python/benchmarks/linters/ruff/fragments/lookup-symbol-events.ryoql",
+          "proof_sha256": "3357ed6ce94a2751d54305adc3d6912de574726fea903db71ea5be2526b36210"
+        },
+        "python/ruff/lookup-read-events": {
+          "canonical_path": "crates/ryo/languages/python/benchmarks/linters/ruff/fragments/lookup-read-events.ryoql",
+          "proof_sha256": "5e35f5dddd4d1a92cd34dc9cbc41fea239704a4fb36afa6f666ba0005a6d8d7d"
+        },
+        "python/ruff/eager-before-future": {
+          "canonical_path": "crates/ryo/languages/python/benchmarks/linters/ruff/fragments/eager-before-future.ryoql",
+          "proof_sha256": "f473052a14fda18a02f88a0eeac1679ef6de8c739a661d62ae1a3cb825018639"
+        }
+      },
+      "proof_root": "/tmp/f821-sol-seven",
+      "case_records_sha256": "178ea0b55dc172e5a0ae5ea67585e4267630bec130907b575f81f7891ff92f27"
+    },
+    {
+      "rule": "F401",
+      "profile_file": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/F401/benchmark.toml",
+      "settings": {
+        "defaults": [
+          "F401"
+        ],
+        "parser_configuration": "python-target=3.10",
+        "project_context_mode": "isolated"
+      },
+      "module_registry": {},
+      "query": {
+        "canonical_path": "crates/ryo/languages/python/benchmarks/linters/ruff/rules/F401/candidate.ryoql",
+        "proof_sha256": "21c6ce08a89cc672d0a743db2737025b71c704eb2ba6f2cee0f55f9c5bc9c4a0"
+      },
+      "modules": {},
+      "proof_root": "/tmp/f401-sol-seven",
+      "case_records_sha256": "9369f356697cafc64a4ce6b426c3d5647d99f32e69fce0c024ea0da72b1b713b"
+    },
+    {
+      "rule": "PYI003",
+      "profile_file": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PYI003/benchmark.toml",
+      "settings": {
+        "defaults": [
+          "PYI003"
+        ],
+        "parser_configuration": "python-target=3.10",
+        "project_context_mode": "isolated"
+      },
+      "module_registry": {
+        "python/ruff/version-checks": "fragments/version-checks.ryoql",
+        "python/ruff/suppress": "fragments/suppress.ryoql"
+      },
+      "query": {
+        "canonical_path": "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PYI003/candidate.ryoql",
+        "proof_sha256": "252862c576f99ea9651b00e5d7056ee87e5edafd9e1a103a5dbbdd0a2441f1c1"
+      },
+      "modules": {
+        "python/ruff/version-checks": {
+          "canonical_path": "crates/ryo/languages/python/benchmarks/linters/ruff/fragments/version-checks.ryoql",
+          "proof_sha256": "4c4890ac0f3b49b047c5b679082254cc2fc2f35de7dab440e88843ef414d0771"
+        },
+        "python/ruff/suppress": {
+          "canonical_path": "crates/ryo/languages/python/benchmarks/linters/ruff/fragments/suppress.ryoql",
+          "proof_sha256": "5ea3e0a1f045bf62b81e17c8c536a5ed47ba02859ff9544d769618c5fc762bde"
+        }
+      },
+      "proof_root": "/tmp/pyi003-sol-seven",
+      "case_records_sha256": "e535fd69ae1e441cacac701cafe53dd9c4c6d7312416f1913a72decd3e05af9c"
+    },
+    {
+      "rule": "PYI004",
+      "profile_file": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PYI004/benchmark.toml",
+      "settings": {
+        "defaults": [
+          "PYI004"
+        ],
+        "parser_configuration": "python-target=3.10",
+        "project_context_mode": "isolated"
+      },
+      "module_registry": {
+        "python/ruff/version-checks": "fragments/version-checks.ryoql",
+        "python/ruff/suppress": "fragments/suppress.ryoql"
+      },
+      "query": {
+        "canonical_path": "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PYI004/candidate.ryoql",
+        "proof_sha256": "cdfaa4032d636cde04ebdaa77c614b95802d549f126f7071fe137b79cc815632"
+      },
+      "modules": {
+        "python/ruff/version-checks": {
+          "canonical_path": "crates/ryo/languages/python/benchmarks/linters/ruff/fragments/version-checks.ryoql",
+          "proof_sha256": "4c4890ac0f3b49b047c5b679082254cc2fc2f35de7dab440e88843ef414d0771"
+        },
+        "python/ruff/suppress": {
+          "canonical_path": "crates/ryo/languages/python/benchmarks/linters/ruff/fragments/suppress.ryoql",
+          "proof_sha256": "5ea3e0a1f045bf62b81e17c8c536a5ed47ba02859ff9544d769618c5fc762bde"
+        }
+      },
+      "proof_root": "/tmp/pyi004-sol-seven",
+      "case_records_sha256": "4486c80e3d00abae1f466e154d987c51c351d004642d672a9b3c06d6667e97c4"
+    },
+    {
+      "rule": "PYI015",
+      "profile_file": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PYI015/benchmark.toml",
+      "settings": {
+        "defaults": [
+          "PYI015"
+        ],
+        "parser_configuration": "python-target=3.10",
+        "project_context_mode": "isolated"
+      },
+      "module_registry": {
+        "python/ruff/simple-stub-defaults": "fragments/simple-stub-defaults.ryoql",
+        "python/ruff/suppress": "fragments/suppress.ryoql"
+      },
+      "query": {
+        "canonical_path": "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PYI015/candidate.ryoql",
+        "proof_sha256": "f8bcc7d21dc2a1ae85ecfbfc0714e6081d943d3d8328f8aaf157c64f23e5be44"
+      },
+      "modules": {
+        "python/ruff/simple-stub-defaults": {
+          "canonical_path": "crates/ryo/languages/python/benchmarks/linters/ruff/fragments/simple-stub-defaults.ryoql",
+          "proof_sha256": "230a35648a917693061cd3c651f834b66e0bc4170ac39921248a0f07a23a050a"
+        },
+        "python/ruff/suppress": {
+          "canonical_path": "crates/ryo/languages/python/benchmarks/linters/ruff/fragments/suppress.ryoql",
+          "proof_sha256": "5ea3e0a1f045bf62b81e17c8c536a5ed47ba02859ff9544d769618c5fc762bde"
+        }
+      },
+      "proof_root": "/tmp/pyi015-sol-seven",
+      "case_records_sha256": "5209ad8583178b6ac1c009efe1696d63e22d7752ed77444485653ed91f99800f"
+    }
+  ],
+  "limits": "query/dependency/settings byte evidence;caseproofscope remains separate. F811 missing historical registry explicitlypendingfresh94replay.",
+  "rejected_source_handoff": {
+    "rule": "PLW0406",
+    "rejected_commit": "d79f3409",
+    "rejected_sha256": "3d205c04287a299210a8661fedf1ca0b7f971a90d85595d3a248fdb8c6e02969",
+    "actual_proof_sha256": "f79d6ea92595289218894271769bd1a8635d70b1324221865952a928065740dc",
+    "corrected_commit": "0a7161e8"
+  }
+}

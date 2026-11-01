@@ -129,3 +129,45 @@ name = "plain-delete-before-reimport-keeps-final-unused"
 comparison = "full"
 files = { "case.py" = "import os\ndel os\nimport os\n" }
 expected = [{ rule = "F401", file = "case.py", start = 24, end = 26 }]
+
+[[cases]]
+name = "cross-PYI052-current-enum-context-11"
+comparison = "full"
+files = { "case.pyi" = "from enum import Enum\nclass Outer:\n from enum import Enum as E\nclass Subject(Outer.E):\n x=1\n" }
+expected = [{ end = 21, file = "case.pyi", rule = "F401", start = 17 }]
+
+[[cases]]
+name="scope-class-import"
+comparison="full"
+files={"case.py"="class C:\n import os\n"}
+expected=[]
+
+[[cases]]
+name="scope-stub-class-import"
+comparison="full"
+files={"case.pyi"="class C:\n import os\n"}
+expected=[]
+
+[[cases]]
+name="scope-class-method-import"
+comparison="full"
+files={"case.py"="class C:\n def f(self):\n  import os\n"}
+expected=[{rule="F401", file="case.py", start=32, end=34}]
+
+[[cases]]
+name="scope-class-async-method-import"
+comparison="full"
+files={"case.py"="class C:\n async def f(self):\n  import os\n"}
+expected=[{rule="F401", file="case.py", start=38, end=40}]
+
+[[cases]]
+name="scope-local-class-import"
+comparison="full"
+files={"case.py"="def f():\n class C:\n  import os\n"}
+expected=[]
+
+[[cases]]
+name="scope-module-and-class-import"
+comparison="full"
+files={"case.py"="import os\nclass C:\n import sys\n"}
+expected=[{rule="F401", file="case.py", start=7, end=9}]

@@ -36,7 +36,7 @@ pub fn check(adapter: &impl EnginePort) {
     let subject = |()| {
         adapter
             .run(WorkerRequest {
-                project_context_mode: Default::default(),
+                project_context_mode: crate::domain::suite::types::ProjectContextMode::default(),
                 context_manifest: None,
                 root: temporary.path().into(),
                 rules: temporary.path().into(),

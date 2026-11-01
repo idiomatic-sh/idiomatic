@@ -50,7 +50,7 @@ impl Project for ProjectContract {
     }
 
     fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
-        languages::absent(languages::AbsenceCause::NotYetRead)
+        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {

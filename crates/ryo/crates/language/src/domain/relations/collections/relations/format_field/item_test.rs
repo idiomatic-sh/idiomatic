@@ -1,5 +1,5 @@
 //! The field shape distinguishes positional conversion selectors from decoded mapping keys.
-use super::super::interface::RelationsItem;
+use super::super::interface::RelationsItem as _;
 use super::item::{FormatField, FormatFieldRow};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::relations::types::{Bits, FileId, Integer, NodeId, Offset, Span};
@@ -22,7 +22,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
         Bits(6),
         Bits(7),
         Bits(8),
-        Bits((9_u64 << 32) | 9),
+        Bits((0x9_u64 << 32_u32) | 0x9),
     ]),
 }];
 

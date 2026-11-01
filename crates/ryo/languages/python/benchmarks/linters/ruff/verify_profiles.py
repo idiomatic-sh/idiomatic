@@ -21,7 +21,9 @@ import tomllib
 RUFF_DIR = Path(__file__).resolve().parent
 REPOSITORY = RUFF_DIR.parents[6]
 PROFILE_DIR = RUFF_DIR / "profiles"
-MANIFEST = Path(os.environ.get("RYO_RUFF_PREPARED_MANIFEST", PROFILE_DIR / "prepared.json"))
+MANIFEST = Path(
+    os.environ.get("RYO_RUFF_PREPARED_MANIFEST", PROFILE_DIR / "prepared.json")
+)
 SHAPE_PROFILE = "shape-110"
 RULE_PHASES_FILE = PROFILE_DIR / "pinned-rule-phases.json"
 PINNED_RUFF_VERSION = "0.16.5"
@@ -54,11 +56,15 @@ def atomic_json_write(path: Path, value: object) -> None:
 
 
 def source_hash(files: dict[str, str]) -> str:
-    encoded = json.dumps(files, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    encoded = json.dumps(
+        files, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    )
     return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
 
 
-def diagnostic_multiset(findings: list[dict[str, object]]) -> collections.Counter[tuple[object, ...]]:
+def diagnostic_multiset(
+    findings: list[dict[str, object]],
+) -> collections.Counter[tuple[object, ...]]:
     """Compare exact reference findings while retaining duplicate diagnostics."""
     return collections.Counter(
         (finding["rule"], finding["file"], finding["start"], finding["end"])
@@ -112,13 +118,17 @@ def manifest_paths(manifest: dict[str, object], helper_path: str) -> set[str]:
         profile = prepared_profile_path(profile_name, recorded)
         case_file = prepared_case_path(rule, recorded)
         candidate_file = prepared_candidate_path(rule, recorded)
-        paths.update({
+        paths.update(
+            {
                 profile.relative_to(REPOSITORY).as_posix(),
                 candidate_file.relative_to(REPOSITORY).as_posix(),
                 case_file.relative_to(REPOSITORY).as_posix(),
-            })
+            }
+        )
         profile_data = tomllib.loads(profile.read_text(encoding="utf-8"))
-        paths.update(module_path(path) for path in profile_modules(profile_data).values())
+        paths.update(
+            module_path(path) for path in profile_modules(profile_data).values()
+        )
         if "oracle_file" in recorded:
             paths.add(recorded["oracle_file"])
         if "reference_audit_file" in recorded:
@@ -127,7 +137,10 @@ def manifest_paths(manifest: dict[str, object], helper_path: str) -> set[str]:
         paths.update(descriptor["input_files"])
         combined_profile = REPOSITORY / descriptor["profile_file"]
         combined_data = tomllib.loads(combined_profile.read_text(encoding="utf-8"))
-        paths.update(module_path(path) for path in profile_modules(combined_data).values())
+        paths.update(
+            module_path(path) for path in profile_modules(combined_data).values()
+        )
+    paths.update(manifest.get("actual_proof_receipts", []))
     return paths
 
 
@@ -137,16 +150,24 @@ def prepared_profile_path(profile_name: str, recorded: dict[str, object]) -> Pat
     if not isinstance(value, str):
         raise ValueError(f"prepared profile path must be a string for {profile_name}")
     path = Path(value)
-    if path.is_absolute() or not path.parts or any(part in (".", "..") for part in path.parts):
+    if (
+        path.is_absolute()
+        or not path.parts
+        or any(part in (".", "..") for part in path.parts)
+    ):
         raise ValueError(f"unsafe prepared profile path for {profile_name}: {value}")
     source = RUFF_DIR
     for part in path.parts:
         source = source / part
         if source.is_symlink():
-            raise ValueError(f"prepared profile path traverses a symlink for {profile_name}: {value}")
+            raise ValueError(
+                f"prepared profile path traverses a symlink for {profile_name}: {value}"
+            )
     resolved = source.resolve(strict=True)
     if not resolved.is_file() or not resolved.is_relative_to(RUFF_DIR.resolve()):
-        raise ValueError(f"prepared profile path is outside Ruff profile for {profile_name}: {value}")
+        raise ValueError(
+            f"prepared profile path is outside Ruff profile for {profile_name}: {value}"
+        )
     return resolved
 
 
@@ -154,7 +175,11 @@ def module_path(value: object) -> str:
     if not isinstance(value, str):
         raise ValueError("query module paths must be strings")
     path = Path(value)
-    if path.is_absolute() or not path.parts or any(part in (".", "..") for part in path.parts):
+    if (
+        path.is_absolute()
+        or not path.parts
+        or any(part in (".", "..") for part in path.parts)
+    ):
         raise ValueError(f"unsafe query module path: {value}")
     source = RUFF_DIR
     for part in path.parts:
@@ -173,16 +198,24 @@ def prepared_case_path(rule: str, recorded: dict[str, object]) -> Path:
     if not isinstance(value, str):
         raise ValueError(f"prepared case file path must be a string for {rule}")
     path = Path(value)
-    if path.is_absolute() or not path.parts or any(part in (".", "..") for part in path.parts):
+    if (
+        path.is_absolute()
+        or not path.parts
+        or any(part in (".", "..") for part in path.parts)
+    ):
         raise ValueError(f"unsafe prepared case path for {rule}: {value}")
     source = RUFF_DIR
     for part in path.parts:
         source = source / part
         if source.is_symlink():
-            raise ValueError(f"prepared case path traverses a symlink for {rule}: {value}")
+            raise ValueError(
+                f"prepared case path traverses a symlink for {rule}: {value}"
+            )
     resolved = source.resolve(strict=True)
     if not resolved.is_file() or not resolved.is_relative_to(RUFF_DIR.resolve()):
-        raise ValueError(f"prepared case path is outside the Ruff profile for {rule}: {value}")
+        raise ValueError(
+            f"prepared case path is outside the Ruff profile for {rule}: {value}"
+        )
     return resolved
 
 
@@ -192,16 +225,24 @@ def prepared_candidate_path(rule: str, recorded: dict[str, object]) -> Path:
     if not isinstance(value, str):
         raise ValueError(f"prepared candidate file path must be a string for {rule}")
     path = Path(value)
-    if path.is_absolute() or not path.parts or any(part in (".", "..") for part in path.parts):
+    if (
+        path.is_absolute()
+        or not path.parts
+        or any(part in (".", "..") for part in path.parts)
+    ):
         raise ValueError(f"unsafe prepared candidate path for {rule}: {value}")
     source = RUFF_DIR
     for part in path.parts:
         source = source / part
         if source.is_symlink():
-            raise ValueError(f"prepared candidate path traverses a symlink for {rule}: {value}")
+            raise ValueError(
+                f"prepared candidate path traverses a symlink for {rule}: {value}"
+            )
     resolved = source.resolve(strict=True)
     if not resolved.is_file() or not resolved.is_relative_to(RUFF_DIR.resolve()):
-        raise ValueError(f"prepared candidate path is outside the Ruff profile for {rule}: {value}")
+        raise ValueError(
+            f"prepared candidate path is outside the Ruff profile for {rule}: {value}"
+        )
     return resolved
 
 
@@ -229,10 +270,14 @@ def write_staged_profile(
     parsed = tomllib.loads(source.read_text(encoding="utf-8"))
     current = profile_modules(parsed)
     registry = profile_modules({"query-modules": registry})
-    if any(key in registry and registry[key] != value for key, value in current.items()):
+    if any(
+        key in registry and registry[key] != value for key, value in current.items()
+    ):
         raise ValueError("staged profile conflicts with its query module registry")
     if parser_configuration not in {"python-target=3.10", "python-target=3.11"}:
-        raise ValueError(f"unsupported staged parser configuration: {parser_configuration}")
+        raise ValueError(
+            f"unsupported staged parser configuration: {parser_configuration}"
+        )
     merged = {**current, **registry}
     applicability = rule_applicability or {}
     if set(applicability.values()) - {"always", "accepted-syntax"}:
@@ -244,7 +289,9 @@ def write_staged_profile(
         parsed["query-modules"] = merged
     if applicability:
         parsed["rule-applicability"] = applicability
-    rendered = "".join(f"{key} = {toml_value(value)}\n" for key, value in parsed.items())
+    rendered = "".join(
+        f"{key} = {toml_value(value)}\n" for key, value in parsed.items()
+    )
     destination.write_text(rendered, encoding="utf-8")
 
 
@@ -255,7 +302,9 @@ def parser_configuration(target_version: object) -> str:
         "py311": "python-target=3.11",
     }
     if not isinstance(target_version, str) or target_version not in configurations:
-        raise ValueError(f"unsupported prepared Python target version: {target_version}")
+        raise ValueError(
+            f"unsupported prepared Python target version: {target_version}"
+        )
     return configurations[target_version]
 
 
@@ -268,23 +317,98 @@ def copy_modules(registry: dict[str, str], destination: Path) -> None:
 
 
 def combined_modules(
-    profile_data: dict[str, object], selected_rules: list[str], manifest: dict[str, object]
+    profile_data: dict[str, object],
+    selected_rules: list[str],
+    manifest: dict[str, object],
 ) -> dict[str, str]:
     registry = profile_modules(profile_data)
     sources = [
         tomllib.loads((RUFF_DIR / "benchmark.toml").read_text(encoding="utf-8")),
     ]
     sources.extend(
-        tomllib.loads((PROFILE_DIR / rule / "benchmark.toml").read_text(encoding="utf-8"))
+        tomllib.loads(
+            (PROFILE_DIR / rule / "benchmark.toml").read_text(encoding="utf-8")
+        )
         for rule in selected_rules
         if rule in manifest["profiles"]
     )
     for source_data in sources:
         for logical_id, source_path in profile_modules(source_data).items():
             if logical_id in registry and registry[logical_id] != source_path:
-                raise ValueError(f"combined profile conflicts with module source for {logical_id}")
+                raise ValueError(
+                    f"combined profile conflicts with module source for {logical_id}"
+                )
             registry[logical_id] = source_path
     return registry
+
+
+def verify_actual_proof_assets(
+    manifest: dict[str, object], repository: Path = REPOSITORY
+) -> None:
+    """READY admission binds executed proof bytes, independently of source commit metadata."""
+    for relative in manifest.get("actual_proof_receipts", []):
+        receipt = json.loads((repository / relative).read_text(encoding="utf-8"))
+        if receipt.get("schema") != "actual-proof-assets/v1":
+            raise ValueError("unsupported actual-proof asset receipt")
+        for profile in receipt["profiles"]:
+            recorded = manifest.get("profiles", {}).get(profile["rule"])
+            if not isinstance(recorded, dict):
+                raise ValueError(
+                    "READY actual-proof profile is not selected by the manifest"
+                )
+            expected_profile = (
+                prepared_profile_path(profile["rule"], recorded)
+                .relative_to(REPOSITORY)
+                .as_posix()
+            )
+            expected_query = (
+                prepared_candidate_path(
+                    recorded.get("rule_id", profile["rule"]), recorded
+                )
+                .relative_to(REPOSITORY)
+                .as_posix()
+            )
+            if (
+                profile["profile_file"] != expected_profile
+                or profile["query"]["canonical_path"] != expected_query
+            ):
+                raise ValueError("READY actual-proof canonical selection path mismatch")
+            canonical = tomllib.loads(
+                (repository / profile["profile_file"]).read_text(encoding="utf-8")
+            )
+            settings = {
+                "defaults": canonical["defaults"],
+                "parser_configuration": canonical.get(
+                    "parser-configuration", "python-target=3.10"
+                ),
+                "project_context_mode": canonical.get(
+                    "project-context-mode", "isolated"
+                ),
+            }
+            if (
+                settings != profile["settings"]
+                or canonical.get("query-modules", {}) != profile["module_registry"]
+            ):
+                raise ValueError(
+                    f"READY actual-proof profile identity mismatch: {profile['rule']}"
+                )
+            query = profile["query"]
+            modules = profile["modules"]
+            if set(modules) != set(profile["module_registry"]):
+                raise ValueError("READY actual-proof dependency closure is incomplete")
+            for logical, asset in modules.items():
+                expected_path = (
+                    RUFF_DIR.relative_to(REPOSITORY)
+                    / profile["module_registry"][logical]
+                )
+                if asset["canonical_path"] != expected_path.as_posix():
+                    raise ValueError("READY actual-proof dependency path mismatch")
+            for asset in [query, *modules.values()]:
+                path = repository / asset["canonical_path"]
+                if not path.is_file() or sha256(path) != asset["proof_sha256"]:
+                    raise ValueError(
+                        f"READY actual-proof asset mismatch: {asset['canonical_path']}"
+                    )
 
 
 def verify_files(manifest: dict[str, object], helper_path: str) -> None:
@@ -297,15 +421,23 @@ def verify_files(manifest: dict[str, object], helper_path: str) -> None:
         profile.get("target_version", "py310") not in allowed_targets
         for profile in manifest["profiles"].values()
     ):
-        raise ValueError("prepared single-rule profile has an unsupported target version")
+        raise ValueError(
+            "prepared single-rule profile has an unsupported target version"
+        )
     if any(
         profile.get("target_version", "py310") not in allowed_targets
         for profile in manifest.get("combined_profiles", {}).values()
     ):
         raise ValueError("prepared combined profile has an unsupported target version")
     if set(files) != manifest_paths(manifest, helper_path):
-        raise ValueError("prepared input paths do not match the candidate acceptance cohorts")
-    defaults = set(tomllib.loads((RUFF_DIR / "benchmark.toml").read_text(encoding="utf-8"))["defaults"])
+        raise ValueError(
+            "prepared input paths do not match the candidate acceptance cohorts"
+        )
+    defaults = set(
+        tomllib.loads((RUFF_DIR / "benchmark.toml").read_text(encoding="utf-8"))[
+            "defaults"
+        ]
+    )
     profile_rules = {
         profile.get("rule_id", profile_name)
         for profile_name, profile in manifest["profiles"].items()
@@ -316,8 +448,13 @@ def verify_files(manifest: dict[str, object], helper_path: str) -> None:
         selected = descriptor["selected_rules"]
         if len(selected) != len(set(selected)) or set(selected) - defaults:
             raise ValueError("combined profile contains a non-default rule")
-        if descriptor.get("validation_status") not in {"active-current", "archived-historical"}:
-            raise ValueError("combined profile must declare active-current or archived-historical status")
+        if descriptor.get("validation_status") not in {
+            "active-current",
+            "archived-historical",
+        }:
+            raise ValueError(
+                "combined profile must declare active-current or archived-historical status"
+            )
     if files.get(helper_path) != sha256(Path(__file__)):
         raise ValueError("profile helper hash does not match prepared.json")
     for relative, expected in files.items():
@@ -327,6 +464,8 @@ def verify_files(manifest: dict[str, object], helper_path: str) -> None:
             raise ValueError(
                 f"prepared input hash mismatch: {relative} expected={expected} actual={actual} manifest={MANIFEST}"
             )
+
+    verify_actual_proof_assets(manifest)
 
 
 def verify_rule_phase_registry(
@@ -407,18 +546,23 @@ def verify_rule_phase_registry(
             or not isinstance(record.get("registry_line"), int)
             or record["registry_line"] <= 0
         ):
-            raise ValueError(f"phase classification for {rule} lacks pinned dispatch evidence")
+            raise ValueError(
+                f"phase classification for {rule} lacks pinned dispatch evidence"
+            )
         evidence_by_kind = {item["kind"]: item for item in evidence}
         code_registry = registry["code_to_variant_registry"]
         phase_registry = registry["phase_registry"]
         if (
             set(evidence_by_kind) != {"code-to-variant", "lint-source"}
-            or evidence_by_kind["code-to-variant"]["sha256"] != code_registry.get("sha256")
+            or evidence_by_kind["code-to-variant"]["sha256"]
+            != code_registry.get("sha256")
             or evidence_by_kind["code-to-variant"]["line"] != record["registry_line"]
             or evidence_by_kind["lint-source"]["sha256"] != phase_registry.get("sha256")
             or not isinstance(phase_registry.get("ast_fallback_line"), int)
         ):
-            raise ValueError(f"phase evidence does not match the pinned registry for {rule}")
+            raise ValueError(
+                f"phase evidence does not match the pinned registry for {rule}"
+            )
         phase_evidence = evidence_by_kind["lint-source"]
         resolution = phase_evidence.get("resolution")
         lint_sources = registry.get("lint_sources", {})
@@ -427,14 +571,18 @@ def verify_rule_phase_registry(
                 resolution != "Ast wildcard fallback"
                 or phase_evidence["line"] != phase_registry["ast_fallback_line"]
             ):
-                raise ValueError(f"AST classification lacks the positive pinned fallback for {rule}")
+                raise ValueError(
+                    f"AST classification lacks the positive pinned fallback for {rule}"
+                )
         elif (
             len(phases) != 1
             or lint_sources.get(resolution) != phases[0]
             or phase_evidence["line"] == phase_registry["ast_fallback_line"]
         ):
             if not record.get("mixed_policy"):
-                raise ValueError(f"non-AST or mixed phase lacks explicit registry evidence for {rule}")
+                raise ValueError(
+                    f"non-AST or mixed phase lacks explicit registry evidence for {rule}"
+                )
         applicability = record.get("applicability")
         if set(phases) <= {"ast", "imports"}:
             expected_applicability = "accepted-syntax"
@@ -443,8 +591,12 @@ def verify_rule_phase_registry(
         else:
             # A rule dispatched in both parser-dependent and independent lanes needs a
             # reviewed explicit policy; this version of the inventory has no such rules.
-            if applicability not in {"always", "accepted-syntax"} or not record.get("mixed_policy"):
-                raise ValueError(f"mixed Ruff phase policy is not explicitly reviewed for {rule}")
+            if applicability not in {"always", "accepted-syntax"} or not record.get(
+                "mixed_policy"
+            ):
+                raise ValueError(
+                    f"mixed Ruff phase policy is not explicitly reviewed for {rule}"
+                )
             expected_applicability = applicability
         if applicability != expected_applicability:
             raise ValueError(
@@ -466,7 +618,9 @@ def verify_active_combined_cohort(manifest: dict[str, object]) -> None:
         )
     name, descriptor = active[0]
     if descriptor.get("expectations_mode") != "complete-full-report":
-        raise ValueError(f"active combined cohort {name} is not a complete full-report profile")
+        raise ValueError(
+            f"active combined cohort {name} is not a complete full-report profile"
+        )
 
 
 def selected_rule_applicability(
@@ -474,21 +628,26 @@ def selected_rule_applicability(
 ) -> dict[str, str]:
     """Project the pinned phase registry onto this exact selected rule inventory."""
     registry = verify_rule_phase_registry(manifest)
-    return {
-        rule: registry["rules"][rule]["applicability"]
-        for rule in selected_rules
-    }
+    return {rule: registry["rules"][rule]["applicability"] for rule in selected_rules}
 
 
-def check_staged_applicability(profile: Path, selected_rules: list[str], manifest: dict[str, object]) -> None:
+def check_staged_applicability(
+    profile: Path, selected_rules: list[str], manifest: dict[str, object]
+) -> None:
     """Refuse a staged profile whose typed policy differs from its sealed selection."""
-    actual = tomllib.loads(profile.read_text(encoding="utf-8")).get("rule-applicability")
+    actual = tomllib.loads(profile.read_text(encoding="utf-8")).get(
+        "rule-applicability"
+    )
     expected = selected_rule_applicability(manifest, selected_rules)
     if actual != expected:
-        raise ValueError("staged rule applicability differs from the pinned phase registry")
+        raise ValueError(
+            "staged rule applicability differs from the pinned phase registry"
+        )
 
 
-def profile_tool_matches(profile_data: dict[str, object], manifest: dict[str, object]) -> bool:
+def profile_tool_matches(
+    profile_data: dict[str, object], manifest: dict[str, object]
+) -> bool:
     return (
         profile_data.get("tool") == "ruff"
         and profile_data.get("version") == manifest["reference_version"]
@@ -518,17 +677,171 @@ def command_for(
     return command
 
 
+def expected_context_identity(
+    case: dict[str, object], mode: str
+) -> dict[str, object] | None:
+    """Bind declared context bytes using the benchmark's framed SHA256 manifest contract."""
+    if mode not in {"isolated", "listed-disk"}:
+        raise ValueError(f"unsupported project context mode: {mode}")
+    context = case.get("context")
+    if mode == "isolated":
+        if context is not None:
+            raise ValueError("isolated profile cannot admit a context-authored case")
+        return None
+    if not isinstance(context, dict) or set(context) - {
+        "logical-root",
+        "auxiliary-files",
+        "missing",
+    }:
+        raise ValueError(
+            "listed-disk profile requires an explicit context for every case"
+        )
+
+    def relative(value: object, *, root: bool = False) -> Path:
+        if not isinstance(value, str) or not value or Path(value).is_absolute():
+            raise ValueError("unsafe context path")
+        path = Path(value)
+        if any(part == ".." for part in path.parts) or not root and not path.parts:
+            raise ValueError("unsafe context path")
+        return path
+
+    logical = context.get("logical-root")
+    root_path = relative(logical, root=True)
+    sources = {
+        str(root_path / relative(name)): hashlib.sha256(
+            text.encode("utf-8")
+        ).hexdigest()
+        for name, text in case["files"].items()
+    }
+    auxiliary = {
+        str(relative(name)): hashlib.sha256(text.encode("utf-8")).hexdigest()
+        for name, text in context.get("auxiliary-files", {}).items()
+    }
+    missing = sorted(str(relative(name)) for name in context.get("missing", []))
+    if (
+        set(sources) & set(auxiliary)
+        or set(missing) & (set(sources) | set(auxiliary))
+        or len(missing) != len(set(missing))
+    ):
+        raise ValueError("context source, auxiliary and missing roles overlap")
+    digest = hashlib.sha256()
+
+    def frame(value: bytes) -> None:
+        digest.update(len(value).to_bytes(8, "little"))
+        digest.update(value)
+
+    frame(b"listed-disk-context-v1")
+    frame(os.fsencode(logical))
+    for role, files in ((b"source", sources), (b"auxiliary", auxiliary)):
+        frame(role)
+        for name, value in sorted(files.items()):
+            frame(os.fsencode(name))
+            frame(value.encode("ascii"))
+    for name in missing:
+        frame(b"missing")
+        frame(os.fsencode(name))
+    return {
+        "mode": mode,
+        "logical_root": logical,
+        "manifest_hash": digest.hexdigest(),
+        "present_paths": sorted(set(sources) | set(auxiliary)),
+        "missing_paths": missing,
+    }
+
+
+def context_receipts_valid(
+    case: dict[str, object], sides: dict[str, dict[str, object]]
+) -> bool:
+    """Check opaque native receipts' identities and roles; Rust validates content fingerprints."""
+    mode = case.get("project_context_mode", "isolated")
+    if mode == "isolated":
+        return all(
+            row.get("context_manifest") is None and row.get("project_context") is None
+            for row in sides.values()
+        )
+    expected = case.get("context_identity")
+    if mode != "listed-disk" or not isinstance(expected, dict):
+        return False
+    reference = sides["reference"].get("context_manifest")
+    candidate = sides["candidate"].get("context_manifest")
+    if (
+        not isinstance(reference, dict)
+        or reference != candidate
+        or set(reference) != {"mode", "logical_root", "actual_root", "manifest_hash"}
+    ):
+        return False
+    if any(
+        reference.get(key) != expected[key]
+        for key in ("mode", "logical_root", "manifest_hash")
+    ):
+        return False
+    actual = reference.get("actual_root")
+    if not isinstance(actual, str) or not Path(actual).is_absolute():
+        return False
+    root_parts = Path(expected["logical_root"]).parts
+    if root_parts and Path(actual).parts[-len(root_parts) :] != root_parts:
+        return False
+    receipt = sides["candidate"].get("project_context")
+    if (
+        sides["reference"].get("project_context") is not None
+        or not isinstance(receipt, dict)
+        or set(receipt) != set(reference) | {"dependencies"}
+    ):
+        return False
+    if any(receipt.get(key) != value for key, value in reference.items()):
+        return False
+    dependencies = receipt.get("dependencies")
+    if not isinstance(dependencies, dict):
+        return False
+    for name, fingerprint in dependencies.items():
+        if not isinstance(name, str) or Path(name).is_absolute():
+            return False
+        resolved = list(root_parts)
+        for part in Path(name).parts:
+            if part == "..":
+                if not resolved:
+                    return False
+                resolved.pop()
+            elif part != ".":
+                resolved.append(part)
+        declared = str(Path(*resolved))
+        if fingerprint is None:
+            if declared not in expected["missing_paths"]:
+                return False
+        elif (
+            declared not in expected["present_paths"]
+            or not isinstance(fingerprint, list)
+            or len(fingerprint) != 16
+            or any(
+                type(byte) is not int or not 0 <= byte <= 255 for byte in fingerprint
+            )
+        ):
+            return False
+    return True
+
+
 def profile_case_inventory(profile_root: Path) -> list[dict[str, object]]:
     """Derive canonical case identities after the staged profile is sealed."""
     inventory = []
-    for rule_root in sorted((profile_root / "rules").iterdir(), key=lambda path: path.name):
+    profile_path = profile_root / "benchmark.toml"
+    profile = (
+        tomllib.loads(profile_path.read_text(encoding="utf-8"))
+        if profile_path.is_file()
+        else {}
+    )
+    mode = profile.get("project-context-mode", "isolated")
+    for rule_root in sorted(
+        (profile_root / "rules").iterdir(), key=lambda path: path.name
+    ):
         cases_path = rule_root / "cases.toml"
         if not cases_path.is_file():
             continue
         cases = tomllib.loads(cases_path.read_text(encoding="utf-8"))["cases"]
         for case in cases:
             identity = {"rule": rule_root.name, "name": case["name"]}
-            encoded = json.dumps(case, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+            encoded = json.dumps(
+                case, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+            )
             source_digest = hashlib.sha256()
             for file, source in sorted(case["files"].items()):
                 source_digest.update(file.encode("utf-8"))
@@ -546,18 +859,24 @@ def profile_case_inventory(profile_root: Path) -> list[dict[str, object]]:
                 ),
                 key=lambda row: (row["rule"], row["file"], row["start"], row["end"]),
             )
-            inventory.append({
-                **identity,
-                "case_sha256": hashlib.sha256(encoded.encode()).hexdigest(),
-                "source_sha256": source_digest.hexdigest(),
-                "files": sorted(case["files"]),
-                "comparison": case.get("comparison", "rule"),
-                "expected": expected,
-            })
+            inventory.append(
+                {
+                    **identity,
+                    "project_context_mode": mode,
+                    "context_identity": expected_context_identity(case, mode),
+                    "case_sha256": hashlib.sha256(encoded.encode()).hexdigest(),
+                    "source_sha256": source_digest.hexdigest(),
+                    "files": sorted(case["files"]),
+                    "comparison": case.get("comparison", "rule"),
+                    "expected": expected,
+                }
+            )
     inventory.sort(key=lambda case: (case["rule"], case["name"]))
     ids = [(case["rule"], case["name"]) for case in inventory]
     if not ids or len(ids) != len(set(ids)):
-        raise ValueError("staged case inventory is empty or has duplicate (rule, name) identities")
+        raise ValueError(
+            "staged case inventory is empty or has duplicate (rule, name) identities"
+        )
     return inventory
 
 
@@ -591,7 +910,7 @@ def complete_case_ids(
             and row.get("expected") == expected_case["expected"]
             and isinstance(row.get("case_passed"), bool)
             for row in sides.values()
-        ):
+        ) and context_receipts_valid(expected_case, sides):
             completed.add(case_id)
     return completed
 
@@ -635,8 +954,10 @@ def valid_shard_receipts(
             and receipt.get("stdout_summary_valid") is None
             and receipt.get("last_process_status") is None
             and isinstance(receipt.get("reconstruction"), dict)
-            and receipt["reconstruction"].get("method") == "complete-case-records-no-process-summary"
-            and receipt["reconstruction"].get("records_sha256") == receipt.get("case_results_sha256")
+            and receipt["reconstruction"].get("method")
+            == "complete-case-records-no-process-summary"
+            and receipt["reconstruction"].get("records_sha256")
+            == receipt.get("case_results_sha256")
         )
         if (
             receipt.get("case_ids") != expected_ids
@@ -649,10 +970,14 @@ def valid_shard_receipts(
             return False
         all_ids.extend(receipt["case_ids"])
     expected_global = [f"{case['rule']}/{case['name']}" for case in inventory]
-    return len(all_ids) == len(set(all_ids)) and sorted(all_ids) == sorted(expected_global)
+    return len(all_ids) == len(set(all_ids)) and sorted(all_ids) == sorted(
+        expected_global
+    )
 
 
-def case_observation_map(paths: list[Path]) -> dict[tuple[str, str, str], dict[str, object]]:
+def case_observation_map(
+    paths: list[Path],
+) -> dict[tuple[str, str, str], dict[str, object]]:
     """Load complete per-case contestant records and reject duplicate observations."""
     observations = {}
     for path in paths:
@@ -693,11 +1018,21 @@ def candidate_result_valid(
             (row.get("rule"), row.get("name"), row.get("side")) for row in records
         )
         output = stdout.decode("utf-8")
-    except (OSError, UnicodeDecodeError, KeyError, TypeError, ValueError, json.JSONDecodeError) as error:
+    except (
+        OSError,
+        UnicodeDecodeError,
+        KeyError,
+        TypeError,
+        ValueError,
+        json.JSONDecodeError,
+    ) as error:
         return False, f"candidate proof records could not be read: {error}"
     expected_summary = f"{len(inventory)} cases passed against both contestants\n"
     if output != expected_summary:
-        return False, f"worker summary mismatch: expected {expected_summary!r}, got {output!r}"
+        return (
+            False,
+            f"worker summary mismatch: expected {expected_summary!r}, got {output!r}",
+        )
     if valid_ids != expected_ids or len(records) != 2 * len(inventory):
         return False, (
             f"worker case receipts incomplete: expected {len(expected_ids)} exact case IDs, "
@@ -708,7 +1043,10 @@ def candidate_result_valid(
         for case in inventory
         for side in ("reference", "candidate")
     ):
-        return False, "worker case receipts contain missing or duplicate contestant records"
+        return (
+            False,
+            "worker case receipts contain missing or duplicate contestant records",
+        )
     if any(row.get("case_passed") is not True for row in records):
         return False, "worker case receipts include a failed contestant comparison"
     return True, None
@@ -718,9 +1056,14 @@ def audit_worker_protocol(worker: Path, *, runner=subprocess.run) -> tuple[bool,
     """Confirm the executable is the benchmark CLI, not a same-named Rust test harness."""
     command = [str(worker), "audit"]
     try:
-        result = runner(command, cwd=REPOSITORY / "crates" / "ryo", capture_output=True, check=False)
+        result = runner(
+            command, cwd=REPOSITORY / "crates" / "ryo", capture_output=True, check=False
+        )
     except Exception as error:
-        return False, f"worker protocol smoke could not start: {type(error).__name__}: {error}"
+        return (
+            False,
+            f"worker protocol smoke could not start: {type(error).__name__}: {error}",
+        )
     if result.returncode != 0:
         return False, f"worker protocol smoke exited {result.returncode}"
     expected = re.fullmatch(
@@ -729,7 +1072,10 @@ def audit_worker_protocol(worker: Path, *, runner=subprocess.run) -> tuple[bool,
         result.stdout,
     )
     if expected is None:
-        return False, f"worker protocol smoke returned an unexpected response: {result.stdout!r}"
+        return (
+            False,
+            f"worker protocol smoke returned an unexpected response: {result.stdout!r}",
+        )
     return True, result.stdout.decode("utf-8").strip()
 
 
@@ -775,7 +1121,9 @@ def verify_profile_sharded(
     if not inventory:
         raise ValueError("cannot shard an empty canonical case inventory")
     effective_shard_count = min(shard_count, len(inventory))
-    inventory_bytes = json.dumps(inventory, sort_keys=True, separators=(",", ":")).encode()
+    inventory_bytes = json.dumps(
+        inventory, sort_keys=True, separators=(",", ":")
+    ).encode()
     inventory_sha = hashlib.sha256(inventory_bytes).hexdigest()
     profile_output = output_directory / "profiles" / name
     shard_root = profile_output / "shards"
@@ -791,20 +1139,29 @@ def verify_profile_sharded(
         "selected_rule_applicability_sha256": source_hash(
             identities.get("selected_rule_applicability", {})
         ),
-        "target": tomllib.loads((profile_root / "benchmark.toml").read_text(encoding="utf-8")).get("parser-configuration"),
+        "target": tomllib.loads(
+            (profile_root / "benchmark.toml").read_text(encoding="utf-8")
+        ).get("parser-configuration"),
+        "project_context_mode": tomllib.loads(
+            (profile_root / "benchmark.toml").read_text(encoding="utf-8")
+        ).get("project-context-mode", "isolated"),
         "requested_shard_count": shard_count,
         "effective_shard_count": effective_shard_count,
     }
     shards = list(enumerate(partition_case_inventory(inventory, effective_shard_count)))
 
-    def run_one(item: tuple[int, list[dict[str, object]], list[dict[str, object]], bool]) -> dict[str, object]:
+    def run_one(
+        item: tuple[int, list[dict[str, object]], list[dict[str, object]], bool],
+    ) -> dict[str, object]:
         shard_index, selected, to_run, earlier_case_failed = item
         shard_name = f"{shard_index:03d}"
         result_path = shard_root / f"{shard_name}.cases.jsonl"
         selection_path = None
         if len(to_run) != len(selected):
             selection_path = shard_root / f"{shard_name}.selection.json"
-            atomic_json_write(selection_path, [f"{case['rule']}/{case['name']}" for case in to_run])
+            atomic_json_write(
+                selection_path, [f"{case['rule']}/{case['name']}" for case in to_run]
+            )
         command = command_for(
             worker,
             ruff,
@@ -847,16 +1204,24 @@ def verify_profile_sharded(
                 observed = []
         selected_ids = {f"{case['rule']}/{case['name']}" for case in selected}
         observed_ids = complete_case_ids(selected, observed)
-        side_counts = collections.Counter((row.get("rule"), row.get("name"), row.get("side")) for row in observed)
+        side_counts = collections.Counter(
+            (row.get("rule"), row.get("name"), row.get("side")) for row in observed
+        )
         valid_records = (
             observed_ids == selected_ids
-            and all(side_counts[(case["rule"], case["name"], side)] == 1 for case in selected for side in ("reference", "candidate"))
+            and all(
+                side_counts[(case["rule"], case["name"], side)] == 1
+                for case in selected
+                for side in ("reference", "candidate")
+            )
             and len(observed) == 2 * len(selected)
         )
         completed_failed = any(not row.get("case_passed", False) for row in observed)
         # A resumed shard may execute only the unfinished subset while its
         # receipt still proves the complete original shard inventory.
-        expected_summary = f"{len(to_run)} cases passed against both contestants\n".encode()
+        expected_summary = (
+            f"{len(to_run)} cases passed against both contestants\n".encode()
+        )
         summary_valid = stdout == expected_summary
         final_status = (
             0
@@ -878,7 +1243,9 @@ def verify_profile_sharded(
             "global_identity": global_identity,
             "stdout_sha256": hashlib.sha256(stdout).hexdigest(),
             "stderr_sha256": hashlib.sha256(stderr).hexdigest(),
-            "case_results_sha256": sha256(result_path) if result_path.is_file() else None,
+            "case_results_sha256": sha256(result_path)
+            if result_path.is_file()
+            else None,
             "case_result_records_valid": valid_records,
             "stdout_summary_valid": summary_valid,
             "executed_case_ids": [f"{case['rule']}/{case['name']}" for case in to_run],
@@ -899,7 +1266,9 @@ def verify_profile_sharded(
             raise ValueError("cannot resume: prior shard plan is missing")
         prior_plan = json.loads(plan_path.read_text(encoding="utf-8"))
         if prior_plan.get("global_identity") != global_identity:
-            raise ValueError("cannot resume with changed global inventory/worker/reference/target identity")
+            raise ValueError(
+                "cannot resume with changed global inventory/worker/reference/target identity"
+            )
         if prior_plan.get("staged_inputs") != staged_hashes(profile_root):
             raise ValueError("cannot resume with changed staged profile inputs")
     else:
@@ -925,12 +1294,22 @@ def verify_profile_sharded(
         if resume and receipt_path.is_file() and records_path.is_file():
             try:
                 receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
-                records = [json.loads(line) for line in records_path.read_text(encoding="utf-8").splitlines()]
-                counts = collections.Counter((row.get("rule"), row.get("name"), row.get("side")) for row in records)
+                records = [
+                    json.loads(line)
+                    for line in records_path.read_text(encoding="utf-8").splitlines()
+                ]
+                counts = collections.Counter(
+                    (row.get("rule"), row.get("name"), row.get("side"))
+                    for row in records
+                )
                 records_valid = (
                     complete_case_ids(selected, records)
                     == {f"{case['rule']}/{case['name']}" for case in selected}
-                    and all(counts[(case["rule"], case["name"], side)] == 1 for case in selected for side in ("reference", "candidate"))
+                    and all(
+                        counts[(case["rule"], case["name"], side)] == 1
+                        for case in selected
+                        for side in ("reference", "candidate")
+                    )
                     and len(records) == 2 * len(selected)
                 )
                 reused = (
@@ -946,33 +1325,56 @@ def verify_profile_sharded(
                 reused = False
         if not reused:
             if not resume and (receipt_path.exists() or records_path.exists()):
-                raise ValueError("shard output already exists; use --resume with matching identities")
+                raise ValueError(
+                    "shard output already exists; use --resume with matching identities"
+                )
             prior_records = []
             malformed = False
             if resume and records_path.is_file():
                 try:
-                    prior_records = [json.loads(line) for line in records_path.read_text(encoding="utf-8").splitlines()]
+                    prior_records = [
+                        json.loads(line)
+                        for line in records_path.read_text(
+                            encoding="utf-8"
+                        ).splitlines()
+                    ]
                 except (OSError, json.JSONDecodeError):
                     malformed = True
-            completed = set() if malformed else complete_case_ids(selected, prior_records)
+            completed = (
+                set() if malformed else complete_case_ids(selected, prior_records)
+            )
             completed_ids = {f"{case['rule']}/{case['name']}" for case in selected}
-            keep = [row for row in prior_records if f"{row.get('rule')}/{row.get('name')}" in completed]
+            keep = [
+                row
+                for row in prior_records
+                if f"{row.get('rule')}/{row.get('name')}" in completed
+            ]
             if malformed:
                 keep = []
             temporary_records = records_path.with_name(f".{records_path.name}.tmp")
             with temporary_records.open("w", encoding="utf-8") as output_records:
                 for row in keep:
-                    output_records.write(json.dumps(row, ensure_ascii=False, separators=(",", ":")) + "\n")
+                    output_records.write(
+                        json.dumps(row, ensure_ascii=False, separators=(",", ":"))
+                        + "\n"
+                    )
                 output_records.flush()
                 os.fsync(output_records.fileno())
             temporary_records.replace(records_path)
-            to_run = [case for case in selected if f"{case['rule']}/{case['name']}" not in completed]
+            to_run = [
+                case
+                for case in selected
+                if f"{case['rule']}/{case['name']}" not in completed
+            ]
             if not to_run:
                 failed = any(not row.get("case_passed", False) for row in keep)
                 records_valid = (
                     len(keep) == 2 * len(selected)
                     and completed == completed_ids
-                    and all(row.get("complete") is True and row.get("error") is None for row in keep)
+                    and all(
+                        row.get("complete") is True and row.get("error") is None
+                        for row in keep
+                    )
                 )
                 receipt = {
                     "profile": name,
@@ -1000,17 +1402,25 @@ def verify_profile_sharded(
                 atomic_json_write(receipt_path, receipt)
                 receipts.append(receipt)
                 continue
-            for path in (receipt_path, shard_root / f"{shard_name}.stdout.bin", shard_root / f"{shard_name}.stderr.bin"):
+            for path in (
+                receipt_path,
+                shard_root / f"{shard_name}.stdout.bin",
+                shard_root / f"{shard_name}.stderr.bin",
+            ):
                 path.unlink(missing_ok=True)
             earlier_failed = any(not row.get("case_passed", False) for row in keep)
             pending_shards.append((shard_index, selected, to_run, earlier_failed))
-    with ThreadPoolExecutor(max_workers=min(effective_shard_count, worker_limit or shard_worker_limit())) as pool:
+    with ThreadPoolExecutor(
+        max_workers=min(effective_shard_count, worker_limit or shard_worker_limit())
+    ) as pool:
         futures = [pool.submit(run_one, shard) for shard in pending_shards]
         for future in as_completed(futures):
             receipts.append(future.result())
     receipts.sort(key=lambda receipt: receipt["shard_index"])
     flattened = [case_id for receipt in receipts for case_id in receipt["case_ids"]]
-    receipts_valid = valid_shard_receipts(inventory, receipts, effective_shard_count, global_identity)
+    receipts_valid = valid_shard_receipts(
+        inventory, receipts, effective_shard_count, global_identity
+    )
     aggregate = {
         "profile": name,
         "global_identity": global_identity,
@@ -1018,12 +1428,17 @@ def verify_profile_sharded(
         "case_count": len(inventory),
         "shard_count": effective_shard_count,
         "requested_shard_count": shard_count,
-        "receipts": [f"shards/{index:03d}.receipt.json" for index in range(effective_shard_count)],
+        "receipts": [
+            f"shards/{index:03d}.receipt.json" for index in range(effective_shard_count)
+        ],
         "all_shards_passed": receipts_valid,
         "case_ids_exact_once": len(flattened) == len(set(flattened))
-        and sorted(flattened) == sorted(f"{case['rule']}/{case['name']}" for case in inventory),
+        and sorted(flattened)
+        == sorted(f"{case['rule']}/{case['name']}" for case in inventory),
     }
-    aggregate["status"] = 0 if aggregate["all_shards_passed"] and aggregate["case_ids_exact_once"] else 1
+    aggregate["status"] = (
+        0 if aggregate["all_shards_passed"] and aggregate["case_ids_exact_once"] else 1
+    )
     atomic_json_write(profile_output / "aggregate.json", aggregate)
     print(
         f"{name}: {aggregate['case_count']} cases across {effective_shard_count} of {shard_count} requested shards; status {aggregate['status']}",
@@ -1057,39 +1472,63 @@ def parse_worker_artifact(stdout: bytes) -> Path:
             continue
         target = message.get("target", {})
         source_path = target.get("src_path", "")
-        normalized_source = source_path.replace("\\", "/") if isinstance(source_path, str) else ""
+        normalized_source = (
+            source_path.replace("\\", "/") if isinstance(source_path, str) else ""
+        )
         if (
             message.get("reason") == "compiler-artifact"
             and target.get("name") == "ruff"
             and "bench" in target.get("kind", [])
             and target.get("test") is False
-            and normalized_source.endswith("/languages/python/benchmarks/linters/ruff/bench.rs")
+            and normalized_source.endswith(
+                "/languages/python/benchmarks/linters/ruff/bench.rs"
+            )
             and isinstance(message.get("executable"), str)
         ):
             matches.append(Path(message["executable"]))
     if len(matches) != 1:
-        raise ValueError(f"Cargo JSON reported {len(matches)} ruff benchmark executables")
+        raise ValueError(
+            f"Cargo JSON reported {len(matches)} ruff benchmark executables"
+        )
     return matches[0].resolve(strict=True)
 
 
 def worker_source_identity() -> dict[str, object]:
     """Capture the Ryo source identity needed to detect edits during the build."""
     try:
-        revision = subprocess.run(
-            ["git", "rev-parse", "HEAD"], cwd=REPOSITORY, capture_output=True, check=True
-        ).stdout.decode().strip()
+        revision = (
+            subprocess.run(
+                ["git", "rev-parse", "HEAD"],
+                cwd=REPOSITORY,
+                capture_output=True,
+                check=True,
+            )
+            .stdout.decode()
+            .strip()
+        )
         diff = subprocess.run(
             ["git", "diff", "--binary", "HEAD", "--", "crates/ryo"],
             cwd=REPOSITORY,
             capture_output=True,
             check=True,
         ).stdout
-        status = subprocess.run(
-            ["git", "status", "--porcelain", "--untracked-files=all", "--", "crates/ryo"],
-            cwd=REPOSITORY,
-            capture_output=True,
-            check=True,
-        ).stdout.decode().splitlines()
+        status = (
+            subprocess.run(
+                [
+                    "git",
+                    "status",
+                    "--porcelain",
+                    "--untracked-files=all",
+                    "--",
+                    "crates/ryo",
+                ],
+                cwd=REPOSITORY,
+                capture_output=True,
+                check=True,
+            )
+            .stdout.decode()
+            .splitlines()
+        )
         source_paths = subprocess.run(
             [
                 "git",
@@ -1106,7 +1545,9 @@ def worker_source_identity() -> dict[str, object]:
             check=True,
         ).stdout.split(b"\0")
     except (OSError, subprocess.CalledProcessError) as error:
-        raise ValueError(f"could not identify Ryo source before worker build: {error}") from error
+        raise ValueError(
+            f"could not identify Ryo source before worker build: {error}"
+        ) from error
     source_digest = hashlib.sha256()
     for raw_path in sorted(path for path in source_paths if path):
         relative = Path(os.fsdecode(raw_path))
@@ -1151,14 +1592,20 @@ def build_worker_once(
             check=False,
         )
         if result.returncode != 0:
-            raise ValueError(f"Cargo benchmark build exited with status {result.returncode}")
+            raise ValueError(
+                f"Cargo benchmark build exited with status {result.returncode}"
+            )
         artifact = parse_worker_artifact(result.stdout)
         after = worker_source_identity()
         if before != after:
-            raise ValueError("Ryo sources changed while building the benchmark executable")
+            raise ValueError(
+                "Ryo sources changed while building the benchmark executable"
+            )
         if output_directory is None:
             worker_directory = Path(
-                stack.enter_context(tempfile.TemporaryDirectory(prefix="ryo-ruff-worker-"))
+                stack.enter_context(
+                    tempfile.TemporaryDirectory(prefix="ryo-ruff-worker-")
+                )
             )
         else:
             worker_directory = output_directory / "worker"
@@ -1172,7 +1619,10 @@ def build_worker_once(
             "source_after_build": after,
             "source_stable_during_build": True,
             "cargo_artifact": str(artifact),
-            "frozen_executable": {"path": str(worker_copy.resolve()), "sha256": sha256(worker_copy)},
+            "frozen_executable": {
+                "path": str(worker_copy.resolve()),
+                "sha256": sha256(worker_copy),
+            },
         }
     except Exception as caught:
         error = f"{type(caught).__name__}: {caught}"
@@ -1188,10 +1638,15 @@ def build_worker_once(
     if output_directory is not None:
         build_directory = output_directory / "build"
         build_directory.mkdir(exist_ok=True)
-        (build_directory / "stdout.bin").write_bytes(result.stdout if result is not None else b"")
-        (build_directory / "stderr.bin").write_bytes(result.stderr if result is not None else b"")
+        (build_directory / "stdout.bin").write_bytes(
+            result.stdout if result is not None else b""
+        )
+        (build_directory / "stderr.bin").write_bytes(
+            result.stderr if result is not None else b""
+        )
         (build_directory / "result.json").write_text(
-            json.dumps(identities, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+            json.dumps(identities, indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8",
         )
     if error is not None:
         raise ValueError(error)
@@ -1214,17 +1669,23 @@ def reuse_frozen_worker(output_directory: Path) -> tuple[Path, dict[str, object]
         raise ValueError("cannot resume: frozen worker build provenance is invalid")
     executable = Path(frozen["path"])
     if not executable.is_file() or sha256(executable) != frozen["sha256"]:
-        raise ValueError("cannot resume: frozen worker executable is missing or changed")
+        raise ValueError(
+            "cannot resume: frozen worker executable is missing or changed"
+        )
     build_stdout = output_directory / "build" / "stdout.bin"
     try:
         artifact = parse_worker_artifact(build_stdout.read_bytes())
     except (OSError, ValueError) as error:
-        raise ValueError(f"cannot resume: saved Cargo artifact record is invalid: {error}") from error
+        raise ValueError(
+            f"cannot resume: saved Cargo artifact record is invalid: {error}"
+        ) from error
     if (
         record.get("cargo_artifact") != str(artifact)
         or record.get("command") != cargo_worker_build_command()
     ):
-        raise ValueError("cannot resume: saved Cargo artifact is not the Ruff benchmark target")
+        raise ValueError(
+            "cannot resume: saved Cargo artifact is not the Ruff benchmark target"
+        )
     return executable, record
 
 
@@ -1237,26 +1698,46 @@ def resume_manifest(output_directory: Path, profile_name: str) -> dict[str, obje
         manifest = json.loads(manifest_bytes)
         plan = json.loads(plan_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as error:
-        raise ValueError(f"cannot resume: saved manifest or shard plan is unreadable: {error}") from error
+        raise ValueError(
+            f"cannot resume: saved manifest or shard plan is unreadable: {error}"
+        ) from error
     selection = plan.get("global_identity", {}).get("selection", {})
     if (
         plan.get("profile") != profile_name
-        or selection.get("manifest_sha256") != hashlib.sha256(manifest_bytes).hexdigest()
+        or selection.get("manifest_sha256")
+        != hashlib.sha256(manifest_bytes).hexdigest()
         or profile_name not in manifest.get("combined_profiles", {})
-        or manifest["combined_profiles"][profile_name].get("validation_status") != "active-current"
+        or manifest["combined_profiles"][profile_name].get("validation_status")
+        != "active-current"
         or selection.get("sealed_source_hashes") != manifest.get("files")
     ):
-        raise ValueError("cannot resume: saved manifest does not match the sealed active profile plan")
+        raise ValueError(
+            "cannot resume: saved manifest does not match the sealed active profile plan"
+        )
     repro = output_directory / "profiles" / profile_name / "repro"
     if not repro.is_dir() or plan.get("staged_inputs") != staged_hashes(repro):
-        raise ValueError("cannot resume: staged profile inputs differ from the saved shard plan")
+        raise ValueError(
+            "cannot resume: staged profile inputs differ from the saved shard plan"
+        )
     profile_data = tomllib.loads((repro / "benchmark.toml").read_text(encoding="utf-8"))
-    if profile_data.get("defaults") != manifest["combined_profiles"][profile_name].get("selected_rules"):
-        raise ValueError("cannot resume: profile rule selection differs from the saved manifest")
-    if selection.get("target_version") != profile_data.get("parser-configuration", "python-target=3.10"):
-        raise ValueError("cannot resume: parser target differs from the saved run identity")
-    if selection.get("selected_rule_applicability") != profile_data.get("rule-applicability", {}):
-        raise ValueError("cannot resume: rule applicability differs from the saved run identity")
+    if profile_data.get("defaults") != manifest["combined_profiles"][profile_name].get(
+        "selected_rules"
+    ):
+        raise ValueError(
+            "cannot resume: profile rule selection differs from the saved manifest"
+        )
+    if selection.get("target_version") != profile_data.get(
+        "parser-configuration", "python-target=3.10"
+    ):
+        raise ValueError(
+            "cannot resume: parser target differs from the saved run identity"
+        )
+    if selection.get("selected_rule_applicability") != profile_data.get(
+        "rule-applicability", {}
+    ):
+        raise ValueError(
+            "cannot resume: rule applicability differs from the saved run identity"
+        )
     return manifest
 
 
@@ -1276,7 +1757,9 @@ def stage_directory(
         destination = output_directory / "profiles" / name / "repro"
         destination.mkdir(parents=True, exist_ok=False)
         return destination
-    return Path(stack.enter_context(tempfile.TemporaryDirectory(prefix=f"ryo-ruff-{name}-")))
+    return Path(
+        stack.enter_context(tempfile.TemporaryDirectory(prefix=f"ryo-ruff-{name}-"))
+    )
 
 
 def staged_hashes(root: Path) -> dict[str, str]:
@@ -1312,8 +1795,12 @@ def persist_run_record(
 
     record_directory = output_directory / "profiles" / name
     record_directory.mkdir(parents=True, exist_ok=True)
-    (record_directory / "stdout.bin").write_bytes(result.stdout if result is not None else b"")
-    (record_directory / "stderr.bin").write_bytes(result.stderr if result is not None else b"")
+    (record_directory / "stdout.bin").write_bytes(
+        result.stdout if result is not None else b""
+    )
+    (record_directory / "stderr.bin").write_bytes(
+        result.stderr if result is not None else b""
+    )
     record = {
         "profile": name,
         "command": command,
@@ -1327,9 +1814,13 @@ def persist_run_record(
         "stderr_file": f"profiles/{name}/stderr.bin",
         "reproduction_directory": f"profiles/{name}/repro",
         "case_results_file": (
-            f"profiles/{name}/cases.jsonl" if case_results_path is not None and case_results_path.is_file() else None
+            f"profiles/{name}/cases.jsonl"
+            if case_results_path is not None and case_results_path.is_file()
+            else None
         ),
-        "case_results_sha256": sha256(case_results_path) if case_results_path is not None and case_results_path.is_file() else None,
+        "case_results_sha256": sha256(case_results_path)
+        if case_results_path is not None and case_results_path.is_file()
+        else None,
     }
     (record_directory / "result.json").write_text(
         json.dumps(record, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
@@ -1375,7 +1866,9 @@ def verify_profile(
     status_override = None
     if command[1] == "verify-cases":
         if output_directory is None or case_results_path is None:
-            validation_error = "candidate verification requires durable output and exact case receipts"
+            validation_error = (
+                "candidate verification requires durable output and exact case receipts"
+            )
             status_override = 1
         elif result.returncode == 0:
             valid, validation_error = candidate_result_valid(
@@ -1427,14 +1920,26 @@ def verify_reference_profile(
     runner=subprocess.run,
 ) -> int:
     """Check pinned full-report fixtures directly with Ruff, without building Ryo."""
-    profile = tomllib.loads((profile_root / "benchmark.toml").read_text(encoding="utf-8"))
+    profile = tomllib.loads(
+        (profile_root / "benchmark.toml").read_text(encoding="utf-8")
+    )
+    if profile.get("project-context-mode", "isolated") != "isolated":
+        raise ValueError(
+            "reference-only stdin transport cannot verify ListedDisk context; use the sealed native verify-reference-cases protocol"
+        )
     target_config = profile.get("parser-configuration", "python-target=3.10")
     match = re.fullmatch(r"python-target=(3)\.(10|11)", target_config)
     if match is None:
-        raise ValueError(f"unsupported reference-only parser configuration: {target_config}")
+        raise ValueError(
+            f"unsupported reference-only parser configuration: {target_config}"
+        )
     target = f"py{match.group(1)}{match.group(2)}"
     rules = profile.get("defaults")
-    if not isinstance(rules, list) or not rules or any(not isinstance(rule, str) for rule in rules):
+    if (
+        not isinstance(rules, list)
+        or not rules
+        or any(not isinstance(rule, str) for rule in rules)
+    ):
         raise ValueError("reference-only profile must have a nonempty defaults list")
     cases_path = profile_root / "rules" / rules[0] / "cases.toml"
     cases = tomllib.loads(cases_path.read_text(encoding="utf-8")).get("cases")
@@ -1448,9 +1953,19 @@ def verify_reference_profile(
         process_records = []
         for file, source in sorted(case["files"].items()):
             command = [
-                str(ruff), "check", "--isolated", "--no-cache", "--output-format", "json",
-                "--select", ",".join(rules), "--target-version", target,
-                "--stdin-filename", file, "-",
+                str(ruff),
+                "check",
+                "--isolated",
+                "--no-cache",
+                "--output-format",
+                "json",
+                "--select",
+                ",".join(rules),
+                "--target-version",
+                target,
+                "--stdin-filename",
+                file,
+                "-",
             ]
             command_log.append(command)
             try:
@@ -1462,7 +1977,9 @@ def verify_reference_profile(
                     check=False,
                 )
                 if result.returncode not in {0, 1}:
-                    raise ValueError(f"Ruff exited {result.returncode}: {result.stderr!r}")
+                    raise ValueError(
+                        f"Ruff exited {result.returncode}: {result.stderr!r}"
+                    )
                 findings = json.loads(result.stdout)
                 if not isinstance(findings, list):
                     raise ValueError("Ruff JSON response was not an array")
@@ -1474,32 +1991,68 @@ def verify_reference_profile(
                     end = ruff_location_to_byte(source, end_location)
                     if start > end:
                         raise ValueError("Ruff returned a reversed source span")
-                    actual.append({"rule": finding["code"], "file": file, "start": start, "end": end})
-                process_records.append({
-                    "file": file,
-                    "status": result.returncode,
-                    "stdout": result.stdout.decode("utf-8"),
-                    "stderr": result.stderr.decode("utf-8"),
-                })
-            except (OSError, UnicodeDecodeError, KeyError, TypeError, ValueError, json.JSONDecodeError) as error:
+                    actual.append(
+                        {
+                            "rule": finding["code"],
+                            "file": file,
+                            "start": start,
+                            "end": end,
+                        }
+                    )
+                process_records.append(
+                    {
+                        "file": file,
+                        "status": result.returncode,
+                        "stdout": result.stdout.decode("utf-8"),
+                        "stderr": result.stderr.decode("utf-8"),
+                    }
+                )
+            except (
+                OSError,
+                UnicodeDecodeError,
+                KeyError,
+                TypeError,
+                ValueError,
+                json.JSONDecodeError,
+            ) as error:
                 failures.append(f"{case['name']}/{file}: {error}")
-                process_records.append({"file": file, "error": f"{type(error).__name__}: {error}"})
-        actual.sort(key=lambda row: (row["rule"], row["file"], row["start"], row["end"]))
+                process_records.append(
+                    {"file": file, "error": f"{type(error).__name__}: {error}"}
+                )
+        actual.sort(
+            key=lambda row: (row["rule"], row["file"], row["start"], row["end"])
+        )
         expected = sorted(
-            ({"rule": item.get("rule", rules[0]), "file": item["file"], "start": item["start"], "end": item["end"]}
-             for item in case.get("expected", [])),
+            (
+                {
+                    "rule": item.get("rule", rules[0]),
+                    "file": item["file"],
+                    "start": item["start"],
+                    "end": item["end"],
+                }
+                for item in case.get("expected", [])
+            ),
             key=lambda row: (row["rule"], row["file"], row["start"], row["end"]),
         )
         case_passed = actual == expected
         if not case_passed:
-            failures.append(f"{case['name']}: expected {expected!r}; observed {actual!r}")
-        rows.append({
-            "rule": rules[0], "name": case["name"], "side": "reference",
-            "complete": not any(record.get("error") for record in process_records),
-            "case_passed": case_passed, "expected": expected, "actual": actual,
-            "source_sha256": source_hash(case["files"]),
-            "files": sorted(case["files"]), "commands": process_records,
-        })
+            failures.append(
+                f"{case['name']}: expected {expected!r}; observed {actual!r}"
+            )
+        rows.append(
+            {
+                "rule": rules[0],
+                "name": case["name"],
+                "side": "reference",
+                "complete": not any(record.get("error") for record in process_records),
+                "case_passed": case_passed,
+                "expected": expected,
+                "actual": actual,
+                "source_sha256": source_hash(case["files"]),
+                "files": sorted(case["files"]),
+                "commands": process_records,
+            }
+        )
     summary = f"{len(cases)} cases matched the reference; no candidate was executed\n"
     status = 1 if failures else 0
     result = subprocess.CompletedProcess(
@@ -1510,27 +2063,54 @@ def verify_reference_profile(
     )
     case_results_path = None
     if output_directory is not None:
-        case_results_path = output_directory / "profiles" / name / "reference-cases.jsonl"
-        case_results_path.write_text("\n".join(json.dumps(row, ensure_ascii=False) for row in rows) + "\n", encoding="utf-8")
+        case_results_path = (
+            output_directory / "profiles" / name / "reference-cases.jsonl"
+        )
+        case_results_path.write_text(
+            "\n".join(json.dumps(row, ensure_ascii=False) for row in rows) + "\n",
+            encoding="utf-8",
+        )
     return persist_run_record(
-        output_directory, name, command_log, profile_root, result,
-        identities={**identities, "reference_only": True, "candidate_worker_built": False},
+        output_directory,
+        name,
+        command_log,
+        profile_root,
+        result,
+        identities={
+            **identities,
+            "reference_only": True,
+            "candidate_worker_built": False,
+        },
         case_results_path=case_results_path,
     )
 
 
-def reference_tool_identity(ruff: Path, manifest: dict[str, object]) -> dict[str, object]:
+def reference_tool_identity(
+    ruff: Path, manifest: dict[str, object]
+) -> dict[str, object]:
     """Require the executable itself to match a pinned Ruff wheel and version."""
     executable = ruff.resolve()
     if sha256(executable) not in manifest.get("reference_sha256", []):
-        raise ValueError("reference-only executable hash is not one of the pinned Ruff wheels")
-    version = subprocess.run([str(executable), "--version"], capture_output=True, check=False)
+        raise ValueError(
+            "reference-only executable hash is not one of the pinned Ruff wheels"
+        )
+    version = subprocess.run(
+        [str(executable), "--version"], capture_output=True, check=False
+    )
     if version.returncode != 0 or version.stderr:
-        raise ValueError("reference-only executable did not return a clean version response")
+        raise ValueError(
+            "reference-only executable did not return a clean version response"
+        )
     expected = f"ruff {manifest['reference_version']}\n".encode()
     if version.stdout != expected:
-        raise ValueError(f"reference-only executable version mismatch: {version.stdout!r}")
-    return {"path": str(executable), "sha256": sha256(executable), "version": manifest["reference_version"]}
+        raise ValueError(
+            f"reference-only executable version mismatch: {version.stdout!r}"
+        )
+    return {
+        "path": str(executable),
+        "sha256": sha256(executable),
+        "version": manifest["reference_version"],
+    }
 
 
 def worker_identity(identities: dict[str, object], executable: Path) -> None:
@@ -1538,7 +2118,10 @@ def worker_identity(identities: dict[str, object], executable: Path) -> None:
     worker = identities.setdefault("worker", {})
     if not isinstance(worker, dict):
         return
-    worker["executable"] = {"path": str(executable.resolve()), "sha256": sha256(executable)}
+    worker["executable"] = {
+        "path": str(executable.resolve()),
+        "sha256": sha256(executable),
+    }
 
 
 def run_identity(
@@ -1550,9 +2133,16 @@ def run_identity(
 ) -> dict[str, object]:
     """Describe the sealed inputs, candidate worker source, and pinned reference binary."""
     try:
-        revision = subprocess.run(
-            ["git", "rev-parse", "HEAD"], cwd=REPOSITORY, capture_output=True, check=True
-        ).stdout.decode().strip()
+        revision = (
+            subprocess.run(
+                ["git", "rev-parse", "HEAD"],
+                cwd=REPOSITORY,
+                capture_output=True,
+                check=True,
+            )
+            .stdout.decode()
+            .strip()
+        )
     except (OSError, subprocess.CalledProcessError):
         revision = None
     try:
@@ -1562,12 +2152,23 @@ def run_identity(
             capture_output=True,
             check=True,
         ).stdout
-        worker_status = subprocess.run(
-            ["git", "status", "--porcelain", "--untracked-files=all", "--", "crates/ryo"],
-            cwd=REPOSITORY,
-            capture_output=True,
-            check=True,
-        ).stdout.decode().splitlines()
+        worker_status = (
+            subprocess.run(
+                [
+                    "git",
+                    "status",
+                    "--porcelain",
+                    "--untracked-files=all",
+                    "--",
+                    "crates/ryo",
+                ],
+                cwd=REPOSITORY,
+                capture_output=True,
+                check=True,
+            )
+            .stdout.decode()
+            .splitlines()
+        )
     except (OSError, subprocess.CalledProcessError):
         worker_diff = b""
         worker_status = None
@@ -1576,12 +2177,20 @@ def run_identity(
     resolved_ruff = ruff.resolve()
     cargo = shutil.which("cargo")
     try:
-        cargo_version = subprocess.run(
-            [cargo, "--version"], capture_output=True, check=True
-        ).stdout.decode().strip() if cargo else None
-        rustc_version = subprocess.run(
-            ["rustc", "--version", "--verbose"], capture_output=True, check=True
-        ).stdout.decode().strip()
+        cargo_version = (
+            subprocess.run([cargo, "--version"], capture_output=True, check=True)
+            .stdout.decode()
+            .strip()
+            if cargo
+            else None
+        )
+        rustc_version = (
+            subprocess.run(
+                ["rustc", "--version", "--verbose"], capture_output=True, check=True
+            )
+            .stdout.decode()
+            .strip()
+        )
     except (OSError, subprocess.CalledProcessError):
         cargo_version = None
         rustc_version = None
@@ -1618,7 +2227,10 @@ def run_identity(
                     for key, current in (
                         ("repository_revision", revision),
                         ("working_tree_status", worker_status),
-                        ("working_tree_diff_sha256", hashlib.sha256(worker_diff).hexdigest()),
+                        (
+                            "working_tree_diff_sha256",
+                            hashlib.sha256(worker_diff).hexdigest(),
+                        ),
                         (
                             "source_tree_sha256",
                             current_source.get("source_tree_sha256"),
@@ -1671,7 +2283,10 @@ def stage_binding(
                 raise ValueError(f"oracle evidence mismatch for {rule}")
         if "reference_audit_file" in recorded:
             audit = REPOSITORY / recorded["reference_audit_file"]
-            if not audit.is_file() or sha256(audit) != recorded["reference_audit_sha256"]:
+            if (
+                not audit.is_file()
+                or sha256(audit) != recorded["reference_audit_sha256"]
+            ):
                 raise ValueError(f"reference case audit mismatch for {rule}")
         destination = stage_directory(profile_name, stack, output_directory)
         rule_dir = destination / "rules" / rule
@@ -1704,8 +2319,12 @@ def stage_combined(
     profile_path = REPOSITORY / descriptor["profile_file"]
     profile_data = tomllib.loads(profile_path.read_text(encoding="utf-8"))
     selected_rules = descriptor["selected_rules"]
-    if profile_data.get("defaults") != selected_rules or len(selected_rules) != len(set(selected_rules)):
-        raise ValueError(f"{profile_name} selection does not match its prepared descriptor")
+    if profile_data.get("defaults") != selected_rules or len(selected_rules) != len(
+        set(selected_rules)
+    ):
+        raise ValueError(
+            f"{profile_name} selection does not match its prepared descriptor"
+        )
     if not profile_tool_matches(profile_data, manifest):
         raise ValueError(f"tool identity mismatch for {profile_name}")
     if sha256(profile_path) != descriptor["benchmark_sha256"]:
@@ -1725,7 +2344,9 @@ def stage_combined(
         or overlay.get("reference_sha256") not in manifest["reference_sha256"]
         or overlay.get("selection_count") != len(selected_rules)
         or overlay.get("selected_rules_sha256")
-        != hashlib.sha256(json.dumps(sorted(selected_rules), separators=(",", ":")).encode("utf-8")).hexdigest()
+        != hashlib.sha256(
+            json.dumps(sorted(selected_rules), separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
         or overlay.get("oracle_sha256") != descriptor["oracle_sha256"]
         or overlay.get("oracle_file") != descriptor.get("oracle_file")
     ):
@@ -1737,20 +2358,34 @@ def stage_combined(
     for item in overlay["cases"]:
         key = (item["rule"], item["case"])
         if key in overlays or item["rule"] not in selected_rules:
-            raise ValueError(f"duplicate or unselected {profile_name} overlay case: {key}")
+            raise ValueError(
+                f"duplicate or unselected {profile_name} overlay case: {key}"
+            )
         cases_path = combined_case_path(item["rule"], descriptor)
-        canonical_case_label = (RUFF_DIR / "rules" / item["rule"] / "cases.toml").relative_to(REPOSITORY).as_posix()
+        canonical_case_label = (
+            (RUFF_DIR / "rules" / item["rule"] / "cases.toml")
+            .relative_to(REPOSITORY)
+            .as_posix()
+        )
         if item["cases_file"] != canonical_case_label:
-            raise ValueError(f"{profile_name} overlay names a noncanonical case identity: {key}")
+            raise ValueError(
+                f"{profile_name} overlay names a noncanonical case identity: {key}"
+            )
         if sha256(cases_path) != item["canonical_cases_sha256"]:
-            raise ValueError(f"{profile_name} canonical case hash mismatch: {item['cases_file']}")
+            raise ValueError(
+                f"{profile_name} canonical case hash mismatch: {item['cases_file']}"
+            )
         source_cases = tomllib.loads(cases_path.read_text(encoding="utf-8"))["cases"]
         matching = [case for case in source_cases if case["name"] == item["case"]]
         if len(matching) != 1:
-            raise ValueError(f"{profile_name} overlay case is absent or duplicated: {key}")
+            raise ValueError(
+                f"{profile_name} overlay case is absent or duplicated: {key}"
+            )
         case = matching[0]
         if not full_report and case.get("comparison", "rule") != "full":
-            raise ValueError(f"{profile_name} overlay requires a full-report case: {key}")
+            raise ValueError(
+                f"{profile_name} overlay requires a full-report case: {key}"
+            )
         if source_hash(case["files"]) != item["case_source_sha256"]:
             raise ValueError(f"{profile_name} case source hash mismatch: {key}")
         findings = item["expected"]
@@ -1763,11 +2398,18 @@ def stage_combined(
                 or finding["start"] < 0
                 or finding["end"] < finding["start"]
                 or finding["file"] not in case["files"]
-                or (finding["rule"] not in selected_rules and finding["rule"] != "invalid-syntax")
+                or (
+                    finding["rule"] not in selected_rules
+                    and finding["rule"] != "invalid-syntax"
+                )
             ):
                 raise ValueError(f"invalid {profile_name} expected finding: {key}")
-        if case.get("comparison", "rule") == "full" and any("rule" not in entry for entry in case["expected"]):
-            raise ValueError(f"{profile_name} canonical full-report finding lacks an explicit rule: {key}")
+        if case.get("comparison", "rule") == "full" and any(
+            "rule" not in entry for entry in case["expected"]
+        ):
+            raise ValueError(
+                f"{profile_name} canonical full-report finding lacks an explicit rule: {key}"
+            )
         original = diagnostic_multiset(
             [
                 {**entry, "rule": entry.get("rule", item["rule"])}
@@ -1782,9 +2424,17 @@ def stage_combined(
         expected_findings += len(findings)
         overlays[key] = (item, case)
     if full_report:
-        if len(overlays) != descriptor["case_count"] or len(overlays) != overlay["case_count"]:
-            raise ValueError(f"{profile_name} complete expected inventory count mismatch")
-    elif len(overlays) != overlay["changed_case_count"] or added_findings != overlay["additional_diagnostic_count"]:
+        if (
+            len(overlays) != descriptor["case_count"]
+            or len(overlays) != overlay["case_count"]
+        ):
+            raise ValueError(
+                f"{profile_name} complete expected inventory count mismatch"
+            )
+    elif (
+        len(overlays) != overlay["changed_case_count"]
+        or added_findings != overlay["additional_diagnostic_count"]
+    ):
         raise ValueError(f"{profile_name} overlay diagnostic totals mismatch")
     if expected_findings != overlay["expected_diagnostic_count"]:
         raise ValueError(f"{profile_name} overlay diagnostic totals mismatch")
@@ -1793,7 +2443,9 @@ def stage_combined(
     for oracle_case in oracle["cases"]:
         key = (oracle_case["rule"], oracle_case.get("case", oracle_case.get("name")))
         if key in oracle_cases:
-            raise ValueError(f"{profile_name} oracle has duplicate case identity: {key}")
+            raise ValueError(
+                f"{profile_name} oracle has duplicate case identity: {key}"
+            )
         oracle_cases[key] = oracle_case
     if full_report and len(oracle_cases) != descriptor["case_count"]:
         raise ValueError(f"{profile_name} oracle case count mismatch")
@@ -1802,9 +2454,12 @@ def stage_combined(
         if (
             oracle_case is None
             or oracle_case["case_source_sha256"] != item["case_source_sha256"]
-            or diagnostic_multiset(item["expected"]) != diagnostic_multiset(oracle_case["expected"])
+            or diagnostic_multiset(item["expected"])
+            != diagnostic_multiset(oracle_case["expected"])
         ):
-            raise ValueError(f"{profile_name} overlay diagnostics differ from the sealed oracle: {key}")
+            raise ValueError(
+                f"{profile_name} overlay diagnostics differ from the sealed oracle: {key}"
+            )
 
     inventory = []
     staged_cases: dict[str, list[dict[str, object]]] = {}
@@ -1817,7 +2472,9 @@ def stage_combined(
         staged_cases[rule] = cases
         for case in cases:
             comparison = "full" if full_report else case.get("comparison", "rule")
-            inventory.append({"rule": rule, "name": case["name"], "comparison": comparison})
+            inventory.append(
+                {"rule": rule, "name": case["name"], "comparison": comparison}
+            )
     counts = (
         collections.Counter({"full": len(inventory)})
         if full_report
@@ -1827,10 +2484,17 @@ def stage_combined(
             for item in cases
         )
     )
-    if len(inventory) != descriptor["case_count"] or counts != descriptor["comparison_counts"]:
+    if (
+        len(inventory) != descriptor["case_count"]
+        or counts != descriptor["comparison_counts"]
+    ):
         raise ValueError(f"{profile_name} comparison inventory mismatch")
-    if full_report and set(overlays) != {(item["rule"], item["name"]) for item in inventory}:
-        raise ValueError(f"{profile_name} complete expected inventory does not match selected cases")
+    if full_report and set(overlays) != {
+        (item["rule"], item["name"]) for item in inventory
+    }:
+        raise ValueError(
+            f"{profile_name} complete expected inventory does not match selected cases"
+        )
     inventory_hash = hashlib.sha256(
         json.dumps(inventory, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
     ).hexdigest()
@@ -1840,8 +2504,12 @@ def stage_combined(
     preservation_path = descriptor.get("case_preservation_file")
     if preservation_path is not None:
         if preservation_path not in descriptor["input_files"]:
-            raise ValueError(f"{profile_name} case-preservation proof is not a sealed input")
-        preservation = json.loads((REPOSITORY / preservation_path).read_text(encoding="utf-8"))
+            raise ValueError(
+                f"{profile_name} case-preservation proof is not a sealed input"
+            )
+        preservation = json.loads(
+            (REPOSITORY / preservation_path).read_text(encoding="utf-8")
+        )
         baseline_name = preservation.get("baseline_profile")
         baseline = manifest.get("combined_profiles", {}).get(baseline_name)
         if (
@@ -1857,12 +2525,20 @@ def stage_combined(
         for rule in baseline["selected_rules"]:
             previous_path = combined_case_path(rule, baseline)
             current_path = combined_case_path(rule, descriptor)
-            previous_cases = tomllib.loads(previous_path.read_text(encoding="utf-8"))["cases"]
-            current_cases = tomllib.loads(current_path.read_text(encoding="utf-8"))["cases"]
+            previous_cases = tomllib.loads(previous_path.read_text(encoding="utf-8"))[
+                "cases"
+            ]
+            current_cases = tomllib.loads(current_path.read_text(encoding="utf-8"))[
+                "cases"
+            ]
             rule_migrations = migrations.get(rule, {})
             if not isinstance(rule_migrations, dict):
-                raise ValueError(f"{profile_name} case-preservation migrations are invalid for {rule}")
-            verify_case_inventory_extension(previous_cases, current_cases, rule_migrations)
+                raise ValueError(
+                    f"{profile_name} case-preservation migrations are invalid for {rule}"
+                )
+            verify_case_inventory_extension(
+                previous_cases, current_cases, rule_migrations
+            )
 
     destination = stage_directory(profile_name, stack, output_directory)
     registry = descriptor.get("module_files")
@@ -1892,7 +2568,9 @@ def stage_combined(
             if overlay_entry is not None:
                 case["expected"] = overlay_entry[0]["expected"]
             elif full_report:
-                raise ValueError(f"{profile_name} is missing complete expected case: {rule}/{case['name']}")
+                raise ValueError(
+                    f"{profile_name} is missing complete expected case: {rule}/{case['name']}"
+                )
             if full_report:
                 case["comparison"] = "full"
         write_cases(rule_dir / "cases.toml", cases)
@@ -1929,7 +2607,9 @@ def combined_query_path(rule: str, descriptor: dict[str, object]) -> Path:
     if rule in paths:
         return combined_input_path(paths[rule], descriptor)
     source_dir = RUFF_DIR / "rules" / rule
-    return source_dir / combined_filename(rule, descriptor, "candidate.ryoql", "query.ryoql")
+    return source_dir / combined_filename(
+        rule, descriptor, "candidate.ryoql", "query.ryoql"
+    )
 
 
 def combined_case_path(rule: str, descriptor: dict[str, object]) -> Path:
@@ -1946,7 +2626,9 @@ def combined_filename(rule: str, descriptor: dict[str, object], *names: str) -> 
     source_dir = f"crates/ryo/languages/python/benchmarks/linters/ruff/rules/{rule}"
     candidates = [name for name in names if f"{source_dir}/{name}" in inputs]
     if len(candidates) != 1:
-        raise ValueError(f"combined profile must seal exactly one {names} source for {rule}")
+        raise ValueError(
+            f"combined profile must seal exactly one {names} source for {rule}"
+        )
     return candidates[0]
 
 
@@ -1961,18 +2643,31 @@ def verify_ready_assets(
         raise ValueError(f"{profile_name} READY asset receipt is not a sealed input")
     receipt = json.loads((REPOSITORY / receipt_file).read_text(encoding="utf-8"))
     if receipt.get("schema") != "ready-query-assets/v1":
-        raise ValueError(f"{profile_name} READY asset receipt has an unsupported schema")
+        raise ValueError(
+            f"{profile_name} READY asset receipt has an unsupported schema"
+        )
     for asset in receipt["assets"]:
         path = asset["path"]
-        if path not in descriptor["input_files"] or sha256(REPOSITORY / path) != asset["sha256"]:
-            raise ValueError(f"{profile_name} READY query/module bytes differ from receipt: {path}")
-    profile = tomllib.loads((REPOSITORY / descriptor["profile_file"]).read_text(encoding="utf-8"))
+        if (
+            path not in descriptor["input_files"]
+            or sha256(REPOSITORY / path) != asset["sha256"]
+        ):
+            raise ValueError(
+                f"{profile_name} READY query/module bytes differ from receipt: {path}"
+            )
+    profile = tomllib.loads(
+        (REPOSITORY / descriptor["profile_file"]).read_text(encoding="utf-8")
+    )
     registry = descriptor.get("module_files")
     if registry is None:
         registry = combined_modules(profile, descriptor["selected_rules"], manifest)
-    required = set(descriptor["query_files"].values()) | {module_path(path) for path in registry.values()}
+    required = set(descriptor["query_files"].values()) | {
+        module_path(path) for path in registry.values()
+    }
     if required - {asset["path"] for asset in receipt["assets"]}:
-        raise ValueError(f"{profile_name} READY receipt omits selected candidate queries or modules")
+        raise ValueError(
+            f"{profile_name} READY receipt omits selected candidate queries or modules"
+        )
 
 
 def verify_case_inventory_extension(
@@ -2004,27 +2699,233 @@ def verify_case_inventory_extension(
         new_name = explicit_renames.get(old_name, old_name)
         current_case = current_by_name.get(new_name)
         if current_case is None:
-            raise ValueError(f"canonical case was removed without migration: {old_name}")
+            raise ValueError(
+                f"canonical case was removed without migration: {old_name}"
+            )
         expected_case = dict(old_case)
         expected_case["name"] = new_name
         actual_case = dict(current_case)
-        if expected_case.get("comparison", "rule") == actual_case.get("comparison", "rule") == "rule":
+        if (
+            expected_case.get("comparison", "rule")
+            == actual_case.get("comparison", "rule")
+            == "rule"
+        ):
             expected_case.pop("comparison", None)
             actual_case.pop("comparison", None)
         if actual_case != expected_case:
-            raise ValueError(f"canonical case source/settings/expectations changed: {old_name}")
+            raise ValueError(
+                f"canonical case source/settings/expectations changed: {old_name}"
+            )
     if set(explicit_renames.values()) - set(current_by_name):
         raise ValueError("case migration target is absent from the current inventory")
+
+
+def actual_proof_asset_guard_self_test() -> None:
+    """A valid commit/source hash cannot bless different executed query bytes."""
+    with tempfile.TemporaryDirectory(prefix="ryo-actual-proof-guard-") as temporary:
+        root = Path(temporary)
+        prefix = RUFF_DIR.relative_to(REPOSITORY)
+        profile_path = prefix / "profiles/F401/benchmark.toml"
+        query_path = prefix / "rules/F401/candidate.ryoql"
+        (root / profile_path).parent.mkdir(parents=True, exist_ok=True)
+        (root / query_path).parent.mkdir(parents=True, exist_ok=True)
+        (root / profile_path).write_text('defaults = ["F401"]\n', encoding="utf-8")
+        (root / query_path).write_text("valid source-commit bytes", encoding="utf-8")
+        profile = {
+            "rule": "F401",
+            "profile_file": profile_path.as_posix(),
+            "settings": {
+                "defaults": ["F401"],
+                "parser_configuration": "python-target=3.10",
+                "project_context_mode": "isolated",
+            },
+            "module_registry": {},
+            "modules": {},
+            "query": {
+                "canonical_path": query_path.as_posix(),
+                "source_commit": "48acfc0321046a0a3d0c44b5d122dbe09eb51cc6",
+                "proof_sha256": hashlib.sha256(
+                    b"different actual executed proof bytes"
+                ).hexdigest(),
+            },
+        }
+        (root / "receipt.json").write_text(
+            json.dumps({"schema": "actual-proof-assets/v1", "profiles": [profile]}),
+            encoding="utf-8",
+        )
+        manifest = {
+            "profiles": {"F401": {"candidate_file": "rules/F401/candidate.ryoql"}},
+            "actual_proof_receipts": ["receipt.json"],
+            "files": {"query.ryoql": sha256(root / query_path)},
+        }
+        try:
+            verify_actual_proof_assets(manifest, root)
+        except ValueError as error:
+            assert "actual-proof asset mismatch" in str(error)
+        else:
+            raise AssertionError(
+                "source-commit metadata bypassed actual executed query identity"
+            )
+        (root / query_path).write_bytes(b"different actual executed proof bytes")
+        verify_actual_proof_assets(manifest, root)
+        # A correctly tracked source commit cannot substitute a different dependency either.
+        (root / profile_path).write_text(
+            'defaults = ["F401"]\n[query-modules]\n"python/ruff/suppress" = "fragments/suppress.ryoql"\n',
+            encoding="utf-8",
+        )
+        module = prefix / "fragments/suppress.ryoql"
+        (root / module).parent.mkdir(parents=True, exist_ok=True)
+        (root / module).write_text("valid source-commit helper", encoding="utf-8")
+        profile["module_registry"] = {
+            "python/ruff/suppress": "fragments/suppress.ryoql"
+        }
+        profile["modules"] = {
+            "python/ruff/suppress": {
+                "canonical_path": module.as_posix(),
+                "proof_sha256": hashlib.sha256(b"actual executed helper").hexdigest(),
+            }
+        }
+        (root / "receipt.json").write_text(
+            json.dumps({"schema": "actual-proof-assets/v1", "profiles": [profile]}),
+            encoding="utf-8",
+        )
+        try:
+            verify_actual_proof_assets(manifest, root)
+        except ValueError as error:
+            assert "actual-proof asset mismatch" in str(error)
+        else:
+            raise AssertionError(
+                "dependency source metadata bypassed actual proof bytes"
+            )
+        (root / module).write_bytes(b"actual executed helper")
+        verify_actual_proof_assets(manifest, root)
+
+
+def context_guard_self_test() -> None:
+    """Independent native receipt rejects missing, mixed, and undeclared context evidence."""
+    authored = {
+        "files": {"mod.py": "from pkg.mod import *\n"},
+        "context": {
+            "logical-root": "pkg",
+            "auxiliary-files": {"pkg/__init__.py": ""},
+            "missing": ["__init__.py"],
+        },
+    }
+    identity = expected_context_identity(authored, "listed-disk")
+    if os.name != "nt":
+        # Actual Ruff/Ryo paired receipt from the pinned 097f worker, not a roundtrip expectation.
+        assert (
+            identity["manifest_hash"]
+            == "e245d4740b16dcfc7622f5b1fb7197ef320c88a48245d856a9410eca78485563"
+        )
+    manifest = {
+        "mode": "listed-disk",
+        "logical_root": "pkg",
+        "actual_root": str(
+            Path(tempfile.gettempdir()).resolve() / "sealed-context" / "pkg"
+        ),
+        "manifest_hash": identity["manifest_hash"],
+    }
+    case = {"project_context_mode": "listed-disk", "context_identity": identity}
+    sides = {
+        "reference": {"context_manifest": manifest, "project_context": None},
+        "candidate": {
+            "context_manifest": manifest,
+            "project_context": {
+                **manifest,
+                "dependencies": {
+                    "../__init__.py": None,
+                    "__init__.py": [
+                        175,
+                        19,
+                        73,
+                        185,
+                        245,
+                        249,
+                        161,
+                        166,
+                        160,
+                        64,
+                        77,
+                        234,
+                        54,
+                        220,
+                        201,
+                        73,
+                    ],
+                },
+            },
+        },
+    }
+    assert context_receipts_valid(case, sides)
+    assert not context_receipts_valid({"project_context_mode": "isolated"}, sides)
+    for field, value in (
+        ("mode", "isolated"),
+        ("manifest_hash", "0" * 64),
+        ("logical_root", "other"),
+        ("actual_root", "relative"),
+    ):
+        invalid = json.loads(json.dumps(sides))
+        invalid["candidate"]["context_manifest"][field] = value
+        assert not context_receipts_valid(case, invalid)
+    for field in ("context_manifest", "project_context"):
+        invalid = json.loads(json.dumps(sides))
+        invalid["candidate"][field] = None
+        assert not context_receipts_valid(case, invalid)
+    for dependencies in (
+        {"undeclared.py": [0] * 16},
+        {"__init__.py": None},
+        {"../__init__.py": [0] * 16},
+        {"__init__.py": [0] * 15},
+        {"../../escape.py": None},
+    ):
+        invalid = json.loads(json.dumps(sides))
+        invalid["candidate"]["project_context"]["dependencies"] = dependencies
+        assert not context_receipts_valid(case, invalid)
+    altered = json.loads(json.dumps(authored))
+    altered["context"]["auxiliary-files"]["pkg/__init__.py"] = "# changed\n"
+    assert not context_receipts_valid(
+        {**case, "context_identity": expected_context_identity(altered, "listed-disk")},
+        sides,
+    )
+    for mode, source in (
+        ("isolated", authored),
+        ("listed-disk", {"files": authored["files"]}),
+    ):
+        try:
+            expected_context_identity(source, mode)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("mixed or missing context admission was accepted")
+    with tempfile.TemporaryDirectory(prefix="ryo-context-stdin-refusal-") as temporary:
+        root = Path(temporary)
+        (root / "benchmark.toml").write_text(
+            'project-context-mode = "listed-disk"\n', encoding="utf-8"
+        )
+        try:
+            verify_reference_profile(
+                "context", root, root / "must-not-launch", root / "output", {}
+            )
+        except ValueError as error:
+            assert "stdin transport" in str(error)
+        else:
+            raise AssertionError("ListedDisk was silently transported over stdin")
 
 
 def self_test() -> int:
     """Exercise fail-closed profile-selection and hash-mismatch guards without invoking Cargo."""
     global MANIFEST
+    context_guard_self_test()
+    actual_proof_asset_guard_self_test()
     if (
         ruff_location_to_byte("é\fvalue\r\nx", {"row": 1, "column": 8}) != 8
         or ruff_location_to_byte("é\fvalue\r\nx", {"row": 2, "column": 2}) != 11
     ):
-        print("Ruff coordinate conversion must count physical CR/LF lines and UTF-8 bytes", file=sys.stderr)
+        print(
+            "Ruff coordinate conversion must count physical CR/LF lines and UTF-8 bytes",
+            file=sys.stderr,
+        )
         return 1
     sample_inventory = [
         {"rule": "A", "name": "one", "case_sha256": "a"},
@@ -2047,7 +2948,9 @@ def self_test() -> int:
         {"name": "new-case", "files": {"case.py": "z = 3\n"}, "expected": []},
     ]
     try:
-        verify_case_inventory_extension(prior_cases, extended_cases, {"old-name": "renamed-old-name"})
+        verify_case_inventory_extension(
+            prior_cases, extended_cases, {"old-name": "renamed-old-name"}
+        )
         for invalid_cases, migrations in (
             (extended_cases[1:], {"old-name": "renamed-old-name"}),
             ([prior_cases[0], {**prior_cases[1], "expected": []}], {}),
@@ -2057,7 +2960,9 @@ def self_test() -> int:
                 verify_case_inventory_extension(prior_cases, invalid_cases, migrations)
             except ValueError:
                 continue
-            raise ValueError("case preservation accepted a removal, changed expectation, or duplicate identity")
+            raise ValueError(
+                "case preservation accepted a removal, changed expectation, or duplicate identity"
+            )
     except (TypeError, ValueError) as error:
         print(f"canonical case inventory preservation failed: {error}", file=sys.stderr)
         return 1
@@ -2072,7 +2977,9 @@ def self_test() -> int:
             if "exactly one active combined cohort" not in str(error):
                 raise
         else:
-            raise ValueError("default acceptance allowed a missing active combined cohort")
+            raise ValueError(
+                "default acceptance allowed a missing active combined cohort"
+            )
         ambiguous_cohorts = json.loads(json.dumps(prepared))
         for descriptor in ambiguous_cohorts.get("combined_profiles", {}).values():
             descriptor["validation_status"] = "active-current"
@@ -2082,15 +2989,22 @@ def self_test() -> int:
             if "exactly one active combined cohort" not in str(error):
                 raise
         else:
-            raise ValueError("default acceptance allowed multiple active combined cohorts")
+            raise ValueError(
+                "default acceptance allowed multiple active combined cohorts"
+            )
         phase_registry = verify_rule_phase_registry(prepared)
         if selected_rule_applicability(
-            prepared, prepared["combined_profiles"]["current-canonical"]["selected_rules"]
+            prepared,
+            prepared["combined_profiles"]["current-canonical"]["selected_rules"],
         ) != {
             rule: phase_registry["rules"][rule]["applicability"]
-            for rule in prepared["combined_profiles"]["current-canonical"]["selected_rules"]
+            for rule in prepared["combined_profiles"]["current-canonical"][
+                "selected_rules"
+            ]
         }:
-            raise ValueError("applicability projection changed the selected rule inventory")
+            raise ValueError(
+                "applicability projection changed the selected rule inventory"
+            )
         missing_phase = json.loads(json.dumps(phase_registry))
         missing_phase["rules"].pop(next(iter(missing_phase["rules"])))
         unknown_phase = json.loads(json.dumps(phase_registry))
@@ -2107,7 +3021,9 @@ def self_test() -> int:
                 verify_rule_phase_registry(prepared, invalid)
             except ValueError:
                 continue
-            raise ValueError("phase validation accepted missing, unknown, or unreviewed mixed data")
+            raise ValueError(
+                "phase validation accepted missing, unknown, or unreviewed mixed data"
+            )
         if phase_registry["rules"]["EXE005"]["applicability"] != "always":
             raise ValueError("token-only Ruff rule lost independent applicability")
     except (OSError, ValueError, KeyError, TypeError) as error:
@@ -2127,13 +3043,15 @@ def self_test() -> int:
             },
         }
         prepared_path = resume_root / "prepared.json"
-        manifest_bytes = json.dumps(resume_manifest_data, separators=(",", ":")).encode()
+        manifest_bytes = json.dumps(
+            resume_manifest_data, separators=(",", ":")
+        ).encode()
         prepared_path.write_bytes(manifest_bytes)
         repro = resume_root / "profiles" / profile_name / "repro"
         repro.mkdir(parents=True)
         (repro / "benchmark.toml").write_text(
             'defaults = ["A"]\nparser-configuration = "python-target=3.10"\n'
-            'rule-applicability = {}\n',
+            "rule-applicability = {}\n",
             encoding="utf-8",
         )
         staged = staged_hashes(repro)
@@ -2147,11 +3065,13 @@ def self_test() -> int:
         plan_root = resume_root / "profiles" / profile_name
         plan_root.mkdir(exist_ok=True)
         (plan_root / "shard-plan.json").write_text(
-            json.dumps({
-                "profile": profile_name,
-                "staged_inputs": staged,
-                "global_identity": {"selection": selection},
-            }),
+            json.dumps(
+                {
+                    "profile": profile_name,
+                    "staged_inputs": staged,
+                    "global_identity": {"selection": selection},
+                }
+            ),
             encoding="utf-8",
         )
         try:
@@ -2197,7 +3117,10 @@ def self_test() -> int:
         valid_shard_receipts(sample_inventory, altered, 3, identity)
         for altered in (overlapping, incomplete, mixed_worker)
     ):
-        print("shard aggregation accepted overlap, missing shard, or mixed worker", file=sys.stderr)
+        print(
+            "shard aggregation accepted overlap, missing shard, or mixed worker",
+            file=sys.stderr,
+        )
         return 1
     with tempfile.TemporaryDirectory(prefix="ryo-ruff-shard-test-") as temporary:
         root = Path(temporary)
@@ -2206,12 +3129,24 @@ def self_test() -> int:
         for rule, names in (("A", ("one", "two")), ("B", ("one",))):
             rule_root = rules_root / rule
             rule_root.mkdir(parents=True)
-            cases = [{"name": name, "files": {"case.py": f"value = {index}\n"}, "expected": []} for index, name in enumerate(names)]
+            cases = [
+                {
+                    "name": name,
+                    "files": {"case.py": f"value = {index}\n"},
+                    "expected": [],
+                }
+                for index, name in enumerate(names)
+            ]
             (rule_root / "cases.toml").write_text(
-                "\n".join(f'[[cases]]\nname = "{case["name"]}"\nfiles = {{ "case.py" = {json.dumps(case["files"]["case.py"])} }}\nexpected = []\n' for case in cases),
+                "\n".join(
+                    f'[[cases]]\nname = "{case["name"]}"\nfiles = {{ "case.py" = {json.dumps(case["files"]["case.py"])} }}\nexpected = []\n'
+                    for case in cases
+                ),
                 encoding="utf-8",
             )
-        (profile_root / "benchmark.toml").write_text('parser-configuration = "python-target=3.10"\n', encoding="utf-8")
+        (profile_root / "benchmark.toml").write_text(
+            'parser-configuration = "python-target=3.10"\n', encoding="utf-8"
+        )
         worker = root / "worker"
         ruff = root / "ruff"
         worker.write_bytes(b"worker")
@@ -2229,18 +3164,22 @@ def self_test() -> int:
         rows = []
         for case in inv:
             for side in ("reference", "candidate"):
-                rows.append({
-                    "rule": case["rule"],
-                    "name": case["name"],
-                    "side": side,
-                    "complete": True,
-                    "error": None,
-                    "case_passed": True,
-                    "source_sha256": case["source_sha256"],
-                    "files": case["files"],
-                    "expected": case["expected"],
-                })
-        case_results.write_text("\n".join(json.dumps(row) for row in rows) + "\n", encoding="utf-8")
+                rows.append(
+                    {
+                        "rule": case["rule"],
+                        "name": case["name"],
+                        "side": side,
+                        "complete": True,
+                        "error": None,
+                        "case_passed": True,
+                        "source_sha256": case["source_sha256"],
+                        "files": case["files"],
+                        "expected": case["expected"],
+                    }
+                )
+        case_results.write_text(
+            "\n".join(json.dumps(row) for row in rows) + "\n", encoding="utf-8"
+        )
         valid_receipt, _reason = candidate_result_valid(
             profile_root,
             f"{len(inv)} cases passed against both contestants\n".encode(),
@@ -2248,7 +3187,9 @@ def self_test() -> int:
         )
         if not valid_receipt:
             raise ValueError("exact worker case receipts were rejected")
-        false_audit = lambda command, **_kwargs: subprocess.CompletedProcess(command, 0, b"running 0 tests\n", b"")
+        false_audit = lambda command, **_kwargs: subprocess.CompletedProcess(
+            command, 0, b"running 0 tests\n", b""
+        )
         valid_audit = lambda command, **_kwargs: subprocess.CompletedProcess(
             command,
             0,
@@ -2256,39 +3197,85 @@ def self_test() -> int:
             b"",
         )
         if audit_worker_protocol(worker, runner=false_audit)[0]:
-            raise ValueError("same-named zero-test harness passed the CLI protocol smoke")
+            raise ValueError(
+                "same-named zero-test harness passed the CLI protocol smoke"
+            )
         if not audit_worker_protocol(worker, runner=valid_audit)[0]:
             raise ValueError("valid benchmark CLI audit response was rejected")
         calls = []
 
         def fake_runner(command, *, env, **_kwargs):
             shard_arg = next(value for value in command if value.startswith("--shard="))
-            shard_index, shard_count = (int(value) for value in shard_arg.removeprefix("--shard=").split("/"))
+            shard_index, shard_count = (
+                int(value) for value in shard_arg.removeprefix("--shard=").split("/")
+            )
             selected = partition_case_inventory(inv, shard_count)[shard_index]
-            selection_arg = next((value for value in command if value.startswith("--case-selection=")), None)
+            selection_arg = next(
+                (value for value in command if value.startswith("--case-selection=")),
+                None,
+            )
             if selection_arg is not None:
-                selected_ids = set(json.loads(Path(selection_arg.split("=", 1)[1]).read_text(encoding="utf-8")))
-                selected = [case for case in selected if f"{case['rule']}/{case['name']}" in selected_ids]
+                selected_ids = set(
+                    json.loads(
+                        Path(selection_arg.split("=", 1)[1]).read_text(encoding="utf-8")
+                    )
+                )
+                selected = [
+                    case
+                    for case in selected
+                    if f"{case['rule']}/{case['name']}" in selected_ids
+                ]
             calls.append(shard_index)
             records_path = Path(env["RYO_VERIFY_CASE_RESULTS"])
-            with records_path.open("a" if records_path.exists() else "w", encoding="utf-8") as records:
+            with records_path.open(
+                "a" if records_path.exists() else "w", encoding="utf-8"
+            ) as records:
                 for case in selected:
                     for side in ("reference", "candidate"):
-                        records.write(json.dumps({
-                            "rule": case["rule"], "name": case["name"], "side": side,
-                            "complete": True, "error": None, "case_passed": True,
-                            "diagnostics": [], "expected": case["expected"],
-                            "source_sha256": case["source_sha256"], "files": case["files"],
-                        }) + "\n")
-            summary = f"{len(selected)} cases passed against both contestants\n".encode()
+                        records.write(
+                            json.dumps(
+                                {
+                                    "rule": case["rule"],
+                                    "name": case["name"],
+                                    "side": side,
+                                    "complete": True,
+                                    "error": None,
+                                    "case_passed": True,
+                                    "diagnostics": [],
+                                    "expected": case["expected"],
+                                    "source_sha256": case["source_sha256"],
+                                    "files": case["files"],
+                                }
+                            )
+                            + "\n"
+                        )
+            summary = (
+                f"{len(selected)} cases passed against both contestants\n".encode()
+            )
             return subprocess.CompletedProcess(command, 0, summary, b"")
 
         identities = {"prepared_sha256": "sealed"}
-        first = verify_profile_sharded("test", profile_root, worker, ruff, output, identities, 2, runner=fake_runner)
+        first = verify_profile_sharded(
+            "test",
+            profile_root,
+            worker,
+            ruff,
+            output,
+            identities,
+            2,
+            runner=fake_runner,
+        )
         shards_dir = output / "profiles" / "test" / "shards"
         monolithic = output / "profiles" / "test" / "monolithic.jsonl"
-        monolithic.write_bytes(b"".join((shards_dir / f"{index:03d}.cases.jsonl").read_bytes() for index in range(2)))
-        if not case_observations_match(monolithic, sorted(shards_dir.glob("*.cases.jsonl"))):
+        monolithic.write_bytes(
+            b"".join(
+                (shards_dir / f"{index:03d}.cases.jsonl").read_bytes()
+                for index in range(2)
+            )
+        )
+        if not case_observations_match(
+            monolithic, sorted(shards_dir.glob("*.cases.jsonl"))
+        ):
             print("monolithic/sharded full-report comparison failed", file=sys.stderr)
             return 1
         # Model a crash after every case row is atomically appended but before
@@ -2297,9 +3284,18 @@ def self_test() -> int:
         lost_receipt = shards_dir / "000.receipt.json"
         lost_receipt.unlink()
         recovered = verify_profile_sharded(
-            "test", profile_root, worker, ruff, output, identities, 2, resume=True,
+            "test",
+            profile_root,
+            worker,
+            ruff,
+            output,
+            identities,
+            2,
+            resume=True,
             runner=lambda *_args, **_kwargs: (_ for _ in ()).throw(
-                AssertionError("complete case rows should be reconstructed without rerunning")
+                AssertionError(
+                    "complete case rows should be reconstructed without rerunning"
+                )
             ),
         )
         recovered_receipt = json.loads(lost_receipt.read_text(encoding="utf-8"))
@@ -2308,45 +3304,104 @@ def self_test() -> int:
             or recovered_receipt.get("reconstructed_from_case_records") is not True
             or recovered_receipt.get("stdout_summary_valid") is not None
             or recovered_receipt.get("last_process_status") is not None
-            or recovered_receipt.get("reconstruction", {}).get("process_exit_observed") is not False
+            or recovered_receipt.get("reconstruction", {}).get("process_exit_observed")
+            is not False
         ):
-            print("full-record/missing-receipt recovery fabricated process proof", file=sys.stderr)
+            print(
+                "full-record/missing-receipt recovery fabricated process proof",
+                file=sys.stderr,
+            )
             return 1
         second = verify_profile_sharded(
-            "test", profile_root, worker, ruff, output, identities, 2, resume=True,
-            runner=lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("complete shard was rerun")),
+            "test",
+            profile_root,
+            worker,
+            ruff,
+            output,
+            identities,
+            2,
+            resume=True,
+            runner=lambda *_args, **_kwargs: (_ for _ in ()).throw(
+                AssertionError("complete shard was rerun")
+            ),
         )
         interrupted_index = 0
         interrupted_name = f"{interrupted_index:03d}"
         interrupted_path = shards_dir / f"{interrupted_name}.cases.jsonl"
-        interrupted_rows = [json.loads(line) for line in interrupted_path.read_text(encoding="utf-8").splitlines()]
+        interrupted_rows = [
+            json.loads(line)
+            for line in interrupted_path.read_text(encoding="utf-8").splitlines()
+        ]
         one_case = f"{partitions[interrupted_index][0]['rule']}/{partitions[interrupted_index][0]['name']}"
         interrupted_path.write_text(
-            "\n".join(json.dumps(row) for row in interrupted_rows if f"{row['rule']}/{row['name']}" == one_case) + "\n",
+            "\n".join(
+                json.dumps(row)
+                for row in interrupted_rows
+                if f"{row['rule']}/{row['name']}" == one_case
+            )
+            + "\n",
             encoding="utf-8",
         )
         (shards_dir / f"{interrupted_name}.receipt.json").unlink()
         third = verify_profile_sharded(
-            "test", profile_root, worker, ruff, output, identities, 2, resume=True, runner=fake_runner
+            "test",
+            profile_root,
+            worker,
+            ruff,
+            output,
+            identities,
+            2,
+            resume=True,
+            runner=fake_runner,
         )
         torn = shards_dir / "000.cases.jsonl"
         with torn.open("a", encoding="utf-8") as output_records:
             output_records.write("{incomplete json")
         fourth = verify_profile_sharded(
-            "test", profile_root, worker, ruff, output, identities, 2, resume=True, runner=fake_runner
+            "test",
+            profile_root,
+            worker,
+            ruff,
+            output,
+            identities,
+            2,
+            resume=True,
+            runner=fake_runner,
         )
-        if first != 0 or recovered != 0 or second != 0 or third != 0 or fourth != 0 or calls != [0, 1, 0, 0]:
-            print("shard execution or identity-checked resume self-test failed", file=sys.stderr)
-            print(f"statuses={first, recovered, second, third, fourth}; worker-calls={calls}", file=sys.stderr)
+        if (
+            first != 0
+            or recovered != 0
+            or second != 0
+            or third != 0
+            or fourth != 0
+            or calls != [0, 1, 0, 0]
+        ):
+            print(
+                "shard execution or identity-checked resume self-test failed",
+                file=sys.stderr,
+            )
+            print(
+                f"statuses={first, recovered, second, third, fourth}; worker-calls={calls}",
+                file=sys.stderr,
+            )
             return 1
         cases_path = rules_root / "A" / "cases.toml"
         original_cases = cases_path.read_bytes()
         cases_path.write_bytes(original_cases + b"# staged-input mutation\n")
         try:
             verify_profile_sharded(
-                "test", profile_root, worker, ruff, output, identities, 2, resume=True,
+                "test",
+                profile_root,
+                worker,
+                ruff,
+                output,
+                identities,
+                2,
+                resume=True,
                 runner=lambda *_args, **_kwargs: (_ for _ in ()).throw(
-                    AssertionError("changed staged cases should fail before worker execution")
+                    AssertionError(
+                        "changed staged cases should fail before worker execution"
+                    )
                 ),
             )
             print("changed staged case inputs were accepted on resume", file=sys.stderr)
@@ -2357,18 +3412,30 @@ def self_test() -> int:
         finally:
             cases_path.write_bytes(original_cases)
         more_shards = verify_profile_sharded(
-            "bounded-shards", profile_root, worker, ruff, output, identities, 5, runner=fake_runner
+            "bounded-shards",
+            profile_root,
+            worker,
+            ruff,
+            output,
+            identities,
+            5,
+            runner=fake_runner,
         )
         bounded_plan = json.loads(
-            (output / "profiles" / "bounded-shards" / "shard-plan.json").read_text(encoding="utf-8")
+            (output / "profiles" / "bounded-shards" / "shard-plan.json").read_text(
+                encoding="utf-8"
+            )
         )
         if (
             more_shards != 0
             or bounded_plan.get("requested_shard_count") != 5
             or bounded_plan.get("shard_count") != len(inv)
-            or calls[-len(inv):] != list(range(len(inv)))
+            or calls[-len(inv) :] != list(range(len(inv)))
         ):
-            print("requested shards were not bounded to the nonempty case inventory", file=sys.stderr)
+            print(
+                "requested shards were not bounded to the nonempty case inventory",
+                file=sys.stderr,
+            )
             return 1
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
     with tempfile.TemporaryDirectory(prefix="ryo-ruff-profile-guards-") as temporary:
@@ -2389,13 +3456,20 @@ def self_test() -> int:
         copy_modules(registry, staged_profile.parent)
         if (
             registry.get(module_id) != module_source
-            or tomllib.loads(staged_profile.read_text(encoding="utf-8")).get("query-modules")
+            or tomllib.loads(staged_profile.read_text(encoding="utf-8")).get(
+                "query-modules"
+            )
             != {module_id: module_source}
-            or tomllib.loads(staged_profile.read_text(encoding="utf-8")).get("rule-applicability")
+            or tomllib.loads(staged_profile.read_text(encoding="utf-8")).get(
+                "rule-applicability"
+            )
             != {"UP006": "accepted-syntax"}
             or not (staged_profile.parent / module_source).is_file()
         ):
-            print("single-rule profile did not inherit the shared query module", file=sys.stderr)
+            print(
+                "single-rule profile did not inherit the shared query module",
+                file=sys.stderr,
+            )
             return 1
         py311_profile = root / "py311" / "benchmark.toml"
         py311_profile.parent.mkdir(parents=True)
@@ -2406,10 +3480,15 @@ def self_test() -> int:
             parser_configuration("py311"),
             selected_rule_applicability(manifest, ["UP006"]),
         )
-        if tomllib.loads(py311_profile.read_text(encoding="utf-8")).get(
-            "parser-configuration"
-        ) != "python-target=3.11":
-            print("target-specific parser configuration was not staged", file=sys.stderr)
+        if (
+            tomllib.loads(py311_profile.read_text(encoding="utf-8")).get(
+                "parser-configuration"
+            )
+            != "python-target=3.11"
+        ):
+            print(
+                "target-specific parser configuration was not staged", file=sys.stderr
+            )
             return 1
         try:
             parser_configuration("py312")
@@ -2424,7 +3503,10 @@ def self_test() -> int:
         repro.mkdir(parents=True)
         (repro / "benchmark.toml").write_text('defaults = ["F401"]\n', encoding="utf-8")
         fake_output = subprocess.CompletedProcess(
-            ["fake-worker"], 7, stdout=b"candidate stdout\n", stderr=b"candidate stderr\n"
+            ["fake-worker"],
+            7,
+            stdout=b"candidate stdout\n",
+            stderr=b"candidate stderr\n",
         )
         calls = []
 
@@ -2444,9 +3526,12 @@ def self_test() -> int:
                 }
             },
         }
-        if verify_profile(
-            "mock", repro, command, durable, mock_identity, runner=fake_runner
-        ) != 7:
+        if (
+            verify_profile(
+                "mock", repro, command, durable, mock_identity, runner=fake_runner
+            )
+            != 7
+        ):
             print("mock verifier status was not preserved", file=sys.stderr)
             return 1
         result_path = durable / "profiles" / "mock" / "result.json"
@@ -2456,14 +3541,21 @@ def self_test() -> int:
             or calls[0][0] != command
             or not calls[0][1]["capture_output"]
             or calls[0][1]["text"]
-            or (durable / "profiles" / "mock" / "stdout.bin").read_bytes() != fake_output.stdout
-            or (durable / "profiles" / "mock" / "stderr.bin").read_bytes() != fake_output.stderr
+            or (durable / "profiles" / "mock" / "stdout.bin").read_bytes()
+            != fake_output.stdout
+            or (durable / "profiles" / "mock" / "stderr.bin").read_bytes()
+            != fake_output.stderr
             or result["status"] != 7
             or result["identities"]["identity"] != "sealed"
-            or result["identities"]["worker"]["executable"]["sha256"] != sha256(mock_executable)
-            or result["staged_inputs"] != {"benchmark.toml": sha256(repro / "benchmark.toml")}
+            or result["identities"]["worker"]["executable"]["sha256"]
+            != sha256(mock_executable)
+            or result["staged_inputs"]
+            != {"benchmark.toml": sha256(repro / "benchmark.toml")}
         ):
-            print("durable verifier output or identities were not preserved", file=sys.stderr)
+            print(
+                "durable verifier output or identities were not preserved",
+                file=sys.stderr,
+            )
             return 1
 
         fake_worker = root / "ruff-fake-worker"
@@ -2522,14 +3614,23 @@ def self_test() -> int:
         finally:
             globals()["worker_source_identity"] = source_identity
         globals()["worker_source_identity"] = lambda: (_ for _ in ()).throw(
-            AssertionError("resuming a frozen worker must not re-identify current sources")
+            AssertionError(
+                "resuming a frozen worker must not re-identify current sources"
+            )
         )
         try:
             reused_worker, reused_identity = reuse_frozen_worker(build_root)
         finally:
             globals()["worker_source_identity"] = source_identity
-        if reused_worker != frozen_worker or reused_identity["source_before_build"] != reused_identity["source_after_build"]:
-            print("source edits after a stable build invalidated the frozen worker", file=sys.stderr)
+        if (
+            reused_worker != frozen_worker
+            or reused_identity["source_before_build"]
+            != reused_identity["source_after_build"]
+        ):
+            print(
+                "source edits after a stable build invalidated the frozen worker",
+                file=sys.stderr,
+            )
             return 1
         original_worker_bytes = frozen_worker.read_bytes()
         frozen_worker.write_bytes(b"changed worker")
@@ -2543,7 +3644,9 @@ def self_test() -> int:
         finally:
             frozen_worker.write_bytes(original_worker_bytes)
         try:
-            validate_output_directory(REPOSITORY / "crates" / "ryo" / "unsafe-output", resume=False)
+            validate_output_directory(
+                REPOSITORY / "crates" / "ryo" / "unsafe-output", resume=False
+            )
             print("new output under the Rust source tree was accepted", file=sys.stderr)
             return 1
         except ValueError as error:
@@ -2555,7 +3658,10 @@ def self_test() -> int:
         ]
         worker_paths = root / "worker-paths.log"
         env = {**os.environ, "WORKER_PATHS": str(worker_paths)}
-        runs = [subprocess.run(command, env=env, capture_output=True, check=False) for command in profile_commands]
+        runs = [
+            subprocess.run(command, env=env, capture_output=True, check=False)
+            for command in profile_commands
+        ]
         observed_paths = worker_paths.read_text(encoding="utf-8").splitlines()
         if (
             len(build_calls) != 1
@@ -2581,22 +3687,33 @@ def self_test() -> int:
 
         def failed_build_runner(build_command, **_options):
             return subprocess.CompletedProcess(
-                build_command, 101, stdout=b"cargo stdout\n", stderr=b"cargo compiler diagnostic\n"
+                build_command,
+                101,
+                stdout=b"cargo stdout\n",
+                stderr=b"cargo compiler diagnostic\n",
             )
 
         try:
-            build_worker_once(failed_build_root, contextlib.ExitStack(), runner=failed_build_runner)
+            build_worker_once(
+                failed_build_root, contextlib.ExitStack(), runner=failed_build_runner
+            )
             print("failed worker build unexpectedly succeeded", file=sys.stderr)
             return 1
         except ValueError:
-            failed_build = json.loads((failed_build_root / "build/result.json").read_text())
+            failed_build = json.loads(
+                (failed_build_root / "build/result.json").read_text()
+            )
             if (
                 failed_build["status"] != 101
-                or (failed_build_root / "build/stdout.bin").read_bytes() != b"cargo stdout\n"
+                or (failed_build_root / "build/stdout.bin").read_bytes()
+                != b"cargo stdout\n"
                 or (failed_build_root / "build/stderr.bin").read_bytes()
                 != b"cargo compiler diagnostic\n"
             ):
-                print("failed worker build diagnostics were not persisted", file=sys.stderr)
+                print(
+                    "failed worker build diagnostics were not persisted",
+                    file=sys.stderr,
+                )
                 return 1
 
         source_identity = globals()["worker_source_identity"]
@@ -2616,12 +3733,22 @@ def self_test() -> int:
                 contextlib.ExitStack(),
                 runner=successful_build_runner,
             )
-            print("worker source edit during build unexpectedly succeeded", file=sys.stderr)
+            print(
+                "worker source edit during build unexpectedly succeeded",
+                file=sys.stderr,
+            )
             return 1
         except ValueError:
-            changed_build = json.loads((changed_build_root / "build/result.json").read_text())
-            if changed_build["source_stable_during_build"] or "sources changed" not in changed_build["error"]:
-                print("worker source edit during build was not recorded", file=sys.stderr)
+            changed_build = json.loads(
+                (changed_build_root / "build/result.json").read_text()
+            )
+            if (
+                changed_build["source_stable_during_build"]
+                or "sources changed" not in changed_build["error"]
+            ):
+                print(
+                    "worker source edit during build was not recorded", file=sys.stderr
+                )
                 return 1
         finally:
             globals()["worker_source_identity"] = source_identity
@@ -2632,25 +3759,34 @@ def self_test() -> int:
         error_repro = durable / "profiles" / "mock-error" / "repro"
         error_repro.mkdir(parents=True)
         (error_repro / "cases.toml").write_text("[[cases]]\n", encoding="utf-8")
-        if verify_profile(
-            "mock-error", error_repro, command, durable, {}, runner=failing_runner
-        ) != 1:
-            print("mock verifier startup failure did not return failure", file=sys.stderr)
+        if (
+            verify_profile(
+                "mock-error", error_repro, command, durable, {}, runner=failing_runner
+            )
+            != 1
+        ):
+            print(
+                "mock verifier startup failure did not return failure", file=sys.stderr
+            )
             return 1
         error_record = json.loads(
-            (durable / "profiles" / "mock-error" / "result.json").read_text(encoding="utf-8")
+            (durable / "profiles" / "mock-error" / "result.json").read_text(
+                encoding="utf-8"
+            )
         )
         if (
             error_record["status"] != 1
             or "mock worker could not start" not in error_record["error"]
-            or not (durable / error_record["reproduction_directory"] / "cases.toml").is_file()
+            or not (
+                durable / error_record["reproduction_directory"] / "cases.toml"
+            ).is_file()
         ):
             print("verifier startup exception was not preserved", file=sys.stderr)
             return 1
         profile_source = root / "profile-source.toml"
         profile_source.write_text(
             'tool = "ruff"\nversion = "0"\nsha256 = ["pin"]\ndefaults = ["F401"]\n'
-            '[query-modules] # existing but empty\n',
+            "[query-modules] # existing but empty\n",
             encoding="utf-8",
         )
         module_registry = {"python/ruff/suppress": "rules/F401/candidate.ryoql"}
@@ -2659,16 +3795,26 @@ def self_test() -> int:
         write_staged_profile(profile_source, staged_profile, module_registry)
         parsed_profile = tomllib.loads(staged_profile.read_text(encoding="utf-8"))
         if parsed_profile.get("query-modules") != module_registry:
-            print("staged query module registry did not remain valid TOML", file=sys.stderr)
+            print(
+                "staged query module registry did not remain valid TOML",
+                file=sys.stderr,
+            )
             return 1
         staged_module = root / "rules/F401/candidate.ryoql"
-        if not staged_module.is_file() or staged_module.read_bytes() != (RUFF_DIR / module_registry["python/ruff/suppress"]).read_bytes():
+        if (
+            not staged_module.is_file()
+            or staged_module.read_bytes()
+            != (RUFF_DIR / module_registry["python/ruff/suppress"]).read_bytes()
+        ):
             print("staged query module bytes changed", file=sys.stderr)
             return 1
         shape_descriptor = manifest["combined_profiles"][SHAPE_PROFILE]
         expanded_descriptor = manifest["combined_profiles"]["expanded-defaults"]
         if combined_query_filename("LOG015", expanded_descriptor) != "query.ryoql":
-            print("expanded cohort did not retain its sealed LOG015 query", file=sys.stderr)
+            print(
+                "expanded cohort did not retain its sealed LOG015 query",
+                file=sys.stderr,
+            )
             return 1
         for rule in ("LOG015", "ASYNC115"):
             profile_case = prepared_case_path(rule, manifest["profiles"][rule])
@@ -2681,7 +3827,10 @@ def self_test() -> int:
                 == canonical_case.relative_to(REPOSITORY).as_posix()
                 or combined_query_filename(rule, expanded_descriptor) != "query.ryoql"
             ):
-                print(f"{rule} candidate snapshot changed the frozen expanded cohort", file=sys.stderr)
+                print(
+                    f"{rule} candidate snapshot changed the frozen expanded cohort",
+                    file=sys.stderr,
+                )
                 return 1
         f821_record = manifest["profiles"]["F821"]
         f821_candidate = prepared_candidate_path("F821", f821_record)
@@ -2690,13 +3839,17 @@ def self_test() -> int:
         historical_cases = combined_case_path("F821", expanded_descriptor)
         if (
             f821_candidate != RUFF_DIR / "rules/F821/candidate.ryoql"
-            or f821_cases.read_bytes() != (RUFF_DIR / "rules/F821/cases.toml").read_bytes()
+            or f821_cases.read_bytes()
+            != (RUFF_DIR / "rules/F821/cases.toml").read_bytes()
             or historical_candidate == f821_candidate
             or historical_cases == f821_cases
             or historical_candidate.read_bytes() == f821_candidate.read_bytes()
             or historical_cases.read_bytes() == f821_cases.read_bytes()
         ):
-            print("F821 profile snapshots changed the frozen expanded cohort", file=sys.stderr)
+            print(
+                "F821 profile snapshots changed the frozen expanded cohort",
+                file=sys.stderr,
+            )
             return 1
         shape_profile = tomllib.loads(
             (REPOSITORY / shape_descriptor["profile_file"]).read_text(encoding="utf-8")
@@ -2715,12 +3868,17 @@ def self_test() -> int:
         if (
             shape_registry.get("python/ruff/suppress") != "fragments/suppress.ryoql"
             or not (shape_stage / "fragments/suppress.ryoql").is_file()
-            or tomllib.loads((shape_stage / "benchmark.toml").read_text(encoding="utf-8"))
+            or tomllib.loads(
+                (shape_stage / "benchmark.toml").read_text(encoding="utf-8")
+            )
             .get("query-modules", {})
             .get("python/ruff/suppress")
             != "fragments/suppress.ryoql"
         ):
-            print("combined profile omitted an active rule's query module", file=sys.stderr)
+            print(
+                "combined profile omitted an active rule's query module",
+                file=sys.stderr,
+            )
             return 1
         for relative in manifest["files"]:
             source = REPOSITORY / relative
@@ -2731,26 +3889,52 @@ def self_test() -> int:
         helper_relative = Path(__file__).relative_to(REPOSITORY).as_posix()
         manifest["files"][helper_relative] = sha256(Path(__file__))
         temporary_manifest = root / MANIFEST.relative_to(REPOSITORY)
-        temporary_manifest.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+        temporary_manifest.write_text(
+            json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
+        )
         helper = root / helper_relative
         ruff = str(Path(sys.executable).resolve())
         pristine_manifest = json.loads(json.dumps(manifest))
         invalid_selection = subprocess.run(
-            [sys.executable, str(helper), ruff, "--output-dir", str(root / "invalid-output"), "INVALID-RULE"],
+            [
+                sys.executable,
+                str(helper),
+                ruff,
+                "--output-dir",
+                str(root / "invalid-output"),
+                "INVALID-RULE",
+            ],
             capture_output=True,
             text=True,
             check=False,
         )
-        if invalid_selection.returncode != 2 or "unknown or duplicate profile rule" not in invalid_selection.stderr:
-            print(f"invalid profile selection did not fail closed: status={invalid_selection.returncode}; stderr={invalid_selection.stderr!r}", file=sys.stderr)
+        if (
+            invalid_selection.returncode != 2
+            or "unknown or duplicate profile rule" not in invalid_selection.stderr
+        ):
+            print(
+                f"invalid profile selection did not fail closed: status={invalid_selection.returncode}; stderr={invalid_selection.stderr!r}",
+                file=sys.stderr,
+            )
             return 1
         duplicate_selection = subprocess.run(
-            [sys.executable, str(helper), ruff, "--output-dir", str(root / "duplicate-output"), "F401", "F401"],
+            [
+                sys.executable,
+                str(helper),
+                ruff,
+                "--output-dir",
+                str(root / "duplicate-output"),
+                "F401",
+                "F401",
+            ],
             capture_output=True,
             text=True,
             check=False,
         )
-        if duplicate_selection.returncode != 2 or "unknown or duplicate profile rule" not in duplicate_selection.stderr:
+        if (
+            duplicate_selection.returncode != 2
+            or "unknown or duplicate profile rule" not in duplicate_selection.stderr
+        ):
             print("duplicate profile selection did not fail closed", file=sys.stderr)
             return 1
 
@@ -2762,19 +3946,31 @@ def self_test() -> int:
         original_candidate = candidate.read_bytes()
         candidate.write_bytes(original_candidate + b"\n")
         changed_input = subprocess.run(
-            [sys.executable, str(helper), ruff, "--output-dir", str(root / "changed-output"), "F401"],
+            [
+                sys.executable,
+                str(helper),
+                ruff,
+                "--output-dir",
+                str(root / "changed-output"),
+                "F401",
+            ],
             capture_output=True,
             text=True,
             check=False,
         )
-        if changed_input.returncode != 2 or "prepared input hash mismatch" not in changed_input.stderr:
+        if (
+            changed_input.returncode != 2
+            or "prepared input hash mismatch" not in changed_input.stderr
+        ):
             print("prepared input hash mismatch did not fail closed", file=sys.stderr)
             return 1
         candidate.write_bytes(original_candidate)
         manifest = json.loads(temporary_manifest.read_text(encoding="utf-8"))
         last_profile = max(manifest["profiles"])
         manifest["profiles"][last_profile]["case_count"] += 1
-        temporary_manifest.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+        temporary_manifest.write_text(
+            json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
+        )
         fake_bin = root / "fake-bin"
         fake_bin.mkdir()
         marker = root / "worker-was-started"
@@ -2782,7 +3978,7 @@ def self_test() -> int:
         fake_git = fake_bin / "git"
         fake_git.write_text(
             "#!/bin/sh\n"
-            "case \"$1\" in\n"
+            'case "$1" in\n'
             "  rev-parse) echo self-test-revision ;;\n"
             "  diff|status|ls-files) : ;;\n"
             "  *) exit 2 ;;\n"
@@ -2813,7 +4009,7 @@ def self_test() -> int:
         )
         fake_cargo.write_text(
             "#!/bin/sh\n"
-            "if [ \"$1\" = \"--version\" ]; then echo 'cargo test'; exit 0; fi\n"
+            'if [ "$1" = "--version" ]; then echo \'cargo test\'; exit 0; fi\n'
             f"printf '%s\\n' \"$*\" >> {cargo_build_marker}\n"
             f"printf '%s\\n' '{artifact_json}'\n",
             encoding="utf-8",
@@ -2821,11 +4017,22 @@ def self_test() -> int:
         fake_cargo.chmod(0o755)
         pinned_ruff = shutil.which("ruff")
         if pinned_ruff is None:
-            print("reference-only self-test requires the pinned Ruff executable on PATH", file=sys.stderr)
+            print(
+                "reference-only self-test requires the pinned Ruff executable on PATH",
+                file=sys.stderr,
+            )
             return 1
         reference_output = root / "reference-only-output"
         reference_only = subprocess.run(
-            [sys.executable, str(helper), pinned_ruff, "--output-dir", str(reference_output), "--reference-only", "F401"],
+            [
+                sys.executable,
+                str(helper),
+                pinned_ruff,
+                "--output-dir",
+                str(reference_output),
+                "--reference-only",
+                "F401",
+            ],
             capture_output=True,
             text=True,
             check=False,
@@ -2835,13 +4042,37 @@ def self_test() -> int:
                 "RYO_RUFF_PREPARED_MANIFEST": str(temporary_manifest),
             },
         )
-        builds = cargo_build_marker.read_text().splitlines() if cargo_build_marker.exists() else []
-        reference_records = reference_output / "profiles" / "F401" / "reference-cases.jsonl"
+        builds = (
+            cargo_build_marker.read_text().splitlines()
+            if cargo_build_marker.exists()
+            else []
+        )
+        reference_records = (
+            reference_output / "profiles" / "F401" / "reference-cases.jsonl"
+        )
+        expected_reference_names = {
+            case["name"]
+            for case in tomllib.loads(
+                (
+                    REPOSITORY
+                    / "crates/ryo/languages/python/benchmarks/linters/ruff/rules/F401/cases.toml"
+                ).read_text(encoding="utf-8")
+            )["cases"]
+        }
+        observed_reference_names = (
+            [
+                json.loads(line)["name"]
+                for line in reference_records.read_text(encoding="utf-8").splitlines()
+            ]
+            if reference_records.is_file()
+            else []
+        )
         if (
             reference_only.returncode != 0
             or builds
             or not reference_records.is_file()
-            or len(reference_records.read_text(encoding="utf-8").splitlines()) != 22
+            or len(observed_reference_names) != len(expected_reference_names)
+            or set(observed_reference_names) != expected_reference_names
         ):
             print(
                 "reference-only mode did not verify all cases without building a candidate: "
@@ -2852,15 +4083,23 @@ def self_test() -> int:
             return 1
         cargo_build_marker.unlink(missing_ok=True)
         invalid_rule_manifest = json.loads(json.dumps(pristine_manifest))
-        invalid_rule_manifest["combined_profiles"]["expanded-defaults"]["selected_rules"].append(
-            "NOT-SHIPPED"
-        )
+        invalid_rule_manifest["combined_profiles"]["expanded-defaults"][
+            "selected_rules"
+        ].append("NOT-SHIPPED")
         temporary_manifest.write_text(
             json.dumps(invalid_rule_manifest, indent=2, ensure_ascii=False) + "\n",
             encoding="utf-8",
         )
         invalid_rule = subprocess.run(
-            [sys.executable, str(helper), ruff, "--output-dir", str(root / "invalid-rule-output"), "--profile", "expanded-defaults"],
+            [
+                sys.executable,
+                str(helper),
+                ruff,
+                "--output-dir",
+                str(root / "invalid-rule-output"),
+                "--profile",
+                "expanded-defaults",
+            ],
             capture_output=True,
             text=True,
             check=False,
@@ -2871,15 +4110,22 @@ def self_test() -> int:
             or "combined profile contains a non-default rule" not in invalid_rule.stderr
             or marker.exists()
         ):
-            print("non-default combined rule did not fail before candidate work", file=sys.stderr)
+            print(
+                "non-default combined rule did not fail before candidate work",
+                file=sys.stderr,
+            )
             return 1
-        temporary_manifest.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+        temporary_manifest.write_text(
+            json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
+        )
 
         def later_combined_preflight_failure() -> tuple[bool, str]:
             trial_manifest = json.loads(json.dumps(pristine_manifest))
             later_name = next(
                 name
-                for name, descriptor in sorted(trial_manifest["combined_profiles"].items())
+                for name, descriptor in sorted(
+                    trial_manifest["combined_profiles"].items()
+                )
                 if descriptor.get("validation_status") == "active-current"
             )
             for item in trial_manifest["combined_profiles"].values():
@@ -2894,7 +4140,13 @@ def self_test() -> int:
             marker.unlink(missing_ok=True)
             preflight_output = root / "later-preflight-output"
             check = subprocess.run(
-                [sys.executable, str(helper), ruff, "--output-dir", str(preflight_output)],
+                [
+                    sys.executable,
+                    str(helper),
+                    ruff,
+                    "--output-dir",
+                    str(preflight_output),
+                ],
                 capture_output=True,
                 text=True,
                 check=False,
@@ -2905,32 +4157,63 @@ def self_test() -> int:
                 },
             )
             receipt_path = preflight_output / "preflight-error.json"
-            receipt = json.loads(receipt_path.read_text(encoding="utf-8")) if receipt_path.is_file() else {}
+            receipt = (
+                json.loads(receipt_path.read_text(encoding="utf-8"))
+                if receipt_path.is_file()
+                else {}
+            )
             valid = (
                 check.returncode == 2
                 and "complete expected inventory count mismatch" in check.stderr
                 and not marker.exists()
-                and receipt.get("manifest_path") == temporary_manifest.relative_to(root).as_posix()
+                and receipt.get("manifest_path")
+                == temporary_manifest.relative_to(root).as_posix()
                 and receipt.get("manifest_sha256") == sha256(temporary_manifest)
             )
             return valid, check.stderr
 
-        later_combined_refused, later_combined_output = later_combined_preflight_failure()
+        later_combined_refused, later_combined_output = (
+            later_combined_preflight_failure()
+        )
         if not later_combined_refused:
-            print("later active combined profile did not fail before candidate work", file=sys.stderr)
+            print(
+                "later active combined profile did not fail before candidate work",
+                file=sys.stderr,
+            )
             print(later_combined_output, file=sys.stderr)
             return 1
-        temporary_manifest.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
-        overlay_relative = pristine_manifest["combined_profiles"][SHAPE_PROFILE]["expectations_file"]
+        temporary_manifest.write_text(
+            json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
+        )
+        overlay_relative = pristine_manifest["combined_profiles"][SHAPE_PROFILE][
+            "expectations_file"
+        ]
         baseline_overlay = (REPOSITORY / overlay_relative).read_bytes()
-        (root / pristine_manifest["combined_profiles"]["expanded-defaults"]["expectations_file"]).write_bytes(
-            (REPOSITORY / pristine_manifest["combined_profiles"]["expanded-defaults"]["expectations_file"]).read_bytes()
+        (
+            root
+            / pristine_manifest["combined_profiles"]["expanded-defaults"][
+                "expectations_file"
+            ]
+        ).write_bytes(
+            (
+                REPOSITORY
+                / pristine_manifest["combined_profiles"]["expanded-defaults"][
+                    "expectations_file"
+                ]
+            ).read_bytes()
         )
-        (root / pristine_manifest["combined_profiles"]["shape-110"]["expectations_file"]).write_bytes(
-            baseline_overlay
-        )
+        (
+            root
+            / pristine_manifest["combined_profiles"]["shape-110"]["expectations_file"]
+        ).write_bytes(baseline_overlay)
         preflight = subprocess.run(
-            [sys.executable, str(helper), str(Path(sys.executable).resolve()), "--output-dir", str(root / "inventory-output")],
+            [
+                sys.executable,
+                str(helper),
+                str(Path(sys.executable).resolve()),
+                "--output-dir",
+                str(root / "inventory-output"),
+            ],
             capture_output=True,
             text=True,
             check=False,
@@ -2957,34 +4240,62 @@ def self_test() -> int:
                 overlay["cases"][0]["case_source_sha256"] = "0" * 64
             else:
                 overlay["cases"][0]["case"] = "unknown-case-key"
-            overlay_path.write_text(json.dumps(overlay, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+            overlay_path.write_text(
+                json.dumps(overlay, indent=2, ensure_ascii=False) + "\n",
+                encoding="utf-8",
+            )
             overlay_hash = sha256(overlay_path)
             descriptor["expectations_sha256"] = overlay_hash
             trial_manifest["files"][descriptor["expectations_file"]] = overlay_hash
-            temporary_manifest.write_text(json.dumps(trial_manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+            temporary_manifest.write_text(
+                json.dumps(trial_manifest, indent=2, ensure_ascii=False) + "\n",
+                encoding="utf-8",
+            )
             marker.unlink(missing_ok=True)
             check = subprocess.run(
-                [sys.executable, str(helper), ruff, "--output-dir", str(root / f"shape-{kind}-output"), "--profile", SHAPE_PROFILE],
+                [
+                    sys.executable,
+                    str(helper),
+                    ruff,
+                    "--output-dir",
+                    str(root / f"shape-{kind}-output"),
+                    "--profile",
+                    SHAPE_PROFILE,
+                ],
                 capture_output=True,
                 text=True,
                 check=False,
                 env={**os.environ, "PATH": f"{fake_bin}:{os.environ['PATH']}"},
             )
-            valid = check.returncode == 2 and expected_error in check.stderr and not marker.exists()
+            valid = (
+                check.returncode == 2
+                and expected_error in check.stderr
+                and not marker.exists()
+            )
             if not valid:
-                print(f"shape guard status={check.returncode}; stderr={check.stderr!r}", file=sys.stderr)
+                print(
+                    f"shape guard status={check.returncode}; stderr={check.stderr!r}",
+                    file=sys.stderr,
+                )
             return valid
 
         # Each case gets a fresh source snapshot because the helper itself refuses any stale seal.
-        for kind, message in (("source-hash", "case source hash mismatch"), ("case-key", "overlay case is absent")):
+        for kind, message in (
+            ("source-hash", "case source hash mismatch"),
+            ("case-key", "overlay case is absent"),
+        ):
             (root / overlay_relative).write_bytes(baseline_overlay)
             if not shape_preflight_failure(kind, message):
-                print(f"shape {kind} refusal did not fail before candidate work", file=sys.stderr)
+                print(
+                    f"shape {kind} refusal did not fail before candidate work",
+                    file=sys.stderr,
+                )
                 return 1
         (root / overlay_relative).write_bytes(baseline_overlay)
 
         active_name = next(
-            name for name, item in pristine_manifest["combined_profiles"].items()
+            name
+            for name, item in pristine_manifest["combined_profiles"].items()
             if item.get("validation_status") == "active-current"
         )
         ready_descriptor = pristine_manifest["combined_profiles"][active_name]
@@ -2997,23 +4308,46 @@ def self_test() -> int:
                 receipt = json.loads(pristine_ready)
                 query_paths = set(ready_descriptor["query_files"].values())
                 asset = next(
-                    item for item in receipt["assets"]
+                    item
+                    for item in receipt["assets"]
                     if (item["path"] in query_paths) == (kind == "query")
                 )
                 asset["sha256"] = "0" * 64
-                ready_path.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
+                ready_path.write_text(
+                    json.dumps(receipt, indent=2) + "\n", encoding="utf-8"
+                )
                 # Re-sealing the general manifest must not hide disagreement with
                 # the independent source-commit query/module receipt.
                 trial_manifest["files"][ready_file] = sha256(ready_path)
-                temporary_manifest.write_text(json.dumps(trial_manifest, indent=2) + "\n", encoding="utf-8")
+                temporary_manifest.write_text(
+                    json.dumps(trial_manifest, indent=2) + "\n", encoding="utf-8"
+                )
                 marker.unlink(missing_ok=True)
                 check = subprocess.run(
-                    [sys.executable, str(helper), ruff, "--output-dir", str(root / f"ready-{kind}-output"), "--profile", active_name],
-                    capture_output=True, text=True, check=False,
+                    [
+                        sys.executable,
+                        str(helper),
+                        ruff,
+                        "--output-dir",
+                        str(root / f"ready-{kind}-output"),
+                        "--profile",
+                        active_name,
+                    ],
+                    capture_output=True,
+                    text=True,
+                    check=False,
                     env={**os.environ, "PATH": f"{fake_bin}:{os.environ['PATH']}"},
                 )
-                if check.returncode != 2 or "READY query/module bytes differ from receipt" not in check.stderr or marker.exists():
-                    print(f"READY {kind} receipt disagreement did not fail before candidate work: {check.stderr!r}", file=sys.stderr)
+                if (
+                    check.returncode != 2
+                    or "READY query/module bytes differ from receipt"
+                    not in check.stderr
+                    or marker.exists()
+                ):
+                    print(
+                        f"READY {kind} receipt disagreement did not fail before candidate work: {check.stderr!r}",
+                        file=sys.stderr,
+                    )
                     return 1
             ready_path.write_bytes(pristine_ready)
 
@@ -3040,8 +4374,12 @@ def self_test() -> int:
                 item = duplicate = None
                 for row in overlay["cases"]:
                     cases_path = REPOSITORY / row["cases_file"]
-                    source_cases = tomllib.loads(cases_path.read_text(encoding="utf-8"))["cases"]
-                    canonical = next(case for case in source_cases if case["name"] == row["case"])
+                    source_cases = tomllib.loads(
+                        cases_path.read_text(encoding="utf-8")
+                    )["cases"]
+                    canonical = next(
+                        case for case in source_cases if case["name"] == row["case"]
+                    )
                     original = collections.Counter(
                         (
                             finding.get("rule", row["rule"]),
@@ -3052,11 +4390,20 @@ def self_test() -> int:
                         for finding in canonical["expected"]
                     )
                     current = collections.Counter(
-                        (finding["rule"], finding["file"], finding["start"], finding["end"])
+                        (
+                            finding["rule"],
+                            finding["file"],
+                            finding["start"],
+                            finding["end"],
+                        )
                         for finding in row["expected"]
                     )
                     extra_duplicate = next(
-                        (key for key, count in current.items() if count > 1 and count > original[key]),
+                        (
+                            key
+                            for key, count in current.items()
+                            if count > 1 and count > original[key]
+                        ),
                         None,
                     )
                     if extra_duplicate is not None:
@@ -3068,27 +4415,50 @@ def self_test() -> int:
                     next(
                         finding
                         for finding in item["expected"]
-                        if (finding["rule"], finding["file"], finding["start"], finding["end"])
+                        if (
+                            finding["rule"],
+                            finding["file"],
+                            finding["start"],
+                            finding["end"],
+                        )
                         == duplicate
                     )
                 )
                 overlay["expected_diagnostic_count"] -= 1
             else:
                 raise ValueError(f"unknown self-test: {kind}")
-            overlay_path.write_text(json.dumps(overlay, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+            overlay_path.write_text(
+                json.dumps(overlay, indent=2, ensure_ascii=False) + "\n",
+                encoding="utf-8",
+            )
             overlay_hash = sha256(overlay_path)
             descriptor["expectations_sha256"] = overlay_hash
             trial_manifest["files"][descriptor["expectations_file"]] = overlay_hash
-            temporary_manifest.write_text(json.dumps(trial_manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+            temporary_manifest.write_text(
+                json.dumps(trial_manifest, indent=2, ensure_ascii=False) + "\n",
+                encoding="utf-8",
+            )
             marker.unlink(missing_ok=True)
             check = subprocess.run(
-                [sys.executable, str(helper), ruff, "--output-dir", str(root / f"active-{kind}-output"), "--profile", active_name],
+                [
+                    sys.executable,
+                    str(helper),
+                    ruff,
+                    "--output-dir",
+                    str(root / f"active-{kind}-output"),
+                    "--profile",
+                    active_name,
+                ],
                 capture_output=True,
                 text=True,
                 check=False,
                 env={**os.environ, "PATH": f"{fake_bin}:{os.environ['PATH']}"},
             )
-            success = check.returncode == 2 and expected_error in check.stderr and not marker.exists()
+            success = (
+                check.returncode == 2
+                and expected_error in check.stderr
+                and not marker.exists()
+            )
             if not success:
                 print(
                     f"active {kind}: status={check.returncode}; stderr={check.stderr.strip()!r}; "
@@ -3102,7 +4472,9 @@ def self_test() -> int:
             for name, item in pristine_manifest["combined_profiles"].items()
             if item.get("validation_status") == "active-current"
         )
-        expanded_overlay_relative = pristine_manifest["combined_profiles"][active_name]["expectations_file"]
+        expanded_overlay_relative = pristine_manifest["combined_profiles"][active_name][
+            "expectations_file"
+        ]
         expanded_overlay_bytes = (root / expanded_overlay_relative).read_bytes()
         for kind, message in (
             ("source-hash", "case source hash mismatch"),
@@ -3113,7 +4485,10 @@ def self_test() -> int:
         ):
             (root / expanded_overlay_relative).write_bytes(expanded_overlay_bytes)
             if not expanded_preflight_failure(kind, message):
-                print(f"active full-report {kind} refusal did not fail before candidate work", file=sys.stderr)
+                print(
+                    f"active full-report {kind} refusal did not fail before candidate work",
+                    file=sys.stderr,
+                )
                 return 1
     print("profile selection and hash-mismatch guards passed")
     return 0
@@ -3122,30 +4497,67 @@ def self_test() -> int:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("ruff", type=Path, nargs="?", help="pinned Ruff executable")
-    parser.add_argument("rules", nargs="*", help="optional rule IDs; default: every prepared profile")
+    parser.add_argument(
+        "rules", nargs="*", help="optional rule IDs; default: every prepared profile"
+    )
     parser.add_argument("--profile", help="run one named combined prepared profile")
-    parser.add_argument("--shards", type=int, help="execute each case once across deterministic case shards")
-    parser.add_argument("--workers", type=int, help="bound concurrent shard workers (1 through 64); scheduling may change on resume")
-    parser.add_argument("--resume", action="store_true", help="reuse only complete shard receipts with identical sealed identities")
-    parser.add_argument("--reuse-worker-from", type=Path, help="reuse a frozen benchmark worker and its original stable build provenance")
-    parser.add_argument("--parity-check", help="single-rule profile to compare monolithic and two-shard full reports")
+    parser.add_argument(
+        "--shards",
+        type=int,
+        help="execute each case once across deterministic case shards",
+    )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        help="bound concurrent shard workers (1 through 64); scheduling may change on resume",
+    )
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="reuse only complete shard receipts with identical sealed identities",
+    )
+    parser.add_argument(
+        "--reuse-worker-from",
+        type=Path,
+        help="reuse a frozen benchmark worker and its original stable build provenance",
+    )
+    parser.add_argument(
+        "--parity-check",
+        help="single-rule profile to compare monolithic and two-shard full reports",
+    )
     parser.add_argument(
         "--output-dir",
         type=Path,
         help="persist staged repro inputs, identities, exit status, stdout and stderr",
     )
-    parser.add_argument("--reference-only", action="store_true", help="check sealed expected findings with Ruff only")
-    parser.add_argument("--self-test", action="store_true", help="exercise fail-closed profile guards without running Cargo")
+    parser.add_argument(
+        "--reference-only",
+        action="store_true",
+        help="check sealed expected findings with Ruff only",
+    )
+    parser.add_argument(
+        "--self-test",
+        action="store_true",
+        help="exercise fail-closed profile guards without running Cargo",
+    )
     arguments = parser.parse_args()
     if arguments.self_test:
         return self_test()
     if arguments.ruff is None:
-        parser.error("the pinned Ruff executable is required unless --self-test is selected")
-    if arguments.reuse_worker_from is not None and (arguments.resume or arguments.reference_only):
+        parser.error(
+            "the pinned Ruff executable is required unless --self-test is selected"
+        )
+    if arguments.reuse_worker_from is not None and (
+        arguments.resume or arguments.reference_only
+    ):
         parser.error("--reuse-worker-from requires a new candidate verification run")
-    if arguments.shards is not None and (arguments.shards < 2 or arguments.reference_only):
+    if arguments.shards is not None and (
+        arguments.shards < 2 or arguments.reference_only
+    ):
         parser.error("--shards requires at least two shards and candidate verification")
-    if arguments.workers is not None and (arguments.shards is None or not 1 <= arguments.workers <= 64):
+    if arguments.workers is not None and (
+        arguments.shards is None or not 1 <= arguments.workers <= 64
+    ):
         parser.error("--workers requires --shards and a value from 1 through 64")
     if arguments.resume and (arguments.shards is None or arguments.output_dir is None):
         parser.error("--resume requires --shards and --output-dir")
@@ -3154,7 +4566,9 @@ def main() -> int:
     if arguments.resume and arguments.rules:
         parser.error("--resume does not accept a changed rule selection")
     if not arguments.reference_only and arguments.output_dir is None:
-        parser.error("candidate verification requires --output-dir for exact case receipts")
+        parser.error(
+            "candidate verification requires --output-dir for exact case receipts"
+        )
 
     output_directory = arguments.output_dir.resolve() if arguments.output_dir else None
     if arguments.parity_check is not None and (
@@ -3164,7 +4578,9 @@ def main() -> int:
         or arguments.parity_check not in arguments.rules
         or (arguments.profile is None and len(arguments.rules) != 1)
     ):
-        parser.error("--parity-check requires output-dir, shards, and exactly one selected rule (plus a combined profile when specified)")
+        parser.error(
+            "--parity-check requires output-dir, shards, and exactly one selected rule (plus a combined profile when specified)"
+        )
     if output_directory is not None:
         if arguments.resume:
             if not output_directory.is_dir():
@@ -3180,7 +4596,9 @@ def main() -> int:
     try:
         manifest = (
             resume_manifest(output_directory, arguments.profile)
-            if arguments.resume and output_directory is not None and arguments.profile is not None
+            if arguments.resume
+            and output_directory is not None
+            and arguments.profile is not None
             else json.loads(MANIFEST.read_text(encoding="utf-8"))
         )
     except (OSError, ValueError, json.JSONDecodeError) as error:
@@ -3194,21 +4612,33 @@ def main() -> int:
             verify_active_combined_cohort(manifest)
         if arguments.profile is not None:
             if arguments.profile not in manifest.get("combined_profiles", {}):
-                raise ValueError(f"unknown prepared combined profile: {arguments.profile}")
+                raise ValueError(
+                    f"unknown prepared combined profile: {arguments.profile}"
+                )
             if arguments.resume:
                 verify_active_combined_cohort(manifest)
             defaults = set(
-                tomllib.loads((RUFF_DIR / "benchmark.toml").read_text(encoding="utf-8"))["defaults"]
+                tomllib.loads(
+                    (RUFF_DIR / "benchmark.toml").read_text(encoding="utf-8")
+                )["defaults"]
             )
-            if len(set(arguments.rules)) != len(arguments.rules) or set(arguments.rules) - defaults:
+            if (
+                len(set(arguments.rules)) != len(arguments.rules)
+                or set(arguments.rules) - defaults
+            ):
                 raise ValueError("unknown or duplicate profile rule")
             selections = [arguments.profile]
         else:
             profiles = manifest["profiles"]
             defaults = set(
-                tomllib.loads((RUFF_DIR / "benchmark.toml").read_text(encoding="utf-8"))["defaults"]
+                tomllib.loads(
+                    (RUFF_DIR / "benchmark.toml").read_text(encoding="utf-8")
+                )["defaults"]
             )
-            if len(set(arguments.rules)) != len(arguments.rules) or set(arguments.rules) - defaults:
+            if (
+                len(set(arguments.rules)) != len(arguments.rules)
+                or set(arguments.rules) - defaults
+            ):
                 raise ValueError("unknown or duplicate profile rule")
             selections = [
                 profile_name
@@ -3224,31 +4654,56 @@ def main() -> int:
             if arguments.profile is not None:
                 descriptor = manifest["combined_profiles"][arguments.profile]
                 if arguments.resume:
-                    staged.append((arguments.profile, output_directory / "profiles" / arguments.profile / "repro"))
+                    staged.append(
+                        (
+                            arguments.profile,
+                            output_directory / "profiles" / arguments.profile / "repro",
+                        )
+                    )
                 else:
                     if arguments.rules:
                         single_profiles = [
                             profile_name
-                            for profile_name, profile in sorted(manifest["profiles"].items())
+                            for profile_name, profile in sorted(
+                                manifest["profiles"].items()
+                            )
                             if profile.get("rule_id", profile_name) in arguments.rules
                         ]
-                        staged.extend(stage_binding(manifest, single_profiles, stack, output_directory))
+                        staged.extend(
+                            stage_binding(
+                                manifest, single_profiles, stack, output_directory
+                            )
+                        )
                     staged.append(
-                        stage_combined(arguments.profile, descriptor, manifest, stack, output_directory)
+                        stage_combined(
+                            arguments.profile,
+                            descriptor,
+                            manifest,
+                            stack,
+                            output_directory,
+                        )
                     )
             else:
-                staged.extend(stage_binding(manifest, selections, stack, output_directory))
+                staged.extend(
+                    stage_binding(manifest, selections, stack, output_directory)
+                )
                 if not arguments.rules:
-                    for name, descriptor in sorted(manifest.get("combined_profiles", {}).items()):
+                    for name, descriptor in sorted(
+                        manifest.get("combined_profiles", {}).items()
+                    ):
                         if descriptor.get("validation_status") != "active-current":
                             continue
                         staged.append(
-                            stage_combined(name, descriptor, manifest, stack, output_directory)
+                            stage_combined(
+                                name, descriptor, manifest, stack, output_directory
+                            )
                         )
             if arguments.resume:
                 if output_directory is None:
                     raise ValueError("resume requires an output directory")
-                worker_executable, build_identity = reuse_frozen_worker(output_directory)
+                worker_executable, build_identity = reuse_frozen_worker(
+                    output_directory
+                )
             elif arguments.reference_only:
                 worker_executable = None
                 build_identity = {
@@ -3261,15 +4716,24 @@ def main() -> int:
                 build_directory = output_directory / "build"
                 build_directory.mkdir(exist_ok=False)
                 for filename in ("stdout.bin", "stderr.bin", "result.json"):
-                    shutil.copyfile(original / "build" / filename, build_directory / filename)
-                atomic_json_write(output_directory / "worker-reuse.json", {
-                    "original_output_directory": str(original),
-                    "original_build_receipt_sha256": sha256(original / "build" / "result.json"),
-                    "worker_sha256": sha256(worker_executable),
-                    "source_identity_policy": "original stable build identity; current source tree is not relabeled",
-                })
+                    shutil.copyfile(
+                        original / "build" / filename, build_directory / filename
+                    )
+                atomic_json_write(
+                    output_directory / "worker-reuse.json",
+                    {
+                        "original_output_directory": str(original),
+                        "original_build_receipt_sha256": sha256(
+                            original / "build" / "result.json"
+                        ),
+                        "worker_sha256": sha256(worker_executable),
+                        "source_identity_policy": "original stable build identity; current source tree is not relabeled",
+                    },
+                )
             else:
-                worker_executable, build_identity = build_worker_once(output_directory, stack)
+                worker_executable, build_identity = build_worker_once(
+                    output_directory, stack
+                )
             if not arguments.reference_only:
                 assert worker_executable is not None
                 protocol_ok, protocol_message = audit_worker_protocol(worker_executable)
@@ -3282,8 +4746,13 @@ def main() -> int:
                 build_identity["protocol_smoke"] = protocol_record
                 if not protocol_ok:
                     if output_directory is not None:
-                        atomic_json_write(output_directory / "worker-protocol.json", protocol_record)
-                    print(f"worker protocol smoke failed: {protocol_message}", file=sys.stderr)
+                        atomic_json_write(
+                            output_directory / "worker-protocol.json", protocol_record
+                        )
+                    print(
+                        f"worker protocol smoke failed: {protocol_message}",
+                        file=sys.stderr,
+                    )
                     return 1
             for name, profile_root in staged:
                 if arguments.reference_only:
@@ -3292,12 +4761,16 @@ def main() -> int:
                         "manifest_path": MANIFEST.relative_to(REPOSITORY).as_posix(),
                         "manifest_sha256": sha256(MANIFEST),
                         "target_version": tomllib.loads(
-                            (profile_root / "benchmark.toml").read_text(encoding="utf-8")
+                            (profile_root / "benchmark.toml").read_text(
+                                encoding="utf-8"
+                            )
                         ).get("parser-configuration", "python-target=3.10"),
                         "pinned_reference": ref_identity,
                         "staged_profile_sha256": staged_hashes(profile_root),
                         "selected_rule_applicability": tomllib.loads(
-                            (profile_root / "benchmark.toml").read_text(encoding="utf-8")
+                            (profile_root / "benchmark.toml").read_text(
+                                encoding="utf-8"
+                            )
                         ).get("rule-applicability", {}),
                     }
                     status = verify_reference_profile(
@@ -3308,28 +4781,45 @@ def main() -> int:
                     continue
                 assert worker_executable is not None
                 executable = build_identity["frozen_executable"]
-                if not isinstance(executable, dict) or sha256(Path(executable["path"])) != executable["sha256"]:
-                    raise ValueError("frozen worker executable hash changed before profile invocation")
+                if (
+                    not isinstance(executable, dict)
+                    or sha256(Path(executable["path"])) != executable["sha256"]
+                ):
+                    raise ValueError(
+                        "frozen worker executable hash changed before profile invocation"
+                    )
                 command = command_for(worker_executable, ruff, profile_root, False)
                 if arguments.resume:
-                    prior_plan_path = output_directory / "profiles" / name / "shard-plan.json"
+                    prior_plan_path = (
+                        output_directory / "profiles" / name / "shard-plan.json"
+                    )
                     prior_plan = json.loads(prior_plan_path.read_text(encoding="utf-8"))
                     identities = prior_plan["global_identity"]["selection"]
                     reference_identity = reference_tool_identity(ruff, manifest)
                     if (
-                        identities.get("manifest_sha256") != sha256(output_directory / "prepared.json")
-                        or identities.get("ruff", {}).get("sha256") != reference_identity["sha256"]
+                        identities.get("manifest_sha256")
+                        != sha256(output_directory / "prepared.json")
+                        or identities.get("ruff", {}).get("sha256")
+                        != reference_identity["sha256"]
                     ):
-                        raise ValueError("cannot resume with a changed manifest or pinned reference executable")
+                        raise ValueError(
+                            "cannot resume with a changed manifest or pinned reference executable"
+                        )
                 else:
-                    identities = run_identity(manifest, ruff, profile_root, worker_executable, build_identity)
+                    identities = run_identity(
+                        manifest, ruff, profile_root, worker_executable, build_identity
+                    )
                 worker_identity(identities, worker_executable)
                 if arguments.shards is not None and (
-                    arguments.profile is not None and name == arguments.profile
-                    or arguments.profile is None and arguments.parity_check is None
+                    arguments.profile is not None
+                    and name == arguments.profile
+                    or arguments.profile is None
+                    and arguments.parity_check is None
                 ):
                     if output_directory is None:
-                        raise ValueError("sharded verification requires --output-dir for durable receipts")
+                        raise ValueError(
+                            "sharded verification requires --output-dir for durable receipts"
+                        )
                     status = verify_profile_sharded(
                         name,
                         profile_root,
@@ -3342,7 +4832,9 @@ def main() -> int:
                         worker_limit=arguments.workers,
                     )
                 else:
-                    status = verify_profile(name, profile_root, command, output_directory, identities)
+                    status = verify_profile(
+                        name, profile_root, command, output_directory, identities
+                    )
                 print(f"{name}: verifier exit status {status}", file=sys.stderr)
                 statuses.append((name, status))
             if arguments.parity_check is not None:
@@ -3362,7 +4854,9 @@ def main() -> int:
                     2,
                 )
                 shard_paths = sorted(
-                    (output_directory / "profiles" / parity_name / "shards").glob("*.cases.jsonl")
+                    (output_directory / "profiles" / parity_name / "shards").glob(
+                        "*.cases.jsonl"
+                    )
                 )
                 mono_path = output_directory / "profiles" / parity_name / "cases.jsonl"
                 observations_match = case_observations_match(mono_path, shard_paths)
@@ -3379,14 +4873,21 @@ def main() -> int:
                         "profile": parity_name,
                         "status": parity_status,
                         "worker_sha256": sha256(worker_executable),
-                        "monolithic_case_results_sha256": sha256(mono_path) if mono_path.is_file() else None,
-                        "sharded_case_result_shas": {path.name: sha256(path) for path in shard_paths},
+                        "monolithic_case_results_sha256": sha256(mono_path)
+                        if mono_path.is_file()
+                        else None,
+                        "sharded_case_result_shas": {
+                            path.name: sha256(path) for path in shard_paths
+                        },
                         "full_report_observations_match": observations_match,
                         "rule_profile_status": dict(statuses).get(parity_name),
                         "sharded_status": shard_status,
                     },
                 )
-                print(f"{parity_name}: monolithic/sharded full-report parity {parity_status}", file=sys.stderr)
+                print(
+                    f"{parity_name}: monolithic/sharded full-report parity {parity_status}",
+                    file=sys.stderr,
+                )
                 statuses.append((f"{parity_name}-shard-parity", parity_status))
     except (KeyError, TypeError, ValueError, OSError) as error:
         if output_directory is not None:

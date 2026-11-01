@@ -294,7 +294,7 @@ pub(crate) fn store_skip(
 
 /// The dependency content identity using the digest adapter composed by the SDK.
 pub(crate) fn dependency_fingerprint(bytes: &[u8]) -> super::types::DependencyFingerprint {
-    use ryo_core::outbound::digest::interface::DigestPort;
+    use ryo_core::outbound::digest::interface::DigestPort as _;
     let digest = digest::factory::blake3().digest(digest::types::DigestBytes(bytes));
     super::types::DependencyFingerprint(digest.0)
 }

@@ -4,7 +4,7 @@
 use ryo_language::domain::relations::types::Relation;
 
 use super::errors::FactsError;
-use super::types::{ColumnsMut, WordsToKeep};
+use super::types::{ColumnsMut, ResidentStability, WordsToKeep};
 use ryo_language::domain::relations::types::ColumnsView;
 use ryo_values::domain::stored_facts::types::{Bucket, KeptWords};
 
@@ -30,6 +30,10 @@ pub trait FactsPort: Send + Sync {
 
 /// One worker's handle: where its rows and its kept words are, which no other worker reads or writes.
 pub trait FactsWorker: Send + Sync {
+    /// Explicitly promise whether resident values, kinds, row order and population stay fixed
+    /// across all `rows` and `keep` calls until `columns_mut` or `release` invalidates them.
+    fn resident_stability(&self) -> ResidentStability;
+
     /// The columns of every relation that the worker's file writes to, asked for once for the file. A language's rows are pushed onto
     /// them, once, and read from there: a port is called once for a file, never for a row.
     ///

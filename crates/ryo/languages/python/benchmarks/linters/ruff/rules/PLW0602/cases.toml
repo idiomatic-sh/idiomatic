@@ -1,25 +1,30 @@
 [[cases]]
 name = "global-without-assignment"
+comparison = "rule"
 files = { "case.py" = "def f():\n    global X\n" }
-expected = [{ rule = "PLW0602", file = "case.py", start = 20, end = 21 }]
+expected = [{ "rule" = "PLW0602", "file" = "case.py", "start" = 20, "end" = 21 }]
 
 [[cases]]
 name = "global-read-without-assignment"
+comparison = "rule"
 files = { "case.py" = "def f():\n    global X\n    print(X)\n" }
-expected = [{ rule = "PLW0602", file = "case.py", start = 20, end = 21 }]
+expected = [{ "rule" = "PLW0602", "file" = "case.py", "start" = 20, "end" = 21 }]
 
 [[cases]]
 name = "assignment-after-global"
+comparison = "rule"
 files = { "case.py" = "def f():\n    global X\n    X = 1\n" }
 expected = []
 
 [[cases]]
 name = "delete-reference-is-not-an-all-load-global"
+comparison = "rule"
 files = { "case.py" = "def f():\n    global X\n    del X\n" }
 expected = []
 
 [[cases]]
 name = "global-declaration-is-suppressed-by-code-specific-noqa"
+comparison = "rule"
 files = { "case.py" = "def f():\n    global X  # noqa: PLW0602\n" }
 expected = []
 
@@ -33,28 +38,220 @@ expected = []
 name = "delete-before-global-does-not-suppress-final-global-binding"
 comparison = "full"
 files = { "case.py" = "def f():\n    del value\n    global value\n" }
-expected = [{ rule = "PLW0602", file = "case.py", start = 34, end = 39 }]
+expected = [{ "rule" = "PLW0602", "file" = "case.py", "start" = 34, "end" = 39 }]
 
 [[cases]]
 name = "class-global-at-module-level-is-a-nonmodule-scope"
 comparison = "full"
 files = { "case.py" = "class C:\n    global value\n" }
-expected = [{ rule = "PLW0602", file = "case.py", start = 20, end = 25 }]
+expected = [{ "rule" = "PLW0602", "file" = "case.py", "start" = 20, "end" = 25 }]
 
 [[cases]]
 name = "class-global-inside-function-uses-class-scope"
 comparison = "full"
 files = { "case.py" = "def f():\n    class C:\n        global value\n" }
-expected = [{ rule = "PLW0602", file = "case.py", start = 37, end = 42 }]
+expected = [{ "rule" = "PLW0602", "file" = "case.py", "start" = 37, "end" = 42 }]
 
 [[cases]]
 name = "repeated-global-without-assignment-is-reported-once"
 comparison = "full"
 files = { "case.py" = "def f():\n    global value\n    global value\n" }
-expected = [{ rule = "PLW0602", file = "case.py", start = 37, end = 42 }]
+expected = [{ "rule" = "PLW0602", "file" = "case.py", "start" = 37, "end" = 42 }]
 
 [[cases]]
 name = "binding-before-global-remains-final-global-binding"
 comparison = "full"
 files = { "case.py" = "def f():\n    value = 1\n    global value\n" }
-expected = [{ rule = "PLW0602", file = "case.py", start = 34, end = 39 }]
+expected = [{ "rule" = "PLW0602", "file" = "case.py", "start" = 34, "end" = 39 }]
+
+[[cases]]
+name = "cross-PLE0117-own-global-conflict-with-real-outer-binding"
+comparison = "full"
+files = { "case.py" = "def outer():\n    value=1\n    def inner():\n        global value\n        nonlocal value\n" }
+expected = []
+
+[[cases]]
+name = "nonlocal-policy-global-no-valid-nonlocal"
+comparison = "full"
+files = { "case.py" = "def f():\n global value\n nonlocal value\n" }
+expected = [{ "rule" = "PLW0602", "file" = "case.py", "start" = 17, "end" = 22 }]
+
+[[cases]]
+name = "nonlocal-policy-nonlocal-then-global"
+comparison = "full"
+files = { "case.py" = "def outer():\n value=1\n def f():\n  nonlocal value\n  global value\n" }
+expected = [{ "rule" = "PLW0602", "file" = "case.py", "start" = 58, "end" = 63 }]
+
+[[cases]]
+name = "nonlocal-policy-own-local-and-valid-nonlocal"
+comparison = "full"
+files = { "case.py" = "def outer():\n value=1\n def f():\n  value=2\n  nonlocal value\n" }
+expected = []
+
+[[cases]]
+name = "nonlocal-policy-repeated-global"
+comparison = "full"
+files = { "case.py" = "def f():\n global value\n global value\n" }
+expected = [{ "rule" = "PLW0602", "file" = "case.py", "start" = 31, "end" = 36 }]
+
+[[cases]]
+name = "nonlocal-policy-assignment-before-global"
+comparison = "full"
+files = { "case.py" = "def f():\n value=1\n global value\n" }
+expected = [{ "rule" = "PLW0602", "file" = "case.py", "start" = 26, "end" = 31 }]
+
+[[cases]]
+name = "nonlocal-policy-module-global"
+comparison = "full"
+files = { "case.py" = "global value\n" }
+expected = []
+
+[[cases]]
+name = "nonlocal-policy-class-global"
+comparison = "full"
+files = { "case.py" = "class C:\n global value\n" }
+expected = [{ "rule" = "PLW0602", "file" = "case.py", "start" = 17, "end" = 22 }]
+
+[[cases]]
+name = "nonlocal-policy-conditional-delete"
+comparison = "full"
+files = { "case.py" = "def f():\n global value\n if flag:\n  del value\n" }
+expected = []
+
+[[cases]]
+name = "nonlocal-policy-delete-before-global"
+comparison = "full"
+files = { "case.py" = "def f():\n del value\n global value\n" }
+expected = [{ "rule" = "PLW0602", "file" = "case.py", "start" = 28, "end" = 33 }]
+
+[[cases]]
+name = "nonlocal-policy-skip-class-namespace"
+comparison = "full"
+files = { "case.py" = "def outer():\n value=1\n class C:\n  value=2\n  def f(self):\n   global value\n   nonlocal value\n" }
+expected = []
+
+[[cases]]
+name = "nonlocal-policy-deleted-outer"
+comparison = "full"
+files = { "case.py" = "def outer():\n value=1\n del value\n def f():\n  global value\n  nonlocal value\n" }
+expected = []
+
+[[cases]]
+name = "nonlocal-policy-annotation-outer"
+comparison = "full"
+files = { "case.py" = "def outer():\n value:int\n def f():\n  global value\n  nonlocal value\n" }
+expected = []
+
+[[cases]]
+name = "nonlocal-policy-invalid-outer-nonlocal"
+comparison = "full"
+files = { "case.py" = "def outer():\n nonlocal value\n def f():\n  global value\n  nonlocal value\n" }
+expected = [{ "rule" = "PLW0602", "file" = "case.py", "start" = 48, "end" = 53 }]
+
+[[cases]]
+name = "nonlocal-policy-default-real-binding"
+comparison = "full"
+files = { "case.py" = "def outer():\n def inner(x=(value:=1)):\n  global value\n  nonlocal value\n" }
+expected = []
+
+[[cases]]
+name = "nonlocal-policy-builtin-forward-preference"
+comparison = "full"
+files = { "case.pyi" = "def f():\n type=1\n class C:\n  def m(self)->type: ...\n" }
+expected = []
+
+[[cases]]
+name = "nonlocal-policy-deleted-module-builtin-does-not-win"
+comparison = "full"
+files = { "case.pyi" = "del type\ndef f():\n type=1\n class C:\n  def m(self)->type: ...\n" }
+expected = []
+
+[[cases]]
+name = "nonlocal-policy-nearer-function-over-type-parameter"
+comparison = "full"
+files = { "case.py" = "def outer[T]():\n def middle():\n  T=1\n  def inner():\n   global T\n   nonlocal T\n" }
+expected = [{ "rule" = "invalid-syntax", "file" = "case.py", "start" = 9, "end" = 12 }]
+
+[[cases]]
+name = "nonlocal-policy-class-type-parameter"
+comparison = "full"
+files = { "case.py" = "class C[T]:\n def f(self):\n  global T\n  nonlocal T\n" }
+expected = [{ "rule" = "invalid-syntax", "file" = "case.py", "start" = 7, "end" = 10 }]
+
+[[cases]]
+name = "nonlocal-policy-nested-function-type-parameter"
+comparison = "full"
+files = { "case.py" = "def outer[T]():\n def f():\n  global T\n  nonlocal T\n" }
+expected = [{ "rule" = "invalid-syntax", "file" = "case.py", "start" = 9, "end" = 12 }]
+
+[[cases]]
+name = "nonlocal-policy-local-stub-class-header-is-late"
+comparison = "full"
+files = { "case.pyi" = "def outer():\n class C((value:=object)):\n  def f(self):\n   global value\n   nonlocal value\n" }
+expected = [{ "rule" = "PLW0602", "file" = "case.pyi", "start" = 65, "end" = 70 }]
+
+[[cases]]
+name = "nonlocal-policy-early-annotation-before-late-future"
+comparison = "full"
+files = { "case.py" = "def f(x:(value:=object)):\n global value\n nonlocal value\nfrom __future__ import annotations\n" }
+expected = []
+
+[[cases]]
+name = "nonlocal-policy-future-annotation-not-visible"
+comparison = "full"
+files = { "case.py" = "from __future__ import annotations\ndef f(x:(value:=object)):\n global value\n nonlocal value\n" }
+expected = [{ "rule" = "PLW0602", "file" = "case.py", "start" = 69, "end" = 74 }, { "rule" = "invalid-syntax", "file" = "case.py", "start" = 44, "end" = 57 }]
+
+[[cases]]
+name = "nonlocal-policy-type-scope-class-body-py"
+comparison = "full"
+files = { "case.py" = "class C((value:=object)):\n global value\n nonlocal value\n" }
+expected = []
+
+[[cases]]
+name = "nonlocal-policy-type-scope-class-body-pyi"
+comparison = "full"
+files = { "case.pyi" = "class C((value:=object)):\n global value\n nonlocal value\n" }
+expected = [{ "rule" = "PLW0602", "file" = "case.pyi", "start" = 34, "end" = 39 }]
+
+[[cases]]
+name = "nonlocal-policy-type-scope-class-method-py"
+comparison = "full"
+files = { "case.py" = "class C((value:=object)):\n def f(self):\n  global value\n  nonlocal value\n" }
+expected = []
+
+[[cases]]
+name = "nonlocal-policy-type-scope-class-method-pyi"
+comparison = "full"
+files = { "case.pyi" = "class C((value:=object)):\n def f(self):\n  global value\n  nonlocal value\n" }
+expected = []
+
+[[cases]]
+name = "nonlocal-policy-type-scope-annotation-py"
+comparison = "full"
+files = { "case.py" = "def f(x:(value:=object)):\n global value\n nonlocal value\n" }
+expected = []
+
+[[cases]]
+name = "nonlocal-policy-type-scope-annotation-pyi"
+comparison = "full"
+files = { "case.pyi" = "def f(x:(value:=object)):\n global value\n nonlocal value\n" }
+expected = [{ "rule" = "PLW0602", "file" = "case.pyi", "start" = 34, "end" = 39 }, { "rule" = "invalid-syntax", "file" = "case.pyi", "start" = 9, "end" = 22 }]
+
+[[cases]]
+name = "nonlocal-policy-type-scope-parameter-py"
+comparison = "full"
+files = { "case.py" = "def f[T]():\n global T\n nonlocal T\n" }
+expected = [{ "rule" = "invalid-syntax", "file" = "case.py", "start" = 5, "end" = 8 }]
+
+[[cases]]
+name = "nonlocal-policy-type-scope-parameter-pyi"
+comparison = "full"
+files = { "case.pyi" = "def f[T]():\n global T\n nonlocal T\n" }
+expected = [{ "rule" = "invalid-syntax", "file" = "case.pyi", "start" = 5, "end" = 8 }]
+
+[[cases]]
+name = "nonlocal-policy-delayed-annotation-keeps-outer-value"
+comparison = "full"
+files = { "case.py" = "def outer():\n value=1\n value:int\n def inner():\n  global value\n  nonlocal value\n" }
+expected = []

@@ -37,6 +37,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     let mut symbols = Symbols::default();
     let columns = functions(&mut symbols);
     let mut context = OperatorContext {
+        stored_indexes: None,
         bindings: &[],
         symbols: &mut symbols,
         source: SourceView(SOURCE),

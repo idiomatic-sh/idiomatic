@@ -22,8 +22,10 @@ pub(crate) fn call_span_between(
         if !matches!(
             argument.name.0.as_ref(),
             "from" | "start" | "end" | "output"
-        ) || call.arguments[..at]
+        ) || call
+            .arguments
             .iter()
+            .take(at)
             .any(|earlier| earlier.name == argument.name)
         {
             return Err(LoweringError::SpanArgument {

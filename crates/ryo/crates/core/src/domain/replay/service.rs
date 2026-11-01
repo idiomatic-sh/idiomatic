@@ -25,6 +25,7 @@ pub(crate) fn derive<'x>(
     scratch: &'x mut OperatorScratch,
 ) -> OperatorContext<'x> {
     OperatorContext {
+        stored_indexes: context.stored_indexes.as_deref_mut(),
         bindings: context.bindings,
         symbols: &mut *context.symbols,
         source: context.source,
@@ -72,6 +73,7 @@ pub(crate) fn replay_computed(
             rows[2] = ins.hold(InputPlace(2), context, third)?;
         }
         let mut own = OperatorContext {
+            stored_indexes: context.stored_indexes.as_deref_mut(),
             bindings: context.bindings,
             symbols: &mut *context.symbols,
             source: context.source,
@@ -88,6 +90,7 @@ pub(crate) fn replay_computed(
         )?;
     }
     let mut own = OperatorContext {
+        stored_indexes: context.stored_indexes.as_deref_mut(),
         bindings: context.bindings,
         symbols: &mut *context.symbols,
         source: context.source,

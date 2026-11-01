@@ -30,6 +30,10 @@ pub(crate) struct CountingWorker {
 }
 
 impl FactsWorker for CountingWorker {
+    fn resident_stability(&self) -> ryo_core::outbound::facts::types::ResidentStability {
+        self.inner.resident_stability()
+    }
+
     fn columns_mut(&mut self) -> Result<ColumnsMut<'_>, FactsError> {
         self.inner.columns_mut()
     }

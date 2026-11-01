@@ -52,6 +52,7 @@ fn subject((keys, binding): Input) -> Result<Value, Failure> {
     let mut symbols = Symbols::default();
     let mut out = Table::default();
     let mut context = OperatorContext {
+        stored_indexes: None,
         bindings: &bound,
         symbols: &mut symbols,
         source: SourceView(&[]),

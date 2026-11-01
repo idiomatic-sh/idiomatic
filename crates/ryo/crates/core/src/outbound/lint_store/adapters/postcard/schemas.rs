@@ -563,26 +563,32 @@ fn findings_from(
     Ok(findings)
 }
 
+/// Decode rule identities and crossing policies from the interned snapshot tables.
+fn rules_from(tables: &TablesSchema<'_>) -> Result<Vec<StoredRule>, postcard::Error> {
+    let strings = &tables.strings;
+    tables
+        .rules
+        .iter()
+        .map(|each| {
+            Ok(StoredRule {
+                rule: RuleId(named(strings, each.rule)?),
+                digest: Digest(each.digest),
+                crossing: if each.across {
+                    Crossing::Across
+                } else {
+                    Crossing::Within
+                },
+            })
+        })
+        .collect::<Result<_, postcard::Error>>()
+}
+
 impl TryFrom<TablesSchema<'_>> for Stored {
     type Error = postcard::Error;
 
     fn try_from(tables: TablesSchema<'_>) -> Result<Self, Self::Error> {
         let strings = &tables.strings;
-        let rules = tables
-            .rules
-            .iter()
-            .map(|each| {
-                Ok(StoredRule {
-                    rule: RuleId(named(strings, each.rule)?),
-                    digest: Digest(each.digest),
-                    crossing: if each.across {
-                        Crossing::Across
-                    } else {
-                        Crossing::Within
-                    },
-                })
-            })
-            .collect::<Result<_, postcard::Error>>()?;
+        let rules = rules_from(&tables)?;
         let files: Vec<StoredFile> = tables
             .files
             .iter()

@@ -33,6 +33,33 @@ fn made_of(input: Input) -> Option<StepId> {
     }
 }
 
+/// The dependency order of an operation handled by the tree fragment executor.
+fn dependencies(operation: &Operation) -> Result<(Option<StepId>, Option<StepId>), OperatingError> {
+    Ok(match operation {
+        Operation::Select { from, .. } | Operation::Project { from, .. } => (made_of(*from), None),
+        Operation::Join { left, right, .. }
+        | Operation::Antijoin { left, right, .. }
+        | Operation::Union { left, right } => (made_of(*left), made_of(*right)),
+        Operation::Axis { from, domain, .. } => (made_of(*from), made_of(*domain)),
+        Operation::Extend { .. }
+        | Operation::Intersection { .. }
+        | Operation::Difference { .. }
+        | Operation::GroupCount { .. }
+        | Operation::Replace { .. }
+        | Operation::SpanBetween { .. }
+        | Operation::OrderedMatch { .. }
+        | Operation::OrderedDfs { .. }
+        | Operation::GroupDigest { .. }
+        | Operation::Capture { .. }
+        | Operation::Rank { .. }
+        | Operation::Words { .. }
+        | Operation::Closure { .. }
+        | Operation::Cycles { .. }
+        | Operation::Rows { .. }
+        | Operation::Hosted { .. } => return Err(OperatingError::WrongOperation),
+    })
+}
+
 /// Makes the rows of the step `id` and of the lowered steps it reads, once.
 ///
 /// # Errors
@@ -83,29 +110,7 @@ pub(crate) fn make(
         .operation;
     // What a step reads is made first, the left side before the right: nothing on the left joins with nothing, so the right is
     // not made.
-    let (first, second) = match operation {
-        Operation::Select { from, .. } | Operation::Project { from, .. } => (made_of(*from), None),
-        Operation::Join { left, right, .. }
-        | Operation::Antijoin { left, right, .. }
-        | Operation::Union { left, right } => (made_of(*left), made_of(*right)),
-        Operation::Axis { from, domain, .. } => (made_of(*from), made_of(*domain)),
-        Operation::Extend { .. }
-        | Operation::Intersection { .. }
-        | Operation::Difference { .. }
-        | Operation::GroupCount { .. }
-        | Operation::Replace { .. }
-        | Operation::SpanBetween { .. }
-        | Operation::OrderedMatch { .. }
-        | Operation::OrderedDfs { .. }
-        | Operation::GroupDigest { .. }
-        | Operation::Capture { .. }
-        | Operation::Rank { .. }
-        | Operation::Words { .. }
-        | Operation::Closure { .. }
-        | Operation::Cycles { .. }
-        | Operation::Rows { .. }
-        | Operation::Hosted { .. } => return Err(OperatingError::WrongOperation),
-    };
+    let (first, second) = dependencies(operation)?;
     if let Some(first) = first {
         make(run, first, context)?;
     }

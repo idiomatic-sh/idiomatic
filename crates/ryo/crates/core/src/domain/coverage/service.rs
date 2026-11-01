@@ -149,8 +149,7 @@ pub(crate) fn partial_of(
         .collect();
     let cause = match everything {
         Recovery::Whole => None,
-        Recovery::SyntaxErrors => Some(SYNTAX_ERRORS),
-        Recovery::LexicallyCompleteSyntaxErrors => Some(SYNTAX_ERRORS),
+        Recovery::SyntaxErrors | Recovery::LexicallyCompleteSyntaxErrors => Some(SYNTAX_ERRORS),
         Recovery::Unparsed => Some(UNPARSED),
     };
     if let Some(cause) = cause {

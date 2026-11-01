@@ -91,6 +91,7 @@ pub(crate) fn evaluate_rule<'f>(
     setting: &VisitSetting<'_>,
     rule: RuleIndex,
     file: FileId,
+    stored_indexes: Option<&mut crate::domain::stored_indexes::types::FileIndexes>,
     relations: &dyn Fn(Relation) -> Option<ColumnsView<'f>>,
 ) -> Result<(), RulesError> {
     let (Some(plan), Some(bound)) = (setting.plans.get(rule.0), setting.bindings.get(rule.0))
@@ -126,6 +127,7 @@ pub(crate) fn evaluate_rule<'f>(
     let _entered = rule_span.enter();
     {
         let mut context = OperatorContext {
+            stored_indexes,
             bindings: bound,
             symbols: &mut tables.symbols,
             source: SourceView(&tables.bytes.0),

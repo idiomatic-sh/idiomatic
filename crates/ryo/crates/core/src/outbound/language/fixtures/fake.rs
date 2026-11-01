@@ -160,7 +160,7 @@ impl LanguagePort for LanguageFake {
         }
         // A language names every kind its table holds, as the engine reads a kind by its name.
         if !self.rejected_syntax.is_empty() {
-            let acceptance = if self.rejected_syntax.contains(&file.path) {
+            let acceptance = if self.rejected_syntax.contains(file.path) {
                 ryo_language::domain::elements::types::SyntaxAcceptance::Rejected
             } else {
                 ryo_language::domain::elements::types::SyntaxAcceptance::Accepted

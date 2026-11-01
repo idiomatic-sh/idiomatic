@@ -71,6 +71,7 @@ fn compute(
     let rows: Vec<Rows<'_>> = inputs.iter().map(|table| Rows::Computed(table)).collect();
     let mut out = Table::default();
     let mut context = OperatorContext {
+        stored_indexes: None,
         bindings,
         symbols: &mut symbols,
         source: SourceView(&[]),
@@ -167,6 +168,7 @@ fn over_the_tree(
     ];
     let mut out = Table::default();
     let mut context = OperatorContext {
+        stored_indexes: None,
         bindings: &[],
         symbols: &mut symbols,
         source: SourceView(source),

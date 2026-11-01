@@ -21,14 +21,14 @@ pub(super) fn worker(
     let next_argument = args.next().map(|argument| argument.0);
     let (parser_configuration, trace_path) = match next_argument {
         Some(configuration) if configuration.starts_with("python-target=") => {
-            let trace_path = if tracing != WorkerTracing::Disabled {
+            let trace_path = if tracing == WorkerTracing::Disabled {
+                None
+            } else {
                 Some(
                     args.next()
                         .map(|argument| argument.0)
                         .ok_or_else(|| Error::Invalid(constants::MISSING_TRACE.into()))?,
                 )
-            } else {
-                None
             };
             (Some(configuration), trace_path)
         }
@@ -164,12 +164,15 @@ pub(super) fn verify_cases(
         execution.as_ref(),
         &profile,
         &root.join(constants::CASES_DIRECTORY),
-        shard,
-        case_selection.as_ref(),
+        ryo_benchmark::application::run::service::CaseSelection {
+            shard,
+            ids: case_selection.as_ref(),
+        },
     )?;
     Ok(count)
 }
 
+/// Parse explicit zero-based shard coordinates using the validated application type.
 fn parse_shard(value: &str) -> Result<ryo_benchmark::application::run::service::CaseShard, Error> {
     let coordinates = value
         .strip_prefix("--shard=")
@@ -179,10 +182,10 @@ fn parse_shard(value: &str) -> Result<ryo_benchmark::application::run::service::
         .ok_or_else(|| Error::Invalid("expected --shard=INDEX/COUNT".into()))?;
     let index = index
         .parse()
-        .map_err(|_| Error::Invalid("invalid case shard index".into()))?;
+        .map_err(|_invalid_index| Error::Invalid("invalid case shard index".into()))?;
     let count = count
         .parse()
-        .map_err(|_| Error::Invalid("invalid case shard count".into()))?;
+        .map_err(|_invalid_count| Error::Invalid("invalid case shard count".into()))?;
     ryo_benchmark::application::run::service::CaseShard::new(index, count)
 }
 

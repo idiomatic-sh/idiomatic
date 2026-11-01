@@ -518,7 +518,7 @@ fn prepared(scenario: Scenario) -> (SuiteFake, BenchmarkFinding) {
         });
     }
     suite.profile = Some(crate::domain::suite::types::Tool {
-        project_context_mode: Default::default(),
+        project_context_mode: crate::domain::suite::types::ProjectContextMode::default(),
         tool: "fixture".into(),
         version: "1".into(),
         sha256: vec!["pin".into()],

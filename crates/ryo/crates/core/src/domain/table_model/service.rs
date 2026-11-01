@@ -4,7 +4,9 @@ use std::cmp::Ordering;
 
 use ryo_language::domain::elements::service::real_count;
 use ryo_language::domain::relations::service::from_bits;
-use ryo_language::domain::relations::types::{Bits, CellKind, Flag, Integer, Position, Value};
+use ryo_language::domain::relations::types::{
+    Bits, CellKind, ColumnsView, Flag, Integer, Position, Value,
+};
 
 use super::errors::TableModelError;
 use super::types::{
@@ -278,13 +280,7 @@ pub(crate) fn index(
     if let On::Columns(columns) = on {
         check_columns(&table.kinds, columns)?;
     }
-    let KeyIndex {
-        rows,
-        hashes,
-        heads,
-        next,
-        ..
-    } = order;
+    let KeyIndex { rows, hashes, .. } = order;
     let count = table.count.0;
     rows.clear();
     rows.extend(positions(table.count));
@@ -293,20 +289,99 @@ pub(crate) fn index(
         rows.iter()
             .map(|each| row_in(table, *each).map_or(KeyCellsHash(0), |row| hash_row(row, on))),
     );
+    chain(order, count);
+    Ok(())
+}
+
+/// Link indexed row hashes in original order, reusing all bucket and chain allocations.
+fn chain(order: &mut KeyIndex, count: usize) {
     let buckets = count.next_power_of_two().max(1);
-    heads.clear();
-    heads.resize(buckets, ChainLink(0));
-    next.clear();
-    next.resize(count, ChainLink(0));
+    order.heads.clear();
+    order.heads.resize(buckets, ChainLink(0));
+    order.next.clear();
+    order.next.resize(count, ChainLink(0));
     // Last row first, so a chain is met from the first row to the last.
-    for (place, (hash, link)) in hashes.iter().zip(next.iter_mut()).enumerate().rev() {
+    for (place, (hash, link)) in order
+        .hashes
+        .iter()
+        .zip(order.next.iter_mut())
+        .enumerate()
+        .rev()
+    {
         let bucket = usize::try_from(hash.0).unwrap_or(0) & (buckets - 1);
-        if let Some(head) = heads.get_mut(bucket) {
+        if let Some(head) = order.heads.get_mut(bucket) {
             *link = *head;
             *head = ChainLink(u32::try_from(place + 1).unwrap_or(u32::MAX));
         }
     }
+}
+
+/// Whether every declared stored column has exactly the first column's row population.
+/// Other views keep the materializing path, including its treatment of incomplete rows.
+pub(crate) fn rectangular(view: ColumnsView<'_>) -> bool {
+    let count = view.columns.first().map_or(0, |column| column.0.len());
+    view.columns.len() == view.kinds.len()
+        && view.columns.iter().all(|column| column.0.len() == count)
+}
+
+/// Decode one typed stored cell, preserving normalization such as nonzero flag encodings.
+fn stored_cell(view: ColumnsView<'_>, row: RowIndex, column: ColumnIndex) -> Option<Value> {
+    let place = usize::try_from(column.0).ok()?;
+    let kind = view.kinds.get(place)?;
+    let bits = view.columns.get(place)?.0.get(row.0)?;
+    Some(from_bits(*kind, Bits(*bits)))
+}
+
+/// Index only the typed key cells of a rectangular stored relation, retaining original row IDs.
+///
+/// # Errors
+///
+/// `NoSuchColumn` when a key names a column the view lacks, also for an empty view.
+pub(crate) fn index_stored(
+    view: ColumnsView<'_>,
+    columns: &[ColumnIndex],
+    order: &mut KeyIndex,
+) -> Result<(), TableModelError> {
+    check_columns(view.kinds, columns)?;
+    let count = view.columns.first().map_or(0, |column| column.0.len());
+    order.rows.clear();
+    order.rows.extend(positions(RowCount(count)));
+    order.hashes.clear();
+    order.hashes.extend(order.rows.iter().map(|row| {
+        columns.iter().fold(KeyCellsHash(0), |hash, column| {
+            let word = stored_cell(view, *row, *column).map_or(HashWord(0), |cell| word_of(&cell));
+            mix(hash, word)
+        })
+    }));
+    chain(order, count);
     Ok(())
+}
+
+/// Find original stored rows by typed keys, checking equality after every hash match.
+/// The caller indexes a rectangular view first; payload columns are never read here.
+pub(crate) fn matching_stored<'o, 'k>(
+    view: ColumnsView<'o>,
+    columns: &'k [ColumnIndex],
+    order: &'o KeyIndex,
+    key: &'k [Value],
+) -> impl Iterator<Item = &'o RowIndex> + Clone {
+    let hash = hash_key(key.iter().map(Some));
+    let bucket = usize::try_from(hash.0).unwrap_or(0) & order.heads.len().saturating_sub(1);
+    let mut at = order.heads.get(bucket).copied().unwrap_or(ChainLink(0));
+    std::iter::from_fn(move || {
+        while at.0 != 0 {
+            let place = usize::try_from(at.0 - 1).unwrap_or(usize::MAX);
+            at = order.next.get(place).copied().unwrap_or(ChainLink(0));
+            if order.hashes.get(place) == Some(&hash)
+                && columns.iter().zip(key).all(|(column, wanted)| {
+                    stored_cell(view, RowIndex(place), *column) == Some(*wanted)
+                })
+            {
+                return order.rows.get(place);
+            }
+        }
+        None
+    })
 }
 
 /// The rows of an indexed table whose keys are `key`, in the order they came: the chain of the key's bucket is followed, and a row

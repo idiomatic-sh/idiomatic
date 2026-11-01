@@ -127,8 +127,65 @@ fn packed_words_come_back_as_the_words_kept(facts: &dyn FactsPort) -> Result<Val
     ))
 }
 
+/// A stable resident snapshot survives reads of other relations and spill-sized word retention.
+fn resident_rows_survive_other_reads_and_word_flushes(
+    facts: &dyn FactsPort,
+) -> Result<Value, FactsError> {
+    use crate::outbound::facts::types::ResidentStability;
+    let mut worker = facts.worker()?;
+    if worker.resident_stability() == ResidentStability::Unstable {
+        return Ok(1);
+    }
+    let first = [7, 3, 2, (7_u64 << 32_u32) | 0x0b];
+    let second = [1, 1, 2, (1_u64 << 32_u32) | 0x03];
+    {
+        let columns = worker.columns_mut()?;
+        for row in [first, second, first] {
+            for (column, value) in columns.function.iter_mut().zip(row) {
+                column.0.push(value);
+            }
+        }
+    }
+    let snapshot = |resident: &dyn super::super::interface::FactsWorker| -> Result<_, FactsError> {
+        let rows = resident.rows(Relation::Function)?;
+        Ok((
+            rows.kinds.to_vec(),
+            rows.columns
+                .iter()
+                .map(|column| column.0.clone())
+                .collect::<Vec<_>>(),
+        ))
+    };
+    let expected = snapshot(worker.as_ref())?;
+    for amount in [2, (1_usize << 20_u32) + 17, 3] {
+        let _scope_rows = worker.rows(Relation::Scope)?;
+        worker.keep(Bucket(7), WordsToKeep(&PackedWords(vec![1; amount])))?;
+        if snapshot(worker.as_ref())? != expected {
+            return Ok(0);
+        }
+        let _identifier_rows = worker.rows(Relation::Identifier)?;
+        if snapshot(worker.as_ref())? != expected {
+            return Ok(0);
+        }
+    }
+    worker.release()?;
+    Ok(usize::from(
+        worker
+            .rows(Relation::Function)?
+            .columns
+            .iter()
+            .all(|column| column.0.is_empty()),
+    ))
+}
+
 /// The contract's rows: a name, one case word, an input and the expected value or error variant. Every implementation runs them.
 pub const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("stable_resident_rows_survive_other_reads_and_spill_sized_keeps"),
+        word: Word::Succeeds,
+        input: || resident_rows_survive_other_reads_and_word_flushes,
+        expect: Expect::Value(1),
+    },
     Case {
         name: CaseName("appended_rows_are_read_back"),
         word: Word::Succeeds,

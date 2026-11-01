@@ -15,15 +15,15 @@ fn disk_requests_every_marker_then_retains_initializer_component() {
         disk(source, &markers),
         Decision::Need(PathBuf::from("/boundary/pkg/sub/__init__.py"))
     );
-    let _previous = markers
+    let _previous_1 = markers
         .0
         .insert("/boundary/pkg/sub/__init__.py".into(), true);
-    let _previous = markers.0.insert("/boundary/pkg/__init__.py".into(), true);
+    let _previous_2 = markers.0.insert("/boundary/pkg/__init__.py".into(), true);
     assert_eq!(
         disk(source, &markers),
         Decision::Need("/boundary/__init__.py".into())
     );
-    let _previous = markers.0.insert("/boundary/__init__.py".into(), false);
+    let _previous_3 = markers.0.insert("/boundary/__init__.py".into(), false);
     assert_eq!(
         disk(source, &markers),
         Decision::Known(Some("pkg.sub.__init__".into()))

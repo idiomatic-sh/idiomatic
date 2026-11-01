@@ -12,8 +12,10 @@ use std::path::PathBuf;
 /// Explicit candidate invocation at the JSON process boundary.
 struct RyoWorkerRequestSchema {
     #[serde(default)]
+    /// Explicit project lookup mode for this invocation.
     project_context_mode: crate::outbound::context::adapters::local::schemas::ModeSchema,
     #[serde(default)]
+    /// Sealed source, auxiliary and missing context inventory.
     context_manifest: Option<crate::outbound::context::adapters::local::schemas::ManifestSchema>,
     /// Project root against which explicit file paths are resolved.
     root: PathBuf,
@@ -38,6 +40,7 @@ struct RyoWorkerRequestSchema {
 /// Candidate findings and exact covered file set.
 struct RyoReportSchema {
     #[serde(default)]
+    /// Actual dependency observations returned by the candidate.
     project_context: Option<crate::outbound::context::adapters::local::schemas::ReceiptSchema>,
     /// Reported findings, preserving multiplicity and source offsets.
     diagnostics: Vec<RyoDiagnosticSchema>,

@@ -72,6 +72,10 @@ struct FakeWorker {
 }
 
 impl FactsWorker for FakeWorker {
+    fn resident_stability(&self) -> crate::outbound::facts::types::ResidentStability {
+        crate::outbound::facts::types::ResidentStability::Stable
+    }
+
     fn columns_mut(&mut self) -> Result<ColumnsMut<'_>, FactsError> {
         counted(&self.calls, self.fails)?;
         Ok(self

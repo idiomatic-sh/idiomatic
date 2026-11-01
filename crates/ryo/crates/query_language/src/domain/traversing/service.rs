@@ -126,7 +126,10 @@ pub(crate) fn call_closure(
             Vec::new()
         };
         for (at, key) in keys.iter().enumerate() {
-            if keys[..at].contains(key) || *key == source || *key == destination {
+            if keys.iter().take(at).any(|earlier| earlier == key)
+                || *key == source
+                || *key == destination
+            {
                 return Err(LoweringError::DuplicateOutput {
                     name: column_of(&fields, *key).name.0.to_string(),
                     span: call.span,
@@ -171,6 +174,45 @@ pub(crate) fn call_closure(
         );
     }
     Ok(())
+}
+
+/// Construct shared DFS output columns and refuse duplicate names before publishing the step.
+fn dfs_output_columns(
+    roots: &[PlannedColumn],
+    fields: &[PlannedColumn],
+    root_keys: &[parts::ColumnIndex],
+    root: parts::ColumnIndex,
+    endpoints: [parts::ColumnIndex; 3],
+    call: &syntax::Call,
+) -> Result<Vec<PlannedColumn>, LoweringError> {
+    let mut kept: Vec<_> = root_keys
+        .iter()
+        .map(|column| column_of(roots, *column).clone())
+        .collect();
+    kept.push(column_of(roots, root).clone());
+    kept.extend(
+        endpoints
+            .iter()
+            .map(|column| column_of(fields, *column).clone()),
+    );
+    kept.push(PlannedColumn {
+        name: word_of(call, ArgumentSlot::Output)?,
+        kind: CellKind::Number,
+        unique: Uniqueness::Shared,
+        words: Vocabulary::Open,
+    });
+    for (at, field) in kept.iter().enumerate() {
+        if kept.iter().take(at).any(|before| before.name == field.name) {
+            return Err(LoweringError::DuplicateOutput {
+                name: field.name.0.to_string(),
+                span: call.span,
+            });
+        }
+    }
+    for field in &mut kept {
+        field.unique = Uniqueness::Shared;
+    }
+    Ok(kept)
 }
 
 /// Lower deterministic depth-first edge visits, partitioned by matching root/edge keys.
@@ -250,31 +292,14 @@ pub(crate) fn call_ordered_dfs(
             ArgumentFault::MatchingGraphKeys,
         ));
     }
-    let mut kept: Vec<_> = root_keys
-        .iter()
-        .map(|column| column_of(&roots, *column).clone())
-        .collect();
-    kept.push(column_of(&roots, root).clone());
-    kept.extend(
-        [source, destination, edge]
-            .iter()
-            .map(|column| column_of(&fields, *column).clone()),
-    );
-    kept.push(PlannedColumn {
-        name: word_of(call, ArgumentSlot::Output)?,
-        kind: CellKind::Number,
-        unique: Uniqueness::Shared,
-        words: Vocabulary::Open,
-    });
-    for at in 0..kept.len() {
-        if kept[..at].iter().any(|before| before.name == kept[at].name) {
-            return Err(LoweringError::DuplicateOutput {
-                name: kept[at].name.0.to_string(),
-                span: call.span,
-            });
-        }
-        kept[at].unique = Uniqueness::Shared;
-    }
+    let kept = dfs_output_columns(
+        &roots,
+        &fields,
+        &root_keys,
+        root,
+        [source, destination, edge],
+        call,
+    )?;
     push(
         builder,
         Some(name),

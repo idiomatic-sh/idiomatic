@@ -1,0 +1,13 @@
+{
+  "schema": "known-candidate-gap/v1",
+  "old_cases_preserved": 5,
+  "expanded_cases": 75,
+  "matches": 74,
+  "mismatches": 1,
+  "complete_records": 150,
+  "worker": "097f5c059b42c4a9856b80aeb8ca3520fbcf774ebcc19d16432cd64328d72d63",
+  "ready": false,
+  "gap": "nested quotedtype inside runtime generic lacks inner source identity/range; exact expected arrays retained",
+  "source": "/tmp/literal-parse-20261101/PYI020/rules/PYI020/cases.toml",
+  "cases_sha256": "9a5ce6e9fad9964c44dace9c47ed016c4305b05ec29e86f3ed2426a81946569a"
+}

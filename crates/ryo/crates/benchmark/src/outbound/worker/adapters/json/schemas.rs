@@ -20,8 +20,10 @@ pub(super) enum WorkerSchemaError {
 /// Explicit candidate invocation at the JSON process boundary.
 struct RequestSchema {
     #[serde(default)]
+    /// Explicit project lookup mode for this invocation.
     project_context_mode: crate::outbound::context::adapters::local::schemas::ModeSchema,
     #[serde(default)]
+    /// Sealed source, auxiliary and missing context inventory.
     context_manifest: Option<crate::outbound::context::adapters::local::schemas::ManifestSchema>,
     /// Project root against which explicit file paths are resolved.
     root: PathBuf,
@@ -67,6 +69,7 @@ impl From<RequestSchema> for WorkerRequest {
 /// Candidate findings and exact covered file set.
 struct ReportSchema<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
+    /// Actual dependency observations returned by the candidate.
     project_context: Option<crate::outbound::context::adapters::local::schemas::ReceiptSchema>,
     /// Reported findings, preserving multiplicity and source offsets.
     diagnostics: Vec<DiagnosticSchema<'a>>,

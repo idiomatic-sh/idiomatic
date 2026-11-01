@@ -40,7 +40,10 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
 /// # Panics
 ///
 /// Panics when fixture setup fails or the implementation violates a contract observation.
-#[expect(clippy::expect_used, reason = "isolated fixture setup must fail the contract test")]
+#[expect(
+    clippy::expect_used,
+    reason = "isolated fixture setup must fail the contract test"
+)]
 pub fn check(adapter: &impl LinterPort) {
     let temporary = tempfile::tempdir().expect("isolated linter fixture");
     let request = RunRequest {

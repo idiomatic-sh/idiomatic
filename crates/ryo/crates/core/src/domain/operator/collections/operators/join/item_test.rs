@@ -93,6 +93,7 @@ fn made(
 ) -> Result<Table, OperatingError> {
     let mut out = Table::default();
     let mut context = OperatorContext {
+        stored_indexes: None,
         bindings: &[],
         symbols,
         source: SourceView(source),
@@ -399,6 +400,47 @@ fn stream_lookup(
     emit_fails: bool,
 ) -> Result<(Vec<Vec<Cell>>, usize), OperatingError> {
     let operation = plan(&[0], &[0], &[(Side::Right, 1)], Vec::new(), &[]);
+    stream_operation(
+        &operation,
+        room,
+        left,
+        right,
+        left_fails,
+        right_fails,
+        emit_fails,
+    )
+}
+
+/// Exercise the real streamed path for arbitrary key and output arrangements.
+fn stream_operation(
+    operation: &Operation,
+    room: &mut Room,
+    left: &Table,
+    right: Rows<'_>,
+    left_fails: bool,
+    right_fails: bool,
+    emit_fails: bool,
+) -> Result<(Vec<Vec<Cell>>, usize), OperatingError> {
+    stream_with_indexes(
+        operation,
+        room,
+        left,
+        right,
+        (left_fails, right_fails, emit_fails),
+        None,
+    )
+}
+
+/// Keep an optional physical-generation cache through the actual streamed operator boundary.
+fn stream_with_indexes(
+    operation: &Operation,
+    room: &mut Room,
+    left: &Table,
+    right: Rows<'_>,
+    failures: (bool, bool, bool),
+    stored_indexes: Option<&mut crate::domain::stored_indexes::types::FileIndexes>,
+) -> Result<(Vec<Vec<Cell>>, usize), OperatingError> {
+    let (left_fails, right_fails, emit_fails) = failures;
     let mut feed = ControlledFeed {
         left,
         right,
@@ -414,6 +456,7 @@ fn stream_lookup(
     let mut memo = Vec::new();
     let mut scratch = OperatorScratch::default();
     let mut context = OperatorContext {
+        stored_indexes,
         bindings: &[],
         symbols: &mut symbols,
         source: SourceView(&[]),
@@ -422,7 +465,7 @@ fn stream_lookup(
         memo: &mut memo,
         scratch: &mut scratch,
     };
-    JoinItem.stream(&operation, &mut feed, &mut context, room, &mut emitted)?;
+    JoinItem.stream(operation, &mut feed, &mut context, room, &mut emitted)?;
     Ok((emitted.rows, feed.right_holds))
 }
 
@@ -650,4 +693,640 @@ fn succeeds() {
 #[test]
 fn refuses() {
     run(CASES, Word::Refuses, subject);
+}
+
+/// Compare computed and streamed paths for one key schema while reusing the same operator room.
+fn assert_stored_join_shape(
+    operation: &Operation,
+    left: &Table,
+    right: Rows<'_>,
+    computed: &Table,
+    room: &mut Room,
+) {
+    let expected = made(
+        operation,
+        &[Rows::Computed(left), Rows::Computed(computed)],
+        &mut Symbols::default(),
+        &[],
+    )
+    .expect("computed join");
+    let actual = made(
+        operation,
+        &[Rows::Computed(left), right],
+        &mut Symbols::default(),
+        &[],
+    )
+    .expect("stored join");
+    assert_eq!(actual, expected);
+    let expected_rows = (0..expected.count.0)
+        .map(|at| {
+            row_in(&expected, crate::domain::table_cells::types::RowIndex(at))
+                .expect("expected row")
+                .to_vec()
+        })
+        .collect::<Vec<_>>();
+    let stored_rows = stream_operation(operation, room, left, right, false, false, false)
+        .expect("streamed stored")
+        .0;
+    assert_eq!(stored_rows, expected_rows);
+    assert!(
+        room.scratch.right.count.0 <= 1,
+        "only a matched RHS row is decoded, never the full stored table"
+    );
+    assert!(room.scratch.right.cells.len() <= computed.kinds.len());
+    let computed_rows = stream_operation(
+        operation,
+        room,
+        left,
+        Rows::Computed(computed),
+        false,
+        false,
+        false,
+    )
+    .expect("streamed computed")
+    .0;
+    assert_eq!(computed_rows, expected_rows);
+    let empty = table_of(&left.kinds, &[]);
+    assert!(
+        stream_operation(operation, room, &empty, right, false, false, false)
+            .expect("empty left")
+            .0
+            .is_empty()
+    );
+}
+
+#[test]
+fn stored_right_joins_match_computed_order_for_composite_reordered_and_empty_keys() {
+    use crate::domain::table_model::service::materialize;
+    const KINDS: &[CellKind] = &[CellKind::Number, CellKind::Flag, CellKind::Number];
+    let columns = [
+        fact_column(&[1, 2, 1, 3, 1]),
+        FactColumn(vec![2, 0, 1, 1, 0]),
+        fact_column(&[10, 20, 11, 30, 12]),
+    ];
+    let right = Rows::Stored(ColumnsView {
+        kinds: KINDS,
+        columns: &columns,
+    });
+    let mut computed = Table::default();
+    materialize(&right, &mut computed, &mut Vec::new());
+    let number = |value| Cell::Number(Integer(value));
+    let left = table_of(
+        &[CellKind::Number, CellKind::Flag],
+        &[
+            &[
+                number(1),
+                Cell::Flag(ryo_language::domain::relations::types::Flag::Raised),
+            ],
+            &[
+                number(1),
+                Cell::Flag(ryo_language::domain::relations::types::Flag::Lowered),
+            ],
+            &[
+                number(1),
+                Cell::Flag(ryo_language::domain::relations::types::Flag::Raised),
+            ],
+            &[
+                number(9),
+                Cell::Flag(ryo_language::domain::relations::types::Flag::Raised),
+            ],
+        ],
+    );
+    let mut room = Room::default();
+    for (left_on, right_on) in [
+        (vec![0], vec![0]),
+        (vec![1, 0], vec![1, 0]),
+        (vec![0, 1], vec![0, 1]),
+        (Vec::new(), Vec::new()),
+        (vec![0], vec![1]),
+    ] {
+        let operation = plan(
+            &left_on,
+            &right_on,
+            &[
+                (Side::Right, 2),
+                (Side::Left, 0),
+                (Side::Right, 1),
+                (Side::Right, 0),
+                (Side::Right, 2),
+            ],
+            Vec::new(),
+            &[],
+        );
+        assert_stored_join_shape(&operation, &left, right, &computed, &mut room);
+    }
+}
+
+#[test]
+fn malformed_stored_views_keep_the_original_materializing_fallback() {
+    use crate::domain::table_model::service::materialize;
+    let columns = [fact_column(&[1, 1, 1]), fact_column(&[10, 11])];
+    let right = Rows::Stored(ColumnsView {
+        kinds: NUMBER_PAIR_KINDS,
+        columns: &columns,
+    });
+    let mut computed = Table::default();
+    materialize(&right, &mut computed, &mut Vec::new());
+    let left = table_of(&[CellKind::Number], &[&[Cell::Number(Integer(1))]]);
+    let operation = plan(&[0], &[0], &[(Side::Right, 1)], Vec::new(), &[]);
+    assert_eq!(
+        made(
+            &operation,
+            &[Rows::Computed(&left), right],
+            &mut Symbols::default(),
+            &[]
+        ),
+        made(
+            &operation,
+            &[Rows::Computed(&left), Rows::Computed(&computed)],
+            &mut Symbols::default(),
+            &[]
+        )
+    );
+    let mut room = Room::default();
+    assert_eq!(
+        stream_operation(&operation, &mut room, &left, right, false, false, false)
+            .expect("stored")
+            .0,
+        stream_operation(
+            &operation,
+            &mut room,
+            &left,
+            Rows::Computed(&computed),
+            false,
+            false,
+            false
+        )
+        .expect("computed")
+        .0
+    );
+}
+
+#[test]
+fn stored_right_key_errors_match_computed_before_any_emission() {
+    use crate::domain::table_model::service::materialize;
+    let columns = [fact_column(&[1]), fact_column(&[10])];
+    let right = Rows::Stored(ColumnsView {
+        kinds: NUMBER_PAIR_KINDS,
+        columns: &columns,
+    });
+    let mut computed = Table::default();
+    materialize(&right, &mut computed, &mut Vec::new());
+    let left = table_of(&[CellKind::Number], &[&[Cell::Number(Integer(1))]]);
+    for (left_on, right_on) in [(vec![9], vec![0]), (vec![0], vec![9])] {
+        let operation = plan(&left_on, &right_on, &[(Side::Right, 1)], Vec::new(), &[]);
+        let expected = made(
+            &operation,
+            &[Rows::Computed(&left), Rows::Computed(&computed)],
+            &mut Symbols::default(),
+            &[],
+        );
+        assert!(expected.is_err());
+        assert_eq!(
+            made(
+                &operation,
+                &[Rows::Computed(&left), right],
+                &mut Symbols::default(),
+                &[]
+            ),
+            expected
+        );
+        assert_eq!(
+            stream_operation(
+                &operation,
+                &mut Room::default(),
+                &left,
+                right,
+                false,
+                false,
+                false
+            ),
+            stream_operation(
+                &operation,
+                &mut Room::default(),
+                &left,
+                Rows::Computed(&computed),
+                false,
+                false,
+                false
+            )
+        );
+    }
+}
+
+/// Capture only the opt-in aggregate target, without adding a test dependency.
+#[derive(Clone, Default)]
+struct JoinDiagnostics {
+    /// Recorded fields of each completed invocation, shared with the assertion scope.
+    events: std::sync::Arc<std::sync::Mutex<Vec<std::collections::BTreeMap<String, String>>>>,
+}
+
+impl tracing::Subscriber for JoinDiagnostics {
+    fn register_callsite(
+        &self,
+        _: &'static tracing::Metadata<'static>,
+    ) -> tracing::subscriber::Interest {
+        // Other parallel tests use the no-op dispatcher. Never cache their disabled
+        // decision for this thread-local capture, or this capture for their tests.
+        tracing::subscriber::Interest::sometimes()
+    }
+    fn max_level_hint(&self) -> Option<tracing::metadata::LevelFilter> {
+        Some(tracing::metadata::LevelFilter::TRACE)
+    }
+    fn enabled(&self, metadata: &tracing::Metadata<'_>) -> bool {
+        metadata.target() == "ryo::diagnostic::stored_join"
+    }
+    fn new_span(&self, _: &tracing::span::Attributes<'_>) -> tracing::span::Id {
+        tracing::span::Id::from_u64(1)
+    }
+    fn record(&self, _: &tracing::span::Id, _: &tracing::span::Record<'_>) {}
+    fn record_follows_from(&self, _: &tracing::span::Id, _: &tracing::span::Id) {}
+    fn event(&self, event: &tracing::Event<'_>) {
+        let mut fields = JoinDiagnosticFields::default();
+        event.record(&mut fields);
+        self.events
+            .lock()
+            .expect("diagnostic events")
+            .push(fields.0);
+    }
+    fn enter(&self, _: &tracing::span::Id) {}
+    fn exit(&self, _: &tracing::span::Id) {}
+}
+
+/// Convert the aggregate event's typed fields into independent expected text.
+#[derive(Default)]
+struct JoinDiagnosticFields(std::collections::BTreeMap<String, String>);
+impl tracing::field::Visit for JoinDiagnosticFields {
+    fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
+        let _previous = self.0.insert(field.name().to_owned(), format!("{value:?}"));
+    }
+    fn record_str(&mut self, field: &tracing::field::Field, value: &str) {
+        let _previous = self.0.insert(field.name().to_owned(), value.to_owned());
+    }
+}
+
+/// Tracing callsite interest is process-global: parallel no-op dispatchers can race
+/// first registration. Run this one observer contract in a fresh process while the
+/// ordinary suite remains parallel; its four assertions still execute unchanged.
+fn diagnostic_contract_in_child() -> bool {
+    const CHILD: &str = "RYO_JOIN_DIAGNOSTIC_CONTRACT_CHILD";
+    if std::env::var_os(CHILD).as_deref() == Some(std::ffi::OsStr::new("1")) {
+        return false;
+    }
+    let output = std::process::Command::new(std::env::current_exe().expect("current test binary"))
+        .args(["--exact", "domain::operator::collections::operators::join::item_test::stored_join_diagnostics_emit_one_aggregate_including_empty_and_failed_invocations", "--test-threads=1"])
+        .env(CHILD, "1")
+        .output().expect("isolated observer contract process");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        output.status.success() && stdout.contains("1 passed; 0 failed"),
+        "observer child must execute its actual contract: status={:?}, stdout={stdout}, stderr={}",
+        output.status,
+        String::from_utf8_lossy(&output.stderr)
+    );
+    true
+}
+
+#[test]
+fn stored_join_diagnostics_emit_one_aggregate_including_empty_and_failed_invocations() {
+    if diagnostic_contract_in_child() {
+        return;
+    }
+    let diagnostics = JoinDiagnostics::default();
+    let captured = std::sync::Arc::clone(&diagnostics.events);
+    let columns = [fact_column(&[1, 1, 2]), fact_column(&[10, 11, 20])];
+    let right = Rows::Stored(ColumnsView {
+        kinds: NUMBER_PAIR_KINDS,
+        columns: &columns,
+    });
+    let left = table_of(
+        &[CellKind::Number],
+        &[
+            &[Cell::Number(Integer(1))],
+            &[Cell::Number(Integer(1))],
+            &[Cell::Number(Integer(9))],
+        ],
+    );
+    let empty = table_of(&left.kinds, &[]);
+    tracing::subscriber::with_default(diagnostics, || {
+        let mut room = Room::default();
+        assert_eq!(
+            stream_lookup(&mut room, &left, right, false, false, false)
+                .expect("stored join")
+                .0
+                .len(),
+            4
+        );
+        assert!(
+            stream_lookup(&mut room, &empty, right, false, false, false)
+                .expect("empty")
+                .0
+                .is_empty()
+        );
+        let _emit_refusal = stream_lookup(&mut room, &left, right, false, false, true)
+            .expect_err("downstream refusal must propagate");
+        let operation = plan(&[0], &[0], &[(Side::Right, 1)], Vec::new(), &[]);
+        assert_eq!(
+            made(
+                &operation,
+                &[Rows::Computed(&left), right],
+                &mut Symbols::default(),
+                &[]
+            )
+            .expect("computed execution")
+            .count
+            .0,
+            4
+        );
+    });
+    let events = captured.lock().expect("events");
+    assert_eq!(
+        events.len(),
+        4,
+        "one event per invocation, never one per probe or hit: {events:?}"
+    );
+    for (event, (builds, probes, hits, complete)) in events.iter().zip([
+        (1_u64, 3_u64, 4_u64, true),
+        (0, 0, 0, true),
+        (1, 1, 1, false),
+        (1, 3, 4, true),
+    ]) {
+        for (field, expected) in [
+            ("rhs_rows", "3".to_owned()),
+            ("rhs_width", "2".to_owned()),
+            ("key_width", "1".to_owned()),
+            ("builds", builds.to_string()),
+            ("probes", probes.to_string()),
+            ("hits", hits.to_string()),
+            ("path", "stored-key".to_owned()),
+            ("complete", complete.to_string()),
+        ] {
+            assert_eq!(event.get(field), Some(&expected), "field {field}");
+        }
+    }
+}
+
+#[test]
+fn separate_rule_rooms_reuse_one_index_and_still_read_the_provider_before_hits() {
+    use crate::domain::stored_indexes::service::{LIMIT, new};
+    let columns = [fact_column(&[2, 1, 2, 2]), fact_column(&[20, 10, 21, 22])];
+    let right = Rows::Stored(ColumnsView {
+        kinds: NUMBER_PAIR_KINDS,
+        columns: &columns,
+    });
+    let left = table_of(&[CellKind::Number], &[&[Cell::Number(Integer(2))]]);
+    let operation = plan(&[0], &[0], &[(Side::Right, 1)], Vec::new(), &[]);
+    let mut cache = new(&[Relation::Function], &[], LIMIT).expect("physical generation");
+    let first = stream_with_indexes(
+        &operation,
+        &mut Room::default(),
+        &left,
+        right,
+        (false, false, false),
+        Some(&mut cache),
+    )
+    .expect("first rule");
+    let second = stream_with_indexes(
+        &operation,
+        &mut Room::default(),
+        &left,
+        right,
+        (false, false, false),
+        Some(&mut cache),
+    )
+    .expect("second rule");
+    assert_eq!(
+        first.0,
+        vec![
+            vec![Cell::Number(Integer(20))],
+            vec![Cell::Number(Integer(21))],
+            vec![Cell::Number(Integer(22))]
+        ]
+    );
+    assert_eq!(second, first);
+    assert_eq!((cache.builds, cache.reuses), (1, 1));
+    assert_eq!(
+        first.1, 1,
+        "a shared hit still performs the normal right hold"
+    );
+    let prior_reuses = cache.reuses;
+    let _fixture_refusal = stream_with_indexes(
+        &operation,
+        &mut Room::default(),
+        &left,
+        right,
+        (false, true, false),
+        Some(&mut cache),
+    )
+    .expect_err("fixture refusal must propagate");
+    assert_eq!(
+        cache.reuses, prior_reuses,
+        "provider failure is not hidden by a previously cached index"
+    );
+    let empty = table_of(&left.kinds, &[]);
+    let invalid = plan(&[0], &[99], &[(Side::Right, 1)], Vec::new(), &[]);
+    assert!(
+        stream_with_indexes(
+            &invalid,
+            &mut Room::default(),
+            &empty,
+            right,
+            (false, false, false),
+            Some(&mut cache)
+        )
+        .expect("empty left does not validate/build keys")
+        .0
+        .is_empty()
+    );
+    assert_eq!(cache.reuses, prior_reuses);
+}
+
+#[test]
+fn cached_emit_error_releases_invocation_handle_and_next_generation_uses_new_rows() {
+    use crate::domain::stored_indexes::service::{LIMIT, new};
+    let columns = [fact_column(&[1]), fact_column(&[10])];
+    let right = Rows::Stored(ColumnsView {
+        kinds: NUMBER_PAIR_KINDS,
+        columns: &columns,
+    });
+    let left = table_of(&[CellKind::Number], &[&[Cell::Number(Integer(1))]]);
+    let operation = plan(&[0], &[0], &[(Side::Right, 1)], Vec::new(), &[]);
+    let weak = {
+        let mut cache = new(&[Relation::Function], &[], LIMIT).expect("generation");
+        let _fixture_refusal = stream_with_indexes(
+            &operation,
+            &mut Room::default(),
+            &left,
+            right,
+            (false, false, true),
+            Some(&mut cache),
+        )
+        .expect_err("fixture refusal must propagate");
+        assert_eq!(
+            std::sync::Arc::strong_count(&cache.entries.first().expect("cached entry").index),
+            1,
+            "failed operator retains no escaped handle"
+        );
+        std::sync::Arc::downgrade(&cache.entries.first().expect("cached entry").index)
+    };
+    assert!(weak.upgrade().is_none());
+    let new_columns = [fact_column(&[1]), fact_column(&[99])];
+    let changed = Rows::Stored(ColumnsView {
+        kinds: NUMBER_PAIR_KINDS,
+        columns: &new_columns,
+    });
+    let mut next = new(&[Relation::Function], &[], LIMIT).expect("same FileId, new snapshot");
+    let rows = stream_with_indexes(
+        &operation,
+        &mut Room::default(),
+        &left,
+        changed,
+        (false, false, false),
+        Some(&mut next),
+    )
+    .expect("new generation")
+    .0;
+    assert_eq!(rows, vec![vec![Cell::Number(Integer(99))]]);
+    assert_eq!((next.builds, next.reuses), (1, 0));
+}
+
+/// Emit into a nested join while the outer invocation owns its shared immutable index handle.
+struct NestedStoredJoin<'a> {
+    /// The same audited physical population used by both invocations.
+    right: Rows<'a>,
+    /// Collected nested results, retaining each duplicate.
+    rows: Vec<Vec<Cell>>,
+}
+impl Emit for NestedStoredJoin<'_> {
+    fn row(
+        &mut self,
+        context: &mut OperatorContext<'_>,
+        row: &[Cell],
+    ) -> Result<(), OperatingError> {
+        let left = table_of(&[CellKind::Number], &[row]);
+        let operation = plan(&[0], &[0], &[(Side::Right, 1)], Vec::new(), &[]);
+        let mut output = Table::default();
+        JoinItem.compute(
+            &operation,
+            &[Rows::Computed(&left), self.right],
+            context,
+            &mut output,
+        )?;
+        for at in 0..output.count.0 {
+            self.rows.push(
+                row_in(&output, crate::domain::table_cells::types::RowIndex(at))
+                    .expect("nested output")
+                    .to_vec(),
+            );
+        }
+        Ok(())
+    }
+}
+
+#[test]
+fn shared_index_handle_releases_mutable_cache_borrow_before_nested_emission() {
+    use crate::domain::stored_indexes::service::{LIMIT, new};
+    let columns = [fact_column(&[2, 1, 2, 2]), fact_column(&[20, 10, 21, 22])];
+    let right = Rows::Stored(ColumnsView {
+        kinds: NUMBER_PAIR_KINDS,
+        columns: &columns,
+    });
+    let left = table_of(&[CellKind::Number], &[&[Cell::Number(Integer(2))]]);
+    let operation = plan(&[0], &[0], &[(Side::Right, 0)], Vec::new(), &[]);
+    let mut cache = new(&[Relation::Function], &[], LIMIT).expect("generation");
+    let mut symbols = Symbols::default();
+    let mut memo = Vec::new();
+    let mut scratch = OperatorScratch::default();
+    let mut context = OperatorContext {
+        stored_indexes: Some(&mut cache),
+        bindings: &[],
+        symbols: &mut symbols,
+        source: SourceView(&[]),
+        paths: &[],
+        arenas: &[],
+        memo: &mut memo,
+        scratch: &mut scratch,
+    };
+    let mut feed = ControlledFeed {
+        left: &left,
+        right,
+        right_holds: 0,
+        left_fails: false,
+        right_fails: false,
+    };
+    let mut emitted = NestedStoredJoin {
+        right,
+        rows: Vec::new(),
+    };
+    JoinItem
+        .stream(
+            &operation,
+            &mut feed,
+            &mut context,
+            &mut Room::default(),
+            &mut emitted,
+        )
+        .expect("nested joins");
+    let expected = [
+        vec![Cell::Number(Integer(20))],
+        vec![Cell::Number(Integer(21))],
+        vec![Cell::Number(Integer(22))],
+    ];
+    assert_eq!(
+        emitted.rows,
+        expected.iter().cloned().cycle().take(9).collect::<Vec<_>>()
+    );
+    assert_eq!((cache.builds, cache.reuses), (1, 3));
+}
+
+#[test]
+fn malformed_views_and_failed_upstream_still_use_original_paths_with_a_file_cache() {
+    use crate::domain::stored_indexes::service::{LIMIT, new};
+    let columns = [fact_column(&[1, 1, 1]), fact_column(&[10, 11])];
+    let right = Rows::Stored(ColumnsView {
+        kinds: NUMBER_PAIR_KINDS,
+        columns: &columns,
+    });
+    let left = table_of(&[CellKind::Number], &[&[Cell::Number(Integer(1))]]);
+    let operation = plan(&[0], &[0], &[(Side::Right, 1)], Vec::new(), &[]);
+    let mut cache = new(&[Relation::Function], &[], LIMIT).expect("generation");
+    let actual = stream_with_indexes(
+        &operation,
+        &mut Room::default(),
+        &left,
+        right,
+        (false, false, false),
+        Some(&mut cache),
+    )
+    .expect("fallback")
+    .0;
+    assert_eq!(
+        actual,
+        vec![
+            vec![Cell::Number(Integer(10))],
+            vec![Cell::Number(Integer(11))]
+        ]
+    );
+    assert!(
+        cache.entries.is_empty(),
+        "malformed views are never admitted"
+    );
+    let complete_columns = [fact_column(&[1]), fact_column(&[99])];
+    let complete = Rows::Stored(ColumnsView {
+        kinds: NUMBER_PAIR_KINDS,
+        columns: &complete_columns,
+    });
+    let _fixture_refusal = stream_with_indexes(
+        &operation,
+        &mut Room::default(),
+        &left,
+        complete,
+        (true, false, false),
+        Some(&mut cache),
+    )
+    .expect_err("fixture refusal must propagate");
+    assert_eq!(
+        cache.builds, 0,
+        "upstream error arrives before the lazy index build"
+    );
 }

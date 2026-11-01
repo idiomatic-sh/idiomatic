@@ -8,6 +8,16 @@ use ryo_language::domain::relations::types::FactColumn;
 use ryo_values::domain::stored_facts::types::PackedWords;
 use ryo_values::domain::stored_facts::types::{PartialAt, PartialCause, PartialScope, ReadInPart};
 
+/// Whether resident fact rows remain unchanged during one file's read/keep phase.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ResidentStability {
+    /// Values, kinds, row order and population survive `rows` of any relation and `keep`,
+    /// until the next `columns_mut` or `release` call.
+    Stable,
+    /// No immutable resident snapshot is promised; callers must build invocation-local indexes.
+    Unstable,
+}
+
 /// The words one call of `keep` adds to a bucket, packed and borrowed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct WordsToKeep<'a>(pub &'a PackedWords);

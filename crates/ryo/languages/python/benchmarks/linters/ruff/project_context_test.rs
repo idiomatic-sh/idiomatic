@@ -17,20 +17,20 @@ fn staged(root: &Path) -> Result<(PathBuf, Vec<PreparedCase>), Error> {
     let profile = root.join("profile");
     std::fs::create_dir_all(profile.join("rules/PLW0406"))?;
     std::fs::create_dir_all(profile.join("fragments"))?;
-    let _copied = std::fs::copy(
+    let _copied_profile = std::fs::copy(
         source.join("profiles/PLW0406/benchmark.toml"),
         profile.join("benchmark.toml"),
     )?;
-    let _copied = std::fs::copy(
+    let _copied_query = std::fs::copy(
         source.join("rules/PLW0406/candidate.ryoql"),
         profile.join("rules/PLW0406/query.ryoql"),
     )?;
-    let _copied = std::fs::copy(
+    let _copied_cases = std::fs::copy(
         source.join("rules/PLW0406/cases.toml"),
         profile.join("rules/PLW0406/cases.toml"),
     )?;
     for name in ["suppress", "text-units"] {
-        let _copied = std::fs::copy(
+        let _copied_fragment = std::fs::copy(
             source.join(format!("fragments/{name}.ryoql")),
             profile.join(format!("fragments/{name}.ryoql")),
         )?;
@@ -185,7 +185,7 @@ fn changed_undeclared_escaping_and_unreadable_context_never_certify() -> Result<
         .expect("seal")
         .missing
         .push("../outside".into());
-    assert!(engine.run(escape).is_err());
+    let _verified_1 = engine.run(escape).expect_err("expected refusal");
     std::fs::write(case.request.root.join("__init__.py"), "changed")?;
     assert!(
         engine.run(request(&profile, case, &cache)).is_err(),
@@ -200,7 +200,7 @@ fn changed_undeclared_escaping_and_unreadable_context_never_certify() -> Result<
     );
     std::fs::remove_file(manifest.boundary.join("__init__.py"))?;
     std::fs::remove_file(case.request.root.join("__init__.py"))?;
-    std::fs::create_dir(case.request.root.join("__init__.py"))?;
+    std::fs::create_dir_all(case.request.root.join("__init__.py"))?;
     assert!(
         engine.run(request(&profile, case, &cache)).is_err(),
         "unreadable file content is never a missing dependency"
@@ -223,28 +223,28 @@ fn ancestor_marker_appearance_removal_and_edits_invalidate_warm_project_rows() -
     let absent = engine.run(asked.clone())?;
     assert!(absent.diagnostics.is_empty());
     let marker = PathBuf::from("pkg2/__init__.py");
-    let seal = asked.context_manifest.as_mut().expect("seal");
-    std::fs::write(seal.boundary.join(&marker), b"")?;
-    seal.missing.retain(|path| path != &marker);
-    let _previous = seal
+    let added_seal = asked.context_manifest.as_mut().expect("seal");
+    std::fs::write(added_seal.boundary.join(&marker), b"")?;
+    added_seal.missing.retain(|path| path != &marker);
+    let _previous = added_seal
         .auxiliary_files
         .insert(marker.clone(), content_hash(b""));
     let added = engine.run(asked.clone())?;
     assert_eq!(added.diagnostics.len(), 1);
     assert_eq!(added, engine.run(asked.clone())?);
-    let seal = asked.context_manifest.as_mut().expect("seal");
-    std::fs::write(seal.boundary.join(&marker), b"# edited\n")?;
-    changed_manifest(seal, &marker, b"# edited\n");
+    let edited_seal = asked.context_manifest.as_mut().expect("seal");
+    std::fs::write(edited_seal.boundary.join(&marker), b"# edited\n")?;
+    changed_manifest(edited_seal, &marker, b"# edited\n");
     let edited = engine.run(asked.clone())?;
     assert_eq!(edited.diagnostics, added.diagnostics);
     assert_ne!(
         edited.project_context, added.project_context,
         "kept dependency content identity must refresh"
     );
-    let seal = asked.context_manifest.as_mut().expect("seal");
-    std::fs::remove_file(seal.boundary.join(&marker))?;
-    let _removed = seal.auxiliary_files.remove(&marker);
-    seal.missing.push(marker);
+    let removed_seal = asked.context_manifest.as_mut().expect("seal");
+    std::fs::remove_file(removed_seal.boundary.join(&marker))?;
+    let _removed = removed_seal.auxiliary_files.remove(&marker);
+    removed_seal.missing.push(marker);
     let removed = engine.run(asked.clone())?;
     assert!(removed.diagnostics.is_empty());
     assert_eq!(removed, engine.run(asked)?);

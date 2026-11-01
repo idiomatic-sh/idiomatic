@@ -426,23 +426,26 @@ fn subject(text: Input) -> Result<Value, Failure> {
             }
         }
     }
-    if let Some(step) = builder.steps.last() {
-        if let Operation::OrderedDfs {
+    if let Some(step) = builder.steps.last()
+        && let Operation::OrderedDfs {
             root_keys,
             edge_keys,
             ..
         } = &step.operation
-        {
-            let fields = &builder.lowered.last().expect("DFS step is lowered").fields;
-            assert_eq!(root_keys.len(), edge_keys.len());
-            assert_eq!(fields.len(), root_keys.len() + 5);
-            assert!(fields.iter().all(|field|field.unique==crate::domain::lowering::types::Uniqueness::Shared));
-            assert_eq!(
-                fields.last().expect("ordinal exists").kind,
-                ryo_language::domain::relations::types::CellKind::Number
-            );
-            return Ok("ordered-dfs");
-        }
+    {
+        let fields = &builder.lowered.last().expect("DFS step is lowered").fields;
+        assert_eq!(root_keys.len(), edge_keys.len());
+        assert_eq!(fields.len(), root_keys.len() + 5);
+        assert!(
+            fields
+                .iter()
+                .all(|field| field.unique == crate::domain::lowering::types::Uniqueness::Shared)
+        );
+        assert_eq!(
+            fields.last().expect("ordinal exists").kind,
+            ryo_language::domain::relations::types::CellKind::Number
+        );
+        return Ok("ordered-dfs");
     }
     let known = ["select axis", "select closure"];
     Ok(known

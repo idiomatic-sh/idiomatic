@@ -20,6 +20,109 @@ use ryo_values::domain::plans::types::Operation;
 /// `closure`, one item of the `operators` collection.
 pub(crate) struct ClosureItem;
 
+/// Evaluate each key partition independently before prefixing its reachable pairs.
+fn partitioned(
+    edges: &Rows<'_>,
+    keys: &[ColumnIndex],
+    source: ColumnIndex,
+    destination: ColumnIndex,
+    scratch: &mut OperatorScratch,
+    out: &mut Table,
+) -> Result<(), OperatingError> {
+    let OperatorScratch {
+        row,
+        order,
+        right,
+        walk,
+        other,
+        key,
+        domain,
+        domain_order,
+        ..
+    } = scratch;
+    let right = table_in(edges, right, row);
+    check_columns(&right.kinds, &[source, destination])?;
+    check_columns(&right.kinds, keys)?;
+    sort_rows(right, On::Columns(keys), domain_order)?;
+    reset(out, &[]);
+    for column in keys.iter().chain([&source, &destination]) {
+        out.kinds.push(
+            *column_in(&right.kinds, *column)
+                .ok_or(TableModelError::NoSuchColumn { index: column.0 })?,
+        );
+    }
+    let endpoint_kinds = [
+        *column_in(&right.kinds, source)
+            .ok_or(TableModelError::NoSuchColumn { index: source.0 })?,
+        *column_in(&right.kinds, destination).ok_or(TableModelError::NoSuchColumn {
+            index: destination.0,
+        })?,
+    ];
+    reset(domain, &endpoint_kinds);
+    other.clear();
+    key.clear();
+    let starts = [ColumnIndex(0)];
+    let mut begin = 0;
+    while let Some(position) = domain_order.sorted.get(begin) {
+        let first = row_in(right, *position).unwrap_or_default();
+        key.clear();
+        key.extend(
+            keys.iter()
+                .filter_map(|column| column_in(first, *column).copied()),
+        );
+        reset(domain, &endpoint_kinds);
+        let mut end = begin;
+        while let Some(edge_position) = domain_order.sorted.get(end) {
+            let edge = row_in(right, *edge_position).unwrap_or_default();
+            if !keys
+                .iter()
+                .zip(key.iter())
+                .all(|(column, value)| column_in(edge, *column) == Some(value))
+            {
+                break;
+            }
+            push_row(
+                domain,
+                &[
+                    *column_in(edge, source)
+                        .ok_or(TableModelError::NoSuchColumn { index: source.0 })?,
+                    *column_in(edge, destination).ok_or(TableModelError::NoSuchColumn {
+                        index: destination.0,
+                    })?,
+                ],
+            );
+            end += 1;
+        }
+        index(domain, On::Columns(&starts), order)?;
+        let walked = Edges {
+            table: domain,
+            order,
+            from: &starts,
+            to: ColumnIndex(1),
+        };
+        other.clear();
+        other.extend(
+            domain
+                .cells
+                .chunks_exact(2)
+                .filter_map(|edge| edge.first().copied()),
+        );
+        other.sort_unstable();
+        other.dedup();
+        for start in other.iter().copied() {
+            reach_all(&walked, start, walk);
+            for reached in &walk.reached {
+                row.clear();
+                row.extend_from_slice(key);
+                row.extend_from_slice(&[start, *reached]);
+                push_row(out, row);
+            }
+        }
+        begin = end;
+    }
+    Ok(())
+}
+
 impl OperatorsItem for ClosureItem {
     fn compute(
         &self,
@@ -38,97 +141,20 @@ impl OperatorsItem for ClosureItem {
             return Err(OperatingError::WrongOperation);
         };
         let edges = first(inputs)?;
+        if !keys.is_empty() {
+            return partitioned(edges, keys, *source, *destination, context.scratch, out);
+        }
         let OperatorScratch {
             row,
             order,
             right,
             walk,
             other,
-            key,
-            domain,
-            domain_order,
             ..
         } = &mut *context.scratch;
         let right = table_in(edges, right, row);
         check_columns(&right.kinds, &[*source, *destination])?;
         check_columns(&right.kinds, keys)?;
-        if !keys.is_empty() {
-            sort_rows(right, On::Columns(keys), domain_order)?;
-            reset(out, &[]);
-            for column in keys.iter().chain([source, destination]) {
-                out.kinds.push(
-                    *column_in(&right.kinds, *column)
-                        .ok_or(TableModelError::NoSuchColumn { index: column.0 })?,
-                );
-            }
-            let endpoint_kinds = [
-                *column_in(&right.kinds, *source)
-                    .ok_or(TableModelError::NoSuchColumn { index: source.0 })?,
-                *column_in(&right.kinds, *destination).ok_or(TableModelError::NoSuchColumn {
-                    index: destination.0,
-                })?,
-            ];
-            reset(domain, &endpoint_kinds);
-            other.clear();
-            key.clear();
-            let starts = [ColumnIndex(0)];
-            let mut begin = 0;
-            while begin < domain_order.sorted.len() {
-                let first = row_in(right, domain_order.sorted[begin]).unwrap_or_default();
-                key.clear();
-                key.extend(
-                    keys.iter()
-                        .filter_map(|column| column_in(first, *column).copied()),
-                );
-                reset(domain, &endpoint_kinds);
-                let mut end = begin;
-                while end < domain_order.sorted.len() {
-                    let edge = row_in(right, domain_order.sorted[end]).unwrap_or_default();
-                    if !keys
-                        .iter()
-                        .zip(key.iter())
-                        .all(|(column, value)| column_in(edge, *column) == Some(value))
-                    {
-                        break;
-                    }
-                    push_row(
-                        domain,
-                        &[
-                            *column_in(edge, *source)
-                                .ok_or(TableModelError::NoSuchColumn { index: source.0 })?,
-                            *column_in(edge, *destination).ok_or(
-                                TableModelError::NoSuchColumn {
-                                    index: destination.0,
-                                },
-                            )?,
-                        ],
-                    );
-                    end += 1;
-                }
-                index(domain, On::Columns(&starts), order)?;
-                let walked = Edges {
-                    table: domain,
-                    order,
-                    from: &starts,
-                    to: ColumnIndex(1),
-                };
-                other.clear();
-                other.extend(domain.cells.chunks_exact(2).map(|edge| edge[0]));
-                other.sort_unstable();
-                other.dedup();
-                for start in other.iter().copied() {
-                    reach_all(&walked, start, walk);
-                    for reached in &walk.reached {
-                        row.clear();
-                        row.extend_from_slice(key);
-                        row.extend_from_slice(&[start, *reached]);
-                        push_row(out, row);
-                    }
-                }
-                begin = end;
-            }
-            return Ok(());
-        }
         let starts = [*source];
         index(right, On::Columns(&starts), order)?;
         reset(out, &[]);

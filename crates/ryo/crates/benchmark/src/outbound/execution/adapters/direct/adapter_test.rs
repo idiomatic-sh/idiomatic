@@ -32,11 +32,11 @@ fn signaled_child_retains_native_resources() -> Result<(), Box<dyn std::error::E
     let output = crate::outbound::execution::factory::direct().run(Invocation {
         executable: "/bin/sh".into(),
         arguments: vec!["-c".into(), "printf partial; kill -TERM $$".into()],
-        environment: Default::default(),
+        environment: std::collections::BTreeMap::default(),
         directory: ".".into(),
     })?;
-    assert_eq!(output.signal, Some(15));
-    assert_eq!(output.status.0, -15);
+    assert_eq!(output.signal, Some(15_i32));
+    assert_eq!(output.status.0, -15_i32);
     assert_eq!(output.stdout.0, b"partial");
     assert!(!output.wall.is_zero());
     let ResourceObservation::Collected(resources) = output.resources else {

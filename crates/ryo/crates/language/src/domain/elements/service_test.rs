@@ -22,9 +22,10 @@ fn syntax_acceptance_is_separate_and_resets_conservatively() {
     let mut elements = Elements::default();
     assert_eq!(syntax_acceptance(&elements), SyntaxAcceptance::Undetermined);
     let mut symbols = Symbols::default();
-    let mut builder = table_builder(&mut elements, &mut symbols, ByteSlice(b"x"));
-    set_syntax_acceptance(&mut builder, SyntaxAcceptance::Rejected);
-    drop(builder);
+    {
+        let mut builder = table_builder(&mut elements, &mut symbols, ByteSlice(b"x"));
+        set_syntax_acceptance(&mut builder, SyntaxAcceptance::Rejected);
+    }
     assert_eq!(syntax_acceptance(&elements), SyntaxAcceptance::Rejected);
     clear_elements(&mut elements);
     assert_eq!(syntax_acceptance(&elements), SyntaxAcceptance::Undetermined);

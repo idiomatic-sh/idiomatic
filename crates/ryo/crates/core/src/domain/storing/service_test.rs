@@ -249,6 +249,41 @@ fn held_changed() -> Value {
         + made(&plain, record("a.rs", 12, 99, 13, 5), &[])
 }
 
+/// Round-trip all stored metadata and retain each file's original word number.
+fn stored_round_trip() -> Value {
+    let kept = stored();
+    let records = records_from(&kept, &ids()).unwrap_or_default();
+    let later = later_from(&kept, &ids(), &[]).unwrap_or_default();
+    let unknowns = unknowns_from(&kept, &[]);
+    let again = stored_of(
+        ToKeep {
+            rules: kept.rules.clone(),
+            records,
+            later: &later,
+            refused: &kept.refused,
+            unknowns: &unknowns,
+            skipped: &kept.skipped,
+            consulted: &kept.consulted,
+            consulted_absent: &kept.consulted_absent,
+        },
+        &kept,
+        &StoredHanded::default(),
+        &BucketsWanted::All,
+        Vec::new(),
+    );
+    // Every file is used again, at its number: its words stay where the store keeps them.
+    let numbers: Vec<FileAgain> = (0..kept.files.len())
+        .map(|place| {
+            let number = StoredFileNumber(u32::try_from(place).unwrap_or(u32::MAX));
+            FileAgain {
+                was: number,
+                now: number,
+            }
+        })
+        .collect();
+    usize::from(again.stored == kept && again.kept.file_again == numbers)
+}
+
 fn subject(scenario: Input) -> Value {
     match scenario {
         Scenario::DecideWhole => {
@@ -294,39 +329,7 @@ fn subject(scenario: Input) -> Value {
         }
         Scenario::MadeAgainFrontier => frontier_changed(),
         Scenario::MadeAgainHeld => held_changed(),
-        Scenario::StoreRoundTrip => {
-            let kept = stored();
-            let records = records_from(&kept, &ids()).unwrap_or_default();
-            let later = later_from(&kept, &ids(), &[]).unwrap_or_default();
-            let unknowns = unknowns_from(&kept, &[]);
-            let again = stored_of(
-                ToKeep {
-                    rules: kept.rules.clone(),
-                    records,
-                    later: &later,
-                    refused: &kept.refused,
-                    unknowns: &unknowns,
-                    skipped: &kept.skipped,
-                    consulted: &kept.consulted,
-                    consulted_absent: &kept.consulted_absent,
-                },
-                &kept,
-                &StoredHanded::default(),
-                &BucketsWanted::All,
-                Vec::new(),
-            );
-            // Every file is used again, at its number: its words stay where the store keeps them.
-            let numbers: Vec<FileAgain> = (0..kept.files.len())
-                .map(|place| {
-                    let number = StoredFileNumber(u32::try_from(place).unwrap_or(u32::MAX));
-                    FileAgain {
-                        was: number,
-                        now: number,
-                    }
-                })
-                .collect();
-            usize::from(again.stored == kept && again.kept.file_again == numbers)
-        }
+        Scenario::StoreRoundTrip => stored_round_trip(),
         Scenario::UnknownRule => {
             let other = [RuleId("s".into())];
             usize::from(records_from(&stored(), &other).is_none()) * 10

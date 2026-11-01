@@ -109,6 +109,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             let mut scratch = OperatorScratch::default();
             let mut memo = Vec::new();
             let mut context = OperatorContext {
+                stored_indexes: None,
                 bindings: &[],
                 symbols: &mut symbols,
                 source: SourceView(SMALL_SOURCE),

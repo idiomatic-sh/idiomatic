@@ -1,0 +1,90 @@
+
+[[cases]]
+name = "cross-PYI007-valid"
+comparison = "full"
+files = { "case.pyi" = "import sys\nif sys.platform == \"darwin\":\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "cross-PYI008-known-platform"
+comparison = "full"
+files = { "case.pyi" = "import sys\nif sys.platform == \"win32\":\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "cross-PYI066-comparison-matrix-4-pyi"
+comparison = "full"
+files = { "case.pyi" = "import sys\nif sys.version_info < (3,10) < upper: ...\nelse: ...\n" }
+expected = [{ end = 47, file = "case.pyi", rule = "F821", start = 42 }, { end = 47, file = "case.pyi", rule = "PYI002", start = 14 }]
+
+[[cases]]
+name = "cross-PYI008-misspelled-platform"
+comparison = "full"
+files = { "case.pyi" = "import sys\nif sys.platform == \"linus\":\n    ...\n" }
+expected = [{ end = 37, file = "case.pyi", rule = "PYI008", start = 30 }]
+
+[[cases]]
+name = "cross-PYI008-unknown-platform"
+comparison = "full"
+files = { "case.pyi" = "import sys\nif sys.platform == \"freebsd\":\n    ...\n" }
+expected = [{ end = 39, file = "case.pyi", rule = "PYI008", start = 30 }]
+
+[[cases]]
+name = "cross-PYI066-tagged-PYI066.pyi"
+comparison = "full"
+files = { "PYI066.pyi" = "import sys\n\nif sys.version_info < (3, 10):  # Y066 When using if/else with sys.version_info, put the code for new Python versions first, e.g. \"if sys.version_info >= (3, 10)\"\n    def foo(x): ...\nelse:\n    def foo(x, *, bar=True): ...\n\nif sys.version_info < (3, 8):  # Y066 When using if/else with sys.version_info, put the code for new Python versions first, e.g. \"if sys.version_info >= (3, 8)\"\n    def bar(x): ...\nelif sys.version_info < (3, 9):  # Y066 When using if/else with sys.version_info, put the code for new Python versions first, e.g. \"if sys.version_info >= (3, 9)\"\n    def bar(x, *, bar=True): ...\nelif sys.version_info < (3, 11):  # Y066 When using if/else with sys.version_info, put the code for new Python versions first, e.g. \"if sys.version_info >= (3, 10)\"\n    def bar(x, *, bar=True, baz=False): ...\nelse:\n    def bar(x, *, bar=True, baz=False, qux=1): ...\n\n\nif sys.version_info >= (3, 5):\n    ...\nelif sys.version_info < (3, 9):  # Y066 When using if/else with sys.version_info, put the code for new Python versions first, e.g. \"if sys.version_info >= (3, 10)\"\n    ...\nelse:\n    ...\n\n# Negative cases\n\nif sys.version_info[0] == 2: ...\nif sys.version_info[:1] == (2,): ...\nif sys.version_info[:1] == (True,): ...\nif sys.version_info < ('3', '0'): ...\nif sys.version_info >= (3, 4, 3): ...\nif sys.version_info == (3, 4): ...\nif sys.version_info < (3, 5): ...\nif sys.version_info >= (3, 5): ...\nif (2, 7) <= sys.version_info < (3, 5): ...\n\n\nif sys.version_info >= (3, 5):\n    ...\nelse:\n    ...\n\nif sys.version_info >= (3, 10):\n    def foo1(x, *, bar=True, baz=False): ...\nelif sys.version_info >= (3, 9):\n    def foo1(x, *, bar=True): ...\nelse:\n    def foo1(x): ...\n\nif sys.version_info < (3, 9):\n    def foo2(x): ...\nelif sys.version_info < (3, 10):\n    def foo2(x, *, bar=True): ...\n# no else case, no raise\n" }
+expected = [{ end = 1452, file = "PYI066.pyi", rule = "PYI002", start = 1417 }, { end = 1228, file = "PYI066.pyi", rule = "PYI003", start = 1197 }, { end = 1266, file = "PYI066.pyi", rule = "PYI003", start = 1237 }, { end = 1304, file = "PYI066.pyi", rule = "PYI004", start = 1275 }, { end = 1339, file = "PYI066.pyi", rule = "PYI006", start = 1313 }, { end = 41, file = "PYI066.pyi", rule = "PYI066", start = 15 }, { end = 263, file = "PYI066.pyi", rule = "PYI066", start = 238 }, { end = 446, file = "PYI066.pyi", rule = "PYI066", start = 421 }, { end = 643, file = "PYI066.pyi", rule = "PYI066", start = 617 }, { end = 949, file = "PYI066.pyi", rule = "PYI066", start = 924 }]
+
+[[cases]]
+name = "cross-PYI002-chain"
+comparison = "full"
+files = { "case.pyi" = "import sys\nif (3, 10) <= sys.version_info < (3, 12):\n    ...\n" }
+expected = [{ end = 51, file = "case.pyi", rule = "PYI002", start = 14 }]
+
+[[cases]]
+name = "cross-PYI002-invalid-platform-membership"
+comparison = "full"
+files = { "case.pyi" = "import sys\nif sys.platform in (\"win32\",):\n    ...\n" }
+expected = [{ end = 40, file = "case.pyi", rule = "PYI007", start = 14 }]
+
+[[cases]]
+name = "cross-PYI002-invalid-version-attribute"
+comparison = "full"
+files = { "case.pyi" = "import sys\nif sys.version == \"3.10\":\n    ...\n" }
+expected = [{ end = 35, file = "case.pyi", rule = "PYI002", start = 14 }]
+
+[[cases]]
+name = "cross-PYI002-nested-bool-chain"
+comparison = "full"
+files = { "case.pyi" = "import sys\nif sys.version_info >= (3, 10) and (sys.platform == \"win32\" or sys.platform == \"linux\"):\n    ...\n" }
+expected = [{ end = 97, file = "case.pyi", rule = "PYI002", start = 47 }]
+
+[[cases]]
+name = "cross-PYI002-sys-alias"
+comparison = "full"
+files = { "case.pyi" = "import sys as system\nif system.version == \"3.10\":\n    ...\n" }
+expected = [{ end = 48, file = "case.pyi", rule = "PYI002", start = 24 }]
+
+[[cases]]
+name = "cross-PYI002-valid-bool-chain"
+comparison = "full"
+files = { "case.pyi" = "import sys\nif sys.version_info >= (3, 10) and sys.platform == \"win32\":\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "cross-PYI002-valid-platform"
+comparison = "full"
+files = { "case.pyi" = "import sys\nif sys.platform == \"win32\":\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "cross-PYI007-membership"
+comparison = "full"
+files = { "case.pyi" = "import sys\nif sys.platform in (\"win32\", \"linux\"):\n    ...\n" }
+expected = [{ end = 48, file = "case.pyi", rule = "PYI007", start = 14 }]
+
+[[cases]]
+name = "cross-PYI066-comparison-matrix-3-pyi"
+comparison = "full"
+files = { "case.pyi" = "import sys\nif (3,10) < sys.version_info: ...\nelse: ...\n" }
+expected = [{ end = 39, file = "case.pyi", rule = "PYI002", start = 14 }]

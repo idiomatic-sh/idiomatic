@@ -233,7 +233,7 @@ return result;"#;
     let root = r#"import compose from "span-fragment";
 let rows = select file, span from "function";
 let a = compose(rows=rows); emit a subject file key(diagnostic);"#;
-    assert!(span_plan(root, Some(module), &[]).is_ok());
+    let _plan = span_plan(root, Some(module), &[]).expect("span fragment lowers");
     let hosted = [HostedRelation {
         name: HostedName("global".into()),
         columns: vec![

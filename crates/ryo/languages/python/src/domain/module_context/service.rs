@@ -5,6 +5,7 @@ use std::{
     path::{Component, Path, PathBuf},
 };
 
+/// Derive a dotted identity only within a fully observed package ancestry.
 fn module_path(file: &Path, package: Option<&Path>) -> Decision {
     let Some(package) = package else {
         return Decision::Known(None);
@@ -92,7 +93,7 @@ pub(crate) fn relative_to(root: &Path, path: &Path) -> Option<PathBuf> {
     for _ in common..root.len() {
         result.push("..");
     }
-    for part in &path[common..] {
+    for part in path.iter().skip(common) {
         result.push(part.as_os_str());
     }
     Some(result)

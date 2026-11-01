@@ -1,0 +1,24 @@
+{
+  "schema": "ready-source-integration/v1",
+  "cohort": "after-frozen-310-r2",
+  "batches": [
+    {
+      "source_commit": "e75403d5cb00a29668a84c9b0ccf5861d653f8f5",
+      "rules": [
+        {
+          "rule": "F841",
+          "case_count": 81,
+          "query_sha256": "0a5713e42fcddecdf43a0cdc49475847ef52b34939811e7abf56b4b4997cf06e",
+          "cases_sha256": "64689d568ef5b34e1e44cc2c1a49c1c8a72f204e1880bd505bc4580310401046"
+        },
+        {
+          "rule": "PLW0602",
+          "case_count": 43,
+          "query_sha256": "fe4daabfad116b4900ba4cead2f85f833e53907716f7492bb2074f783aa15958",
+          "cases_sha256": "d629e75cd102bb4723cdc43fcd3febf1c3331c381dfa0746422c5b5647301c69"
+        }
+      ]
+    }
+  ],
+  "status": "actualtargetfindingsverified;fullprofilepasses pendingfreshproviderworkerreplay"
+}

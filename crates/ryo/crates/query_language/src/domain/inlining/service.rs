@@ -59,6 +59,30 @@ where
     }
 }
 
+/// Columns demanded from one of a join's inputs, retaining side and output order.
+fn join_read_columns(
+    left: Input,
+    right: Input,
+    left_on: &[ColumnIndex],
+    right_on: &[ColumnIndex],
+    output: &[JoinColumn],
+    read: Input,
+) -> Option<Vec<ColumnIndex>> {
+    if left != read && right != read {
+        return None;
+    }
+    let mut used = Vec::new();
+    if left == read {
+        used.extend(left_on);
+        used.extend(side_columns(output, Side::Left));
+    }
+    if right == read {
+        used.extend(right_on);
+        used.extend(side_columns(output, Side::Right));
+    }
+    Some(used)
+}
+
 /// The columns of the step `read` that the operation reads, when it reads only those and says so by what it keeps
 /// of them; nothing when it reads them all, or in a way this cannot cut.
 fn reading_columns(operation: &Operation, read: Input) -> Option<Vec<ColumnIndex>> {
@@ -86,17 +110,9 @@ fn reading_columns(operation: &Operation, read: Input) -> Option<Vec<ColumnIndex
             if is(right) && (!filter.is_empty() || !view.is_empty()) {
                 return None;
             }
-            if !is(left) && !is(right) {
-                return None;
-            }
-            if is(left) {
-                used.extend(left_on);
-                used.extend(side_columns(output, Side::Left));
-            }
-            if is(right) {
-                used.extend(right_on);
-                used.extend(side_columns(output, Side::Right));
-            }
+            used.extend(join_read_columns(
+                *left, *right, left_on, right_on, output, read,
+            )?);
         }
         Operation::Antijoin {
             left,
@@ -321,6 +337,15 @@ pub(crate) fn inline_views(mut steps: Vec<PlanStep>) -> Vec<PlanStep> {
     steps
 }
 
+/// Resolve an original column to its place in the reduced frontier projection.
+fn projection_column(used: &[ColumnIndex], column: ColumnIndex) -> ColumnIndex {
+    used.iter()
+        .position(|each| *each == column)
+        .map_or(column, |at| {
+            ColumnIndex(u32::try_from(at).unwrap_or(u32::MAX))
+        })
+}
+
 /// The plan with, for each per-file step that only cross-file steps read through some of its columns, one projection
 /// of those columns without repeats: the rows a file hands over are the distinct ones the cross-file steps ask for, not
 /// one for each place in the file. Not done when a count of rows (not of distinct values) comes after the files, which
@@ -421,13 +446,7 @@ pub(crate) fn reduced_frontier(mut steps: Vec<PlanStep>, mut emitted: StepId) ->
                 &mut consumer.operation,
                 Input::Step(read),
                 Input::Step(through),
-                &|column| {
-                    used.iter()
-                        .position(|each| *each == column)
-                        .map_or(column, |at| {
-                            ColumnIndex(u32::try_from(at).unwrap_or(u32::MAX))
-                        })
-                },
+                &|column| projection_column(&used, column),
             );
         }
     }
@@ -525,13 +544,7 @@ pub(crate) fn cut_relations(mut steps: Vec<PlanStep>, mut emitted: StepId) -> Pl
                 &mut consumer.operation,
                 read,
                 Input::Step(StepId(0)),
-                &|column| {
-                    used.iter()
-                        .position(|each| *each == column)
-                        .map_or(column, |at| {
-                            ColumnIndex(u32::try_from(at).unwrap_or(u32::MAX))
-                        })
-                },
+                &|column| projection_column(&used, column),
             );
         }
     }

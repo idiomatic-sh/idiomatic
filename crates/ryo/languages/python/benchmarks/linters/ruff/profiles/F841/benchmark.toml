@@ -23,3 +23,11 @@ sha256 = [
   "29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e",
 ]
 defaults = ["F841"]
+
+[query-modules]
+"python/ruff/deferred-read-events"="fragments/deferred-read-events.ryoql"
+"python/ruff/lookup-read-events"="fragments/lookup-read-events.ryoql"
+"python/ruff/type-definition-context"="fragments/type-definition-context.ryoql"
+"python/ruff/checker-namespace-events"="fragments/checker-namespace-events.ryoql"
+"python/ruff/nonlocal-bindings"="fragments/nonlocal-bindings.ryoql"
+"python/ruff/checker-type-scope-events"="fragments/checker-type-scope-events.ryoql"

@@ -78,7 +78,7 @@ fn verify_pin((sha256, version, executable): (&[&str], &str, bool)) -> Result<()
     std::fs::write(&path, b"#!/bin/sh\necho fixture 1.0\n").expect("fixture bytes");
     permissions(&path, executable).expect("fixture mode");
     let tool = Tool {
-        project_context_mode: Default::default(),
+        project_context_mode: crate::domain::suite::types::ProjectContextMode::default(),
         tool: "fixture".into(),
         version: version.into(),
         sha256: sha256.iter().map(|value| (*value).into()).collect(),

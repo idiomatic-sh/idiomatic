@@ -287,3 +287,145 @@ fn succeeds() {
 fn refuses() {
     run(CASES, Word::Refuses, subject);
 }
+
+#[test]
+fn stored_keys_preserve_order_duplicates_and_typed_flag_normalization() {
+    use super::service::{index_stored, matching_stored, rectangular};
+    const KINDS: &[CellKind] = &[CellKind::Number, CellKind::Flag, CellKind::Number];
+    let columns = [
+        FactColumn(vec![2, 1, 2, 2]),
+        FactColumn(vec![1, 0, 2, 0]),
+        FactColumn(vec![20, 10, 21, 22]),
+    ];
+    let view = ColumnsView {
+        kinds: KINDS,
+        columns: &columns,
+    };
+    assert!(rectangular(view));
+    let mut materialized = Table::default();
+    super::service::materialize(&Rows::Stored(view), &mut materialized, &mut Vec::new());
+    let mut stored = KeyIndex::default();
+    let mut computed = KeyIndex::default();
+    for key_columns in [
+        vec![ColumnIndex(0)],
+        vec![ColumnIndex(1), ColumnIndex(0)],
+        Vec::new(),
+    ] {
+        index_stored(view, &key_columns, &mut stored).expect("valid stored key");
+        index(&materialized, On::Columns(&key_columns), &mut computed).expect("valid computed key");
+        for row in 0..materialized.count.0 {
+            let row = super::service::row_in(&materialized, RowIndex(row)).expect("row");
+            let mut key = Vec::new();
+            super::service::key_of(row, On::Columns(&key_columns), &mut key).expect("key");
+            assert_eq!(
+                matching_stored(view, &key_columns, &stored, &key)
+                    .copied()
+                    .collect::<Vec<_>>(),
+                matching(&materialized, On::Columns(&key_columns), &computed, &key)
+                    .copied()
+                    .collect::<Vec<_>>()
+            );
+        }
+    }
+    index_stored(view, &[ColumnIndex(1)], &mut stored).expect("flag index");
+    assert_eq!(
+        matching_stored(
+            view,
+            &[ColumnIndex(1)],
+            &stored,
+            &[Cell::Flag(Flag::Raised)]
+        )
+        .copied()
+        .collect::<Vec<_>>(),
+        [RowIndex(0), RowIndex(2)]
+    );
+    assert!(
+        matching_stored(
+            view,
+            &[ColumnIndex(1)],
+            &stored,
+            &[Cell::Number(Integer(1))]
+        )
+        .next()
+        .is_none(),
+        "equal hash words must not erase value kinds"
+    );
+}
+
+#[test]
+fn stored_keys_check_exact_composite_equality_after_a_real_hash_collision() {
+    use super::service::{index_stored, matching_stored};
+    const KINDS: &[CellKind] = &[CellKind::Number, CellKind::Number];
+    let colliding_word = 0x517c_c1b7_2722_0a95_u64.rotate_left(5);
+    let columns = [
+        FactColumn(vec![0, 1, 0]),
+        FactColumn(vec![0, colliding_word, 0]),
+    ];
+    let view = ColumnsView {
+        kinds: KINDS,
+        columns: &columns,
+    };
+    let mut index = KeyIndex::default();
+    let on = [ColumnIndex(0), ColumnIndex(1)];
+    index_stored(view, &on, &mut index).expect("key");
+    assert_eq!(
+        index.hashes[0], index.hashes[1],
+        "fixture must exercise an actual full-hash collision"
+    );
+    assert_eq!(
+        matching_stored(
+            view,
+            &on,
+            &index,
+            &[Cell::Number(Integer(0)), Cell::Number(Integer(0))]
+        )
+        .copied()
+        .collect::<Vec<_>>(),
+        [RowIndex(0), RowIndex(2)]
+    );
+}
+
+#[test]
+fn stored_keys_reuse_empty_indexes_and_validate_columns_before_rows() {
+    use super::service::{index_stored, matching_stored, rectangular};
+    const KINDS: &[CellKind] = &[CellKind::Number];
+    let columns = [FactColumn(vec![7, 7])];
+    let empty = [FactColumn(Vec::new())];
+    let view = ColumnsView {
+        kinds: KINDS,
+        columns: &columns,
+    };
+    let vacant = ColumnsView {
+        kinds: KINDS,
+        columns: &empty,
+    };
+    let on = [ColumnIndex(0)];
+    let mut order = KeyIndex::default();
+    index_stored(view, &on, &mut order).expect("full");
+    index_stored(vacant, &on, &mut order).expect("empty");
+    assert!(
+        matching_stored(vacant, &on, &order, &[Cell::Number(Integer(7))])
+            .next()
+            .is_none()
+    );
+    assert_eq!(
+        index_stored(vacant, &[ColumnIndex(1)], &mut order),
+        Err(TableModelError::NoSuchColumn { index: 1 })
+    );
+    index_stored(view, &[], &mut order).expect("cartesian");
+    assert_eq!(
+        matching_stored(view, &[], &order, &[])
+            .copied()
+            .collect::<Vec<_>>(),
+        [RowIndex(0), RowIndex(1)]
+    );
+    let malformed = [FactColumn(vec![1]), FactColumn(Vec::new())];
+    assert!(!rectangular(ColumnsView {
+        kinds: &[CellKind::Number, CellKind::Number],
+        columns: &malformed
+    }));
+    assert!(!rectangular(ColumnsView {
+        kinds: KINDS,
+        columns: &malformed
+    }));
+}

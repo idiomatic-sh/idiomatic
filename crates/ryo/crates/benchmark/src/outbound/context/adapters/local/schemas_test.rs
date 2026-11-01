@@ -34,8 +34,11 @@ fn manifests_and_receipts_round_trip_without_synthesizing_missing_paths() {
             ("../__init__.py".into(), None),
         ]),
     };
-    let encoded = serde_json::to_vec(&ReceiptSchema::from(receipt.clone())).expect("receipt JSON");
-    let decoded: ReceiptSchema = serde_json::from_slice(&encoded).expect("receipt wire");
-    assert_eq!(ProjectContextReceipt::from(decoded), receipt);
-    assert!(serde_json::from_str::<ModeSchema>("\"disk-by-default\"").is_err());
+    let receipt_encoded =
+        serde_json::to_vec(&ReceiptSchema::from(receipt.clone())).expect("receipt JSON");
+    let receipt_decoded: ReceiptSchema =
+        serde_json::from_slice(&receipt_encoded).expect("receipt wire");
+    assert_eq!(ProjectContextReceipt::from(receipt_decoded), receipt);
+    let _verified_1 =
+        serde_json::from_str::<ModeSchema>("\"disk-by-default\"").expect_err("expected refusal");
 }

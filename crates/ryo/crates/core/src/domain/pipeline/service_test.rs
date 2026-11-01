@@ -151,6 +151,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     };
     let (mut memo, mut scratch) = (Vec::new(), OperatorScratch::default());
     let mut context = OperatorContext {
+        stored_indexes: None,
         bindings: &[],
         symbols: &mut symbols,
         source: SourceView(SOURCE),
@@ -194,6 +195,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             }
             let mut cross_symbols = Symbols::default();
             let mut cross = OperatorContext {
+                stored_indexes: None,
                 bindings: &[],
                 symbols: &mut cross_symbols,
                 source: SourceView(&[]),

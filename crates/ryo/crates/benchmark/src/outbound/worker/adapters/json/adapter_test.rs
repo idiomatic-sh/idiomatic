@@ -127,7 +127,7 @@ fn subject(operation: Input) -> Result<Value, Failure> {
         std::collections::BTreeMap::default(),
         None,
     );
-    let temporary = tempfile::tempdir().map_err(|_| Refusal::Unexpected)?;
+    let temporary = tempfile::tempdir().map_err(|_invalid_parser| Refusal::Unexpected)?;
     let request = RunRequest {
         context_manifest: None,
         root: "workspace".into(),
@@ -140,7 +140,7 @@ fn subject(operation: Input) -> Result<Value, Failure> {
             let invocation = parent.prepare(&request).map_err(classify)?;
             let request_path = invocation.arguments.get(2).ok_or(Refusal::Unexpected)?;
             std::fs::read_to_string(std::path::PathBuf::from(request_path))
-                .map_err(|_| Refusal::Unexpected)?
+                .map_err(|_invalid_parser| Refusal::Unexpected)?
                 .into()
         }
         Operation::Contract | Operation::WriteFailure | Operation::FlushFailure => {

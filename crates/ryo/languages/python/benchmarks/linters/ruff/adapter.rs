@@ -17,6 +17,7 @@ pub(crate) struct LinterRuffAdapter {
     executable: PathBuf,
     /// Permitted rule identities in the compared reference profile.
     defaults: BTreeSet<RuleId>,
+    /// Explicit target used by the pinned reference parser.
     target_version: String,
 }
 impl LinterPort for LinterRuffAdapter {

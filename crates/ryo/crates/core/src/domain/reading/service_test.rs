@@ -212,7 +212,14 @@ fn evaluate(plan: Plan) -> Result<Value, Failure> {
     tables.bytes = FileBytes(SOURCE.to_vec());
     let (ids, bindings) = ([RuleId("rule".into())], [Vec::new()]);
     let setting = setting(&placed, &plans, &[], &ids, &bindings);
-    evaluate_rule(&mut tables, &setting, RuleIndex(0), FileId(10), &relations)?;
+    evaluate_rule(
+        &mut tables,
+        &setting,
+        RuleIndex(0),
+        FileId(10),
+        None,
+        &relations,
+    )?;
     Ok(count(tables.rendered.order.len()) * 10
         + u64::from(tables.rendered.text.starts_with("rule")))
 }
@@ -388,4 +395,124 @@ fn succeeds() {
 #[test]
 fn refuses() {
     run(CASES, Word::Refuses, subject);
+}
+
+/// A direct resident self-join used by both real rule evaluations in the cache proof.
+fn duplicate_resident_join_plan() -> Plan {
+    use ryo_values::domain::plan_parts::types::{JoinColumn, Side};
+    Plan {
+        parameters: Vec::new(),
+        steps: vec![PlanStep {
+            operation: Operation::Join {
+                left: PlanInput::Relation(Relation::Function),
+                right: PlanInput::Relation(Relation::Function),
+                left_on: vec![ColumnIndex(0)],
+                right_on: vec![ColumnIndex(0)],
+                output: vec![
+                    JoinColumn {
+                        side: Side::Left,
+                        column: ColumnIndex(0),
+                    },
+                    JoinColumn {
+                        side: Side::Right,
+                        column: ColumnIndex(1),
+                    },
+                ],
+                filter: Vec::new(),
+                view: Vec::new(),
+            },
+            scope: StepScope::PerFile,
+        }],
+        emit: Emit {
+            step: StepId(0),
+            subject: ColumnIndex(1),
+            key: vec![ColumnIndex(0)],
+            headings: Vec::new(),
+        },
+        frontier: Vec::new(),
+        comparison_origins: Vec::new(),
+    }
+}
+
+#[test]
+fn two_real_rule_evaluations_share_only_the_index_and_keep_ordered_duplicate_rows() {
+    use crate::domain::stored_indexes::service::{LIMIT, new};
+    let join = duplicate_resident_join_plan();
+    let plans = [join.clone(), join];
+    let mut tables = worker(&plans);
+    tables.bytes = FileBytes(SOURCE.to_vec());
+    let main = intern(&mut tables.symbols, ByteSlice(SOURCE), Offset(0), Offset(4));
+    let other = intern(&mut tables.symbols, ByteSlice(SOURCE), Offset(4), Offset(9));
+    let columns = [
+        FactColumn(vec![
+            u64::from(main.0),
+            u64::from(other.0),
+            u64::from(main.0),
+        ]),
+        FactColumn(vec![10, 11, 12]),
+    ];
+    let reads = std::cell::Cell::new(0_u32);
+    let placed = placed();
+    let ids = [RuleId("first".into()), RuleId("second".into())];
+    let bindings = [Vec::new(), Vec::new()];
+    let setting = setting(&placed, &plans, &[], &ids, &bindings);
+    let mut cache = new(&[Relation::Function], &[], LIMIT).expect("audited physical generation");
+    evaluate_rule(
+        &mut tables,
+        &setting,
+        RuleIndex(0),
+        FileId(10),
+        Some(&mut cache),
+        &|relation| {
+            reads.set(reads.get() + 1);
+            (relation == Relation::Function).then_some(ColumnsView {
+                kinds: KINDS,
+                columns: &columns,
+            })
+        },
+    )
+    .expect("first rule");
+    // Shape inference currently computes direct relation inputs with real stored rows.
+    // One acquisition belongs to layout and one to execution, not to each of the five hits.
+    assert_eq!(
+        (cache.builds, cache.reuses),
+        (1, 1),
+        "first-rule layout plus execution"
+    );
+    let first = tables
+        .pool
+        .steps
+        .first()
+        .expect("kept emitted join")
+        .clone();
+    let reads_after_first = reads.get();
+    evaluate_rule(
+        &mut tables,
+        &setting,
+        RuleIndex(1),
+        FileId(10),
+        Some(&mut cache),
+        &|relation| {
+            reads.set(reads.get() + 1);
+            (relation == Relation::Function).then_some(ColumnsView {
+                kinds: KINDS,
+                columns: &columns,
+            })
+        },
+    )
+    .expect("second rule");
+    assert_eq!(tables.pool.steps.first(), Some(&first));
+    assert_eq!(
+        first.count.0, 5,
+        "duplicate keys preserve the ordered join multiset"
+    );
+    assert_eq!(
+        (cache.builds, cache.reuses),
+        (1, 3),
+        "two rule layouts and two executions still build one physical index"
+    );
+    assert!(
+        reads.get() > reads_after_first,
+        "normal provider reads remain observable on a hit"
+    );
 }

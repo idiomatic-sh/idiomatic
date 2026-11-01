@@ -8,6 +8,7 @@ use std::collections::BTreeMap;
 /// Pinned reference profile and explicit default-rule accounting.
 struct ToolSchema {
     #[serde(default, rename = "project-context-mode")]
+    /// Explicit project lookup mode for this invocation.
     project_context_mode: crate::outbound::context::adapters::local::schemas::ModeSchema,
     /// Reference tool name.
     tool: String,
@@ -67,6 +68,7 @@ struct CasesSchema {
 /// One independent source example.
 struct CaseSchema {
     #[serde(default)]
+    /// Optional explicit per-case project context; isolated cases omit it.
     context: Option<CaseContextSchema>,
     /// Explicit diagnostic scope; existing cases assert their enclosing rule.
     #[serde(default)]
@@ -286,18 +288,25 @@ mod tests;
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
+/// Authored project context materialized independently for one case.
 struct CaseContextSchema {
     #[serde(rename = "logical-root")]
+    /// Stable run-root path inside the case boundary.
     logical_root: std::path::PathBuf,
     #[serde(default, rename = "auxiliary-files")]
+    /// Explicit auxiliary file paths and contents.
     auxiliary_files: BTreeMap<std::path::PathBuf, ContextBytes>,
     #[serde(default)]
+    /// Declared paths that must remain absent.
     missing: Vec<std::path::PathBuf>,
 }
 #[derive(Deserialize)]
 #[serde(untagged)]
+/// Text or exact byte content for an auxiliary context file.
 enum ContextBytes {
+    /// UTF-8 source content.
     Text(String),
+    /// Exact bytes, including malformed UTF-8 controls.
     Bytes(Vec<u8>),
 }
 impl From<CaseContextSchema> for types::CaseContext {

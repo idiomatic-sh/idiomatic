@@ -221,10 +221,12 @@ fn missing_logical_carriers_are_unavailable_and_partial_not_malformed() {
 
 #[test]
 fn retained_storage_is_outcomes_occurrences_and_complete_carrier_keys() {
+    use std::fmt::Write as _;
     CALLS.with(|count| count.set(0));
-    let text = (0..256)
-        .map(|index| format!("'T{index}'\n"))
-        .collect::<String>();
+    let mut text = String::new();
+    for number in 0_u32..256 {
+        writeln!(text, "'T{number}'").expect("writing into String is infallible");
+    }
     let source_text: &'static str = Box::leak(text.into_boxed_str());
     let mut source = parsed(source_text.as_bytes()).expect("many distinct carriers");
     let tree = Tree {
@@ -240,18 +242,18 @@ fn retained_storage_is_outcomes_occurrences_and_complete_carrier_keys() {
     CALLS.with(|count| assert_eq!(count.get(), 256));
     drop(index);
     let large: &'static str = Box::leak(format!("'{}'\n", "T".repeat(65_536)).into_boxed_str());
-    let mut source = parsed(large.as_bytes()).expect("one bounded large carrier");
-    let tree = Tree {
-        elements: &source.elements,
-        source: ByteSlice(source.bytes),
+    let mut large_source = parsed(large.as_bytes()).expect("one bounded large carrier");
+    let large_tree = Tree {
+        elements: &large_source.elements,
+        source: ByteSlice(large_source.bytes),
         file: languages::FileId(0),
     };
-    initialize_model(&tree, &mut model);
-    let index = prepare::<Counting>(&tree, &model, &mut source.symbols);
-    assert_eq!(index.by_carrier.len(), 1);
-    assert_eq!(index.occurrences.len(), 1);
+    initialize_model(&large_tree, &mut model);
+    let large_index = prepare::<Counting>(&large_tree, &model, &mut large_source.symbols);
+    assert_eq!(large_index.by_carrier.len(), 1);
+    assert_eq!(large_index.occurrences.len(), 1);
     assert!(
-        index
+        large_index
             .by_carrier
             .keys()
             .all(|(_, carrier)| carrier.len() <= large.len() + 8)

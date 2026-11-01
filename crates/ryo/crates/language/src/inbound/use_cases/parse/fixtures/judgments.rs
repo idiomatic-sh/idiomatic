@@ -40,8 +40,9 @@ pub(super) fn reasons_of(class: Class) -> &'static [AbsenceCause] {
             AbsenceCause::NotADocument,
             AbsenceCause::NotYetRead,
         ],
-        Class::Literal => &[AbsenceCause::NoSuchConstruct, AbsenceCause::NotYetRead],
-        Class::Lexical => &[AbsenceCause::NoSuchConstruct, AbsenceCause::NotYetRead],
+        Class::Literal | Class::Lexical => {
+            &[AbsenceCause::NoSuchConstruct, AbsenceCause::NotYetRead]
+        }
         Class::Manifest => &[AbsenceCause::NoManifests, AbsenceCause::NotYetRead],
     }
 }

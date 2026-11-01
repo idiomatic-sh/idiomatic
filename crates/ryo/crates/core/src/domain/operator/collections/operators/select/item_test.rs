@@ -68,6 +68,7 @@ fn compute(
     let mut symbols = Symbols::default();
     let mut out = Table::default();
     let mut context = OperatorContext {
+        stored_indexes: None,
         bindings,
         symbols: &mut symbols,
         source: SourceView(&[]),
@@ -163,6 +164,7 @@ fn services_held(test: Test, left: Operand, right: Operand) -> Result<Value, Ope
     }
     let mut out = Table::default();
     let mut context = OperatorContext {
+        stored_indexes: None,
         bindings: &[],
         symbols: &mut symbols,
         source: SourceView(SERVICES),

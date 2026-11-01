@@ -7,7 +7,7 @@ use crate::domain::{
 #[must_use]
 pub fn request() -> WorkerRequest {
     WorkerRequest {
-        project_context_mode: Default::default(),
+        project_context_mode: crate::domain::suite::types::ProjectContextMode::default(),
         context_manifest: None,
         root: "workspace".into(),
         rules: "rules".into(),

@@ -74,6 +74,7 @@ fn subject((left, right, source): Input) -> Result<Span, Failure> {
     let mut symbols = Symbols::default();
     let mut scratch = OperatorScratch::default();
     let mut context = OperatorContext {
+        stored_indexes: None,
         bindings: &[],
         symbols: &mut symbols,
         source: SourceView(source),
@@ -95,8 +96,8 @@ fn subject((left, right, source): Input) -> Result<Span, Failure> {
         &mut Held(&table),
         &mut context,
         &mut Room::default(),
-        &mut Pipe(|_: &mut OperatorContext<'_>, row: &[Value]| {
-            streamed.extend_from_slice(row);
+        &mut Pipe(|_: &mut OperatorContext<'_>, emitted: &[Value]| {
+            streamed.extend_from_slice(emitted);
             Ok(())
         }),
     );

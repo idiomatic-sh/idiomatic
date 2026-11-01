@@ -120,6 +120,7 @@ fn counting_plan(handed_over: bool) -> Plan {
 fn subject(scenario: Input) -> Result<Value, Failure> {
     let mut symbols = Symbols::default();
     let mut context = OperatorContext {
+        stored_indexes: None,
         bindings: &[],
         symbols: &mut symbols,
         source: SourceView(&[]),

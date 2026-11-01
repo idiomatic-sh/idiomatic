@@ -42,6 +42,10 @@ struct MemoryWorker {
 }
 
 impl FactsWorker for MemoryWorker {
+    fn resident_stability(&self) -> crate::outbound::facts::types::ResidentStability {
+        crate::outbound::facts::types::ResidentStability::Stable
+    }
+
     fn columns_mut(&mut self) -> Result<ColumnsMut<'_>, FactsError> {
         Ok(self
             .tables

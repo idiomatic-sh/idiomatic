@@ -1,0 +1,63 @@
+{
+  "schema": "ready-source-integration/v1",
+  "cohort": "after-frozen-310-r2",
+  "batches": [
+    {
+      "source_commit": "9cd926b42588432f3ea945f81274c508a9709411",
+      "rules": [
+        {
+          "rule": "PYI003",
+          "case_count": 44,
+          "query_sha256": "252862c576f99ea9651b00e5d7056ee87e5edafd9e1a103a5dbbdd0a2441f1c1",
+          "cases_sha256": "70206808d0aa75b26de7d4f0b5458219ee420b60de84672b3ebb643461def011"
+        },
+        {
+          "rule": "PYI004",
+          "case_count": 26,
+          "query_sha256": "cdfaa4032d636cde04ebdaa77c614b95802d549f126f7071fe137b79cc815632",
+          "cases_sha256": "1c5d6648b48ae7c99d4f7d57377c87d94eea8c3f00d612a4c0a64b643bd7ee64"
+        },
+        {
+          "rule": "PYI015",
+          "case_count": 110,
+          "query_sha256": "f8bcc7d21dc2a1ae85ecfbfc0714e6081d943d3d8328f8aaf157c64f23e5be44",
+          "cases_sha256": "9456a5b4d4654114c58d1bf6d8251785aebc64b86f7c7a0f215ae0229298f930"
+        }
+      ]
+    },
+    {
+      "source_commit": "597df3f325f754e01e30275a6b955a45ffb9d202",
+      "rules": [
+        {
+          "rule": "F811",
+          "case_count": 94,
+          "query_sha256": "dbe34c8299b09dcada0d725ebf20d4659cc89ac5e55d51211260b03961bc923a",
+          "cases_sha256": "e65a79378b57b860e92b60150abd96c4c21b7bff584459b7d651a6ffeeced737"
+        }
+      ]
+    },
+    {
+      "source_commit": "9044fdbe6e5cdabdfd387e33c52099d7941d5fc5",
+      "rules": [
+        {
+          "rule": "F401",
+          "case_count": 29,
+          "query_sha256": "21c6ce08a89cc672d0a743db2737025b71c704eb2ba6f2cee0f55f9c5bc9c4a0",
+          "cases_sha256": "1c27c3197317e4b1829b71143e0dd69be83f0d3207bb8e22e633089b1f0c0696"
+        }
+      ]
+    },
+    {
+      "source_commit": "d79f34099fa5ba3a560054268efbc20499a38978",
+      "rules": [
+        {
+          "rule": "PLW0406",
+          "case_count": 21,
+          "query_sha256": "3d205c04287a299210a8661fedf1ca0b7f971a90d85595d3a248fdb8c6e02969",
+          "cases_sha256": "503b6de29cf575454a5925dae7ce7e19ae4208b5f3cd670e275489639f47065e"
+        }
+      ]
+    }
+  ],
+  "context_profile_policy": "PLW0406 ListedDisk scoped context profile only;not silently merged into isolated combined profiles"
+}

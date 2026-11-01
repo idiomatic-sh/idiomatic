@@ -154,6 +154,10 @@ fn read_exact_at(
 }
 
 impl FactsWorker for SpillWorker {
+    fn resident_stability(&self) -> crate::outbound::facts::types::ResidentStability {
+        crate::outbound::facts::types::ResidentStability::Stable
+    }
+
     fn columns_mut(&mut self) -> Result<ColumnsMut<'_>, FactsError> {
         Ok(self
             .tables

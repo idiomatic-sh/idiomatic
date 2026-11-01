@@ -1,7 +1,7 @@
 //! Actual reader rows and unchanged embedded-AST visibility.
 use super::LiteralExpressionParseItem;
 use crate::domain::literal_expression_parsing::{
-    interface::LiteralExpressionSyntax,
+    interface::LiteralExpressionSyntax as _,
     types::{LiteralDialect, LiteralParseOutcome},
 };
 use crate::domain::relations::collections::relations::{

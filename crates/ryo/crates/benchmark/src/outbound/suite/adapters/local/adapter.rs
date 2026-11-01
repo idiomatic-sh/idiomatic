@@ -295,10 +295,7 @@ fn prepare_cases(
     rules: &Path,
     scratch: &Path,
 ) -> Result<Vec<crate::domain::suite::types::PreparedCase>, Error> {
-    use crate::domain::{
-        diagnostics::types::BenchmarkFinding,
-        suite::types::{PreparedCase, RunRequest},
-    };
+    use crate::domain::suite::types::{PreparedCase, RunRequest};
     let mut prepared = Vec::new();
     let profile = rules
         .parent()
@@ -370,26 +367,7 @@ fn prepare_cases(
                     .join(rule.to_string())
                     .join(index.to_string()),
             };
-            let mut expected = RunReport {
-                project_context: None,
-                files: request.files.clone(),
-                skipped: Vec::new(),
-                coverage: None,
-                diagnostics: case
-                    .expected
-                    .into_iter()
-                    .map(|finding| BenchmarkFinding {
-                        rule: match finding.identity {
-                            crate::domain::suite::types::ExpectedRule::Parent => rule.clone(),
-                            crate::domain::suite::types::ExpectedRule::Explicit(value) => value,
-                        },
-                        file: finding.file,
-                        start: finding.start,
-                        end: finding.end,
-                    })
-                    .collect(),
-            };
-            expected.diagnostics.sort();
+            let expected = expected_report(&rule, request.files.clone(), case.expected);
             prepared.push(PreparedCase {
                 comparison: case.comparison,
                 rule: rule.clone(),
@@ -403,4 +381,34 @@ fn prepare_cases(
         return Err(Error::Invalid(constants::NO_EXECUTABLE_CASES.into()));
     }
     Ok(prepared)
+}
+
+/// Preserve each authored diagnostic identity and sort the independent expected multiset.
+fn expected_report(
+    rule: &ryo::linter::RuleId,
+    files: Vec<ryo::linter::RelativePath>,
+    expected: Vec<crate::domain::suite::types::Expected>,
+) -> RunReport {
+    let mut report = RunReport {
+        project_context: None,
+        files,
+        skipped: Vec::new(),
+        coverage: None,
+        diagnostics: expected
+            .into_iter()
+            .map(
+                |finding| crate::domain::diagnostics::types::BenchmarkFinding {
+                    rule: match finding.identity {
+                        crate::domain::suite::types::ExpectedRule::Parent => rule.clone(),
+                        crate::domain::suite::types::ExpectedRule::Explicit(value) => value,
+                    },
+                    file: finding.file,
+                    start: finding.start,
+                    end: finding.end,
+                },
+            )
+            .collect(),
+    };
+    report.diagnostics.sort();
+    report
 }

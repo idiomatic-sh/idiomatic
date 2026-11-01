@@ -65,3 +65,6 @@ pub(crate) mod value_cells;
 pub(crate) mod visit;
 pub(crate) mod walks;
 pub(crate) mod workers;
+
+/// Complete stored indexes owned by a single physical file generation.
+pub(crate) mod stored_indexes;

@@ -61,6 +61,7 @@ fn compute(
     let mut symbols = Symbols::default();
     let mut out = Table::default();
     let mut context = OperatorContext {
+        stored_indexes: None,
         bindings: &[],
         symbols: &mut symbols,
         source: SourceView(&[]),
@@ -305,6 +306,7 @@ fn scratch_reuse_across_graphs_empty_and_old_operator() -> Result<usize, Operati
     assert_eq!(first.count.0, 2);
     let capacity = scratch.dfs_graph.adjacency.capacity();
     let mut context = OperatorContext {
+        stored_indexes: None,
         bindings: &[],
         symbols: &mut Symbols::default(),
         source: SourceView(&[]),
@@ -536,6 +538,7 @@ fn retained_text_keys_and_vertices_preserve_output_cells() -> Result<usize, Oper
     let mut scratch = OperatorScratch::default();
     let mut out = Table::default();
     let mut context = OperatorContext {
+        stored_indexes: None,
         bindings: &[],
         symbols: &mut symbols,
         source: SourceView(source),
@@ -701,6 +704,7 @@ fn streamed_and_computed_visits_agree() -> Result<usize, OperatingError> {
         ..Table::default()
     };
     let mut context = OperatorContext {
+        stored_indexes: None,
         bindings: &[],
         symbols: &mut Symbols::default(),
         source: SourceView(&[]),

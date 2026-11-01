@@ -16,22 +16,21 @@ use ryo_language::inbound::use_cases::project::types::RootPath;
 use ryo_language::inbound::use_cases::project::types::{ManifestFile, ManifestText};
 use std::sync::{Arc, atomic::Ordering};
 
+use crate::domain::lowering::types::Counting;
+use crate::domain::operator::types::TreeSteps;
+use crate::domain::placement::types::{Mask, PlacedScopes, ScopePlacement};
+use crate::domain::trust::types::{Needs, RelationRead};
+use crate::domain::workers::service::tables_for;
+use crate::domain::workers::types::VisitSetting;
+use crate::outbound::matching::interface::MatchingPort as _;
+use ryo_language::domain::elements::types::SyntaxAcceptance;
+use ryo_language::domain::relations::types::{Relation, WorkerNumber};
+use ryo_values::domain::plan_parts::types::{ColumnIndex, StepId};
+use ryo_values::domain::plans::types::{Emit, Plan};
+use ryo_values::domain::runs::types::{RuleApplicability, RuleId};
+
 #[test]
 fn syntax_applicability_skips_only_gated_rules_and_names_the_reason() {
-    use super::service::FileAnalysis;
-    use crate::domain::lowering::types::Counting;
-    use crate::domain::operator::types::TreeSteps;
-    use crate::domain::placement::types::{Mask, PlacedScopes, ScopePlacement};
-    use crate::domain::trust::types::{Needs, RelationRead};
-    use crate::domain::workers::service::tables_for;
-    use crate::domain::workers::types::VisitSetting;
-    use crate::outbound::matching::interface::MatchingPort as _;
-    use ryo_language::domain::elements::types::SyntaxAcceptance;
-    use ryo_language::domain::relations::types::{Relation, WorkerNumber};
-    use ryo_values::domain::plan_parts::types::{ColumnIndex, StepId};
-    use ryo_values::domain::plans::types::{Emit, Plan};
-    use ryo_values::domain::runs::types::{RuleApplicability, RuleId};
-
     let plan = Plan {
         parameters: Vec::new(),
         steps: Vec::new(),
@@ -99,47 +98,60 @@ fn syntax_applicability_skips_only_gated_rules_and_names_the_reason() {
             "rule skipped: syntax acceptance undetermined",
         ),
     ] {
-        let mut tables = tables_for(
-            WorkerNumber(0),
-            &plans,
-            TreeSteps::Lowered,
-            Counting::DoesNotCount,
-        );
-        tables.mask = Mask(vec![0b11]);
-        let skipped = FileAnalysis::gate_rules(
-            &mut tables,
-            &setting,
-            ryo_language::domain::relations::types::FileId(0),
-            acceptance,
-        );
-        assert_eq!(skipped, [true, false]);
-        assert_eq!(tables.mask.0, [0b10]);
-        assert_eq!(
-            FileAnalysis::active_wanted(&tables, &setting, acceptance).as_ref(),
-            [Relation::Identifier]
-        );
-        if acceptance == SyntaxAcceptance::Rejected {
-            assert!(tables.unknowns.is_empty());
-            assert_eq!(tables.skipped.len(), 1);
-            assert_eq!(tables.skipped[0].rule, ids[0]);
-            assert_eq!(tables.skipped[0].path, paths[0]);
-            assert_eq!(
-                tables.skipped[0].reason,
-                ryo_values::domain::runs::types::SkipReason::SyntaxRejected
-            );
-            assert!(expected_reason.contains("rejected"));
-        } else {
-            assert_eq!(tables.unknowns.len(), 1);
-            assert_eq!(tables.unknowns[0].rule, ids[0]);
-            assert_eq!(tables.unknowns[0].path, paths[0]);
-            assert_eq!(&*tables.unknowns[0].message.0, expected_reason);
-            assert!(tables.skipped.is_empty());
-        }
+        assert_gated_acceptance(&setting, acceptance, expected_reason);
     }
+    assert_accepted_and_missing_applicability(&setting);
+}
 
+/// Check a rejected or undetermined source without mixing its owner tables with other cases.
+fn assert_gated_acceptance(
+    setting: &VisitSetting<'_>,
+    acceptance: SyntaxAcceptance,
+    expected_reason: &str,
+) {
     let mut tables = tables_for(
         WorkerNumber(0),
-        &plans,
+        setting.plans,
+        TreeSteps::Lowered,
+        Counting::DoesNotCount,
+    );
+    tables.mask = Mask(vec![0b11]);
+    let skipped = FileAnalysis::gate_rules(
+        &mut tables,
+        setting,
+        ryo_language::domain::relations::types::FileId(0),
+        acceptance,
+    );
+    assert_eq!(skipped, [true, false]);
+    assert_eq!(tables.mask.0, [0b10]);
+    assert_eq!(
+        FileAnalysis::active_wanted(&tables, setting, acceptance).as_ref(),
+        [Relation::Identifier]
+    );
+    if acceptance == SyntaxAcceptance::Rejected {
+        assert!(tables.unknowns.is_empty());
+        assert_eq!(tables.skipped.len(), 1);
+        assert_eq!(tables.skipped[0].rule, setting.ids[0]);
+        assert_eq!(tables.skipped[0].path, setting.paths[0]);
+        assert_eq!(
+            tables.skipped[0].reason,
+            ryo_values::domain::runs::types::SkipReason::SyntaxRejected
+        );
+        assert!(expected_reason.contains("rejected"));
+    } else {
+        assert_eq!(tables.unknowns.len(), 1);
+        assert_eq!(tables.unknowns[0].rule, setting.ids[0]);
+        assert_eq!(tables.unknowns[0].path, setting.paths[0]);
+        assert_eq!(&*tables.unknowns[0].message.0, expected_reason);
+        assert!(tables.skipped.is_empty());
+    }
+}
+
+/// Accepted syntax keeps enabled rules; absent applicability metadata still records unknowns.
+fn assert_accepted_and_missing_applicability(setting: &VisitSetting<'_>) {
+    let mut tables = tables_for(
+        WorkerNumber(0),
+        setting.plans,
         TreeSteps::Lowered,
         Counting::DoesNotCount,
     );
@@ -147,7 +159,7 @@ fn syntax_applicability_skips_only_gated_rules_and_names_the_reason() {
     assert_eq!(
         FileAnalysis::gate_rules(
             &mut tables,
-            &setting,
+            setting,
             ryo_language::domain::relations::types::FileId(0),
             SyntaxAcceptance::Accepted,
         ),
@@ -155,27 +167,27 @@ fn syntax_applicability_skips_only_gated_rules_and_names_the_reason() {
     );
     assert_eq!(tables.mask.0, [0b11]);
     assert_eq!(
-        FileAnalysis::active_wanted(&tables, &setting, SyntaxAcceptance::Accepted).as_ref(),
+        FileAnalysis::active_wanted(&tables, setting, SyntaxAcceptance::Accepted).as_ref(),
         [Relation::Function, Relation::Identifier]
     );
     let always_setting = VisitSetting {
-        plans: &plans[1..],
-        ids: &ids[1..],
-        applicability: &applicability[1..],
+        plans: &setting.plans[1..],
+        ids: &setting.ids[1..],
+        applicability: &setting.applicability[1..],
         applicability_can_gate: false,
         needs: &setting.needs[1..],
-        ..setting
+        ..*setting
     };
     assert!(matches!(
         FileAnalysis::active_wanted(&tables, &always_setting, SyntaxAcceptance::Rejected),
         std::borrow::Cow::Borrowed(_)
     ));
     assert!(!FileAnalysis::may_gate_rules(
-        &setting,
+        setting,
         SyntaxAcceptance::Accepted
     ));
     assert!(FileAnalysis::may_gate_rules(
-        &setting,
+        setting,
         SyntaxAcceptance::Rejected
     ));
     assert!(tables.unknowns.is_empty());
@@ -183,36 +195,36 @@ fn syntax_applicability_skips_only_gated_rules_and_names_the_reason() {
     let missing_policy = VisitSetting {
         applicability: &[],
         applicability_can_gate: true,
-        ..setting
+        ..*setting
     };
     assert!(FileAnalysis::may_gate_rules(
         &missing_policy,
         SyntaxAcceptance::Accepted
     ));
-    let mut tables = tables_for(
+    let mut missing_tables = tables_for(
         WorkerNumber(0),
-        &plans,
+        setting.plans,
         TreeSteps::Lowered,
         Counting::DoesNotCount,
     );
-    tables.mask = Mask(vec![0b11]);
+    missing_tables.mask = Mask(vec![0b11]);
     assert_eq!(
         FileAnalysis::gate_rules(
-            &mut tables,
+            &mut missing_tables,
             &missing_policy,
             ryo_language::domain::relations::types::FileId(0),
             SyntaxAcceptance::Accepted,
         ),
         [true, true]
     );
-    assert_eq!(tables.mask.0, [0]);
+    assert_eq!(missing_tables.mask.0, [0]);
     assert!(
-        FileAnalysis::active_wanted(&tables, &missing_policy, SyntaxAcceptance::Accepted)
+        FileAnalysis::active_wanted(&missing_tables, &missing_policy, SyntaxAcceptance::Accepted)
             .is_empty()
     );
-    assert_eq!(tables.unknowns.len(), 2);
-    assert!(tables.skipped.is_empty());
-    assert!(tables.unknowns.iter().all(|unknown| {
+    assert_eq!(missing_tables.unknowns.len(), 2);
+    assert!(missing_tables.skipped.is_empty());
+    assert!(missing_tables.unknowns.iter().all(|unknown| {
         &*unknown.message.0 == "rule skipped: applicability metadata unavailable"
     }));
 }
@@ -229,25 +241,26 @@ fn only_incomplete_diagnostics_mark_code_relations_as_recovery() {
     use ryo_language::domain::elements::types::{
         DiagnosticCode, DiagnosticMetadata, DiagnosticPhase, Elements, TreeImpact,
     };
-    use ryo_language::domain::relations::types::{Offset, Relation, ReportText};
+    use ryo_language::domain::relations::types::{Offset, ReportText};
     use ryo_language::domain::symbols::types::ByteSlice;
 
     let source = ByteSlice(b"x");
     let mut elements = Elements::default();
     let mut symbols = Symbols::default();
-    let mut builder = table_builder(&mut elements, &mut symbols, source);
-    diagnose_with_metadata(
-        &mut builder,
-        DiagnosticMetadata::new(
-            DiagnosticPhase::Validation,
-            TreeImpact::Preserved,
-            DiagnosticCode::provider_owned("fixture.target-syntax"),
-        ),
-        ReportText("syntax is unsupported by this target"),
-        Offset(0),
-        Offset(1),
-    );
-    drop(builder);
+    {
+        let mut builder = table_builder(&mut elements, &mut symbols, source);
+        diagnose_with_metadata(
+            &mut builder,
+            DiagnosticMetadata::new(
+                DiagnosticPhase::Validation,
+                TreeImpact::Preserved,
+                DiagnosticCode::provider_owned("fixture.target-syntax"),
+            ),
+            ReportText("syntax is unsupported by this target"),
+            Offset(0),
+            Offset(1),
+        );
+    }
     let preserved = recovery_of(
         &FileReading::Read(ryo_values::domain::stored_facts::types::LanguageNumber(0)),
         &elements,
@@ -263,19 +276,21 @@ fn only_incomplete_diagnostics_mark_code_relations_as_recovery() {
 
     let mut lexical_elements = Elements::default();
     let mut lexical_symbols = Symbols::default();
-    let mut lexical_builder = table_builder(&mut lexical_elements, &mut lexical_symbols, source);
-    diagnose_with_metadata(
-        &mut lexical_builder,
-        DiagnosticMetadata::new(
-            DiagnosticPhase::Parse,
-            TreeImpact::LexicallyComplete,
-            DiagnosticCode::provider_owned("fixture.parser-recovered"),
-        ),
-        ReportText("invalid syntax, complete token stream"),
-        Offset(0),
-        Offset(1),
-    );
-    drop(lexical_builder);
+    {
+        let mut lexical_builder =
+            table_builder(&mut lexical_elements, &mut lexical_symbols, source);
+        diagnose_with_metadata(
+            &mut lexical_builder,
+            DiagnosticMetadata::new(
+                DiagnosticPhase::Parse,
+                TreeImpact::LexicallyComplete,
+                DiagnosticCode::provider_owned("fixture.parser-recovered"),
+            ),
+            ReportText("invalid syntax, complete token stream"),
+            Offset(0),
+            Offset(1),
+        );
+    }
     let lexical_recovery = recovery_of(
         &FileReading::Read(ryo_values::domain::stored_facts::types::LanguageNumber(0)),
         &lexical_elements,
@@ -296,15 +311,16 @@ fn only_incomplete_diagnostics_mark_code_relations_as_recovery() {
     assert_eq!(lexical_partials[0].relation, Relation::Function);
     let mut incomplete_elements = Elements::default();
     let mut incomplete_symbols = Symbols::default();
-    let mut validation_builder =
-        table_builder(&mut incomplete_elements, &mut incomplete_symbols, source);
-    diagnose(
-        &mut validation_builder,
-        ReportText("legacy parser diagnostic without impact metadata"),
-        Offset(0),
-        Offset(1),
-    );
-    drop(validation_builder);
+    {
+        let mut validation_builder =
+            table_builder(&mut incomplete_elements, &mut incomplete_symbols, source);
+        diagnose(
+            &mut validation_builder,
+            ReportText("legacy parser diagnostic without impact metadata"),
+            Offset(0),
+            Offset(1),
+        );
+    }
     let incomplete = recovery_of(
         &FileReading::Read(ryo_values::domain::stored_facts::types::LanguageNumber(0)),
         &incomplete_elements,
@@ -400,17 +416,11 @@ fn visited_as(
     digest: Arc<dyn crate::outbound::digest::interface::DigestPort>,
 ) -> Result<(super::types::Worker, Arc<LanguageFake>), Failure> {
     use super::types::{FileVisit, Worker};
-    use crate::domain::lowering::types::Counting;
-    use crate::domain::operator::types::TreeSteps;
-    use crate::domain::placement::types::{Mask, PlacedScopes, ScopePlacement};
     use crate::domain::visit::types::{Noting, RoleRead};
-    use crate::domain::workers::service::tables_for;
-    use crate::domain::workers::types::VisitSetting;
     use crate::outbound::corpus::interface::CorpusPort as _;
     use crate::outbound::matching::fixtures::fake::MatchingFake;
     use crate::outbound::matching::interface::MatchingPort as _;
     use crate::outbound::scheduler::types::JobNumber;
-    use ryo_language::domain::relations::types::{Relation, WorkerNumber};
     use ryo_values::domain::files::types::{CorpusFile, FileBytes};
     use ryo_values::domain::runs::types::MemoryBytes;
     let corpus = Arc::new(CorpusFake {
@@ -654,4 +664,162 @@ fn required_dependency_stat_and_read_errors_cannot_disappear() {
         .consulted(&[FilePath("absent".into())], &mut result)
         .expect("a genuine missing dependency is recordable");
     assert_eq!(result.consulted_absent, vec![FilePath("absent".into())]);
+}
+
+/// A legal unaudited worker whose immutable resident alternatives change between reads.
+struct UnstableResidentFacts {
+    /// Delegate mutation/retained-word operations without promising resident identity.
+    inner: Box<dyn crate::outbound::facts::interface::FactsWorker>,
+    /// Distinguishable same-shape populations selected by read order.
+    alternatives: [Vec<ryo_language::domain::relations::types::FactColumn>; 2],
+    /// Source reads remain observable even when their shapes agree.
+    reads: std::sync::atomic::AtomicUsize,
+}
+impl crate::outbound::facts::interface::FactsWorker for UnstableResidentFacts {
+    fn resident_stability(&self) -> crate::outbound::facts::types::ResidentStability {
+        crate::outbound::facts::types::ResidentStability::Unstable
+    }
+    fn columns_mut(
+        &mut self,
+    ) -> Result<
+        crate::outbound::facts::types::ColumnsMut<'_>,
+        crate::outbound::facts::errors::FactsError,
+    > {
+        self.inner.columns_mut()
+    }
+    fn rows(
+        &self,
+        relation: Relation,
+    ) -> Result<
+        ryo_language::domain::relations::types::ColumnsView<'_>,
+        crate::outbound::facts::errors::FactsError,
+    > {
+        use ryo_language::domain::relations::{service::kinds, types::ColumnsView};
+        if relation != Relation::Function {
+            return self.inner.rows(relation);
+        }
+        let place = self.reads.fetch_add(1, Ordering::Relaxed) % 2;
+        let columns = self
+            .alternatives
+            .get(place)
+            .expect("one of two immutable alternatives");
+        Ok(ColumnsView {
+            kinds: kinds(relation),
+            columns,
+        })
+    }
+    fn keep(
+        &mut self,
+        bucket: ryo_values::domain::stored_facts::types::Bucket,
+        words: crate::outbound::facts::types::WordsToKeep<'_>,
+    ) -> Result<(), crate::outbound::facts::errors::FactsError> {
+        self.inner.keep(bucket, words)
+    }
+    fn release(&mut self) -> Result<(), crate::outbound::facts::errors::FactsError> {
+        self.inner.release()
+    }
+    fn finished(
+        self: Box<Self>,
+    ) -> Result<
+        Box<dyn crate::outbound::facts::interface::FactsFinish>,
+        crate::outbound::facts::errors::FactsError,
+    > {
+        self.inner.finished()
+    }
+}
+
+#[test]
+fn physical_missing_kinds_remain_ineligible_when_rows_mode_clears_evaluation_coverage() {
+    use crate::domain::coverage::types::{Lacking, LackingKind, Partial};
+    use ryo_values::domain::stored_facts::types::{LanguageNumber, PartialCause};
+    let mut tables = tables_for(
+        WorkerNumber(0),
+        &[],
+        TreeSteps::AsOperators,
+        Counting::DoesNotCount,
+    );
+    tables.language = Some(LanguageNumber(0));
+    tables.partials.push(Partial {
+        relation: Relation::Function,
+        cause: PartialCause("missing one physical kind".into()),
+        lacking: Lacking::Kind(LackingKind("async".into())),
+        at: None,
+    });
+    tables.pool.partial = tables.partials.clone();
+    let facts = FactsFake::default().worker().expect("facts");
+    let findings = FileAnalysis::indexes_for(
+        &tables,
+        facts.as_ref(),
+        &[Relation::Function],
+        &tables.partials,
+    )
+    .expect("stable generation");
+    tables.pool.partial.clear();
+    let rows = FileAnalysis::indexes_for(
+        &tables,
+        facts.as_ref(),
+        &[Relation::Function],
+        &tables.partials,
+    )
+    .expect("same physical generation");
+    assert_eq!(findings.eligible, rows.eligible);
+    assert!(rows.eligible.is_empty());
+    tables.language = None;
+    assert!(
+        FileAnalysis::indexes_for(&tables, facts.as_ref(), &[Relation::Function], &[]).is_none(),
+        "failed/unsupported source never opens an index generation"
+    );
+}
+
+#[test]
+fn unstable_same_shape_resident_populations_decline_generation_reuse() {
+    use crate::outbound::facts::interface::FactsWorker as _;
+    use ryo_language::domain::relations::types::FactColumn;
+    use ryo_values::domain::stored_facts::types::LanguageNumber;
+    let mut tables = tables_for(
+        WorkerNumber(0),
+        &[],
+        TreeSteps::AsOperators,
+        Counting::DoesNotCount,
+    );
+    tables.language = Some(LanguageNumber(0));
+    let facts = UnstableResidentFacts {
+        inner: FactsFake::default().worker().expect("inner"),
+        alternatives: [
+            vec![
+                FactColumn(vec![1]),
+                FactColumn(vec![0]),
+                FactColumn(vec![0]),
+                FactColumn(vec![4]),
+            ],
+            vec![
+                FactColumn(vec![2]),
+                FactColumn(vec![0]),
+                FactColumn(vec![0]),
+                FactColumn(vec![4]),
+            ],
+        ],
+        reads: std::sync::atomic::AtomicUsize::new(0),
+    };
+    let first = facts
+        .rows(Relation::Function)
+        .expect("first resident population")
+        .columns
+        .first()
+        .expect("first column")
+        .0
+        .clone();
+    assert!(FileAnalysis::indexes_for(&tables, &facts, &[Relation::Function], &[]).is_none());
+    let second = facts
+        .rows(Relation::Function)
+        .expect("changed population")
+        .columns
+        .first()
+        .expect("first column")
+        .0
+        .clone();
+    assert_ne!(
+        first, second,
+        "same relation/schema/count is insufficient without an audited stability promise"
+    );
 }

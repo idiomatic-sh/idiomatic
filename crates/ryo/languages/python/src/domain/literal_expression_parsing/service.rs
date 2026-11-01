@@ -61,11 +61,10 @@ fn carrier(tree: &Tree<'_>, node: Position, symbols: &Symbols) -> Option<String>
 }
 
 /// Return one cached result, reusing an already parsed embedded host when possible.
-fn outcome<P: LiteralExpressionSyntax>(
-    index: &mut LiteralParseIndex,
-    source: String,
-    embedded: bool,
-) -> LiteralParseOutcome {
+fn outcome<P>(index: &mut LiteralParseIndex, source: String, embedded: bool) -> LiteralParseOutcome
+where
+    P: LiteralExpressionSyntax,
+{
     let key = (LiteralDialect::PythonStringAnnotation, source);
     if let Some(outcome) = index.by_carrier.get(&key) {
         return *outcome;
@@ -79,7 +78,10 @@ fn outcome<P: LiteralExpressionSyntax>(
         P::parse(&key.1, key.0)
     };
     let previous = index.by_carrier.insert(key, result);
-    debug_assert!(previous.is_none());
+    debug_assert!(
+        previous.is_none(),
+        "a checked carrier has no cached outcome yet"
+    );
     result
 }
 
@@ -94,11 +96,14 @@ fn embedded_hosts(tree: &Tree<'_>) -> Option<HashSet<Position>> {
 }
 
 /// A relation-level demand scans eligible carriers once; no query host pushdown is assumed.
-pub(crate) fn prepare<'a, P: LiteralExpressionSyntax>(
+pub(crate) fn prepare<'a, P>(
     tree: &Tree<'_>,
     model: &'a Declarations,
     symbols: &mut Symbols,
-) -> Ref<'a, LiteralParseIndex> {
+) -> Ref<'a, LiteralParseIndex>
+where
+    P: LiteralExpressionSyntax,
+{
     if model.literal_expression_parsing.borrow().state == LiteralParseState::Fresh {
         let mut index = model.literal_expression_parsing.borrow_mut();
         index.state = if languages::has_incomplete_syntax(tree.elements)

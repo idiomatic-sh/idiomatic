@@ -4,6 +4,8 @@ use crate::domain::measurements::types::Measurement;
 use crate::domain::suite::types::RunRequest;
 use crate::outbound::execution::interface::ExecutionPort;
 use crate::outbound::linter::interface::LinterPort;
+use sha2::Digest as _;
+use std::io::Write as _;
 
 /// Prepare and execute one contestant, then validate decoded input coverage.
 ///
@@ -68,7 +70,13 @@ pub fn verify(
     scratch: &Path,
 ) -> Result<crate::domain::suite::types::CaseCount, Error> {
     verify_shard(
-        suite, reference, candidate, execution, rules, scratch, None, None,
+        suite,
+        reference,
+        candidate,
+        execution,
+        rules,
+        scratch,
+        CaseSelection::default(),
     )
 }
 
@@ -83,6 +91,9 @@ pub struct CaseShard {
 
 impl CaseShard {
     /// Validate shard coordinates.
+    ///
+    /// # Errors
+    /// Refuses a zero shard count or an index outside that count.
     pub fn new(index: usize, count: usize) -> Result<Self, Error> {
         if count == 0 || index >= count {
             return Err(Error::Invalid("invalid case shard coordinates".into()));
@@ -91,10 +102,22 @@ impl CaseShard {
     }
 }
 
+/// Optional partition and durable case IDs for a verification invocation.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct CaseSelection<'a> {
+    /// Globally audited deterministic shard, or all cases.
+    pub shard: Option<CaseShard>,
+    /// An explicit subset of IDs assigned to this shard, or the whole shard.
+    pub ids: Option<&'a std::collections::BTreeSet<String>>,
+}
+
 /// Verify one deterministic shard after loading and validating the entire case inventory.
 ///
 /// Cases are ordered by `(rule, name)` before assigning index modulo shard count. The
 /// suite loader and profile accounting run over the full inventory before this partition.
+///
+/// # Errors
+/// Propagates inventory, execution and observation errors, and refuses mismatched case reports.
 pub fn verify_shard(
     suite: &dyn SuitePort,
     reference: &dyn LinterPort,
@@ -102,17 +125,15 @@ pub fn verify_shard(
     execution: &dyn ExecutionPort,
     rules: &Path,
     scratch: &Path,
-    shard: Option<CaseShard>,
-    case_selection: Option<&std::collections::BTreeSet<String>>,
+    selection: CaseSelection<'_>,
 ) -> Result<crate::domain::suite::types::CaseCount, Error> {
-    let cases = suite.cases(
+    let mut cases = suite.cases(
         crate::outbound::suite::types::ArtifactPath(rules),
         crate::outbound::suite::types::ArtifactPath(scratch),
     )?;
-    let mut cases = cases;
     cases.sort_by(|left, right| (&left.rule, &left.name).cmp(&(&right.rule, &right.name)));
     let global_count = cases.len();
-    let assigned = match shard {
+    let assigned = match selection.shard {
         Some(shard) => cases
             .into_iter()
             .enumerate()
@@ -124,7 +145,7 @@ pub fn verify_shard(
         .iter()
         .map(|case| format!("{}/{}", case.rule, case.name))
         .collect::<std::collections::BTreeSet<_>>();
-    let cases = match case_selection {
+    let selected_cases = match selection.ids {
         Some(selected) if selected.is_empty() || !selected.is_subset(&assigned_ids) => {
             return Err(Error::Invalid(
                 "case selection is empty or outside this shard".into(),
@@ -136,15 +157,15 @@ pub fn verify_shard(
             .collect::<Vec<_>>(),
         None => assigned,
     };
-    let count = cases.len();
-    let first = cases
+    let count = selected_cases.len();
+    let first = selected_cases
         .first()
         .ok_or_else(|| Error::Invalid(super::constants::NO_CASES.into()))?;
     // The normal candidate path loads and compiles the whole selected profile.
     // Reuse its first result; a startup failure must not repeat for every fixture.
     let mut initial = Some(run(candidate, execution, &first.request)?);
     let mut failures = Vec::new();
-    for case in cases {
+    for case in selected_cases {
         for (name, tool) in [
             (super::constants::REFERENCE, reference),
             (super::constants::CANDIDATE, candidate),
@@ -197,7 +218,10 @@ pub fn verify_shard(
         }
     }
     if failures.is_empty() {
-        debug_assert!(count <= global_count);
+        debug_assert!(
+            count <= global_count,
+            "selected cases must belong to the audited inventory"
+        );
         Ok(crate::domain::suite::types::CaseCount(count))
     } else {
         Err(Error::Invalid(format!(
@@ -207,6 +231,7 @@ pub fn verify_shard(
     }
 }
 
+/// Append one complete side record while preserving the unprojected report and source identity.
 fn write_case_observation(
     case: &crate::domain::suite::types::PreparedCase,
     side: &str,
@@ -217,20 +242,7 @@ fn write_case_observation(
     let Some(path) = std::env::var_os("RYO_VERIFY_CASE_RESULTS") else {
         return Ok(());
     };
-    let findings = report.map(|report| {
-        report
-            .diagnostics
-            .iter()
-            .map(|finding| {
-                serde_json::json!({
-                    "rule": finding.rule.as_ref(),
-                    "file": finding.file.0.as_ref(),
-                    "start": finding.start.0,
-                    "end": finding.end.0,
-                })
-            })
-            .collect::<Vec<_>>()
-    });
+    let findings = report.map(|report| finding_values(&report.diagnostics));
     let files = report.map(|report| {
         report
             .files
@@ -253,42 +265,18 @@ fn write_case_observation(
             })
             .collect::<Vec<_>>()
     });
-    let expected = case
-        .expected
-        .diagnostics
-        .iter()
-        .map(|finding| {
-            serde_json::json!({
-                "rule": finding.rule.as_ref(),
-                "file": finding.file.0.as_ref(),
-                "start": finding.start.0,
-                "end": finding.end.0,
-            })
-        })
-        .collect::<Vec<_>>();
+    let expected = finding_values(&case.expected.diagnostics);
     let mut source_hasher = sha2::Sha256::new();
     for file in &case.request.files {
-        use sha2::Digest as _;
         source_hasher.update(file.0.as_bytes());
         source_hasher.update([0]);
         source_hasher.update(std::fs::read(case.request.root.join(file.0.as_ref()))?);
     }
-    use sha2::Digest as _;
-    let context_identity = case
-        .request
-        .context_manifest
-        .as_ref()
-        .map(|manifest| {
-            crate::outbound::context::adapters::local::adapter::fingerprint(manifest).map(|hash| {
-                serde_json::json!({
-                    "mode": "listed-disk",
-                    "logical_root": manifest.logical_root,
-                    "actual_root": case.request.root,
-                    "manifest_hash": hash.0,
-                })
-            })
-        })
-        .transpose()?;
+    let context_identity = case.request.context_manifest.as_ref().map(|manifest| {
+        let hash = crate::outbound::context::adapters::local::adapter::fingerprint(manifest);
+        serde_json::json!({ "mode": "listed-disk", "logical_root": manifest.logical_root,
+            "actual_root": case.request.root, "manifest_hash": hash.0 })
+    });
     let record = serde_json::json!({
         "rule": case.rule.as_ref(),
         "name": case.name.to_string(),
@@ -314,10 +302,9 @@ fn write_case_observation(
         "case_passed": passed,
         "complete": true,
     });
-    let mut line =
-        serde_json::to_vec(&record).map_err(|error| Error::Invalid(error.to_string()))?;
+    let mut line = serde_json::to_vec(&record)
+        .map_err(|serialization| Error::Invalid(serialization.to_string()))?;
     line.push(b'\n');
-    use std::io::Write as _;
     let mut output = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
@@ -394,11 +381,20 @@ pub fn verify_accounted(
     scratch: &Path,
 ) -> Result<crate::domain::suite::types::CaseCount, Error> {
     verify_accounted_shard(
-        suite, reference, candidate, execution, profile, scratch, None, None,
+        suite,
+        reference,
+        candidate,
+        execution,
+        profile,
+        scratch,
+        CaseSelection::default(),
     )
 }
 
 /// Verify the full profile accounting and then execute one deterministic case shard.
+///
+/// # Errors
+/// Refuses invalid profile accounting or case selection and propagates verification failures.
 pub fn verify_accounted_shard(
     suite: &dyn SuitePort,
     reference: &dyn LinterPort,
@@ -406,8 +402,7 @@ pub fn verify_accounted_shard(
     execution: &dyn ExecutionPort,
     profile: &Path,
     scratch: &Path,
-    shard: Option<CaseShard>,
-    case_selection: Option<&std::collections::BTreeSet<String>>,
+    selection: CaseSelection<'_>,
 ) -> Result<crate::domain::suite::types::CaseCount, Error> {
     let path = crate::outbound::suite::types::ArtifactPath(profile);
     let tool = suite.profile(path)?;
@@ -420,26 +415,25 @@ pub fn verify_accounted_shard(
         execution,
         &profile.join(super::constants::RULES),
         scratch,
-        shard,
-        case_selection,
+        selection,
     )
 }
 
-#[cfg(test)]
-mod shard_tests {
-    use super::CaseShard;
-
-    #[test]
-    fn shard_coordinates_are_zero_based_and_bounded() {
-        assert!(matches!(
-            CaseShard::new(0, 3),
-            Ok(CaseShard { index: 0, count: 3 })
-        ));
-        assert!(matches!(
-            CaseShard::new(2, 3),
-            Ok(CaseShard { index: 2, count: 3 })
-        ));
-        assert!(CaseShard::new(3, 3).is_err());
-        assert!(CaseShard::new(0, 0).is_err());
-    }
+/// Serialize an exact diagnostic multiset without changing order or dropping duplicates.
+fn finding_values(
+    findings: &[crate::domain::diagnostics::types::BenchmarkFinding],
+) -> Vec<serde_json::Value> {
+    findings
+        .iter()
+        .map(|finding| {
+            serde_json::json!({
+                "rule": finding.rule.as_ref(), "file": finding.file.0.as_ref(),
+                "start": finding.start.0, "end": finding.end.0,
+            })
+        })
+        .collect()
 }
+
+#[cfg(test)]
+#[path = "shard_tests.rs"]
+mod shard_tests;

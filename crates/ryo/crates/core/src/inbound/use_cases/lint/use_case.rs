@@ -489,7 +489,9 @@ impl LintUseCaseImpl {
                 std::path::Component::ParentDir => {
                     let _removed = normalized.pop();
                 }
-                other => normalized.push(other.as_os_str()),
+                other @ (std::path::Component::Prefix(_)
+                | std::path::Component::RootDir
+                | std::path::Component::Normal(_)) => normalized.push(other.as_os_str()),
             }
         }
         let repository = match session.repository {
@@ -1285,19 +1287,9 @@ impl LintUseCaseImpl {
             fed: all_fed,
         } = answered;
         // The files whose bytes could not be read, before the refused manifests join them: the next run reads them again.
-        let mut failed: Vec<FilePath> = unread
-            .iter()
-            .filter(|each| matches!(each.reason, Unreadable::Failed(_)))
-            .map(|each| each.path.clone())
-            .collect();
-        failed.extend(unrecorded);
-        failed.sort_unstable();
-        failed.dedup();
-        report_refused(&mut unread, &now.refused);
-        unknowns.sort();
-        unknowns.dedup();
-        skipped.sort();
-        skipped.dedup();
+        let failed = read_outcomes(&mut unread, unrecorded, &now.refused);
+        sort_unique(&mut unknowns);
+        sort_unique(&mut skipped);
         let files = RowCounts {
             total,
             shown: counted,
@@ -1319,22 +1311,7 @@ impl LintUseCaseImpl {
             },
         )?;
         Ok(LintReport {
-            dependencies: now
-                .consulted
-                .iter()
-                .map(|dependency| super::types::ProjectDependency {
-                    path: dependency.path.clone(),
-                    state: super::types::ProjectDependencyState::Present(dependency.digest),
-                })
-                .chain(
-                    now.consulted_absent
-                        .iter()
-                        .map(|path| super::types::ProjectDependency {
-                            path: path.clone(),
-                            state: super::types::ProjectDependencyState::Missing,
-                        }),
-                )
-                .collect(),
+            dependencies: project_dependencies(&now),
             unread,
             unknowns,
             skipped,
@@ -1349,6 +1326,7 @@ impl LintUseCase for LintUseCaseImpl {
         let rules: Vec<RuleSpec> = request.rules.iter().map(RuleSpec::from).collect();
         let compiling = tracing::info_span!("compile").entered();
         let Compiled { plans, bindings } = self.checked_rules(&rules, &request.hosted)?;
+        super::observing::compiled(&rules, &plans, &bindings);
         let ids = ids_of(&rules);
         let Wanting { placed, wants } = self.wanting(&rules, &plans, &ids)?;
         drop(compiling);
@@ -1446,4 +1424,50 @@ impl LintUseCase for LintUseCaseImpl {
         let visit = FileVisit { setting };
         self.answer(&run, &visit, &mut project)
     }
+}
+
+/// Preserve present and absent project dependencies in the completed report.
+fn project_dependencies(now: &Projected) -> Vec<super::types::ProjectDependency> {
+    now.consulted
+        .iter()
+        .map(|dependency| super::types::ProjectDependency {
+            path: dependency.path.clone(),
+            state: super::types::ProjectDependencyState::Present(dependency.digest),
+        })
+        .chain(
+            now.consulted_absent
+                .iter()
+                .map(|path| super::types::ProjectDependency {
+                    path: path.clone(),
+                    state: super::types::ProjectDependencyState::Missing,
+                }),
+        )
+        .collect()
+}
+
+/// Collect retry paths before adding refused manifests to the final unread report.
+fn read_outcomes(
+    unread: &mut Vec<ryo_values::domain::records::types::Unread>,
+    unrecorded: Vec<FilePath>,
+    refused: &[ryo_values::domain::runs::types::ManifestRefused],
+) -> Vec<FilePath> {
+    let mut failed: Vec<FilePath> = unread
+        .iter()
+        .filter(|each| matches!(each.reason, Unreadable::Failed(_)))
+        .map(|each| each.path.clone())
+        .collect();
+    failed.extend(unrecorded);
+    failed.sort_unstable();
+    failed.dedup();
+    report_refused(unread, refused);
+    failed
+}
+
+/// Preserve one ordered occurrence of each completed coverage record.
+fn sort_unique<T>(records: &mut Vec<T>)
+where
+    T: Ord,
+{
+    records.sort();
+    records.dedup();
 }

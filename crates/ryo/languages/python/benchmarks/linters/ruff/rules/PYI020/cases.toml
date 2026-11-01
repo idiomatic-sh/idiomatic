@@ -22,3 +22,423 @@ expected = []
 name = "python-file-control"
 files = { "case.py" = "def f() -> \"int\": ...\n" }
 expected = []
+
+[[cases]]
+name="upstream-pinned-fixture-py"
+comparison="full"
+files={"upstream.py"="import sys\nimport typing\nfrom typing import Annotated, Literal, TypeAlias, TypeVar\n\nimport typing_extensions\n\ndef f(x: \"int\"): ...  # Y020 Quoted annotations should never be used in stubs\ndef g(x: list[\"int\"]): ...  # Y020 Quoted annotations should never be used in stubs\n_T = TypeVar(\"_T\", bound=\"int\")  # Y020 Quoted annotations should never be used in stubs\n\ndef h(w: Literal[\"a\", \"b\"], x: typing.Literal[\"c\"], y: typing_extensions.Literal[\"d\"], z: _T) -> _T: ...\n\ndef j() -> \"int\": ...  # Y020 Quoted annotations should never be used in stubs\nAlias: TypeAlias = list[\"int\"]  # Y020 Quoted annotations should never be used in stubs\n\nclass Child(list[\"int\"]):  # Y020 Quoted annotations should never be used in stubs\n    \"\"\"Documented and guaranteed useful.\"\"\"  # Y021 Docstrings should not be included in stubs\n\nif sys.platform == \"linux\":\n    f: \"int\"  # Y020 Quoted annotations should never be used in stubs\nelif sys.platform == \"win32\":\n    f: \"str\"  # Y020 Quoted annotations should never be used in stubs\nelse:\n    f: \"bytes\"  # Y020 Quoted annotations should never be used in stubs\n\n# These two shouldn't trigger Y020 -- empty strings can't be \"quoted annotations\"\nk = \"\"  # Y052 Need type annotation for \"k\"\nel = r\"\"  # Y052 Need type annotation for \"el\"\n"}
+expected=[]
+
+[[cases]]
+name="upstream-pinned-fixture-pyi"
+comparison="full"
+files={"upstream.pyi"="import sys\nimport typing\nfrom typing import Annotated, Literal, TypeAlias, TypeVar\n\nimport typing_extensions\n\ndef f(x: \"int\"): ...  # Y020 Quoted annotations should never be used in stubs\ndef g(x: list[\"int\"]): ...  # Y020 Quoted annotations should never be used in stubs\n_T = TypeVar(\"_T\", bound=\"int\")  # Y020 Quoted annotations should never be used in stubs\n\ndef h(w: Literal[\"a\", \"b\"], x: typing.Literal[\"c\"], y: typing_extensions.Literal[\"d\"], z: _T) -> _T: ...\n\ndef j() -> \"int\": ...  # Y020 Quoted annotations should never be used in stubs\nAlias: TypeAlias = list[\"int\"]  # Y020 Quoted annotations should never be used in stubs\n\nclass Child(list[\"int\"]):  # Y020 Quoted annotations should never be used in stubs\n    \"\"\"Documented and guaranteed useful.\"\"\"  # Y021 Docstrings should not be included in stubs\n\nif sys.platform == \"linux\":\n    f: \"int\"  # Y020 Quoted annotations should never be used in stubs\nelif sys.platform == \"win32\":\n    f: \"str\"  # Y020 Quoted annotations should never be used in stubs\nelse:\n    f: \"bytes\"  # Y020 Quoted annotations should never be used in stubs\n\n# These two shouldn't trigger Y020 -- empty strings can't be \"quoted annotations\"\nk = \"\"  # Y052 Need type annotation for \"k\"\nel = r\"\"  # Y052 Need type annotation for \"el\"\n"}
+expected=[{rule="PYI020", file="upstream.pyi", start=119, end=124}, {rule="PYI020", file="upstream.pyi", start=202, end=207}, {rule="PYI020", file="upstream.pyi", start=297, end=302}, {rule="PYI020", file="upstream.pyi", start=479, end=484}, {rule="PYI020", file="upstream.pyi", start=571, end=576}, {rule="PYI020", file="upstream.pyi", start=653, end=658}, {rule="PYI020", file="upstream.pyi", start=850, end=855}, {rule="PYI020", file="upstream.pyi", start=950, end=955}, {rule="PYI020", file="upstream.pyi", start=1026, end=1033}]
+
+[[cases]]
+name="cross-rule-tagged-PYI019"
+comparison="full"
+files={"PYI019_0.pyi"="from typing import TypeVar, Self, Type\n\n_S = TypeVar(\"_S\", bound=BadClass)\n_S2 = TypeVar(\"_S2\", BadClass, GoodClass)\n\nclass BadClass:\n    def __new__(cls: type[_S], *args: str, **kwargs: int) -> _S: ...  # PYI019\n\n\n    def bad_instance_method(self: _S, arg: bytes) -> _S: ...  # PYI019\n\n\n    @classmethod\n    def bad_class_method(cls: type[_S], arg: int) -> _S: ...  # PYI019\n\n\n    @classmethod\n    def bad_posonly_class_method(cls: type[_S], /) -> _S: ...  # PYI019\n\n\n    @classmethod\n    def excluded_edge_case(cls: Type[_S], arg: int) -> _S: ...  # Ok\n\n\nclass GoodClass:\n    def __new__(cls: type[Self], *args: list[int], **kwargs: set[str]) -> Self: ...\n    def good_instance_method_1(self: Self, arg: bytes) -> Self: ...\n    def good_instance_method_2(self, arg1: _S2, arg2: _S2) -> _S2: ...\n    @classmethod\n    def good_cls_method_1(cls: type[Self], arg: int) -> Self: ...\n    @classmethod\n    def good_cls_method_2(cls, arg1: _S, arg2: _S) -> _S: ...\n    @staticmethod\n    def static_method(arg1: _S) -> _S: ...\n\n\n# Python > 3.12\nclass PEP695BadDunderNew[T]:\n  def __new__[S](cls: type[S], *args: Any, ** kwargs: Any) -> S: ...  # PYI019\n\n\n  def generic_instance_method[S](self: S) -> S: ...  # PYI019\n\n\nclass PEP695GoodDunderNew[T]:\n  def __new__(cls, *args: Any, **kwargs: Any) -> Self: ...\n\n\nclass CustomClassMethod:\n   # Should be recognised as a classmethod decorator\n   # due to `foo_classmethod being listed in `pep8_naming.classmethod-decorators`\n   # in the settings for this test:\n   @foo_classmethod\n   def foo[S](cls: type[S]) -> S: ...  # PYI019\n\n\n_S695 = TypeVar(\"_S695\", bound=\"PEP695Fix\")\n\n\nclass PEP695Fix:\n    def __new__[S: PEP695Fix](cls: type[S]) -> S: ...\n\n    def __init_subclass__[S](cls: type[S]) -> S: ...\n\n    def __neg__[S: PEP695Fix](self: S) -> S: ...\n\n    def __pos__[S](self: S) -> S: ...\n\n    def __add__[S: PEP695Fix](self: S, other: S) -> S: ...\n\n    def __sub__[S](self: S, other: S) -> S: ...\n\n    @classmethod\n    def class_method_bound[S: PEP695Fix](cls: type[S]) -> S: ...\n\n    @classmethod\n    def class_method_unbound[S](cls: type[S]) -> S: ...\n\n    def instance_method_bound[S: PEP695Fix](self: S) -> S: ...\n\n    def instance_method_unbound[S](self: S) -> S: ...\n\n    def instance_method_bound_with_another_parameter[S: PEP695Fix](self: S, other: S) -> S: ...\n\n    def instance_method_unbound_with_another_parameter[S](self: S, other: S) -> S: ...\n\n    def multiple_type_vars[S, *Ts, T](self: S, other: S, /, *args: *Ts, a: T, b: list[T]) -> S: ...\n\n    def mixing_old_and_new_style_type_vars[T](self: _S695, a: T, b: T) -> _S695: ...\n\n\nclass InvalidButWeDoNotPanic:\n    @classmethod\n    def m[S](cls: type[S], /) -> S[int]: ...\n    def n(self: S) -> S[int]: ...\n\n\nimport builtins\n\nclass UsesFullyQualifiedType:\n    @classmethod\n    def m[S](cls: builtins.type[S]) -> S: ...  # False negative (#15821)\n\n\ndef shadowed_type():\n    type = 1\n    class A:\n        @classmethod\n        def m[S](cls: type[S]) -> S: ...  # no error here\n\n\nclass SubscriptReturnType:\n    @classmethod\n    def m[S](cls: type[S]) -> type[S]: ...  # PYI019\n\n\nclass PEP695TypeParameterAtTheVeryEndOfTheList:\n    def f[T, S](self: S) -> S: ...\n\n\nclass PEP695Again:\n    def mixing_and_nested[T](self: _S695, a: list[_S695], b: dict[_S695, str | T | set[_S695]]) -> _S695: ...\n    def also_uses_s695_but_should_not_be_edited(self, v: set[tuple[_S695]]) -> _S695: ...\n\n    @classmethod\n    def comment_in_fix_range[T, S](\n        cls: type[  # Lorem ipsum\n            S\n        ],\n        a: T,\n        b: tuple[S, T]\n    ) -> S: ...\n\n    def comment_outside_fix_range[T, S](\n        self: S,\n        a: T,\n        b: tuple[\n            # Lorem ipsum\n            S, T\n        ]\n    ) -> S: ...\n\n\nclass SelfNotUsedInReturnAnnotation:\n    def m[S](self: S, other: S) -> int: ...\n    @classmethod\n    def n[S](cls: type[S], other: S) -> int: ...\n\n\nclass _NotATypeVar: ...\n\n# Our stable-mode logic uses heuristics and thinks this is a `TypeVar`\n# because `self` and the return annotation use the same name as their annotation,\n# but our preview-mode logic is smarter about this.\nclass Foo:\n    def x(self: _NotATypeVar) -> _NotATypeVar: ...\n    @classmethod\n    def y(self: type[_NotATypeVar]) -> _NotATypeVar: ...\n\nclass NoReturnAnnotations:\n    def m[S](self: S, other: S): ...\n    @classmethod\n    def n[S](cls: type[S], other: S): ...\n\nclass MultipleBoundParameters:\n    def m[S: int, T: int](self: S, other: T) -> S: ...\n    def n[T: (int, str), S: (int, str)](self: S, other: T) -> S: ...\n\n\nMetaType = TypeVar(\"MetaType\")\n\nclass MetaTestClass(type):\n    def m(cls: MetaType) -> MetaType:\n        return cls\n\n\nfrom __future__ import annotations\n\n\nclass BadClassWithStringTypeHints:\n    def bad_instance_method_with_string_annotations(self: \"_S\", arg: str) -> \"_S\": ... # PYI019\n\n    @classmethod\n    def bad_class_method_with_string_annotations(cls: \"type[_S]\") -> \"_S\": ... # PYI019\n\n\n    @classmethod\n    def bad_class_method_with_mixed_annotations_1(cls: \"type[_S]\") -> _S: ... # PYI019\n\n\n    @classmethod\n    def bad_class_method_with_mixed_annotations_1(cls: type[_S]) -> \"_S\": ... # PYI019\n\n\nclass BadSubscriptReturnTypeWithStringTypeHints:\n    @classmethod\n    def m[S](cls: \"type[S]\") -> \"type[S]\": ...  # PYI019\n\n\nclass GoodClassWithStringTypeHints:\n    @classmethod\n    def good_cls_method_with_mixed_annotations(cls: \"type[Self]\", arg: str) -> Self: ...\n    @staticmethod\n    def good_static_method_with_string_annotations(arg: \"_S\") -> \"_S\": ...\n    @classmethod\n    def good_class_method_with_args_string_annotations(cls, arg1: \"_S\", arg2: \"_S\") -> \"_S\": ...\n\n"}
+expected=[{rule="invalid-syntax", file="PYI019_0.pyi", start=1062, end=1065}, {rule="invalid-syntax", file="PYI019_0.pyi", start=1080, end=1083}, {rule="invalid-syntax", file="PYI019_0.pyi", start=1177, end=1180}, {rule="invalid-syntax", file="PYI019_0.pyi", start=1237, end=1240}, {rule="invalid-syntax", file="PYI019_0.pyi", start=1529, end=1532}, {rule="PYI020", file="PYI019_0.pyi", start=1600, end=1611}, {rule="invalid-syntax", file="PYI019_0.pyi", start=1647, end=1661}, {rule="invalid-syntax", file="PYI019_0.pyi", start=1712, end=1715}, {rule="invalid-syntax", file="PYI019_0.pyi", start=1756, end=1770}, {rule="invalid-syntax", file="PYI019_0.pyi", start=1806, end=1809}, {rule="invalid-syntax", file="PYI019_0.pyi", start=1845, end=1859}, {rule="invalid-syntax", file="PYI019_0.pyi", start=1905, end=1908}, {rule="invalid-syntax", file="PYI019_0.pyi", start=1982, end=1996}, {rule="invalid-syntax", file="PYI019_0.pyi", start=2067, end=2070}, {rule="invalid-syntax", file="PYI019_0.pyi", start=2125, end=2139}, {rule="invalid-syntax", file="PYI019_0.pyi", start=2191, end=2194}, {rule="invalid-syntax", file="PYI019_0.pyi", start=2267, end=2281}, {rule="invalid-syntax", file="PYI019_0.pyi", start=2366, end=2369}, {rule="invalid-syntax", file="PYI019_0.pyi", start=2426, end=2437}, {rule="invalid-syntax", file="PYI019_0.pyi", start=2467, end=2470}, {rule="invalid-syntax", file="PYI019_0.pyi", start=2543, end=2546}, {rule="invalid-syntax", file="PYI019_0.pyi", start=2644, end=2647}, {rule="invalid-syntax", file="PYI019_0.pyi", start=2789, end=2792}, {rule="invalid-syntax", file="PYI019_0.pyi", start=2936, end=2939}, {rule="invalid-syntax", file="PYI019_0.pyi", start=3036, end=3039}, {rule="invalid-syntax", file="PYI019_0.pyi", start=3139, end=3145}, {rule="invalid-syntax", file="PYI019_0.pyi", start=3211, end=3214}, {rule="invalid-syntax", file="PYI019_0.pyi", start=3432, end=3438}, {rule="invalid-syntax", file="PYI019_0.pyi", start=3586, end=3592}, {rule="invalid-syntax", file="PYI019_0.pyi", start=3760, end=3763}, {rule="invalid-syntax", file="PYI019_0.pyi", start=3821, end=3824}, {rule="invalid-syntax", file="PYI019_0.pyi", start=4266, end=4269}, {rule="invalid-syntax", file="PYI019_0.pyi", start=4320, end=4323}, {rule="invalid-syntax", file="PYI019_0.pyi", start=4394, end=4410}, {rule="invalid-syntax", file="PYI019_0.pyi", start=4449, end=4479}, {rule="PYI020", file="PYI019_0.pyi", start=4759, end=4763}, {rule="PYI020", file="PYI019_0.pyi", start=4778, end=4782}, {rule="PYI020", file="PYI019_0.pyi", start=4869, end=4879}, {rule="PYI020", file="PYI019_0.pyi", start=4884, end=4888}, {rule="PYI020", file="PYI019_0.pyi", start=4977, end=4987}, {rule="PYI020", file="PYI019_0.pyi", start=5096, end=5100}, {rule="invalid-syntax", file="PYI019_0.pyi", start=5192, end=5195}, {rule="PYI020", file="PYI019_0.pyi", start=5201, end=5210}, {rule="PYI020", file="PYI019_0.pyi", start=5215, end=5224}, {rule="PYI020", file="PYI019_0.pyi", start=5347, end=5359}, {rule="PYI020", file="PYI019_0.pyi", start=5458, end=5462}, {rule="PYI020", file="PYI019_0.pyi", start=5467, end=5471}, {rule="PYI020", file="PYI019_0.pyi", start=5560, end=5564}, {rule="PYI020", file="PYI019_0.pyi", start=5572, end=5576}, {rule="PYI020", file="PYI019_0.pyi", start=5581, end=5585}]
+
+[[cases]]
+name="quote-context-0-py"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx: \"T\"\n"}
+expected=[]
+
+[[cases]]
+name="quote-context-0-pyi"
+comparison="full"
+files={"case.pyi"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx: \"T\"\n"}
+expected=[{rule="PYI020", file="case.pyi", start=151, end=154}]
+
+[[cases]]
+name="quote-context-1-py"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx=\"T\"\n"}
+expected=[]
+
+[[cases]]
+name="quote-context-1-pyi"
+comparison="full"
+files={"case.pyi"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx=\"T\"\n"}
+expected=[]
+
+[[cases]]
+name="quote-context-2-py"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx=list[\"T\"]\n"}
+expected=[]
+
+[[cases]]
+name="quote-context-2-pyi"
+comparison="full"
+files={"case.pyi"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx=list[\"T\"]\n"}
+expected=[{rule="PYI020", file="case.pyi", start=155, end=158}]
+
+[[cases]]
+name="quote-context-3-py"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx=Union[\"T\",int]\n"}
+expected=[]
+
+[[cases]]
+name="quote-context-3-pyi"
+comparison="full"
+files={"case.pyi"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx=Union[\"T\",int]\n"}
+expected=[{rule="PYI020", file="case.pyi", start=156, end=159}]
+
+[[cases]]
+name="quote-context-4-py"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx=Optional[\"T\"]\n"}
+expected=[]
+
+[[cases]]
+name="quote-context-4-pyi"
+comparison="full"
+files={"case.pyi"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx=Optional[\"T\"]\n"}
+expected=[{rule="PYI020", file="case.pyi", start=159, end=162}]
+
+[[cases]]
+name="quote-context-5-py"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx=Literal[\"T\"]\n"}
+expected=[]
+
+[[cases]]
+name="quote-context-5-pyi"
+comparison="full"
+files={"case.pyi"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx=Literal[\"T\"]\n"}
+expected=[]
+
+[[cases]]
+name="quote-context-6-py"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx:Literal[\"T\"]\n"}
+expected=[]
+
+[[cases]]
+name="quote-context-6-pyi"
+comparison="full"
+files={"case.pyi"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx:Literal[\"T\"]\n"}
+expected=[]
+
+[[cases]]
+name="quote-context-7-py"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx=Annotated[\"T\",\"metadata\"]\n"}
+expected=[]
+
+[[cases]]
+name="quote-context-7-pyi"
+comparison="full"
+files={"case.pyi"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx=Annotated[\"T\",\"metadata\"]\n"}
+expected=[{rule="PYI020", file="case.pyi", start=160, end=163}]
+
+[[cases]]
+name="quote-context-8-py"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx:Annotated[\"T\",\"metadata\"]\n"}
+expected=[]
+
+[[cases]]
+name="quote-context-8-pyi"
+comparison="full"
+files={"case.pyi"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx:Annotated[\"T\",\"metadata\"]\n"}
+expected=[{rule="PYI020", file="case.pyi", start=160, end=163}]
+
+[[cases]]
+name="quote-context-9-py"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx:Other[\"T\"]\n"}
+expected=[]
+
+[[cases]]
+name="quote-context-9-pyi"
+comparison="full"
+files={"case.pyi"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx:Other[\"T\"]\n"}
+expected=[{rule="PYI020", file="case.pyi", start=156, end=159}]
+
+[[cases]]
+name="quote-context-10-py"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx:TypeAlias=\"T\"\n"}
+expected=[]
+
+[[cases]]
+name="quote-context-10-pyi"
+comparison="full"
+files={"case.pyi"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx:TypeAlias=\"T\"\n"}
+expected=[{rule="PYI020", file="case.pyi", start=160, end=163}]
+
+[[cases]]
+name="quote-context-11-py"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx=TypeVar(\"T\",bound=\"T\")\n"}
+expected=[]
+
+[[cases]]
+name="quote-context-11-pyi"
+comparison="full"
+files={"case.pyi"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx=TypeVar(\"T\",bound=\"T\")\n"}
+expected=[{rule="PYI020", file="case.pyi", start=168, end=171}]
+
+[[cases]]
+name="quote-context-12-py"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx=TypeVar(\"T\",default=\"T\")\n"}
+expected=[]
+
+[[cases]]
+name="quote-context-12-pyi"
+comparison="full"
+files={"case.pyi"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx=TypeVar(\"T\",default=\"T\")\n"}
+expected=[{rule="PYI020", file="case.pyi", start=170, end=173}]
+
+[[cases]]
+name="quote-context-13-py"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx=NewType(\"T\",\"T\")\n"}
+expected=[]
+
+[[cases]]
+name="quote-context-13-pyi"
+comparison="full"
+files={"case.pyi"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx=NewType(\"T\",\"T\")\n"}
+expected=[{rule="PYI020", file="case.pyi", start=162, end=165}]
+
+[[cases]]
+name="quote-context-14-py"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx=cast(\"T\",value)\n"}
+expected=[]
+
+[[cases]]
+name="quote-context-14-pyi"
+comparison="full"
+files={"case.pyi"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx=cast(\"T\",value)\n"}
+expected=[{rule="PYI020", file="case.pyi", start=155, end=158}]
+
+[[cases]]
+name="quote-context-15-py"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx=NamedTuple(\"T\",[(\"a\",\"T\")])\n"}
+expected=[]
+
+[[cases]]
+name="quote-context-15-pyi"
+comparison="full"
+files={"case.pyi"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx=NamedTuple(\"T\",[(\"a\",\"T\")])\n"}
+expected=[{rule="PYI020", file="case.pyi", start=171, end=174}]
+
+[[cases]]
+name="quote-context-16-py"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx=TypedDict(\"T\",{\"a\":\"T\"})\n"}
+expected=[]
+
+[[cases]]
+name="quote-context-16-pyi"
+comparison="full"
+files={"case.pyi"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx=TypedDict(\"T\",{\"a\":\"T\"})\n"}
+expected=[{rule="PYI020", file="case.pyi", start=169, end=172}]
+
+[[cases]]
+name="quote-context-17-py"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx=TypeAliasType(\"T\",\"T\")\n"}
+expected=[]
+
+[[cases]]
+name="quote-context-17-pyi"
+comparison="full"
+files={"case.pyi"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx=TypeAliasType(\"T\",\"T\")\n"}
+expected=[{rule="PYI020", file="case.pyi", start=168, end=171}]
+
+[[cases]]
+name="quote-context-18-py"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx:\"not valid Python\"\n"}
+expected=[]
+
+[[cases]]
+name="quote-context-18-pyi"
+comparison="full"
+files={"case.pyi"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx:\"not valid Python\"\n"}
+expected=[]
+
+[[cases]]
+name="quote-context-19-py"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx:\"\"\n"}
+expected=[]
+
+[[cases]]
+name="quote-context-19-pyi"
+comparison="full"
+files={"case.pyi"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx:\"\"\n"}
+expected=[]
+
+[[cases]]
+name="quote-context-20-py"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx:r\"T\"\n"}
+expected=[]
+
+[[cases]]
+name="quote-context-20-pyi"
+comparison="full"
+files={"case.pyi"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx:r\"T\"\n"}
+expected=[{rule="PYI020", file="case.pyi", start=150, end=154}]
+
+[[cases]]
+name="quote-context-21-py"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx:\"T\" \"\"\n"}
+expected=[]
+
+[[cases]]
+name="quote-context-21-pyi"
+comparison="full"
+files={"case.pyi"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx:\"T\" \"\"\n"}
+expected=[{rule="PYI020", file="case.pyi", start=150, end=156}]
+
+[[cases]]
+name="quote-context-22-py"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\ndef f(x:\"T\")->\"T\":pass\n"}
+expected=[]
+
+[[cases]]
+name="quote-context-22-pyi"
+comparison="full"
+files={"case.pyi"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\ndef f(x:\"T\")->\"T\":pass\n"}
+expected=[{rule="PYI020", file="case.pyi", start=156, end=159}, {rule="PYI020", file="case.pyi", start=162, end=165}]
+
+[[cases]]
+name="quote-context-23-py"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx:custom(\"T\")\n"}
+expected=[]
+
+[[cases]]
+name="quote-context-23-pyi"
+comparison="full"
+files={"case.pyi"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx:custom(\"T\")\n"}
+expected=[]
+
+[[cases]]
+name="quote-context-24-py"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx:bool(\"T\")\n"}
+expected=[]
+
+[[cases]]
+name="quote-context-24-pyi"
+comparison="full"
+files={"case.pyi"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx:bool(\"T\")\n"}
+expected=[{rule="PYI020", file="case.pyi", start=155, end=158}]
+
+[[cases]]
+name="parse-raw-unicode"
+comparison="full"
+files={"case.pyi"="x: r\"\u03bb\"\n"}
+expected=[{rule="PYI020", file="case.pyi", start=3, end=8}]
+
+[[cases]]
+name="parse-escaped-unicode"
+comparison="full"
+files={"case.pyi"="x: \"\\u03bb\"\n"}
+expected=[{rule="PYI020", file="case.pyi", start=3, end=11}]
+
+[[cases]]
+name="parse-triple-multiline-simple"
+comparison="full"
+files={"case.pyi"="x: \"\"\"T\n| U\"\"\"\n"}
+expected=[{rule="PYI020", file="case.pyi", start=3, end=14}]
+
+[[cases]]
+name="parse-escaped-multiline-malformed"
+comparison="full"
+files={"case.pyi"="x: \"T\\n| U\"\n"}
+expected=[]
+
+[[cases]]
+name="parse-concat-escaped-multiline-malformed"
+comparison="full"
+files={"case.pyi"="x: (\"T\\n\" \"| U\")\n"}
+expected=[]
+
+[[cases]]
+name="parse-concat-comment-crlf"
+comparison="full"
+files={"case.pyi"="x: (r\"T\" # comment\r\n u\"| U\")\r\n"}
+expected=[{rule="PYI020", file="case.pyi", start=4, end=27}]
+
+[[cases]]
+name="parse-empty-concat"
+comparison="full"
+files={"case.pyi"="x: \"\" \"\"\n"}
+expected=[]
+
+[[cases]]
+name="parse-runtime-invalid"
+comparison="full"
+files={"case.pyi"="x = [\"not valid Python\", \"\", \"T +\"]\n"}
+expected=[]
+
+[[cases]]
+name="parse-type-invalid-runtime-subscript"
+comparison="full"
+files={"case.pyi"="Alias = list[\"not valid Python\"]\n"}
+expected=[]
+
+[[cases]]
+name="parse-literal-and-annotated-metadata"
+comparison="full"
+files={"case.pyi"="from typing import Literal, Annotated\na: Literal[\"not valid Python\", \"T\"]\nb: Annotated[\"T\", \"arbitrary_metadata_name\"]\n"}
+expected=[{rule="PYI020", file="case.pyi", start=87, end=90}]
+
+[[cases]]
+name="parse-bytes-and-fstrings"
+comparison="full"
+files={"case.pyi"="x: b\"T\"\ny: f\"T\"\nz: f\"{T}\"\n"}
+expected=[]
+
+[[cases]]
+name="parse-runtime-nested-quotes"
+comparison="full"
+files={"case.pyi"="Alias = list[\"'T'\"]\n"}
+expected=[{rule="PYI020", file="case.pyi", start=13, end=18}, {rule="PYI020", file="case.pyi", start=14, end=17}]
+
+[[cases]]
+name="parse-annotation-nested-quotes"
+comparison="full"
+files={"case.pyi"="x: \"'T'\"\n"}
+expected=[{rule="PYI020", file="case.pyi", start=3, end=8}, {rule="PYI020", file="case.pyi", start=4, end=7}]
+
+[[cases]]
+name="parse-annotation-nested-malformed"
+comparison="full"
+files={"case.pyi"="x: \"'T +'\"\n"}
+expected=[{rule="PYI020", file="case.pyi", start=3, end=10}]
+
+[[cases]]
+name="parse-two-files-same-carrier"
+comparison="full"
+files={"a.pyi"="x: \"T\"\n", "b.pyi"="x: \"T\"\n"}
+expected=[{rule="PYI020", file="a.pyi", start=3, end=6}, {rule="PYI020", file="b.pyi", start=3, end=6}]
+
+[[cases]]
+name="parse-suppressed"
+comparison="full"
+files={"case.pyi"="x: \"T\"  # noqa: PYI020\ny: \"T +\"  # noqa: PYI020\n"}
+expected=[]
+
+[[cases]]
+name="parse-python-control"
+comparison="full"
+files={"case.py"="x: \"T\"\nAlias = list[\"T\"]\n"}
+expected=[]

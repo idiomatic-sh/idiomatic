@@ -169,6 +169,7 @@ fn joins_on_the_stretch(stretch_first: bool) -> Result<Table, OperatingError> {
     };
     let mut out = Table::default();
     let mut context = OperatorContext {
+        stored_indexes: None,
         bindings: &[],
         symbols: &mut symbols,
         source: SourceView(&[]),

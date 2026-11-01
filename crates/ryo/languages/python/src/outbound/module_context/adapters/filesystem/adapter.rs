@@ -12,13 +12,15 @@ use std::{
 /// Filesystem-backed package context; Given requests use only their inventory.
 #[derive(Clone, Copy, Debug, Default)]
 pub(crate) struct ModuleContextFilesystem;
-fn failed(reason: impl ToString) -> ProjectError {
+/// Preserve a context lookup failure as an owned diagnostic.
+fn failed(reason: String) -> ProjectError {
     ProjectError::Context {
-        reason: ToolMessage(reason.to_string().into_boxed_str()),
+        reason: ToolMessage(reason.into_boxed_str()),
     }
 }
+/// Normalize an absolute path without accessing filesystem contents.
 fn absolute(path: &Path) -> Result<PathBuf, ProjectError> {
-    let path = std::path::absolute(path).map_err(failed)?;
+    let path = std::path::absolute(path).map_err(|error| failed(error.to_string()))?;
     let mut normalized = PathBuf::new();
     for component in path.components() {
         match component {
@@ -26,7 +28,9 @@ fn absolute(path: &Path) -> Result<PathBuf, ProjectError> {
             Component::ParentDir => {
                 let _removed = normalized.pop();
             }
-            other => normalized.push(other.as_os_str()),
+            other @ (Component::Prefix(_) | Component::RootDir | Component::Normal(_)) => {
+                normalized.push(other.as_os_str());
+            }
         }
     }
     Ok(normalized)
@@ -64,7 +68,7 @@ impl ModuleContextPort for ModuleContextFilesystem {
             ) {
                 continue;
             }
-            let file_id = FileId(u32::try_from(number).map_err(failed)?);
+            let file_id = FileId(u32::try_from(number).map_err(|error| failed(error.to_string()))?);
             let decision = if let Some(root) = &root {
                 let full = absolute(&root.join(file_path))?;
                 loop {
@@ -82,17 +86,19 @@ impl ModuleContextPort for ModuleContextFilesystem {
                             };
                             let relative =
                                 service::relative_to(root, &marker).ok_or_else(|| {
-                                    failed("module marker cannot be expressed from run root")
+                                    failed("module marker cannot be expressed from run root".into())
                                 })?;
                             result.consulted.push(FilePath(
                                 relative
                                     .to_str()
-                                    .ok_or_else(|| failed("module marker path is not UTF-8"))?
+                                    .ok_or_else(|| {
+                                        failed("module marker path is not UTF-8".into())
+                                    })?
                                     .into(),
                             ));
                             let _previous = markers.0.insert(marker, present);
                         }
-                        complete => break complete,
+                        complete @ (Decision::Known(_) | Decision::Unknown) => break complete,
                     }
                 }
             } else {
@@ -105,7 +111,9 @@ impl ModuleContextPort for ModuleContextFilesystem {
                 }),
                 Decision::Known(None) => {}
                 Decision::Unknown => result.partial = true,
-                Decision::Need(_) => return Err(failed("unresolved module context observation")),
+                Decision::Need(_) => {
+                    return Err(failed("unresolved module context observation".into()));
+                }
             }
         }
         result.consulted.sort_by(|left, right| left.0.cmp(&right.0));

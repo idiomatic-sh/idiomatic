@@ -1,5 +1,5 @@
 //! The parser outcome, not the summary's zero values, distinguishes empty, malformed and dynamic inputs.
-use super::super::interface::RelationsItem;
+use super::super::interface::RelationsItem as _;
 use super::item::{FormatParse, FormatParseRow};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::relations::types::{Bits, FileId, Flag, Integer, NodeId, Offset, Span};
@@ -26,7 +26,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
         Bits(0),
         Bits(1),
         Bits(12),
-        Bits((13_u64 << 32) | 13),
+        Bits((0xd_u64 << 32_u32) | 0xd),
     ]),
 }];
 

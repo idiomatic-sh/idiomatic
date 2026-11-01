@@ -211,6 +211,7 @@ fn holds_one(
         arenas,
         memo,
         scratch,
+        ..
     } = context;
     let texts = Texts {
         symbols,
