@@ -29,6 +29,35 @@ fn preserves_async_statement_kinds() {
     assert!(kinds.contains(&Kind::Node(Node::With)));
 }
 
+#[test]
+fn target_version_syntax_warning_preserves_the_tree() {
+    let source = "try:\n    pass\nexcept* (ValueError,):\n    pass\n";
+    let diagnostics_for = |target| {
+        let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
+        let mut builder =
+            languages::table_builder(&mut elements, &mut symbols, ByteSlice(source.as_bytes()));
+        SyntaxRuffPythonParserAdapter.read(
+            SourceText(source.as_bytes()),
+            PythonSourceKind::Python,
+            &PythonParserSettings::new(target),
+            &mut builder,
+        );
+        let diagnostics: Vec<_> = languages::diagnostics(&elements).collect();
+        (elements, diagnostics)
+    };
+
+    let (py310, unsupported) = diagnostics_for(PythonTargetVersion::Py310);
+    assert!(!languages::has_incomplete_syntax(&py310));
+    assert_eq!(unsupported.len(), 1);
+    assert_eq!(unsupported[0].phase.name(), "validation");
+    assert_eq!(unsupported[0].impact.name(), "preserved");
+    assert_eq!(unsupported[0].code.as_str(), "unsupported-syntax");
+    assert_eq!((unsupported[0].start.0, unsupported[0].end.0), (20, 21));
+
+    let (_py311, supported) = diagnostics_for(PythonTargetVersion::Py311);
+    assert!(supported.is_empty());
+}
+
 /// What a row reads: a file whose tokens are joined again, or a file whose elements are listed.
 #[derive(Clone, Copy, Debug)]
 enum Given {
