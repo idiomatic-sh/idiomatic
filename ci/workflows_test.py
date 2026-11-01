@@ -130,6 +130,26 @@ def test_every_workflow_checks_through_one_asymptote_call(path: Path) -> None:
     assert problems(yaml.safe_load(path.read_text())) == []
 
 
+def test_check_workflow_saves_installed_tools_before_quality_checks() -> None:
+    """Tool installation is cached immediately, so a later quality failure cannot lose that work."""
+    workflow = yaml.safe_load((DIRECTORY / "check.yml").read_text())
+    action = "55cc8345863c7cc4c66a329aec7e433d2d1c52a9"
+    paths = "~/.cargo/bin\n~/.cargo/.crates.toml\n~/.cargo/.crates2.json\n"
+    key = "cargo-bin-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml') }}"
+    for name in ("build", "check", "speed"):
+        steps = workflow["jobs"][name]["steps"]
+        restore = next(index for index, step in enumerate(steps) if step.get("id") == "cargo_bin_cache")
+        install = next(index for index, step in enumerate(steps) if step.get("run") == "uv run --script tools/install.py")
+        save = steps[install + 1]
+        assert restore < install < len(steps) - 1
+        assert steps[restore]["uses"] == f"actions/cache/restore@{action}"
+        assert steps[restore]["with"] == {"path": paths, "key": key}
+        assert save["uses"] == f"actions/cache/save@{action}"
+        assert save["if"] == "steps.cargo_bin_cache.outputs.cache-hit != 'true'"
+        assert save["with"] == {"path": paths, "key": key}
+        assert any("asymptote check" in step.get("run", "") for step in steps[install + 2 :])
+
+
 def test_there_are_workflows_to_hold() -> None:
     assert [path.name for path in WORKFLOWS]
 
