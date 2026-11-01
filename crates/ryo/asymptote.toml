@@ -78,7 +78,7 @@ id = "correctness-python-ruff-candidates"
 group = "ruff-candidates"
 # The isolated, full-report candidate profiles reuse the same verify-cases runner and Ruff pins as the production profile, while
 # remaining outside its deferred inventory until their proof passes.
-run = ["python", "-c", "import shutil, subprocess, sys\nfrom pathlib import Path\nexecutable = shutil.which('ruff')\nif executable is None:\n    sys.exit('pinned Ruff executable is missing')\nhelper = Path('languages/python/benchmarks/linters/ruff/verify_profiles.py').resolve()\nsys.exit(subprocess.run([sys.executable, str(helper), executable]).returncode)"]
+run = ["python", "-c", "import shutil, subprocess, sys\nfrom pathlib import Path\nexecutable = shutil.which('ruff')\nif executable is None:\n    sys.exit('pinned Ruff executable is missing')\nhelper = Path('languages/python/benchmarks/linters/ruff/verify_profiles.py').resolve()\nself_test = subprocess.run([sys.executable, str(helper), '--self-test'])\nif self_test.returncode:\n    sys.exit(self_test.returncode)\nsys.exit(subprocess.run([sys.executable, str(helper), executable]).returncode)"]
 timeout-seconds = 3600
 inputs = ["Cargo.toml", "Cargo.lock", "languages/python", "crates/benchmark", "crates/sdk", "crates/core", "crates/language", "crates/query_language", "crates/values", "../../tools/install.py", "../../rust-toolchain.toml", "../../.cargo"]
 

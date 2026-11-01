@@ -24,11 +24,62 @@ def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def self_test() -> int:
+    """Exercise fail-closed profile-selection and hash-mismatch guards without invoking Cargo."""
+    manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    with tempfile.TemporaryDirectory(prefix="ryo-ruff-profile-guards-") as temporary:
+        root = Path(temporary)
+        for relative in manifest["files"]:
+            source = REPOSITORY / relative
+            destination = root / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(source, destination)
+
+        helper_relative = Path(__file__).relative_to(REPOSITORY).as_posix()
+        manifest["files"][helper_relative] = sha256(Path(__file__))
+        temporary_manifest = root / MANIFEST.relative_to(REPOSITORY)
+        temporary_manifest.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+        helper = root / helper_relative
+        ruff = str(Path(sys.executable).resolve())
+        invalid_selection = subprocess.run(
+            [sys.executable, str(helper), ruff, "INVALID-RULE"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if invalid_selection.returncode != 2 or "unknown or duplicate profile rule" not in invalid_selection.stderr:
+            print("invalid profile selection did not fail closed", file=sys.stderr)
+            return 1
+
+        candidate = root / next(
+            path
+            for path in manifest["files"]
+            if path.endswith("/rules/F401/candidate.ryoql")
+        )
+        candidate.write_bytes(candidate.read_bytes() + b"\n")
+        changed_input = subprocess.run(
+            [sys.executable, str(helper), ruff, "F401"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if changed_input.returncode != 2 or "prepared input hash mismatch" not in changed_input.stderr:
+            print("prepared input hash mismatch did not fail closed", file=sys.stderr)
+            return 1
+    print("profile selection and hash-mismatch guards passed")
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("ruff", type=Path, help="pinned Ruff executable")
+    parser.add_argument("ruff", type=Path, nargs="?", help="pinned Ruff executable")
     parser.add_argument("rules", nargs="*", help="optional rule IDs; default: every prepared profile")
+    parser.add_argument("--self-test", action="store_true", help="exercise fail-closed profile guards without running Cargo")
     arguments = parser.parse_args()
+    if arguments.self_test:
+        return self_test()
+    if arguments.ruff is None:
+        parser.error("the pinned Ruff executable is required unless --self-test is selected")
 
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
     profiles = manifest["profiles"]
