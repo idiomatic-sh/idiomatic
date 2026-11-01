@@ -20,6 +20,7 @@ use crate::domain::trust::types::{Bearing, Blocking};
 use crate::domain::visit::types::{Keeping, Noting};
 use crate::domain::workers::types::{FileOrder, FreshRecord, PlacedNotes, Tables, VisitSetting};
 use ryo_language::domain::elements::service::{notes_of, take_notes};
+use ryo_language::domain::elements::types::SyntaxAcceptance;
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::relations::service::{name, relation_named};
 use ryo_language::domain::relations::types::NameRef;
@@ -31,6 +32,7 @@ use ryo_values::domain::records::types::Unread;
 use ryo_values::domain::records::types::{
     FileOutcome, GoverningRules, Handed, HandedWords, Handing, Ran, Record,
 };
+use ryo_values::domain::runs::types::RuleApplicability;
 use ryo_values::domain::stored_facts::types::{
     ArenaBase, ArenaBytes, Digest, FileNotes, NoteBytes, PartialAt, PartialCause, PartialKind,
     PartialScope, StoredPartial,
@@ -211,12 +213,30 @@ pub(crate) fn interface_bytes(tables: &Tables) -> InterfaceBytes {
 
 /// Notes what a file read in part costs the rules: what each could not decide in the file, and the file's coverage for the
 /// cross-file steps that trust the absence of rows of what is partial.
-pub(crate) fn cover(tables: &mut Tables, setting: &VisitSetting<'_>, at: FileId, path: &FilePath) {
+pub(crate) fn cover(
+    tables: &mut Tables,
+    setting: &VisitSetting<'_>,
+    at: FileId,
+    path: &FilePath,
+    acceptance: SyntaxAcceptance,
+) {
     if tables.partials.is_empty() {
         return;
     }
     let mut rules = Vec::new();
     for (rule, needs) in setting.needs.iter().enumerate() {
+        let applicable = if setting.plans.is_empty() || !setting.applicability_can_gate {
+            true
+        } else {
+            match setting.applicability.get(rule).copied() {
+                Some(RuleApplicability::Always) => true,
+                Some(RuleApplicability::AcceptedSyntax) => acceptance == SyntaxAcceptance::Accepted,
+                None => false,
+            }
+        };
+        if !applicable {
+            continue;
+        }
         if governs(
             &tables.mask,
             RuleNumber(u32::try_from(rule).unwrap_or(u32::MAX)),

@@ -466,7 +466,8 @@ impl FileAnalysis {
             return Self::hand_again(worker, setting, at, number, record);
         }
         let outcome = self.parse_file(worker, visit, file, number)?;
-        cover(&mut worker.tables, setting, number, &file.path);
+        let acceptance = syntax_acceptance(&worker.tables.elements);
+        cover(&mut worker.tables, setting, number, &file.path, acceptance);
         finish_file(
             &mut worker.tables,
             setting,
