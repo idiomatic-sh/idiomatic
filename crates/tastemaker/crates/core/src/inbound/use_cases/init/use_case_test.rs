@@ -25,7 +25,7 @@ type Failure = InitError;
 /// What a holding project's `init` must write: the root, closed by default and so saying nothing of it, an entry per top-level path, its name written as a TOML
 /// string whatever it holds (a name that spells one of the entry's placeholders included, never substituted again), the
 /// copied template and the lock.
-const HOLDING_WRITES: [&str; 11] = [
+const HOLDING_WRITES: [&str; 13] = [
     concat!("tastemaker = \"", env!("CARGO_PKG_VERSION"), "\""),
     "version = 1",
     "workspace = { name = \"local\"",
@@ -34,6 +34,9 @@ const HOLDING_WRITES: [&str; 11] = [
     "file = \".github/{*github}\"",
     "file = \"a\\\"b.txt\"",
     "file = \"data[1]/{*data-1}\"",
+    // A backslash and a wildcard are the name: escaped for the path pattern, then each backslash escaped for TOML.
+    "file = \"a\\\\\\\\b.txt\"",
+    "file = \"x\\\\*y/{*x-y}\"",
     "file = \"<capture>/{*capture}\"",
     "unchecked = \"0.1.0\"",
     "content = ''",
@@ -123,6 +126,8 @@ fn holding() -> Result<Value, Failure> {
         (".github/workflows/ci.yml", "on: push"),
         ("a\"b.txt", "a quote in its name"),
         ("data[1]/rows.csv", "a bracket in its directory's name"),
+        ("a\\b.txt", "a backslash in its name"),
+        ("x*y/rows.csv", "a wildcard in its directory's name"),
         (
             "<capture>/notes.txt",
             "a directory named as the entry's own placeholder",
