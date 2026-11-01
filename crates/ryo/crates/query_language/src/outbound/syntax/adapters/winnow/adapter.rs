@@ -121,7 +121,9 @@ impl SyntaxPort for SyntaxWinnowAdapter {
     }
 }
 
-fn unreadable(error: winnow::error::ErrMode<winnow::error::ContextError>) -> SyntaxError {
+fn unreadable(
+    error: winnow::error::ParseError<Input<'_>, winnow::error::ContextError>,
+) -> SyntaxError {
     let said = error.inner().to_string();
     SyntaxError::Unreadable {
         span: QuerySpan {

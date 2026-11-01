@@ -208,7 +208,7 @@ fn filtered_by(
 
 /// The comparisons of each alternative of a `where`, resolved over `columns`.
 fn comparisons_of(
-    builder: &Builder<'_>,
+    builder: &mut Builder<'_>,
     conditions: &[syntax::Condition],
     columns: Addressable<'_>,
 ) -> Result<Vec<Vec<parts::Comparison>>, LoweringError> {

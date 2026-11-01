@@ -7,7 +7,6 @@ use ryo_language::domain::terms::types::Vocabulary;
 use ryo_values::domain::hosted::types as hosted;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Comparison;
-use ryo_values::domain::plan_parts::types::ComparisonOriginId;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::JoinColumn;
 use ryo_values::domain::plan_parts::types::Operand;

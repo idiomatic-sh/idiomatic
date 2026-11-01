@@ -412,7 +412,7 @@ def stage_combined(
         rule_dir = destination / "rules" / rule
         rule_dir.mkdir(parents=True)
         source_dir = RUFF_DIR / "rules" / rule
-        query_path = source_dir / ("candidate.ryoql" if (source_dir / "candidate.ryoql").is_file() else "query.ryoql")
+        query_path = source_dir / combined_query_filename(rule, descriptor)
         shutil.copyfile(query_path, rule_dir / "query.ryoql")
         cases = staged_cases[rule]
         for case in cases:
@@ -425,6 +425,16 @@ def stage_combined(
                 case["comparison"] = "full"
         write_cases(rule_dir / "cases.toml", cases)
     return profile_name, destination
+
+
+def combined_query_filename(rule: str, descriptor: dict[str, object]) -> str:
+    """Use the source filename sealed by this combined cohort, even if a candidate is added later."""
+    inputs = set(descriptor["input_files"])
+    source_dir = f"crates/ryo/languages/python/benchmarks/linters/ruff/rules/{rule}"
+    candidates = [name for name in ("candidate.ryoql", "query.ryoql") if f"{source_dir}/{name}" in inputs]
+    if len(candidates) != 1:
+        raise ValueError(f"combined profile must seal exactly one query source for {rule}")
+    return candidates[0]
 
 
 def self_test() -> int:
@@ -451,6 +461,10 @@ def self_test() -> int:
             print("staged query module bytes changed", file=sys.stderr)
             return 1
         shape_descriptor = manifest["combined_profiles"][SHAPE_PROFILE]
+        expanded_descriptor = manifest["combined_profiles"]["expanded-defaults"]
+        if combined_query_filename("LOG015", expanded_descriptor) != "query.ryoql":
+            print("expanded cohort did not retain its sealed LOG015 query", file=sys.stderr)
+            return 1
         shape_profile = tomllib.loads(
             (REPOSITORY / shape_descriptor["profile_file"]).read_text(encoding="utf-8")
         )
