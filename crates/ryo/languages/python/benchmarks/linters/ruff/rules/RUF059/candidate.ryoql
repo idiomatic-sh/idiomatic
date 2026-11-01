@@ -11,10 +11,14 @@ let target_fields = select parent, child from "semantic-child" where field = "ta
 let assignment_target_roots = select l.id as statement, r.child as id, l.file as file from assignment_nodes as l join target_fields as r on l.id = r.parent;
 let containers = select id, file from nodes where kind = "tuple" or kind = "list";
 let unpacked_roots = select l.statement as statement, l.id as id, l.file as file from assignment_target_roots as l join containers as r on l.id = r.id and l.file = r.file;
+let assignment_value_fields = select parent, child from "semantic-child" where field = "value";
+let assignment_value_nodes = select l.id as statement, r.child as value, l.file as file from assignment_nodes as l join assignment_value_fields as r on l.id = r.parent;
+let literal_sequence_assignments = select l.statement as statement, l.file as file from assignment_value_nodes as l join containers as r on l.value = r.id and l.file = r.file;
+let nonliteral_unpacked_roots = antijoin(left=unpacked_roots, right=literal_sequence_assignments, left-on=["statement", "file"], right-on=["statement", "file"]);
 let edges = select parent as origin, child as destination from "semantic-child";
 let descendants = closure(edges=edges, source="origin", destination="destination");
-let unpacked_descendants = select l.statement as statement, r.destination as id, l.file as file from unpacked_roots as l join descendants as r on l.id = r.origin;
-let unpacked_ids = select id, file from unpacked_roots;
+let unpacked_descendants = select l.statement as statement, r.destination as id, l.file as file from nonliteral_unpacked_roots as l join descendants as r on l.id = r.origin;
+let unpacked_ids = select id, file from nonliteral_unpacked_roots;
 let unpacked_children = select id, file from unpacked_descendants;
 let unpacked_all = union(left=unpacked_ids, right=unpacked_children);
 let unused_unpacked = select l.binding as id, l.file as file from non_dummy as l join unpacked_all as r on l.binding = r.id and l.file = r.file;
