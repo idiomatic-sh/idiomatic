@@ -77,6 +77,8 @@ def manifest_paths(manifest: dict[str, object], helper_path: str) -> set[str]:
                 (RUFF_DIR / "rules" / rule / "cases.toml").relative_to(REPOSITORY).as_posix(),
             }
         )
+        if "oracle_file" in profiles[rule]:
+            paths.add(profiles[rule]["oracle_file"])
     for descriptor in manifest.get("combined_profiles", {}).values():
         paths.update(descriptor["input_files"])
     return paths
@@ -142,6 +144,10 @@ def stage_binding(
             or len(cases) != recorded["case_count"]
         ):
             raise ValueError(f"case inventory mismatch for {rule}")
+        if "oracle_file" in recorded:
+            oracle = REPOSITORY / recorded["oracle_file"]
+            if not oracle.is_file() or sha256(oracle) != recorded["oracle_sha256"]:
+                raise ValueError(f"oracle evidence mismatch for {rule}")
         destination = Path(stack.enter_context(tempfile.TemporaryDirectory(prefix=f"ryo-ruff-{rule}-")))
         rule_dir = destination / "rules" / rule
         rule_dir.mkdir(parents=True)
