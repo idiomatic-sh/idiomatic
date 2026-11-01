@@ -430,8 +430,51 @@ def self_test() -> int:
             print("non-default combined rule did not fail before candidate work", file=sys.stderr)
             return 1
         temporary_manifest.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+
+        def later_combined_preflight_failure() -> bool:
+            trial_manifest = json.loads(json.dumps(pristine_manifest))
+            later_name = max(trial_manifest["combined_profiles"])
+            descriptor = trial_manifest["combined_profiles"][later_name]
+            overlay_path = root / descriptor["expectations_file"]
+            overlay = json.loads(overlay_path.read_text(encoding="utf-8"))
+            overlay["cases"][0]["case"] = "unknown-later-combined-case"
+            overlay_path.write_text(
+                json.dumps(overlay, indent=2, ensure_ascii=False) + "\n",
+                encoding="utf-8",
+            )
+            overlay_hash = sha256(overlay_path)
+            descriptor["expectations_sha256"] = overlay_hash
+            trial_manifest["files"][descriptor["expectations_file"]] = overlay_hash
+            temporary_manifest.write_text(
+                json.dumps(trial_manifest, indent=2, ensure_ascii=False) + "\n",
+                encoding="utf-8",
+            )
+            marker.unlink(missing_ok=True)
+            check = subprocess.run(
+                [sys.executable, str(helper), ruff],
+                capture_output=True,
+                text=True,
+                check=False,
+                env={**os.environ, "PATH": f"{fake_bin}:{os.environ['PATH']}"},
+            )
+            return (
+                check.returncode == 2
+                and "overlay case is absent or duplicated" in check.stderr
+                and not marker.exists()
+            )
+
+        if not later_combined_preflight_failure():
+            print("later combined profile did not fail before candidate work", file=sys.stderr)
+            return 1
+        temporary_manifest.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
         overlay_relative = pristine_manifest["combined_profiles"][SHAPE_PROFILE]["expectations_file"]
-        baseline_overlay = (root / overlay_relative).read_bytes()
+        baseline_overlay = (REPOSITORY / overlay_relative).read_bytes()
+        (root / pristine_manifest["combined_profiles"]["expanded-defaults"]["expectations_file"]).write_bytes(
+            (REPOSITORY / pristine_manifest["combined_profiles"]["expanded-defaults"]["expectations_file"]).read_bytes()
+        )
+        (root / pristine_manifest["combined_profiles"]["shape-110"]["expectations_file"]).write_bytes(
+            baseline_overlay
+        )
         preflight = subprocess.run(
             [sys.executable, str(helper), str(Path(sys.executable).resolve())],
             capture_output=True,
@@ -611,6 +654,8 @@ def main() -> int:
                 staged.append(stage_combined(arguments.profile, descriptor, manifest, stack))
             else:
                 staged.extend(stage_binding(manifest, selections, stack))
+                for name, descriptor in sorted(manifest.get("combined_profiles", {}).items()):
+                    staged.append(stage_combined(name, descriptor, manifest, stack))
             statuses = []
             for name, profile_root in staged:
                 try:

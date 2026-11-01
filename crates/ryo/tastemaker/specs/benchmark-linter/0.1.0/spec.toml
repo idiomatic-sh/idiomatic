@@ -23,8 +23,8 @@ templates = [
   { alias = "result-identity", template = "evidence", file = "results/identity.json", count = { min = 0, max = 1 }, description = "Pinned inputs and contestant artifact identities." },
   { alias = "acceptance-profiles", template = "evidence", file = "profiles/prepared.json", count = { min = 0, max = 1 }, description = "Hash-pinned candidate acceptance profile inputs and exact case inventories." },
   { alias = "acceptance-profile", template = "linter", file = "profiles/{rule}/benchmark.toml", count = { min = 0 }, description = "One-rule tool selection for isolated candidate acceptance." },
-  { alias = "candidate-profile-oracle", template = "evidence", file = "profiles/{rule}/oracle.json", count = { min = 0 }, description = "Pinned Ruff outputs for an unpromoted candidate profile." },
-  { alias = "combined-profile-expectations", template = "evidence", file = "profiles/shape-110/expectations.json", count = { min = 0, max = 1 }, description = "Reviewed expected-output overlay for combined-only cross-rule findings." },
+  { alias = "candidate-profile-oracle", template = "evidence", file = "profiles/{profile}/oracle.json", count = { min = 0 }, description = "Pinned Ruff outputs for an unpromoted candidate or reference-audit profile." },
+  { alias = "combined-profile-expectations", template = "evidence", file = "profiles/{profile}/expectations.json", count = { min = 0 }, description = "Reviewed expected-output overlay for combined full-report cohorts." },
   { template = "query", file = "rules/{implemented}/query.ryoql", count = { min = 0 }, description = "Benchmark query contract." },
   { alias = "candidate-query", template = "query", file = "rules/{rule}/candidate.ryoql", count = { min = 0 }, description = "Unpromoted query candidate, kept outside the shipped-rule audit." },
   { template = "cases", file = "rules/{rule}/cases.toml", description = "Benchmark cases contract." },
@@ -109,7 +109,17 @@ scenario = "The combined candidate profile records its pinned reference outputs 
 given.files.'profiles/shape-110/benchmark.toml' = ''
 given.files.'profiles/shape-110/oracle.json' = ''
 given.files.'profiles/shape-110/expectations.json' = ''
+given.files.'profiles/expanded-defaults/benchmark.toml' = ''
+given.files.'profiles/expanded-defaults/oracle.json' = ''
+given.files.'profiles/expanded-defaults/expectations.json' = ''
 then.only = ['idiomatic.ryo/benchmark-linter#closed']
+
+[[scenarios]]
+id = "unplaced-expanded-report-is-refused"
+scenario = "The expanded full-report cohort cannot hide unreviewed oracle outputs."
+given.files.'profiles/expanded-defaults/unreviewed.json' = ''
+then.only = ['idiomatic.arch/benchmark-executable#closed']
+then.findings = [{ rule = 'idiomatic.arch/benchmark-executable#closed', path = 'profiles/expanded-defaults/unreviewed.json' }]
 
 [[scenarios]]
 id = "unplaced-shape-combined-evidence-is-refused"

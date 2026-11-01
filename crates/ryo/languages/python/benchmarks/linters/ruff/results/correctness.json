@@ -2,7 +2,7 @@
   "status": "54-rule corpus comparison passed; configured lint/check/perf gate failed",
   "candidate_acceptance_checkpoint": {
     "status": "unpromoted; current shared-verifier execution pending",
-    "prepared_profiles": 19,
+    "prepared_profiles": 20,
     "combined_profile": {
       "name": "shape-110",
       "selected_rules": 110,
@@ -208,13 +208,13 @@
       "reference": "Ruff 0.16.5 isolated, no-cache, PY310, exact 128-rule selection",
       "oracle_artifact": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/expanded-defaults/oracle.json",
       "oracle_sha256": "3b6277a19c3ca856247bf1681ef931ecd43d48b7fa2bfd600a5f5cfa88806132",
-      "expectations_sha256": "ac878df30179489eed23184b0a3c785a67647480ae0b4abdc2921f8f2b521086",
+      "expectations_sha256": "f153013c6d2e9ebc9306fc06b8924d84344d2d4ea402f26e9b2ba1967a21f953",
       "inventory_sha256": "7c1ba4d07fe86abf70aa93adf27d0f8ebebb856a89a5a70a055fe19be24aff9b",
       "snapshot_rule_scope": "104 active rules plus the 24 candidate rules sealed when this aggregate was prepared; G010 is added later as a single-rule profile and is outside this fixed snapshot"
     },
     "canonical_expected_span_audit": {
       "source_commit": "f2e139069ce7168918728c88a1db1b7f2fa22768",
-      "artifact": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/expression-cases/reference-audit.json",
+      "artifact": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/expression-cases/oracle.json",
       "artifact_sha256": "329e0ac002b658be00b058c1a469f9da0293ddddcac6f31d3f2426af1a6f7735",
       "rules": {
         "F632": {
@@ -232,7 +232,19 @@
       },
       "source_text_changed": false,
       "scope_limit": "pinned Ruff reference fixture expectations only; no Ryo candidate verification"
-    }
+    },
+    "older_worker_only_profiles": [
+      {
+        "rule": "PT010",
+        "case_count": 19,
+        "matched_cases": 19,
+        "worker_source": "9003086b",
+        "worker_sha256": "270f5ee96ba67f94c85d27de7cad9a50a27a01a4d0a39173144cf66aa661e3c7",
+        "artifact": "/tmp/pt010-full-evidence.json",
+        "artifact_sha256": "3412142a6aa89d6a939bc1f7da3a0bc44ce20ab77e3be9db8f3e64066fd514e6",
+        "scope_limit": "older-worker isolated evidence only; no current-engine validation or promotion"
+      }
+    ]
   },
   "cases": 1124,
   "rules": 54,
