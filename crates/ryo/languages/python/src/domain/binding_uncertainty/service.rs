@@ -70,7 +70,7 @@ fn within(tree: &Tree<'_>, mut at: Position, region: Position) -> bool {
 fn repeats_reference(tree: &Tree<'_>, reference: Position, region: Position) -> bool {
     match kind(tree, region) {
         Kind::Node(Node::While) => true,
-        Kind::Node(Node::For) => {
+        Kind::Node(Node::For | Node::AsyncFor) => {
             let mut at = reference;
             while parent(tree, at) != region {
                 let above = parent(tree, at);

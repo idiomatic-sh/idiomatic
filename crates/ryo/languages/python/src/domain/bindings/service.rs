@@ -48,7 +48,7 @@ fn evaluation_reach(tree: &Tree<'_>, binding: Position, occurrence: Position) ->
 fn execution(tree: &Tree<'_>, scope: Position) -> ScopeExecution {
     if matches!(
         kind(tree, scope),
-        Kind::Node(Node::FunctionDef | Node::Lambda | Node::GeneratorExp)
+        Kind::Node(Node::FunctionDef | Node::AsyncFunctionDef | Node::Lambda | Node::GeneratorExp)
     ) {
         ScopeExecution::Deferred
     } else {
@@ -66,7 +66,7 @@ fn availability(tree: &Tree<'_>, binding: Position, occurrence: Position) -> Bin
         ) || (above == binding
             && matches!(
                 kind(tree, above),
-                Kind::Node(Node::FunctionDef | Node::ClassDef)
+                Kind::Node(Node::FunctionDef | Node::AsyncFunctionDef | Node::ClassDef)
             ))
         {
             return if occurrence > last(tree, above) || occurrence < above {
@@ -77,7 +77,13 @@ fn availability(tree: &Tree<'_>, binding: Position, occurrence: Position) -> Bin
         }
         if matches!(
             kind(tree, above),
-            Kind::Node(Node::Module | Node::FunctionDef | Node::ClassDef | Node::Lambda)
+            Kind::Node(
+                Node::Module
+                    | Node::FunctionDef
+                    | Node::AsyncFunctionDef
+                    | Node::ClassDef
+                    | Node::Lambda
+            )
         ) {
             break;
         }
@@ -116,6 +122,7 @@ pub(crate) fn resolve(
                 kind(tree, lookup),
                 Kind::Node(
                     Node::FunctionDef
+                        | Node::AsyncFunctionDef
                         | Node::Lambda
                         | Node::ListComp
                         | Node::SetComp

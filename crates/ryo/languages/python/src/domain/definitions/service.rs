@@ -139,7 +139,7 @@ pub(crate) fn definition(
 ) -> Option<Definition> {
     use languages::DeclarationKind as Declared;
     match kind(tree, at) {
-        Kind::Node(Node::FunctionDef) => {
+        Kind::Node(Node::FunctionDef | Node::AsyncFunctionDef) => {
             named_by_identifier(tree, model, at, function_word(tree, at))
         }
         Kind::Node(Node::ClassDef) => {

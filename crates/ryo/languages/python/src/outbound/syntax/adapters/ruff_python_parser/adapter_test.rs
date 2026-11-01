@@ -15,6 +15,20 @@ use crate::settings::{PythonParserSettings, PythonTargetVersion};
 use ruff_python_ast::{PySourceType, PythonVersion};
 use ryo::languages::{self, ByteSlice, Elements, Symbols};
 
+#[test]
+fn preserves_async_statement_kinds() {
+    let source = "async def f(items):\n    async for item in items:\n        async with manager():\n            pass\n    def g():\n        for item in items:\n            with manager():\n                pass\n";
+    let seen = elements_of(&SyntaxRuffPythonParserAdapter, source);
+    let kinds: Vec<_> = seen.into_iter().map(|(kind, _)| kind).collect();
+
+    assert!(kinds.contains(&Kind::Node(Node::AsyncFunctionDef)));
+    assert!(kinds.contains(&Kind::Node(Node::AsyncFor)));
+    assert!(kinds.contains(&Kind::Node(Node::AsyncWith)));
+    assert!(kinds.contains(&Kind::Node(Node::FunctionDef)));
+    assert!(kinds.contains(&Kind::Node(Node::For)));
+    assert!(kinds.contains(&Kind::Node(Node::With)));
+}
+
 /// What a row reads: a file whose tokens are joined again, or a file whose elements are listed.
 #[derive(Clone, Copy, Debug)]
 enum Given {

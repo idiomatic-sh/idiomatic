@@ -86,6 +86,7 @@ pub(crate) fn resolve(
                 kind(tree, scope),
                 Kind::Node(
                     Node::FunctionDef
+                        | Node::AsyncFunctionDef
                         | Node::Lambda
                         | Node::GeneratorExp
                         | Node::ListComp

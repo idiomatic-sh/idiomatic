@@ -20,6 +20,7 @@ pub(crate) const fn scopeness(kind: Kind) -> Scopeness {
         kind,
         Kind::Node(
             Node::FunctionDef
+                | Node::AsyncFunctionDef
                 | Node::ClassDef
                 | Node::Lambda
                 | Node::ListComp
@@ -61,7 +62,10 @@ pub(crate) fn nth(
 /// Whether `child`, a child of the scope `scope`, is evaluated inside it.
 fn inside(tree: &Tree<'_>, scope: Position, child: Position) -> Scopeness {
     let of = kind(tree, scope);
-    let within = if matches!(of, Kind::Node(Node::FunctionDef | Node::ClassDef)) {
+    let within = if matches!(
+        of,
+        Kind::Node(Node::FunctionDef | Node::AsyncFunctionDef | Node::ClassDef)
+    ) {
         category(tree, child) == Category::Statement
             || kind(tree, child) == Kind::Extra(Extra::TypeParams)
     } else if of == Kind::Node(Node::Lambda) {
@@ -138,7 +142,7 @@ pub(crate) fn function_of(tree: &Tree<'_>, at: Position) -> Position {
     let mut scope = enclosing(tree, at);
     while !matches!(
         kind(tree, scope),
-        Kind::Node(Node::FunctionDef | Node::Lambda)
+        Kind::Node(Node::FunctionDef | Node::AsyncFunctionDef | Node::Lambda)
     ) && is_root(tree, scope) == Rootness::Inner
     {
         scope = enclosing(tree, scope);
@@ -149,8 +153,10 @@ pub(crate) fn function_of(tree: &Tree<'_>, at: Position) -> Position {
 /// The nearest function around the scope `scope`, or the root: where `nonlocal` binds.
 fn function_around(tree: &Tree<'_>, scope: Position) -> Position {
     let mut around = enclosing(tree, scope);
-    while kind(tree, around) != Kind::Node(Node::FunctionDef)
-        && is_root(tree, around) == Rootness::Inner
+    while !matches!(
+        kind(tree, around),
+        Kind::Node(Node::FunctionDef | Node::AsyncFunctionDef)
+    ) && is_root(tree, around) == Rootness::Inner
     {
         around = enclosing(tree, around);
     }
@@ -234,6 +240,7 @@ pub(crate) fn context(tree: &Tree<'_>, at: Position) -> Context {
             Node::AugAssign
                 | Node::AnnAssign
                 | Node::For
+                | Node::AsyncFor
                 | Node::Comprehension
                 | Node::NamedExpr
                 | Node::TypeAlias

@@ -198,11 +198,14 @@ fn walk(
         return;
     }
     match kind(tree, at) {
-        Kind::Node(Node::FunctionDef | Node::Lambda) => {
+        Kind::Node(Node::FunctionDef | Node::AsyncFunctionDef | Node::Lambda) => {
             for child in nodes(tree, at).filter(|child| field_of(tree, *child) != Field::Body) {
                 parameter_values(tree, model, child, phase, plan);
             }
-            if kind(tree, at) == Kind::Node(Node::FunctionDef) {
+            if matches!(
+                kind(tree, at),
+                Kind::Node(Node::FunctionDef | Node::AsyncFunctionDef)
+            ) {
                 push(plan, at, phase, BindingAction::Bind);
             }
             plan.phases.push(BindingPhase {
@@ -280,7 +283,7 @@ fn walk(
             // Conservatively retain the unmatched path; pattern exhaustiveness is not inferred.
             push(plan, at, phase, BindingAction::EndAlternatives);
         }
-        Kind::Node(Node::For | Node::While) => {
+        Kind::Node(Node::For | Node::AsyncFor | Node::While) => {
             fields(tree, model, at, phase, &[Field::Iter, Field::Test], plan);
             push(plan, at, phase, BindingAction::BeginAlternatives);
             fields(tree, model, at, phase, &[Field::Target, Field::Body], plan);
@@ -356,7 +359,9 @@ fn enclosing_phase(tree: &Tree<'_>, at: Position) -> Position {
         if scope == Position(0)
             || matches!(
                 kind(tree, scope),
-                Kind::Node(Node::FunctionDef | Node::Lambda | Node::GeneratorExp)
+                Kind::Node(
+                    Node::FunctionDef | Node::AsyncFunctionDef | Node::Lambda | Node::GeneratorExp
+                )
             )
         {
             return scope;

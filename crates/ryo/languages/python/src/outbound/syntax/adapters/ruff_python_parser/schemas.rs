@@ -4,8 +4,8 @@
 //! Python's `token` module, a keyword being a `NAME`. Both matches have no wildcard arm, so a kind the library gains is a compile
 //! error until it is mapped. Where ruff's tree is not the standard's:
 //!
-//! - one kind for two of the standard's: `async def`, `async for`, `async with` and `except*` are `FunctionDef`, `For`, `With` and
-//!   `Try` with their keyword token, never `AsyncFunctionDef`, `AsyncFor`, `AsyncWith` or `TryStar`;
+//! - async statements share Ruff node types with their sync counterparts, with an `is_async` field; the adapter preserves that
+//!   distinction as `AsyncFunctionDef`, `AsyncFor` and `AsyncWith`. `except*` remains a `Try` with its keyword token;
 //! - six literal kinds of ruff (string, bytes, number, boolean, `None`, `...`) are the standard's one `Constant`, its token saying which;
 //! - an interpolation is a `FormattedValue` in an f-string and an `Interpolation` in a t-string: the adapter says which;
 //! - a literal part of an f-string or a t-string is a `Constant`, and its format spec a `JoinedStr`, as the standard has them;
@@ -279,6 +279,19 @@ impl From<TokenSchema> for Kind {
 #[must_use]
 pub(super) fn node_kind(kind: RuffNode, strings: Strings) -> Kind {
     Kind::from(NodeSchema { kind, strings })
+}
+
+/// The language's kind of a concrete node, retaining async statement variants Ruff stores in a flag.
+#[must_use]
+pub(super) fn concrete_node_kind(node: AnyNodeRef<'_>, strings: Strings) -> Kind {
+    match node {
+        AnyNodeRef::StmtFunctionDef(statement) if statement.is_async => {
+            Kind::Node(Node::AsyncFunctionDef)
+        }
+        AnyNodeRef::StmtFor(statement) if statement.is_async => Kind::Node(Node::AsyncFor),
+        AnyNodeRef::StmtWith(statement) if statement.is_async => Kind::Node(Node::AsyncWith),
+        _ => node_kind(node.kind(), strings),
+    }
 }
 
 /// The language's kind of a token of the library.

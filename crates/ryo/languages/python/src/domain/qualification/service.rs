@@ -129,7 +129,9 @@ fn uncertain(
         }
         if matches!(
             kind(tree, scope),
-            Kind::Node(Node::FunctionDef | Node::Lambda | Node::GeneratorExp)
+            Kind::Node(
+                Node::FunctionDef | Node::AsyncFunctionDef | Node::Lambda | Node::GeneratorExp
+            )
         ) {
             timing = Timing::Deferred;
         }

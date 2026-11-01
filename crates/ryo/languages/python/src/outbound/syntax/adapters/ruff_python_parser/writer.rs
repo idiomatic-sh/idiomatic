@@ -1,7 +1,7 @@
 //! Serialize native and embedded AST occurrences through one source-order writer.
 use super::constants::{ELSE_WITHOUT_EXCEPT, ELSE_WITHOUT_EXCEPT_CODE};
 use super::schemas::{
-    decoded_of, else_without_except, node_kind, opens, token_kind, unknown_futures,
+    concrete_node_kind, decoded_of, else_without_except, opens, token_kind, unknown_futures,
 };
 use super::types::{
     AnnotationCandidate, AnnotationContext, Decoded, Depth, ParserRefusal, Said, Strings,
@@ -217,7 +217,7 @@ impl<'a> SourceOrderVisitor<'a> for Writer<'_, '_, '_> {
         let strings = self.strings.last().copied().unwrap_or(Strings::Formatted);
         languages::enter_node(
             self.tree.builder,
-            kind_bits(node_kind(node.kind(), strings)),
+            kind_bits(concrete_node_kind(node, strings)),
             start,
         );
         if matches!(node, AnyNodeRef::ExprStringLiteral(_))
