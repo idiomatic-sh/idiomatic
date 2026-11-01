@@ -4,7 +4,8 @@
     "536c1e3a51fd4221b6ea2ab7fd02241fb822237f",
     "6b4ae8b47dcd84b28b3f24dae5ec58114cb61e30",
     "4d595bdea8e1037eca0ab33abcc0455f91d19f5e",
-    "239430e2de4b0dae40b55a52f47a0803d682941a"
+    "239430e2de4b0dae40b55a52f47a0803d682941a",
+    "3f14eeaf157ede482e34b54794112795822a7df9"
   ],
   "reference": "Ruff 0.16.5 isolated, no-cache, PY310 selection; complete full-report comparison for each prepared candidate profile",
   "reference_version": "0.16.5",
