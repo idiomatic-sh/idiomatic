@@ -178,7 +178,7 @@ fn refused(error: RefusedQuery) -> ValidateError {
 /// Keep the standalone SDK's error variants while locating errors in named bundle sources.
 fn located(error: ValidateError, origin: Option<CoreOrigin>) -> ValidateError {
     match origin {
-        Some(origin) if origin.source_id.0 != "<query>" || !origin.trace.is_empty() => {
+        Some(origin) if origin.source_id.0.as_ref() != "<query>" || !origin.trace.is_empty() => {
             ValidateError::Located {
                 origin: crate::domain::query::errors::QueryOrigin::from_internal(origin),
                 error: Box::new(error),
@@ -195,7 +195,9 @@ impl From<ValidateErrorSchema<'_>> for ValidateError {
             CoreError::Uncompilable { error } => {
                 let origin = error.origin.clone();
                 let invalid = match origin {
-                    Some(origin) if origin.source_id.0 != "<query>" || !origin.trace.is_empty() => {
+                    Some(origin)
+                        if origin.source_id.0.as_ref() != "<query>" || !origin.trace.is_empty() =>
+                    {
                         ValidateError::Located {
                             origin: crate::domain::query::errors::QueryOrigin::from_internal(
                                 origin,
@@ -211,7 +213,9 @@ impl From<ValidateErrorSchema<'_>> for ValidateError {
                 invalid
             }
             CoreError::UnknownKind { reason, origin } => match origin {
-                Some(origin) if origin.source_id.0 != "<query>" || !origin.trace.is_empty() => {
+                Some(origin)
+                    if origin.source_id.0.as_ref() != "<query>" || !origin.trace.is_empty() =>
+                {
                     ValidateError::Located {
                         origin: crate::domain::query::errors::QueryOrigin::from_internal(
                             origin.clone(),
