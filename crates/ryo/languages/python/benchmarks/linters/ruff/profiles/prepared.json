@@ -1,0 +1,145 @@
+{
+  "status": "prepared-not-executed",
+  "source_commit": "550719c6ca70b2f5e2b409a65d062492c9b2260e",
+  "reference": "Ruff 0.16.5 isolated, no-cache, PY310 single-rule selection; complete full-report comparison",
+  "reference_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "scope": "four independent single-rule candidate acceptance profiles for binding-query CI; exact inputs include all authored cases; no active inventory change or promotion",
+  "profiles": {
+    "F401": {
+      "selected_rules": [
+        "F401"
+      ],
+      "case_count": 15,
+      "case_names": [
+        "unused-import",
+        "used-import",
+        "parameter-shadow-does-not-use-import",
+        "explicit-reexport",
+        "all-export",
+        "annotation-use",
+        "overwritten-import-read",
+        "deleted-import",
+        "deferred-closure-before-import",
+        "quoted-annotation-use",
+        "normalized-alias-used",
+        "normalized-redundant-alias-is-reexport",
+        "stub-explicit-reexport",
+        "noqa-unused-import",
+        "normalized-distinct-unused-alias"
+      ],
+      "files": {
+        "benchmark.toml": "3e60989d508ded22bcfcab988950f962e14bd6d39a38da94b47aa935db80d360",
+        "rules/F401/cases.toml": "b2f6e464e9f36debd816fbb675efbe9c67e7b5eb82f1af1f7e3ae4e6abf15d41",
+        "rules/F401/query.ryoql": "6a0347dd30bfaf32590400faf546a61d936f78f19366a814172ae01f2bd29c65"
+      }
+    },
+    "F811": {
+      "selected_rules": [
+        "F811"
+      ],
+      "case_count": 24,
+      "case_names": [
+        "repeated-import",
+        "used-before-reimport",
+        "read-after-reimport-is-not-prior-use",
+        "assignment-over-import",
+        "function-redefinition",
+        "different-branches",
+        "same-branch-redefinition",
+        "elif-arms-are-distinct",
+        "elif-same-arm-redefinition",
+        "deleted-before-reimport",
+        "conditional-delete-does-not-break-other-arm",
+        "conditional-delete-does-not-break-later-binding",
+        "else-delete-breaks-static-history",
+        "deferred-closure-uses-final-import",
+        "normalized-import-redefinition",
+        "dummy-redefinition",
+        "annotated-assignment-stable-default",
+        "noqa-redefinition",
+        "noqa-blanket-redefinition",
+        "noqa-other-rule-does-not-suppress",
+        "file-ruff-noqa",
+        "file-flake8-noqa",
+        "range-disable-enable",
+        "range-file-ignore"
+      ],
+      "files": {
+        "benchmark.toml": "911cd3c9eb459d177a38a77097153850a55ee3776c49aab4381e94bf6c32b6d8",
+        "rules/F811/cases.toml": "ddb462d30c201f79fabd424251c1d42d89d1408ba9ec1bf7b8968650a0aa473d",
+        "rules/F811/query.ryoql": "a31aaa0d8af8ef0883ded82e79b96ea1a2b46148ea59b0716cb49e6cdc724a9a"
+      }
+    },
+    "F822": {
+      "selected_rules": [
+        "F822"
+      ],
+      "case_count": 24,
+      "case_names": [
+        "undefined-export",
+        "defined-export",
+        "imported-export",
+        "later-module-definition",
+        "augmented-exports",
+        "duplicate-missing-exports",
+        "deleted-export",
+        "nested-local-not-exported",
+        "normalized-binding-export",
+        "export-string-is-not-normalized",
+        "wildcard-export-uncertainty",
+        "noqa-export",
+        "escaped-export-matches-decoded-name",
+        "concatenated-export-is-one-decoded-name",
+        "concatenated-missing-export-whole-literal-span",
+        "export-string-preserves-compatibility-spelling",
+        "builtin-export-without-name-read",
+        "implicit-module-global-export",
+        "later-version-implicit-global-is-missing",
+        "export-parent-noqa",
+        "nested-right-binop-not-recursively-extracted",
+        "named-expression-export-container",
+        "aliased-builtin-constructor",
+        "only-first-chained-target-defines-exports"
+      ],
+      "files": {
+        "benchmark.toml": "b03a843c5cf008871c1750e7c8594d6c2ff0fdd8357e18a59913c8c6b6bf2080",
+        "rules/F822/cases.toml": "35650ee0cb7bee67ed4350a40e253c6417322d7abdf361f5a0fadbf603d66113",
+        "rules/F822/query.ryoql": "e9b44e26479882ce77f2a80f5114c5ec5ec4e7e4832b3b9241c9e9c7d3983ba0"
+      }
+    },
+    "F841": {
+      "selected_rules": [
+        "F841"
+      ],
+      "case_count": 20,
+      "case_names": [
+        "unused-local",
+        "used-local",
+        "module-assignment",
+        "class-assignment",
+        "dummy-local",
+        "literal-unpacking-targets",
+        "closure-use",
+        "deferred-closure-later-assignment",
+        "deleted-local",
+        "normalized-local-use",
+        "side-effectful-unused-assignment",
+        "noqa-unused-local",
+        "dynamic-unpacked-targets",
+        "shadowed-locals-name-still-suppresses-function",
+        "lambda-locals-call-does-not-suppress",
+        "unused-module-exception-name",
+        "with-list-targets-are-not-tuple-unpacking",
+        "previous-read-is-inherited-on-replacement",
+        "delete-breaks-inherited-reference-chain",
+        "later-annotation-does-not-replace-value"
+      ],
+      "files": {
+        "benchmark.toml": "26eaa6a8f8709563b9e7daba1c323032d196eabcca9fa2550026596c403914c1",
+        "rules/F841/cases.toml": "a3033481c77408a21b4135d166bbeb7dd4f755f99444e9120282fbb1d61b3e67",
+        "rules/F841/query.ryoql": "892229f93af9652b57cb15677c484721aef11ece0225b2b923a0a7689a7fb569"
+      }
+    }
+  },
+  "case_total": 83
+}

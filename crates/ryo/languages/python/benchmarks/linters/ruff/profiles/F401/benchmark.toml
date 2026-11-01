@@ -1,0 +1,4 @@
+tool = "ruff"
+version = "0.16.5"
+sha256 = ["52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8"]
+defaults = ["F401"]
