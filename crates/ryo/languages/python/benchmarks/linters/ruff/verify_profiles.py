@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import argparse
-import contextlib
 import collections
+import contextlib
 import hashlib
 import json
 import os
@@ -12,9 +12,9 @@ import shutil
 import subprocess
 import sys
 import tempfile
-import tomllib
 from pathlib import Path
 
+import tomllib
 
 RUFF_DIR = Path(__file__).resolve().parent
 REPOSITORY = RUFF_DIR.parents[6]
@@ -30,6 +30,14 @@ def sha256(path: Path) -> str:
 def source_hash(files: dict[str, str]) -> str:
     encoded = json.dumps(files, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
     return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+
+def diagnostic_multiset(findings: list[dict[str, object]]) -> collections.Counter[tuple[object, ...]]:
+    """Compare exact reference findings while retaining duplicate diagnostics."""
+    return collections.Counter(
+        (finding["rule"], finding["file"], finding["start"], finding["end"])
+        for finding in findings
+    )
 
 
 def toml_value(value: object) -> str:
@@ -68,7 +76,7 @@ def write_cases(path: Path, cases: list[dict[str, object]]) -> None:
 
 def manifest_paths(manifest: dict[str, object], helper_path: str) -> set[str]:
     profiles = manifest["profiles"]
-    paths = {helper_path}
+    paths = {helper_path, (RUFF_DIR / "benchmark.toml").relative_to(REPOSITORY).as_posix()}
     for rule in profiles:
         paths.update(
             {
@@ -79,6 +87,8 @@ def manifest_paths(manifest: dict[str, object], helper_path: str) -> set[str]:
         )
         if "oracle_file" in profiles[rule]:
             paths.add(profiles[rule]["oracle_file"])
+        if "reference_audit_file" in profiles[rule]:
+            paths.add(profiles[rule]["reference_audit_file"])
     for descriptor in manifest.get("combined_profiles", {}).values():
         paths.update(descriptor["input_files"])
     return paths
@@ -88,6 +98,13 @@ def verify_files(manifest: dict[str, object], helper_path: str) -> None:
     files = manifest["files"]
     if set(files) != manifest_paths(manifest, helper_path):
         raise ValueError("prepared input paths do not match the candidate acceptance cohorts")
+    defaults = set(tomllib.loads((RUFF_DIR / "benchmark.toml").read_text(encoding="utf-8"))["defaults"])
+    if set(manifest["profiles"]) - defaults:
+        raise ValueError("prepared profile contains a non-default rule")
+    for descriptor in manifest.get("combined_profiles", {}).values():
+        selected = descriptor["selected_rules"]
+        if len(selected) != len(set(selected)) or set(selected) - defaults:
+            raise ValueError("combined profile contains a non-default rule")
     if files.get(helper_path) != sha256(Path(__file__)):
         raise ValueError("profile helper hash does not match prepared.json")
     for relative, expected in files.items():
@@ -148,6 +165,10 @@ def stage_binding(
             oracle = REPOSITORY / recorded["oracle_file"]
             if not oracle.is_file() or sha256(oracle) != recorded["oracle_sha256"]:
                 raise ValueError(f"oracle evidence mismatch for {rule}")
+        if "reference_audit_file" in recorded:
+            audit = REPOSITORY / recorded["reference_audit_file"]
+            if not audit.is_file() or sha256(audit) != recorded["reference_audit_sha256"]:
+                raise ValueError(f"reference case audit mismatch for {rule}")
         destination = Path(stack.enter_context(tempfile.TemporaryDirectory(prefix=f"ryo-ruff-{rule}-")))
         rule_dir = destination / "rules" / rule
         rule_dir.mkdir(parents=True)
@@ -178,13 +199,19 @@ def stage_combined(
     if sha256(overlays_path) != descriptor["expectations_sha256"]:
         raise ValueError(f"{profile_name} expectation overlay hash mismatch")
     overlay = json.loads(overlays_path.read_text(encoding="utf-8"))
+    oracle_path = REPOSITORY / descriptor["oracle_file"]
+    oracle = json.loads(oracle_path.read_text(encoding="utf-8"))
+    full_report = descriptor.get("expectations_mode") == "complete-full-report"
     if (
         overlay.get("profile") != profile_name
+        or overlay.get("mode", "shape-overlay")
+        != descriptor.get("expectations_mode", "shape-overlay")
         or overlay.get("reference_sha256") not in manifest["reference_sha256"]
         or overlay.get("selection_count") != len(selected_rules)
         or overlay.get("selected_rules_sha256")
         != hashlib.sha256(json.dumps(sorted(selected_rules), separators=(",", ":")).encode("utf-8")).hexdigest()
         or overlay.get("oracle_sha256") != descriptor["oracle_sha256"]
+        or overlay.get("oracle_file") != descriptor.get("oracle_file")
     ):
         raise ValueError(f"{profile_name} expectation overlay identity mismatch")
 
@@ -203,10 +230,10 @@ def stage_combined(
         if len(matching) != 1:
             raise ValueError(f"{profile_name} overlay case is absent or duplicated: {key}")
         case = matching[0]
-        if case.get("comparison", "rule") != "full":
+        if not full_report and case.get("comparison", "rule") != "full":
             raise ValueError(f"{profile_name} overlay requires a full-report case: {key}")
         if item["cases_file"] != (RUFF_DIR / "rules" / item["rule"] / "cases.toml").relative_to(REPOSITORY).as_posix():
-            raise ValueError(f"shape-110 overlay names a noncanonical case file: {key}")
+            raise ValueError(f"{profile_name} overlay names a noncanonical case file: {key}")
         if source_hash(case["files"]) != item["case_source_sha256"]:
             raise ValueError(f"{profile_name} case source hash mismatch: {key}")
         findings = item["expected"]
@@ -219,28 +246,48 @@ def stage_combined(
                 or finding["start"] < 0
                 or finding["end"] < finding["start"]
                 or finding["file"] not in case["files"]
+                or (finding["rule"] not in selected_rules and finding["rule"] != "invalid-syntax")
             ):
                 raise ValueError(f"invalid {profile_name} expected finding: {key}")
-        original = collections.Counter(
-            (entry["rule"], entry["file"], entry["start"], entry["end"])
-            for entry in case["expected"]
+        if case.get("comparison", "rule") == "full" and any("rule" not in entry for entry in case["expected"]):
+            raise ValueError(f"{profile_name} canonical full-report finding lacks an explicit rule: {key}")
+        original = diagnostic_multiset(
+            [
+                {**entry, "rule": entry.get("rule", item["rule"])}
+                for entry in case["expected"]
+            ]
         )
-        replacement = collections.Counter(
-            (entry["rule"], entry["file"], entry["start"], entry["end"])
-            for entry in findings
-        )
+        replacement = diagnostic_multiset(findings)
         if original - replacement:
             raise ValueError(f"{profile_name} overlay drops canonical findings: {key}")
-        added_findings += sum((replacement - original).values())
+        if not full_report:
+            added_findings += sum((replacement - original).values())
         expected_findings += len(findings)
         overlays[key] = (item, case)
-    if len(overlays) != overlay["changed_case_count"]:
-        raise ValueError(f"{profile_name} overlay case count mismatch")
-    if (
-        added_findings != overlay["additional_diagnostic_count"]
-        or expected_findings != overlay["expected_diagnostic_count"]
-    ):
+    if full_report:
+        if len(overlays) != descriptor["case_count"] or len(overlays) != overlay["case_count"]:
+            raise ValueError(f"{profile_name} complete expected inventory count mismatch")
+    elif len(overlays) != overlay["changed_case_count"] or added_findings != overlay["additional_diagnostic_count"]:
         raise ValueError(f"{profile_name} overlay diagnostic totals mismatch")
+    if expected_findings != overlay["expected_diagnostic_count"]:
+        raise ValueError(f"{profile_name} overlay diagnostic totals mismatch")
+
+    oracle_cases: dict[tuple[str, str], dict[str, object]] = {}
+    for oracle_case in oracle["cases"]:
+        key = (oracle_case["rule"], oracle_case.get("case", oracle_case.get("name")))
+        if key in oracle_cases:
+            raise ValueError(f"{profile_name} oracle has duplicate case identity: {key}")
+        oracle_cases[key] = oracle_case
+    if full_report and len(oracle_cases) != descriptor["case_count"]:
+        raise ValueError(f"{profile_name} oracle case count mismatch")
+    for key, (item, _case) in overlays.items():
+        oracle_case = oracle_cases.get(key)
+        if (
+            oracle_case is None
+            or oracle_case["case_source_sha256"] != item["case_source_sha256"]
+            or diagnostic_multiset(item["expected"]) != diagnostic_multiset(oracle_case["expected"])
+        ):
+            raise ValueError(f"{profile_name} overlay diagnostics differ from the sealed oracle: {key}")
 
     inventory = []
     staged_cases: dict[str, list[dict[str, object]]] = {}
@@ -254,15 +301,21 @@ def stage_combined(
         cases = tomllib.loads(cases_path.read_text(encoding="utf-8"))["cases"]
         staged_cases[rule] = cases
         for case in cases:
-            comparison = case.get("comparison", "rule")
+            comparison = "full" if full_report else case.get("comparison", "rule")
             inventory.append({"rule": rule, "name": case["name"], "comparison": comparison})
-    counts = collections.Counter(
-        item.get("comparison", "rule")
-        for cases in staged_cases.values()
-        for item in cases
+    counts = (
+        collections.Counter({"full": len(inventory)})
+        if full_report
+        else collections.Counter(
+            item.get("comparison", "rule")
+            for cases in staged_cases.values()
+            for item in cases
+        )
     )
     if len(inventory) != descriptor["case_count"] or counts != descriptor["comparison_counts"]:
         raise ValueError(f"{profile_name} comparison inventory mismatch")
+    if full_report and set(overlays) != {(item["rule"], item["name"]) for item in inventory}:
+        raise ValueError(f"{profile_name} complete expected inventory does not match selected cases")
     inventory_hash = hashlib.sha256(
         json.dumps(inventory, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
     ).hexdigest()
@@ -282,6 +335,10 @@ def stage_combined(
             overlay_entry = overlays.get((rule, case["name"]))
             if overlay_entry is not None:
                 case["expected"] = overlay_entry[0]["expected"]
+            elif full_report:
+                raise ValueError(f"{profile_name} is missing complete expected case: {rule}/{case['name']}")
+            if full_report:
+                case["comparison"] = "full"
         write_cases(rule_dir / "cases.toml", cases)
     return profile_name, destination
 
@@ -341,7 +398,7 @@ def self_test() -> int:
             return 1
         candidate.write_bytes(original_candidate)
         manifest = json.loads(temporary_manifest.read_text(encoding="utf-8"))
-        last_profile = sorted(manifest["profiles"])[-1]
+        last_profile = max(manifest["profiles"])
         manifest["profiles"][last_profile]["case_count"] += 1
         temporary_manifest.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
         fake_bin = root / "fake-bin"
@@ -350,6 +407,29 @@ def self_test() -> int:
         fake_cargo = fake_bin / "cargo"
         fake_cargo.write_text(f"#!/bin/sh\nprintf started > {marker}\n", encoding="utf-8")
         fake_cargo.chmod(0o755)
+        invalid_rule_manifest = json.loads(json.dumps(pristine_manifest))
+        invalid_rule_manifest["combined_profiles"]["expanded-defaults"]["selected_rules"].append(
+            "NOT-SHIPPED"
+        )
+        temporary_manifest.write_text(
+            json.dumps(invalid_rule_manifest, indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+        invalid_rule = subprocess.run(
+            [sys.executable, str(helper), ruff, "--profile", "expanded-defaults"],
+            capture_output=True,
+            text=True,
+            check=False,
+            env={**os.environ, "PATH": f"{fake_bin}:{os.environ['PATH']}"},
+        )
+        if (
+            invalid_rule.returncode != 2
+            or "combined profile contains a non-default rule" not in invalid_rule.stderr
+            or marker.exists()
+        ):
+            print("non-default combined rule did not fail before candidate work", file=sys.stderr)
+            return 1
+        temporary_manifest.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
         overlay_relative = pristine_manifest["combined_profiles"][SHAPE_PROFILE]["expectations_file"]
         baseline_overlay = (root / overlay_relative).read_bytes()
         preflight = subprocess.run(
@@ -400,6 +480,96 @@ def self_test() -> int:
             (root / overlay_relative).write_bytes(baseline_overlay)
             if not shape_preflight_failure(kind, message):
                 print(f"shape {kind} refusal did not fail before candidate work", file=sys.stderr)
+                return 1
+        (root / overlay_relative).write_bytes(baseline_overlay)
+
+        def expanded_preflight_failure(kind: str, expected_error: str) -> bool:
+            trial_manifest = json.loads(json.dumps(pristine_manifest))
+            descriptor = trial_manifest["combined_profiles"]["expanded-defaults"]
+            overlay_path = root / descriptor["expectations_file"]
+            overlay = json.loads(overlay_path.read_text(encoding="utf-8"))
+            if kind == "source-hash":
+                overlay["cases"][0]["case_source_sha256"] = "0" * 64
+            elif kind == "case-key":
+                overlay["cases"][0]["case"] = "unknown-case-key"
+            elif kind == "missing-case":
+                overlay["cases"].pop()
+            elif kind == "missing-rule":
+                item = next(row for row in overlay["cases"] if row["expected"])
+                item["expected"][0].pop("rule")
+            elif kind == "duplicate":
+                item = duplicate = None
+                for row in overlay["cases"]:
+                    cases_path = REPOSITORY / row["cases_file"]
+                    source_cases = tomllib.loads(cases_path.read_text(encoding="utf-8"))["cases"]
+                    canonical = next(case for case in source_cases if case["name"] == row["case"])
+                    original = collections.Counter(
+                        (
+                            finding.get("rule", row["rule"]),
+                            finding["file"],
+                            finding["start"],
+                            finding["end"],
+                        )
+                        for finding in canonical["expected"]
+                    )
+                    current = collections.Counter(
+                        (finding["rule"], finding["file"], finding["start"], finding["end"])
+                        for finding in row["expected"]
+                    )
+                    extra_duplicate = next(
+                        (key for key, count in current.items() if count > 1 and count > original[key]),
+                        None,
+                    )
+                    if extra_duplicate is not None:
+                        item, duplicate = row, extra_duplicate
+                        break
+                if item is None or duplicate is None:
+                    raise ValueError("no externally added duplicate to exercise")
+                item["expected"].remove(
+                    next(
+                        finding
+                        for finding in item["expected"]
+                        if (finding["rule"], finding["file"], finding["start"], finding["end"])
+                        == duplicate
+                    )
+                )
+                overlay["expected_diagnostic_count"] -= 1
+            else:
+                raise ValueError(f"unknown self-test: {kind}")
+            overlay_path.write_text(json.dumps(overlay, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+            overlay_hash = sha256(overlay_path)
+            descriptor["expectations_sha256"] = overlay_hash
+            trial_manifest["files"][descriptor["expectations_file"]] = overlay_hash
+            temporary_manifest.write_text(json.dumps(trial_manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+            marker.unlink(missing_ok=True)
+            check = subprocess.run(
+                [sys.executable, str(helper), ruff, "--profile", "expanded-defaults"],
+                capture_output=True,
+                text=True,
+                check=False,
+                env={**os.environ, "PATH": f"{fake_bin}:{os.environ['PATH']}"},
+            )
+            success = check.returncode == 2 and expected_error in check.stderr and not marker.exists()
+            if not success:
+                print(
+                    f"expanded {kind}: status={check.returncode}; stderr={check.stderr.strip()!r}; "
+                    f"cargo-started={marker.exists()}",
+                    file=sys.stderr,
+                )
+            return success
+
+        expanded_overlay_relative = pristine_manifest["combined_profiles"]["expanded-defaults"]["expectations_file"]
+        expanded_overlay_bytes = (root / expanded_overlay_relative).read_bytes()
+        for kind, message in (
+            ("source-hash", "case source hash mismatch"),
+            ("case-key", "overlay case is absent or duplicated"),
+            ("missing-case", "complete expected inventory count mismatch"),
+            ("missing-rule", "invalid expanded-defaults expected finding"),
+            ("duplicate", "overlay diagnostics differ from the sealed oracle"),
+        ):
+            (root / expanded_overlay_relative).write_bytes(expanded_overlay_bytes)
+            if not expanded_preflight_failure(kind, message):
+                print(f"expanded full-report {kind} refusal did not fail before candidate work", file=sys.stderr)
                 return 1
     print("profile selection and hash-mismatch guards passed")
     return 0

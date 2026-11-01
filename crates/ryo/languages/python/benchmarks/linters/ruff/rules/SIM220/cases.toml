@@ -135,7 +135,7 @@ expected = []
 name = "annotation-before-check-is-skipped"
 comparison = "full"
 files = { "case.py" = "list: object\nx and not x and (lambda list: list())\n" }
-expected = [{ rule = "SIM220", file = "case.py", start = 13, end = 24 }]
+expected = [{ rule = "SIM220", file = "case.py", start = 13, end = 50 }]
 
 [[cases]]
 name = "delete-before-check-blocks-builtin"
@@ -147,7 +147,7 @@ expected = []
 name = "function-local-assignment-after-check"
 comparison = "full"
 files = { "case.py" = "def f():\n    x and not x and (lambda list: list())\n    list = custom\n" }
-expected = [{ rule = "SIM220", file = "case.py", start = 13, end = 24 }]
+expected = [{ rule = "SIM220", file = "case.py", start = 13, end = 50 }]
 
 [[cases]]
 name = "module-binding-after-function-before-deferred-check"
@@ -159,13 +159,13 @@ expected = []
 name = "nested-class-skips-outer-class-binding"
 comparison = "full"
 files = { "case.py" = "class Outer:\n    list = custom\n    class Inner:\n        x and not x and (lambda list: list())\n" }
-expected = [{ rule = "SIM220", file = "case.py", start = 56, end = 67 }]
+expected = [{ rule = "SIM220", file = "case.py", start = 56, end = 93 }]
 
 [[cases]]
 name = "function-in-class-skips-class-binding"
 comparison = "full"
 files = { "case.py" = "class C:\n    list = custom\n    def f(self):\n        x and not x and (lambda list: list())\n" }
-expected = [{ rule = "SIM220", file = "case.py", start = 52, end = 63 }]
+expected = [{ rule = "SIM220", file = "case.py", start = 52, end = 89 }]
 
 [[cases]]
 name = "current-class-binding-is-visible"

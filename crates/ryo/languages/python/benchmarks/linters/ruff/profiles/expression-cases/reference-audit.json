@@ -1,0 +1,1603 @@
+{
+  "ruff": "/home/vscode/.local/bin/ruff",
+  "ruff_version": "ruff 0.16.5",
+  "ruff_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "target_version": "py310",
+  "comparison": "Every canonical full-comparison case expected array compared with pinned Ruff diagnostics for the case rule; row/column locations converted to UTF-8 byte offsets; expected/actual arrays sorted for order but duplicate multiplicity retained.",
+  "rules": {
+    "F632": {
+      "cases_sha256": "534ae2f7817eb9c667bade466d15c128dbf752d700cf38f9b67e2eae3d1bbe37",
+      "case_count": 36,
+      "matches": 36,
+      "mismatches": [],
+      "cases": [
+        {
+          "name": "integer-left",
+          "file": "case.py",
+          "source_sha256": "5b835cc242d073c149eb88bf0515624a1694923034e256323675627fb58c3474",
+          "expected": [
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 0,
+              "end": 10
+            }
+          ],
+          "ruff_full_report": [
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 0,
+              "end": 10
+            }
+          ],
+          "matched": true
+        },
+        {
+          "name": "integer-right",
+          "file": "case.py",
+          "source_sha256": "2af6b92d4d29f7150a640132e5c3b4859aede618aec7616f60e946343be9e9da",
+          "expected": [
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 0,
+              "end": 10
+            }
+          ],
+          "ruff_full_report": [
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 0,
+              "end": 10
+            }
+          ],
+          "matched": true
+        },
+        {
+          "name": "string-constant",
+          "file": "case.py",
+          "source_sha256": "f98b1fb40444326176d2bc3347560ab9be1719000c5318d7d52b0cb1d4f96ce5",
+          "expected": [
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 0,
+              "end": 15
+            }
+          ],
+          "ruff_full_report": [
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 0,
+              "end": 15
+            }
+          ],
+          "matched": true
+        },
+        {
+          "name": "boolean-singleton",
+          "file": "case.py",
+          "source_sha256": "3274a728253ad4743f9c2996432929cdace870e07f5b59fe865f40bba7d1ece4",
+          "expected": [],
+          "ruff_full_report": [],
+          "matched": true
+        },
+        {
+          "name": "none-singleton",
+          "file": "case.py",
+          "source_sha256": "0e41154af004ae15ad856b9f6a7a5901061a020129f6750288104e55a5378369",
+          "expected": [],
+          "ruff_full_report": [],
+          "matched": true
+        },
+        {
+          "name": "ellipsis-singleton",
+          "file": "case.py",
+          "source_sha256": "a734f335177da6e229c002fc6350c931ee4ff0b37ec0c90e1a7ff09ac2c2a47f",
+          "expected": [],
+          "ruff_full_report": [],
+          "matched": true
+        },
+        {
+          "name": "tuple-constant",
+          "file": "case.py",
+          "source_sha256": "1b9cb0e9b114b654f2cbbb290ee890907675505aa6c1fb22d37212f100b9dc24",
+          "expected": [
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 0,
+              "end": 23
+            }
+          ],
+          "ruff_full_report": [
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 0,
+              "end": 23
+            }
+          ],
+          "matched": true
+        },
+        {
+          "name": "tuple-with-singleton",
+          "file": "case.py",
+          "source_sha256": "6fcab388267308ae1a02eb75eb898c0de69a6a01f827ae4e58e9b67a1cb4119f",
+          "expected": [
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 0,
+              "end": 16
+            }
+          ],
+          "ruff_full_report": [
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 0,
+              "end": 16
+            }
+          ],
+          "matched": true
+        },
+        {
+          "name": "tuple-with-name",
+          "file": "case.py",
+          "source_sha256": "3e338bff4afd3bb0da7cd5f3a18089e6cc7b7d3a409c585092a3e6f99e15c6f2",
+          "expected": [],
+          "ruff_full_report": [],
+          "matched": true
+        },
+        {
+          "name": "tuple-with-operation",
+          "file": "case.py",
+          "source_sha256": "074b0c2af3f066e8e14c570fd9f010c0f20e40f47b8c409c694b0c2f4eae3535",
+          "expected": [],
+          "ruff_full_report": [],
+          "matched": true
+        },
+        {
+          "name": "empty-list",
+          "file": "case.py",
+          "source_sha256": "24d11be0bd5adfbb2807c3180cd98dc9749783f26daeca9fcaa3d73838f2392a",
+          "expected": [
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 0,
+              "end": 11
+            }
+          ],
+          "ruff_full_report": [
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 0,
+              "end": 11
+            }
+          ],
+          "matched": true
+        },
+        {
+          "name": "list-literal",
+          "file": "case.py",
+          "source_sha256": "27462dc7adf7011dfe9056769ebac0cb02fc6f01d643c7122bb5333bfa603be3",
+          "expected": [
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 0,
+              "end": 15
+            }
+          ],
+          "ruff_full_report": [
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 0,
+              "end": 15
+            }
+          ],
+          "matched": true
+        },
+        {
+          "name": "set-literal",
+          "file": "case.py",
+          "source_sha256": "b61e74aa40d16ad4d796d7fc07618d269b8e581cfba722c4f7f2d8385bb0d8d6",
+          "expected": [
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 0,
+              "end": 15
+            }
+          ],
+          "ruff_full_report": [
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 0,
+              "end": 15
+            }
+          ],
+          "matched": true
+        },
+        {
+          "name": "dict-literal",
+          "file": "case.py",
+          "source_sha256": "fa449ca548353d8d7938e27ccdf820100274b581bc0637fc49a7e0aa510c5654",
+          "expected": [
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 0,
+              "end": 18
+            }
+          ],
+          "ruff_full_report": [
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 0,
+              "end": 18
+            }
+          ],
+          "matched": true
+        },
+        {
+          "name": "list-comprehension",
+          "file": "case.py",
+          "source_sha256": "1bf47db2920b21f9cc5b81d1bc885e194f76e12fa644c121d13f6dd125f23a4d",
+          "expected": [
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 0,
+              "end": 33
+            }
+          ],
+          "ruff_full_report": [
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 0,
+              "end": 33
+            }
+          ],
+          "matched": true
+        },
+        {
+          "name": "set-comprehension",
+          "file": "case.py",
+          "source_sha256": "846fb179cbd97f80e31de9a2538b0d51724ba0c85c4aa99b62058a0b44cb1209",
+          "expected": [
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 0,
+              "end": 33
+            }
+          ],
+          "ruff_full_report": [
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 0,
+              "end": 33
+            }
+          ],
+          "matched": true
+        },
+        {
+          "name": "dict-comprehension",
+          "file": "case.py",
+          "source_sha256": "008541e0f842f6054303a902fc26cef0fd0b693592e8052dc4224f8cbda74d39",
+          "expected": [
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 0,
+              "end": 39
+            }
+          ],
+          "ruff_full_report": [
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 0,
+              "end": 39
+            }
+          ],
+          "matched": true
+        },
+        {
+          "name": "parenthesized-literal",
+          "file": "case.py",
+          "source_sha256": "b8e9726963cd2a1b7d8216015baf8a6b1569c1c91499591ee08f065f98bd6816",
+          "expected": [
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 0,
+              "end": 12
+            }
+          ],
+          "ruff_full_report": [
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 0,
+              "end": 12
+            }
+          ],
+          "matched": true
+        },
+        {
+          "name": "identity-chain-positive-left",
+          "file": "case.py",
+          "source_sha256": "88f490999482a33af8414fd03ddd17b4ed0b4f3d40a84b19f1257b25ba720c77",
+          "expected": [
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 0,
+              "end": 19
+            },
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 0,
+              "end": 19
+            }
+          ],
+          "ruff_full_report": [
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 0,
+              "end": 19
+            },
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 0,
+              "end": 19
+            }
+          ],
+          "matched": true
+        },
+        {
+          "name": "identity-chain-positive-right",
+          "file": "case.py",
+          "source_sha256": "b3d63e9d5a2899177cd09380052db82308f7305f3a58fc559404d387bc532566",
+          "expected": [
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 0,
+              "end": 19
+            }
+          ],
+          "ruff_full_report": [
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 0,
+              "end": 19
+            }
+          ],
+          "matched": true
+        },
+        {
+          "name": "chain-unrelated-literal",
+          "file": "case.py",
+          "source_sha256": "fdcfcfa5303d755d80f8e4b5e1a55f04067ebb9a7b2f03786001a5b2ed901321",
+          "expected": [],
+          "ruff_full_report": [],
+          "matched": true
+        },
+        {
+          "name": "chain-right-identity",
+          "file": "case.py",
+          "source_sha256": "eb87c00f9acfd3fa04e79146379602fe0411b57353a371641c8246be65728198",
+          "expected": [
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 0,
+              "end": 20
+            }
+          ],
+          "ruff_full_report": [
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 0,
+              "end": 20
+            }
+          ],
+          "matched": true
+        },
+        {
+          "name": "chain-left-identity",
+          "file": "case.py",
+          "source_sha256": "23af49b07cec06cd6b220965c6ad39a6d6fb4d0434677a88fdc1a952ad05d1cf",
+          "expected": [
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 0,
+              "end": 20
+            }
+          ],
+          "ruff_full_report": [
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 0,
+              "end": 20
+            }
+          ],
+          "matched": true
+        },
+        {
+          "name": "chain-multiple-identities",
+          "file": "case.py",
+          "source_sha256": "b3d63e9d5a2899177cd09380052db82308f7305f3a58fc559404d387bc532566",
+          "expected": [
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 0,
+              "end": 19
+            }
+          ],
+          "ruff_full_report": [
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 0,
+              "end": 19
+            }
+          ],
+          "matched": true
+        },
+        {
+          "name": "chain-nonidentity-between",
+          "file": "case.py",
+          "source_sha256": "26a396ac7e55fdb4601543a4e4e95f65fb69f7c5c23e95106b2fac68d5e6d15f",
+          "expected": [
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 0,
+              "end": 28
+            }
+          ],
+          "ruff_full_report": [
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 0,
+              "end": 28
+            }
+          ],
+          "matched": true
+        },
+        {
+          "name": "multiline",
+          "file": "case.py",
+          "source_sha256": "c28cb611d8d122181ac3b8b8229c1052220f5e50f3eab18968ef8eca7118db41",
+          "expected": [
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 0,
+              "end": 19
+            }
+          ],
+          "ruff_full_report": [
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 0,
+              "end": 19
+            }
+          ],
+          "matched": true
+        },
+        {
+          "name": "inline-noqa",
+          "file": "case.py",
+          "source_sha256": "dc01733c85f1e1dcda90eb32d9330ec93066cac44356dccd74ed24eeb7539e6b",
+          "expected": [],
+          "ruff_full_report": [],
+          "matched": true
+        },
+        {
+          "name": "file-noqa",
+          "file": "case.py",
+          "source_sha256": "003b4ccdd1b515e385da54700ff9684cb3ce5dfa14fefb46474b0396a5170dd8",
+          "expected": [],
+          "ruff_full_report": [],
+          "matched": true
+        },
+        {
+          "name": "unicode-prefix",
+          "file": "case.py",
+          "source_sha256": "ad98b00039b386d53c667ca85f6856b609d182d3b3b76a1026189e512cdc44e4",
+          "expected": [
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 7,
+              "end": 18
+            }
+          ],
+          "ruff_full_report": [
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 7,
+              "end": 18
+            }
+          ],
+          "matched": true
+        },
+        {
+          "name": "unicode-literal",
+          "file": "case.py",
+          "source_sha256": "a308163ca3f72a674a99deffe75b78eb73bc36b18d9c3007a9e1b43a5ddeceda",
+          "expected": [
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 0,
+              "end": 13
+            }
+          ],
+          "ruff_full_report": [
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 0,
+              "end": 13
+            }
+          ],
+          "matched": true
+        },
+        {
+          "name": "is-not-extra-whitespace",
+          "file": "case.py",
+          "source_sha256": "c588e986b61ff445e3303c4dd381731c8716d729f9b3e1a51e2c3109e8b0350d",
+          "expected": [
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 0,
+              "end": 18
+            }
+          ],
+          "ruff_full_report": [
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 0,
+              "end": 18
+            }
+          ],
+          "matched": true
+        },
+        {
+          "name": "is-not-line-continuation",
+          "file": "case.py",
+          "source_sha256": "e6ee8c9741d7efc210ab67af62bb35075b2ccbde1d1c4f18d856cd5b659dfbf7",
+          "expected": [
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 0,
+              "end": 21
+            }
+          ],
+          "ruff_full_report": [
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 0,
+              "end": 21
+            }
+          ],
+          "matched": true
+        },
+        {
+          "name": "is-not-parenthesized-newline",
+          "file": "case.py",
+          "source_sha256": "686b37f8a307a544361edb34908c16884873acdf3df75b392adc0da62b93bc80",
+          "expected": [
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 1,
+              "end": 20
+            }
+          ],
+          "ruff_full_report": [
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 1,
+              "end": 20
+            }
+          ],
+          "matched": true
+        },
+        {
+          "name": "empty-tuple",
+          "file": "case.py",
+          "source_sha256": "8d46ea068baa0984f67e48e753972de1b4ad670e6648f8d00fe3181c61f11987",
+          "expected": [
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 0,
+              "end": 11
+            }
+          ],
+          "ruff_full_report": [
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 0,
+              "end": 11
+            }
+          ],
+          "matched": true
+        },
+        {
+          "name": "tuple-nested-singletons",
+          "file": "case.py",
+          "source_sha256": "6a31a6f1060a9d21f3dea671cb297296a2b9733b3004ac853bd6b94f9f60d975",
+          "expected": [
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 0,
+              "end": 32
+            }
+          ],
+          "ruff_full_report": [
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 0,
+              "end": 32
+            }
+          ],
+          "matched": true
+        },
+        {
+          "name": "nested-compare",
+          "file": "case.py",
+          "source_sha256": "5e8f0ce3531e7d3ebeef6fa6365e341844e32f08fa1a482a465de82b48b17b59",
+          "expected": [
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 1,
+              "end": 12
+            }
+          ],
+          "ruff_full_report": [
+            {
+              "rule": "F632",
+              "file": "case.py",
+              "start": 1,
+              "end": 12
+            }
+          ],
+          "matched": true
+        }
+      ]
+    },
+    "SIM220": {
+      "cases_sha256": "85e9d2f8d5db8e49696058636114a9c993212f6fa911505410ef3066722cce02",
+      "case_count": 29,
+      "matches": 29,
+      "mismatches": [],
+      "cases": [
+        {
+          "name": "same-name",
+          "file": "case.py",
+          "source_sha256": "b08a47b0bc1c53ae387ff7eb483ce0aafe532b0840aaf0827a39e1697b4b4230",
+          "expected": [
+            {
+              "rule": "SIM220",
+              "file": "case.py",
+              "start": 0,
+              "end": 11
+            }
+          ],
+          "ruff_full_report": [
+            {
+              "rule": "SIM220",
+              "file": "case.py",
+              "start": 0,
+              "end": 11
+            }
+          ],
+          "matched": true
+        },
+        {
+          "name": "duplicate-pairs",
+          "file": "case.py",
+          "source_sha256": "bdba5b039b28b6731cc6cae2793e1ee35d53a1198213d5aa6630ad3127e295c5",
+          "expected": [
+            {
+              "rule": "SIM220",
+              "file": "case.py",
+              "start": 0,
+              "end": 21
+            },
+            {
+              "rule": "SIM220",
+              "file": "case.py",
+              "start": 0,
+              "end": 21
+            }
+          ],
+          "ruff_full_report": [
+            {
+              "rule": "SIM220",
+              "file": "case.py",
+              "start": 0,
+              "end": 21
+            },
+            {
+              "rule": "SIM220",
+              "file": "case.py",
+              "start": 0,
+              "end": 21
+            }
+          ],
+          "matched": true
+        },
+        {
+          "name": "builtin-empty-list-is-pure",
+          "file": "case.py",
+          "source_sha256": "8151ca6897fcc36171db7e63e118c2d8aeb809a012c45cd255ce52270f0676a4",
+          "expected": [
+            {
+              "rule": "SIM220",
+              "file": "case.py",
+              "start": 0,
+              "end": 22
+            }
+          ],
+          "ruff_full_report": [
+            {
+              "rule": "SIM220",
+              "file": "case.py",
+              "start": 0,
+              "end": 22
+            }
+          ],
+          "matched": true
+        },
+        {
+          "name": "builtin-empty-tuple-is-pure",
+          "file": "case.py",
+          "source_sha256": "843248bf98b4c24df04d03d71640644d1c643aa38c5b276c580f1ab937ff6aa9",
+          "expected": [
+            {
+              "rule": "SIM220",
+              "file": "case.py",
+              "start": 0,
+              "end": 23
+            }
+          ],
+          "ruff_full_report": [
+            {
+              "rule": "SIM220",
+              "file": "case.py",
+              "start": 0,
+              "end": 23
+            }
+          ],
+          "matched": true
+        },
+        {
+          "name": "shadowed-list-is-effectful",
+          "file": "case.py",
+          "source_sha256": "96671d38c1f7f64f0ab7364f7144859bd94251d2ca278dbacfd1344667cc0eb7",
+          "expected": [],
+          "ruff_full_report": [],
+          "matched": true
+        },
+        {
+          "name": "call-is-effectful",
+          "file": "case.py",
+          "source_sha256": "2d29517169e140efe8be50e1763c665fc6b6879d2b718b774b78a1e19d8a9a53",
+          "expected": [],
+          "ruff_full_report": [],
+          "matched": true
+        },
+        {
+          "name": "literal-binop-is-pure",
+          "file": "case.py",
+          "source_sha256": "af52940cf2bc709f660527db879ab28c123d4ac5375a14ffbfb14d9424307aea",
+          "expected": [
+            {
+              "rule": "SIM220",
+              "file": "case.py",
+              "start": 0,
+              "end": 23
+            }
+          ],
+          "ruff_full_report": [
+            {
+              "rule": "SIM220",
+              "file": "case.py",
+              "start": 0,
+              "end": 23
+            }
+          ],
+          "matched": true
+        },
+        {
+          "name": "name-binop-is-effectful",
+          "file": "case.py",
+          "source_sha256": "a399e5ec99f130fe5aa1730cdbeb6edc63ac7c2029bee1678d4ed35f7def7f17",
+          "expected": [],
+          "ruff_full_report": [],
+          "matched": true
+        },
+        {
+          "name": "named-expression-is-effectful",
+          "file": "case.py",
+          "source_sha256": "c69ff12bce25b326e434d281c91d0949d8668f4a9eb558eaedccfd9259495958",
+          "expected": [],
+          "ruff_full_report": [],
+          "matched": true
+        },
+        {
+          "name": "subscript-is-effectful",
+          "file": "case.py",
+          "source_sha256": "679b4ea56799883d88f3ba931e5336279227209ae91d9d81674d428c75273c04",
+          "expected": [],
+          "ruff_full_report": [],
+          "matched": true
+        },
+        {
+          "name": "f-string-name-is-not-effectful",
+          "file": "case.py",
+          "source_sha256": "8ad35138cb6cef38567415fc640358ebaaffc9511c321527738979b09b14d10f",
+          "expected": [
+            {
+              "rule": "SIM220",
+              "file": "case.py",
+              "start": 0,
+              "end": 22
+            }
+          ],
+          "ruff_full_report": [
+            {
+              "rule": "SIM220",
+              "file": "case.py",
+              "start": 0,
+              "end": 22
+            }
+          ],
+          "matched": true
+        },
+        {
+          "name": "f-string-call-is-effectful",
+          "file": "case.py",
+          "source_sha256": "26ccd59a5bc1df28973ad8071ce9f7384d6659a10f6d29170a1828ff46dd06ac",
+          "expected": [],
+          "ruff_full_report": [],
+          "matched": true
+        },
+        {
+          "name": "inline-noqa",
+          "file": "case.py",
+          "source_sha256": "c2298ee82cb86dd44006aeef8673100c26287a5cc60b477a7d530636bff837a9",
+          "expected": [
+            {
+              "rule": "SIM220",
+              "file": "case.py",
+              "start": 15,
+              "end": 26
+            }
+          ],
+          "ruff_full_report": [
+            {
+              "rule": "SIM220",
+              "file": "case.py",
+              "start": 15,
+              "end": 26
+            }
+          ],
+          "matched": true
+        },
+        {
+          "name": "file-noqa",
+          "file": "case.py",
+          "source_sha256": "a0fc5a98e83e5156075835a5212ca1c38002926dea1c5f8e8661e7bb7d39704f",
+          "expected": [],
+          "ruff_full_report": [],
+          "matched": true
+        },
+        {
+          "name": "all-pairs-keep-multiplicity",
+          "file": "case.py",
+          "source_sha256": "7a5407b1e391e539dd38eedf2353f8ce47712e3af80913037889a69b2d201232",
+          "expected": [
+            {
+              "rule": "SIM220",
+              "file": "case.py",
+              "start": 0,
+              "end": 27
+            },
+            {
+              "rule": "SIM220",
+              "file": "case.py",
+              "start": 0,
+              "end": 27
+            }
+          ],
+          "ruff_full_report": [
+            {
+              "rule": "SIM220",
+              "file": "case.py",
+              "start": 0,
+              "end": 27
+            },
+            {
+              "rule": "SIM220",
+              "file": "case.py",
+              "start": 0,
+              "end": 27
+            }
+          ],
+          "matched": true
+        },
+        {
+          "name": "lambda-body-call-is-effectful",
+          "file": "case.py",
+          "source_sha256": "f670fbadc2e3b2e09b1f9957097d3ff133f557dab4a1a90a1afeb779f78b05e9",
+          "expected": [],
+          "ruff_full_report": [],
+          "matched": true
+        },
+        {
+          "name": "imported-alias-empty-constructor-is-call",
+          "file": "case.py",
+          "source_sha256": "6e85de39d2ec738f3f0a63dcdf7142aa596011a3132b10ca351f04528e534cf1",
+          "expected": [],
+          "ruff_full_report": [],
+          "matched": true
+        },
+        {
+          "name": "qualified-builtins-attribute-is-call",
+          "file": "case.py",
+          "source_sha256": "578df52f99860c2d9f6127b7eb589e1528d278a5e11db7f8bd49796a2d57716a",
+          "expected": [],
+          "ruff_full_report": [],
+          "matched": true
+        },
+        {
+          "name": "inner-lambda-shadow-does-not-change-enclosing-builtin-check",
+          "file": "case.py",
+          "source_sha256": "dffb632e837f31b92e7d3609433d938693c1292f42a66378b9ae13be8fddc6ca",
+          "expected": [
+            {
+              "rule": "SIM220",
+              "file": "case.py",
+              "start": 0,
+              "end": 37
+            }
+          ],
+          "ruff_full_report": [
+            {
+              "rule": "SIM220",
+              "file": "case.py",
+              "start": 0,
+              "end": 37
+            }
+          ],
+          "matched": true
+        },
+        {
+          "name": "enclosing-function-shadow-applies-inside-lambda",
+          "file": "case.py",
+          "source_sha256": "c5597ccf1066c4feff6aa2ae3b5c3e30a380f37b556cfd85f00741c4542a0182",
+          "expected": [],
+          "ruff_full_report": [],
+          "matched": true
+        },
+        {
+          "name": "lambda-body-ordinary-call-is-effectful",
+          "file": "case.py",
+          "source_sha256": "e623f7c3aa50f9caaf44452b00d3e8f3ed07ce07327f0c9387768202364a58f2",
+          "expected": [],
+          "ruff_full_report": [],
+          "matched": true
+        },
+        {
+          "name": "conditional-shadow-before-check",
+          "file": "case.py",
+          "source_sha256": "77af5818a9462f07dafdbd37fa091b2066b35043dd45188d2ac97c96f961ad39",
+          "expected": [],
+          "ruff_full_report": [],
+          "matched": true
+        },
+        {
+          "name": "annotation-before-check-is-skipped",
+          "file": "case.py",
+          "source_sha256": "86b42396828631a68f54c1c2a7e85891446e3b1bd860b7f4858cb9d9ccdf98d3",
+          "expected": [
+            {
+              "rule": "SIM220",
+              "file": "case.py",
+              "start": 13,
+              "end": 50
+            }
+          ],
+          "ruff_full_report": [
+            {
+              "rule": "SIM220",
+              "file": "case.py",
+              "start": 13,
+              "end": 50
+            }
+          ],
+          "matched": true
+        },
+        {
+          "name": "delete-before-check-blocks-builtin",
+          "file": "case.py",
+          "source_sha256": "2d3f2132595ec9c1e1f71cf37947e5cc53d6288c29f7b37fb56acf598fad1eb1",
+          "expected": [],
+          "ruff_full_report": [],
+          "matched": true
+        },
+        {
+          "name": "function-local-assignment-after-check",
+          "file": "case.py",
+          "source_sha256": "fedaa343af9c7a7026f81361e57ae1bf97505ac9f20582d3a8f12367dc8f375c",
+          "expected": [
+            {
+              "rule": "SIM220",
+              "file": "case.py",
+              "start": 13,
+              "end": 50
+            }
+          ],
+          "ruff_full_report": [
+            {
+              "rule": "SIM220",
+              "file": "case.py",
+              "start": 13,
+              "end": 50
+            }
+          ],
+          "matched": true
+        },
+        {
+          "name": "module-binding-after-function-before-deferred-check",
+          "file": "case.py",
+          "source_sha256": "5cff5696d5ac2353b2680a7c9911f8b19efc1c89c1765806b47b35bbb8b6082b",
+          "expected": [],
+          "ruff_full_report": [],
+          "matched": true
+        },
+        {
+          "name": "nested-class-skips-outer-class-binding",
+          "file": "case.py",
+          "source_sha256": "3e44b3c35de4144ffee0334dca6dc89a28d962ce7775a5e18d90588574a8eb32",
+          "expected": [
+            {
+              "rule": "SIM220",
+              "file": "case.py",
+              "start": 56,
+              "end": 93
+            }
+          ],
+          "ruff_full_report": [
+            {
+              "rule": "SIM220",
+              "file": "case.py",
+              "start": 56,
+              "end": 93
+            }
+          ],
+          "matched": true
+        },
+        {
+          "name": "function-in-class-skips-class-binding",
+          "file": "case.py",
+          "source_sha256": "6edeab7bd08c19140a95941df5657f8d52f00a10a94af79ebb8569da65c10772",
+          "expected": [
+            {
+              "rule": "SIM220",
+              "file": "case.py",
+              "start": 52,
+              "end": 89
+            }
+          ],
+          "ruff_full_report": [
+            {
+              "rule": "SIM220",
+              "file": "case.py",
+              "start": 52,
+              "end": 89
+            }
+          ],
+          "matched": true
+        },
+        {
+          "name": "current-class-binding-is-visible",
+          "file": "case.py",
+          "source_sha256": "4c0ce15c6b518492e77aaafb1d67eab9fe09066180f1276595d366c21ab8d864",
+          "expected": [],
+          "ruff_full_report": [],
+          "matched": true
+        }
+      ]
+    },
+    "SIM221": {
+      "cases_sha256": "69975a936b6d227cc38aef4387ed8b4eab213287980f49bc34b6d4f257d5880f",
+      "case_count": 29,
+      "matches": 29,
+      "mismatches": [],
+      "cases": [
+        {
+          "name": "same-name",
+          "file": "case.py",
+          "source_sha256": "d66b88fd89bd8f9c3f3477c54e7eb4db7f4c721f703b9a26f3db5eadb998a7b1",
+          "expected": [
+            {
+              "rule": "SIM221",
+              "file": "case.py",
+              "start": 0,
+              "end": 10
+            }
+          ],
+          "ruff_full_report": [
+            {
+              "rule": "SIM221",
+              "file": "case.py",
+              "start": 0,
+              "end": 10
+            }
+          ],
+          "matched": true
+        },
+        {
+          "name": "duplicate-pairs",
+          "file": "case.py",
+          "source_sha256": "f701e1560186b53b26bbcdc030850de897c9f2bf6a35e88ee55a3ad9230dce18",
+          "expected": [
+            {
+              "rule": "SIM221",
+              "file": "case.py",
+              "start": 0,
+              "end": 19
+            },
+            {
+              "rule": "SIM221",
+              "file": "case.py",
+              "start": 0,
+              "end": 19
+            }
+          ],
+          "ruff_full_report": [
+            {
+              "rule": "SIM221",
+              "file": "case.py",
+              "start": 0,
+              "end": 19
+            },
+            {
+              "rule": "SIM221",
+              "file": "case.py",
+              "start": 0,
+              "end": 19
+            }
+          ],
+          "matched": true
+        },
+        {
+          "name": "builtin-empty-list-is-pure",
+          "file": "case.py",
+          "source_sha256": "2a25e6dd14a9b3fcd46ee5e8403ab413bf2d8ddbb6a91613a61c6617667fd14b",
+          "expected": [
+            {
+              "rule": "SIM221",
+              "file": "case.py",
+              "start": 0,
+              "end": 20
+            }
+          ],
+          "ruff_full_report": [
+            {
+              "rule": "SIM221",
+              "file": "case.py",
+              "start": 0,
+              "end": 20
+            }
+          ],
+          "matched": true
+        },
+        {
+          "name": "builtin-empty-tuple-is-pure",
+          "file": "case.py",
+          "source_sha256": "4ed9b459de89560681e5597c567eb48185bd6118aafc720ec48635dc3780ccc1",
+          "expected": [
+            {
+              "rule": "SIM221",
+              "file": "case.py",
+              "start": 0,
+              "end": 21
+            }
+          ],
+          "ruff_full_report": [
+            {
+              "rule": "SIM221",
+              "file": "case.py",
+              "start": 0,
+              "end": 21
+            }
+          ],
+          "matched": true
+        },
+        {
+          "name": "shadowed-list-is-effectful",
+          "file": "case.py",
+          "source_sha256": "ddf683f395b499a0bb76f972a69d5404b0448cbbbd4c9aa9a519e6f6f4b4274c",
+          "expected": [],
+          "ruff_full_report": [],
+          "matched": true
+        },
+        {
+          "name": "call-is-effectful",
+          "file": "case.py",
+          "source_sha256": "09cb2db72f8d1d903962205afc4d6e8338430eff237d04b1d9cd3ced2503ee5d",
+          "expected": [],
+          "ruff_full_report": [],
+          "matched": true
+        },
+        {
+          "name": "literal-binop-is-pure",
+          "file": "case.py",
+          "source_sha256": "b2c0c258605a50543b5b4293a2cf4d6361b6502235a508446b106686df7b9beb",
+          "expected": [
+            {
+              "rule": "SIM221",
+              "file": "case.py",
+              "start": 0,
+              "end": 21
+            }
+          ],
+          "ruff_full_report": [
+            {
+              "rule": "SIM221",
+              "file": "case.py",
+              "start": 0,
+              "end": 21
+            }
+          ],
+          "matched": true
+        },
+        {
+          "name": "name-binop-is-effectful",
+          "file": "case.py",
+          "source_sha256": "38bd33f9881aa574b408fdfa7cdd2c11870f1b2e7769963ee474213d94b5943a",
+          "expected": [],
+          "ruff_full_report": [],
+          "matched": true
+        },
+        {
+          "name": "named-expression-is-effectful",
+          "file": "case.py",
+          "source_sha256": "f0f65d5dce3e97dc2876200a1b8ccf16ed499e4fd194cde3ca25b60f634384fa",
+          "expected": [],
+          "ruff_full_report": [],
+          "matched": true
+        },
+        {
+          "name": "subscript-is-effectful",
+          "file": "case.py",
+          "source_sha256": "46d16eb6684a87ed606ee7209a37e45313501edff887c396e341d3d0cdd7e97c",
+          "expected": [],
+          "ruff_full_report": [],
+          "matched": true
+        },
+        {
+          "name": "f-string-name-is-not-effectful",
+          "file": "case.py",
+          "source_sha256": "945cd8a8be40ff023ca9e5d3f452fa5d3dec6c483c6942acd96292f2ebf80a67",
+          "expected": [
+            {
+              "rule": "SIM221",
+              "file": "case.py",
+              "start": 0,
+              "end": 20
+            }
+          ],
+          "ruff_full_report": [
+            {
+              "rule": "SIM221",
+              "file": "case.py",
+              "start": 0,
+              "end": 20
+            }
+          ],
+          "matched": true
+        },
+        {
+          "name": "f-string-call-is-effectful",
+          "file": "case.py",
+          "source_sha256": "4d42f3aa2bbd0ce09f686cc958ab29aed985eb9b9f3e358e6fa668eacdbf8085",
+          "expected": [],
+          "ruff_full_report": [],
+          "matched": true
+        },
+        {
+          "name": "inline-noqa",
+          "file": "case.py",
+          "source_sha256": "7fb24650e41870bd056705787c6e759a1b45b3c51e8e086b66fd5c2f84064ebc",
+          "expected": [
+            {
+              "rule": "SIM221",
+              "file": "case.py",
+              "start": 15,
+              "end": 25
+            }
+          ],
+          "ruff_full_report": [
+            {
+              "rule": "SIM221",
+              "file": "case.py",
+              "start": 15,
+              "end": 25
+            }
+          ],
+          "matched": true
+        },
+        {
+          "name": "file-noqa",
+          "file": "case.py",
+          "source_sha256": "61a226cac5a18af70e144a329c21271e1fd14c2c9d9dd3dd741697a0250efeee",
+          "expected": [],
+          "ruff_full_report": [],
+          "matched": true
+        },
+        {
+          "name": "all-pairs-keep-multiplicity",
+          "file": "case.py",
+          "source_sha256": "48d855cc8a332073ce1a02f89a187d03f3da143f16dfa4353c9e8ca12f004bce",
+          "expected": [
+            {
+              "rule": "SIM221",
+              "file": "case.py",
+              "start": 0,
+              "end": 24
+            },
+            {
+              "rule": "SIM221",
+              "file": "case.py",
+              "start": 0,
+              "end": 24
+            }
+          ],
+          "ruff_full_report": [
+            {
+              "rule": "SIM221",
+              "file": "case.py",
+              "start": 0,
+              "end": 24
+            },
+            {
+              "rule": "SIM221",
+              "file": "case.py",
+              "start": 0,
+              "end": 24
+            }
+          ],
+          "matched": true
+        },
+        {
+          "name": "lambda-body-call-is-effectful",
+          "file": "case.py",
+          "source_sha256": "5a0baf741b390443b86e1aa07b6a30b5f797d522f74d43a0d81a37b3904a6258",
+          "expected": [],
+          "ruff_full_report": [],
+          "matched": true
+        },
+        {
+          "name": "imported-alias-empty-constructor-is-call",
+          "file": "case.py",
+          "source_sha256": "798747e171813c5106c0ca52fb2682bb690eac76203a63aad78da4449579cdd6",
+          "expected": [],
+          "ruff_full_report": [],
+          "matched": true
+        },
+        {
+          "name": "qualified-builtins-attribute-is-call",
+          "file": "case.py",
+          "source_sha256": "d2180bfe6fca760a4a92689518f48741463786c4df7b4f284ed9aed88642b0ca",
+          "expected": [],
+          "ruff_full_report": [],
+          "matched": true
+        },
+        {
+          "name": "inner-lambda-shadow-does-not-change-enclosing-builtin-check",
+          "file": "case.py",
+          "source_sha256": "b3b85572a15d4e3cdea02ce48b52da4ed76592177b22a57ed30a3bff34d1bbce",
+          "expected": [
+            {
+              "rule": "SIM221",
+              "file": "case.py",
+              "start": 0,
+              "end": 35
+            }
+          ],
+          "ruff_full_report": [
+            {
+              "rule": "SIM221",
+              "file": "case.py",
+              "start": 0,
+              "end": 35
+            }
+          ],
+          "matched": true
+        },
+        {
+          "name": "enclosing-function-shadow-applies-inside-lambda",
+          "file": "case.py",
+          "source_sha256": "6c39c95010e24f3c697b9bbd1cd7b5ac52bad65173b8aabb9422d696b894b2b5",
+          "expected": [],
+          "ruff_full_report": [],
+          "matched": true
+        },
+        {
+          "name": "lambda-body-ordinary-call-is-effectful",
+          "file": "case.py",
+          "source_sha256": "8b7c3fedad771d6438e0f534130992726fd4d90735a0955939e4fa9f80372abd",
+          "expected": [],
+          "ruff_full_report": [],
+          "matched": true
+        },
+        {
+          "name": "conditional-shadow-before-check",
+          "file": "case.py",
+          "source_sha256": "420c9925d241aec376fa38392dfed1eedcc89032400aed01fe634686aa2037c0",
+          "expected": [],
+          "ruff_full_report": [],
+          "matched": true
+        },
+        {
+          "name": "annotation-before-check-is-skipped",
+          "file": "case.py",
+          "source_sha256": "437f015b2f73474eb88683094f8c0fa087bdc384b8e71914b25e480cb5c685be",
+          "expected": [
+            {
+              "rule": "SIM221",
+              "file": "case.py",
+              "start": 13,
+              "end": 48
+            }
+          ],
+          "ruff_full_report": [
+            {
+              "rule": "SIM221",
+              "file": "case.py",
+              "start": 13,
+              "end": 48
+            }
+          ],
+          "matched": true
+        },
+        {
+          "name": "delete-before-check-blocks-builtin",
+          "file": "case.py",
+          "source_sha256": "2c3156f1567d0f8adcfdcb7bada2d393982c10c1bb6eebe88969053cdf5759e2",
+          "expected": [],
+          "ruff_full_report": [],
+          "matched": true
+        },
+        {
+          "name": "function-local-assignment-after-check",
+          "file": "case.py",
+          "source_sha256": "8f4c269bb05647d5b0423fda9c2986ea4daa2311df4633befe3073570b175863",
+          "expected": [
+            {
+              "rule": "SIM221",
+              "file": "case.py",
+              "start": 13,
+              "end": 48
+            }
+          ],
+          "ruff_full_report": [
+            {
+              "rule": "SIM221",
+              "file": "case.py",
+              "start": 13,
+              "end": 48
+            }
+          ],
+          "matched": true
+        },
+        {
+          "name": "module-binding-after-function-before-deferred-check",
+          "file": "case.py",
+          "source_sha256": "41ea4e39abaf2ca61fef954af257a5e9282532e468e12341baec7e24b1b308bc",
+          "expected": [],
+          "ruff_full_report": [],
+          "matched": true
+        },
+        {
+          "name": "nested-class-skips-outer-class-binding",
+          "file": "case.py",
+          "source_sha256": "f10feb2c7d01bbe2fa59f5da8c2cd11a53121d92beac9526ae762c5a69c6fadd",
+          "expected": [
+            {
+              "rule": "SIM221",
+              "file": "case.py",
+              "start": 56,
+              "end": 91
+            }
+          ],
+          "ruff_full_report": [
+            {
+              "rule": "SIM221",
+              "file": "case.py",
+              "start": 56,
+              "end": 91
+            }
+          ],
+          "matched": true
+        },
+        {
+          "name": "function-in-class-skips-class-binding",
+          "file": "case.py",
+          "source_sha256": "620ebe9764b20dbfc9bbc72df4153304acb18b67790b9a839f8616faf3658df3",
+          "expected": [
+            {
+              "rule": "SIM221",
+              "file": "case.py",
+              "start": 52,
+              "end": 87
+            }
+          ],
+          "ruff_full_report": [
+            {
+              "rule": "SIM221",
+              "file": "case.py",
+              "start": 52,
+              "end": 87
+            }
+          ],
+          "matched": true
+        },
+        {
+          "name": "current-class-binding-is-visible",
+          "file": "case.py",
+          "source_sha256": "46accc3bb97d5b3966b1e078788901dd5ff1b5efaada8cb735c3531d27a9bad5",
+          "expected": [],
+          "ruff_full_report": [],
+          "matched": true
+        }
+      ]
+    }
+  },
+  "total_cases": 94,
+  "total_matches": 94
+}

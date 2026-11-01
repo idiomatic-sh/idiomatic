@@ -176,7 +176,7 @@ expected = [{ rule = "F632", file = "case.py", start = 7, end = 18 }]
 name = "unicode-literal"
 comparison = "full"
 files = { "case.py" = "value is \"é\"\n" }
-expected = [{ rule = "F632", file = "case.py", start = 0, end = 12 }]
+expected = [{ rule = "F632", file = "case.py", start = 0, end = 13 }]
 
 [[cases]]
 name = "is-not-extra-whitespace"
