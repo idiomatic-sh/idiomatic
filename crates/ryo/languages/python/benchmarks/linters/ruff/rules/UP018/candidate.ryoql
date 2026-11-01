@@ -4,7 +4,7 @@ let call_functions = select l.parent as call, l.child as function, r.file as fil
 let name_nodes = select id, file from "semantic-syntax" where kind = "name";
 let identifier_fields = select parent, child from "semantic-child" where field = "id";
 let function_name_nodes = select l.parent as reference, l.child as identifier, r.file as file from identifier_fields as l join name_nodes as r on l.parent = r.id;
-let function_names = select l.reference as reference, r.name as name, l.file as file from function_name_nodes as l join "identifier" as r on l.identifier = r.id and l.file = r.file;
+let function_names = select l.reference as reference, r.name as name, l.file as file from function_name_nodes as l join "identifier" as r on l.reference = r.id and l.file = r.file;
 let bool_symbols = select name, file from "implicit-symbol" where kind = "builtin" and name = "bool";
 let bytes_symbols = select name, file from "implicit-symbol" where kind = "builtin" and name = "bytes";
 let complex_symbols = select name, file from "implicit-symbol" where kind = "builtin" and name = "complex";
@@ -64,7 +64,7 @@ let argument_nodes = select id, file from "semantic-syntax" where kind = "call-a
 let call_wrappers = select l.call as call, r.id as wrapper, r.file as file from call_argument_fields as l join argument_nodes as r on l.wrapper = r.id;
 let positional_fields = select parent, child, ordinal from "semantic-child" where field = "args";
 let positional_args = select l.call as call, r.child as argument, r.ordinal as ordinal, l.file as file from call_wrappers as l join positional_fields as r on l.wrapper = r.parent;
-let first_positional = select call, argument, file from positional_args where ordinal = 0;
+let first_positional = select call, argument, file from positional_args where ordinal = 1;
 let later_positionals = select l.call as call, l.argument as argument, l.file as file from positional_args as l join positional_args as r on l.call = r.call and l.file = r.file where l.ordinal < r.ordinal;
 let exactly_one_positional = antijoin(left=first_positional,right=later_positionals,left-on=["call","argument","file"],right-on=["call","argument","file"]);
 let keyword_fields = select parent, child from "semantic-child" where field = "keywords";
@@ -86,8 +86,13 @@ let named_keywords = select l.call as call, l.keyword as keyword, l.id as id, l.
 let keyword_value_fields = select parent, child from "semantic-child" where field = "value";
 let keyword_values = select l.parent as keyword, l.child as value, r.call as call, r.file as file from keyword_value_fields as l join keywords as r on l.parent = r.keyword;
 let keyword_rows = select l.call as call, l.keyword as keyword, l.name as name, r.value as value, l.file as file from named_keywords as l join keyword_values as r on l.keyword = r.keyword and l.call = r.call and l.file = r.file;
+let keyword_pairs = select l.call as call, l.keyword as keyword, l.file as file from keywords as l join keywords as r on l.call = r.call and l.file = r.file where l.keyword != r.keyword;
+let multiply_keyworded = select call, keyword, file from keyword_pairs;
+let single_keywords = antijoin(left=keywords, right=multiply_keyworded, left-on=["call","keyword","file"], right-on=["call","keyword","file"]);
+let keyword_only_calls = antijoin(left=single_keywords, right=positional_args, left-on=["call","file"], right-on=["call","file"]);
 let candidate_keyword_specs = select l.call as call, l.value as value, l.file as file, r.reference as reference, r.expected_kind as expected_kind, r.keyword_name as keyword_name, r.mode as mode from keyword_rows as l join call_specs as r on l.call = r.call and l.file = r.file where l.name = r.keyword_name;
-let keyword_matches = select l.call as call, l.reference as reference, l.file as file, l.mode as mode from candidate_keyword_specs as l join value_kinds as r on l.value = r.id and l.file = r.file where l.expected_kind = r.value_kind;
+let valid_keyword_specs = select l.call as call, l.value as value, l.file as file, l.reference as reference, l.expected_kind as expected_kind, l.keyword_name as keyword_name, l.mode as mode from candidate_keyword_specs as l join keyword_only_calls as r on l.call = r.call and l.file = r.file;
+let keyword_matches = select l.call as call, l.reference as reference, l.file as file, l.mode as mode from valid_keyword_specs as l join value_kinds as r on l.value = r.id and l.file = r.file where l.expected_kind = r.value_kind;
 let valid_value_calls_a = union(left=positional_matches,right=keyword_matches);
 let valid_value_calls = union(left=valid_value_calls_a,right=empty_call_matches);
 let calls_with_spans = select l.call as call, l.reference as reference, l.file as file, r.span as span, l.mode as mode from valid_value_calls as l join calls as r on l.call = r.id and l.file = r.file;

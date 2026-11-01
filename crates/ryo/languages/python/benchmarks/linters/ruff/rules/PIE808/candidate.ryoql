@@ -9,9 +9,16 @@ let argument_nodes = select id, file from "semantic-syntax" where kind = "call-a
 let wrappers = select l.call as call, r.id as wrapper, r.file as file from argument_edges as l join argument_nodes as r on l.wrapper = r.id;
 let range_wrappers = select l.call as call, r.wrapper as wrapper, l.file as file from range_calls as l join wrappers as r on l.call = r.call and l.file = r.file;
 let positional_fields = select parent, child, ordinal from "semantic-child" where field = "args";
-let first_arguments = select l.call as call, r.child as argument, l.file as file from range_wrappers as l join positional_fields as r on l.wrapper = r.parent where r.ordinal = 0;
+let first_arguments = select l.call as call, r.child as argument, l.file as file from range_wrappers as l join positional_fields as r on l.wrapper = r.parent where r.ordinal = 1;
+let positional_counts = group-count(from=positional_fields, keys=["parent"], count="count", distinct="child");
+let exactly_two_wrappers = select parent as wrapper from positional_counts where count = 2;
+let exactly_two_calls = select l.call as call, l.file as file from range_wrappers as l join exactly_two_wrappers as r on l.wrapper = r.wrapper;
+let keyword_fields = select parent, child from "semantic-child" where field = "keywords";
+let keyword_arguments = select l.call as call, l.file as file from range_wrappers as l join keyword_fields as r on l.wrapper = r.parent;
+let exact_positional_calls = antijoin(left=exactly_two_calls, right=keyword_arguments, left-on=["call","file"], right-on=["call","file"]);
 let zero_integer_literals = select id, file from "literal-properties" where kind = "integer" and zero = "true";
-let zero_start_arguments = select l.argument as id, l.file as file from first_arguments as l join zero_integer_literals as r on l.argument = r.id and l.file = r.file;
+let exact_first_arguments = select l.argument as argument, l.file as file from first_arguments as l join exact_positional_calls as r on l.call = r.call and l.file = r.file;
+let zero_start_arguments = select l.argument as id, l.file as file from exact_first_arguments as l join zero_integer_literals as r on l.argument = r.id and l.file = r.file;
 let reportable = select l.id as id, l.file as file, r.span as span from zero_start_arguments as l join "semantic-syntax" as r on l.id = r.id and l.file = r.file;
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id and l.file = r.file;
 let violations = suppress(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*PIE808(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:PIE808)(?:,|$)");
