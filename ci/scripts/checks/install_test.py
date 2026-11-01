@@ -81,11 +81,11 @@ def test_asymptote_is_the_version_the_root_asymptote_toml_pins(tmp_path) -> None
     assert "idiomatic-sh-asymptote" not in {crate.name for crate in install.declared_crates()}
 
 
-def test_the_own_tools_of_the_repository_are_built_from_their_paths() -> None:
+def test_the_own_tools_are_prebuilt_once_published_and_built_from_their_paths_until_then() -> None:
     crates = {crate.name: crate for crate in [*install.ROOT_CRATES, *install.declared_crates()]}
     assert crates["idiomatic-sh-tastemaker"].path == (ROOT / "crates/tastemaker/cli").resolve()
-    assert crates["idiomatic-sh-asymptote"].path == (ROOT / "crates/asymptote/cli").resolve()
-    assert crates["idiomatic-sh-ryo"].path == (ROOT / "crates/ryo/cli").resolve()
+    assert crates["idiomatic-sh-asymptote"].path is None
+    assert crates["idiomatic-sh-ryo"].path is None
     assert (crates["idiomatic-sh-ryo"].bins, crates["idiomatic-sh-ryo"].version) == (("ryo",), install.workspace_version("ryo"))
     assert install.ARCHIVES["taplo"]["version"] == "0.10.0"
 
@@ -170,3 +170,30 @@ def test_every_machine_the_checks_run_on_has_a_recorded_archive() -> None:
         assert len(install.BINSTALL["sha256"][install.binstall_asset(host)]) == 64
         for tool in install.ARCHIVES.values():
             assert len(tool["assets"][host][1]) == 64
+
+
+def test_an_own_tool_is_kept_only_when_it_is_the_command_of_the_release_archive_its_sha256sums_names(tmp_path, monkeypatch) -> None:
+    import hashlib
+    import io
+    import tarfile
+
+    packed = io.BytesIO()
+    with tarfile.open(fileobj=packed, mode="w:gz") as archive:
+        info = tarfile.TarInfo("ryo")
+        info.size = 7
+        archive.addfile(info, io.BytesIO(b"release"))
+    data = packed.getvalue()
+    name = "idiomatic-sh-ryo-x86_64-unknown-linux-gnu.tar.gz"
+    files = {"SHA256SUMS": f"{hashlib.sha256(data).hexdigest()}  {name}\n".encode(), name: data}
+    monkeypatch.setattr(install.urllib.request, "urlopen", lambda url: io.BytesIO(files[url.rsplit("/", 1)[1]]))
+    monkeypatch.setattr(install.os, "name", "posix")
+    crate = install.Crate("idiomatic-sh-ryo", "0.1.1", bins=("ryo",))
+    (tmp_path / "ryo").write_bytes(b"release")
+    install.verify_release(crate, "x86_64-unknown-linux-gnu", tmp_path)
+    (tmp_path / "ryo").write_bytes(b"another")
+    with pytest.raises(SystemExit):
+        install.verify_release(crate, "x86_64-unknown-linux-gnu", tmp_path)
+    files[name] = data + b"tampered"
+    (tmp_path / "ryo").write_bytes(b"release")
+    with pytest.raises(SystemExit):
+        install.verify_release(crate, "x86_64-unknown-linux-gnu", tmp_path)

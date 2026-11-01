@@ -9,10 +9,10 @@
 
 Where a version is declared:
 
-- a Rust tool more than one product runs, or that no product declares, once, in `ROOT_CRATES` below; our own tools carry a `path`
-  and are built from this checkout, at the version the root's own file names (`tastemaker = "x.y.z"` in `tastemaker.toml`,
-  `asymptote = "x.y.z"` in `asymptote.toml`), the line the tool checks itself against on every run; `ryo` is built at the version of its
-  Cargo workspace (`crates/ryo/Cargo.toml`).
+- a Rust tool more than one product runs, or that no product declares, once, in `ROOT_CRATES` below; our own tools are installed at
+  the version the root's own file names (`tastemaker = "x.y.z"` in `tastemaker.toml`, `asymptote = "x.y.z"` in `asymptote.toml`), the
+  line the tool checks itself against on every run; `ryo` at the version of its Cargo workspace (`crates/ryo/Cargo.toml`). One not yet
+  published carries a `path` and is built from this checkout.
 - a Rust tool only one product runs, in that product's `[workspace.metadata.bin]` (its `crates/*/Cargo.toml`):
   `name = { version = "x.y.z", locked = true, bins = [...] }`, and `path = "..."` (relative to that manifest) for our own tools. A tool is
   declared in one place: one `ROOT_CRATES` holds, or another product's manifest declares, is an error.
@@ -28,7 +28,8 @@ Where a version is declared:
 A Rust tool is fetched prebuilt with `cargo binstall`, which may not compile it: no tool is compiled. A tool with no prebuilt release for a
 machine is named in its `unavailable` (the machine's target) with the reason, and is not installed there: the groups that run it do not run
 on that machine. Any other missing prebuilt fails the install. A tool whose release ships plain archives cargo-binstall does not find is in
-`ARCHIVES`, each archive's SHA-256 recorded. Our own tools are built from this checkout until they are published. A tool installed from a path is installed again when its
+`ARCHIVES`, each archive's SHA-256 recorded. Our own published tools come prebuilt from the GitHub Release of their tag, the installed
+command checked against the archive the release's `SHA256SUMS` names. A tool installed from a path is installed again when its
 version differs or a source file is newer than the installed command; any other tool whose installed version is the declared one is
 left as it is.
 """
@@ -98,8 +99,8 @@ class Crate:
 ROOT_CRATES = [
     # path until the first release, then the version alone.
     Crate("idiomatic-sh-tastemaker", pinned("tastemaker"), path=ROOT / "crates/tastemaker/cli", bins=("tm",)),
-    Crate("idiomatic-sh-asymptote", pinned("asymptote"), path=ROOT / "crates/asymptote/cli", bins=("asymptote",)),
-    Crate("idiomatic-sh-ryo", workspace_version("ryo"), path=ROOT / "crates/ryo/cli", bins=("ryo",)),
+    Crate("idiomatic-sh-asymptote", pinned("asymptote"), bins=("asymptote",)),
+    Crate("idiomatic-sh-ryo", workspace_version("ryo"), bins=("ryo",)),
     Crate("cargo-deny", "0.20.2"),
     Crate("cargo-nextest", "0.9.146"),
     Crate("cargo-machete", "0.9.2"),
@@ -299,10 +300,43 @@ def install_crate(crate: Crate, host: str) -> str:
         return f"not installed: {crate.unavailable[host]}"
     if options:
         sys.exit(f"{crate.name}: a prebuilt release has no features to choose")
-    argv = ["cargo", "binstall", "--no-confirm", "--locked", "--force", "--disable-strategies", "compile", f"{crate.name}@{crate.version}"]
+    ours = crate.name.startswith(OURS)
+    # Ours fetches the archive of this very target, the one `verify_release` checks.
+    targets = ["--targets", host] if ours else []
+    argv = ["cargo", "binstall", "--no-confirm", "--locked", "--force", "--disable-strategies", "compile", *targets, f"{crate.name}@{crate.version}"]
     if run(argv, check=False).returncode != 0:
         sys.exit(f"{crate.name} {crate.version} has no prebuilt release for {host}: name {host} in its `unavailable` with the reason")
+    if ours:
+        verify_release(crate, host, Path(os.environ.get("CARGO_HOME", Path.home() / ".cargo")) / "bin")
     return "prebuilt"
+
+
+# Our own packages, and the GitHub Release each version is published to: `<package>-v<version>`, one archive per target named in
+# its `SHA256SUMS`.
+OURS = "idiomatic-sh-"
+RELEASE_URL = "https://github.com/idiomatic-sh/idiomatic/releases/download/{name}-v{version}/{file}"
+
+
+def verify_release(crate: Crate, host: str, bin_dir: Path) -> None:
+    """Stops the install unless each command cargo-binstall wrote for `crate` is the one in the release archive for `host` whose
+    SHA-256 the release's `SHA256SUMS` names."""
+    archive = f"{crate.name}-{host}" + (".zip" if host.endswith("-windows-msvc") else ".tar.gz")
+    with urllib.request.urlopen(RELEASE_URL.format(name=crate.name, version=crate.version, file="SHA256SUMS")) as response:  # noqa: S310 - a fixed https URL
+        sums = {file: digest for digest, file in (line.split() for line in response.read().decode().splitlines() if line.strip())}
+    if archive not in sums:
+        sys.exit(f"{crate.name} {crate.version}: its SHA256SUMS names no {archive}")
+    data = fetched(RELEASE_URL.format(name=crate.name, version=crate.version, file=archive), sums[archive])
+    for command in crate.bins:
+        name = command + (".exe" if os.name == "nt" else "")
+        if archive.endswith(".zip"):
+            expected = zipfile.ZipFile(io.BytesIO(data)).read(name)
+        else:
+            member = tarfile.open(fileobj=io.BytesIO(data), mode="r:gz").extractfile(name)
+            if member is None:
+                sys.exit(f"{archive} holds no {name}")
+            expected = member.read()
+        if (bin_dir / name).read_bytes() != expected:
+            sys.exit(f"{bin_dir / name} is not the {name} of {archive}, whose SHA-256 SHA256SUMS names")
 
 
 # The tools whose releases ship one gzipped executable per machine, which cargo-binstall does not find: the command, its version, the
