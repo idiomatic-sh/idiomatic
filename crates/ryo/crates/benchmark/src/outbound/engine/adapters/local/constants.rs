@@ -15,5 +15,3 @@ pub(super) const INVALID_SUBJECT: &str = "finding subject is not a file";
 pub(super) const SPAN_COLUMN: &str = "span";
 /// Refuse absent, duplicate or untyped diagnostic source ranges.
 pub(super) const INVALID_SPAN: &str = "finding requires one typed span column";
-/// Query all generic frontend diagnostics as an internal benchmark report rule.
-pub(super) const INVALID_SYNTAX_QUERY: &str = "let diagnostics = select id, file, span from \"syntax-error\";\nemit diagnostics subject file key(id);\n";

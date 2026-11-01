@@ -1,5 +1,15 @@
-//! Constructs the one SDK engine adapter with explicit optional diagnostic tracing.
+//! Constructs the one SDK engine adapter with explicit diagnostic projection and tracing.
 use super::adapters::local::adapter::EngineLocalAdapter;
+
+/// An authored query that maps selected provider diagnostics to a benchmark rule identity.
+#[derive(Clone, Debug)]
+pub struct FrontendDiagnosticProjection {
+    /// The benchmark/reference rule identity emitted for selected rows.
+    pub rule: ryo::linter::RuleId,
+    /// The already schema-checked RyoQL query selecting which provider diagnostics become findings.
+    pub query: ryo::query::RyoQlQuery,
+}
+
 /// Construct the SDK engine. Tracing is a separate diagnostic worker configuration.
 #[must_use]
 pub fn local(
@@ -9,12 +19,12 @@ pub fn local(
     EngineLocalAdapter::new(languages, trace, None)
 }
 
-/// Construct the SDK engine with an optional normalized frontend diagnostic identity.
+/// Construct the SDK engine with an explicit query for selected frontend diagnostics.
 #[must_use]
 pub fn local_with_frontend_diagnostic(
     languages: ryo::linter::Languages,
     trace: Option<std::path::PathBuf>,
-    identity: ryo::linter::RuleId,
+    projection: FrontendDiagnosticProjection,
 ) -> impl super::interface::EnginePort {
-    EngineLocalAdapter::new(languages, trace, Some(identity))
+    EngineLocalAdapter::new(languages, trace, Some(projection))
 }

@@ -34,5 +34,7 @@ pub(crate) const NON_UTF8_PATH: &str = "non-UTF8 corpus path";
 pub(crate) const EMPTY_DISCOVERY: &str = "empty discovered corpus";
 /// Select the exact compared rule set.
 pub(crate) const SELECT: &str = "--select";
+/// Visible query mapping preserved parser errors into Ruff's generic syntax diagnostic identity.
+pub(crate) const FRONTEND_DIAGNOSTIC_QUERY: &str = "let diagnostics = select id, file, span from \"syntax-error\" where (phase = \"parse\" and impact = \"incomplete\") or (phase = \"validation\" and impact = \"preserved\" and code != \"future-feature-not-defined\");\nemit diagnostics subject file key(id);\n";
 /// Separator in the reference rule-selection argument.
 pub(crate) const RULE_SEPARATOR: &str = ",";

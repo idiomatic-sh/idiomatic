@@ -22,8 +22,13 @@ pub(super) fn worker(
     let languages = ryo::linter::Languages(vec![ryo_python::linked_with_settings(
         ryo_python::PythonParserSettings::new(ryo_python::PythonTargetVersion::Py310),
     )]);
-    let frontend_diagnostic = ryo::linter::RuleId::try_from("invalid-syntax")
-        .map_err(|error| Error::Invalid(error.to_string()))?;
+    let frontend_diagnostic =
+        ryo_benchmark::outbound::engine::factory::FrontendDiagnosticProjection {
+            rule: ryo::linter::RuleId::try_from(constants::INVALID_SYNTAX)
+                .map_err(|error| Error::Invalid(error.to_string()))?,
+            query: ryo::query::RyoQlQuery::try_from(crate::constants::FRONTEND_DIAGNOSTIC_QUERY)
+                .map_err(|error| Error::Invalid(error.to_string()))?,
+        };
     let engine: Arc<dyn ryo_benchmark::outbound::engine::interface::EnginePort> =
         match if tracing == WorkerTracing::Enabled {
             Some(

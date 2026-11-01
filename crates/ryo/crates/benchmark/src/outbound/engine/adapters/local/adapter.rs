@@ -6,6 +6,7 @@ use crate::domain::diagnostics::{
 };
 use crate::domain::suite::service::relative_path;
 use crate::domain::suite::types::WorkerRequest;
+use crate::outbound::engine::factory::FrontendDiagnosticProjection;
 use ryo::linter::{
     self, Cache, CaseSource, Cell, Corpus, Languages, LintRequest, MemoryBudget, Rule, RuleId,
     Slot, SourceText, WorkerPool, Workers,
@@ -23,15 +24,15 @@ pub(crate) struct EngineLocalAdapter {
     languages: Languages,
     /// Optional trace destination for a separately labelled profiling invocation.
     trace: Option<std::path::PathBuf>,
-    /// Optional cross-linter identity for frontend diagnostics.
-    frontend_diagnostic: Option<RuleId>,
+    /// Optional explicit query mapping provider diagnostics to benchmark findings.
+    frontend_diagnostic: Option<FrontendDiagnosticProjection>,
 }
 impl EngineLocalAdapter {
     /// Bind language support and optional profiling output once at composition.
     pub(crate) fn new(
         languages: Languages,
         trace: Option<std::path::PathBuf>,
-        frontend_diagnostic: Option<RuleId>,
+        frontend_diagnostic: Option<FrontendDiagnosticProjection>,
     ) -> Self {
         Self {
             languages,
@@ -42,7 +43,7 @@ impl EngineLocalAdapter {
     /// Load all selected query files, refusing duplicate or empty inventories.
     fn load_rules(
         directory: &std::path::Path,
-        frontend_diagnostic: Option<RuleId>,
+        frontend_diagnostic: Option<FrontendDiagnosticProjection>,
     ) -> Result<BTreeMap<RuleId, Rule>, Error> {
         let mut rules = BTreeMap::new();
         for entry in std::fs::read_dir(directory)? {
@@ -74,14 +75,12 @@ impl EngineLocalAdapter {
         if rules.is_empty() {
             return Err(Error::Invalid(constants::EMPTY_RULES.into()));
         }
-        if let Some(id) = frontend_diagnostic {
-            let query = RyoQlQuery::try_from(constants::INVALID_SYNTAX_QUERY)
-                .map_err(|error| Error::Invalid(error.to_string()))?;
+        if let Some(projection) = frontend_diagnostic {
             if rules
                 .insert(
-                    id,
+                    projection.rule,
                     Rule {
-                        query,
+                        query: projection.query,
                         parameters: BTreeMap::new(),
                         include: vec![],
                         exclude: vec![],
