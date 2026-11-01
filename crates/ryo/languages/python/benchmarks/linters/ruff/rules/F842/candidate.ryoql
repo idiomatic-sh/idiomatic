@@ -1,8 +1,11 @@
 import suppress from "python/ruff/suppress";
 let events = select occurrence, name, scope, phase, kind, file from "binding-event";
 let annotations = select occurrence as id, name, scope, phase, file from events where kind = "annotation";
+let value_bindings = select name, scope, file from events where kind = "bind" or kind = "delete";
+let annotations_with_value = select l.id as id, l.file as file from annotations as l join value_bindings as r on l.name = r.name and l.scope = r.scope and l.file = r.file;
+let annotation_only = antijoin(left=annotations, right=annotations_with_value, left-on=["id", "file"], right-on=["id", "file"]);
 let function_scopes = select id, file from "semantic-syntax" where kind = "function-def" or kind = "lambda";
-let local_annotations = select l.id as id, l.name as name, l.scope as scope, l.file as file from annotations as l join function_scopes as r on l.scope = r.id and l.file = r.file;
+let local_annotations = select l.id as id, l.name as name, l.scope as scope, l.file as file from annotation_only as l join function_scopes as r on l.scope = r.id and l.file = r.file;
 let reads = select occurrence as id, name, scope, file from events where kind = "read";
 let scope_edges = select child as origin, parent as destination from "scope";
 let scope_ancestors = closure(edges=scope_edges, source="origin", destination="destination");
