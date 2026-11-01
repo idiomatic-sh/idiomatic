@@ -112,6 +112,7 @@ fn setting<'a>(
         first_bucket: &[],
         ids: &[],
         applicability: &[],
+        applicability_can_gate: true,
         placed,
         records: &[],
         replaying: Replaying::Findings,

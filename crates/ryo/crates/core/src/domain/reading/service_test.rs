@@ -171,6 +171,7 @@ fn setting<'a>(
         first_bucket: first,
         ids,
         applicability: &[],
+        applicability_can_gate: true,
         placed,
         records: &[],
         replaying: crate::domain::workers::types::Replaying::Findings,

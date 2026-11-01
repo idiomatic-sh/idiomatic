@@ -62,6 +62,7 @@ fn syntax_applicability_skips_only_gated_rules_and_names_the_reason() {
         first_bucket: &[],
         ids: &ids,
         applicability: &applicability,
+        applicability_can_gate: true,
         placed: &placed,
         records: &[],
         replaying: crate::domain::workers::types::Replaying::Findings,
@@ -161,6 +162,7 @@ fn syntax_applicability_skips_only_gated_rules_and_names_the_reason() {
         plans: &plans[1..],
         ids: &ids[1..],
         applicability: &applicability[1..],
+        applicability_can_gate: false,
         needs: &setting.needs[1..],
         ..setting
     };
@@ -168,12 +170,25 @@ fn syntax_applicability_skips_only_gated_rules_and_names_the_reason() {
         FileAnalysis::active_wanted(&tables, &always_setting, SyntaxAcceptance::Rejected),
         std::borrow::Cow::Borrowed(_)
     ));
+    assert!(!FileAnalysis::may_gate_rules(
+        &setting,
+        SyntaxAcceptance::Accepted
+    ));
+    assert!(FileAnalysis::may_gate_rules(
+        &setting,
+        SyntaxAcceptance::Rejected
+    ));
     assert!(tables.unknowns.is_empty());
 
     let missing_policy = VisitSetting {
         applicability: &[],
+        applicability_can_gate: true,
         ..setting
     };
+    assert!(FileAnalysis::may_gate_rules(
+        &missing_policy,
+        SyntaxAcceptance::Accepted
+    ));
     let mut tables = tables_for(
         WorkerNumber(0),
         &plans,
@@ -433,6 +448,7 @@ fn visited_as(
             first_bucket: &[],
             ids: &[],
             applicability: &[],
+            applicability_can_gate: true,
             placed: &placed,
             records: &[],
             replaying: crate::domain::workers::types::Replaying::Findings,

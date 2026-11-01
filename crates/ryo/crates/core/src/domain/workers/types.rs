@@ -154,6 +154,8 @@ pub(crate) struct VisitSetting<'a> {
     pub ids: &'a [RuleId],
     /// Whether each rule runs on every file or only after syntax acceptance.
     pub applicability: &'a [RuleApplicability],
+    /// Whether any rule can be gated or its applicability metadata is incomplete.
+    pub applicability_can_gate: bool,
     /// Which rule governs which file.
     pub placed: &'a PlacedScopes,
     /// What the store kept of each file, by the file's place among the files.

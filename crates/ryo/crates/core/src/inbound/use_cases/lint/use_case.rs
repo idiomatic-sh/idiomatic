@@ -1321,6 +1321,10 @@ impl LintUseCase for LintUseCaseImpl {
         };
         let first_bucket = first_buckets(&plans);
         let applicability: Vec<_> = rules.iter().map(|rule| rule.applicability).collect();
+        let applicability_can_gate = applicability.len() != plans.len()
+            || applicability.iter().any(|policy| {
+                *policy != ryo_values::domain::runs::types::RuleApplicability::Always
+            });
         let needs: Vec<Needs> = plans.iter().map(scoped_needs).collect();
         let resolved = self.resolution(&manifests, &plans);
         let stored_rules = self.stored_rules(&rules, &plans, &request.hosted, resolved);
@@ -1335,6 +1339,7 @@ impl LintUseCase for LintUseCaseImpl {
             first_bucket: &first_bucket,
             ids: &ids,
             applicability: &applicability,
+            applicability_can_gate,
             placed: &placed,
             records: &[],
             replaying: Replaying::Findings,

@@ -104,6 +104,7 @@ fn setting(placed: &PlacedScopes) -> VisitSetting<'_> {
         first_bucket: &[],
         ids: &[],
         applicability: &[],
+        applicability_can_gate: true,
         placed,
         records: &[],
         replaying: crate::domain::workers::types::Replaying::Findings,

@@ -135,14 +135,11 @@ impl FileAnalysis {
         if setting.plans.is_empty() {
             return Cow::Borrowed(setting.wanted);
         }
-        // The common legacy case keeps using the caller's relation slice directly. Besides
-        // avoiding an allocation, this avoids rescanning rule needs for every parsed file.
-        if setting
-            .applicability
-            .iter()
-            .take(setting.plans.len())
-            .all(|policy| *policy == RuleApplicability::Always)
-            && setting.applicability.len() >= setting.plans.len()
+        // All rules are active for legacy plans, and complete metadata plus accepted syntax
+        // activates every policy. Keep the caller's relation slice in both cases.
+        if !setting.applicability_can_gate
+            || acceptance == SyntaxAcceptance::Accepted
+                && setting.applicability.len() == setting.plans.len()
         {
             return Cow::Borrowed(setting.wanted);
         }
@@ -171,13 +168,10 @@ impl FileAnalysis {
     }
 
     /// Whether this setting contains a policy that can change a file's active rules.
-    fn may_gate_rules(setting: &VisitSetting<'_>) -> bool {
-        setting
-            .applicability
-            .iter()
-            .take(setting.plans.len())
-            .any(|policy| *policy != RuleApplicability::Always)
-            || setting.applicability.len() < setting.plans.len()
+    pub(super) fn may_gate_rules(setting: &VisitSetting<'_>, acceptance: SyntaxAcceptance) -> bool {
+        setting.applicability_can_gate
+            && !(acceptance == SyntaxAcceptance::Accepted
+                && setting.applicability.len() == setting.plans.len())
     }
 
     /// Bind the resources used by every analysis invocation.
@@ -304,8 +298,9 @@ impl FileAnalysis {
     ) -> Result<(), FileAnalysisError> {
         let (tables, facts) = (&mut worker.tables, &mut worker.facts);
         // Preserve path scope, but keep syntax-gated rules out of the shared element walk when this provider did not accept the file.
-        let scoped_mask = Self::may_gate_rules(&visit.setting).then(|| tables.mask.clone());
         let acceptance = syntax_acceptance(&tables.elements);
+        let scoped_mask =
+            Self::may_gate_rules(&visit.setting, acceptance).then(|| tables.mask.clone());
         let skipped = scoped_mask
             .as_ref()
             .map(|_| Self::gate_rules(tables, &visit.setting, file, acceptance));
@@ -675,7 +670,7 @@ impl FileAnalysis {
                     Self::read_file(worker, visit, number)?;
                 } else {
                     let acceptance = syntax_acceptance(&worker.tables.elements);
-                    if Self::may_gate_rules(setting) {
+                    if Self::may_gate_rules(setting, acceptance) {
                         drop(Self::gate_rules(
                             &mut worker.tables,
                             setting,
