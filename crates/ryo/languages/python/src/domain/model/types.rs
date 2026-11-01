@@ -1,6 +1,7 @@
 //! The types of the `model` concept: plain data, public fields and derives, with no constructor and no inherent impl. What the
 //! language works out of a file once, before its readers run.
 
+use crate::domain::constant_keys::types::ConstantKeyIndex;
 use crate::domain::indentation::types::IndentationIndex;
 use crate::domain::{labels::types::Field, syntax::types::Kind};
 use ryo::languages::{Position, PropertyId, Symbol};
@@ -49,6 +50,8 @@ pub(crate) struct LexicalBinding {
 pub(crate) struct Declarations {
     /// Lazy canonical expression classes, invalidated between source revisions.
     pub expression_shapes: RefCell<ExpressionShapeIndex>,
+    /// Lazy normalized constant-expression keys, invalidated between source revisions.
+    pub constant_keys: RefCell<ConstantKeyIndex>,
     /// Every declared name.
     pub declared: Vec<ScopeDeclaration>,
     /// Definitions indexed by lexical scope and name, in source order.

@@ -32,6 +32,8 @@ pub(crate) mod semantic_syntax;
 
 /// Sparse environments used by optional static binding analysis.
 pub(crate) mod binding_states;
+/// Hashable parser-supported constant expressions.
+pub(crate) mod constant_keys;
 /// Structural expression identity.
 pub(crate) mod expression_shapes;
 /// Parsed primitive categories and narrow value predicates.

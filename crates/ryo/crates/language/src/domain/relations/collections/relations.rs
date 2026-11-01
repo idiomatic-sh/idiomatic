@@ -56,6 +56,9 @@ pub mod expression_shape;
 /// Typed primitive literal properties.
 pub mod literal_properties;
 
+/// Canonical keys for constant expressions.
+pub mod constant_key;
+
 /// Optional static binding analysis.
 pub mod binding_read;
 

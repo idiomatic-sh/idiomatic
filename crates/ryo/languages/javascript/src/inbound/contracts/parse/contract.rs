@@ -318,6 +318,10 @@ impl Parse for ParseContract {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
+    fn constant_key(&self) -> Support<Reader<languages::ConstantKey, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn literal_properties(&self) -> Support<Reader<languages::LiteralProperties, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }

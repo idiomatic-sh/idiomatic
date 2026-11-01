@@ -40,6 +40,7 @@ macro_rules! each_relation {
                 Identifier identifier IdentifierRow IdentifierColumn;
                 ExpressionShape expression_shape ExpressionShapeRow ExpressionShapeColumn;
                 LiteralProperties literal_properties LiteralPropertiesRow LiteralPropertiesColumn;
+                ConstantKey constant_key ConstantKeyRow ConstantKeyColumn;
                 StaticImport static_import StaticImportRow StaticImportColumn;
                 StringLiteral string_literal StringLiteralRow StringLiteralColumn;
                 SyntaxChild syntax_child SyntaxChildRow SyntaxChildColumn;
@@ -404,5 +405,6 @@ pub const fn capability_relation(capability: super::types::OptionalCapability) -
         OptionalCapability::BindingShadow => Relation::BindingShadow,
         OptionalCapability::ImplicitSymbol => Relation::ImplicitSymbol,
         OptionalCapability::LiteralProperties => Relation::LiteralProperties,
+        OptionalCapability::ConstantKey => Relation::ConstantKey,
     }
 }

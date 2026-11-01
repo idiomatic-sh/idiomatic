@@ -117,7 +117,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || every_relation_is_named_and_found_by_its_name,
         expect: Expect::Value(40),
         expect: Expect::Value(43),
-        expect: Expect::Value(44),
+        expect: Expect::Value(45),
     },
     Case {
         name: CaseName("a_name_no_relation_has_finds_nothing"),
@@ -187,6 +187,7 @@ fn optional_promises_are_closed() -> usize {
         OptionalCapability::BindingShadow,
         OptionalCapability::ImplicitSymbol,
         OptionalCapability::LiteralProperties,
+        OptionalCapability::ConstantKey,
     ];
     capabilities
         .into_iter()
@@ -199,7 +200,7 @@ fn optional_promises_are_closed() -> usize {
                 .iter()
                 .filter(|relation| optional_capability(**relation).is_some())
                 .count()
-                == 10
+                == 11
                 && optional_capability(Relation::SemanticSyntax).is_none()
                 && optional_capability(Relation::SemanticChild).is_none(),
         )

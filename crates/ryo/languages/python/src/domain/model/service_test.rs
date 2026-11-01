@@ -39,6 +39,7 @@ fn subject((scope, name): Input) -> Value {
     let model = Declarations {
         bindings: Vec::default(),
         expression_shapes: RefCell::default(),
+        constant_keys: RefCell::default(),
         indentation: RefCell::default(),
         qualification: RefCell::default(),
         semantic: RefCell::default(),

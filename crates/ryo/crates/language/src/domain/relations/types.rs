@@ -515,4 +515,6 @@ pub enum OptionalCapability {
     ImplicitSymbol,
     /// Parsed primitive category and narrowly defined zero/empty/true predicates.
     LiteralProperties,
+    /// Collision-checked keys for supported parsed constant expressions.
+    ConstantKey,
 }

@@ -1287,6 +1287,10 @@ impl Parse for ParseContract {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
+    fn constant_key(&self) -> Support<Reader<languages::ConstantKey, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn implicit_symbol(&self) -> Support<Reader<languages::ImplicitSymbol, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
@@ -13806,6 +13810,10 @@ impl Parse for ParseContract {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
+    fn constant_key(&self) -> Support<Reader<languages::ConstantKey, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn implicit_symbol(&self) -> Support<Reader<languages::ImplicitSymbol, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
@@ -14771,6 +14779,10 @@ impl Parse for ParseContract {
     }
 
     fn expression_shape(&self) -> Support<Reader<languages::ExpressionShape, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn constant_key(&self) -> Support<Reader<languages::ConstantKey, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -15743,6 +15755,10 @@ impl Parse for ParseContract {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
+    fn constant_key(&self) -> Support<Reader<languages::ConstantKey, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn implicit_symbol(&self) -> Support<Reader<languages::ImplicitSymbol, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
@@ -16705,6 +16721,10 @@ impl Parse for ParseContract {
     }
 
     fn expression_shape(&self) -> Support<Reader<languages::ExpressionShape, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn constant_key(&self) -> Support<Reader<languages::ConstantKey, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -17671,6 +17691,10 @@ impl Parse for ParseContract {
     }
 
     fn expression_shape(&self) -> Support<Reader<languages::ExpressionShape, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn constant_key(&self) -> Support<Reader<languages::ConstantKey, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 

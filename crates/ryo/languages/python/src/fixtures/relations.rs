@@ -16,6 +16,10 @@ mod expression_shape {
 mod literal_properties {
     include!("../../tests/fixtures/relations/literal_properties/expected.rs");
 }
+/// Normalized parser-owned constant expression keys.
+mod constant_key {
+    include!("../../tests/fixtures/relations/constant_key/expected.rs");
+}
 /// Independently expected identifier spellings.
 mod identifier {
     include!("../../tests/fixtures/relations/identifier/expected.rs");
@@ -126,6 +130,7 @@ pub(super) fn expected() -> Vec<Expected> {
         identifier::expected(),
         expression_shape::expected(),
         literal_properties::expected(),
+        constant_key::expected(),
         call_argument::expected(),
         static_import::expected(),
         string_literal::expected(),

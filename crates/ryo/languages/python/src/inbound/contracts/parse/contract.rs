@@ -90,6 +90,7 @@ impl Parse for ParseContract {
             languages::OptionalCapability::BindingShadow,
             languages::OptionalCapability::ImplicitSymbol,
             languages::OptionalCapability::LiteralProperties,
+            languages::OptionalCapability::ConstantKey,
         ]
     }
 
@@ -99,6 +100,7 @@ impl Parse for ParseContract {
 
     fn file_model(&self, tree: &languages::Tree<'_>, model: &mut Declarations) {
         crate::domain::expression_shapes::service::clear(model.expression_shapes.get_mut());
+        crate::domain::constant_keys::service::clear(model.constant_keys.get_mut());
         crate::domain::indentation::service::clear(model.indentation.get_mut());
         crate::domain::qualification::service::clear(model.qualification.get_mut());
         crate::domain::binding_analysis::service::clear(model.binding_analysis.get_mut());
@@ -233,6 +235,12 @@ impl Parse for ParseContract {
 
     fn expression_shape(&self) -> Support<Reader<languages::ExpressionShape, Declarations>> {
         languages::reads::<crate::domain::relations::collections::relations::expression_shape::item::ExpressionShapeItem>()
+    }
+
+    fn constant_key(&self) -> Support<Reader<languages::ConstantKey, Self::FileModel>> {
+        languages::reads::<
+            crate::domain::relations::collections::relations::constant_key::item::ConstantKeyItem,
+        >()
     }
 
     fn literal_properties(&self) -> Support<Reader<languages::LiteralProperties, Self::FileModel>> {
