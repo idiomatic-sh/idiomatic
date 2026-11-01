@@ -20,6 +20,8 @@ fn succeeds() {
                 resources: ResourceObservation::WallOnly,
                 report: crate::domain::diagnostics::types::RunReport {
                     files: vec![],
+                    skipped: Vec::new(),
+                    coverage: None,
                     diagnostics: vec![],
                 },
             },

@@ -7,6 +7,7 @@ use ryo_benchmark::domain::{
 };
 use ryo_benchmark::outbound::engine::{factory, interface::EnginePort as _};
 use ryo_benchmark::outbound::suite::interface::SuitePort as _;
+use std::collections::BTreeMap;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum EngineScenario {
@@ -135,6 +136,7 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
         root: root.path().to_owned(),
         rules,
         query_modules: suppress_modules(),
+        rule_applicability: BTreeMap::default(),
         parser_configuration: None,
         files: vec![ryo::linter::RelativePath(file.into())],
         state: ryo_benchmark::domain::suite::types::WorkerState::Fresh,
@@ -146,6 +148,57 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
         report.files == [ryo::linter::RelativePath("input.py".into())]
             && report.diagnostics == expected_diagnostics(scenario)?,
     )
+}
+
+#[test]
+fn rejected_syntax_with_provider_partials_skips_only_accepted_syntax_rules() -> Result<(), Error> {
+    let root = tempfile::tempdir()?;
+    let rules = root.path().join("rules");
+    let query =
+        "let names = select id, file from \"qualified-name\";\nemit names subject file key(id);\n";
+    for rule in ["ASYNC100", "UP025"] {
+        let directory = rules.join(rule);
+        std::fs::create_dir_all(&directory)?;
+        std::fs::write(directory.join("query.ryoql"), query)?;
+    }
+    std::fs::write(root.path().join("input.py"), "value = ur\"hello\"\n")?;
+    let request = WorkerRequest {
+        root: root.path().to_owned(),
+        rules,
+        query_modules: BTreeMap::default(),
+        rule_applicability: BTreeMap::from([
+            ("ASYNC100".to_owned(), "always".to_owned()),
+            ("UP025".to_owned(), "accepted-syntax".to_owned()),
+        ]),
+        parser_configuration: Some("python-target=3.10".to_owned()),
+        files: vec![ryo::linter::RelativePath("input.py".into())],
+        state: ryo_benchmark::domain::suite::types::WorkerState::Fresh,
+    };
+    let result = factory::local_with_frontend_diagnostic(
+        python_310(),
+        None,
+        frontend_projection(EngineScenario::LexicallyCompleteSyntaxError)?,
+    )
+    .run(request);
+    match result {
+        Err(Error::Invalid(message)) => {
+            assert!(
+                message.contains("ASYNC100"),
+                "always-applicable partial must remain unknown: {message}"
+            );
+            assert!(
+                !message.contains("UP025"),
+                "intentionally skipped rule became unknown: {message}"
+            );
+        }
+        Err(error) => return Err(error),
+        Ok(_) => {
+            return Err(Error::Invalid(
+                "provider partial was not retained for the always rule".into(),
+            ));
+        }
+    }
+    Ok(())
 }
 
 fn input_file(scenario: EngineScenario) -> &'static str {
@@ -217,8 +270,8 @@ fn write_rule_fixtures(rules: &std::path::Path, scenario: EngineScenario) -> Res
     Ok(())
 }
 
-fn suppress_modules() -> std::collections::BTreeMap<String, std::path::PathBuf> {
-    std::collections::BTreeMap::from([(
+fn suppress_modules() -> BTreeMap<String, std::path::PathBuf> {
+    BTreeMap::from([(
         "python/ruff/suppress".to_owned(),
         std::path::PathBuf::from("fragments/suppress.ryoql"),
     )])
@@ -339,6 +392,7 @@ fn projection_cache_query_change(root: &std::path::Path) -> Result<Value, Error>
         root: root.to_owned(),
         rules,
         query_modules: suppress_modules(),
+        rule_applicability: BTreeMap::default(),
         parser_configuration: None,
         files: vec![ryo::linter::RelativePath(file.into())],
         state: ryo_benchmark::domain::suite::types::WorkerState::Fresh,
@@ -392,7 +446,8 @@ fn query_module_inline_equivalence(root: &std::path::Path) -> Result<bool, Error
     let plain = factory::local(languages.clone(), None).run(WorkerRequest {
         root: root.into(),
         rules: rules.clone(),
-        query_modules: std::collections::BTreeMap::default(),
+        query_modules: BTreeMap::default(),
+        rule_applicability: BTreeMap::default(),
         parser_configuration: None,
         files: vec![ryo::linter::RelativePath("input.py".into())],
         state: ryo_benchmark::domain::suite::types::WorkerState::Fresh,
@@ -410,7 +465,7 @@ fn query_module_inline_equivalence(root: &std::path::Path) -> Result<bool, Error
             "import identity from \"test/identity\";\n{input}let rows = identity(source=nodes);\nemit rows subject file key(span);\n"
         ),
     )?;
-    let mut modules = std::collections::BTreeMap::new();
+    let mut modules = BTreeMap::new();
     let _previous = modules.insert(
         "test/identity".to_owned(),
         std::path::PathBuf::from("fragments/identity.ryoql"),
@@ -419,6 +474,7 @@ fn query_module_inline_equivalence(root: &std::path::Path) -> Result<bool, Error
         root: root.into(),
         rules,
         query_modules: modules,
+        rule_applicability: BTreeMap::default(),
         parser_configuration: None,
         files: vec![ryo::linter::RelativePath("input.py".into())],
         state: ryo_benchmark::domain::suite::types::WorkerState::Fresh,
@@ -429,7 +485,6 @@ fn query_module_inline_equivalence(root: &std::path::Path) -> Result<bool, Error
 fn target_configuration_cache_change(root: &std::path::Path) -> Result<bool, Error> {
     use ryo_benchmark::domain::diagnostics::types::SourceByteOffset;
     use ryo_benchmark::domain::suite::types::WorkerState;
-    use std::collections::BTreeMap;
 
     #[derive(serde::Deserialize)]
     struct Cases {
@@ -498,6 +553,7 @@ fn target_configuration_cache_change(root: &std::path::Path) -> Result<bool, Err
         root: root.to_owned(),
         rules: rules.clone(),
         query_modules: query_modules.clone(),
+        rule_applicability: BTreeMap::default(),
         parser_configuration: Some("python-target=3.10".to_owned()),
         files: negative_files.clone(),
         state: WorkerState::Fresh,
@@ -520,6 +576,7 @@ fn target_configuration_cache_change(root: &std::path::Path) -> Result<bool, Err
             root: root.to_owned(),
             rules: rules.clone(),
             query_modules: query_modules.clone(),
+            rule_applicability: BTreeMap::default(),
             parser_configuration: Some(identity.to_owned()),
             files: files.clone(),
             state: WorkerState::Retained(cache.clone()),
@@ -552,8 +609,7 @@ fn target_configuration_cache_change(root: &std::path::Path) -> Result<bool, Err
 
 fn case_identities(
     cases: Vec<ryo_benchmark::domain::suite::types::PreparedCase>,
-) -> std::collections::BTreeMap<(String, String), ryo_benchmark::domain::suite::types::PreparedCase>
-{
+) -> BTreeMap<(String, String), ryo_benchmark::domain::suite::types::PreparedCase> {
     cases
         .into_iter()
         .map(|case| ((case.rule.as_ref().to_owned(), case.name.0.clone()), case))
@@ -626,7 +682,7 @@ fn shared_suppression_fragment_matches_the_historical_inline_queries() -> Result
     )]);
     let inline_engine = factory::local(languages.clone(), None);
     let imported_engine = factory::local(languages, None);
-    let registry = std::collections::BTreeMap::from([(
+    let registry = BTreeMap::from([(
         "python/ruff/suppress".to_owned(),
         std::path::PathBuf::from("fragments/suppress.ryoql"),
     )]);
@@ -645,7 +701,8 @@ fn shared_suppression_fragment_matches_the_historical_inline_queries() -> Result
         let inline = inline_engine.run(WorkerRequest {
             root: case.request.root,
             rules: inline_rules.clone(),
-            query_modules: std::collections::BTreeMap::default(),
+            query_modules: BTreeMap::default(),
+            rule_applicability: BTreeMap::default(),
             parser_configuration: None,
             files: case.request.files,
             state,
@@ -654,6 +711,7 @@ fn shared_suppression_fragment_matches_the_historical_inline_queries() -> Result
             root: imported.request.root.clone(),
             rules: imported_rules.clone(),
             query_modules: registry.clone(),
+            rule_applicability: BTreeMap::default(),
             parser_configuration: None,
             files: imported.request.files.clone(),
             state: ryo_benchmark::domain::suite::types::WorkerState::Fresh,
@@ -716,7 +774,7 @@ fn assert_single_rule_fragment_equivalence(
             &root.join(format!("single-imported-cases-{rule}")),
         ),
     )?;
-    let imported_by_name: std::collections::BTreeMap<_, _> = imported_cases
+    let imported_by_name: BTreeMap<_, _> = imported_cases
         .into_iter()
         .map(|case| ((case.name.0.clone(), case.rule.as_ref().to_owned()), case))
         .collect();
@@ -744,7 +802,8 @@ fn assert_single_rule_fragment_equivalence(
         let inline = inline_engine.run(WorkerRequest {
             root: case.request.root,
             rules: inline_parent.to_path_buf(),
-            query_modules: std::collections::BTreeMap::default(),
+            query_modules: BTreeMap::default(),
+            rule_applicability: BTreeMap::default(),
             parser_configuration: None,
             files: case.request.files,
             state: ryo_benchmark::domain::suite::types::WorkerState::Fresh,
@@ -752,10 +811,11 @@ fn assert_single_rule_fragment_equivalence(
         let fragmented = imported_engine.run(WorkerRequest {
             root: imported_case.request.root.clone(),
             rules: imported_parent.to_path_buf(),
-            query_modules: std::collections::BTreeMap::from([(
+            query_modules: BTreeMap::from([(
                 "python/ruff/suppress".to_owned(),
                 std::path::PathBuf::from("fragments/suppress.ryoql"),
             )]),
+            rule_applicability: BTreeMap::default(),
             parser_configuration: None,
             files: imported_case.request.files.clone(),
             state: ryo_benchmark::domain::suite::types::WorkerState::Fresh,
@@ -787,7 +847,8 @@ fn literal_properties_reach_engine_queries_for_true_and_false_boolean_nodes() ->
     let report = factory::local(python_310(), None).run(WorkerRequest {
         root: root.path().to_owned(),
         rules,
-        query_modules: std::collections::BTreeMap::default(),
+        query_modules: BTreeMap::default(),
+        rule_applicability: BTreeMap::default(),
         parser_configuration: None,
         files: ["true.py", "false.py"]
             .into_iter()

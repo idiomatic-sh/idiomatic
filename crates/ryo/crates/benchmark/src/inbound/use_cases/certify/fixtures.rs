@@ -75,6 +75,8 @@ impl LinterPort for Contestant {
             })
             .collect();
         Ok(RunReport {
+            skipped: Vec::new(),
+            coverage: None,
             files: request.files.clone(),
             diagnostics,
         })

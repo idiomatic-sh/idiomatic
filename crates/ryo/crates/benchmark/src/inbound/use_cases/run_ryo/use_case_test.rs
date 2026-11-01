@@ -96,6 +96,8 @@ impl EnginePort for Engine {
         }
         Ok(RunReport {
             files: request.files,
+            skipped: Vec::new(),
+            coverage: None,
             diagnostics: Vec::new(),
         })
     }
@@ -121,6 +123,8 @@ fn subject(stage: Input) -> Result<Value, Failure> {
         published: transport.reports()
             == [RunReport {
                 files: request().files,
+                skipped: Vec::new(),
+                coverage: None,
                 diagnostics: Vec::new(),
             }],
     };

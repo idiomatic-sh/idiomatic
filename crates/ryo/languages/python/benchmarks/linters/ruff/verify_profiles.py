@@ -8,6 +8,7 @@ import contextlib
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -22,6 +23,20 @@ REPOSITORY = RUFF_DIR.parents[6]
 PROFILE_DIR = RUFF_DIR / "profiles"
 MANIFEST = Path(os.environ.get("RYO_RUFF_PREPARED_MANIFEST", PROFILE_DIR / "prepared.json"))
 SHAPE_PROFILE = "shape-110"
+RULE_PHASES_FILE = PROFILE_DIR / "pinned-rule-phases.json"
+PINNED_RUFF_VERSION = "0.16.5"
+PINNED_RUFF_SOURCE_COMMIT = "9e4938c4a60bed3e87a11ee1e1db1bd23f4d964a"
+RUFF_PHASES = {
+    "ast",
+    "filesystem",
+    "io",
+    "imports",
+    "logical-lines",
+    "noqa",
+    "physical-lines",
+    "toml",
+    "tokens",
+}
 
 
 def sha256(path: Path) -> str:
@@ -89,6 +104,7 @@ def manifest_paths(manifest: dict[str, object], helper_path: str) -> set[str]:
     profiles = manifest["profiles"]
     base_profile = RUFF_DIR / "benchmark.toml"
     paths = {helper_path, base_profile.relative_to(REPOSITORY).as_posix()}
+    paths.add(RULE_PHASES_FILE.relative_to(REPOSITORY).as_posix())
     base_data = tomllib.loads(base_profile.read_text(encoding="utf-8"))
     paths.update(module_path(path) for path in profile_modules(base_data).values())
     for profile_name, recorded in profiles.items():
@@ -207,6 +223,7 @@ def write_staged_profile(
     destination: Path,
     registry: dict[str, str],
     parser_configuration: str = "python-target=3.10",
+    rule_applicability: dict[str, str] | None = None,
 ) -> None:
     """Serialize the supported profile fields, replacing any existing module table."""
     parsed = tomllib.loads(source.read_text(encoding="utf-8"))
@@ -217,10 +234,16 @@ def write_staged_profile(
     if parser_configuration not in {"python-target=3.10", "python-target=3.11"}:
         raise ValueError(f"unsupported staged parser configuration: {parser_configuration}")
     merged = {**current, **registry}
+    applicability = rule_applicability or {}
+    if set(applicability.values()) - {"always", "accepted-syntax"}:
+        raise ValueError("staged rule applicability contains an unsupported value")
     parsed.pop("query-modules", None)
+    parsed.pop("rule-applicability", None)
     parsed["parser-configuration"] = parser_configuration
     if merged:
         parsed["query-modules"] = merged
+    if applicability:
+        parsed["rule-applicability"] = applicability
     rendered = "".join(f"{key} = {toml_value(value)}\n" for key, value in parsed.items())
     destination.write_text(rendered, encoding="utf-8")
 
@@ -268,6 +291,7 @@ def verify_files(manifest: dict[str, object], helper_path: str) -> None:
     files = manifest["files"]
     if manifest.get("target_version") != "py310":
         raise ValueError("prepared Ruff target version must be py310")
+    verify_rule_phase_registry(manifest)
     allowed_targets = {"py310", "py311"}
     if any(
         profile.get("target_version", "py310") not in allowed_targets
@@ -303,6 +327,142 @@ def verify_files(manifest: dict[str, object], helper_path: str) -> None:
             raise ValueError(
                 f"prepared input hash mismatch: {relative} expected={expected} actual={actual} manifest={MANIFEST}"
             )
+
+
+def verify_rule_phase_registry(
+    manifest: dict[str, object], registry: dict[str, object] | None = None
+) -> dict[str, object]:
+    """Require a pinned, positive-dispatch phase for every current prepared rule."""
+    if manifest.get("reference_version") != PINNED_RUFF_VERSION:
+        raise ValueError("rule phase registry is only valid for pinned Ruff 0.16.5")
+    if registry is None:
+        registry = json.loads(RULE_PHASES_FILE.read_text(encoding="utf-8"))
+    if (
+        registry.get("schema_version") != 1
+        or registry.get("ruff_version") != PINNED_RUFF_VERSION
+        or registry.get("ruff_source_commit") != PINNED_RUFF_SOURCE_COMMIT
+        or not isinstance(registry.get("code_to_variant_registry"), dict)
+        or not isinstance(registry.get("phase_registry"), dict)
+        or manifest.get("rule_phases_file")
+        != RULE_PHASES_FILE.relative_to(REPOSITORY).as_posix()
+    ):
+        raise ValueError("pinned Ruff phase registry has an unsupported identity")
+    expected_rules = {
+        profile.get("rule_id", profile_name)
+        for profile_name, profile in manifest["profiles"].items()
+    }
+    expected_rules.update(
+        rule
+        for descriptor in manifest.get("combined_profiles", {}).values()
+        if descriptor.get("validation_status") == "active-current"
+        for rule in descriptor["selected_rules"]
+    )
+    rules = registry.get("rules")
+    if not isinstance(rules, dict) or set(rules) != expected_rules:
+        missing = expected_rules - set(rules or {})
+        extra = set(rules or {}) - expected_rules
+        raise ValueError(
+            f"pinned Ruff phase coverage mismatch: missing={sorted(missing)} extra={sorted(extra)}"
+        )
+    for rule, record in rules.items():
+        if not isinstance(record, dict):
+            raise ValueError(f"invalid phase classification for {rule}")
+        phases = record.get("phases")
+        if (
+            not isinstance(phases, list)
+            or not phases
+            or any(not isinstance(phase, str) for phase in phases)
+            or len(phases) != len(set(phases))
+            or set(phases) - RUFF_PHASES
+        ):
+            raise ValueError(f"unknown or empty Ruff phase classification for {rule}")
+        evidence = record.get("evidence")
+        if (
+            not isinstance(evidence, list)
+            or len(evidence) != 2
+            or any(
+                not isinstance(item, dict)
+                or item.get("kind") not in {"code-to-variant", "lint-source"}
+                or not isinstance(item.get("line"), int)
+                or item["line"] <= 0
+                or not isinstance(item.get("sha256"), str)
+                or len(item["sha256"]) != 64
+                or any(char not in "0123456789abcdef" for char in item["sha256"])
+                or item.get("path")
+                != (
+                    registry.get("code_to_variant_registry", {}).get("path")
+                    if item.get("kind") == "code-to-variant"
+                    else registry.get("phase_registry", {}).get("path")
+                )
+                for item in evidence
+            )
+            or not isinstance(record.get("registry_variant"), str)
+            or not isinstance(record.get("registry_line"), int)
+            or record["registry_line"] <= 0
+        ):
+            raise ValueError(f"phase classification for {rule} lacks pinned dispatch evidence")
+        evidence_by_kind = {item["kind"]: item for item in evidence}
+        code_registry = registry["code_to_variant_registry"]
+        phase_registry = registry["phase_registry"]
+        if (
+            set(evidence_by_kind) != {"code-to-variant", "lint-source"}
+            or evidence_by_kind["code-to-variant"]["sha256"] != code_registry.get("sha256")
+            or evidence_by_kind["code-to-variant"]["line"] != record["registry_line"]
+            or evidence_by_kind["lint-source"]["sha256"] != phase_registry.get("sha256")
+            or not isinstance(phase_registry.get("ast_fallback_line"), int)
+        ):
+            raise ValueError(f"phase evidence does not match the pinned registry for {rule}")
+        phase_evidence = evidence_by_kind["lint-source"]
+        resolution = phase_evidence.get("resolution")
+        lint_sources = registry.get("lint_sources", {})
+        if phases == ["ast"]:
+            if (
+                resolution != "Ast wildcard fallback"
+                or phase_evidence["line"] != phase_registry["ast_fallback_line"]
+            ):
+                raise ValueError(f"AST classification lacks the positive pinned fallback for {rule}")
+        elif (
+            len(phases) != 1
+            or lint_sources.get(resolution) != phases[0]
+            or phase_evidence["line"] == phase_registry["ast_fallback_line"]
+        ):
+            if not record.get("mixed_policy"):
+                raise ValueError(f"non-AST or mixed phase lacks explicit registry evidence for {rule}")
+        applicability = record.get("applicability")
+        if set(phases) <= {"ast", "imports"}:
+            expected_applicability = "accepted-syntax"
+        elif set(phases) <= RUFF_PHASES - {"ast", "imports"}:
+            expected_applicability = "always"
+        else:
+            # A rule dispatched in both parser-dependent and independent lanes needs a
+            # reviewed explicit policy; this version of the inventory has no such rules.
+            if applicability not in {"always", "accepted-syntax"} or not record.get("mixed_policy"):
+                raise ValueError(f"mixed Ruff phase policy is not explicitly reviewed for {rule}")
+            expected_applicability = applicability
+        if applicability != expected_applicability:
+            raise ValueError(
+                f"Ruff phase/applicability mismatch for {rule}: {phases} -> {applicability}"
+            )
+    return registry
+
+
+def selected_rule_applicability(
+    manifest: dict[str, object], selected_rules: list[str]
+) -> dict[str, str]:
+    """Project the pinned phase registry onto this exact selected rule inventory."""
+    registry = verify_rule_phase_registry(manifest)
+    return {
+        rule: registry["rules"][rule]["applicability"]
+        for rule in selected_rules
+    }
+
+
+def check_staged_applicability(profile: Path, selected_rules: list[str], manifest: dict[str, object]) -> None:
+    """Refuse a staged profile whose typed policy differs from its sealed selection."""
+    actual = tomllib.loads(profile.read_text(encoding="utf-8")).get("rule-applicability")
+    expected = selected_rule_applicability(manifest, selected_rules)
+    if actual != expected:
+        raise ValueError("staged rule applicability differs from the pinned phase registry")
 
 
 def profile_tool_matches(profile_data: dict[str, object], manifest: dict[str, object]) -> bool:
@@ -448,6 +608,7 @@ def valid_shard_receipts(
             or receipt.get("shard_count") != shard_count
             or receipt.get("status") != 0
             or receipt.get("case_result_records_valid") is not True
+            or receipt.get("stdout_summary_valid") is not True
         ):
             return False
         all_ids.extend(receipt["case_ids"])
@@ -476,6 +637,64 @@ def case_observations_match(monolithic: Path, shards: list[Path]) -> bool:
         return case_observation_map([monolithic]) == case_observation_map(shards)
     except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError):
         return False
+
+
+def candidate_result_valid(
+    profile_root: Path,
+    stdout: bytes,
+    case_results_path: Path,
+) -> tuple[bool, str | None]:
+    """Require the real worker summary and exactly two complete contestant records per case."""
+    try:
+        inventory = profile_case_inventory(profile_root)
+        records = [
+            json.loads(line)
+            for line in case_results_path.read_text(encoding="utf-8").splitlines()
+        ]
+        valid_ids = complete_case_ids(inventory, records)
+        expected_ids = {f"{case['rule']}/{case['name']}" for case in inventory}
+        side_counts = collections.Counter(
+            (row.get("rule"), row.get("name"), row.get("side")) for row in records
+        )
+        output = stdout.decode("utf-8")
+    except (OSError, UnicodeDecodeError, KeyError, TypeError, ValueError, json.JSONDecodeError) as error:
+        return False, f"candidate proof records could not be read: {error}"
+    expected_summary = f"{len(inventory)} cases passed against both contestants\n"
+    if output != expected_summary:
+        return False, f"worker summary mismatch: expected {expected_summary!r}, got {output!r}"
+    if valid_ids != expected_ids or len(records) != 2 * len(inventory):
+        return False, (
+            f"worker case receipts incomplete: expected {len(expected_ids)} exact case IDs, "
+            f"observed {len(valid_ids)}"
+        )
+    if any(
+        side_counts[(case["rule"], case["name"], side)] != 1
+        for case in inventory
+        for side in ("reference", "candidate")
+    ):
+        return False, "worker case receipts contain missing or duplicate contestant records"
+    if any(row.get("case_passed") is not True for row in records):
+        return False, "worker case receipts include a failed contestant comparison"
+    return True, None
+
+
+def audit_worker_protocol(worker: Path, *, runner=subprocess.run) -> tuple[bool, str]:
+    """Confirm the executable is the benchmark CLI, not a same-named Rust test harness."""
+    command = [str(worker), "audit"]
+    try:
+        result = runner(command, cwd=REPOSITORY / "crates" / "ryo", capture_output=True, check=False)
+    except Exception as error:
+        return False, f"worker protocol smoke could not start: {type(error).__name__}: {error}"
+    if result.returncode != 0:
+        return False, f"worker protocol smoke exited {result.returncode}"
+    expected = re.fullmatch(
+        rb"ruff 0\.16\.5: [0-9]+ queries authored / 413 shipped defaults "
+        rb"\(not a parity certificate\)\n",
+        result.stdout,
+    )
+    if expected is None:
+        return False, f"worker protocol smoke returned an unexpected response: {result.stdout!r}"
+    return True, result.stdout.decode("utf-8").strip()
 
 
 def shard_worker_limit() -> int:
@@ -521,6 +740,10 @@ def verify_profile_sharded(
         "selection": identities,
         "worker_sha256": sha256(worker),
         "ruff_sha256": sha256(ruff),
+        "rule_phase_registry_sha256": sha256(RULE_PHASES_FILE),
+        "selected_rule_applicability_sha256": source_hash(
+            identities.get("selected_rule_applicability", {})
+        ),
         "target": tomllib.loads((profile_root / "benchmark.toml").read_text(encoding="utf-8")).get("parser-configuration"),
         "requested_shard_count": shard_count,
         "effective_shard_count": effective_shard_count,
@@ -584,7 +807,19 @@ def verify_profile_sharded(
             and len(observed) == 2 * len(selected)
         )
         completed_failed = any(not row.get("case_passed", False) for row in observed)
-        final_status = 0 if status == 0 and not earlier_case_failed and not completed_failed and valid_records else 1
+        # A resumed shard may execute only the unfinished subset while its
+        # receipt still proves the complete original shard inventory.
+        expected_summary = f"{len(to_run)} cases passed against both contestants\n".encode()
+        summary_valid = stdout == expected_summary
+        final_status = (
+            0
+            if status == 0
+            and not earlier_case_failed
+            and not completed_failed
+            and valid_records
+            and summary_valid
+            else 1
+        )
         receipt = {
             "profile": name,
             "shard_index": shard_index,
@@ -598,6 +833,7 @@ def verify_profile_sharded(
             "stderr_sha256": hashlib.sha256(stderr).hexdigest(),
             "case_results_sha256": sha256(result_path) if result_path.is_file() else None,
             "case_result_records_valid": valid_records,
+            "stdout_summary_valid": summary_valid,
             "executed_case_ids": [f"{case['rule']}/{case['name']}" for case in to_run],
             "case_selection_file": (
                 selection_path.name if selection_path is not None else None
@@ -949,9 +1185,11 @@ def persist_run_record(
     error: str | None = None,
     identities: dict[str, object] | None = None,
     case_results_path: Path | None = None,
+    status_override: int | None = None,
 ) -> int:
     """Persist raw command output and exact identities before temporary inputs can be removed."""
-    status = result.returncode if result is not None else 1
+    process_status = result.returncode if result is not None else 1
+    status = status_override if status_override is not None else process_status
     if output_directory is None:
         if result is not None:
             sys.stderr.buffer.write(result.stderr)
@@ -969,6 +1207,7 @@ def persist_run_record(
         "command": command,
         "cwd": str(REPOSITORY / "crates" / "ryo"),
         "status": status,
+        "process_status": process_status,
         "error": error,
         "identities": identities or {},
         "staged_inputs": staged_hashes(profile_root) if profile_root.is_dir() else {},
@@ -1020,6 +1259,18 @@ def verify_profile(
             identities=identities,
             case_results_path=case_results_path,
         )
+    validation_error = None
+    status_override = None
+    if command[1] == "verify-cases":
+        if output_directory is None or case_results_path is None:
+            validation_error = "candidate verification requires durable output and exact case receipts"
+            status_override = 1
+        elif result.returncode == 0:
+            valid, validation_error = candidate_result_valid(
+                profile_root, result.stdout, case_results_path
+            )
+            if not valid:
+                status_override = 1
     return persist_run_record(
         output_directory,
         name,
@@ -1028,6 +1279,8 @@ def verify_profile(
         result,
         identities=identities,
         case_results_path=case_results_path,
+        error=validation_error,
+        status_override=status_override,
     )
 
 
@@ -1087,6 +1340,10 @@ def run_identity(
         "manifest_path": MANIFEST.relative_to(REPOSITORY).as_posix(),
         "manifest_sha256": sha256(MANIFEST),
         "manifest_status": manifest.get("status"),
+        "rule_phase_registry_sha256": sha256(RULE_PHASES_FILE),
+        "selected_rule_applicability": tomllib.loads(
+            (profile_root / "benchmark.toml").read_text(encoding="utf-8")
+        ).get("rule-applicability", {}),
         "target_version": tomllib.loads(
             (profile_root / "benchmark.toml").read_text(encoding="utf-8")
         ).get("parser-configuration", "python-target=3.10"),
@@ -1175,7 +1432,9 @@ def stage_binding(
             destination / "benchmark.toml",
             registry,
             parser_configuration(target_version),
+            selected_rule_applicability(manifest, [rule]),
         )
+        check_staged_applicability(destination / "benchmark.toml", [rule], manifest)
         shutil.copyfile(candidate_path, rule_dir / "query.ryoql")
         shutil.copyfile(cases_path, rule_dir / "cases.toml")
         staged.append((profile_name, destination))
@@ -1334,7 +1593,9 @@ def stage_combined(
         destination / "benchmark.toml",
         registry,
         parser_configuration(target_version),
+        selected_rule_applicability(manifest, selected_rules),
     )
+    check_staged_applicability(destination / "benchmark.toml", selected_rules, manifest)
     for rule in selected_rules:
         rule_dir = destination / "rules" / rule
         rule_dir.mkdir(parents=True)
@@ -1411,6 +1672,38 @@ def self_test() -> int:
         {"rule": "C", "name": "one", "case_sha256": "d"},
         {"rule": "C", "name": "two", "case_sha256": "e"},
     ]
+    prepared = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    try:
+        phase_registry = verify_rule_phase_registry(prepared)
+        if selected_rule_applicability(
+            prepared, prepared["combined_profiles"]["current-canonical"]["selected_rules"]
+        ) != {
+            rule: phase_registry["rules"][rule]["applicability"]
+            for rule in prepared["combined_profiles"]["current-canonical"]["selected_rules"]
+        }:
+            raise ValueError("applicability projection changed the selected rule inventory")
+        missing_phase = json.loads(json.dumps(phase_registry))
+        missing_phase["rules"].pop(next(iter(missing_phase["rules"])))
+        unknown_phase = json.loads(json.dumps(phase_registry))
+        unknown_rule = next(iter(unknown_phase["rules"].values()))
+        unknown_rule["phases"] = ["future-checker"]
+        mixed_phase = json.loads(json.dumps(phase_registry))
+        mixed_rule = next(iter(mixed_phase["rules"].values()))
+        mixed_rule["phases"] = ["ast", "tokens"]
+        mixed_rule["evidence"].append(
+            {"phase": "tokens", "path": "checkers/tokens.rs", "sha256": "0" * 64}
+        )
+        for invalid in (missing_phase, unknown_phase, mixed_phase):
+            try:
+                verify_rule_phase_registry(prepared, invalid)
+            except ValueError:
+                continue
+            raise ValueError("phase validation accepted missing, unknown, or unreviewed mixed data")
+        if phase_registry["rules"]["EXE005"]["applicability"] != "always":
+            raise ValueError("token-only Ruff rule lost independent applicability")
+    except (OSError, ValueError, KeyError, TypeError) as error:
+        print(f"pinned Ruff phase registry validation failed: {error}", file=sys.stderr)
+        return 1
     partitions = partition_case_inventory(sample_inventory, 3)
     identity = {"inventory_sha256": "sealed"}
     receipts = [
@@ -1420,6 +1713,7 @@ def self_test() -> int:
             "case_ids": [f"{case['rule']}/{case['name']}" for case in partition],
             "status": 0,
             "case_result_records_valid": True,
+            "stdout_summary_valid": True,
             "global_identity": identity,
         }
         for index, partition in enumerate(partitions)
@@ -1459,6 +1753,46 @@ def self_test() -> int:
         output = root / "output"
         output.mkdir()
         inv = profile_case_inventory(profile_root)
+        case_results = root / "candidate-cases.jsonl"
+        if candidate_result_valid(
+            profile_root,
+            f"{len(inv)} cases passed against both contestants\n".encode(),
+            case_results,
+        )[0]:
+            raise ValueError("zero-exit worker without case records was accepted")
+        rows = []
+        for case in inv:
+            for side in ("reference", "candidate"):
+                rows.append({
+                    "rule": case["rule"],
+                    "name": case["name"],
+                    "side": side,
+                    "complete": True,
+                    "error": None,
+                    "case_passed": True,
+                    "source_sha256": case["source_sha256"],
+                    "files": case["files"],
+                    "expected": case["expected"],
+                })
+        case_results.write_text("\n".join(json.dumps(row) for row in rows) + "\n", encoding="utf-8")
+        valid_receipt, _reason = candidate_result_valid(
+            profile_root,
+            f"{len(inv)} cases passed against both contestants\n".encode(),
+            case_results,
+        )
+        if not valid_receipt:
+            raise ValueError("exact worker case receipts were rejected")
+        false_audit = lambda command, **_kwargs: subprocess.CompletedProcess(command, 0, b"running 0 tests\n", b"")
+        valid_audit = lambda command, **_kwargs: subprocess.CompletedProcess(
+            command,
+            0,
+            b"ruff 0.16.5: 104 queries authored / 413 shipped defaults (not a parity certificate)\n",
+            b"",
+        )
+        if audit_worker_protocol(worker, runner=false_audit)[0]:
+            raise ValueError("same-named zero-test harness passed the CLI protocol smoke")
+        if not audit_worker_protocol(worker, runner=valid_audit)[0]:
+            raise ValueError("valid benchmark CLI audit response was rejected")
         calls = []
 
         def fake_runner(command, *, env, **_kwargs):
@@ -1480,7 +1814,8 @@ def self_test() -> int:
                             "diagnostics": [], "expected": case["expected"],
                             "source_sha256": case["source_sha256"], "files": case["files"],
                         }) + "\n")
-            return subprocess.CompletedProcess(command, 0, b"cases passed\n", b"")
+            summary = f"{len(selected)} cases passed against both contestants\n".encode()
+            return subprocess.CompletedProcess(command, 0, summary, b"")
 
         identities = {"prepared_sha256": "sealed"}
         first = verify_profile_sharded("test", profile_root, worker, ruff, output, identities, 2, runner=fake_runner)
@@ -1541,12 +1876,19 @@ def self_test() -> int:
         module_source = "fragments/suppress.ryoql"
         staged_profile = root / "single" / "benchmark.toml"
         staged_profile.parent.mkdir(parents=True)
-        write_staged_profile(single_profile, staged_profile, registry)
+        write_staged_profile(
+            single_profile,
+            staged_profile,
+            registry,
+            rule_applicability=selected_rule_applicability(manifest, ["UP006"]),
+        )
         copy_modules(registry, staged_profile.parent)
         if (
             registry.get(module_id) != module_source
             or tomllib.loads(staged_profile.read_text(encoding="utf-8")).get("query-modules")
             != {module_id: module_source}
+            or tomllib.loads(staged_profile.read_text(encoding="utf-8")).get("rule-applicability")
+            != {"UP006": "accepted-syntax"}
             or not (staged_profile.parent / module_source).is_file()
         ):
             print("single-rule profile did not inherit the shared query module", file=sys.stderr)
@@ -1558,6 +1900,7 @@ def self_test() -> int:
             py311_profile,
             registry,
             parser_configuration("py311"),
+            selected_rule_applicability(manifest, ["UP006"]),
         )
         if tomllib.loads(py311_profile.read_text(encoding="utf-8")).get(
             "parser-configuration"
@@ -1843,7 +2186,7 @@ def self_test() -> int:
         ruff = str(Path(sys.executable).resolve())
         pristine_manifest = json.loads(json.dumps(manifest))
         invalid_selection = subprocess.run(
-            [sys.executable, str(helper), ruff, "INVALID-RULE"],
+            [sys.executable, str(helper), ruff, "--output-dir", str(root / "invalid-output"), "INVALID-RULE"],
             capture_output=True,
             text=True,
             check=False,
@@ -1852,7 +2195,7 @@ def self_test() -> int:
             print(f"invalid profile selection did not fail closed: status={invalid_selection.returncode}; stderr={invalid_selection.stderr!r}", file=sys.stderr)
             return 1
         duplicate_selection = subprocess.run(
-            [sys.executable, str(helper), ruff, "F401", "F401"],
+            [sys.executable, str(helper), ruff, "--output-dir", str(root / "duplicate-output"), "F401", "F401"],
             capture_output=True,
             text=True,
             check=False,
@@ -1869,7 +2212,7 @@ def self_test() -> int:
         original_candidate = candidate.read_bytes()
         candidate.write_bytes(original_candidate + b"\n")
         changed_input = subprocess.run(
-            [sys.executable, str(helper), ruff, "F401"],
+            [sys.executable, str(helper), ruff, "--output-dir", str(root / "changed-output"), "F401"],
             capture_output=True,
             text=True,
             check=False,
@@ -1900,7 +2243,10 @@ def self_test() -> int:
         cargo_build_marker = root / "cargo-build-count"
         reference_worker = root / "reference-worker"
         reference_worker.write_text(
-            f"#!/bin/sh\nprintf '%s\\n' \"$*\" >> {marker}\nexit 0\n", encoding="utf-8"
+            f"#!/bin/sh\n"
+            "if [ \"$1\" = audit ]; then echo 'ruff 0.16.5: 104 queries authored / 413 shipped defaults (not a parity certificate)'; exit 0; fi\n"
+            f"printf '%s\\n' \"$*\" >> {marker}\nexit 0\n",
+            encoding="utf-8",
         )
         reference_worker.chmod(0o755)
         artifact_json = json.dumps(
@@ -1951,7 +2297,7 @@ def self_test() -> int:
             encoding="utf-8",
         )
         invalid_rule = subprocess.run(
-            [sys.executable, str(helper), ruff, "--profile", "expanded-defaults"],
+            [sys.executable, str(helper), ruff, "--output-dir", str(root / "invalid-rule-output"), "--profile", "expanded-defaults"],
             capture_output=True,
             text=True,
             check=False,
@@ -2018,7 +2364,7 @@ def self_test() -> int:
             baseline_overlay
         )
         preflight = subprocess.run(
-            [sys.executable, str(helper), str(Path(sys.executable).resolve())],
+            [sys.executable, str(helper), str(Path(sys.executable).resolve()), "--output-dir", str(root / "inventory-output")],
             capture_output=True,
             text=True,
             check=False,
@@ -2052,7 +2398,7 @@ def self_test() -> int:
             temporary_manifest.write_text(json.dumps(trial_manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
             marker.unlink(missing_ok=True)
             check = subprocess.run(
-                [sys.executable, str(helper), ruff, "--profile", SHAPE_PROFILE],
+                [sys.executable, str(helper), ruff, "--output-dir", str(root / f"shape-{kind}-output"), "--profile", SHAPE_PROFILE],
                 capture_output=True,
                 text=True,
                 check=False,
@@ -2128,7 +2474,7 @@ def self_test() -> int:
             temporary_manifest.write_text(json.dumps(trial_manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
             marker.unlink(missing_ok=True)
             check = subprocess.run(
-                [sys.executable, str(helper), ruff, "--profile", "expanded-defaults"],
+                [sys.executable, str(helper), ruff, "--output-dir", str(root / f"expanded-{kind}-output"), "--profile", "expanded-defaults"],
                 capture_output=True,
                 text=True,
                 check=False,
@@ -2184,6 +2530,8 @@ def main() -> int:
         parser.error("--shards requires at least two shards and candidate verification")
     if arguments.resume and (arguments.shards is None or arguments.output_dir is None):
         parser.error("--resume requires --shards and --output-dir")
+    if not arguments.reference_only and arguments.output_dir is None:
+        parser.error("candidate verification requires --output-dir for exact case receipts")
 
     output_directory = arguments.output_dir.resolve() if arguments.output_dir else None
     if arguments.parity_check is not None and (
@@ -2264,6 +2612,19 @@ def main() -> int:
                 worker_executable, build_identity = reuse_frozen_worker(output_directory)
             else:
                 worker_executable, build_identity = build_worker_once(output_directory, stack)
+            protocol_ok, protocol_message = audit_worker_protocol(worker_executable)
+            protocol_record = {
+                "command": [str(worker_executable), "audit"],
+                "worker_sha256": sha256(worker_executable),
+                "status": 0 if protocol_ok else 1,
+                "message": protocol_message,
+            }
+            build_identity["protocol_smoke"] = protocol_record
+            if not protocol_ok:
+                if output_directory is not None:
+                    atomic_json_write(output_directory / "worker-protocol.json", protocol_record)
+                print(f"worker protocol smoke failed: {protocol_message}", file=sys.stderr)
+                return 1
             for name, profile_root in staged:
                 executable = build_identity["frozen_executable"]
                 if not isinstance(executable, dict) or sha256(Path(executable["path"])) != executable["sha256"]:

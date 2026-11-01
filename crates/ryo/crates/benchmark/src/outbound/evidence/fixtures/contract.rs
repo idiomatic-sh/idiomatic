@@ -30,6 +30,8 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
                         },
                     ),
                     report: RunReport {
+                        skipped: Vec::new(),
+                        coverage: None,
                         diagnostics: vec![],
                         files: vec![ryo::linter::RelativePath("input".into())],
                     },
@@ -56,6 +58,8 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
                     wall: Duration::from_millis(5),
                     resources: crate::domain::measurements::types::ResourceObservation::WallOnly,
                     report: RunReport {
+                        skipped: Vec::new(),
+                        coverage: None,
                         diagnostics: vec![],
                         files: vec![ryo::linter::RelativePath("input".into())],
                     },

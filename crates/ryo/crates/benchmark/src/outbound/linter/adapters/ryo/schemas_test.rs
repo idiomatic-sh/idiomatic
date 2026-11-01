@@ -23,6 +23,22 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(true),
     },
     Case {
+        name: CaseName("typed syntax rejection remains distinct from an empty result"),
+        word: Word::Succeeds,
+        input: || {
+            br#"{"diagnostics":[],"files":["bad.py"],"skipped":[{"rule":"F401","path":"bad.py","reason":"syntax-rejected"}]}"#
+        },
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("unknown skip reasons are refused"),
+        word: Word::Refuses,
+        input: || {
+            br#"{"diagnostics":[],"files":["bad.py"],"skipped":[{"rule":"F401","path":"bad.py","reason":"unknown"}]}"#
+        },
+        expect: Expect::Error(()),
+    },
+    Case {
         name: CaseName("unknown fields are refused"),
         word: Word::Refuses,
         input: || br#"{"diagnostics":[],"files":[],"extra":true}"#,
@@ -38,6 +54,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn subject(bytes: Input) -> Result<Value, Failure> {
     decode_report(bytes)
         .map(|report| {
+            if !report.skipped.is_empty() {
+                return report.diagnostics.is_empty()
+                    && report.skipped.len() == 1
+                    && report.skipped[0].rule.as_ref() == "F401"
+                    && report.skipped[0].path.0.as_ref() == "bad.py"
+                    && report.skipped[0].reason == ryo::linter::SkipReason::SyntaxRejected;
+            }
             report
                 == RunReport {
                     diagnostics: vec![BenchmarkFinding {
@@ -50,6 +73,8 @@ fn subject(bytes: Input) -> Result<Value, Failure> {
                         ryo::linter::RelativePath("input".into()),
                         ryo::linter::RelativePath("clean".into()),
                     ],
+                    skipped: Vec::new(),
+                    coverage: None,
                 }
         })
         .map_err(|_rejected_report| ())
@@ -75,10 +100,14 @@ fn request_transports_the_explicit_module_registry() {
             )
             .is_none()
     );
+    let _previous = request
+        .rule_applicability
+        .insert("F401".into(), "accepted-syntax".into());
     let encoded = super::encode_request(request).expect("request JSON");
     let value: serde_json::Value = serde_json::from_str(&encoded).expect("valid request JSON");
     assert_eq!(
         value["query_modules"]["python/ruff/suppress"],
         "fragments/suppress.ryoql"
     );
+    assert_eq!(value["rule_applicability"]["F401"], "accepted-syntax");
 }

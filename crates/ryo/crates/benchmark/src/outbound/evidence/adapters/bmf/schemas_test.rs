@@ -67,6 +67,8 @@ fn subject(scenario: Input) -> Result<serde_json::Value, Failure> {
                     })
                 },
                 report: RunReport {
+                    skipped: Vec::new(),
+                    coverage: None,
                     diagnostics: Vec::new(),
                     files: vec![ryo::linter::RelativePath("input.py".into())],
                 },

@@ -39,6 +39,7 @@ pub fn check(adapter: &impl EnginePort) {
                 root: temporary.path().into(),
                 rules: temporary.path().into(),
                 query_modules: std::collections::BTreeMap::default(),
+                rule_applicability: std::collections::BTreeMap::default(),
                 parser_configuration: None,
                 files: vec![ryo::linter::RelativePath("input.txt".into())],
                 state: crate::domain::suite::types::WorkerState::Fresh,

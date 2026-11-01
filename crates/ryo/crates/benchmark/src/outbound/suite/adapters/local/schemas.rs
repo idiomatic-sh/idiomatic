@@ -24,6 +24,8 @@ struct ToolSchema {
     /// Explicit logical query-module IDs mapped to profile-relative source paths.
     #[serde(default, rename = "query-modules")]
     query_modules: BTreeMap<String, String>,
+    #[serde(default, rename = "rule-applicability")]
+    rule_applicability: BTreeMap<String, String>,
     #[serde(default, rename = "parser-configuration")]
     /// Language parser configuration shared by both contestants.
     parser_configuration: Option<String>,
@@ -126,6 +128,21 @@ impl TryFrom<ToolSchema> for types::Tool {
                 return Err(Error::Invalid("duplicate query module ID".into()));
             }
         }
+        let defaults = wire
+            .defaults
+            .iter()
+            .map(|value| rule(value))
+            .collect::<Result<Vec<_>, _>>()?;
+        for (id, applicability) in &wire.rule_applicability {
+            let parsed_id = rule(id)?;
+            if !defaults.contains(&parsed_id)
+                || !matches!(applicability.as_str(), "always" | "accepted-syntax")
+            {
+                return Err(Error::Invalid(format!(
+                    "invalid rule applicability policy: {id} -> {applicability}"
+                )));
+            }
+        }
         if wire
             .parser_configuration
             .as_ref()
@@ -139,14 +156,11 @@ impl TryFrom<ToolSchema> for types::Tool {
             tool: wire.tool.into(),
             version: wire.version.into(),
             sha256: wire.sha256.into_iter().map(Into::into).collect(),
-            defaults: wire
-                .defaults
-                .iter()
-                .map(|value| rule(value))
-                .collect::<Result<_, _>>()?,
+            defaults,
             deferred: dispositions(wire.deferred)?,
             pending: dispositions(wire.pending)?,
             query_modules,
+            rule_applicability: wire.rule_applicability,
             parser_configuration: wire.parser_configuration,
         })
     }

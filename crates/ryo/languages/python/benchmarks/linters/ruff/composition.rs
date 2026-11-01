@@ -111,6 +111,7 @@ pub(crate) fn run(
             let deferred_count = tool.deferred.len();
             let pending_count = tool.pending.len();
             let query_modules = tool.query_modules.clone();
+            let rule_applicability = tool.rule_applicability.clone();
             let parser_configuration = tool.parser_configuration.clone();
             tool.defaults = audit.authored().to_vec();
             let reference = Arc::new(commands::reference(executable.clone(), tool)?);
@@ -140,6 +141,7 @@ pub(crate) fn run(
                     candidate_executable.clone(),
                     selected_rules.clone(),
                     query_modules,
+                    rule_applicability,
                     parser_configuration,
                 ));
             let case_scratch = tempfile::tempdir()?;

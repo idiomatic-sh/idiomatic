@@ -18,6 +18,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: missing_file,
         expect: Expect::Error(Difference {
+            reference_skipped: vec![],
+            candidate_skipped: vec![],
             reference: Vec::new(),
             candidate: Vec::new(),
         }),
@@ -26,6 +28,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn matching() -> Input {
     let report = RunReport {
         files: vec![ryo::linter::RelativePath("input.txt".into())],
+        skipped: Vec::new(),
+        coverage: None,
         diagnostics: Vec::new(),
     };
     (report.clone(), report)

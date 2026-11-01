@@ -43,6 +43,8 @@ pub struct Tool {
     pub pending: BTreeMap<RuleId, CapabilityName>,
     /// Explicit logical query-module IDs mapped to safe profile-relative source paths.
     pub query_modules: BTreeMap<String, PathBuf>,
+    /// Pinned phase policy for authored candidate rules; absent entries retain legacy Always.
+    pub rule_applicability: BTreeMap<String, String>,
     /// Optional parser configuration that must be shared by reference and candidate.
     pub parser_configuration: Option<String>,
 }
@@ -142,6 +144,8 @@ pub struct WorkerRequest {
     pub rules: PathBuf,
     /// Logical query-module IDs mapped to explicit profile-relative source paths.
     pub query_modules: BTreeMap<String, PathBuf>,
+    /// Exact selected-rule applicability policy forwarded to the isolated candidate worker.
+    pub rule_applicability: BTreeMap<String, String>,
     /// Parser configuration identity selected by the frozen profile, if any.
     pub parser_configuration: Option<String>,
     /// Explicit relative paths the worker must check.

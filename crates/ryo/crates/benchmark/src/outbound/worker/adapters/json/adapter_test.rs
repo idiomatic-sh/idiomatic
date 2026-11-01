@@ -124,6 +124,7 @@ fn subject(operation: Input) -> Result<Value, Failure> {
         "worker".into(),
         "rules".into(),
         std::collections::BTreeMap::default(),
+        std::collections::BTreeMap::default(),
         None,
     );
     let request = RunRequest {
@@ -145,11 +146,27 @@ fn subject(operation: Input) -> Result<Value, Failure> {
         }
     };
     let child = crate::outbound::worker::factory::json(payload, Box::new(output));
+    let mut expected_report = report();
+    if matches!(operation, Operation::RoundTrip) {
+        let Some(rule) = expected_report
+            .diagnostics
+            .first()
+            .map(|finding| finding.rule.clone())
+        else {
+            return Err(Refusal::Unexpected);
+        };
+        expected_report.skipped.push(ryo::linter::Skipped {
+            rule,
+            path: ryo::linter::RelativePath("source.txt".into()),
+            reason: ryo::linter::SkipReason::SyntaxRejected,
+        });
+    }
     match operation {
         Operation::Malformed => child.receive().map(|_| false).map_err(classify),
-        Operation::WriteFailure | Operation::FlushFailure => {
-            child.respond(&report()).map(|()| false).map_err(classify)
-        }
+        Operation::WriteFailure | Operation::FlushFailure => child
+            .respond(&expected_report)
+            .map(|()| false)
+            .map_err(classify),
         Operation::Contract | Operation::RoundTrip => {
             if matches!(operation, Operation::Contract) {
                 check(&child);
@@ -162,7 +179,7 @@ fn subject(operation: Input) -> Result<Value, Failure> {
                     received.state,
                     crate::domain::suite::types::WorkerState::Retained(request.state.join("ryo"))
                 );
-                child.respond(&report()).map_err(classify)?;
+                child.respond(&expected_report).map_err(classify)?;
             }
             let capture = capture.lock().expect("capture");
             assert!(capture.bytes.ends_with(b"\n"));
@@ -182,7 +199,7 @@ fn subject(operation: Input) -> Result<Value, Failure> {
                     },
                 )
                 .map_err(classify)?;
-            Ok(decoded == report())
+            Ok(decoded == expected_report)
         }
     }
 }

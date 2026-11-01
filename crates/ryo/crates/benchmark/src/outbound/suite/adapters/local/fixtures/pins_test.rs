@@ -84,6 +84,7 @@ fn verify_pin((sha256, version, executable): (&[&str], &str, bool)) -> Result<()
         deferred: std::collections::BTreeMap::default(),
         pending: std::collections::BTreeMap::default(),
         query_modules: std::collections::BTreeMap::default(),
+        rule_applicability: std::collections::BTreeMap::default(),
         parser_configuration: None,
         defaults: vec!["E722".try_into().expect("rule identifier")],
     };

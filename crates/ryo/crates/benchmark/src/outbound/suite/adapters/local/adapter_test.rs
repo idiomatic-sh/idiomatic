@@ -219,6 +219,7 @@ expected = []
         .into(),
         pending: std::collections::BTreeMap::default(),
         query_modules: std::collections::BTreeMap::default(),
+        rule_applicability: std::collections::BTreeMap::default(),
         parser_configuration: None,
     };
     let audited = SuiteLocalAdapter

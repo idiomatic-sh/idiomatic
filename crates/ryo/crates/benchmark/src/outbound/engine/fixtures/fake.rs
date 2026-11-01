@@ -15,6 +15,8 @@ impl EnginePort for EngineFake {
         }
         Ok(RunReport {
             files: request.files,
+            skipped: Vec::new(),
+            coverage: None,
             diagnostics: Vec::new(),
         })
     }

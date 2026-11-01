@@ -16,6 +16,8 @@ pub(crate) struct LinterRyoAdapter {
     pub rules: PathBuf,
     /// Explicit logical query-module registry under the frozen profile root.
     pub query_modules: std::collections::BTreeMap<String, PathBuf>,
+    /// Exact selected-rule syntax applicability policy from the frozen profile.
+    pub rule_applicability: std::collections::BTreeMap<String, String>,
     /// Parser configuration forwarded to the isolated SDK worker.
     pub parser_configuration: Option<String>,
 }
@@ -25,6 +27,7 @@ impl LinterPort for LinterRyoAdapter {
             root: request.root.clone(),
             rules: self.rules.clone(),
             query_modules: self.query_modules.clone(),
+            rule_applicability: self.rule_applicability.clone(),
             parser_configuration: self.parser_configuration.clone(),
             files: request.files.clone(),
             state: crate::domain::suite::types::WorkerState::Retained(

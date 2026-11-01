@@ -340,6 +340,8 @@ fn prepare_cases(
             };
             let mut expected = RunReport {
                 files: request.files.clone(),
+                skipped: Vec::new(),
+                coverage: None,
                 diagnostics: case
                     .expected
                     .into_iter()

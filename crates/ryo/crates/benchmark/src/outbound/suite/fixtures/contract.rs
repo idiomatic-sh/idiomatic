@@ -127,6 +127,7 @@ pub fn check(adapter: &impl SuitePort) {
             deferred: std::collections::BTreeMap::default(),
             pending: std::collections::BTreeMap::default(),
             query_modules: std::collections::BTreeMap::default(),
+            rule_applicability: std::collections::BTreeMap::default(),
             parser_configuration: None,
             defaults: if selected {
                 vec!["fixture".try_into().expect("rule identifier")]

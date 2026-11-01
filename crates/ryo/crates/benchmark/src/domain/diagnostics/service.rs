@@ -15,12 +15,14 @@ pub fn compare(reference: &RunReport, candidate: &RunReport) -> Result<(), Diffe
     let mut right_files = candidate.files.clone();
     left_files.sort();
     right_files.sort();
-    if left == right && left_files == right_files {
+    if left == right && left_files == right_files && reference.skipped.is_empty() {
         Ok(())
     } else {
         Err(Difference {
             reference: left,
             candidate: right,
+            reference_skipped: reference.skipped.clone(),
+            candidate_skipped: candidate.skipped.clone(),
         })
     }
 }

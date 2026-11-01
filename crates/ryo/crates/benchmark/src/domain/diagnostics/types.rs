@@ -19,8 +19,25 @@ pub struct BenchmarkFinding {
 pub struct RunReport {
     /// Finding multiset, preserving duplicate occurrences.
     pub diagnostics: Vec<BenchmarkFinding>,
+    /// Rules explicitly skipped for syntax applicability, kept separate from empty findings.
+    pub skipped: Vec<ryo::linter::Skipped>,
+    /// Candidate execution accounting; external references may not expose this distinction.
+    pub coverage: Option<RuleCoverage>,
     /// Exact relative source paths submitted to the tool.
     pub files: Vec<RelativePath>,
+}
+
+/// Accounting for each selected rule/file pair in one candidate execution.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct RuleCoverage {
+    /// Selected rule/file pairs before applicability checks.
+    pub selected: usize,
+    /// Selected pairs whose query ran.
+    pub evaluated: usize,
+    /// Pairs skipped after explicit syntax rejection.
+    pub skipped: usize,
+    /// Pairs unavailable because the engine returned unknown or unread state.
+    pub unknown_or_unread: usize,
 }
 
 /// Sorted finding multisets retained when comparison does not agree.
@@ -30,6 +47,10 @@ pub struct Difference {
     pub reference: Vec<BenchmarkFinding>,
     /// Sorted findings returned by the candidate.
     pub candidate: Vec<BenchmarkFinding>,
+    /// Reference-side applicability skips, normally empty for external tools.
+    pub reference_skipped: Vec<ryo::linter::Skipped>,
+    /// Candidate-side applicability skips, never treated as an empty clean result.
+    pub candidate_skipped: Vec<ryo::linter::Skipped>,
 }
 
 /// Position in the source byte stream, distinct from Unicode columns or query offsets.

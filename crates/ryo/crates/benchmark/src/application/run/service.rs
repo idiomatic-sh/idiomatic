@@ -173,8 +173,13 @@ pub fn verify_shard(
                     )?;
                     if let Err(difference) = comparison {
                         failures.push(format!(
-                            "{}/{} expected-vs-{name}: expected={:?}; actual={:?}",
-                            case.rule, case.name, difference.reference, difference.candidate
+                            "{}/{} expected-vs-{name}: expected={:?}; actual={:?}; expected-skipped={:?}; actual-skipped={:?}",
+                            case.rule,
+                            case.name,
+                            difference.reference,
+                            difference.candidate,
+                            difference.reference_skipped,
+                            difference.candidate_skipped
                         ));
                     }
                 }
@@ -227,6 +232,21 @@ fn write_case_observation(
             .map(|file| file.0.as_ref())
             .collect::<Vec<_>>()
     });
+    let skipped = report.map(|report| {
+        report
+            .skipped
+            .iter()
+            .map(|skip| {
+                serde_json::json!({
+                    "rule": skip.rule.as_ref(),
+                    "path": skip.path.0.as_ref(),
+                    "reason": match skip.reason {
+                        ryo::linter::SkipReason::SyntaxRejected => "syntax-rejected",
+                    },
+                })
+            })
+            .collect::<Vec<_>>()
+    });
     let expected = case
         .expected
         .diagnostics
@@ -254,6 +274,17 @@ fn write_case_observation(
         "side": side,
         "files": files,
         "diagnostics": findings,
+        "skipped": skipped,
+        "coverage": report.and_then(|report| {
+            report.coverage.map(|coverage| {
+                serde_json::json!({
+                    "selected_rule_file_pairs": coverage.selected,
+                    "evaluated_rule_file_pairs": coverage.evaluated,
+                    "skipped_rule_file_pairs": coverage.skipped,
+                    "unknown_or_unread_rule_file_pairs": coverage.unknown_or_unread,
+                })
+            })
+        }),
         "expected": expected,
         "source_sha256": format!("{:x}", source_hasher.finalize()),
         "error": error,

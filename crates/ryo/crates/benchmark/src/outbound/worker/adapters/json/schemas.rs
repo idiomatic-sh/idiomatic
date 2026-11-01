@@ -26,6 +26,9 @@ struct RequestSchema {
     /// Explicit module registry carried into the isolated query-loading process.
     #[serde(default)]
     query_modules: std::collections::BTreeMap<String, PathBuf>,
+    /// Exact selected-rule parser-applicability policy.
+    #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    rule_applicability: std::collections::BTreeMap<String, String>,
     /// Parser configuration identity selected by the frozen profile.
     #[serde(default)]
     parser_configuration: Option<String>,
@@ -40,6 +43,7 @@ impl From<RequestSchema> for WorkerRequest {
             root: request.root,
             rules: request.rules,
             query_modules: request.query_modules,
+            rule_applicability: request.rule_applicability,
             parser_configuration: request.parser_configuration,
             files: request
                 .files
@@ -58,8 +62,31 @@ impl From<RequestSchema> for WorkerRequest {
 struct ReportSchema<'a> {
     /// Reported findings, preserving multiplicity and source offsets.
     diagnostics: Vec<DiagnosticSchema<'a>>,
+    /// Typed syntax-applicability skips, kept distinct from empty results.
+    skipped: Vec<SkippedSchema<'a>>,
+    /// Exact selected/evaluated/skipped accounting for a candidate run.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    coverage: Option<CoverageSchema>,
     /// Exact project-relative file set covered by this request or report.
     files: Vec<&'a str>,
+}
+#[derive(Debug, Serialize)]
+/// Counts of selected rule/file pairs by final outcome.
+struct CoverageSchema {
+    selected: usize,
+    evaluated: usize,
+    skipped: usize,
+    unknown_or_unread: usize,
+}
+#[derive(Debug, Serialize)]
+/// One selected rule/file pair not evaluated after explicit syntax rejection.
+struct SkippedSchema<'a> {
+    /// Stable selected rule identifier.
+    rule: &'a str,
+    /// Exact project-relative file path.
+    path: &'a str,
+    /// Stable machine-readable skip reason.
+    reason: &'static str,
 }
 #[derive(Debug, Serialize)]
 /// One finding with an unmodified source byte range.
@@ -93,6 +120,23 @@ pub(super) fn report(report: &RunReport) -> Result<WorkerResponseBytes, WorkerSc
                 end: finding.end.0,
             })
             .collect(),
+        skipped: report
+            .skipped
+            .iter()
+            .map(|skip| SkippedSchema {
+                rule: skip.rule.as_ref(),
+                path: skip.path.0.as_ref(),
+                reason: match skip.reason {
+                    ryo::linter::SkipReason::SyntaxRejected => "syntax-rejected",
+                },
+            })
+            .collect(),
+        coverage: report.coverage.map(|coverage| CoverageSchema {
+            selected: coverage.selected,
+            evaluated: coverage.evaluated,
+            skipped: coverage.skipped,
+            unknown_or_unread: coverage.unknown_or_unread,
+        }),
     };
     Ok(WorkerResponseBytes(serde_json::to_vec(&wire)?))
 }

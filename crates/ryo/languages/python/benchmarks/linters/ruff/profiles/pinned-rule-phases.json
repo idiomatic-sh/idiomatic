@@ -1,0 +1,5262 @@
+{
+  "schema_version": 1,
+  "ruff_version": "0.16.5",
+  "ruff_source_commit": "9e4938c4a60bed3e87a11ee1e1db1bd23f4d964a",
+  "source_checkout": "astral-sh/ruff tag 0.16.5",
+  "code_to_variant_registry": {
+    "path": "crates/ruff_linter/src/settings/mod.rs",
+    "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+  },
+  "phase_registry": {
+    "path": "crates/ruff_linter/src/registry.rs",
+    "method": "Rule::lint_source",
+    "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+    "ast_fallback_line": 350
+  },
+  "lint_sources": {
+    "Ast": "ast",
+    "Io": "io",
+    "PhysicalLines": "physical-lines",
+    "LogicalLines": "logical-lines",
+    "Tokens": "tokens",
+    "Imports": "imports",
+    "Noqa": "noqa",
+    "Filesystem": "filesystem",
+    "Toml": "toml"
+  },
+  "mixed_phase_policy": "Ruff 0.16.5 lint_source returns one source per Rule; any future multi-source classification must include an explicit mixed_policy per rule and preflight rejects absent policy.",
+  "rules": {
+    "ASYNC100": {
+      "registry_variant": "CancelScopeNoCheckpoint",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 358,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 358
+    },
+    "ASYNC105": {
+      "registry_variant": "TrioSyncCall",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 359,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 359
+    },
+    "ASYNC115": {
+      "registry_variant": "AsyncZeroSleep",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 360,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 360
+    },
+    "ASYNC210": {
+      "registry_variant": "BlockingHttpCallInAsyncFunction",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 362,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 362
+    },
+    "ASYNC222": {
+      "registry_variant": "WaitForProcessInAsyncFunction",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 365,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 365
+    },
+    "ASYNC251": {
+      "registry_variant": "BlockingSleepInAsyncFunction",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 367,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 367
+    },
+    "B002": {
+      "registry_variant": "UnaryPrefixIncrementDecrement",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 368,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 368
+    },
+    "B003": {
+      "registry_variant": "AssignmentToOsEnviron",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 369,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 369
+    },
+    "B004": {
+      "registry_variant": "UnreliableCallableCheck",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 370,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 370
+    },
+    "B006": {
+      "registry_variant": "MutableArgumentDefault",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 372,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 372
+    },
+    "B008": {
+      "registry_variant": "FunctionCallInDefaultArgument",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 373,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 373
+    },
+    "B009": {
+      "registry_variant": "GetAttrWithConstant",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 374,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 374
+    },
+    "B010": {
+      "registry_variant": "SetAttrWithConstant",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 375,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 375
+    },
+    "B012": {
+      "registry_variant": "JumpStatementInFinally",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 376,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 376
+    },
+    "B013": {
+      "registry_variant": "RedundantTupleInExceptionHandler",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 377,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 377
+    },
+    "B014": {
+      "registry_variant": "DuplicateHandlerException",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 378,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 378
+    },
+    "B015": {
+      "registry_variant": "UselessComparison",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 379,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 379
+    },
+    "B016": {
+      "registry_variant": "RaiseLiteral",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 380,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 380
+    },
+    "B017": {
+      "registry_variant": "AssertRaisesException",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 381,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 381
+    },
+    "B018": {
+      "registry_variant": "UselessExpression",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 382,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 382
+    },
+    "B020": {
+      "registry_variant": "LoopVariableOverridesIterator",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 384,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 384
+    },
+    "B021": {
+      "registry_variant": "FStringDocstring",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 385,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 385
+    },
+    "B022": {
+      "registry_variant": "UselessContextlibSuppress",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 386,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 386
+    },
+    "B023": {
+      "registry_variant": "FunctionUsesLoopVariable",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 387,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 387
+    },
+    "B025": {
+      "registry_variant": "DuplicateTryBlockException",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 388,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 388
+    },
+    "B026": {
+      "registry_variant": "StarArgUnpackingAfterKeywordArg",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 389,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 389
+    },
+    "B029": {
+      "registry_variant": "ExceptWithEmptyTuple",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 390,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 390
+    },
+    "B030": {
+      "registry_variant": "ExceptWithNonExceptionClasses",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 391,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 391
+    },
+    "B032": {
+      "registry_variant": "UnintentionalTypeAnnotation",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 393,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 393
+    },
+    "B033": {
+      "registry_variant": "DuplicateValue",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 394,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 394
+    },
+    "B035": {
+      "registry_variant": "StaticKeyDictComprehension",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 395,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 395
+    },
+    "B039": {
+      "registry_variant": "MutableContextvarDefault",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 396,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 396
+    },
+    "C400": {
+      "registry_variant": "UnnecessaryGeneratorList",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 398,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 398
+    },
+    "C401": {
+      "registry_variant": "UnnecessaryGeneratorSet",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 399,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 399
+    },
+    "C402": {
+      "registry_variant": "UnnecessaryGeneratorDict",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 400,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 400
+    },
+    "C403": {
+      "registry_variant": "UnnecessaryListComprehensionSet",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 401,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 401
+    },
+    "C404": {
+      "registry_variant": "UnnecessaryListComprehensionDict",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 402,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 402
+    },
+    "C405": {
+      "registry_variant": "UnnecessaryLiteralSet",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 403,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 403
+    },
+    "C406": {
+      "registry_variant": "UnnecessaryLiteralDict",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 404,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 404
+    },
+    "C408": {
+      "registry_variant": "UnnecessaryCollectionCall",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 405,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 405
+    },
+    "C409": {
+      "registry_variant": "UnnecessaryLiteralWithinTupleCall",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 406,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 406
+    },
+    "C410": {
+      "registry_variant": "UnnecessaryLiteralWithinListCall",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 407,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 407
+    },
+    "C411": {
+      "registry_variant": "UnnecessaryListCall",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 408,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 408
+    },
+    "C413": {
+      "registry_variant": "UnnecessaryCallAroundSorted",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 409,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 409
+    },
+    "C415": {
+      "registry_variant": "UnnecessarySubscriptReversal",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 411,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 411
+    },
+    "C418": {
+      "registry_variant": "UnnecessaryLiteralWithinDictCall",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 413,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 413
+    },
+    "C419": {
+      "registry_variant": "UnnecessaryComprehensionInCall",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 414,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 414
+    },
+    "D419": {
+      "registry_variant": "EmptyDocstring",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 415,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 415
+    },
+    "DTZ001": {
+      "registry_variant": "CallDatetimeWithoutTzinfo",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 416,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 416
+    },
+    "DTZ002": {
+      "registry_variant": "CallDatetimeToday",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 417,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 417
+    },
+    "DTZ003": {
+      "registry_variant": "CallDatetimeUtcnow",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 418,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 418
+    },
+    "DTZ004": {
+      "registry_variant": "CallDatetimeUtcfromtimestamp",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 419,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 419
+    },
+    "DTZ005": {
+      "registry_variant": "CallDatetimeNowWithoutTzinfo",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 420,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 420
+    },
+    "DTZ006": {
+      "registry_variant": "CallDatetimeFromtimestamp",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 421,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 421
+    },
+    "DTZ007": {
+      "registry_variant": "CallDatetimeStrptimeWithoutZone",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 422,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 422
+    },
+    "DTZ011": {
+      "registry_variant": "CallDateToday",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 423,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 423
+    },
+    "DTZ012": {
+      "registry_variant": "CallDateFromtimestamp",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 424,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 424
+    },
+    "DTZ901": {
+      "registry_variant": "DatetimeMinMax",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 425,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 425
+    },
+    "E722": {
+      "registry_variant": "BareExcept",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 426,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 426
+    },
+    "EXE005": {
+      "registry_variant": "ShebangNotFirstLine",
+      "phase": "tokens",
+      "phases": [
+        "tokens"
+      ],
+      "applicability": "always",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 431,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 267,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Tokens"
+        }
+      ],
+      "registry_line": 431
+    },
+    "F401": {
+      "registry_variant": "UnusedImport",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 432,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 432
+    },
+    "F402": {
+      "registry_variant": "ImportShadowedByLoopVar",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 433,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 433
+    },
+    "F404": {
+      "registry_variant": "LateFutureImport",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 434,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 434
+    },
+    "F407": {
+      "registry_variant": "FutureFeatureNotDefined",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 435,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 435
+    },
+    "F501": {
+      "registry_variant": "PercentFormatInvalidFormat",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 436,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 436
+    },
+    "F502": {
+      "registry_variant": "PercentFormatExpectedMapping",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 437,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 437
+    },
+    "F503": {
+      "registry_variant": "PercentFormatExpectedSequence",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 438,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 438
+    },
+    "F504": {
+      "registry_variant": "PercentFormatExtraNamedArguments",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 439,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 439
+    },
+    "F505": {
+      "registry_variant": "PercentFormatMissingArgument",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 440,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 440
+    },
+    "F506": {
+      "registry_variant": "PercentFormatMixedPositionalAndNamed",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 441,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 441
+    },
+    "F508": {
+      "registry_variant": "PercentFormatStarRequiresSequence",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 443,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 443
+    },
+    "F509": {
+      "registry_variant": "PercentFormatUnsupportedFormatCharacter",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 444,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 444
+    },
+    "F541": {
+      "registry_variant": "FStringMissingPlaceholders",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 450,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 450
+    },
+    "F601": {
+      "registry_variant": "MultiValueRepeatedKeyLiteral",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 451,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 451
+    },
+    "F602": {
+      "registry_variant": "MultiValueRepeatedKeyVariable",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 452,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 452
+    },
+    "F622": {
+      "registry_variant": "MultipleStarredExpressions",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 454,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 454
+    },
+    "F631": {
+      "registry_variant": "AssertTuple",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 455,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 455
+    },
+    "F632": {
+      "registry_variant": "IsLiteral",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 456,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 456
+    },
+    "F633": {
+      "registry_variant": "InvalidPrintSyntax",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 457,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 457
+    },
+    "F634": {
+      "registry_variant": "IfTuple",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 458,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 458
+    },
+    "F701": {
+      "registry_variant": "BreakOutsideLoop",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 459,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 459
+    },
+    "F702": {
+      "registry_variant": "ContinueOutsideLoop",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 460,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 460
+    },
+    "F704": {
+      "registry_variant": "YieldOutsideFunction",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 461,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 461
+    },
+    "F706": {
+      "registry_variant": "ReturnOutsideFunction",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 462,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 462
+    },
+    "F707": {
+      "registry_variant": "DefaultExceptNotLast",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 463,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 463
+    },
+    "F811": {
+      "registry_variant": "RedefinedWhileUnused",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 464,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 464
+    },
+    "F821": {
+      "registry_variant": "UndefinedName",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 465,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 465
+    },
+    "F822": {
+      "registry_variant": "UndefinedExport",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 466,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 466
+    },
+    "F823": {
+      "registry_variant": "UndefinedLocal",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 467,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 467
+    },
+    "F841": {
+      "registry_variant": "UnusedVariable",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 468,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 468
+    },
+    "F842": {
+      "registry_variant": "UnusedAnnotation",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 469,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 469
+    },
+    "F901": {
+      "registry_variant": "RaiseNotImplemented",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 470,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 470
+    },
+    "G010": {
+      "registry_variant": "LoggingWarn",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 491,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 491
+    },
+    "G101": {
+      "registry_variant": "LoggingExtraAttrClash",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 492,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 492
+    },
+    "G201": {
+      "registry_variant": "LoggingExcInfo",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 493,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 493
+    },
+    "G202": {
+      "registry_variant": "LoggingRedundantExcInfo",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 494,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 494
+    },
+    "INT001": {
+      "registry_variant": "FStringInGetTextFuncCall",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 496,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 496
+    },
+    "INT002": {
+      "registry_variant": "FormatInGetTextFuncCall",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 497,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 497
+    },
+    "INT003": {
+      "registry_variant": "PrintfInGetTextFuncCall",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 498,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 498
+    },
+    "LOG001": {
+      "registry_variant": "DirectLoggerInstantiation",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 500,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 500
+    },
+    "LOG002": {
+      "registry_variant": "InvalidGetLoggerArgument",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 501,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 501
+    },
+    "LOG009": {
+      "registry_variant": "UndocumentedWarn",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 502,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 502
+    },
+    "LOG014": {
+      "registry_variant": "ExcInfoOutsideExceptHandler",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 503,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 503
+    },
+    "LOG015": {
+      "registry_variant": "RootLoggerCall",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 504,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 504
+    },
+    "PGH005": {
+      "registry_variant": "InvalidMockAccess",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 509,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 509
+    },
+    "PIE794": {
+      "registry_variant": "DuplicateClassFieldDefinition",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 511,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 511
+    },
+    "PIE800": {
+      "registry_variant": "UnnecessarySpread",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 513,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 513
+    },
+    "PIE807": {
+      "registry_variant": "ReimplementedContainerBuiltin",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 515,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 515
+    },
+    "PIE808": {
+      "registry_variant": "UnnecessaryRangeStart",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 516,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 516
+    },
+    "PLC0205": {
+      "registry_variant": "SingleStringSlots",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 521,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 521
+    },
+    "PLC0414": {
+      "registry_variant": "UselessImportAlias",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 524,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 524
+    },
+    "PLC3002": {
+      "registry_variant": "UnnecessaryDirectLambdaCall",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 525,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 525
+    },
+    "PLE0115": {
+      "registry_variant": "NonlocalAndGlobal",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 528,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 528
+    },
+    "PLE0117": {
+      "registry_variant": "NonlocalWithoutBinding",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 530,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 530
+    },
+    "PLE0118": {
+      "registry_variant": "LoadBeforeGlobalDeclaration",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 531,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 531
+    },
+    "PLE0604": {
+      "registry_variant": "InvalidAllObject",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 538,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 538
+    },
+    "PLE0605": {
+      "registry_variant": "InvalidAllFormat",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 539,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 539
+    },
+    "PLE1132": {
+      "registry_variant": "RepeatedKeywordArgument",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 542,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 542
+    },
+    "PLE1205": {
+      "registry_variant": "LoggingTooManyArgs",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 544,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 544
+    },
+    "PLE1206": {
+      "registry_variant": "LoggingTooFewArgs",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 545,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 545
+    },
+    "PLE1507": {
+      "registry_variant": "InvalidEnvvarValue",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 549,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 549
+    },
+    "PLE1519": {
+      "registry_variant": "SingledispatchMethod",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 550,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 550
+    },
+    "PLE1520": {
+      "registry_variant": "SingledispatchmethodFunction",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 551,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 551
+    },
+    "PLR0124": {
+      "registry_variant": "ComparisonWithItself",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 559,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 559
+    },
+    "PLR0133": {
+      "registry_variant": "ComparisonOfConstant",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 560,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 560
+    },
+    "PLR0402": {
+      "registry_variant": "ManualFromImport",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 562,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 562
+    },
+    "PLR1704": {
+      "registry_variant": "RedefinedArgumentFromLocal",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 563,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 563
+    },
+    "PLR1711": {
+      "registry_variant": "UselessReturn",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 565,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 565
+    },
+    "PLR1722": {
+      "registry_variant": "SysExitAlias",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 567,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 567
+    },
+    "PLW0120": {
+      "registry_variant": "UselessElseOnLoop",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 572,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 572
+    },
+    "PLW0127": {
+      "registry_variant": "SelfAssigningVariable",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 573,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 573
+    },
+    "PLW0128": {
+      "registry_variant": "RedeclaredAssignedName",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 574,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 574
+    },
+    "PLW0129": {
+      "registry_variant": "AssertOnStringLiteral",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 575,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 575
+    },
+    "PLW0131": {
+      "registry_variant": "NamedExprWithoutContext",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 576,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 576
+    },
+    "PLW0133": {
+      "registry_variant": "UselessExceptionStatement",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 577,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 577
+    },
+    "PLW0177": {
+      "registry_variant": "NanComparison",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 578,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 578
+    },
+    "PLW0245": {
+      "registry_variant": "SuperWithoutBrackets",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 580,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 580
+    },
+    "PLW0602": {
+      "registry_variant": "GlobalVariableNotAssigned",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 582,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 582
+    },
+    "PLW0604": {
+      "registry_variant": "GlobalAtModuleLevel",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 583,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 583
+    },
+    "PLW0642": {
+      "registry_variant": "SelfOrClsAssignment",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 584,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 584
+    },
+    "PLW0711": {
+      "registry_variant": "BinaryOpException",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 585,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 585
+    },
+    "PLW1501": {
+      "registry_variant": "BadOpenMode",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 586,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 586
+    },
+    "PLW1507": {
+      "registry_variant": "ShallowCopyEnviron",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 587,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 587
+    },
+    "PLW1508": {
+      "registry_variant": "InvalidEnvvarDefault",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 588,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 588
+    },
+    "PLW1509": {
+      "registry_variant": "SubprocessPopenPreexecFn",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 589,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 589
+    },
+    "PLW1510": {
+      "registry_variant": "SubprocessRunWithoutCheck",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 590,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 590
+    },
+    "PT010": {
+      "registry_variant": "PytestRaisesWithoutException",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 592,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 592
+    },
+    "PT014": {
+      "registry_variant": "PytestDuplicateParametrizeTestCases",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 593,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 593
+    },
+    "PT020": {
+      "registry_variant": "PytestDeprecatedYieldFixture",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 594,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 594
+    },
+    "PT025": {
+      "registry_variant": "PytestErroneousUseFixturesOnFixture",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 595,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 595
+    },
+    "PT026": {
+      "registry_variant": "PytestUseFixturesWithoutParameters",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 596,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 596
+    },
+    "PT031": {
+      "registry_variant": "PytestWarnsWithMultipleStatements",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 597,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 597
+    },
+    "PTH124": {
+      "registry_variant": "PyPath",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 598,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 598
+    },
+    "PTH210": {
+      "registry_variant": "InvalidPathlibWithSuffix",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 599,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 599
+    },
+    "PYI001": {
+      "registry_variant": "UnprefixedTypeParam",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 600,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 600
+    },
+    "PYI009": {
+      "registry_variant": "PassStatementStubBody",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 608,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 608
+    },
+    "PYI010": {
+      "registry_variant": "NonEmptyStubBody",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 609,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 609
+    },
+    "PYI012": {
+      "registry_variant": "PassInClassBody",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 610,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 610
+    },
+    "PYI013": {
+      "registry_variant": "EllipsisInNonEmptyClassBody",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 611,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 611
+    },
+    "PYI017": {
+      "registry_variant": "ComplexAssignmentInStub",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 614,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 614
+    },
+    "PYI025": {
+      "registry_variant": "UnaliasedCollectionsAbcSetImport",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 618,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 618
+    },
+    "PYI033": {
+      "registry_variant": "LegacyTypeComment",
+      "phase": "tokens",
+      "phases": [
+        "tokens"
+      ],
+      "applicability": "always",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 623,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 267,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Tokens"
+        }
+      ],
+      "registry_line": 623
+    },
+    "PYI035": {
+      "registry_variant": "UnassignedSpecialVariableInStub",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 625,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 625
+    },
+    "PYI044": {
+      "registry_variant": "FutureAnnotationsInStub",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 630,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 630
+    },
+    "PYI048": {
+      "registry_variant": "StubBodyMultipleStatements",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 634,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 634
+    },
+    "RUF016": {
+      "registry_variant": "InvalidIndexType",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 655,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 655
+    },
+    "RUF018": {
+      "registry_variant": "AssignmentInAssert",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 657,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 657
+    },
+    "RUF030": {
+      "registry_variant": "AssertWithPrintMessage",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 665,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 665
+    },
+    "RUF032": {
+      "registry_variant": "DecimalFromFloatLiteral",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 666,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 666
+    },
+    "RUF040": {
+      "registry_variant": "InvalidAssertMessageLiteralArgument",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 669,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 669
+    },
+    "RUF058": {
+      "registry_variant": "StarmapZip",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 677,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 677
+    },
+    "RUF059": {
+      "registry_variant": "UnusedUnpackedVariable",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 678,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 678
+    },
+    "S102": {
+      "registry_variant": "ExecBuiltin",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 684,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 684
+    },
+    "S110": {
+      "registry_variant": "TryExceptPass",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 685,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 685
+    },
+    "S112": {
+      "registry_variant": "TryExceptContinue",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 686,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 686
+    },
+    "SIM208": {
+      "registry_variant": "DoubleNegation",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 698,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 698
+    },
+    "SIM210": {
+      "registry_variant": "IfExprWithTrueFalse",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 699,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 699
+    },
+    "SIM211": {
+      "registry_variant": "IfExprWithFalseTrue",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 700,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 700
+    },
+    "SIM220": {
+      "registry_variant": "ExprAndNotExpr",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 701,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 701
+    },
+    "SIM221": {
+      "registry_variant": "ExprOrNotExpr",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 702,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 702
+    },
+    "T100": {
+      "registry_variant": "Debugger",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 708,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 708
+    },
+    "TRY002": {
+      "registry_variant": "RaiseVanillaClass",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 713,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 713
+    },
+    "TRY004": {
+      "registry_variant": "TypeCheckWithoutTypeError",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 714,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 714
+    },
+    "TRY203": {
+      "registry_variant": "UselessTryExcept",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 716,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 716
+    },
+    "TRY401": {
+      "registry_variant": "VerboseLogMessage",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 717,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 717
+    },
+    "UP001": {
+      "registry_variant": "UselessMetaclassType",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 718,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 718
+    },
+    "UP003": {
+      "registry_variant": "TypeOfPrimitive",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 719,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 719
+    },
+    "UP004": {
+      "registry_variant": "UselessObjectInheritance",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 720,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 720
+    },
+    "UP005": {
+      "registry_variant": "DeprecatedUnittestAlias",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 721,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 721
+    },
+    "UP006": {
+      "registry_variant": "NonPEP585Annotation",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 722,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 722
+    },
+    "UP009": {
+      "registry_variant": "UTF8EncodingDeclaration",
+      "phase": "tokens",
+      "phases": [
+        "tokens"
+      ],
+      "applicability": "always",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 725,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 267,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Tokens"
+        }
+      ],
+      "registry_line": 725
+    },
+    "UP010": {
+      "registry_variant": "UnnecessaryFutureImport",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 726,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 726
+    },
+    "UP011": {
+      "registry_variant": "LRUCacheWithoutParameters",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 727,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 727
+    },
+    "UP017": {
+      "registry_variant": "DatetimeTimezoneUTC",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 730,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 730
+    },
+    "UP018": {
+      "registry_variant": "NativeLiterals",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 731,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 731
+    },
+    "UP019": {
+      "registry_variant": "TypingTextStrAlias",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 732,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 732
+    },
+    "UP020": {
+      "registry_variant": "OpenAlias",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 733,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 733
+    },
+    "UP021": {
+      "registry_variant": "ReplaceUniversalNewlines",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 734,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 734
+    },
+    "UP022": {
+      "registry_variant": "ReplaceStdoutStderr",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 735,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 735
+    },
+    "UP023": {
+      "registry_variant": "DeprecatedCElementTree",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 736,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 736
+    },
+    "UP024": {
+      "registry_variant": "OSErrorAlias",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 737,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 737
+    },
+    "UP025": {
+      "registry_variant": "UnicodeKindPrefix",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 738,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 738
+    },
+    "UP026": {
+      "registry_variant": "DeprecatedMockImport",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 739,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 739
+    },
+    "UP028": {
+      "registry_variant": "YieldInForLoop",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 740,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 740
+    },
+    "UP029": {
+      "registry_variant": "UnnecessaryBuiltinImport",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 741,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 741
+    },
+    "UP033": {
+      "registry_variant": "LRUCacheWithMaxsizeNone",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 745,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 745
+    },
+    "UP039": {
+      "registry_variant": "UnnecessaryClassParentheses",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 750,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 750
+    },
+    "UP041": {
+      "registry_variant": "TimeoutErrorAlias",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 752,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 752
+    },
+    "YTT101": {
+      "registry_variant": "SysVersionSlice3",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 761,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 761
+    },
+    "YTT102": {
+      "registry_variant": "SysVersion2",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 762,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 762
+    },
+    "YTT103": {
+      "registry_variant": "SysVersionCmpStr3",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 763,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 763
+    },
+    "YTT201": {
+      "registry_variant": "SysVersionInfo0Eq3",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 764,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 764
+    },
+    "YTT202": {
+      "registry_variant": "SixPY3",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 765,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 765
+    },
+    "YTT203": {
+      "registry_variant": "SysVersionInfo1CmpInt",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 766,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 766
+    },
+    "YTT204": {
+      "registry_variant": "SysVersionInfoMinorCmpInt",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 767,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 767
+    },
+    "YTT301": {
+      "registry_variant": "SysVersion0",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 768,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 768
+    },
+    "YTT302": {
+      "registry_variant": "SysVersionCmpStr10",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 769,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 769
+    },
+    "YTT303": {
+      "registry_variant": "SysVersionSlice1",
+      "phase": "ast",
+      "phases": [
+        "ast"
+      ],
+      "applicability": "accepted-syntax",
+      "evidence": [
+        {
+          "kind": "code-to-variant",
+          "path": "crates/ruff_linter/src/settings/mod.rs",
+          "line": 770,
+          "sha256": "3c49e5b00054ab8dcc09286742878d927b67ce6cf7401a0d9429da5240bf26fb"
+        },
+        {
+          "kind": "lint-source",
+          "path": "crates/ruff_linter/src/registry.rs",
+          "line": 350,
+          "sha256": "6d16483958ce6a84b3027e570bad35b227324ae7b5cd8187731c78b44c4d8c38",
+          "resolution": "Ast wildcard fallback"
+        }
+      ],
+      "registry_line": 770
+    }
+  }
+}

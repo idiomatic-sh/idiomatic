@@ -32,6 +32,8 @@ impl LinterPort for LinterFake {
         }
         Ok(RunReport {
             files: request.files.clone(),
+            skipped: Vec::new(),
+            coverage: None,
             diagnostics: self.diagnostics.clone(),
         })
     }

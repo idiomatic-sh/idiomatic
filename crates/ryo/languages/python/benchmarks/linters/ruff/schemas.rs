@@ -141,6 +141,8 @@ impl TryFrom<RuffReportSchema<'_>> for RunReport {
         }
         Ok(RunReport {
             diagnostics,
+            skipped: Vec::new(),
+            coverage: None,
             files: request.files.clone(),
         })
     }

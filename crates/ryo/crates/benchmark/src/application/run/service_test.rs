@@ -413,6 +413,8 @@ impl LinterPort for Empty {
     }
     fn decode(&self, _: &RunRequest, _: ProcessOutput) -> Result<RunReport, Error> {
         Ok(RunReport {
+            skipped: Vec::new(),
+            coverage: None,
             diagnostics: vec![],
             files: vec![],
         })
@@ -504,6 +506,8 @@ fn prepared(scenario: Scenario) -> (SuiteFake, BenchmarkFinding) {
             },
             expected: RunReport {
                 files: vec![ryo::linter::RelativePath("case.py".into())],
+                skipped: Vec::new(),
+                coverage: None,
                 diagnostics: vec![expected.clone()],
             },
         });
@@ -516,6 +520,7 @@ fn prepared(scenario: Scenario) -> (SuiteFake, BenchmarkFinding) {
         deferred: std::collections::BTreeMap::default(),
         pending: std::collections::BTreeMap::default(),
         query_modules: std::collections::BTreeMap::default(),
+        rule_applicability: std::collections::BTreeMap::default(),
         parser_configuration: None,
     });
     (suite, expected)

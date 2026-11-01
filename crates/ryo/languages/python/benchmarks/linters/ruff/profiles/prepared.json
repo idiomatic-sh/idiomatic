@@ -3595,7 +3595,7 @@
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/YTT302/cases.toml": "8573e2020b0ed1c8a2cf80d6a21470ec5bcb8de23291a1228788a59d2a140db0",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/YTT303/candidate.ryoql": "a6acac6db3b9e992be571c541749afd8087d1aeee781d6bc8bc03e6ed5149b54",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/YTT303/cases.toml": "bc6d57fe3b7d11670f4ee826da0219a5da64b917fa8cb6e87a15a110767509a9",
-    "crates/ryo/languages/python/benchmarks/linters/ruff/verify_profiles.py": "4c20d7641390b6be158e266e60304cab93ffd6d4c607ff9919b000eb6c2d0d56",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/verify_profiles.py": "5f3ae5319b2e9143639c0257cca0044cdba13eef0a18d594c38b820fd88b1d3c",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PLW1501/candidate.ryoql": "3e6f20afb6329fb17714a2baa1204e3505f8910bf15b61d80ba265a31c3861ad",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PLW1501/cases.toml": "e04a6297bc8a95ca50855cf48bb9f5483d29f01dc129d3634f9f7031a7c44d71",
     "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PLW1501/benchmark.toml": "02f58b06d062b9bbf20d616d1c1270906d1e54350665696fca271c60e51882aa",
@@ -3721,7 +3721,8 @@
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PLE1205/candidate.ryoql": "1ce0ab8865d2100e60f00500eefb5ea5f8fb96d580a736f92f21e75cb98ccadc",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PLE1205/cases.toml": "c63e4bd9cb950089b63a9af21ee3991a9a02e49f0ad559b4da6d7c4d041bd7b7",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PLE1206/candidate.ryoql": "f9d7dc013fc6a8e99050aa426e1ad5cded66874165a3a439eca5ac4edd2482e4",
-    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PLE1206/cases.toml": "c8861e04ea629e77c5dc407340ef771610e6b66a0dfede8205d2a95b20c84f50"
+    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PLE1206/cases.toml": "c8861e04ea629e77c5dc407340ef771610e6b66a0dfede8205d2a95b20c84f50",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/pinned-rule-phases.json": "0d88814b8a345dc9b89b3a334eb9282bdad625a1f84685f75b583eab2b49f19d"
   },
   "combined_profiles": {
     "shape-110": {
@@ -5171,5 +5172,6 @@
       "validation_status": "active-current"
     }
   },
-  "target_version": "py310"
+  "target_version": "py310",
+  "rule_phases_file": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/pinned-rule-phases.json"
 }

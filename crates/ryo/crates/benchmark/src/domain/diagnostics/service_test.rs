@@ -40,6 +40,8 @@ fn duplicate() -> Input {
 fn matching() -> Input {
     let report = RunReport {
         files: vec![ryo::linter::RelativePath("input.txt".into())],
+        skipped: Vec::new(),
+        coverage: None,
         diagnostics: Vec::new(),
     };
     (report.clone(), report)

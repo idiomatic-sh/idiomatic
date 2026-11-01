@@ -25,6 +25,8 @@ fn reports() -> (RunReport, RunReport) {
     };
     let reference = RunReport {
         files: fixture.files,
+        skipped: Vec::new(),
+        coverage: None,
         diagnostics: vec![first, second],
     };
     let mut candidate = reference.clone();
