@@ -11,7 +11,7 @@ use crate::outbound::syntax::types::{PythonSourceKind, SourceText};
 use crate::settings::{PythonParserSettings, PythonTargetVersion};
 use ruff_python_ast::token::Token as RuffToken;
 use ruff_python_ast::visitor::source_order::SourceOrderVisitor as _;
-use ruff_python_ast::visitor::{Visitor, walk_stmt};
+use ruff_python_ast::visitor::{Visitor, walk_expr, walk_stmt};
 use ruff_python_ast::{Arguments, Expr, Mod, Parameters, Stmt, TypeParams};
 use ruff_python_ast::{PySourceType, PythonVersion};
 use ruff_python_parser::{ParseErrorType, ParseOptions, parse_unchecked};
@@ -66,6 +66,10 @@ struct SemanticSyntaxDiagnostic {
     range: ruff_text_size::TextRange,
     /// Stable provider-owned classification code.
     code: DiagnosticCode,
+    /// The parser or validation phase that owns this diagnostic.
+    phase: DiagnosticPhase,
+    /// Whether the diagnostic preserves usable syntax facts.
+    impact: TreeImpact,
 }
 
 /// Report local AST semantic errors Ruff classifies as invalid syntax.
@@ -73,7 +77,10 @@ struct SemanticSyntaxDiagnostic {
     clippy::too_many_lines,
     reason = "one visitor owns nested lexical scopes while checking parser-level declaration constraints"
 )]
-fn semantic_syntax_errors(module: &Mod) -> Vec<SemanticSyntaxDiagnostic> {
+fn semantic_syntax_errors(
+    module: &Mod,
+    source_kind: PythonSourceKind,
+) -> Vec<SemanticSyntaxDiagnostic> {
     #[derive(Default)]
     struct VisitorState {
         scopes: Vec<ScopeState>,
@@ -170,6 +177,8 @@ fn semantic_syntax_errors(module: &Mod) -> Vec<SemanticSyntaxDiagnostic> {
                 message: message.into(),
                 range,
                 code,
+                phase: DiagnosticPhase::Validation,
+                impact: TreeImpact::Preserved,
             });
         }
 
@@ -414,7 +423,7 @@ fn semantic_syntax_errors(module: &Mod) -> Vec<SemanticSyntaxDiagnostic> {
                 | Expr::Slice(_)
                 | Expr::IpyEscapeCommand(_) => {}
             }
-            ruff_python_ast::visitor::walk_expr(self, expr);
+            walk_expr(self, expr);
         }
     }
 
@@ -425,6 +434,111 @@ fn semantic_syntax_errors(module: &Mod) -> Vec<SemanticSyntaxDiagnostic> {
         scopes: vec![ScopeState::indexed(ScopeKind::Module, None, &module.body)],
         errors: Vec::new(),
     };
+    for statement in &module.body {
+        visitor.visit_stmt(statement);
+    }
+    let mut errors = visitor.errors;
+    if source_kind == PythonSourceKind::Stub {
+        errors.extend(stub_named_expression_annotation_errors(module));
+    }
+    errors
+}
+
+/// Ruff rejects assignment expressions inside type annotations in stub files while retaining
+/// the same syntax in runtime Python annotations.
+#[expect(
+    clippy::too_many_lines,
+    reason = "one visitor checks annotation contexts while walking nested stub declarations"
+)]
+fn stub_named_expression_annotation_errors(
+    module: &ruff_python_ast::ModModule,
+) -> Vec<SemanticSyntaxDiagnostic> {
+    #[derive(Default)]
+    struct AnnotationVisitor {
+        annotation_depth: usize,
+        errors: Vec<SemanticSyntaxDiagnostic>,
+    }
+
+    impl AnnotationVisitor {
+        fn annotation(&mut self, expression: &Expr) {
+            self.annotation_depth += 1;
+            self.visit_expr(expression);
+            self.annotation_depth -= 1;
+        }
+    }
+
+    impl<'a> Visitor<'a> for AnnotationVisitor {
+        fn visit_stmt(&mut self, statement: &'a Stmt) {
+            match statement {
+                Stmt::FunctionDef(function) => {
+                    for parameter in function.parameters.iter_non_variadic_params() {
+                        if let Some(annotation) = parameter.annotation() {
+                            self.annotation(annotation);
+                        }
+                    }
+                    for parameter in [&function.parameters.vararg, &function.parameters.kwarg]
+                        .into_iter()
+                        .flatten()
+                    {
+                        if let Some(annotation) = parameter.annotation() {
+                            self.annotation(annotation);
+                        }
+                    }
+                    if let Some(returns) = function.returns.as_deref() {
+                        self.annotation(returns);
+                    }
+                    walk_stmt(self, statement);
+                }
+                Stmt::AnnAssign(assignment) => {
+                    self.annotation(&assignment.annotation);
+                    walk_stmt(self, statement);
+                }
+                Stmt::TypeAlias(alias) => {
+                    self.annotation(&alias.value);
+                    walk_stmt(self, statement);
+                }
+                Stmt::Return(_)
+                | Stmt::Delete(_)
+                | Stmt::Assign(_)
+                | Stmt::AugAssign(_)
+                | Stmt::For(_)
+                | Stmt::While(_)
+                | Stmt::If(_)
+                | Stmt::With(_)
+                | Stmt::Match(_)
+                | Stmt::Raise(_)
+                | Stmt::Try(_)
+                | Stmt::Assert(_)
+                | Stmt::Import(_)
+                | Stmt::ImportFrom(_)
+                | Stmt::Global(_)
+                | Stmt::Nonlocal(_)
+                | Stmt::ClassDef(_)
+                | Stmt::Expr(_)
+                | Stmt::Pass(_)
+                | Stmt::Break(_)
+                | Stmt::Continue(_)
+                | Stmt::IpyEscapeCommand(_) => walk_stmt(self, statement),
+            }
+        }
+
+        fn visit_expr(&mut self, expression: &'a Expr) {
+            if self.annotation_depth > 0 {
+                if let Expr::Named(named) = expression {
+                    self.errors.push(SemanticSyntaxDiagnostic {
+                        message: "named expression cannot be used within a type annotation".into(),
+                        range: named.range(),
+                        code: PARSER_ERROR,
+                        phase: DiagnosticPhase::Parse,
+                        impact: TreeImpact::LexicallyComplete,
+                    });
+                }
+            }
+            walk_expr(self, expression);
+        }
+    }
+
+    let mut visitor = AnnotationVisitor::default();
     for statement in &module.body {
         visitor.visit_stmt(statement);
     }
@@ -470,10 +584,19 @@ impl SyntaxPort for SyntaxRuffPythonParserAdapter {
         );
         writer.visit_mod(parsed.syntax());
         let semantic_errors = if parsed.errors().is_empty() {
-            semantic_syntax_errors(parsed.syntax())
+            semantic_syntax_errors(parsed.syntax(), source_kind)
         } else {
             Vec::new()
         };
+        if semantic_errors
+            .iter()
+            .any(|error| error.phase == DiagnosticPhase::Parse)
+        {
+            languages::set_syntax_acceptance(
+                writer.tree.builder,
+                languages::SyntaxAcceptance::Rejected,
+            );
+        }
         if source.len() == text.0.len() && matches!(source, Cow::Owned(_)) {
             let mut at = 0_usize;
             for chunk in text.0.utf8_chunks() {
@@ -529,11 +652,7 @@ impl SyntaxPort for SyntaxRuffPythonParserAdapter {
         for error in semantic_errors {
             languages::diagnose_with_metadata(
                 writer.tree.builder,
-                DiagnosticMetadata::new(
-                    DiagnosticPhase::Validation,
-                    TreeImpact::Preserved,
-                    error.code,
-                ),
+                DiagnosticMetadata::new(error.phase, error.impact, error.code),
                 languages::ReportText(&error.message),
                 Offset(error.range.start().to_u32()),
                 Offset(error.range.end().to_u32()),

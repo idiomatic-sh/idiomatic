@@ -117,6 +117,57 @@ fn semantic_syntax_checks_only_run_after_an_accepted_parse() {
 }
 
 #[test]
+fn named_expression_in_stub_annotation_is_a_parse_diagnostic_only_for_stubs() {
+    let diagnostics_for = |source: &str, source_kind| {
+        let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
+        let mut builder =
+            languages::table_builder(&mut elements, &mut symbols, ByteSlice(source.as_bytes()));
+        SyntaxRuffPythonParserAdapter.read(
+            SourceText(source.as_bytes()),
+            source_kind,
+            &PythonParserSettings::new(PythonTargetVersion::Py310),
+            &mut builder,
+        );
+        let diagnostics: Vec<_> = languages::diagnostics(&elements)
+            .map(|diagnostic| {
+                (
+                    diagnostic.phase.name().to_owned(),
+                    diagnostic.impact.name().to_owned(),
+                    diagnostic.code.as_str().to_owned(),
+                    diagnostic.start.0,
+                    diagnostic.end.0,
+                )
+            })
+            .collect();
+        (languages::syntax_acceptance(&elements), diagnostics)
+    };
+
+    let source = "def f(x: (a := b)): ...\n";
+    let (stub_acceptance, stub_diagnostics) = diagnostics_for(source, PythonSourceKind::Stub);
+    assert_eq!(stub_acceptance, languages::SyntaxAcceptance::Rejected);
+    assert_eq!(
+        stub_diagnostics,
+        [(
+            "parse".to_owned(),
+            "lexically-complete".to_owned(),
+            "parser-error".to_owned(),
+            10,
+            16
+        )]
+    );
+
+    let (python_acceptance, python_diagnostics) = diagnostics_for(source, PythonSourceKind::Python);
+    assert_eq!(python_acceptance, languages::SyntaxAcceptance::Accepted);
+    assert!(python_diagnostics.is_empty());
+
+    let future_source = "from __future__ import annotations\ndef f(x: (a := b)): ...\n";
+    let (future_acceptance, future_diagnostics) =
+        diagnostics_for(future_source, PythonSourceKind::Python);
+    assert_eq!(future_acceptance, languages::SyntaxAcceptance::Accepted);
+    assert!(future_diagnostics.is_empty());
+}
+
+#[test]
 fn parser_errors_distinguish_complete_tokens_from_lexical_failure() {
     let impacts = |source: &str| {
         let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
