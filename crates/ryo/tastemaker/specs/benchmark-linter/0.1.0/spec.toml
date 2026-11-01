@@ -23,6 +23,8 @@ templates = [
   { alias = "result-identity", template = "evidence", file = "results/identity.json", count = { min = 0, max = 1 }, description = "Pinned inputs and contestant artifact identities." },
   { alias = "acceptance-profiles", template = "evidence", file = "profiles/prepared.json", count = { min = 0, max = 1 }, description = "Hash-pinned candidate acceptance profile inputs and exact case inventories." },
   { alias = "acceptance-profile", template = "linter", file = "profiles/{rule}/benchmark.toml", count = { min = 0 }, description = "One-rule tool selection for isolated candidate acceptance." },
+  { alias = "historical-query-snapshot", template = "query", file = "profiles/expanded-defaults/inputs/rules/{rule}/candidate.ryoql", count = { min = 0 }, description = "Exact old query bytes retained for the frozen expanded-defaults cohort." },
+  { alias = "historical-cases-snapshot", template = "cases", file = "profiles/expanded-defaults/inputs/rules/{rule}/cases.toml", count = { min = 0 }, description = "Exact old case bytes retained for the frozen expanded-defaults cohort." },
   { alias = "candidate-profile-oracle", template = "evidence", file = "profiles/{profile}/oracle.json", count = { min = 0 }, description = "Pinned Ruff outputs for an unpromoted candidate or reference-audit profile." },
   { alias = "combined-profile-expectations", template = "evidence", file = "profiles/{profile}/expectations.json", count = { min = 0 }, description = "Reviewed expected-output overlay for combined full-report cohorts." },
   { template = "query", file = "rules/{implemented}/query.ryoql", count = { min = 0 }, description = "Benchmark query contract." },
@@ -94,6 +96,16 @@ given.files.'profiles/prepared.json' = ''
 given.files.'profiles/F401/benchmark.toml' = ''
 given.files.'rules/F401/candidate.ryoql' = ''
 given.files.'rules/F401/cases.toml' = ''
+then.only = ['idiomatic.ryo/benchmark-linter#closed']
+
+[[scenarios]]
+id = "frozen-combined-source-snapshots-are-placed"
+scenario = "Historical combined inputs retain exact old query and case bytes while current candidate sources remain canonical under rules."
+given.files.'profiles/expanded-defaults/inputs/rules/F821/candidate.ryoql' = ''
+given.files.'profiles/expanded-defaults/inputs/rules/F821/cases.toml' = ''
+given.files.'profiles/expanded-defaults/inputs/rules/B039/candidate.ryoql' = ''
+given.files.'rules/F821/candidate.ryoql' = ''
+given.files.'rules/F821/cases.toml' = ''
 then.only = ['idiomatic.ryo/benchmark-linter#closed']
 
 [[scenarios]]
