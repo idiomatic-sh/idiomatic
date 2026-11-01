@@ -46,7 +46,9 @@ fn subject(text: Input) -> Result<Value, Failure> {
     Ok(builder.steps.iter().any(|step| {
         matches!(
             step.operation,
-            Operation::Replace { .. } | Operation::OrderedMatch { .. }
+            Operation::Replace { .. }
+                | Operation::OrderedMatch { .. }
+                | Operation::OrderedDfs { .. }
         )
     }))
 }

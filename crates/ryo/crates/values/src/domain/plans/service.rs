@@ -26,6 +26,7 @@ pub fn inputs_of(operation: &Operation) -> Inputs {
         | Operation::Intersection { left, right }
         | Operation::Difference { left, right }
         | Operation::Antijoin { left, right, .. } => (*left, *right, *left, 2),
+        Operation::OrderedDfs { from, edges, .. } => (*from, *edges, *from, 2),
         Operation::Axis {
             from,
             edges,

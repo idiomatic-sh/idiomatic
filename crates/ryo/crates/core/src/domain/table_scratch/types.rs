@@ -335,6 +335,10 @@ pub(crate) struct OperatorScratch {
     pub domain_order: KeyIndex,
     /// The room a walk along edges works in.
     pub walk: Walk,
+    /// Prepared adjacency ranges of the ordered DFS operator.
+    pub dfs_graph: crate::domain::table_reach::types::OrderedGraph,
+    /// Iterative ordered DFS frames and exact visited values.
+    pub dfs_walk: crate::domain::table_reach::types::OrderedWalk,
     /// The room a second walk works in, while the first is read.
     pub inner: Walk,
     /// Where each group begins and ends in `members`, or where each captured text is in `text`.

@@ -171,6 +171,9 @@ pub(crate) enum LoweringError {
 impl std::fmt::Display for ArgumentFault {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
+            ArgumentFault::MatchingGraphEntities => "expected root, source and destination columns of the same kind",
+            ArgumentFault::MatchingGraphKeys => "expected matching partition key kinds in roots and edges",
+            ArgumentFault::NumericGraphOrder => "expected a numeric edge order column",
             ArgumentFault::Missing => "the argument is missing",
             ArgumentFault::ExpectedName => "expected one name",
             ArgumentFault::ExpectedNames => "expected a list of names",

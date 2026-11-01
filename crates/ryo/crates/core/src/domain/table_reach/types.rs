@@ -33,3 +33,37 @@ pub(crate) struct Edges<'a> {
     /// The column an edge ends at.
     pub to: ColumnIndex,
 }
+
+/// Reusable adjacency layout for ordered depth-first visits.
+#[derive(Debug, Default)]
+pub(crate) struct OrderedGraph {
+    /// Canonical partition/source/destination columns appended to the edge input.
+    pub edge_columns: Vec<ColumnIndex>,
+    /// Canonical partition/root columns appended to the root input.
+    pub root_columns: Vec<ColumnIndex>,
+    /// Adjacency range in the sorted index for each original edge row.
+    pub adjacency: Vec<std::ops::Range<usize>>,
+    /// Vertices expanded across the compute, for deterministic work accounting.
+    pub expanded: usize,
+    /// Edges examined across the compute, for deterministic work accounting.
+    pub examined: usize,
+}
+
+/// One reusable iterative DFS, reset before each distinct partition/root.
+#[derive(Debug, Default)]
+pub(crate) struct OrderedWalk {
+    /// Exact partition and current entity lookup key.
+    pub key: Vec<Value>,
+    /// Next adjacency cursor and end of each active stack frame.
+    pub frames: Vec<std::ops::Range<usize>>,
+    /// Vertices already expanded, including the root before its first edge.
+    pub visited: hashbrown::HashSet<Value>,
+    /// Destination to consider only after the previous visit was emitted.
+    pub pending: Option<Value>,
+    /// Next representable visit ordinal; none means the next visit would overflow.
+    pub ordinal: Option<i64>,
+    /// Vertices expanded in this root walk.
+    pub expanded: usize,
+    /// Edges examined in this root walk.
+    pub examined: usize,
+}

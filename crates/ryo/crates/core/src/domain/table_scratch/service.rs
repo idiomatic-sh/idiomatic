@@ -49,6 +49,12 @@ pub(crate) fn trim_scratch(scratch: &mut OperatorScratch) {
     scratch.inner.frontier.shrink_to(ROOM);
     scratch.inner.next.shrink_to(ROOM);
     scratch.inner.reached.shrink_to(ROOM);
+    scratch.dfs_graph.root_columns.shrink_to(ROOM);
+    scratch.dfs_graph.edge_columns.shrink_to(ROOM);
+    scratch.dfs_graph.adjacency.shrink_to(ROOM);
+    scratch.dfs_walk.key.shrink_to(ROOM);
+    scratch.dfs_walk.frames.shrink_to(ROOM);
+    scratch.dfs_walk.visited.shrink_to(ROOM);
 }
 
 /// Whether the kind numbered `kind` is in the set.

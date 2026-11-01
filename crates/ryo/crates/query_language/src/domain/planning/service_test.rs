@@ -32,6 +32,30 @@ const CROSS_COUNT: &str = "let f = select * from \"function\"; let c = group-cou
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
+        name: CaseName("ordered_dfs_node_root_and_source_are_per_file"),
+        word: Word::Succeeds,
+        input: || "let d = ordered-dfs(from=\"function\",root=id,edges=\"syntax-child\",source=parent,destination=child,order=ordinal,edge=field,output=visit); emit d subject id key(visit);",
+        expect: Expect::Value(("ordered-dfs", 0)),
+    },
+    Case {
+        name: CaseName("ordered_dfs_matching_file_keys_keep_scalar_entities_per_file"),
+        word: Word::Succeeds,
+        input: || "let e = extend(from=\"syntax-tree\",values={position:0}); let d = ordered-dfs(from=\"defines\",root=name,edges=e,source=kind,destination=text,order=position,edge=id,keys=[file],output=visit); emit d subject name key(visit);",
+        expect: Expect::Value(("extend ordered-dfs", 0)),
+    },
+    Case {
+        name: CaseName("ordered_dfs_scalar_entities_without_file_keys_are_cross_file"),
+        word: Word::Succeeds,
+        input: || "let e = extend(from=\"syntax-tree\",values={position:0}); let d = ordered-dfs(from=\"defines\",root=name,edges=e,source=kind,destination=text,order=position,edge=id,output=visit); emit d subject name key(visit);",
+        expect: Expect::Value(("extend ordered-dfs*", 2)),
+    },
+    Case {
+        name: CaseName("ordered_dfs_cross_file_input_dominates_file_entity_provenance"),
+        word: Word::Succeeds,
+        input: || "let e = extend(from=\"source-dependency\",values={position:0}); let d = ordered-dfs(from=\"workspace-member\",root=package,edges=e,source=source,destination=target,order=position,edge=span,output=visit); emit d subject package key(visit);",
+        expect: Expect::Value(("extend* ordered-dfs*", 2)),
+    },
+    Case {
         name: CaseName("file_key_keeps_scalar_endpoints_per_file"),
         word: Word::Succeeds,
         input: || "let e = select * from \"syntax-tree\"; let c = closure(edges=e,source=kind,destination=text,keys=[file]); emit c subject kind key(text);",
@@ -78,6 +102,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 /// The relations the rows may read.
 const CATALOG: &[Relation] = &[
     Relation::Function,
+    Relation::Defines,
+    Relation::SourceDependency,
     Relation::SyntaxChild,
     Relation::SyntaxTree,
     Relation::WorkspaceMember,
@@ -96,13 +122,14 @@ fn operation_name(operation: &Operation) -> &'static str {
         Operation::Replace { .. } => "replace",
         Operation::SpanBetween { .. } => "span-between",
         Operation::OrderedMatch { .. } => "ordered-match",
+        Operation::OrderedDfs { .. } => "ordered-dfs",
         Operation::GroupCount { .. } => "group-count",
         Operation::Closure { .. } => "closure",
         Operation::GroupDigest { .. } => "group-digest",
         Operation::Antijoin { .. } => "antijoin",
         Operation::Union { .. } => "union",
-        Operation::Extend { .. }
-        | Operation::Intersection { .. }
+        Operation::Extend { .. } => "extend",
+        Operation::Intersection { .. }
         | Operation::Difference { .. }
         | Operation::Capture { .. }
         | Operation::Rank { .. }
@@ -164,6 +191,10 @@ fn subject(text: Input) -> Result<Value, Failure> {
         "select closure",
         "select closure*",
         "group-count* join* closure*",
+        "ordered-dfs",
+        "extend ordered-dfs",
+        "extend ordered-dfs*",
+        "extend* ordered-dfs*",
     ];
     let steps = known
         .into_iter()

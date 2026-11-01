@@ -250,6 +250,12 @@ pub(crate) enum PairFiltering {
 /// Why an argument cannot be used.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum ArgumentFault {
+    /// Root and edge entity kinds must agree.
+    MatchingGraphEntities,
+    /// Matching root/edge partition names must have identical kinds.
+    MatchingGraphKeys,
+    /// Outgoing edge order must be numeric.
+    NumericGraphOrder,
     /// The call leaves it out.
     Missing,
     /// It should name one thing.

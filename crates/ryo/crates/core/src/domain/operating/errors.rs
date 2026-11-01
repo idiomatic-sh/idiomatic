@@ -5,6 +5,12 @@ use crate::domain::table_model::errors::TableModelError;
 /// Why an operator could not compute its rows.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 pub(crate) enum OperatingError {
+    /// Ordered DFS cannot distinguish two outgoing edges of one partition/source.
+    #[error("ordered-dfs requires unique order values within each partition and source")]
+    DuplicateDfsOrder,
+    /// A visit ordinal cannot be represented as an engine integer.
+    #[error("ordered-dfs visit ordinal overflow")]
+    DfsOrdinalOverflow,
     /// An input or composed span falls outside the current file.
     #[error("span-between encountered an invalid byte range")]
     InvalidSpan,

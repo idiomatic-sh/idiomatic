@@ -879,6 +879,7 @@ fn expected(operator: QueryOperator) -> Vec<Finding> {
         QueryOperator::Replace => replace::expected(),
         QueryOperator::SpanBetween => span_between::expected(),
         QueryOperator::OrderedMatch => ordered_match::expected(),
+        QueryOperator::OrderedDfs => ordered_dfs::expected(),
         QueryOperator::Antijoin => antijoin::expected(),
         QueryOperator::Axis => axis::expected(),
         QueryOperator::Capture => capture::expected(),
@@ -996,4 +997,9 @@ mod span_between {
 /// Ordered request/reply fixture, preserving explicit output projection.
 mod ordered_match {
     include!("../../../../../tests/fixtures/operators/ordered_match/expected.rs");
+}
+
+/// The ordered DFS fixture's complete expected visits.
+mod ordered_dfs {
+    include!("../../../../../tests/fixtures/operators/ordered_dfs/expected.rs");
 }

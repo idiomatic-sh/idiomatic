@@ -8,7 +8,7 @@ use crate::domain::lowering::types::ArgumentFault;
 use crate::domain::lowering::types::Builder;
 use crate::domain::selecting::service::lower_select;
 use crate::domain::syntax::constants::operator_named;
-use crate::domain::traversing::service::{call_axis, call_closure};
+use crate::domain::traversing::service::{call_axis, call_closure, call_ordered_dfs};
 use crate::outbound::syntax::factory::winnow;
 use crate::outbound::syntax::interface::SyntaxPort as _;
 use ryo_values::domain::plan_parts::types::RepeatedRows;
@@ -33,6 +33,170 @@ const SIBLINGS_OF_A_STEP: &str = "let edges = select * from \"syntax-child\"; le
 
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("ordered_dfs_keys"),
+        word: Word::Succeeds,
+        input: || "let visits = ordered-dfs(from=\"function\",root=id,edges=\"syntax-child\",source=parent,destination=child,order=ordinal,edge=field,keys=[file],output=visit); emit visits subject id key(visit);",
+        expect: Expect::Value("ordered-dfs"),
+    },
+    Case {
+        name: CaseName("ordered_dfs_without_keys"),
+        word: Word::Succeeds,
+        input: || "let visits = ordered-dfs(from=\"function\",root=id,edges=\"syntax-child\",source=parent,destination=child,order=ordinal,edge=field,output=visit); emit visits subject id key(visit);",
+        expect: Expect::Value("ordered-dfs"),
+    },
+    Case {
+        name: CaseName("ordered_dfs_empty_keys"),
+        word: Word::Succeeds,
+        input: || "let visits = ordered-dfs(from=\"function\",root=id,edges=\"syntax-child\",source=parent,destination=child,order=ordinal,edge=field,keys=[],output=visit); emit visits subject id key(visit);",
+        expect: Expect::Value("ordered-dfs"),
+    },
+    Case {
+        name: CaseName("ordered_dfs_multiple_keys"),
+        word: Word::Succeeds,
+        input: || "let roots = select child as root, file, field from \"syntax-child\"; let visits = ordered-dfs(from=roots,root=root,edges=\"syntax-child\",source=parent,destination=child,order=ordinal,edge=ordinal,keys=[file,field],output=visit); emit visits subject id key(visit);",
+        expect: Expect::Value("ordered-dfs"),
+    },
+    Case {
+        name: CaseName("ordered_dfs_refuses_missing_root"),
+        word: Word::Refuses,
+        input: || "let visits = ordered-dfs(from=\"function\",edges=\"syntax-child\",source=parent,destination=child,order=ordinal,edge=field,keys=[file],output=visit); emit visits subject id key(visit);",
+        expect: Expect::Refusal(|error| {
+            selects(matches!(
+                error,
+                LoweringError::BadArgument {
+                    reason: ArgumentFault::Missing,
+                    ..
+                }
+            ))
+        }),
+    },
+    Case {
+        name: CaseName("ordered_dfs_refuses_missing_edges"),
+        word: Word::Refuses,
+        input: || "let visits = ordered-dfs(from=\"function\",root=id,source=parent,destination=child,order=ordinal,edge=field,keys=[file],output=visit); emit visits subject id key(visit);",
+        expect: Expect::Refusal(|error| {
+            selects(matches!(
+                error,
+                LoweringError::BadArgument {
+                    reason: ArgumentFault::Missing,
+                    ..
+                }
+            ))
+        }),
+    },
+    Case {
+        name: CaseName("ordered_dfs_refuses_unknown_root_column"),
+        word: Word::Refuses,
+        input: || "let visits = ordered-dfs(from=\"function\",root=missing,edges=\"syntax-child\",source=parent,destination=child,order=ordinal,edge=field,keys=[file],output=visit); emit visits subject id key(visit);",
+        expect: Expect::Refusal(|error| {
+            selects(matches!(error, LoweringError::UnknownColumn { .. }))
+        }),
+    },
+    Case {
+        name: CaseName("ordered_dfs_refuses_unknown_order_column"),
+        word: Word::Refuses,
+        input: || "let visits = ordered-dfs(from=\"function\",root=id,edges=\"syntax-child\",source=parent,destination=child,order=missing,edge=field,keys=[file],output=visit); emit visits subject id key(visit);",
+        expect: Expect::Refusal(|error| {
+            selects(matches!(error, LoweringError::UnknownColumn { .. }))
+        }),
+    },
+    Case {
+        name: CaseName("ordered_dfs_refuses_entity_kinds"),
+        word: Word::Refuses,
+        input: || "let visits = ordered-dfs(from=\"function\",root=name,edges=\"syntax-child\",source=parent,destination=child,order=ordinal,edge=field,keys=[file],output=visit); emit visits subject id key(visit);",
+        expect: Expect::Refusal(|error| {
+            selects(matches!(
+                error,
+                LoweringError::BadArgument {
+                    reason: ArgumentFault::MatchingGraphEntities,
+                    ..
+                }
+            ))
+        }),
+    },
+    Case {
+        name: CaseName("ordered_dfs_refuses_order_kind"),
+        word: Word::Refuses,
+        input: || "let visits = ordered-dfs(from=\"function\",root=id,edges=\"syntax-child\",source=parent,destination=child,order=field,edge=field,keys=[file],output=visit); emit visits subject id key(visit);",
+        expect: Expect::Refusal(|error| {
+            selects(matches!(
+                error,
+                LoweringError::BadArgument {
+                    reason: ArgumentFault::NumericGraphOrder,
+                    ..
+                }
+            ))
+        }),
+    },
+    Case {
+        name: CaseName("ordered_dfs_refuses_key_kinds"),
+        word: Word::Refuses,
+        input: || "let e = select parent, child, ordinal, field as file from \"syntax-child\"; let visits = ordered-dfs(from=\"function\",root=id,edges=e,source=parent,destination=child,order=ordinal,edge=ordinal,keys=[file],output=visit); emit visits subject id key(visit);",
+        expect: Expect::Refusal(|error| {
+            selects(matches!(
+                error,
+                LoweringError::BadArgument {
+                    reason: ArgumentFault::MatchingGraphKeys,
+                    ..
+                }
+            ))
+        }),
+    },
+    Case {
+        name: CaseName("ordered_dfs_refuses_key_list"),
+        word: Word::Refuses,
+        input: || "let visits = ordered-dfs(from=\"function\",root=id,edges=\"syntax-child\",source=parent,destination=child,order=ordinal,edge=field,keys=file,output=visit); emit visits subject id key(visit);",
+        expect: Expect::Refusal(|error| {
+            selects(matches!(
+                error,
+                LoweringError::BadArgument {
+                    reason: ArgumentFault::ExpectedNames,
+                    ..
+                }
+            ))
+        }),
+    },
+    Case {
+        name: CaseName("ordered_dfs_refuses_unknown_key"),
+        word: Word::Refuses,
+        input: || "let visits = ordered-dfs(from=\"function\",root=id,edges=\"syntax-child\",source=parent,destination=child,order=ordinal,edge=field,keys=[missing],output=visit); emit visits subject id key(visit);",
+        expect: Expect::Refusal(|error| {
+            selects(matches!(error, LoweringError::UnknownColumn { .. }))
+        }),
+    },
+    Case {
+        name: CaseName("ordered_dfs_refuses_repeated_keys"),
+        word: Word::Refuses,
+        input: || "let visits = ordered-dfs(from=\"function\",root=id,edges=\"syntax-child\",source=parent,destination=child,order=ordinal,edge=field,keys=[file,file],output=visit); emit visits subject id key(visit);",
+        expect: Expect::Refusal(|error| {
+            selects(matches!(error, LoweringError::DuplicateOutput { .. }))
+        }),
+    },
+    Case {
+        name: CaseName("ordered_dfs_refuses_edge_destination_collision"),
+        word: Word::Refuses,
+        input: || "let visits = ordered-dfs(from=\"function\",root=id,edges=\"syntax-child\",source=parent,destination=child,order=ordinal,edge=child,keys=[file],output=visit); emit visits subject id key(visit);",
+        expect: Expect::Refusal(|error| {
+            selects(matches!(error, LoweringError::DuplicateOutput { .. }))
+        }),
+    },
+    Case {
+        name: CaseName("ordered_dfs_refuses_ordinal_root_collision"),
+        word: Word::Refuses,
+        input: || "let visits = ordered-dfs(from=\"function\",root=id,edges=\"syntax-child\",source=parent,destination=child,order=ordinal,edge=field,keys=[file],output=id); emit visits subject id key(visit);",
+        expect: Expect::Refusal(|error| {
+            selects(matches!(error, LoweringError::DuplicateOutput { .. }))
+        }),
+    },
+    Case {
+        name: CaseName("ordered_dfs_refuses_ordinal_key_collision"),
+        word: Word::Refuses,
+        input: || "let visits = ordered-dfs(from=\"function\",root=id,edges=\"syntax-child\",source=parent,destination=child,order=ordinal,edge=field,keys=[file],output=file); emit visits subject id key(visit);",
+        expect: Expect::Refusal(|error| {
+            selects(matches!(error, LoweringError::DuplicateOutput { .. }))
+        }),
+    },
     Case {
         name: CaseName("closure_omitted"),
         word: Word::Succeeds,
@@ -164,6 +328,7 @@ fn operation_name(operation: &Operation) -> &'static str {
         Operation::Join { .. } => "join",
         Operation::Replace { .. } => "replace",
         Operation::OrderedMatch { .. } => "ordered-match",
+        Operation::OrderedDfs { .. } => "ordered-dfs",
         Operation::GroupCount { .. } => "group-count",
         Operation::GroupDigest { .. } => "group-digest",
         Operation::Antijoin { .. } => "antijoin",
@@ -224,6 +389,7 @@ fn subject(text: Input) -> Result<Value, Failure> {
             Expression::Call(call) => {
                 let operator = operator_named(&call.name.0).expect("the row's call is an operator");
                 match operator {
+                    QueryOperator::OrderedDfs => call_ordered_dfs(&mut builder, &step.name, call)?,
                     QueryOperator::Axis => call_axis(&mut builder, &step.name, call)?,
                     QueryOperator::Closure | QueryOperator::Cycles => {
                         call_closure(&mut builder, &step.name, call, operator)?;
@@ -258,6 +424,24 @@ fn subject(text: Input) -> Result<Value, Failure> {
             if !keys.is_empty() {
                 assert_eq!(&*lowered.fields[0].name.0, "file");
             }
+        }
+    }
+    if let Some(step) = builder.steps.last() {
+        if let Operation::OrderedDfs {
+            root_keys,
+            edge_keys,
+            ..
+        } = &step.operation
+        {
+            let fields = &builder.lowered.last().expect("DFS step is lowered").fields;
+            assert_eq!(root_keys.len(), edge_keys.len());
+            assert_eq!(fields.len(), root_keys.len() + 5);
+            assert!(fields.iter().all(|field|field.unique==crate::domain::lowering::types::Uniqueness::Shared));
+            assert_eq!(
+                fields.last().expect("ordinal exists").kind,
+                ryo_language::domain::relations::types::CellKind::Number
+            );
+            return Ok("ordered-dfs");
         }
     }
     let known = ["select axis", "select closure"];

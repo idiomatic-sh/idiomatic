@@ -10,10 +10,11 @@ use ryo_values::domain::plans::types::ParameterType;
 use ryo_values::domain::plans::types::QueryOperator;
 
 /// Every operator, in the order the language documents them.
-pub(crate) const OPERATORS: [QueryOperator; 20] = [
+pub(crate) const OPERATORS: [QueryOperator; 21] = [
     QueryOperator::SpanBetween,
     QueryOperator::Replace,
     QueryOperator::OrderedMatch,
+    QueryOperator::OrderedDfs,
     QueryOperator::Select,
     QueryOperator::Project,
     QueryOperator::Extend,
@@ -43,6 +44,7 @@ pub(crate) fn operator_name(operator: QueryOperator) -> &'static str {
         QueryOperator::SpanBetween => "span-between",
         QueryOperator::Replace => "replace",
         QueryOperator::OrderedMatch => "ordered-match",
+        QueryOperator::OrderedDfs => "ordered-dfs",
         QueryOperator::Select => SELECT,
         QueryOperator::Project => "project",
         QueryOperator::Extend => "extend",
@@ -81,6 +83,9 @@ pub(crate) fn slot_name(slot: ArgumentSlot) -> &'static str {
         ArgumentSlot::LeftOrder => "left-order",
         ArgumentSlot::RightOrder => "right-order",
         ArgumentSlot::From => "from",
+        ArgumentSlot::Root => "root",
+        ArgumentSlot::Order => "order",
+        ArgumentSlot::Edge => "edge",
         ArgumentSlot::Columns => ryo_values::domain::descriptions::constants::COLUMNS,
         ArgumentSlot::Values => "values",
         ArgumentSlot::Left => "left",

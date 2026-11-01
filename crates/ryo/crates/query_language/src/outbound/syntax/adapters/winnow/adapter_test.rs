@@ -52,6 +52,8 @@ fn parse_and_link(bundle: &QueryBundle) -> Result<Program, String> {
 /// What a row of the cases asks of the adapter.
 #[derive(Clone, Copy)]
 enum Scenario {
+    /// Generic calls retain graph argument columns and ordered key lists.
+    OrderedDfs,
     /// Reads `or` and `and` without parentheses: `and` binds tighter.
     OrPrecedence,
     /// Reads conditions in parentheses: an `or` in a group, and a group with no `or`.
@@ -92,6 +94,9 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         return Ok(uncovered(coverage));
     }
     let text = match scenario {
+        Scenario::OrderedDfs => {
+            "let walks = ordered-dfs(from=roots,root=root,edges=edges,source=source,destination=destination,order=position,edge=base,keys=[context,\"file\"],output=visit); emit walks subject file key(base,visit);"
+        }
         Scenario::OrPrecedence => OR,
         Scenario::Grouped => GROUPED,
         Scenario::Unclosed => UNCLOSED,
@@ -107,6 +112,19 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     };
     let program = SyntaxWinnowAdapter.read(QueryView(text))?;
     match scenario {
+        Scenario::OrderedDfs => {
+            let Expression::Call(call) = &program.steps[0].expression else {
+                panic!("DFS is a generic call");
+            };
+            assert_eq!(call.name.0.as_ref(), "ordered-dfs");
+            let keys = &call
+                .arguments
+                .iter()
+                .find(|argument| argument.name.0.as_ref() == "keys")
+                .unwrap()
+                .value;
+            assert!(matches!(keys,Argument::List(values) if values.len()==2));
+        }
         Scenario::ParameterAndFilter => parameter_and_filter_read(&program),
         Scenario::FloatTextFilter => float_text_filter_read(&program),
         Scenario::FunctionsAndAffixes => functions_and_affixes_read(&program),
@@ -664,6 +682,12 @@ fn lists_of_strings_read(program: &Program) {
 }
 
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("ordered_dfs_uses_generic_call_and_key_list_grammar"),
+        word: Word::Succeeds,
+        input: || Scenario::OrderedDfs,
+        expect: Expect::Value(1),
+    },
     Case {
         name: CaseName("a_parameter_and_a_where_filter_are_read"),
         word: Word::Succeeds,

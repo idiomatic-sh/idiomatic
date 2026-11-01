@@ -16,6 +16,12 @@ pub(crate) enum ArgumentRole {
 /// The arguments a call can name.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum ArgumentSlot {
+    /// Root entity column.
+    Root,
+    /// Outgoing-edge order column.
+    Order,
+    /// Edge identity column.
+    Edge,
     /// Span supplying the start.
     Start,
     /// Span supplying the end.

@@ -189,6 +189,9 @@ fn reads_role(operation: &Operation) -> RoleRead {
         | Operation::Difference { left, right } => {
             edges(*left) == EdgeInput::Edges || edges(*right) == EdgeInput::Edges
         }
+        Operation::OrderedDfs {
+            from, edges: graph, ..
+        } => edges(*from) == EdgeInput::Edges || edges(*graph) == EdgeInput::Edges,
         Operation::Closure { .. }
         | Operation::Cycles { .. }
         | Operation::Rows { .. }

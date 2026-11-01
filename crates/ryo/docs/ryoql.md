@@ -114,6 +114,7 @@ A side of a comparison is a column, a text in quotes, a number, a `$parameter` o
 | `rank` | `from`, `column`, `sets`, `output` | Appends the place of the first set of a `list<set<string>>` parameter that holds the text; a row no set holds is dropped. |
 | `axis` | `from`, `relation`, `direction`, `domain` | Walks a hierarchy, such as `syntax-child`, and appends the related entity. |
 | `rows` | `from`, `columns` | The rows of a `list<table>` parameter, one for each table. |
+| `ordered-dfs` | `from`, `root`, `edges`, `source`, `destination`, `order`, `edge`, `output`, optional `keys` | Independent ordered depth-first edge visits, with a zero-based ordinal per distinct key/root. |
 | `closure` | `edges`, `source`, `destination`, optional `keys` | Transitively reachable pairs within exact key partitions; keys precede the endpoint columns in output. |
 | `cycles` | `edges`, `source`, `destination` | One row for each entity that can reach itself, with the entity in both columns: two files that import each other give two rows, `a.js` and `b.js`. |
 
@@ -269,3 +270,18 @@ and original types; endpoints retain their original names and types. Omitting
 `keys` or passing `keys=[]` preserves the two-column closure. Reachability uses
 one or more edges, so self-pairs require a real cycle or self-edge. Repeated key
 names and keys colliding with an endpoint name are rejected.
+
+`ordered-dfs(from=roots,root="root",edges=edges,source="source",destination="destination",order="position",edge="base",keys=["context","file"],output="visit")`
+walks each distinct partition/root independently. Keys are optional and default to
+one graph. Output columns are the keys in argument order, root, source,
+destination, edge identity, and the named numeric visit ordinal. Output names
+must be distinct; root/source/destination kinds and corresponding key kinds agree.
+
+Outgoing edges are visited in ascending numeric order. Equal orders within one
+partition/source are errors, including duplicate edge rows; parallel edges with
+different orders remain distinct visits. The root is marked seen first. Each edge
+is emitted before its destination is checked: unseen destinations recurse
+immediately, while seen destinations keep the edge visit without another
+expansion. Walks use iterative cursor frames and reusable adjacency storage.
+Ordinals start at zero per walk and overflow is an execution error. No physical
+row order is promised between walks; use the ordinal column to express policy.

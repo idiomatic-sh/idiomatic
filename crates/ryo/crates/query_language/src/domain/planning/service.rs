@@ -37,6 +37,7 @@ pub(crate) fn inputs_of(operation: &plans::Operation) -> Vec<parts::Input> {
         | plans::Operation::Intersection { left, right }
         | plans::Operation::Difference { left, right }
         | plans::Operation::Antijoin { left, right, .. } => vec![*left, *right],
+        plans::Operation::OrderedDfs { from, edges, .. } => vec![*from, *edges],
         plans::Operation::Axis {
             from,
             edges,
@@ -128,6 +129,18 @@ pub(crate) fn scope_of(
         }
         plans::Operation::GroupCount { keys, .. } | plans::Operation::GroupDigest { keys, .. } => {
             keyed_on(first, keys) == FileOrigin::Stated
+        }
+        plans::Operation::OrderedDfs {
+            root,
+            source,
+            root_keys,
+            edge_keys,
+            ..
+        } => {
+            (keyed_on(first, &[*root]) == FileOrigin::Stated
+                || keyed_on(first, root_keys) == FileOrigin::Stated)
+                && (keyed_on(second, &[*source]) == FileOrigin::Stated
+                    || keyed_on(second, edge_keys) == FileOrigin::Stated)
         }
         plans::Operation::Axis { id, .. } => keyed_on(first, &[*id]) == FileOrigin::Stated,
         plans::Operation::Closure { source, keys, .. } => {

@@ -423,6 +423,7 @@ fn a_fused_fragment_comparison_keeps_its_original_source_span() {
         | Operation::Replace { .. }
         | Operation::SpanBetween { .. }
         | Operation::OrderedMatch { .. }
+        | Operation::OrderedDfs { .. }
         | Operation::Words { .. }
         | Operation::Axis { .. }
         | Operation::Closure { .. }

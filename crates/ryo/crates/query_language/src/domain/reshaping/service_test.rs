@@ -103,6 +103,7 @@ fn operation_name(operation: &Operation) -> &'static str {
         Operation::Join { .. } => "join",
         Operation::Replace { .. } => "replace",
         Operation::OrderedMatch { .. } => "ordered-match",
+        Operation::OrderedDfs { .. } => "ordered-dfs",
         Operation::GroupCount { .. } => "group-count",
         Operation::GroupDigest { .. } => "group-digest",
         Operation::Antijoin { .. } => "antijoin",
@@ -180,6 +181,7 @@ fn subject(text: Input) -> Result<Value, Failure> {
                     QueryOperator::Replace
                     | QueryOperator::SpanBetween
                     | QueryOperator::OrderedMatch
+                    | QueryOperator::OrderedDfs
                     | QueryOperator::Select
                     | QueryOperator::Project
                     | QueryOperator::Extend

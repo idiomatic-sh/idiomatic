@@ -266,6 +266,27 @@ pub enum Operation {
         /// The destination column.
         destination: ColumnIndex,
     },
+    /// Ordered depth-first edge visits for each distinct partition/root.
+    OrderedDfs {
+        /// Root input.
+        from: Input,
+        /// Edge input.
+        edges: Input,
+        /// Root entity column.
+        root: ColumnIndex,
+        /// Source entity column of edges.
+        source: ColumnIndex,
+        /// Destination entity column of edges.
+        destination: ColumnIndex,
+        /// Numeric outgoing-edge order column.
+        order: ColumnIndex,
+        /// Edge identity column, preserved on each visit.
+        edge: ColumnIndex,
+        /// Partition columns of roots, in output order.
+        root_keys: Vec<ColumnIndex>,
+        /// Matching partition columns of edges.
+        edge_keys: Vec<ColumnIndex>,
+    },
     /// One row for each entity that reaches itself.
     Cycles {
         /// The edges.
@@ -343,6 +364,8 @@ pub enum OperationKind {
     Hosted,
     /// `span-between`.
     SpanBetween,
+    /// Ordered depth-first edge visits.
+    OrderedDfs,
 }
 
 /// Something of the language a query uses, which a run must be shown to exercise.
@@ -415,4 +438,6 @@ pub enum QueryOperator {
     Cycles,
     /// `span-between(from, start, end, output)`.
     SpanBetween,
+    /// `ordered-dfs(from, root, edges, source, destination, order, edge, keys, output)`.
+    OrderedDfs,
 }

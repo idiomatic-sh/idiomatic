@@ -163,6 +163,7 @@ fn uses_of(plan: &Plan) -> Vec<StepReads> {
             | Operation::GroupCount { .. }
             | Operation::Replace { .. }
             | Operation::OrderedMatch { .. }
+            | Operation::OrderedDfs { .. }
             | Operation::GroupDigest { .. }
             | Operation::Capture { .. }
             | Operation::Rank { .. }
@@ -225,6 +226,11 @@ fn needs_from(plan: &Plan, reads: &[StepReads]) -> Vec<Vec<RelationRead>> {
     plan.steps
         .iter()
         .map(|step| match &step.operation {
+            Operation::OrderedDfs { from, edges, .. } => {
+                let mut uses = of(from);
+                absorb(&mut uses, of(edges));
+                uses
+            }
             Operation::OrderedMatch { left, right, .. } => {
                 let mut uses = of(left);
                 absorb(&mut uses, of(right));

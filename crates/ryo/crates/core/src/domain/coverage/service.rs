@@ -86,6 +86,7 @@ pub(crate) fn drop_uncertain(
         Operation::SpanBetween { .. }
         | Operation::Replace { .. }
         | Operation::OrderedMatch { .. }
+        | Operation::OrderedDfs { .. }
         | Operation::Select { .. }
         | Operation::Project { .. }
         | Operation::Extend { .. }

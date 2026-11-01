@@ -13,7 +13,19 @@ use ryo_values::domain::program::types::{
 };
 
 /// The operations a query can call, besides `select`.
-const SHAPES: [OperationShape; 19] = [
+const SHAPES: [OperationShape; 20] = [
+    OperationShape {
+        operator: QueryOperator::OrderedDfs,
+        inputs: &[ArgumentSlot::From, ArgumentSlot::Edges],
+        required: &[
+            ArgumentSlot::Root,
+            ArgumentSlot::Source,
+            ArgumentSlot::Destination,
+            ArgumentSlot::Order,
+            ArgumentSlot::Edge,
+            ArgumentSlot::Output,
+        ],
+    },
     OperationShape {
         operator: QueryOperator::SpanBetween,
         inputs: &[ArgumentSlot::From],

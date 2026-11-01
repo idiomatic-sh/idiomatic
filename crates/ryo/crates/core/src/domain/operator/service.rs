@@ -22,7 +22,8 @@ use super::collections::operators::span_between::item::SpanBetweenItem;
 use super::collections::operators::union::item::UnionItem;
 use super::collections::operators::words::item::WordsItem;
 use super::collections::operators::{
-    ordered_match::item::OrderedMatchItem, replace::item::ReplaceItem,
+    ordered_dfs::item::OrderedDfsItem, ordered_match::item::OrderedMatchItem,
+    replace::item::ReplaceItem,
 };
 use super::types::{Pool, RowsFed};
 use crate::domain::operating::errors::OperatingError;
@@ -71,6 +72,7 @@ pub(crate) fn operate(
         Operation::OrderedMatch { .. } => {
             OrderedMatchItem.stream(operation, ins, context, room, emit)
         }
+        Operation::OrderedDfs { .. } => OrderedDfsItem.stream(operation, ins, context, room, emit),
         Operation::GroupCount { .. } => GroupCountItem.stream(operation, ins, context, room, emit),
         Operation::GroupDigest { .. } => {
             GroupDigestItem.stream(operation, ins, context, room, emit)
@@ -106,6 +108,7 @@ pub(crate) fn compute(
         Operation::Replace { .. } => ReplaceItem.compute(operation, inputs, context, out),
         Operation::SpanBetween { .. } => SpanBetweenItem.compute(operation, inputs, context, out),
         Operation::OrderedMatch { .. } => OrderedMatchItem.compute(operation, inputs, context, out),
+        Operation::OrderedDfs { .. } => OrderedDfsItem.compute(operation, inputs, context, out),
         Operation::GroupCount { .. } => GroupCountItem.compute(operation, inputs, context, out),
         Operation::GroupDigest { .. } => GroupDigestItem.compute(operation, inputs, context, out),
         Operation::Capture { .. } => CaptureItem.compute(operation, inputs, context, out),
@@ -255,6 +258,7 @@ pub(crate) fn evaluate_cross(
                 | Operation::Replace { .. }
                 | Operation::SpanBetween { .. }
                 | Operation::OrderedMatch { .. }
+                | Operation::OrderedDfs { .. }
                 | Operation::GroupDigest { .. }
                 | Operation::Capture { .. }
                 | Operation::Rank { .. }

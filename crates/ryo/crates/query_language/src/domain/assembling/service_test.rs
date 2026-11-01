@@ -110,6 +110,7 @@ fn operation_name(operation: &Operation) -> &'static str {
         Operation::Replace { .. } => "replace",
         Operation::SpanBetween { .. } => "span-between",
         Operation::OrderedMatch { .. } => "ordered-match",
+        Operation::OrderedDfs { .. } => "ordered-dfs",
         Operation::GroupCount { .. } => "group-count",
         Operation::GroupDigest { .. } => "group-digest",
         Operation::Antijoin { .. } => "antijoin",

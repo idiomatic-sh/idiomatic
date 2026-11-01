@@ -28,6 +28,10 @@ pub(crate) fn each_input(operation: &mut Operation, visit: &mut dyn FnMut(&mut I
             visit(left);
             visit(right);
         }
+        Operation::OrderedDfs { from, edges, .. } => {
+            visit(from);
+            visit(edges);
+        }
         Operation::Axis {
             from,
             edges,

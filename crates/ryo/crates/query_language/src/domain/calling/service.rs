@@ -20,7 +20,7 @@ use crate::domain::resolving::service::{
 use crate::domain::rewriting::service::same_sets;
 use crate::domain::syntax::constants::{operator_named, side_named};
 use crate::domain::syntax::types::ArgumentSlot;
-use crate::domain::traversing::service::{call_axis, call_closure};
+use crate::domain::traversing::service::{call_axis, call_closure, call_ordered_dfs};
 use ryo_values::domain::plan_parts::types as parts;
 use ryo_values::domain::plans::types as plans;
 use ryo_values::domain::plans::types::QueryOperator;
@@ -55,6 +55,7 @@ pub(crate) fn lower_call(
         QueryOperator::Capture => call_capture(builder, name, call)?,
         QueryOperator::Words => call_words(builder, name, call)?,
         QueryOperator::Rank => call_rank(builder, name, call)?,
+        QueryOperator::OrderedDfs => call_ordered_dfs(builder, name, call)?,
         QueryOperator::Axis => call_axis(builder, name, call)?,
         QueryOperator::Rows => call_rows(builder, name, call)?,
         QueryOperator::Closure | QueryOperator::Cycles => {

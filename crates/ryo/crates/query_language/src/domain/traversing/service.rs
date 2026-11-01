@@ -172,3 +172,124 @@ pub(crate) fn call_closure(
     }
     Ok(())
 }
+
+/// Lower deterministic depth-first edge visits, partitioned by matching root/edge keys.
+pub(crate) fn call_ordered_dfs(
+    builder: &mut Builder<'_>,
+    name: &syntax::StepName,
+    call: &syntax::Call,
+) -> Result<(), LoweringError> {
+    let Sourced {
+        input: from,
+        fields: roots,
+    } = input_argument(builder, call, ArgumentSlot::From)?;
+    let Sourced {
+        input: edges,
+        fields,
+    } = input_argument(builder, call, ArgumentSlot::Edges)?;
+    let root = position(
+        &roots,
+        QuerySpelling(&word_of(call, ArgumentSlot::Root)?.0),
+        call.span,
+    )?;
+    let source = position(
+        &fields,
+        QuerySpelling(&word_of(call, ArgumentSlot::Source)?.0),
+        call.span,
+    )?;
+    let destination = position(
+        &fields,
+        QuerySpelling(&word_of(call, ArgumentSlot::Destination)?.0),
+        call.span,
+    )?;
+    let order = position(
+        &fields,
+        QuerySpelling(&word_of(call, ArgumentSlot::Order)?.0),
+        call.span,
+    )?;
+    let edge = position(
+        &fields,
+        QuerySpelling(&word_of(call, ArgumentSlot::Edge)?.0),
+        call.span,
+    )?;
+    if column_of(&roots, root).kind != column_of(&fields, source).kind
+        || column_of(&roots, root).kind != column_of(&fields, destination).kind
+    {
+        return Err(bad_argument(
+            call,
+            Some(ArgumentSlot::Root),
+            ArgumentFault::MatchingGraphEntities,
+        ));
+    }
+    if column_of(&fields, order).kind != CellKind::Number {
+        return Err(bad_argument(
+            call,
+            Some(ArgumentSlot::Order),
+            ArgumentFault::NumericGraphOrder,
+        ));
+    }
+    let names = if call
+        .arguments
+        .iter()
+        .any(|argument| &*argument.name.0 == "keys")
+    {
+        words_of(call, ArgumentSlot::Keys)?
+    } else {
+        Vec::new()
+    };
+    let root_keys = positions_of(builder, &roots, &names)?;
+    let edge_keys = positions_of(builder, &fields, &names)?;
+    if root_keys
+        .iter()
+        .zip(&edge_keys)
+        .any(|(left, right)| column_of(&roots, *left).kind != column_of(&fields, *right).kind)
+    {
+        return Err(bad_argument(
+            call,
+            Some(ArgumentSlot::Keys),
+            ArgumentFault::MatchingGraphKeys,
+        ));
+    }
+    let mut kept: Vec<_> = root_keys
+        .iter()
+        .map(|column| column_of(&roots, *column).clone())
+        .collect();
+    kept.push(column_of(&roots, root).clone());
+    kept.extend(
+        [source, destination, edge]
+            .iter()
+            .map(|column| column_of(&fields, *column).clone()),
+    );
+    kept.push(PlannedColumn {
+        name: word_of(call, ArgumentSlot::Output)?,
+        kind: CellKind::Number,
+        unique: Uniqueness::Shared,
+        words: Vocabulary::Open,
+    });
+    for at in 0..kept.len() {
+        if kept[..at].iter().any(|before| before.name == kept[at].name) {
+            return Err(LoweringError::DuplicateOutput {
+                name: kept[at].name.0.to_string(),
+                span: call.span,
+            });
+        }
+        kept[at].unique = Uniqueness::Shared;
+    }
+    push(
+        builder,
+        Some(name),
+        plans::Operation::OrderedDfs {
+            from,
+            edges,
+            root,
+            source,
+            destination,
+            order,
+            edge,
+            root_keys,
+            edge_keys,
+        },
+        kept,
+    );
+    Ok(())
+}
