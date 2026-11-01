@@ -1,4 +1,5 @@
 //! The parser outcome, not the summary's zero values, distinguishes empty, malformed and dynamic inputs.
+use super::super::interface::RelationsItem;
 use super::item::{FormatParse, FormatParseRow};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::relations::types::{Bits, FileId, Flag, Integer, NodeId, Offset, Span};

@@ -1,4 +1,5 @@
 //! The field shape distinguishes positional conversion selectors from decoded mapping keys.
+use super::super::interface::RelationsItem;
 use super::item::{FormatField, FormatFieldRow};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::relations::types::{Bits, FileId, Integer, NodeId, Offset, Span};
