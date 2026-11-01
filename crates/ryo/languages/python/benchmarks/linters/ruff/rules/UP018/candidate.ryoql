@@ -64,7 +64,8 @@ let argument_nodes = select id, file from "semantic-syntax" where kind = "call-a
 let call_wrappers = select l.call as call, r.id as wrapper, r.file as file from call_argument_fields as l join argument_nodes as r on l.wrapper = r.id;
 let positional_fields = select parent, child, ordinal from "semantic-child" where field = "args";
 let positional_args = select l.call as call, r.child as argument, r.ordinal as ordinal, l.file as file from call_wrappers as l join positional_fields as r on l.wrapper = r.parent;
-let first_positional = select call, argument, file from positional_args where ordinal = 1;
+let arguments_with_predecessor = select l.call as call, l.argument as argument, l.file as file from positional_args as l join positional_args as r on l.call = r.call and l.file = r.file where l.ordinal > r.ordinal;
+let first_positional = antijoin(left=positional_args, right=arguments_with_predecessor, left-on=["call","argument","file"], right-on=["call","argument","file"]);
 let later_positionals = select l.call as call, l.argument as argument, l.file as file from positional_args as l join positional_args as r on l.call = r.call and l.file = r.file where l.ordinal < r.ordinal;
 let exactly_one_positional = antijoin(left=first_positional,right=later_positionals,left-on=["call","argument","file"],right-on=["call","argument","file"]);
 let keyword_fields = select parent, child from "semantic-child" where field = "keywords";

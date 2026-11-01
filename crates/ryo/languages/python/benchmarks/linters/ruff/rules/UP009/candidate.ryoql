@@ -1,7 +1,7 @@
 let comment_rows = select id, file, text from "comment";
 let comment_positions = select l.id as id, l.file as file, l.text as text, r."start-byte" as begin, r."end-byte" as finish, r."start-line" as line from comment_rows as l join "source-location" as r on l.id = r.id and l.file = r.file;
-let coding_comments = select * from comment_positions where matches(text, "^\s*#.*coding[:=]\s*[-_.a-zA-Z0-9]+");
-let utf8_comments = select * from coding_comments where matches(text, "^\s*#.*coding[:=]\s*(?:utf8|utf-8)(?:$|[^-_.a-zA-Z0-9])");
+let coding_comments = select * from comment_positions where matches(text, "^\s*coding[:=]\s*[-_.a-zA-Z0-9]+");
+let utf8_comments = select * from coding_comments where matches(text, "^\s*coding[:=]\s*(?:utf8|utf-8)(?:$|[^-_.a-zA-Z0-9])");
 let earlier_coding = select l.id as later from coding_comments as l join coding_comments as r on l.file = r.file where l.begin > r.begin;
 let first_coding = antijoin(left=coding_comments,right=earlier_coding,left-on=["id"],right-on=["later"]);
 let first_utf8 = select l.id as id, l.file as file, l.begin as begin, l.finish as finish, l.line as line from first_coding as l join utf8_comments as r on l.id = r.id and l.file = r.file where l.line <= 2;

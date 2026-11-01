@@ -9,7 +9,9 @@ let argument_nodes = select id, file from "semantic-syntax" where kind = "call-a
 let wrappers = select l.call as call, r.id as wrapper, r.file as file from argument_edges as l join argument_nodes as r on l.wrapper = r.id;
 let range_wrappers = select l.call as call, r.wrapper as wrapper, l.file as file from range_calls as l join wrappers as r on l.call = r.call and l.file = r.file;
 let positional_fields = select parent, child, ordinal from "semantic-child" where field = "args";
-let first_arguments = select l.call as call, r.child as argument, l.file as file from range_wrappers as l join positional_fields as r on l.wrapper = r.parent where r.ordinal = 1;
+let ordered_arguments = select l.call as call, r.child as argument, r.ordinal as ordinal, l.file as file from range_wrappers as l join positional_fields as r on l.wrapper = r.parent;
+let arguments_with_predecessor = select l.call as call, l.argument as argument, l.file as file from ordered_arguments as l join ordered_arguments as r on l.call = r.call and l.file = r.file where l.ordinal > r.ordinal;
+let first_arguments = antijoin(left=ordered_arguments, right=arguments_with_predecessor, left-on=["call","argument","file"], right-on=["call","argument","file"]);
 let positional_counts = group-count(from=positional_fields, keys=["parent"], count="count", distinct="child");
 let exactly_two_wrappers = select parent as wrapper from positional_counts where count = 2;
 let exactly_two_calls = select l.call as call, l.file as file from range_wrappers as l join exactly_two_wrappers as r on l.wrapper = r.wrapper;
