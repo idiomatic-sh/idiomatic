@@ -42,17 +42,27 @@ fn target_version_syntax_warning_preserves_the_tree() {
             &PythonParserSettings::new(target),
             &mut builder,
         );
-        let diagnostics: Vec<_> = languages::diagnostics(&elements).collect();
+        let diagnostics: Vec<_> = languages::diagnostics(&elements)
+            .map(|diagnostic| {
+                (
+                    diagnostic.phase.name().to_owned(),
+                    diagnostic.impact.name().to_owned(),
+                    diagnostic.code.as_str().to_owned(),
+                    diagnostic.start.0,
+                    diagnostic.end.0,
+                )
+            })
+            .collect();
         (elements, diagnostics)
     };
 
     let (py310, unsupported) = diagnostics_for(PythonTargetVersion::Py310);
     assert!(!languages::has_incomplete_syntax(&py310));
     assert_eq!(unsupported.len(), 1);
-    assert_eq!(unsupported[0].phase.name(), "validation");
-    assert_eq!(unsupported[0].impact.name(), "preserved");
-    assert_eq!(unsupported[0].code.as_str(), "unsupported-syntax");
-    assert_eq!((unsupported[0].start.0, unsupported[0].end.0), (20, 21));
+    assert_eq!(unsupported[0].0, "validation");
+    assert_eq!(unsupported[0].1, "preserved");
+    assert_eq!(unsupported[0].2, "unsupported-syntax");
+    assert_eq!((unsupported[0].3, unsupported[0].4), (20, 21));
 
     let (_py311, supported) = diagnostics_for(PythonTargetVersion::Py311);
     assert!(supported.is_empty());
