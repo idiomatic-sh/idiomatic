@@ -10,7 +10,9 @@ use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
 use crate::outbound::syntax::fixtures::contract::{check, elements_of};
 use crate::outbound::syntax::interface::SyntaxPort as _;
-use crate::outbound::syntax::types::SourceText;
+use crate::outbound::syntax::types::{PythonSourceKind, SourceText};
+use crate::{PythonParserSettings, PythonTargetVersion};
+use ruff_python_ast::{PySourceType, PythonVersion};
 use ryo::languages::{self, ByteSlice, Elements, Symbols};
 
 /// What a row reads: a file whose tokens are joined again, or a file whose elements are listed.
@@ -31,6 +33,8 @@ enum Given {
     Features(&'static str),
     /// The semantic diagnostics the parser adapter preserves, with their byte ranges.
     Diagnostics(&'static str),
+    /// Parser diagnostics under explicit source-kind and target-version settings.
+    ConfiguredDiagnostics(&'static str, PythonParserSettings, PythonSourceKind),
 }
 
 type Input = Given;
@@ -62,7 +66,12 @@ enum Seen {
 fn round_trip(bytes: &'static [u8]) -> Seen {
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
     let mut builder = languages::table_builder(&mut elements, &mut symbols, ByteSlice(bytes));
-    SyntaxRuffPythonParserAdapter.read(SourceText(bytes), &mut builder);
+    SyntaxRuffPythonParserAdapter.read(
+        SourceText(bytes),
+        PythonSourceKind::Python,
+        &PythonParserSettings::default(),
+        &mut builder,
+    );
     let mut joined = Vec::new();
     let mut decoded = Vec::new();
     for at in languages::positions(&elements) {
@@ -118,6 +127,34 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Given::Read(b""),
         expect: Expect::Value(Seen::Read(b"", &[], 0)),
+    },
+    Case {
+        name: CaseName("the configured Python 310 parser reports unsupported type syntax"),
+        word: Word::Succeeds,
+        input: || {
+            Given::ConfiguredDiagnostics(
+                "class C[T = int, U]: ...\n",
+                PythonParserSettings::new(PythonTargetVersion::Py310),
+                PythonSourceKind::Python,
+            )
+        },
+        expect: Expect::Value(Seen::Diagnostics(&[
+            (
+                "Cannot use type parameter lists on Python 3.10 (syntax was added in Python 3.12)",
+                7,
+                19,
+            ),
+            (
+                "Cannot set default type for a type parameter on Python 3.10 (syntax was added in Python 3.13)",
+                10,
+                15,
+            ),
+            (
+                "non default type parameter `U` follows default type parameter",
+                17,
+                18,
+            ),
+        ])),
     },
     Case {
         name: CaseName("a_module_nonlocal_has_the_pinned_semantic_syntax_error"),
@@ -472,7 +509,12 @@ fn subject(given: Input) -> Result<Value, Failure> {
             let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
             let mut builder =
                 languages::table_builder(&mut elements, &mut symbols, ByteSlice(text.as_bytes()));
-            SyntaxRuffPythonParserAdapter.read(SourceText(text.as_bytes()), &mut builder);
+            SyntaxRuffPythonParserAdapter.read(
+                SourceText(text.as_bytes()),
+                PythonSourceKind::Python,
+                &PythonParserSettings::default(),
+                &mut builder,
+            );
             let reported = languages::diagnostics(&elements).any(|each| {
                 let start = usize::try_from(each.start.0).unwrap_or(usize::MAX);
                 let on = text
@@ -487,22 +529,13 @@ fn subject(given: Input) -> Result<Value, Failure> {
                 .lines()
                 .eq(super::constants::FUTURE_FEATURES.iter().copied()),
         )),
-        Given::Diagnostics(text) => {
-            let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
-            let mut builder =
-                languages::table_builder(&mut elements, &mut symbols, ByteSlice(text.as_bytes()));
-            SyntaxRuffPythonParserAdapter.read(SourceText(text.as_bytes()), &mut builder);
-            let diagnostics: Vec<(&'static str, u32, u32)> = languages::diagnostics(&elements)
-                .map(|diagnostic| {
-                    let message = std::str::from_utf8(diagnostic.message.0).unwrap_or_default();
-                    (
-                        &*Box::leak(message.to_owned().into_boxed_str()),
-                        diagnostic.start.0,
-                        diagnostic.end.0,
-                    )
-                })
-                .collect();
-            Ok(Seen::Diagnostics(Box::leak(diagnostics.into_boxed_slice())))
+        Given::Diagnostics(text) => diagnostics_of(
+            text,
+            PythonSourceKind::Python,
+            PythonParserSettings::default(),
+        ),
+        Given::ConfiguredDiagnostics(text, settings, source_kind) => {
+            diagnostics_of(text, source_kind, settings)
         }
         Given::Tree(text) => {
             let elements: Vec<(Kind, &'static str)> =
@@ -515,8 +548,55 @@ fn subject(given: Input) -> Result<Value, Failure> {
     }
 }
 
+fn diagnostics_of(
+    text: &'static str,
+    source_kind: PythonSourceKind,
+    settings: PythonParserSettings,
+) -> Result<Seen, Failure> {
+    let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
+    let mut builder =
+        languages::table_builder(&mut elements, &mut symbols, ByteSlice(text.as_bytes()));
+    SyntaxRuffPythonParserAdapter.read(
+        SourceText(text.as_bytes()),
+        source_kind,
+        &settings,
+        &mut builder,
+    );
+    let diagnostics: Vec<(&'static str, u32, u32)> = languages::diagnostics(&elements)
+        .map(|diagnostic| {
+            let message = std::str::from_utf8(diagnostic.message.0).unwrap_or_default();
+            (
+                &*Box::leak(message.to_owned().into_boxed_str()),
+                diagnostic.start.0,
+                diagnostic.end.0,
+            )
+        })
+        .collect();
+    Ok(Seen::Diagnostics(Box::leak(diagnostics.into_boxed_slice())))
+}
+
 #[test]
 fn succeeds() {
     check(&SyntaxRuffPythonParserAdapter);
     run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn parser_options_keep_source_kind_and_configured_target() {
+    assert_eq!(
+        super::adapter::source_type(PythonSourceKind::Python),
+        PySourceType::Python
+    );
+    assert_eq!(
+        super::adapter::source_type(PythonSourceKind::Stub),
+        PySourceType::Stub
+    );
+    assert_eq!(
+        super::adapter::options(
+            PythonSourceKind::Python,
+            &PythonParserSettings::new(PythonTargetVersion::Py310)
+        )
+        .target_version(),
+        PythonVersion::PY310
+    );
 }

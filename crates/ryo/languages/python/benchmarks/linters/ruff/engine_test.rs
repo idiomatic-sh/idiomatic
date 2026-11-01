@@ -99,10 +99,18 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
         state: ryo_benchmark::domain::suite::types::WorkerState::Fresh,
     };
     let result = if matches!(scenario, EngineScenario::InvalidSyntaxProjectionDisabled) {
-        factory::local(ryo::linter::Languages(vec![ryo_python::linked()]), None).run(request)
+        factory::local(
+            ryo::linter::Languages(vec![ryo_python::linked_with_settings(
+                ryo_python::PythonParserSettings::new(ryo_python::PythonTargetVersion::Py310),
+            )]),
+            None,
+        )
+        .run(request)
     } else {
         factory::local_with_frontend_diagnostic(
-            ryo::linter::Languages(vec![ryo_python::linked()]),
+            ryo::linter::Languages(vec![ryo_python::linked_with_settings(
+                ryo_python::PythonParserSettings::new(ryo_python::PythonTargetVersion::Py310),
+            )]),
             None,
             ryo::linter::RuleId::try_from("invalid-syntax").expect("frontend identity"),
         )

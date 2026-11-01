@@ -60,6 +60,10 @@ impl Parse for ParseContract {
         &[]
     }
 
+    fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
+        languages::ParseConfigurationIdentity("")
+    }
+
     fn file_model(&self, _tree: &languages::Tree<'_>, _model: &mut ()) {}
 
     fn recognizes(&self, request: &languages::ParseRequest<'_>) -> languages::Recognition {

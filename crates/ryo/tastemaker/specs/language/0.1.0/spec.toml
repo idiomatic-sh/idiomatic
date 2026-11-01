@@ -1255,6 +1255,10 @@ impl Parse for ParseContract {
         &[]
     }
 
+    fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
+        languages::ParseConfigurationIdentity("")
+    }
+
     fn semantic_syntax(&self) -> Support<Reader<languages::SemanticSyntax, Self::FileModel>> {
         languages::native_semantic_syntax()
     }
@@ -13770,6 +13774,10 @@ impl Parse for ParseContract {
         &[]
     }
 
+    fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
+        languages::ParseConfigurationIdentity("")
+    }
+
     fn semantic_syntax(&self) -> Support<Reader<languages::SemanticSyntax, Self::FileModel>> {
         languages::native_semantic_syntax()
     }
@@ -14732,6 +14740,10 @@ impl Parse for ParseContract {
 
     fn capabilities(&self) -> &'static [languages::OptionalCapability] {
         &[]
+    }
+
+    fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
+        languages::ParseConfigurationIdentity("")
     }
 
     fn semantic_syntax(&self) -> Support<Reader<languages::SemanticSyntax, Self::FileModel>> {
@@ -15699,6 +15711,10 @@ impl Parse for ParseContract {
         &[]
     }
 
+    fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
+        languages::ParseConfigurationIdentity("")
+    }
+
     fn semantic_syntax(&self) -> Support<Reader<languages::SemanticSyntax, Self::FileModel>> {
         languages::native_semantic_syntax()
     }
@@ -16658,6 +16674,10 @@ impl Parse for ParseContract {
 
     fn capabilities(&self) -> &'static [languages::OptionalCapability] {
         &[]
+    }
+
+    fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
+        languages::ParseConfigurationIdentity("")
     }
 
     fn semantic_syntax(&self) -> Support<Reader<languages::SemanticSyntax, Self::FileModel>> {
@@ -17620,6 +17640,10 @@ impl Parse for ParseContract {
 
     fn capabilities(&self) -> &'static [languages::OptionalCapability] {
         &[]
+    }
+
+    fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
+        languages::ParseConfigurationIdentity("")
     }
 
     fn semantic_syntax(&self) -> Support<Reader<languages::SemanticSyntax, Self::FileModel>> {

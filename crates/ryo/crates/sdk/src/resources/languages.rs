@@ -19,6 +19,8 @@ pub use ryo_language::inbound::use_cases::parse::interface::ParseUseCase as Pars
 
 pub use ryo_language::inbound::use_cases::parse::types::ParseRequest;
 
+pub use ryo_language::inbound::use_cases::parse::types::ParseConfigurationIdentity;
+
 pub use ryo_language::inbound::use_cases::parse::errors::ParseError;
 pub use ryo_language::inbound::use_cases::parse::types::{
     FieldRequest, KindNames, NoteRequest, Recognition,

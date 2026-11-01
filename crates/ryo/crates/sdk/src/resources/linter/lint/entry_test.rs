@@ -586,12 +586,21 @@ fn shared() -> Value {
 }
 
 /// A provider with the same name/build whose advertised optional contract changes.
-struct CapabilityProvider(&'static [ryo_language::domain::relations::types::OptionalCapability]);
+struct CapabilityProvider(
+    &'static [ryo_language::domain::relations::types::OptionalCapability],
+    &'static str,
+    &'static str,
+);
 impl ryo_language::inbound::use_cases::parse::types::ParseEngine for CapabilityProvider {
     fn capabilities(
         &self,
     ) -> &'static [ryo_language::domain::relations::types::OptionalCapability] {
         self.0
+    }
+    fn configuration_identity(
+        &self,
+    ) -> ryo_language::inbound::use_cases::parse::types::ParseConfigurationIdentity<'_> {
+        ryo_language::inbound::use_cases::parse::types::ParseConfigurationIdentity(self.1)
     }
     fn recognition(
         &self,
@@ -686,7 +695,7 @@ impl ryo_language::inbound::use_cases::parse::types::ParseEngine for CapabilityP
                     name: ryo_language::domain::symbols::service::intern_derived(
                         symbols,
                         source,
-                        NameText("x"),
+                        NameText(self.2),
                     ),
                     file,
                     span: Span {
@@ -718,19 +727,19 @@ fn capability_cache(query: &str) -> Value {
     let root = tempfile::tempdir().expect("corpus");
     let store = tempfile::tempdir().expect("store");
     std::fs::write(root.path().join("case.txt"), "x").expect("source");
-    let language = |caps| {
+    let language = |caps, configuration, name| {
         crate::domain::language::types::Language::from_parts(
             crate::domain::language::types::LanguageName("fixture".into()),
             crate::domain::language::types::LanguageBuild("same-build".into()),
-            std::sync::Arc::new(CapabilityProvider(caps)),
+            std::sync::Arc::new(CapabilityProvider(caps, configuration, name)),
             std::sync::Arc::new(
                 ryo_language::inbound::use_cases::project::use_case::ProjectUseCaseImpl,
             ),
         )
     };
-    let engine = |caps, cache| {
+    let engine = |caps, configuration, name, cache| {
         super::types::Linter::new(
-            Languages(vec![language(caps)]),
+            Languages(vec![language(caps, configuration, name)]),
             crate::domain::capacity::types::WorkerPool::from(Workers(NonZeroUsize::MIN)),
             MemoryBudget::Machine,
             cache,
@@ -752,14 +761,22 @@ fn capability_cache(query: &str) -> Value {
         corpus: Corpus::Listed(vec![RelativePath("case.txt".into())]),
         beside: vec![],
     };
-    let forward = super::connections::build(&[language(&[
-        OptionalCapability::Identifier,
-        OptionalCapability::QualifiedName,
-    ])]);
-    let reverse = super::connections::build(&[language(&[
-        OptionalCapability::QualifiedName,
-        OptionalCapability::Identifier,
-    ])]);
+    let forward = super::connections::build(&[language(
+        &[
+            OptionalCapability::Identifier,
+            OptionalCapability::QualifiedName,
+        ],
+        "",
+        "x",
+    )]);
+    let reverse = super::connections::build(&[language(
+        &[
+            OptionalCapability::QualifiedName,
+            OptionalCapability::Identifier,
+        ],
+        "",
+        "x",
+    )]);
     assert_eq!(
         forward, reverse,
         "capability declaration order does not change identity"
@@ -767,6 +784,8 @@ fn capability_cache(query: &str) -> Value {
 
     let advertised = engine(
         &[OptionalCapability::Identifier],
+        "",
+        "x",
         Cache::At(store.path().to_path_buf()),
     );
     let first = super::entry::lint_with(&advertised, request.clone()).expect("advertised report");
@@ -775,9 +794,9 @@ fn capability_cache(query: &str) -> Value {
         1,
         "the cache must contain a real optional finding"
     );
-    let absent = engine(&[], Cache::At(store.path().to_path_buf()));
+    let absent = engine(&[], "", "x", Cache::At(store.path().to_path_buf()));
     let replay = super::entry::lint_with(&absent, request.clone()).expect("unadvertised report");
-    let fresh = super::entry::lint_with(&engine(&[], Cache::None), request.clone())
+    let fresh = super::entry::lint_with(&engine(&[], "", "x", Cache::None), request.clone())
         .expect("fresh unadvertised report");
     assert_eq!(
         replay, fresh,
@@ -793,12 +812,79 @@ fn capability_cache(query: &str) -> Value {
     );
     let restored = engine(
         &[OptionalCapability::Identifier],
+        "",
+        "x",
         Cache::At(store.path().to_path_buf()),
     );
     assert_eq!(
-        super::entry::lint_with(&restored, request).expect("restored report"),
+        super::entry::lint_with(&restored, request.clone()).expect("restored report"),
         first,
         "prior unavailable state cannot poison newly advertised capability results"
     );
+
+    if query == OPTIONAL_POSITIVE {
+        let target_310 = engine(
+            &[OptionalCapability::Identifier],
+            "python-target=3.10",
+            "x",
+            Cache::At(store.path().to_path_buf()),
+        );
+        let before_target_change =
+            super::entry::lint_with(&target_310, request.clone()).expect("Python 3.10 result");
+        let target_314 = engine(
+            &[OptionalCapability::Identifier],
+            "python-target=3.14",
+            "y",
+            Cache::At(store.path().to_path_buf()),
+        );
+        let after_target_change =
+            super::entry::lint_with(&target_314, request.clone()).expect("Python 3.14 result");
+        let fresh_314 = super::entry::lint_with(
+            &engine(
+                &[OptionalCapability::Identifier],
+                "python-target=3.14",
+                "y",
+                Cache::None,
+            ),
+            request.clone(),
+        )
+        .expect("fresh Python 3.14 result");
+        assert_ne!(before_target_change, after_target_change);
+        assert_eq!(after_target_change, fresh_314);
+        let restored_310 = super::entry::lint_with(
+            &engine(
+                &[OptionalCapability::Identifier],
+                "python-target=3.10",
+                "x",
+                Cache::At(store.path().to_path_buf()),
+            ),
+            request.clone(),
+        )
+        .expect("restored Python 3.10 result");
+        assert_eq!(restored_310, before_target_change);
+        let stable_identity = super::connections::build(&[language(
+            &[OptionalCapability::Identifier],
+            "python-target=3.14",
+            "y",
+        )]);
+        assert_eq!(
+            stable_identity,
+            super::connections::build(&[language(
+                &[OptionalCapability::Identifier],
+                "python-target=3.14",
+                "y",
+            )]),
+            "unchanged parser settings keep the same cache identity"
+        );
+        assert_ne!(
+            stable_identity,
+            super::connections::build(&[language(
+                &[OptionalCapability::Identifier],
+                "python-target=3.10",
+                "x",
+            )]),
+            "changed parser settings change cache identity"
+        );
+    }
     (1, 0, true, 0)
 }

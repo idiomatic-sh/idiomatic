@@ -5,7 +5,7 @@ use super::errors::ParseError;
 use super::interface::ParseUseCase;
 use super::service::{absence_in, baseline_in, build_in, kinds_read_in, read_in, walk_in};
 use super::types::ParseEngine;
-use super::types::{KindNames, ParseRequest, SkippedDirectory};
+use super::types::{KindNames, ParseConfigurationIdentity, ParseRequest, SkippedDirectory};
 use crate::domain::answers::types::AbsenceCause;
 use crate::domain::elements::types::Elements;
 use crate::domain::elements::types::{Completion, TableBuilder, Tree};
@@ -24,6 +24,10 @@ impl ParseUseCase for ParseUseCaseImpl {
 
     fn capabilities(&self) -> &'static [crate::domain::relations::types::OptionalCapability] {
         &[]
+    }
+
+    fn configuration_identity(&self) -> ParseConfigurationIdentity<'_> {
+        ParseConfigurationIdentity("")
     }
 
     fn file_model(&self, _tree: &Tree<'_>, _model: &mut ()) {}
@@ -65,6 +69,10 @@ impl ParseUseCase for ParseUseCaseImpl {
 impl<P: ParseUseCase> ParseEngine for P {
     fn capabilities(&self) -> &'static [crate::domain::relations::types::OptionalCapability] {
         ParseUseCase::capabilities(self)
+    }
+
+    fn configuration_identity(&self) -> ParseConfigurationIdentity<'_> {
+        ParseUseCase::configuration_identity(self)
     }
 
     fn recognition(&self, request: &ParseRequest<'_>) -> Recognition {

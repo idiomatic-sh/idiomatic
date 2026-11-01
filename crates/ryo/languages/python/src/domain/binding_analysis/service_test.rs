@@ -207,7 +207,11 @@ fn subject((source, wanted): Input) -> Result<Value, Failure> {
         source: ByteSlice(file.bytes),
         file: languages::FileId(0),
     };
-    let parser = ParseContract::new(Arc::new(ruff_python_parser()), Arc::new(postcard()));
+    let parser = ParseContract::new(
+        crate::PythonParserSettings::default(),
+        Arc::new(ruff_python_parser()),
+        Arc::new(postcard()),
+    );
     let mut model = Declarations::default();
     parser.file_model(&tree, &mut model);
     let mut index = BindingAnalysisIndex::default();
@@ -281,7 +285,11 @@ mod retained {
         use crate::outbound::{notes::factory::postcard, syntax::factory::ruff_python_parser};
         use ryo::languages::Parse as _;
         use std::sync::Arc;
-        let parser = ParseContract::new(Arc::new(ruff_python_parser()), Arc::new(postcard()));
+        let parser = ParseContract::new(
+            crate::PythonParserSettings::default(),
+            Arc::new(ruff_python_parser()),
+            Arc::new(postcard()),
+        );
         let mut model = Declarations::default();
         let mut observed = Vec::new();
         for source in [

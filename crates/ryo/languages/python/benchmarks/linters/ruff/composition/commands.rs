@@ -19,7 +19,9 @@ pub(super) fn worker(
         .next()
         .map(|argument| argument.0)
         .ok_or_else(|| Error::Invalid(constants::MISSING_WORKER_REQUEST.into()))?;
-    let languages = ryo::linter::Languages(vec![ryo_python::linked()]);
+    let languages = ryo::linter::Languages(vec![ryo_python::linked_with_settings(
+        ryo_python::PythonParserSettings::new(ryo_python::PythonTargetVersion::Py310),
+    )]);
     let frontend_diagnostic = ryo::linter::RuleId::try_from("invalid-syntax")
         .map_err(|error| Error::Invalid(error.to_string()))?;
     let engine: Arc<dyn ryo_benchmark::outbound::engine::interface::EnginePort> =

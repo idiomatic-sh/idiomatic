@@ -30,7 +30,11 @@ pub(crate) struct Parsed {
 ///
 /// When the language refuses the bytes, which it never does for a Python file.
 pub(crate) fn parsed(bytes: &'static [u8]) -> Result<Parsed, languages::ParseError> {
-    let parse = ParseContract::new(Arc::new(ruff_python_parser()), Arc::new(postcard()));
+    let parse = ParseContract::new(
+        crate::PythonParserSettings::default(),
+        Arc::new(ruff_python_parser()),
+        Arc::new(postcard()),
+    );
     let (mut elements, mut symbols) = (languages::Elements::default(), Symbols::default());
     languages::contract::build(
         &parse,
@@ -76,8 +80,12 @@ pub(crate) fn initialize_model(
     model: &mut crate::domain::model::types::Declarations,
 ) {
     use languages::Parse as _;
-    ParseContract::new(Arc::new(ruff_python_parser()), Arc::new(postcard()))
-        .file_model(tree, model);
+    ParseContract::new(
+        crate::PythonParserSettings::default(),
+        Arc::new(ruff_python_parser()),
+        Arc::new(postcard()),
+    )
+    .file_model(tree, model);
 }
 
 /// Exercise an authored reader directly before its optional capability is advertised.
@@ -97,7 +105,11 @@ where
         source: ByteSlice(file.bytes),
         file: languages::FileId(0),
     };
-    let parse = ParseContract::new(Arc::new(ruff_python_parser()), Arc::new(postcard()));
+    let parse = ParseContract::new(
+        crate::PythonParserSettings::default(),
+        Arc::new(ruff_python_parser()),
+        Arc::new(postcard()),
+    );
     let mut model = crate::domain::model::types::Declarations::default();
     parse.file_model(&tree, &mut model);
     let mut out = languages::contract::Collect::default();

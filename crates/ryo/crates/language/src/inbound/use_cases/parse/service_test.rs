@@ -163,6 +163,12 @@ impl ParseUseCase for Small {
         &[]
     }
 
+    fn configuration_identity(
+        &self,
+    ) -> crate::inbound::use_cases::parse::types::ParseConfigurationIdentity<'_> {
+        crate::inbound::use_cases::parse::types::ParseConfigurationIdentity("")
+    }
+
     fn file_model(&self, tree: &Tree<'_>, model: &mut Seen) {
         // The model is the worker's, kept between files: what the last file left is still in it.
         model.0 += end_of(tree.elements).0;
@@ -249,6 +255,12 @@ impl ParseUseCase for Breaking {
 
     fn capabilities(&self) -> &'static [crate::domain::relations::types::OptionalCapability] {
         &[]
+    }
+
+    fn configuration_identity(
+        &self,
+    ) -> crate::inbound::use_cases::parse::types::ParseConfigurationIdentity<'_> {
+        crate::inbound::use_cases::parse::types::ParseConfigurationIdentity("")
     }
 
     fn file_model(&self, _tree: &Tree<'_>, _model: &mut ()) {}
@@ -583,6 +595,12 @@ impl ParseUseCase for Promised {
     type FileModel = Seen;
     fn capabilities(&self) -> &'static [crate::domain::relations::types::OptionalCapability] {
         self.0
+    }
+
+    fn configuration_identity(
+        &self,
+    ) -> crate::inbound::use_cases::parse::types::ParseConfigurationIdentity<'_> {
+        crate::inbound::use_cases::parse::types::ParseConfigurationIdentity("")
     }
     fn file_model(&self, tree: &Tree<'_>, model: &mut Seen) {
         Small.file_model(tree, model);

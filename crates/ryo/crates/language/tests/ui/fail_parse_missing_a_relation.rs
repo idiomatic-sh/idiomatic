@@ -1,9 +1,9 @@
 //! parse_missing_a_relation: the compiler rejects this.
 
-use ryo_language::domain::terms::types::UnknownName;
-use ryo_language::domain::elements::types::{Elements, TableBuilder, Completion};
-use ryo_language::domain::answers::types::{Reader, AbsenceCause, Support};
+use ryo_language::domain::answers::types::{AbsenceCause, Reader, Support};
+use ryo_language::domain::elements::types::{Completion, Elements, TableBuilder};
 use ryo_language::domain::symbols::types::Symbols;
+use ryo_language::domain::terms::types::UnknownName;
 use ryo_language::inbound::use_cases::parse::errors::ParseError;
 use ryo_language::inbound::use_cases::parse::interface::ParseUseCase;
 use ryo_language::inbound::use_cases::parse::types::ParseRequest;
@@ -32,11 +32,25 @@ struct Missing;
 impl ParseUseCase for Missing {
     type FileModel = ();
 
-    fn capabilities(&self) -> &'static [ryo_language::domain::relations::types::OptionalCapability] { &[] }
+    fn capabilities(
+        &self,
+    ) -> &'static [ryo_language::domain::relations::types::OptionalCapability] {
+        &[]
+    }
 
-    fn file_model(&self, _tree: &ryo_language::domain::elements::types::Tree<'_>, _model: &mut ()) {}
+    fn configuration_identity(
+        &self,
+    ) -> crate::inbound::use_cases::parse::types::ParseConfigurationIdentity<'_> {
+        crate::inbound::use_cases::parse::types::ParseConfigurationIdentity("")
+    }
 
-    fn recognizes(&self, _request: &ParseRequest<'_>) -> ryo_language::inbound::use_cases::parse::types::Recognition {
+    fn file_model(&self, _tree: &ryo_language::domain::elements::types::Tree<'_>, _model: &mut ()) {
+    }
+
+    fn recognizes(
+        &self,
+        _request: &ParseRequest<'_>,
+    ) -> ryo_language::inbound::use_cases::parse::types::Recognition {
         ryo_language::inbound::use_cases::parse::types::Recognition::Declines
     }
 

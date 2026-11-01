@@ -111,6 +111,7 @@ pub use ryo::languages::ParameterColumn
 pub use ryo::languages::ParameterKind
 pub use ryo::languages::ParameterRow
 pub use ryo::languages::Parse
+pub use ryo::languages::ParseConfigurationIdentity
 pub use ryo::languages::ParseError
 pub use ryo::languages::ParseRequest
 pub use ryo::languages::Position
@@ -279,6 +280,7 @@ pub use ryo::languages::write_notes
 pub struct ryo::languages::Language
 impl ryo::languages::Language
 pub fn ryo::languages::Language::build(&self) -> &ryo::languages::LanguageBuild
+pub fn ryo::languages::Language::configuration_identity(&self) -> ryo_language::inbound::use_cases::parse::types::ParseConfigurationIdentity<'_>
 pub fn ryo::languages::Language::name(&self) -> &ryo::languages::LanguageName
 pub fn ryo::languages::Language::skips(&self) -> &'static [ryo_language::inbound::use_cases::parse::types::SkippedDirectory]
 impl core::clone::Clone for ryo::languages::Language

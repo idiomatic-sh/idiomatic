@@ -7,6 +7,7 @@ use ryo::languages::{
 };
 
 use super::super::interface::SyntaxPort;
+use super::super::types::PythonSourceKind;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 
 /// What a row of the contract is given: Python text.
@@ -75,7 +76,12 @@ pub(crate) fn check(adapter: &impl SyntaxPort) {
 fn table_of(adapter: &impl SyntaxPort, text: &str) -> Elements {
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
     let mut builder = table_builder(&mut elements, &mut symbols, ByteSlice(text.as_bytes()));
-    adapter.read(SourceText(text.as_bytes()), &mut builder);
+    adapter.read(
+        SourceText(text.as_bytes()),
+        PythonSourceKind::Python,
+        &crate::PythonParserSettings::default(),
+        &mut builder,
+    );
     elements
 }
 

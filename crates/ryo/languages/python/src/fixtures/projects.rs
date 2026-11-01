@@ -175,7 +175,11 @@ fn adapters(available: &[languages::ManifestFile]) -> Vec<Arc<dyn ManifestReadin
 /// The notes the language's own parse leaves of the file at `path` whose text is `text`; none for a file it does not read.
 #[must_use]
 pub(crate) fn notes_of(path: &str, text: &str) -> languages::Bytes {
-    let parse = ParseContract::new(Arc::new(ruff_python_parser()), Arc::new(postcard()));
+    let parse = ParseContract::new(
+        crate::PythonParserSettings::default(),
+        Arc::new(ruff_python_parser()),
+        Arc::new(postcard()),
+    );
     let (mut elements, mut symbols) = (languages::Elements::default(), Symbols::default());
     let built = languages::contract::build(
         &parse,

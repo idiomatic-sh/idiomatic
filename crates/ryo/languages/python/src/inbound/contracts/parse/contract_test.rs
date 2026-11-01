@@ -9,6 +9,10 @@ use super::contract::ParseContract;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::notes::fixtures::fake::NotesFake;
 use crate::outbound::syntax::fixtures::fake::SyntaxFake;
+use crate::outbound::syntax::interface::SyntaxPort;
+use crate::outbound::syntax::types::{PythonSourceKind, SourceText};
+use crate::{PythonParserSettings, PythonTargetVersion};
+use std::sync::Mutex;
 
 /// What a row does: reads a file (its path, its bytes and the relations wanted), or runs the language contract.
 #[derive(Clone, Copy)]
@@ -55,6 +59,7 @@ fn subject(given: Input) -> Result<Value, Failure> {
         Given::Read(path, bytes, wanted) => (path, bytes, wanted),
         Given::Contract => {
             let language = ParseContract::new(
+                crate::PythonParserSettings::default(),
                 Arc::new(crate::outbound::syntax::factory::ruff_python_parser()),
                 Arc::new(crate::outbound::notes::factory::postcard()),
             );
@@ -63,7 +68,11 @@ fn subject(given: Input) -> Result<Value, Failure> {
             return Ok((SAMPLES.len(), language.kind_count().0));
         }
     };
-    let language = ParseContract::new(Arc::new(SyntaxFake), Arc::new(NotesFake));
+    let language = ParseContract::new(
+        crate::PythonParserSettings::default(),
+        Arc::new(SyntaxFake),
+        Arc::new(NotesFake),
+    );
     let mut out = languages::contract::Collect::default();
     let (mut table, mut symbols) = (
         languages::Elements::default(),
@@ -105,4 +114,76 @@ fn succeeds() {
 #[test]
 fn refuses() {
     run(CASES, Word::Refuses, subject);
+}
+
+#[derive(Clone)]
+struct CapturingSyntax(Arc<Mutex<Vec<(PythonSourceKind, String)>>>);
+
+impl SyntaxPort for CapturingSyntax {
+    fn read(
+        &self,
+        _text: SourceText<'_>,
+        source_kind: PythonSourceKind,
+        settings: &PythonParserSettings,
+        _builder: &mut languages::TableBuilder<'_>,
+    ) {
+        self.0
+            .lock()
+            .expect("capture lock")
+            .push((source_kind, settings.identity().to_owned()));
+    }
+}
+
+#[test]
+fn parse_contract_passes_path_kind_and_its_settings_to_syntax() {
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    let settings = PythonParserSettings::new(PythonTargetVersion::Py310);
+    let language = ParseContract::new(
+        settings,
+        Arc::new(CapturingSyntax(Arc::clone(&seen))),
+        Arc::new(NotesFake),
+    );
+
+    for path in ["module.py", "module.pyi"] {
+        let bytes = b"x = 1\n";
+        let request = languages::ParseRequest {
+            path: languages::SourcePath(path),
+            file: languages::FileId(0),
+            bytes: languages::ByteSlice(bytes),
+            notes: languages::NoteRequest::Unwanted,
+            fields: languages::FieldRequest::Unwanted,
+        };
+        let (mut elements, mut symbols) = (
+            languages::Elements::default(),
+            languages::Symbols::default(),
+        );
+        let mut builder =
+            languages::table_builder(&mut elements, &mut symbols, languages::ByteSlice(bytes));
+        language
+            .read_tree(&request, &mut builder)
+            .expect("read tree");
+    }
+
+    assert_eq!(
+        *seen.lock().expect("capture lock"),
+        [
+            (PythonSourceKind::Python, "python-target=3.10".to_owned()),
+            (PythonSourceKind::Stub, "python-target=3.10".to_owned()),
+        ]
+    );
+    assert_eq!(language.configuration_identity().0, "python-target=3.10");
+}
+
+#[test]
+fn linked_python_keeps_latest_as_its_default_target() {
+    assert_eq!(
+        crate::linked().configuration_identity().0,
+        "python-target=latest"
+    );
+    assert_eq!(
+        crate::linked_with_settings(PythonParserSettings::new(PythonTargetVersion::Py310))
+            .configuration_identity()
+            .0,
+        "python-target=3.10"
+    );
 }

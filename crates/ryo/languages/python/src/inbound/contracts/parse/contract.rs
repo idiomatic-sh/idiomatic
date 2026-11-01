@@ -8,6 +8,7 @@ use std::sync::Arc;
 
 use ryo::languages::{self, AbsenceCause, Parse, Reader, Support, UnknownName};
 
+use crate::PythonParserSettings;
 use crate::domain::fact_notes::service::noted;
 use crate::domain::fields::service::role_of;
 use crate::domain::labels::service::{field_bits, field_name, fields};
@@ -34,21 +35,39 @@ use crate::domain::scopes::service::declare;
 use crate::domain::syntax::service::{kind_bits, kind_name, kinds};
 use crate::outbound::notes::interface::NotesPort;
 use crate::outbound::syntax::interface::SyntaxPort;
-use crate::outbound::syntax::types::SourceText;
+use crate::outbound::syntax::types::{PythonSourceKind, SourceText};
 
 /// `parse`, implementing `ryo::languages::Parse`.
 pub(crate) struct ParseContract {
+    /// Immutable parser settings shared with the syntax adapter and the cache identity.
+    settings: PythonParserSettings,
     /// The parser that reads Python text into the tree.
     syntax: Arc<dyn SyntaxPort>,
     /// What writes the notes of a file as bytes.
     notes: Arc<dyn NotesPort>,
 }
 
+fn source_kind(path: &str) -> PythonSourceKind {
+    if path.ends_with(".pyi") {
+        PythonSourceKind::Stub
+    } else {
+        PythonSourceKind::Python
+    }
+}
+
 impl ParseContract {
     /// `parse` over the ports it calls, which the edge injects.
     #[must_use]
-    pub(crate) fn new(syntax: Arc<dyn SyntaxPort>, notes: Arc<dyn NotesPort>) -> Self {
-        Self { syntax, notes }
+    pub(crate) fn new(
+        settings: PythonParserSettings,
+        syntax: Arc<dyn SyntaxPort>,
+        notes: Arc<dyn NotesPort>,
+    ) -> Self {
+        Self {
+            settings,
+            syntax,
+            notes,
+        }
     }
 }
 
@@ -67,6 +86,10 @@ impl Parse for ParseContract {
             languages::OptionalCapability::BindingShadow,
             languages::OptionalCapability::ImplicitSymbol,
         ]
+    }
+
+    fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
+        languages::ParseConfigurationIdentity(self.settings.identity())
     }
 
     fn file_model(&self, tree: &languages::Tree<'_>, model: &mut Declarations) {
@@ -105,7 +128,12 @@ impl Parse for ParseContract {
         request: &languages::ParseRequest<'_>,
         builder: &mut languages::TableBuilder<'_>,
     ) -> Result<(), languages::ParseError> {
-        self.syntax.read(SourceText(request.bytes.0), builder);
+        self.syntax.read(
+            SourceText(request.bytes.0),
+            source_kind(request.path.0),
+            &self.settings,
+            builder,
+        );
         Ok(())
     }
 

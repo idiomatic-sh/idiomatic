@@ -929,7 +929,11 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 ];
 
 fn subject(given: Input) -> Result<Value, Failure> {
-    let language = ParseContract::new(Arc::new(ruff_python_parser()), Arc::new(postcard()));
+    let language = ParseContract::new(
+        crate::PythonParserSettings::default(),
+        Arc::new(ruff_python_parser()),
+        Arc::new(postcard()),
+    );
     let (mut elements, mut symbols) = (
         languages::Elements::default(),
         languages::Symbols::default(),

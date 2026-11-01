@@ -84,6 +84,11 @@ pub(crate) fn build(languages: &[Language]) -> BuildIdentity {
                 capabilities.dedup();
                 // Release identity plus length-delimited canonical names: declaration order is irrelevant.
                 let mut identity = language.build().0.to_string();
+                let configuration = language.configuration_identity().0;
+                identity.push_str(" config:");
+                identity.push_str(&configuration.len().to_string());
+                identity.push(':');
+                identity.push_str(configuration);
                 for capability in capabilities {
                     identity.push(' ');
                     identity.push_str(&capability.len().to_string());

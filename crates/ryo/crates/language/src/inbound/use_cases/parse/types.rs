@@ -11,6 +11,10 @@ use crate::domain::symbols::types::ByteSlice;
 use crate::domain::symbols::types::Symbols;
 use crate::domain::terms::types::UnknownName;
 
+/// The canonical, immutable identity of parser settings that can change the tree or diagnostics.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ParseConfigurationIdentity<'a>(pub &'a str);
+
 /// One file to read.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ParseRequest<'a> {
@@ -140,6 +144,9 @@ pub struct KindNames(pub Vec<crate::domain::terms::types::NameText<'static>>);
 pub trait ParseEngine: Send + Sync {
     /// Explicit optional promises, preserved across the erased provider boundary.
     fn capabilities(&self) -> &'static [crate::domain::relations::types::OptionalCapability];
+
+    /// Canonical parser settings included in persisted-result cache identity.
+    fn configuration_identity(&self) -> ParseConfigurationIdentity<'_>;
 
     /// Whether the language reads the file in `request`.
     fn recognition(&self, request: &ParseRequest<'_>) -> Recognition;

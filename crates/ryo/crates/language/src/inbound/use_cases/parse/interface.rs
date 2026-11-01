@@ -6,7 +6,7 @@
 //! language from compiling until it has answered.
 
 use super::errors::ParseError;
-use super::types::{KindNames, ParseRequest, SkippedDirectory};
+use super::types::{KindNames, ParseConfigurationIdentity, ParseRequest, SkippedDirectory};
 use crate::domain::answers::types::{Reader, Support};
 use crate::domain::elements::types::{Completion, TableBuilder, Tree};
 use crate::domain::relations::types::Count;
@@ -33,6 +33,9 @@ macro_rules! syntax_methods {
 pub trait ParseUseCase: Send + Sync {
     /// Optional semantic capabilities this provider promises to answer, including proven language absence.
     fn capabilities(&self) -> &'static [crate::domain::relations::types::OptionalCapability];
+
+    /// Canonical immutable parser settings that can change the tree or diagnostics.
+    fn configuration_identity(&self) -> ParseConfigurationIdentity<'_>;
 
     /// What the language works out of a file once, when it parses it, for its readers to read: an index of the file, so that no reader
     /// searches the file again for each element it is given. A language that works out nothing has `()`. The engine makes one for each

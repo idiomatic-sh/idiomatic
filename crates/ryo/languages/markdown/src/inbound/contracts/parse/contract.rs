@@ -47,6 +47,10 @@ impl Parse for ParseContract {
         &[languages::OptionalCapability::QualifiedName]
     }
 
+    fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
+        languages::ParseConfigurationIdentity("")
+    }
+
     fn file_model(&self, tree: &languages::Tree<'_>, model: &mut Sections) {
         settle(tree, model);
     }

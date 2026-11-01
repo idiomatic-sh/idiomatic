@@ -1,13 +1,13 @@
 //! crate_private_file_model: the compiler accepts a language, and the model it works out of a file, that are private to their crate: the engine holds the model behind an interface that never names it.
 
-use ryo_language::domain::terms::types::UnknownName;
+use ryo_language::domain::answers::types::{AbsenceCause, ReadItem, Reader, Reads, Support};
+use ryo_language::domain::elements::types::{Completion, TableBuilder, Tree};
 use ryo_language::domain::relations::collections::relations::function::item::{
     Function, FunctionRow,
 };
 use ryo_language::domain::relations::types::{Count, Position, Rows};
-use ryo_language::domain::answers::types::{ReadItem, Reader, Reads, AbsenceCause, Support};
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_language::domain::elements::types::{Tree, Completion, TableBuilder};
+use ryo_language::domain::terms::types::UnknownName;
 use ryo_language::inbound::use_cases::parse::errors::ParseError;
 use ryo_language::inbound::use_cases::parse::interface::ParseUseCase;
 use ryo_language::inbound::use_cases::parse::types::ParseRequest;
@@ -107,11 +107,29 @@ struct Language;
 impl ParseUseCase for Language {
     type FileModel = Model;
 
-    fn capabilities(&self) -> &'static [ryo_language::domain::relations::types::OptionalCapability] { &[] }
+    fn capabilities(
+        &self,
+    ) -> &'static [ryo_language::domain::relations::types::OptionalCapability] {
+        &[]
+    }
 
-    fn file_model(&self, _tree: &ryo_language::domain::elements::types::Tree<'_>, _model: &mut Model) {}
+    fn configuration_identity(
+        &self,
+    ) -> crate::inbound::use_cases::parse::types::ParseConfigurationIdentity<'_> {
+        crate::inbound::use_cases::parse::types::ParseConfigurationIdentity("")
+    }
 
-    fn recognizes(&self, _request: &ParseRequest<'_>) -> ryo_language::inbound::use_cases::parse::types::Recognition {
+    fn file_model(
+        &self,
+        _tree: &ryo_language::domain::elements::types::Tree<'_>,
+        _model: &mut Model,
+    ) {
+    }
+
+    fn recognizes(
+        &self,
+        _request: &ParseRequest<'_>,
+    ) -> ryo_language::inbound::use_cases::parse::types::Recognition {
         ryo_language::inbound::use_cases::parse::types::Recognition::Declines
     }
 
@@ -155,8 +173,16 @@ impl ProjectUseCase for Language {
         &[]
     }
 
-    fn resolve(&self, _request: &ProjectRequest) -> Result<ryo_language::inbound::use_cases::project::types::Resolved, ProjectError> {
-        Ok(ryo_language::inbound::use_cases::project::types::Resolved { refused: Vec::new(), unlisted: Vec::new(), consulted: Vec::new(), derived: () })
+    fn resolve(
+        &self,
+        _request: &ProjectRequest,
+    ) -> Result<ryo_language::inbound::use_cases::project::types::Resolved, ProjectError> {
+        Ok(ryo_language::inbound::use_cases::project::types::Resolved {
+            refused: Vec::new(),
+            unlisted: Vec::new(),
+            consulted: Vec::new(),
+            derived: (),
+        })
     }
 
     ryo_language::each_relation!(no_manifests);

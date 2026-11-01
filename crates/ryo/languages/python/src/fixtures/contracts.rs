@@ -15,7 +15,11 @@ use crate::outbound::syntax::factory::ruff_python_parser;
 /// The `parse` contract, over the language's syntax and notes ports.
 #[must_use]
 pub fn parse() -> impl languages::Parse {
-    ParseContract::new(Arc::new(ruff_python_parser()), Arc::new(postcard()))
+    ParseContract::new(
+        crate::PythonParserSettings::default(),
+        Arc::new(ruff_python_parser()),
+        Arc::new(postcard()),
+    )
 }
 
 /// The `project` contract with the pep621 adapter alone reading manifests: what the bench of the `manifest_reading` adapters runs.

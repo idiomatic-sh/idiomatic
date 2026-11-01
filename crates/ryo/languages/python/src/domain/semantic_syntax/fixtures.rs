@@ -14,7 +14,11 @@ pub(super) fn reparse(
     use crate::outbound::{notes::factory::postcard, syntax::factory::ruff_python_parser};
     use ryo::languages::Parse as _;
     use std::sync::Arc;
-    let parser = ParseContract::new(Arc::new(ruff_python_parser()), Arc::new(postcard()));
+    let parser = ParseContract::new(
+        crate::PythonParserSettings::default(),
+        Arc::new(ruff_python_parser()),
+        Arc::new(postcard()),
+    );
     let mut elements = languages::Elements::default();
     let mut symbols = languages::Symbols::default();
     let mut model = Declarations::default();

@@ -48,6 +48,10 @@ impl Parse for ParseContract {
         ]
     }
 
+    fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
+        languages::ParseConfigurationIdentity("")
+    }
+
     fn file_model(&self, tree: &languages::Tree<'_>, model: &mut Model) {
         build(tree, model);
     }

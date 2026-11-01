@@ -3,12 +3,13 @@ use super::constants::NOT_UTF8;
 use super::schemas::{offset, readable};
 use super::types::{AnnotationCandidate, AnnotationContext, ByteIndex, Readable, Writer};
 use crate::outbound::syntax::interface::SyntaxPort;
-use crate::outbound::syntax::types::SourceText;
-use ruff_python_ast::PythonVersion;
+use crate::outbound::syntax::types::{PythonSourceKind, SourceText};
+use crate::{PythonParserSettings, PythonTargetVersion};
 use ruff_python_ast::visitor::source_order::SourceOrderVisitor as _;
 use ruff_python_ast::visitor::{Visitor, walk_stmt};
 use ruff_python_ast::{Arguments, Expr, Mod, Parameters, Stmt, TypeParams};
-use ruff_python_parser::{Mode, ParseOptions, parse_unchecked};
+use ruff_python_ast::{PySourceType, PythonVersion};
+use ruff_python_parser::{ParseOptions, parse_unchecked};
 use ruff_text_size::Ranged as _;
 use ryo::languages::{self, Offset};
 use std::borrow::Cow;
@@ -18,9 +19,32 @@ use std::collections::HashSet;
 #[derive(Debug)]
 pub(crate) struct SyntaxRuffPythonParserAdapter;
 
-/// The options the library parses with: a module, in the latest Python it reads.
-pub(super) fn options() -> ParseOptions {
-    ParseOptions::from(Mode::Module).with_target_version(PythonVersion::latest())
+/// The parser options derived from Python-owned settings and the source path's kind.
+pub(super) fn options(
+    source_kind: PythonSourceKind,
+    settings: &PythonParserSettings,
+) -> ParseOptions {
+    let source_type = source_type(source_kind);
+    let target_version = match settings.target_version() {
+        PythonTargetVersion::Py37 => PythonVersion::PY37,
+        PythonTargetVersion::Py38 => PythonVersion::PY38,
+        PythonTargetVersion::Py39 => PythonVersion::PY39,
+        PythonTargetVersion::Py310 => PythonVersion::PY310,
+        PythonTargetVersion::Py311 => PythonVersion::PY311,
+        PythonTargetVersion::Py312 => PythonVersion::PY312,
+        PythonTargetVersion::Py313 => PythonVersion::PY313,
+        PythonTargetVersion::Py314 => PythonVersion::PY314,
+        PythonTargetVersion::Py315 => PythonVersion::PY315,
+        PythonTargetVersion::Latest => PythonVersion::latest(),
+    };
+    ParseOptions::from(source_type).with_target_version(target_version)
+}
+
+pub(super) const fn source_type(source_kind: PythonSourceKind) -> PySourceType {
+    match source_kind {
+        PythonSourceKind::Python => PySourceType::Python,
+        PythonSourceKind::Stub => PySourceType::Stub,
+    }
 }
 
 struct SemanticSyntaxDiagnostic {
@@ -169,9 +193,15 @@ fn semantic_syntax_errors(module: &Mod) -> Vec<SemanticSyntaxDiagnostic> {
 }
 
 impl SyntaxPort for SyntaxRuffPythonParserAdapter {
-    fn read(&self, text: SourceText<'_>, builder: &mut languages::TableBuilder<'_>) {
+    fn read(
+        &self,
+        text: SourceText<'_>,
+        source_kind: PythonSourceKind,
+        settings: &PythonParserSettings,
+        builder: &mut languages::TableBuilder<'_>,
+    ) {
         let Readable(source) = readable(text);
-        let parsed = parse_unchecked(&source, options());
+        let parsed = parse_unchecked(&source, options(source_kind, settings));
         let length = offset(ByteIndex(text.0.len()));
         let mut writer = Writer::new(
             builder,

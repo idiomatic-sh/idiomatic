@@ -90,7 +90,11 @@ fn subject(source: Input) -> Result<Value, Failure> {
         source: ByteSlice(file.bytes),
         file: languages::FileId(0),
     };
-    let parser = ParseContract::new(Arc::new(ruff_python_parser()), Arc::new(postcard()));
+    let parser = ParseContract::new(
+        crate::PythonParserSettings::default(),
+        Arc::new(ruff_python_parser()),
+        Arc::new(postcard()),
+    );
     let mut model = Declarations::default();
     parser.file_model(&tree, &mut model);
     let mut plan = BindingSchedule::default();

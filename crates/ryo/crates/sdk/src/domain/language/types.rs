@@ -7,7 +7,8 @@ use ryo_language::domain::files::types::SourcePath;
 use ryo_language::domain::relations::types::FileId;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::inbound::use_cases::parse::types::{
-    FieldRequest, NoteRequest, ParseEngine, ParseRequest, Recognition, SkippedDirectory,
+    FieldRequest, NoteRequest, ParseConfigurationIdentity, ParseEngine, ParseRequest, Recognition,
+    SkippedDirectory,
 };
 use ryo_language::inbound::use_cases::project::types::ProjectEngine;
 
@@ -67,6 +68,12 @@ impl Language {
     #[must_use]
     pub fn build(&self) -> &LanguageBuild {
         &self.build
+    }
+
+    /// The canonical parser settings that affect this language's trees and diagnostics.
+    #[must_use]
+    pub fn configuration_identity(&self) -> ParseConfigurationIdentity<'_> {
+        self.engine.configuration_identity()
     }
 
     /// The names of the directories the language never reads, at any depth: the ecosystem's dependency, environment and build

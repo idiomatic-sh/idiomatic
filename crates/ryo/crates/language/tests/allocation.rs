@@ -152,6 +152,12 @@ impl ParseUseCase for Language {
         &[]
     }
 
+    fn configuration_identity(
+        &self,
+    ) -> crate::inbound::use_cases::parse::types::ParseConfigurationIdentity<'_> {
+        crate::inbound::use_cases::parse::types::ParseConfigurationIdentity("")
+    }
+
     fn file_model(&self, _tree: &Tree<'_>, _model: &mut ()) {}
 
     fn recognizes(&self, _request: &ParseRequest<'_>) -> Recognition {

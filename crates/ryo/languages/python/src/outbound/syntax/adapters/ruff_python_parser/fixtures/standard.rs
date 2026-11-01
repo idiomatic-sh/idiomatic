@@ -2,6 +2,7 @@
 //! and our tree of the same file projected onto the standard, so that the two can be compared node for node, each in the field of its
 //! parent that holds it.
 
+use crate::PythonParserSettings;
 use crate::domain::extras::types::Extra;
 use crate::domain::fields::service::field_of;
 use crate::domain::labels::service::field_name;
@@ -12,6 +13,7 @@ use crate::domain::syntax::service::{kind_name, kind_of};
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
 use crate::outbound::syntax::interface::SyntaxPort as _;
+use crate::outbound::syntax::types::PythonSourceKind;
 use crate::outbound::syntax::types::SourceText;
 use ryo::languages::{
     ByteSlice, Elements, FileId, Position, Symbols, TOKEN, Tree, children as children_at, end_at,
@@ -287,6 +289,8 @@ pub(crate) fn projected(text: &str) -> Option<Shape> {
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
     SyntaxRuffPythonParserAdapter.read(
         SourceText(text.as_bytes()),
+        PythonSourceKind::Python,
+        &PythonParserSettings::default(),
         &mut table_builder(&mut elements, &mut symbols, ByteSlice(text.as_bytes())),
     );
     let tree = Tree {
