@@ -26,6 +26,7 @@ MANIFEST = Path(
 )
 SHAPE_PROFILE = "shape-110"
 RULE_PHASES_FILE = PROFILE_DIR / "pinned-rule-phases.json"
+NATIVE_DESCRIPTOR_FILE = PROFILE_DIR / "native-standalone.json"
 PINNED_RUFF_VERSION = "0.16.5"
 PINNED_RUFF_SOURCE_COMMIT = "9e4938c4a60bed3e87a11ee1e1db1bd23f4d964a"
 RUFF_PHASES = {
@@ -343,6 +344,11 @@ def manifest_paths(manifest: dict[str, object], helper_path: str) -> set[str]:
     profiles = manifest["profiles"]
     base_profile = RUFF_DIR / "benchmark.toml"
     paths = {helper_path, base_profile.relative_to(REPOSITORY).as_posix()}
+    paths.add(NATIVE_DESCRIPTOR_FILE.relative_to(REPOSITORY).as_posix())
+    native = native_descriptor_json(NATIVE_DESCRIPTOR_FILE.read_text(encoding="utf-8"))
+    for profile in native["profiles"]:
+        paths.add(prepared_candidate_path(profile["rule_id"], profile).relative_to(REPOSITORY).as_posix())
+        paths.add(prepared_case_path(profile["rule_id"], profile).relative_to(REPOSITORY).as_posix())
     paths.add(RULE_PHASES_FILE.relative_to(REPOSITORY).as_posix())
     paths.add(
         (RUFF_DIR / "results/standard-suppression-policy.json")
@@ -522,9 +528,21 @@ def write_staged_profile(
     registry: dict[str, str],
     parser_configuration: str = "python-target=3.10",
     rule_applicability: dict[str, str] | None = None,
+    selected_rules: list[str] | None = None,
 ) -> None:
     """Serialize the supported profile fields, replacing any existing module table."""
     parsed = tomllib.loads(source.read_text(encoding="utf-8"))
+    if selected_rules is not None:
+        if not selected_rules or len(set(selected_rules)) != len(selected_rules) or not set(selected_rules) <= set(parsed["defaults"]):
+            raise ValueError("explicit profile selection must be a nonempty unique subset")
+        parsed["defaults"] = selected_rules
+        for disposition in ("deferred", "pending"):
+            if disposition in parsed:
+                parsed[disposition] = {
+                    reason: chosen
+                    for reason, rules in parsed[disposition].items()
+                    if (chosen := [rule for rule in rules if rule in selected_rules])
+                }
     current = profile_modules(parsed)
     registry = profile_modules({"query-modules": registry})
     if any(
@@ -2782,6 +2800,229 @@ def run_identity(
     }
 
 
+def native_descriptor_json(text: str) -> dict[str, object]:
+    """An explicit execution contract must not lose duplicate JSON declarations."""
+    def unique(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError(f"duplicate native descriptor key: {key}")
+            result[key] = value
+        return result
+    result = json.loads(text, object_pairs_hook=unique)
+    if not isinstance(result, dict):
+        raise ValueError("native descriptor must be an object")
+    return result
+
+
+def native_standalone_manifest(
+    manifest: dict[str, object], descriptor: dict[str, object] | None = None,
+) -> dict[str, object]:
+    """Validate the newly declared singleton contract over every exact native query/case asset.
+
+    This is current authoring intent, not evidence that the old all-query invocation
+    ran these selections. Candidate variants in the ordinary prepared profiles are
+    never substituted, even when they share a diagnostic rule ID.
+    """
+    if descriptor is None:
+        descriptor = native_descriptor_json(NATIVE_DESCRIPTOR_FILE.read_text(encoding="utf-8"))
+    fields = {"schema", "execution_contract", "historical_certification", "intent",
+              "source_profile_file", "source_profile_sha256", "source_settings",
+              "module_registry", "module_sha256", "phase_registry_sha256",
+              "query_count", "case_count", "profiles"}
+    if set(descriptor) != fields or descriptor["schema"] != "native-standalone-cases/v1":
+        raise ValueError("unsupported native descriptor schema")
+    if descriptor["execution_contract"] != "singleton-per-declared-rule" or descriptor["historical_certification"] is not False:
+        raise ValueError("native selection is a new explicit contract, never historical certification")
+    if not isinstance(descriptor["intent"], str) or not descriptor["intent"].strip():
+        raise ValueError("native execution intent must be documented")
+    if any(type(descriptor[key]) is not int or descriptor[key] <= 0 for key in ("query_count", "case_count")):
+        raise ValueError("native inventory counts must be positive integers")
+    if not isinstance(descriptor["module_registry"], dict) or not isinstance(descriptor["module_sha256"], dict):
+        raise ValueError("native module declarations must be objects")
+    source = prepared_profile_path("native", {"profile_file": descriptor["source_profile_file"]})
+    if sha256(source) != descriptor["source_profile_sha256"]:
+        raise ValueError("native source profile identity mismatch")
+    profile = tomllib.loads(source.read_text(encoding="utf-8"))
+    if not profile_tool_matches(profile, manifest):
+        raise ValueError("native source tool identity mismatch")
+    phases = verify_rule_phase_registry(manifest)
+    if descriptor["phase_registry_sha256"] != sha256(RULE_PHASES_FILE):
+        raise ValueError("native pinned phase registry identity mismatch")
+    check_base_rule_applicability(profile, phases)
+    source_settings = canonical_run_ryo_settings(profile, profile["defaults"], phases)
+    if source_settings != descriptor["source_settings"]:
+        raise ValueError("native source execution settings mismatch")
+    registry = profile_modules(profile)
+    if registry != descriptor["module_registry"] or set(registry) != set(descriptor["module_sha256"]):
+        raise ValueError("native declared module registry mismatch")
+    for logical, relative in registry.items():
+        module = REPOSITORY / module_path(relative)
+        if sha256(module) != descriptor["module_sha256"][logical]:
+            raise ValueError(f"native module identity mismatch: {logical}")
+    # Declaration closure is checked before any worker is built or invoked.
+    def check_imports(source_path: Path) -> None:
+        imports = re.findall(r'^\s*import\s+\w+\s+from\s+"([^"]+)"\s*;', source_path.read_text(encoding="utf-8"), re.MULTILINE)
+        if set(imports) - set(registry):
+            raise ValueError(f"native query has an undeclared module: {source_path}")
+    for relative in registry.values():
+        check_imports(RUFF_DIR / relative)
+    native_queries = {path.relative_to(RUFF_DIR).as_posix(): path for path in (RUFF_DIR / "rules").glob("*/query.ryoql")}
+    if not isinstance(descriptor["profiles"], list) or not descriptor["profiles"]:
+        raise ValueError("native profile declarations must be a nonempty list")
+    profiles = {}
+    declared_queries = set()
+    declared_rules = set()
+    case_count = 0
+    entry_fields = {"profile_name", "rule_id", "selected_rules", "profile_file", "candidate_file",
+                    "query_sha256", "cases_file", "cases_sha256", "case_count", "case_names", "effective_settings"}
+    for recorded in descriptor["profiles"]:
+        if not isinstance(recorded, dict) or set(recorded) != entry_fields:
+            raise ValueError("unsupported native profile declaration schema")
+        if type(recorded["case_count"]) is not int or recorded["case_count"] <= 0:
+            raise ValueError("native case counts must be positive integers")
+        rule = recorded["rule_id"]
+        name = recorded["profile_name"]
+        if not isinstance(rule, str) or rule not in phases["shipped_default_rules"]:
+            raise ValueError("native rule is not in the pinned default registry")
+        if name != f"native-{rule}" or rule in declared_rules or name in profiles:
+            raise ValueError("duplicate or noncanonical native profile identity")
+        if recorded["selected_rules"] != [rule]:
+            raise ValueError("native singleton selection must be explicitly declared")
+        if recorded["profile_file"] != descriptor["source_profile_file"]:
+            raise ValueError("native declaration uses an unreviewed source profile")
+        if recorded["candidate_file"] != f"rules/{rule}/query.ryoql" or recorded["cases_file"] != f"rules/{rule}/cases.toml":
+            raise ValueError("native query/case path must preserve its exact authored variant")
+        query = prepared_candidate_path(rule, recorded)
+        cases_path = prepared_case_path(rule, recorded)
+        if not query.is_file() or sha256(query) != recorded["query_sha256"]:
+            raise ValueError(f"native query identity mismatch: {rule}")
+        if not cases_path.is_file() or sha256(cases_path) != recorded["cases_sha256"]:
+            raise ValueError(f"native case identity mismatch: {rule}")
+        check_imports(query)
+        container = tomllib.loads(cases_path.read_text(encoding="utf-8"))
+        if set(container) != {"cases"}:
+            raise ValueError("native case container has unreviewed settings")
+        cases = container["cases"]
+        names = [case["name"] for case in cases]
+        if not cases or len(names) != len(set(names)) or names != recorded["case_names"] or len(cases) != recorded["case_count"]:
+            raise ValueError(f"native case inventory mismatch: {rule}")
+        for case in cases:
+            if set(case) - {"name", "comparison", "files", "expected", "context", "reference-discrepancy"}:
+                raise ValueError("native case has unreviewed execution settings")
+            if (source_settings["project_context_mode"] == "isolated") != (case.get("context") is None):
+                raise ValueError("native case context differs from its declared profile mode")
+        effective = canonical_run_ryo_settings(profile, [rule], phases)
+        if effective != recorded["effective_settings"]:
+            raise ValueError(f"native selected execution settings mismatch: {rule}")
+        target = {"python-target=3.10": "py310", "python-target=3.11": "py311"}.get(effective["parser_configuration"])
+        if target is None:
+            raise ValueError("unsupported native parser configuration")
+        profiles[name] = {**recorded, "target_version": target, "selection_contract": "explicit-native-standalone"}
+        declared_queries.add(recorded["candidate_file"])
+        declared_rules.add(rule)
+        case_count += len(cases)
+    if declared_queries != set(native_queries) or descriptor["query_count"] != len(native_queries) or descriptor["query_count"] != len(profiles):
+        raise ValueError("native query inventory omitted or added an authored asset")
+    if descriptor["case_count"] != case_count:
+        raise ValueError("native total case inventory mismatch")
+    return {**manifest, "profiles": profiles, "combined_profiles": {}, "actual_proof_receipts": [],
+            "native_identity": {"execution_contract": descriptor["execution_contract"],
+                                "historical_certification": False,
+                                "descriptor_path": (RUFF_DIR.relative_to(REPOSITORY) / "profiles/native-standalone.json").as_posix(),
+                                "descriptor_sha256": sha256(NATIVE_DESCRIPTOR_FILE),
+                                "source_profile_sha256": descriptor["source_profile_sha256"],
+                                "source_settings": source_settings,
+                                "query_count": len(profiles), "case_count": case_count}}
+
+
+def native_standalone_self_test() -> None:
+    """Prove selection/byte/settings refusals and two real standalone staging controls, never execute a contestant."""
+    original_run = subprocess.run
+    def no_process(*args, **kwargs):
+        raise AssertionError("native descriptor tests must not build or execute contestants")
+    subprocess.run = no_process
+    try:
+        base = json.loads(MANIFEST.read_text(encoding="utf-8"))
+        descriptor = native_descriptor_json(NATIVE_DESCRIPTOR_FILE.read_text(encoding="utf-8"))
+        resolved = native_standalone_manifest(base, descriptor)
+        assert len(resolved["profiles"]) == descriptor["query_count"]
+        assert sum(p["case_count"] for p in resolved["profiles"].values()) == descriptor["case_count"]
+        assert resolved["combined_profiles"] == {} and not resolved["native_identity"]["historical_certification"]
+        def changed(edit):
+            value = json.loads(json.dumps(descriptor))
+            edit(value)
+            return value
+        mutations = [
+            ("omission", lambda d: d["profiles"].pop()),
+            ("duplicate", lambda d: d["profiles"].append(d["profiles"][0])),
+            ("empty-selection", lambda d: d["profiles"][0].update(selected_rules=[])),
+            ("wrong-selection", lambda d: d["profiles"][0].update(selected_rules=["PYI010"])),
+            ("unknown-rule", lambda d: d["profiles"][0].update(rule_id="NOT_A_PINNED_RULE")),
+            ("wrong-query-hash", lambda d: d["profiles"][0].update(query_sha256="0" * 64)),
+            ("substitute-candidate", lambda d: d["profiles"][0].update(candidate_file="rules/ASYNC115/candidate.ryoql")),
+            ("wrong-case-hash", lambda d: d["profiles"][0].update(cases_sha256="0" * 64)),
+            ("case-omission", lambda d: d["profiles"][0]["case_names"].pop()),
+            ("case-total", lambda d: d.update(case_count=d["case_count"] - 1)),
+            ("count-schema", lambda d: d.update(query_count=float(d["query_count"]))),
+            ("module-schema", lambda d: d.update(module_sha256=[])),
+            ("schema", lambda d: d.update(schema="native-standalone-cases/unknown")),
+            ("unknown-field", lambda d: d.update(guessed_execution=True)),
+            ("entry-schema", lambda d: d["profiles"][0].update(unknown=True)),
+            ("invented-history", lambda d: d.update(historical_certification=True)),
+            ("source-profile", lambda d: d.update(source_profile_sha256="0" * 64)),
+            ("context", lambda d: d["source_settings"].update(project_context_mode="listed-disk")),
+            ("parser-settings", lambda d: d["profiles"][0]["effective_settings"].update(parser_configuration="python-target=3.11")),
+            ("unreviewed-flags", lambda d: d["profiles"][0]["effective_settings"].update(flags={"ignore": True})),
+            ("phase", lambda d: d["profiles"][0]["effective_settings"].update(rule_applicability={})),
+            ("phase-registry", lambda d: d.update(phase_registry_sha256="0" * 64)),
+            ("module-omission", lambda d: d["module_registry"].pop(next(iter(d["module_registry"])))),
+            ("module-hash", lambda d: d["module_sha256"].update({next(iter(d["module_sha256"])): "0" * 64})),
+        ]
+        for name, edit in mutations:
+            try:
+                native_standalone_manifest(base, changed(edit))
+            except ValueError:
+                pass
+            else:
+                raise AssertionError(f"native descriptor accepted {name}")
+        try:
+            native_descriptor_json('{"schema":1,"schema":2}')
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("duplicate descriptor keys were silently overwritten")
+        source_profile = prepared_profile_path("native", {"profile_file": descriptor["source_profile_file"]})
+        source_sha = sha256(source_profile)
+        with tempfile.TemporaryDirectory(prefix="native-standalone-guards-") as temporary:
+            with contextlib.ExitStack() as stack:
+                staged = stage_binding(resolved, ["native-PYI035", "native-ASYNC115"], stack, Path(temporary))
+                for name, root in staged:
+                    recorded = resolved["profiles"][name]
+                    rule = recorded["rule_id"]
+                    effective = tomllib.loads((root / "benchmark.toml").read_text())
+                    assert effective["defaults"] == [rule]
+                    assert set(effective["rule-applicability"]) == {rule}
+                    assert profile_modules(effective) == descriptor["module_registry"]
+                    assert canonical_run_ryo_settings(effective, [rule], verify_rule_phase_registry(base)) == recorded["effective_settings"]
+                    assert sorted(p.name for p in (root / "rules").iterdir()) == [rule]
+                    assert sha256(root / "rules" / rule / "query.ryoql") == recorded["query_sha256"]
+                    assert sha256(root / "rules" / rule / "cases.toml") == recorded["cases_sha256"]
+                    assert not effective.get("deferred") and not effective.get("pending")
+                    if rule == "PYI035":
+                        cases = tomllib.loads((root / "rules" / rule / "cases.toml").read_text())["cases"]
+                        control = next(c for c in cases if c["name"] == "function-scope-special-2-pyi-False")
+                        assert control["comparison"] == "full" and control["expected"] == []
+                        assert not (root / "rules" / "PYI010").exists()
+                    if rule == "ASYNC115":
+                        alternate = RUFF_DIR / "rules/ASYNC115/candidate.ryoql"
+                        assert alternate.read_bytes() != (root / "rules" / rule / "query.ryoql").read_bytes()
+                assert sha256(source_profile) == source_sha, "source profile must never be rewritten"
+        print(f"native standalone guards passed: {descriptor['query_count']} exact queries, {descriptor['case_count']} unchanged cases, {len(mutations) + 1} refusals, two staging controls; no contestants executed")
+    finally:
+        subprocess.run = original_run
+
+
 def stage_binding(
     manifest: dict[str, object],
     selected: list[str],
@@ -2796,8 +3037,11 @@ def stage_binding(
         rule = recorded.get("rule_id", profile_name)
         profile = prepared_profile_path(profile_name, recorded)
         profile_data = tomllib.loads(profile.read_text(encoding="utf-8"))
-        if profile_data.get("defaults") != [rule]:
+        explicit_native = recorded.get("selection_contract") == "explicit-native-standalone"
+        if not explicit_native and profile_data.get("defaults") != [rule]:
             raise ValueError(f"profile must select only {rule}")
+        if "selection_contract" in recorded and not explicit_native:
+            raise ValueError("unreviewed standalone selection contract")
         if not profile_tool_matches(profile_data, manifest):
             raise ValueError(f"tool identity mismatch for {rule}")
         candidate_path = prepared_candidate_path(rule, recorded)
@@ -2835,6 +3079,7 @@ def stage_binding(
             registry,
             parser_configuration(target_version),
             selected_rule_applicability(manifest, [rule]),
+            selected_rules=[rule] if explicit_native else None,
         )
         check_staged_applicability(destination / "benchmark.toml", [rule], manifest)
         shutil.copyfile(candidate_path, rule_dir / "query.ryoql")
@@ -4085,6 +4330,7 @@ def self_test() -> int:
     context_guard_self_test()
     actual_proof_asset_guard_self_test()
     standalone_registry_self_test()
+    native_standalone_self_test()
     if (
         ruff_location_to_byte("é\fvalue\r\nx", {"row": 1, "column": 8}) != 8
         or ruff_location_to_byte("é\fvalue\r\nx", {"row": 2, "column": 2}) != 11
@@ -5706,6 +5952,14 @@ def main() -> int:
     )
     parser.add_argument("--profile", help="run one named combined prepared profile")
     parser.add_argument(
+        "--native-standalone", action="store_true",
+        help="execute every explicitly declared native query/case profile separately; never the combined cohort",
+    )
+    parser.add_argument(
+        "--self-test-native-standalone", action="store_true",
+        help="exercise native inventory/selection/identity guards without building or running contestants",
+    )
+    parser.add_argument(
         "--shards",
         type=int,
         help="execute each case once across deterministic case shards",
@@ -5745,11 +5999,16 @@ def main() -> int:
         help="exercise fail-closed profile guards without running Cargo",
     )
     arguments = parser.parse_args()
+    if arguments.self_test_native_standalone:
+        native_standalone_self_test()
+        return 0
     if arguments.self_test:
         return self_test()
+    if arguments.native_standalone and (arguments.profile or arguments.rules or arguments.resume or arguments.parity_check):
+        parser.error("native standalone verification requires the complete declared inventory, separate from combined/resume selections")
     if arguments.ruff is None:
         parser.error(
-            "the pinned Ruff executable is required unless --self-test is selected"
+            "the pinned Ruff executable is required unless a self-test mode is selected"
         )
     if arguments.reuse_worker_from is not None and (
         arguments.resume or arguments.reference_only
@@ -5812,7 +6071,16 @@ def main() -> int:
     try:
         if not arguments.resume:
             verify_files(manifest, helper_path)
-        if arguments.profile is None and not arguments.rules and not arguments.resume:
+        if arguments.native_standalone:
+            manifest = native_standalone_manifest(manifest)
+            if output_directory is not None:
+                shutil.copyfile(NATIVE_DESCRIPTOR_FILE, output_directory / "native-standalone.json")
+                atomic_json_write(output_directory / "native-execution.json", {
+                    "identity": manifest["native_identity"],
+                    "profiles": manifest["profiles"],
+                    "limits": "New explicit singleton execution contract; no historical correctness certification; combined cohorts are separate.",
+                })
+        if not arguments.native_standalone and arguments.profile is None and not arguments.rules and not arguments.resume:
             verify_active_combined_cohort(manifest)
         if arguments.profile is not None:
             if arguments.profile not in manifest.get("combined_profiles", {}):
@@ -5891,7 +6159,7 @@ def main() -> int:
                 staged.extend(
                     stage_binding(manifest, selections, stack, output_directory)
                 )
-                if not arguments.rules:
+                if not arguments.rules and not arguments.native_standalone:
                     for name, descriptor in sorted(
                         manifest.get("combined_profiles", {}).items()
                     ):
@@ -6003,6 +6271,11 @@ def main() -> int:
                             )
                         ).get("rule-applicability", {}),
                     }
+                    if arguments.native_standalone:
+                        identities["native_standalone"] = {
+                            **manifest["native_identity"], "profile_name": name,
+                            "effective_settings": manifest["profiles"][name]["effective_settings"],
+                        }
                     status = verify_reference_profile(
                         name, profile_root, ruff, output_directory, identities
                     )
@@ -6039,6 +6312,11 @@ def main() -> int:
                     identities = run_identity(
                         manifest, ruff, profile_root, worker_executable, build_identity
                     )
+                if arguments.native_standalone:
+                    identities["native_standalone"] = {
+                        **manifest["native_identity"], "profile_name": name,
+                        "effective_settings": manifest["profiles"][name]["effective_settings"],
+                    }
                 worker_identity(identities, worker_executable)
                 if arguments.shards is not None and (
                     arguments.profile is not None
