@@ -181,7 +181,19 @@ impl From<ValidateErrorSchema<'_>> for ValidateError {
                 },
                 None => invalid(schema.text, error.to_string()),
             },
-            CoreError::UnknownKind { reason } => invalid(schema.text, reason),
+            CoreError::UnknownKind { reason, origin } => match origin {
+                Some(origin) => ValidateError::Located {
+                    origin: origin.clone(),
+                    error: Box::new(ValidateError::Invalid {
+                        span: QuerySpan {
+                            start: ByteOffset(origin.span.start.0),
+                            end: ByteOffset(origin.span.end.0),
+                        },
+                        message: reason,
+                    }),
+                },
+                None => invalid(schema.text, reason),
+            },
         }
     }
 }

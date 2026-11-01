@@ -19,6 +19,7 @@ fn text_is(text: &str) -> Comparison {
         test: Test::Equal,
         left: Operand::Column(ColumnIndex(2)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText(text.into()))),
+        origin: None,
     }
 }
 
@@ -27,6 +28,7 @@ fn kind_is(name: &str) -> Comparison {
         test: Test::Equal,
         left: Operand::Column(ColumnIndex(1)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText(name.into()))),
+        origin: None,
     }
 }
 
@@ -53,6 +55,7 @@ fn plan(name: &str) -> Plan {
             headings: Vec::new(),
         },
         frontier: Vec::new(),
+        comparison_origins: Vec::new(),
     }
 }
 
@@ -94,4 +97,31 @@ fn succeeds() {
     run(CASES, Word::Succeeds, |input| {
         Ok::<_, Failure>(subject(input))
     });
+}
+
+#[test]
+fn comparison_origin_does_not_split_shared_step_classes() {
+    use ryo_values::domain::plan_parts::types::ComparisonOriginId;
+    use ryo_values::domain::program::types::{ByteOffset, QueryOrigin, QuerySourceId, QuerySpan};
+
+    let mut first = plan("word");
+    let mut second = plan("word");
+    for (plan, source) in [(&mut first, "first"), (&mut second, "second")] {
+        plan.comparison_origins.push(QueryOrigin {
+            source_id: QuerySourceId(source.into()),
+            span: QuerySpan {
+                start: ByteOffset(0),
+                end: ByteOffset(4),
+            },
+            trace: Vec::new(),
+        });
+        let Operation::Select { comparisons, .. } = &mut plan.steps[0].operation else {
+            panic!("the fixture has one select");
+        };
+        comparisons[0].origin = Some(ComparisonOriginId(0));
+    }
+
+    let merged = merge(&[first, second], &[Vec::new(), Vec::new()]);
+    assert_eq!(merged.classes.len(), 1);
+    assert_eq!(merged.classes[0].members.len(), 2);
 }

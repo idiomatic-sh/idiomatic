@@ -57,6 +57,7 @@ pub(super) fn unresolved(error: LoweringError) -> TypecheckError {
         | LoweringError::UnknownSideColumn { span, .. }
         | LoweringError::UnknownParameterType { span, .. }
         | LoweringError::FunctionArity { span, .. }
+        | LoweringError::TooManyComparisonOrigins { span }
         | LoweringError::BadArgument { span, .. } => TypecheckError::Invalid {
             span,
             message: error.to_string(),

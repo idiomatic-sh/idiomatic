@@ -13,6 +13,7 @@ use crate::domain::lowering::types::{
 };
 use crate::domain::resolving::service::{column_of, find_parameter, parameter_of, position};
 use ryo_values::domain::plan_parts::types as parts;
+use ryo_values::domain::plan_parts::types::ComparisonOriginId;
 use ryo_values::domain::plans::types as plans;
 use ryo_values::domain::program::types::{self as syntax, QuerySpelling};
 
@@ -231,7 +232,7 @@ fn column_index(
 
 /// The comparison a filter makes over `columns`: its two operands resolved and checked to be of kinds that compare.
 pub(crate) fn comparison_of(
-    builder: &Builder<'_>,
+    builder: &mut Builder<'_>,
     filter: &syntax::Filter,
     columns: Addressable<'_>,
 ) -> Result<parts::Comparison, LoweringError> {
@@ -291,7 +292,22 @@ pub(crate) fn comparison_of(
             }
         })?;
     }
-    Ok(parts::Comparison { test, left, right })
+    let origin = if let Some(mut origin) = builder.origin.clone() {
+        origin.span = filter.span;
+        let id = u32::try_from(builder.comparison_origins.len())
+            .map(ComparisonOriginId)
+            .map_err(|_| LoweringError::TooManyComparisonOrigins { span: filter.span })?;
+        builder.comparison_origins.push(origin);
+        Some(id)
+    } else {
+        None
+    };
+    Ok(parts::Comparison {
+        test,
+        left,
+        right,
+        origin,
+    })
 }
 
 /// That a word compared with a column of a closed set of words is one of them: `kind = "headline"` is refused when the query is compiled,

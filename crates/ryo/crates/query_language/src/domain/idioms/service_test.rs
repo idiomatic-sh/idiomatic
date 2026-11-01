@@ -115,6 +115,8 @@ fn subject(text: Input) -> Result<Value, Failure> {
         steps: Vec::new(),
         lowered: Vec::new(),
         span: program.emit.span,
+        origin: None,
+        comparison_origins: Vec::new(),
     };
     let (last, earlier) = program
         .steps

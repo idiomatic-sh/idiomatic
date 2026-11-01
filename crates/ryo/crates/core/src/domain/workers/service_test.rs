@@ -104,6 +104,7 @@ fn plan(steps: usize) -> Plan {
             headings: Vec::new(),
         },
         frontier: Vec::new(),
+        comparison_origins: Vec::new(),
     }
 }
 

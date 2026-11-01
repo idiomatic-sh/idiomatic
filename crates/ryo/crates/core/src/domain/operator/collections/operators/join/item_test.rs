@@ -141,6 +141,7 @@ fn text_of(place: u32, text: &str) -> Comparison {
         test: Test::Equal,
         left: Operand::Column(ColumnIndex(place)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText(text.into()))),
+        origin: None,
     }
 }
 
@@ -198,6 +199,7 @@ fn only_the_edges_a_filter_admits_are_joined() -> Result<Value, OperatingError> 
         test: Test::Equal,
         left: Operand::Column(ColumnIndex(2)),
         right: Operand::Literal(QueryLiteral::Number(Integer(1))),
+        origin: None,
     };
     let operation = plan(&[0], &[1], &[(Side::Right, 0)], vec![second], &[1, 0]);
     let inputs = [Rows::Computed(&left), tree_rows(&elements, TreeForm::Edges)];

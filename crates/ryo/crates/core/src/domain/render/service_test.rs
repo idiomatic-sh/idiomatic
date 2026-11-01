@@ -315,6 +315,7 @@ fn answered() -> Value {
             ..emit()
         },
         frontier: Vec::new(),
+        comparison_origins: Vec::new(),
     };
     let one = rows_answer(&[headed(&["file", "name"])], RowTotal(5));
     let many = rows_answer(

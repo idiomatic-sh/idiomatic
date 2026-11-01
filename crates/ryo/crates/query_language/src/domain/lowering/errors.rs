@@ -6,6 +6,12 @@ use ryo_values::domain::program::types::{QueryOrigin, QuerySpan};
 /// Why a program does not lower to a plan.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 pub(crate) enum LoweringError {
+    /// The diagnostic-only comparison origin table cannot represent another entry.
+    #[error("too many comparison source origins")]
+    TooManyComparisonOrigins {
+        /// The comparison that exceeded the checked index space.
+        span: QuerySpan,
+    },
     /// A failure in a linked step attributed to its original module source.
     #[error("{error}")]
     Located {

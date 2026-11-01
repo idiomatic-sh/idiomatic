@@ -123,6 +123,8 @@ fn subject(text: Input) -> Result<Value, Failure> {
         steps: Vec::new(),
         lowered: Vec::new(),
         span: program.emit.span,
+        origin: None,
+        comparison_origins: Vec::new(),
     };
     let mut counted = (0, 0);
     for step in &program.steps {

@@ -79,6 +79,7 @@ fn plan_of(operation: Operation) -> Plan {
             headings: Vec::new(),
         },
         frontier: Vec::new(),
+        comparison_origins: Vec::new(),
     }
 }
 

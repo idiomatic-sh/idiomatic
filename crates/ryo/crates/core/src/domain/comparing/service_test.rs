@@ -118,6 +118,7 @@ fn decides_once_for_each_name() -> Result<Value, OperatingError> {
         test: Test::GlobAny,
         left: Operand::Column(column(0)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText("{main}".into()))),
+        origin: None,
     };
     let operation = Operation::Select {
         from: FROM,
@@ -153,6 +154,7 @@ fn remembers_what_a_text_was_decided_in_another_file() -> Result<Value, Operatin
         test: Test::GlobAny,
         left: Operand::Column(column(0)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText("{main,other}".into()))),
+        origin: None,
     };
     let operation = Operation::Select {
         from: FROM,
@@ -219,6 +221,7 @@ fn reads_each_rows_pattern() -> Result<Value, OperatingError> {
         test: Test::GlobAny,
         left: Operand::Column(column(0)),
         right: Operand::Column(column(1)),
+        origin: None,
     }];
     let mut context = OperatorContext {
         bindings: &[],
@@ -250,6 +253,7 @@ fn refuses_an_unbound_parameter() -> Result<Value, OperatingError> {
         test: Test::Equal,
         left: Operand::Column(column(0)),
         right: Operand::Parameter(ParameterId(0)),
+        origin: None,
     };
     let mut symbols = Symbols::default();
     let mut context = OperatorContext {

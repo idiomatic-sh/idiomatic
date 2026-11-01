@@ -59,6 +59,7 @@ fn plan_of(steps: Vec<Operation>) -> Plan {
             headings: Vec::new(),
         },
         frontier: Vec::new(),
+        comparison_origins: Vec::new(),
     }
 }
 
@@ -69,6 +70,7 @@ fn words() -> Operation {
             test: Test::Equal,
             left: Operand::Column(ColumnIndex(1)),
             right: Operand::Literal(QueryLiteral::Text(LiteralText("word".into()))),
+            origin: None,
         }],
         kept: vec![ColumnIndex(0), ColumnIndex(1)],
     }

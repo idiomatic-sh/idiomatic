@@ -78,6 +78,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || CoreError::UnknownKind {
             reason: String::new(),
+            origin: None,
         },
         expect: Expect::Value(0),
     },
@@ -135,6 +136,30 @@ fn an_uncompilable_fragment_error_keeps_its_module_location() {
     let mut error = refused(RefusedKind::Invalid, 7, 12);
     error.origin = Some(origin.clone());
     let converted = super::error(TEXT, CoreError::Uncompilable { error });
+    assert!(matches!(
+        converted,
+        ValidateError::Located { origin: found, error }
+            if found == origin && matches!(*error, ValidateError::Invalid { span, .. } if span.start.0 == 7 && span.end.0 == 12)
+    ));
+}
+
+#[test]
+fn an_unknown_kind_fragment_error_keeps_its_module_location() {
+    let origin = ryo_values::domain::program::types::QueryOrigin {
+        source_id: ryo_values::domain::program::types::QuerySourceId("nested/module".into()),
+        span: ryo_values::domain::program::types::QuerySpan {
+            start: ryo_values::domain::program::types::ByteOffset(7),
+            end: ryo_values::domain::program::types::ByteOffset(12),
+        },
+        trace: Vec::new(),
+    };
+    let converted = super::error(
+        TEXT,
+        CoreError::UnknownKind {
+            reason: "unknown kind".to_owned(),
+            origin: Some(origin.clone()),
+        },
+    );
     assert!(matches!(
         converted,
         ValidateError::Located { origin: found, error }

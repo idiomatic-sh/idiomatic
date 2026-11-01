@@ -62,6 +62,7 @@ fn rooted(below: &[Option<Rooted>], operation: &Operation) -> Option<Rooted> {
             test: comparison.test,
             left: over_tree(&comparison.left, &columns)?,
             right: over_tree(&comparison.right, &columns)?,
+            origin: comparison.origin,
         });
     }
     let kept = if kept.is_empty() {

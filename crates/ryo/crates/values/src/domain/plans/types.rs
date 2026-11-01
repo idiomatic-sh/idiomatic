@@ -15,6 +15,7 @@ use crate::domain::plan_parts::types::RepeatedRows;
 use crate::domain::plan_parts::types::StepId;
 use crate::domain::plan_parts::types::TableKey;
 use crate::domain::plan_parts::types::Test;
+use crate::domain::program::types::QueryOrigin;
 
 /// A compiled query: its parameters, its steps in the order to run them, and what it emits.
 #[derive(Clone, Debug, PartialEq)]
@@ -23,6 +24,8 @@ pub struct Plan {
     pub parameters: Vec<PlanParameter>,
     /// The steps, each reading only the relations and the steps before it.
     pub steps: Vec<PlanStep>,
+    /// Source origins indexed by diagnostic-only comparison IDs.
+    pub comparison_origins: Vec<QueryOrigin>,
     /// The `emit` line.
     pub emit: Emit,
     /// What the per-file steps hand to the cross-file steps: the relations and the per-file steps

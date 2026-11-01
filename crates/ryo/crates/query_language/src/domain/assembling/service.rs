@@ -52,6 +52,8 @@ pub(crate) fn lower(
         steps: Vec::new(),
         lowered: Vec::new(),
         span: program.emit.span,
+        origin: None,
+        comparison_origins: Vec::new(),
     };
     // The relations the host declared are steps that run once, after the files; the ones nothing reads are dropped with the unused steps.
     for (place, relation) in hosted.iter().enumerate() {
@@ -86,6 +88,10 @@ pub(crate) fn lower(
             check_fragment_inputs(&builder, contract)?;
         }
         builder.span = step.span;
+        builder.origin = step
+            .name
+            .1
+            .and_then(|identity| program.step_origins.get(&identity).cloned());
         let lowered = match &step.expression {
             syntax::Expression::Select(select) => lower_select(&mut builder, &step.name, select),
             syntax::Expression::Call(call) => lower_call(&mut builder, &step.name, call),
@@ -141,6 +147,7 @@ pub(crate) fn lower(
             .collect(),
         frontier: frontier_of(&steps),
         steps,
+        comparison_origins: builder.comparison_origins,
         emit: plans::Emit {
             step: emitted,
             subject,

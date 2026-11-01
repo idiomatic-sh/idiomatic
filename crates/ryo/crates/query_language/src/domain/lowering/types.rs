@@ -7,6 +7,7 @@ use ryo_language::domain::terms::types::Vocabulary;
 use ryo_values::domain::hosted::types as hosted;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Comparison;
+use ryo_values::domain::plan_parts::types::ComparisonOriginId;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::JoinColumn;
 use ryo_values::domain::plan_parts::types::Operand;
@@ -15,7 +16,7 @@ use ryo_values::domain::plans::types as plans;
 use ryo_values::domain::plans::types::ParameterType;
 use ryo_values::domain::plans::types::StepScope;
 use ryo_values::domain::program::types::{
-    AliasName, ColumnName, ParameterDeclaration, QuerySpan, StepName,
+    AliasName, ColumnName, ParameterDeclaration, QueryOrigin, QuerySpan, StepName,
 };
 
 /// A column of a step's answer while the plan is built: the name the query gives it and what it holds.
@@ -213,6 +214,10 @@ pub(crate) struct Builder<'a> {
     pub lowered: Vec<LoweredStep>,
     /// Where the line being lowered is written.
     pub span: QuerySpan,
+    /// The source document and trace of the step currently lowered.
+    pub origin: Option<QueryOrigin>,
+    /// Source origins interned for comparisons in this plan.
+    pub comparison_origins: Vec<QueryOrigin>,
 }
 
 /// The join the pairs of the same-sets idiom come from, as recognized.

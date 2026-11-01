@@ -14,7 +14,7 @@ use crate::domain::table_texts::types::TextView;
 use ryo_language::domain::relations::types::Relation;
 use ryo_values::domain::descriptions::types::{KindVocabularies, KindWord};
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, Comparison, Input, Operand, ParameterId, QueryLiteral, Test,
+    ColumnIndex, Comparison, ComparisonOriginId, Input, Operand, ParameterId, QueryLiteral, Test,
 };
 use ryo_values::domain::plans::types::{Operation, Plan};
 
@@ -35,7 +35,7 @@ pub(crate) fn kinds_asked(plan: &Plan, bound: &[ParameterBinding]) -> Vec<AskedK
                 Input::Relation(Relation::SyntaxTree | Relation::SemanticSyntax)
             )
         {
-            asked_in(comparisons, bound, &mut asked);
+            asked_in(comparisons, &plan.comparison_origins, bound, &mut asked);
         }
         if let Operation::Join { right, filter, .. } = &step.operation
             && matches!(
@@ -43,14 +43,19 @@ pub(crate) fn kinds_asked(plan: &Plan, bound: &[ParameterBinding]) -> Vec<AskedK
                 Input::Relation(Relation::SyntaxTree | Relation::SemanticSyntax)
             )
         {
-            asked_in(filter, bound, &mut asked);
+            asked_in(filter, &plan.comparison_origins, bound, &mut asked);
         }
     }
     asked
 }
 
 /// The words of the comparisons of the kind column, added to `asked`.
-fn asked_in(comparisons: &[Comparison], bound: &[ParameterBinding], asked: &mut Vec<AskedKind>) {
+fn asked_in(
+    comparisons: &[Comparison],
+    origins: &[ryo_values::domain::program::types::QueryOrigin],
+    bound: &[ParameterBinding],
+    asked: &mut Vec<AskedKind>,
+) {
     for comparison in comparisons {
         if comparison.left != Operand::Column(KIND_COLUMN) {
             continue;
@@ -73,9 +78,15 @@ fn asked_in(comparisons: &[Comparison], bound: &[ParameterBinding], asked: &mut 
             .map(|made| made.0)
             .chain(many.iter().map(|text| text.0.to_string()))
             .collect();
+        let origin = comparison.origin.and_then(|id: ComparisonOriginId| {
+            origins
+                .get(usize::try_from(id.0).unwrap_or(usize::MAX))
+                .cloned()
+        });
         asked.extend(words.into_iter().map(|word| AskedKind {
             test,
             word: KindWord(word.into()),
+            origin: origin.clone(),
         }));
     }
 }
@@ -165,6 +176,7 @@ pub(crate) fn first_unknown(
             .map(|asked| UnknownKind {
                 rule: RulePlace(at),
                 word: asked.word,
+                origin: asked.origin,
             })
     })
 }
@@ -179,6 +191,7 @@ pub(crate) fn unknown_message(word: &KindWord, vocabularies: &KindVocabularies) 
             languages_of(vocabularies).0
         )
         .into(),
+        None,
     )
 }
 
@@ -186,6 +199,9 @@ pub(crate) fn unknown_message(word: &KindWord, vocabularies: &KindVocabularies) 
 /// or nothing when every word names one. Words that depend on a parameter are not known before the run and are not asked.
 #[must_use]
 pub fn refusal(plan: &Plan, vocabularies: &KindVocabularies) -> Option<KindRefusal> {
-    first_unknown(std::slice::from_ref(plan), &[Vec::new()], vocabularies)
-        .map(|unknown| unknown_message(&unknown.word, vocabularies))
+    first_unknown(std::slice::from_ref(plan), &[Vec::new()], vocabularies).map(|unknown| {
+        let mut refusal = unknown_message(&unknown.word, vocabularies);
+        refusal.1 = unknown.origin;
+        refusal
+    })
 }

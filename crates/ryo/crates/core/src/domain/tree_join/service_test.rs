@@ -123,6 +123,7 @@ fn either_side() {
         test: Test::NotEqual,
         left: Operand::Column(column(2)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText(Box::default()))),
+        origin: None,
     };
     let join = |filter: Vec<Comparison>, view: Vec<ColumnIndex>, output: Vec<JoinColumn>| {
         Operation::Join {

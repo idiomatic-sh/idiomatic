@@ -83,6 +83,7 @@ pub(crate) fn plan() -> Plan {
                 test: Test::Equal,
                 left: Operand::Column(column(0)),
                 right: Operand::Literal(QueryLiteral::Text(LiteralText("main".into()))),
+                origin: None,
             }],
             kept: Vec::new(),
         },
@@ -106,6 +107,7 @@ pub(crate) fn plan() -> Plan {
             headings: Vec::new(),
         },
         frontier: Vec::new(),
+        comparison_origins: Vec::new(),
     }
 }
 

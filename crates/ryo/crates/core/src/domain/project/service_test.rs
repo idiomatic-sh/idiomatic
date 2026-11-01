@@ -48,6 +48,7 @@ fn plan(frontier: Vec<PlanInput>, reads: &[Relation]) -> Plan {
             headings: Vec::new(),
         },
         frontier,
+        comparison_origins: Vec::new(),
     }
 }
 

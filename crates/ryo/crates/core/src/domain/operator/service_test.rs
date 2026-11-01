@@ -113,6 +113,7 @@ fn counting_plan(handed_over: bool) -> Plan {
         } else {
             Vec::new()
         },
+        comparison_origins: Vec::new(),
     }
 }
 

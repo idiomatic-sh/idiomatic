@@ -90,6 +90,7 @@ fn counting_plan(subject: u32, key: Vec<ColumnIndex>) -> Plan {
             headings: Vec::new(),
         },
         frontier: vec![PlanInput::Step(StepId(0))],
+        comparison_origins: Vec::new(),
     }
 }
 

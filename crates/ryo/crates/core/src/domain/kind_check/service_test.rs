@@ -1,7 +1,7 @@
 //! The `kind_check` service's cases: a word a rule writes for a kind is checked against the kinds of the linked languages, and the
 //! message names the word and the languages.
 
-use super::service::{first_unknown, unknown_message};
+use super::service::{first_unknown, refusal, unknown_message};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::table_model::types::ParameterBinding;
 use ryo_language::domain::relations::types::Relation;
@@ -36,6 +36,7 @@ fn plan_comparing_kind(test: Test, right: Operand, relation: Relation, site: Kin
         test,
         left: Operand::Column(ColumnIndex(1)),
         right,
+        origin: None,
     }];
     let operation = match site {
         KindSite::Select => Operation::Select {
@@ -66,7 +67,59 @@ fn plan_comparing_kind(test: Test, right: Operand, relation: Relation, site: Kin
             headings: Vec::new(),
         },
         frontier: Vec::new(),
+        comparison_origins: Vec::new(),
     }
+}
+
+#[test]
+fn an_unknown_kind_keeps_the_origin_from_its_own_plan_table() {
+    use ryo_values::domain::plan_parts::types::ComparisonOriginId;
+    use ryo_values::domain::program::types::{ByteOffset, QueryOrigin, QuerySourceId, QuerySpan};
+
+    let origin = QueryOrigin {
+        source_id: QuerySourceId("fragment/filter".into()),
+        span: QuerySpan {
+            start: ByteOffset(12),
+            end: ByteOffset(31),
+        },
+        trace: Vec::new(),
+    };
+    let mut plan = plan_comparing_kind(
+        Test::Equal,
+        text("not-a-kind"),
+        Relation::SyntaxTree,
+        KindSite::Select,
+    );
+    plan.comparison_origins.push(origin.clone());
+    let Operation::Select { comparisons, .. } = &mut plan.steps[0].operation else {
+        panic!("the test plan uses a select");
+    };
+    comparisons[0].origin = Some(ComparisonOriginId(0));
+
+    let mut other_origin = origin.clone();
+    other_origin.source_id = QuerySourceId("other/filter".into());
+    let mut other_plan = plan_comparing_kind(
+        Test::Equal,
+        text("also-not-a-kind"),
+        Relation::SyntaxTree,
+        KindSite::Select,
+    );
+    other_plan.comparison_origins.push(other_origin.clone());
+    let Operation::Select { comparisons, .. } = &mut other_plan.steps[0].operation else {
+        panic!("the test plan uses a select");
+    };
+    comparisons[0].origin = Some(ComparisonOriginId(0));
+
+    assert_eq!(
+        refusal(&plan, &KindVocabularies::default()).unwrap().1,
+        Some(origin)
+    );
+    assert_eq!(
+        refusal(&other_plan, &KindVocabularies::default())
+            .unwrap()
+            .1,
+        Some(other_origin)
+    );
 }
 
 fn vocabularies() -> KindVocabularies {

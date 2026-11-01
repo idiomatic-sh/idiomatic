@@ -51,6 +51,7 @@ fn comparisons() -> Vec<Comparison> {
             test: Test::GreaterThan,
             left: Operand::Column(ColumnIndex(0)),
             right: Operand::Literal(QueryLiteral::Number(Integer(1))),
+            origin: None,
         },
         named(1, Test::Equal, "word"),
         named(2, Test::Equal, "a"),
@@ -58,6 +59,7 @@ fn comparisons() -> Vec<Comparison> {
             test: Test::Equal,
             left: Operand::Literal(QueryLiteral::Text(LiteralText("b".into()))),
             right: Operand::Column(ColumnIndex(2)),
+            origin: None,
         },
     ]
 }
@@ -98,6 +100,7 @@ fn columns(which: Option<&[usize]>) -> Value {
         test: Test::Equal,
         left: Operand::Column(ColumnIndex(2)),
         right: Operand::Parameter(ParameterId(0)),
+        origin: None,
     });
     let mut needed = ColumnPlaces(vec![9]);
     match which {

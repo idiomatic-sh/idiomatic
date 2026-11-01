@@ -169,6 +169,7 @@ fn plan_with_name(name: &str) -> Plan {
         test: Test::Equal,
         left: Operand::Column(ColumnIndex(1)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText(name.into()))),
+        origin: None,
     };
     let mut plan = QueryLanguageFake::selecting().plan;
     if let Some(PlanStep {

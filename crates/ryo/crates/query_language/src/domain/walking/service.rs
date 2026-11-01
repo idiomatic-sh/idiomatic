@@ -76,6 +76,7 @@ fn only_nodes(comparisons: &[Comparison]) -> ElementDemand {
             test: Test::Equal,
             left: Operand::Column(ColumnIndex(2)),
             right: Operand::Literal(QueryLiteral::Text(text)),
+            ..
         }] if text.0.is_empty()
     ) {
         ElementDemand::OnlyNodes

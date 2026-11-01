@@ -2,6 +2,7 @@
 
 use ryo_values::domain::descriptions::types::KindWord;
 use ryo_values::domain::plan_parts::types::Test;
+use ryo_values::domain::program::types::QueryOrigin;
 
 /// A word a rule writes for a kind: what it is compared with, and how.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -10,6 +11,8 @@ pub(crate) struct AskedKind {
     pub test: Test,
     /// The word, or the pattern.
     pub word: KindWord,
+    /// The original fragment source, when this comparison came from a linked module.
+    pub origin: Option<QueryOrigin>,
 }
 
 /// Whether some language has a kind that satisfies a word.
@@ -32,11 +35,13 @@ pub(crate) struct UnknownKind {
     pub rule: RulePlace,
     /// The word.
     pub word: KindWord,
+    /// The original fragment source, when available.
+    pub origin: Option<QueryOrigin>,
 }
 
-/// What a run is refused with for a word that names no kind: the word, and the languages that were looked in.
+/// What a run is refused with for a word that names no kind: its message and optional source origin.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct KindRefusal(pub Box<str>);
+pub struct KindRefusal(pub Box<str>, pub Option<QueryOrigin>);
 
 /// The names of the linked languages, as one phrase.
 #[derive(Clone, Debug, PartialEq, Eq)]

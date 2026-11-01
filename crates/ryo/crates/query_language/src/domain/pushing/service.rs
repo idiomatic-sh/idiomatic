@@ -113,6 +113,7 @@ fn element_comparisons(
                 test: comparison.test,
                 left: element_side(&comparison.left)?,
                 right: element_side(&comparison.right)?,
+                origin: comparison.origin,
             });
         }
     }

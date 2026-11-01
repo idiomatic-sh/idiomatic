@@ -64,6 +64,7 @@ impl ValidateUseCase for ValidateUseCaseImpl {
         match refusal(&plan, &vocabularies) {
             Some(message) => Err(ValidateError::UnknownKind {
                 reason: message.0.into(),
+                origin: message.1,
             }),
             None => Ok(report),
         }

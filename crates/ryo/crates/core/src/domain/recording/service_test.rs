@@ -193,6 +193,7 @@ fn plan_with_a_frontier() -> Plan {
             headings: Vec::new(),
         },
         frontier: vec![PlanInput::Step(StepId(0))],
+        comparison_origins: Vec::new(),
     }
 }
 

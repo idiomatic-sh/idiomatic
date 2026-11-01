@@ -77,6 +77,7 @@ pub(crate) fn push_same_sets(builder: &mut Builder<'_>, name: &syntax::StepName,
         test: parts::Test::Equal,
         left: parts::Operand::Column(left),
         right: parts::Operand::Column(right),
+        origin: None,
     };
     let equal = pushed(
         builder,

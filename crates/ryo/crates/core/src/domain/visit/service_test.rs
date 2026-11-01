@@ -83,6 +83,7 @@ fn plan_reading(relation: Relation) -> Plan {
             headings: Vec::new(),
         },
         frontier: Vec::new(),
+        comparison_origins: Vec::new(),
     }
 }
 
@@ -245,6 +246,7 @@ fn plan_reading_edges(reading: Reading, relation: Relation) -> Plan {
                 test: Test::Equal,
                 left: Operand::Column(ColumnIndex(3)),
                 right: Operand::Column(ColumnIndex(3)),
+                origin: None,
             }],
             kept: vec![ColumnIndex(1)],
         },

@@ -58,6 +58,7 @@ fn text_is(text: &str) -> Comparison {
         test: Test::Equal,
         left: Operand::Column(ColumnIndex(2)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText(text.into()))),
+        origin: None,
     }
 }
 
@@ -66,6 +67,7 @@ fn kind_is(name: &str) -> Comparison {
         test: Test::Equal,
         left: Operand::Column(ColumnIndex(1)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText(name.into()))),
+        origin: None,
     }
 }
 
@@ -92,6 +94,7 @@ fn plan(name: &str) -> Plan {
             headings: Vec::new(),
         },
         frontier: Vec::new(),
+        comparison_origins: Vec::new(),
     }
 }
 

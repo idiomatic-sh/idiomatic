@@ -50,6 +50,7 @@ fn fuse(producer: &Operation, consumer: &Operation) -> Option<Operation> {
             test: comparison.test,
             left: remap(&comparison.left)?,
             right: remap(&comparison.right)?,
+            origin: comparison.origin,
         });
     }
     let kept = if last.is_empty() {
@@ -239,6 +240,7 @@ fn fuse_join_filter(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
             test: comparison.test,
             left: remap(&comparison.left)?,
             right: remap(&comparison.right)?,
+            origin: comparison.origin,
         });
     }
     let answer = if kept.is_empty() {

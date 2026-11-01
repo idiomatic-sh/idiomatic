@@ -373,6 +373,56 @@ fn fragment_calls_cannot_capture_caller_or_nested_private_steps() {
     }
 }
 
+#[test]
+fn a_fused_fragment_comparison_keeps_its_original_source_span() {
+    use crate::outbound::syntax::adapters::winnow::adapter::SyntaxWinnowAdapter;
+    use ryo_values::domain::plans::types::Operation;
+
+    let module = "input nodes: relation<id: node, kind: symbol>;\noutput relation<id: node, kind: symbol>;\nlet selected = select id, kind from nodes where kind = \"totally-unknown\";\nlet projected = select id, kind from selected;\nreturn projected;";
+    let bundle = ryo_values::domain::program::service::query_bundle(
+        ryo_values::domain::program::service::document_source(
+            ryo_values::domain::program::service::source_id("root").unwrap(),
+            "import filter from \"filter\";\nlet nodes = select id, kind from \"syntax-tree\";\nlet result = filter(nodes=nodes);\nemit result subject id key(id);",
+        ),
+        [ryo_values::domain::program::service::document_source(
+            ryo_values::domain::program::service::source_id("filter").unwrap(),
+            module,
+        )],
+    )
+    .unwrap();
+    let use_case = CompileUseCaseImpl::new(
+        Arc::new(SyntaxWinnowAdapter),
+        Arc::new(CatalogFake {
+            relations: vec![Relation::SyntaxTree],
+            fails: false,
+        }),
+    );
+    let plan = use_case
+        .compile(CompileRequest {
+            text: bundle,
+            hosted: Vec::new(),
+        })
+        .expect("the filter lowers to a plan")
+        .plan;
+    let source = plan.steps.iter().find_map(|step| match &step.operation {
+        Operation::Select { comparisons, .. }
+        | Operation::Join {
+            filter: comparisons,
+            ..
+        } => comparisons.iter().find_map(|comparison| comparison.origin),
+        _ => None,
+    });
+    let origin = source
+        .and_then(|id| plan.comparison_origins.get(usize::try_from(id.0).ok()?))
+        .expect("the optimized comparison points into its owning plan table");
+    assert_eq!(origin.source_id.0.as_ref(), "filter");
+    assert!(!origin.trace.is_empty());
+    assert_eq!(
+        &module[origin.span.start.0..origin.span.end.0],
+        "kind = \"totally-unknown\""
+    );
+}
+
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {

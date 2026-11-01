@@ -143,6 +143,7 @@ fn a_file_with_no_names_teaches_nothing_about_kinds() -> Result<Value, Operating
         test: Test::Equal,
         left: Operand::Column(column(1)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText("word".into()))),
+        origin: None,
     };
     let operation = Operation::Select {
         from: FROM,
@@ -242,6 +243,7 @@ fn another_language_does_not_inherit_the_sets_of_the_first() -> Result<Value, Op
             test: Test::Equal,
             left: Operand::Column(column(1)),
             right: Operand::Literal(QueryLiteral::Text(LiteralText("word".into()))),
+            origin: None,
         }],
         kept: vec![column(0)],
     };

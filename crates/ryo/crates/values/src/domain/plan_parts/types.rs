@@ -146,7 +146,7 @@ pub enum Test {
 }
 
 /// One condition of a `select` step.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct Comparison {
     /// How the sides compare.
     pub test: Test,
@@ -154,7 +154,13 @@ pub struct Comparison {
     pub left: Operand,
     /// The right side.
     pub right: Operand,
+    /// The optional index into the owning plan's source-origin table; diagnostic only.
+    pub origin: Option<ComparisonOriginId>,
 }
+
+/// A source-origin table index attached to a comparison for diagnostics; meaningful only with its owning plan.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ComparisonOriginId(pub u32);
 
 /// One side of a comparison.
 #[derive(Clone, Debug, PartialEq)]

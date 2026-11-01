@@ -291,7 +291,7 @@ fn subject(text: Input) -> Result<Value, Failure> {
     let program = winnow()
         .read(QueryView(text))
         .expect("the row's text is readable");
-    let builder = Builder {
+    let mut builder = Builder {
         catalog: CATALOG,
         hosted_steps: Vec::new(),
         parameters: &program.parameters,
@@ -299,6 +299,8 @@ fn subject(text: Input) -> Result<Value, Failure> {
         steps: Vec::new(),
         lowered: Vec::new(),
         span: program.emit.span,
+        origin: None,
+        comparison_origins: Vec::new(),
     };
     let mut compared = 0;
     for step in &program.steps {
@@ -310,7 +312,7 @@ fn subject(text: Input) -> Result<Value, Failure> {
                         fields: &fields,
                         sides: &[],
                     };
-                    let Comparison { .. } = comparison_of(&builder, filter, columns)?;
+                    let Comparison { .. } = comparison_of(&mut builder, filter, columns)?;
                     compared += 1;
                 }
             }

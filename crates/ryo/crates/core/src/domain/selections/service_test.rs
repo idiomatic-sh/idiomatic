@@ -41,6 +41,7 @@ fn kind_is_word() -> Comparison {
         test: Test::Equal,
         left: Operand::Column(ColumnIndex(1)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText("word".into()))),
+        origin: None,
     }
 }
 

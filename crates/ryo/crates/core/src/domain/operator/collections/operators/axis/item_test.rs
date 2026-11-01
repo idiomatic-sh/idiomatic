@@ -249,6 +249,7 @@ fn only_the_elements_a_filter_admits_answer() -> Result<Value, OperatingError> {
         test: Test::Equal,
         left: Operand::Column(column(2)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText("b".into()))),
+        origin: None,
     };
     Ok(usize::from(
         walks_among_the_filtered_elements(vec![text_is_b])? == [node(3)]

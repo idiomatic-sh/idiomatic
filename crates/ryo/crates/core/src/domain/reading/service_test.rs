@@ -111,6 +111,7 @@ fn plan(comparing: u32, frontier: usize) -> Plan {
                 } else {
                     Operand::Literal(QueryLiteral::Number(Integer(1)))
                 },
+                origin: None,
             }],
             kept: Vec::new(),
         },
@@ -134,6 +135,7 @@ fn plan(comparing: u32, frontier: usize) -> Plan {
             headings: Vec::new(),
         },
         frontier: vec![PlanInput::Step(StepId(0)); frontier],
+        comparison_origins: Vec::new(),
     }
 }
 

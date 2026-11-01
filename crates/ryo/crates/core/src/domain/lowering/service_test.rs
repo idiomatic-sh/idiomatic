@@ -37,6 +37,7 @@ fn plan_of(steps: Vec<Operation>) -> Plan {
             headings: Vec::new(),
         },
         frontier: Vec::new(),
+        comparison_origins: Vec::new(),
     }
 }
 

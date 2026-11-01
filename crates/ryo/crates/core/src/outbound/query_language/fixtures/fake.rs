@@ -40,6 +40,7 @@ impl Default for QueryLanguageFake {
                     headings: Vec::new(),
                 },
                 frontier: Vec::new(),
+                comparison_origins: Vec::new(),
             },
             calls: AtomicUsize::new(0),
         }
@@ -70,6 +71,7 @@ fn plan_of(steps: Vec<PlanStep>, step: u32) -> Plan {
             headings: Vec::new(),
         },
         frontier: Vec::new(),
+        comparison_origins: Vec::new(),
     }
 }
 
@@ -99,6 +101,7 @@ impl QueryLanguageFake {
             test: Test::Equal,
             left: Operand::Column(ColumnIndex(1)),
             right: Operand::Literal(QueryLiteral::Text(LiteralText("no-such-kind".into()))),
+            origin: None,
         };
         let mut step = select(vec![comparison]);
         if let Operation::Select { from, .. } = &mut step.operation {
@@ -117,6 +120,7 @@ impl QueryLanguageFake {
             test: Test::Equal,
             left: Operand::Column(ColumnIndex(9)),
             right: Operand::Literal(QueryLiteral::Number(Integer(1))),
+            origin: None,
         };
         Self {
             plan: plan_of(vec![select(vec![comparison])], 0),

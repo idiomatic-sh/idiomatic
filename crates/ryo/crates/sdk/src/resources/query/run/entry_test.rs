@@ -184,8 +184,14 @@ return pairs;"#;
         assert_eq!(report.shown.0, 0);
     }
     if matches!(scenario, Scenario::FragmentDuplicates) {
+        let unique_subjects = report
+            .rows
+            .iter()
+            .filter_map(|row| row.0.first())
+            .collect::<std::collections::BTreeSet<_>>();
         assert_eq!(report.total.0, 4, "two filtered rows form four join pairs");
         assert_eq!(report.rows.len(), 4, "all join pairs fit the result limit");
+        assert_eq!(unique_subjects.len(), 2, "each left path appears twice");
     }
     if matches!(scenario, Scenario::FragmentEmpty) {
         assert_eq!(report.total.0, 0);

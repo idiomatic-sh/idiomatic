@@ -49,6 +49,7 @@ fn select_over_function() -> Plan {
                     test: Test::Equal,
                     left: Operand::Column(ColumnIndex(1)),
                     right: Operand::Literal(QueryLiteral::Text(LiteralText("main".into()))),
+                    origin: None,
                 }],
                 kept: Vec::new(),
             },
@@ -61,6 +62,7 @@ fn select_over_function() -> Plan {
             headings: Vec::new(),
         },
         frontier: Vec::new(),
+        comparison_origins: Vec::new(),
     }
 }
 

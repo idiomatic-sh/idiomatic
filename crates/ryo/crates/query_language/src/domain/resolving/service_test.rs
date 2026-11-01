@@ -91,6 +91,8 @@ fn subject(text: Input) -> Result<Value, Failure> {
         steps: Vec::new(),
         lowered: Vec::new(),
         span: program.emit.span,
+        origin: None,
+        comparison_origins: Vec::new(),
     };
     let mut found = String::new();
     for step in &program.steps {
