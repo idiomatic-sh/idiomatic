@@ -130,7 +130,11 @@ pub(crate) fn scope_of(
             keyed_on(first, keys) == FileOrigin::Stated
         }
         plans::Operation::Axis { id, .. } => keyed_on(first, &[*id]) == FileOrigin::Stated,
-        plans::Operation::Closure { source, .. } | plans::Operation::Cycles { source, .. } => {
+        plans::Operation::Closure { source, keys, .. } => {
+            keyed_on(first, &[*source]) == FileOrigin::Stated
+                || keyed_on(first, keys) == FileOrigin::Stated
+        }
+        plans::Operation::Cycles { source, .. } => {
             keyed_on(first, &[*source]) == FileOrigin::Stated
         }
         // The host's rows are the same for every file, so they are made once, after the files.

@@ -259,6 +259,8 @@ pub enum Operation {
     Closure {
         /// The edges.
         edges: Input,
+        /// Independent graph partitions, in output order; empty means one graph.
+        keys: Vec<ColumnIndex>,
         /// The source column.
         source: ColumnIndex,
         /// The destination column.

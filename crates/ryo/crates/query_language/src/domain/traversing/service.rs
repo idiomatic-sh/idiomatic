@@ -8,7 +8,7 @@ use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::{ArgumentFault, Builder, PlannedColumn, Sourced, Uniqueness};
 use crate::domain::planning::service::push;
 use crate::domain::resolving::service::{
-    bad_argument, column_of, input_argument, position, word_of,
+    bad_argument, column_of, input_argument, position, positions_of, word_of, words_of,
 };
 use crate::domain::syntax::constants::direction_named;
 use crate::domain::syntax::types::ArgumentSlot;
@@ -116,15 +116,38 @@ pub(crate) fn call_closure(
         call.span,
     )?;
     if operator == QueryOperator::Closure {
-        let kept = vec![
-            column_of(&fields, source).clone(),
-            column_of(&fields, destination).clone(),
-        ];
+        let keys = if call
+            .arguments
+            .iter()
+            .any(|argument| &*argument.name.0 == "keys")
+        {
+            positions_of(builder, &fields, &words_of(call, ArgumentSlot::Keys)?)?
+        } else {
+            Vec::new()
+        };
+        for (at, key) in keys.iter().enumerate() {
+            if keys[..at].contains(key) || *key == source || *key == destination {
+                return Err(LoweringError::DuplicateOutput {
+                    name: column_of(&fields, *key).name.0.to_string(),
+                    span: call.span,
+                });
+            }
+        }
+        let kept: Vec<_> = keys
+            .iter()
+            .chain([&source, &destination])
+            .map(|column| {
+                let mut field = column_of(&fields, *column).clone();
+                field.unique = Uniqueness::Shared;
+                field
+            })
+            .collect();
         push(
             builder,
             Some(name),
             plans::Operation::Closure {
                 edges,
+                keys,
                 source,
                 destination,
             },

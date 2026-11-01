@@ -1,1 +1,1 @@
-let e = select id as "parent", id as "child" from "function"; let a = closure(edges=e, source="parent", destination="child"); emit a subject parent key(child);
+let e = select id as "parent", id as "child", file from "function"; let a = closure(edges=e, source="parent", destination="child", keys=[file]); emit a subject parent key(child);

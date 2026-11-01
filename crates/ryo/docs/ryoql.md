@@ -114,7 +114,7 @@ A side of a comparison is a column, a text in quotes, a number, a `$parameter` o
 | `rank` | `from`, `column`, `sets`, `output` | Appends the place of the first set of a `list<set<string>>` parameter that holds the text; a row no set holds is dropped. |
 | `axis` | `from`, `relation`, `direction`, `domain` | Walks a hierarchy, such as `syntax-child`, and appends the related entity. |
 | `rows` | `from`, `columns` | The rows of a `list<table>` parameter, one for each table. |
-| `closure` | `edges`, `source`, `destination` | The pairs one entity reaches from another, transitively. |
+| `closure` | `edges`, `source`, `destination`, optional `keys` | Transitively reachable pairs within exact key partitions; keys precede the endpoint columns in output. |
 | `cycles` | `edges`, `source`, `destination` | One row for each entity that can reach itself, with the entity in both columns: two files that import each other give two rows, `a.js` and `b.js`. |
 
 ## Relations
@@ -262,3 +262,10 @@ For left orders `[2, 3]` and right orders `[1, 4, 5]`, the pairs are `(2, 4)` an
 `(3, 5)`. For left `[2, 6]` and right `[3, 4, 7]`, the pairs are `(2, 3)` and
 `(6, 7)`. These rules apply independently to each key group. Output row order is
 not a query contract, as with other relational operators.
+
+`closure(edges=edges, source="source", destination="destination", keys=["context", "file"])
+keeps each `(context, file)` graph independent. Keys retain their argument order
+and original types; endpoints retain their original names and types. Omitting
+`keys` or passing `keys=[]` preserves the two-column closure. Reachability uses
+one or more edges, so self-pairs require a real cycle or self-edge. Repeated key
+names and keys colliding with an endpoint name are rejected.

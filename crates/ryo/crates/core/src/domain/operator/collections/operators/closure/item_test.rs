@@ -83,6 +83,7 @@ fn compute_with_scratch(
 fn reaches_across_a_chain() -> Result<Value, OperatingError> {
     let operation = Operation::Closure {
         edges: FROM,
+        keys: Vec::new(),
         source: column(0),
         destination: column(1),
     };
@@ -93,6 +94,7 @@ fn closure(edges: &Table, scratch: &mut OperatorScratch) -> Result<Table, Operat
     compute_with_scratch(
         &Operation::Closure {
             edges: FROM,
+            keys: Vec::new(),
             source: column(0),
             destination: column(1),
         },
@@ -222,14 +224,274 @@ fn interleaved_work_and_output_are_bounded() -> Result<Value, OperatingError> {
 fn closes_over_a_missing_column() -> Result<Value, OperatingError> {
     let operation = Operation::Closure {
         edges: FROM,
+        keys: Vec::new(),
         source: column(0),
         destination: column(5),
     };
     compute(&operation, &[&numbers(&[&[1, 2]])], &[])
 }
 
+fn grouped(
+    edges: &Table,
+    keys: &[u32],
+    scratch: &mut OperatorScratch,
+) -> Result<Table, OperatingError> {
+    compute_with_scratch(
+        &Operation::Closure {
+            edges: FROM,
+            keys: keys.iter().copied().map(column).collect(),
+            source: column(0),
+            destination: column(1),
+        },
+        &[edges],
+        &[],
+        scratch,
+    )
+}
+
+fn assert_rows(out: &Table, width: usize, expected: &[&[i64]]) {
+    let mut actual: Vec<_> = out
+        .cells
+        .chunks_exact(width)
+        .map(<[Cell]>::to_vec)
+        .collect();
+    let mut wanted: Vec<Vec<_>> = expected
+        .iter()
+        .map(|r| r.iter().map(|n| Cell::Number(Integer(*n))).collect())
+        .collect();
+    actual.sort_unstable();
+    wanted.sort_unstable();
+    assert_eq!(out.kinds, vec![CellKind::Number; width]);
+    assert_eq!(out.count.0, wanted.len());
+    assert_eq!(actual, wanted);
+}
+
+fn partitions_do_not_cross() -> Result<Value, OperatingError> {
+    let out = grouped(
+        &numbers(&[&[1, 2, 10], &[2, 3, 20], &[2, 4, 10], &[1, 2, 10]]),
+        &[2],
+        &mut OperatorScratch::default(),
+    )?;
+    assert_rows(
+        &out,
+        3,
+        &[&[10, 1, 2], &[10, 1, 4], &[10, 2, 4], &[20, 2, 3]],
+    );
+    Ok(out.count.0)
+}
+
+fn multiple_partition_keys_keep_argument_order() -> Result<Value, OperatingError> {
+    let out = grouped(
+        &numbers(&[
+            &[1, 2, 10, 100],
+            &[2, 3, 10, 200],
+            &[2, 4, 10, 100],
+            &[1, 1, 20, 100],
+        ]),
+        &[3, 2],
+        &mut OperatorScratch::default(),
+    )?;
+    assert_rows(
+        &out,
+        4,
+        &[
+            &[100, 10, 1, 2],
+            &[100, 10, 1, 4],
+            &[100, 10, 2, 4],
+            &[200, 10, 2, 3],
+            &[100, 20, 1, 1],
+        ],
+    );
+    Ok(out.count.0)
+}
+
+fn partitioned_cycles_and_disconnected_starts() -> Result<Value, OperatingError> {
+    let out = grouped(
+        &numbers(&[
+            &[1, 2, 10],
+            &[1, 3, 20],
+            &[2, 1, 10],
+            &[4, 5, 10],
+            &[1, 2, 10],
+            &[3, 3, 20],
+            &[1, 4, 10],
+        ]),
+        &[2],
+        &mut OperatorScratch::default(),
+    )?;
+    assert_rows(
+        &out,
+        3,
+        &[
+            &[10, 1, 1],
+            &[10, 1, 2],
+            &[10, 1, 4],
+            &[10, 1, 5],
+            &[10, 2, 1],
+            &[10, 2, 2],
+            &[10, 2, 4],
+            &[10, 2, 5],
+            &[10, 4, 5],
+            &[20, 1, 3],
+            &[20, 3, 3],
+        ],
+    );
+    Ok(out.count.0)
+}
+
+fn partitioned_and_old_paths_reuse_scratch() -> Result<Value, OperatingError> {
+    let mut scratch = OperatorScratch::default();
+    let out = grouped(&numbers(&[&[1, 2, 10], &[2, 3, 20]]), &[2], &mut scratch)?;
+    assert_rows(&out, 3, &[&[10, 1, 2], &[20, 2, 3]]);
+    let out = closure(&numbers(&[&[1, 2], &[2, 3]]), &mut scratch)?;
+    assert_pairs(&out, &[[1, 2], [1, 3], [2, 3]]);
+    let empty = Table {
+        kinds: vec![CellKind::Number; 3],
+        ..Table::default()
+    };
+    let out = grouped(&empty, &[2], &mut scratch)?;
+    assert_rows(&out, 3, &[]);
+    assert!(scratch.other.is_empty());
+    assert_eq!(scratch.domain.count.0, 0);
+    let out = grouped(&numbers(&[&[8, 9, 30]]), &[2], &mut scratch)?;
+    assert_rows(&out, 3, &[&[30, 8, 9]]);
+    let out = grouped(&numbers(&[&[1, 2], &[2, 3]]), &[], &mut scratch)?;
+    assert_pairs(&out, &[[1, 2], [1, 3], [2, 3]]);
+    Ok(out.count.0)
+}
+
+fn file_partitions_keep_reused_node_ids_separate() -> Result<Value, OperatingError> {
+    use ryo_language::domain::relations::types::{FileId, NodeId};
+    let mut edges = Table {
+        kinds: vec![CellKind::Node, CellKind::Node, CellKind::File],
+        ..Table::default()
+    };
+    push_row(
+        &mut edges,
+        &[
+            Cell::Node(NodeId(1)),
+            Cell::Node(NodeId(2)),
+            Cell::File(FileId(10)),
+        ],
+    );
+    push_row(
+        &mut edges,
+        &[
+            Cell::Node(NodeId(2)),
+            Cell::Node(NodeId(3)),
+            Cell::File(FileId(20)),
+        ],
+    );
+    let out = grouped(&edges, &[2], &mut OperatorScratch::default())?;
+    assert_eq!(out.kinds, [CellKind::File, CellKind::Node, CellKind::Node]);
+    assert_eq!(out.count.0, 2);
+    assert!(
+        !out.cells
+            .chunks_exact(3)
+            .any(|row| row[1] == Cell::Node(NodeId(1)) && row[2] == Cell::Node(NodeId(3)))
+    );
+    Ok(out.count.0)
+}
+
+fn endpoints_are_checked_on_empty_partition_input() -> Result<Value, OperatingError> {
+    let empty = Table {
+        kinds: vec![CellKind::Number],
+        ..Table::default()
+    };
+    grouped(&empty, &[0], &mut OperatorScratch::default()).map(|out| out.count.0)
+}
+
+fn partition_columns_are_checked_on_empty_input() -> Result<Value, OperatingError> {
+    let empty = Table {
+        kinds: vec![CellKind::Number; 2],
+        ..Table::default()
+    };
+    grouped(&empty, &[9], &mut OperatorScratch::default()).map(|out| out.count.0)
+}
+
+fn many_tiny_partitions_bound_working_graph_and_output() -> Result<Value, OperatingError> {
+    let n = 2048;
+    let mut edges = Table {
+        kinds: vec![CellKind::Number; 3],
+        ..Table::default()
+    };
+    // Interleave both partitions and repeated sources; every graph has just three edges.
+    for edge in [[1, 2], [2, 3], [1, 4]] {
+        for partition in 0..n {
+            push_row(
+                &mut edges,
+                &[
+                    Cell::Number(Integer(edge[0])),
+                    Cell::Number(Integer(edge[1])),
+                    Cell::Number(Integer(partition)),
+                ],
+            );
+        }
+    }
+    let mut scratch = OperatorScratch::default();
+    let out = grouped(&edges, &[2], &mut scratch)?;
+    assert_eq!(out.count.0, 4 * n as usize);
+    assert_eq!(scratch.domain.count.0, 3);
+    assert_eq!(scratch.other.len(), 2);
+    assert!(scratch.domain.cells.capacity() < 64);
+    assert!(scratch.walk.visited.len() <= 4);
+    let mut rows: Vec<_> = out.cells.chunks_exact(3).collect();
+    rows.sort_unstable();
+    rows.dedup();
+    assert_eq!(rows.len(), out.count.0);
+    Ok(out.count.0)
+}
+
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("file_partitions_keep_reused_node_ids_separate"),
+        word: Word::Succeeds,
+        input: || file_partitions_keep_reused_node_ids_separate,
+        expect: Expect::Value(2),
+    },
+    Case {
+        name: CaseName("empty_partition_input_checks_endpoint_columns"),
+        word: Word::Refuses,
+        input: || endpoints_are_checked_on_empty_partition_input,
+        expect: Expect::Refusal(|error| selects(matches!(error, OperatingError::Table(..)))),
+    },
+    Case {
+        name: CaseName("partitions_are_independent"),
+        word: Word::Succeeds,
+        input: || partitions_do_not_cross,
+        expect: Expect::Value(4),
+    },
+    Case {
+        name: CaseName("multiple_keys_keep_output_order"),
+        word: Word::Succeeds,
+        input: || multiple_partition_keys_keep_argument_order,
+        expect: Expect::Value(5),
+    },
+    Case {
+        name: CaseName("partitioned_cycles_and_starts"),
+        word: Word::Succeeds,
+        input: || partitioned_cycles_and_disconnected_starts,
+        expect: Expect::Value(11),
+    },
+    Case {
+        name: CaseName("partitioned_old_empty_and_partitioned_reuse"),
+        word: Word::Succeeds,
+        input: || partitioned_and_old_paths_reuse_scratch,
+        expect: Expect::Value(3),
+    },
+    Case {
+        name: CaseName("many_tiny_partitions_bound_work_and_output"),
+        word: Word::Succeeds,
+        input: || many_tiny_partitions_bound_working_graph_and_output,
+        expect: Expect::Value(8192),
+    },
+    Case {
+        name: CaseName("empty_partition_input_still_checks_columns"),
+        word: Word::Refuses,
+        input: || partition_columns_are_checked_on_empty_input,
+        expect: Expect::Refusal(|error| selects(matches!(error, OperatingError::Table(..)))),
+    },
     Case {
         name: CaseName("every_reachable_pair_is_listed"),
         word: Word::Succeeds,

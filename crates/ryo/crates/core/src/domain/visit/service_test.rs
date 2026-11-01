@@ -267,6 +267,7 @@ fn plan_reading_edges(reading: Reading, relation: Relation) -> Plan {
         },
         Reading::WalksThem => Operation::Closure {
             edges,
+            keys: Vec::new(),
             source: ColumnIndex(0),
             destination: ColumnIndex(1),
         },

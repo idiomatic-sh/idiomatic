@@ -32,6 +32,24 @@ const CROSS_COUNT: &str = "let f = select * from \"function\"; let c = group-cou
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
+        name: CaseName("file_key_keeps_scalar_endpoints_per_file"),
+        word: Word::Succeeds,
+        input: || "let e = select * from \"syntax-tree\"; let c = closure(edges=e,source=kind,destination=text,keys=[file]); emit c subject kind key(text);",
+        expect: Expect::Value(("select closure", 0)),
+    },
+    Case {
+        name: CaseName("scalar_endpoint_without_keys_is_cross_file"),
+        word: Word::Succeeds,
+        input: || "let e = select * from \"syntax-tree\"; let c = closure(edges=e,source=kind,destination=text); emit c subject kind key(text);",
+        expect: Expect::Value(("select closure*", 1)),
+    },
+    Case {
+        name: CaseName("file_key_does_not_undo_cross_file_input"),
+        word: Word::Succeeds,
+        input: || "let c = group-count(from=\"function\",keys=[name],count=n); let e = select l.name as a, r.name as b, r.file as file from c as l join \"function\" as r on l.name=r.name; let d = closure(edges=e,source=a,destination=b,keys=[file]); emit d subject file key(a,b);",
+        expect: Expect::Value(("group-count* join* closure*", 1)),
+    },
+    Case {
         name: CaseName("what_the_project_writes_is_read_after_the_files"),
         word: Word::Succeeds,
         input: || MANIFESTS,
@@ -79,6 +97,7 @@ fn operation_name(operation: &Operation) -> &'static str {
         Operation::SpanBetween { .. } => "span-between",
         Operation::OrderedMatch { .. } => "ordered-match",
         Operation::GroupCount { .. } => "group-count",
+        Operation::Closure { .. } => "closure",
         Operation::GroupDigest { .. } => "group-digest",
         Operation::Antijoin { .. } => "antijoin",
         Operation::Union { .. } => "union",
@@ -88,7 +107,6 @@ fn operation_name(operation: &Operation) -> &'static str {
         | Operation::Capture { .. }
         | Operation::Rank { .. }
         | Operation::Words { .. }
-        | Operation::Closure { .. }
         | Operation::Cycles { .. }
         | Operation::Rows { .. }
         | Operation::Hosted { .. } => "other",
@@ -143,6 +161,9 @@ fn subject(text: Input) -> Result<Value, Failure> {
         "select group-count* select*",
         "project join",
         "select group-count*",
+        "select closure",
+        "select closure*",
+        "group-count* join* closure*",
     ];
     let steps = known
         .into_iter()

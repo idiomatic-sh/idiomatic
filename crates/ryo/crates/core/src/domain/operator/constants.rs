@@ -337,7 +337,7 @@ pub(crate) fn describe(operator: QueryOperator) -> OperatorDescription {
         ),
         QueryOperator::Closure => described(
             "closure",
-            "Transitively reachable pairs.",
+            "Transitively reachable pairs within optional exact key partitions.",
             vec![
                 field("edges", "Directed edge rows.", FieldRequirement::Required),
                 field(SOURCE, "Edge source.", FieldRequirement::Required),
@@ -345,6 +345,11 @@ pub(crate) fn describe(operator: QueryOperator) -> OperatorDescription {
                     "destination",
                     "Edge destination.",
                     FieldRequirement::Required,
+                ),
+                field(
+                    "keys",
+                    "Optional columns defining independent exact graph partitions, in output order.",
+                    FieldRequirement::Optional,
                 ),
             ],
             &[],

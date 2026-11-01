@@ -136,7 +136,7 @@ fn fragment_calls_are_hygienic_and_only_relation_slots_are_linked() {
     let root_id = ryo_values::domain::program::service::source_id("root").unwrap();
     let module_id = ryo_values::domain::program::service::source_id("library/summarize").unwrap();
     let root = "import summarize from \"library/summarize\";\nlet id = select id from \"syntax-tree\";\nlet first = summarize(id=id, label=\"first\");\nlet second = summarize(id=id, label=\"second\");\nemit second subject id key(id);";
-    let module = "input id: relation<id: node>;\nparam label: string;\noutput relation<id: node>;\nlet grouped = group-count(from=id, keys=[\"id\"], count=\"n\");\nlet linked = closure(edges=grouped, source=id, destination=grouped);\nlet matched = capture(from=linked, path=\"path\", pattern=$label, captures=[\"group\"]);\nreturn matched;";
+    let module = "input id: relation<id: node>;\nparam label: string;\noutput relation<id: node>;\nlet grouped = group-count(from=id, keys=[\"id\"], count=\"n\");\nlet linked = closure(edges=grouped, source=id, destination=grouped, keys=[id]);\nlet matched = capture(from=linked, path=\"path\", pattern=$label, captures=[\"group\"]);\nreturn matched;";
     let bundle = ryo_values::domain::program::service::query_bundle(
         ryo_values::domain::program::service::document_source(root_id, root),
         [ryo_values::domain::program::service::document_source(
@@ -202,6 +202,10 @@ fn fragment_calls_are_hygienic_and_only_relation_slots_are_linked() {
         assert_eq!(
             argument("destination").value,
             ArgumentValue::Word(WordText("grouped".into()))
+        );
+        assert_eq!(
+            argument("keys").value,
+            ArgumentValue::List(vec![ArgumentValue::Word(WordText("id".into()))])
         );
     }
 

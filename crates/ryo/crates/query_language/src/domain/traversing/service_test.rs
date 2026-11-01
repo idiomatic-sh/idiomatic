@@ -34,6 +34,82 @@ const SIBLINGS_OF_A_STEP: &str = "let edges = select * from \"syntax-child\"; le
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
+        name: CaseName("closure_omitted"),
+        word: Word::Succeeds,
+        input: || "let e = select * from \"syntax-child\"; let c = closure(edges=e, source=parent, destination=child); emit c subject parent key(child);",
+        expect: Expect::Value("select closure"),
+    },
+    Case {
+        name: CaseName("closure_empty"),
+        word: Word::Succeeds,
+        input: || "let e = select * from \"syntax-child\"; let c = closure(edges=e, source=parent, destination=child, keys=[]); emit c subject parent key(child);",
+        expect: Expect::Value("select closure"),
+    },
+    Case {
+        name: CaseName("closure_one_key"),
+        word: Word::Succeeds,
+        input: || "let e = select * from \"syntax-child\"; let c = closure(edges=e, source=parent, destination=child, keys=[file]); emit c subject parent key(child);",
+        expect: Expect::Value("select closure"),
+    },
+    Case {
+        name: CaseName("closure_multiple_keys"),
+        word: Word::Succeeds,
+        input: || "let e = select * from \"syntax-child\"; let c = closure(edges=e, source=parent, destination=child, keys=[file, ordinal]); emit c subject parent key(child);",
+        expect: Expect::Value("select closure"),
+    },
+    Case {
+        name: CaseName("closure_refuses_repeated_key"),
+        word: Word::Refuses,
+        input: || "let e = select * from \"syntax-child\"; let c = closure(edges=e, source=parent, destination=child, keys=[file,file]); emit c subject parent key(child);",
+        expect: Expect::Refusal(|error| {
+            selects(matches!(error, LoweringError::DuplicateOutput { .. }))
+        }),
+    },
+    Case {
+        name: CaseName("closure_refuses_endpoint_key"),
+        word: Word::Refuses,
+        input: || "let e = select * from \"syntax-child\"; let c = closure(edges=e, source=parent, destination=child, keys=[parent]); emit c subject parent key(child);",
+        expect: Expect::Refusal(|error| {
+            selects(matches!(error, LoweringError::DuplicateOutput { .. }))
+        }),
+    },
+    Case {
+        name: CaseName("closure_refuses_missing_key"),
+        word: Word::Refuses,
+        input: || "let e = select * from \"syntax-child\"; let c = closure(edges=e, source=parent, destination=child, keys=[missing]); emit c subject parent key(child);",
+        expect: Expect::Refusal(|error| {
+            selects(matches!(error, LoweringError::UnknownColumn { .. }))
+        }),
+    },
+    Case {
+        name: CaseName("closure_refuses_scalar_keys"),
+        word: Word::Refuses,
+        input: || "let e = select * from \"syntax-child\"; let c = closure(edges=e, source=parent, destination=child, keys=file); emit c subject parent key(child);",
+        expect: Expect::Refusal(|error| {
+            selects(matches!(
+                error,
+                LoweringError::BadArgument {
+                    reason: ArgumentFault::ExpectedNames,
+                    ..
+                }
+            ))
+        }),
+    },
+    Case {
+        name: CaseName("closure_refuses_numeric_key"),
+        word: Word::Refuses,
+        input: || "let e = select * from \"syntax-child\"; let c = closure(edges=e, source=parent, destination=child, keys=[42]); emit c subject parent key(child);",
+        expect: Expect::Refusal(|error| {
+            selects(matches!(
+                error,
+                LoweringError::BadArgument {
+                    reason: ArgumentFault::ExpectedNames,
+                    ..
+                }
+            ))
+        }),
+    },
+    Case {
         name: CaseName("a_walk_to_the_children_of_a_node_is_one_axis"),
         word: Word::Succeeds,
         input: || CHILDREN,
@@ -98,11 +174,11 @@ fn operation_name(operation: &Operation) -> &'static str {
         | Operation::Capture { .. }
         | Operation::Rank { .. }
         | Operation::Words { .. }
-        | Operation::Closure { .. }
         | Operation::Cycles { .. }
         | Operation::Hosted { .. } => "other",
         Operation::Rows { .. } => "rows",
         Operation::Axis { .. } => "axis",
+        Operation::Closure { .. } => "closure",
     }
 }
 
@@ -175,7 +251,16 @@ fn subject(text: Input) -> Result<Value, Failure> {
             }
         }
     }
-    let known = ["select axis"];
+    for (step, lowered) in builder.steps.iter().zip(&builder.lowered) {
+        if let Operation::Closure { keys, .. } = &step.operation {
+            assert_eq!(lowered.fields.len(), keys.len() + 2);
+            assert!(lowered.fields.iter().all(|field| field.unique == crate::domain::lowering::types::Uniqueness::Shared));
+            if !keys.is_empty() {
+                assert_eq!(&*lowered.fields[0].name.0, "file");
+            }
+        }
+    }
+    let known = ["select axis", "select closure"];
     Ok(known
         .into_iter()
         .find(|list| *list == named(&builder.steps))
