@@ -158,20 +158,33 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || catalog_without_relations,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, TypecheckError::UnknownRelation { .. }))
+            selects(
+                matches!(error, TypecheckError::UnknownRelation { .. })
+                    || matches!(error, TypecheckError::Located { error, .. } if matches!(error.as_ref(), TypecheckError::UnknownRelation { .. })),
+            )
         }),
     },
     Case {
         name: CaseName("type_mismatch_is_refused"),
         word: Word::Refuses,
         input: || comparing_text_with_a_number,
-        expect: Expect::Refusal(|error| selects(matches!(error, TypecheckError::Type { .. }))),
+        expect: Expect::Refusal(|error| {
+            selects(
+                matches!(error, TypecheckError::Type { .. })
+                    || matches!(error, TypecheckError::Located { error, .. } if matches!(error.as_ref(), TypecheckError::Type { .. })),
+            )
+        }),
     },
     Case {
         name: CaseName("a_step_nobody_defined_is_refused_as_invalid"),
         word: Word::Refuses,
         input: || emitting_a_step_nobody_defined,
-        expect: Expect::Refusal(|error| selects(matches!(error, TypecheckError::Invalid { .. }))),
+        expect: Expect::Refusal(|error| {
+            selects(
+                matches!(error, TypecheckError::Invalid { .. })
+                    || matches!(error, TypecheckError::Located { error, .. } if matches!(error.as_ref(), TypecheckError::Invalid { .. })),
+            )
+        }),
     },
     Case {
         name: CaseName("fails_when_catalog_port_fails"),

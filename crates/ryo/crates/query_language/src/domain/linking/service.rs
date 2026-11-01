@@ -20,6 +20,7 @@ pub(crate) fn link(
     fragments: &BTreeMap<QuerySourceId, FragmentProgram>,
 ) -> Result<Program, LinkError> {
     let root_id = bundle.root.id.clone();
+    assign_root_identities(&mut root);
     validate_step_names(&root_id, &root.steps)?;
     let mut imports = BTreeMap::new();
     let previous_root_imports =
@@ -87,11 +88,58 @@ pub(crate) fn link(
         }
         root_visible.push(original);
     }
-    root.steps = linked;
     root.linked = true;
+    root.steps = linked;
     root.fragment_contracts = contracts;
     attribute_root(&mut root, &root_id);
     Ok(root)
+}
+
+/// Completes source-local identities for syntax ports that return named, unlinked programs.
+fn assign_root_identities(program: &mut Program) {
+    let mut next = program
+        .steps
+        .iter()
+        .filter_map(|step| step.name.1.map(|identity| identity.0))
+        .max()
+        .unwrap_or(0)
+        .saturating_add(1);
+    for step in &mut program.steps {
+        if step.name.1.is_none() {
+            step.name.1 = Some(StepIdentity(next));
+            next = next.saturating_add(1);
+        }
+    }
+    for place in 0..program.steps.len() {
+        let (preceding, current) = program.steps.split_at_mut(place);
+        if let Some(step) = current.first_mut()
+            && let Expression::Select(select) = &mut step.expression
+        {
+            let sources = std::iter::once(&mut select.from).chain(match &mut select.join {
+                ryo_values::domain::program::types::Joining::Alone => None,
+                ryo_values::domain::program::types::Joining::Joined(join) => Some(&mut join.source),
+            });
+            for source in sources {
+                if let SourceReference::Step(reference) = &mut source.reference
+                    && reference.1.is_none()
+                {
+                    reference.1 = preceding
+                        .iter()
+                        .rev()
+                        .find(|candidate| candidate.name.0 == reference.0)
+                        .and_then(|candidate| candidate.name.1);
+                }
+            }
+        }
+    }
+    if program.emit.step.1.is_none() {
+        program.emit.step.1 = program
+            .steps
+            .iter()
+            .rev()
+            .find(|step| step.name.0 == program.emit.step.0)
+            .and_then(|step| step.name.1);
+    }
 }
 
 /// Rejects repeated step names within one source module.

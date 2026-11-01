@@ -45,7 +45,7 @@ pub(super) enum ProgramLine {
 }
 
 /// One fragment module line before the module document is assembled.
-enum FragmentLine {
+pub(super) enum FragmentLine {
     /// A module dependency declaration.
     Import(ImportDeclaration),
     /// A declared relation input.
@@ -284,7 +284,7 @@ fn resolve_source_step(source: &mut QuerySource, preceding: &[LetStep]) {
 }
 
 /// Parses one import, signature, declaration, step, or return line in a module.
-fn fragment_line(input: &mut Input<'_>) -> ModalResult<FragmentLine> {
+pub(super) fn fragment_line(input: &mut Input<'_>) -> ModalResult<FragmentLine> {
     alt((
         import_line.map(FragmentLine::Import),
         fragment_input_line.map(FragmentLine::Input),

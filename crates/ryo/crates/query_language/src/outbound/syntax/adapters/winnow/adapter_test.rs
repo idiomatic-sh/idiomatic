@@ -905,10 +905,16 @@ fn uncovered(coverage: Coverage) -> usize {
         }
         Coverage::ParsersListed => {
             let source = include_str!("adapter.rs");
-            let parsers: std::collections::BTreeSet<&str> = source
-                .lines()
-                .filter(|line| line.contains("(input: &mut Input"))
-                .filter_map(|line| line.split("fn ").nth(1))
+            let lines: Vec<_> = source.lines().collect();
+            let parsers: std::collections::BTreeSet<&str> = lines
+                .iter()
+                .enumerate()
+                .filter_map(|(index, line)| {
+                    let signature = lines[index..(index + 4).min(lines.len())].join(" ");
+                    (line.contains("fn ") && signature.contains("input: &mut Input"))
+                        .then(|| line.split("fn ").nth(1))
+                        .flatten()
+                })
                 .filter_map(|rest| rest.split(['(', '<']).next())
                 .collect();
             let named: std::collections::BTreeSet<&str> =

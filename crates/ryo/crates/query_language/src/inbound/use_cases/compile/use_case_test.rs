@@ -448,25 +448,37 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || catalog_without_relations,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, CompileError::UnknownRelation { .. }))
+            selects(
+                matches!(error, CompileError::UnknownRelation { .. })
+                    || matches!(error, CompileError::Located { error, .. } if matches!(error.as_ref(), CompileError::UnknownRelation { .. })),
+            )
         }),
     },
     Case {
         name: CaseName("type_mismatch_is_refused"),
         word: Word::Refuses,
         input: || comparing_text_with_a_number,
-        expect: Expect::Refusal(|error| selects(matches!(error, CompileError::Type { .. }))),
+        expect: Expect::Refusal(|error| {
+            selects(
+                matches!(error, CompileError::Type { .. })
+                    || matches!(error, CompileError::Located { error, .. } if matches!(error.as_ref(), CompileError::Type { .. })),
+            )
+        }),
     },
     Case {
         name: CaseName("a_word_that_is_no_kind_of_the_column_it_is_compared_with_is_refused"),
         word: Word::Refuses,
         input: || a_kind_of_defines_that_is_misspelled,
         expect: Expect::Refusal(|error| {
-            selects(matches!(
-                error,
-                CompileError::Type { message, .. }
-                    if message == "`headline` is not a kind of defines; the kinds are function, method, class, struct, enum, enum-member, trait, interface, type, type-alias, type-parameter, namespace, package, import, variable, constant, parameter, property, macro, section, label, implementation"
-            ))
+            selects(
+                matches!(
+                    error,
+                    CompileError::Type { message, .. }
+                        if message == "`headline` is not a kind of defines; the kinds are function, method, class, struct, enum, enum-member, trait, interface, type, type-alias, type-parameter, namespace, package, import, variable, constant, parameter, property, macro, section, label, implementation"
+                ) || matches!(error, CompileError::Located { error, .. }
+                    if matches!(error.as_ref(), CompileError::Type { message, .. }
+                        if message == "`headline` is not a kind of defines; the kinds are function, method, class, struct, enum, enum-member, trait, interface, type, type-alias, type-parameter, namespace, package, import, variable, constant, parameter, property, macro, section, label, implementation")),
+            )
         }),
     },
     Case {
@@ -479,7 +491,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_step_nobody_defined_is_refused_as_invalid"),
         word: Word::Refuses,
         input: || emitting_a_step_nobody_defined,
-        expect: Expect::Refusal(|error| selects(matches!(error, CompileError::Invalid { .. }))),
+        expect: Expect::Refusal(|error| {
+            selects(
+                matches!(error, CompileError::Invalid { .. })
+                    || matches!(error, CompileError::Located { error, .. } if matches!(error.as_ref(), CompileError::Invalid { .. })),
+            )
+        }),
     },
     Case {
         name: CaseName("fails_when_catalog_port_fails"),
