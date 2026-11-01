@@ -8,7 +8,7 @@ use ryo::linter::{
     CaseSource, Cell, Corpus as Reads, FlagState, Glob, HostColumn, HostColumnName, HostKind,
     HostNumber, HostRelation, HostRelationName, HostRow, HostText, LintError, LintReport,
     LintRequest, ParameterCell, ParameterName, ParameterNumber, ParameterNumbers, ParameterTable,
-    ParameterText, ParameterValue, RelativePath, Rule, RuleId, Slot, SourceText,
+    ParameterText, ParameterValue, RelativePath, Rule, RuleApplicability, RuleId, Slot, SourceText,
 };
 
 use super::constants::{PLACED, PLACED_COLUMNS, RYO_STORE, SPAN_TEXT};
@@ -575,6 +575,7 @@ fn convert_request(request: AnalysisRequest) -> Result<LintRequest, AnalysisErro
                         .collect(),
                     include,
                     exclude,
+                    applicability: RuleApplicability::Always,
                 },
             ),
         );

@@ -358,9 +358,16 @@ def verify_rule_phase_registry(
         for rule in descriptor["selected_rules"]
     )
     rules = registry.get("rules")
-    if not isinstance(rules, dict) or set(rules) != expected_rules:
+    shipped_defaults = registry.get("shipped_default_rules")
+    if (
+        not isinstance(shipped_defaults, list)
+        or len(shipped_defaults) != len(set(shipped_defaults))
+        or not isinstance(rules, dict)
+        or set(rules) != set(shipped_defaults)
+        or not expected_rules <= set(rules)
+    ):
         missing = expected_rules - set(rules or {})
-        extra = set(rules or {}) - expected_rules
+        extra = set(rules or {}) - set(shipped_defaults or [])
         raise ValueError(
             f"pinned Ruff phase coverage mismatch: missing={sorted(missing)} extra={sorted(extra)}"
         )
@@ -444,6 +451,22 @@ def verify_rule_phase_registry(
                 f"Ruff phase/applicability mismatch for {rule}: {phases} -> {applicability}"
             )
     return registry
+
+
+def verify_active_combined_cohort(manifest: dict[str, object]) -> None:
+    """Require the default acceptance run to include one current full-report cohort."""
+    active = [
+        (name, descriptor)
+        for name, descriptor in manifest.get("combined_profiles", {}).items()
+        if descriptor.get("validation_status") == "active-current"
+    ]
+    if len(active) != 1:
+        raise ValueError(
+            f"default acceptance requires exactly one active combined cohort; found {len(active)}"
+        )
+    name, descriptor = active[0]
+    if descriptor.get("expectations_mode") != "complete-full-report":
+        raise ValueError(f"active combined cohort {name} is not a complete full-report profile")
 
 
 def selected_rule_applicability(
@@ -1674,6 +1697,26 @@ def self_test() -> int:
     ]
     prepared = json.loads(MANIFEST.read_text(encoding="utf-8"))
     try:
+        no_active_cohort = json.loads(json.dumps(prepared))
+        for descriptor in no_active_cohort.get("combined_profiles", {}).values():
+            descriptor["validation_status"] = "archived-historical"
+        try:
+            verify_active_combined_cohort(no_active_cohort)
+        except ValueError as error:
+            if "exactly one active combined cohort" not in str(error):
+                raise
+        else:
+            raise ValueError("default acceptance allowed a missing active combined cohort")
+        ambiguous_cohorts = json.loads(json.dumps(prepared))
+        for descriptor in ambiguous_cohorts.get("combined_profiles", {}).values():
+            descriptor["validation_status"] = "active-current"
+        try:
+            verify_active_combined_cohort(ambiguous_cohorts)
+        except ValueError as error:
+            if "exactly one active combined cohort" not in str(error):
+                raise
+        else:
+            raise ValueError("default acceptance allowed multiple active combined cohorts")
         phase_registry = verify_rule_phase_registry(prepared)
         if selected_rule_applicability(
             prepared, prepared["combined_profiles"]["current-canonical"]["selected_rules"]
@@ -2314,12 +2357,14 @@ def self_test() -> int:
 
         def later_combined_preflight_failure() -> tuple[bool, str]:
             trial_manifest = json.loads(json.dumps(pristine_manifest))
+            for item in trial_manifest["combined_profiles"].values():
+                item["validation_status"] = "archived-historical"
             later_name = next(
                 name
                 for name, descriptor in sorted(trial_manifest["combined_profiles"].items())
-                if descriptor.get("validation_status") == "active-current"
             )
             descriptor = trial_manifest["combined_profiles"][later_name]
+            descriptor["validation_status"] = "active-current"
             descriptor["case_count"] += 1
             temporary_manifest.write_text(
                 json.dumps(trial_manifest, indent=2, ensure_ascii=False) + "\n",
@@ -2555,6 +2600,8 @@ def main() -> int:
     statuses = []
     try:
         verify_files(manifest, helper_path)
+        if arguments.profile is None and not arguments.rules:
+            verify_active_combined_cohort(manifest)
         if arguments.profile is not None:
             if arguments.profile not in manifest.get("combined_profiles", {}):
                 raise ValueError(f"unknown prepared combined profile: {arguments.profile}")

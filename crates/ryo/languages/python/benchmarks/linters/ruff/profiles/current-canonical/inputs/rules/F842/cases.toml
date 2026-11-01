@@ -1,0 +1,49 @@
+[[cases]]
+name = "unused-local-annotation"
+files = { "case.py" = "def f():\n    value: int\n" }
+expected = [{ rule = "F842", file = "case.py", start = 13, end = 18 }]
+
+[[cases]]
+name = "annotation-used-by-read"
+files = { "case.py" = "def f():\n    value: int\n    return value\n" }
+expected = []
+
+[[cases]]
+name = "module-annotation-is-not-local"
+files = { "case.py" = "value: int\n" }
+expected = []
+
+[[cases]]
+name = "class-annotation-is-not-local"
+files = { "case.py" = "class C:\n    value: int\n" }
+expected = []
+
+[[cases]]
+name = "annotated-assignment-is-used"
+files = { "case.py" = "def f():\n    value: int = 1\n" }
+expected = []
+
+[[cases]]
+name = "dummy-name-is-ignored"
+files = { "case.py" = "def f():\n    _temporary: int\n" }
+expected = []
+
+[[cases]]
+name = "noqa-suppresses-unused-annotation"
+files = { "case.py" = "def f():\n    value: int  # noqa: F842\n" }
+expected = []
+
+[[cases]]
+name = "nested-function-unused-annotation"
+files = { "case.py" = "def outer():\n    def inner():\n        local: int\n" }
+expected = [{ rule = "F842", file = "case.py", start = 38, end = 43 }]
+
+[[cases]]
+name = "nested-closure-uses-outer-annotation"
+files = { "case.py" = "def f():\n    value: int\n    def nested():\n        return value\n" }
+expected = []
+
+[[cases]]
+name = "nested-parameter-does-not-use-outer-annotation"
+files = { "case.py" = "def f():\n    value: int\n    def nested(value):\n        return value\n" }
+expected = [{ rule = "F842", file = "case.py", start = 13, end = 18 }]

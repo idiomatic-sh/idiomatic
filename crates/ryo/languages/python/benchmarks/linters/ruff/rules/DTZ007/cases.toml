@@ -153,3 +153,9 @@ name = "starred-positional-format"
 comparison = "full"
 files = { "case.py" = "import datetime\ndatetime.datetime.strptime(\"2024\", *formats)\n" }
 expected = [{ rule = "DTZ007", file = "case.py", start = 16, end = 60 }]
+
+[[cases]]
+name = "unrelated-two-argument-call"
+comparison = "full"
+files = { "case.py" = "convert(value, format_string)\n" }
+expected = []
