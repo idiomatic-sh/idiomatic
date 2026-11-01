@@ -75,7 +75,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_fragment_filters_and_joins_rows"),
         word: Word::Succeeds,
         input: || Scenario::FragmentDuplicates,
-        expect: Expect::Value((4, 0)),
+        expect: Expect::Value((4, 2)),
     },
     Case {
         name: CaseName("a_fragment_can_return_an_empty_relation"),

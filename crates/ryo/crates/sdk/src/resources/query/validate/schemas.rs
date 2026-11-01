@@ -5,6 +5,7 @@ use ryo_core::inbound::use_cases::validate::types::ValidateRequest as CoreReques
 use ryo_language::domain::relations::types::Span as CoreSpan;
 use ryo_values::domain::descriptions::types::ValidateReport as CoreReport;
 use ryo_values::domain::plan_parts::types::{RefusedKind, RefusedQuery};
+use ryo_values::domain::program::types::QueryOrigin as CoreOrigin;
 
 use ryo_language::domain::relations::types::CellKind;
 use ryo_values::domain::hosted::types::{
@@ -171,12 +172,19 @@ fn refused(error: RefusedQuery) -> ValidateError {
         RefusedKind::Invalid => ValidateError::Invalid { span, message },
         RefusedKind::Catalog => ValidateError::Catalog { reason: message },
     };
+    located(error, origin)
+}
+
+/// Keep the standalone SDK's error variants while locating errors in named bundle sources.
+fn located(error: ValidateError, origin: Option<CoreOrigin>) -> ValidateError {
     match origin {
-        Some(origin) => ValidateError::Located {
-            origin: crate::domain::query::errors::QueryOrigin::from_internal(origin),
-            error: Box::new(error),
-        },
-        None => error,
+        Some(origin) if origin.source_id.0 != "<query>" || !origin.trace.is_empty() => {
+            ValidateError::Located {
+                origin: crate::domain::query::errors::QueryOrigin::from_internal(origin),
+                error: Box::new(error),
+            }
+        }
+        None | Some(_) => error,
     }
 }
 
@@ -184,30 +192,40 @@ impl From<ValidateErrorSchema<'_>> for ValidateError {
     fn from(schema: ValidateErrorSchema<'_>) -> Self {
         match schema.error {
             CoreError::Refused { error } => refused(error),
-            CoreError::Uncompilable { error } => match error.origin.clone() {
-                Some(origin) => ValidateError::Located {
-                    origin: crate::domain::query::errors::QueryOrigin::from_internal(origin),
-                    error: Box::new(ValidateError::Invalid {
-                        span: SpanSchema(error.span).into(),
-                        message: error.message.0.clone(),
-                    }),
-                },
-                None => invalid(schema.text, error.to_string()),
-            },
+            CoreError::Uncompilable { error } => {
+                let origin = error.origin.clone();
+                let invalid = match origin {
+                    Some(origin) if origin.source_id.0 != "<query>" || !origin.trace.is_empty() => {
+                        ValidateError::Located {
+                            origin: crate::domain::query::errors::QueryOrigin::from_internal(
+                                origin,
+                            ),
+                            error: Box::new(ValidateError::Invalid {
+                                span: SpanSchema(error.span).into(),
+                                message: error.message.0.clone(),
+                            }),
+                        }
+                    }
+                    _ => invalid(schema.text, error.to_string()),
+                };
+                invalid
+            }
             CoreError::UnknownKind { reason, origin } => match origin {
-                Some(origin) => ValidateError::Located {
-                    origin: crate::domain::query::errors::QueryOrigin::from_internal(
-                        origin.clone(),
-                    ),
-                    error: Box::new(ValidateError::Invalid {
-                        span: QuerySpan {
-                            start: ByteOffset(origin.span.start.0),
-                            end: ByteOffset(origin.span.end.0),
-                        },
-                        message: reason,
-                    }),
-                },
-                None => invalid(schema.text, reason),
+                Some(origin) if origin.source_id.0 != "<query>" || !origin.trace.is_empty() => {
+                    ValidateError::Located {
+                        origin: crate::domain::query::errors::QueryOrigin::from_internal(
+                            origin.clone(),
+                        ),
+                        error: Box::new(ValidateError::Invalid {
+                            span: QuerySpan {
+                                start: ByteOffset(origin.span.start.0),
+                                end: ByteOffset(origin.span.end.0),
+                            },
+                            message: reason,
+                        }),
+                    }
+                }
+                None | Some(_) => invalid(schema.text, reason),
             },
         }
     }
