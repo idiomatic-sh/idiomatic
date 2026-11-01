@@ -1,0 +1,156 @@
+
+[[cases]]
+name = "tagged-PYI041_1.py"
+comparison = "full"
+files = { "PYI041_1.py" = "from typing import (\n    TYPE_CHECKING,\n    Union,\n)\n\nfrom typing_extensions import (\n    TypeAlias,\n)\n\nTA0: TypeAlias = int\nTA1: TypeAlias = int | float | bool\nTA2: TypeAlias = Union[int, float, bool]\n\n\ndef good1(arg: int) -> int | bool:\n    ...\n\n\ndef good2(arg: int, arg2: int | bool) -> None:\n    ...\n\n\ndef f0(arg1: float | int) -> None:\n    ...\n\n\ndef f1(arg1: float, *, arg2: float | list[str] | type[bool] | complex) -> None:\n    ...\n\n\ndef f2(arg1: int, /, arg2: int | int | float) -> None:\n    ...\n\n\ndef f3(arg1: int, *args: Union[int | int | float]) -> None:\n    ...\n\n\nasync def f4(**kwargs: int | int | float) -> None:\n    ...\n\n\ndef f5(arg1: int, *args: Union[int, int, float]) -> None: \n    ...\n\n\ndef f6(arg1: int, *args: Union[Union[int, int, float]]) -> None: \n    ...\n\n\ndef f7(arg1: int, *args: Union[Union[Union[int, int, float]]]) -> None: \n    ...\n\n\ndef f8(arg1: int, *args: Union[Union[Union[int | int | float]]]) -> None: \n    ...\n\n\ndef f9(\n    arg: Union[  # comment \n        float, # another\n        complex, int]\n    ) -> None: \n    ...\n\ndef f10(\n    arg: (\n        int | # comment\n        float |  # another\n        complex\n    )    \n    ) -> None: \n    ...\n\n\nclass Foo:\n    def good(self, arg: int) -> None:\n        ...\n\n    def bad(self, arg: int | float | complex) -> None:\n        ...\n\n    def bad2(self, arg: int | Union[float, complex]) -> None: \n        ...\n\n    def bad3(self, arg: Union[Union[float, complex], int]) -> None: \n        ...\n\n    def bad4(self, arg: Union[float | complex, int]) -> None: \n        ...\n\n    def bad5(self, arg: int | (float | complex)) -> None: \n        ...\n\n\n# https://github.com/astral-sh/ruff/issues/18298\n# fix must not yield runtime `None | None | ...` (TypeError)\nclass Issue18298:\n    def f1(self, arg: None | int | None | float = None) -> None:  # PYI041 - no fix\n        pass\n\n    if TYPE_CHECKING:\n\n        def f2(self, arg: None | int | None | float = None) -> None: ...  # PYI041 - with fix\n\n    else:\n\n        def f2(self, arg=None) -> None:\n            pass\n\n    def f3(self, arg: None | float | None | int | None = None) -> None:  # PYI041 - with fix\n        pass\n" }
+expected = [{ rule = "PYI041", file = "PYI041_1.py", start = 319, end = 330 }, { rule = "PYI041", file = "PYI041_1.py", start = 380, end = 420 }, { rule = "PYI041", file = "PYI041_1.py", start = 468, end = 485 }, { rule = "PYI041", file = "PYI041_1.py", start = 531, end = 555 }, { rule = "PYI041", file = "PYI041_1.py", start = 599, end = 616 }, { rule = "PYI041", file = "PYI041_1.py", start = 662, end = 684 }, { rule = "PYI041", file = "PYI041_1.py", start = 731, end = 760 }, { rule = "PYI041", file = "PYI041_1.py", start = 807, end = 843 }, { rule = "PYI041", file = "PYI041_1.py", start = 890, end = 928 }, { rule = "PYI041", file = "PYI041_1.py", start = 967, end = 1032 }, { rule = "PYI041", file = "PYI041_1.py", start = 1086, end = 1144 }, { rule = "PYI041", file = "PYI041_1.py", start = 1266, end = 1287 }, { rule = "PYI041", file = "PYI041_1.py", start = 1335, end = 1362 }, { rule = "PYI041", file = "PYI041_1.py", start = 1411, end = 1444 }, { rule = "PYI041", file = "PYI041_1.py", start = 1493, end = 1520 }, { rule = "PYI041", file = "PYI041_1.py", start = 1569, end = 1592 }, { rule = "PYI041", file = "PYI041_1.py", start = 1768, end = 1793 }, { rule = "PYI041", file = "PYI041_1.py", start = 1893, end = 1918 }, { rule = "PYI041", file = "PYI041_1.py", start = 2053, end = 2085 }]
+
+[[cases]]
+name = "tagged-PYI041_1.pyi"
+comparison = "full"
+files = { "PYI041_1.pyi" = "from typing import (\n    Union,\n)\n\nfrom typing_extensions import (\n    TypeAlias,\n)\n\n# Type aliases not flagged\nTA0: TypeAlias = int\nTA1: TypeAlias = int | float | bool\nTA2: TypeAlias = Union[int, float, bool]\n\n\ndef good1(arg: int) -> int | bool: ...\n\n\ndef good2(arg: int, arg2: int | bool) -> None: ...\n\n\ndef f0(arg1: float | int) -> None: ...  # PYI041\n\n\ndef f1(arg1: float, *, arg2: float | list[str] | type[bool] | complex) -> None: ...  # PYI041\n\n\ndef f2(arg1: int, /, arg2: int | int | float) -> None: ...  # PYI041\n\n\ndef f3(arg1: int, *args: Union[int | int | float]) -> None: ...  # PYI041\n\n\nasync def f4(**kwargs: int | int | float) -> None: ...  # PYI041\n\ndef f5(\n    arg: Union[  # comment \n        float, # another\n        complex, int]\n    ) -> None: ...  # PYI041\n\ndef f6(\n    arg: (\n        int | # comment\n        float |  # another\n        complex\n    )    \n    ) -> None: ... # PYI041\n\ndef f5(arg1: int, *args: Union[int, int, float]) -> None: ...  # PYI041\n\n\ndef f6(arg1: int, *args: Union[Union[int, int, float]]) -> None: ...  # PYI041\n\n\ndef f7(arg1: int, *args: Union[Union[Union[int, int, float]]]) -> None: ...  # PYI041\n\n\ndef f8(arg1: int, *args: Union[Union[Union[int | int | float]]]) -> None: ...  # PYI041\n\n\nclass Foo:\n    def good(self, arg: int) -> None: ...\n\n    def bad(self, arg: int | float | complex) -> None: ...  # PYI041\n\n    def bad2(self, arg: int | Union[float, complex]) -> None: ...  # PYI041\n\n    def bad3(self, arg: Union[Union[float, complex], int]) -> None: ...  # PYI041\n\n    def bad4(self, arg: Union[float | complex, int]) -> None: ...  # PYI041\n\n    def bad5(self, arg: int | (float | complex)) -> None: ...  # PYI041\n\n\n# https://github.com/astral-sh/ruff/issues/18298\n# fix must not yield runtime `None | None | ...` (TypeError)\nclass Issue18298:\n    def f1(self, arg: None | int | None | float = None) -> None: ...  # PYI041 - with fix\n\n    def f3(self, arg: None | float | None | int | None = None) -> None: ...  # PYI041 - with fix\n" }
+expected = [{ rule = "PYI041", file = "PYI041_1.pyi", start = 319, end = 330 }, { rule = "PYI041", file = "PYI041_1.pyi", start = 386, end = 426 }, { rule = "PYI041", file = "PYI041_1.pyi", start = 480, end = 497 }, { rule = "PYI041", file = "PYI041_1.pyi", start = 549, end = 573 }, { rule = "PYI041", file = "PYI041_1.pyi", start = 623, end = 640 }, { rule = "PYI041", file = "PYI041_1.pyi", start = 683, end = 748 }, { rule = "PYI041", file = "PYI041_1.pyi", start = 806, end = 864 }, { rule = "PYI041", file = "PYI041_1.pyi", start = 929, end = 951 }, { rule = "PYI041", file = "PYI041_1.pyi", start = 1003, end = 1032 }, { rule = "PYI041", file = "PYI041_1.pyi", start = 1084, end = 1120 }, { rule = "PYI041", file = "PYI041_1.pyi", start = 1172, end = 1210 }, { rule = "PYI041", file = "PYI041_1.pyi", start = 1314, end = 1335 }, { rule = "PYI041", file = "PYI041_1.pyi", start = 1385, end = 1412 }, { rule = "PYI041", file = "PYI041_1.pyi", start = 1462, end = 1495 }, { rule = "PYI041", file = "PYI041_1.pyi", start = 1545, end = 1572 }, { rule = "PYI041", file = "PYI041_1.pyi", start = 1622, end = 1645 }, { rule = "PYI041", file = "PYI041_1.pyi", start = 1822, end = 1847 }, { rule = "PYI041", file = "PYI041_1.pyi", start = 1913, end = 1945 }]
+
+[[cases]]
+name = "tagged-PYI041_2.py"
+comparison = "full"
+files = { "PYI041_2.py" = "from __future__ import annotations\n\n\n# https://github.com/astral-sh/ruff/issues/18298\n# fix must not yield runtime `None | None | ...` (TypeError)\nclass Issue18298:\n    def f1(self, arg: None | int | None | float = None) -> None:\n        pass\n" }
+expected = [{ rule = "PYI041", file = "PYI041_2.py", start = 187, end = 212 }]
+
+[[cases]]
+name = "tagged-PYI041_3.py"
+comparison = "full"
+files = { "PYI041_3.py" = "from typing import (\n    TYPE_CHECKING,\n    Union,\n)\n\nfrom typing_extensions import (\n    TypeAlias,\n)\n\nTA0: TypeAlias = \"int\"\nTA1: TypeAlias = \"int | float | bool\"\nTA2: TypeAlias = \"Union[int, float, bool]\"\n\n\ndef good1(arg: \"int\") -> \"int | bool\":\n    ...\n\n\ndef good2(arg: \"int\", arg2: \"int | bool\") -> \"None\":\n    ...\n\n\ndef f0(arg1: \"float | int\") -> \"None\":\n    ...\n\n\ndef f1(arg1: \"float\", *, arg2: \"float | list[str] | type[bool] | complex\") -> \"None\":\n    ...\n\n\ndef f2(arg1: \"int\", /, arg2: \"int | int | float\") -> \"None\":\n    ...\n\n\ndef f3(arg1: \"int\", *args: \"Union[int | int | float]\") -> \"None\":\n    ...\n\n\nasync def f4(**kwargs: \"int | int | float\") -> \"None\":\n    ...\n\n\ndef f5(arg1: \"int\", *args: \"Union[int, int, float]\") -> \"None\":\n    ...\n\n\ndef f6(arg1: \"int\", *args: \"Union[Union[int, int, float]]\") -> \"None\":\n    ...\n\n\ndef f7(arg1: \"int\", *args: \"Union[Union[Union[int, int, float]]]\") -> \"None\":\n    ...\n\n\ndef f8(arg1: \"int\", *args: \"Union[Union[Union[int | int | float]]]\") -> \"None\":\n    ...\n\n\ndef f9(\n    arg: \"\"\"Union[  # comment\n        float, # another\n        complex, int]\"\"\"\n    ) -> \"None\":\n    ...\n\ndef f10(\n    arg: \"\"\"\n        int | # comment\n        float |  # another\n        complex\n    \"\"\"\n    ) -> \"None\":\n    ...\n\n\nclass Foo:\n    def good(self, arg: \"int\") -> \"None\":\n        ...\n\n    def bad(self, arg: \"int | float | complex\") -> \"None\":\n        ...\n\n    def bad2(self, arg: \"int | Union[float, complex]\") -> \"None\":\n        ...\n\n    def bad3(self, arg: \"Union[Union[float, complex], int]\") -> \"None\":\n        ...\n\n    def bad4(self, arg: \"Union[float | complex, int]\") -> \"None\":\n        ...\n\n    def bad5(self, arg: \"int | (float | complex)\") -> \"None\":\n        ...\n\n\n# https://github.com/astral-sh/ruff/issues/18298\n# fix must not yield runtime `None | None | ...` (TypeError)\nclass Issue18298:\n    def f1(self, arg: \"None | int | None | float\" = None) -> \"None\":  # PYI041 - no fix\n        pass\n\n    if TYPE_CHECKING:\n\n        def f2(self, arg: \"None | int | None | float\" = None) -> \"None\": ...  # PYI041 - with fix\n\n    else:\n\n        def f2(self, arg=None) -> \"None\":\n            pass\n\n    def f3(self, arg: \"None | float | None | int | None\" = None) -> \"None\":  # PYI041 - with fix\n        pass\n\n\nclass FooStringConcat:\n    def good(self, arg: \"i\" \"nt\") -> \"None\":\n        ...\n\n    def bad(self, arg: \"int \" \"| float | com\" \"plex\") -> \"None\":\n        ...\n\n    def bad2(self, arg: \"int | Union[flo\" \"at, complex]\") -> \"None\":\n        ...\n\n    def bad3(self, arg: \"Union[Union[float, com\" \"plex], int]\") -> \"None\":\n        ...\n\n    def bad4(self, arg: \"Union[float | complex, in\" \"t ]\") -> \"None\":\n        ...\n\n    def bad5(self, arg: \"int | \"\n                        \"(float | complex)\") -> \"None\":\n        ...\n\n    def bad6(self, arg: \"in\\\nt | (float | compl\" \"ex)\") -> \"None\":\n        ...\n" }
+expected = []
+
+[[cases]]
+name = "tagged-PYI041_4.py"
+comparison = "full"
+files = { "PYI041_4.py" = "from typing import Union as Uno\n\n\ndef f1(a: \"U\" \"no[int, fl\" \"oat, Foo]\") -> \"None\": ...\ndef f2(a: \"Uno[int, float, Foo]\") -> \"None\": ...\ndef f3(a: \"\"\"Uno[int, float, Foo]\"\"\") -> \"None\": ...\ndef f4(a: \"Uno[in\\\nt, float, Foo]\") -> \"None\": ...\n" }
+expected = []
+
+[[cases]]
+name = "union-numeric-0"
+comparison = "full"
+files = { "case.py" = "import builtins\nfrom typing import Union,Optional\ndef f(a:int|float) -> None: ...\n" }
+expected = [{ rule = "PYI041", file = "case.py", start = 58, end = 67 }]
+
+[[cases]]
+name = "union-numeric-1"
+comparison = "full"
+files = { "case.py" = "import builtins\nfrom typing import Union,Optional\ndef f(a:float|complex) -> None: ...\n" }
+expected = [{ rule = "PYI041", file = "case.py", start = 58, end = 71 }]
+
+[[cases]]
+name = "union-numeric-2"
+comparison = "full"
+files = { "case.py" = "import builtins\nfrom typing import Union,Optional\ndef f(a:int|complex) -> None: ...\n" }
+expected = [{ rule = "PYI041", file = "case.py", start = 58, end = 69 }]
+
+[[cases]]
+name = "union-numeric-3"
+comparison = "full"
+files = { "case.py" = "import builtins\nfrom typing import Union,Optional\ndef f(a:int|float|complex) -> None: ...\n" }
+expected = [{ rule = "PYI041", file = "case.py", start = 58, end = 75 }]
+
+[[cases]]
+name = "union-numeric-4"
+comparison = "full"
+files = { "case.py" = "import builtins\nfrom typing import Union,Optional\ndef f(a:bool|int) -> None: ...\n" }
+expected = []
+
+[[cases]]
+name = "union-numeric-5"
+comparison = "full"
+files = { "case.py" = "import builtins\nfrom typing import Union,Optional\ndef f(a:int|int) -> None: ...\n" }
+expected = []
+
+[[cases]]
+name = "union-numeric-6"
+comparison = "full"
+files = { "case.py" = "import builtins\nfrom typing import Union,Optional\ndef f(a:Union[int,float]) -> None: ...\n" }
+expected = [{ rule = "PYI041", file = "case.py", start = 58, end = 74 }]
+
+[[cases]]
+name = "union-numeric-7"
+comparison = "full"
+files = { "case.py" = "import builtins\nfrom typing import Union,Optional\ndef f(a:Union[Union[int,float],str]) -> None: ...\n" }
+expected = [{ rule = "PYI041", file = "case.py", start = 58, end = 85 }]
+
+[[cases]]
+name = "union-numeric-8"
+comparison = "full"
+files = { "case.py" = "import builtins\nfrom typing import Union,Optional\ndef f(a:list[int|float]) -> None: ...\n" }
+expected = []
+
+[[cases]]
+name = "union-numeric-9"
+comparison = "full"
+files = { "case.py" = "import builtins\nfrom typing import Union,Optional\ndef f(a:int|list[float]) -> None: ...\n" }
+expected = []
+
+[[cases]]
+name = "union-numeric-10"
+comparison = "full"
+files = { "case.py" = "import builtins\nfrom typing import Union,Optional\ndef f(a:Optional[int|float]) -> None: ...\n" }
+expected = []
+
+[[cases]]
+name = "union-numeric-11"
+comparison = "full"
+files = { "case.py" = "import builtins\nfrom typing import Union,Optional\ndef f(a:\"int|float\") -> None: ...\n" }
+expected = []
+
+[[cases]]
+name = "union-numeric-12"
+comparison = "full"
+files = { "case.py" = "import builtins\nfrom typing import Union,Optional\ndef f(a:int|(float|complex)) -> None: ...\n" }
+expected = [{ rule = "PYI041", file = "case.py", start = 58, end = 77 }]
+
+[[cases]]
+name = "union-numeric-13"
+comparison = "full"
+files = { "case.py" = "import builtins\nfrom typing import Union,Optional\ndef f(a:builtins.int|builtins.float) -> None: ...\n" }
+expected = [{ rule = "PYI041", file = "case.py", start = 58, end = 85 }]
+
+[[cases]]
+name = "shadowed-numerics"
+comparison = "full"
+files = { "case.py" = "int=other\ndef f(x:int|float): ...\n" }
+expected = []
+
+[[cases]]
+name = "async-and-keywords"
+comparison = "full"
+files = { "case.py" = "from typing import Union\nasync def f(a:int,/,*,b:Union[int,float],**c:float|complex): ...\n" }
+expected = [{ rule = "PYI041", file = "case.py", start = 49, end = 65 }, { rule = "PYI041", file = "case.py", start = 70, end = 83 }]
+
+[[cases]]
+name = "return-not-parameter"
+comparison = "full"
+files = { "case.py" = "def f() -> int|float: ...\n" }
+expected = []
+
+[[cases]]
+name = "singledispatch"
+comparison = "full"
+files = { "case.py" = "from functools import singledispatch\n@singledispatch\ndef f(a): ...\n@f.register\ndef g(a:int|float,b:int|float): ...\n" }
+expected = [{ rule = "PYI041", file = "case.py", start = 99, end = 108 }]
+
+[[cases]]
+name = "singledispatch-called-register"
+comparison = "full"
+files = { "case.py" = "from functools import singledispatch\n@singledispatch\ndef f(a): ...\n@f.register(int)\ndef g(a:int|float): ...\n" }
+expected = [{ rule = "PYI041", file = "case.py", start = 92, end = 101 }]
+
+[[cases]]
+name = "register-other-function"
+comparison = "full"
+files = { "case.py" = "def f(a): ...\n@f.register\ndef g(a:int|float): ...\n" }
+expected = [{ rule = "PYI041", file = "case.py", start = 34, end = 43 }]
+
+[[cases]]
+name = "file-suppression"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa: PYI041\nimport builtins\nfrom typing import Union,Optional\ndef f(a:int|float) -> None: ...\n" }
+expected = []
