@@ -38,7 +38,9 @@
     "f26d3005d98e992c7941492e061d81a1ec14f315",
     "dcbecd3f7a4c36ed68c63c53f00cdead7541aee6",
     "0f7afcb181b098ba69baa7ea4c2f2a5811b1220a",
-    "193c68476b63c6eecd9aff4dbbb5361f95f9407e"
+    "193c68476b63c6eecd9aff4dbbb5361f95f9407e",
+    "7bfa4c9416b34547ab7cbdf376ec40f3bd754ed8",
+    "e11057755ec01880594a4714807826c7ba4c7864"
   ],
   "reference": "Ruff 0.16.5 isolated, no-cache, PY310 selection; complete full-report comparison for each prepared candidate profile",
   "reference_version": "0.16.5",
@@ -77,6 +79,35 @@
         "cancel-scope-not-async",
         "await-other-call",
         "unicode-before"
+      ]
+    },
+    "ASYNC210": {
+      "selected_rules": [
+        "ASYNC210"
+      ],
+      "case_count": 21,
+      "case_names": [
+        "requests-direct",
+        "requests-alias",
+        "requests-from-import",
+        "httpx-direct",
+        "httpx-from-import",
+        "urllib-urlopen",
+        "urllib3-request",
+        "outside-async",
+        "sync-function",
+        "nested-sync",
+        "nested-async",
+        "lambda-stops-context",
+        "class-body-stops-context",
+        "async-method-context",
+        "session-method-not-qualified",
+        "unlisted-member",
+        "urllib-alias",
+        "noqa",
+        "other-noqa",
+        "unicode-offset",
+        "async-comp"
       ]
     },
     "ASYNC251": {
@@ -1140,6 +1171,7 @@
     "crates/ryo/languages/python/benchmarks/linters/ruff/benchmark.toml": "13a58681a93692e77a9ebb9a6690f9b6f3ab401a93c4460aa2b0a105eb3db67f",
     "crates/ryo/languages/python/benchmarks/linters/ruff/fragments/suppress.ryoql": "5ea3e0a1f045bf62b81e17c8c536a5ed47ba02859ff9544d769618c5fc762bde",
     "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/ASYNC105/benchmark.toml": "e381b46c5940020e041f464317f6df1f99db583a922df5cf3587207865da8f0f",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/ASYNC210/benchmark.toml": "583607155b98900bb0ba53a38647bca8e2276fcf361b365345b9431462a77584",
     "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/ASYNC251/benchmark.toml": "2c9e745a692ab0b0322d2ce9bee00741365afa1b4d25b9fd07d6fd3567c15406",
     "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/B009-B010/oracle.json": "4da10291c47966b0670fe526e391a7b90d40d89e87bdc0dc8b3896755be2ff30",
     "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/B009/benchmark.toml": "233f03bea83a522339e0844d158c9ff529d212712e80322b8ca305f8fe387970",
@@ -1197,6 +1229,8 @@
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/ASYNC105/cases.toml": "30d64fbb2f3e64312f33df8de2824a920e1df452473082bb618698fe791be49d",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/ASYNC115/cases.toml": "7c416857623ea0e1f7321e11f89d95380dda2e39555ff0b114195ec1ff14a9d2",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/ASYNC115/query.ryoql": "0b5b7c485490b13cc50fed0aa6a65cf883b5094d6e33c5b7cc88312bf790fc96",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/ASYNC210/candidate.ryoql": "48594a89da1a1227c04dbc72460735d78e0042168fe2224bd2c0f709e0d5c848",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/ASYNC210/cases.toml": "bf1ef8379fdd0361753a98e30d60f45eddaa4402624cd93a99b5b32d65db34c5",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/ASYNC251/candidate.ryoql": "192d1c825dd781ffe27ff9c0041bc95e379ca55e4ad6bbe70c4443a6315ba7ce",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/ASYNC251/cases.toml": "f5e86422076e02881446ce96cd994f9e4dbed68b544affb5a44395fab4b7ed9a",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/B002/cases.toml": "46239a7f288aa6338bada7b7c83bc503e0b87eb3891e9db936259f7a780e073d",
