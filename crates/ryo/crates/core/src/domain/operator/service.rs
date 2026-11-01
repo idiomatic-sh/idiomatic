@@ -18,6 +18,7 @@ use super::collections::operators::project::item::ProjectItem;
 use super::collections::operators::rank::item::RankItem;
 use super::collections::operators::rows::item::RowsItem;
 use super::collections::operators::select::item::SelectItem;
+use super::collections::operators::span_between::item::SpanBetweenItem;
 use super::collections::operators::union::item::UnionItem;
 use super::collections::operators::words::item::WordsItem;
 use super::collections::operators::{
@@ -64,6 +65,9 @@ pub(crate) fn operate(
         Operation::Difference { .. } => DifferenceItem.stream(operation, ins, context, room, emit),
         Operation::Antijoin { .. } => AntijoinItem.stream(operation, ins, context, room, emit),
         Operation::Replace { .. } => ReplaceItem.stream(operation, ins, context, room, emit),
+        Operation::SpanBetween { .. } => {
+            SpanBetweenItem.stream(operation, ins, context, room, emit)
+        }
         Operation::OrderedMatch { .. } => {
             OrderedMatchItem.stream(operation, ins, context, room, emit)
         }
@@ -100,6 +104,7 @@ pub(crate) fn compute(
         Operation::Difference { .. } => DifferenceItem.compute(operation, inputs, context, out),
         Operation::Antijoin { .. } => AntijoinItem.compute(operation, inputs, context, out),
         Operation::Replace { .. } => ReplaceItem.compute(operation, inputs, context, out),
+        Operation::SpanBetween { .. } => SpanBetweenItem.compute(operation, inputs, context, out),
         Operation::OrderedMatch { .. } => OrderedMatchItem.compute(operation, inputs, context, out),
         Operation::GroupCount { .. } => GroupCountItem.compute(operation, inputs, context, out),
         Operation::GroupDigest { .. } => GroupDigestItem.compute(operation, inputs, context, out),
@@ -248,6 +253,7 @@ pub(crate) fn evaluate_cross(
                 | Operation::Intersection { .. }
                 | Operation::GroupCount { .. }
                 | Operation::Replace { .. }
+                | Operation::SpanBetween { .. }
                 | Operation::OrderedMatch { .. }
                 | Operation::GroupDigest { .. }
                 | Operation::Capture { .. }

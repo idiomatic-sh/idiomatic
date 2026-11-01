@@ -285,6 +285,15 @@ pub enum Operation {
         /// The relation, by its place among the ones declared.
         relation: HostedNumber,
     },
+    /// Append a span from the first input's start to the second input's end.
+    SpanBetween {
+        /// Input rows in one file.
+        from: Input,
+        /// Span supplying the start offset.
+        start: ColumnIndex,
+        /// Span supplying the end offset.
+        end: ColumnIndex,
+    },
 }
 
 /// The kinds of operation the language has, one variant each.
@@ -330,6 +339,8 @@ pub enum OperationKind {
     Rows,
     /// The rows of a relation the host declared.
     Hosted,
+    /// `span-between`.
+    SpanBetween,
 }
 
 /// Something of the language a query uses, which a run must be shown to exercise.
@@ -400,4 +411,6 @@ pub enum QueryOperator {
     Closure,
     /// `cycles(edges, source, destination)`.
     Cycles,
+    /// `span-between(from, start, end, output)`.
+    SpanBetween,
 }

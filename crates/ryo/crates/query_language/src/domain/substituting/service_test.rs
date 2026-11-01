@@ -137,3 +137,124 @@ fn succeeds() {
 fn refuses() {
     run(CASES, Word::Refuses, subject);
 }
+
+/// Compile real syntax through validation, linking, scope resolution and optimization.
+fn span_plan(
+    root: &str,
+    module: Option<&str>,
+    hosted: &[ryo_values::domain::hosted::types::HostedRelation],
+) -> Result<ryo_values::domain::plans::types::Plan, String> {
+    use ryo_values::domain::program::types::{QueryBundle, QueryDocumentSource, QuerySourceId};
+    let mut bundle = QueryBundle {
+        root: QueryDocumentSource {
+            id: QuerySourceId("root".into()),
+            text: root.into(),
+        },
+        modules: std::collections::BTreeMap::new(),
+    };
+    if let Some(text) = module {
+        let previous = bundle.modules.insert(
+            QuerySourceId("span-fragment".into()),
+            QueryDocumentSource {
+                id: QuerySourceId("span-fragment".into()),
+                text: text.into(),
+            },
+        );
+        assert!(previous.is_none());
+    }
+    let parsed = winnow()
+        .read_bundle(&bundle)
+        .map_err(|error| error.to_string())?;
+    let program = crate::domain::linking::service::link(&bundle, parsed.root, &parsed.fragments)
+        .map_err(|error| error.message)?;
+    let names = hosted
+        .iter()
+        .map(|relation| relation.name.clone())
+        .collect::<Vec<_>>();
+    crate::domain::validation::service::validate(&program, &[Relation::Function], &names)
+        .map_err(|error| error.to_string())?;
+    crate::domain::assembling::service::lower(&program, &[Relation::Function], hosted)
+        .map_err(|error| error.to_string())
+}
+
+#[test]
+fn span_between_types_and_arguments() {
+    let valid = r#"let a = span-between(from="function", start="span", end="span", output="diagnostic"); emit a subject file key(diagnostic);"#;
+    let plan = span_plan(valid, None, &[]).expect("typed span projection");
+    assert!(
+        plan.steps
+            .iter()
+            .any(|step| matches!(step.operation, Operation::SpanBetween { .. }))
+    );
+    for (bad, expected) in [
+        (
+            valid.replace("start=\"span\"", "start=\"name\""),
+            "cannot compare",
+        ),
+        (
+            valid.replace("end=\"span\"", "end=\"id\""),
+            "cannot compare",
+        ),
+        (
+            valid.replace("output=\"diagnostic\"", "output=\"span\""),
+            "already exists",
+        ),
+        (
+            valid.replace("start=\"span\"", "start=\"missing\""),
+            "no column",
+        ),
+        (valid.replace("start=\"span\", ", ""), "needs the argument"),
+        (valid.replace("end=\"span\", ", ""), "needs the argument"),
+        (
+            valid.replace(
+                "output=\"diagnostic\"",
+                "output=\"diagnostic\", extra=\"span\"",
+            ),
+            "extra",
+        ),
+    ] {
+        let error = span_plan(&bad, None, &[]).expect_err("bad call must fail");
+        assert!(error.contains(expected), "{bad}: {error}");
+    }
+}
+
+#[test]
+fn span_between_checks_instantiated_fragment_scope() {
+    use ryo_language::domain::relations::types::CellKind;
+    use ryo_values::domain::hosted::types::{
+        ColumnLabel, HostedColumn, HostedName, HostedRelation,
+    };
+    let module = r#"input rows: relation<file: file, span: span>;
+output relation<file: file, span: span, diagnostic: span>;
+let result = span-between(from=rows, start="span", end="span", output="diagnostic");
+return result;"#;
+    let root = r#"import compose from "span-fragment";
+let rows = select file, span from "function";
+let a = compose(rows=rows); emit a subject file key(diagnostic);"#;
+    assert!(span_plan(root, Some(module), &[]).is_ok());
+    let hosted = [HostedRelation {
+        name: HostedName("global".into()),
+        columns: vec![
+            HostedColumn {
+                name: ColumnLabel("file".into()),
+                kind: CellKind::File,
+            },
+            HostedColumn {
+                name: ColumnLabel("span".into()),
+                kind: CellKind::Span,
+            },
+        ],
+    }];
+    let cross = root.replace("from \"function\"", "from \"global\"");
+    assert!(
+        span_plan(&cross, Some(module), &hosted)
+            .expect_err("file column is not per-file proof")
+            .contains("requires per-file")
+    );
+    let direct = r#"let a = span-between(from="global", start="span", end="span", output="diagnostic"); emit a subject file key(diagnostic);"#;
+    assert!(
+        span_plan(direct, None, &hosted)
+            .expect_err("cross file refused")
+            .contains("requires per-file")
+    );
+}

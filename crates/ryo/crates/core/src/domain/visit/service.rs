@@ -175,7 +175,8 @@ fn reads_role(operation: &Operation) -> RoleRead {
                         || *domain_id == role_column()
                         || compares_role(domain_filter) == RoleCompared::Compared))
         }
-        Operation::Replace { from, .. }
+        Operation::SpanBetween { from, .. }
+        | Operation::Replace { from, .. }
         | Operation::Extend { from, .. }
         | Operation::GroupCount { from, .. }
         | Operation::GroupDigest { from, .. }

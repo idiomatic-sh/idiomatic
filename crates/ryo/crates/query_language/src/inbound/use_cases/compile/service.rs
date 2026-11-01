@@ -49,7 +49,9 @@ pub(super) fn unresolved(error: LoweringError) -> CompileError {
             span,
             message: error.to_string(),
         },
-        LoweringError::UnknownStep { span, .. }
+        LoweringError::CrossFileSpan { span }
+        | LoweringError::SpanArgument { span, .. }
+        | LoweringError::UnknownStep { span, .. }
         | LoweringError::DuplicateOutput { span, .. }
         | LoweringError::InvalidRegex { span, .. }
         | LoweringError::UnknownColumn { span, .. }

@@ -152,6 +152,7 @@ fn reading_columns(operation: &Operation, read: Input) -> Option<Vec<ColumnIndex
         | Operation::Antijoin { .. }
         | Operation::GroupCount { .. }
         | Operation::Replace { .. }
+        | Operation::SpanBetween { .. }
         | Operation::OrderedMatch { .. }
         | Operation::GroupDigest { .. }
         | Operation::Capture { .. }
@@ -269,6 +270,7 @@ fn reading_through(
         | Operation::Antijoin { .. }
         | Operation::GroupCount { .. }
         | Operation::Replace { .. }
+        | Operation::SpanBetween { .. }
         | Operation::OrderedMatch { .. }
         | Operation::GroupDigest { .. }
         | Operation::Capture { .. }
@@ -374,6 +376,7 @@ pub(crate) fn reduced_frontier(mut steps: Vec<PlanStep>, mut emitted: StepId) ->
                 | Operation::Capture { .. }
                 | Operation::Words { .. }
                 | Operation::Extend { .. }
+                | Operation::SpanBetween { .. }
                 | Operation::Project {
                     distinct: RepeatedRows::Kept,
                     ..

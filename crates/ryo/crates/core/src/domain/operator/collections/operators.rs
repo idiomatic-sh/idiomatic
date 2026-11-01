@@ -25,3 +25,4 @@ pub(crate) mod fixtures;
 
 pub(crate) mod ordered_match;
 pub(crate) mod replace;
+pub(crate) mod span_between;

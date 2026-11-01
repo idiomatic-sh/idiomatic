@@ -16,6 +16,10 @@ pub(crate) enum ArgumentRole {
 /// The arguments a call can name.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum ArgumentSlot {
+    /// Span supplying the start.
+    Start,
+    /// Span supplying the end.
+    End,
     /// Constant replacement text.
     Replacement,
     /// Left numeric ordering column.

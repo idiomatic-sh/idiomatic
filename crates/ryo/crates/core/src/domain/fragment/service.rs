@@ -94,6 +94,7 @@ pub(crate) fn make(
         | Operation::Difference { .. }
         | Operation::GroupCount { .. }
         | Operation::Replace { .. }
+        | Operation::SpanBetween { .. }
         | Operation::OrderedMatch { .. }
         | Operation::GroupDigest { .. }
         | Operation::Capture { .. }
@@ -230,6 +231,7 @@ fn make_rows(
         | Operation::Difference { .. }
         | Operation::GroupCount { .. }
         | Operation::Replace { .. }
+        | Operation::SpanBetween { .. }
         | Operation::OrderedMatch { .. }
         | Operation::GroupDigest { .. }
         | Operation::Capture { .. }

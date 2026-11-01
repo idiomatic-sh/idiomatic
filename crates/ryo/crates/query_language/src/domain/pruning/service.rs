@@ -9,7 +9,8 @@ use ryo_values::domain::plans::types::PlanStep;
 /// Gives `visit` each input the operation reads.
 pub(crate) fn each_input(operation: &mut Operation, visit: &mut dyn FnMut(&mut Input)) {
     match operation {
-        Operation::Replace { from, .. }
+        Operation::SpanBetween { from, .. }
+        | Operation::Replace { from, .. }
         | Operation::Select { from, .. }
         | Operation::Project { from, .. }
         | Operation::Extend { from, .. }

@@ -101,6 +101,7 @@ A side of a comparison is a column, a text in quotes, a number, a `$parameter` o
 | `select` | `select … from … where …` | Keeps the rows for which every comparison is true. |
 | `project` | `from`, `columns` | Keeps the named columns and drops equal rows. |
 | `extend` | `from`, `values` | Appends number or flag columns, from numbers or parameters. |
+| `span-between` | `from`, `start`, `end`, `output` | Appends `[start.start, end.end)` from two span columns in per-file rows. |
 | `join` | `left`, `right`, `left-on`, `right-on`, `output` | Combines rows with equal keys; empty keys give every pair. |
 | `union` | `left`, `right` | The rows of either input, both of the same columns. |
 | `intersection` | `left`, `right` | The rows of both inputs. |
@@ -208,6 +209,17 @@ emit crowded subject "file" key("file");
 ```
 
 ## Literal replacement and ordered matching
+
+`span-between(from=rows, start="literal_span", end="expression_span", output="diagnostic_span")`
+appends a typed span while retaining every column and repeated row. It uses the first
+span's start and the second span's end, including when the expression starts before
+the literal. Overlap, containment, gaps, empty spans and EOF offsets are valid. Offsets
+are bytes; no UTF-8 boundary restriction applies. Each located input must satisfy
+`start <= end <= source length`, and the composed start must not exceed its end.
+Invalid ranges fail execution. An absent input produces an absent output while the
+other located input is still validated. Construction requires per-file input, also
+inside an instantiated fragment; the result may subsequently cross the file frontier.
+The output name must be new.
 
 `replace(from=rows, text="label", pattern="\s+", replacement="", output="compact")`
 appends a text column after replacing every non-overlapping regex match in the input

@@ -84,6 +84,7 @@ fn operation_name(operation: &Operation) -> &'static str {
         Operation::Project { .. } => "project",
         Operation::Join { .. } => "join",
         Operation::Replace { .. } => "replace",
+        Operation::SpanBetween { .. } => "span-between",
         Operation::OrderedMatch { .. } => "ordered-match",
         Operation::GroupCount { .. } => "group-count",
         Operation::GroupDigest { .. } => "group-digest",

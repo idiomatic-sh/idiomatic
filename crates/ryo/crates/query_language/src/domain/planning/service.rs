@@ -21,7 +21,8 @@ pub(crate) fn next_step<T>(items: &[T]) -> parts::StepId {
 /// What a step reads, in the order its operator reads its inputs.
 pub(crate) fn inputs_of(operation: &plans::Operation) -> Vec<parts::Input> {
     match operation {
-        plans::Operation::Replace { from, .. }
+        plans::Operation::SpanBetween { from, .. }
+        | plans::Operation::Replace { from, .. }
         | plans::Operation::Select { from, .. }
         | plans::Operation::Project { from, .. }
         | plans::Operation::Extend { from, .. }
@@ -98,7 +99,8 @@ pub(crate) fn scope_of(
         .get(1)
         .map_or(&[][..], |input| input.fields.as_slice());
     let per_file = match operation {
-        plans::Operation::Replace { .. }
+        plans::Operation::SpanBetween { .. }
+        | plans::Operation::Replace { .. }
         | plans::Operation::Select { .. }
         | plans::Operation::Extend { .. }
         | plans::Operation::Capture { .. }

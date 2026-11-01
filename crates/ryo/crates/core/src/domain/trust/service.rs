@@ -151,6 +151,7 @@ fn uses_of(plan: &Plan) -> Vec<StepReads> {
             Operation::Extend { values, .. } => {
                 provenance.extend(values.iter().map(|_| None));
             }
+            Operation::SpanBetween { .. } => provenance.push(None),
             Operation::Antijoin { .. } | Operation::Difference { .. } => {
                 // The left rows that remain, as they were; the right rows only decide which remain.
                 let right = parts.next().unwrap_or_default();
@@ -231,7 +232,8 @@ fn needs_from(plan: &Plan, reads: &[StepReads]) -> Vec<Vec<RelationRead>> {
             }
             Operation::Antijoin { right, .. } | Operation::Difference { right, .. } => of(right),
             Operation::GroupCount { from, .. } | Operation::GroupDigest { from, .. } => of(from),
-            Operation::Replace { .. }
+            Operation::SpanBetween { .. }
+            | Operation::Replace { .. }
             | Operation::Select { .. }
             | Operation::Project { .. }
             | Operation::Extend { .. }

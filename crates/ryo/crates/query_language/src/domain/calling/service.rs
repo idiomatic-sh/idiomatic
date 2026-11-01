@@ -39,6 +39,9 @@ pub(crate) fn lower_call(
         QueryOperator::Select => return Err(bad_argument(call, None, ArgumentFault::NotACall)),
         QueryOperator::Project => call_project(builder, name, call)?,
         QueryOperator::Extend => call_extend(builder, name, call)?,
+        QueryOperator::SpanBetween => {
+            crate::domain::substituting::service::call_span_between(builder, name, call)?
+        }
         QueryOperator::Join | QueryOperator::OrderedMatch => call_join(builder, name, call)?,
         QueryOperator::Replace => {
             crate::domain::substituting::service::call_replace(builder, name, call)?;

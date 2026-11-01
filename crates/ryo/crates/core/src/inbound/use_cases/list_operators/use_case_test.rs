@@ -15,7 +15,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
     name: CaseName("lists_the_nineteen_operators_in_documentation_order"),
     word: Word::Succeeds,
     input: || (),
-    expect: Expect::Value((19, true)),
+    expect: Expect::Value((20, true)),
 }];
 
 fn subject((): Input) -> Result<Value, Failure> {

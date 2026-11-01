@@ -78,6 +78,7 @@ const CATALOG: &[Relation] = &[
 /// What an operation is, for the answer.
 fn operation_name(operation: &Operation) -> &'static str {
     match operation {
+        Operation::SpanBetween { .. } => "span-between",
         Operation::Select { .. } => "select",
         Operation::Project {
             distinct: RepeatedRows::Kept,
@@ -152,6 +153,7 @@ fn subject(text: Input) -> Result<Value, Failure> {
                         call_closure(&mut builder, &step.name, call, operator)?;
                     }
                     QueryOperator::Replace
+                    | QueryOperator::SpanBetween
                     | QueryOperator::OrderedMatch
                     | QueryOperator::Select
                     | QueryOperator::Project

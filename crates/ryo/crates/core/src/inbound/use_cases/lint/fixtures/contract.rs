@@ -877,6 +877,7 @@ pub(crate) fn output_path(corpus: &Corpus, library: &dyn Fn(&[u8])) {
 fn expected(operator: QueryOperator) -> Vec<Finding> {
     match operator {
         QueryOperator::Replace => replace::expected(),
+        QueryOperator::SpanBetween => span_between::expected(),
         QueryOperator::OrderedMatch => ordered_match::expected(),
         QueryOperator::Antijoin => antijoin::expected(),
         QueryOperator::Axis => axis::expected(),
@@ -986,6 +987,11 @@ mod words {
 /// Literal replacement fixture, independent expected transformed names.
 mod replace {
     include!("../../../../../tests/fixtures/operators/replace/expected.rs");
+}
+
+/// Independent byte span projection fixture.
+mod span_between {
+    include!("../../../../../tests/fixtures/operators/span_between/expected.rs");
 }
 /// Ordered request/reply fixture, preserving explicit output projection.
 mod ordered_match {

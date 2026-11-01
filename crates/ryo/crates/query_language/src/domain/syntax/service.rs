@@ -13,7 +13,12 @@ use ryo_values::domain::program::types::{
 };
 
 /// The operations a query can call, besides `select`.
-const SHAPES: [OperationShape; 18] = [
+const SHAPES: [OperationShape; 19] = [
+    OperationShape {
+        operator: QueryOperator::SpanBetween,
+        inputs: &[ArgumentSlot::From],
+        required: &[ArgumentSlot::Start, ArgumentSlot::End, ArgumentSlot::Output],
+    },
     OperationShape {
         operator: QueryOperator::Replace,
         inputs: &[ArgumentSlot::From],

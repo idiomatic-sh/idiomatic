@@ -6,6 +6,20 @@ use ryo_values::domain::program::types::{QueryOrigin, QuerySpan};
 /// Why a program does not lower to a plan.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 pub(crate) enum LoweringError {
+    /// A span projection has an extra or repeated named argument.
+    #[error("span-between has an extra or repeated argument `{name}`")]
+    SpanArgument {
+        /// The unexpected argument.
+        name: String,
+        /// The containing call.
+        span: QuerySpan,
+    },
+    /// Span offsets can only be composed while the file's bytes are available.
+    #[error("span-between requires per-file input")]
+    CrossFileSpan {
+        /// The call that cannot run after the files.
+        span: QuerySpan,
+    },
     /// The diagnostic-only comparison origin table cannot represent another entry.
     #[error("too many comparison source origins")]
     TooManyComparisonOrigins {

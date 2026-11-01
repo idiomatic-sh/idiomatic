@@ -5,6 +5,9 @@ use crate::domain::table_model::errors::TableModelError;
 /// Why an operator could not compute its rows.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 pub(crate) enum OperatingError {
+    /// An input or composed span falls outside the current file.
+    #[error("span-between encountered an invalid byte range")]
+    InvalidSpan,
     /// Ordering cannot distinguish two rows in the same key group.
     #[error("ordered-match requires unique order values within each side and key group")]
     DuplicateOrder,

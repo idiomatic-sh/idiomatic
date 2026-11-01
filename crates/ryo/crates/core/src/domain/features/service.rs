@@ -16,6 +16,7 @@ use ryo_values::domain::records::types::RowTotal;
 #[must_use]
 pub(crate) fn kind_of(operation: &Operation) -> OperationKind {
     match operation {
+        Operation::SpanBetween { .. } => OperationKind::SpanBetween,
         Operation::Select { .. } => OperationKind::Select,
         Operation::Project { .. } => OperationKind::Project,
         Operation::Extend { .. } => OperationKind::Extend,
@@ -53,6 +54,7 @@ fn comparisons_of(operation: &Operation) -> &[Comparison] {
         | Operation::Antijoin { .. }
         | Operation::GroupCount { .. }
         | Operation::Replace { .. }
+        | Operation::SpanBetween { .. }
         | Operation::OrderedMatch { .. }
         | Operation::GroupDigest { .. }
         | Operation::Capture { .. }
@@ -78,6 +80,7 @@ pub(crate) fn catalog() -> Vec<Feature> {
         OperationKind::Difference,
         OperationKind::Antijoin,
         OperationKind::Replace,
+        OperationKind::SpanBetween,
         OperationKind::OrderedMatch,
         OperationKind::GroupCount,
         OperationKind::GroupDigest,
