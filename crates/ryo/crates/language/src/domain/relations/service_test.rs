@@ -115,8 +115,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("every_relation_is_found_by_its_name"),
         word: Word::Succeeds,
         input: || every_relation_is_named_and_found_by_its_name,
-        expect: Expect::Value(40),
-        expect: Expect::Value(43),
         expect: Expect::Value(45),
     },
     Case {

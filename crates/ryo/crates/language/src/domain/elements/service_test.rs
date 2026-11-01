@@ -3,9 +3,9 @@
 use crate::domain::symbols::types::ByteSlice;
 
 use super::service::{
-    child_of_kind, children, clear_elements, decoded_at, decoded_token, diagnose,
-    diagnose_with_metadata, end_at, end_of, enter_node, first_token_text, has_incomplete_syntax,
-    kind_at, leave_node, number_mut, positions, start_at, table_builder, text_at, token,
+    child_of_kind, children, decoded_at, decoded_token, diagnose, diagnose_with_metadata, end_at,
+    end_of, enter_node, first_token_text, has_incomplete_syntax, kind_at, leave_node, number_mut,
+    positions, start_at, table_builder, text_at, token,
 };
 use super::types::{DiagnosticCode, DiagnosticMetadata, DiagnosticPhase, Elements, TreeImpact};
 use crate::domain::relations::types::{KindBits, Offset, Position, ReportText};

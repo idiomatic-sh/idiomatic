@@ -115,7 +115,7 @@ impl TryFrom<ToolSchema> for types::Tool {
         }
         let mut query_modules = BTreeMap::new();
         for (id, path) in wire.query_modules {
-            ryo::query::QueryModuleSource::try_new(&id, "module source")
+            let _module = ryo::query::QueryModuleSource::try_new(&id, "module source")
                 .map_err(|error| Error::Invalid(error.to_string()))?;
             let path = std::path::PathBuf::from(path);
             crate::domain::suite::service::relative_path(&path)?;

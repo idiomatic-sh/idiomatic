@@ -116,7 +116,7 @@ fn float_boundaries_and_huge_integer_structural_keys_are_retained() {
     })
     .collect();
     for key in &keys {
-        key.expect("each supported boundary expression has a key");
+        let _key = key.expect("each supported boundary expression has a key");
     }
     assert_eq!(keys[0], keys[1]);
     assert_ne!(keys[2], keys[3]);

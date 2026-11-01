@@ -76,7 +76,7 @@ fn validate_query_modules(
 ) -> Result<(), Error> {
     let root = directory.canonicalize()?;
     for (id, relative) in modules {
-        ryo::query::QueryModuleSource::try_new(id, "module source")
+        let _module = ryo::query::QueryModuleSource::try_new(id, "module source")
             .map_err(|error| Error::Invalid(error.to_string()))?;
         relative_path(relative)?;
         let mut current = root.clone();
@@ -97,7 +97,7 @@ fn validate_query_modules(
                 relative.display()
             )));
         }
-        std::fs::read_to_string(canonical)?;
+        let _module_text = std::fs::read_to_string(canonical)?;
     }
     Ok(())
 }

@@ -140,14 +140,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         },
         expect: Expect::Value(Seen::Diagnostics(&[
             (
-                "Cannot use type parameter lists on Python 3.10 (syntax was added in Python 3.12)",
-                7,
-                19,
-            ),
-            (
                 "Cannot set default type for a type parameter on Python 3.10 (syntax was added in Python 3.13)",
                 10,
                 15,
+            ),
+            (
+                "Cannot use type parameter lists on Python 3.10 (syntax was added in Python 3.12)",
+                7,
+                19,
             ),
             (
                 "non default type parameter `U` follows default type parameter",
@@ -229,8 +229,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Given::Diagnostics("def f(x):\n    global x\n"),
         expect: Expect::Value(Seen::Diagnostics(&[(
             "name `x` cannot refer to a parameter and a global variable",
-            19,
-            20,
+            21,
+            22,
         )])),
     },
     Case {

@@ -52,7 +52,7 @@ impl EngineLocalAdapter {
         let root = profile.canonicalize()?;
         let mut modules = Vec::with_capacity(registry.len());
         for (id, relative) in registry {
-            ryo::query::QueryModuleSource::try_new(id, "module source")
+            let _module = ryo::query::QueryModuleSource::try_new(id, "module source")
                 .map_err(|error| Error::Invalid(error.to_string()))?;
             relative_path(relative)?;
             let mut current = root.clone();

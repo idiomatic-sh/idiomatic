@@ -16,7 +16,7 @@ fn properties(source: &'static str) -> Vec<Properties> {
         source: ByteSlice(file.bytes),
         file: languages::FileId(0),
     };
-    positions(tree.elements)
+    positions(&tree)
         .filter(|at| kind(&tree, *at) == Kind::Node(Node::Constant))
         .filter_map(|at| match classify(&tree, at) {
             Classification::Known(properties) => Some(properties),

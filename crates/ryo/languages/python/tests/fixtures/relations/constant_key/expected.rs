@@ -1,4 +1,4 @@
-//! A numeric primitive points to its own normalized key representative.
+// A numeric primitive points to its own normalized key representative.
 
 use ryo::languages::contract::{ConstantKeyExpectedRow, Expected, expected_rows, file, node, span};
 

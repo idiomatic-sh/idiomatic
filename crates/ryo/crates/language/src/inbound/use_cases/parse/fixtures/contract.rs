@@ -474,11 +474,20 @@ fn rows(subject: &dyn ParseEngine, samples: &[SourceFile]) {
                 .filter(|relation| is_declaring(**relation) == RelationDeclaring::Declares)
                 // An empty file still has its module scope and lexical root interval when read.
                 .all(|relation| {
-                    out.count(*relation)
-                        == usize::from(
-                            matches!(*relation, Relation::Scope | Relation::IndentRegion)
-                                && subject.absence_of(*relation).is_none(),
-                        )
+                    let count = out.count(*relation);
+                    if subject.absence_of(*relation).is_some() {
+                        return count == 0;
+                    }
+                    match *relation {
+                        Relation::Scope | Relation::IndentRegion => count == 1,
+                        // Versioned implicit-symbol rows describe the environment catalog, not source text.
+                        Relation::ImplicitSymbol => out.rows().iter().all(|(relation, row)| {
+                            *relation != Relation::ImplicitSymbol
+                                || (row.len() == columns(Relation::ImplicitSymbol).len()
+                                    && row.get(3).is_some_and(|major| *major > 0))
+                        }),
+                        _ => count == 0,
+                    }
                 }))
         }
         Scenario::Broken => {

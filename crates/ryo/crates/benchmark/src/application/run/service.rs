@@ -90,7 +90,7 @@ pub fn verify(
                     if case.comparison == crate::domain::suite::types::CaseComparison::Rule {
                         result.report.diagnostics.retain(|finding| {
                             finding.rule == case.rule
-                                || finding.rule.0.as_ref()
+                                || finding.rule.as_ref()
                                     == crate::domain::diagnostics::constants::FRONTEND_SYNTAX
                         });
                     }
@@ -145,7 +145,7 @@ pub fn verify_reference_cases(
                 if case.comparison == crate::domain::suite::types::CaseComparison::Rule {
                     result.report.diagnostics.retain(|finding| {
                         finding.rule == case.rule
-                            || finding.rule.0.as_ref()
+                            || finding.rule.as_ref()
                                 == crate::domain::diagnostics::constants::FRONTEND_SYNTAX
                     });
                 }

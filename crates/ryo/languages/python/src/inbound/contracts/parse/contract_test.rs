@@ -59,7 +59,7 @@ fn subject(given: Input) -> Result<Value, Failure> {
         Given::Read(path, bytes, wanted) => (path, bytes, wanted),
         Given::Contract => {
             let language = ParseContract::new(
-                crate::settings::PythonParserSettings::default(),
+                PythonParserSettings::default(),
                 Arc::new(crate::outbound::syntax::factory::ruff_python_parser()),
                 Arc::new(crate::outbound::notes::factory::postcard()),
             );
@@ -69,7 +69,7 @@ fn subject(given: Input) -> Result<Value, Failure> {
         }
     };
     let language = ParseContract::new(
-        crate::settings::PythonParserSettings::default(),
+        PythonParserSettings::default(),
         Arc::new(SyntaxFake),
         Arc::new(NotesFake),
     );

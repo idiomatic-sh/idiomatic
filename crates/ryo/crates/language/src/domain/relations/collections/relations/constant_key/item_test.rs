@@ -6,7 +6,7 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::relations::types::{FileId, NodeId, Offset, Span};
 
 type Input = ();
-type Value = [u32; 4];
+type Value = [u64; 4];
 type Failure = ();
 
 const CASES: &[Case<Input, Value, Failure>] = &[Case {
@@ -25,7 +25,8 @@ fn subject(_: Input) -> Result<Value, Failure> {
             start: Offset(11),
             end: Offset(17),
         },
-    }))
+    })
+    .map(|word| word.0))
 }
 
 #[test]
