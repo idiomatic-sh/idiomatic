@@ -81,8 +81,8 @@
     "ca5853363800a69400f01a25c7edf87e7c50e4be",
     "3330f1ad8a63286bda602d9152600006a9399a8c",
     "405c014d7a52d682b509a6c2d040a2164f78b7d5",
-    "c9526238",
-    "aeb1b3f3",
+    "c9526238a567b1be2091df2b0240ebd86efcfdc9",
+    "aeb1b3f324afba879648d27da48699a13fd1b946",
     "425066d8fc2d7ad2015ccdc0d76aab280a4169de",
     "359f178170c189be78b1a297a9842002312f3e2a",
     "d94c51e387d872afcfcdfc134239063e4f515ae3",
@@ -132,7 +132,12 @@
     "0c5ecbab1cec134d2750380e9caf98557d14e3c6",
     "3ba49c70537546e03b8006e5dbf7e541ae5345e7",
     "7d9662952f07c3a17fd9a3b107d383409bed72d5",
-    "0c81f121d852fd5470cb39c5499eb19b59aeafed"
+    "0c81f121d852fd5470cb39c5499eb19b59aeafed",
+    "28ce156520ef048954a66d1d42631cf4d30f0bed",
+    "122bf404218e413bef28a56345c68e878baae817",
+    "e4a886c4e388fde199150efb9e5146e84d514f0a",
+    "9115cc1ae16afbcf12c6e3e4d55995a30ab53308",
+    "db210e269a7ad8e67693bc003f8f13101d27d54c"
   ],
   "reference": "Ruff 0.16.5 isolated, no-cache, PY310 selection; complete full-report comparison for each prepared candidate profile",
   "reference_version": "0.16.5",
@@ -143,7 +148,7 @@
     "894431afcb8addcd8e3752e53634fdb0a6f9063153cd62ed730ce59d02878487",
     "29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e"
   ],
-  "scope": "127 prepared single-rule candidate profiles; historical combined cohorts are archived; active current-canonical-211 validates 211 selected rules across 3766 complete full-report cases at PY310.",
+  "scope": "133 prepared single-rule candidate profiles; historical combined cohorts archived; active current-canonical-211 validates 211 selected rules across 3766 full-report cases at PY310; PLE03 semantic profile cases are prepared separately.",
   "profiles": {
     "ASYNC100": {
       "selected_rules": [
@@ -3266,6 +3271,172 @@
         "keyword-does-not-mix-with-automatic",
         "noqa-mixing"
       ]
+    },
+    "PLE0303": {
+      "selected_rules": [
+        "PLE0303"
+      ],
+      "case_count": 23,
+      "case_names": [
+        "wrong-literal",
+        "right-literal",
+        "bare-return",
+        "noqa",
+        "negative-integer",
+        "implicit-return-gap",
+        "pass-only-no-diagnostic",
+        "try-handler-fallthrough-gap",
+        "module-function-is-not-magic-method",
+        "nested-function-return-is-not-owned",
+        "nested-class-method-return-is-not-owned",
+        "always-raise-is-exempt",
+        "ellipsis-body-is-stub",
+        "docstring-body-is-stub",
+        "conditional-bad-return",
+        "conditional-good-return-keeps-implicit-path",
+        "unknown-return-type-is-permitted",
+        "negative-unknown-is-rejected",
+        "negative-zero-is-rejected",
+        "negative-parenthesized-integer-is-rejected",
+        "try-except-all-raise-is-exempt",
+        "try-return-bad-except-raise",
+        "conditional-union-return-is-rejected"
+      ]
+    },
+    "PLE0304": {
+      "selected_rules": [
+        "PLE0304"
+      ],
+      "case_count": 19,
+      "case_names": [
+        "wrong-literal",
+        "right-literal",
+        "bare-return",
+        "noqa",
+        "implicit-return-gap",
+        "pass-only-no-diagnostic",
+        "try-handler-fallthrough-gap",
+        "module-function-is-not-magic-method",
+        "nested-function-return-is-not-owned",
+        "nested-class-method-return-is-not-owned",
+        "always-raise-is-exempt",
+        "ellipsis-body-is-stub",
+        "docstring-body-is-stub",
+        "conditional-bad-return",
+        "conditional-good-return-keeps-implicit-path",
+        "unknown-return-type-is-permitted",
+        "try-except-all-raise-is-exempt",
+        "try-return-bad-except-raise",
+        "conditional-union-return-is-rejected"
+      ]
+    },
+    "PLE0305": {
+      "selected_rules": [
+        "PLE0305"
+      ],
+      "case_count": 19,
+      "case_names": [
+        "wrong-literal",
+        "right-literal",
+        "bare-return",
+        "noqa",
+        "implicit-return-gap",
+        "pass-only-no-diagnostic",
+        "try-handler-fallthrough-gap",
+        "module-function-is-not-magic-method",
+        "nested-function-return-is-not-owned",
+        "nested-class-method-return-is-not-owned",
+        "always-raise-is-exempt",
+        "ellipsis-body-is-stub",
+        "docstring-body-is-stub",
+        "conditional-bad-return",
+        "conditional-good-return-keeps-implicit-path",
+        "unknown-return-type-is-permitted",
+        "try-except-all-raise-is-exempt",
+        "try-return-bad-except-raise",
+        "conditional-union-return-is-rejected"
+      ]
+    },
+    "PLE0307": {
+      "selected_rules": [
+        "PLE0307"
+      ],
+      "case_count": 19,
+      "case_names": [
+        "wrong-literal",
+        "right-literal",
+        "bare-return",
+        "noqa",
+        "implicit-return-gap",
+        "pass-only-no-diagnostic",
+        "try-handler-fallthrough-gap",
+        "module-function-is-not-magic-method",
+        "nested-function-return-is-not-owned",
+        "nested-class-method-return-is-not-owned",
+        "always-raise-is-exempt",
+        "ellipsis-body-is-stub",
+        "docstring-body-is-stub",
+        "conditional-bad-return",
+        "conditional-good-return-keeps-implicit-path",
+        "unknown-return-type-is-permitted",
+        "try-except-all-raise-is-exempt",
+        "try-return-bad-except-raise",
+        "conditional-union-return-is-rejected"
+      ]
+    },
+    "PLE0308": {
+      "selected_rules": [
+        "PLE0308"
+      ],
+      "case_count": 19,
+      "case_names": [
+        "wrong-literal",
+        "right-literal",
+        "bare-return",
+        "noqa",
+        "implicit-return-gap",
+        "pass-only-no-diagnostic",
+        "try-handler-fallthrough-gap",
+        "module-function-is-not-magic-method",
+        "nested-function-return-is-not-owned",
+        "nested-class-method-return-is-not-owned",
+        "always-raise-is-exempt",
+        "ellipsis-body-is-stub",
+        "docstring-body-is-stub",
+        "conditional-bad-return",
+        "conditional-good-return-keeps-implicit-path",
+        "unknown-return-type-is-permitted",
+        "try-except-all-raise-is-exempt",
+        "try-return-bad-except-raise",
+        "conditional-union-return-is-rejected"
+      ]
+    },
+    "PLE0309": {
+      "selected_rules": [
+        "PLE0309"
+      ],
+      "case_count": 19,
+      "case_names": [
+        "wrong-literal",
+        "right-literal",
+        "bare-return",
+        "noqa",
+        "implicit-return-gap",
+        "pass-only-no-diagnostic",
+        "try-handler-fallthrough-gap",
+        "module-function-is-not-magic-method",
+        "nested-function-return-is-not-owned",
+        "nested-class-method-return-is-not-owned",
+        "always-raise-is-exempt",
+        "ellipsis-body-is-stub",
+        "docstring-body-is-stub",
+        "conditional-bad-return",
+        "conditional-good-return-keeps-implicit-path",
+        "unknown-return-type-is-permitted",
+        "try-except-all-raise-is-exempt",
+        "try-return-bad-except-raise",
+        "conditional-union-return-is-rejected"
+      ]
     }
   },
   "files": {
@@ -3341,6 +3512,12 @@
     "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PLE0115/benchmark.toml": "1b296ea839aa5c6909daa0e63960c0aac620f21104978992d878c3385e4f7980",
     "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PLE0117/benchmark.toml": "b64b8762dbb0acdad843b2c43255c4d630b0c353f7c701083e49ebb6453b6322",
     "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PLE0118/benchmark.toml": "34fe68a65cbe4c9da48134e4ddbac10195ea21b4e896210075115668c3e9c5ff",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PLE0303/benchmark.toml": "70b8230a188489d85023697d044865dbe3217218c42cf2108cbf873f633cbf56",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PLE0304/benchmark.toml": "d52018695f785c8a8dd90fe4e434f3a63480ff9374f8b64a0a19e2e507334d07",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PLE0305/benchmark.toml": "9d7d4f7f917adeb0cd0c01fb742275a01730b39b348f1ddcba0d459945721cdb",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PLE0307/benchmark.toml": "6d74d3d9b14815d787d9107137a79deee81df7c432eb732765a6a402f7496edd",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PLE0308/benchmark.toml": "a513847279ade9fbe435eb713fa78bf50e2505a673701a7155c32fab238ef7ae",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PLE0309/benchmark.toml": "335a3156d1dbac3338d2195a2f55b21fb0c0835d9e4f860bebf41fcb4d096e08",
     "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PLE0604/benchmark.toml": "40d28ce4f5e0ae49c55679667afa8b3c5e8ce39667c6dd529d7b44100a08affd",
     "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PLE0605/benchmark.toml": "151a14bdea5847e2c63b660599848ea41f56bf2421f7baea5ca04e0f5b430ab4",
     "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PLE1205/benchmark.toml": "78f61778d7bb7553713050e4dc7356c40c3cc926dbc9359b4097f4c08e7bf2a8",
@@ -3758,6 +3935,18 @@
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PLE0117/cases.toml": "b15f7d2006251631ffd38e1fd59fbe4fb9df5bec3e9eebdeca91969ccda66416",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PLE0118/candidate.ryoql": "ae89480682d99fa32f85c23f580802fa2f253ac62506f94410adf2489575cc6d",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PLE0118/cases.toml": "7c034a15b6883dcb0511fdd3cd73ff3187ce842855678f14f1636bc8be673347",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PLE0303/candidate.ryoql": "f72a8587a284b64c1a348a2e89fd43cfd750445226cde0e0a4a8ce0e5ec5d669",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PLE0303/cases.toml": "405dcac79e9de2886ce8121f389497eec990a6677c5fe176d76049c9377baa04",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PLE0304/candidate.ryoql": "377dbdd963dc42a616031d7a86e4bb995d53fe47db56bd930a6f0b107e7795fb",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PLE0304/cases.toml": "c69c4be3d15e4108f1b66b07f9cba5f76bae27c41dc9cd0f9c3b208acbd07dd1",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PLE0305/candidate.ryoql": "4e4520cfbf82ce172daedec9699e4b8c942ee9b05e252da17cfd640375593b15",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PLE0305/cases.toml": "1650e2d9a9098b2b4b66129b20cebb28e0c8cd1ab196005df9b230141e67103c",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PLE0307/candidate.ryoql": "84b3af31c5c10ab9d458ad4cda0f1cf2ed601c532657335c78e803a1baeec3d1",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PLE0307/cases.toml": "e0ceade5cad88353243839b21317102440d38d91a1b287663560f0ddb5f24935",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PLE0308/candidate.ryoql": "e650b921a2d5bb4a0c0c4715ac0de8467a4686eaa4a9a22335e33f1ca791d25d",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PLE0308/cases.toml": "83151afd96f25f6582bc8f410196dcd353dc3fe44dd6f61aeee349998bb62a7c",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PLE0309/candidate.ryoql": "27abb8306e1248ed89c4dd7534cadb8bdc1b0afe46d76a33641e16da6f9706a4",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PLE0309/cases.toml": "86ec8e2546012a50d73cce995330f9ff91ad9d9b43791d567e27f453f0f195d6",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PLE0604/candidate.ryoql": "f7390c29fce27f4e22311d0e7e0ed2ea5a7d7c6ca8af77fc4c292afaf54731b5",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PLE0604/cases.toml": "1557aafbcc9f542a0eeea231571d38ea23d3c07167bf3ab22aad3a8dcf639fd6",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PLE0605/candidate.ryoql": "4f7367176151beaae73e49329d8b392bc518e27e8de088d0838317ab341c3aa6",
@@ -6128,5 +6317,5 @@
   },
   "target_version": "py310",
   "rule_phases_file": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/pinned-rule-phases.json",
-  "manifest_sha256": "dabf5c9f25d2658287115a3a462a59058d78671494b554b875e66d13d05fbcb2"
+  "manifest_sha256": "3c8f73bad0eac3b6932d237d4ee8d73a7981e3862afb4c1b07de4d6e039aa974"
 }
