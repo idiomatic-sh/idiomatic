@@ -141,3 +141,15 @@ name = "range-file-ignore"
 comparison = "full"
 files = { "case.py" = "# ruff: file-ignore[F811]\nimport os\nimport os\n" }
 expected = []
+
+[[cases]]
+name = "local-parameter-shadows-unused-module-import"
+comparison = "full"
+files = { "case.py" = "import datetime\ndef f(datetime):\n    return datetime.datetime.today()\n" }
+expected = [{ rule = "F811", file = "case.py", start = 22, end = 30 }]
+
+[[cases]]
+name = "for-target-shadow-is-owned-by-F402"
+comparison = "full"
+files = { "case.py" = "import os\nfor os in range(3):\n    pass\n" }
+expected = []
