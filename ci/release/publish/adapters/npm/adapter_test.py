@@ -36,11 +36,9 @@ def test_the_mode_reaches_the_registry(monkeypatch) -> None:
     assert "--dry-run" in calls[0] and "--dry-run" not in calls[1], "a dry run never uploads and an upload is no dry run"
 
 
-def test_a_handed_token_becomes_npm_s_configuration_and_none_leaves_trusted_publishing(monkeypatch) -> None:
-    envs = []
-    monkeypatch.setattr(subprocess, "run", lambda argv, **kwargs: envs.append(kwargs["env"]))
-    monkeypatch.delenv("NODE_AUTH_TOKEN", raising=False)
+def test_an_upload_is_handed_no_token_and_goes_through_trusted_publishing(monkeypatch) -> None:
+    """npm exchanges the workflow's OIDC token itself: the adapter configures no token of its own."""
+    calls = []
+    monkeypatch.setattr(subprocess, "run", lambda argv, **kwargs: calls.append(kwargs))
     NpmPublish().publish(None, ARTIFACT, False)
-    monkeypatch.setenv("NODE_AUTH_TOKEN", "first-publish")
-    NpmPublish().publish(None, ARTIFACT, False)
-    assert envs[0] is None and envs[1]["npm_config_//registry.npmjs.org/:_authToken"] == "first-publish"
+    assert "env" not in calls[0]
