@@ -63,3 +63,15 @@ name = "nested-function-is-not-module-export"
 comparison = "full"
 files = { "case.py" = "def f():\n    __all__ = 1\n" }
 expected = []
+
+[[cases]]
+name = "named-expression-is-not-an-export-assignment"
+comparison = "full"
+files = { "case.py" = "__all__ = (names := [\"missing\"])\n" }
+expected = []
+
+[[cases]]
+name = "right-nested-sequence-concatenation-is-invalid"
+comparison = "full"
+files = { "case.py" = "__all__ = [] + ([\"missing\"] + [])\n" }
+expected = [{ rule = "PLE0605", file = "case.py", start = 0, end = 7 }]

@@ -19,7 +19,9 @@ let attribute_fields = select parent, child from "semantic-child" where field = 
 let attribute_children = select l.parent as expression, l.child as identifier, n.file as file from attribute_fields as l join attributes as n on l.parent = n.id;
 let attribute_edges = select l.expression as expression, r.name as name, l.file as file from attribute_children as l join "identifier" as r on l.identifier = r.id and l.file = r.file;
 let all_attributes = select expression as id, file from attribute_edges where name = "__all__";
-let accepted_names = union(left=all_names, right=all_attributes);
+let named_expression_values = select id, file from "semantic-syntax" where kind = "named-expr";
+let names_and_attributes = union(left=all_names, right=all_attributes);
+let accepted_names = union(left=names_and_attributes, right=named_expression_values);
 let calls = select id, file from "semantic-syntax" where kind = "call";
 let function_fields = select parent, child from "semantic-child" where field = "func";
 let call_functions = select l.parent as call, l.child as function, r.file as file from function_fields as l join calls as r on l.parent = r.id;
@@ -50,8 +52,12 @@ let binary_leaves = antijoin(left=binary_descendants, right=inner_binary_values,
 let invalid_binary_leaves = antijoin(left=binary_leaves, right=accepted_sequences, left-on=["value", "file"], right-on=["id", "file"]);
 let invalid_binary_roots = select l.target as target, l.file as file, l.target_span as target_span, l.root as value from binary_values as l join invalid_binary_leaves as r on l.target = r.target and l.file = r.file and l.target_span = r.target_span;
 let accepted_binary_roots = antijoin(left=binary_values, right=invalid_binary_roots, left-on=["target", "file", "target_span", "root"], right-on=["target", "file", "target_span", "value"]);
+let right_binary_children = select l.parent as parent from right_fields as l join binary_nodes as r on l.child = r.id;
+let right_nested_roots = select l.target as target, l.file as file, l.target_span as target_span, l.root as root from binary_values as l join right_binary_children as r on l.root = r.parent;
+let right_nested_rejected = select target, file, target_span, root as value from right_nested_roots;
+let right_nested_accepted = antijoin(left=accepted_binary_roots, right=right_nested_rejected, left-on=["target", "file", "target_span", "root"], right-on=["target", "file", "target_span", "value"]);
 let direct_valid_values = select l.target as target, l.file as file, l.target_span as target_span, l.value as value from export_values as l join accepted_sequences as r on l.value = r.id and l.file = r.file;
-let valid_binary_values = select target, file, target_span, root as value from accepted_binary_roots;
+let valid_binary_values = select target, file, target_span, root as value from right_nested_accepted;
 let accepted_roots = union(left=direct_valid_values, right=valid_binary_values);
 let accepted_direct_names = select l.target as target, l.file as file, l.target_span as target_span, l.value as value from export_values as l join accepted_names as r on l.value = r.id and l.file = r.file;
 let accepted_with_calls = union(left=accepted_roots, right=accepted_call_roots);
