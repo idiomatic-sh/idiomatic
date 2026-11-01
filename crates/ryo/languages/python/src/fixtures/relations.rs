@@ -28,6 +28,14 @@ mod language_target {
 mod constant_key {
     include!("../../tests/fixtures/relations/constant_key/expected.rs");
 }
+/// Percent-format outcomes retain parser status and source identity.
+mod format_parse {
+    include!("../../tests/fixtures/relations/format_parse/expected.rs");
+}
+/// Percent-format conversion fields retain argument order.
+mod format_field {
+    include!("../../tests/fixtures/relations/format_field/expected.rs");
+}
 /// Independently expected identifier spellings.
 mod identifier {
     include!("../../tests/fixtures/relations/identifier/expected.rs");
@@ -141,6 +149,8 @@ pub(super) fn expected() -> Vec<Expected> {
         interpolated_string_literal::expected(),
         language_target::expected(),
         constant_key::expected(),
+        format_parse::expected(),
+        format_field::expected(),
         call_argument::expected(),
         static_import::expected(),
         string_literal::expected(),

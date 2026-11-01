@@ -43,6 +43,8 @@ macro_rules! each_relation {
                 InterpolatedStringLiteral interpolated_string_literal InterpolatedStringLiteralRow InterpolatedStringLiteralColumn;
                 LanguageTarget language_target LanguageTargetRow LanguageTargetColumn;
                 ConstantKey constant_key ConstantKeyRow ConstantKeyColumn;
+                FormatParse format_parse FormatParseRow FormatParseColumn;
+                FormatField format_field FormatFieldRow FormatFieldColumn;
                 StaticImport static_import StaticImportRow StaticImportColumn;
                 StringLiteral string_literal StringLiteralRow StringLiteralColumn;
                 SyntaxChild syntax_child SyntaxChildRow SyntaxChildColumn;
@@ -410,5 +412,7 @@ pub const fn capability_relation(capability: super::types::OptionalCapability) -
         OptionalCapability::InterpolatedStringLiteral => Relation::InterpolatedStringLiteral,
         OptionalCapability::LanguageTarget => Relation::LanguageTarget,
         OptionalCapability::ConstantKey => Relation::ConstantKey,
+        OptionalCapability::FormatParse => Relation::FormatParse,
+        OptionalCapability::FormatField => Relation::FormatField,
     }
 }

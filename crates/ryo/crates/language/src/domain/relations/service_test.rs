@@ -188,6 +188,8 @@ fn optional_promises_are_closed() -> usize {
         OptionalCapability::InterpolatedStringLiteral,
         OptionalCapability::LanguageTarget,
         OptionalCapability::ConstantKey,
+        OptionalCapability::FormatParse,
+        OptionalCapability::FormatField,
     ];
     capabilities
         .into_iter()
@@ -200,7 +202,7 @@ fn optional_promises_are_closed() -> usize {
                 .iter()
                 .filter(|relation| optional_capability(**relation).is_some())
                 .count()
-                == 13
+                == 15
                 && optional_capability(Relation::SemanticSyntax).is_none()
                 && optional_capability(Relation::SemanticChild).is_none(),
         )

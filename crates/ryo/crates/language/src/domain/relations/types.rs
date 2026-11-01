@@ -523,4 +523,8 @@ pub enum OptionalCapability {
     LanguageTarget,
     /// Collision-checked keys for supported parsed constant expressions.
     ConstantKey,
+    /// Parsed Python percent-format strings and their format fields.
+    FormatParse,
+    /// Parsed Python percent-format strings and their format fields.
+    FormatField,
 }

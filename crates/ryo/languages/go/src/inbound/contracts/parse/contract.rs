@@ -258,6 +258,14 @@ impl Parse for ParseContract {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
+    fn format_parse(&self) -> Support<Reader<languages::FormatParse, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn format_field(&self) -> Support<Reader<languages::FormatField, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn interpolated_string_literal(
         &self,
     ) -> Support<Reader<languages::InterpolatedStringLiteral, Self::FileModel>> {

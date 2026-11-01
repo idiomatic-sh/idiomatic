@@ -82,11 +82,13 @@ even when that field is filtered out of the final query result.
 
 ### Advertised optional capabilities
 
-Every parser explicitly declares its `OptionalCapability` set. The three optional promises
-are canonical identifiers, qualified-name provenance, and embedded expressions. Every other
-catalog relation remains the required baseline, including both semantic syntax projections.
-Advertising a capability promises either a tested reader or a documented language absence;
-it cannot return `NotYetRead`. Duplicate declarations fail conformance.
+Every parser explicitly declares its `OptionalCapability` set. The catalog currently includes
+canonical identifiers, qualified-name provenance, embedded expressions, expression shapes,
+static binding events/reads/uses/shadows, implicit symbols, literal properties, interpolated-
+string fragments, language targets, constant keys, and percent-format parse/field facts. Every
+other catalog relation remains the required baseline, including both semantic syntax
+projections. Advertising a capability promises a reader; it cannot return `NotYetRead`.
+Duplicate declarations fail conformance.
 
 An unadvertised optional reader is never invoked. Its absence is `NotYetRead`, and a direct
 read records missing rows rather than a known-empty relation. The conformance run prints
@@ -98,10 +100,13 @@ Current availability is explicit:
 
 | Providers | Optional promises |
 | --- | --- |
-| Python | All three, with readers and independent fixtures |
-| JSON, TOML | Identifier and qualified-name language absence |
-| Markdown | Qualified-name language absence |
+| Python | Its declared semantic, literal, binding, target, constant-key, and percent-format readers |
+| JSON, TOML | Identifier and qualified-name readers |
+| Markdown | Qualified-name reader |
 | CSS, Go, HTML, JavaScript, Rust, TypeScript | None; these optional facts remain unavailable |
+
+Percent-format parsing and conversion-field facts are currently advertised only by Python;
+other providers explicitly report `NotYetRead` for those two relations.
 
 The parser-implied nodes of languages such as HTML retain their explicit absent source
 span in the semantic projection. Shared guards accept that only for an actual implied

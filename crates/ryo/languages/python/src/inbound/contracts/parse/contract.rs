@@ -92,6 +92,8 @@ impl Parse for ParseContract {
             languages::OptionalCapability::LiteralProperties,
             languages::OptionalCapability::InterpolatedStringLiteral,
             languages::OptionalCapability::ConstantKey,
+            languages::OptionalCapability::FormatParse,
+            languages::OptionalCapability::FormatField,
             languages::OptionalCapability::LanguageTarget,
         ]
     }
@@ -104,6 +106,7 @@ impl Parse for ParseContract {
         model.language_target = self.settings.target_version().components();
         crate::domain::expression_shapes::service::clear(model.expression_shapes.get_mut());
         crate::domain::constant_keys::service::clear(model.constant_keys.get_mut());
+        crate::domain::format_parsing::service::clear(model.format_parsing.get_mut());
         crate::domain::indentation::service::clear(model.indentation.get_mut());
         crate::domain::qualification::service::clear(model.qualification.get_mut());
         crate::domain::binding_analysis::service::clear(model.binding_analysis.get_mut());
@@ -244,6 +247,14 @@ impl Parse for ParseContract {
         languages::reads::<
             crate::domain::relations::collections::relations::constant_key::item::ConstantKeyItem,
         >()
+    }
+
+    fn format_parse(&self) -> Support<Reader<languages::FormatParse, Self::FileModel>> {
+        languages::reads::<super::format_readers::FormatParseItem>()
+    }
+
+    fn format_field(&self) -> Support<Reader<languages::FormatField, Self::FileModel>> {
+        languages::reads::<super::format_readers::FormatFieldItem>()
     }
 
     fn literal_properties(&self) -> Support<Reader<languages::LiteralProperties, Self::FileModel>> {
