@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import importlib.util
+import re
 import subprocess
 import sys
-import tomllib
 from pathlib import Path
 
 import pytest
+import tomllib
 
 ROOT = Path(__file__).resolve().parents[3]
 SPEC = importlib.util.spec_from_file_location("install", ROOT / "tools/install.py")
@@ -17,8 +18,8 @@ install = importlib.util.module_from_spec(SPEC)
 sys.modules["install"] = install
 SPEC.loader.exec_module(install)
 
-# Commands the machine provides before any tool is installed.
-SYSTEM = {"cargo", "bash", "git", "uv", "sh", "jq"}
+# Commands the machine provides before any tool is installed; setup-python supplies `python` for the Ruff verification commands.
+SYSTEM = {"cargo", "bash", "git", "uv", "sh", "jq", "python"}
 
 
 def manifest(path: Path, tools: str) -> None:
@@ -110,10 +111,19 @@ def test_every_command_a_check_runs_bare_is_installed_by_the_script() -> None:
 
 
 def test_no_check_names_a_version_or_a_launcher() -> None:
+    # Ruff's correctness and measurement commands use jq's `==` operator; only a version-like pin is forbidden.
+    forbidden = {
+        "pinned package version": re.compile(r"==\s*\d+\.\d+"),
+        "uvx launcher": re.compile(r"\buvx\b"),
+        "cargo bin launcher": re.compile(r"\bcargo\s+bin\b"),
+        "cargo install --from": re.compile(r"--from\b"),
+    }
     for manifest_path in [ROOT / "asymptote.toml", *sorted(ROOT.glob("crates/*/asymptote.toml"))]:
         text = " ".join(" ".join(tool.get(key, [])) for tool in tomllib.loads(manifest_path.read_text())["tools"] for key in ("run", "fix"))
-        for pinned in ("==", "--from", "uvx", "cargo bin"):
-            assert pinned not in text, f"{manifest_path.relative_to(ROOT)} names {pinned!r} in a run or fix line"
+        for description, pattern in forbidden.items():
+            assert not pattern.search(text), f"{manifest_path.relative_to(ROOT)} names {description} in a run or fix line"
+    jq_comparison = 'jq \'select(.reason == "compiler-artifact")\''
+    assert not forbidden["pinned package version"].search(jq_comparison)
 
 
 def test_a_tool_s_unavailable_machines_are_read_from_its_manifest(tmp_path) -> None:
@@ -187,3 +197,87 @@ def test_all_declared_binaries_are_required_even_when_one_is_installed(tmp_path,
     assert install.command_time(crate) == 0.0
     second.write_bytes(b"second executable")
     assert install.command_time(crate) == min(first.stat().st_mtime, second.stat().st_mtime)
+
+
+def test_path_source_fingerprint_uses_content_not_checkout_timestamps(tmp_path, monkeypatch) -> None:
+    workspace = tmp_path / "workspace"
+    package = workspace / "tool"
+    package.mkdir(parents=True)
+    source = package / "src/main.rs"
+    source.parent.mkdir()
+    source.write_text("fn main() {}\n")
+    crate = install.Crate("own-tool", "1.0.0", path=package)
+    monkeypatch.setattr(install, "source_roots", lambda _crate: [package])
+    monkeypatch.setattr(install, "cargo_identity", lambda: "cargo 1.90.0 test identity\n")
+    monkeypatch.setattr(install, "rustc_identity", lambda: "rustc 1.90.0 test identity\n")
+
+    original = install.path_source_fingerprint(crate)
+    source.touch()
+    assert install.path_source_fingerprint(crate) == original
+    (package / "target").mkdir()
+    (package / "target/generated.rs").write_text("generated")
+    assert install.path_source_fingerprint(crate) == original
+    for path, content in (
+        (workspace / "Cargo.toml", "[workspace]\nresolver = \"3\"\n"),
+        (workspace / "Cargo.lock", "# dependency graph\n"),
+        (workspace / "rust-toolchain.toml", "[toolchain]\nchannel = \"stable\"\n"),
+        (workspace / ".cargo/config.toml", "[build]\ntarget-dir = \"target\"\n"),
+    ):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content)
+        assert install.path_source_fingerprint(crate) != original
+        path.unlink()
+    changed_features = install.Crate("own-tool", "1.0.0", path=package, features=("extra",))
+    assert install.path_source_fingerprint(changed_features) != original
+    monkeypatch.setattr(install, "rustc_identity", lambda: "rustc 1.91.0 test identity\n")
+    assert install.path_source_fingerprint(crate) != original
+    monkeypatch.setattr(install, "rustc_identity", lambda: "rustc 1.90.0 test identity\n")
+    monkeypatch.setattr(install, "cargo_identity", lambda: "cargo 1.91.0 test identity\n")
+    assert install.path_source_fingerprint(crate) != original
+    monkeypatch.setattr(install, "cargo_identity", lambda: "cargo 1.90.0 test identity\n")
+    source.write_text("fn main() { println!(\"changed\"); }\n")
+    assert install.path_source_fingerprint(crate) != original
+
+
+def test_path_install_stamp_rebuilds_on_source_change_or_missing_binary(tmp_path, monkeypatch) -> None:
+    package = tmp_path / "workspace" / "tool"
+    package.mkdir(parents=True)
+    source = package / "src/main.rs"
+    source.parent.mkdir()
+    source.write_text("fn main() {}\n")
+    binary = tmp_path / "cargo/bin/own-tool"
+    binary.parent.mkdir(parents=True)
+    binary.write_text("installed")
+    monkeypatch.setenv("CARGO_HOME", str(tmp_path / "cargo"))
+    monkeypatch.setattr(install, "command_paths", lambda _crate: (binary,))
+    monkeypatch.setattr(install, "source_roots", lambda _crate: [package])
+    monkeypatch.setattr(install, "cargo_identity", lambda: "cargo test identity\n")
+    monkeypatch.setattr(install, "rustc_identity", lambda: "rustc test identity\n")
+    crate = install.Crate("own-tool", "1.0.0", path=package)
+    installed = {"own-tool": ("1.0.0", str(package))}
+
+    install.record_path_install(crate, install.path_source_fingerprint(crate))
+    assert install.stale_crate(crate, installed) is None
+    source.write_text("fn main() { println!(\"changed\"); }\n")
+    assert "source fingerprint differs" in install.stale_crate(crate, installed)
+    install.record_path_install(crate, install.path_source_fingerprint(crate))
+    binary.unlink()
+    assert "command is missing" in install.stale_crate(crate, installed)
+
+
+def test_failed_path_install_does_not_write_success_stamp(tmp_path, monkeypatch) -> None:
+    package = tmp_path / "workspace" / "tool"
+    package.mkdir(parents=True)
+    monkeypatch.setenv("CARGO_HOME", str(tmp_path / "cargo"))
+    monkeypatch.setattr(install, "source_roots", lambda _crate: [package])
+    monkeypatch.setattr(install, "cargo_identity", lambda: "cargo test identity\n")
+    monkeypatch.setattr(install, "rustc_identity", lambda: "rustc test identity\n")
+
+    def fail(argv, **_kwargs):
+        raise subprocess.CalledProcessError(1, argv)
+
+    monkeypatch.setattr(install, "run", fail)
+    crate = install.Crate("own-tool", "1.0.0", path=package)
+    with pytest.raises(subprocess.CalledProcessError):
+        install.install_crate(crate, "x86_64-unknown-linux-gnu")
+    assert not install.path_stamp(crate).exists()

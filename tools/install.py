@@ -28,9 +28,7 @@ Where a version is declared:
 A Rust tool is fetched prebuilt with `cargo binstall`, which may not compile it: no tool is compiled. A tool with no prebuilt release for a
 machine is named in its `unavailable` (the machine's target) with the reason, and is not installed there: the groups that run it do not run
 on that machine. Any other missing prebuilt fails the install. A tool whose release ships plain archives cargo-binstall does not find is in
-`ARCHIVES`, each archive's SHA-256 recorded. Our own tools are built from this checkout until they are published. A tool installed from a path is installed again when its
-version differs or a source file is newer than the installed command; any other tool whose installed version is the declared one is
-left as it is.
+`ARCHIVES`, each archive's SHA-256 recorded. Our own tools are built from this checkout until they are published. A path-installed tool is rebuilt when its version, path, source/configuration fingerprint or declared binaries differ; any other tool whose installed version is the declared one is left as it is.
 """
 
 from __future__ import annotations
@@ -45,11 +43,12 @@ import shutil
 import subprocess
 import sys
 import tarfile
-import tomllib
 import urllib.request
 import zipfile
 from dataclasses import dataclass, field
 from pathlib import Path
+
+import tomllib
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -140,7 +139,7 @@ TOOLS = {
 NODE_TOOLS = {"pnpm": "11.25.0", "bun": "1.4.4"}
 
 # Directories a path-installed tool's sources are not read from.
-IGNORED = {"target", ".git", "node_modules"}
+IGNORED = {"target", ".git", "node_modules", ".asymptote", ".pytest_cache", ".ruff_cache", "__pycache__", ".venv"}
 
 
 def declared_crates(root: Path = ROOT, shared: list[Crate] = ROOT_CRATES) -> list[Crate]:
@@ -244,14 +243,115 @@ def source_roots(crate: Crate) -> list[Path]:
     return sorted({Path(package["manifest_path"]).parent for package in packages if package["source"] is None})
 
 
-def newest(paths: list[Path]) -> float:
-    """The latest modification time of a source file under any of `paths`."""
-    latest = 0.0
-    for path in paths:
-        for directory, names, files in os.walk(path):
-            names[:] = [name for name in names if name not in IGNORED]
-            latest = max([latest, *(os.stat(Path(directory) / file).st_mtime for file in files)])
-    return latest
+def rustc_identity() -> str:
+    """The compiler identity used for local path installs."""
+    found = subprocess.run(
+        [os.environ.get("RUSTC", "rustc"), "-vV"],
+        check=True,
+        text=True,
+        encoding="utf-8",
+        capture_output=True,
+    )
+    return found.stdout
+
+
+def cargo_identity() -> str:
+    """The Cargo identity used for local path installs."""
+    found = subprocess.run(
+        ["cargo", "-Vv"], check=True, text=True, encoding="utf-8", capture_output=True
+    )
+    return found.stdout
+
+
+def path_source_fingerprint(crate: Crate) -> str:
+    """Hash local package sources, workspace lock/configuration and selected build features."""
+    digest = hashlib.sha256()
+
+    def add(label: str, content: bytes) -> None:
+        """Hash length-delimited values so file contents cannot blur adjacent identities."""
+        for value in (label.encode(), content):
+            digest.update(len(value).to_bytes(8, "big"))
+            digest.update(value)
+
+    options = {
+        "name": crate.name,
+        "version": crate.version,
+        "bins": crate.bins,
+        "default_features": crate.default_features,
+        "features": crate.features,
+    }
+    add("crate-options", json.dumps(options, sort_keys=True, separators=(",", ":")).encode())
+    add("cargo", cargo_identity().encode())
+    add("rustc", rustc_identity().encode())
+    build_environment = {
+        key: value
+        for key, value in os.environ.items()
+        if key in {"RUSTC", "RUSTDOC", "RUSTFLAGS", "CARGO_ENCODED_RUSTFLAGS", "CC", "CXX", "CFLAGS", "CXXFLAGS"}
+        or key.startswith(("CARGO_PROFILE_", "CARGO_BUILD_", "CARGO_TARGET_"))
+    }
+    add("build-environment", json.dumps(build_environment, sort_keys=True, separators=(",", ":")).encode())
+    roots = source_roots(crate)
+    for package_root in roots:
+        try:
+            package_id = package_root.relative_to(ROOT).as_posix()
+        except ValueError:
+            package_id = package_root.name
+        for directory, names, files in os.walk(package_root):
+            names[:] = sorted(name for name in names if name not in IGNORED)
+            for name in sorted(files):
+                path = Path(directory) / name
+                relative = path.relative_to(package_root).as_posix()
+                add(f"{package_id}/{relative}", path.read_bytes())
+    # Cargo's resolution and build configuration can live above every package directory.
+    ancestors = {
+        ancestor
+        for package_root in [*roots, *([crate.path] if crate.path is not None else [])]
+        for ancestor in (package_root, *package_root.parents)
+    }
+    for directory in sorted(ancestors, key=lambda path: len(path.parts)):
+        for name in ("Cargo.lock", "Cargo.toml", "rust-toolchain", "rust-toolchain.toml", "config", "config.toml"):
+            path = directory / name
+            if path.is_file():
+                label = path.relative_to(ROOT).as_posix() if path.is_relative_to(ROOT) else f"{directory.name}/{name}"
+                add(label, path.read_bytes())
+        for config_name in ("config", "config.toml"):
+            cargo_config = directory / ".cargo" / config_name
+            if cargo_config.is_file():
+                label = cargo_config.relative_to(ROOT).as_posix() if cargo_config.is_relative_to(ROOT) else f".cargo/{config_name}"
+                add(label, cargo_config.read_bytes())
+    cargo_home = Path(os.environ.get("CARGO_HOME", Path.home() / ".cargo"))
+    for config_name in ("config", "config.toml"):
+        cargo_config = cargo_home / config_name
+        if cargo_config.is_file():
+            add(f"CARGO_HOME/{config_name}", cargo_config.read_bytes())
+    return digest.hexdigest()
+
+
+def path_stamp(crate: Crate) -> Path:
+    """The success marker for one path-installed tool, kept beside Cargo's binaries."""
+    bin_dir = Path(os.environ.get("CARGO_HOME", Path.home() / ".cargo")) / "bin"
+    return bin_dir / f".idiomatic-{crate.name.replace('/', '_')}.source.json"
+
+
+def stamped_fingerprint(crate: Crate) -> str | None:
+    """The source fingerprint recorded only after a successful path install."""
+    try:
+        record = json.loads(path_stamp(crate).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    if not isinstance(record, dict):
+        return None
+    fingerprint = record.get("fingerprint")
+    return fingerprint if isinstance(fingerprint, str) else None
+
+
+def record_path_install(crate: Crate, fingerprint: str) -> None:
+    """Atomically record the exact source fingerprint after Cargo successfully installs the tool."""
+    destination = path_stamp(crate)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    temporary = destination.with_name(f"{destination.name}.{os.getpid()}.tmp")
+    temporary.write_text(json.dumps({"fingerprint": fingerprint}, sort_keys=True) + "\n", encoding="utf-8")
+    os.replace(temporary, destination)
 
 
 def command_paths(crate: Crate, windows: bool | None = None) -> tuple[Path, ...]:
@@ -292,8 +392,13 @@ def stale_crate(crate: Crate, installed: dict[str, tuple[str, str]]) -> str | No
         return "not installed"
     if not meets(have[0], crate.version):
         return f"installed {have[0]}, declared {crate.version}"
-    if crate.path is not None and (str(crate.path) not in have[1] or newest(source_roots(crate)) > command_time(crate)):
-        return f"built from {have[1] or 'a registry'}, declared from {crate.path} (sources newer)"
+    if crate.path is not None:
+        if str(crate.path) not in have[1]:
+            return f"built from {have[1] or 'a registry'}, declared from {crate.path} (source differs)"
+        if stamped_fingerprint(crate) != path_source_fingerprint(crate):
+            return f"built from {have[1]}, declared from {crate.path} (source fingerprint differs)"
+        if command_time(crate) == 0.0:
+            return f"built from {have[1]}, declared from {crate.path} (a command is missing)"
     return None
 
 
@@ -301,7 +406,9 @@ def install_crate(crate: Crate, host: str) -> str:
     """Installs `crate` on `host` and says how: built from this checkout, prebuilt, or not at all where it names `host` unavailable."""
     options = ([] if crate.default_features else ["--no-default-features"]) + (["--features", ",".join(crate.features)] if crate.features else [])
     if crate.path is not None:
+        fingerprint = path_source_fingerprint(crate)
         run(["cargo", "install", "--locked", "--force", *options, "--path", str(crate.path)])
+        record_path_install(crate, fingerprint)
         return "built from this checkout"
     if host in crate.unavailable:
         return f"not installed: {crate.unavailable[host]}"
@@ -334,7 +441,7 @@ ARCHIVES = {
 def fetched(url: str, sha256: str) -> bytes:
     """The file at `url`, once its SHA-256 is `sha256`; the install stops on any other."""
     print("+ fetch", url, flush=True)
-    with urllib.request.urlopen(url) as response:  # noqa: S310 - a fixed https URL
+    with urllib.request.urlopen(url) as response:
         data = response.read()
     digest = hashlib.sha256(data).hexdigest()
     if digest != sha256:
@@ -392,10 +499,12 @@ def install_binstall(host: str, bin_dir: Path) -> None:
     if asset.endswith(".zip"):
         data = zipfile.ZipFile(io.BytesIO(archive)).read(name)
     else:
-        member = tarfile.open(fileobj=io.BytesIO(archive), mode="r:gz").extractfile(name)
-        if member is None:
-            sys.exit(f"{url} holds no {name}")
-        data = member.read()
+        with tarfile.open(fileobj=io.BytesIO(archive), mode="r:gz") as archive_file:
+            member = archive_file.extractfile(name)
+            if member is None:
+                sys.exit(f"{url} holds no {name}")
+            with member:
+                data = member.read()
     bin_dir.mkdir(parents=True, exist_ok=True)
     (bin_dir / name).write_bytes(data)
     (bin_dir / name).chmod(0o755)
@@ -420,7 +529,7 @@ def main(argv: list[str]) -> int:
     for name, done in how.items():
         print(f"{name}: {done}", flush=True)
     have = installed_python()
-    for command, tool in TOOLS.items():
+    for tool in TOOLS.values():
         why = None if have.get(tool["package"]) == tool["version"] else f"installed {have.get(tool['package'], 'nothing')}, declared {tool['version']}"
         if why:
             extra = [part for each in tool.get("with", []) for part in ("--with", each)]
