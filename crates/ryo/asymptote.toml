@@ -32,7 +32,7 @@ id = "cargo-clippy"
 group = "clippy"
 # Every clippy and compiler warning is a SARIF result the lock ratchets (clippy-sarif,
 # pinned in Cargo.toml); a compile error or a denied lint fails the run, never clean.
-run = ["bash", "-c", "set -o pipefail; clippy-sarif --version </dev/null >&2 && CARGO_BUILD_JOBS=6 cargo clippy --workspace --all-targets --all-features --locked --message-format=json | clippy-sarif"]
+run = ["bash", "-c", "set -o pipefail; clippy-sarif --version </dev/null >&2 && CARGO_BUILD_JOBS=6 cargo clippy --workspace --all-targets --all-features --locked --message-format=json | python ../../ci/scripts/checks/cargo_diagnostics.py | clippy-sarif"]
 output = "sarif"
 timeout-seconds = 3600
 inputs = [".", "../../clippy.toml", "../../rust-toolchain.toml", "../../.cargo"]
