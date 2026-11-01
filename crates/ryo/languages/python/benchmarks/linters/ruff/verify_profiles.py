@@ -238,8 +238,174 @@ def command_for(ruff: Path, profile_root: Path, reference_only: bool = False) ->
     ]
 
 
+def stage_directory(
+    name: str, stack: contextlib.ExitStack, output_directory: Path | None
+) -> Path:
+    """Use a durable repro directory when requested, otherwise a temporary one."""
+    if output_directory is not None:
+        destination = output_directory / "profiles" / name / "repro"
+        destination.mkdir(parents=True, exist_ok=False)
+        return destination
+    return Path(stack.enter_context(tempfile.TemporaryDirectory(prefix=f"ryo-ruff-{name}-")))
+
+
+def staged_hashes(root: Path) -> dict[str, str]:
+    return {
+        path.relative_to(root).as_posix(): sha256(path)
+        for path in sorted(root.rglob("*"))
+        if path.is_file()
+    }
+
+
+def persist_run_record(
+    output_directory: Path | None,
+    name: str,
+    command: list[str],
+    profile_root: Path,
+    result: subprocess.CompletedProcess[bytes] | None,
+    *,
+    error: str | None = None,
+    identities: dict[str, object] | None = None,
+) -> int:
+    """Persist raw command output and exact identities before temporary inputs can be removed."""
+    status = result.returncode if result is not None else 1
+    if output_directory is None:
+        if result is not None:
+            sys.stderr.buffer.write(result.stderr)
+            sys.stdout.buffer.write(result.stdout)
+        if error is not None:
+            print(f"{name}: could not start verifier: {error}", file=sys.stderr)
+        return status
+
+    record_directory = output_directory / "profiles" / name
+    record_directory.mkdir(parents=True, exist_ok=True)
+    (record_directory / "stdout.bin").write_bytes(result.stdout if result is not None else b"")
+    (record_directory / "stderr.bin").write_bytes(result.stderr if result is not None else b"")
+    record = {
+        "profile": name,
+        "command": command,
+        "cwd": str(REPOSITORY / "crates" / "ryo"),
+        "status": status,
+        "error": error,
+        "identities": identities or {},
+        "staged_inputs": staged_hashes(profile_root) if profile_root.is_dir() else {},
+        "stdout_file": f"profiles/{name}/stdout.bin",
+        "stderr_file": f"profiles/{name}/stderr.bin",
+        "reproduction_directory": f"profiles/{name}/repro",
+    }
+    (record_directory / "result.json").write_text(
+        json.dumps(record, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+    )
+    return status
+
+
+def verify_profile(
+    name: str,
+    profile_root: Path,
+    command: list[str],
+    output_directory: Path | None,
+    identities: dict[str, object],
+    *,
+    runner=subprocess.run,
+) -> int:
+    try:
+        result = runner(
+            command,
+            cwd=REPOSITORY / "crates" / "ryo",
+            capture_output=True,
+            text=False,
+            check=False,
+        )
+    except Exception as error:
+        return persist_run_record(
+            output_directory,
+            name,
+            command,
+            profile_root,
+            None,
+            error=f"{type(error).__name__}: {error}",
+            identities=identities,
+        )
+    return persist_run_record(
+        output_directory,
+        name,
+        command,
+        profile_root,
+        result,
+        identities=identities,
+    )
+
+
+def run_identity(
+    manifest: dict[str, object], ruff: Path, profile_root: Path
+) -> dict[str, object]:
+    """Describe the sealed inputs, candidate worker source, and pinned reference binary."""
+    try:
+        revision = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=REPOSITORY, capture_output=True, check=True
+        ).stdout.decode().strip()
+    except (OSError, subprocess.CalledProcessError):
+        revision = None
+    try:
+        worker_diff = subprocess.run(
+            ["git", "diff", "--binary", "HEAD", "--", "crates/ryo"],
+            cwd=REPOSITORY,
+            capture_output=True,
+            check=True,
+        ).stdout
+        worker_status = subprocess.run(
+            ["git", "status", "--porcelain", "--untracked-files=all", "--", "crates/ryo"],
+            cwd=REPOSITORY,
+            capture_output=True,
+            check=True,
+        ).stdout.decode().splitlines()
+    except (OSError, subprocess.CalledProcessError):
+        worker_diff = b""
+        worker_status = None
+    lock = REPOSITORY / "crates" / "ryo" / "Cargo.lock"
+    resolved_ruff = ruff.resolve()
+    cargo = shutil.which("cargo")
+    try:
+        cargo_version = subprocess.run(
+            [cargo, "--version"], capture_output=True, check=True
+        ).stdout.decode().strip() if cargo else None
+        rustc_version = subprocess.run(
+            ["rustc", "--version", "--verbose"], capture_output=True, check=True
+        ).stdout.decode().strip()
+    except (OSError, subprocess.CalledProcessError):
+        cargo_version = None
+        rustc_version = None
+    return {
+        "manifest_path": MANIFEST.relative_to(REPOSITORY).as_posix(),
+        "manifest_sha256": sha256(MANIFEST),
+        "manifest_status": manifest.get("status"),
+        "manifest_source_commits": manifest.get("source_commits"),
+        "sealed_source_hashes": manifest["files"],
+        "worker": {
+            "repository_revision": revision,
+            "working_tree_status": worker_status,
+            "working_tree_diff_sha256": hashlib.sha256(worker_diff).hexdigest(),
+            "cargo_lock_sha256": sha256(lock) if lock.is_file() else None,
+            "cargo_bench_package": "idiomatic-sh-ryo-python",
+            "cargo_path": cargo,
+            "cargo_version": cargo_version,
+            "rustc_version": rustc_version,
+            "staged_profile_sha256": staged_hashes(profile_root),
+        },
+        "ruff": {
+            "path": str(resolved_ruff),
+            "sha256": sha256(resolved_ruff),
+            "version": manifest.get("reference_version"),
+            "sealed_sha256": manifest.get("reference_sha256"),
+        },
+    }
+
+
 def stage_binding(
-    manifest: dict[str, object], selected: list[str], stack: contextlib.ExitStack
+    manifest: dict[str, object],
+    selected: list[str],
+    stack: contextlib.ExitStack,
+    output_directory: Path | None = None,
 ) -> list[tuple[str, Path]]:
     staged = []
     profiles = manifest["profiles"]
@@ -270,7 +436,7 @@ def stage_binding(
             audit = REPOSITORY / recorded["reference_audit_file"]
             if not audit.is_file() or sha256(audit) != recorded["reference_audit_sha256"]:
                 raise ValueError(f"reference case audit mismatch for {rule}")
-        destination = Path(stack.enter_context(tempfile.TemporaryDirectory(prefix=f"ryo-ruff-{rule}-")))
+        destination = stage_directory(rule, stack, output_directory)
         rule_dir = destination / "rules" / rule
         rule_dir.mkdir(parents=True)
         registry = profile_modules(profile_data)
@@ -287,6 +453,7 @@ def stage_combined(
     descriptor: dict[str, object],
     manifest: dict[str, object],
     stack: contextlib.ExitStack,
+    output_directory: Path | None = None,
 ) -> tuple[str, Path]:
     profile_path = REPOSITORY / descriptor["profile_file"]
     profile_data = tomllib.loads(profile_path.read_text(encoding="utf-8"))
@@ -425,7 +592,7 @@ def stage_combined(
     if inventory_hash != descriptor["inventory_sha256"]:
         raise ValueError(f"{profile_name} inventory hash mismatch")
 
-    destination = Path(stack.enter_context(tempfile.TemporaryDirectory(prefix=f"ryo-ruff-{profile_name}-")))
+    destination = stage_directory(profile_name, stack, output_directory)
     registry = combined_modules(profile_data, selected_rules, manifest)
     copy_modules(registry, destination)
     write_staged_profile(profile_path, destination / "benchmark.toml", registry)
@@ -468,6 +635,63 @@ def self_test() -> int:
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
     with tempfile.TemporaryDirectory(prefix="ryo-ruff-profile-guards-") as temporary:
         root = Path(temporary)
+        durable = root / "durable-run"
+        durable.mkdir()
+        repro = durable / "profiles" / "mock" / "repro"
+        repro.mkdir(parents=True)
+        (repro / "benchmark.toml").write_text('defaults = ["F401"]\n', encoding="utf-8")
+        fake_output = subprocess.CompletedProcess(
+            ["fake-worker"], 7, stdout=b"candidate stdout\n", stderr=b"candidate stderr\n"
+        )
+        calls = []
+
+        def fake_runner(command, **options):
+            calls.append((command, options))
+            return fake_output
+
+        command = ["fake-worker", "--case", "exact"]
+        if verify_profile(
+            "mock", repro, command, durable, {"identity": "sealed"}, runner=fake_runner
+        ) != 7:
+            print("mock verifier status was not preserved", file=sys.stderr)
+            return 1
+        result_path = durable / "profiles" / "mock" / "result.json"
+        result = json.loads(result_path.read_text(encoding="utf-8"))
+        if (
+            len(calls) != 1
+            or calls[0][0] != command
+            or not calls[0][1]["capture_output"]
+            or calls[0][1]["text"]
+            or (durable / "profiles" / "mock" / "stdout.bin").read_bytes() != fake_output.stdout
+            or (durable / "profiles" / "mock" / "stderr.bin").read_bytes() != fake_output.stderr
+            or result["status"] != 7
+            or result["identities"] != {"identity": "sealed"}
+            or result["staged_inputs"] != {"benchmark.toml": sha256(repro / "benchmark.toml")}
+        ):
+            print("durable verifier output or identities were not preserved", file=sys.stderr)
+            return 1
+
+        def failing_runner(_command, **_options):
+            raise OSError("mock worker could not start")
+
+        error_repro = durable / "profiles" / "mock-error" / "repro"
+        error_repro.mkdir(parents=True)
+        (error_repro / "cases.toml").write_text("[[cases]]\n", encoding="utf-8")
+        if verify_profile(
+            "mock-error", error_repro, command, durable, {}, runner=failing_runner
+        ) != 1:
+            print("mock verifier startup failure did not return failure", file=sys.stderr)
+            return 1
+        error_record = json.loads(
+            (durable / "profiles" / "mock-error" / "result.json").read_text(encoding="utf-8")
+        )
+        if (
+            error_record["status"] != 1
+            or "mock worker could not start" not in error_record["error"]
+            or not (durable / error_record["reproduction_directory"] / "cases.toml").is_file()
+        ):
+            print("verifier startup exception was not preserved", file=sys.stderr)
+            return 1
         profile_source = root / "profile-source.toml"
         profile_source.write_text(
             'tool = "ruff"\nversion = "0"\nsha256 = ["pin"]\ndefaults = ["F401"]\n'
@@ -593,12 +817,17 @@ def self_test() -> int:
             env={**os.environ, "PATH": f"{fake_bin}:{os.environ['PATH']}"},
         )
         invocations = marker.read_text().splitlines() if marker.exists() else []
+        worker_invocations = [line for line in invocations if "verify-reference-cases" in line]
         if (
             reference_only.returncode != 0
-            or len(invocations) != 1
-            or "verify-reference-cases" not in invocations[0]
+            or len(worker_invocations) != 1
         ):
-            print("reference-only mode did not dispatch the reference verifier", file=sys.stderr)
+            print(
+                "reference-only mode did not dispatch the reference verifier: "
+                f"status={reference_only.returncode}; stderr={reference_only.stderr!r}; "
+                f"invocations={invocations!r}",
+                file=sys.stderr,
+            )
             return 1
         marker.unlink()
         invalid_rule_manifest = json.loads(json.dumps(pristine_manifest))
@@ -820,6 +1049,11 @@ def main() -> int:
     parser.add_argument("ruff", type=Path, nargs="?", help="pinned Ruff executable")
     parser.add_argument("rules", nargs="*", help="optional rule IDs; default: every prepared profile")
     parser.add_argument("--profile", help="run one named combined prepared profile")
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        help="persist staged repro inputs, identities, exit status, stdout and stderr",
+    )
     parser.add_argument("--reference-only", action="store_true", help="check sealed expected findings with Ruff only")
     parser.add_argument("--self-test", action="store_true", help="exercise fail-closed profile guards without running Cargo")
     arguments = parser.parse_args()
@@ -828,8 +1062,14 @@ def main() -> int:
     if arguments.ruff is None:
         parser.error("the pinned Ruff executable is required unless --self-test is selected")
 
+    output_directory = arguments.output_dir.resolve() if arguments.output_dir else None
+    if output_directory is not None:
+        output_directory.mkdir(parents=True, exist_ok=False)
+        shutil.copyfile(MANIFEST, output_directory / "prepared.json")
+
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
     helper_path = Path(__file__).relative_to(REPOSITORY).as_posix()
+    statuses = []
     try:
         verify_files(manifest, helper_path)
         if arguments.profile is not None:
@@ -849,33 +1089,61 @@ def main() -> int:
             staged = []
             if arguments.profile is not None:
                 descriptor = manifest["combined_profiles"][arguments.profile]
-                staged.append(stage_combined(arguments.profile, descriptor, manifest, stack))
+                staged.append(
+                    stage_combined(arguments.profile, descriptor, manifest, stack, output_directory)
+                )
             else:
-                staged.extend(stage_binding(manifest, selections, stack))
+                staged.extend(stage_binding(manifest, selections, stack, output_directory))
                 if not arguments.rules:
                     for name, descriptor in sorted(manifest.get("combined_profiles", {}).items()):
-                        staged.append(stage_combined(name, descriptor, manifest, stack))
-            statuses = []
+                        staged.append(
+                            stage_combined(name, descriptor, manifest, stack, output_directory)
+                        )
             for name, profile_root in staged:
-                try:
-                    result = subprocess.run(
-                        command_for(ruff, profile_root, arguments.reference_only),
-                        cwd=REPOSITORY / "crates" / "ryo",
-                        check=False,
-                    )
-                    status = result.returncode
-                except OSError as error:
-                    print(f"{name}: could not start verifier: {error}", file=sys.stderr)
-                    status = 1
+                command = command_for(ruff, profile_root, arguments.reference_only)
+                identities = run_identity(manifest, ruff, profile_root)
+                status = verify_profile(name, profile_root, command, output_directory, identities)
                 print(f"{name}: verifier exit status {status}", file=sys.stderr)
                 statuses.append((name, status))
     except (KeyError, TypeError, ValueError, OSError) as error:
+        if output_directory is not None:
+            (output_directory / "preflight-error.json").write_text(
+                json.dumps(
+                    {
+                        "error": f"{type(error).__name__}: {error}",
+                        "manifest_path": MANIFEST.relative_to(REPOSITORY).as_posix(),
+                        "manifest_sha256": sha256(MANIFEST),
+                        "arguments": sys.argv[1:],
+                    },
+                    indent=2,
+                    ensure_ascii=False,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
         parser.error(str(error))
     failed = [rule for rule, status in statuses if status != 0]
     if failed:
         print(f"candidate profiles failed: {', '.join(failed)}", file=sys.stderr)
-        return 1
-    return 0
+    if output_directory is not None:
+        (output_directory / "run.json").write_text(
+            json.dumps(
+                {
+                    "manifest_path": MANIFEST.relative_to(REPOSITORY).as_posix(),
+                    "manifest_sha256": sha256(MANIFEST),
+                    "ruff_argument": str(arguments.ruff),
+                    "reference_version": manifest.get("reference_version"),
+                    "reference_sha256": manifest.get("reference_sha256"),
+                    "statuses": dict(statuses),
+                    "aggregate_status": 1 if failed else 0,
+                },
+                indent=2,
+                ensure_ascii=False,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":
