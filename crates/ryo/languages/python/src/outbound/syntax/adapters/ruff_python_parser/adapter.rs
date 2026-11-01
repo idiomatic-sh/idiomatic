@@ -10,10 +10,10 @@ use ruff_python_ast::visitor::{Visitor, walk_stmt};
 use ruff_python_ast::{Arguments, Expr, Mod, Parameters, Stmt, TypeParams};
 use ruff_python_ast::{PySourceType, PythonVersion};
 use ruff_python_parser::{ParseOptions, parse_unchecked};
-use ruff_text_size::Ranged as _;
+use ruff_text_size::{Ranged as _, TextSize};
 use ryo::languages::{self, Offset};
 use std::borrow::Cow;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 /// The `ruff_python_parser` syntax adapter.
 #[derive(Debug)]
@@ -60,11 +60,68 @@ fn semantic_syntax_errors(module: &Mod) -> Vec<SemanticSyntaxDiagnostic> {
 
     #[derive(Default)]
     struct VisitorState {
-        lexical_scope_depth: usize,
+        scopes: Vec<ScopeState>,
         errors: Vec<SemanticSyntaxDiagnostic>,
     }
 
+    #[derive(Clone, Copy, PartialEq, Eq)]
+    enum ScopeKind {
+        Module,
+        Function,
+        Class,
+    }
+
+    struct ScopeState {
+        kind: ScopeKind,
+        parameters: HashSet<String>,
+        globals: HashMap<String, TextSize>,
+    }
+
+    #[derive(Default)]
+    struct GlobalDeclarationIndexer {
+        globals: HashMap<String, TextSize>,
+    }
+
+    impl<'a> Visitor<'a> for GlobalDeclarationIndexer {
+        fn visit_stmt(&mut self, stmt: &'a Stmt) {
+            match stmt {
+                Stmt::Global(global) => {
+                    for name in &global.names {
+                        self.globals
+                            .insert(name.as_str().to_owned(), name.range().start());
+                    }
+                }
+                Stmt::FunctionDef(_) | Stmt::ClassDef(_) => {}
+                _ => walk_stmt(self, stmt),
+            }
+        }
+    }
+
+    impl ScopeState {
+        fn indexed(kind: ScopeKind, parameters: Option<&Parameters>, body: &[Stmt]) -> Self {
+            let parameters = parameters.map_or_else(HashSet::new, |parameters| {
+                parameters
+                    .iter()
+                    .map(|parameter| parameter.name().as_str().to_owned())
+                    .collect()
+            });
+            let mut indexer = GlobalDeclarationIndexer::default();
+            for statement in body {
+                indexer.visit_stmt(statement);
+            }
+            Self {
+                kind,
+                parameters,
+                globals: indexer.globals,
+            }
+        }
+    }
+
     impl VisitorState {
+        fn scope(&self) -> &ScopeState {
+            self.scopes.last().expect("every statement is in a scope")
+        }
+
         fn report(&mut self, message: impl Into<String>, range: ruff_text_size::TextRange) {
             self.errors.push(SemanticSyntaxDiagnostic {
                 message: message.into(),
@@ -137,18 +194,69 @@ fn semantic_syntax_errors(module: &Mod) -> Vec<SemanticSyntaxDiagnostic> {
     impl<'a> Visitor<'a> for VisitorState {
         fn visit_stmt(&mut self, stmt: &'a Stmt) {
             match stmt {
-                Stmt::Nonlocal(nonlocal) if self.lexical_scope_depth == 0 => self.report(
-                    "nonlocal declaration not allowed at module level",
-                    nonlocal.range,
-                ),
+                Stmt::Nonlocal(nonlocal) => {
+                    if self.scope().kind == ScopeKind::Module {
+                        self.report(
+                            "nonlocal declaration not allowed at module level",
+                            nonlocal.range,
+                        );
+                    } else {
+                        for name in &nonlocal.names {
+                            if self.scope().parameters.contains(name.as_str()) {
+                                self.report(
+                                    format!(
+                                        "name `{}` cannot refer to a parameter and a nonlocal variable",
+                                        name.as_str()
+                                    ),
+                                    name.range(),
+                                );
+                            }
+                        }
+                    }
+                }
+                Stmt::Global(global) => {
+                    for name in &global.names {
+                        if self.scope().parameters.contains(name.as_str()) {
+                            self.report(
+                                format!(
+                                    "name `{}` cannot refer to a parameter and a global variable",
+                                    name.as_str()
+                                ),
+                                name.range(),
+                            );
+                        }
+                    }
+                }
+                Stmt::AnnAssign(assignment) => {
+                    if let Expr::Name(name) = assignment.target.as_ref() {
+                        let global = self.scope().globals.get(name.id.as_str()).copied();
+                        if let Some(global) = global {
+                            let is_module = self.scope().kind == ScopeKind::Module;
+                            if !is_module || name.range().start() < global {
+                                self.report(
+                                    format!(
+                                        "annotated name `{}` can't be global",
+                                        name.id.as_str()
+                                    ),
+                                    name.range(),
+                                );
+                            }
+                        }
+                    }
+                    walk_stmt(self, stmt);
+                }
                 Stmt::FunctionDef(function) => {
                     if let Some(parameters) = &function.type_params {
                         self.type_parameters(parameters);
                     }
                     self.duplicate_parameters(&function.parameters);
-                    self.lexical_scope_depth += 1;
+                    self.scopes.push(ScopeState::indexed(
+                        ScopeKind::Function,
+                        Some(&function.parameters),
+                        &function.body,
+                    ));
                     walk_stmt(self, stmt);
-                    self.lexical_scope_depth -= 1;
+                    self.scopes.pop();
                 }
                 Stmt::ClassDef(class) => {
                     if let Some(parameters) = &class.type_params {
@@ -157,9 +265,10 @@ fn semantic_syntax_errors(module: &Mod) -> Vec<SemanticSyntaxDiagnostic> {
                     if let Some(arguments) = &class.arguments {
                         self.duplicate_keywords(arguments);
                     }
-                    self.lexical_scope_depth += 1;
+                    self.scopes
+                        .push(ScopeState::indexed(ScopeKind::Class, None, &class.body));
                     walk_stmt(self, stmt);
-                    self.lexical_scope_depth -= 1;
+                    self.scopes.pop();
                 }
                 Stmt::TypeAlias(alias) => {
                     if let Some(parameters) = &alias.type_params {
@@ -185,7 +294,10 @@ fn semantic_syntax_errors(module: &Mod) -> Vec<SemanticSyntaxDiagnostic> {
         }
     }
 
-    let mut visitor = VisitorState::default();
+    let mut visitor = VisitorState {
+        scopes: vec![ScopeState::indexed(ScopeKind::Module, None, &module.body)],
+        errors: Vec::new(),
+    };
     for statement in &module.body {
         visitor.visit_stmt(statement);
     }

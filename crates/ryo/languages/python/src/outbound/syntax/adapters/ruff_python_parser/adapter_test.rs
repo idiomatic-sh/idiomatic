@@ -224,6 +224,181 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         ])),
     },
     Case {
+        name: CaseName("global_parameter_errors_follow_the_declaration_name"),
+        word: Word::Succeeds,
+        input: || Given::Diagnostics("def f(x):\n    global x\n"),
+        expect: Expect::Value(Seen::Diagnostics(&[(
+            "name `x` cannot refer to a parameter and a global variable",
+            19,
+            20,
+        )])),
+    },
+    Case {
+        name: CaseName("nonlocal_parameter_errors_even_with_an_outer_binding"),
+        word: Word::Succeeds,
+        input: || {
+            Given::Diagnostics("def outer():\n    x = 1\n    def inner(x):\n        nonlocal x\n")
+        },
+        expect: Expect::Value(Seen::Diagnostics(&[(
+            "name `x` cannot refer to a parameter and a nonlocal variable",
+            58,
+            59,
+        )])),
+    },
+    Case {
+        name: CaseName("each_repeated_global_parameter_declaration_is_reported"),
+        word: Word::Succeeds,
+        input: || Given::Diagnostics("def f(x):\n    global x\n    global x\n"),
+        expect: Expect::Value(Seen::Diagnostics(&[
+            (
+                "name `x` cannot refer to a parameter and a global variable",
+                21,
+                22,
+            ),
+            (
+                "name `x` cannot refer to a parameter and a global variable",
+                34,
+                35,
+            ),
+        ])),
+    },
+    Case {
+        name: CaseName("global_and_annotation_diagnostics_follow_source_order"),
+        word: Word::Succeeds,
+        input: || Given::Diagnostics("def f(x):\n    x: int\n    global x\n    x: str\n"),
+        expect: Expect::Value(Seen::Diagnostics(&[
+            ("annotated name `x` can't be global", 14, 15),
+            (
+                "name `x` cannot refer to a parameter and a global variable",
+                32,
+                33,
+            ),
+            ("annotated name `x` can't be global", 38, 39),
+        ])),
+    },
+    Case {
+        name: CaseName("a_module_annotation_before_repeated_globals_is_reported_once"),
+        word: Word::Succeeds,
+        input: || Given::Diagnostics("x: int\nglobal x\nglobal x\n"),
+        expect: Expect::Value(Seen::Diagnostics(&[(
+            "annotated name `x` can't be global",
+            0,
+            1,
+        )])),
+    },
+    Case {
+        name: CaseName("a_module_annotation_after_global_is_allowed"),
+        word: Word::Succeeds,
+        input: || Given::Diagnostics("global x\nx: int\n"),
+        expect: Expect::Value(Seen::Diagnostics(&[])),
+    },
+    Case {
+        name: CaseName("a_later_module_global_makes_an_intervening_annotation_invalid"),
+        word: Word::Succeeds,
+        input: || Given::Diagnostics("global x\nx: int\nglobal x\n"),
+        expect: Expect::Value(Seen::Diagnostics(&[(
+            "annotated name `x` can't be global",
+            9,
+            10,
+        )])),
+    },
+    Case {
+        name: CaseName("nested_scope_declarations_do_not_leak_across_function_class_or_lambda"),
+        word: Word::Succeeds,
+        input: || {
+            Given::Diagnostics(
+                "def outer(x):\n    global x\n    class C:\n        y: int\n        def inner(y):\n            global y\n    callback = lambda x: x\n",
+            )
+        },
+        expect: Expect::Value(Seen::Diagnostics(&[
+            (
+                "name `x` cannot refer to a parameter and a global variable",
+                25,
+                26,
+            ),
+            (
+                "name `y` cannot refer to a parameter and a global variable",
+                96,
+                97,
+            ),
+        ])),
+    },
+    Case {
+        name: CaseName("a_class_scope_global_annotation_is_not_the_enclosing_function_global"),
+        word: Word::Succeeds,
+        input: || Given::Diagnostics("def f(x):\n    class C:\n        global x\n        x: int\n"),
+        expect: Expect::Value(Seen::Diagnostics(&[(
+            "annotated name `x` can't be global",
+            48,
+            49,
+        )])),
+    },
+    Case {
+        name: CaseName("unicode_global_parameter_ranges_are_utf8_bytes"),
+        word: Word::Succeeds,
+        input: || Given::Diagnostics("def f(π):\n    global π\n"),
+        expect: Expect::Value(Seen::Diagnostics(&[(
+            "name `π` cannot refer to a parameter and a global variable",
+            22,
+            24,
+        )])),
+    },
+    Case {
+        name: CaseName("unicode_annotated_global_ranges_are_utf8_bytes"),
+        word: Word::Succeeds,
+        input: || Given::Diagnostics("def f():\n    global π\n    π: int\n"),
+        expect: Expect::Value(Seen::Diagnostics(&[(
+            "annotated name `π` can't be global",
+            27,
+            29,
+        )])),
+    },
+    Case {
+        name: CaseName("module_nonlocal_is_reported_without_other_module_scope_errors"),
+        word: Word::Succeeds,
+        input: || Given::Diagnostics("global x\nnonlocal y\nx: int\n"),
+        expect: Expect::Value(Seen::Diagnostics(&[(
+            "nonlocal declaration not allowed at module level",
+            9,
+            19,
+        )])),
+    },
+    Case {
+        name: CaseName("global_indexes_are_local_to_the_function_scope"),
+        word: Word::Succeeds,
+        input: || Given::Diagnostics("global x\ndef f():\n    x: int\n"),
+        expect: Expect::Value(Seen::Diagnostics(&[])),
+    },
+    Case {
+        name: CaseName("a_nested_function_global_does_not_affect_its_parent_annotation"),
+        word: Word::Succeeds,
+        input: || {
+            Given::Diagnostics("def outer():\n    def inner():\n        global x\n    x: int\n")
+        },
+        expect: Expect::Value(Seen::Diagnostics(&[])),
+    },
+    Case {
+        name: CaseName("each_repeated_nonlocal_parameter_declaration_is_reported"),
+        word: Word::Succeeds,
+        input: || {
+            Given::Diagnostics(
+                "def outer():\n    x = 1\n    def inner(x):\n        nonlocal x\n        nonlocal x\n",
+            )
+        },
+        expect: Expect::Value(Seen::Diagnostics(&[
+            (
+                "name `x` cannot refer to a parameter and a nonlocal variable",
+                58,
+                59,
+            ),
+            (
+                "name `x` cannot refer to a parameter and a nonlocal variable",
+                77,
+                78,
+            ),
+        ])),
+    },
+    Case {
         name: CaseName("positional_only_keyword_only_and_variadic_parameters_can_be_distinct"),
         word: Word::Succeeds,
         input: || Given::Diagnostics("def f(a, /, b, *args, c, **kwargs): ...\n"),
