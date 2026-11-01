@@ -108,7 +108,7 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
         std::fs::create_dir_all(rules.join("F407"))?;
         std::fs::write(
             rules.join("F407/query.ryoql"),
-            "let feature = select id, file, span from \"syntax-error\" where code = \"future-feature-not-defined\";\nemit feature subject file key(id);\n",
+            include_str!("rules/F407/candidate.ryoql"),
         )?;
     }
     if matches!(scenario, EngineScenario::FrontendRuleCollision) {
