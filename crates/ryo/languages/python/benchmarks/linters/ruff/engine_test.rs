@@ -618,6 +618,17 @@ fn literal_properties_reach_engine_queries_for_true_and_false_boolean_nodes() ->
             .collect(),
         state: ryo_benchmark::domain::suite::types::WorkerState::Fresh,
     })?;
+    assert_eq!(report.files.len(), 2, "both files must be completely read");
+    assert!(
+        report
+            .files
+            .contains(&ryo::linter::RelativePath("true.py".into()))
+    );
+    assert!(
+        report
+            .files
+            .contains(&ryo::linter::RelativePath("false.py".into()))
+    );
     assert_eq!(report.diagnostics.len(), 1);
     let finding = report
         .diagnostics
