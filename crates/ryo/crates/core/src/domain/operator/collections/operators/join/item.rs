@@ -360,19 +360,22 @@ fn stream_lookup(
         context,
         &mut Pipe(|each: &mut OperatorContext<'_>, left_row: &[Value]| {
             let looked_up = match right {
-                Rows::Computed(table) => table,
-                _ if indexed => &*built,
-                _ => {
-                    let table = table_in(right, built, row);
-                    index(table, On::Columns(right_on), order)?;
-                    indexed = true;
+                Rows::Computed(table) => {
+                    if !indexed {
+                        index(table, On::Columns(right_on), order)?;
+                        indexed = true;
+                    }
                     table
                 }
+                Rows::Stored(_) | Rows::Tree(_) => {
+                    if !indexed {
+                        let table = table_in(right, built, row);
+                        index(table, On::Columns(right_on), order)?;
+                        indexed = true;
+                    }
+                    &*built
+                }
             };
-            if !indexed {
-                index(looked_up, On::Columns(right_on), order)?;
-                indexed = true;
-            }
             for hit in HashItem::find(
                 looked_up,
                 order,
