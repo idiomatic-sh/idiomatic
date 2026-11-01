@@ -2,7 +2,7 @@
   "status": "54-rule corpus comparison passed; configured lint/check/perf gate failed",
   "candidate_acceptance_checkpoint": {
     "status": "unpromoted; current shared-verifier execution pending",
-    "prepared_profiles": 10,
+    "prepared_profiles": 12,
     "combined_profile": {
       "name": "shape-110",
       "selected_rules": 110,
@@ -69,6 +69,27 @@
         "four non-exhaustive Kind wildcard matches",
         "two missing-doc warnings"
       ]
+    },
+    "f404_f633_isolated_fixture_evidence": {
+      "rules": {
+        "F404": 19,
+        "F633": 11
+      },
+      "matched_cases": 30,
+      "comparison": "complete expected diagnostics, byte spans and multiplicities",
+      "worker_source": "9003086b",
+      "worker_sha256": "270f5ee96ba67f94c85d27de7cad9a50a27a01a4d0a39173144cf66aa661e3c7",
+      "artifact": "/tmp/ruff-f404-f407-f633-frozen-worker.json",
+      "artifact_sha256": "030662e227934af3d90d782585a8c5d3425c0e879d064b449c803ab82ac2f77e",
+      "reference": "Ruff 0.16.5 isolated/no-cache/PY310, one selected rule per invocation",
+      "reference_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+      "scope_limit": "older frozen worker only; not current-engine, combined-profile, corpus-parity, or promotion evidence"
+    },
+    "f407_pending": {
+      "case_count": 12,
+      "matched_cases": 11,
+      "known_gap": "relative unknown future feature has no normalized parser syntax-error row",
+      "scope": "not included among the twelve prepared profiles or current validation selection"
     }
   },
   "cases": 1124,

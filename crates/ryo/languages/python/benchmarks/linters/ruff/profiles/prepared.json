@@ -9,7 +9,8 @@
     "6e36628e7cc7f6fa1d402098184d06aa036c21f9",
     "1fb0ac3b5418a5ce3a4bfe5481d7c81629078c8e",
     "47ea97a97b21551950c68df1409a8245a551b40d",
-    "17abae8c741b7f6fe769dc86d6e24a438f55264d"
+    "17abae8c741b7f6fe769dc86d6e24a438f55264d",
+    "25bf1a3ffa1a32da6790cb037acac455d17c1352"
   ],
   "reference": "Ruff 0.16.5 isolated, no-cache, PY310 selection; complete full-report comparison for each prepared candidate profile",
   "reference_version": "0.16.5",
@@ -20,7 +21,7 @@
     "894431afcb8addcd8e3752e53634fdb0a6f9063153cd62ed730ce59d02878487",
     "29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e"
   ],
-  "scope": "Ten independent single-rule candidate acceptance profiles plus one combined shape-110 profile; exact profile, query, cases, oracle evidence, helper and tool pins are hash-bound; no active inventory change or promotion.",
+  "scope": "Twelve independent single-rule candidate acceptance profiles plus one combined shape-110 profile; exact profile, query, cases, oracle evidence, helper and tool pins are hash-bound; no active inventory change or promotion.",
   "profiles": {
     "F401": {
       "selected_rules": [
@@ -46,6 +47,79 @@
         "file-ruff-noqa-unused-import",
         "parent-line-noqa-multiline-import"
       ]
+    },
+    "F404": {
+      "selected_rules": [
+        "F404"
+      ],
+      "case_count": 19,
+      "case_names": [
+        "first-future",
+        "module-docstring",
+        "consecutive-before-import",
+        "after-assignment",
+        "second-string-is-boundary",
+        "inside-function",
+        "inside-class",
+        "inside-module-if",
+        "relative-future-is-not-future-statement",
+        "unicode-prefix",
+        "inline-noqa",
+        "file-noqa",
+        "bytes-is-not-a-docstring",
+        "fstring-is-not-a-docstring",
+        "concatenated-string-docstring",
+        "second-docstring-is-a-boundary",
+        "late-wildcard-future-import",
+        "multiline-future-import",
+        "multiline-parent-noqa"
+      ],
+      "oracle_file": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/F404/oracle.json",
+      "oracle_sha256": "c4614a15eab4df5c4cd75793c76d5d60c5b4e5993b0dde3b21a5807f065a2421"
+    },
+    "F602": {
+      "selected_rules": [
+        "F602"
+      ],
+      "case_count": 13,
+      "case_names": [
+        "earlier-nonadjacent-name-key",
+        "repeated-name-key",
+        "different-name-keys",
+        "name-with-tuple-key",
+        "walrus-keys-are-not-name-keys",
+        "attribute-keys",
+        "calls-are-not-name-keys",
+        "normalized-name-key",
+        "triple-repeated-name-key",
+        "same-name-separate-dictionaries",
+        "case-sensitive-name-keys",
+        "repeated-alias-key",
+        "noqa-suppression"
+      ],
+      "oracle_file": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/F602/oracle.json",
+      "oracle_sha256": "655d3d5ceb4b0f8765dd17f3cb31a82aca9bf3186cc3cea450da4163992f6be8"
+    },
+    "F633": {
+      "selected_rules": [
+        "F633"
+      ],
+      "case_count": 11,
+      "case_names": [
+        "bare-builtin",
+        "other-left",
+        "local-shadow",
+        "module-shadow",
+        "builtins-attribute",
+        "from-builtins-alias",
+        "parenthesized-builtin",
+        "unicode-prefix",
+        "nfkc-builtin-print",
+        "inline-noqa",
+        "file-noqa"
+      ],
+      "oracle_file": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/F633/oracle.json",
+      "oracle_sha256": "80f4b1eff5d131bc0329512ba7264fbcc95136d6e394095a900826ce5cffe597"
     },
     "F811": {
       "selected_rules": [
@@ -217,29 +291,6 @@
         "later-annotation-does-not-replace-value",
         "file-flake8-noqa-unused-local"
       ]
-    },
-    "F602": {
-      "selected_rules": [
-        "F602"
-      ],
-      "case_count": 13,
-      "case_names": [
-        "earlier-nonadjacent-name-key",
-        "repeated-name-key",
-        "different-name-keys",
-        "name-with-tuple-key",
-        "walrus-keys-are-not-name-keys",
-        "attribute-keys",
-        "calls-are-not-name-keys",
-        "normalized-name-key",
-        "triple-repeated-name-key",
-        "same-name-separate-dictionaries",
-        "case-sensitive-name-keys",
-        "repeated-alias-key",
-        "noqa-suppression"
-      ],
-      "oracle_file": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/F602/oracle.json",
-      "oracle_sha256": "655d3d5ceb4b0f8765dd17f3cb31a82aca9bf3186cc3cea450da4163992f6be8"
     },
     "PLR0124": {
       "selected_rules": [
@@ -603,7 +654,15 @@
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/SIM221/cases.toml": "a6ed907003594587952ac2d891f05595bb94dda4fce0b6a12eb2ab898968ebb4",
     "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/SIM221/benchmark.toml": "7963c6f42c83baafb4ae702dc78178e0cb360811c74c5e8b13f579c95f12f1c6",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/SIM221/candidate.ryoql": "6ff481fd5fb65e604cedefcb1350201e0c5e7a9ff4bfa3c69957c941e9fb6799",
-    "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/SIM221/oracle.json": "37df376ae5939d73172f5623e29f959bc0bb6da3bc5b149a69f13be084218a5d"
+    "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/SIM221/oracle.json": "37df376ae5939d73172f5623e29f959bc0bb6da3bc5b149a69f13be084218a5d",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/F404/candidate.ryoql": "e88593840de2cf34822eb6bc1aae3fcd7d19a07f69f7f7fd3afdfa6e025cfd3b",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/F404/cases.toml": "e9f55cea3856c55f9d199003b1e8638b64d92663f13d4e5e666dc1ac45186d0c",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/F404/benchmark.toml": "0d235100363c0121abf598f87eb50a22519b9bc39f482b195b039636a2dd41b0",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/F404/oracle.json": "c4614a15eab4df5c4cd75793c76d5d60c5b4e5993b0dde3b21a5807f065a2421",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/F633/candidate.ryoql": "ee8d6fe87b4b04a5b3103c918b77a375f67149c4d48e0a39250a8a9c211666ee",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/F633/cases.toml": "26f37e5df431b31693edd24f42f377159359f713390e529a095a02670d06f74c",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/F633/benchmark.toml": "171af443b4d0b741df51b7551b4c2da8ffd286a3258876c166998f01526eab74",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/F633/oracle.json": "80f4b1eff5d131bc0329512ba7264fbcc95136d6e394095a900826ce5cffe597"
   },
   "combined_profiles": {
     "shape-110": {
