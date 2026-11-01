@@ -1,0 +1,517 @@
+# Exact Ruff 0.16.5 tag 9e4938c4a60bed3e87a11ee1e1db1bd23f4d964a; target py310; shipped default settings.
+
+[[cases]]
+name = "upstream-pinned-fixture-0"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom enum import Enum, Flag, IntEnum, IntFlag, StrEnum, ReprEnum\n\nimport attr\nimport attrs\n\n\n## Errors\n\n@dataclass\nclass E(Enum): ...\n\n\n@dataclass  # Foobar\nclass E(Flag): ...\n\n\n@dataclass()\nclass E(IntEnum): ...\n\n\n@dataclass()  # Foobar\nclass E(IntFlag): ...\n\n\n@dataclass(\n    frozen=True\n)\nclass E(StrEnum): ...\n\n\n@dataclass(  # Foobar\n    frozen=True\n)\nclass E(ReprEnum): ...\n\n\n@dataclass(\n    frozen=True\n)  # Foobar\nclass E(Enum): ...\n\n\n## No errors\n\n@attrs.define\nclass E(Enum): ...\n\n\n@attrs.frozen\nclass E(Enum): ...\n\n\n@attrs.mutable\nclass E(Enum): ...\n\n\n@attr.s\nclass E(Enum): ...\n" }
+expected = [{ rule = "RUF049", file = "case.py", start = 138, end = 148 }, { rule = "RUF049", file = "case.py", start = 170, end = 180 }, { rule = "RUF049", file = "case.py", start = 212, end = 224 }, { rule = "RUF049", file = "case.py", start = 249, end = 261 }, { rule = "RUF049", file = "case.py", start = 296, end = 325 }, { rule = "RUF049", file = "case.py", start = 350, end = 389 }, { rule = "RUF049", file = "case.py", start = 415, end = 444 }]
+
+[[cases]]
+name = "direct-base-0"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache,lru_cache\nfrom enum import Enum,Flag,IntEnum,IntFlag,StrEnum,ReprEnum,CheckEnum\n@dataclass\nclass Subject(Enum):\n    @cache\n    def method(self): return 1\n" }
+expected = [{ rule = "RUF049", file = "case.py", start = 142, end = 152 }]
+
+[[cases]]
+name = "direct-base-1"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache,lru_cache\nfrom enum import Enum,Flag,IntEnum,IntFlag,StrEnum,ReprEnum,CheckEnum\n@dataclass\nclass Subject(Flag):\n    @cache\n    def method(self): return 1\n" }
+expected = [{ rule = "RUF049", file = "case.py", start = 142, end = 152 }]
+
+[[cases]]
+name = "direct-base-2"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache,lru_cache\nfrom enum import Enum,Flag,IntEnum,IntFlag,StrEnum,ReprEnum,CheckEnum\n@dataclass\nclass Subject(IntEnum):\n    @cache\n    def method(self): return 1\n" }
+expected = [{ rule = "RUF049", file = "case.py", start = 142, end = 152 }]
+
+[[cases]]
+name = "direct-base-3"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache,lru_cache\nfrom enum import Enum,Flag,IntEnum,IntFlag,StrEnum,ReprEnum,CheckEnum\n@dataclass\nclass Subject(IntFlag):\n    @cache\n    def method(self): return 1\n" }
+expected = [{ rule = "RUF049", file = "case.py", start = 142, end = 152 }]
+
+[[cases]]
+name = "direct-base-4"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache,lru_cache\nfrom enum import Enum,Flag,IntEnum,IntFlag,StrEnum,ReprEnum,CheckEnum\n@dataclass\nclass Subject(StrEnum):\n    @cache\n    def method(self): return 1\n" }
+expected = [{ rule = "RUF049", file = "case.py", start = 142, end = 152 }]
+
+[[cases]]
+name = "direct-base-5"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache,lru_cache\nfrom enum import Enum,Flag,IntEnum,IntFlag,StrEnum,ReprEnum,CheckEnum\n@dataclass\nclass Subject(ReprEnum):\n    @cache\n    def method(self): return 1\n" }
+expected = [{ rule = "RUF049", file = "case.py", start = 142, end = 152 }]
+
+[[cases]]
+name = "direct-base-6"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache,lru_cache\nfrom enum import Enum,Flag,IntEnum,IntFlag,StrEnum,ReprEnum,CheckEnum\n@dataclass\nclass Subject(CheckEnum):\n    @cache\n    def method(self): return 1\n" }
+expected = [{ rule = "RUF049", file = "case.py", start = 142, end = 152 }]
+
+[[cases]]
+name = "direct-base-7"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache,lru_cache\nfrom enum import Enum,Flag,IntEnum,IntFlag,StrEnum,ReprEnum,CheckEnum\n@dataclass\nclass Subject(Enum[int]):\n    @cache\n    def method(self): return 1\n" }
+expected = [{ rule = "RUF049", file = "case.py", start = 142, end = 152 }]
+
+[[cases]]
+name = "direct-base-8"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache,lru_cache\nfrom enum import Enum,Flag,IntEnum,IntFlag,StrEnum,ReprEnum,CheckEnum\n@dataclass\nclass Subject(Enum[int][str]):\n    @cache\n    def method(self): return 1\n" }
+expected = []
+
+[[cases]]
+name = "direct-base-9"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache,lru_cache\nfrom enum import Enum,Flag,IntEnum,IntFlag,StrEnum,ReprEnum,CheckEnum\n@dataclass\nclass Subject((Enum)):\n    @cache\n    def method(self): return 1\n" }
+expected = [{ rule = "RUF049", file = "case.py", start = 142, end = 152 }]
+
+[[cases]]
+name = "direct-base-10"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache,lru_cache\nfrom enum import Enum,Flag,IntEnum,IntFlag,StrEnum,ReprEnum,CheckEnum\n@dataclass\nclass Subject(Enum()):\n    @cache\n    def method(self): return 1\n" }
+expected = []
+
+[[cases]]
+name = "direct-base-11"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache,lru_cache\nfrom enum import Enum,Flag,IntEnum,IntFlag,StrEnum,ReprEnum,CheckEnum\n@dataclass\nclass Subject(*bases):\n    @cache\n    def method(self): return 1\n" }
+expected = []
+
+[[cases]]
+name = "direct-base-12"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache,lru_cache\nfrom enum import Enum,Flag,IntEnum,IntFlag,StrEnum,ReprEnum,CheckEnum\n@dataclass\nclass Subject(object):\n    @cache\n    def method(self): return 1\n" }
+expected = []
+
+[[cases]]
+name = "direct-base-13"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache,lru_cache\nfrom enum import Enum,Flag,IntEnum,IntFlag,StrEnum,ReprEnum,CheckEnum\n@dataclass\nclass Subject(unknown):\n    @cache\n    def method(self): return 1\n" }
+expected = []
+
+[[cases]]
+name = "local-transitive"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache,lru_cache\nfrom enum import Enum,Flag,IntEnum,IntFlag,StrEnum,ReprEnum,CheckEnum\nclass Base(Enum): ...\nclass Middle(Base): ...\n@dataclass\nclass Subject(Middle):\n    @cache\n    def method(self): return 1\n" }
+expected = [{ rule = "RUF049", file = "case.py", start = 188, end = 198 }]
+
+[[cases]]
+name = "local-subscript"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache,lru_cache\nfrom enum import Enum,Flag,IntEnum,IntFlag,StrEnum,ReprEnum,CheckEnum\nclass Base(Enum): ...\n@dataclass\nclass Subject(Base[int]):\n    @cache\n    def method(self): return 1\n" }
+expected = [{ rule = "RUF049", file = "case.py", start = 164, end = 174 }]
+
+[[cases]]
+name = "same-names-unrelated-scope"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache,lru_cache\nfrom enum import Enum,Flag,IntEnum,IntFlag,StrEnum,ReprEnum,CheckEnum\nclass Base: ...\nclass Outer:\n    class Base(Enum): ...\n@dataclass\nclass Subject(Base):\n    @cache\n    def method(self): return 1\n" }
+expected = []
+
+[[cases]]
+name = "same-names-reverse"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache,lru_cache\nfrom enum import Enum,Flag,IntEnum,IntFlag,StrEnum,ReprEnum,CheckEnum\nclass Base(Enum): ...\nclass Outer:\n    class Base: ...\n@dataclass\nclass Subject(Base):\n    @cache\n    def method(self): return 1\n" }
+expected = [{ rule = "RUF049", file = "case.py", start = 197, end = 207 }]
+
+[[cases]]
+name = "class-attribute"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache,lru_cache\nfrom enum import Enum,Flag,IntEnum,IntFlag,StrEnum,ReprEnum,CheckEnum\nclass Outer:\n    class Base(Enum): ...\n@dataclass\nclass Subject(Outer.Base):\n    @cache\n    def method(self): return 1\n" }
+expected = [{ rule = "RUF049", file = "case.py", start = 181, end = 191 }]
+
+[[cases]]
+name = "deep-class-attribute"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache,lru_cache\nfrom enum import Enum,Flag,IntEnum,IntFlag,StrEnum,ReprEnum,CheckEnum\nclass Outer:\n    class Middle:\n        class Inner:\n            class Base(Enum): ...\n@dataclass\nclass Subject(Outer.Middle.Inner.Base):\n    @cache\n    def method(self): return 1\n" }
+expected = [{ rule = "RUF049", file = "case.py", start = 228, end = 238 }]
+
+[[cases]]
+name = "sibling-attribute-name-mismatch"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache,lru_cache\nfrom enum import Enum,Flag,IntEnum,IntFlag,StrEnum,ReprEnum,CheckEnum\nclass Outer:\n    class Base(Enum): ...\n    class Other: ...\n@dataclass\nclass Subject(Outer.Other):\n    @cache\n    def method(self): return 1\n" }
+expected = []
+
+[[cases]]
+name = "deep-attribute-name-mismatch"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache,lru_cache\nfrom enum import Enum,Flag,IntEnum,IntFlag,StrEnum,ReprEnum,CheckEnum\nclass Outer:\n    class Middle:\n        class Base(Enum): ...\n    class Other:\n        class Base: ...\n@dataclass\nclass Subject(Outer.Other.Base):\n    @cache\n    def method(self): return 1\n" }
+expected = []
+
+[[cases]]
+name = "class-attribute-subscript"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache,lru_cache\nfrom enum import Enum,Flag,IntEnum,IntFlag,StrEnum,ReprEnum,CheckEnum\nclass Outer:\n    class Base(Enum): ...\n@dataclass\nclass Subject(Outer.Base[int]):\n    @cache\n    def method(self): return 1\n" }
+expected = [{ rule = "RUF049", file = "case.py", start = 181, end = 191 }]
+
+[[cases]]
+name = "subscript-inside-attribute-excluded"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache,lru_cache\nfrom enum import Enum,Flag,IntEnum,IntFlag,StrEnum,ReprEnum,CheckEnum\nclass Outer:\n    class Base(Enum): ...\n@dataclass\nclass Subject(Outer[int].Base):\n    @cache\n    def method(self): return 1\n" }
+expected = []
+
+[[cases]]
+name = "shadowed-attribute"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache,lru_cache\nfrom enum import Enum,Flag,IntEnum,IntFlag,StrEnum,ReprEnum,CheckEnum\nclass Outer:\n    class Base(Enum): ...\n    Base=unknown\n@dataclass\nclass Subject(Outer.Base):\n    @cache\n    def method(self): return 1\n" }
+expected = []
+
+[[cases]]
+name = "shadowed-attribute-reverse"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache,lru_cache\nfrom enum import Enum,Flag,IntEnum,IntFlag,StrEnum,ReprEnum,CheckEnum\nclass Outer:\n    Base=unknown\n    class Base(Enum): ...\n@dataclass\nclass Subject(Outer.Base):\n    @cache\n    def method(self): return 1\n" }
+expected = [{ rule = "RUF049", file = "case.py", start = 198, end = 208 }]
+
+[[cases]]
+name = "inherited-attribute-excluded"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache,lru_cache\nfrom enum import Enum,Flag,IntEnum,IntFlag,StrEnum,ReprEnum,CheckEnum\nclass Ancestor:\n    class Base(Enum): ...\nclass Outer(Ancestor): ...\n@dataclass\nclass Subject(Outer.Base):\n    @cache\n    def method(self): return 1\n" }
+expected = []
+
+[[cases]]
+name = "assigned-alias-excluded"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache,lru_cache\nfrom enum import Enum,Flag,IntEnum,IntFlag,StrEnum,ReprEnum,CheckEnum\nclass Base(Enum): ...\nAlias=Base\n@dataclass\nclass Subject(Alias):\n    @cache\n    def method(self): return 1\n" }
+expected = []
+
+[[cases]]
+name = "assigned-member-alias-excluded"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache,lru_cache\nfrom enum import Enum,Flag,IntEnum,IntFlag,StrEnum,ReprEnum,CheckEnum\nclass Base(Enum): ...\nclass Outer:\n    Alias=Base\n@dataclass\nclass Subject(Outer.Alias):\n    @cache\n    def method(self): return 1\n" }
+expected = []
+
+[[cases]]
+name = "conditional-local-base"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache,lru_cache\nfrom enum import Enum,Flag,IntEnum,IntFlag,StrEnum,ReprEnum,CheckEnum\nif flag:\n    class Base(Enum): ...\nelse:\n    class Base: ...\n@dataclass\nclass Subject(Base):\n    @cache\n    def method(self): return 1\n" }
+expected = []
+
+[[cases]]
+name = "rebound-parent-name"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache,lru_cache\nfrom enum import Enum,Flag,IntEnum,IntFlag,StrEnum,ReprEnum,CheckEnum\nclass Base(Enum): ...\nclass Middle(Base): ...\nBase=unknown\n@dataclass\nclass Subject(Middle):\n    @cache\n    def method(self): return 1\n" }
+expected = []
+
+[[cases]]
+name = "cycles"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache,lru_cache\nfrom enum import Enum,Flag,IntEnum,IntFlag,StrEnum,ReprEnum,CheckEnum\nclass Base: ...\nclass Other(Base): ...\nclass Base(Other): ...\n@dataclass\nclass Subject(Base):\n    @cache\n    def method(self): return 1\n" }
+expected = []
+
+[[cases]]
+name = "qualified-import-alias"
+comparison = "full"
+files = { "case.py" = "import enum as e\nfrom enum import Enum as E\nfrom dataclasses import dataclass\nfrom functools import cache,lru_cache\nfrom enum import Enum,Flag,IntEnum,IntFlag,StrEnum,ReprEnum,CheckEnum\n@dataclass\nclass Subject(e.Enum):\n    @cache\n    def method(self): return 1\n@dataclass\nclass Subject(E):\n    @cache\n    def method(self): return 1\n" }
+expected = [{ rule = "RUF049", file = "case.py", start = 186, end = 196 }, { rule = "RUF049", file = "case.py", start = 262, end = 272 }]
+
+[[cases]]
+name = "nonenum-import"
+comparison = "full"
+files = { "case.py" = "from other import Enum\nfrom dataclasses import dataclass\nfrom functools import cache\n@dataclass\nclass Subject(Enum):\n    @cache\n    def method(self): return 1\n" }
+expected = []
+
+[[cases]]
+name = "local-class-member-shadow"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache,lru_cache\nfrom enum import Enum,Flag,IntEnum,IntFlag,StrEnum,ReprEnum,CheckEnum\nclass Base(Enum): ...\n@dataclass\nclass Subject(Base):\n    class Base: ...\n    @cache\n    def method(self): return 1\n" }
+expected = [{ rule = "RUF049", file = "case.py", start = 164, end = 174 }]
+
+[[cases]]
+name = "method-local-class"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache,lru_cache\nfrom enum import Enum,Flag,IntEnum,IntFlag,StrEnum,ReprEnum,CheckEnum\nclass Outer:\n    def f(self):\n        @dataclass\n        class Subject(Enum):\n            @cache\n            def method(self): return 1\n" }
+expected = [{ rule = "RUF049", file = "case.py", start = 180, end = 190 }]
+
+[[cases]]
+name = "multiline-unicode"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache,lru_cache\nfrom enum import Enum,Flag,IntEnum,IntFlag,StrEnum,ReprEnum,CheckEnum\n@dataclass(\n    frozen=True,\n)\nclass É(Enum):\n    @cache\n    def méthode(self): return \"🙂é\"\n" }
+expected = [{ rule = "RUF049", file = "case.py", start = 142, end = 172 }]
+
+[[cases]]
+name = "ordered-decorators-0"
+comparison = "full"
+files = { "case.py" = "import attr,attrs\nfrom dataclasses import dataclass\nfrom functools import cache,lru_cache\nfrom enum import Enum,Flag,IntEnum,IntFlag,StrEnum,ReprEnum,CheckEnum\n@dataclass\n@dataclass()\nclass Subject(Enum):\n    @cache\n    def method(self): return 1\n" }
+expected = [{ rule = "RUF049", file = "case.py", start = 160, end = 170 }]
+
+[[cases]]
+name = "ordered-decorators-1"
+comparison = "full"
+files = { "case.py" = "import attr,attrs\nfrom dataclasses import dataclass\nfrom functools import cache,lru_cache\nfrom enum import Enum,Flag,IntEnum,IntFlag,StrEnum,ReprEnum,CheckEnum\n@attrs.define\n@dataclass\nclass Subject(Enum):\n    @cache\n    def method(self): return 1\n" }
+expected = []
+
+[[cases]]
+name = "ordered-decorators-2"
+comparison = "full"
+files = { "case.py" = "import attr,attrs\nfrom dataclasses import dataclass\nfrom functools import cache,lru_cache\nfrom enum import Enum,Flag,IntEnum,IntFlag,StrEnum,ReprEnum,CheckEnum\n@dataclass\n@attrs.define\nclass Subject(Enum):\n    @cache\n    def method(self): return 1\n" }
+expected = [{ rule = "RUF049", file = "case.py", start = 160, end = 170 }]
+
+[[cases]]
+name = "ordered-decorators-3"
+comparison = "full"
+files = { "case.py" = "import attr,attrs\nfrom dataclasses import dataclass\nfrom functools import cache,lru_cache\nfrom enum import Enum,Flag,IntEnum,IntFlag,StrEnum,ReprEnum,CheckEnum\n@attr.s\n@dataclass\nclass Subject(Enum):\n    @cache\n    def method(self): return 1\n" }
+expected = []
+
+[[cases]]
+name = "ordered-decorators-4"
+comparison = "full"
+files = { "case.py" = "import attr,attrs\nfrom dataclasses import dataclass\nfrom functools import cache,lru_cache\nfrom enum import Enum,Flag,IntEnum,IntFlag,StrEnum,ReprEnum,CheckEnum\n@attr.attributes\n@dataclass\nclass Subject(Enum):\n    @cache\n    def method(self): return 1\n" }
+expected = []
+
+[[cases]]
+name = "ordered-decorators-5"
+comparison = "full"
+files = { "case.py" = "import attr,attrs\nfrom dataclasses import dataclass\nfrom functools import cache,lru_cache\nfrom enum import Enum,Flag,IntEnum,IntFlag,StrEnum,ReprEnum,CheckEnum\n@attrs.s\n@dataclass\nclass Subject(Enum):\n    @cache\n    def method(self): return 1\n" }
+expected = [{ rule = "RUF049", file = "case.py", start = 169, end = 179 }]
+
+[[cases]]
+name = "ordered-decorators-6"
+comparison = "full"
+files = { "case.py" = "import attr,attrs\nfrom dataclasses import dataclass\nfrom functools import cache,lru_cache\nfrom enum import Enum,Flag,IntEnum,IntFlag,StrEnum,ReprEnum,CheckEnum\n@attrs.attrs\n@dataclass\nclass Subject(Enum):\n    @cache\n    def method(self): return 1\n" }
+expected = [{ rule = "RUF049", file = "case.py", start = 173, end = 183 }]
+
+[[cases]]
+name = "ordered-decorators-7"
+comparison = "full"
+files = { "case.py" = "import attr,attrs\nfrom dataclasses import dataclass\nfrom functools import cache,lru_cache\nfrom enum import Enum,Flag,IntEnum,IntFlag,StrEnum,ReprEnum,CheckEnum\n@attr.attrs\n@dataclass\nclass Subject(Enum):\n    @cache\n    def method(self): return 1\n" }
+expected = []
+
+[[cases]]
+name = "ordered-decorators-8"
+comparison = "full"
+files = { "case.py" = "import attr,attrs\nfrom dataclasses import dataclass\nfrom functools import cache,lru_cache\nfrom enum import Enum,Flag,IntEnum,IntFlag,StrEnum,ReprEnum,CheckEnum\n@attrs.frozen()\n@dataclass\nclass Subject(Enum):\n    @cache\n    def method(self): return 1\n" }
+expected = []
+
+[[cases]]
+name = "ordered-decorators-9"
+comparison = "full"
+files = { "case.py" = "import attr,attrs\nfrom dataclasses import dataclass\nfrom functools import cache,lru_cache\nfrom enum import Enum,Flag,IntEnum,IntFlag,StrEnum,ReprEnum,CheckEnum\n@unknown\n@dataclass\nclass Subject(Enum):\n    @cache\n    def method(self): return 1\n" }
+expected = [{ rule = "RUF049", file = "case.py", start = 169, end = 179 }]
+
+[[cases]]
+name = "ordered-decorators-10"
+comparison = "full"
+files = { "case.py" = "import attr,attrs\nfrom dataclasses import dataclass\nfrom functools import cache,lru_cache\nfrom enum import Enum,Flag,IntEnum,IntFlag,StrEnum,ReprEnum,CheckEnum\n@dataclass()()\nclass Subject(Enum):\n    @cache\n    def method(self): return 1\n" }
+expected = []
+
+[[cases]]
+name = "ordered-decorators-11"
+comparison = "full"
+files = { "case.py" = "import attr,attrs\nfrom dataclasses import dataclass\nfrom functools import cache,lru_cache\nfrom enum import Enum,Flag,IntEnum,IntFlag,StrEnum,ReprEnum,CheckEnum\n@dataclass(unknown=True)\nclass Subject(Enum):\n    @cache\n    def method(self): return 1\n" }
+expected = [{ rule = "RUF049", file = "case.py", start = 160, end = 184 }]
+
+[[cases]]
+name = "no-dataclass"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache,lru_cache\nfrom enum import Enum,Flag,IntEnum,IntFlag,StrEnum,ReprEnum,CheckEnum\nclass Subject(Enum):\n    @cache\n    def method(self): return 1\n" }
+expected = []
+
+[[cases]]
+name = "shadowed-dataclass"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache,lru_cache\nfrom enum import Enum,Flag,IntEnum,IntFlag,StrEnum,ReprEnum,CheckEnum\ndataclass=unknown\n@dataclass\nclass Subject(Enum):\n    @cache\n    def method(self): return 1\n" }
+expected = []
+
+[[cases]]
+name = "aliased-dataclass"
+comparison = "full"
+files = { "case.py" = "import dataclasses as d\nfrom enum import Enum\nfrom functools import cache\n@d.dataclass\nclass Subject(Enum):\n    @cache\n    def method(self): return 1\n" }
+expected = [{ rule = "RUF049", file = "case.py", start = 74, end = 86 }]
+
+[[cases]]
+name = "inline-suppression"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache,lru_cache\nfrom enum import Enum,Flag,IntEnum,IntFlag,StrEnum,ReprEnum,CheckEnum\n@dataclass  # noqa: RUF049\nclass Subject(Enum):\n    @cache\n    def method(self): return 1\n" }
+expected = []
+
+[[cases]]
+name = "file-suppression"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa: RUF049\nfrom dataclasses import dataclass\nfrom functools import cache,lru_cache\nfrom enum import Enum,Flag,IntEnum,IntFlag,StrEnum,ReprEnum,CheckEnum\n@dataclass\nclass Subject(Enum):\n    @cache\n    def method(self): return 1\n" }
+expected = []
+
+[[cases]]
+name = "context-two-methods-before-and-after-shadow"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache\nfrom enum import Enum\nclass Base(Enum): ...\nclass Middle(Base): ...\n@dataclass\nclass Subject(Middle):\n    @cache\n    def before(self): return 1\n    class Base: ...\n    @cache\n    def after(self): return 2\n" }
+expected = [{ rule = "RUF049", file = "case.py", start = 130, end = 140 }]
+
+[[cases]]
+name = "context-two-methods-reverse-shadow"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache\nfrom enum import Enum\nclass Base(Enum): ...\nclass Middle(Base): ...\n@dataclass\nclass Subject(Middle):\n    Base=unknown\n    @cache\n    def before(self): return 1\n    class Base(Enum): ...\n    @cache\n    def after(self): return 2\n" }
+expected = [{ rule = "RUF049", file = "case.py", start = 130, end = 140 }]
+
+[[cases]]
+name = "context-current-method-name-shadows-parent"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache\nfrom enum import Enum\nclass Base(Enum): ...\nclass Middle(Base): ...\n@dataclass\nclass Subject(Middle):\n    @cache\n    def Base(self): return 1\n" }
+expected = [{ rule = "RUF049", file = "case.py", start = 130, end = 140 }]
+
+[[cases]]
+name = "context-deferred-module-future-parents"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache\nfrom enum import Enum\ndef make():\n    @dataclass\n    class Subject(Middle):\n        @cache\n        def method(self): return 1\nclass Base(Enum): ...\nclass Middle(Base): ...\n" }
+expected = [{ rule = "RUF049", file = "case.py", start = 100, end = 110 }]
+
+[[cases]]
+name = "context-deferred-enclosing-function-future-parents"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache\nfrom enum import Enum\ndef outer():\n    def make():\n        @dataclass\n        class Subject(Middle):\n            @cache\n            def method(self): return 1\n    class Base(Enum): ...\n    class Middle(Base): ...\n" }
+expected = [{ rule = "RUF049", file = "case.py", start = 121, end = 131 }]
+
+[[cases]]
+name = "context-current-function-future-parents"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache\nfrom enum import Enum\ndef make():\n    @dataclass\n    class Subject(Middle):\n        @cache\n        def method(self): return 1\n    class Base(Enum): ...\n    class Middle(Base): ...\n" }
+expected = []
+
+[[cases]]
+name = "context-all-intermediate-hops"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache\nfrom enum import Enum\nclass Base(Enum): ...\nclass Hop1(Base): ...\nclass Hop2(Hop1): ...\nclass Hop3(Hop2): ...\nclass Middle(Hop3): ...\n@dataclass\nclass Subject(Middle):\n    @cache\n    def method(self): return 1\n" }
+expected = [{ rule = "RUF049", file = "case.py", start = 196, end = 206 }]
+
+[[cases]]
+name = "context-class-body-global-rebind"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache\nfrom enum import Enum\nclass Base(Enum): ...\nclass Middle(Base): ...\n@dataclass\nclass Subject(Middle):\n    global Base\n    Base=unknown\n    @cache\n    def method(self): return 1\n" }
+expected = [{ rule = "RUF049", file = "case.py", start = 130, end = 140 }]
+
+[[cases]]
+name = "context-class-body-global-declaration"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache\nfrom enum import Enum\nclass Base(Enum): ...\nclass Middle(Base): ...\n@dataclass\nclass Subject(Middle):\n    global Base\n    @cache\n    def method(self): return 1\n" }
+expected = [{ rule = "RUF049", file = "case.py", start = 130, end = 140 }]
+
+[[cases]]
+name = "context-class-body-nonlocal-declaration"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache\nfrom enum import Enum\ndef outer():\n    class Base(Enum): ...\n    class Middle(Base): ...\n    @dataclass\n    class Subject(Middle):\n        nonlocal Base\n        @cache\n        def method(self): return 1\n" }
+expected = [{ rule = "RUF049", file = "case.py", start = 155, end = 165 }]
+
+[[cases]]
+name = "context-decorator-walrus-rebind"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache\nfrom enum import Enum\nclass Base(Enum): ...\nclass Middle(Base): ...\n@dataclass\n@((Base := unknown))\nclass Subject(Middle):\n    @cache\n    def method(self): return 1\n" }
+expected = []
+
+[[cases]]
+name = "context-annotation-retains-existing-value"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache\nfrom enum import Enum\nclass Base(Enum): ...\nclass Middle(Base): ...\nBase: object\n@dataclass\nclass Subject(Middle):\n    @cache\n    def method(self): return 1\n" }
+expected = [{ rule = "RUF049", file = "case.py", start = 143, end = 153 }]
+
+[[cases]]
+name = "context-class-annotation-skips-to-parent"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache\nfrom enum import Enum\nclass Base(Enum): ...\nclass Middle(Base): ...\n@dataclass\nclass Subject(Middle):\n    Base: object\n    @cache\n    def method(self): return 1\n" }
+expected = [{ rule = "RUF049", file = "case.py", start = 130, end = 140 }]
+
+[[cases]]
+name = "context-exception-restores-previous-binding"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache\nfrom enum import Enum\nclass Base(Enum): ...\nclass Middle(Base): ...\ntry:\n    pass\nexcept Exception as Base:\n    pass\n@dataclass\nclass Subject(Middle):\n    @cache\n    def method(self): return 1\n" }
+expected = [{ rule = "RUF049", file = "case.py", start = 179, end = 189 }]
+
+[[cases]]
+name = "context-exception-restores-after-inner-assignment"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache\nfrom enum import Enum\nclass Base(Enum): ...\nclass Middle(Base): ...\ntry:\n    pass\nexcept Exception as Base:\n    Base=unknown\n@dataclass\nclass Subject(Middle):\n    @cache\n    def method(self): return 1\n" }
+expected = [{ rule = "RUF049", file = "case.py", start = 187, end = 197 }]
+
+[[cases]]
+name = "context-exception-without-previous-local-binding"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache\nfrom enum import Enum\nclass Base(Enum): ...\nclass Middle(Base): ...\ndef make():\n    try:\n        pass\n    except Exception as Base:\n        pass\n    @dataclass\n    class Subject(Middle):\n        @cache\n        def method(self): return 1\n" }
+expected = [{ rule = "RUF049", file = "case.py", start = 211, end = 221 }]
+
+[[cases]]
+name = "context-exception-active-binding"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache\nfrom enum import Enum\nclass Base(Enum): ...\nclass Middle(Base): ...\ntry:\n    pass\nexcept Exception as Base:\n    @dataclass\n    class Subject(Middle):\n        @cache\n        def method(self): return 1\n" }
+expected = []
+
+[[cases]]
+name = "context-delete-stops-local-ancestor"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache\nfrom enum import Enum\nclass Base(Enum): ...\nclass Middle(Base): ...\ndel Base\n@dataclass\nclass Subject(Middle):\n    @cache\n    def method(self): return 1\n" }
+expected = []
+
+[[cases]]
+name = "context-loop-target-stops-local-ancestor"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache\nfrom enum import Enum\nclass Base(Enum): ...\nclass Middle(Base): ...\nfor Base in values: pass\n@dataclass\nclass Subject(Middle):\n    @cache\n    def method(self): return 1\n" }
+expected = []
+
+[[cases]]
+name = "context-conditional-last-ordinary-binding"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache\nfrom enum import Enum\nclass Base(Enum): ...\nclass Middle(Base): ...\nif flag:\n    class Base(Enum): ...\nelse:\n    class Base: ...\n@dataclass\nclass Subject(Middle):\n    @cache\n    def method(self): return 1\n" }
+expected = []
+
+[[cases]]
+name = "context-conditional-last-enum-binding"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache\nfrom enum import Enum\nclass Base(Enum): ...\nclass Middle(Base): ...\nif flag:\n    class Base: ...\nelse:\n    class Base(Enum): ...\n@dataclass\nclass Subject(Middle):\n    @cache\n    def method(self): return 1\n" }
+expected = [{ rule = "RUF049", file = "case.py", start = 191, end = 201 }]
+
+[[cases]]
+name = "context-method-global-does-not-rebind-module"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache\nfrom enum import Enum\nclass Base(Enum): ...\nclass Middle(Base): ...\ndef deferred():\n    global Base\n    Base=unknown\n@dataclass\nclass Subject(Middle):\n    @cache\n    def method(self): return 1\n" }
+expected = [{ rule = "RUF049", file = "case.py", start = 179, end = 189 }]
+
+[[cases]]
+name = "context-class-attribute-deletion"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache\nfrom enum import Enum\nclass Outer:\n    class Base(Enum): ...\n    del Base\nclass Middle(Outer.Base): ...\n@dataclass\nclass Subject(Middle):\n    @cache\n    def method(self): return 1\n" }
+expected = []
+
+[[cases]]
+name = "context-class-attribute-global-binding"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache\nfrom enum import Enum\nclass Outer:\n    global Base\n    class Base(Enum): ...\nclass Middle(Outer.Base): ...\n@dataclass\nclass Subject(Middle):\n    @cache\n    def method(self): return 1\n" }
+expected = [{ rule = "RUF049", file = "case.py", start = 169, end = 179 }]
+
+[[cases]]
+name = "context-class-attribute-handler-wrapper"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache\nfrom enum import Enum\nclass Outer:\n    class Base(Enum): ...\n    try:\n        pass\n    except Exception as Base:\n        pass\nclass Middle(Outer.Base): ...\n@dataclass\nclass Subject(Middle):\n    @cache\n    def method(self): return 1\n" }
+expected = []
+
+[[cases]]
+name = "context-default-walrus-is-not-method-global"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache\nfrom enum import Enum\nclass Base(Enum): ...\nclass Middle(Base): ...\n@dataclass\nclass Subject(Middle):\n    @cache\n    def method(self, value=(Base:=unknown)):\n        global Base\n        return 1\n" }
+expected = [{ rule = "RUF049", file = "case.py", start = 130, end = 140 }]
+
+[[cases]]
+name = "context-decorator-walrus-is-not-method-global"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache\nfrom enum import Enum\nclass Base(Enum): ...\nclass Middle(Base): ...\n@dataclass\nclass Subject(Middle):\n    @cache\n    @((Base:=unknown))\n    def method(self):\n        global Base\n        return 1\n" }
+expected = [{ rule = "RUF049", file = "case.py", start = 130, end = 140 }]
+
+[[cases]]
+name = "context-class-header-walrus-is-not-body-global"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache\nfrom enum import Enum\nclass Base(Enum): ...\nclass Middle(Base): ...\n@dataclass\nclass Subject(Middle,metaclass=(Base:=unknown)):\n    global Base\n    @cache\n    def method(self): return 1\n" }
+expected = [{ rule = "RUF049", file = "case.py", start = 130, end = 140 }]
+
+[[cases]]
+name = "context-comprehension-walrus-global-namespace"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache\nfrom enum import Enum\nclass Base(Enum): ...\nclass Middle(Base): ...\ndef make():\n    global Base\n    values=[(Base:=unknown) for item in items]\n    @dataclass\n    class Subject(Middle):\n        @cache\n        def method(self): return 1\n" }
+expected = []
+
+[[cases]]
+name = "context-class-header-transient-type-scope"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache\nfrom enum import Enum\nclass Base(Enum): ...\nclass Middle(Base): ...\n@dataclass\nclass Subject(Middle,metaclass=(Base:=unknown)):\n    @cache\n    def method(self): return 1\n" }
+expected = [{ rule = "RUF049", file = "case.py", start = 130, end = 140 }]
+
+[[cases]]
+name = "context-function-annotation-active-type-scope"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom functools import cache\nfrom enum import Enum\nclass Base(Enum): ...\nclass Middle(Base): ...\ndef make(value: (Base:=unknown)):\n    @dataclass\n    class Subject(Middle):\n        @cache\n        def method(self): return 1\n" }
+expected = []
