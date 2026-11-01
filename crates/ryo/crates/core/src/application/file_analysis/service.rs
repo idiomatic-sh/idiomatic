@@ -83,17 +83,16 @@ use ryo_values::domain::records::types::{FileOutcome, Freshness, Handed, Ran, Un
 use ryo_values::domain::runs::types::ManifestRefused;
 
 use ryo_values::domain::stored_facts::types::{ArenaBase, Digest, LanguageNumber, ReadFailure};
+use std::sync::Arc;
 
 /// Whether the language read a complete tree or a recovery from missing syntax.
-fn recovery_of(reading: &FileReading, elements: &Elements) -> Recovery {
+pub(super) fn recovery_of(reading: &FileReading, elements: &Elements) -> Recovery {
     match reading {
         FileReading::Read(_) if has_incomplete_syntax(elements) => Recovery::SyntaxErrors,
         FileReading::Failed(_) => Recovery::Unparsed,
         FileReading::Read(_) | FileReading::Manifest | FileReading::Unsupported => Recovery::Whole,
     }
 }
-
-use std::sync::Arc;
 
 /// Analysis of one file or the project, with resources supplied by the composition.
 pub struct FileAnalysis {
