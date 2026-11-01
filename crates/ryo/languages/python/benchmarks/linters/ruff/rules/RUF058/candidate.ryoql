@@ -19,7 +19,9 @@ let keyword_fields = select parent, file from "semantic-child" where field = "ke
 let outer_keyword_wrappers = select l.call as call, l.file as file from outer_wrappers as l join keyword_fields as r on l.wrapper = r.parent and l.file = r.file;
 let outer_no_keywords = antijoin(left=outer_wrappers,right=outer_keyword_wrappers,left-on=["call","file"],right-on=["call","file"]);
 let eligible_outer = select l.call as call, l.file as file from exactly_two as l join outer_no_keywords as r on l.call = r.call and l.file = r.file;
-let second_arguments = select call, argument, file from outer_positional where ordinal = 1;
+let earlier_outer_arguments = select l.call as call, l.file as file, l.argument as argument, r.argument as earlier from outer_positional as l join outer_positional as r on l.call = r.call and l.file = r.file where l.ordinal > r.ordinal;
+let outer_argument_ranks = group-count(from=earlier_outer_arguments, keys=["call","file","argument"], count="count", distinct="earlier");
+let second_arguments = select l.call as call, l.argument as argument, l.file as file from outer_positional as l join outer_argument_ranks as r on l.call = r.call and l.file = r.file and l.argument = r.argument where r.count = 1;
 let inner_calls = select l.call as outer, r.argument as inner, l.file as file from eligible_outer as l join second_arguments as r on l.call = r.call and l.file = r.file;
 let nested_zip_calls = select l.outer as outer, l.inner as inner, l.file as file from inner_calls as l join zip_calls as r on l.inner = r.call and l.file = r.file;
 let nested_zip_wrappers = select l.outer as outer, l.inner as inner, r.wrapper as wrapper, l.file as file from nested_zip_calls as l join inner_wrappers as r on l.inner = r.call and l.file = r.file;
