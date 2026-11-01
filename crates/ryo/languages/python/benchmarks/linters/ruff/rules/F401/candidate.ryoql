@@ -41,7 +41,7 @@ let subscript_functions = select l.call as call, l.function as function from cal
 let generic_functions = select l.call as call, r.child as function from subscript_functions as l join value_fields as r on l.function = r.parent;
 let plain_functions = antijoin(left=call_functions,right=subscript_functions,left-on=["call"],right-on=["call"]);
 let resolved_functions = union(left=plain_functions,right=generic_functions);
-let constructors = select id from "qualified-name" where (path = "builtins.list" or path = "builtins.tuple") and (provenance = "import" or provenance = "builtin" and ("since-major" < 3 or "since-major" = 3 and "since-minor" <= 10));
+let constructors = select q.id as id from "qualified-name" as q where (q.path = "builtins.list" or q.path = "builtins.tuple") and (q.provenance = "import" or q.provenance = "builtin" and (q."since-major" < 3 or q."since-major" = 3 and q."since-minor" <= 10));
 let constructor_calls = select l.call as call from resolved_functions as l join constructors as r on l.function = r.id;
 let argument_nodes = select id from nodes where kind = "call-arguments";
 let argument_owners = select l.parent as call, l.child as arguments from "semantic-child" as l join argument_nodes as r on l.child = r.id;

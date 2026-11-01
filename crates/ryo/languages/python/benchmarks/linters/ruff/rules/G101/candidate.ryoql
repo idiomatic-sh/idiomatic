@@ -28,7 +28,7 @@ let reserved = select * from literal_keys where value = "args" or value = "ascti
 let key_locations = select l.key as id, r.file as file, r.span as span from reserved as l join "semantic-syntax" as r on l.key = r.id;
 let dict_call_extras = select l.call as call, l.keyword as keyword, r.id as dictionary_call from selected_extra_values as l join calls as r on l.value = r.id;
 let dict_call_functions = select l.dictionary_call as dictionary_call, r.child as function from dict_call_extras as l join function_fields as r on l.dictionary_call = r.parent;
-let builtin_dict_names = select id from "qualified-name" where path = "builtins.dict" and provenance = "builtin" and ("since-major" < 3 or "since-major" = 3 and "since-minor" <= 10);
+let builtin_dict_names = select q.id as id from "qualified-name" as q where q.path = "builtins.dict" and q.provenance = "builtin" and (q."since-major" < 3 or q."since-major" = 3 and q."since-minor" <= 10);
 let builtin_dict_calls = select l.dictionary_call as dictionary_call from dict_call_functions as l join builtin_dict_names as r on l.function = r.id;
 let dict_call_wrappers = select l.dictionary_call as dictionary_call, r.wrapper as wrapper from dict_call_extras as l join call_arguments as r on l.dictionary_call = r.call;
 let dict_call_keyword_edges = select l.dictionary_call as dictionary_call, r.child as keyword from dict_call_wrappers as l join keyword_fields as r on l.wrapper = r.parent;
