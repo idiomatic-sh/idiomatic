@@ -73,9 +73,13 @@ struct ReportSchema<'a> {
 #[derive(Debug, Serialize)]
 /// Counts of selected rule/file pairs by final outcome.
 struct CoverageSchema {
+    /// All requested rule/file pairs.
     selected: usize,
+    /// Pairs evaluated to complete candidate outcomes.
     evaluated: usize,
+    /// Pairs skipped for explicit parser applicability reasons.
     skipped: usize,
+    /// Pairs whose source facts or query outcome remained incomplete.
     unknown_or_unread: usize,
 }
 #[derive(Debug, Serialize)]

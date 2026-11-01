@@ -1,0 +1,131 @@
+[[cases]]
+name = "loop-lambda-capture"
+comparison = "full"
+files = { "case.py" = "for i in values:\n    functions.append(lambda: i)\n" }
+expected = [{ "rule" = "B023", "file" = "case.py", "start" = 46, "end" = 47 }, { "rule" = "F821", "file" = "case.py", "start" = 9, "end" = 15 }, { "rule" = "F821", "file" = "case.py", "start" = 21, "end" = 30 }]
+
+[[cases]]
+name = "loop-function-capture"
+comparison = "full"
+files = { "case.py" = "for i in values:\n    def f():\n        return i\n" }
+expected = [{ "rule" = "B023", "file" = "case.py", "start" = 45, "end" = 46 }, { "rule" = "F821", "file" = "case.py", "start" = 9, "end" = 15 }]
+
+[[cases]]
+name = "lambda-default-binding"
+comparison = "full"
+files = { "case.py" = "for i in values:\n    functions.append(lambda i=i: i)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 9, "end" = 15 }, { "rule" = "F821", "file" = "case.py", "start" = 21, "end" = 30 }]
+
+[[cases]]
+name = "lambda-parameter-shadow"
+comparison = "full"
+files = { "case.py" = "for i in values:\n    functions.append(lambda i: i)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 9, "end" = 15 }, { "rule" = "F821", "file" = "case.py", "start" = 21, "end" = 30 }]
+
+[[cases]]
+name = "immediate-map-consumption"
+comparison = "full"
+files = { "case.py" = "for i in values:\n    result = list(map(lambda x: i+x, items))\n" }
+expected = [{ "rule" = "C417", "file" = "case.py", "start" = 30, "end" = 61 }, { "rule" = "F821", "file" = "case.py", "start" = 9, "end" = 15 }, { "rule" = "F821", "file" = "case.py", "start" = 54, "end" = 59 }]
+
+[[cases]]
+name = "returned-lambda"
+comparison = "full"
+files = { "case.py" = "def f(values):\n    for i in values:\n        return lambda: i\n" }
+expected = []
+
+[[cases]]
+name = "normalized-capture"
+comparison = "full"
+files = { "case.py" = "for ｉ in values:\n    functions.append(lambda: i)\n" }
+expected = [{ "rule" = "B023", "file" = "case.py", "start" = 48, "end" = 49 }, { "rule" = "F821", "file" = "case.py", "start" = 11, "end" = 17 }, { "rule" = "F821", "file" = "case.py", "start" = 23, "end" = 32 }]
+
+[[cases]]
+name = "duplicate-captures"
+comparison = "full"
+files = { "case.py" = "for i in values:\n    functions.append(lambda: (i, i))\n" }
+expected = [{ "rule" = "B023", "file" = "case.py", "start" = 47, "end" = 48 }, { "rule" = "B023", "file" = "case.py", "start" = 50, "end" = 51 }, { "rule" = "F821", "file" = "case.py", "start" = 9, "end" = 15 }, { "rule" = "F821", "file" = "case.py", "start" = 21, "end" = 30 }]
+
+[[cases]]
+name = "noqa-capture"
+comparison = "full"
+files = { "case.py" = "for i in values:\n    functions.append(lambda: i)  # noqa: B023\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 9, "end" = 15 }, { "rule" = "F821", "file" = "case.py", "start" = 21, "end" = 30 }]
+
+[[cases]]
+name = "lambda-in-iterator-expression-is-not-a-loop-capture"
+comparison = "full"
+files = { "case.py" = "for item in items(key=lambda: item):\n    pass\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 12, "end" = 17 }]
+
+[[cases]]
+name = "comprehension-lambda-captures-target"
+comparison = "full"
+files = { "case.py" = "[(lambda: (yield x)) for x in items]\n" }
+expected = [{ "rule" = "B023", "file" = "case.py", "start" = 17, "end" = 18 }, { "rule" = "F821", "file" = "case.py", "start" = 30, "end" = 35 }]
+
+[[cases]]
+name = "loop_target_captured_by_lambda"
+comparison = "full"
+files = { "case.py" = "def f():\n    funcs = []\n    for i in range(3):\n        funcs.append(lambda: i)\n" }
+expected = [{ "rule" = "B023", "file" = "case.py", "start" = 76, "end" = 77 }]
+
+[[cases]]
+name = "loop_target_captured_by_named_function"
+comparison = "full"
+files = { "case.py" = "def f():\n    funcs = []\n    for i in range(3):\n        def inner():\n            return i\n        funcs.append(inner)\n" }
+expected = [{ "rule" = "B023", "file" = "case.py", "start" = 87, "end" = 88 }]
+
+[[cases]]
+name = "lambda_default_binds_loop_value"
+comparison = "full"
+files = { "case.py" = "def f():\n    funcs = []\n    for i in range(3):\n        funcs.append(lambda i=i: i)\n" }
+expected = []
+
+[[cases]]
+name = "function_local_assignment_shadows_loop_value"
+comparison = "full"
+files = { "case.py" = "def f():\n    for i in range(3):\n        def inner():\n            i = 2\n            return i\n" }
+expected = []
+
+[[cases]]
+name = "map_lambda_is_immediately_consumed"
+comparison = "full"
+files = { "case.py" = "def f():\n    for i in range(3):\n        funcs.append(map(lambda: i, values))\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 40, "end" = 45 }, { "rule" = "F821", "file" = "case.py", "start" = 68, "end" = 74 }]
+
+[[cases]]
+name = "nested_lambda_inside_map_argument_is_not_immediately_consumed"
+comparison = "full"
+files = { "case.py" = "def f():\n    for i in range(3):\n        funcs.append(map(wrap(lambda: i), values))\n" }
+expected = [{ "rule" = "B023", "file" = "case.py", "start" = 70, "end" = 71 }, { "rule" = "F821", "file" = "case.py", "start" = 40, "end" = 45 }, { "rule" = "F821", "file" = "case.py", "start" = 57, "end" = 61 }, { "rule" = "F821", "file" = "case.py", "start" = 74, "end" = 80 }]
+
+[[cases]]
+name = "shadowed_map_name_is_still_immediately_consumed"
+comparison = "full"
+files = { "case.py" = "def f():\n    for i in range(3):\n        map = custom\n        map(lambda: i, values)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 46, "end" = 52 }, { "rule" = "F821", "file" = "case.py", "start" = 76, "end" = 82 }]
+
+[[cases]]
+name = "functools_reduce_lambda_is_immediately_consumed"
+comparison = "full"
+files = { "case.py" = "import functools\ndef f():\n    for i in range(3):\n        funcs.append(functools.reduce(lambda: i, values))\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 57, "end" = 62 }, { "rule" = "F821", "file" = "case.py", "start" = 98, "end" = 104 }]
+
+[[cases]]
+name = "loop_body_assignment_captured_by_lambda"
+comparison = "full"
+files = { "case.py" = "def f():\n    funcs = []\n    for item in values:\n        current = item\n        funcs.append(lambda: current)\n" }
+expected = [{ "rule" = "B023", "file" = "case.py", "start" = 100, "end" = 107 }, { "rule" = "F821", "file" = "case.py", "start" = 40, "end" = 46 }]
+
+[[cases]]
+name = "immediately-invoked-lambda-is-safe"
+comparison = "full"
+files = { "case.py" = "def f():\n    for i in range(3):\n        (lambda: i)()\n" }
+expected = [{ "rule" = "PLC3002", "file" = "case.py", "start" = 40, "end" = 53 }]
+
+[[cases]]
+name = "returned-lambda-is-safe"
+comparison = "full"
+files = { "case.py" = "def f():\n    for i in range(3):\n        return lambda: i\n" }
+expected = []

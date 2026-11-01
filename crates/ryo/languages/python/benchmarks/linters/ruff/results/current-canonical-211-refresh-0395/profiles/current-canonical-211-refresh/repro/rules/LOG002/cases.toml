@@ -1,0 +1,113 @@
+[[cases]]
+name = "direct"
+comparison = "full"
+files = { "case.py" = "import logging\nlogging.getLogger(__file__)\n" }
+expected = [{ "rule" = "LOG002", "file" = "case.py", "start" = 33, "end" = 41 }]
+
+[[cases]]
+name = "cached"
+comparison = "full"
+files = { "case.py" = "import logging\nlogging.getLogger(__cached__)\n" }
+expected = [{ "rule" = "LOG002", "file" = "case.py", "start" = 33, "end" = 43 }]
+
+[[cases]]
+name = "keyword"
+comparison = "full"
+files = { "case.py" = "import logging\nlogging.getLogger(name=__file__)\n" }
+expected = [{ "rule" = "LOG002", "file" = "case.py", "start" = 38, "end" = 46 }]
+
+[[cases]]
+name = "alias"
+comparison = "full"
+files = { "case.py" = "import logging as log\nlog.getLogger(__file__)\n" }
+expected = [{ "rule" = "LOG002", "file" = "case.py", "start" = 36, "end" = 44 }]
+
+[[cases]]
+name = "from-import"
+comparison = "full"
+files = { "case.py" = "from logging import getLogger\ngetLogger(__file__)\n" }
+expected = [{ "rule" = "LOG002", "file" = "case.py", "start" = 40, "end" = 48 }]
+
+[[cases]]
+name = "other-call"
+comparison = "full"
+files = { "case.py" = "import logging\nlogging.info(__file__)\n" }
+expected = [{ "rule" = "LOG015", "file" = "case.py", "start" = 15, "end" = 37 }]
+
+[[cases]]
+name = "other-name"
+comparison = "full"
+files = { "case.py" = "import logging\nlogging.getLogger(filename=__file__)\n" }
+expected = []
+
+[[cases]]
+name = "string-value"
+comparison = "full"
+files = { "case.py" = "import logging\nlogging.getLogger(\"__file__\")\n" }
+expected = []
+
+[[cases]]
+name = "rebound-module"
+comparison = "full"
+files = { "case.py" = "import logging\n__file__ = \"other\"\nlogging.getLogger(__file__)\n" }
+expected = []
+
+[[cases]]
+name = "parameter-shadow"
+comparison = "full"
+files = { "case.py" = "import logging\ndef f(__file__):\n    logging.getLogger(__file__)\n" }
+expected = []
+
+[[cases]]
+name = "local-before"
+comparison = "full"
+files = { "case.py" = "import logging\ndef f():\n    __file__ = \"other\"\n    logging.getLogger(__file__)\n" }
+expected = []
+
+[[cases]]
+name = "local-after"
+comparison = "full"
+files = { "case.py" = "import logging\ndef f():\n    logging.getLogger(__file__)\n    __file__ = \"other\"\n" }
+expected = [{ "rule" = "F823", "file" = "case.py", "start" = 46, "end" = 54 }, { "rule" = "F841", "file" = "case.py", "start" = 60, "end" = 68 }, { "rule" = "LOG002", "file" = "case.py", "start" = 46, "end" = 54 }]
+
+[[cases]]
+name = "delete-module"
+comparison = "full"
+files = { "case.py" = "import logging\n__file__ = \"other\"\ndel __file__\nlogging.getLogger(__file__)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 65, "end" = 73 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "import logging\nlogging.getLogger(__file__)  # noqa: LOG002\n" }
+expected = []
+
+[[cases]]
+name = "unicode"
+comparison = "full"
+files = { "case.py" = "import logging\nlogging.getLogger(变量)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 33, "end" = 39 }]
+
+[[cases]]
+name = "nfkc-special"
+comparison = "full"
+files = { "case.py" = "import logging\nlogging.getLogger(__ｆｉｌｅ__)\n" }
+expected = [{ "rule" = "LOG002", "file" = "case.py", "start" = 33, "end" = 49 }]
+
+[[cases]]
+name = "file-noqa"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa: LOG002\nimport logging\nlogging.getLogger(__file__)\n" }
+expected = []
+
+[[cases]]
+name = "nested-function"
+comparison = "full"
+files = { "case.py" = "import logging\ndef f():\n    logging.getLogger(__file__)\n" }
+expected = [{ "rule" = "LOG002", "file" = "case.py", "start" = 46, "end" = 54 }]
+
+[[cases]]
+name = "class-shadow"
+comparison = "full"
+files = { "case.py" = "import logging\nclass C:\n    __file__ = \"other\"\n    logging.getLogger(__file__)\n" }
+expected = []

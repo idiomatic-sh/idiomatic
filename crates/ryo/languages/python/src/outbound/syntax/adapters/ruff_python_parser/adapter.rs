@@ -1,8 +1,8 @@
 //! Parse native source, report frontend diagnostics, and schedule embedded expression writing.
 use super::constants::{
-    ANNOTATED_GLOBAL, DUPLICATE_KEYWORD_ARGUMENT, DUPLICATE_PARAMETER, DUPLICATE_TYPE_PARAMETER,
-    GLOBAL_PARAMETER, INVALID_UTF8, NONLOCAL_AT_MODULE, NONLOCAL_PARAMETER, NOT_UTF8, PARSER_ERROR,
-    TYPE_PARAMETER_DEFAULT_ORDER, UNSUPPORTED_SYNTAX,
+    ANNOTATED_GLOBAL, COMPREHENSION_REBIND, DUPLICATE_KEYWORD_ARGUMENT, DUPLICATE_PARAMETER,
+    DUPLICATE_TYPE_PARAMETER, GLOBAL_PARAMETER, INVALID_UTF8, NONLOCAL_AT_MODULE,
+    NONLOCAL_PARAMETER, NOT_UTF8, PARSER_ERROR, TYPE_PARAMETER_DEFAULT_ORDER, UNSUPPORTED_SYNTAX,
 };
 use super::schemas::{offset, readable};
 use super::types::{AnnotationCandidate, AnnotationContext, ByteIndex, Readable, Writer};
@@ -84,6 +84,7 @@ fn semantic_syntax_errors(
     #[derive(Default)]
     struct VisitorState {
         scopes: Vec<ScopeState>,
+        comprehensions: Vec<HashSet<String>>,
         errors: Vec<SemanticSyntaxDiagnostic>,
     }
 
@@ -384,15 +385,59 @@ fn semantic_syntax_errors(
                 self.scope().is_some(),
                 "expression traversal always has an enclosing module or lexical scope"
             );
+            let generators: Option<&[ruff_python_ast::Comprehension]> = expr
+                .as_list_comp_expr()
+                .map(|value| value.generators.as_ref())
+                .or_else(|| {
+                    expr.as_set_comp_expr()
+                        .map(|value| value.generators.as_ref())
+                })
+                .or_else(|| {
+                    expr.as_dict_comp_expr()
+                        .map(|value| value.generators.as_ref())
+                })
+                .or_else(|| {
+                    expr.as_generator_expr()
+                        .map(|value| value.generators.as_ref())
+                });
+            if let Some(generators) = generators {
+                let mut targets = ComprehensionTargets::default();
+                for generator in generators {
+                    targets.visit_expr(&generator.target);
+                }
+                self.comprehensions.push(targets.names);
+                walk_expr(self, expr);
+                let _finished_comprehension = self.comprehensions.pop();
+                return;
+            }
             match expr {
                 Expr::Lambda(lambda) => {
                     if let Some(parameters) = &lambda.parameters {
                         self.duplicate_parameters(parameters);
+                        self.visit_parameters(parameters);
+                    }
+                    // A lambda owns its bindings even when its body occurs inside a comprehension.
+                    let outer = std::mem::take(&mut self.comprehensions);
+                    self.visit_expr(&lambda.body);
+                    self.comprehensions = outer;
+                    return;
+                }
+                Expr::Named(named) => {
+                    if let Expr::Name(target) = named.target.as_ref()
+                        && self
+                            .comprehensions
+                            .iter()
+                            .any(|names| names.contains(target.id.as_str()))
+                    {
+                        self.report(
+                            COMPREHENSION_REBIND,
+                            "assignment expression cannot rebind comprehension variable",
+                            target.range(),
+                        );
                     }
                 }
                 Expr::Call(call) => self.duplicate_keywords(&call.arguments),
                 Expr::BoolOp(_)
-                | Expr::Named(_)
                 | Expr::BinOp(_)
                 | Expr::UnaryOp(_)
                 | Expr::If(_)
@@ -432,6 +477,7 @@ fn semantic_syntax_errors(
     };
     let mut visitor = VisitorState {
         scopes: vec![ScopeState::indexed(ScopeKind::Module, None, &module.body)],
+        comprehensions: Vec::new(),
         errors: Vec::new(),
     };
     for statement in &module.body {
@@ -444,6 +490,25 @@ fn semantic_syntax_errors(
     errors
 }
 
+/// Collect the names bound by a comprehension's possibly destructured targets.
+#[derive(Default)]
+struct ComprehensionTargets {
+    /// Names introduced by store-context target expressions.
+    names: HashSet<String>,
+}
+
+impl<'a> Visitor<'a> for ComprehensionTargets {
+    fn visit_expr(&mut self, expr: &'a Expr) {
+        if let Expr::Name(name) = expr
+            && name.ctx == ruff_python_ast::ExprContext::Store
+        {
+            let _new_target = self.names.insert(name.id.as_str().to_owned());
+        }
+        walk_expr(self, expr);
+    }
+}
+
+/// Whether the module requests postponed evaluation of annotations.
 fn has_future_annotations(module: &ruff_python_ast::ModModule) -> bool {
     module.body.iter().any(|statement| {
         let Stmt::ImportFrom(import) = statement else {
@@ -480,8 +545,8 @@ fn annotation_named_expression_syntax_errors(
     }
 
     impl<'a> Visitor<'a> for AnnotationVisitor {
-        fn visit_stmt(&mut self, statement: &'a Stmt) {
-            match statement {
+        fn visit_stmt(&mut self, stmt: &'a Stmt) {
+            match stmt {
                 Stmt::FunctionDef(function) => {
                     for parameter in function.parameters.iter_non_variadic_params() {
                         if let Some(annotation) = parameter.annotation() {
@@ -499,15 +564,15 @@ fn annotation_named_expression_syntax_errors(
                     if let Some(returns) = function.returns.as_deref() {
                         self.annotation(returns);
                     }
-                    walk_stmt(self, statement);
+                    walk_stmt(self, stmt);
                 }
                 Stmt::AnnAssign(assignment) => {
                     self.annotation(&assignment.annotation);
-                    walk_stmt(self, statement);
+                    walk_stmt(self, stmt);
                 }
                 Stmt::TypeAlias(alias) => {
                     self.annotation(&alias.value);
-                    walk_stmt(self, statement);
+                    walk_stmt(self, stmt);
                 }
                 Stmt::Return(_)
                 | Stmt::Delete(_)
@@ -530,26 +595,26 @@ fn annotation_named_expression_syntax_errors(
                 | Stmt::Pass(_)
                 | Stmt::Break(_)
                 | Stmt::Continue(_)
-                | Stmt::IpyEscapeCommand(_) => walk_stmt(self, statement),
+                | Stmt::IpyEscapeCommand(_) => walk_stmt(self, stmt),
             }
         }
 
-        fn visit_expr(&mut self, expression: &'a Expr) {
-            if self.annotation_depth > 0 {
-                if let Expr::Named(named) = expression {
-                    self.errors.push(SemanticSyntaxDiagnostic {
-                        message: "named expression cannot be used within a type annotation".into(),
-                        range: named.range(),
-                        code: PARSER_ERROR,
-                        phase: DiagnosticPhase::Parse,
-                        // Ruff reports this as invalid syntax, but the parsed AST and lexical
-                        // stream remain complete. Keep semantic reads available to rules such
-                        // as F821 while exposing the parser diagnostic.
-                        impact: TreeImpact::Preserved,
-                    });
-                }
+        fn visit_expr(&mut self, expr: &'a Expr) {
+            if self.annotation_depth > 0
+                && let Expr::Named(named) = expr
+            {
+                self.errors.push(SemanticSyntaxDiagnostic {
+                    message: "named expression cannot be used within a type annotation".into(),
+                    range: named.range(),
+                    code: PARSER_ERROR,
+                    phase: DiagnosticPhase::Parse,
+                    // Ruff reports this as invalid syntax, but the parsed AST and lexical
+                    // stream remain complete. Keep semantic reads available to rules such
+                    // as F821 while exposing the parser diagnostic.
+                    impact: TreeImpact::Preserved,
+                });
             }
-            walk_expr(self, expression);
+            walk_expr(self, expr);
         }
     }
 
@@ -604,25 +669,7 @@ impl SyntaxPort for SyntaxRuffPythonParserAdapter {
             Vec::new()
         };
         if source.len() == text.0.len() && matches!(source, Cow::Owned(_)) {
-            let mut at = 0_usize;
-            for chunk in text.0.utf8_chunks() {
-                at += chunk.valid().len();
-                let bad = chunk.invalid().len();
-                if bad > 0 {
-                    languages::diagnose_with_metadata(
-                        writer.tree.builder,
-                        DiagnosticMetadata::new(
-                            DiagnosticPhase::Parse,
-                            TreeImpact::Incomplete,
-                            INVALID_UTF8,
-                        ),
-                        languages::ReportText(NOT_UTF8),
-                        offset(ByteIndex(at)),
-                        offset(ByteIndex(at + bad)),
-                    );
-                }
-                at += bad;
-            }
+            diagnose_invalid_utf8(writer.tree.builder, text.0);
         }
         for error in parsed.errors() {
             // The error's own message: the library's `Display` of the whole error adds the byte range the row already holds.
@@ -655,15 +702,7 @@ impl SyntaxPort for SyntaxRuffPythonParserAdapter {
                 Offset(error.range.end().to_u32()),
             );
         }
-        for error in semantic_errors {
-            languages::diagnose_with_metadata(
-                writer.tree.builder,
-                DiagnosticMetadata::new(error.phase, error.impact, error.code),
-                languages::ReportText(&error.message),
-                Offset(error.range.start().to_u32()),
-                Offset(error.range.end().to_u32()),
-            );
-        }
+        diagnose_semantic_errors(writer.tree.builder, semantic_errors);
         let refused = std::mem::take(&mut writer.refused);
         for refusal in refused {
             let metadata = if lexical_complete
@@ -695,6 +734,45 @@ impl SyntaxPort for SyntaxRuffPythonParserAdapter {
                 languages::EmbeddedMapping::Exact(Offset(0)),
             );
         }
+    }
+}
+
+/// Preserve validation diagnostics without discarding accepted AST facts.
+fn diagnose_semantic_errors(
+    builder: &mut languages::TableBuilder<'_>,
+    errors: Vec<SemanticSyntaxDiagnostic>,
+) {
+    for error in errors {
+        languages::diagnose_with_metadata(
+            builder,
+            DiagnosticMetadata::new(error.phase, error.impact, error.code),
+            languages::ReportText(&error.message),
+            Offset(error.range.start().to_u32()),
+            Offset(error.range.end().to_u32()),
+        );
+    }
+}
+
+/// Report each invalid original byte interval after the parser received replacement text.
+fn diagnose_invalid_utf8(builder: &mut languages::TableBuilder<'_>, source: &[u8]) {
+    let mut at = 0_usize;
+    for chunk in source.utf8_chunks() {
+        at += chunk.valid().len();
+        let bad = chunk.invalid().len();
+        if bad > 0 {
+            languages::diagnose_with_metadata(
+                builder,
+                DiagnosticMetadata::new(
+                    DiagnosticPhase::Parse,
+                    TreeImpact::Incomplete,
+                    INVALID_UTF8,
+                ),
+                languages::ReportText(NOT_UTF8),
+                offset(ByteIndex(at)),
+                offset(ByteIndex(at + bad)),
+            );
+        }
+        at += bad;
     }
 }
 
@@ -730,10 +808,9 @@ fn token_stream_is_complete(tokens: &[RuffToken], source: &[u8]) -> bool {
             == crate::domain::syntax::types::Kind::Token(
                 crate::domain::tokens::types::Token::Endmarker,
             )
+            && (index + 1 != tokens.len() || end_index != source.len())
         {
-            if index + 1 != tokens.len() || end_index != source.len() {
-                return false;
-            }
+            return false;
         }
         previous_end = end;
     }

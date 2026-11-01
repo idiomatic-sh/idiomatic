@@ -16,7 +16,7 @@ let functions = select parent, child from "semantic-child" where field = "func";
 let private_names = select id from names where matches(name, "^_");
 let private_targets = select l.assignment as assignment from single_targets as l join private_names as r on l.target = r.id;
 let public_targets = antijoin(left=single_targets, right=private_targets, left-on=["assignment"], right-on=["assignment"]);
-let functions_scope = select id from "semantic-syntax" where kind = "function-def";
+let functions_scope = select id from "semantic-syntax" where kind = "function-def" or kind = "async-function-def";
 let paths = closure(edges="semantic-child", source="parent", destination="child");
 let function_descendants = select r.child as id from functions_scope as l join paths as r on l.id = r.parent;
 let outside_functions = antijoin(left=public_targets, right=function_descendants, left-on=["assignment"], right-on=["id"]);

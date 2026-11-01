@@ -1,0 +1,77 @@
+[[cases]]
+name = "invalid-string"
+comparison = "full"
+files = { "case.py" = "__all__ = \"name\"\n" }
+expected = [{ "rule" = "PLE0605", "file" = "case.py", "start" = 0, "end" = 7 }]
+
+[[cases]]
+name = "invalid-number"
+comparison = "full"
+files = { "case.py" = "__all__ = 1\n" }
+expected = [{ "rule" = "PLE0605", "file" = "case.py", "start" = 0, "end" = 7 }]
+
+[[cases]]
+name = "valid-list"
+comparison = "full"
+files = { "case.py" = "__all__ = [\"name\"]\n" }
+expected = [{ "rule" = "F822", "file" = "case.py", "start" = 11, "end" = 17 }]
+
+[[cases]]
+name = "valid-tuple"
+comparison = "full"
+files = { "case.py" = "__all__ = (\"name\",)\n" }
+expected = [{ "rule" = "F822", "file" = "case.py", "start" = 11, "end" = 17 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "__all__ = 1  # noqa: PLE0605\n" }
+expected = []
+
+[[cases]]
+name = "concatenated-list-format-gap"
+comparison = "full"
+files = { "case.py" = "__all__ = [\"A\"] + [\"B\"]\n" }
+expected = [{ "rule" = "F822", "file" = "case.py", "start" = 11, "end" = 14 }, { "rule" = "F822", "file" = "case.py", "start" = 19, "end" = 22 }]
+
+[[cases]]
+name = "self-name-valid-format-gap"
+comparison = "full"
+files = { "case.py" = "__all__ = __all__\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 10, "end" = 17 }, { "rule" = "PLW0127", "file" = "case.py", "start" = 0, "end" = 7 }]
+
+[[cases]]
+name = "attribute-name-valid-format-gap"
+comparison = "full"
+files = { "case.py" = "__all__ = other.__all__\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 10, "end" = 15 }]
+
+[[cases]]
+name = "builtin-list-call-valid-format-gap"
+comparison = "full"
+files = { "case.py" = "__all__ = list([\"A\"])\n" }
+expected = [{ "rule" = "C410", "file" = "case.py", "start" = 10, "end" = 21 }, { "rule" = "F822", "file" = "case.py", "start" = 16, "end" = 19 }]
+
+[[cases]]
+name = "too-many-positional-invalid-format"
+comparison = "full"
+files = { "case.py" = "__all__ = list([], [])\n" }
+expected = [{ "rule" = "PLE0605", "file" = "case.py", "start" = 0, "end" = 7 }]
+
+[[cases]]
+name = "nested-function-is-not-module-export"
+comparison = "full"
+files = { "case.py" = "def f():\n    __all__ = 1\n" }
+expected = [{ "rule" = "F841", "file" = "case.py", "start" = 13, "end" = 20 }]
+
+[[cases]]
+name = "named-expression-is-not-an-export-assignment"
+comparison = "full"
+files = { "case.py" = "__all__ = (names := [\"missing\"])\n" }
+expected = [{ "rule" = "F822", "file" = "case.py", "start" = 21, "end" = 30 }]
+
+[[cases]]
+name = "right-nested-sequence-concatenation-is-invalid"
+comparison = "full"
+files = { "case.py" = "__all__ = [] + ([\"missing\"] + [])\n" }
+expected = [{ "rule" = "PLE0605", "file" = "case.py", "start" = 0, "end" = 7 }]

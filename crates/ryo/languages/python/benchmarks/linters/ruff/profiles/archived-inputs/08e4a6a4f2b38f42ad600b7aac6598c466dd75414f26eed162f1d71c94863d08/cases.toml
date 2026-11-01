@@ -1,0 +1,77 @@
+[[cases]]
+name = "valid-string-key"
+comparison = "full"
+files = { "case.py" = "consume(**{\"name\": 1})\n" }
+expected = [{ rule = "PIE804", file = "case.py", start = 8, end = 21 }]
+
+[[cases]]
+name = "empty-dict"
+comparison = "full"
+files = { "case.py" = "consume(**{})\n" }
+expected = [{ rule = "PIE804", file = "case.py", start = 8, end = 12 }]
+
+[[cases]]
+name = "multiple-valid-keys"
+comparison = "full"
+files = { "case.py" = "consume(**{\"name\": 1, \"other\": 2})\n" }
+expected = [{ rule = "PIE804", file = "case.py", start = 8, end = 33 }]
+
+[[cases]]
+name = "unicode-identifier-key"
+comparison = "full"
+files = { "case.py" = "consume(**{\"naïve\": 1})\n" }
+expected = [{ rule = "PIE804", file = "case.py", start = 8, end = 23 }]
+
+[[cases]]
+name = "hyphenated-key"
+comparison = "full"
+files = { "case.py" = "consume(**{\"bad-name\": 1})\n" }
+expected = []
+
+[[cases]]
+name = "keyword-key"
+comparison = "full"
+files = { "case.py" = "consume(**{\"class\": 1})\n" }
+expected = []
+
+[[cases]]
+name = "dynamic-key"
+comparison = "full"
+files = { "case.py" = "consume(**{name: 1})\n" }
+expected = []
+
+[[cases]]
+name = "spread-with-explicit-key"
+comparison = "full"
+files = { "case.py" = "consume(**{\"name\": 1, **values})\n" }
+expected = []
+
+[[cases]]
+name = "single-nested-spread"
+comparison = "full"
+files = { "case.py" = "consume(**{**values})\n" }
+expected = [{ rule = "PIE804", file = "case.py", start = 8, end = 20 }]
+
+[[cases]]
+name = "multiple-nested-spreads"
+comparison = "full"
+files = { "case.py" = "consume(**{**left, **right})\n" }
+expected = []
+
+[[cases]]
+name = "valid-and-invalid-keywords"
+comparison = "full"
+files = { "case.py" = "consume(**{\"good\": 1}, **{\"bad-name\": 2})\n" }
+expected = [{ rule = "PIE804", file = "case.py", start = 8, end = 21 }]
+
+[[cases]]
+name = "noqa-suppression"
+comparison = "full"
+files = { "case.py" = "consume(**{\"name\": 1})  # noqa: PIE804\n" }
+expected = []
+
+[[cases]]
+name = "duplicate-explicit-key"
+comparison = "full"
+files = { "case.py" = "consume(**{\"name\": 1, \"name\": 2})\n" }
+expected = [{ rule = "PIE804", file = "case.py", start = 8, end = 32 }]

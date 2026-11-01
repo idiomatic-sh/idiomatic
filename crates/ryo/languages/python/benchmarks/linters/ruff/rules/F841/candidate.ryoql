@@ -15,7 +15,11 @@ let unredirected = antijoin(left=final_bindings,right=redirected,left-on=["scope
 let local_bindings = select l.binding as binding, l.scope as scope, l.phase as phase, l.id as id, l.name as name, l.file as file, l.span as span from unredirected as l join functions as r on l.scope = r.id;
 let declaration_nodes = select binding as id from local_bindings;
 let enclosing_statements = axis(from=declaration_nodes,relation="semantic-child",direction=nearest-ancestor,domain=statements);
-let source_statements = select l.id as binding, r.id as statement, r.kind as kind from enclosing_statements as l join nodes as r on l.related = r.id;
+let ancestor_source_statements = select l.id as binding, r.id as statement, r.kind as kind from enclosing_statements as l join nodes as r on l.related = r.id;
+let declaration_statement_roots = select l.id as binding, r.id as statement from declaration_nodes as l join statements as r on l.id = r.id;
+let direct_source_statements = select l.binding as binding, l.statement as statement, r.kind as kind from declaration_statement_roots as l join nodes as r on l.statement = r.id;
+let nonroot_source_statements = antijoin(left=ancestor_source_statements, right=direct_source_statements, left-on=["binding"], right-on=["binding"]);
+let source_statements = union(left=direct_source_statements, right=nonroot_source_statements);
 let plain_assignments = select binding from source_statements where kind = "assign" or kind = "aug-assign" or kind = "ann-assign" or kind = "with" or kind = "async-with";
 let named_expressions = select id from nodes where kind = "named-expr";
 let targets = select parent, child from "semantic-child" where field = "target";

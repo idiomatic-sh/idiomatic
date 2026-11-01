@@ -738,9 +738,17 @@ def shard_worker_limit() -> int:
     cpu_count = os.cpu_count() or 1
     available_bytes = None
     try:
-        pages = os.sysconf("SC_AVPHYS_PAGES")
-        page_size = os.sysconf("SC_PAGE_SIZE")
-        available_bytes = pages * page_size
+        for line in Path("/proc/meminfo").read_text(encoding="ascii").splitlines():
+            if line.startswith("MemAvailable:"):
+                available_bytes = int(line.split()[1]) * 1024
+                break
+    except (OSError, ValueError):
+        pass
+    try:
+        if available_bytes is None:
+            pages = os.sysconf("SC_AVPHYS_PAGES")
+            page_size = os.sysconf("SC_PAGE_SIZE")
+            available_bytes = pages * page_size
     except (OSError, ValueError):
         pass
     if available_bytes is None:
@@ -759,6 +767,7 @@ def verify_profile_sharded(
     shard_count: int,
     *,
     resume: bool = False,
+    worker_limit: int | None = None,
     runner=subprocess.run,
 ) -> int:
     """Run each audited canonical case once and persist an aggregatable receipt."""
@@ -995,7 +1004,7 @@ def verify_profile_sharded(
                 path.unlink(missing_ok=True)
             earlier_failed = any(not row.get("case_passed", False) for row in keep)
             pending_shards.append((shard_index, selected, to_run, earlier_failed))
-    with ThreadPoolExecutor(max_workers=min(effective_shard_count, shard_worker_limit())) as pool:
+    with ThreadPoolExecutor(max_workers=min(effective_shard_count, worker_limit or shard_worker_limit())) as pool:
         futures = [pool.submit(run_one, shard) for shard in pending_shards]
         for future in as_completed(futures):
             receipts.append(future.result())
@@ -1576,6 +1585,7 @@ def run_identity(
     except (OSError, subprocess.CalledProcessError):
         cargo_version = None
         rustc_version = None
+    build_source = build_identity.get("source_after_build", {})
     return {
         "manifest_path": MANIFEST.relative_to(REPOSITORY).as_posix(),
         "manifest_sha256": sha256(MANIFEST),
@@ -1590,9 +1600,11 @@ def run_identity(
         "manifest_source_commits": manifest.get("source_commits"),
         "sealed_source_hashes": manifest["files"],
         "worker": {
-            "repository_revision": revision,
-            "working_tree_status": worker_status,
-            "working_tree_diff_sha256": hashlib.sha256(worker_diff).hexdigest(),
+            "repository_revision": build_source.get("repository_revision"),
+            "working_tree_status": build_source.get("working_tree_status"),
+            "working_tree_diff_sha256": build_source.get("working_tree_diff_sha256"),
+            "source_tree_sha256": build_source.get("source_tree_sha256"),
+            "invocation_source": current_source,
             "cargo_lock_sha256": sha256(lock) if lock.is_file() else None,
             "cargo_bench_package": "idiomatic-sh-ryo-python",
             "cargo_path": cargo,
@@ -1688,6 +1700,7 @@ def stage_combined(
     stack: contextlib.ExitStack,
     output_directory: Path | None = None,
 ) -> tuple[str, Path]:
+    verify_ready_assets(profile_name, descriptor, manifest)
     profile_path = REPOSITORY / descriptor["profile_file"]
     profile_data = tomllib.loads(profile_path.read_text(encoding="utf-8"))
     selected_rules = descriptor["selected_rules"]
@@ -1824,8 +1837,40 @@ def stage_combined(
     if inventory_hash != descriptor["inventory_sha256"]:
         raise ValueError(f"{profile_name} inventory hash mismatch")
 
+    preservation_path = descriptor.get("case_preservation_file")
+    if preservation_path is not None:
+        if preservation_path not in descriptor["input_files"]:
+            raise ValueError(f"{profile_name} case-preservation proof is not a sealed input")
+        preservation = json.loads((REPOSITORY / preservation_path).read_text(encoding="utf-8"))
+        baseline_name = preservation.get("baseline_profile")
+        baseline = manifest.get("combined_profiles", {}).get(baseline_name)
+        if (
+            preservation.get("schema") != "canonical-case-preservation/v1"
+            or baseline is None
+            or baseline.get("validation_status") != "archived-historical"
+            or not set(baseline["selected_rules"]) <= set(selected_rules)
+        ):
+            raise ValueError(f"{profile_name} case-preservation baseline is invalid")
+        migrations = preservation.get("renamed_identities", {})
+        if not isinstance(migrations, dict):
+            raise ValueError(f"{profile_name} case-preservation migrations are invalid")
+        for rule in baseline["selected_rules"]:
+            previous_path = combined_case_path(rule, baseline)
+            current_path = combined_case_path(rule, descriptor)
+            previous_cases = tomllib.loads(previous_path.read_text(encoding="utf-8"))["cases"]
+            current_cases = tomllib.loads(current_path.read_text(encoding="utf-8"))["cases"]
+            rule_migrations = migrations.get(rule, {})
+            if not isinstance(rule_migrations, dict):
+                raise ValueError(f"{profile_name} case-preservation migrations are invalid for {rule}")
+            verify_case_inventory_extension(previous_cases, current_cases, rule_migrations)
+
     destination = stage_directory(profile_name, stack, output_directory)
-    registry = combined_modules(profile_data, selected_rules, manifest)
+    registry = descriptor.get("module_files")
+    if registry is None:
+        registry = combined_modules(profile_data, selected_rules, manifest)
+    else:
+        for source_path in registry.values():
+            combined_input_path(module_path(source_path), descriptor)
     copy_modules(registry, destination)
     target_version = descriptor.get("target_version", "py310")
     write_staged_profile(
@@ -1874,6 +1919,8 @@ def combined_input_path(value: str, descriptor: dict[str, object]) -> Path:
 
 def combined_query_filename(rule: str, descriptor: dict[str, object]) -> str:
     """Return the sealed source basename for canonical combined queries."""
+    if rule in descriptor.get("query_files", {}):
+        return combined_input_path(descriptor["query_files"][rule], descriptor).name
     return combined_filename(rule, descriptor, "candidate.ryoql", "query.ryoql")
 
 
@@ -1903,6 +1950,73 @@ def combined_filename(rule: str, descriptor: dict[str, object], *names: str) -> 
     return candidates[0]
 
 
+def verify_ready_assets(
+    profile_name: str, descriptor: dict[str, object], manifest: dict[str, object]
+) -> None:
+    """Compare source-proven READY query/module receipts with the actual staged inputs."""
+    receipt_file = descriptor.get("ready_assets_file")
+    if receipt_file is None:
+        return
+    if receipt_file not in descriptor["input_files"]:
+        raise ValueError(f"{profile_name} READY asset receipt is not a sealed input")
+    receipt = json.loads((REPOSITORY / receipt_file).read_text(encoding="utf-8"))
+    if receipt.get("schema") != "ready-query-assets/v1":
+        raise ValueError(f"{profile_name} READY asset receipt has an unsupported schema")
+    for asset in receipt["assets"]:
+        path = asset["path"]
+        if path not in descriptor["input_files"] or sha256(REPOSITORY / path) != asset["sha256"]:
+            raise ValueError(f"{profile_name} READY query/module bytes differ from receipt: {path}")
+    profile = tomllib.loads((REPOSITORY / descriptor["profile_file"]).read_text(encoding="utf-8"))
+    registry = descriptor.get("module_files")
+    if registry is None:
+        registry = combined_modules(profile, descriptor["selected_rules"], manifest)
+    required = set(descriptor["query_files"].values()) | {module_path(path) for path in registry.values()}
+    if required - {asset["path"] for asset in receipt["assets"]}:
+        raise ValueError(f"{profile_name} READY receipt omits selected candidate queries or modules")
+
+
+def verify_case_inventory_extension(
+    previous: list[dict[str, object]],
+    current: list[dict[str, object]],
+    explicit_renames: dict[str, str],
+) -> None:
+    """Require canonical case additions to preserve every prior case byte-for-byte.
+
+    A case identity can move only through a sealed old-name -> new-name migration;
+    after changing that one field, source, effective comparison settings, and expected
+    rows must match. An explicit ``comparison = "rule"`` equals the old default.
+    """
+    previous_by_name = {case.get("name"): case for case in previous}
+    current_by_name = {case.get("name"): case for case in current}
+    if (
+        len(previous_by_name) != len(previous)
+        or len(current_by_name) != len(current)
+        or any(not isinstance(name, str) or not name for name in previous_by_name)
+        or any(not isinstance(name, str) or not name for name in current_by_name)
+    ):
+        raise ValueError("case inventory contains a blank or duplicate identity")
+    if set(explicit_renames) - set(previous_by_name):
+        raise ValueError("case migration names an absent prior identity")
+    targets = list(explicit_renames.values())
+    if len(targets) != len(set(targets)):
+        raise ValueError("case migration has colliding target identities")
+    for old_name, old_case in previous_by_name.items():
+        new_name = explicit_renames.get(old_name, old_name)
+        current_case = current_by_name.get(new_name)
+        if current_case is None:
+            raise ValueError(f"canonical case was removed without migration: {old_name}")
+        expected_case = dict(old_case)
+        expected_case["name"] = new_name
+        actual_case = dict(current_case)
+        if expected_case.get("comparison", "rule") == actual_case.get("comparison", "rule") == "rule":
+            expected_case.pop("comparison", None)
+            actual_case.pop("comparison", None)
+        if actual_case != expected_case:
+            raise ValueError(f"canonical case source/settings/expectations changed: {old_name}")
+    if set(explicit_renames.values()) - set(current_by_name):
+        raise ValueError("case migration target is absent from the current inventory")
+
+
 def self_test() -> int:
     """Exercise fail-closed profile-selection and hash-mismatch guards without invoking Cargo."""
     global MANIFEST
@@ -1919,6 +2033,34 @@ def self_test() -> int:
         {"rule": "C", "name": "one", "case_sha256": "d"},
         {"rule": "C", "name": "two", "case_sha256": "e"},
     ]
+    prior_cases = [
+        {"name": "old-name", "files": {"case.py": "x = 1\n"}, "expected": []},
+        {
+            "name": "kept",
+            "files": {"case.py": "y = 2\n"},
+            "expected": [{"file": "case.py", "start": 0, "end": 1}],
+        },
+    ]
+    extended_cases = [
+        {"name": "renamed-old-name", "files": {"case.py": "x = 1\n"}, "expected": []},
+        prior_cases[1],
+        {"name": "new-case", "files": {"case.py": "z = 3\n"}, "expected": []},
+    ]
+    try:
+        verify_case_inventory_extension(prior_cases, extended_cases, {"old-name": "renamed-old-name"})
+        for invalid_cases, migrations in (
+            (extended_cases[1:], {"old-name": "renamed-old-name"}),
+            ([prior_cases[0], {**prior_cases[1], "expected": []}], {}),
+            ([prior_cases[0], prior_cases[1], prior_cases[0]], {}),
+        ):
+            try:
+                verify_case_inventory_extension(prior_cases, invalid_cases, migrations)
+            except ValueError:
+                continue
+            raise ValueError("case preservation accepted a removal, changed expectation, or duplicate identity")
+    except (TypeError, ValueError) as error:
+        print(f"canonical case inventory preservation failed: {error}", file=sys.stderr)
+        return 1
     prepared = json.loads(MANIFEST.read_text(encoding="utf-8"))
     try:
         no_active_cohort = json.loads(json.dumps(prepared))
@@ -2531,10 +2673,12 @@ def self_test() -> int:
         for rule in ("LOG015", "ASYNC115"):
             profile_case = prepared_case_path(rule, manifest["profiles"][rule])
             canonical_case = RUFF_DIR / "rules" / rule / "cases.toml"
+            historical_case = combined_case_path(rule, expanded_descriptor)
             if (
-                profile_case == canonical_case
-                or profile_case.read_bytes() == canonical_case.read_bytes()
-                or combined_filename(rule, expanded_descriptor, "cases.toml") != "cases.toml"
+                profile_case.read_bytes() != canonical_case.read_bytes()
+                or historical_case.read_bytes() == canonical_case.read_bytes()
+                or expanded_descriptor.get("case_files", {}).get(rule)
+                == canonical_case.relative_to(REPOSITORY).as_posix()
                 or combined_query_filename(rule, expanded_descriptor) != "query.ryoql"
             ):
                 print(f"{rule} candidate snapshot changed the frozen expanded cohort", file=sys.stderr)
@@ -2546,7 +2690,7 @@ def self_test() -> int:
         historical_cases = combined_case_path("F821", expanded_descriptor)
         if (
             f821_candidate != RUFF_DIR / "rules/F821/candidate.ryoql"
-            or f821_cases != RUFF_DIR / "rules/F821/cases.toml"
+            or f821_cases.read_bytes() != (RUFF_DIR / "rules/F821/cases.toml").read_bytes()
             or historical_candidate == f821_candidate
             or historical_cases == f821_cases
             or historical_candidate.read_bytes() == f821_candidate.read_bytes()
@@ -2826,7 +2970,10 @@ def self_test() -> int:
                 check=False,
                 env={**os.environ, "PATH": f"{fake_bin}:{os.environ['PATH']}"},
             )
-            return check.returncode == 2 and expected_error in check.stderr and not marker.exists()
+            valid = check.returncode == 2 and expected_error in check.stderr and not marker.exists()
+            if not valid:
+                print(f"shape guard status={check.returncode}; stderr={check.stderr!r}", file=sys.stderr)
+            return valid
 
         # Each case gets a fresh source snapshot because the helper itself refuses any stale seal.
         for kind, message in (("source-hash", "case source hash mismatch"), ("case-key", "overlay case is absent")):
@@ -2944,7 +3091,9 @@ def main() -> int:
     parser.add_argument("rules", nargs="*", help="optional rule IDs; default: every prepared profile")
     parser.add_argument("--profile", help="run one named combined prepared profile")
     parser.add_argument("--shards", type=int, help="execute each case once across deterministic case shards")
+    parser.add_argument("--workers", type=int, help="bound concurrent shard workers (1 through 64); scheduling may change on resume")
     parser.add_argument("--resume", action="store_true", help="reuse only complete shard receipts with identical sealed identities")
+    parser.add_argument("--reuse-worker-from", type=Path, help="reuse a frozen benchmark worker and its original stable build provenance")
     parser.add_argument("--parity-check", help="single-rule profile to compare monolithic and two-shard full reports")
     parser.add_argument(
         "--output-dir",
@@ -2958,8 +3107,12 @@ def main() -> int:
         return self_test()
     if arguments.ruff is None:
         parser.error("the pinned Ruff executable is required unless --self-test is selected")
+    if arguments.reuse_worker_from is not None and (arguments.resume or arguments.reference_only):
+        parser.error("--reuse-worker-from requires a new candidate verification run")
     if arguments.shards is not None and (arguments.shards < 2 or arguments.reference_only):
         parser.error("--shards requires at least two shards and candidate verification")
+    if arguments.workers is not None and (arguments.shards is None or not 1 <= arguments.workers <= 64):
+        parser.error("--workers requires --shards and a value from 1 through 64")
     if arguments.resume and (arguments.shards is None or arguments.output_dir is None):
         parser.error("--resume requires --shards and --output-dir")
     if arguments.resume and arguments.profile is None:
@@ -3068,6 +3221,19 @@ def main() -> int:
                     "status": "not-built",
                     "reason": "reference-only mode invokes the sealed Ruff executable directly",
                 }
+            elif arguments.reuse_worker_from is not None:
+                original = arguments.reuse_worker_from.resolve()
+                worker_executable, build_identity = reuse_frozen_worker(original)
+                build_directory = output_directory / "build"
+                build_directory.mkdir(exist_ok=False)
+                for filename in ("stdout.bin", "stderr.bin", "result.json"):
+                    shutil.copyfile(original / "build" / filename, build_directory / filename)
+                atomic_json_write(output_directory / "worker-reuse.json", {
+                    "original_output_directory": str(original),
+                    "original_build_receipt_sha256": sha256(original / "build" / "result.json"),
+                    "worker_sha256": sha256(worker_executable),
+                    "source_identity_policy": "original stable build identity; current source tree is not relabeled",
+                })
             else:
                 worker_executable, build_identity = build_worker_once(output_directory, stack)
             if not arguments.reference_only:
@@ -3139,6 +3305,7 @@ def main() -> int:
                         identities,
                         arguments.shards,
                         resume=arguments.resume,
+                        worker_limit=arguments.workers,
                     )
                 else:
                     status = verify_profile(name, profile_root, command, output_directory, identities)

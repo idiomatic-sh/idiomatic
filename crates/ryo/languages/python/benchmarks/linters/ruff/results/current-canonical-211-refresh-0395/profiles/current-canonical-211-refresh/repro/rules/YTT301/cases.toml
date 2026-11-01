@@ -1,0 +1,47 @@
+[[cases]]
+name = "version_major_index"
+comparison = "full"
+files = { "case.py" = "import sys\nvalue = sys.version[0]\n" }
+expected = [{ "rule" = "YTT301", "file" = "case.py", "start" = 19, "end" = 30 }]
+
+[[cases]]
+name = "alias"
+comparison = "full"
+files = { "case.py" = "import sys as runtime\nvalue = runtime.version[0]\n" }
+expected = [{ "rule" = "YTT301", "file" = "case.py", "start" = 30, "end" = 45 }]
+
+[[cases]]
+name = "minor_index"
+comparison = "full"
+files = { "case.py" = "import sys\nvalue = sys.version[1]\n" }
+expected = []
+
+[[cases]]
+name = "version_info"
+comparison = "full"
+files = { "case.py" = "import sys\nvalue = sys.version_info[0]\n" }
+expected = []
+
+[[cases]]
+name = "unrelated_attribute"
+comparison = "full"
+files = { "case.py" = "value = other.version[0]\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 8, "end" = 13 }]
+
+[[cases]]
+name = "shadowed_sys"
+comparison = "full"
+files = { "case.py" = "import sys\nsys = fake\nvalue = sys.version[0]\n" }
+expected = [{ "rule" = "F811", "file" = "case.py", "start" = 11, "end" = 14 }, { "rule" = "F821", "file" = "case.py", "start" = 17, "end" = 21 }]
+
+[[cases]]
+name = "inline_noqa"
+comparison = "full"
+files = { "case.py" = "import sys\nvalue = sys.version[0]  # noqa: YTT301\n" }
+expected = []
+
+[[cases]]
+name = "multiline"
+comparison = "full"
+files = { "case.py" = "import sys\nvalue = (sys.version\n         [0])\n" }
+expected = [{ "rule" = "YTT301", "file" = "case.py", "start" = 20, "end" = 31 }]

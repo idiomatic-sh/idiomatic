@@ -38,9 +38,8 @@ fn outcome(result: Option<&BraceFormatResult>, unknown: bool) -> (&'static str, 
     match result {
         Some(BraceFormatResult::Parsed(_)) => ("parsed", "none"),
         Some(BraceFormatResult::Malformed(error)) => ("malformed", error_name(*error)),
-        Some(BraceFormatResult::Unavailable) => ("unavailable", "none"),
         None if unknown => ("unknown-input", "none"),
-        None => ("unavailable", "none"),
+        Some(BraceFormatResult::Unavailable) | None => ("unavailable", "none"),
     }
 }
 
@@ -133,65 +132,5 @@ ryo::reads! {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::{BraceFormatFieldItem, BraceFormatParseItem};
-    use crate::domain::relations::collections::relations::fixtures::contract::check;
-    use crate::fixtures::reading::reading;
-    use ryo::languages::contract::Want;
-
-    #[test]
-    fn parse_rows_preserve_empty_valid_malformed_and_dynamic_states() {
-        check::<BraceFormatParseItem>();
-        let report = reading::<BraceFormatParseItem>(concat!(
-            "a = '{{}}'\n",
-            "b = '{name} {} {2}'\n",
-            "c = '{name..bad}'\n",
-            "d = f'{dynamic}'\n",
-        ));
-        assert!(report.causes.is_empty(), "{:?}", report.causes);
-        let outcomes = report.rows.iter().map(|row| row[2]).collect::<Vec<_>>();
-        assert_eq!(
-            outcomes,
-            [
-                Want::Name("parsed"),
-                Want::Name("parsed"),
-                Want::Name("malformed"),
-                Want::Name("unknown-input")
-            ]
-        );
-        assert_eq!(report.rows[0][4], Want::Number(0));
-        assert_eq!(report.rows[1][4], Want::Number(1));
-        assert_eq!(report.rows[1][5], Want::Number(1));
-        assert_eq!(report.rows[1][6], Want::Number(1));
-        assert_eq!(report.rows[2][3], Want::Name("empty-attribute"));
-    }
-
-    #[test]
-    fn field_rows_keep_duplicates_and_nested_parent_order() {
-        check::<BraceFormatFieldItem>();
-        let report = reading::<BraceFormatFieldItem>("'{key:{width}} {key}'\n");
-        assert!(report.causes.is_empty(), "{:?}", report.causes);
-        assert_eq!(report.rows.len(), 3);
-        assert_eq!(report.rows[0][1], Want::Number(0));
-        assert_eq!(report.rows[0][2], Want::Name("literal"));
-        assert_eq!(report.rows[1][1], Want::Number(1));
-        assert_eq!(report.rows[1][2], Want::Name("format-spec"));
-        assert_eq!(report.rows[1][3], Want::Number(0));
-        assert_eq!(report.rows[2][1], Want::Number(2));
-        assert_eq!(report.rows[2][7], Want::Name("key"));
-    }
-
-    #[test]
-    fn oversized_positional_selector_keeps_exact_digits_and_overflow_flag() {
-        let report = reading::<BraceFormatFieldItem>("'{9223372036854775808}'\n");
-        assert!(report.causes.is_empty(), "{:?}", report.causes);
-        if usize::BITS >= i64::BITS {
-            assert_eq!(report.rows.len(), 1);
-            assert_eq!(report.rows[0][5], Want::Number(0));
-            assert_eq!(report.rows[0][6], Want::Flag(true));
-            assert_eq!(report.rows[0][7], Want::Name("9223372036854775808"));
-        } else {
-            assert!(report.rows.is_empty());
-        }
-    }
-}
+#[path = "brace_format_readers_test.rs"]
+mod tests;

@@ -77,3 +77,33 @@ expected = [{ file = "case.py", start = 22, end = 34 }]
 name = "shared-file-ignore"
 files = { "case.py" = "# ruff: file-ignore[PLW0604]\nglobal value\n" }
 expected = []
+
+[[cases]]
+name = "function-global-context-False-12"
+comparison = "full"
+files = { "case.py" = "value=1\ndef f():\n    global value\n" }
+expected = []
+
+[[cases]]
+name = "function-global-context-False-26"
+comparison = "full"
+files = { "case.py" = "value=1\ndef f():\n    global value\n    del value\n" }
+expected = []
+
+[[cases]]
+name = "function-global-context-True-12"
+comparison = "full"
+files = { "case.py" = "value=1\nasync def f():\n    global value\n" }
+expected = []
+
+[[cases]]
+name = "function-global-context-True-26"
+comparison = "full"
+files = { "case.py" = "value=1\nasync def f():\n    global value\n    del value\n" }
+expected = []
+
+[[cases]]
+name = "crossrule-F821-async-global-deletion"
+comparison = "full"
+files = { "case.py" = "x = 1\nasync def f():\n    global x\n    del x\n" }
+expected = []

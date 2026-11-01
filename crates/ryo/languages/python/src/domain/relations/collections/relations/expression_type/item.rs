@@ -14,13 +14,17 @@ use crate::domain::{
 };
 use ryo::languages;
 
+/// The reason incomplete parser payloads cannot establish basic types.
 const INCOMPLETE: &str = "basic expression types require complete parser payloads";
+/// Reads inferred expression classifications on demand.
 pub(crate) struct ExpressionTypeItem;
 
+/// Return whether the cached classifications cover the current source.
 fn state(index: &ExpressionTypeIndex) -> IndexState {
     index.state
 }
 
+/// Look up the classification of one original expression position.
 fn classification(
     index: &ExpressionTypeIndex,
     position: languages::Position,

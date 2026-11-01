@@ -1,0 +1,389 @@
+[[cases]]
+name = "append-to-list-copy"
+comparison = "full"
+files = { "case.py" = "result = []\nfor item in source:\n    result.append(item)\n" }
+expected = [{ rule = "PERF402", file = "case.py", start = 36, end = 55 }]
+
+[[cases]]
+name = "append-to-tuple"
+comparison = "full"
+files = { "case.py" = "result = ()\nfor item in source:\n    result.append(item)\n" }
+expected = []
+
+[[cases]]
+name = "different-appended-value"
+comparison = "full"
+files = { "case.py" = "result = []\nfor item in source:\n    result.append(other)\n" }
+expected = []
+
+[[cases]]
+name = "loop-name-in-receiver"
+comparison = "full"
+files = { "result.py" = "for item in source:\n    item.append(item)\n" }
+expected = []
+
+[[cases]]
+name = "multi-statement-body"
+comparison = "full"
+files = { "case.py" = "result = []\nfor item in source:\n    inspect(item)\n    result.append(item)\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "result = []\nfor item in source:\n    result.append(item)  # noqa: PERF402\n" }
+expected = []
+
+[[cases]]
+name = "nested-function"
+comparison = "full"
+files = { "case.py" = "def f():\n    result = []\n    for item in source:\n        result.append(item)\n" }
+expected = [{ rule = "PERF402", file = "case.py", start = 57, end = 76 }]
+
+[[cases]]
+name = "list-constructor-destination"
+comparison = "full"
+files = { "case.py" = "result = list()\nfor item in source:\n    result.append(item)\n" }
+expected = [{ rule = "PERF402", file = "case.py", start = 40, end = 59 }]
+
+[[cases]]
+name = "upstream-pinned-fixture"
+comparison = "full"
+files = { "case.py" = "def f():\n    items = [1, 2, 3, 4]\n    result = []\n    for i in items:\n        result.append(i)  # PERF402\n\n\ndef f():\n    items = [1, 2, 3, 4]\n    result = []\n    for i in items:\n        result.insert(0, i)  # PERF402\n\n\ndef f():\n    items = [1, 2, 3, 4]\n    result = []\n    for i in items:\n        result.append(i * i)  # OK\n\n\ndef f():\n    items = [1, 2, 3, 4]\n    result = {}\n    for i in items:\n        result[i].append(i * i)  # OK\n\n\nclass Foo:\n    def append(self, x):\n        pass\n\n\ndef f():\n    items = [1, 2, 3, 4]\n    result = Foo()\n    for i in items:\n        result.append(i)  # OK\n\n\ndef f():\n    import sys\n\n    for path in (\"foo\", \"bar\"):\n        sys.path.append(path)  # OK\n\n\ndef f():\n    items = [1, 2, 3, 4]\n    result = []\n    async for i in items:\n        result.append(i)  # PERF402\n" }
+expected = [{ rule = "PERF402", file = "case.py", start = 78, end = 94 }]
+
+[[cases]]
+name = "annotated-parameter"
+comparison = "full"
+files = { "case.py" = "def f(out:list):\n    for x in xs:\n        out.append(x)\n" }
+expected = [{ rule = "PERF402", file = "case.py", start = 42, end = 55 }]
+
+[[cases]]
+name = "comprehension-initializer"
+comparison = "full"
+files = { "case.py" = "out=[x for x in xs]\nfor x in ys:\n    out.append(x)\n" }
+expected = [{ rule = "PERF402", file = "case.py", start = 37, end = 50 }]
+
+[[cases]]
+name = "annotation-only"
+comparison = "full"
+files = { "case.py" = "out: list\nfor x in xs:\n    out.append(x)\n" }
+expected = []
+
+[[cases]]
+name = "insert-one-runtime-invalid"
+comparison = "full"
+files = { "case.py" = "out=[]\nfor x in xs:\n    out.insert(x)\n" }
+expected = [{ rule = "PERF402", file = "case.py", start = 24, end = 37 }]
+
+[[cases]]
+name = "keyword-blocks"
+comparison = "full"
+files = { "case.py" = "out=[]\nfor x in xs:\n    out.append(x,extra=1)\n" }
+expected = []
+
+[[cases]]
+name = "nested-destructure"
+comparison = "full"
+files = { "case.py" = "((out,other),tail)=(([],[]),0)\nfor x in xs:\n    out.append(x)\n" }
+expected = [{ rule = "PERF402", file = "case.py", start = 48, end = 61 }]
+
+[[cases]]
+name = "initializer-0"
+comparison = "full"
+files = { "case.py" = "out=list()\nfor item in xs:\n    out.append(item)\n" }
+expected = [{ rule = "PERF402", file = "case.py", start = 31, end = 47 }]
+
+[[cases]]
+name = "initializer-1"
+comparison = "full"
+files = { "case.py" = "out=list[int]()\nfor item in xs:\n    out.append(item)\n" }
+expected = []
+
+[[cases]]
+name = "initializer-2"
+comparison = "full"
+files = { "case.py" = "out=[1]\nfor item in xs:\n    out.append(item)\n" }
+expected = [{ rule = "PERF402", file = "case.py", start = 28, end = 44 }]
+
+[[cases]]
+name = "initializer-3"
+comparison = "full"
+files = { "case.py" = "out=[x for x in xs]\nfor item in xs:\n    out.append(item)\n" }
+expected = [{ rule = "PERF402", file = "case.py", start = 40, end = 56 }]
+
+[[cases]]
+name = "initializer-4"
+comparison = "full"
+files = { "case.py" = "out=unknown\nfor item in xs:\n    out.append(item)\n" }
+expected = []
+
+[[cases]]
+name = "initializer-5"
+comparison = "full"
+files = { "case.py" = "out=other()\nfor item in xs:\n    out.append(item)\n" }
+expected = []
+
+[[cases]]
+name = "initializer-6"
+comparison = "full"
+files = { "case.py" = "out=([1] if p else [2])\nfor item in xs:\n    out.append(item)\n" }
+expected = [{ rule = "PERF402", file = "case.py", start = 44, end = 60 }]
+
+[[cases]]
+name = "annotation-0"
+comparison = "full"
+files = { "case.py" = "import typing\nfrom typing import List as T\nout:list=unknown\nfor item in xs:\n    out.append(item)\n" }
+expected = [{ rule = "PERF402", file = "case.py", start = 80, end = 96 }]
+
+[[cases]]
+name = "annotation-1"
+comparison = "full"
+files = { "case.py" = "import typing\nfrom typing import List as T\nout:list[int]=unknown\nfor item in xs:\n    out.append(item)\n" }
+expected = [{ rule = "PERF402", file = "case.py", start = 85, end = 101 }]
+
+[[cases]]
+name = "annotation-2"
+comparison = "full"
+files = { "case.py" = "import typing\nfrom typing import List as T\nout:T=unknown\nfor item in xs:\n    out.append(item)\n" }
+expected = [{ rule = "PERF402", file = "case.py", start = 77, end = 93 }]
+
+[[cases]]
+name = "annotation-3"
+comparison = "full"
+files = { "case.py" = "import typing\nfrom typing import List as T\nout:T[int]=unknown\nfor item in xs:\n    out.append(item)\n" }
+expected = [{ rule = "PERF402", file = "case.py", start = 82, end = 98 }]
+
+[[cases]]
+name = "annotation-4"
+comparison = "full"
+files = { "case.py" = "import typing\nfrom typing import List as T\nout:str=unknown\nfor item in xs:\n    out.append(item)\n" }
+expected = []
+
+[[cases]]
+name = "annotation-5"
+comparison = "full"
+files = { "case.py" = "import typing\nfrom typing import List as T\nout:\"list\"=unknown\nfor item in xs:\n    out.append(item)\n" }
+expected = []
+
+[[cases]]
+name = "annotation-6"
+comparison = "full"
+files = { "case.py" = "import typing\nfrom typing import List as T\nout:typing.List=unknown\nfor item in xs:\n    out.append(item)\n" }
+expected = [{ rule = "PERF402", file = "case.py", start = 87, end = 103 }]
+
+[[cases]]
+name = "annotation-7"
+comparison = "full"
+files = { "case.py" = "import typing\nfrom typing import List as T\nout:typing.List[int]=unknown\nfor item in xs:\n    out.append(item)\n" }
+expected = [{ rule = "PERF402", file = "case.py", start = 92, end = 108 }]
+
+[[cases]]
+name = "annotation-8"
+comparison = "full"
+files = { "case.py" = "import typing\nfrom typing import List as T\nout:list[int][str]=unknown\nfor item in xs:\n    out.append(item)\n" }
+expected = []
+
+[[cases]]
+name = "prior-binding-0"
+comparison = "full"
+files = { "case.py" = "out=list()\nout=list()\nfor item in xs:\n    out.append(item)\n" }
+expected = []
+
+[[cases]]
+name = "prior-binding-1"
+comparison = "full"
+files = { "case.py" = "out=unknown\nout=list()\nfor item in xs:\n    out.append(item)\n" }
+expected = []
+
+[[cases]]
+name = "prior-binding-2"
+comparison = "full"
+files = { "case.py" = "out=list()\nout=unknown\nfor item in xs:\n    out.append(item)\n" }
+expected = []
+
+[[cases]]
+name = "prior-binding-3"
+comparison = "full"
+files = { "case.py" = "out:list\nout=list()\nfor item in xs:\n    out.append(item)\n" }
+expected = []
+
+[[cases]]
+name = "prior-binding-4"
+comparison = "full"
+files = { "case.py" = "out=list()\ndel out\nout=list()\nfor item in xs:\n    out.append(item)\n" }
+expected = []
+
+[[cases]]
+name = "with-initializer-extra"
+comparison = "full"
+files = { "case.py" = "with list() as out:\n    for item in xs:\n        out.append(item)\n" }
+expected = [{ rule = "PERF402", file = "case.py", start = 48, end = 64 }]
+
+[[cases]]
+name = "function-return-annotation"
+comparison = "full"
+files = { "case.py" = "def out()->list:\n    pass\nfor item in xs:\n    out.append(item)\n" }
+expected = [{ rule = "PERF402", file = "case.py", start = 46, end = 62 }]
+
+[[cases]]
+name = "imported-constructor"
+comparison = "full"
+files = { "case.py" = "import builtins as b\nfrom builtins import list as C\nout=C()\nfor item in xs:\n    out.append(item)\n" }
+expected = [{ rule = "PERF402", file = "case.py", start = 80, end = 96 }]
+
+[[cases]]
+name = "parameter-annotation"
+comparison = "full"
+files = { "case.py" = "def f(out:list[int]):\n    for item in xs:\n        out.append(item)\n" }
+expected = [{ rule = "PERF402", file = "case.py", start = 50, end = 66 }]
+
+[[cases]]
+name = "different-scope-same-name"
+comparison = "full"
+files = { "case.py" = "out=list()\ndef f(out):\n    for item in xs:\n        out.append(item)\n" }
+expected = []
+
+[[cases]]
+name = "kwargs-only-control"
+comparison = "full"
+files = { "case.py" = "out=list()\nfor item in xs:\n    out.append(item, extra=1)\n" }
+expected = []
+
+[[cases]]
+name = "assignment-body-blocks"
+comparison = "full"
+files = { "case.py" = "out=[]\nfor item in xs:\n    x=out.append(item)\n" }
+expected = []
+
+[[cases]]
+name = "argument-name-equality"
+comparison = "full"
+files = { "case.py" = "out=[]\nfor item in xs:\n    out.append(other)\n" }
+expected = []
+
+[[cases]]
+name = "async-excluded"
+comparison = "full"
+files = { "case.py" = "async def f(out:list):\n    async for item in xs:\n        out.append(item)\n" }
+expected = []
+
+[[cases]]
+name = "tuple-target-excluded"
+comparison = "full"
+files = { "case.py" = "out=[]\nfor item,other in xs:\n    out.append(item)\n" }
+expected = []
+
+[[cases]]
+name = "annotation-module-typing_extensions"
+comparison = "full"
+files = { "case.py" = "from typing_extensions import List as T\nout:T[int]=unknown\nfor item in xs:\n    out.append(item)\n" }
+expected = [{ rule = "PERF402", file = "case.py", start = 79, end = 95 }]
+
+[[cases]]
+name = "annotation-module-_typeshed"
+comparison = "full"
+files = { "case.py" = "from _typeshed import List as T\nout:T[int]=unknown\nfor item in xs:\n    out.append(item)\n" }
+expected = [{ rule = "PERF402", file = "case.py", start = 71, end = 87 }]
+
+[[cases]]
+name = "unicode-extra"
+comparison = "full"
+files = { "case.py" = "é=\"🙂\"\nout=[]\nfor item in xs:\n    out.append(item)\n" }
+expected = [{ rule = "PERF402", file = "case.py", start = 37, end = 53 }]
+
+[[cases]]
+name = "inline-noqa-extra"
+comparison = "full"
+files = { "case.py" = "out=[]\nfor item in xs:\n    out.append(item) # noqa: PERF402\n" }
+expected = []
+
+[[cases]]
+name = "zip-shorter-value"
+comparison = "full"
+files = { "case.py" = "(out,missing)=([1],)\nfor x in xs:\n    out.append(x)\n" }
+expected = [{ rule = "PERF402", file = "case.py", start = 38, end = 51 }]
+
+[[cases]]
+name = "zip-longer-value"
+comparison = "full"
+files = { "case.py" = "(out,)=([1],0,1)\nfor x in xs:\n    out.append(x)\n" }
+expected = [{ rule = "PERF402", file = "case.py", start = 34, end = 47 }]
+
+[[cases]]
+name = "zip-missing-target"
+comparison = "full"
+files = { "case.py" = "(present,out)=(0,)\nfor x in xs:\n    out.append(x)\n" }
+expected = []
+
+[[cases]]
+name = "nested-unequal-shapes"
+comparison = "full"
+files = { "case.py" = "((out,),tail)=(([1],0),1)\nfor x in xs:\n    out.append(x)\n" }
+expected = [{ rule = "PERF402", file = "case.py", start = 43, end = 56 }]
+
+[[cases]]
+name = "nested-nonliteral-stop"
+comparison = "full"
+files = { "case.py" = "((out,other),tail)=(unknown,0)\nfor x in xs:\n    out.append(x)\n" }
+expected = []
+
+[[cases]]
+name = "nonliteral-root-stop"
+comparison = "full"
+files = { "case.py" = "(out,other)=unknown\nfor x in xs:\n    out.append(x)\n" }
+expected = []
+
+[[cases]]
+name = "starred-middle-zip-ordinal"
+comparison = "full"
+files = { "case.py" = "(head,*rest,out)=(0,0,[1],0)\nfor x in xs:\n    out.append(x)\n" }
+expected = [{ rule = "PERF402", file = "case.py", start = 46, end = 59 }]
+
+[[cases]]
+name = "starred-target-no-descend"
+comparison = "full"
+files = { "case.py" = "(head,*out)=(0,[1])\nfor x in xs:\n    out.append(x)\n" }
+expected = []
+
+[[cases]]
+name = "chained-collection-targets"
+comparison = "full"
+files = { "case.py" = "(out,other)=(alias,last)=([1],0)\nfor x in xs:\n    out.append(x)\nfor x in xs:\n    alias.append(x)\n" }
+expected = [{ rule = "PERF402", file = "case.py", start = 50, end = 63 }, { rule = "PERF402", file = "case.py", start = 81, end = 96 }]
+
+[[cases]]
+name = "mismatched-collection-kinds"
+comparison = "full"
+files = { "case.py" = "[out,other]=([1],0)\nfor x in xs:\n    out.append(x)\n" }
+expected = [{ rule = "PERF402", file = "case.py", start = 37, end = 50 }]
+
+[[cases]]
+name = "set-rhs-ordinal"
+comparison = "full"
+files = { "case.py" = "(out,other)={(1,2),0}\nfor x in xs:\n    out.append(x)\n" }
+expected = []
+
+[[cases]]
+name = "same-name-scopes"
+comparison = "full"
+files = { "case.py" = "out=unknown\ndef f():\n    ((out,other),tail)=(([1],0),1)\n    for x in xs:\n        out.append(x)\nfor x in xs:\n    out.append(x)\n" }
+expected = [{ rule = "PERF402", file = "case.py", start = 81, end = 94 }]
+
+[[cases]]
+name = "annotation-precedence-after-migration"
+comparison = "full"
+files = { "case.py" = "out:set=[]\nfor x in xs:\n    out.append(x)\n" }
+expected = []
+
+[[cases]]
+name = "two-files-reused-identities"
+comparison = "full"
+files = { "a.py" = "((out,other),tail)=(([1],0),1)\nfor x in xs:\n    out.append(x)\n", "b.py" = "((out,other),tail)=((unknown,0),1)\nfor x in xs:\n    out.append(x)\n" }
+expected = [{ rule = "PERF402", file = "a.py", start = 48, end = 61 }]
+
+[[cases]]
+name="set-rhs-mutable-value-runtime-invalid"
+comparison="full"
+files={"case.py"="(out,other)={[1],0}\nfor x in xs:\n    out.append(x)\n"}
+expected=[{ rule = "PERF402", file = "case.py", start = 37, end = 50 }]

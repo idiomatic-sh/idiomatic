@@ -1,0 +1,137 @@
+[[cases]]
+name = "explicit"
+comparison = "full"
+files = { "case.py" = "function(value=1, **{\"value\": 2})\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 8 }, { "rule" = "PLE1132", "file" = "case.py", "start" = 21, "end" = 28 }]
+
+[[cases]]
+name = "before-explicit"
+comparison = "full"
+files = { "case.py" = "function(**{\"value\": 1}, value=2)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 8 }, { "rule" = "PLE1132", "file" = "case.py", "start" = 12, "end" = 19 }]
+
+[[cases]]
+name = "in-dict"
+comparison = "full"
+files = { "case.py" = "function(**{\"value\": 1, \"value\": 2})\n" }
+expected = [{ "rule" = "F601", "file" = "case.py", "start" = 24, "end" = 31 }, { "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 8 }, { "rule" = "PLE1132", "file" = "case.py", "start" = 24, "end" = 31 }]
+
+[[cases]]
+name = "across-dicts"
+comparison = "full"
+files = { "case.py" = "function(**{\"value\": 1}, **{\"value\": 2})\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 8 }, { "rule" = "PLE1132", "file" = "case.py", "start" = 28, "end" = 35 }]
+
+[[cases]]
+name = "different"
+comparison = "full"
+files = { "case.py" = "function(value=1, **{\"other\": 2})\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 8 }]
+
+[[cases]]
+name = "nested-unpack"
+comparison = "full"
+files = { "case.py" = "function(value=1, **{**{\"value\": 2}})\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 8 }, { "rule" = "PIE800", "file" = "case.py", "start" = 23, "end" = 35 }]
+
+[[cases]]
+name = "fstring"
+comparison = "full"
+files = { "case.py" = "function(value=1, **{f\"value\": 2})\n" }
+expected = [{ "rule" = "F541", "file" = "case.py", "start" = 21, "end" = 29 }, { "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 8 }]
+
+[[cases]]
+name = "positional"
+comparison = "full"
+files = { "case.py" = "function({\"value\": 1, \"value\": 2})\n" }
+expected = [{ "rule" = "F601", "file" = "case.py", "start" = 22, "end" = 29 }, { "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 8 }]
+
+[[cases]]
+name = "class"
+comparison = "full"
+files = { "case.py" = "class C(value=1, **{\"value\": 2}):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "escaped"
+comparison = "full"
+files = { "case.py" = "function(value=1, **{\"val\\u0075e\": 2})\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 8 }, { "rule" = "PLE1132", "file" = "case.py", "start" = 21, "end" = 33 }]
+
+[[cases]]
+name = "non-string"
+comparison = "full"
+files = { "case.py" = "function(**{1: 1, 1: 2})\n" }
+expected = [{ "rule" = "F601", "file" = "case.py", "start" = 18, "end" = 19 }, { "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 8 }]
+
+[[cases]]
+name = "concatenated"
+comparison = "full"
+files = { "case.py" = "function(value=1, **{\"val\" \"ue\": 2})\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 8 }, { "rule" = "PLE1132", "file" = "case.py", "start" = 21, "end" = 31 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "function(value=1, **{\"value\": 2}) # noqa\n" }
+expected = []
+
+[[cases]]
+name = "code-noqa"
+comparison = "full"
+files = { "case.py" = "function(value=1, **{\"value\": 2}) # noqa: PLE1132\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 8 }]
+
+[[cases]]
+name = "other-code"
+comparison = "full"
+files = { "case.py" = "function(value=1, **{\"value\": 2}) # noqa: F401\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 8 }, { "rule" = "PLE1132", "file" = "case.py", "start" = 21, "end" = 28 }]
+
+[[cases]]
+name = "file-noqa"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa\nfunction(value=1, **{\"value\": 2})\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-suppressed"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[PLE1132]\nfunction(value=1, **{\"value\": 2})\n\n# ruff: enable[PLE1132]\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 25, "end" = 33 }]
+
+[[cases]]
+name = "shared-block-reenabled"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[PLE1132]\n# ruff: enable[PLE1132]\nfunction(value=1, **{\"value\": 2})\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 49, "end" = 57 }, { "rule" = "PLE1132", "file" = "case.py", "start" = 70, "end" = 77 }]
+
+[[cases]]
+name = "shared-block-unmatched-disable"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[PLE1132]\nfunction(value=1, **{\"value\": 2})\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 25, "end" = 33 }]
+
+[[cases]]
+name = "shared-block-wrong-code"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[E501]\nfunction(value=1, **{\"value\": 2})\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 22, "end" = 30 }, { "rule" = "PLE1132", "file" = "case.py", "start" = 43, "end" = 50 }]
+
+[[cases]]
+name = "shared-file-ignore"
+comparison = "full"
+files = { "case.py" = "# ruff: file-ignore[PLE1132]\nfunction(value=1, **{\"value\": 2})\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 29, "end" = 37 }]
+
+[[cases]]
+name = "nfkc-keyword"
+comparison = "full"
+files = { "case.py" = "f(ｘ=1, **{\"x\": 2})\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 1 }, { "rule" = "PLE1132", "file" = "case.py", "start" = 12, "end" = 15 }]
+
+[[cases]]
+name = "nfkc-string-not-normalized"
+comparison = "full"
+files = { "case.py" = "f(x=1, **{\"ｘ\": 2})\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 1 }]

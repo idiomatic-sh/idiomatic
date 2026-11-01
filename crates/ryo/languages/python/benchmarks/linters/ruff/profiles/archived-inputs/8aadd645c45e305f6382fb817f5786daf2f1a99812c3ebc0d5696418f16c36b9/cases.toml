@@ -1,0 +1,84 @@
+[[cases]]
+name = "list"
+files = { "case.py" = "list()\n" }
+expected = [{ file = "case.py", start = 0, end = 6 }]
+
+[[cases]]
+name = "tuple"
+files = { "case.py" = "tuple()\n" }
+expected = [{ file = "case.py", start = 0, end = 7 }]
+
+[[cases]]
+name = "dict"
+files = { "case.py" = "dict()\n" }
+expected = [{ file = "case.py", start = 0, end = 6 }]
+
+[[cases]]
+name = "dict-keywords"
+files = { "case.py" = "dict(a=1, b=2)\n" }
+expected = [{ file = "case.py", start = 0, end = 14 }]
+
+[[cases]]
+name = "dict-unpacked"
+files = { "case.py" = "dict(**data)\n" }
+expected = []
+
+[[cases]]
+name = "dict-mixed-keywords"
+files = { "case.py" = "dict(a=1, **data)\n" }
+expected = []
+
+[[cases]]
+name = "positional"
+files = { "case.py" = "dict(data)\n" }
+expected = []
+
+[[cases]]
+name = "starred"
+files = { "case.py" = "list(*args)\n" }
+expected = []
+
+[[cases]]
+name = "list-keyword"
+files = { "case.py" = "list(iterable=values)\n" }
+expected = []
+
+[[cases]]
+name = "tuple-keyword"
+files = { "case.py" = "tuple(iterable=values)\n" }
+expected = []
+
+[[cases]]
+name = "set"
+files = { "case.py" = "set()\n" }
+expected = []
+
+[[cases]]
+name = "alias"
+files = { "case.py" = "from builtins import list as create\ncreate()\n" }
+expected = [{ file = "case.py", start = 36, end = 44 }]
+
+[[cases]]
+name = "qualified"
+files = { "case.py" = "import builtins\nbuiltins.tuple()\n" }
+expected = [{ file = "case.py", start = 16, end = 32 }]
+
+[[cases]]
+name = "shadowed"
+files = { "case.py" = "def f(dict):\n    dict()\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "dict() # noqa: C408\n" }
+expected = []
+
+[[cases]]
+name = "positional-trivia-and-trailing-comma"
+files = { "case.py" = "x = dict(\n # before first\n a=1,\n)\n" }
+expected = [{ file = "case.py", start = 4, end = 33 }]
+
+[[cases]]
+name = "quoted-annotation-builtin-call"
+files = { "case.py" = "x: \"dict()\"\n" }
+expected = [{ file = "case.py", start = 4, end = 10 }]

@@ -81,3 +81,6 @@ pub(super) const GLOBAL_PARAMETER: ryo::languages::DiagnosticCode =
 /// An annotation targets a name already declared global in its scope.
 pub(super) const ANNOTATED_GLOBAL: ryo::languages::DiagnosticCode =
     ryo::languages::DiagnosticCode::provider_owned("annotated-global");
+/// A named expression rebinds an enclosing comprehension's iteration variable.
+pub(super) const COMPREHENSION_REBIND: ryo::languages::DiagnosticCode =
+    ryo::languages::DiagnosticCode::provider_owned("comprehension-rebind");

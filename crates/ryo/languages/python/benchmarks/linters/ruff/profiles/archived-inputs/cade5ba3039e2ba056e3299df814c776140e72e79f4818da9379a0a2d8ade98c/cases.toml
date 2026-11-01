@@ -1,0 +1,95 @@
+[[cases]]
+name = "direct-module"
+comparison = "full"
+files = { "case.py" = "import functools\n@functools.lru_cache(maxsize=None)\ndef f(): pass\n" }
+expected = [{ rule = "UP033", file = "case.py", start = 37, end = 51 }]
+
+[[cases]]
+name = "module-alias"
+comparison = "full"
+files = { "case.py" = "import functools as ft\n@ft.lru_cache(maxsize=None)\ndef f(): pass\n" }
+expected = [{ rule = "UP033", file = "case.py", start = 36, end = 50 }]
+
+[[cases]]
+name = "from-import"
+comparison = "full"
+files = { "case.py" = "from functools import lru_cache\n@lru_cache(maxsize=None)\ndef f(): pass\n" }
+expected = [{ rule = "UP033", file = "case.py", start = 42, end = 56 }]
+
+[[cases]]
+name = "from-alias"
+comparison = "full"
+files = { "case.py" = "from functools import lru_cache as cache\n@cache(maxsize=None)\ndef f(): pass\n" }
+expected = [{ rule = "UP033", file = "case.py", start = 47, end = 61 }]
+
+[[cases]]
+name = "class-decorator"
+comparison = "full"
+files = { "case.py" = "import functools\n@functools.lru_cache(maxsize=None)\nclass C: pass\n" }
+expected = []
+
+[[cases]]
+name = "no-parentheses"
+comparison = "full"
+files = { "case.py" = "import functools\n@functools.lru_cache\ndef f(): pass\n" }
+expected = []
+
+[[cases]]
+name = "no-maxsize"
+comparison = "full"
+files = { "case.py" = "import functools\n@functools.lru_cache()\ndef f(): pass\n" }
+expected = []
+
+[[cases]]
+name = "non-none"
+comparison = "full"
+files = { "case.py" = "import functools\n@functools.lru_cache(maxsize=128)\ndef f(): pass\n" }
+expected = []
+
+[[cases]]
+name = "positional-none"
+comparison = "full"
+files = { "case.py" = "import functools\n@functools.lru_cache(None)\ndef f(): pass\n" }
+expected = []
+
+[[cases]]
+name = "extra-keyword"
+comparison = "full"
+files = { "case.py" = "import functools\n@functools.lru_cache(maxsize=None, typed=True)\ndef f(): pass\n" }
+expected = []
+
+[[cases]]
+name = "other-call"
+comparison = "full"
+files = { "case.py" = "import functools\nfunctools.lru_cache(maxsize=None)\n" }
+expected = []
+
+[[cases]]
+name = "nested-decorator-call"
+comparison = "full"
+files = { "case.py" = "import functools\n@wrapper(functools.lru_cache(maxsize=None))\ndef f(): pass\n" }
+expected = []
+
+[[cases]]
+name = "wrong-module"
+comparison = "full"
+files = { "case.py" = "import other as functools\n@functools.lru_cache(maxsize=None)\ndef f(): pass\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "import functools\n@functools.lru_cache(maxsize=None)  # noqa: UP033\ndef f(): pass\n" }
+expected = []
+
+[[cases]]
+name = "file-noqa"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa: UP033\nimport functools\n@functools.lru_cache(maxsize=None)\ndef f(): pass\n" }
+expected = []
+
+[[cases]]
+name = "multiline"
+comparison = "full"
+files = { "case.py" = "import functools\n@functools.lru_cache(\n    maxsize=None,\n)\ndef f(): pass\n" }
+expected = [{ rule = "UP033", file = "case.py", start = 37, end = 58 }]

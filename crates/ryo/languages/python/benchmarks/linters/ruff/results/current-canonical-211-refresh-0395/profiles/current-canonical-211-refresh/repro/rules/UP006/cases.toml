@@ -1,0 +1,101 @@
+[[cases]]
+name = "from-list"
+comparison = "full"
+files = { "case.py" = "from typing import List\ndef f(x: List[int]) -> List[str]:\n    return []\n" }
+expected = [{ "rule" = "UP006", "file" = "case.py", "start" = 33, "end" = 37 }, { "rule" = "UP006", "file" = "case.py", "start" = 47, "end" = 51 }]
+
+[[cases]]
+name = "from-alias"
+comparison = "full"
+files = { "case.py" = "from typing import List as Sequence\nx: Sequence[int]\n" }
+expected = [{ "rule" = "UP006", "file" = "case.py", "start" = 39, "end" = 47 }]
+
+[[cases]]
+name = "module-alias"
+comparison = "full"
+files = { "case.py" = "import typing as t\nx: t.Dict[str, t.List[int]]\n" }
+expected = [{ "rule" = "UP006", "file" = "case.py", "start" = 22, "end" = 28 }, { "rule" = "UP006", "file" = "case.py", "start" = 34, "end" = 40 }]
+
+[[cases]]
+name = "extensions-type"
+comparison = "full"
+files = { "case.py" = "from typing_extensions import Type\nx: Type[int]\n" }
+expected = [{ "rule" = "UP006", "file" = "case.py", "start" = 38, "end" = 42 }]
+
+[[cases]]
+name = "typing-deque"
+comparison = "full"
+files = { "case.py" = "from typing import Deque\nx: Deque[int]\n" }
+expected = [{ "rule" = "UP006", "file" = "case.py", "start" = 28, "end" = 33 }]
+
+[[cases]]
+name = "collections-deque-alias"
+comparison = "full"
+files = { "case.py" = "from typing import Deque as D\nx: D[str]\n" }
+expected = [{ "rule" = "UP006", "file" = "case.py", "start" = 33, "end" = 34 }]
+
+[[cases]]
+name = "defaultdict"
+comparison = "full"
+files = { "case.py" = "from typing import DefaultDict\nx: DefaultDict[str, int]\n" }
+expected = [{ "rule" = "UP006", "file" = "case.py", "start" = 34, "end" = 45 }]
+
+[[cases]]
+name = "annotation-nested"
+comparison = "full"
+files = { "case.py" = "from typing import Tuple, Set, FrozenSet\nx: Tuple[Set[int], FrozenSet[str]]\n" }
+expected = [{ "rule" = "UP006", "file" = "case.py", "start" = 44, "end" = 49 }, { "rule" = "UP006", "file" = "case.py", "start" = 50, "end" = 53 }, { "rule" = "UP006", "file" = "case.py", "start" = 60, "end" = 69 }]
+
+[[cases]]
+name = "unrelated-list"
+comparison = "full"
+files = { "case.py" = "class List: pass\nx: List\n" }
+expected = []
+
+[[cases]]
+name = "unknown-import"
+comparison = "full"
+files = { "case.py" = "from other import List\nx: List[int]\n" }
+expected = []
+
+[[cases]]
+name = "local-shadow"
+comparison = "full"
+files = { "case.py" = "from typing import List\nList = custom\nx: List[int]\n" }
+expected = [{ "rule" = "F811", "file" = "case.py", "start" = 24, "end" = 28 }, { "rule" = "F821", "file" = "case.py", "start" = 31, "end" = 37 }]
+
+[[cases]]
+name = "runtime-value"
+comparison = "full"
+files = { "case.py" = "from typing import List\nx = List\n" }
+expected = [{ "rule" = "UP006", "file" = "case.py", "start" = 28, "end" = 32 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "from typing import List\nx: List[int]  # noqa: UP006\n" }
+expected = []
+
+[[cases]]
+name = "file-noqa"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa: UP006\nfrom typing import List\nx: List[int]\n" }
+expected = []
+
+[[cases]]
+name = "multiline"
+comparison = "full"
+files = { "case.py" = "from typing import (\n    List,\n)\nx: List[\n int\n]\n" }
+expected = [{ "rule" = "UP006", "file" = "case.py", "start" = 36, "end" = 40 }]
+
+[[cases]]
+name = "up006-unicode"
+comparison = "full"
+files = { "case.py" = "from typing import ｌｉｓｔ\nx: ｌｉｓｔ[int]\n" }
+expected = []
+
+[[cases]]
+name = "unicode-normalized-identifier"
+comparison = "full"
+files = { "case.py" = "from typing import Ｌｉｓｔ\nx: Ｌｉｓｔ[int]\n" }
+expected = [{ "rule" = "UP006", "file" = "case.py", "start" = 35, "end" = 47 }]

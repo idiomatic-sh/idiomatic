@@ -1,0 +1,54 @@
+{
+  "schema": "ruff-single-profile-handoff/v1",
+  "date": "2026-11-01",
+  "profiles": [
+    {
+      "rule": "PLR1711",
+      "case_count": 27,
+      "worker_sha256": "65b5a3933be11bb735c9bfb805451ee378581bec1831daf245d3d37e92e5d94b",
+      "candidate_sha256": "809b0dc94fada26ed0fecc55989db6120119b3b0abc02e1ff1b1d2570db16614",
+      "cases_sha256": "604a0504b0b53847d5dc052e42bdb3428786f3e91b1250121e505f141dec9c71",
+      "profile_sha256": "8edc6cbe5d0995425a919472836b5642363946f0a0209af0592a28268875e1a7"
+    },
+    {
+      "rule": "PLW0120",
+      "case_count": 28,
+      "worker_sha256": "65b5a3933be11bb735c9bfb805451ee378581bec1831daf245d3d37e92e5d94b",
+      "candidate_sha256": "6d2c1398220800bca14b9cdae1cbdf949cbcf31276850c30302e896e6604a494",
+      "cases_sha256": "fc562ad7568d83fbfa57995a3b8a71b3df845179852aeeb7cac49036a4d86ac0",
+      "profile_sha256": "28c0a6cbc529dba6c2a544c5054bd1630dc684321334fbc2045aaf84135fe849"
+    },
+    {
+      "rule": "PLW0604",
+      "case_count": 21,
+      "worker_sha256": "65b5a3933be11bb735c9bfb805451ee378581bec1831daf245d3d37e92e5d94b",
+      "candidate_sha256": "1ed0c257672a568eda055236cf7446ecab9fe1896293b408b4414c70082af06a",
+      "cases_sha256": "fc946c8e5d48d63cf03ca13803ca560d728eee81276d6a66ebbdf27203cf115d",
+      "profile_sha256": "6158c6bda6decd065a1a2c599e3c820f9697e33bfc17584793f193750136038c"
+    },
+    {
+      "rule": "FURB136",
+      "case_count": 52,
+      "worker_sha256": "5808f11d6cd198a7c672c12fee134077f21e98e31f2725e7aaa4d3f5c2146837",
+      "candidate_sha256": "31dfb24d44c46e2f3574d0a64878b20a139572c304d5ec995e743ca164d50637",
+      "cases_sha256": "4d5b13a53f79801c47402e034a9fd87394fb9058a2c91f5816102f65b392c4c1",
+      "profile_sha256": "9bf18a5fa8e2d6a11d47318d3a1ada9b601614de314208e9aabcdec96f685b83"
+    },
+    {
+      "rule": "RUF024",
+      "case_count": 55,
+      "worker_sha256": "5808f11d6cd198a7c672c12fee134077f21e98e31f2725e7aaa4d3f5c2146837",
+      "candidate_sha256": "31c1f98d8d0ae6b251de53ab0d83ecc474c48ff3f56c44b08f94dee9b766ef66",
+      "cases_sha256": "e23c7af51fe81e66631fa330f80de41949fcfff7350500f45c3f1ceec35d21c0",
+      "profile_sha256": "6578c6b01bcd0e97d165c5af1e89fd86ab1952a9e36cdb15cf4ebbda7407f98a"
+    },
+    {
+      "rule": "PLR1716",
+      "case_count": 120,
+      "worker_sha256": "5808f11d6cd198a7c672c12fee134077f21e98e31f2725e7aaa4d3f5c2146837",
+      "candidate_sha256": "9be694ed2f7eafa34a5d96339ca7b1ced67ec211ccfee842038985649b7f4a2f",
+      "cases_sha256": "89bdeb7554f3bc2354f73c5520f6aca5f5b5964f4eb9a3a2b5c3dead0fa78547",
+      "profile_sha256": "50b21cdf6ad7a36074d114f98f0ea4ff67173ce95cd59a0cb1acbc6d621c7b84"
+    }
+  ]
+}

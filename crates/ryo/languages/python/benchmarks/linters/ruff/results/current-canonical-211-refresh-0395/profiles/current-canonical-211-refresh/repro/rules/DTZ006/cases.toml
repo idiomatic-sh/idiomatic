@@ -1,0 +1,131 @@
+[[cases]]
+name = "module"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime.datetime.fromtimestamp(0)\n" }
+expected = [{ "rule" = "DTZ006", "file" = "case.py", "start" = 16, "end" = 50 }]
+
+[[cases]]
+name = "alias"
+comparison = "full"
+files = { "case.py" = "import datetime as alias\nalias.datetime.fromtimestamp(0)\n" }
+expected = [{ "rule" = "DTZ006", "file" = "case.py", "start" = 25, "end" = 56 }]
+
+[[cases]]
+name = "from-import"
+comparison = "full"
+files = { "case.py" = "from datetime.datetime import fromtimestamp as target\ntarget(0)\n" }
+expected = [{ "rule" = "DTZ006", "file" = "case.py", "start" = 54, "end" = 63 }]
+
+[[cases]]
+name = "unimported"
+comparison = "full"
+files = { "case.py" = "datetime.datetime.fromtimestamp(0)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 8 }]
+
+[[cases]]
+name = "shadowed"
+comparison = "full"
+files = { "case.py" = "import datetime\ndef f(datetime):\n    datetime.datetime.fromtimestamp(0)\n" }
+expected = [{ "rule" = "F401", "file" = "case.py", "start" = 7, "end" = 15 }, { "rule" = "F811", "file" = "case.py", "start" = 22, "end" = 30 }]
+
+[[cases]]
+name = "rebound"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime = other\ndatetime.datetime.fromtimestamp(0)\n" }
+expected = [{ "rule" = "F811", "file" = "case.py", "start" = 16, "end" = 24 }, { "rule" = "F821", "file" = "case.py", "start" = 27, "end" = 32 }]
+
+[[cases]]
+name = "before-import"
+comparison = "full"
+files = { "case.py" = "datetime.datetime.fromtimestamp(0)\nimport datetime\n" }
+expected = [{ "rule" = "F401", "file" = "case.py", "start" = 42, "end" = 50 }, { "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 8 }]
+
+[[cases]]
+name = "deferred-body"
+comparison = "full"
+files = { "case.py" = "def f():\n    datetime.datetime.fromtimestamp(0)\nimport datetime\n" }
+expected = [{ "rule" = "DTZ006", "file" = "case.py", "start" = 13, "end" = 47 }]
+
+[[cases]]
+name = "ordinary-call"
+comparison = "full"
+files = { "case.py" = "import datetime\ndef f(x):\n    x()\n    datetime.datetime.fromtimestamp(0)\n" }
+expected = [{ "rule" = "DTZ006", "file" = "case.py", "start" = 38, "end" = 72 }]
+
+[[cases]]
+name = "attribute-only"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime.datetime.fromtimestamp\n" }
+expected = [{ "rule" = "B018", "file" = "case.py", "start" = 16, "end" = 47 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime.datetime.fromtimestamp(0) # noqa: DTZ006\n" }
+expected = []
+
+[[cases]]
+name = "range"
+comparison = "full"
+files = { "case.py" = "import datetime\n# ruff: disable[DTZ006]\ndatetime.datetime.fromtimestamp(0)\n# ruff: enable[DTZ006]\n" }
+expected = []
+
+[[cases]]
+name = "none-keyword"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime.datetime.fromtimestamp(0, tz=None)\n" }
+expected = [{ "rule" = "DTZ006", "file" = "case.py", "start" = 16, "end" = 59 }]
+
+[[cases]]
+name = "none-positional"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime.datetime.fromtimestamp(0, None)\n" }
+expected = [{ "rule" = "DTZ006", "file" = "case.py", "start" = 16, "end" = 56 }]
+
+[[cases]]
+name = "valid-keyword"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime.datetime.fromtimestamp(0, tz=zone)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 54, "end" = 58 }]
+
+[[cases]]
+name = "valid-positional"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime.datetime.fromtimestamp(0, zone)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 51, "end" = 55 }]
+
+[[cases]]
+name = "false"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime.datetime.fromtimestamp(0, tz=False)\n" }
+expected = []
+
+[[cases]]
+name = "unpacked-positional"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime.datetime.fromtimestamp(*args)\n" }
+expected = [{ "rule" = "DTZ006", "file" = "case.py", "start" = 16, "end" = 54 }, { "rule" = "F821", "file" = "case.py", "start" = 49, "end" = 53 }]
+
+[[cases]]
+name = "unpacked-keyword"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime.datetime.fromtimestamp(0, **kwargs)\n" }
+expected = [{ "rule" = "DTZ006", "file" = "case.py", "start" = 16, "end" = 60 }, { "rule" = "F821", "file" = "case.py", "start" = 53, "end" = 59 }]
+
+[[cases]]
+name = "converted"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime.datetime.fromtimestamp(0).replace(hour=2).astimezone()\n" }
+expected = []
+
+[[cases]]
+name = "keyword-precedence-none"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime.datetime.fromtimestamp(0, zone, tz=None)\n" }
+expected = [{ "rule" = "DTZ006", "file" = "case.py", "start" = 16, "end" = 65 }, { "rule" = "F821", "file" = "case.py", "start" = 51, "end" = 55 }]
+
+[[cases]]
+name = "keyword-precedence-valid"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime.datetime.fromtimestamp(0, None, tz=zone)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 60, "end" = 64 }]

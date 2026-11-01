@@ -1,0 +1,89 @@
+[[cases]]
+name = "direct"
+comparison = "full"
+files = { "case.py" = "os.environ = {}\n" }
+expected = [{ "rule" = "B003", "file" = "case.py", "start" = 0, "end" = 10 }, { "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 2 }]
+
+[[cases]]
+name = "unimported"
+comparison = "full"
+files = { "case.py" = "os.environ = values\n" }
+expected = [{ "rule" = "B003", "file" = "case.py", "start" = 0, "end" = 10 }, { "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 2 }, { "rule" = "F821", "file" = "case.py", "start" = 13, "end" = 19 }]
+
+[[cases]]
+name = "shadowed"
+comparison = "full"
+files = { "case.py" = "def f(os):\n    os.environ = {}\n" }
+expected = [{ "rule" = "B003", "file" = "case.py", "start" = 15, "end" = 25 }]
+
+[[cases]]
+name = "alias"
+comparison = "full"
+files = { "case.py" = "import os as env\nenv.environ = {}\n" }
+expected = []
+
+[[cases]]
+name = "annotated"
+comparison = "full"
+files = { "case.py" = "os.environ: dict = {}\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 2 }]
+
+[[cases]]
+name = "augmented"
+comparison = "full"
+files = { "case.py" = "os.environ |= {}\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 2 }]
+
+[[cases]]
+name = "chained"
+comparison = "full"
+files = { "case.py" = "os.environ = other = {}\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 2 }]
+
+[[cases]]
+name = "unpacked"
+comparison = "full"
+files = { "case.py" = "os.environ, other = {}, {}\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 2 }]
+
+[[cases]]
+name = "item"
+comparison = "full"
+files = { "case.py" = "os.environ[\"A\"] = \"B\"\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 2 }]
+
+[[cases]]
+name = "other-member"
+comparison = "full"
+files = { "case.py" = "os.environment = {}\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 2 }]
+
+[[cases]]
+name = "nested-value"
+comparison = "full"
+files = { "case.py" = "pkg.os.environ = {}\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 3 }]
+
+[[cases]]
+name = "parenthesized"
+comparison = "full"
+files = { "case.py" = "(os).environ = {}\n" }
+expected = [{ "rule" = "B003", "file" = "case.py", "start" = 0, "end" = 12 }, { "rule" = "F821", "file" = "case.py", "start" = 1, "end" = 3 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "os.environ = {}  # noqa: B003\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 2 }]
+
+[[cases]]
+name = "range"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[B003]\nos.environ = {}\n# ruff: enable[B003]\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 22, "end" = 24 }]
+
+[[cases]]
+name = "nfkc-identifier-spelling"
+comparison = "full"
+files = { "case.py" = "ｏｓ.ｅｎｖｉｒｏｎ = {}\n" }
+expected = [{ "rule" = "B003", "file" = "case.py", "start" = 0, "end" = 28 }, { "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 6 }]

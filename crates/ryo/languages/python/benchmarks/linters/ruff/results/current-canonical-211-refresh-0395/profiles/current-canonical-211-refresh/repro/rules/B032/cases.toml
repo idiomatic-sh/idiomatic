@@ -1,0 +1,119 @@
+[[cases]]
+name = "subscript"
+comparison = "full"
+files = { "case.py" = "values[0]: 1\n" }
+expected = [{ "rule" = "B032", "file" = "case.py", "start" = 0, "end" = 12 }, { "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 6 }]
+
+[[cases]]
+name = "attribute"
+comparison = "full"
+files = { "case.py" = "obj.value: 1\n" }
+expected = [{ "rule" = "B032", "file" = "case.py", "start" = 0, "end" = 12 }, { "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 3 }]
+
+[[cases]]
+name = "self-attribute"
+comparison = "full"
+files = { "case.py" = "self.value: int\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 4 }]
+
+[[cases]]
+name = "self-subscript"
+comparison = "full"
+files = { "case.py" = "self[0]: 1\n" }
+expected = [{ "rule" = "B032", "file" = "case.py", "start" = 0, "end" = 10 }, { "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 4 }]
+
+[[cases]]
+name = "nested-attribute"
+comparison = "full"
+files = { "case.py" = "obj.attr.value: int\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 3 }]
+
+[[cases]]
+name = "assigned"
+comparison = "full"
+files = { "case.py" = "obj.value: int = 1\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 3 }]
+
+[[cases]]
+name = "plain"
+comparison = "full"
+files = { "case.py" = "value: int\n" }
+expected = []
+
+[[cases]]
+name = "call-subscript"
+comparison = "full"
+files = { "case.py" = "factory()[0]: 1\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 7 }]
+
+[[cases]]
+name = "function"
+comparison = "full"
+files = { "case.py" = "def f():\n    obj.value: int\n" }
+expected = [{ "rule" = "B032", "file" = "case.py", "start" = 13, "end" = 27 }, { "rule" = "F821", "file" = "case.py", "start" = 13, "end" = 16 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "values[0]: 1 # noqa\n" }
+expected = []
+
+[[cases]]
+name = "code-noqa"
+comparison = "full"
+files = { "case.py" = "values[0]: 1 # noqa: B032\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 6 }]
+
+[[cases]]
+name = "other-code"
+comparison = "full"
+files = { "case.py" = "values[0]: 1 # noqa: F401\n" }
+expected = [{ "rule" = "B032", "file" = "case.py", "start" = 0, "end" = 12 }, { "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 6 }]
+
+[[cases]]
+name = "file-noqa"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa\nvalues[0]: 1\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-suppressed"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[B032]\nvalues[0]: 1\n\n# ruff: enable[B032]\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 22, "end" = 28 }]
+
+[[cases]]
+name = "shared-block-reenabled"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[B032]\n# ruff: enable[B032]\nvalues[0]: 1\n" }
+expected = [{ "rule" = "B032", "file" = "case.py", "start" = 43, "end" = 55 }, { "rule" = "F821", "file" = "case.py", "start" = 43, "end" = 49 }]
+
+[[cases]]
+name = "shared-block-unmatched-disable"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[B032]\nvalues[0]: 1\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 22, "end" = 28 }]
+
+[[cases]]
+name = "shared-block-wrong-code"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[E501]\nvalues[0]: 1\n" }
+expected = [{ "rule" = "B032", "file" = "case.py", "start" = 22, "end" = 34 }, { "rule" = "F821", "file" = "case.py", "start" = 22, "end" = 28 }]
+
+[[cases]]
+name = "shared-file-ignore"
+comparison = "full"
+files = { "case.py" = "# ruff: file-ignore[B032]\nvalues[0]: 1\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 26, "end" = 32 }]
+
+[[cases]]
+name = "nfkc-self-exempt"
+comparison = "full"
+files = { "case.py" = "ｓｅｌｆ.value: int\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 12 }]
+
+[[cases]]
+name = "nfkc-other-receiver"
+comparison = "full"
+files = { "case.py" = "ｏｔｈｅｒ.value: int\n" }
+expected = [{ "rule" = "B032", "file" = "case.py", "start" = 0, "end" = 26 }, { "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 15 }]

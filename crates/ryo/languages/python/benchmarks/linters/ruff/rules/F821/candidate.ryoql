@@ -1,7 +1,7 @@
 import suppress from "python/ruff/suppress";
 let read_rows = select reference, name, scope, phase, context, state, "since-major" as since_major, "since-minor" as since_minor, file, span from "binding-read";
 let ordinary_missing = select reference as id, name, scope, phase, file, span from read_rows where state = "unbound" and context != "deletion";
-let global_declarations = select occurrence as id, name, scope, phase, file from "binding-event" where kind = "global";
+let global_declarations = select occurrence as id, name, scope, phase, ordinal, file from "binding-event" where kind = "global";
 let global_function_scopes = select id, file from "semantic-syntax" where kind = "function-def" or kind = "async-function-def";
 let global_declaration_owners = axis(from=global_declarations, relation="semantic-child", direction=nearest-ancestor, domain=global_function_scopes);
 let global_owner_names = select l.name as name, r.related as scope, l.file as file from global_declarations as l join global_declaration_owners as r on l.id = r.id;
@@ -20,7 +20,7 @@ let missing_read_events = select l.id as id, r.ordinal as ordinal, r.scope as sc
 let prior_removals = select l.id as id from missing_read_events as l join removal_events as d on l.name = d.name and l.phase = d.phase and l.file = d.file where d.ordinal < l.ordinal;
 let deletion_reads = select l.id as id, l.name as name, l.scope as scope, l.phase as phase, l.file as file, l.span as span from ordinary_missing as l join prior_removals as r on l.id = r.id;
 let delete_events = select occurrence as id, name, scope, phase, ordinal, file, span from "binding-event" where kind = "delete";
-let global_deletions = select l.id as id from delete_events as l join global_declarations as r on l.name = r.name and l.scope = r.scope and l.phase = r.phase and l.file = r.file;
+let global_deletions = select l.id as id from delete_events as l join global_declarations as r on l.name = r.name and l.scope = r.scope and l.phase = r.phase and l.file = r.file where r.ordinal < l.ordinal;
 let non_global_deletions = antijoin(left=delete_events, right=global_deletions, left-on=["id"], right-on=["id"]);
 let nonlocal_declarations = select name, scope, file from "binding-event" where kind = "nonlocal";
 let nonlocal_binding_scopes = select l.name as name, l.scope as scope, l.file as file from nonlocal_declarations as l join "binding-event" as r on l.name = r.name and l.scope = r.scope and l.file = r.file where r.kind = "bind" or r.kind = "annotation";

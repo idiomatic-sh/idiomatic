@@ -1,0 +1,95 @@
+[[cases]]
+name = "module"
+comparison = "full"
+files = { "case.py" = "global value\n" }
+expected = [{ "rule" = "PLW0604", "file" = "case.py", "start" = 0, "end" = 12 }]
+
+[[cases]]
+name = "conditional"
+comparison = "full"
+files = { "case.py" = "if True:\n    global value\n" }
+expected = [{ "rule" = "PLW0604", "file" = "case.py", "start" = 13, "end" = 25 }]
+
+[[cases]]
+name = "function"
+comparison = "full"
+files = { "case.py" = "def f():\n    global value\n" }
+expected = [{ "rule" = "PLW0602", "file" = "case.py", "start" = 20, "end" = 25 }]
+
+[[cases]]
+name = "class"
+comparison = "full"
+files = { "case.py" = "class C:\n    global value\n" }
+expected = [{ "rule" = "PLW0602", "file" = "case.py", "start" = 20, "end" = 25 }]
+
+[[cases]]
+name = "nested-function"
+comparison = "full"
+files = { "case.py" = "if True:\n    def f():\n        global value\n" }
+expected = [{ "rule" = "PLW0602", "file" = "case.py", "start" = 37, "end" = 42 }]
+
+[[cases]]
+name = "names"
+comparison = "full"
+files = { "case.py" = "global first, second\n" }
+expected = [{ "rule" = "PLW0604", "file" = "case.py", "start" = 0, "end" = 20 }]
+
+[[cases]]
+name = "try"
+comparison = "full"
+files = { "case.py" = "try:\n    global value\nexcept:\n    pass\n" }
+expected = [{ "rule" = "E722", "file" = "case.py", "start" = 22, "end" = 28 }, { "rule" = "PLW0604", "file" = "case.py", "start" = 9, "end" = 21 }, { "rule" = "S110", "file" = "case.py", "start" = 22, "end" = 38 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "global value # noqa\n" }
+expected = []
+
+[[cases]]
+name = "code-noqa"
+comparison = "full"
+files = { "case.py" = "global value # noqa: PLW0604\n" }
+expected = []
+
+[[cases]]
+name = "other-code"
+comparison = "full"
+files = { "case.py" = "global value # noqa: F401\n" }
+expected = [{ "rule" = "PLW0604", "file" = "case.py", "start" = 0, "end" = 12 }]
+
+[[cases]]
+name = "file-noqa"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa\nglobal value\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-suppressed"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[PLW0604]\nglobal value\n\n# ruff: enable[PLW0604]\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-reenabled"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[PLW0604]\n# ruff: enable[PLW0604]\nglobal value\n" }
+expected = [{ "rule" = "PLW0604", "file" = "case.py", "start" = 49, "end" = 61 }]
+
+[[cases]]
+name = "shared-block-unmatched-disable"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[PLW0604]\nglobal value\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-wrong-code"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[E501]\nglobal value\n" }
+expected = [{ "rule" = "PLW0604", "file" = "case.py", "start" = 22, "end" = 34 }]
+
+[[cases]]
+name = "shared-file-ignore"
+comparison = "full"
+files = { "case.py" = "# ruff: file-ignore[PLW0604]\nglobal value\n" }
+expected = []

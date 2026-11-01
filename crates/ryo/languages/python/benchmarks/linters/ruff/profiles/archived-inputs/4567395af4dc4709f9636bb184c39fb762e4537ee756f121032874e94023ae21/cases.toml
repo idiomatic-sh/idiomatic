@@ -1,0 +1,125 @@
+[[cases]]
+name = "missing-check"
+comparison = "full"
+files = { "case.py" = "import subprocess\nsubprocess.run([])\n" }
+expected = [{ rule = "PLW1510", file = "case.py", start = 18, end = 32 }]
+
+[[cases]]
+name = "run-alias"
+comparison = "full"
+files = { "case.py" = "import subprocess as sp\nsp.run([])\n" }
+expected = [{ rule = "PLW1510", file = "case.py", start = 24, end = 30 }]
+
+[[cases]]
+name = "check-true"
+comparison = "full"
+files = { "case.py" = "import subprocess\nsubprocess.run([], check=True)\n" }
+expected = []
+
+[[cases]]
+name = "check-false"
+comparison = "full"
+files = { "case.py" = "import subprocess\nsubprocess.run([], check=False)\n" }
+expected = []
+
+[[cases]]
+name = "check-positional-does-not-exist"
+comparison = "full"
+files = { "case.py" = "import subprocess\nsubprocess.run([], True)\n" }
+expected = [{ rule = "PLW1510", file = "case.py", start = 18, end = 32 }]
+
+[[cases]]
+name = "other-run"
+comparison = "full"
+files = { "case.py" = "import other\nother.run([])\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "import subprocess\nsubprocess.run([])  # noqa: PLW1510\n" }
+expected = []
+
+[[cases]]
+name = "module"
+comparison = "full"
+files = { "case.py" = "import subprocess\nsubprocess.run([\"echo\"])\n" }
+expected = [{ rule = "PLW1510", file = "case.py", start = 18, end = 32 }]
+
+[[cases]]
+name = "alias"
+comparison = "full"
+files = { "case.py" = "import subprocess as alias\nalias.run([\"echo\"])\n" }
+expected = [{ rule = "PLW1510", file = "case.py", start = 27, end = 36 }]
+
+[[cases]]
+name = "from-import"
+comparison = "full"
+files = { "case.py" = "from subprocess import run as target\ntarget([\"echo\"])\n" }
+expected = [{ rule = "PLW1510", file = "case.py", start = 37, end = 43 }]
+
+[[cases]]
+name = "unimported"
+comparison = "full"
+files = { "case.py" = "subprocess.run([\"echo\"])\n" }
+expected = []
+
+[[cases]]
+name = "shadowed"
+comparison = "full"
+files = { "case.py" = "import subprocess\ndef f(subprocess):\n    subprocess.run([\"echo\"])\n" }
+expected = []
+
+[[cases]]
+name = "rebound"
+comparison = "full"
+files = { "case.py" = "import subprocess\nsubprocess = other\nsubprocess.run([\"echo\"])\n" }
+expected = []
+
+[[cases]]
+name = "before-import"
+comparison = "full"
+files = { "case.py" = "subprocess.run([\"echo\"])\nimport subprocess\n" }
+expected = []
+
+[[cases]]
+name = "deferred-body"
+comparison = "full"
+files = { "case.py" = "def f():\n    subprocess.run([\"echo\"])\nimport subprocess\n" }
+expected = [{ rule = "PLW1510", file = "case.py", start = 13, end = 27 }]
+
+[[cases]]
+name = "ordinary-call"
+comparison = "full"
+files = { "case.py" = "import subprocess\ndef f(x):\n    x()\n    subprocess.run([\"echo\"])\n" }
+expected = [{ rule = "PLW1510", file = "case.py", start = 40, end = 54 }]
+
+[[cases]]
+name = "attribute-only"
+comparison = "full"
+files = { "case.py" = "import subprocess\nsubprocess.run\n" }
+expected = []
+
+[[cases]]
+name = "range"
+comparison = "full"
+files = { "case.py" = "import subprocess\n# ruff: disable[PLW1510]\nsubprocess.run([\"echo\"])\n# ruff: enable[PLW1510]\n" }
+expected = []
+
+[[cases]]
+name = "unpacked"
+comparison = "full"
+files = { "case.py" = "import subprocess\nsubprocess.run([], **options)\n" }
+expected = [{ rule = "PLW1510", file = "case.py", start = 18, end = 32 }]
+
+[[cases]]
+name = "similar-keyword"
+comparison = "full"
+files = { "case.py" = "import subprocess\nsubprocess.run([], checks=True)\n" }
+expected = [{ rule = "PLW1510", file = "case.py", start = 18, end = 32 }]
+
+[[cases]]
+name = "nfkc-semantic-keyword"
+comparison = "full"
+files = { "case.py" = "import subprocess\nsubprocess.run(args, ｃｈｅｃｋ=True)\n" }
+expected = []

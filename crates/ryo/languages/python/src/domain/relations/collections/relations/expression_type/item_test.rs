@@ -3,6 +3,8 @@ use super::super::fixtures::contract::check;
 use super::item::ExpressionTypeItem;
 use crate::fixtures::reading::reading;
 
+use ryo::languages::contract::Want;
+
 #[test]
 fn classifies_literals_unions_unknowns_and_type_errors() {
     check::<ExpressionTypeItem>();
@@ -10,19 +12,12 @@ fn classifies_literals_unions_unknowns_and_type_errors() {
         "1\nTrue\n1 if flag else 2.0\nname\n1 + 'x'\n1 if flag else 'x'\n[1]\n(x for x in items)\n",
     );
     assert!(report.causes.is_empty(), "{:?}", report.causes);
-    use ryo::languages::contract::Want;
     let types = report
         .rows
         .iter()
         .filter_map(|row| match row[2] {
             Want::Name(name) => Some(name),
-            Want::Unlocated
-            | Want::Node(_)
-            | Want::Unknown(_)
-            | Want::File(_)
-            | Want::Span(..)
-            | Want::Number(_)
-            | Want::Flag(_) => None,
+            _ => None,
         })
         .collect::<Vec<_>>();
     let resolutions = report
@@ -30,13 +25,7 @@ fn classifies_literals_unions_unknowns_and_type_errors() {
         .iter()
         .filter_map(|row| match row[1] {
             Want::Name(name) => Some(name),
-            Want::Unlocated
-            | Want::Node(_)
-            | Want::Unknown(_)
-            | Want::File(_)
-            | Want::Span(..)
-            | Want::Number(_)
-            | Want::Flag(_) => None,
+            _ => None,
         })
         .collect::<Vec<_>>();
     for expected in [
@@ -57,7 +46,10 @@ fn classifies_literals_unions_unknowns_and_type_errors() {
     assert!(resolutions.contains(&"unknown"));
     assert!(resolutions.contains(&"type-error"), "{:?}", report.rows);
     for row in report.rows {
-        match (row[1], row[2]) {
+        let [_, resolution, inferred_type, _, _] = row else {
+            panic!("expression-type rows have five columns");
+        };
+        match (*resolution, *inferred_type) {
             (Want::Name("unknown" | "type-error"), Want::Name("")) => {}
             (Want::Name("unknown" | "type-error"), other) => {
                 panic!("unexpected unresolved type {other:?}")
@@ -79,7 +71,7 @@ fn validation_diagnostics_do_not_make_basic_types_partial() {
         report
             .rows
             .iter()
-            .any(|row| row[1] == ryo::languages::contract::Want::Name("union"))
+            .any(|row| row[1] == Want::Name("union"))
     );
 }
 
@@ -88,14 +80,16 @@ fn percent_formatting_keeps_the_left_operand_type_when_the_right_is_unknown() {
     check::<ExpressionTypeItem>();
     let report = reading::<ExpressionTypeItem>("'%s' % unknown\nb'%s' % unknown\n");
     assert!(report.causes.is_empty(), "{:?}", report.causes);
-    use ryo::languages::contract::Want;
     for (line, column, end_column, expected) in [(1, 1, 15, "string"), (2, 1, 16, "bytes")] {
         assert!(
             report.rows.iter().any(|row| {
-                row[1] == Want::Name("atom")
-                    && row[2] == Want::Name(expected)
+                let [_, resolution, inferred_type, _, span] = row else {
+                    panic!("expression-type rows have five columns");
+                };
+                *resolution == Want::Name("atom")
+                    && *inferred_type == Want::Name(expected)
                     && matches!(
-                        row[4],
+                        span,
                         Want::Span(start, end)
                             if start.line == line
                                 && start.column == column

@@ -95,10 +95,15 @@ pub(crate) fn prepare_ordered(
     crate::domain::table_groups::service::sort_rows(table, On::Columns(columns), index)?;
     let mut begin = 0;
     while begin < index.sorted.len() {
-        let head = row_in(table, index.sorted[begin]).unwrap_or_default();
+        let head_at = *index
+            .sorted
+            .get(begin)
+            .ok_or(OperatingError::ShapeMismatch)?;
+        let head = row_in(table, head_at).unwrap_or_default();
         let mut end = begin + 1;
         while end < index.sorted.len() {
-            let row = row_in(table, index.sorted[end]).unwrap_or_default();
+            let next_at = *index.sorted.get(end).ok_or(OperatingError::ShapeMismatch)?;
+            let row = row_in(table, next_at).unwrap_or_default();
             if !columns
                 .iter()
                 .all(|column| column_in(head, *column) == column_in(row, *column))
@@ -107,19 +112,29 @@ pub(crate) fn prepare_ordered(
             }
             end += 1;
         }
-        index.sorted[begin..end].sort_unstable_by_key(|at| {
+        let ordered = index
+            .sorted
+            .get_mut(begin..end)
+            .ok_or(OperatingError::ShapeMismatch)?;
+        ordered.sort_unstable_by_key(|at| {
             row_in(table, *at)
                 .and_then(|row| column_in(row, ordinal))
                 .copied()
         });
-        if index.sorted[begin..end].windows(2).any(|pair| {
-            row_in(table, pair[0]).and_then(|row| column_in(row, ordinal))
-                == row_in(table, pair[1]).and_then(|row| column_in(row, ordinal))
+        if ordered.windows(2).any(|pair| {
+            let [left, right] = pair else {
+                return false;
+            };
+            row_in(table, *left).and_then(|row| column_in(row, ordinal))
+                == row_in(table, *right).and_then(|row| column_in(row, ordinal))
         }) {
             return Err(OperatingError::DuplicateDfsOrder);
         }
-        for row in &index.sorted[begin..end] {
-            graph.adjacency[row.0] = begin..end;
+        for row in ordered.iter() {
+            *graph
+                .adjacency
+                .get_mut(row.0)
+                .ok_or(OperatingError::ShapeMismatch)? = begin..end;
         }
         begin = end;
     }
@@ -179,18 +194,22 @@ pub(crate) fn next_ordered(
     crate::domain::operating::errors::OperatingError,
 > {
     use crate::domain::operating::errors::OperatingError;
-    if let Some(destination) = walk.pending.take() {
-        if walk.visited.insert(destination) {
-            let frame = ordered_frame(edges, graph, partition, destination, walk);
-            walk.frames.push(frame);
-        }
+    if let Some(destination) = walk.pending.take()
+        && walk.visited.insert(destination)
+    {
+        let frame = ordered_frame(edges, graph, partition, destination, walk);
+        walk.frames.push(frame);
     }
     while let Some(frame) = walk.frames.last_mut() {
         if frame.start == frame.end {
             let _finished = walk.frames.pop();
             continue;
         }
-        let at = edges.order.sorted[frame.start];
+        let at = *edges
+            .order
+            .sorted
+            .get(frame.start)
+            .ok_or(OperatingError::ShapeMismatch)?;
         frame.start += 1;
         let ordinal = walk.ordinal.ok_or(OperatingError::DfsOrdinalOverflow)?;
         walk.ordinal = ordinal.checked_add(1);

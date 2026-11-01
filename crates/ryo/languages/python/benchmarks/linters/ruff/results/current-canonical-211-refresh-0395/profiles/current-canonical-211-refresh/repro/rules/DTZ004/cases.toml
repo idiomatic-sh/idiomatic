@@ -1,0 +1,119 @@
+[[cases]]
+name = "module"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime.datetime.utcfromtimestamp(0)\n" }
+expected = [{ "rule" = "DTZ004", "file" = "case.py", "start" = 16, "end" = 53 }]
+
+[[cases]]
+name = "alias"
+comparison = "full"
+files = { "case.py" = "import datetime as alias\nalias.datetime.utcfromtimestamp(0)\n" }
+expected = [{ "rule" = "DTZ004", "file" = "case.py", "start" = 25, "end" = 59 }]
+
+[[cases]]
+name = "from-import"
+comparison = "full"
+files = { "case.py" = "from datetime.datetime import utcfromtimestamp as target\ntarget(0)\n" }
+expected = [{ "rule" = "DTZ004", "file" = "case.py", "start" = 57, "end" = 66 }]
+
+[[cases]]
+name = "unimported"
+comparison = "full"
+files = { "case.py" = "datetime.datetime.utcfromtimestamp(0)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 8 }]
+
+[[cases]]
+name = "shadowed"
+comparison = "full"
+files = { "case.py" = "import datetime\ndef f(datetime):\n    datetime.datetime.utcfromtimestamp(0)\n" }
+expected = [{ "rule" = "F401", "file" = "case.py", "start" = 7, "end" = 15 }, { "rule" = "F811", "file" = "case.py", "start" = 22, "end" = 30 }]
+
+[[cases]]
+name = "rebound"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime = other\ndatetime.datetime.utcfromtimestamp(0)\n" }
+expected = [{ "rule" = "F811", "file" = "case.py", "start" = 16, "end" = 24 }, { "rule" = "F821", "file" = "case.py", "start" = 27, "end" = 32 }]
+
+[[cases]]
+name = "before-import"
+comparison = "full"
+files = { "case.py" = "datetime.datetime.utcfromtimestamp(0)\nimport datetime\n" }
+expected = [{ "rule" = "F401", "file" = "case.py", "start" = 45, "end" = 53 }, { "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 8 }]
+
+[[cases]]
+name = "deferred-body"
+comparison = "full"
+files = { "case.py" = "def f():\n    datetime.datetime.utcfromtimestamp(0)\nimport datetime\n" }
+expected = [{ "rule" = "DTZ004", "file" = "case.py", "start" = 13, "end" = 50 }]
+
+[[cases]]
+name = "ordinary-call"
+comparison = "full"
+files = { "case.py" = "import datetime\ndef f(x):\n    x()\n    datetime.datetime.utcfromtimestamp(0)\n" }
+expected = [{ "rule" = "DTZ004", "file" = "case.py", "start" = 38, "end" = 75 }]
+
+[[cases]]
+name = "attribute-only"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime.datetime.utcfromtimestamp\n" }
+expected = [{ "rule" = "B018", "file" = "case.py", "start" = 16, "end" = 50 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime.datetime.utcfromtimestamp(0) # noqa: DTZ004\n" }
+expected = []
+
+[[cases]]
+name = "range"
+comparison = "full"
+files = { "case.py" = "import datetime\n# ruff: disable[DTZ004]\ndatetime.datetime.utcfromtimestamp(0)\n# ruff: enable[DTZ004]\n" }
+expected = []
+
+[[cases]]
+name = "converted"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime.datetime.utcfromtimestamp(0).astimezone()\n" }
+expected = []
+
+[[cases]]
+name = "timezone-attribute"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime.datetime.utcfromtimestamp(0).astimezone\n" }
+expected = [{ "rule" = "B018", "file" = "case.py", "start" = 16, "end" = 64 }]
+
+[[cases]]
+name = "replace-chain"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime.datetime.utcfromtimestamp(0).replace(hour=1).replace(minute=2).astimezone()\n" }
+expected = []
+
+[[cases]]
+name = "replace-only"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime.datetime.utcfromtimestamp(0).replace(hour=1)\n" }
+expected = [{ "rule" = "DTZ004", "file" = "case.py", "start" = 16, "end" = 53 }]
+
+[[cases]]
+name = "wrong-chain"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime.datetime.utcfromtimestamp(0).other().astimezone()\n" }
+expected = [{ "rule" = "DTZ004", "file" = "case.py", "start" = 16, "end" = 53 }]
+
+[[cases]]
+name = "argument-not-receiver"
+comparison = "full"
+files = { "case.py" = "import datetime\nobj.replace(datetime.datetime.utcfromtimestamp(0).replace).astimezone()\n" }
+expected = [{ "rule" = "DTZ004", "file" = "case.py", "start" = 28, "end" = 65 }, { "rule" = "F821", "file" = "case.py", "start" = 16, "end" = 19 }]
+
+[[cases]]
+name = "wrapped"
+comparison = "full"
+files = { "case.py" = "import datetime\nwrapper(datetime.datetime.utcfromtimestamp(0)).astimezone()\n" }
+expected = [{ "rule" = "DTZ004", "file" = "case.py", "start" = 24, "end" = 61 }, { "rule" = "F821", "file" = "case.py", "start" = 16, "end" = 23 }]
+
+[[cases]]
+name = "parenthesized"
+comparison = "full"
+files = { "case.py" = "import datetime\n(datetime.datetime.utcfromtimestamp(0)).astimezone()\n" }
+expected = []

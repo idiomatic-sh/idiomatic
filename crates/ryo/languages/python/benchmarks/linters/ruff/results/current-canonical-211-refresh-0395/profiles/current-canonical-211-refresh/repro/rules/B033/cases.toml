@@ -1,0 +1,107 @@
+[[cases]]
+name = "int-repeat"
+comparison = "full"
+files = { "case.py" = "items = {1, 1}\n" }
+expected = [{ "rule" = "B033", "file" = "case.py", "start" = 12, "end" = 13 }]
+
+[[cases]]
+name = "int-float"
+comparison = "full"
+files = { "case.py" = "items = {1, 1.0}\n" }
+expected = [{ "rule" = "B033", "file" = "case.py", "start" = 12, "end" = 15 }]
+
+[[cases]]
+name = "bool-int"
+comparison = "full"
+files = { "case.py" = "items = {False, 0, True, 1}\n" }
+expected = [{ "rule" = "B033", "file" = "case.py", "start" = 16, "end" = 17 }, { "rule" = "B033", "file" = "case.py", "start" = 25, "end" = 26 }]
+
+[[cases]]
+name = "str-repeat"
+comparison = "full"
+files = { "case.py" = "items = {\"x\", \"x\"}\n" }
+expected = [{ "rule" = "B033", "file" = "case.py", "start" = 14, "end" = 17 }]
+
+[[cases]]
+name = "bytes-repeat"
+comparison = "full"
+files = { "case.py" = "items = {b\"x\", b\"x\"}\n" }
+expected = [{ "rule" = "B033", "file" = "case.py", "start" = 15, "end" = 19 }]
+
+[[cases]]
+name = "null-repeat"
+comparison = "full"
+files = { "case.py" = "items = {None, None}\n" }
+expected = [{ "rule" = "B033", "file" = "case.py", "start" = 15, "end" = 19 }]
+
+[[cases]]
+name = "ellipsis-repeat"
+comparison = "full"
+files = { "case.py" = "items = {..., ...}\n" }
+expected = [{ "rule" = "B033", "file" = "case.py", "start" = 14, "end" = 17 }]
+
+[[cases]]
+name = "complex-repeat"
+comparison = "full"
+files = { "case.py" = "items = {1j, 1.0j}\n" }
+expected = [{ "rule" = "B033", "file" = "case.py", "start" = 13, "end" = 17 }]
+
+[[cases]]
+name = "multiple-repeats"
+comparison = "full"
+files = { "case.py" = "items = {1, 1, 1, True}\n" }
+expected = [{ "rule" = "B033", "file" = "case.py", "start" = 12, "end" = 13 }, { "rule" = "B033", "file" = "case.py", "start" = 15, "end" = 16 }, { "rule" = "B033", "file" = "case.py", "start" = 18, "end" = 22 }]
+
+[[cases]]
+name = "two-sets"
+comparison = "full"
+files = { "case.py" = "a = {1, 1}\nb = {1, 1}\n" }
+expected = [{ "rule" = "B033", "file" = "case.py", "start" = 8, "end" = 9 }, { "rule" = "B033", "file" = "case.py", "start" = 19, "end" = 20 }]
+
+[[cases]]
+name = "tuple-not-literal"
+comparison = "full"
+files = { "case.py" = "items = {(1, 2), (1, 2)}\n" }
+expected = []
+
+[[cases]]
+name = "signed-not-literal"
+comparison = "full"
+files = { "case.py" = "items = {-1, -1}\n" }
+expected = []
+
+[[cases]]
+name = "fstring-not-literal"
+comparison = "full"
+files = { "case.py" = "items = {f\"x\", f\"x\"}\n" }
+expected = [{ "rule" = "F541", "file" = "case.py", "start" = 9, "end" = 13 }, { "rule" = "F541", "file" = "case.py", "start" = 15, "end" = 19 }]
+
+[[cases]]
+name = "different-values"
+comparison = "full"
+files = { "case.py" = "items = {1, 2, 3}\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "items = {1, 1}  # noqa: B033\n" }
+expected = []
+
+[[cases]]
+name = "other-noqa"
+comparison = "full"
+files = { "case.py" = "items = {1, 1}  # noqa: F401\n" }
+expected = [{ "rule" = "B033", "file" = "case.py", "start" = 12, "end" = 13 }]
+
+[[cases]]
+name = "unicode-prefix"
+comparison = "full"
+files = { "case.py" = "label = \"雪\"\nitems = {\"x\", \"x\"}\n" }
+expected = [{ "rule" = "B033", "file" = "case.py", "start" = 28, "end" = 31 }]
+
+[[cases]]
+name = "comment-multiline"
+comparison = "full"
+files = { "case.py" = "items = {\n    \"x\",\n    # keep\n    \"x\",\n}\n" }
+expected = [{ "rule" = "B033", "file" = "case.py", "start" = 34, "end" = 37 }]

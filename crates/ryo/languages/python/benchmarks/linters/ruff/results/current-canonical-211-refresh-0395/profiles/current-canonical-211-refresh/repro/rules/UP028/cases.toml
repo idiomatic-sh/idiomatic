@@ -1,0 +1,101 @@
+[[cases]]
+name = "name"
+comparison = "full"
+files = { "case.py" = "def f():\n    for x in values:\n        yield x\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 22, "end" = 28 }, { "rule" = "UP028", "file" = "case.py", "start" = 13, "end" = 45 }]
+
+[[cases]]
+name = "tuple"
+comparison = "full"
+files = { "case.py" = "def f():\n    for x, y in values:\n        yield x, y\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 25, "end" = 31 }, { "rule" = "UP028", "file" = "case.py", "start" = 13, "end" = 51 }]
+
+[[cases]]
+name = "nested-tuple"
+comparison = "full"
+files = { "case.py" = "def f():\n    for x, (y, z) in values:\n        yield x, (y, z)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 30, "end" = 36 }, { "rule" = "UP028", "file" = "case.py", "start" = 13, "end" = 61 }]
+
+[[cases]]
+name = "else"
+comparison = "full"
+files = { "case.py" = "def f():\n    for x in values:\n        yield x\n    else:\n        pass\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 22, "end" = 28 }, { "rule" = "PLW0120", "file" = "case.py", "start" = 50, "end" = 54 }]
+
+[[cases]]
+name = "multiple-body"
+comparison = "full"
+files = { "case.py" = "def f():\n    for x in values:\n        work()\n        yield x\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 22, "end" = 28 }, { "rule" = "F821", "file" = "case.py", "start" = 38, "end" = 42 }]
+
+[[cases]]
+name = "changed-value"
+comparison = "full"
+files = { "case.py" = "def f():\n    for x in values:\n        yield x + 1\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 22, "end" = 28 }]
+
+[[cases]]
+name = "different-name"
+comparison = "full"
+files = { "case.py" = "def f():\n    for x in values:\n        yield y\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 22, "end" = 28 }, { "rule" = "F821", "file" = "case.py", "start" = 44, "end" = 45 }]
+
+[[cases]]
+name = "async-function"
+comparison = "full"
+files = { "case.py" = "async def f():\n    for x in values:\n        yield x\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 28, "end" = 34 }]
+
+[[cases]]
+name = "async-for"
+comparison = "full"
+files = { "case.py" = "async def f():\n    async for x in values:\n        yield x\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 34, "end" = 40 }]
+
+[[cases]]
+name = "external-use"
+comparison = "full"
+files = { "case.py" = "def f():\n    for x in values:\n        yield x\n    use(x)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 22, "end" = 28 }, { "rule" = "F821", "file" = "case.py", "start" = 50, "end" = 53 }]
+
+[[cases]]
+name = "only-yield-use"
+comparison = "full"
+files = { "case.py" = "def f():\n    for x in values:\n        yield x\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 22, "end" = 28 }, { "rule" = "UP028", "file" = "case.py", "start" = 13, "end" = 45 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "def f():\n    for x in values:\n        yield x  # noqa: UP028\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 22, "end" = 28 }, { "rule" = "UP028", "file" = "case.py", "start" = 13, "end" = 45 }]
+
+[[cases]]
+name = "file-noqa"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa: UP028\ndef f():\n    for x in values:\n        yield x\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 42, "end" = 48 }]
+
+[[cases]]
+name = "multiline"
+comparison = "full"
+files = { "case.py" = "def f():\n    for x, y in values:\n        yield (x, y)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 25, "end" = 31 }, { "rule" = "UP028", "file" = "case.py", "start" = 13, "end" = 53 }]
+
+[[cases]]
+name = "with-parentheses"
+comparison = "full"
+files = { "case.py" = "def f():\n    for x in values:\n        yield (x)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 22, "end" = 28 }, { "rule" = "UP028", "file" = "case.py", "start" = 13, "end" = 47 }]
+
+[[cases]]
+name = "list-target"
+comparison = "full"
+files = { "case.py" = "def f():\n    for [x, y] in values:\n        yield [x, y]\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 27, "end" = 33 }]
+
+[[cases]]
+name = "nested-sync-function-in-async"
+comparison = "full"
+files = { "case.py" = "async def outer():\n    def inner():\n        for x in values:\n            yield x\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 53, "end" = 59 }, { "rule" = "UP028", "file" = "case.py", "start" = 44, "end" = 80 }]

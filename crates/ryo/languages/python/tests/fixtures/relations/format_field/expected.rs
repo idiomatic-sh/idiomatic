@@ -4,6 +4,7 @@ use ryo::languages::contract::{
     Expected, FormatFieldExpectedRow, expected_rows, file, name, node, number, span,
 };
 
+/// One independently specified positional conversion.
 const ROWS: &[FormatFieldExpectedRow] = &[FormatFieldExpectedRow {
     id: node(2),
     ordinal: number(0),
@@ -16,6 +17,7 @@ const ROWS: &[FormatFieldExpectedRow] = &[FormatFieldExpectedRow {
     span: span((1, 1), (1, 5)),
 }];
 
+/// The exact relation rows expected from the source fixture.
 pub(super) fn expected() -> Expected {
     expected_rows(ROWS)
 }

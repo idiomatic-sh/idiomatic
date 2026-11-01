@@ -1,0 +1,299 @@
+[[cases]]
+name = "increment"
+comparison = "full"
+files = { "case.py" = "x = ++value\n" }
+expected = [{ "rule" = "B002", "file" = "case.py", "start" = 4, "end" = 11 }, { "rule" = "F821", "file" = "case.py", "start" = 6, "end" = 11 }]
+
+[[cases]]
+name = "decrement"
+comparison = "full"
+files = { "case.py" = "x = --value\n" }
+expected = [{ "rule" = "B002", "file" = "case.py", "start" = 4, "end" = 11 }, { "rule" = "F821", "file" = "case.py", "start" = 6, "end" = 11 }]
+
+[[cases]]
+name = "mixed"
+comparison = "full"
+files = { "case.py" = "x = +-value\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 6, "end" = 11 }]
+
+[[cases]]
+name = "parenthesized"
+comparison = "full"
+files = { "case.py" = "x = +(+value)\n" }
+expected = [{ "rule" = "B002", "file" = "case.py", "start" = 4, "end" = 13 }, { "rule" = "F821", "file" = "case.py", "start" = 7, "end" = 12 }]
+
+[[cases]]
+name = "single"
+comparison = "full"
+files = { "case.py" = "x = +value\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 5, "end" = 10 }]
+
+[[cases]]
+name = "spaces"
+comparison = "full"
+files = { "case.py" = "x = - -value\n" }
+expected = [{ "rule" = "B002", "file" = "case.py", "start" = 4, "end" = 12 }, { "rule" = "F821", "file" = "case.py", "start" = 7, "end" = 12 }]
+
+[[cases]]
+name = "logical"
+comparison = "full"
+files = { "case.py" = "x = not not value\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 12, "end" = 17 }, { "rule" = "SIM208", "file" = "case.py", "start" = 4, "end" = 17 }]
+
+[[cases]]
+name = "subtraction-operand"
+comparison = "full"
+files = { "case.py" = "x = -(maximum - count)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 6, "end" = 13 }, { "rule" = "F821", "file" = "case.py", "start" = 16, "end" = 21 }]
+
+[[cases]]
+name = "addition-operand"
+comparison = "full"
+files = { "case.py" = "x = +(maximum + count)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 6, "end" = 13 }, { "rule" = "F821", "file" = "case.py", "start" = 16, "end" = 21 }]
+
+[[cases]]
+name = "nested-arithmetic"
+comparison = "full"
+files = { "case.py" = "x = -(-(lower - start) // abs(step))\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 8, "end" = 13 }, { "rule" = "F821", "file" = "case.py", "start" = 16, "end" = 21 }, { "rule" = "F821", "file" = "case.py", "start" = 30, "end" = 34 }]
+
+[[cases]]
+name = "genuine-nested-sign"
+comparison = "full"
+files = { "case.py" = "x = -(-(lower - start))\n" }
+expected = [{ "rule" = "B002", "file" = "case.py", "start" = 4, "end" = 23 }, { "rule" = "F821", "file" = "case.py", "start" = 8, "end" = 13 }, { "rule" = "F821", "file" = "case.py", "start" = 16, "end" = 21 }]
+
+[[cases]]
+name = "binary-before-unary"
+comparison = "full"
+files = { "case.py" = "x = first - -second\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 4, "end" = 9 }, { "rule" = "F821", "file" = "case.py", "start" = 13, "end" = 19 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "x = ++value # noqa\n" }
+expected = []
+
+[[cases]]
+name = "code-noqa"
+comparison = "full"
+files = { "case.py" = "x = ++value # noqa: B002\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 6, "end" = 11 }]
+
+[[cases]]
+name = "other-code"
+comparison = "full"
+files = { "case.py" = "x = ++value # noqa: F401\n" }
+expected = [{ "rule" = "B002", "file" = "case.py", "start" = 4, "end" = 11 }, { "rule" = "F821", "file" = "case.py", "start" = 6, "end" = 11 }]
+
+[[cases]]
+name = "file-noqa"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa\nx = ++value\n" }
+expected = []
+
+[[cases]]
+name = "middle-fstring-noqa"
+comparison = "full"
+files = { "case.py" = "f\"\"\"before\n{++x}\nafter\"\"\" # noqa: B002\n" }
+expected = [{ "rule" = "B021", "file" = "case.py", "start" = 0, "end" = 25 }, { "rule" = "F821", "file" = "case.py", "start" = 14, "end" = 15 }]
+
+[[cases]]
+name = "middle-fstring-wrong-code"
+comparison = "full"
+files = { "case.py" = "f\"\"\"before\n{++x}\nafter\"\"\" # noqa: E722\n" }
+expected = [{ "rule" = "B002", "file" = "case.py", "start" = 12, "end" = 15 }, { "rule" = "B021", "file" = "case.py", "start" = 0, "end" = 25 }, { "rule" = "F821", "file" = "case.py", "start" = 14, "end" = 15 }]
+
+[[cases]]
+name = "nested-multiline-fstring-noqa"
+comparison = "full"
+files = { "case.py" = "f\"\"\"outer\n{f'''inner\n{++x}\nend'''}\nouterend\"\"\" # noqa: B002\n" }
+expected = [{ "rule" = "B021", "file" = "case.py", "start" = 0, "end" = 46 }, { "rule" = "F821", "file" = "case.py", "start" = 24, "end" = 25 }]
+
+[[cases]]
+name = "inner-fstring-noqa-does-not-suppress-outer"
+comparison = "full"
+files = { "case.py" = "f\"\"\"before\n{++x} # noqa: B002\nafter\"\"\"\n" }
+expected = [{ "rule" = "B002", "file" = "case.py", "start" = 12, "end" = 15 }, { "rule" = "B021", "file" = "case.py", "start" = 0, "end" = 38 }, { "rule" = "F821", "file" = "case.py", "start" = 14, "end" = 15 }]
+
+[[cases]]
+name = "continuation-noqa"
+comparison = "full"
+files = { "case.py" = "value = ++x \\\n + 1 # noqa: B002\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 10, "end" = 11 }]
+
+[[cases]]
+name = "chained-continuation-noqa"
+comparison = "full"
+files = { "case.py" = "value = ++x \\\n + 1 \\\n + 2 # noqa: B002\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 10, "end" = 11 }]
+
+[[cases]]
+name = "continuation-wrong-code"
+comparison = "full"
+files = { "case.py" = "value = ++x \\\n + 1 # noqa: E722\n" }
+expected = [{ "rule" = "B002", "file" = "case.py", "start" = 8, "end" = 11 }, { "rule" = "F821", "file" = "case.py", "start" = 10, "end" = 11 }]
+
+[[cases]]
+name = "shared-block-suppressed"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[B002]\nx = ++value\n\n# ruff: enable[B002]\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 28, "end" = 33 }]
+
+[[cases]]
+name = "shared-block-reenabled"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[B002]\n# ruff: enable[B002]\nx = ++value\n" }
+expected = [{ "rule" = "B002", "file" = "case.py", "start" = 47, "end" = 54 }, { "rule" = "F821", "file" = "case.py", "start" = 49, "end" = 54 }]
+
+[[cases]]
+name = "shared-block-unmatched-disable"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[B002]\nx = ++value\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 28, "end" = 33 }]
+
+[[cases]]
+name = "shared-block-wrong-code"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[E501]\nx = ++value\n" }
+expected = [{ "rule" = "B002", "file" = "case.py", "start" = 26, "end" = 33 }, { "rule" = "F821", "file" = "case.py", "start" = 28, "end" = 33 }]
+
+[[cases]]
+name = "shared-file-ignore"
+comparison = "full"
+files = { "case.py" = "# ruff: file-ignore[B002]\nx = ++value\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 32, "end" = 37 }]
+
+[[cases]]
+name = "ignore-outer-logical-expression"
+comparison = "full"
+files = { "case.py" = "# ruff: ignore[B002]\nvalue = (\n    ++x\n)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 37, "end" = 38 }]
+
+[[cases]]
+name = "ignore-inner-next-physical-line"
+comparison = "full"
+files = { "case.py" = "value = (\n    # ruff: ignore[B002]\n    ++x,\n    ++y,\n)\n" }
+expected = [{ "rule" = "B002", "file" = "case.py", "start" = 48, "end" = 51 }, { "rule" = "F821", "file" = "case.py", "start" = 41, "end" = 42 }, { "rule" = "F821", "file" = "case.py", "start" = 50, "end" = 51 }]
+
+[[cases]]
+name = "ignore-trailing-only-current-physical-line"
+comparison = "full"
+files = { "case.py" = "value = (\n    ++x, # ruff: ignore[B002]\n    ++y,\n)\n" }
+expected = [{ "rule" = "B002", "file" = "case.py", "start" = 44, "end" = 47 }, { "rule" = "F821", "file" = "case.py", "start" = 16, "end" = 17 }, { "rule" = "F821", "file" = "case.py", "start" = 46, "end" = 47 }]
+
+[[cases]]
+name = "ignore-trailing-multiline-string"
+comparison = "full"
+files = { "case.py" = "f\"\"\"hello\n{++x}\nend\"\"\" # ruff: ignore[B002]\n" }
+expected = [{ "rule" = "B021", "file" = "case.py", "start" = 0, "end" = 22 }, { "rule" = "F821", "file" = "case.py", "start" = 13, "end" = 14 }]
+
+[[cases]]
+name = "file-noqa-on-closing-fstring-line-is-not-standalone"
+comparison = "full"
+files = { "case.py" = "f\"\"\"before\n{++x}\nafter\"\"\" # ruff: noqa: B002\n" }
+expected = [{ "rule" = "B002", "file" = "case.py", "start" = 12, "end" = 15 }, { "rule" = "B021", "file" = "case.py", "start" = 0, "end" = 25 }, { "rule" = "F821", "file" = "case.py", "start" = 14, "end" = 15 }]
+
+[[cases]]
+name = "middle-fstring-bare-cr"
+comparison = "full"
+files = { "case.py" = "f\"\"\"before\r{++x}\rafter\"\"\" # noqa: B002\r" }
+expected = [{ "rule" = "B021", "file" = "case.py", "start" = 0, "end" = 25 }, { "rule" = "F821", "file" = "case.py", "start" = 14, "end" = 15 }]
+
+[[cases]]
+name = "quoted-annotation-dispatch"
+comparison = "full"
+files = { "case.py" = "x: \"++value\"\n" }
+expected = [{ "rule" = "B002", "file" = "case.py", "start" = 4, "end" = 11 }, { "rule" = "F821", "file" = "case.py", "start" = 6, "end" = 11 }]
+
+[[cases]]
+name = "escaped-annotation-host-span"
+comparison = "full"
+files = { "case.py" = "x: \"\\x2b+value\"\n" }
+expected = [{ "rule" = "B002", "file" = "case.py", "start" = 3, "end" = 15 }, { "rule" = "F821", "file" = "case.py", "start" = 3, "end" = 15 }]
+
+[[cases]]
+name = "concatenated-annotation-host-span"
+comparison = "full"
+files = { "case.py" = "x: \"+\" \"+value\"\n" }
+expected = [{ "rule" = "B002", "file" = "case.py", "start" = 3, "end" = 15 }, { "rule" = "F821", "file" = "case.py", "start" = 3, "end" = 15 }]
+
+[[cases]]
+name = "literal-annotation-string-is-data"
+comparison = "full"
+files = { "case.py" = "from typing import Literal\nx: Literal[\"++value\"]\n" }
+expected = []
+
+[[cases]]
+name = "annotated-metadata-is-data"
+comparison = "full"
+files = { "case.py" = "from typing import Annotated\nx: Annotated[int, \"++value\"]\n" }
+expected = []
+
+[[cases]]
+name = "relocated-annotation-preserves-multiplicity"
+comparison = "full"
+files = { "case.py" = "x: \"tuple[++value, \\x2b+other]\"\n" }
+expected = [{ "rule" = "B002", "file" = "case.py", "start" = 3, "end" = 31 }, { "rule" = "B002", "file" = "case.py", "start" = 3, "end" = 31 }, { "rule" = "F821", "file" = "case.py", "start" = 3, "end" = 31 }, { "rule" = "F821", "file" = "case.py", "start" = 3, "end" = 31 }]
+
+[[cases]]
+name = "typing-context-cast-type"
+comparison = "full"
+files = { "case.py" = "from typing import cast\nx = cast(\"++value\", obj)\n" }
+expected = [{ "rule" = "B002", "file" = "case.py", "start" = 34, "end" = 41 }, { "rule" = "F821", "file" = "case.py", "start" = 36, "end" = 41 }, { "rule" = "F821", "file" = "case.py", "start" = 44, "end" = 47 }]
+
+[[cases]]
+name = "typing-context-cast-value"
+comparison = "full"
+files = { "case.py" = "from typing import cast\nx = cast(int, \"++value\")\n" }
+expected = []
+
+[[cases]]
+name = "typing-context-cast-shadow"
+comparison = "full"
+files = { "case.py" = "def cast(*args): pass\nx = cast(\"++value\", obj)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 42, "end" = 45 }]
+
+[[cases]]
+name = "typing-context-var-bound"
+comparison = "full"
+files = { "case.py" = "from typing import TypeVar\nT = TypeVar(\"T\", bound=\"++value\")\n" }
+expected = [{ "rule" = "B002", "file" = "case.py", "start" = 51, "end" = 58 }, { "rule" = "F821", "file" = "case.py", "start" = 53, "end" = 58 }]
+
+[[cases]]
+name = "typing-context-var-constraint"
+comparison = "full"
+files = { "case.py" = "from typing import TypeVar\nT = TypeVar(\"T\", \"++value\", int)\n" }
+expected = [{ "rule" = "B002", "file" = "case.py", "start" = 45, "end" = 52 }, { "rule" = "F821", "file" = "case.py", "start" = 47, "end" = 52 }]
+
+[[cases]]
+name = "typing-context-var-name"
+comparison = "full"
+files = { "case.py" = "from typing import TypeVar\nT = TypeVar(\"++value\")\n" }
+expected = []
+
+[[cases]]
+name = "typing-context-var-shadow"
+comparison = "full"
+files = { "case.py" = "def TypeVar(*args, **kwargs): pass\nT = TypeVar(\"T\", bound=\"++value\")\n" }
+expected = []
+
+[[cases]]
+name = "typing-context-alias-value"
+comparison = "full"
+files = { "case.py" = "from typing import TypeAlias\nT: TypeAlias = \"++value\"\n" }
+expected = [{ "rule" = "B002", "file" = "case.py", "start" = 45, "end" = 52 }, { "rule" = "F821", "file" = "case.py", "start" = 47, "end" = 52 }]
+
+[[cases]]
+name = "typing-context-ordinary-value"
+comparison = "full"
+files = { "case.py" = "T = \"++value\"\n" }
+expected = []
+
+[[cases]]
+name = "typing-context-alias-shadow"
+comparison = "full"
+files = { "case.py" = "TypeAlias = object()\nT: TypeAlias = \"++value\"\n" }
+expected = []

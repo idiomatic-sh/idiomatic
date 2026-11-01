@@ -1,0 +1,9 @@
+import suppress from "python/ruff/suppress";
+let stub_files = select path as file from "filesystem.file" where ends_with(path, ".pyi");
+let annotations = select l.parent as owner, l.child as annotation, l.file as file from "semantic-child" as l join stub_files as r on l.file = r.file where l.field = "annotation" or l.field = "returns";
+let string_literals = select id, file from "literal-properties" where kind = "string";
+let quoted_annotations = select l.annotation as id, l.file as file from annotations as l join string_literals as r on l.annotation = r.id and l.file = r.file;
+let locations = select r.id as id, r.file as file, r.span as span, r."start-line" as line from "source-location" as r;
+let candidates = select l.id as id, l.file as file, r.span as span, r.line as line from quoted_annotations as l join locations as r on l.id = r.id and l.file = r.file;
+let violations = suppress(candidates=candidates, inline-pattern="^[\\s,]*(?:[A-Z]+[0-9]+[\\s,]*)*PYI020(?:$|[\\s,#]|[A-Z])", range-pattern="(?:^|,)(?:PYI020)(?:,|$)");
+emit violations subject file key(id);

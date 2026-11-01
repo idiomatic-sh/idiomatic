@@ -1,0 +1,89 @@
+[[cases]]
+name = "direct"
+comparison = "full"
+files = { "case.py" = "list([x for x in values])\n" }
+expected = [{ "rule" = "C411", "file" = "case.py", "start" = 0, "end" = 25 }, { "rule" = "F821", "file" = "case.py", "start" = 17, "end" = 23 }]
+
+[[cases]]
+name = "assignment"
+comparison = "full"
+files = { "case.py" = "result = list([x for x in values])\n" }
+expected = [{ "rule" = "C411", "file" = "case.py", "start" = 9, "end" = 34 }, { "rule" = "F821", "file" = "case.py", "start" = 26, "end" = 32 }]
+
+[[cases]]
+name = "parenthesized-function"
+comparison = "full"
+files = { "case.py" = "(list)([x for x in values])\n" }
+expected = [{ "rule" = "C411", "file" = "case.py", "start" = 0, "end" = 27 }, { "rule" = "F821", "file" = "case.py", "start" = 19, "end" = 25 }]
+
+[[cases]]
+name = "shadowed"
+comparison = "full"
+files = { "case.py" = "def f(list):\n    list([x for x in values])\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 34, "end" = 40 }]
+
+[[cases]]
+name = "rebound"
+comparison = "full"
+files = { "case.py" = "list = custom\nlist([x for x in values])\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 7, "end" = 13 }, { "rule" = "F821", "file" = "case.py", "start" = 31, "end" = 37 }]
+
+[[cases]]
+name = "qualified"
+comparison = "full"
+files = { "case.py" = "import builtins\nbuiltins.list([x for x in values])\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 42, "end" = 48 }]
+
+[[cases]]
+name = "imported-same-name"
+comparison = "full"
+files = { "case.py" = "from builtins import list\nlist([x for x in values])\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 43, "end" = 49 }, { "rule" = "UP029", "file" = "case.py", "start" = 0, "end" = 25 }]
+
+[[cases]]
+name = "imported-alias"
+comparison = "full"
+files = { "case.py" = "from builtins import list as convert\nconvert([x for x in values])\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 57, "end" = 63 }]
+
+[[cases]]
+name = "extra-positional"
+comparison = "full"
+files = { "case.py" = "list([x for x in values], other)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 17, "end" = 23 }, { "rule" = "F821", "file" = "case.py", "start" = 26, "end" = 31 }]
+
+[[cases]]
+name = "keyword"
+comparison = "full"
+files = { "case.py" = "list([x for x in values], unexpected=True)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 17, "end" = 23 }]
+
+[[cases]]
+name = "unpacked-keyword"
+comparison = "full"
+files = { "case.py" = "list([x for x in values], **kwargs)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 17, "end" = 23 }, { "rule" = "F821", "file" = "case.py", "start" = 28, "end" = 34 }]
+
+[[cases]]
+name = "starred-argument"
+comparison = "full"
+files = { "case.py" = "list(*[([x for x in values])])\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 20, "end" = 26 }]
+
+[[cases]]
+name = "empty"
+comparison = "full"
+files = { "case.py" = "list()\n" }
+expected = [{ "rule" = "B018", "file" = "case.py", "start" = 0, "end" = 6 }, { "rule" = "C408", "file" = "case.py", "start" = 0, "end" = 6 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "list([x for x in values]) # noqa: C411\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 17, "end" = 23 }]
+
+[[cases]]
+name = "range"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[C411]\nlist([x for x in values])\n# ruff: enable[C411]\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 39, "end" = 45 }]

@@ -1,0 +1,131 @@
+[[cases]]
+name = "function"
+comparison = "full"
+files = { "case.pyi" = "def f(): pass\n" }
+expected = [{ "rule" = "PYI009", "file" = "case.pyi", "start" = 9, "end" = 13 }]
+
+[[cases]]
+name = "class"
+comparison = "full"
+files = { "case.pyi" = "class C: pass\n" }
+expected = [{ "rule" = "PYI009", "file" = "case.pyi", "start" = 9, "end" = 13 }]
+
+[[cases]]
+name = "async"
+comparison = "full"
+files = { "case.pyi" = "async def f(): pass\n" }
+expected = [{ "rule" = "PYI009", "file" = "case.pyi", "start" = 15, "end" = 19 }]
+
+[[cases]]
+name = "empty"
+comparison = "full"
+files = { "case.pyi" = "def f(): ...\n" }
+expected = []
+
+[[cases]]
+name = "module"
+comparison = "full"
+files = { "case.pyi" = "pass\n" }
+expected = []
+
+[[cases]]
+name = "conditional"
+comparison = "full"
+files = { "case.pyi" = "if ready:\n    pass\n" }
+expected = [{ "rule" = "F821", "file" = "case.pyi", "start" = 3, "end" = 8 }]
+
+[[cases]]
+name = "multiple"
+comparison = "full"
+files = { "case.pyi" = "def f():\n    x = 1\n    pass\n" }
+expected = [{ "rule" = "F841", "file" = "case.pyi", "start" = 13, "end" = 14 }, { "rule" = "PYI048", "file" = "case.pyi", "start" = 4, "end" = 5 }]
+
+[[cases]]
+name = "comment"
+comparison = "full"
+files = { "case.pyi" = "def f():\n    # explain\n    pass\n" }
+expected = [{ "rule" = "PYI009", "file" = "case.pyi", "start" = 27, "end" = 31 }]
+
+[[cases]]
+name = "runtime"
+comparison = "full"
+files = { "case.py" = "def f(): pass\n" }
+expected = []
+
+[[cases]]
+name = "unicode"
+comparison = "full"
+files = { "case.pyi" = "def café(): pass\n" }
+expected = [{ "rule" = "PYI009", "file" = "case.pyi", "start" = 13, "end" = 17 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.pyi" = "def f(): pass # noqa\n" }
+expected = []
+
+[[cases]]
+name = "code-noqa"
+comparison = "full"
+files = { "case.pyi" = "def f(): pass # noqa: PYI009\n" }
+expected = []
+
+[[cases]]
+name = "other-code"
+comparison = "full"
+files = { "case.pyi" = "def f(): pass # noqa: F401\n" }
+expected = [{ "rule" = "PYI009", "file" = "case.pyi", "start" = 9, "end" = 13 }]
+
+[[cases]]
+name = "file-noqa"
+comparison = "full"
+files = { "case.pyi" = "# ruff: noqa\ndef f(): pass\n" }
+expected = []
+
+[[cases]]
+name = "multiple-passes"
+comparison = "full"
+files = { "case.pyi" = "def f():\n    pass\n    pass\n" }
+expected = [{ "rule" = "PYI048", "file" = "case.pyi", "start" = 4, "end" = 5 }]
+
+[[cases]]
+name = "nested-class"
+comparison = "full"
+files = { "case.pyi" = "def f():\n    class C: pass\n" }
+expected = [{ "rule" = "PYI009", "file" = "case.pyi", "start" = 22, "end" = 26 }, { "rule" = "PYI010", "file" = "case.pyi", "start" = 13, "end" = 26 }]
+
+[[cases]]
+name = "semicolon-comment"
+comparison = "full"
+files = { "case.pyi" = "class C: pass; # why\n" }
+expected = [{ "rule" = "PYI009", "file" = "case.pyi", "start" = 9, "end" = 13 }]
+
+[[cases]]
+name = "shared-block-suppressed"
+comparison = "full"
+files = { "case.pyi" = "# ruff: disable[PYI009]\ndef f(): pass\n\n# ruff: enable[PYI009]\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-reenabled"
+comparison = "full"
+files = { "case.pyi" = "# ruff: disable[PYI009]\n# ruff: enable[PYI009]\ndef f(): pass\n" }
+expected = [{ "rule" = "PYI009", "file" = "case.pyi", "start" = 56, "end" = 60 }]
+
+[[cases]]
+name = "shared-block-unmatched-disable"
+comparison = "full"
+files = { "case.pyi" = "# ruff: disable[PYI009]\ndef f(): pass\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-wrong-code"
+comparison = "full"
+files = { "case.pyi" = "# ruff: disable[E501]\ndef f(): pass\n" }
+expected = [{ "rule" = "PYI009", "file" = "case.pyi", "start" = 31, "end" = 35 }]
+
+[[cases]]
+name = "shared-file-ignore"
+comparison = "full"
+files = { "case.pyi" = "# ruff: file-ignore[PYI009]\ndef f(): pass\n" }
+expected = []

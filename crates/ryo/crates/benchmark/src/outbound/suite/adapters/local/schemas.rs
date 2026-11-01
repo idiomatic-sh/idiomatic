@@ -24,6 +24,7 @@ struct ToolSchema {
     /// Explicit logical query-module IDs mapped to profile-relative source paths.
     #[serde(default, rename = "query-modules")]
     query_modules: BTreeMap<String, String>,
+    /// Explicit syntax applicability for each selected rule.
     #[serde(default, rename = "rule-applicability")]
     rule_applicability: BTreeMap<String, String>,
     #[serde(default, rename = "parser-configuration")]

@@ -1,0 +1,89 @@
+[[cases]]
+name = "first-line"
+comparison = "full"
+files = { "case.py" = "# coding: utf-8\nx = 1\n" }
+expected = [{ "rule" = "UP009", "file" = "case.py", "start" = 0, "end" = 15 }]
+
+[[cases]]
+name = "shebang-second"
+comparison = "full"
+files = { "case.py" = "#!/usr/bin/python\n# coding=utf8\nx = 1\n" }
+expected = [{ "rule" = "UP009", "file" = "case.py", "start" = 18, "end" = 31 }]
+
+[[cases]]
+name = "leading-comment-second"
+comparison = "full"
+files = { "case.py" = "# generated file\n# coding: utf-8\n" }
+expected = [{ "rule" = "UP009", "file" = "case.py", "start" = 17, "end" = 32 }]
+
+[[cases]]
+name = "code-before-second"
+comparison = "full"
+files = { "case.py" = "x = 1\n# coding: utf-8\n" }
+expected = []
+
+[[cases]]
+name = "other-encoding-next"
+comparison = "full"
+files = { "case.py" = "# coding: utf-8\n# coding: latin-1\n" }
+expected = []
+
+[[cases]]
+name = "other-after-one-comment"
+comparison = "full"
+files = { "case.py" = "# coding: utf-8\n# ordinary\n# coding: latin-1\n" }
+expected = []
+
+[[cases]]
+name = "other-after-two-comments"
+comparison = "full"
+files = { "case.py" = "# coding: utf-8\n# ordinary\n# another ordinary\n# coding: latin-1\n" }
+expected = [{ "rule" = "UP009", "file" = "case.py", "start" = 0, "end" = 15 }]
+
+[[cases]]
+name = "utf8-next"
+comparison = "full"
+files = { "case.py" = "# coding: utf-8\n# coding: utf8\n" }
+expected = [{ "rule" = "UP009", "file" = "case.py", "start" = 0, "end" = 15 }]
+
+[[cases]]
+name = "separated-by-code"
+comparison = "full"
+files = { "case.py" = "# coding: utf-8\nx = 1\n# coding: latin-1\n" }
+expected = [{ "rule" = "UP009", "file" = "case.py", "start" = 0, "end" = 15 }]
+
+[[cases]]
+name = "middle-of-line"
+comparison = "full"
+files = { "case.py" = "x = 1  # coding: utf-8\n" }
+expected = []
+
+[[cases]]
+name = "upper-name"
+comparison = "full"
+files = { "case.py" = "# coding: UTF-8\n" }
+expected = []
+
+[[cases]]
+name = "third-line"
+comparison = "full"
+files = { "case.py" = "# generated\n# second\n# coding: utf-8\n" }
+expected = []
+
+[[cases]]
+name = "first-of-two"
+comparison = "full"
+files = { "case.py" = "# coding: utf8\n# coding: utf-8\n" }
+expected = [{ "rule" = "UP009", "file" = "case.py", "start" = 0, "end" = 14 }]
+
+[[cases]]
+name = "other-first"
+comparison = "full"
+files = { "case.py" = "# coding: latin-1\n# coding: utf-8\n" }
+expected = []
+
+[[cases]]
+name = "formfeed"
+comparison = "full"
+files = { "case.py" = "#\fcoding: utf-8\n" }
+expected = [{ "rule" = "UP009", "file" = "case.py", "start" = 0, "end" = 15 }]

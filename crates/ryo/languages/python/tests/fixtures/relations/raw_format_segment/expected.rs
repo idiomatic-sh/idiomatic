@@ -2,6 +2,7 @@
 use ryo::languages::contract::{
     Expected, RawFormatSegmentExpectedRow, expected_rows, file, name, node, number, span,
 };
+/// Independently specified original-token parsing summary.
 const ROWS: &[RawFormatSegmentExpectedRow] = &[RawFormatSegmentExpectedRow {
     id: node(2),
     segment: node(3),
@@ -18,6 +19,7 @@ const ROWS: &[RawFormatSegmentExpectedRow] = &[RawFormatSegmentExpectedRow {
     file: file("raw_format_segment/input.py"),
     span: span((1, 1), (1, 5)),
 }];
+/// The exact relation rows expected from the source fixture.
 pub(super) fn expected() -> Expected {
     expected_rows(ROWS)
 }

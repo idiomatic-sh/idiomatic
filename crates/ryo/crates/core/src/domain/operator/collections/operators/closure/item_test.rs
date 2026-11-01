@@ -430,7 +430,10 @@ fn many_tiny_partitions_bound_working_graph_and_output() -> Result<Value, Operat
     }
     let mut scratch = OperatorScratch::default();
     let out = grouped(&edges, &[2], &mut scratch)?;
-    assert_eq!(out.count.0, 4 * n as usize);
+    assert_eq!(
+        out.count.0,
+        4 * usize::try_from(n).expect("positive partition count")
+    );
     assert_eq!(scratch.domain.count.0, 3);
     assert_eq!(scratch.other.len(), 2);
     assert!(scratch.domain.cells.capacity() < 64);

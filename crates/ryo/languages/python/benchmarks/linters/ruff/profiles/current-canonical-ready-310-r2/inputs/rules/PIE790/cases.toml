@@ -1,0 +1,72 @@
+
+[[cases]]
+name = "tagged-ruff-0-16-5-PIE790"
+comparison = "full"
+files = { "case.py" = "class Foo:\n    \"\"\"buzz\"\"\"\n\n    pass\n\n\nif foo:\n    \"\"\"foo\"\"\"\n    pass\n\n\ndef multi_statement() -> None:\n    \"\"\"This is a function.\"\"\"\n    pass; print(\"hello\")\n\n\nif foo:\n    pass\nelse:\n    \"\"\"bar\"\"\"\n    pass\n\n\nwhile True:\n    pass\nelse:\n    \"\"\"bar\"\"\"\n    pass\n\n\nfor _ in range(10):\n    pass\nelse:\n    \"\"\"bar\"\"\"\n    pass\n\n\nasync for _ in range(10):\n    pass\nelse:\n    \"\"\"bar\"\"\"\n    pass\n\n\ndef foo() -> None:\n    \"\"\"\n    buzz\n    \"\"\"\n\n    pass\n\n\nasync def foo():\n    \"\"\"\n    buzz\n    \"\"\"\n\n    pass\n\n\ntry:\n    \"\"\"\n    buzz\n    \"\"\"\n    pass\nexcept ValueError:\n    pass\n\n\ntry:\n    bar()\nexcept ValueError:\n    \"\"\"bar\"\"\"\n    pass\n\n\nfor _ in range(10):\n    \"\"\"buzz\"\"\"\n    pass\n\nasync for _ in range(10):\n    \"\"\"buzz\"\"\"\n    pass\n\nwhile cond:\n    \"\"\"buzz\"\"\"\n    pass\n\n\nwith bar:\n    \"\"\"buzz\"\"\"\n    pass\n\nasync with bar:\n    \"\"\"buzz\"\"\"\n    pass\n\n\ndef foo() -> None:\n    \"\"\"buzz\"\"\"\n    pass  # bar\n\n\nclass Foo:\n    # bar\n    pass\n\n\nif foo:\n    # foo\n    pass\n\n\nclass Error(Exception):\n    pass\n\n\ntry:\n    foo()\nexcept NetworkError:\n    pass\n\n\ndef foo() -> None:\n    pass\n\n\ndef foo():\n    print(\"foo\")\n    pass\n\n\ndef foo():\n    \"\"\"A docstring.\"\"\"\n    print(\"foo\")\n    pass\n\n\nfor i in range(10):\n    pass\n    pass\n\nfor i in range(10):\n    pass\n\n    pass\n\nfor i in range(10):\n    pass  # comment\n    pass\n\n\ndef foo():\n    print(\"foo\")\n    ...\n\n\ndef foo():\n    \"\"\"A docstring.\"\"\"\n    print(\"foo\")\n    ...\n\n\nfor i in range(10):\n    ...\n    ...\n\nfor i in range(10):\n    ...\n\n    ...\n\nfor i in range(10):\n    ...  # comment\n    ...\n\nfor i in range(10):\n    ...\n    pass\n\nfrom typing import Protocol\n\n\nclass Repro(Protocol):\n    def func(self) -> str:\n        \"\"\"Docstring\"\"\"\n        ...\n\n    def impl(self) -> str:\n        \"\"\"Docstring\"\"\"\n        return self.func()\n\n\nimport abc\n\n\nclass Repro:\n    @abc.abstractmethod\n    def func(self) -> str:\n        \"\"\"Docstring\"\"\"\n        ...\n\n    def impl(self) -> str:\n        \"\"\"Docstring\"\"\"\n        return self.func()\n\n    def stub(self) -> str:\n        \"\"\"Docstring\"\"\"\n        ...\n\n\nclass Repro(Protocol[int]):\n    def func(self) -> str:\n        \"\"\"Docstring\"\"\"\n        ...\n\n    def impl(self) -> str:\n        \"\"\"Docstring\"\"\"\n        return self.func()\n\n\nclass Repro[int](Protocol):\n    def func(self) -> str:\n        \"\"\"Docstring\"\"\"\n        ...\n\n    def impl(self) -> str:\n        \"\"\"Docstring\"\"\"\n        return self.func()\n\n\nimport typing\n\nif typing.TYPE_CHECKING:\n    def contains_meaningful_ellipsis() -> list[int]:\n        \"\"\"Allow this in a TYPE_CHECKING block.\"\"\"\n        ...\n\n# https://github.com/astral-sh/ruff/issues/12616\nclass PotentialDocstring1:\n    pass\n    \"\"\"\n    Lorem ipsum dolor sit amet.\n    \"\"\"\n\n\nclass PotentialDocstring2:\n    ...\n    'Lorem ipsum dolor sit amet.'\n" }
+expected = [{ rule = "PIE790", file = "case.py", start = 31, end = 35 }, { rule = "PIE790", file = "case.py", start = 64, end = 68 }, { rule = "PIE790", file = "case.py", start = 136, end = 140 }, { rule = "PIE790", file = "case.py", start = 200, end = 204 }, { rule = "PIE790", file = "case.py", start = 252, end = 256 }, { rule = "PIE790", file = "case.py", start = 312, end = 316 }, { rule = "PIE790", file = "case.py", start = 378, end = 382 }, { rule = "PIE790", file = "case.py", start = 434, end = 438 }, { rule = "PIE790", file = "case.py", start = 488, end = 492 }, { rule = "PIE790", file = "case.py", start = 529, end = 533 }, { rule = "PIE790", file = "case.py", start = 616, end = 620 }, { rule = "PIE790", file = "case.py", start = 662, end = 666 }, { rule = "PIE790", file = "case.py", start = 713, end = 717 }, { rule = "PIE790", file = "case.py", start = 750, end = 754 }, { rule = "PIE790", file = "case.py", start = 786, end = 790 }, { rule = "PIE790", file = "case.py", start = 827, end = 831 }, { rule = "PIE790", file = "case.py", start = 872, end = 876 }, { rule = "PIE790", file = "case.py", start = 1091, end = 1095 }, { rule = "PIE790", file = "case.py", start = 1153, end = 1157 }, { rule = "PIE790", file = "case.py", start = 1184, end = 1188 }, { rule = "PIE790", file = "case.py", start = 1193, end = 1197 }, { rule = "PIE790", file = "case.py", start = 1223, end = 1227 }, { rule = "PIE790", file = "case.py", start = 1233, end = 1237 }, { rule = "PIE790", file = "case.py", start = 1263, end = 1267 }, { rule = "PIE790", file = "case.py", start = 1283, end = 1287 }, { rule = "PIE790", file = "case.py", start = 1322, end = 1325 }, { rule = "PIE790", file = "case.py", start = 1383, end = 1386 }, { rule = "PIE790", file = "case.py", start = 1413, end = 1416 }, { rule = "PIE790", file = "case.py", start = 1421, end = 1424 }, { rule = "PIE790", file = "case.py", start = 1450, end = 1453 }, { rule = "PIE790", file = "case.py", start = 1459, end = 1462 }, { rule = "PIE790", file = "case.py", start = 1488, end = 1491 }, { rule = "PIE790", file = "case.py", start = 1507, end = 1510 }, { rule = "PIE790", file = "case.py", start = 1536, end = 1539 }, { rule = "PIE790", file = "case.py", start = 1544, end = 1548 }, { rule = "PIE790", file = "case.py", start = 1999, end = 2002 }, { rule = "invalid-syntax", file = "case.py", start = 2188, end = 2193 }, { rule = "PIE790", file = "case.py", start = 2586, end = 2590 }, { rule = "PIE790", file = "case.py", start = 2672, end = 2675 }]
+
+[[cases]]
+name = "single-placeholder"
+comparison = "full"
+files = { "case.py" = "pass\n" }
+expected = []
+
+[[cases]]
+name = "two-passes"
+comparison = "full"
+files = { "case.py" = "pass\npass\n" }
+expected = [{ rule = "PIE790", file = "case.py", start = 0, end = 4 }, { rule = "PIE790", file = "case.py", start = 5, end = 9 }]
+
+[[cases]]
+name = "docstring-placeholder"
+comparison = "full"
+files = { "case.py" = "def f():\n \"doc\"\n ...\n" }
+expected = [{ rule = "PIE790", file = "case.py", start = 17, end = 20 }]
+
+[[cases]]
+name = "typechecking-early-stop"
+comparison = "full"
+files = { "case.py" = "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n pass\n ...\n pass\n" }
+expected = [{ rule = "PIE790", file = "case.py", start = 52, end = 56 }]
+
+[[cases]]
+name = "typechecking-else-not-protected"
+comparison = "full"
+files = { "case.py" = "from typing import TYPE_CHECKING\nif TYPE_CHECKING: pass\nelse:\n \"doc\"\n ...\n" }
+expected = [{ rule = "PIE790", file = "case.py", start = 70, end = 73 }]
+
+[[cases]]
+name = "arbitrary-typechecking-name"
+comparison = "full"
+files = { "case.py" = "if unknown.TYPE_CHECKING:\n pass\n ...\n pass\n" }
+expected = [{ rule = "PIE790", file = "case.py", start = 27, end = 31 }]
+
+[[cases]]
+name = "protocol-early-stop"
+comparison = "full"
+files = { "case.py" = "from typing import Protocol\nclass C(Protocol):\n def f(self):\n  pass\n  ...\n  pass\n" }
+expected = [{ rule = "PIE790", file = "case.py", start = 63, end = 67 }]
+
+[[cases]]
+name = "abstract-nested-function"
+comparison = "full"
+files = { "case.py" = "import abc\nclass C:\n @abc.abstractmethod\n def f(self):\n  def g():\n   \"doc\"\n   ...\n" }
+expected = []
+
+[[cases]]
+name = "called-abstract-is-not-abstract"
+comparison = "full"
+files = { "case.py" = "import abc\nclass C:\n @abc.abstractmethod()\n def f(self):\n  \"doc\"\n  ...\n" }
+expected = [{ rule = "PIE790", file = "case.py", start = 67, end = 70 }]
+
+[[cases]]
+name = "protocol-stub-rebound-later"
+comparison = "full"
+files = { "case.pyi" = "from typing import Protocol\nclass C(Protocol):\n def f(self):\n  \"doc\"\n  ...\nProtocol=unknown\n" }
+expected = [{ rule = "PIE790", file = "case.pyi", start = 71, end = 74 }]
+
+[[cases]]
+name = "file-suppression"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa: PIE790\npass\n" }
+expected = []

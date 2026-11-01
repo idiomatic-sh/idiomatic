@@ -1,0 +1,252 @@
+
+[[cases]]
+name = "tagged-ruff-0-16-5"
+comparison = "full"
+files = { "case.py" = "ORCHESTRA = {\n    \"violin\": \"strings\",\n    \"oboe\": \"woodwind\",\n    \"tuba\": \"brass\",\n    \"gong\": \"percussion\",\n}\n\n# Errors\nfor instrument in ORCHESTRA:\n    print(f\"{instrument}: {ORCHESTRA[instrument]}\")\n\nfor instrument in ORCHESTRA:\n    ORCHESTRA[instrument]\n\nfor instrument in ORCHESTRA.keys():\n    print(f\"{instrument}: {ORCHESTRA[instrument]}\")\n\nfor instrument in ORCHESTRA.keys():\n    ORCHESTRA[instrument]\n\nfor instrument in (temp_orchestra := {\"violin\": \"strings\", \"oboe\": \"woodwind\"}):\n    print(f\"{instrument}: {temp_orchestra[instrument]}\")\n\nfor instrument in (temp_orchestra := {\"violin\": \"strings\", \"oboe\": \"woodwind\"}):\n    temp_orchestra[instrument]\n\n# # OK\nfor instrument, section in ORCHESTRA.items():\n    print(f\"{instrument}: {section}\")\n\nfor instrument, section in ORCHESTRA.items():\n    section\n\nfor instrument, section in (\n    temp_orchestra := {\"violin\": \"strings\", \"oboe\": \"woodwind\"}\n).items():\n    print(f\"{instrument}: {section}\")\n\nfor instrument, section in (\n    temp_orchestra := {\"violin\": \"strings\", \"oboe\": \"woodwind\"}\n).items():\n    section\n\nfor instrument in ORCHESTRA:\n    ORCHESTRA[instrument] = 3\n\n\n# Shouldn't trigger for non-dict types\nitems = {1, 2, 3, 4}\nfor i in items:\n    items[i]\n\nitems = [1, 2, 3, 4]\nfor i in items:\n    items[i]\n\n\n# A case with multiple uses of the value to show off the secondary annotations\nfor instrument in ORCHESTRA:\n    data = json.dumps(\n        {\n            \"instrument\": instrument,\n            \"section\": ORCHESTRA[instrument],\n        }\n    )\n\n    print(f\"saving data for {instrument} in {ORCHESTRA[instrument]}\")\n\n    with open(f\"{instrument}/{ORCHESTRA[instrument]}.txt\", \"w\") as f:\n        f.write(data)\n\n\n# This should still suppress the error\nfor (  # noqa: PLC0206\n    instrument\n) in ORCHESTRA:\n    print(f\"{instrument}: {ORCHESTRA[instrument]}\")\n" }
+expected = [{ rule = "PLC0206", file = "case.py", start = 126, end = 149 }, { rule = "PLC0206", file = "case.py", start = 208, end = 231 }, { rule = "PLC0206", file = "case.py", start = 264, end = 294 }, { rule = "PLC0206", file = "case.py", start = 353, end = 383 }, { rule = "PLC0206", file = "case.py", start = 416, end = 490 }, { rule = "PLC0206", file = "case.py", start = 555, end = 629 }, { rule = "PLC0206", file = "case.py", start = 1361, end = 1384 }]
+
+[[cases]]
+name = "literal"
+comparison = "full"
+files = { "case.py" = "d={}\nfor k in d:\n print(d[k])\n" }
+expected = [{ rule = "PLC0206", file = "case.py", start = 9, end = 15 }]
+
+[[cases]]
+name = "comprehension"
+comparison = "full"
+files = { "case.py" = "d={k:k for k in []}\nfor k in d:\n print(d[k])\n" }
+expected = [{ rule = "PLC0206", file = "case.py", start = 24, end = 30 }]
+
+[[cases]]
+name = "constructor"
+comparison = "full"
+files = { "case.py" = "d=dict()\nfor k in d:\n print(d[k])\n" }
+expected = [{ rule = "PLC0206", file = "case.py", start = 13, end = 19 }]
+
+[[cases]]
+name = "conditional"
+comparison = "full"
+files = { "case.py" = "d={} if flag else {}\nfor k in d:\n print(d[k])\n" }
+expected = [{ rule = "PLC0206", file = "case.py", start = 25, end = 31 }]
+
+[[cases]]
+name = "not-dict"
+comparison = "full"
+files = { "case.py" = "d=[]\nfor k in d:\n print(d[k])\n" }
+expected = []
+
+[[cases]]
+name = "annotation"
+comparison = "full"
+files = { "case.py" = "d:dict\nfor k in d:\n print(d[k])\n" }
+expected = []
+
+[[cases]]
+name = "dict-subscript"
+comparison = "full"
+files = { "case.py" = "d:dict[str,int]\nfor k in d:\n print(d[k])\n" }
+expected = []
+
+[[cases]]
+name = "typing"
+comparison = "full"
+files = { "case.py" = "from typing import Dict\nd:Dict\nfor k in d:\n print(d[k])\n" }
+expected = []
+
+[[cases]]
+name = "typing-extensions"
+comparison = "full"
+files = { "case.py" = "from typing_extensions import Dict\nd:Dict\nfor k in d:\n print(d[k])\n" }
+expected = []
+
+[[cases]]
+name = "ann-priority"
+comparison = "full"
+files = { "case.py" = "d:list={}\nfor k in d:\n print(d[k])\n" }
+expected = []
+
+[[cases]]
+name = "replacement"
+comparison = "full"
+files = { "case.py" = "d={}\nd={}\nfor k in d:\n print(d[k])\n" }
+expected = []
+
+[[cases]]
+name = "builtin-name"
+comparison = "full"
+files = { "case.py" = "list={}\nfor k in list:\n print(list[k])\n" }
+expected = []
+
+[[cases]]
+name = "assignment-tuple"
+comparison = "full"
+files = { "case.py" = "a,d=1,{}\nfor k in d:\n print(d[k])\n" }
+expected = [{ rule = "PLC0206", file = "case.py", start = 13, end = 19 }]
+
+[[cases]]
+name = "assignment-nested"
+comparison = "full"
+files = { "case.py" = "a,(b,d)=1,(2,{})\nfor k in d:\n print(d[k])\n" }
+expected = [{ rule = "PLC0206", file = "case.py", start = 21, end = 27 }]
+
+[[cases]]
+name = "assignment-list"
+comparison = "full"
+files = { "case.py" = "[a,d]=[1,{}]\nfor k in d:\n print(d[k])\n" }
+expected = [{ rule = "PLC0206", file = "case.py", start = 17, end = 23 }]
+
+[[cases]]
+name = "assignment-set"
+comparison = "full"
+files = { "case.py" = "a,d={1,{}}\nfor k in d:\n print(d[k])\n" }
+expected = [{ rule = "PLC0206", file = "case.py", start = 15, end = 21 }]
+
+[[cases]]
+name = "assignment-zip-short"
+comparison = "full"
+files = { "case.py" = "a,d=[{}]\nfor k in d:\n print(d[k])\n" }
+expected = []
+
+[[cases]]
+name = "assignment-starred"
+comparison = "full"
+files = { "case.py" = "a,*d=[1,{}]\nfor k in d:\n print(d[k])\n" }
+expected = []
+
+[[cases]]
+name = "assignment-walrus"
+comparison = "full"
+files = { "case.py" = "(d:={})\nfor k in d:\n print(d[k])\n" }
+expected = [{ rule = "PLC0206", file = "case.py", start = 12, end = 18 }]
+
+[[cases]]
+name = "assignment-with"
+comparison = "full"
+files = { "case.py" = "with {} as d:\n pass\nfor k in d:\n print(d[k])\n" }
+expected = [{ rule = "PLC0206", file = "case.py", start = 24, end = 30 }]
+
+[[cases]]
+name = "keys"
+comparison = "full"
+files = { "case.py" = "d={}\nfor k in d.keys():\n print(d[k])\n" }
+expected = [{ rule = "PLC0206", file = "case.py", start = 9, end = 22 }]
+
+[[cases]]
+name = "keys-arguments"
+comparison = "full"
+files = { "case.py" = "d={}\nfor k in d.keys(1):\n print(d[k])\n" }
+expected = [{ rule = "PLC0206", file = "case.py", start = 9, end = 23 }]
+
+[[cases]]
+name = "walrus-literal"
+comparison = "full"
+files = { "case.py" = "for k in (d:={}):\n print(d[k])\n" }
+expected = [{ rule = "PLC0206", file = "case.py", start = 4, end = 15 }]
+
+[[cases]]
+name = "walrus-comprehension"
+comparison = "full"
+files = { "case.py" = "for k in (d:={x:x for x in []}):\n print(d[k])\n" }
+expected = []
+
+[[cases]]
+name = "nested-function"
+comparison = "full"
+files = { "case.py" = "d={}\nfor k in d:\n def f():\n  print(d[k])\n" }
+expected = [{ rule = "PLC0206", file = "case.py", start = 9, end = 15 }]
+
+[[cases]]
+name = "nested-load-boundary"
+comparison = "full"
+files = { "case.py" = "d={}\nfor k in d:\n x=unknown[d[k]]\n" }
+expected = []
+
+[[cases]]
+name = "nested-store-traversal"
+comparison = "full"
+files = { "case.py" = "d={}\nfor k in d:\n unknown[d[k]]=1\n" }
+expected = [{ rule = "PLC0206", file = "case.py", start = 9, end = 15 }]
+
+[[cases]]
+name = "index-store-only"
+comparison = "full"
+files = { "case.py" = "d={}\nfor k in d:\n d[k]=1\n" }
+expected = []
+
+[[cases]]
+name = "index-delete-only"
+comparison = "full"
+files = { "case.py" = "d={}\nfor k in d:\n del d[k]\n" }
+expected = []
+
+[[cases]]
+name = "tuple-target"
+comparison = "full"
+files = { "case.py" = "d={}\nfor (x,y) in d:\n print(d[x,y])\n" }
+expected = [{ rule = "PLC0206", file = "case.py", start = 9, end = 19 }]
+
+[[cases]]
+name = "parenthesized-target"
+comparison = "full"
+files = { "case.py" = "d={}\nfor (\n k\n) in d:\n print(d[k])\n" }
+expected = [{ rule = "PLC0206", file = "case.py", start = 9, end = 20 }]
+
+[[cases]]
+name = "parenthesis-noqa"
+comparison = "full"
+files = { "case.py" = "d={}\nfor ( # noqa: PLC0206\n k\n) in d:\n print(d[k])\n" }
+expected = []
+
+[[cases]]
+name = "async-loop"
+comparison = "full"
+files = { "case.py" = "async def f():\n d={}\n async for k in d:\n  print(d[k])\n" }
+expected = [{ rule = "PLC0206", file = "case.py", start = 32, end = 38 }]
+
+[[cases]]
+name = "argument-ann"
+comparison = "full"
+files = { "case.py" = "def f(d:dict):\n for k in d:\n  print(d[k])\n" }
+expected = [{ rule = "PLC0206", file = "case.py", start = 20, end = 26 }]
+
+[[cases]]
+name = "argument-default-not-inferred"
+comparison = "full"
+files = { "case.py" = "def f(d={}):\n for k in d:\n  print(d[k])\n" }
+expected = []
+
+[[cases]]
+name = "kwargs"
+comparison = "full"
+files = { "case.py" = "def f(**d):\n for k in d:\n  print(d[k])\n" }
+expected = [{ rule = "PLC0206", file = "case.py", start = 17, end = 23 }]
+
+[[cases]]
+name = "function-return-ann"
+comparison = "full"
+files = { "case.py" = "def d()->dict: pass\nfor k in d:\n print(d[k])\n" }
+expected = [{ rule = "PLC0206", file = "case.py", start = 24, end = 30 }]
+
+[[cases]]
+name = "dict-rebound-in-body"
+comparison = "full"
+files = { "case.py" = "d=dict()\nfor k in d:\n dict=unknown\n print(d[k])\n" }
+expected = []
+
+[[cases]]
+name = "dict-rebound-after-loop"
+comparison = "full"
+files = { "case.py" = "d=dict()\nfor k in d:\n print(d[k])\ndict=unknown\n" }
+expected = []
+
+[[cases]]
+name = "dict-qualified-seen"
+comparison = "full"
+files = { "case.py" = "import builtins\nd=dict()\nfor k in d:\n dict=unknown\n print(d[k])\n" }
+expected = [{ rule = "PLC0206", file = "case.py", start = 29, end = 35 }]
+
+[[cases]]
+name = "file-suppression"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa: PLC0206\nd={}\nfor k in d:\n print(d[k])\n" }
+expected = []

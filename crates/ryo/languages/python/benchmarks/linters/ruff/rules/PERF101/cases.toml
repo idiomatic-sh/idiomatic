@@ -1,0 +1,317 @@
+[[cases]]
+name = "list-literal-in-for"
+comparison = "full"
+files = { "case.py" = "for item in list([1, 2]):\n    consume(item)\n" }
+expected = [{ rule = "PERF101", file = "case.py", start = 12, end = 24 }]
+
+[[cases]]
+name = "tuple-literal-in-for"
+comparison = "full"
+files = { "case.py" = "for item in list((1, 2)):\n    consume(item)\n" }
+expected = [{ rule = "PERF101", file = "case.py", start = 12, end = 24 }]
+
+[[cases]]
+name = "set-literal-in-for"
+comparison = "full"
+files = { "case.py" = "for item in list({1, 2}):\n    consume(item)\n" }
+expected = [{ rule = "PERF101", file = "case.py", start = 12, end = 24 }]
+
+[[cases]]
+name = "list-cast-in-comprehension"
+comparison = "full"
+files = { "case.py" = "values = [item for item in list([1, 2])]\n" }
+expected = []
+
+[[cases]]
+name = "shadowed-list"
+comparison = "full"
+files = { "case.py" = "def f(list):\n    for item in list([1, 2]):\n        consume(item)\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "for item in list([1, 2]):  # noqa: PERF101\n    consume(item)\n" }
+expected = []
+
+[[cases]]
+name = "builtin-list-alias"
+comparison = "full"
+files = { "case.py" = "from builtins import list as materialize\nfor item in materialize([1, 2]):\n    consume(item)\n" }
+expected = [{ rule = "PERF101", file = "case.py", start = 53, end = 72 }]
+
+[[cases]]
+name = "nested-function"
+comparison = "full"
+files = { "case.py" = "def f():\n    for item in list([1, 2]):\n        consume(item)\n" }
+expected = [{ rule = "PERF101", file = "case.py", start = 25, end = 37 }]
+
+[[cases]]
+name = "assigned-list-not-mutated"
+comparison = "full"
+files = { "case.py" = "items = [1, 2]\nfor item in list(items):\n    consume(item)\n" }
+expected = [{ rule = "PERF101", file = "case.py", start = 27, end = 38 }]
+
+[[cases]]
+name = "assigned-list-mutated"
+comparison = "full"
+files = { "case.py" = "items = [1, 2]\nfor item in list(items):\n    items.append(3)\n" }
+expected = []
+
+[[cases]]
+name = "assigned-list-mutated-in-nested-block"
+comparison = "full"
+files = { "case.py" = "items = [1, 2]\nfor item in list(items):\n    if item:\n        items.append(3)\n" }
+expected = []
+
+[[cases]]
+name = "assigned-list-subscript-mutated"
+comparison = "full"
+files = { "case.py" = "items = [1, 2]\nfor item in list(items):\n    items[0] = 3\n" }
+expected = []
+
+[[cases]]
+name = "assigned-list-augmented-mutated"
+comparison = "full"
+files = { "case.py" = "items = [1, 2]\nfor item in list(items):\n    items += [3]\n" }
+expected = []
+
+[[cases]]
+name = "other-list-augmented-assignment-does-not-suppress"
+comparison = "full"
+files = { "case.py" = "items = [1, 2]\nother = [3, 4]\nfor item in list(items):\n    other += [5]\n" }
+expected = [{ rule = "PERF101", file = "case.py", start = 42, end = 53 }]
+
+[[cases]]
+name = "upstream-pinned-fixture"
+comparison = "full"
+files = { "case.py" = "foo_tuple = (1, 2, 3)\nfoo_list = [1, 2, 3]\nfoo_set = {1, 2, 3}\nfoo_dict = {1: 2, 3: 4}\nfoo_int = 123\n\nfor i in list(foo_tuple):  # PERF101\n    pass\n\nfor i in list(foo_list):  # PERF101\n    pass\n\nfor i in list(foo_set):  # PERF101\n    pass\n\nfor i in list((1, 2, 3)):  # PERF101\n    pass\n\nfor i in list([1, 2, 3]):  # PERF101\n    pass\n\nfor i in list({1, 2, 3}):  # PERF101\n    pass\n\nfor i in list(\n    {\n    1,\n    2,\n    3,\n    }\n):\n    pass\n\nfor i in list( # Comment\n    {1, 2, 3}\n):  # PERF101\n    pass\n\nfor i in list(foo_dict):  # OK\n    pass\n\nfor i in list(1):  # OK\n    pass\n\nfor i in list(foo_int):  # OK\n    pass\n\n\nimport itertools\n\nfor i in itertools.product(foo_int):  # OK\n    pass\n\nfor i in list(foo_list):  # OK\n    foo_list.append(i + 1)\n\nfor i in list(foo_list):  # PERF101\n    # Make sure we match the correct list\n    other_list.append(i + 1)\n\nfor i in list(foo_tuple):  # OK\n    foo_tuple.append(i + 1)\n\nfor i in list(foo_set):  # OK\n    foo_set.append(i + 1)\n\nx, y, nested_tuple = (1, 2, (3, 4, 5))\n\nfor i in list(nested_tuple):  # PERF101\n    pass\n\nfor i in list(foo_list):  # OK\n    if True:\n        foo_list.append(i + 1)\n\nfor i in list(foo_list):  # OK\n    if True:\n        foo_list[i] = i + 1\n\nfor i in list(foo_list):  # OK\n    if True:\n        del foo_list[i + 1]\n\nimport builtins\n\nfor i in builtins.list(nested_tuple):  # PERF101\n    pass\n\n# https://github.com/astral-sh/ruff/issues/18783\nitems = (1, 2, 3)\nfor i in(list)(items):\n    print(i)\n\n# https://github.com/astral-sh/ruff/issues/18784\nitems = (1, 2, 3)\nfor i in (  # 1\n    list  # 2\n    # 3\n)(  # 4\n    items  # 5\n    # 6\n):\n    print(i)\n" }
+expected = [{ rule = "PERF101", file = "case.py", start = 111, end = 126 }, { rule = "PERF101", file = "case.py", start = 158, end = 172 }, { rule = "PERF101", file = "case.py", start = 204, end = 217 }, { rule = "PERF101", file = "case.py", start = 249, end = 264 }, { rule = "PERF101", file = "case.py", start = 296, end = 311 }, { rule = "PERF101", file = "case.py", start = 343, end = 358 }, { rule = "PERF101", file = "case.py", start = 390, end = 430 }, { rule = "PERF101", file = "case.py", start = 451, end = 482 }, { rule = "PERF101", file = "case.py", start = 760, end = 774 }, { rule = "PERF101", file = "case.py", start = 1026, end = 1044 }, { rule = "PERF101", file = "case.py", start = 1315, end = 1342 }, { rule = "PERF101", file = "case.py", start = 1440, end = 1453 }, { rule = "PERF101", file = "case.py", start = 1545, end = 1606 }]
+
+[[cases]]
+name = "nested-destructure"
+comparison = "full"
+files = { "case.py" = "((items,other),tail)=(([1],[]),0)\nfor x in list(items):\n    print(x)\n" }
+expected = [{ rule = "PERF101", file = "case.py", start = 43, end = 54 }]
+
+[[cases]]
+name = "named-initializer"
+comparison = "full"
+files = { "case.py" = "if (items:=[1]):\n    for x in list(items):\n        print(x)\n" }
+expected = [{ rule = "PERF101", file = "case.py", start = 30, end = 41 }]
+
+[[cases]]
+name = "comprehension"
+comparison = "full"
+files = { "case.py" = "xs=[x for x in list([1,2])]\n" }
+expected = []
+
+[[cases]]
+name = "async-loop"
+comparison = "full"
+files = { "case.py" = "async def f():\n    async for x in list([1,2]):\n        print(x)\n" }
+expected = [{ rule = "PERF101", file = "case.py", start = 34, end = 45 }]
+
+[[cases]]
+name = "mutation-policy-0"
+comparison = "full"
+files = { "case.py" = "items=[1]\nfor x in list(items):\n    items.append(x)\n" }
+expected = []
+
+[[cases]]
+name = "mutation-policy-1"
+comparison = "full"
+files = { "case.py" = "items=[1]\nfor x in list(items):\n    items=[]\n" }
+expected = [{ rule = "PERF101", file = "case.py", start = 19, end = 30 }]
+
+[[cases]]
+name = "mutation-policy-2"
+comparison = "full"
+files = { "case.py" = "items=[1]\nfor x in list(items):\n    items=[]\n    items.append(x)\n" }
+expected = []
+
+[[cases]]
+name = "mutation-policy-3"
+comparison = "full"
+files = { "case.py" = "items=[1]\nfor x in list(items):\n    def f(items):\n        items.append(x)\n" }
+expected = []
+
+[[cases]]
+name = "mutation-policy-4"
+comparison = "full"
+files = { "case.py" = "items=[1]\nfor x in list(items):\n    def f():\n        items.append(x)\n" }
+expected = []
+
+[[cases]]
+name = "mutation-policy-5"
+comparison = "full"
+files = { "case.py" = "items=[1]\nfor x in list(items):\n    x=items.append(x)\n" }
+expected = [{ rule = "PERF101", file = "case.py", start = 19, end = 30 }]
+
+[[cases]]
+name = "mutation-policy-6"
+comparison = "full"
+files = { "case.py" = "items=[1]\nfor x in list(items):\n    if flag:\n        items.append(x)\n" }
+expected = []
+
+[[cases]]
+name = "mutation-policy-7"
+comparison = "full"
+files = { "case.py" = "items=[1]\nfor x in list(items):\n    items[0]=x\n" }
+expected = []
+
+[[cases]]
+name = "mutation-policy-8"
+comparison = "full"
+files = { "case.py" = "items=[1]\nfor x in list(items):\n    items[0]:int=x\n" }
+expected = []
+
+[[cases]]
+name = "mutation-policy-9"
+comparison = "full"
+files = { "case.py" = "items=[1]\nfor x in list(items):\n    del items[0]\n" }
+expected = []
+
+[[cases]]
+name = "mutation-policy-10"
+comparison = "full"
+files = { "case.py" = "items=[1]\nfor x in list(items):\n    items+=[]\n" }
+expected = []
+
+[[cases]]
+name = "mutation-policy-11"
+comparison = "full"
+files = { "case.py" = "items=[1]\nfor x in list(items):\n    items[0]+=x\n" }
+expected = [{ rule = "PERF101", file = "case.py", start = 19, end = 30 }]
+
+[[cases]]
+name = "mutation-policy-12"
+comparison = "full"
+files = { "case.py" = "items=[1]\nfor x in list(items):\n    items.attr=x\n" }
+expected = [{ rule = "PERF101", file = "case.py", start = 19, end = 30 }]
+
+[[cases]]
+name = "with-initializer"
+comparison = "full"
+files = { "case.py" = "with [1] as items:\n    for x in list(items):\n        print(x)\n" }
+expected = [{ rule = "PERF101", file = "case.py", start = 32, end = 43 }]
+
+[[cases]]
+name = "keywords-allowed"
+comparison = "full"
+files = { "case.py" = "for x in list([1], extra=1):\n    print(x)\n" }
+expected = [{ rule = "PERF101", file = "case.py", start = 9, end = 27 }]
+
+[[cases]]
+name = "annotation-value-not-type"
+comparison = "full"
+files = { "case.py" = "items: str=[1]\nfor x in list(items):\n    print(x)\n" }
+expected = [{ rule = "PERF101", file = "case.py", start = 24, end = 35 }]
+
+[[cases]]
+name = "constructor-value-excluded"
+comparison = "full"
+files = { "case.py" = "items=list()\nfor x in list(items):\n    print(x)\n" }
+expected = []
+
+[[cases]]
+name = "after-body-unknown-binding"
+comparison = "full"
+files = { "case.py" = "items=[1]\nfor x in list(items):\n    items=unknown\n" }
+expected = []
+
+[[cases]]
+name = "after-body-initialized-binding"
+comparison = "full"
+files = { "case.py" = "items=unknown\nfor x in list(items):\n    items=[]\n" }
+expected = [{ rule = "PERF101", file = "case.py", start = 23, end = 34 }]
+
+[[cases]]
+name = "initially-unbound-after-body-initialized"
+comparison = "full"
+files = { "case.py" = "for x in list(items):\n    items=[]\n" }
+expected = [{ rule = "PERF101", file = "case.py", start = 9, end = 20 }]
+
+[[cases]]
+name = "zip-shorter-value"
+comparison = "full"
+files = { "case.py" = "(out,missing)=([1],)\nfor x in list(out):\n    print(x)\n" }
+expected = [{ rule = "PERF101", file = "case.py", start = 30, end = 39 }]
+
+[[cases]]
+name = "zip-longer-value"
+comparison = "full"
+files = { "case.py" = "(out,)=([1],0,1)\nfor x in list(out):\n    print(x)\n" }
+expected = [{ rule = "PERF101", file = "case.py", start = 26, end = 35 }]
+
+[[cases]]
+name = "zip-missing-target"
+comparison = "full"
+files = { "case.py" = "(present,out)=(0,)\nfor x in list(out):\n    print(x)\n" }
+expected = []
+
+[[cases]]
+name = "nested-unequal-shapes"
+comparison = "full"
+files = { "case.py" = "((out,),tail)=(([1],0),1)\nfor x in list(out):\n    print(x)\n" }
+expected = [{ rule = "PERF101", file = "case.py", start = 35, end = 44 }]
+
+[[cases]]
+name = "nested-nonliteral-stop"
+comparison = "full"
+files = { "case.py" = "((out,other),tail)=(unknown,0)\nfor x in list(out):\n    print(x)\n" }
+expected = []
+
+[[cases]]
+name = "nonliteral-root-stop"
+comparison = "full"
+files = { "case.py" = "(out,other)=unknown\nfor x in list(out):\n    print(x)\n" }
+expected = []
+
+[[cases]]
+name = "starred-middle-zip-ordinal"
+comparison = "full"
+files = { "case.py" = "(head,*rest,out)=(0,0,[1],0)\nfor x in list(out):\n    print(x)\n" }
+expected = [{ rule = "PERF101", file = "case.py", start = 38, end = 47 }]
+
+[[cases]]
+name = "starred-target-no-descend"
+comparison = "full"
+files = { "case.py" = "(head,*out)=(0,[1])\nfor x in list(out):\n    print(x)\n" }
+expected = []
+
+[[cases]]
+name = "chained-collection-targets"
+comparison = "full"
+files = { "case.py" = "(out,other)=(alias,last)=([1],0)\nfor x in list(out):\n    print(x)\nfor x in list(alias):\n    print(x)\n" }
+expected = [{ rule = "PERF101", file = "case.py", start = 42, end = 51 }, { rule = "PERF101", file = "case.py", start = 75, end = 86 }]
+
+[[cases]]
+name = "mismatched-collection-kinds"
+comparison = "full"
+files = { "case.py" = "[out,other]=([1],0)\nfor x in list(out):\n    print(x)\n" }
+expected = [{ rule = "PERF101", file = "case.py", start = 29, end = 38 }]
+
+[[cases]]
+name = "set-rhs-ordinal"
+comparison = "full"
+files = { "case.py" = "(out,other)={(1,2),0}\nfor x in list(out):\n    print(x)\n" }
+expected = [{ rule = "PERF101", file = "case.py", start = 31, end = 40 }]
+
+[[cases]]
+name = "same-name-scopes"
+comparison = "full"
+files = { "case.py" = "out=unknown\ndef f():\n    ((out,other),tail)=(([1],0),1)\n    for x in list(out):\n        print(x)\nfor x in list(out):\n    print(x)\n" }
+expected = [{ rule = "PERF101", file = "case.py", start = 69, end = 78 }]
+
+[[cases]]
+name = "two-files-reused-identities"
+comparison = "full"
+files = { "a.py" = "((out,other),tail)=(([1],0),1)\nfor x in list(out):\n    print(x)\n", "b.py" = "((out,other),tail)=((unknown,0),1)\nfor x in list(out):\n    print(x)\n" }
+expected = [{ rule = "PERF101", file = "a.py", start = 40, end = 49 }]
+
+[[cases]]
+name="set-rhs-mutable-value-runtime-invalid"
+comparison="full"
+files={"case.py"="(out,other)={[1],0}\nfor x in list(out):\n    print(x)\n"}
+expected=[{ rule = "PERF101", file = "case.py", start = 29, end = 38 }]

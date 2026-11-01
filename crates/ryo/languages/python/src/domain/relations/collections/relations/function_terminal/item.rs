@@ -11,9 +11,12 @@ use crate::domain::{
 };
 use ryo::languages;
 
+/// The reason recovered syntax cannot certify terminal control flow.
 const INCOMPLETE: &str = "function terminal outcomes require a complete syntax tree";
+/// Reads one terminal outcome for each visible function.
 pub(crate) struct FunctionTerminalItem;
 
+/// Return whether the terminal index covers the current source.
 fn state(index: &TerminalIndex) -> IndexState {
     index.state
 }

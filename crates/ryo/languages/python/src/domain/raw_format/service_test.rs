@@ -45,7 +45,7 @@ static PARSES: AtomicUsize = AtomicUsize::new(0);
 struct Counting;
 impl FormatSyntax for Counting {
     fn parse(input: &str, dialect: FormatDialect) -> FormatParseResult {
-        let _ = PARSES.fetch_add(1, Ordering::SeqCst);
+        let _previous_count = PARSES.fetch_add(1, Ordering::SeqCst);
         RuffLiteralCFormat::parse(input, dialect)
     }
 }

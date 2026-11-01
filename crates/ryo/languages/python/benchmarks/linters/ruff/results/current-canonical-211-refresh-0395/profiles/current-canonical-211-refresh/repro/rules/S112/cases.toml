@@ -1,0 +1,83 @@
+[[cases]]
+name = "bare"
+comparison = "full"
+files = { "case.py" = "for item in values:\n    try:\n        f()\n    except:\n        continue\n" }
+expected = [{ "rule" = "E722", "file" = "case.py", "start" = 45, "end" = 51 }, { "rule" = "F821", "file" = "case.py", "start" = 12, "end" = 18 }, { "rule" = "F821", "file" = "case.py", "start" = 37, "end" = 38 }, { "rule" = "S112", "file" = "case.py", "start" = 45, "end" = 69 }]
+
+[[cases]]
+name = "exception"
+comparison = "full"
+files = { "case.py" = "for item in values:\n    try:\n        f()\n    except Exception:\n        continue\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 12, "end" = 18 }, { "rule" = "F821", "file" = "case.py", "start" = 37, "end" = 38 }, { "rule" = "S112", "file" = "case.py", "start" = 45, "end" = 79 }]
+
+[[cases]]
+name = "base"
+comparison = "full"
+files = { "case.py" = "for item in values:\n    try:\n        f()\n    except BaseException:\n        continue\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 12, "end" = 18 }, { "rule" = "F821", "file" = "case.py", "start" = 37, "end" = 38 }, { "rule" = "S112", "file" = "case.py", "start" = 45, "end" = 83 }]
+
+[[cases]]
+name = "tuple"
+comparison = "full"
+files = { "case.py" = "for item in values:\n    try:\n        f()\n    except (ValueError, Exception):\n        continue\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 12, "end" = 18 }, { "rule" = "F821", "file" = "case.py", "start" = 37, "end" = 38 }, { "rule" = "S112", "file" = "case.py", "start" = 45, "end" = 93 }]
+
+[[cases]]
+name = "nested-tuple"
+comparison = "full"
+files = { "case.py" = "for item in values:\n    try:\n        f()\n    except ((Exception,),):\n        continue\n" }
+expected = [{ "rule" = "B013", "file" = "case.py", "start" = 52, "end" = 67 }, { "rule" = "B030", "file" = "case.py", "start" = 53, "end" = 65 }, { "rule" = "F821", "file" = "case.py", "start" = 12, "end" = 18 }, { "rule" = "F821", "file" = "case.py", "start" = 37, "end" = 38 }]
+
+[[cases]]
+name = "specific"
+comparison = "full"
+files = { "case.py" = "for item in values:\n    try:\n        f()\n    except ValueError:\n        continue\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 12, "end" = 18 }, { "rule" = "F821", "file" = "case.py", "start" = 37, "end" = 38 }]
+
+[[cases]]
+name = "empty-tuple"
+comparison = "full"
+files = { "case.py" = "for item in values:\n    try:\n        f()\n    except ():\n        continue\n" }
+expected = [{ "rule" = "B029", "file" = "case.py", "start" = 45, "end" = 72 }, { "rule" = "F821", "file" = "case.py", "start" = 12, "end" = 18 }, { "rule" = "F821", "file" = "case.py", "start" = 37, "end" = 38 }]
+
+[[cases]]
+name = "qualified"
+comparison = "full"
+files = { "case.py" = "import builtins\nfor item in values:\n    try:\n        f()\n    except builtins.Exception:\n        continue\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 28, "end" = 34 }, { "rule" = "F821", "file" = "case.py", "start" = 53, "end" = 54 }, { "rule" = "S112", "file" = "case.py", "start" = 61, "end" = 104 }]
+
+[[cases]]
+name = "alias"
+comparison = "full"
+files = { "case.py" = "from builtins import Exception as Error\nfor item in values:\n    try:\n        f()\n    except Error:\n        continue\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 52, "end" = 58 }, { "rule" = "F821", "file" = "case.py", "start" = 77, "end" = 78 }, { "rule" = "S112", "file" = "case.py", "start" = 85, "end" = 115 }]
+
+[[cases]]
+name = "shadowed"
+comparison = "full"
+files = { "case.py" = "def wrapper(Exception):\n    for item in values:\n        try:\n            f()\n        except Exception:\n            continue\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 40, "end" = 46 }, { "rule" = "F821", "file" = "case.py", "start" = 73, "end" = 74 }]
+
+[[cases]]
+name = "called-exception"
+comparison = "full"
+files = { "case.py" = "for item in values:\n    try:\n        f()\n    except Exception():\n        continue\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 12, "end" = 18 }, { "rule" = "F821", "file" = "case.py", "start" = 37, "end" = 38 }]
+
+[[cases]]
+name = "two-statements"
+comparison = "full"
+files = { "case.py" = "for item in values:\n    try:\n        f()\n    except Exception:\n        continue\n        continue\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 12, "end" = 18 }, { "rule" = "F821", "file" = "case.py", "start" = 37, "end" = 38 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "for item in values:\n    try:\n        f()\n    except Exception: # noqa: S112\n        continue\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 12, "end" = 18 }, { "rule" = "F821", "file" = "case.py", "start" = 37, "end" = 38 }]
+
+[[cases]]
+name = "ellipsis"
+comparison = "full"
+files = { "case.py" = "for item in values:\n    try:\n        f()\n    except Exception:\n        ...\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 12, "end" = 18 }, { "rule" = "F821", "file" = "case.py", "start" = 37, "end" = 38 }]

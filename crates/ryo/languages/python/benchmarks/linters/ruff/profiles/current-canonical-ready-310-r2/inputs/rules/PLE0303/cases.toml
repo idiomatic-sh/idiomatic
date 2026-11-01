@@ -1,0 +1,137 @@
+[[cases]]
+name = "wrong-literal"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __len__(self):\n        return 'bad'\n" }
+expected = [{ rule = "PLE0303", file = "case.py", start = 47, end = 52 }]
+
+[[cases]]
+name = "right-literal"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __len__(self):\n        return 2\n" }
+expected = []
+
+[[cases]]
+name = "bare-return"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __len__(self):\n        return\n" }
+expected = [{ rule = "PLE0303", file = "case.py", start = 40, end = 46 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __len__(self):\n        return 1  # noqa: PLE0303\n" }
+expected = []
+
+[[cases]]
+name = "negative-integer"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __len__(self):\n        return -1\n" }
+expected = [{ rule = "PLE0303", file = "case.py", start = 47, end = 49 }]
+
+[[cases]]
+name = "implicit-return-gap"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __len__(self):\n        if condition:\n            pass\n" }
+expected = [{ rule = "PLE0303", file = "case.py", start = 17, end = 24 }]
+
+[[cases]]
+name = "pass-only-no-diagnostic"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __len__(self):\n        pass\n" }
+expected = []
+
+[[cases]]
+name = "try-handler-fallthrough-gap"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __len__(self):\n        try:\n            raise ValueError\n        except ValueError:\n            pass\n" }
+expected = [{ rule = "PLE0303", file = "case.py", start = 17, end = 24 }]
+
+[[cases]]
+name = "module-function-is-not-magic-method"
+comparison = "full"
+files = { "case.py" = "def __len__(self):\n    return \"wrong\"\n" }
+expected = []
+
+[[cases]]
+name = "nested-function-return-is-not-owned"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __len__(self):\n        def nested():\n            return \"wrong\"\n        return 1\n" }
+expected = []
+
+[[cases]]
+name = "nested-class-method-return-is-not-owned"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __len__(self):\n        class D:\n            def other(self):\n                return \"wrong\"\n        return 1\n" }
+expected = []
+
+[[cases]]
+name = "always-raise-is-exempt"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __len__(self):\n        raise NotImplementedError\n" }
+expected = []
+
+[[cases]]
+name = "ellipsis-body-is-stub"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __len__(self):\n        ...\n" }
+expected = []
+
+[[cases]]
+name = "docstring-body-is-stub"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __len__(self):\n        \"documentation only\"\n" }
+expected = []
+
+[[cases]]
+name = "conditional-bad-return"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __len__(self):\n        if flag:\n            return \"wrong\"\n" }
+expected = [{ "rule" = "PLE0303", "file" = "case.py", "start" = 68, "end" = 75 }]
+
+[[cases]]
+name = "conditional-good-return-keeps-implicit-path"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __len__(self):\n        if flag:\n            return 1\n" }
+expected = []
+
+[[cases]]
+name = "unknown-return-type-is-permitted"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __len__(self):\n        return unknown_value\n" }
+expected = []
+
+[[cases]]
+name = "negative-unknown-is-rejected"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __len__(self):\n        return -unknown_value\n" }
+expected = [{ "rule" = "PLE0303", "file" = "case.py", "start" = 47, "end" = 61 }]
+
+[[cases]]
+name = "negative-zero-is-rejected"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __len__(self):\n        return -0\n" }
+expected = [{ "rule" = "PLE0303", "file" = "case.py", "start" = 47, "end" = 49 }]
+
+[[cases]]
+name = "negative-parenthesized-integer-is-rejected"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __len__(self):\n        return -(-1)\n" }
+expected = [{ "rule" = "PLE0303", "file" = "case.py", "start" = 47, "end" = 52 }]
+
+[[cases]]
+name = "try-except-all-raise-is-exempt"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __len__(self):\n        try:\n            raise ValueError\n        except ValueError:\n            raise RuntimeError\n" }
+expected = [{ "rule" = "PLE0303", "file" = "case.py", "start" = 17, "end" = 24 }]
+
+[[cases]]
+name = "try-return-bad-except-raise"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __len__(self):\n        try:\n            return \"wrong\"\n        except Exception:\n            raise RuntimeError\n" }
+expected = [{ "rule" = "PLE0303", "file" = "case.py", "start" = 64, "end" = 71 }]
+
+[[cases]]
+name = "conditional-union-return-is-rejected"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __len__(self):\n        return 1 if flag else \"bad\"\n" }
+expected = [{ "rule" = "PLE0303", "file" = "case.py", "start" = 47, "end" = 67 }]

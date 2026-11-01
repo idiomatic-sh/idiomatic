@@ -1,0 +1,221 @@
+[[cases]]
+name = "module-yield"
+comparison = "full"
+files = { "case.py" = "yield 1\n" }
+expected = [{ "rule" = "F704", "file" = "case.py", "start" = 0, "end" = 7 }]
+
+[[cases]]
+name = "module-yield-from"
+comparison = "full"
+files = { "case.py" = "yield from items\n" }
+expected = [{ "rule" = "F704", "file" = "case.py", "start" = 0, "end" = 16 }, { "rule" = "F821", "file" = "case.py", "start" = 11, "end" = 16 }]
+
+[[cases]]
+name = "module-await"
+comparison = "full"
+files = { "case.py" = "await task\n" }
+expected = [{ "rule" = "F704", "file" = "case.py", "start" = 0, "end" = 10 }, { "rule" = "F821", "file" = "case.py", "start" = 6, "end" = 10 }]
+
+[[cases]]
+name = "class"
+comparison = "full"
+files = { "case.py" = "class C:\n    yield 1\n" }
+expected = [{ "rule" = "F704", "file" = "case.py", "start" = 13, "end" = 20 }]
+
+[[cases]]
+name = "function"
+comparison = "full"
+files = { "case.py" = "def f():\n    yield 1\n" }
+expected = []
+
+[[cases]]
+name = "async-function"
+comparison = "full"
+files = { "case.py" = "async def f():\n    await task\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 25, "end" = 29 }]
+
+[[cases]]
+name = "sync-await"
+comparison = "full"
+files = { "case.py" = "def f():\n    await task\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 19, "end" = 23 }]
+
+[[cases]]
+name = "lambda"
+comparison = "full"
+files = { "case.py" = "f = lambda: (yield 1)\n" }
+expected = []
+
+[[cases]]
+name = "nested-class"
+comparison = "full"
+files = { "case.py" = "def f():\n    class C:\n        yield 1\n" }
+expected = [{ "rule" = "F704", "file" = "case.py", "start" = 30, "end" = 37 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "yield 1 # noqa\n" }
+expected = []
+
+[[cases]]
+name = "code-noqa"
+comparison = "full"
+files = { "case.py" = "yield 1 # noqa: F704\n" }
+expected = []
+
+[[cases]]
+name = "other-code"
+comparison = "full"
+files = { "case.py" = "yield 1 # noqa: F401\n" }
+expected = [{ "rule" = "F704", "file" = "case.py", "start" = 0, "end" = 7 }]
+
+[[cases]]
+name = "file-noqa"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa\nyield 1\n" }
+expected = []
+
+[[cases]]
+name = "function-default"
+comparison = "full"
+files = { "case.py" = "def f(x=(yield 1)): pass\n" }
+expected = [{ "rule" = "F704", "file" = "case.py", "start" = 9, "end" = 16 }]
+
+[[cases]]
+name = "nested-function-default"
+comparison = "full"
+files = { "case.py" = "def outer():\n    def f(x=(yield 1)): pass\n" }
+expected = []
+
+[[cases]]
+name = "lambda-default"
+comparison = "full"
+files = { "case.py" = "f = lambda x=(yield 1): x\n" }
+expected = [{ "rule" = "F704", "file" = "case.py", "start" = 14, "end" = 21 }]
+
+[[cases]]
+name = "class-base"
+comparison = "full"
+files = { "case.py" = "class C((yield 1)):\n    pass\n" }
+expected = [{ "rule" = "F704", "file" = "case.py", "start" = 9, "end" = 16 }]
+
+[[cases]]
+name = "nested-class-base"
+comparison = "full"
+files = { "case.py" = "def f():\n    class C((yield 1)):\n        pass\n" }
+expected = []
+
+[[cases]]
+name = "class-method-default"
+comparison = "full"
+files = { "case.py" = "class C:\n    def f(x=(yield 1)): pass\n" }
+expected = [{ "rule" = "F704", "file" = "case.py", "start" = 22, "end" = 29 }]
+
+[[cases]]
+name = "comprehension"
+comparison = "full"
+files = { "case.py" = "[(yield x) for x in items]\n" }
+expected = [{ "rule" = "F704", "file" = "case.py", "start" = 2, "end" = 9 }, { "rule" = "F821", "file" = "case.py", "start" = 20, "end" = 25 }]
+
+[[cases]]
+name = "function-comprehension"
+comparison = "full"
+files = { "case.py" = "def f():\n    return [(yield x) for x in items]\n" }
+expected = [{ "rule" = "F704", "file" = "case.py", "start" = 22, "end" = 29 }, { "rule" = "F821", "file" = "case.py", "start" = 40, "end" = 45 }]
+
+[[cases]]
+name = "unicode-offset"
+comparison = "full"
+files = { "case.py" = "label = \"雪\"\nyield 1\n" }
+expected = [{ "rule" = "F704", "file" = "case.py", "start" = 14, "end" = 21 }]
+
+[[cases]]
+name = "comprehension-first-iter"
+comparison = "full"
+files = { "case.py" = "def f():\n    return [x for x in (yield items)]\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 39, "end" = 44 }]
+
+[[cases]]
+name = "comprehension-later-iter"
+comparison = "full"
+files = { "case.py" = "def f():\n    return [x for x in items for y in (yield more)]\n" }
+expected = [{ "rule" = "F704", "file" = "case.py", "start" = 48, "end" = 58 }, { "rule" = "F821", "file" = "case.py", "start" = 32, "end" = 37 }, { "rule" = "F821", "file" = "case.py", "start" = 54, "end" = 58 }]
+
+[[cases]]
+name = "comprehension-filter"
+comparison = "full"
+files = { "case.py" = "def f():\n    return [x for x in items if (yield ready)]\n" }
+expected = [{ "rule" = "F704", "file" = "case.py", "start" = 42, "end" = 53 }, { "rule" = "F821", "file" = "case.py", "start" = 32, "end" = 37 }, { "rule" = "F821", "file" = "case.py", "start" = 48, "end" = 53 }]
+
+[[cases]]
+name = "generator-result"
+comparison = "full"
+files = { "case.py" = "def f():\n    return ((yield x) for x in items)\n" }
+expected = [{ "rule" = "F704", "file" = "case.py", "start" = 22, "end" = 29 }, { "rule" = "F821", "file" = "case.py", "start" = 40, "end" = 45 }]
+
+[[cases]]
+name = "dict-key"
+comparison = "full"
+files = { "case.py" = "def f():\n    return {(yield x): 1 for x in items}\n" }
+expected = [{ "rule" = "F704", "file" = "case.py", "start" = 22, "end" = 29 }, { "rule" = "F821", "file" = "case.py", "start" = 43, "end" = 48 }]
+
+[[cases]]
+name = "dict-value"
+comparison = "full"
+files = { "case.py" = "def f():\n    return {x: (yield 1) for x in items}\n" }
+expected = [{ "rule" = "F704", "file" = "case.py", "start" = 25, "end" = 32 }, { "rule" = "F821", "file" = "case.py", "start" = 43, "end" = 48 }]
+
+[[cases]]
+name = "lambda-in-comprehension"
+comparison = "full"
+files = { "case.py" = "[(lambda: (yield x)) for x in items]\n" }
+expected = [{ "rule" = "B023", "file" = "case.py", "start" = 17, "end" = 18 }, { "rule" = "F821", "file" = "case.py", "start" = 30, "end" = 35 }]
+
+[[cases]]
+name = "await-in-function-comprehension"
+comparison = "full"
+files = { "case.py" = "def f():\n    return [await x for x in items]\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 38, "end" = 43 }]
+
+[[cases]]
+name = "await-in-module-comprehension"
+comparison = "full"
+files = { "case.py" = "[await x for x in items]\n" }
+expected = [{ "rule" = "F704", "file" = "case.py", "start" = 1, "end" = 8 }, { "rule" = "F821", "file" = "case.py", "start" = 18, "end" = 23 }]
+
+[[cases]]
+name = "await-in-module-generator"
+comparison = "full"
+files = { "case.py" = "(await x for x in items)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 18, "end" = 23 }]
+
+[[cases]]
+name = "shared-block-suppressed"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[F704]\nyield 1\n\n# ruff: enable[F704]\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-reenabled"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[F704]\n# ruff: enable[F704]\nyield 1\n" }
+expected = [{ "rule" = "F704", "file" = "case.py", "start" = 43, "end" = 50 }]
+
+[[cases]]
+name = "shared-block-unmatched-disable"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[F704]\nyield 1\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-wrong-code"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[E501]\nyield 1\n" }
+expected = [{ "rule" = "F704", "file" = "case.py", "start" = 22, "end" = 29 }]
+
+[[cases]]
+name = "shared-file-ignore"
+comparison = "full"
+files = { "case.py" = "# ruff: file-ignore[F704]\nyield 1\n" }
+expected = []

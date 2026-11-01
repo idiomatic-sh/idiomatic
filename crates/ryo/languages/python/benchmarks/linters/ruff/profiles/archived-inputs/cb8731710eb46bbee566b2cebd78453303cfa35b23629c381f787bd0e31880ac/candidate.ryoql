@@ -1,0 +1,7 @@
+import suppress from "python/ruff/suppress";
+let aliases = select id, file from "qualified-name" where path = "re.A" or path = "re.I" or path = "re.L" or path = "re.M" or path = "re.S" or path = "re.T" or path = "re.U" or path = "re.X";
+let syntax = select id, file, span from "semantic-syntax";
+let candidates = select l.id as id, l.file as file, r.span as span from aliases as l join syntax as r on l.id = r.id and l.file = r.file;
+let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from candidates as l join "source-location" as r on l.id = r.id and l.file = r.file;
+let violations = suppress(candidates=candidate_locations, inline-pattern="(?:^|[^A-Z0-9])FURB167(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:FURB167)(?:,|$)");
+emit violations subject file key(id);

@@ -25,35 +25,42 @@ fn fstring_fragments_are_scoped_and_decoded() {
         .iter()
         .map(|row| match row[2] {
             Want::Name(value) => value,
-            Want::Unlocated
-            | Want::Node(_)
-            | Want::Unknown(_)
-            | Want::File(_)
-            | Want::Span(..)
-            | Want::Number(_)
-            | Want::Flag(_) => panic!("fragment value is decoded text"),
+            _ => panic!("fragment value is decoded text"),
         })
         .collect::<Vec<_>>();
     assert_eq!(
         values,
         ["%Y %z ", " %z", " %z", "%z", "prefix ", "%z", " suffix",]
     );
-    assert_ne!(rows[0][1], rows[1][1], "owners are separate strings");
-    assert_ne!(
-        rows[0][1], rows[3][1],
-        "nested f-strings keep their own owner"
+    let owners = rows
+        .iter()
+        .map(|row| match row {
+            [_, owner, ..] => *owner,
+            _ => panic!("literal fragment rows include their owner"),
+        })
+        .collect::<Vec<_>>();
+    let [
+        first,
+        second,
+        third,
+        nested,
+        outer_prefix,
+        inner,
+        outer_suffix,
+    ] = owners.as_slice()
+    else {
+        panic!("the sample has seven literal fragments");
+    };
+    assert_ne!(first, second, "owners are separate strings");
+    assert_ne!(first, nested, "nested f-strings keep their own owner");
+    assert_ne!(second, nested, "nested f-strings keep their own owner");
+    assert_ne!(third, nested, "nested f-strings keep their own owner");
+    assert_eq!(
+        outer_prefix, outer_suffix,
+        "outer fragments share their owner"
     );
     assert_ne!(
-        rows[1][1], rows[3][1],
-        "nested f-strings keep their own owner"
-    );
-    assert_ne!(
-        rows[2][1], rows[3][1],
-        "nested f-strings keep their own owner"
-    );
-    assert_eq!(rows[4][1], rows[6][1], "outer fragments share their owner");
-    assert_ne!(
-        rows[4][1], rows[5][1],
+        outer_prefix, inner,
         "nested fragments have a separate owner"
     );
     let adjacent =

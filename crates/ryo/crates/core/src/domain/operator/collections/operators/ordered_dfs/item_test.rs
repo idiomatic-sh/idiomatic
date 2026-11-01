@@ -21,7 +21,7 @@ type Input = fn() -> Result<usize, OperatingError>;
 type Value = usize;
 type Failure = OperatingError;
 const FROM: Source = Source::Relation(Relation::Function);
-fn c(at: u32) -> ColumnIndex {
+fn column(at: u32) -> ColumnIndex {
     ColumnIndex(at)
 }
 fn numbers(width: usize, rows: &[&[i64]]) -> Table {
@@ -43,13 +43,13 @@ fn operation(root_keys: &[u32], edge_keys: &[u32]) -> Operation {
     Operation::OrderedDfs {
         from: FROM,
         edges: FROM,
-        root: c(0),
-        source: c(0),
-        destination: c(1),
-        order: c(2),
-        edge: c(3),
-        root_keys: root_keys.iter().copied().map(c).collect(),
-        edge_keys: edge_keys.iter().copied().map(c).collect(),
+        root: column(0),
+        source: column(0),
+        destination: column(1),
+        order: column(2),
+        edge: column(3),
+        root_keys: root_keys.iter().copied().map(column).collect(),
+        edge_keys: edge_keys.iter().copied().map(column).collect(),
     }
 }
 fn compute(
@@ -85,7 +85,11 @@ fn expected(out: &Table, width: usize, rows: &[&[i64]]) {
         .collect();
     let mut wanted: Vec<Vec<_>> = rows
         .iter()
-        .map(|r| r.iter().map(|n| Cell::Number(Integer(*n))).collect())
+        .map(|row| {
+            row.iter()
+                .map(|number| Cell::Number(Integer(*number)))
+                .collect()
+        })
         .collect();
     actual.sort_unstable();
     wanted.sort_unstable();
@@ -313,8 +317,8 @@ fn scratch_reuse_across_graphs_empty_and_old_operator() -> Result<usize, Operati
         &Operation::Closure {
             edges: FROM,
             keys: vec![],
-            source: c(0),
-            destination: c(1),
+            source: column(0),
+            destination: column(1),
         },
         &[Rows::Computed(&edges)],
         &mut context,
@@ -361,9 +365,10 @@ fn deep_chain_and_work_are_bounded() -> Result<usize, OperatingError> {
         &edges,
         &mut scratch,
     )?;
-    assert_eq!(out.count.0, n as usize);
-    assert_eq!(scratch.dfs_graph.examined, n as usize);
-    assert_eq!(scratch.dfs_graph.expanded, n as usize + 1);
+    let expected_count = usize::try_from(n).expect("positive chain length");
+    assert_eq!(out.count.0, expected_count);
+    assert_eq!(scratch.dfs_graph.examined, expected_count);
+    assert_eq!(scratch.dfs_graph.expanded, expected_count + 1);
     assert_eq!(scratch.dfs_walk.frames.len(), 0);
     Ok(out.count.0)
 }
@@ -393,9 +398,10 @@ fn many_interleaved_partitions_bound_expansions() -> Result<usize, OperatingErro
     }
     let mut scratch = OperatorScratch::default();
     let out = compute(&operation(&[1], &[4]), &roots, &edges, &mut scratch)?;
-    assert_eq!(out.count.0, 4 * n as usize);
+    let expected_count = 4 * usize::try_from(n).expect("positive partition count");
+    assert_eq!(out.count.0, expected_count);
     assert_eq!(scratch.dfs_graph.examined, out.count.0);
-    assert_eq!(scratch.dfs_graph.expanded, 4 * n as usize);
+    assert_eq!(scratch.dfs_graph.expanded, expected_count);
     assert!(scratch.dfs_walk.visited.len() <= 4);
     Ok(out.count.0)
 }
@@ -408,17 +414,17 @@ fn ordinal_overflow_is_checked_after_the_last_representable_visit() -> Result<us
     };
     let table = numbers(4, &[&[1, 2, 0, 12], &[1, 3, 1, 13]]);
     let mut graph = OrderedGraph {
-        edge_columns: vec![c(0), c(1)],
+        edge_columns: vec![column(0), column(1)],
         ..OrderedGraph::default()
     };
     let mut order = KeyIndex::default();
-    prepare_ordered(&table, c(2), &mut order, &mut graph)?;
-    let source = [c(0)];
+    prepare_ordered(&table, column(2), &mut order, &mut graph)?;
+    let source = [column(0)];
     let edges = Edges {
         table: &table,
         order: &order,
         from: &source,
-        to: c(1),
+        to: column(1),
     };
     let mut walk = OrderedWalk::default();
     begin_ordered(&edges, &graph, &[], Cell::Number(Integer(1)), &mut walk);
@@ -428,7 +434,7 @@ fn ordinal_overflow_is_checked_after_the_last_representable_visit() -> Result<us
     assert!(!walk.visited.contains(&Cell::Number(Integer(2))));
     next_ordered(&edges, &graph, &[], &mut walk).map(|_| 0)
 }
-fn retained_text_keys_and_vertices_preserve_output_cells() -> Result<usize, OperatingError> {
+fn retained_text_fixture(source: &[u8]) -> (Symbols, Table, Table) {
     use ryo_language::domain::{
         relations::types::{
             FileId, Name, NamePlace, Offset, Origin, PlaceNumber, TextHash, WorkerNumber,
@@ -436,17 +442,14 @@ fn retained_text_keys_and_vertices_preserve_output_cells() -> Result<usize, Oper
         symbols::service::{intern, places_mut},
         symbols::types::ByteSlice,
     };
-    use ryo_values::domain::stored_facts::types::ArenaBytes;
-    let source = b"abcctxedge";
-    let arenas = vec![ArenaBytes(source.to_vec())];
     let mut symbols = Symbols::default();
-    let a = Cell::Symbol(intern(
+    let left = Cell::Symbol(intern(
         &mut symbols,
         ByteSlice(source),
         Offset(0),
         Offset(1),
     ));
-    let b = Cell::Symbol(intern(
+    let right = Cell::Symbol(intern(
         &mut symbols,
         ByteSlice(source),
         Offset(1),
@@ -478,7 +481,7 @@ fn retained_text_keys_and_vertices_preserve_output_cells() -> Result<usize, Oper
         kinds: vec![CellKind::Symbol; 2],
         ..Table::default()
     };
-    push_row(&mut roots, &[a, ctx]);
+    push_row(&mut roots, &[left, ctx]);
     push_row(&mut roots, &[retained(0), retained(3)]);
     push_row(&mut roots, &[retained(1), ctx]);
     let mut edges = Table {
@@ -495,7 +498,7 @@ fn retained_text_keys_and_vertices_preserve_output_cells() -> Result<usize, Oper
         &mut edges,
         &[
             retained(0),
-            b,
+            right,
             Cell::Number(Integer(0)),
             retained(4),
             retained(3),
@@ -503,7 +506,13 @@ fn retained_text_keys_and_vertices_preserve_output_cells() -> Result<usize, Oper
     );
     push_row(
         &mut edges,
-        &[b, retained(2), Cell::Number(Integer(0)), retained(4), ctx],
+        &[
+            right,
+            retained(2),
+            Cell::Number(Integer(0)),
+            retained(4),
+            ctx,
+        ],
     );
     push_row(
         &mut edges,
@@ -515,6 +524,15 @@ fn retained_text_keys_and_vertices_preserve_output_cells() -> Result<usize, Oper
             ctx,
         ],
     );
+    (symbols, roots, edges)
+}
+
+fn retained_text_keys_and_vertices_preserve_output_cells() -> Result<usize, OperatingError> {
+    use ryo_language::domain::relations::types::{Name, PlaceNumber};
+    use ryo_values::domain::stored_facts::types::ArenaBytes;
+    let source = b"abcctxedge";
+    let arenas = vec![ArenaBytes(source.to_vec())];
+    let (mut symbols, roots, edges) = retained_text_fixture(source);
     let mut scratch = OperatorScratch::default();
     let mut out = Table::default();
     let mut context = OperatorContext {
@@ -594,7 +612,9 @@ fn file_keys_keep_reused_nodes_separate() -> Result<usize, OperatingError> {
                 Cell::Node(NodeId(dest)),
                 Cell::Number(Integer(0)),
                 Cell::Node(NodeId(id)),
-                Cell::File(FileId(file as u32)),
+                Cell::File(FileId(
+                    u32::try_from(file).expect("small fixture file number"),
+                )),
             ],
         );
     }
@@ -779,37 +799,43 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("ties_refused_even_with_empty_roots"),
         word: Word::Refuses,
         input: || ties_are_rejected_even_without_roots,
-        expect: Expect::Refusal(|e| selects(matches!(e, OperatingError::DuplicateDfsOrder))),
+        expect: Expect::Refusal(|error| {
+            selects(matches!(error, OperatingError::DuplicateDfsOrder))
+        }),
     },
     Case {
         name: CaseName("duplicate_edges_refused_as_order_ties"),
         word: Word::Refuses,
         input: || duplicate_edges_are_ties,
-        expect: Expect::Refusal(|e| selects(matches!(e, OperatingError::DuplicateDfsOrder))),
+        expect: Expect::Refusal(|error| {
+            selects(matches!(error, OperatingError::DuplicateDfsOrder))
+        }),
     },
     Case {
         name: CaseName("missing_columns_refused_on_empty_input"),
         word: Word::Refuses,
         input: || malformed_empty_input_is_rejected,
-        expect: Expect::Refusal(|e| selects(matches!(e, OperatingError::Table(..)))),
+        expect: Expect::Refusal(|error| selects(matches!(error, OperatingError::Table(..)))),
     },
     Case {
         name: CaseName("entity_kinds_checked_on_empty_input"),
         word: Word::Refuses,
         input: || empty_input_kind_mismatch_is_rejected,
-        expect: Expect::Refusal(|e| selects(matches!(e, OperatingError::ShapeMismatch))),
+        expect: Expect::Refusal(|error| selects(matches!(error, OperatingError::ShapeMismatch))),
     },
     Case {
         name: CaseName("nonnumeric_order_cell_refused"),
         word: Word::Refuses,
         input: || nonnumeric_order_cell_is_rejected,
-        expect: Expect::Refusal(|e| selects(matches!(e, OperatingError::ShapeMismatch))),
+        expect: Expect::Refusal(|error| selects(matches!(error, OperatingError::ShapeMismatch))),
     },
     Case {
         name: CaseName("ordinal_overflow_is_stable"),
         word: Word::Refuses,
         input: || ordinal_overflow_is_checked_after_the_last_representable_visit,
-        expect: Expect::Refusal(|e| selects(matches!(e, OperatingError::DfsOrdinalOverflow))),
+        expect: Expect::Refusal(|error| {
+            selects(matches!(error, OperatingError::DfsOrdinalOverflow))
+        }),
     },
 ];
 fn subject(input: Input) -> Result<Value, Failure> {

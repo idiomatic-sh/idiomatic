@@ -1,0 +1,318 @@
+
+[[cases]]
+name = "tagged-PYI058.py"
+comparison = "full"
+files = { "PYI058.py" = "def scope():\n    from collections.abc import Generator\n\n    class IteratorReturningSimpleGenerator1:\n        def __iter__(self) -> Generator:\n            ...  # PYI058 (use `Iterator`)\n\n\ndef scope():\n    import typing\n\n    class IteratorReturningSimpleGenerator2:\n        def __iter__(self) -> typing.Generator:\n            ...  # PYI058 (use `Iterator`)\n\n\ndef scope():\n    import collections.abc\n\n    class IteratorReturningSimpleGenerator3:\n        def __iter__(self) -> collections.abc.Generator:\n            ...  # PYI058 (use `Iterator`)\n\n\ndef scope():\n    import collections.abc\n    from typing import Any\n\n    class IteratorReturningSimpleGenerator4:\n        def __iter__(self, /) -> collections.abc.Generator[str, Any, None]:\n            ...  # PYI058 (use `Iterator`)\n\n\ndef scope():\n    import collections.abc\n    import typing\n\n    class IteratorReturningSimpleGenerator5:\n        def __iter__(self, /) -> collections.abc.Generator[str, None, typing.Any]:\n            ...  # PYI058 (use `Iterator`)\n\n\ndef scope():\n    from collections.abc import Generator\n\n    class IteratorReturningSimpleGenerator6:\n        def __iter__(self, /) -> Generator[str, None, None]:\n            ...  # PYI058 (use `Iterator`)\n\n\ndef scope():\n    import typing_extensions\n\n    class AsyncIteratorReturningSimpleAsyncGenerator1:\n        def __aiter__(\n            self,\n        ) -> typing_extensions.AsyncGenerator:\n            ...  # PYI058 (Use `AsyncIterator`)\n\n\ndef scope():\n    import collections.abc\n\n    class AsyncIteratorReturningSimpleAsyncGenerator2:\n        def __aiter__(self, /) -> collections.abc.AsyncGenerator[str, Any]:\n            ...  # PYI058 (Use `AsyncIterator`)\n\n\ndef scope():\n    import collections.abc\n\n    class AsyncIteratorReturningSimpleAsyncGenerator3:\n        def __aiter__(self, /) -> collections.abc.AsyncGenerator[str, None]:\n            ...  # PYI058 (Use `AsyncIterator`)\n\n\ndef scope():\n    from typing import Iterator\n\n    class CorrectIterator:\n        def __iter__(self) -> Iterator[str]:\n            ...  # OK\n\n\ndef scope():\n    import collections.abc\n\n    class CorrectAsyncIterator:\n        def __aiter__(self) -> collections.abc.AsyncIterator[int]:\n            ...  # OK\n\n\ndef scope():\n    import typing\n\n    class Fine:\n        def __iter__(self) -> typing.Self:\n            ...  # OK\n\n\ndef scope():\n    class StrangeButWeWontComplainHere:\n        def __aiter__(self) -> list[bytes]:\n            ...  # OK\n\n\ndef scope():\n    from collections.abc import Generator\n\n    def __iter__(self) -> Generator:\n        ...  # OK (not in class scope)\n\n\ndef scope():\n    from collections.abc import AsyncGenerator\n\n    def __aiter__(self) -> AsyncGenerator:\n        ...  # OK (not in class scope)\n\n\ndef scope():\n    from collections.abc import Generator\n\n    class IteratorReturningComplexGenerator:\n        def __iter__(self) -> Generator[str, int, bytes]:\n            ...  # OK\n\n\ndef scope():\n    from collections.abc import AsyncGenerator\n\n    class AsyncIteratorReturningComplexAsyncGenerator:\n        def __aiter__(self) -> AsyncGenerator[str, int]:\n            ...  # OK\n\n\ndef scope():\n    from collections.abc import AsyncGenerator\n\n    class ClassWithInvalidAsyncAiterMethod:\n        async def __aiter__(self) -> AsyncGenerator:\n            ...  # OK\n\n\ndef scope():\n    from collections.abc import Generator\n\n    class IteratorWithUnusualParameters1:\n        def __iter__(self, foo) -> Generator:\n            ...  # OK\n\n\ndef scope():\n    from collections.abc import Generator\n\n    class IteratorWithUnusualParameters2:\n        def __iter__(self, *, bar) -> Generator:\n            ...  # OK\n\n\ndef scope():\n    from collections.abc import Generator\n\n    class IteratorWithUnusualParameters3:\n        def __iter__(self, *args) -> Generator:\n            ...  # OK\n\n\ndef scope():\n    from collections.abc import Generator\n\n    class IteratorWithUnusualParameters4:\n        def __iter__(self, **kwargs) -> Generator:\n            ...  # OK\n" }
+expected = [{ rule = "PYI058", file = "PYI058.py", start = 113, end = 121 }, { rule = "PYI058", file = "PYI058.py", start = 276, end = 284 }, { rule = "PYI058", file = "PYI058.py", start = 455, end = 463 }, { rule = "PYI058", file = "PYI058.py", start = 670, end = 678 }, { rule = "PYI058", file = "PYI058.py", start = 895, end = 903 }, { rule = "PYI058", file = "PYI058.py", start = 1124, end = 1132 }, { rule = "PYI058", file = "PYI058.py", start = 1328, end = 1337 }, { rule = "PYI058", file = "PYI058.py", start = 1784, end = 1793 }]
+
+[[cases]]
+name = "tagged-PYI058.pyi"
+comparison = "full"
+files = { "PYI058.pyi" = "def scope():\n    from collections.abc import Generator\n\n    class IteratorReturningSimpleGenerator1:\n        def __iter__(self) -> Generator: ...  # PYI058 (use `Iterator`)\n\ndef scope():\n    import typing\n\n    class IteratorReturningSimpleGenerator2:\n        def __iter__(self) -> typing.Generator: ...  # PYI058 (use `Iterator`)\n\ndef scope():\n    import collections.abc\n\n    class IteratorReturningSimpleGenerator3:\n        def __iter__(self) -> collections.abc.Generator: ...  # PYI058 (use `Iterator`)\n\ndef scope():\n    import collections.abc\n    from typing import Any\n\n    class IteratorReturningSimpleGenerator4:\n        def __iter__(self, /) -> collections.abc.Generator[str, Any, None]: ...  # PYI058 (use `Iterator`)\n\ndef scope():\n    import collections.abc\n    import typing\n\n    class IteratorReturningSimpleGenerator5:\n        def __iter__(self, /) -> collections.abc.Generator[str, None, typing.Any]: ...  # PYI058 (use `Iterator`)\n\ndef scope():\n    from collections.abc import Generator\n\n    class IteratorReturningSimpleGenerator6:\n        def __iter__(self, /) -> Generator[str, None, None]: ...  # PYI058 (use `Iterator`)\n\ndef scope():\n    import typing_extensions\n\n    class AsyncIteratorReturningSimpleAsyncGenerator1:\n        def __aiter__(self,) -> typing_extensions.AsyncGenerator: ...  # PYI058 (Use `AsyncIterator`)\n\ndef scope():\n    import collections.abc\n\n    class AsyncIteratorReturningSimpleAsyncGenerator3:\n        def __aiter__(self, /) -> collections.abc.AsyncGenerator[str, None]:\n            ...  # PYI058 (Use `AsyncIterator`)\n\ndef scope():\n    import collections.abc\n\n    class AsyncIteratorReturningSimpleAsyncGenerator3:\n        def __aiter__(self, /) -> collections.abc.AsyncGenerator[str, None]: ...  # PYI058 (Use `AsyncIterator`)\n\ndef scope():\n    from typing import Iterator\n\n    class CorrectIterator:\n        def __iter__(self) -> Iterator[str]: ...  # OK\n\ndef scope():\n    import collections.abc\n\n    class CorrectAsyncIterator:\n        def __aiter__(self) -> collections.abc.AsyncIterator[int]: ...  # OK\n\ndef scope():\n    import typing\n\n    class Fine:\n        def __iter__(self) -> typing.Self: ...  # OK\n\ndef scope():\n    class StrangeButWeWontComplainHere:\n        def __aiter__(self) -> list[bytes]: ...  # OK\n\ndef scope():\n    from collections.abc import Generator\n    def __iter__(self) -> Generator: ...  # OK (not in class scope)\n\ndef scope():\n    from collections.abc import AsyncGenerator\n    def __aiter__(self) -> AsyncGenerator: ...  # OK (not in class scope)\n\ndef scope():\n    from collections.abc import Generator\n\n    class IteratorReturningComplexGenerator:\n        def __iter__(self) -> Generator[str, int, bytes]: ...  # OK\n\ndef scope():\n    from collections.abc import AsyncGenerator\n\n    class AsyncIteratorReturningComplexAsyncGenerator:\n        def __aiter__(self) -> AsyncGenerator[str, int]: ...  # OK\n\ndef scope():\n    from collections.abc import AsyncGenerator\n\n    class ClassWithInvalidAsyncAiterMethod:\n        async def __aiter__(self) -> AsyncGenerator: ...  # OK\n\ndef scope():\n    from collections.abc import Generator\n\n    class IteratorWithUnusualParameters1:\n        def __iter__(self, foo) -> Generator: ...  # OK\n\ndef scope():\n    from collections.abc import Generator\n\n    class IteratorWithUnusualParameters2:\n        def __iter__(self, *, bar) -> Generator: ...  # OK\n\ndef scope():\n    from collections.abc import Generator\n\n    class IteratorWithUnusualParameters3:\n        def __iter__(self, *args) -> Generator: ...  # OK\n\ndef scope():\n    from collections.abc import Generator\n\n    class IteratorWithUnusualParameters4:\n        def __iter__(self, **kwargs) -> Generator: ...  # OK\n" }
+expected = [{ rule = "PYI058", file = "PYI058.pyi", start = 113, end = 121 }, { rule = "PYI058", file = "PYI058.pyi", start = 263, end = 271 }, { rule = "PYI058", file = "PYI058.pyi", start = 429, end = 437 }, { rule = "PYI058", file = "PYI058.pyi", start = 631, end = 639 }, { rule = "PYI058", file = "PYI058.pyi", start = 843, end = 851 }, { rule = "PYI058", file = "PYI058.pyi", start = 1059, end = 1067 }, { rule = "PYI058", file = "PYI058.pyi", start = 1250, end = 1259 }, { rule = "PYI058", file = "PYI058.pyi", start = 1449, end = 1458 }, { rule = "PYI058", file = "PYI058.pyi", start = 1671, end = 1680 }]
+
+[[cases]]
+name = "generator-return-0"
+comparison = "full"
+files = { "case.pyi" = "from typing import Any,Generator,AsyncGenerator\nclass C:\n def __iter__(self) -> Generator: ...\n" }
+expected = [{ rule = "PYI058", file = "case.pyi", start = 62, end = 70 }]
+
+[[cases]]
+name = "generator-return-1"
+comparison = "full"
+files = { "case.pyi" = "from typing import Any,Generator,AsyncGenerator\nclass C:\n def __iter__(self) -> Generator[int,Any,None]: ...\n" }
+expected = [{ rule = "PYI058", file = "case.pyi", start = 62, end = 70 }]
+
+[[cases]]
+name = "generator-return-2"
+comparison = "full"
+files = { "case.pyi" = "from typing import Any,Generator,AsyncGenerator\nclass C:\n def __iter__(self) -> Generator[int,None,Any]: ...\n" }
+expected = [{ rule = "PYI058", file = "case.pyi", start = 62, end = 70 }]
+
+[[cases]]
+name = "generator-return-3"
+comparison = "full"
+files = { "case.pyi" = "from typing import Any,Generator,AsyncGenerator\nclass C:\n def __iter__(self) -> Generator[int,None,None]: ...\n" }
+expected = [{ rule = "PYI058", file = "case.pyi", start = 62, end = 70 }]
+
+[[cases]]
+name = "generator-return-4"
+comparison = "full"
+files = { "case.pyi" = "from typing import Any,Generator,AsyncGenerator\nclass C:\n def __iter__(self) -> Generator[int,str,None]: ...\n" }
+expected = []
+
+[[cases]]
+name = "generator-return-5"
+comparison = "full"
+files = { "case.pyi" = "from typing import Any,Generator,AsyncGenerator\nclass C:\n def __iter__(self) -> Generator[int,None]: ...\n" }
+expected = []
+
+[[cases]]
+name = "generator-return-6"
+comparison = "full"
+files = { "case.pyi" = "from typing import Any,Generator,AsyncGenerator\nclass C:\n def __iter__(self) -> Generator[int]: ...\n" }
+expected = []
+
+[[cases]]
+name = "generator-return-7"
+comparison = "full"
+files = { "case.pyi" = "from typing import Any,Generator,AsyncGenerator\nclass C:\n def __iter__(self) -> Generator[int,Any,None,Any]: ...\n" }
+expected = []
+
+[[cases]]
+name = "generator-return-8"
+comparison = "full"
+files = { "case.pyi" = "from typing import Any,Generator,AsyncGenerator\nclass C:\n def __aiter__(self) -> AsyncGenerator: ...\n" }
+expected = [{ rule = "PYI058", file = "case.pyi", start = 62, end = 71 }]
+
+[[cases]]
+name = "generator-return-9"
+comparison = "full"
+files = { "case.pyi" = "from typing import Any,Generator,AsyncGenerator\nclass C:\n def __aiter__(self) -> AsyncGenerator[int,None]: ...\n" }
+expected = [{ rule = "PYI058", file = "case.pyi", start = 62, end = 71 }]
+
+[[cases]]
+name = "generator-return-10"
+comparison = "full"
+files = { "case.pyi" = "from typing import Any,Generator,AsyncGenerator\nclass C:\n def __aiter__(self) -> AsyncGenerator[int,Any]: ...\n" }
+expected = [{ rule = "PYI058", file = "case.pyi", start = 62, end = 71 }]
+
+[[cases]]
+name = "generator-return-11"
+comparison = "full"
+files = { "case.pyi" = "from typing import Any,Generator,AsyncGenerator\nclass C:\n def __aiter__(self) -> AsyncGenerator[int,str]: ...\n" }
+expected = []
+
+[[cases]]
+name = "generator-return-12"
+comparison = "full"
+files = { "case.pyi" = "from typing import Any,Generator,AsyncGenerator\nclass C:\n def __iter__(self) -> \"Generator[int,Any,None]\": ...\n" }
+expected = []
+
+[[cases]]
+name = "generator-body-0-py"
+comparison = "full"
+files = { "case.py" = "from typing import Generator\nclass C:\n def __iter__(self)->Generator:\n  ...\n" }
+expected = [{ rule = "PYI058", file = "case.py", start = 43, end = 51 }]
+
+[[cases]]
+name = "generator-body-0-pyi"
+comparison = "full"
+files = { "case.pyi" = "from typing import Generator\nclass C:\n def __iter__(self)->Generator:\n  ...\n" }
+expected = [{ rule = "PYI058", file = "case.pyi", start = 43, end = 51 }]
+
+[[cases]]
+name = "generator-body-1-py"
+comparison = "full"
+files = { "case.py" = "from typing import Generator\nclass C:\n def __iter__(self)->Generator:\n  pass\n" }
+expected = [{ rule = "PYI058", file = "case.py", start = 43, end = 51 }]
+
+[[cases]]
+name = "generator-body-1-pyi"
+comparison = "full"
+files = { "case.pyi" = "from typing import Generator\nclass C:\n def __iter__(self)->Generator:\n  pass\n" }
+expected = [{ rule = "PYI058", file = "case.pyi", start = 43, end = 51 }]
+
+[[cases]]
+name = "generator-body-2-py"
+comparison = "full"
+files = { "case.py" = "from typing import Generator\nclass C:\n def __iter__(self)->Generator:\n  \"doc\"\n" }
+expected = [{ rule = "PYI058", file = "case.py", start = 43, end = 51 }]
+
+[[cases]]
+name = "generator-body-2-pyi"
+comparison = "full"
+files = { "case.pyi" = "from typing import Generator\nclass C:\n def __iter__(self)->Generator:\n  \"doc\"\n" }
+expected = [{ rule = "PYI058", file = "case.pyi", start = 43, end = 51 }]
+
+[[cases]]
+name = "generator-body-3-py"
+comparison = "full"
+files = { "case.py" = "from typing import Generator\nclass C:\n def __iter__(self)->Generator:\n  yield 1\n" }
+expected = [{ rule = "PYI058", file = "case.py", start = 43, end = 51 }]
+
+[[cases]]
+name = "generator-body-3-pyi"
+comparison = "full"
+files = { "case.pyi" = "from typing import Generator\nclass C:\n def __iter__(self)->Generator:\n  yield 1\n" }
+expected = [{ rule = "PYI058", file = "case.pyi", start = 43, end = 51 }]
+
+[[cases]]
+name = "generator-body-4-py"
+comparison = "full"
+files = { "case.py" = "from typing import Generator\nclass C:\n def __iter__(self)->Generator:\n  yield from other\n" }
+expected = [{ rule = "PYI058", file = "case.py", start = 43, end = 51 }]
+
+[[cases]]
+name = "generator-body-4-pyi"
+comparison = "full"
+files = { "case.pyi" = "from typing import Generator\nclass C:\n def __iter__(self)->Generator:\n  yield from other\n" }
+expected = [{ rule = "PYI058", file = "case.pyi", start = 43, end = 51 }]
+
+[[cases]]
+name = "generator-body-5-py"
+comparison = "full"
+files = { "case.py" = "from typing import Generator\nclass C:\n def __iter__(self)->Generator:\n  return other\n" }
+expected = [{ rule = "PYI058", file = "case.py", start = 43, end = 51 }]
+
+[[cases]]
+name = "generator-body-5-pyi"
+comparison = "full"
+files = { "case.pyi" = "from typing import Generator\nclass C:\n def __iter__(self)->Generator:\n  return other\n" }
+expected = [{ rule = "PYI058", file = "case.pyi", start = 43, end = 51 }]
+
+[[cases]]
+name = "generator-body-6-py"
+comparison = "full"
+files = { "case.py" = "from typing import Generator\nclass C:\n def __iter__(self)->Generator:\n  yield 1\n  return None\n" }
+expected = [{ rule = "PYI058", file = "case.py", start = 43, end = 51 }]
+
+[[cases]]
+name = "generator-body-6-pyi"
+comparison = "full"
+files = { "case.pyi" = "from typing import Generator\nclass C:\n def __iter__(self)->Generator:\n  yield 1\n  return None\n" }
+expected = [{ rule = "PYI058", file = "case.pyi", start = 43, end = 51 }]
+
+[[cases]]
+name = "generator-body-7-py"
+comparison = "full"
+files = { "case.py" = "from typing import Generator\nclass C:\n def __iter__(self)->Generator:\n  yield 1\n  return other\n" }
+expected = []
+
+[[cases]]
+name = "generator-body-7-pyi"
+comparison = "full"
+files = { "case.pyi" = "from typing import Generator\nclass C:\n def __iter__(self)->Generator:\n  yield 1\n  return other\n" }
+expected = [{ rule = "PYI058", file = "case.pyi", start = 43, end = 51 }]
+
+[[cases]]
+name = "generator-body-8-py"
+comparison = "full"
+files = { "case.py" = "from typing import Generator\nclass C:\n def __iter__(self)->Generator:\n  return other\n  yield 1\n" }
+expected = [{ rule = "PYI058", file = "case.py", start = 43, end = 51 }]
+
+[[cases]]
+name = "generator-body-8-pyi"
+comparison = "full"
+files = { "case.pyi" = "from typing import Generator\nclass C:\n def __iter__(self)->Generator:\n  return other\n  yield 1\n" }
+expected = [{ rule = "PYI058", file = "case.pyi", start = 43, end = 51 }]
+
+[[cases]]
+name = "generator-body-9-py"
+comparison = "full"
+files = { "case.py" = "from typing import Generator\nclass C:\n def __iter__(self)->Generator:\n  x=1\n" }
+expected = []
+
+[[cases]]
+name = "generator-body-9-pyi"
+comparison = "full"
+files = { "case.pyi" = "from typing import Generator\nclass C:\n def __iter__(self)->Generator:\n  x=1\n" }
+expected = [{ rule = "PYI058", file = "case.pyi", start = 43, end = 51 }]
+
+[[cases]]
+name = "generator-body-10-py"
+comparison = "full"
+files = { "case.py" = "from typing import Generator\nclass C:\n def __iter__(self)->Generator:\n  if flag: yield 1\n" }
+expected = []
+
+[[cases]]
+name = "generator-body-10-pyi"
+comparison = "full"
+files = { "case.pyi" = "from typing import Generator\nclass C:\n def __iter__(self)->Generator:\n  if flag: yield 1\n" }
+expected = [{ rule = "PYI058", file = "case.pyi", start = 43, end = 51 }]
+
+[[cases]]
+name = "generator-body-11-py"
+comparison = "full"
+files = { "case.py" = "from typing import Generator\nclass C:\n def __iter__(self)->Generator:\n  yield 1\n  x=2\n" }
+expected = []
+
+[[cases]]
+name = "generator-body-11-pyi"
+comparison = "full"
+files = { "case.pyi" = "from typing import Generator\nclass C:\n def __iter__(self)->Generator:\n  yield 1\n  x=2\n" }
+expected = [{ rule = "PYI058", file = "case.pyi", start = 43, end = 51 }]
+
+[[cases]]
+name = "generator-body-12-py"
+comparison = "full"
+files = { "case.py" = "from typing import Generator\nclass C:\n def __iter__(self)->Generator:\n  None\n" }
+expected = []
+
+[[cases]]
+name = "generator-body-12-pyi"
+comparison = "full"
+files = { "case.pyi" = "from typing import Generator\nclass C:\n def __iter__(self)->Generator:\n  None\n" }
+expected = [{ rule = "PYI058", file = "case.pyi", start = 43, end = 51 }]
+
+[[cases]]
+name = "generator-params-0"
+comparison = "full"
+files = { "case.pyi" = "from typing import Generator\nclass C:\n def __iter__(self)->Generator: ...\n" }
+expected = [{ rule = "PYI058", file = "case.pyi", start = 43, end = 51 }]
+
+[[cases]]
+name = "generator-params-1"
+comparison = "full"
+files = { "case.pyi" = "from typing import Generator\nclass C:\n def __iter__(self,/)->Generator: ...\n" }
+expected = [{ rule = "PYI058", file = "case.pyi", start = 43, end = 51 }]
+
+[[cases]]
+name = "generator-params-2"
+comparison = "full"
+files = { "case.pyi" = "from typing import Generator\nclass C:\n def __iter__(self,a)->Generator: ...\n" }
+expected = []
+
+[[cases]]
+name = "generator-params-3"
+comparison = "full"
+files = { "case.pyi" = "from typing import Generator\nclass C:\n def __iter__(self,*args)->Generator: ...\n" }
+expected = []
+
+[[cases]]
+name = "generator-params-4"
+comparison = "full"
+files = { "case.pyi" = "from typing import Generator\nclass C:\n def __iter__(self,**kw)->Generator: ...\n" }
+expected = []
+
+[[cases]]
+name = "generator-params-5"
+comparison = "full"
+files = { "case.pyi" = "from typing import Generator\nclass C:\n def __iter__(self,*,a=0)->Generator: ...\n" }
+expected = []
+
+[[cases]]
+name = "generator-params-6"
+comparison = "full"
+files = { "case.pyi" = "from typing import Generator\nclass C:\n def __iter__(*args)->Generator: ...\n" }
+expected = []
+
+[[cases]]
+name = "generator-params-7"
+comparison = "full"
+files = { "case.pyi" = "from typing import Generator\nclass C:\n def __iter__()->Generator: ...\n" }
+expected = []
+
+[[cases]]
+name = "async-method"
+comparison = "full"
+files = { "case.pyi" = "from typing import AsyncGenerator\nclass C:\n async def __aiter__(self)->AsyncGenerator: ...\n" }
+expected = []
+
+[[cases]]
+name = "module-function"
+comparison = "full"
+files = { "case.pyi" = "from typing import Generator\ndef __iter__(self)->Generator: ...\n" }
+expected = []
+
+[[cases]]
+name = "method-in-if"
+comparison = "full"
+files = { "case.py" = "from typing import Generator\nclass C:\n if flag:\n  def __iter__(self)->Generator: ...\n" }
+expected = [{ rule = "PYI058", file = "case.py", start = 54, end = 62 }]
+
+[[cases]]
+name = "file-suppression"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa: PYI058\nfrom typing import Any,Generator,AsyncGenerator\nclass C:\n def __iter__(self) -> Generator: ...\n" }
+expected = []

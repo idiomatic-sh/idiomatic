@@ -194,7 +194,7 @@ impl From<ValidateErrorSchema<'_>> for ValidateError {
             CoreError::Refused { error } => refused(error),
             CoreError::Uncompilable { error } => {
                 let origin = error.origin.clone();
-                let invalid = match origin {
+                match origin {
                     Some(origin)
                         if origin.source_id.0.as_ref() != "<query>" || !origin.trace.is_empty() =>
                     {
@@ -209,8 +209,7 @@ impl From<ValidateErrorSchema<'_>> for ValidateError {
                         }
                     }
                     _ => invalid(schema.text, error.to_string()),
-                };
-                invalid
+                }
             }
             CoreError::UnknownKind { reason, origin } => match origin {
                 Some(origin)

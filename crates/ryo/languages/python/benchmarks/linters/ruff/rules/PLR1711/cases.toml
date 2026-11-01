@@ -114,3 +114,27 @@ expected = [{ file = "case.py", start = 46, end = 52 }]
 name = "shared-file-ignore"
 files = { "case.py" = "# ruff: file-ignore[PLR1711]\ndef f():\n    work()\n    return\n" }
 expected = []
+
+[[cases]]
+name = "function-final-return-False-6"
+comparison = "full"
+files = { "case.py" = "def f():\n    work()\n    return\n" }
+expected = [{ rule = "PLR1711", file = "case.py", start = 24, end = 30 }]
+
+[[cases]]
+name = "function-final-return-False-11"
+comparison = "full"
+files = { "case.py" = "def f():\n    work()\n    return None\n" }
+expected = [{ rule = "PLR1711", file = "case.py", start = 24, end = 35 }]
+
+[[cases]]
+name = "function-final-return-True-6"
+comparison = "full"
+files = { "case.py" = "async def f():\n    work()\n    return\n" }
+expected = [{ rule = "PLR1711", file = "case.py", start = 30, end = 36 }]
+
+[[cases]]
+name = "function-final-return-True-11"
+comparison = "full"
+files = { "case.py" = "async def f():\n    work()\n    return None\n" }
+expected = [{ rule = "PLR1711", file = "case.py", start = 30, end = 41 }]

@@ -3,6 +3,8 @@ use super::super::fixtures::contract::check;
 use super::item::FunctionTerminalItem;
 use crate::fixtures::reading::reading;
 
+use ryo::languages::contract::Want;
+
 #[test]
 fn classifies_implicit_raise_return_and_conditional_paths() {
     check::<FunctionTerminalItem>();
@@ -19,7 +21,6 @@ fn classifies_implicit_raise_return_and_conditional_paths() {
     ));
     assert!(report.causes.is_empty(), "{:?}", report.causes);
     assert_eq!(report.rows.len(), 9);
-    use ryo::languages::contract::Want;
     let outcomes = report.rows.iter().map(|row| row[1]).collect::<Vec<_>>();
     assert_eq!(
         outcomes,

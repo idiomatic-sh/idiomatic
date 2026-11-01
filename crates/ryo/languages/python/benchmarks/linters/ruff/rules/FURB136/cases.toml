@@ -69,3 +69,243 @@ name = "noqa"
 comparison = "full"
 files = { "case.py" = "value = x if x < y else y # noqa: FURB136\n" }
 expected = []
+
+[[cases]]
+name = "upstream-pinned-fixture"
+comparison = "full"
+files = { "case.py" = "x = 1\ny = 2\n\nx if x > y else y  # FURB136\n\nx if x >= y else y  # FURB136\n\nx if x < y else y  # FURB136\n\nx if x <= y else y  # FURB136\n\ny if x > y else x  # FURB136\n\ny if x >= y else x  # FURB136\n\ny if x < y else x  # FURB136\n\ny if x <= y else x  # FURB136\n\nx + y if x > y else y  # OK\n\nx if (\n    x\n    > y\n) else y  # FURB136\n\n\nhighest_score = (\n    x\n    # text\n    if x > y\n    else y\n)\n" }
+expected = [{ rule = "FURB136", file = "case.py", start = 13, end = 30 }, { rule = "FURB136", file = "case.py", start = 43, end = 61 }, { rule = "FURB136", file = "case.py", start = 74, end = 91 }, { rule = "FURB136", file = "case.py", start = 104, end = 122 }, { rule = "FURB136", file = "case.py", start = 135, end = 152 }, { rule = "FURB136", file = "case.py", start = 165, end = 183 }, { rule = "FURB136", file = "case.py", start = 196, end = 213 }, { rule = "FURB136", file = "case.py", start = 226, end = 244 }, { rule = "FURB136", file = "case.py", start = 286, end = 315 }, { rule = "FURB136", file = "case.py", start = 351, end = 387 }]
+
+[[cases]]
+name = "expression-shape-0"
+comparison = "full"
+files = { "case.py" = "x=(left) if (left) < (right) else (right)\ny=(right) if (left) >= (right) else (left)\n" }
+expected = [{ rule = "FURB136", file = "case.py", start = 2, end = 41 }, { rule = "FURB136", file = "case.py", start = 44, end = 84 }]
+
+[[cases]]
+name = "expression-shape-1"
+comparison = "full"
+files = { "case.py" = "x=(a.x) if (a.x) < (b.y) else (b.y)\ny=(b.y) if (a.x) >= (b.y) else (a.x)\n" }
+expected = [{ rule = "FURB136", file = "case.py", start = 2, end = 35 }, { rule = "FURB136", file = "case.py", start = 38, end = 72 }]
+
+[[cases]]
+name = "expression-shape-2"
+comparison = "full"
+files = { "case.py" = "x=(a[0]) if (a[0]) < (b[1]) else (b[1])\ny=(b[1]) if (a[0]) >= (b[1]) else (a[0])\n" }
+expected = [{ rule = "FURB136", file = "case.py", start = 2, end = 39 }, { rule = "FURB136", file = "case.py", start = 42, end = 80 }]
+
+[[cases]]
+name = "expression-shape-3"
+comparison = "full"
+files = { "case.py" = "x=(f()) if (f()) < (g()) else (g())\ny=(g()) if (f()) >= (g()) else (f())\n" }
+expected = [{ rule = "FURB136", file = "case.py", start = 2, end = 35 }, { rule = "FURB136", file = "case.py", start = 38, end = 72 }]
+
+[[cases]]
+name = "expression-shape-4"
+comparison = "full"
+files = { "case.py" = "x=(f(x=1)) if (f(x=1)) < (f(x=2)) else (f(x=2))\ny=(f(x=2)) if (f(x=1)) >= (f(x=2)) else (f(x=1))\n" }
+expected = [{ rule = "FURB136", file = "case.py", start = 2, end = 47 }, { rule = "FURB136", file = "case.py", start = 50, end = 96 }]
+
+[[cases]]
+name = "expression-shape-5"
+comparison = "full"
+files = { "case.py" = "x=(a+b) if (a+b) < (c*d) else (c*d)\ny=(c*d) if (a+b) >= (c*d) else (a+b)\n" }
+expected = [{ rule = "FURB136", file = "case.py", start = 2, end = 35 }, { rule = "FURB136", file = "case.py", start = 38, end = 72 }]
+
+[[cases]]
+name = "expression-shape-6"
+comparison = "full"
+files = { "case.py" = "x=((a,b)) if ((a,b)) < ((c,d)) else ((c,d))\ny=((c,d)) if ((a,b)) >= ((c,d)) else ((a,b))\n" }
+expected = [{ rule = "FURB136", file = "case.py", start = 2, end = 43 }, { rule = "FURB136", file = "case.py", start = 46, end = 88 }]
+
+[[cases]]
+name = "expression-shape-7"
+comparison = "full"
+files = { "case.py" = "x=([a,b]) if ([a,b]) < ([c,d]) else ([c,d])\ny=([c,d]) if ([a,b]) >= ([c,d]) else ([a,b])\n" }
+expected = [{ rule = "FURB136", file = "case.py", start = 2, end = 43 }, { rule = "FURB136", file = "case.py", start = 46, end = 88 }]
+
+[[cases]]
+name = "expression-shape-8"
+comparison = "full"
+files = { "case.py" = "x=({a:b}) if ({a:b}) < ({c:d}) else ({c:d})\ny=({c:d}) if ({a:b}) >= ({c:d}) else ({a:b})\n" }
+expected = [{ rule = "FURB136", file = "case.py", start = 2, end = 43 }, { rule = "FURB136", file = "case.py", start = 46, end = 88 }]
+
+[[cases]]
+name = "expression-shape-9"
+comparison = "full"
+files = { "case.py" = "x=({a,b}) if ({a,b}) < ({c,d}) else ({c,d})\ny=({c,d}) if ({a,b}) >= ({c,d}) else ({a,b})\n" }
+expected = [{ rule = "FURB136", file = "case.py", start = 2, end = 43 }, { rule = "FURB136", file = "case.py", start = 46, end = 88 }]
+
+[[cases]]
+name = "expression-shape-10"
+comparison = "full"
+files = { "case.py" = "x=([x for x in xs]) if ([x for x in xs]) < ([y for y in ys]) else ([y for y in ys])\ny=([y for y in ys]) if ([x for x in xs]) >= ([y for y in ys]) else ([x for x in xs])\n" }
+expected = [{ rule = "FURB136", file = "case.py", start = 2, end = 83 }, { rule = "FURB136", file = "case.py", start = 86, end = 168 }]
+
+[[cases]]
+name = "expression-shape-11"
+comparison = "full"
+files = { "case.py" = "x=((x for x in xs)) if ((x for x in xs)) < ((y for y in ys)) else ((y for y in ys))\ny=((y for y in ys)) if ((x for x in xs)) >= ((y for y in ys)) else ((x for x in xs))\n" }
+expected = [{ rule = "FURB136", file = "case.py", start = 2, end = 83 }, { rule = "FURB136", file = "case.py", start = 86, end = 168 }]
+
+[[cases]]
+name = "expression-shape-12"
+comparison = "full"
+files = { "case.py" = "x=(lambda:a) if (lambda:a) < (lambda:b) else (lambda:b)\ny=(lambda:b) if (lambda:a) >= (lambda:b) else (lambda:a)\n" }
+expected = [{ rule = "FURB136", file = "case.py", start = 2, end = 55 }, { rule = "FURB136", file = "case.py", start = 58, end = 112 }]
+
+[[cases]]
+name = "expression-shape-13"
+comparison = "full"
+files = { "case.py" = "x=(f\"{a}\") if (f\"{a}\") < (f\"{b}\") else (f\"{b}\")\ny=(f\"{b}\") if (f\"{a}\") >= (f\"{b}\") else (f\"{a}\")\n" }
+expected = [{ rule = "FURB136", file = "case.py", start = 2, end = 47 }, { rule = "FURB136", file = "case.py", start = 50, end = 96 }]
+
+[[cases]]
+name = "expression-shape-14"
+comparison = "full"
+files = { "case.py" = "x=(\"é🙂\") if (\"é🙂\") < (\"z\") else (\"z\")\ny=(\"z\") if (\"é🙂\") >= (\"z\") else (\"é🙂\")\n" }
+expected = [{ rule = "FURB136", file = "case.py", start = 2, end = 45 }, { rule = "FURB136", file = "case.py", start = 48, end = 92 }]
+
+[[cases]]
+name = "expression-shape-15"
+comparison = "full"
+files = { "case.py" = "x=(0x1) if (0x1) < (2) else (2)\ny=(2) if (0x1) >= (2) else (0x1)\n" }
+expected = [{ rule = "FURB136", file = "case.py", start = 2, end = 31 }, { rule = "FURB136", file = "case.py", start = 34, end = 64 }]
+
+[[cases]]
+name = "expression-shape-16"
+comparison = "full"
+files = { "case.py" = "x=(True) if (True) < (False) else (False)\ny=(False) if (True) >= (False) else (True)\n" }
+expected = [{ rule = "FURB136", file = "case.py", start = 2, end = 41 }, { rule = "FURB136", file = "case.py", start = 44, end = 84 }]
+
+[[cases]]
+name = "expression-shape-17"
+comparison = "full"
+files = { "case.py" = "x=(None) if (None) < (...) else (...)\ny=(...) if (None) >= (...) else (None)\n" }
+expected = [{ rule = "FURB136", file = "case.py", start = 2, end = 37 }, { rule = "FURB136", file = "case.py", start = 40, end = 76 }]
+
+[[cases]]
+name = "expression-shape-18"
+comparison = "full"
+files = { "case.py" = "x=((a:=1)) if ((a:=1)) < ((b:=2)) else ((b:=2))\ny=((b:=2)) if ((a:=1)) >= ((b:=2)) else ((a:=1))\n" }
+expected = [{ rule = "FURB136", file = "case.py", start = 2, end = 47 }, { rule = "FURB136", file = "case.py", start = 50, end = 96 }]
+
+[[cases]]
+name = "operator-<"
+comparison = "full"
+files = { "case.py" = "x=a if a < b else b\ny=b if a < b else a\n" }
+expected = [{ rule = "FURB136", file = "case.py", start = 2, end = 19 }, { rule = "FURB136", file = "case.py", start = 22, end = 39 }]
+
+[[cases]]
+name = "operator-<="
+comparison = "full"
+files = { "case.py" = "x=a if a <= b else b\ny=b if a <= b else a\n" }
+expected = [{ rule = "FURB136", file = "case.py", start = 2, end = 20 }, { rule = "FURB136", file = "case.py", start = 23, end = 41 }]
+
+[[cases]]
+name = "operator->"
+comparison = "full"
+files = { "case.py" = "x=a if a > b else b\ny=b if a > b else a\n" }
+expected = [{ rule = "FURB136", file = "case.py", start = 2, end = 19 }, { rule = "FURB136", file = "case.py", start = 22, end = 39 }]
+
+[[cases]]
+name = "operator->="
+comparison = "full"
+files = { "case.py" = "x=a if a >= b else b\ny=b if a >= b else a\n" }
+expected = [{ rule = "FURB136", file = "case.py", start = 2, end = 20 }, { rule = "FURB136", file = "case.py", start = 23, end = 41 }]
+
+[[cases]]
+name = "operator-=="
+comparison = "full"
+files = { "case.py" = "x=a if a == b else b\ny=b if a == b else a\n" }
+expected = []
+
+[[cases]]
+name = "operator-!="
+comparison = "full"
+files = { "case.py" = "x=a if a != b else b\ny=b if a != b else a\n" }
+expected = []
+
+[[cases]]
+name = "operator-is"
+comparison = "full"
+files = { "case.py" = "x=a if a is b else b\ny=b if a is b else a\n" }
+expected = []
+
+[[cases]]
+name = "operator-is not"
+comparison = "full"
+files = { "case.py" = "x=a if a is not b else b\ny=b if a is not b else a\n" }
+expected = []
+
+[[cases]]
+name = "operator-in"
+comparison = "full"
+files = { "case.py" = "x=a if a in b else b\ny=b if a in b else a\n" }
+expected = []
+
+[[cases]]
+name = "operator-not in"
+comparison = "full"
+files = { "case.py" = "x=a if a not in b else b\ny=b if a not in b else a\n" }
+expected = []
+
+[[cases]]
+name = "chained-comparison"
+comparison = "full"
+files = { "case.py" = "x=a if a<b<c else c\ny=b if a<b<c else a\n" }
+expected = []
+
+[[cases]]
+name = "wrong-branches"
+comparison = "full"
+files = { "case.py" = "x=a if a<b else c\ny=c if a<b else b\nz=a if c<b else b\n" }
+expected = []
+
+[[cases]]
+name = "literal-canonicalization"
+comparison = "full"
+files = { "case.py" = "x=1 if 0x1<2 else 0b10\ny=\"a\" if \"\\x61\"<\"b\" else \"\" \"b\"\nz=(a+b) if (a + b)<c else (c)\n" }
+expected = [{ rule = "FURB136", file = "case.py", start = 2, end = 22 }, { rule = "FURB136", file = "case.py", start = 25, end = 54 }, { rule = "FURB136", file = "case.py", start = 57, end = 84 }]
+
+[[cases]]
+name = "calls-different-arguments"
+comparison = "full"
+files = { "case.py" = "x=f(a) if f(b)<g() else g()\ny=f(a=1) if f(a=2)<g() else g()\n" }
+expected = []
+
+[[cases]]
+name = "shadowed-min-max"
+comparison = "full"
+files = { "case.py" = "min=max=unknown\nx=a if a<b else b\ny=b if a>=b else a\n" }
+expected = [{ rule = "FURB136", file = "case.py", start = 18, end = 33 }, { rule = "FURB136", file = "case.py", start = 36, end = 52 }]
+
+[[cases]]
+name = "parentheses-multiline"
+comparison = "full"
+files = { "case.py" = "é=(\n (((a))) if\n ((a)) < ((b))\n else (((b)))\n)\n" }
+expected = [{ rule = "FURB136", file = "case.py", start = 6, end = 45 }]
+
+[[cases]]
+name = "three-sibling-reports"
+comparison = "full"
+files = { "case.py" = "x=a if a<b else b\ny=c if c>d else d\nz=e if e<=f else f\n" }
+expected = [{ rule = "FURB136", file = "case.py", start = 2, end = 17 }, { rule = "FURB136", file = "case.py", start = 20, end = 35 }, { rule = "FURB136", file = "case.py", start = 38, end = 54 }]
+
+[[cases]]
+name = "suppression-inline"
+comparison = "full"
+files = { "case.py" = "x=a if a<b else b # noqa: FURB136\n" }
+expected = []
+
+[[cases]]
+name = "suppression-file"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa: FURB136\nx=a if a<b else b\n" }
+expected = []
+
+[[cases]]
+name = "suppression-range"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[FURB136]\nx=a if a<b else b\n# ruff: enable[FURB136]\nx=a if a<b else b\n" }
+expected = [{ rule = "FURB136", file = "case.py", start = 69, end = 84 }]

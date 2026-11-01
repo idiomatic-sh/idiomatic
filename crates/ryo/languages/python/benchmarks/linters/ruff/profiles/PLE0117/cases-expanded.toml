@@ -2,13 +2,13 @@
 name = "nonlocal-missing"
 comparison = "full"
 files = { "case.py" = "def f():\n    nonlocal x\n" }
-expected = [{ rule = "PLE0117", file = "case.py", start = 22, end = 23 }]
+expected = [{ "rule" = "PLE0117", "file" = "case.py", "start" = 22, "end" = 23 }]
 
 [[cases]]
 name = "nonlocal-module-only"
 comparison = "full"
 files = { "case.py" = "x=1\ndef f():\n    nonlocal x\n" }
-expected = [{ rule = "PLE0117", file = "case.py", start = 26, end = 27 }]
+expected = [{ "rule" = "PLE0117", "file" = "case.py", "start" = 26, "end" = 27 }]
 
 [[cases]]
 name = "nonlocal-later-outer"
@@ -20,7 +20,7 @@ expected = []
 name = "nonlocal-class-only"
 comparison = "full"
 files = { "case.py" = "class Outer:\n    x=1\n    def inner():\n        nonlocal x\n" }
-expected = [{ rule = "PLE0117", file = "case.py", start = 55, end = 56 }]
+expected = [{ "rule" = "PLE0117", "file" = "case.py", "start" = 55, "end" = 56 }]
 
 [[cases]]
 name = "nonlocal-parameter"
@@ -50,7 +50,7 @@ expected = []
 name = "repeated-missing-names"
 comparison = "full"
 files = { "case.py" = "def f():\n    nonlocal x, x\n" }
-expected = [{ rule = "PLE0117", file = "case.py", start = 22, end = 23 }, { rule = "PLE0117", file = "case.py", start = 25, end = 26 }]
+expected = [{ "rule" = "PLE0117", "file" = "case.py", "start" = 22, "end" = 23 }, { "rule" = "PLE0117", "file" = "case.py", "start" = 25, "end" = 26 }]
 
 [[cases]]
 name = "noqa-nonlocal"
@@ -62,7 +62,7 @@ expected = []
 name = "module-nonlocal-is-invalid-syntax-only"
 comparison = "full"
 files = { "case.py" = "nonlocal x\n" }
-expected = [{ rule = "invalid-syntax", file = "case.py", start = 0, end = 10 }]
+expected = [{ "rule" = "invalid-syntax", "file" = "case.py", "start" = 0, "end" = 10 }]
 
 [[cases]]
 name = "nonlocal-without-enclosing-binding"
@@ -116,7 +116,7 @@ expected = []
 name = "own-local-is-not-an-outer-nonlocal-binding"
 comparison = "full"
 files = { "case.py" = "def f():\n    value=1\n    nonlocal value\n" }
-expected = [{ rule = "PLE0117", file = "case.py", start = 34, end = 39 }]
+expected = [{ "rule" = "PLE0117", "file" = "case.py", "start" = 34, "end" = 39 }]
 
 [[cases]]
 name = "class-nonlocal-sees-enclosing-function-parameter"
@@ -140,16 +140,16 @@ expected = []
 name = "crossrule-PLE0115-global-then-nonlocal"
 comparison = "full"
 files = { "case.py" = "def f():\n    global value\n    nonlocal value\n" }
-expected = [{ rule = "PLE0117", file = "case.py", start = 39, end = 44 }]
+expected = [{ "rule" = "PLE0117", "file" = "case.py", "start" = 39, "end" = 44 }]
 
 [[cases]]
 name = "crossrule-PLE0115-noqa-suppresses-conflicting-declaration"
 comparison = "full"
 files = { "case.py" = "def f():\n    global value  # noqa: PLE0115\n    nonlocal value\n" }
-expected = [{ rule = "PLE0117", file = "case.py", start = 56, end = 61 }]
+expected = [{ "rule" = "PLE0117", "file" = "case.py", "start" = 56, "end" = 61 }]
 
 [[cases]]
 name = "crossrule-PLE0115-each-nonlocal-declaration-retains-diagnostic-multiplicity"
 comparison = "full"
 files = { "case.py" = "def f():\n    nonlocal value\n    nonlocal value\n    global value\n" }
-expected = [{ rule = "PLE0117", file = "case.py", start = 22, end = 27 }, { rule = "PLE0117", file = "case.py", start = 41, end = 46 }]
+expected = [{ "rule" = "PLE0117", "file" = "case.py", "start" = 22, "end" = 27 }, { "rule" = "PLE0117", "file" = "case.py", "start" = 41, "end" = 46 }]

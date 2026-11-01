@@ -1,31 +1,31 @@
 # Ruff benchmark integration status
 
-**Status: in progress. Full current-corpus parity and a controlled current performance result are not established.** The active canonical cohort is prepared and sealed, but the candidate has not yet completed it.
+**In progress.** The target remains all 413 Ruff 0.16.5 defaults as RyoQL. Full correctness and current performance gates have not passed.
 
-## Active cohort
+## Frozen combined run
 
-The active descriptor is `current-canonical-211-refresh`: 211 selected Ruff defaults, 3,827 canonical fixture cases, and 4,815 pinned Ruff diagnostics under PY310. It uses canonical `rules/<CODE>/candidate.ryoql` or `query.ryoql` and `cases.toml` inputs. The oracle came from one pinned Ruff 0.16.5 invocation over those current source bytes; reference return code 1 is expected because Ruff reported findings. The descriptor passed manifest verification and combined-profile staging. This is oracle/preflight evidence, not candidate parity.
+The active acceptance descriptor is [current-canonical-ready-310-r2](../profiles/current-canonical-ready-310-r2/benchmark.toml): 310 selected PY310 rules, 6,553 cases, and 13,526 pinned reference findings. Its [reference provenance](../profiles/current-canonical-ready-310-r2/reference-provenance.json) proves exact reuse of the prior 6,542 reference records and pinned Ruff invocations for only 11 new F841 cases. Query-only corrections did not rerun the reference corpus. The original 6,542-case raw oracle remains immutable and archived.
 
-- Oracle: [current-canonical-211-refresh/oracle.json](../profiles/current-canonical-211-refresh/oracle.json), SHA-256 `7b47e7ac0651af75ef26b1d466f92cd0a8e47a45937a7e254ce58127824c8974`.
-- Expectations: [current-canonical-211-refresh/expectations.json](../profiles/current-canonical-211-refresh/expectations.json), SHA-256 `6f0cbb09140fcf273f65a1c7d472538eab96bf6d042a78731cddedfd755ec1c5`.
-- Prepared manifest SHA-256 at this checkpoint: `6931f1e427ef35af1d5cb20b42c06aedf09164735ce4ff6803fd1b377593f311`.
+The [READY asset receipt](../profiles/current-canonical-ready-310-r2/ready-assets.json) binds exact candidate/query and dependency module bytes, including source commit hashes for imported READY fixes. Every previous case object is retained; historical descriptors use separate archived input bytes. Candidate inputs are staged outside the source tree, and worker reuse preserves the executable's original stable build identity.
 
-Historical `shape-110`, `expanded-defaults`, `current-canonical` (205 rules), and `current-canonical-211` (older 211-rule/3,766-case inventory) remain archived separately. Their original oracle and result artifacts are preserved; the 205- and 211-rule descriptors resolve to sealed snapshots where historical inputs differ from current canonical files. They are not the active acceptance cohort.
+The candidate run uses worker SHA-256 `65b5a3933be11bb735c9bfb805451ee378581bec1831daf245d3d37e92e5d94b` and 32 resumable shards. A deliberate resource correction changed scheduling from one to four concurrent workers while preserving its manifest, worker, staged inputs, and complete case records. Linux memory sizing now reads `MemAvailable`; `--workers` provides an explicit bounded override.
 
-## Scoped candidate evidence
+The run is unfinished and has reproduced cross-rule differences. Isolated profile passes and query-delta replays are scoped evidence, not a combined parity certificate. PLE0118's corrected query removes its findings in three retained B019 cross-cases; two full reports match, while the third retains an independent F811 difference.
 
-The latest frozen-worker batch recorded 43 isolated profiles across 619 distinct fixture cases, with 1,238 reference/candidate case records passing. This evidence combines worker revisions and profile-specific scopes; it is not one current-engine certificate or a combined-corpus result. See [current-frozen-worker-batch-2026-11-01.json](current-frozen-worker-batch-2026-11-01.json).
+## Next source cohort
 
-The F811 seeded-axis query change passed all 32 F811 cases against pinned Ruff and worker `a5a49dec215bf3051ef807e9d9cf85c8438022a6dd7f5f60489981073076283d`; full case output and the old/new query hashes are in [F811-seeded-axis-2026-11-01.json](F811-seeded-axis-2026-11-01.json). The selected Django file list contained no F811 findings under pinned Ruff, so there is no real-corpus F811 positive on which to claim a speedup. A synthetic 300-loop query trace reduced the seeded operator duration from 4.40 ms to 0.93 ms with identical diagnostics; this is a synthetic observation only.
+[The machine-derived inventory](source-inventory-2026-11-01.json) records 328 of 413 defaults with query files in this tree and 85 without query files. File presence does not establish a correct implementation. The next prepared PY310 selection spans 319 defaults; PY311-specific profiles remain separate.
 
-## Engine and harness work
+[Eight READY source batches](next-ready-source-batch-2026-11-01.json) integrate method, typing, iteration, call policy, string, conditional, and collection query work. Candidate/query files, declared dependencies, and prior case unions were imported together. The root-restricted `assigned-values` implementation is retained. These later source changes do not alter the frozen 310-rule run.
 
-The benchmark request now uses an owned `request.json` file when invoking `run-ryo`, avoiding the reproduced operating-system argument-size limit while preserving exact request bytes. The worker also supports opt-in, flushed JSONL rule/file and query-step diagnostics outside timed execution. Their trace durations are inclusive for nested operators and are not treated as exclusive CPU cost.
+## Compiler and quality evidence
 
-Shard resume now handles the crash window where every case row is durable but the shard receipt rename did not happen. It reconstructs an explicit receipt from exact complete case records, marks process exit and stdout summary as unobserved, binds the records hash, and never reruns or fabricates process evidence. The helper self-test passed, including the full-record/missing-receipt regression.
+The compiler checkpoint passes 386 local tests: 222 core unit tests, 150 Python unit tests, and 14 Ruff harness tests. The new parser regression covers comprehension-variable rebinding, nested comprehensions, lambda body/default scope, destructured targets, and retained accepted AST facts. Denied enum/cast errors from all three old CI platforms and additional DFS test casts are fixed.
 
-A separate current Django diagnostic run was stopped at its 10-minute cap without a report; it is incomplete and not a benchmark result. The earlier 104-rule six-round measurements remain historical and are described in [historical-report.md](historical-report.md). No performance improvement is claimed from comparing different rule selections, workers, cache modes, or concurrent runs.
+Focused Clippy completes successfully. Introduced parser, format-reader, relation, and DFS warnings are being removed in source; dependency and benchmark warnings still need review. They are not suppressed or accepted as a new baseline.
 
-## Remaining acceptance work
+CI run `41300226624` failed compilation on Linux, macOS, and Windows at the older public head. Its quality and speed jobs did not establish a pass. A new coherent compiler checkpoint is required before claiming successful remote quality or Rust performance gates.
 
-The active 211-rule cohort still needs a full candidate run on a worker built from the coherent engine/query revision, followed by mismatch classification and repairs. Some authored rule profiles remain explicitly incomplete or unregistered; isolated profile passes do not imply the pinned Ruff inventory has full parity. Remote quality checks and the Rust performance gate also need a terminal successful run before this integration can be considered complete.
+## Performance
+
+No current corpus speedup is established. The [historical 104-rule measurements](historical-report.md) remain separate: the six-round Django Ryo median was 291.869 seconds versus Ruff's 0.343 seconds. A later diagnostic attempt stopped at its 10-minute cap without a complete lint report. Worker selections, cache modes, and overlapping runs are not interchangeable performance evidence.

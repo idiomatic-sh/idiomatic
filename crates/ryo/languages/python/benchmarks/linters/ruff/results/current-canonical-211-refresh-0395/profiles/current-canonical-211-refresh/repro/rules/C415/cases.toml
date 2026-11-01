@@ -1,0 +1,95 @@
+[[cases]]
+name = "reversed"
+comparison = "full"
+files = { "case.py" = "reversed(values[::-1])\n" }
+expected = [{ "rule" = "C415", "file" = "case.py", "start" = 0, "end" = 22 }, { "rule" = "F821", "file" = "case.py", "start" = 9, "end" = 15 }]
+
+[[cases]]
+name = "set"
+comparison = "full"
+files = { "case.py" = "set(values[::-1])\n" }
+expected = [{ "rule" = "C415", "file" = "case.py", "start" = 0, "end" = 17 }, { "rule" = "F821", "file" = "case.py", "start" = 4, "end" = 10 }]
+
+[[cases]]
+name = "sorted"
+comparison = "full"
+files = { "case.py" = "sorted(values[::-1], key=key)\n" }
+expected = [{ "rule" = "C415", "file" = "case.py", "start" = 0, "end" = 29 }, { "rule" = "F821", "file" = "case.py", "start" = 7, "end" = 13 }, { "rule" = "F821", "file" = "case.py", "start" = 25, "end" = 28 }]
+
+[[cases]]
+name = "hex"
+comparison = "full"
+files = { "case.py" = "set(values[::-0x_0001])\n" }
+expected = [{ "rule" = "C415", "file" = "case.py", "start" = 0, "end" = 23 }, { "rule" = "F821", "file" = "case.py", "start" = 4, "end" = 10 }]
+
+[[cases]]
+name = "octal"
+comparison = "full"
+files = { "case.py" = "set(values[::-0O0_1])\n" }
+expected = [{ "rule" = "C415", "file" = "case.py", "start" = 0, "end" = 21 }, { "rule" = "F821", "file" = "case.py", "start" = 4, "end" = 10 }]
+
+[[cases]]
+name = "binary"
+comparison = "full"
+files = { "case.py" = "set(values[::-0b0001])\n" }
+expected = [{ "rule" = "C415", "file" = "case.py", "start" = 0, "end" = 22 }, { "rule" = "F821", "file" = "case.py", "start" = 4, "end" = 10 }]
+
+[[cases]]
+name = "float"
+comparison = "full"
+files = { "case.py" = "set(values[::-1.0])\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 4, "end" = 10 }]
+
+[[cases]]
+name = "boolean"
+comparison = "full"
+files = { "case.py" = "set(values[::-True])\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 4, "end" = 10 }]
+
+[[cases]]
+name = "double-sign"
+comparison = "full"
+files = { "case.py" = "set(values[::-+1])\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 4, "end" = 10 }]
+
+[[cases]]
+name = "bound"
+comparison = "full"
+files = { "case.py" = "set(values[0::-1])\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 4, "end" = 10 }]
+
+[[cases]]
+name = "none-bound"
+comparison = "full"
+files = { "case.py" = "set(values[None::-1])\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 4, "end" = 10 }]
+
+[[cases]]
+name = "list"
+comparison = "full"
+files = { "case.py" = "list(values[::-1])\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 5, "end" = 11 }]
+
+[[cases]]
+name = "shadowed"
+comparison = "full"
+files = { "case.py" = "def f(set):\n    set(values[::-1])\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 20, "end" = 26 }]
+
+[[cases]]
+name = "qualified"
+comparison = "full"
+files = { "case.py" = "import builtins\nbuiltins.set(values[::-1])\n" }
+expected = [{ "rule" = "C415", "file" = "case.py", "start" = 16, "end" = 42 }, { "rule" = "F821", "file" = "case.py", "start" = 29, "end" = 35 }]
+
+[[cases]]
+name = "extra-positional"
+comparison = "full"
+files = { "case.py" = "set(values[::-1], extra)\n" }
+expected = [{ "rule" = "C415", "file" = "case.py", "start" = 0, "end" = 24 }, { "rule" = "F821", "file" = "case.py", "start" = 4, "end" = 10 }, { "rule" = "F821", "file" = "case.py", "start" = 18, "end" = 23 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "set(values[::-1]) # noqa: C415\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 4, "end" = 10 }]

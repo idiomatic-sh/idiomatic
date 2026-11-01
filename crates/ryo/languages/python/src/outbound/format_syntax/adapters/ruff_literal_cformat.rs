@@ -15,17 +15,24 @@ use crate::domain::format_syntax::types::{
 pub(crate) struct RuffLiteralCFormat;
 
 #[derive(Clone, Copy)]
+/// One Unicode scalar and its position in the decoded string.
 struct Character {
+    /// Zero-based Unicode scalar index.
     index: usize,
+    /// The decoded scalar.
     value: char,
 }
 
+/// A scalar iterator with one character of lookahead.
 struct Cursor<'a> {
+    /// Remaining scalar positions and values.
     characters: std::iter::Enumerate<std::str::Chars<'a>>,
+    /// The lookahead value, if already read.
     peeked: Option<Character>,
 }
 
 impl<'a> Cursor<'a> {
+    /// Begin reading one decoded input.
     fn new(input: &'a str) -> Self {
         Self {
             characters: input.chars().enumerate(),
@@ -33,6 +40,7 @@ impl<'a> Cursor<'a> {
         }
     }
 
+    /// Borrow the next scalar without consuming it.
     fn peek(&mut self) -> Option<Character> {
         if self.peeked.is_none() {
             self.peeked = self
@@ -43,6 +51,7 @@ impl<'a> Cursor<'a> {
         self.peeked
     }
 
+    /// Consume the next scalar, including any retained lookahead.
     fn next(&mut self) -> Option<Character> {
         self.peeked.take().or_else(|| {
             self.characters
@@ -52,15 +61,21 @@ impl<'a> Cursor<'a> {
     }
 }
 
+/// The grammar fields retained from one conversion specification.
 struct ParsedField {
+    /// Argument consumption and conversion metadata.
     field: FormatFieldValue,
 }
 
+/// Syntax failure or inability to retain a complete result.
 enum Failure {
+    /// A concrete grammar diagnostic.
     Malformed(FormatParseError),
+    /// The input could not be retained completely.
     Unavailable,
 }
 
+/// Construct a grammar diagnostic with a scalar-based index.
 fn error(kind: FormatErrorKind, index: usize, character: Option<char>) -> FormatParseError {
     FormatParseError {
         kind,
@@ -69,6 +84,7 @@ fn error(kind: FormatErrorKind, index: usize, character: Option<char>) -> Format
     }
 }
 
+/// Consume an optional mapping key, respecting nested parentheses.
 fn mapping_key(cursor: &mut Cursor<'_>) -> Result<Option<String>, Failure> {
     let Some(open) = cursor.peek() else {
         return Ok(None);
@@ -77,7 +93,7 @@ fn mapping_key(cursor: &mut Cursor<'_>) -> Result<Option<String>, Failure> {
         return Ok(None);
     }
     let _open = cursor.next();
-    let mut depth = 1usize;
+    let mut depth = 1_usize;
     let mut key = String::new();
     while let Some(character) = cursor.next() {
         match character.value {
@@ -100,26 +116,20 @@ fn mapping_key(cursor: &mut Cursor<'_>) -> Result<Option<String>, Failure> {
     )))
 }
 
+/// Consume optional constant or star width and precision syntax.
 fn quantity(cursor: &mut Cursor<'_>) -> Result<FormatQuantityMode, Failure> {
     match cursor.peek() {
         Some(character) if character.value == '*' => {
             let _star = cursor.next();
             Ok(FormatQuantityMode::Star)
         }
-        Some(character) if character.value.is_ascii_digit() => {
-            let mut amount = 0i32;
+        Some(first) if first.value.is_ascii_digit() => {
+            let mut amount = 0_i32;
             while let Some(character) = cursor.peek().filter(|each| each.value.is_ascii_digit()) {
-                let digit = character
-                    .value
-                    .to_digit(10)
-                    .ok_or_else(|| Failure::Unavailable)?;
+                let digit = character.value.to_digit(10).ok_or(Failure::Unavailable)?;
                 amount = amount
                     .checked_mul(10)
-                    .and_then(|number| {
-                        i32::try_from(digit)
-                            .ok()
-                            .and_then(|digit| number.checked_add(digit))
-                    })
+                    .and_then(|number| number.checked_add(i32::try_from(digit).ok()?))
                     .ok_or_else(|| {
                         Failure::Malformed(error(
                             FormatErrorKind::WidthOrPrecisionTooLarge,
@@ -129,13 +139,13 @@ fn quantity(cursor: &mut Cursor<'_>) -> Result<FormatQuantityMode, Failure> {
                     })?;
                 let _digit = cursor.next();
             }
-            let _amount = amount;
             Ok(FormatQuantityMode::Fixed)
         }
         Some(_) | None => Ok(FormatQuantityMode::None),
     }
 }
 
+/// Consume one complete conversion specification after the percent sign.
 fn parse_field(cursor: &mut Cursor<'_>, ordinal: usize) -> Result<ParsedField, Failure> {
     let key = mapping_key(cursor)?;
 
@@ -213,6 +223,7 @@ fn parse_field(cursor: &mut Cursor<'_>, ordinal: usize) -> Result<ParsedField, F
     })
 }
 
+/// Parse all conversions and retain their ordered argument consumption summary.
 fn parse_percent_string(input: &str) -> Result<ParsedFormat, Failure> {
     let mut cursor = Cursor::new(input);
     let mut fields = Vec::new();
@@ -267,103 +278,5 @@ impl FormatSyntax for RuffLiteralCFormat {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn parsed(source: &str) -> ParsedFormat {
-        match RuffLiteralCFormat::parse(source, FormatDialect::PercentString) {
-            FormatParseResult::Parsed(parsed) => parsed,
-            FormatParseResult::Malformed(_) | FormatParseResult::Unavailable => {
-                panic!("expected parsed format for {source:?}, got a non-parsed result")
-            }
-        }
-    }
-
-    #[test]
-    fn escaped_percent_is_a_valid_zero_field_format() {
-        let result = parsed("100%%");
-        assert!(result.fields.is_empty());
-        assert_eq!(result.summary, FormatSummary::default());
-    }
-
-    #[test]
-    fn dynamic_width_and_precision_each_consume_positional_values() {
-        let result = parsed("%*.*s");
-        assert_eq!(result.summary.positional_consumption, 3);
-        assert!(result.summary.dynamic_width);
-        assert!(result.summary.dynamic_precision);
-        assert_eq!(result.fields[0].width, FormatQuantityMode::Star);
-        assert_eq!(result.fields[0].precision, FormatQuantityMode::Star);
-    }
-
-    #[test]
-    fn repeated_mapping_keys_and_mixed_positional_fields_are_preserved() {
-        let result = parsed("%(name)s %(name)r %s");
-        assert_eq!(result.fields.len(), 3);
-        assert_eq!(
-            result.fields[0].argument,
-            FormatArgument::Mapping("name".to_owned())
-        );
-        assert_eq!(
-            result.fields[1].argument,
-            FormatArgument::Mapping("name".to_owned())
-        );
-        assert_eq!(result.fields[2].argument, FormatArgument::Positional);
-        assert_eq!(result.summary.positional_consumption, 1);
-        assert!(result.summary.mapping_present);
-    }
-
-    #[test]
-    fn malformed_percent_and_unicode_error_indices_use_scalar_offsets() {
-        assert_eq!(
-            RuffLiteralCFormat::parse("é%", FormatDialect::PercentString),
-            FormatParseResult::Malformed(FormatParseError {
-                kind: FormatErrorKind::IncompleteFormat,
-                character: None,
-                index: 2,
-            }),
-        );
-        assert_eq!(
-            RuffLiteralCFormat::parse("é%n", FormatDialect::PercentString),
-            FormatParseResult::Malformed(FormatParseError {
-                kind: FormatErrorKind::UnsupportedFormatCharacter,
-                character: Some('n'),
-                index: 2,
-            }),
-        );
-    }
-
-    #[test]
-    fn unmatched_mapping_and_overflow_are_diagnostics() {
-        assert!(matches!(
-            RuffLiteralCFormat::parse("%(name", FormatDialect::PercentString),
-            FormatParseResult::Malformed(FormatParseError {
-                kind: FormatErrorKind::UnmatchedKeyParentheses,
-                ..
-            })
-        ));
-        assert!(matches!(
-            RuffLiteralCFormat::parse("%999999999999999999999s", FormatDialect::PercentString),
-            FormatParseResult::Malformed(FormatParseError {
-                kind: FormatErrorKind::WidthOrPrecisionTooLarge,
-                ..
-            })
-        ));
-        assert_eq!(
-            RuffLiteralCFormat::parse("%*", FormatDialect::PercentString),
-            FormatParseResult::Malformed(FormatParseError {
-                kind: FormatErrorKind::IncompleteFormat,
-                character: None,
-                index: 0,
-            }),
-        );
-        assert!(matches!(
-            RuffLiteralCFormat::parse("%b", FormatDialect::PercentString),
-            FormatParseResult::Malformed(FormatParseError {
-                kind: FormatErrorKind::UnsupportedFormatCharacter,
-                character: Some('b'),
-                ..
-            })
-        ));
-    }
-}
+#[path = "ruff_literal_cformat_test.rs"]
+mod tests;

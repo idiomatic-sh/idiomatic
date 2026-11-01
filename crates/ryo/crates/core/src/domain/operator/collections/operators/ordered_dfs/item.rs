@@ -14,7 +14,7 @@ use crate::domain::table_reach::{
     service::{begin_ordered, next_ordered, prepare_ordered},
     types::Edges,
 };
-use crate::domain::table_scratch::types::ScratchText;
+use crate::domain::table_scratch::types::{OperatorScratch, ScratchText};
 use crate::domain::table_texts::{
     service::{name_text, symbol_text},
     types::Texts,
@@ -49,7 +49,8 @@ fn canonical_columns(
     let cells = after
         .checked_mul(table.count.0)
         .ok_or(OperatingError::ShapeMismatch)?;
-    let _addressable_width = u32::try_from(after).map_err(|_| OperatingError::ShapeMismatch)?;
+    let _addressable_width =
+        u32::try_from(after).map_err(|_error| OperatingError::ShapeMismatch)?;
     for column in columns.iter() {
         table
             .kinds
@@ -61,12 +62,16 @@ fn canonical_columns(
             .cells
             .copy_within(at * width..(at + 1) * width, at * after);
         for (place, column) in columns.iter().enumerate() {
-            let index = usize::try_from(column.0).map_err(|_| OperatingError::ShapeMismatch)?;
-            let cell = at
+            let index =
+                usize::try_from(column.0).map_err(|_error| OperatingError::ShapeMismatch)?;
+            let source_cell = at
                 .checked_mul(after)
                 .and_then(|row| row.checked_add(index))
                 .ok_or(OperatingError::ShapeMismatch)?;
-            let value = *table.cells.get(cell).ok_or(OperatingError::ShapeMismatch)?;
+            let value = *table
+                .cells
+                .get(source_cell)
+                .ok_or(OperatingError::ShapeMismatch)?;
             let texts = Texts {
                 symbols,
                 source: texts_source,
@@ -95,20 +100,21 @@ fn canonical_columns(
             } else {
                 value
             };
-            let cell = at
+            let canonical_cell = at
                 .checked_mul(after)
                 .and_then(|row| row.checked_add(width))
                 .and_then(|row| row.checked_add(place))
                 .ok_or(OperatingError::ShapeMismatch)?;
             *table
                 .cells
-                .get_mut(cell)
+                .get_mut(canonical_cell)
                 .ok_or(OperatingError::ShapeMismatch)? = canonical;
         }
     }
     for (place, column) in columns.iter_mut().enumerate() {
-        *column =
-            ColumnIndex(u32::try_from(width + place).map_err(|_| OperatingError::ShapeMismatch)?);
+        *column = ColumnIndex(
+            u32::try_from(width + place).map_err(|_error| OperatingError::ShapeMismatch)?,
+        );
     }
     Ok(())
 }
@@ -145,10 +151,9 @@ impl OperatorsItem for OrderedDfsItem {
             || Some(&kind) != column_in(kinds_of(edges), *destination)
             || column_in(kinds_of(edges), *order) != Some(&CellKind::Number)
             || root_keys.len() != edge_keys.len()
-            || root_keys
-                .iter()
-                .zip(edge_keys)
-                .any(|(a, b)| column_in(kinds_of(roots), *a) != column_in(kinds_of(edges), *b))
+            || root_keys.iter().zip(edge_keys).any(|(root_key, edge_key)| {
+                column_in(kinds_of(roots), *root_key) != column_in(kinds_of(edges), *edge_key)
+            })
         {
             return Err(OperatingError::ShapeMismatch);
         }
@@ -209,78 +214,7 @@ impl OperatorsItem for OrderedDfsItem {
         scratch.dfs_walk.ordinal = Some(0);
         scratch.dfs_walk.expanded = 0;
         scratch.dfs_walk.examined = 0;
-        let graph = &mut scratch.dfs_graph;
-        let columns = graph
-            .edge_columns
-            .get(..graph.edge_columns.len() - 1)
-            .ok_or(OperatingError::ShapeMismatch)?;
-        let target = *graph
-            .edge_columns
-            .last()
-            .ok_or(OperatingError::ShapeMismatch)?;
-        let canonical_root = *graph
-            .root_columns
-            .last()
-            .ok_or(OperatingError::ShapeMismatch)?;
-        let walked = Edges {
-            table: &scratch.right,
-            order: &scratch.order,
-            from: columns,
-            to: target,
-        };
-        let mut begin = 0;
-        while begin < scratch.domain_order.sorted.len() {
-            let root_row = row_in(&scratch.domain, scratch.domain_order.sorted[begin])
-                .ok_or(OperatingError::ShapeMismatch)?;
-            scratch.key.clear();
-            for column in &graph.root_columns {
-                scratch.key.push(cell(root_row, *column)?);
-            }
-            scratch.other.clear();
-            for column in root_keys.iter().chain([root]) {
-                scratch.other.push(cell(root_row, *column)?);
-            }
-            let partition = scratch
-                .key
-                .get(..root_keys.len())
-                .ok_or(OperatingError::ShapeMismatch)?;
-            begin_ordered(
-                &walked,
-                graph,
-                partition,
-                cell(root_row, canonical_root)?,
-                &mut scratch.dfs_walk,
-            );
-            while let Some((at, ordinal)) =
-                next_ordered(&walked, graph, partition, &mut scratch.dfs_walk)?
-            {
-                let edge_row = row_in(&scratch.right, at).ok_or(OperatingError::ShapeMismatch)?;
-                scratch.row.clear();
-                scratch.row.extend_from_slice(&scratch.other);
-                for column in [source, destination, edge] {
-                    scratch.row.push(cell(edge_row, *column)?);
-                }
-                scratch.row.push(Value::Number(ordinal));
-                push_row(out, &scratch.row);
-            }
-            graph.expanded += scratch.dfs_walk.expanded;
-            graph.examined += scratch.dfs_walk.examined;
-            begin += 1;
-            while begin < scratch.domain_order.sorted.len() {
-                let next = row_in(&scratch.domain, scratch.domain_order.sorted[begin])
-                    .ok_or(OperatingError::ShapeMismatch)?;
-                if !graph
-                    .root_columns
-                    .iter()
-                    .zip(&scratch.key)
-                    .all(|(column, value)| column_in(next, *column) == Some(value))
-                {
-                    break;
-                }
-                begin += 1;
-            }
-        }
-        Ok(())
+        emit_roots(scratch, root_keys, *root, *source, *destination, *edge, out)
     }
     fn stream(
         &self,
@@ -301,4 +235,102 @@ impl OperatorsItem for OrderedDfsItem {
             },
         )
     }
+}
+
+/// Walk each distinct canonical root and emit visits in source edge order.
+fn emit_roots(
+    scratch: &mut OperatorScratch,
+    root_keys: &[ColumnIndex],
+    root: ColumnIndex,
+    source: ColumnIndex,
+    destination: ColumnIndex,
+    edge: ColumnIndex,
+    out: &mut Table,
+) -> Result<(), OperatingError> {
+    let graph = &mut scratch.dfs_graph;
+    let columns = graph
+        .edge_columns
+        .get(
+            ..graph
+                .edge_columns
+                .len()
+                .checked_sub(1)
+                .ok_or(OperatingError::ShapeMismatch)?,
+        )
+        .ok_or(OperatingError::ShapeMismatch)?;
+    let target = *graph
+        .edge_columns
+        .last()
+        .ok_or(OperatingError::ShapeMismatch)?;
+    let canonical_root = *graph
+        .root_columns
+        .last()
+        .ok_or(OperatingError::ShapeMismatch)?;
+    let walked = Edges {
+        table: &scratch.right,
+        order: &scratch.order,
+        from: columns,
+        to: target,
+    };
+    let mut begin = 0;
+    while begin < scratch.domain_order.sorted.len() {
+        let root_at = *scratch
+            .domain_order
+            .sorted
+            .get(begin)
+            .ok_or(OperatingError::ShapeMismatch)?;
+        let root_row = row_in(&scratch.domain, root_at).ok_or(OperatingError::ShapeMismatch)?;
+        scratch.key.clear();
+        for column in &graph.root_columns {
+            scratch.key.push(cell(root_row, *column)?);
+        }
+        scratch.other.clear();
+        for column in root_keys.iter().copied().chain([root]) {
+            scratch.other.push(cell(root_row, column)?);
+        }
+        let partition = scratch
+            .key
+            .get(..root_keys.len())
+            .ok_or(OperatingError::ShapeMismatch)?;
+        begin_ordered(
+            &walked,
+            graph,
+            partition,
+            cell(root_row, canonical_root)?,
+            &mut scratch.dfs_walk,
+        );
+        while let Some((at, ordinal)) =
+            next_ordered(&walked, graph, partition, &mut scratch.dfs_walk)?
+        {
+            let edge_row = row_in(&scratch.right, at).ok_or(OperatingError::ShapeMismatch)?;
+            scratch.row.clear();
+            scratch.row.extend_from_slice(&scratch.other);
+            for column in [source, destination, edge] {
+                scratch.row.push(cell(edge_row, column)?);
+            }
+            scratch.row.push(Value::Number(ordinal));
+            push_row(out, &scratch.row);
+        }
+        graph.expanded += scratch.dfs_walk.expanded;
+        graph.examined += scratch.dfs_walk.examined;
+        begin += 1;
+        while begin < scratch.domain_order.sorted.len() {
+            let next_at = *scratch
+                .domain_order
+                .sorted
+                .get(begin)
+                .ok_or(OperatingError::ShapeMismatch)?;
+            let next = row_in(&scratch.domain, next_at).ok_or(OperatingError::ShapeMismatch)?;
+            if !graph
+                .root_columns
+                .iter()
+                .zip(&scratch.key)
+                .all(|(column, value)| column_in(next, *column) == Some(value))
+            {
+                break;
+            }
+            begin += 1;
+        }
+    }
+    Ok(())
 }

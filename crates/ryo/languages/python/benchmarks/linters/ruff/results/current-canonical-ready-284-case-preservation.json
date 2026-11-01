@@ -1,0 +1,15 @@
+{
+  "schema": "canonical-case-preservation/v1",
+  "baseline_profile": "current-canonical-211-refresh",
+  "baseline_selection_sha256": "fa426477007ce35eb1cf476b564d0007efc157a26ac7283801ac458518efaec0",
+  "renamed_identities": {
+    "ASYNC115": {
+      "noqa": "preserved-noqa-pre-0e36e931",
+      "wrong-keyword": "preserved-wrong-keyword-pre-0e36e931"
+    },
+    "LOG015": {
+      "from-import": "preserved-from-import-pre-0e36e931"
+    }
+  },
+  "policy": "Each archived case must remain exact in source/settings/expected rows; only listed identity renames change the name field."
+}

@@ -58,7 +58,10 @@ pub(crate) fn decoded_string(tree: &Tree<'_>, at: Position) -> Result<Option<Str
 }
 
 /// Add one occurrence, sharing a prior parse when its decoded value has already appeared.
-fn occurrence<P: FormatSyntax>(tree: &Tree<'_>, index: &mut FormatParseIndex, at: Position) {
+fn occurrence<P>(tree: &Tree<'_>, index: &mut FormatParseIndex, at: Position)
+where
+    P: FormatSyntax,
+{
     let decoded = match decoded_string(tree, at) {
         Ok(Some(decoded)) => decoded,
         Ok(None) => {
@@ -121,11 +124,14 @@ fn occurrence<P: FormatSyntax>(tree: &Tree<'_>, index: &mut FormatParseIndex, at
 }
 
 /// Build the string occurrence index and parse each distinct decoded input at most once.
-pub(crate) fn prepare<'a, P: FormatSyntax>(
+pub(crate) fn prepare<'a, P>(
     tree: &Tree<'_>,
     model: &'a Declarations,
     symbols: &mut Symbols,
-) -> Ref<'a, FormatParseIndex> {
+) -> Ref<'a, FormatParseIndex>
+where
+    P: FormatSyntax,
+{
     let held: &RefCell<FormatParseIndex> = &model.format_parsing;
     if held.borrow().state == FormatParseState::Fresh {
         let mut index = held.borrow_mut();

@@ -1,0 +1,101 @@
+[[cases]]
+name = "duplicate"
+comparison = "full"
+files = { "case.py" = "try:\n    pass\nexcept ValueError:\n    pass\nexcept ValueError:\n    pass\n" }
+expected = [{ "rule" = "B025", "file" = "case.py", "start" = 49, "end" = 59 }]
+
+[[cases]]
+name = "different"
+comparison = "full"
+files = { "case.py" = "try:\n    pass\nexcept ValueError:\n    pass\nexcept TypeError:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "tuple"
+comparison = "full"
+files = { "case.py" = "try:\n    pass\nexcept (ValueError, TypeError):\n    pass\nexcept (TypeError, KeyError):\n    pass\n" }
+expected = [{ "rule" = "B025", "file" = "case.py", "start" = 63, "end" = 72 }]
+
+[[cases]]
+name = "same-tuple"
+comparison = "full"
+files = { "case.py" = "try:\n    pass\nexcept (ValueError, ValueError):\n    pass\n" }
+expected = [{ "rule" = "B014", "file" = "case.py", "start" = 21, "end" = 45 }]
+
+[[cases]]
+name = "qualified"
+comparison = "full"
+files = { "case.py" = "try:\n    pass\nexcept pkg.Error:\n    pass\nexcept pkg . Error:\n    pass\n" }
+expected = [{ "rule" = "B025", "file" = "case.py", "start" = 48, "end" = 59 }, { "rule" = "F821", "file" = "case.py", "start" = 21, "end" = 24 }, { "rule" = "F821", "file" = "case.py", "start" = 48, "end" = 51 }]
+
+[[cases]]
+name = "distinct-tries"
+comparison = "full"
+files = { "case.py" = "try:\n    pass\nexcept ValueError:\n    pass\ntry:\n    pass\nexcept ValueError:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "repeated-in-later-tuple"
+comparison = "full"
+files = { "case.py" = "try:\n    pass\nexcept ValueError:\n    pass\nexcept (ValueError, ValueError):\n    pass\n" }
+expected = [{ "rule" = "B014", "file" = "case.py", "start" = 49, "end" = 73 }, { "rule" = "B025", "file" = "case.py", "start" = 50, "end" = 60 }]
+
+[[cases]]
+name = "group"
+comparison = "full"
+files = { "case.py" = "try:\n    pass\nexcept* ValueError:\n    pass\nexcept* ValueError:\n    pass\n" }
+expected = [{ "rule" = "B025", "file" = "case.py", "start" = 51, "end" = 61 }, { "rule" = "invalid-syntax", "file" = "case.py", "start" = 20, "end" = 21 }, { "rule" = "invalid-syntax", "file" = "case.py", "start" = 49, "end" = 50 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "try:\n    pass\nexcept ValueError:\n    pass\nexcept ValueError: # noqa\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "code-noqa"
+comparison = "full"
+files = { "case.py" = "try:\n    pass\nexcept ValueError:\n    pass\nexcept ValueError: # noqa: B025\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "other-code"
+comparison = "full"
+files = { "case.py" = "try:\n    pass\nexcept ValueError:\n    pass\nexcept ValueError: # noqa: F401\n    pass\n" }
+expected = [{ "rule" = "B025", "file" = "case.py", "start" = 49, "end" = 59 }]
+
+[[cases]]
+name = "file-noqa"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa\ntry:\n    pass\nexcept ValueError:\n    pass\nexcept ValueError:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-suppressed"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[B025]\ntry:\n    pass\nexcept ValueError:\n    pass\nexcept ValueError:\n    pass\n\n# ruff: enable[B025]\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-reenabled"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[B025]\n# ruff: enable[B025]\ntry:\n    pass\nexcept ValueError:\n    pass\nexcept ValueError:\n    pass\n" }
+expected = [{ "rule" = "B025", "file" = "case.py", "start" = 92, "end" = 102 }]
+
+[[cases]]
+name = "shared-block-unmatched-disable"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[B025]\ntry:\n    pass\nexcept ValueError:\n    pass\nexcept ValueError:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-wrong-code"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[E501]\ntry:\n    pass\nexcept ValueError:\n    pass\nexcept ValueError:\n    pass\n" }
+expected = [{ "rule" = "B025", "file" = "case.py", "start" = 71, "end" = 81 }]
+
+[[cases]]
+name = "shared-file-ignore"
+comparison = "full"
+files = { "case.py" = "# ruff: file-ignore[B025]\ntry:\n    pass\nexcept ValueError:\n    pass\nexcept ValueError:\n    pass\n" }
+expected = []

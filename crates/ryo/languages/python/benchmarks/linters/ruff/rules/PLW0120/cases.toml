@@ -133,3 +133,15 @@ expected = [{ file = "case.py", start = 48, end = 52 }]
 name = "shared-file-ignore"
 files = { "case.py" = "# ruff: file-ignore[PLW0120]\nfor x in values:\n    pass\nelse:\n    pass\n" }
 expected = []
+
+[[cases]]
+name = "async-loop-nested-boundary-False"
+comparison = "full"
+files = { "case.py" = "async def f(items):\n    async for item in items:\n        def inner():\n            break\n    else:\n        pass\n" }
+expected = [{ rule = "PLW0120", file = "case.py", start = 92, end = 96 }]
+
+[[cases]]
+name = "async-loop-nested-boundary-True"
+comparison = "full"
+files = { "case.py" = "async def f(items):\n    async for item in items:\n        async def inner():\n            break\n    else:\n        pass\n" }
+expected = [{ rule = "PLW0120", file = "case.py", start = 98, end = 102 }]

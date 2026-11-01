@@ -48,9 +48,13 @@ struct RyoReportSchema {
 #[serde(deny_unknown_fields)]
 /// Counts of selected pairs by their final outcome.
 struct RyoCoverageSchema {
+    /// All requested rule/file pairs.
     selected: usize,
+    /// Pairs evaluated to complete candidate outcomes.
     evaluated: usize,
+    /// Pairs skipped for explicit parser applicability reasons.
     skipped: usize,
+    /// Pairs whose source facts or query outcome remained incomplete.
     unknown_or_unread: usize,
 }
 #[derive(Serialize, Deserialize)]

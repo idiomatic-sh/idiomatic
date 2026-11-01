@@ -32,3 +32,177 @@ expected = [{ rule = "PLE0118", file = "case.py", start = 19, end = 24 }, { rule
 name = "noqa-suppresses-prior-use"
 files = { "case.py" = "def f():\n    print(value)  # noqa: PLE0118\n    global value\n" }
 expected = []
+
+[[cases]]
+name="context-class-body-global-rebind"
+comparison="full"
+files={"case.py"="from dataclasses import dataclass\nfrom functools import cache\nfrom enum import Enum\nclass Base(Enum): ...\nclass Middle(Base): ...\n@dataclass\nclass Subject(Middle):\n    global Base\n    Base=unknown\n    @cache\n    def method(self): return 1\n"}
+expected=[]
+
+[[cases]]
+name="context-class-body-global-declaration"
+comparison="full"
+files={"case.py"="from dataclasses import dataclass\nfrom functools import cache\nfrom enum import Enum\nclass Base(Enum): ...\nclass Middle(Base): ...\n@dataclass\nclass Subject(Middle):\n    global Base\n    @cache\n    def method(self): return 1\n"}
+expected=[]
+
+[[cases]]
+name="upstream-pinned-fixture"
+comparison="full"
+files={"case.py"="###\n# Errors.\n###\ndef f():\n    print(x)\n\n    global x\n\n    print(x)\n\n\ndef f():\n    global x\n\n    print(x)\n\n    global x\n\n    print(x)\n\n\ndef f():\n    print(x)\n\n    global x, y\n\n    print(x)\n\n\ndef f():\n    global x, y\n\n    print(x)\n\n    global x, y\n\n    print(x)\n\n\ndef f():\n    x = 1\n\n    global x\n\n    x = 1\n\n\ndef f():\n    global x\n\n    x = 1\n\n    global x\n\n    x = 1\n\n\ndef f():\n    del x\n\n    global x, y\n\n    del x\n\n\ndef f():\n    global x, y\n\n    del x\n\n    global x, y\n\n    del x\n\n\ndef f():\n    del x\n\n    global x\n\n    del x\n\n\ndef f():\n    global x\n\n    del x\n\n    global x\n\n    del x\n\n\ndef f():\n    del x\n\n    global x, y\n\n    del x\n\n\ndef f():\n    global x, y\n\n    del x\n\n    global x, y\n\n    del x\n\n\ndef f():\n    print(f\"{x=}\")\n    global x\n\n\n###\n# Non-errors.\n###\ndef f():\n    global x\n\n    print(x)\n\n\ndef f():\n    global x, y\n\n    print(x)\n\n\ndef f():\n    global x\n\n    x = 1\n\n\ndef f():\n    global x, y\n\n    x = 1\n\n\ndef f():\n    global x\n\n    del x\n\n\ndef f():\n    global x, y\n\n    del x\n\n\ndef f():\n    global x\n    print(f\"{x=}\")\n\n\n# surprisingly still an error, global in module scope\nx = None\nglobal x\n"}
+expected=[{rule="PLE0118", file="case.py", start=37, end=38}, {rule="PLE0118", file="case.py", start=103, end=104}, {rule="PLE0118", file="case.py", start=155, end=156}, {rule="PLE0118", file="case.py", start=227, end=228}, {rule="PLE0118", file="case.py", start=276, end=277}, {rule="PLE0118", file="case.py", start=336, end=337}, {rule="PLE0118", file="case.py", start=386, end=387}, {rule="PLE0118", file="case.py", start=452, end=453}, {rule="PLE0118", file="case.py", start=501, end=502}, {rule="PLE0118", file="case.py", start=561, end=562}, {rule="PLE0118", file="case.py", start=607, end=608}, {rule="PLE0118", file="case.py", start=673, end=674}, {rule="PLE0118", file="case.py", start=727, end=728}, {rule="PLE0118", file="case.py", start=1092, end=1093}]
+
+[[cases]]
+name="scope-policy-0"
+comparison="full"
+files={"case.py"="class A:\n    print(x)\nclass B:\n    global x\n"}
+expected=[]
+
+[[cases]]
+name="scope-policy-1"
+comparison="full"
+files={"case.py"="class A:\n    print(x)\n    global x\n"}
+expected=[{rule="PLE0118", file="case.py", start=19, end=20}]
+
+[[cases]]
+name="scope-policy-2"
+comparison="full"
+files={"case.py"="def outer():\n    class A:\n        print(x)\n    global x\n"}
+expected=[]
+
+[[cases]]
+name="scope-policy-3"
+comparison="full"
+files={"case.py"="def outer():\n    print(x)\n    class A:\n        global x\n"}
+expected=[]
+
+[[cases]]
+name="scope-policy-4"
+comparison="full"
+files={"case.py"="class A:\n    def method(self):\n        print(x)\n    global x\n"}
+expected=[]
+
+[[cases]]
+name="scope-policy-5"
+comparison="full"
+files={"case.py"="class A(x):\n    global x\n"}
+expected=[]
+
+[[cases]]
+name="scope-policy-6"
+comparison="full"
+files={"case.py"="class A((x:=unknown)):\n    global x\n"}
+expected=[]
+
+[[cases]]
+name="scope-policy-7"
+comparison="full"
+files={"case.py"="def f(arg=(x:=1)):\n    global x\n"}
+expected=[]
+
+[[cases]]
+name="scope-policy-8"
+comparison="full"
+files={"case.py"="class A:\n    def f(arg=x): pass\n    global x\n"}
+expected=[{rule="PLE0118", file="case.py", start=23, end=24}]
+
+[[cases]]
+name="scope-policy-9"
+comparison="full"
+files={"case.py"="class A:\n    def f(arg:x): pass\n    global x\n"}
+expected=[]
+
+[[cases]]
+name="scope-policy-10"
+comparison="full"
+files={"case.py"="class A:\n    def f()->x: pass\n    global x\n"}
+expected=[]
+
+[[cases]]
+name="scope-policy-11"
+comparison="full"
+files={"case.py"="class A:\n    value:x\n    global x\n"}
+expected=[{rule="PLE0118", file="case.py", start=19, end=20}]
+
+[[cases]]
+name="scope-policy-12"
+comparison="full"
+files={"case.py"="class A:\n    value:\"x\"\n    global x\n"}
+expected=[]
+
+[[cases]]
+name="scope-policy-13"
+comparison="full"
+files={"case.py"="x=1\nglobal x\n"}
+expected=[{rule="PLE0118", file="case.py", start=0, end=1}]
+
+[[cases]]
+name="scope-policy-14"
+comparison="full"
+files={"case.py"="def f():\n    def x():pass\n    global x\n"}
+expected=[]
+
+[[cases]]
+name="scope-policy-15"
+comparison="full"
+files={"case.py"="def f():\n    class x:pass\n    global x\n"}
+expected=[]
+
+[[cases]]
+name="scope-policy-16"
+comparison="full"
+files={"case.py"="def f():\n    import x\n    global x\n"}
+expected=[]
+
+[[cases]]
+name="scope-policy-17"
+comparison="full"
+files={"case.py"="def f():\n    from pkg import x\n    global x\n"}
+expected=[]
+
+[[cases]]
+name="scope-policy-18"
+comparison="full"
+files={"case.py"="def f():\n    global x\n    print(x)\n    global x\n"}
+expected=[{rule="PLE0118", file="case.py", start=32, end=33}]
+
+[[cases]]
+name="scope-policy-19"
+comparison="full"
+files={"case.py"="def f():\n    xs=[x for x in x]\n    global x\n"}
+expected=[{rule="PLE0118", file="case.py", start=28, end=29}]
+
+[[cases]]
+name="scope-policy-20"
+comparison="full"
+files={"case.py"="def f():\n    xs=[x for y in xs]\n    global x\n"}
+expected=[]
+
+[[cases]]
+name="scope-policy-21"
+comparison="full"
+files={"case.py"="def f():\n    xs=lambda:x\n    global x\n"}
+expected=[]
+
+[[cases]]
+name="scope-policy-22"
+comparison="full"
+files={"case.py"="class A:\n    x=1\n    global x\n"}
+expected=[{rule="PLE0118", file="case.py", start=13, end=14}]
+
+[[cases]]
+name="scope-policy-23"
+comparison="full"
+files={"case.py"="class A:\n    del x\n    global x\n"}
+expected=[{rule="PLE0118", file="case.py", start=17, end=18}]
+
+[[cases]]
+name="scope-policy-24"
+comparison="full"
+files={"case.py"="def f():\n    x:int=1\n    global x\n"}
+expected=[{rule="invalid-syntax", file="case.py", start=13, end=14}, {rule="PLE0118", file="case.py", start=13, end=14}]
+
+[[cases]]
+name="scope-policy-25"
+comparison="full"
+files={"case.py"="def f():\n    x:int\n    global x\n"}
+expected=[{rule="invalid-syntax", file="case.py", start=13, end=14}, {rule="PLE0118", file="case.py", start=13, end=14}]

@@ -1,0 +1,89 @@
+[[cases]]
+name = "same-name-equality"
+comparison = "full"
+files = { "case.py" = "foo == foo\n" }
+expected = [{ rule = "PLR0124", file = "case.py", start = 0, end = 3 }]
+
+[[cases]]
+name = "same-name-membership"
+comparison = "full"
+files = { "case.py" = "value in value\n" }
+expected = [{ rule = "PLR0124", file = "case.py", start = 0, end = 5 }]
+
+[[cases]]
+name = "different-names"
+comparison = "full"
+files = { "case.py" = "foo == bar\n" }
+expected = []
+
+[[cases]]
+name = "same-name-chain"
+comparison = "full"
+files = { "case.py" = "left < foo == foo\n" }
+expected = [{ rule = "PLR0124", file = "case.py", start = 7, end = 10 }]
+
+[[cases]]
+name = "same-builtin-id-call"
+comparison = "full"
+files = { "case.py" = "id(foo) == id(foo)\n" }
+expected = [{ rule = "PLR0124", file = "case.py", start = 0, end = 7 }]
+
+[[cases]]
+name = "different-builtin-call"
+comparison = "full"
+files = { "case.py" = "id(foo) == len(foo)\n" }
+expected = []
+
+[[cases]]
+name = "non-pure-call"
+comparison = "full"
+files = { "case.py" = "custom(foo) == custom(foo)\n" }
+expected = []
+
+[[cases]]
+name = "keyword-call"
+comparison = "full"
+files = { "case.py" = "id(foo, base=2) == id(foo, base=2)\n" }
+expected = []
+
+[[cases]]
+name = "shadowed-builtin"
+comparison = "full"
+files = { "case.py" = "def f(id):\n    id(foo) == id(foo)\n" }
+expected = []
+
+[[cases]]
+name = "same-name-in-function"
+comparison = "full"
+files = { "case.py" = "def f(value):\n    return value == value\n" }
+expected = [{ rule = "PLR0124", file = "case.py", start = 25, end = 30 }]
+
+[[cases]]
+name = "same-name-in-conditional-arm"
+comparison = "full"
+files = { "case.py" = "if condition:\n    value = 1\n    value == value\n" }
+expected = [{ rule = "PLR0124", file = "case.py", start = 32, end = 37 }]
+
+[[cases]]
+name = "shadowed-pure-builtin"
+comparison = "full"
+files = { "case.py" = "def f(id):\n    return id(value) == id(value)\n" }
+expected = []
+
+[[cases]]
+name = "nan-predicate-calls"
+comparison = "full"
+files = { "case.py" = "import math\nmath.isnan(value) == math.isnan(value)\n" }
+expected = []
+
+[[cases]]
+name = "same-name-global"
+comparison = "full"
+files = { "case.py" = "global_value == global_value\n" }
+expected = [{ rule = "PLR0124", file = "case.py", start = 0, end = 12 }]
+
+[[cases]]
+name = "chain-orders-operands-across-operator-children"
+comparison = "full"
+files = { "case.py" = "first != second < third == third\n" }
+expected = [{ rule = "PLR0124", file = "case.py", start = 18, end = 23 }]

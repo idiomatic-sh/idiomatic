@@ -61,7 +61,11 @@ pub(crate) fn body(token: &str) -> Option<&str> {
     quoted.get(width..end)
 }
 
-fn cached<P: FormatSyntax>(index: &mut RawFormatIndex, body: &str) -> Option<usize> {
+/// Retain one grammar result for each distinct logical token body.
+fn cached<P>(index: &mut RawFormatIndex, body: &str) -> Option<usize>
+where
+    P: FormatSyntax,
+{
     if let Some(cached) = index.by_input.get(body) {
         return Some(*cached);
     }
@@ -80,17 +84,23 @@ fn cached<P: FormatSyntax>(index: &mut RawFormatIndex, body: &str) -> Option<usi
     let cached = index.values.len();
     index.values.push(result);
     let previous = index.by_input.insert(owned, cached);
-    debug_assert!(previous.is_none());
+    debug_assert!(
+        previous.is_none(),
+        "a previously absent raw body is inserted once"
+    );
     Some(cached)
 }
 
-fn occurrence<P: FormatSyntax>(
+/// Record the token segments belonging to one source expression.
+fn occurrence<P>(
     tree: &Tree<'_>,
     index: &mut RawFormatIndex,
     node: Position,
     symbols: &Symbols,
     source_complete: bool,
-) {
+) where
+    P: FormatSyntax,
+{
     if index.occurrences.try_reserve(1).is_err() {
         index.state = FormatParseState::Partial;
         return;
@@ -111,8 +121,9 @@ fn occurrence<P: FormatSyntax>(
         )
         .and_then(|text| body(text.0))
         .and_then(|body| cached::<P>(index, body));
-        if cached.is_none()
-            || cached.is_some_and(|at| index.values[at] == FormatParseResult::Unavailable)
+        if cached
+            .and_then(|at| index.values.get(at))
+            .is_none_or(|result| *result == FormatParseResult::Unavailable)
         {
             index.state = FormatParseState::Partial;
             complete = false;
@@ -148,11 +159,14 @@ fn occurrence<P: FormatSyntax>(
 }
 
 /// Both raw readers share one demand-driven cache; decoded and brace caches are untouched.
-pub(crate) fn prepare<'a, P: FormatSyntax>(
+pub(crate) fn prepare<'a, P>(
     tree: &Tree<'_>,
     model: &'a Declarations,
     symbols: &mut Symbols,
-) -> Ref<'a, RawFormatIndex> {
+) -> Ref<'a, RawFormatIndex>
+where
+    P: FormatSyntax,
+{
     if model.raw_format.borrow().state == FormatParseState::Fresh {
         let mut index = model.raw_format.borrow_mut();
         let source_complete = !languages::has_incomplete_syntax(tree.elements)
@@ -182,7 +196,10 @@ pub(crate) fn segments<'a>(
     index: &'a RawFormatIndex,
     occurrence: &RawFormatOccurrence,
 ) -> &'a [RawFormatSegment] {
-    &index.segments[occurrence.first..occurrence.end]
+    index
+        .segments
+        .get(occurrence.first..occurrence.end)
+        .unwrap_or_default()
 }
 
 /// A whole parser outcome, shared by equal raw bodies.

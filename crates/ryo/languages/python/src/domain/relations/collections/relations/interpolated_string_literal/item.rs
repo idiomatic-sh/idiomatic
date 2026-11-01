@@ -15,11 +15,13 @@ use crate::domain::{
 };
 use ryo::languages::{self, NameText, Position, Tree};
 
+/// The reason a literal element without decoded text is unavailable.
 const MISSING: &str = "f-string literal fragment requires its parser-decoded token payload";
 
 /// The optional decoded f-string literal reader.
 pub(crate) struct InterpolatedStringLiteralItem;
 
+/// Find the enclosing f-string while excluding format-specification owners.
 fn owner(tree: &Tree<'_>, at: Position) -> Option<Position> {
     let mut child = at;
     let mut ancestor = parent(tree, child);
@@ -33,6 +35,7 @@ fn owner(tree: &Tree<'_>, at: Position) -> Option<Position> {
     None
 }
 
+/// Identify the token carrying one literal element’s decoded payload.
 fn fragment_token(tree: &Tree<'_>, at: Position) -> Option<Token> {
     match (kind(tree, at), kind(tree, parent(tree, at))) {
         (Kind::Node(Node::Constant), Kind::Extra(Extra::FStringPart)) => Some(Token::FstringMiddle),
@@ -41,13 +44,13 @@ fn fragment_token(tree: &Tree<'_>, at: Position) -> Option<Token> {
     }
 }
 
+/// Borrow a literal element’s decoded token text, or report its absence.
 fn decoded_fragment<'a>(tree: &'a Tree<'_>, at: Position) -> Result<NameText<'a>, ()> {
     let token_kind = fragment_token(tree, at).ok_or(())?;
-    below(tree, at)
-        .filter(|child| kind(tree, *child) == Kind::Token(token_kind))
-        .next()
-        .ok_or(())
-        .and_then(|token| languages::decoded_at(tree.elements, token).ok_or(()))
+    let token = below(tree, at)
+        .find(|child| kind(tree, *child) == Kind::Token(token_kind))
+        .ok_or(())?;
+    languages::decoded_at(tree.elements, token).ok_or(())
 }
 
 ryo::reads! {

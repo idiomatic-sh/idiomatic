@@ -1,0 +1,65 @@
+[[cases]]
+name = "simple"
+comparison = "full"
+files = { "case.py" = "class C(object):\n    pass\n" }
+expected = [{ "rule" = "UP004", "file" = "case.py", "start" = 8, "end" = 14 }]
+
+[[cases]]
+name = "multiple"
+comparison = "full"
+files = { "case.py" = "class C(Base, object):\n    pass\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 8, "end" = 12 }, { "rule" = "UP004", "file" = "case.py", "start" = 14, "end" = 20 }]
+
+[[cases]]
+name = "qualified"
+comparison = "full"
+files = { "case.py" = "import builtins\nclass C(builtins.object):\n    pass\n" }
+expected = [{ "rule" = "UP004", "file" = "case.py", "start" = 24, "end" = 39 }]
+
+[[cases]]
+name = "alias"
+comparison = "full"
+files = { "case.py" = "from builtins import object as O\nclass C(O):\n    pass\n" }
+expected = [{ "rule" = "UP004", "file" = "case.py", "start" = 41, "end" = 42 }]
+
+[[cases]]
+name = "repeated"
+comparison = "full"
+files = { "case.py" = "class C(object, object):\n    pass\n" }
+expected = [{ "rule" = "UP004", "file" = "case.py", "start" = 8, "end" = 14 }, { "rule" = "UP004", "file" = "case.py", "start" = 16, "end" = 22 }]
+
+[[cases]]
+name = "shadowed"
+comparison = "full"
+files = { "case.py" = "def f(object):\n    class C(object):\n        pass\n" }
+expected = []
+
+[[cases]]
+name = "class-body-binding"
+comparison = "full"
+files = { "case.py" = "class C(object):\n    object = custom\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 30, "end" = 36 }, { "rule" = "UP004", "file" = "case.py", "start" = 8, "end" = 14 }]
+
+[[cases]]
+name = "not-base"
+comparison = "full"
+files = { "case.py" = "class C(metaclass=object):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "starred"
+comparison = "full"
+files = { "case.py" = "class C(*object):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "subscript"
+comparison = "full"
+files = { "case.py" = "class C(object[T]):\n    pass\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 15, "end" = 16 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "class C(object): # noqa: UP004\n    pass\n" }
+expected = []

@@ -5,7 +5,9 @@ use std::path::Path;
 use std::sync::{Arc, Mutex, MutexGuard};
 use tracing_subscriber::fmt::writer::MakeWriter;
 
+/// Events describing one selected rule's work on a source file.
 const RULE_FILE_TARGET: &str = "ryo::diagnostic::rule_file";
+/// Events describing one operator step within a selected rule.
 const RULE_STEP_TARGET: &str = "ryo::diagnostic::rule_step";
 
 /// Shared append-only file writer; each event holds the lock until its JSON line is complete.
@@ -64,12 +66,13 @@ impl<'a> MakeWriter<'a> for DiagnosticEventWriter {
 
 /// Holds one event's file lock through formatting, then flushes that complete line on drop.
 pub(super) struct LockedDiagnosticEventWriter<'a> {
+    /// Exclusive ownership of the stream through one complete event.
     file: MutexGuard<'a, File>,
 }
 
 impl Write for LockedDiagnosticEventWriter<'_> {
-    fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
-        self.file.write(bytes)
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.file.write(buf)
     }
 
     fn flush(&mut self) -> io::Result<()> {

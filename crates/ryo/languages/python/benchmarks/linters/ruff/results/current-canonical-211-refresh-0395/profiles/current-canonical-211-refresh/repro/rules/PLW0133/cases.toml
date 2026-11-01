@@ -1,0 +1,71 @@
+[[cases]]
+name = "direct-builtin"
+comparison = "full"
+files = { "case.py" = "ValueError(\"bad\")\n" }
+expected = [{ "rule" = "PLW0133", "file" = "case.py", "start" = 0, "end" = 17 }]
+
+[[cases]]
+name = "imported-alias"
+comparison = "full"
+files = { "case.py" = "from builtins import TypeError as Failure\nFailure(\"bad\")\n" }
+expected = [{ "rule" = "PLW0133", "file" = "case.py", "start" = 42, "end" = 56 }]
+
+[[cases]]
+name = "qualified-builtin"
+comparison = "full"
+files = { "case.py" = "import builtins\nbuiltins.KeyError(\"key\")\n" }
+expected = [{ "rule" = "PLW0133", "file" = "case.py", "start" = 16, "end" = 40 }]
+
+[[cases]]
+name = "suppression"
+comparison = "full"
+files = { "case.py" = "ValueError(\"bad\")  # noqa: PLW0133\n" }
+expected = []
+
+[[cases]]
+name = "other-call"
+comparison = "full"
+files = { "case.py" = "int(\"1\")\n" }
+expected = []
+
+[[cases]]
+name = "nested-call"
+comparison = "full"
+files = { "case.py" = "print(ValueError(\"bad\"))\n" }
+expected = []
+
+[[cases]]
+name = "shadowed"
+comparison = "full"
+files = { "case.py" = "ValueError = factory\nValueError(\"bad\")\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 13, "end" = 20 }]
+
+[[cases]]
+name = "builtins-module-alias"
+comparison = "full"
+files = { "case.py" = "import builtins as b\nb.ValueError(\"bad\")\n" }
+expected = [{ "rule" = "PLW0133", "file" = "case.py", "start" = 21, "end" = 40 }]
+
+[[cases]]
+name = "custom-exception"
+comparison = "full"
+files = { "case.py" = "class MyError(ValueError):\n    pass\nMyError(\"bad\")\n" }
+expected = []
+
+[[cases]]
+name = "raised-exception"
+comparison = "full"
+files = { "case.py" = "raise ValueError(\"bad\")\n" }
+expected = []
+
+[[cases]]
+name = "nested-exception-call"
+comparison = "full"
+files = { "case.py" = "print(ValueError(\"bad\"))\n" }
+expected = []
+
+[[cases]]
+name = "builtin-non-exception"
+comparison = "full"
+files = { "case.py" = "dict()\n" }
+expected = [{ "rule" = "B018", "file" = "case.py", "start" = 0, "end" = 6 }, { "rule" = "C408", "file" = "case.py", "start" = 0, "end" = 6 }]

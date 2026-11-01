@@ -1,4 +1,4 @@
-let functions = select id from "semantic-syntax" where kind = "function-def";
+let functions = select id from "semantic-syntax" where kind = "function-def" or kind = "async-function-def";
 let bodies = select parent, child, ordinal from "semantic-child" where field = "body";
 let function_bodies = select r.parent as parent, r.child as child, r.ordinal as ordinal from functions as l join bodies as r on l.id = r.parent;
 let counts = group-count(from=function_bodies, keys=["parent"], count="count", distinct="child");
@@ -16,7 +16,7 @@ let bare_or_none = antijoin(left=candidates, right=other_values, left-on=["id"],
 let annotations = select parent, child from "semantic-child" where field = "returns";
 let other_annotations = antijoin(left=annotations, right=none_literals, left-on=["child"], right-on=["id"]);
 let annotation_valid = antijoin(left=bare_or_none, right=other_annotations, left-on=["function"], right-on=["parent"]);
-let scopes = select id from "semantic-syntax" where kind = "function-def" or kind = "class-def" or kind = "lambda";
+let scopes = select id from "semantic-syntax" where kind = "function-def" or kind = "async-function-def" or kind = "class-def" or kind = "lambda";
 let return_owners = axis(from=returns, relation="semantic-child", direction=nearest-ancestor, domain=scopes);
 let return_counts = group-count(from=return_owners, keys=["related"], count="count", distinct="id");
 let single_returns = select related from return_counts where count = 1;

@@ -1,0 +1,119 @@
+[[cases]]
+name = "wait"
+comparison = "full"
+files = { "case.py" = "import os\nasync def f():\n    os.wait()\n" }
+expected = [{ "rule" = "ASYNC222", "file" = "case.py", "start" = 29, "end" = 36 }]
+
+[[cases]]
+name = "waitpid"
+comparison = "full"
+files = { "case.py" = "import os\nasync def f():\n    os.waitpid(1, 0)\n" }
+expected = [{ "rule" = "ASYNC222", "file" = "case.py", "start" = 29, "end" = 39 }]
+
+[[cases]]
+name = "wait3"
+comparison = "full"
+files = { "case.py" = "import os\nasync def f():\n    os.wait3(0)\n" }
+expected = [{ "rule" = "ASYNC222", "file" = "case.py", "start" = 29, "end" = 37 }]
+
+[[cases]]
+name = "wait4"
+comparison = "full"
+files = { "case.py" = "import os\nasync def f():\n    os.wait4(1, 0)\n" }
+expected = [{ "rule" = "ASYNC222", "file" = "case.py", "start" = 29, "end" = 37 }]
+
+[[cases]]
+name = "waitid"
+comparison = "full"
+files = { "case.py" = "import os\nasync def f():\n    os.waitid(0, 1)\n" }
+expected = [{ "rule" = "ASYNC222", "file" = "case.py", "start" = 29, "end" = 38 }]
+
+[[cases]]
+name = "module-alias"
+comparison = "full"
+files = { "case.py" = "import os as posix\nasync def f():\n    posix.waitpid(1, 0)\n" }
+expected = [{ "rule" = "ASYNC222", "file" = "case.py", "start" = 38, "end" = 51 }]
+
+[[cases]]
+name = "from-import"
+comparison = "full"
+files = { "case.py" = "from os import waitpid\nasync def f():\n    waitpid(1, 0)\n" }
+expected = [{ "rule" = "ASYNC222", "file" = "case.py", "start" = 42, "end" = 49 }]
+
+[[cases]]
+name = "outside-async"
+comparison = "full"
+files = { "case.py" = "import os\nos.wait()\n" }
+expected = []
+
+[[cases]]
+name = "sync-function"
+comparison = "full"
+files = { "case.py" = "import os\ndef f():\n    os.wait()\n" }
+expected = []
+
+[[cases]]
+name = "nested-sync"
+comparison = "full"
+files = { "case.py" = "import os\nasync def f():\n    def g():\n        os.wait()\n" }
+expected = []
+
+[[cases]]
+name = "nested-async"
+comparison = "full"
+files = { "case.py" = "import os\nasync def f():\n    async def g():\n        os.wait()\n" }
+expected = [{ "rule" = "ASYNC222", "file" = "case.py", "start" = 52, "end" = 59 }]
+
+[[cases]]
+name = "class-body"
+comparison = "full"
+files = { "case.py" = "import os\nasync def f():\n    class C:\n        os.wait()\n" }
+expected = []
+
+[[cases]]
+name = "lambda"
+comparison = "full"
+files = { "case.py" = "import os\nasync def f():\n    callback = lambda: os.wait()\n" }
+expected = [{ "rule" = "F841", "file" = "case.py", "start" = 29, "end" = 37 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "import os\nasync def f():\n    os.wait()  # noqa: ASYNC222\n" }
+expected = []
+
+[[cases]]
+name = "other-noqa"
+comparison = "full"
+files = { "case.py" = "import os\nasync def f():\n    os.wait()  # noqa: F401\n" }
+expected = [{ "rule" = "ASYNC222", "file" = "case.py", "start" = 29, "end" = 36 }]
+
+[[cases]]
+name = "unicode"
+comparison = "full"
+files = { "case.py" = "label = \"雪\"\nimport os\nasync def f():\n    os.wait()\n" }
+expected = [{ "rule" = "ASYNC222", "file" = "case.py", "start" = 43, "end" = 50 }]
+
+[[cases]]
+name = "similar-name"
+comparison = "full"
+files = { "case.py" = "import os\nasync def f():\n    os.waitpid_like(1, 0)\n" }
+expected = []
+
+[[cases]]
+name = "path-unrelated"
+comparison = "full"
+files = { "case.py" = "import pathlib\nasync def f():\n    pathlib.Path(\"x\").wait()\n" }
+expected = []
+
+[[cases]]
+name = "ordinary-import"
+comparison = "full"
+files = { "case.py" = "import subprocess\nasync def f():\n    subprocess.wait()\n" }
+expected = []
+
+[[cases]]
+name = "nested-async-comp"
+comparison = "full"
+files = { "case.py" = "import os\nasync def f(items):\n    return [os.wait() for x in items]\n" }
+expected = [{ "rule" = "ASYNC222", "file" = "case.py", "start" = 42, "end" = 49 }]

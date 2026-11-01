@@ -32,3 +32,22 @@ pub(crate) fn failure(
         Error::Toml(_) => BoundaryFailure::Toml,
     }
 }
+
+#[test]
+fn worker_modes_are_explicit_and_keep_diagnostics_out_of_timed_run() {
+    use diagnostic_protocol::{WorkerTracing, tracing_for_command};
+
+    assert_eq!(
+        tracing_for_command("run-ryo"),
+        Some(WorkerTracing::Disabled)
+    );
+    assert_eq!(
+        tracing_for_command("profile-ryo"),
+        Some(WorkerTracing::Chrome)
+    );
+    assert_eq!(
+        tracing_for_command("diagnostic-ryo"),
+        Some(WorkerTracing::JsonLines)
+    );
+    assert_eq!(tracing_for_command("diagnostic-unknown"), None);
+}

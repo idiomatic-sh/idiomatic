@@ -1,0 +1,519 @@
+{
+  "schema": "ruff-combined-mismatch-summary/v1",
+  "profile": "current-canonical-211-refresh",
+  "run_status": "failed",
+  "rules": 211,
+  "cases": 3827,
+  "candidate_cases": 3827,
+  "passed_candidate_cases": 3812,
+  "failed_candidate_cases": 15,
+  "incomplete_cases": 0,
+  "case_ids_exact_once": true,
+  "worker_sha256": "a5a49dec215bf3051ef807e9d9cf85c8438022a6dd7f5f60489981073076283d",
+  "source_revision": "0395f2f0fd1c088a60aa1ddf22a17f2b7b472a54",
+  "saved_manifest_sha256": "6542ccc5776fd95fb41a6350dab30c3feadcbec1fca84a70b71e84dbae683494",
+  "aggregate_sha256": "444e1caa8710cbb50481a1af13a0125800db05b23f421993383681d4f7be4532",
+  "extra_findings_by_rule": {
+    "F841": 2,
+    "PLW0604": 1,
+    "PYI001": 1,
+    "PYI035": 1
+  },
+  "missing_findings_by_rule": {
+    "F821": 2,
+    "PLE0117": 6,
+    "PLR1711": 1,
+    "PLW0120": 1,
+    "PYI010": 3
+  },
+  "representatives": [
+    {
+      "kind": "extra",
+      "rule": "F841",
+      "case": "ASYNC100/await-nested-def-not-checkpoint",
+      "extra": [
+        {
+          "rule": "F841",
+          "file": "case.py",
+          "start": 83,
+          "end": 88,
+          "multiplicity": 1
+        }
+      ],
+      "missing": [],
+      "source": {
+        "case.py": "import asyncio\nasync def f():\n    async with asyncio.timeout(1):\n        async def inner():\n            await work()\n"
+      }
+    },
+    {
+      "kind": "extra",
+      "rule": "PLW0604",
+      "case": "F821/global-deletion-in-async-function-is-defined",
+      "extra": [
+        {
+          "rule": "PLW0604",
+          "file": "case.py",
+          "start": 25,
+          "end": 33,
+          "multiplicity": 1
+        }
+      ],
+      "missing": [],
+      "source": {
+        "case.py": "x = 1\nasync def f():\n    global x\n    del x\n"
+      }
+    },
+    {
+      "kind": "missing",
+      "rule": "PLE0117",
+      "case": "PLE0115/each-nonlocal-declaration-retains-diagnostic-multiplicity",
+      "extra": [],
+      "missing": [
+        {
+          "rule": "PLE0117",
+          "file": "case.py",
+          "start": 22,
+          "end": 27,
+          "multiplicity": 1
+        },
+        {
+          "rule": "PLE0117",
+          "file": "case.py",
+          "start": 41,
+          "end": 46,
+          "multiplicity": 1
+        }
+      ],
+      "source": {
+        "case.py": "def f():\n    nonlocal value\n    nonlocal value\n    global value\n"
+      }
+    },
+    {
+      "kind": "missing",
+      "rule": "F821",
+      "case": "PLE0118/delete-before-global",
+      "extra": [],
+      "missing": [
+        {
+          "rule": "F821",
+          "file": "case.py",
+          "start": 17,
+          "end": 22,
+          "multiplicity": 1
+        }
+      ],
+      "source": {
+        "case.py": "def f():\n    del value\n    global value\n"
+      }
+    },
+    {
+      "kind": "missing",
+      "rule": "PLR1711",
+      "case": "PLR1711/async-function-bare-return",
+      "extra": [],
+      "missing": [
+        {
+          "rule": "PLR1711",
+          "file": "case.py",
+          "start": 30,
+          "end": 36,
+          "multiplicity": 1
+        }
+      ],
+      "source": {
+        "case.py": "async def f():\n    work()\n    return\n"
+      }
+    },
+    {
+      "kind": "missing",
+      "rule": "PLW0120",
+      "case": "PLW0120/async-for-without-break-has-useless-else",
+      "extra": [],
+      "missing": [
+        {
+          "rule": "PLW0120",
+          "file": "case.py",
+          "start": 72,
+          "end": 76,
+          "multiplicity": 1
+        }
+      ],
+      "source": {
+        "case.py": "async def f(items):\n    async for item in items:\n        work(item)\n    else:\n        pass\n"
+      }
+    },
+    {
+      "kind": "extra",
+      "rule": "PYI001",
+      "case": "PYI001/typevar-inside-async-method-is-not-module-level",
+      "extra": [
+        {
+          "rule": "PYI001",
+          "file": "case.pyi",
+          "start": 71,
+          "end": 83,
+          "multiplicity": 1
+        }
+      ],
+      "missing": [
+        {
+          "rule": "PYI010",
+          "file": "case.pyi",
+          "start": 67,
+          "end": 83,
+          "multiplicity": 1
+        }
+      ],
+      "source": {
+        "case.pyi": "from typing import TypeVar\nclass C:\n    async def f(self):\n        T = TypeVar(\"T\")\n"
+      }
+    },
+    {
+      "kind": "missing",
+      "rule": "PYI010",
+      "case": "PYI001/typevar-inside-async-method-is-not-module-level",
+      "extra": [
+        {
+          "rule": "PYI001",
+          "file": "case.pyi",
+          "start": 71,
+          "end": 83,
+          "multiplicity": 1
+        }
+      ],
+      "missing": [
+        {
+          "rule": "PYI010",
+          "file": "case.pyi",
+          "start": 67,
+          "end": 83,
+          "multiplicity": 1
+        }
+      ],
+      "source": {
+        "case.pyi": "from typing import TypeVar\nclass C:\n    async def f(self):\n        T = TypeVar(\"T\")\n"
+      }
+    },
+    {
+      "kind": "extra",
+      "rule": "PYI035",
+      "case": "PYI035/slots-inside-async-method-is-not-class-attribute",
+      "extra": [
+        {
+          "rule": "PYI035",
+          "file": "case.pyi",
+          "start": 40,
+          "end": 61,
+          "multiplicity": 1
+        }
+      ],
+      "missing": [
+        {
+          "rule": "PYI010",
+          "file": "case.pyi",
+          "start": 40,
+          "end": 61,
+          "multiplicity": 1
+        }
+      ],
+      "source": {
+        "case.pyi": "class C:\n    async def f(self):\n        __slots__: tuple[str]\n"
+      }
+    }
+  ],
+  "failures": [
+    {
+      "rule": "ASYNC100",
+      "case": "await-nested-def-not-checkpoint",
+      "complete": true,
+      "extra": [
+        {
+          "rule": "F841",
+          "file": "case.py",
+          "start": 83,
+          "end": 88,
+          "multiplicity": 1
+        }
+      ],
+      "missing": [],
+      "files": {
+        "case.py": "import asyncio\nasync def f():\n    async with asyncio.timeout(1):\n        async def inner():\n            await work()\n"
+      }
+    },
+    {
+      "rule": "ASYNC100",
+      "case": "yield-nested-def-checkpoint",
+      "complete": true,
+      "extra": [
+        {
+          "rule": "F841",
+          "file": "case.py",
+          "start": 77,
+          "end": 82,
+          "multiplicity": 1
+        }
+      ],
+      "missing": [],
+      "files": {
+        "case.py": "import asyncio\nasync def f():\n    async with asyncio.timeout(1):\n        def inner():\n            yield 1\n"
+      }
+    },
+    {
+      "rule": "F821",
+      "case": "global-deletion-in-async-function-is-defined",
+      "complete": true,
+      "extra": [
+        {
+          "rule": "PLW0604",
+          "file": "case.py",
+          "start": 25,
+          "end": 33,
+          "multiplicity": 1
+        }
+      ],
+      "missing": [],
+      "files": {
+        "case.py": "x = 1\nasync def f():\n    global x\n    del x\n"
+      }
+    },
+    {
+      "rule": "PLE0115",
+      "case": "each-nonlocal-declaration-retains-diagnostic-multiplicity",
+      "complete": true,
+      "extra": [],
+      "missing": [
+        {
+          "rule": "PLE0117",
+          "file": "case.py",
+          "start": 22,
+          "end": 27,
+          "multiplicity": 1
+        },
+        {
+          "rule": "PLE0117",
+          "file": "case.py",
+          "start": 41,
+          "end": 46,
+          "multiplicity": 1
+        }
+      ],
+      "files": {
+        "case.py": "def f():\n    nonlocal value\n    nonlocal value\n    global value\n"
+      }
+    },
+    {
+      "rule": "PLE0115",
+      "case": "global-then-nonlocal",
+      "complete": true,
+      "extra": [],
+      "missing": [
+        {
+          "rule": "PLE0117",
+          "file": "case.py",
+          "start": 39,
+          "end": 44,
+          "multiplicity": 1
+        }
+      ],
+      "files": {
+        "case.py": "def f():\n    global value\n    nonlocal value\n"
+      }
+    },
+    {
+      "rule": "PLE0115",
+      "case": "latest-global-declaration-is-reported",
+      "complete": true,
+      "extra": [],
+      "missing": [
+        {
+          "rule": "PLE0117",
+          "file": "case.py",
+          "start": 56,
+          "end": 61,
+          "multiplicity": 1
+        }
+      ],
+      "files": {
+        "case.py": "def f():\n    global value\n    global value\n    nonlocal value\n"
+      }
+    },
+    {
+      "rule": "PLE0115",
+      "case": "nonlocal-then-global",
+      "complete": true,
+      "extra": [],
+      "missing": [
+        {
+          "rule": "PLE0117",
+          "file": "case.py",
+          "start": 22,
+          "end": 27,
+          "multiplicity": 1
+        }
+      ],
+      "files": {
+        "case.py": "def f():\n    nonlocal value\n    global value\n"
+      }
+    },
+    {
+      "rule": "PLE0115",
+      "case": "noqa-suppresses-conflicting-declaration",
+      "complete": true,
+      "extra": [],
+      "missing": [
+        {
+          "rule": "PLE0117",
+          "file": "case.py",
+          "start": 56,
+          "end": 61,
+          "multiplicity": 1
+        }
+      ],
+      "files": {
+        "case.py": "def f():\n    global value  # noqa: PLE0115\n    nonlocal value\n"
+      }
+    },
+    {
+      "rule": "PLE0118",
+      "case": "delete-before-global",
+      "complete": true,
+      "extra": [],
+      "missing": [
+        {
+          "rule": "F821",
+          "file": "case.py",
+          "start": 17,
+          "end": 22,
+          "multiplicity": 1
+        }
+      ],
+      "files": {
+        "case.py": "def f():\n    del value\n    global value\n"
+      }
+    },
+    {
+      "rule": "PLR1711",
+      "case": "async-function-bare-return",
+      "complete": true,
+      "extra": [],
+      "missing": [
+        {
+          "rule": "PLR1711",
+          "file": "case.py",
+          "start": 30,
+          "end": 36,
+          "multiplicity": 1
+        }
+      ],
+      "files": {
+        "case.py": "async def f():\n    work()\n    return\n"
+      }
+    },
+    {
+      "rule": "PLW0120",
+      "case": "async-for-without-break-has-useless-else",
+      "complete": true,
+      "extra": [],
+      "missing": [
+        {
+          "rule": "PLW0120",
+          "file": "case.py",
+          "start": 72,
+          "end": 76,
+          "multiplicity": 1
+        }
+      ],
+      "files": {
+        "case.py": "async def f(items):\n    async for item in items:\n        work(item)\n    else:\n        pass\n"
+      }
+    },
+    {
+      "rule": "PLW0602",
+      "case": "delete-before-global-does-not-suppress-final-global-binding",
+      "complete": true,
+      "extra": [],
+      "missing": [
+        {
+          "rule": "F821",
+          "file": "case.py",
+          "start": 17,
+          "end": 22,
+          "multiplicity": 1
+        }
+      ],
+      "files": {
+        "case.py": "def f():\n    del value\n    global value\n"
+      }
+    },
+    {
+      "rule": "PYI001",
+      "case": "typevar-inside-async-method-is-not-module-level",
+      "complete": true,
+      "extra": [
+        {
+          "rule": "PYI001",
+          "file": "case.pyi",
+          "start": 71,
+          "end": 83,
+          "multiplicity": 1
+        }
+      ],
+      "missing": [
+        {
+          "rule": "PYI010",
+          "file": "case.pyi",
+          "start": 67,
+          "end": 83,
+          "multiplicity": 1
+        }
+      ],
+      "files": {
+        "case.pyi": "from typing import TypeVar\nclass C:\n    async def f(self):\n        T = TypeVar(\"T\")\n"
+      }
+    },
+    {
+      "rule": "PYI010",
+      "case": "async-function-body",
+      "complete": true,
+      "extra": [],
+      "missing": [
+        {
+          "rule": "PYI010",
+          "file": "case.pyi",
+          "start": 15,
+          "end": 23,
+          "multiplicity": 1
+        }
+      ],
+      "files": {
+        "case.pyi": "async def f(): return 1\n"
+      }
+    },
+    {
+      "rule": "PYI035",
+      "case": "slots-inside-async-method-is-not-class-attribute",
+      "complete": true,
+      "extra": [
+        {
+          "rule": "PYI035",
+          "file": "case.pyi",
+          "start": 40,
+          "end": 61,
+          "multiplicity": 1
+        }
+      ],
+      "missing": [
+        {
+          "rule": "PYI010",
+          "file": "case.pyi",
+          "start": 40,
+          "end": 61,
+          "multiplicity": 1
+        }
+      ],
+      "files": {
+        "case.pyi": "class C:\n    async def f(self):\n        __slots__: tuple[str]\n"
+      }
+    }
+  ]
+}

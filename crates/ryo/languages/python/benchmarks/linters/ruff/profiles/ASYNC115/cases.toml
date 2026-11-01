@@ -1,109 +1,245 @@
 [[cases]]
+name = "trio"
+comparison = "rule"
+files = { "case.py" = "import trio\ntrio.sleep(0)\n" }
+expected = [{ "file" = "case.py", "start" = 12, "end" = 25 }]
+
+[[cases]]
+name = "anyio"
+comparison = "rule"
+files = { "case.py" = "import anyio\nanyio.sleep(0)\n" }
+expected = [{ "file" = "case.py", "start" = 13, "end" = 27 }]
+
+[[cases]]
+name = "keyword-trio"
+comparison = "rule"
+files = { "case.py" = "import trio\ntrio.sleep(seconds=0)\n" }
+expected = [{ "file" = "case.py", "start" = 12, "end" = 33 }]
+
+[[cases]]
+name = "keyword-anyio"
+comparison = "rule"
+files = { "case.py" = "import anyio\nanyio.sleep(delay=0)\n" }
+expected = [{ "file" = "case.py", "start" = 13, "end" = 33 }]
+
+[[cases]]
+name = "preserved-wrong-keyword-pre-0e36e931"
+comparison = "rule"
+files = { "case.py" = "import trio\ntrio.sleep(delay=0)\n" }
+expected = []
+
+[[cases]]
+name = "hex-zero"
+comparison = "rule"
+files = { "case.py" = "import trio\ntrio.sleep(0x_000)\n" }
+expected = [{ "file" = "case.py", "start" = 12, "end" = 30 }]
+
+[[cases]]
+name = "octal-zero"
+comparison = "rule"
+files = { "case.py" = "import trio\ntrio.sleep(0o0_0)\n" }
+expected = [{ "file" = "case.py", "start" = 12, "end" = 29 }]
+
+[[cases]]
+name = "binary-zero"
+comparison = "rule"
+files = { "case.py" = "import trio\ntrio.sleep(0b000)\n" }
+expected = [{ "file" = "case.py", "start" = 12, "end" = 29 }]
+
+[[cases]]
+name = "decimal-zeros"
+comparison = "rule"
+files = { "case.py" = "import trio\ntrio.sleep(00_00)\n" }
+expected = [{ "file" = "case.py", "start" = 12, "end" = 29 }]
+
+[[cases]]
+name = "float"
+comparison = "rule"
+files = { "case.py" = "import trio\ntrio.sleep(0.0)\n" }
+expected = []
+
+[[cases]]
+name = "boolean"
+comparison = "rule"
+files = { "case.py" = "import trio\ntrio.sleep(False)\n" }
+expected = []
+
+[[cases]]
+name = "signed"
+comparison = "rule"
+files = { "case.py" = "import trio\ntrio.sleep(-0)\n" }
+expected = []
+
+[[cases]]
+name = "asyncio"
+comparison = "rule"
+files = { "case.py" = "import asyncio\nasyncio.sleep(0)\n" }
+expected = []
+
+[[cases]]
+name = "extra"
+comparison = "rule"
+files = { "case.py" = "import trio\ntrio.sleep(0, extra=True)\n" }
+expected = []
+
+[[cases]]
+name = "alias"
+comparison = "rule"
+files = { "case.py" = "from anyio import sleep as pause\npause(0)\n" }
+expected = [{ "file" = "case.py", "start" = 33, "end" = 41 }]
+
+[[cases]]
+name = "shadowed"
+comparison = "rule"
+files = { "case.py" = "def f(trio):\n    trio.sleep(0)\n" }
+expected = []
+
+[[cases]]
+name = "preserved-noqa-pre-0e36e931"
+comparison = "rule"
+files = { "case.py" = "import trio\ntrio.sleep(0) # noqa: ASYNC115\n" }
+expected = []
+
+[[cases]]
+name = "positional-trivia-and-trailing-comma"
+comparison = "rule"
+files = { "case.py" = "import trio\ntrio.sleep(\n # before first\n 0,\n)\n" }
+expected = [{ "file" = "case.py", "start" = 12, "end" = 45 }]
+
+[[cases]]
+name = "escaped-annotation-decoded-number"
+comparison = "rule"
+files = { "case.py" = "import trio\nx: \"trio.sleep(\\x30)\"\n" }
+expected = [{ "file" = "case.py", "start" = 15, "end" = 33 }]
+
+[[cases]]
 name = "trio-zero"
+comparison = "rule"
 files = { "case.py" = "import trio\nasync def f():\n    await trio.sleep(0)\n" }
-expected = [{ rule = "ASYNC115", file = "case.py", start = 37, end = 50 }]
+expected = [{ "rule" = "ASYNC115", "file" = "case.py", "start" = 37, "end" = 50 }]
 
 [[cases]]
 name = "trio-zero-unawaited"
+comparison = "rule"
 files = { "case.py" = "import trio\nasync def f():\n    trio.sleep(0)\n" }
-expected = [{ rule = "ASYNC115", file = "case.py", start = 31, end = 44 }]
+expected = [{ "rule" = "ASYNC115", "file" = "case.py", "start" = 31, "end" = 44 }]
 
 [[cases]]
 name = "trio-alias"
+comparison = "rule"
 files = { "case.py" = "import trio as t\nasync def f():\n    t.sleep(0)\n" }
-expected = [{ rule = "ASYNC115", file = "case.py", start = 36, end = 46 }]
+expected = [{ "rule" = "ASYNC115", "file" = "case.py", "start" = 36, "end" = 46 }]
 
 [[cases]]
 name = "trio-from-import"
+comparison = "rule"
 files = { "case.py" = "from trio import sleep\nasync def f():\n    sleep(0)\n" }
-expected = [{ rule = "ASYNC115", file = "case.py", start = 42, end = 50 }]
+expected = [{ "rule" = "ASYNC115", "file" = "case.py", "start" = 42, "end" = 50 }]
 
 [[cases]]
 name = "anyio-zero"
+comparison = "rule"
 files = { "case.py" = "import anyio\nasync def f():\n    anyio.sleep(0)\n" }
-expected = [{ rule = "ASYNC115", file = "case.py", start = 32, end = 46 }]
+expected = [{ "rule" = "ASYNC115", "file" = "case.py", "start" = 32, "end" = 46 }]
 
 [[cases]]
 name = "anyio-alias"
+comparison = "rule"
 files = { "case.py" = "import anyio as aio\nasync def f():\n    aio.sleep(0)\n" }
-expected = [{ rule = "ASYNC115", file = "case.py", start = 39, end = 51 }]
+expected = [{ "rule" = "ASYNC115", "file" = "case.py", "start" = 39, "end" = 51 }]
 
 [[cases]]
 name = "anyio-from-import"
+comparison = "rule"
 files = { "case.py" = "from anyio import sleep\nasync def f():\n    sleep(0)\n" }
-expected = [{ rule = "ASYNC115", file = "case.py", start = 43, end = 51 }]
+expected = [{ "rule" = "ASYNC115", "file" = "case.py", "start" = 43, "end" = 51 }]
 
 [[cases]]
 name = "outside-async"
+comparison = "rule"
 files = { "case.py" = "import trio\ntrio.sleep(0)\n" }
-expected = [{ rule = "ASYNC115", file = "case.py", start = 12, end = 25 }]
+expected = [{ "rule" = "ASYNC115", "file" = "case.py", "start" = 12, "end" = 25 }]
 
 [[cases]]
 name = "nonzero"
+comparison = "rule"
 files = { "case.py" = "import trio\nasync def f():\n    trio.sleep(1)\n" }
 expected = []
 
 [[cases]]
 name = "float-zero"
+comparison = "rule"
 files = { "case.py" = "import trio\nasync def f():\n    trio.sleep(0.0)\n" }
 expected = []
 
 [[cases]]
 name = "negative-zero"
+comparison = "rule"
 files = { "case.py" = "import trio\nasync def f():\n    trio.sleep(-0)\n" }
 expected = []
 
 [[cases]]
 name = "bool-zero"
+comparison = "rule"
 files = { "case.py" = "import trio\nasync def f():\n    trio.sleep(False)\n" }
 expected = []
 
 [[cases]]
 name = "wrong-keyword"
+comparison = "rule"
 files = { "case.py" = "import trio\nasync def f():\n    trio.sleep(delay=0)\n" }
 expected = []
 
 [[cases]]
 name = "valid-keyword"
+comparison = "rule"
 files = { "case.py" = "import trio\nasync def f():\n    trio.sleep(seconds=0)\n" }
-expected = [{ rule = "ASYNC115", file = "case.py", start = 31, end = 52 }]
+expected = [{ "rule" = "ASYNC115", "file" = "case.py", "start" = 31, "end" = 52 }]
 
 [[cases]]
 name = "anyio-valid-keyword"
+comparison = "rule"
 files = { "case.py" = "import anyio\nasync def f():\n    anyio.sleep(delay=0)\n" }
-expected = [{ rule = "ASYNC115", file = "case.py", start = 32, end = 52 }]
+expected = [{ "rule" = "ASYNC115", "file" = "case.py", "start" = 32, "end" = 52 }]
 
 [[cases]]
 name = "anyio-trio-keyword"
+comparison = "rule"
 files = { "case.py" = "import anyio\nasync def f():\n    anyio.sleep(seconds=0)\n" }
 expected = []
 
 [[cases]]
 name = "too-many"
+comparison = "rule"
 files = { "case.py" = "import trio\nasync def f():\n    trio.sleep(0, 0)\n" }
 expected = []
 
 [[cases]]
 name = "unknown-target"
+comparison = "rule"
 files = { "case.py" = "import asyncio\nasync def f():\n    asyncio.sleep(0)\n" }
 expected = []
 
 [[cases]]
 name = "other-trio-api"
+comparison = "rule"
 files = { "case.py" = "import trio\nasync def f():\n    trio.current_time()\n" }
 expected = []
 
 [[cases]]
 name = "noqa"
+comparison = "rule"
 files = { "case.py" = "import trio\nasync def f():\n    trio.sleep(0)  # noqa: ASYNC115\n" }
 expected = []
 
 [[cases]]
 name = "unicode-offset"
+comparison = "rule"
 files = { "case.py" = "label = \"雪\"\nimport trio\nasync def f():\n    trio.sleep(0)\n" }
-expected = [{ rule = "ASYNC115", file = "case.py", start = 45, end = 58 }]
+expected = [{ "rule" = "ASYNC115", "file" = "case.py", "start" = 45, "end" = 58 }]
 
 [[cases]]
 name = "zero-parentheses"
+comparison = "rule"
 files = { "case.py" = "import trio\nasync def f():\n    trio.sleep((0))\n" }
-expected = [{ rule = "ASYNC115", file = "case.py", start = 31, end = 46 }]
+expected = [{ "rule" = "ASYNC115", "file" = "case.py", "start" = 31, "end" = 46 }]

@@ -20,7 +20,11 @@ pub(crate) fn clear(index: &mut BraceFormatIndex) {
     index.state = BraceFormatState::Fresh;
 }
 
-fn occurrence<P: BraceFormatSyntax>(tree: &Tree<'_>, index: &mut BraceFormatIndex, at: Position) {
+/// Cache one original literal occurrence by its decoded input value.
+fn occurrence<P>(tree: &Tree<'_>, index: &mut BraceFormatIndex, at: Position)
+where
+    P: BraceFormatSyntax,
+{
     let decoded = super::super::format_parsing::service::decoded_string(tree, at);
     let (cached, unknown_input) = match decoded {
         Ok(None) => (None, true),
@@ -64,11 +68,14 @@ fn occurrence<P: BraceFormatSyntax>(tree: &Tree<'_>, index: &mut BraceFormatInde
 }
 
 /// Prepare once, and only when a brace-format relation is read.
-pub(crate) fn prepare<'a, P: BraceFormatSyntax>(
+pub(crate) fn prepare<'a, P>(
     tree: &Tree<'_>,
     model: &'a Declarations,
     symbols: &mut Symbols,
-) -> Ref<'a, BraceFormatIndex> {
+) -> Ref<'a, BraceFormatIndex>
+where
+    P: BraceFormatSyntax,
+{
     let held: &RefCell<BraceFormatIndex> = &model.brace_format;
     if held.borrow().state == BraceFormatState::Fresh {
         let mut index = held.borrow_mut();

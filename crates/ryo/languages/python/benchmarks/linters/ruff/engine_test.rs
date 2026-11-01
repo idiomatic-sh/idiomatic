@@ -566,10 +566,9 @@ fn query_module_inline_equivalence(root: &std::path::Path) -> Result<bool, Error
     Ok(plain == imported)
 }
 
-fn target_configuration_cache_change(root: &std::path::Path) -> Result<bool, Error> {
-    use ryo_benchmark::domain::diagnostics::types::SourceByteOffset;
-    use ryo_benchmark::domain::suite::types::WorkerState;
-
+fn stage_py310_negative_files(
+    root: &std::path::Path,
+) -> Result<Vec<ryo::linter::RelativePath>, Error> {
     #[derive(serde::Deserialize)]
     struct Cases {
         cases: Vec<Case>,
@@ -582,28 +581,6 @@ fn target_configuration_cache_change(root: &std::path::Path) -> Result<bool, Err
         expected: Vec<serde::de::IgnoredAny>,
     }
 
-    let rules = root.join("rules");
-    let rule_directory = rules.join("UP017");
-    std::fs::create_dir_all(&rule_directory)?;
-    std::fs::write(
-        rule_directory.join("query.ryoql"),
-        include_str!("rules/UP017/candidate.ryoql"),
-    )?;
-    let module_path = root.join("fragments/suppress.ryoql");
-    std::fs::create_dir_all(
-        module_path
-            .parent()
-            .ok_or_else(|| Error::Invalid("suppress module has no parent".into()))?,
-    )?;
-    std::fs::write(&module_path, include_str!("fragments/suppress.ryoql"))?;
-    let source = "import datetime\ndatetime.timezone.utc\n";
-    std::fs::write(root.join("input.py"), source)?;
-    let files = vec![ryo::linter::RelativePath("input.py".into())];
-    let cache = root.join("retained-target-cache");
-    let query_modules = BTreeMap::from([(
-        "python/ruff/suppress".to_owned(),
-        std::path::PathBuf::from("fragments/suppress.ryoql"),
-    )]);
     let cases: Cases = toml::from_str(include_str!("rules/UP017/cases.toml"))
         .map_err(|error| Error::Invalid(error.to_string()))?;
     let mut negative_files = Vec::new();
@@ -625,6 +602,37 @@ fn target_configuration_cache_change(root: &std::path::Path) -> Result<bool, Err
         }
     }
     negative_files.sort();
+    Ok(negative_files)
+}
+
+fn target_configuration_cache_change(root: &std::path::Path) -> Result<bool, Error> {
+    use ryo_benchmark::domain::diagnostics::types::SourceByteOffset;
+    use ryo_benchmark::domain::suite::types::WorkerState;
+    let rules = root.join("rules");
+    let rule_directory = rules.join("UP017");
+    std::fs::create_dir_all(&rule_directory)?;
+    std::fs::write(
+        rule_directory.join("query.ryoql"),
+        include_str!("rules/UP017/candidate.ryoql"),
+    )?;
+    let module_path = root.join("fragments/suppress.ryoql");
+    std::fs::create_dir_all(
+        module_path
+            .parent()
+            .ok_or_else(|| Error::Invalid("suppress module has no parent".into()))?,
+    )?;
+    std::fs::write(&module_path, include_str!("fragments/suppress.ryoql"))?;
+    std::fs::write(
+        root.join("input.py"),
+        "import datetime\ndatetime.timezone.utc\n",
+    )?;
+    let files = vec![ryo::linter::RelativePath("input.py".into())];
+    let cache = root.join("retained-target-cache");
+    let query_modules = BTreeMap::from([(
+        "python/ruff/suppress".to_owned(),
+        std::path::PathBuf::from("fragments/suppress.ryoql"),
+    )]);
+    let negative_files = stage_py310_negative_files(root)?;
     let negative = factory::local(
         ryo::linter::Languages(vec![ryo_python::linked_with_settings(
             ryo_python::settings::PythonParserSettings::new(
@@ -677,7 +685,10 @@ fn target_configuration_cache_change(root: &std::path::Path) -> Result<bool, Err
     let expected = vec![BenchmarkFinding {
         rule: ryo::linter::RuleId::try_from("UP017")
             .map_err(|error| Error::Invalid(error.to_string()))?,
-        file: files[0].clone(),
+        file: files
+            .first()
+            .cloned()
+            .ok_or_else(|| Error::Invalid("missing target fixture file".into()))?,
         start: SourceByteOffset(16),
         end: SourceByteOffset(37),
     }];
@@ -723,7 +734,7 @@ fn shared_suppression_fragment_matches_the_historical_inline_queries() -> Result
     let imported_profile = temporary.path().join("imported");
     let inline_rules = inline_profile.join("rules");
     let imported_rules = imported_profile.join("rules");
-    for (rule, baseline, imported, cases) in [
+    let fixtures = [
         (
             "E722",
             include_str!("../../../tests/fixtures/ryoql-fragments/E722/query.ryoql"),
@@ -736,7 +747,8 @@ fn shared_suppression_fragment_matches_the_historical_inline_queries() -> Result
             include_str!("rules/F632/candidate.ryoql"),
             include_str!("rules/F632/cases.toml"),
         ),
-    ] {
+    ];
+    for (rule, baseline, imported, cases) in fixtures {
         write_rule_profile(&inline_rules, rule, baseline, cases)?;
         write_rule_profile(&imported_rules, rule, imported, cases)?;
     }
@@ -806,20 +818,7 @@ fn shared_suppression_fragment_matches_the_historical_inline_queries() -> Result
             key.0, key.1
         );
     }
-    for (rule, baseline, imported, cases) in [
-        (
-            "E722",
-            include_str!("../../../tests/fixtures/ryoql-fragments/E722/query.ryoql"),
-            include_str!("rules/E722/query.ryoql"),
-            include_str!("rules/E722/cases.toml"),
-        ),
-        (
-            "F632",
-            include_str!("../../../tests/fixtures/ryoql-fragments/F632/query.ryoql"),
-            include_str!("rules/F632/candidate.ryoql"),
-            include_str!("rules/F632/cases.toml"),
-        ),
-    ] {
+    for (rule, baseline, imported, cases) in fixtures {
         assert_single_rule_fragment_equivalence(temporary.path(), rule, baseline, imported, cases)?;
     }
     Ok(())

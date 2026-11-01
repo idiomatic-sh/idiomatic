@@ -195,3 +195,69 @@ name = "nearest-nonlocal-binding-only"
 comparison = "full"
 files = { "case.py" = "def outer():\n    value = 1\n    def middle():\n        value = 2\n        def inner():\n            nonlocal value\n" }
 expected = [{ rule = "F841", file = "case.py", start = 17, end = 22 }]
+
+[[cases]]
+name = "crossrule-ASYNC100-yield-nested-def-checkpoint"
+comparison = "full"
+files = { "case.py" = "import asyncio\nasync def f():\n    async with asyncio.timeout(1):\n        def inner():\n            yield 1\n" }
+expected = []
+
+[[cases]]
+name = "root-statement-with-0-False"
+comparison = "full"
+files = { "case.py" = "def f():\n    with manager as value:\n        def inner():\n            yield 1\n    return value\n" }
+expected = []
+
+[[cases]]
+name = "root-statement-with-0-True"
+comparison = "full"
+files = { "case.py" = "async def f():\n    async with manager as value:\n        def inner():\n            yield 1\n    return value\n" }
+expected = []
+
+[[cases]]
+name = "root-statement-with-1-False"
+comparison = "full"
+files = { "case.py" = "def f():\n    with manager as value:\n        async def inner():\n            return 1\n    return value\n" }
+expected = []
+
+[[cases]]
+name = "root-statement-with-1-True"
+comparison = "full"
+files = { "case.py" = "async def f():\n    async with manager as value:\n        async def inner():\n            return 1\n    return value\n" }
+expected = []
+
+[[cases]]
+name = "root-statement-with-2-False"
+comparison = "full"
+files = { "case.py" = "def f():\n    with manager as value:\n        class Inner:\n            pass\n    return value\n" }
+expected = []
+
+[[cases]]
+name = "root-statement-with-2-True"
+comparison = "full"
+files = { "case.py" = "async def f():\n    async with manager as value:\n        class Inner:\n            pass\n    return value\n" }
+expected = []
+
+[[cases]]
+name = "root-statement-with-3-False"
+comparison = "full"
+files = { "case.py" = "def f():\n    with manager as value:\n        unused = 1\n    return value\n" }
+expected = [{ rule = "F841", file = "case.py", start = 44, end = 50 }]
+
+[[cases]]
+name = "root-statement-with-3-True"
+comparison = "full"
+files = { "case.py" = "async def f():\n    async with manager as value:\n        unused = 1\n    return value\n" }
+expected = [{ rule = "F841", file = "case.py", start = 56, end = 62 }]
+
+[[cases]]
+name = "root-statement-with-4-False"
+comparison = "full"
+files = { "case.py" = "def f():\n    with manager as value:\n        callback = lambda parameter: 1\n    return value\n" }
+expected = [{ rule = "F841", file = "case.py", start = 44, end = 52 }]
+
+[[cases]]
+name = "root-statement-with-4-True"
+comparison = "full"
+files = { "case.py" = "async def f():\n    async with manager as value:\n        callback = lambda parameter: 1\n    return value\n" }
+expected = [{ rule = "F841", file = "case.py", start = 56, end = 64 }]

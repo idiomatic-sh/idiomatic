@@ -1,0 +1,113 @@
+[[cases]]
+name = "direct"
+comparison = "full"
+files = { "case.py" = "set([1, 2])\n" }
+expected = [{ "rule" = "C405", "file" = "case.py", "start" = 0, "end" = 11 }]
+
+[[cases]]
+name = "assignment"
+comparison = "full"
+files = { "case.py" = "result = set([1, 2])\n" }
+expected = [{ "rule" = "C405", "file" = "case.py", "start" = 9, "end" = 20 }]
+
+[[cases]]
+name = "parenthesized-function"
+comparison = "full"
+files = { "case.py" = "(set)([1, 2])\n" }
+expected = [{ "rule" = "C405", "file" = "case.py", "start" = 0, "end" = 13 }]
+
+[[cases]]
+name = "shadowed"
+comparison = "full"
+files = { "case.py" = "def f(set):\n    set([1, 2])\n" }
+expected = []
+
+[[cases]]
+name = "rebound"
+comparison = "full"
+files = { "case.py" = "set = custom\nset([1, 2])\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 6, "end" = 12 }]
+
+[[cases]]
+name = "qualified"
+comparison = "full"
+files = { "case.py" = "import builtins\nbuiltins.set([1, 2])\n" }
+expected = []
+
+[[cases]]
+name = "imported-same-name"
+comparison = "full"
+files = { "case.py" = "from builtins import set\nset([1, 2])\n" }
+expected = []
+
+[[cases]]
+name = "imported-alias"
+comparison = "full"
+files = { "case.py" = "from builtins import set as convert\nconvert([1, 2])\n" }
+expected = []
+
+[[cases]]
+name = "extra-positional"
+comparison = "full"
+files = { "case.py" = "set([1, 2], other)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 12, "end" = 17 }]
+
+[[cases]]
+name = "keyword"
+comparison = "full"
+files = { "case.py" = "set([1, 2], unexpected=True)\n" }
+expected = []
+
+[[cases]]
+name = "unpacked-keyword"
+comparison = "full"
+files = { "case.py" = "set([1, 2], **kwargs)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 14, "end" = 20 }]
+
+[[cases]]
+name = "starred-argument"
+comparison = "full"
+files = { "case.py" = "set(*[([1, 2])])\n" }
+expected = []
+
+[[cases]]
+name = "empty"
+comparison = "full"
+files = { "case.py" = "set()\n" }
+expected = [{ "rule" = "B018", "file" = "case.py", "start" = 0, "end" = 5 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "set([1, 2]) # noqa: C405\n" }
+expected = []
+
+[[cases]]
+name = "range"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[C405]\nset([1, 2])\n# ruff: enable[C405]\n" }
+expected = []
+
+[[cases]]
+name = "empty-list"
+comparison = "full"
+files = { "case.py" = "set([])\n" }
+expected = [{ "rule" = "C405", "file" = "case.py", "start" = 0, "end" = 7 }]
+
+[[cases]]
+name = "empty-tuple"
+comparison = "full"
+files = { "case.py" = "set(())\n" }
+expected = [{ "rule" = "C405", "file" = "case.py", "start" = 0, "end" = 7 }]
+
+[[cases]]
+name = "starred-literal"
+comparison = "full"
+files = { "case.py" = "set([*values])\n" }
+expected = [{ "rule" = "C405", "file" = "case.py", "start" = 0, "end" = 14 }, { "rule" = "F821", "file" = "case.py", "start" = 6, "end" = 12 }]
+
+[[cases]]
+name = "variable"
+comparison = "full"
+files = { "case.py" = "set(values)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 4, "end" = 10 }]

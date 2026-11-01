@@ -1,0 +1,59 @@
+[[cases]]
+name = "missing-automatic-positional"
+comparison = "full"
+files = { "case.py" = "\"{}\".format()\n" }
+expected = [{ rule = "F524", file = "case.py", start = 0, end = 13 }]
+
+[[cases]]
+name = "missing-explicit-positional"
+comparison = "full"
+files = { "case.py" = "\"{1}\".format(value)\n" }
+expected = [{ rule = "F524", file = "case.py", start = 0, end = 19 }]
+
+[[cases]]
+name = "all-positional-present"
+comparison = "full"
+files = { "case.py" = "\"{1}\".format(first, second)\n" }
+expected = []
+
+[[cases]]
+name = "missing-keyword"
+comparison = "full"
+files = { "case.py" = "\"{name}\".format()\n" }
+expected = [{ rule = "F524", file = "case.py", start = 0, end = 17 }]
+
+[[cases]]
+name = "malformed-field-path-does-not-require-keywords"
+comparison = "full"
+files = { "case.py" = "\"{x..}\".format()\n" }
+expected = []
+
+[[cases]]
+name = "keyword-present"
+comparison = "full"
+files = { "case.py" = "\"{name}\".format(name=value)\n" }
+expected = []
+
+[[cases]]
+name = "nested-spec-missing-keyword"
+comparison = "full"
+files = { "case.py" = "\"{value:{width}}\".format(value=1)\n" }
+expected = [{ rule = "F524", file = "case.py", start = 0, end = 33 }]
+
+[[cases]]
+name = "dynamic-positional-expansion-disables-check"
+comparison = "full"
+files = { "case.py" = "\"{1}\".format(*values)\n" }
+expected = []
+
+[[cases]]
+name = "dynamic-keyword-expansion-disables-check"
+comparison = "full"
+files = { "case.py" = "\"{name}\".format(**values)\n" }
+expected = []
+
+[[cases]]
+name = "noqa-missing-argument"
+comparison = "full"
+files = { "case.py" = "\"{}\".format()  # noqa: F524\n" }
+expected = []

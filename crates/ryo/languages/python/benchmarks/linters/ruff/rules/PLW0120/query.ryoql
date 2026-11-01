@@ -1,11 +1,11 @@
 let breaks = select id from "semantic-syntax" where kind = "break";
-let loops = select id from "semantic-syntax" where kind = "for" or kind = "while";
+let loops = select id from "semantic-syntax" where kind = "for" or kind = "async-for" or kind = "while";
 let body_edges = select parent, child from "semantic-child" where field = "body";
 let loop_bodies = select r.child as id, l.id as loop from loops as l join body_edges as r on l.id = r.parent;
-let non_boundaries = select id from "semantic-syntax" where kind != "function-def" and kind != "class-def" and kind != "lambda";
+let non_boundaries = select id from "semantic-syntax" where kind != "function-def" and kind != "async-function-def" and kind != "class-def" and kind != "lambda";
 let body_nodes = select l.id as id, l.loop as loop from loop_bodies as l join non_boundaries as r on l.id = r.id;
 let body_boundaries = select id from body_nodes;
-let scope_nodes = select id from "semantic-syntax" where kind = "function-def" or kind = "class-def" or kind = "lambda";
+let scope_nodes = select id from "semantic-syntax" where kind = "function-def" or kind = "async-function-def" or kind = "class-def" or kind = "lambda";
 let boundaries = union(left=body_boundaries, right=scope_nodes);
 let direct = select l.id as id, r.loop as loop from breaks as l join body_nodes as r on l.id = r.id;
 let other_breaks = antijoin(left=breaks, right=direct, left-on=["id"], right-on=["id"]);

@@ -1,0 +1,95 @@
+[[cases]]
+name = "double"
+comparison = "full"
+files = { "case.py" = "value = not not x\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 16, "end" = 17 }, { "rule" = "SIM208", "file" = "case.py", "start" = 8, "end" = 17 }]
+
+[[cases]]
+name = "parenthesized"
+comparison = "full"
+files = { "case.py" = "value = not (not x)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 17, "end" = 18 }, { "rule" = "SIM208", "file" = "case.py", "start" = 8, "end" = 19 }]
+
+[[cases]]
+name = "single"
+comparison = "full"
+files = { "case.py" = "value = not x\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 12, "end" = 13 }]
+
+[[cases]]
+name = "mixed"
+comparison = "full"
+files = { "case.py" = "value = not -x\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 13, "end" = 14 }]
+
+[[cases]]
+name = "boolean-test"
+comparison = "full"
+files = { "case.py" = "if not not x:\n    pass\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 11, "end" = 12 }, { "rule" = "SIM208", "file" = "case.py", "start" = 3, "end" = 12 }]
+
+[[cases]]
+name = "assert"
+comparison = "full"
+files = { "case.py" = "assert not not x\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 15, "end" = 16 }, { "rule" = "SIM208", "file" = "case.py", "start" = 7, "end" = 16 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "value = not not x # noqa\n" }
+expected = []
+
+[[cases]]
+name = "code-noqa"
+comparison = "full"
+files = { "case.py" = "value = not not x # noqa: SIM208\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 16, "end" = 17 }]
+
+[[cases]]
+name = "other-code"
+comparison = "full"
+files = { "case.py" = "value = not not x # noqa: F401\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 16, "end" = 17 }, { "rule" = "SIM208", "file" = "case.py", "start" = 8, "end" = 17 }]
+
+[[cases]]
+name = "file-noqa"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa\nvalue = not not x\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-suppressed"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[SIM208]\nvalue = not not x\n\n# ruff: enable[SIM208]\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 40, "end" = 41 }]
+
+[[cases]]
+name = "shared-block-reenabled"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[SIM208]\n# ruff: enable[SIM208]\nvalue = not not x\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 63, "end" = 64 }, { "rule" = "SIM208", "file" = "case.py", "start" = 55, "end" = 64 }]
+
+[[cases]]
+name = "shared-block-unmatched-disable"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[SIM208]\nvalue = not not x\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 40, "end" = 41 }]
+
+[[cases]]
+name = "shared-block-wrong-code"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[E501]\nvalue = not not x\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 38, "end" = 39 }, { "rule" = "SIM208", "file" = "case.py", "start" = 30, "end" = 39 }]
+
+[[cases]]
+name = "shared-file-ignore"
+comparison = "full"
+files = { "case.py" = "# ruff: file-ignore[SIM208]\nvalue = not not x\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 44, "end" = 45 }]
+
+[[cases]]
+name = "quoted-annotation-unary-expression"
+comparison = "full"
+files = { "case.py" = "x: \"not not value\"\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 12, "end" = 17 }, { "rule" = "SIM208", "file" = "case.py", "start" = 4, "end" = 17 }]

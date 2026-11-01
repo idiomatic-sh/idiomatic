@@ -1,5 +1,5 @@
 //! Retained per-node summaries for the lazy function terminal reader.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 /// Pinned structured terminal state before relation-vocabulary collapsing.
 pub(crate) enum Outcome {
     /// A body falls through without a recognized terminal statement.
@@ -13,13 +13,8 @@ pub(crate) enum Outcome {
     /// At least one path returns while another can fall through.
     ConditionalReturn,
     /// The fold has not encountered a terminal effect yet.
+    #[default]
     None,
-}
-
-impl Default for Outcome {
-    fn default() -> Self {
-        Self::None
-    }
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

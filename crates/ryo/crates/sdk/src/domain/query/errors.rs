@@ -25,6 +25,7 @@ pub struct QueryTraceSite {
 }
 
 impl QueryOrigin {
+    /// Preserve source identity and fragment trace at the SDK boundary.
     pub(crate) fn from_internal(origin: ryo_values::domain::program::types::QueryOrigin) -> Self {
         Self {
             source_id: origin.source_id.0.into(),
@@ -67,6 +68,7 @@ pub enum QueryBundleError {
 }
 
 impl QueryBundleError {
+    /// Translate a source-bundle refusal into the public SDK vocabulary.
     pub(crate) fn from_internal(
         error: ryo_values::domain::program::errors::QueryBundleError,
     ) -> Self {

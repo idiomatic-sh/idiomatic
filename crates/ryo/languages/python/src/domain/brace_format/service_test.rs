@@ -72,6 +72,6 @@ fn model_reinitialization_clears_brace_results_for_replacement_sources() {
     assert_eq!(model.brace_format.borrow().state, BraceFormatState::Fresh);
     let index = prepare::<RuffLiteralBraceFormat>(&second_tree, &model, &mut second.symbols);
     assert!(
-        matches!(index.values[0].result, super::types::BraceFormatResult::Parsed(ref parsed) if parsed.fields.is_empty())
+        matches!(&index.values[0].result, super::types::BraceFormatResult::Parsed(parsed) if parsed.fields.is_empty())
     );
 }

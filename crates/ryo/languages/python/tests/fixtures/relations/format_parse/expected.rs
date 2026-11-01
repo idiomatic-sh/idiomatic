@@ -4,6 +4,7 @@ use ryo::languages::contract::{
     Expected, FormatParseExpectedRow, expected_rows, file, name, node, number, span,
 };
 
+/// Independent whole-token conversion summary.
 const ROWS: &[FormatParseExpectedRow] = &[FormatParseExpectedRow {
     id: node(2),
     dialect: name("percent-string"),
@@ -20,6 +21,7 @@ const ROWS: &[FormatParseExpectedRow] = &[FormatParseExpectedRow {
     span: span((1, 1), (1, 5)),
 }];
 
+/// The exact relation rows expected from the source fixture.
 pub(super) fn expected() -> Expected {
     expected_rows(ROWS)
 }

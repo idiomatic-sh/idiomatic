@@ -1,0 +1,107 @@
+[[cases]]
+name = "module"
+comparison = "full"
+files = { "case.py" = "import logging\nlogging.info(\"message\")\n" }
+expected = [{ "rule" = "LOG015", "file" = "case.py", "start" = 15, "end" = 38 }]
+
+[[cases]]
+name = "alias"
+comparison = "full"
+files = { "case.py" = "import logging as alias\nalias.info(\"message\")\n" }
+expected = [{ "rule" = "LOG015", "file" = "case.py", "start" = 24, "end" = 45 }]
+
+[[cases]]
+name = "from-import"
+comparison = "full"
+files = { "case.py" = "from logging import info as target\ntarget(\"message\")\n" }
+expected = [{ "rule" = "LOG015", "file" = "case.py", "start" = 35, "end" = 52 }]
+
+[[cases]]
+name = "unimported"
+comparison = "full"
+files = { "case.py" = "logging.info(\"message\")\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 7 }]
+
+[[cases]]
+name = "shadowed"
+comparison = "full"
+files = { "case.py" = "import logging\ndef f(logging):\n    logging.info(\"message\")\n" }
+expected = [{ "rule" = "F401", "file" = "case.py", "start" = 7, "end" = 14 }, { "rule" = "F811", "file" = "case.py", "start" = 21, "end" = 28 }]
+
+[[cases]]
+name = "rebound"
+comparison = "full"
+files = { "case.py" = "import logging\nlogging = other\nlogging.info(\"message\")\n" }
+expected = [{ "rule" = "F811", "file" = "case.py", "start" = 15, "end" = 22 }, { "rule" = "F821", "file" = "case.py", "start" = 25, "end" = 30 }]
+
+[[cases]]
+name = "before-import"
+comparison = "full"
+files = { "case.py" = "logging.info(\"message\")\nimport logging\n" }
+expected = [{ "rule" = "F401", "file" = "case.py", "start" = 31, "end" = 38 }, { "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 7 }]
+
+[[cases]]
+name = "deferred-body"
+comparison = "full"
+files = { "case.py" = "def f():\n    logging.info(\"message\")\nimport logging\n" }
+expected = [{ "rule" = "LOG015", "file" = "case.py", "start" = 13, "end" = 36 }]
+
+[[cases]]
+name = "ordinary-call"
+comparison = "full"
+files = { "case.py" = "import logging\ndef f(x):\n    x()\n    logging.info(\"message\")\n" }
+expected = [{ "rule" = "LOG015", "file" = "case.py", "start" = 37, "end" = 60 }]
+
+[[cases]]
+name = "attribute-only"
+comparison = "full"
+files = { "case.py" = "import logging\nlogging.info\n" }
+expected = [{ "rule" = "B018", "file" = "case.py", "start" = 15, "end" = 27 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "import logging\nlogging.info(\"message\") # noqa: LOG015\n" }
+expected = []
+
+[[cases]]
+name = "range"
+comparison = "full"
+files = { "case.py" = "import logging\n# ruff: disable[LOG015]\nlogging.info(\"message\")\n# ruff: enable[LOG015]\n" }
+expected = []
+
+[[cases]]
+name = "logger-instance"
+comparison = "full"
+files = { "case.py" = "import logging\nlogging.getLogger(\"name\").info(\"message\")\n" }
+expected = []
+
+[[cases]]
+name = "other-method"
+comparison = "full"
+files = { "case.py" = "import logging\nlogging.basicConfig()\n" }
+expected = []
+
+[[cases]]
+name = "log"
+comparison = "full"
+files = { "case.py" = "import logging\nlogging.log(10, \"message\")\n" }
+expected = [{ "rule" = "LOG015", "file" = "case.py", "start" = 15, "end" = 41 }]
+
+[[cases]]
+name = "wildcard-preserves-known-origin"
+comparison = "full"
+files = { "case.py" = "import logging\nfrom m import *\nlogging.info(\"x\")\n" }
+expected = [{ "rule" = "LOG015", "file" = "case.py", "start" = 31, "end" = 48 }]
+
+[[cases]]
+name = "explicit-shadow-after-wildcard"
+comparison = "full"
+files = { "case.py" = "import logging\nfrom m import *\nlogging = custom\nlogging.info(\"x\")\n" }
+expected = [{ "rule" = "F811", "file" = "case.py", "start" = 31, "end" = 38 }]
+
+[[cases]]
+name = "explicit-shadow-before-wildcard"
+comparison = "full"
+files = { "case.py" = "import logging\nlogging = custom\nfrom m import *\nlogging.info(\"x\")\n" }
+expected = [{ "rule" = "F811", "file" = "case.py", "start" = 15, "end" = 22 }, { "rule" = "F821", "file" = "case.py", "start" = 25, "end" = 31 }]

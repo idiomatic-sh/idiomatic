@@ -25,3 +25,4 @@ sha256 = [
   "29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e",
 ]
 defaults = ["PLE0118"]
+parser-configuration = "python-target=3.10"

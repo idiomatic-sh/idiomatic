@@ -1,0 +1,125 @@
+[[cases]]
+name = "string"
+comparison = "full"
+files = { "case.py" = "assert \"yes\"\n" }
+expected = [{ "rule" = "PLW0129", "file" = "case.py", "start" = 7, "end" = 12 }]
+
+[[cases]]
+name = "empty"
+comparison = "full"
+files = { "case.py" = "assert \"\"\n" }
+expected = [{ "rule" = "PLW0129", "file" = "case.py", "start" = 7, "end" = 9 }]
+
+[[cases]]
+name = "bytes"
+comparison = "full"
+files = { "case.py" = "assert b\"\"\n" }
+expected = [{ "rule" = "PLW0129", "file" = "case.py", "start" = 7, "end" = 10 }]
+
+[[cases]]
+name = "fstring"
+comparison = "full"
+files = { "case.py" = "assert f\"{value}\"\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 10, "end" = 15 }, { "rule" = "PLW0129", "file" = "case.py", "start" = 7, "end" = 17 }]
+
+[[cases]]
+name = "number"
+comparison = "full"
+files = { "case.py" = "assert 1\n" }
+expected = []
+
+[[cases]]
+name = "bool"
+comparison = "full"
+files = { "case.py" = "assert True\n" }
+expected = []
+
+[[cases]]
+name = "message"
+comparison = "full"
+files = { "case.py" = "assert value, \"message\"\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 7, "end" = 12 }]
+
+[[cases]]
+name = "concatenated"
+comparison = "full"
+files = { "case.py" = "assert \"one\" \"two\"\n" }
+expected = [{ "rule" = "PLW0129", "file" = "case.py", "start" = 7, "end" = 18 }]
+
+[[cases]]
+name = "template"
+comparison = "full"
+files = { "case.py" = "assert t\"{value}\"\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 10, "end" = 15 }, { "rule" = "invalid-syntax", "file" = "case.py", "start" = 7, "end" = 17 }]
+
+[[cases]]
+name = "multiline-string-noqa"
+comparison = "full"
+files = { "case.py" = "assert \"\"\"bad\nmore\"\"\" # noqa\n" }
+expected = []
+
+[[cases]]
+name = "multiline-fstring-noqa"
+comparison = "full"
+files = { "case.py" = "assert f\"\"\"bad\n{value}\"\"\" # noqa\n" }
+expected = []
+
+[[cases]]
+name = "multiline-concat-noqa"
+comparison = "full"
+files = { "case.py" = "assert (\"bad\"\n \"more\") # noqa\n" }
+expected = [{ "rule" = "PLW0129", "file" = "case.py", "start" = 8, "end" = 21 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "assert \"yes\" # noqa\n" }
+expected = []
+
+[[cases]]
+name = "code-noqa"
+comparison = "full"
+files = { "case.py" = "assert \"yes\" # noqa: PLW0129\n" }
+expected = []
+
+[[cases]]
+name = "other-code"
+comparison = "full"
+files = { "case.py" = "assert \"yes\" # noqa: F401\n" }
+expected = [{ "rule" = "PLW0129", "file" = "case.py", "start" = 7, "end" = 12 }]
+
+[[cases]]
+name = "file-noqa"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa\nassert \"yes\"\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-suppressed"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[PLW0129]\nassert \"yes\"\n\n# ruff: enable[PLW0129]\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-reenabled"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[PLW0129]\n# ruff: enable[PLW0129]\nassert \"yes\"\n" }
+expected = [{ "rule" = "PLW0129", "file" = "case.py", "start" = 56, "end" = 61 }]
+
+[[cases]]
+name = "shared-block-unmatched-disable"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[PLW0129]\nassert \"yes\"\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-wrong-code"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[E501]\nassert \"yes\"\n" }
+expected = [{ "rule" = "PLW0129", "file" = "case.py", "start" = 29, "end" = 34 }]
+
+[[cases]]
+name = "shared-file-ignore"
+comparison = "full"
+files = { "case.py" = "# ruff: file-ignore[PLW0129]\nassert \"yes\"\n" }
+expected = []

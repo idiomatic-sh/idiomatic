@@ -1,0 +1,59 @@
+[[cases]]
+name = "method"
+comparison = "full"
+files = { "case.py" = "class Base: pass\nclass C(Base):\n    def method(self):\n        return super.speak()\n" }
+expected = [{ "rule" = "PLW0245", "file" = "case.py", "start" = 69, "end" = 74 }]
+
+[[cases]]
+name = "classmethod"
+comparison = "full"
+files = { "case.py" = "class Base: pass\nclass C(Base):\n    @classmethod\n    def method(cls):\n        return super.speak()\n" }
+expected = [{ "rule" = "PLW0245", "file" = "case.py", "start" = 85, "end" = 90 }]
+
+[[cases]]
+name = "staticmethod"
+comparison = "full"
+files = { "case.py" = "class Base: pass\nclass C(Base):\n    @staticmethod\n    def method():\n        return super.speak()\n" }
+expected = [{ "rule" = "PLW0245", "file" = "case.py", "start" = 83, "end" = 88 }]
+
+[[cases]]
+name = "new-method"
+comparison = "full"
+files = { "case.py" = "class Base: pass\nclass C(Base):\n    def __new__(cls):\n        return super.speak()\n" }
+expected = []
+
+[[cases]]
+name = "function"
+comparison = "full"
+files = { "case.py" = "def f():\n    return super.speak()\n" }
+expected = []
+
+[[cases]]
+name = "class-body"
+comparison = "full"
+files = { "case.py" = "class Base: pass\nclass C(Base):\n    value = super.speak()\n" }
+expected = []
+
+[[cases]]
+name = "proper-call"
+comparison = "full"
+files = { "case.py" = "class Base: pass\nclass C(Base):\n    def method(self):\n        return super().attribute\n" }
+expected = []
+
+[[cases]]
+name = "shadowed-super"
+comparison = "full"
+files = { "case.py" = "class Base: pass\nclass C(Base):\n    def method(self):\n        super = fake\n        return super.speak()\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 70, "end" = 74 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "class Base: pass\nclass C(Base):\n    def method(self):\n        return super.attribute  # noqa: PLW0245\n" }
+expected = []
+
+[[cases]]
+name = "init-subclass"
+comparison = "full"
+files = { "case.py" = "class Base: pass\nclass C(Base):\n    def __init_subclass__(cls):\n        return super.speak()\n" }
+expected = [{ "rule" = "PLW0245", "file" = "case.py", "start" = 79, "end" = 84 }]

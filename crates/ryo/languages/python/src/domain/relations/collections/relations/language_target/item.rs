@@ -7,6 +7,7 @@ use crate::domain::{
 };
 use ryo::languages;
 
+/// Reads the parser target configured for the current source.
 pub(crate) struct LanguageTargetItem;
 
 ryo::reads! {

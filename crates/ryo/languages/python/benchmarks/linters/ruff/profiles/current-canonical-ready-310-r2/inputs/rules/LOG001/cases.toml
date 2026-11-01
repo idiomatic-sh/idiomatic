@@ -1,0 +1,109 @@
+[[cases]]
+name = "module"
+files = { "case.py" = "import logging\nlogging.Logger(\"name\")\n" }
+expected = [{ file = "case.py", start = 15, end = 29 }]
+
+[[cases]]
+name = "alias"
+files = { "case.py" = "import logging as alias\nalias.Logger(\"name\")\n" }
+expected = [{ file = "case.py", start = 24, end = 36 }]
+
+[[cases]]
+name = "from-import"
+files = { "case.py" = "from logging import Logger as target\ntarget(\"name\")\n" }
+expected = [{ file = "case.py", start = 37, end = 43 }]
+
+[[cases]]
+name = "unimported"
+files = { "case.py" = "logging.Logger(\"name\")\n" }
+expected = []
+
+[[cases]]
+name = "shadowed"
+files = { "case.py" = "import logging\ndef f(logging):\n    logging.Logger(\"name\")\n" }
+expected = []
+
+[[cases]]
+name = "rebound"
+files = { "case.py" = "import logging\nlogging = other\nlogging.Logger(\"name\")\n" }
+expected = []
+
+[[cases]]
+name = "before-import"
+files = { "case.py" = "logging.Logger(\"name\")\nimport logging\n" }
+expected = []
+
+[[cases]]
+name = "deferred-body"
+files = { "case.py" = "def f():\n    logging.Logger(\"name\")\nimport logging\n" }
+expected = [{ file = "case.py", start = 13, end = 27 }]
+
+[[cases]]
+name = "ordinary-call"
+files = { "case.py" = "import logging\ndef f(x):\n    x()\n    logging.Logger(\"name\")\n" }
+expected = [{ file = "case.py", start = 37, end = 51 }]
+
+[[cases]]
+name = "attribute-only"
+files = { "case.py" = "import logging\nlogging.Logger\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "import logging\nlogging.Logger(\"name\") # noqa: LOG001\n" }
+expected = []
+
+[[cases]]
+name = "range"
+files = { "case.py" = "import logging\n# ruff: disable[LOG001]\nlogging.Logger(\"name\")\n# ruff: enable[LOG001]\n" }
+expected = []
+
+[[cases]]
+name = "getlogger"
+files = { "case.py" = "import logging\nlogging.getLogger(\"name\")\n" }
+expected = []
+
+[[cases]]
+name = "no-arguments"
+files = { "case.py" = "import logging\nlogging.Logger()\n" }
+expected = [{ file = "case.py", start = 15, end = 29 }]
+
+[[cases]]
+name = "nfkc-identifier-spelling"
+files = { "case.py" = "import logging as \uff4c\uff4f\uff47\nlog.Logger(\"name\")\n" }
+expected = [{ file = "case.py", start = 28, end = 38 }]
+
+[[cases]]
+name = "quoted-annotation-dispatch"
+files = { "case.py" = "import logging\nx: \"logging.Logger()\"\n" }
+expected = [{ file = "case.py", start = 19, end = 33 }]
+
+[[cases]]
+name = "escaped-annotation-host-span"
+files = { "case.py" = "import logging\nx: \"logging.\\x4cogger()\"\n" }
+expected = [{ file = "case.py", start = 18, end = 39 }]
+
+[[cases]]
+name = "concatenated-annotation-host-span"
+files = { "case.py" = "import logging\nx: \"logging.\" \"Logger()\"\n" }
+expected = [{ file = "case.py", start = 18, end = 39 }]
+
+[[cases]]
+name = "literal-annotation-string-is-data"
+files = { "case.py" = "import logging\nfrom typing import Literal\nx: Literal[\"logging.Logger()\"]\n" }
+expected = []
+
+[[cases]]
+name = "annotated-metadata-is-data"
+files = { "case.py" = "import logging\nfrom typing import Annotated\nx: Annotated[int, \"logging.Logger()\"]\n" }
+expected = []
+
+[[cases]]
+name = "relocated-annotation-preserves-multiplicity"
+files = { "case.py" = "import logging\nx: \"tuple[logging.Logger(), logging.\\x4cogger()]\"\n" }
+expected = [{ file = "case.py", start = 18, end = 64 }, { file = "case.py", start = 18, end = 64 }]
+
+[[cases]]
+name = "invalid-annotation-does-not-block-native-findings"
+files = { "case.py" = "import logging\nx: \"not valid [\"\nlogging.Logger()\n" }
+expected = [{ file = "case.py", start = 32, end = 46 }]

@@ -1,0 +1,79 @@
+[[cases]]
+name = "direct"
+files = { "case.py" = "raise NotImplemented\n" }
+expected = [{ file = "case.py", start = 6, end = 20 }]
+
+[[cases]]
+name = "call"
+files = { "case.py" = "raise NotImplemented(\"reason\")\n" }
+expected = [{ file = "case.py", start = 6, end = 20 }]
+
+[[cases]]
+name = "parenthesized"
+files = { "case.py" = "raise ((NotImplemented))\n" }
+expected = [{ file = "case.py", start = 8, end = 22 }]
+
+[[cases]]
+name = "call-parenthesized"
+files = { "case.py" = "raise (NotImplemented)()\n" }
+expected = [{ file = "case.py", start = 7, end = 21 }]
+
+[[cases]]
+name = "shadowed"
+files = { "case.py" = "NotImplemented = ValueError\nraise NotImplemented\n" }
+expected = [{ file = "case.py", start = 34, end = 48 }]
+
+[[cases]]
+name = "parameter"
+files = { "case.py" = "def f(NotImplemented):\n    raise NotImplemented\n" }
+expected = [{ file = "case.py", start = 33, end = 47 }]
+
+[[cases]]
+name = "qualified"
+files = { "case.py" = "raise errors.NotImplemented\n" }
+expected = []
+
+[[cases]]
+name = "error"
+files = { "case.py" = "raise NotImplementedError\n" }
+expected = []
+
+[[cases]]
+name = "cause-only"
+files = { "case.py" = "raise ValueError from NotImplemented\n" }
+expected = []
+
+[[cases]]
+name = "with-cause"
+files = { "case.py" = "raise NotImplemented from ValueError\n" }
+expected = [{ file = "case.py", start = 6, end = 20 }]
+
+[[cases]]
+name = "bare"
+files = { "case.py" = "try:\n    f()\nexcept:\n    raise\n" }
+expected = []
+
+[[cases]]
+name = "return"
+files = { "case.py" = "def f():\n    return NotImplemented\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "raise NotImplemented  # noqa: F901\n" }
+expected = []
+
+[[cases]]
+name = "indented-range-does-not-cover-top-level"
+files = { "case.py" = " # ruff: disable[F901]\nraise NotImplemented\n# ruff: enable[F901]\n" }
+expected = [{ file = "case.py", start = 29, end = 43 }]
+
+[[cases]]
+name = "multiple"
+files = { "case.py" = "raise NotImplemented; raise NotImplemented()\n" }
+expected = [{ file = "case.py", start = 6, end = 20 }, { file = "case.py", start = 28, end = 42 }]
+
+[[cases]]
+name = "nfkc-identifier-spelling"
+files = { "case.py" = "raise \uff2e\uff4f\uff54\uff29\uff4d\uff50\uff4c\uff45\uff4d\uff45\uff4e\uff54\uff45\uff44\n" }
+expected = [{ file = "case.py", start = 6, end = 48 }]

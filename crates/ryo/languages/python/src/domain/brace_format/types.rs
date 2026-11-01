@@ -25,11 +25,19 @@ pub(crate) enum BraceFormatError {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum BraceSelector {
     /// Automatic positional numbering.
-    Automatic { index: usize, overflow: bool },
+    Automatic {
+        /// The next implicit positional argument.
+        index: usize,
+        /// Whether the index exceeds the relation's signed integer range.
+        overflow: bool,
+    },
     /// An explicit positional index. `overflow` means it fits `usize` but not `i64`.
     Index {
+        /// The parsed positional argument index.
         index: usize,
+        /// Whether the index exceeds the relation's signed integer range.
         overflow: bool,
+        /// Its exact decimal spelling.
         text: String,
     },
     /// A keyword selector, including digit strings larger than `usize` per upstream behavior.
@@ -42,7 +50,10 @@ pub(crate) enum BraceFieldContext {
     /// A field in the decoded string itself.
     Literal,
     /// A field nested in its parent's format specification.
-    FormatSpec { parent_ordinal: usize },
+    FormatSpec {
+        /// The outer field whose format specification contains this field.
+        parent_ordinal: usize,
+    },
 }
 
 /// One field occurrence in source traversal order.

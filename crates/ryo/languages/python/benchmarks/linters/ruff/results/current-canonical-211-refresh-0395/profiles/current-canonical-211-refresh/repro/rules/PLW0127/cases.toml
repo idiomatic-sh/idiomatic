@@ -1,0 +1,35 @@
+[[cases]]
+name = "simple_self_assignment"
+comparison = "full"
+files = { "case.py" = "x = x\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 4, "end" = 5 }, { "rule" = "PLW0127", "file" = "case.py", "start" = 0, "end" = 1 }]
+
+[[cases]]
+name = "ordinary_assignment"
+comparison = "full"
+files = { "case.py" = "x = y\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 4, "end" = 5 }]
+
+[[cases]]
+name = "class_assignment_is_attribute"
+comparison = "full"
+files = { "case.py" = "class C:\n    x = x\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 17, "end" = 18 }]
+
+[[cases]]
+name = "tuple_self_assignment"
+comparison = "full"
+files = { "case.py" = "a, b = a, b\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 7, "end" = 8 }, { "rule" = "F821", "file" = "case.py", "start" = 10, "end" = 11 }, { "rule" = "PLW0127", "file" = "case.py", "start" = 0, "end" = 1 }, { "rule" = "PLW0127", "file" = "case.py", "start" = 3, "end" = 4 }]
+
+[[cases]]
+name = "self_assignment_inside_method"
+comparison = "full"
+files = { "case.py" = "class C:\n    def f(self):\n        self = self\n" }
+expected = [{ "rule" = "PLW0127", "file" = "case.py", "start" = 34, "end" = 38 }, { "rule" = "PLW0642", "file" = "case.py", "start" = 34, "end" = 38 }]
+
+[[cases]]
+name = "first-target-in-chained-self-assignment"
+comparison = "full"
+files = { "case.py" = "a = a = value\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 8, "end" = 13 }, { "rule" = "PLW0127", "file" = "case.py", "start" = 0, "end" = 1 }, { "rule" = "PLW0128", "file" = "case.py", "start" = 4, "end" = 5 }]

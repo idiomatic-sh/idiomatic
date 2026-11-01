@@ -1,0 +1,83 @@
+[[cases]]
+name = "direct"
+comparison = "full"
+files = { "case.py" = "import itertools\nitertools.starmap(function, zip(values))\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 35, "end" = 43 }, { "rule" = "F821", "file" = "case.py", "start" = 49, "end" = 55 }, { "rule" = "RUF058", "file" = "case.py", "start" = 17, "end" = 57 }]
+
+[[cases]]
+name = "from-alias"
+comparison = "full"
+files = { "case.py" = "from itertools import starmap as sm\nsm(function, zip(values))\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 39, "end" = 47 }, { "rule" = "F821", "file" = "case.py", "start" = 53, "end" = 59 }, { "rule" = "RUF058", "file" = "case.py", "start" = 36, "end" = 61 }]
+
+[[cases]]
+name = "zip-alias"
+comparison = "full"
+files = { "case.py" = "import itertools\nfrom builtins import zip as z\nitertools.starmap(function, z(values))\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 65, "end" = 73 }, { "rule" = "F821", "file" = "case.py", "start" = 77, "end" = 83 }, { "rule" = "RUF058", "file" = "case.py", "start" = 47, "end" = 85 }]
+
+[[cases]]
+name = "one-starred"
+comparison = "full"
+files = { "case.py" = "import itertools\nitertools.starmap(function, zip(*values, extra))\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 35, "end" = 43 }, { "rule" = "F821", "file" = "case.py", "start" = 50, "end" = 56 }, { "rule" = "F821", "file" = "case.py", "start" = 58, "end" = 63 }, { "rule" = "RUF058", "file" = "case.py", "start" = 17, "end" = 65 }]
+
+[[cases]]
+name = "empty-zip"
+comparison = "full"
+files = { "case.py" = "import itertools\nitertools.starmap(function, zip())\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 35, "end" = 43 }, { "rule" = "RUF058", "file" = "case.py", "start" = 17, "end" = 51 }]
+
+[[cases]]
+name = "all-starred"
+comparison = "full"
+files = { "case.py" = "import itertools\nitertools.starmap(function, zip(*values, *other))\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 35, "end" = 43 }, { "rule" = "F821", "file" = "case.py", "start" = 50, "end" = 56 }, { "rule" = "F821", "file" = "case.py", "start" = 59, "end" = 64 }]
+
+[[cases]]
+name = "zip-keyword"
+comparison = "full"
+files = { "case.py" = "import itertools\nitertools.starmap(function, zip(values, strict=True))\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 35, "end" = 43 }, { "rule" = "F821", "file" = "case.py", "start" = 49, "end" = 55 }]
+
+[[cases]]
+name = "starmap-keyword"
+comparison = "full"
+files = { "case.py" = "import itertools\nitertools.starmap(function, zip(values), other=True)\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 35, "end" = 43 }, { "rule" = "F821", "file" = "case.py", "start" = 49, "end" = 55 }]
+
+[[cases]]
+name = "wrong-map"
+comparison = "full"
+files = { "case.py" = "import other\nother.starmap(function, zip(values))\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 27, "end" = 35 }, { "rule" = "F821", "file" = "case.py", "start" = 41, "end" = 47 }]
+
+[[cases]]
+name = "wrong-iterable"
+comparison = "full"
+files = { "case.py" = "import itertools\nitertools.starmap(function, sorted(values))\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 35, "end" = 43 }, { "rule" = "F821", "file" = "case.py", "start" = 52, "end" = 58 }]
+
+[[cases]]
+name = "shadowed-zip"
+comparison = "full"
+files = { "case.py" = "def f(zip):\n    import itertools\n    itertools.starmap(function, zip(values))\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 55, "end" = 63 }, { "rule" = "F821", "file" = "case.py", "start" = 69, "end" = 75 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "import itertools\nitertools.starmap(function, zip(values))  # noqa: RUF058\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 35, "end" = 43 }, { "rule" = "F821", "file" = "case.py", "start" = 49, "end" = 55 }]
+
+[[cases]]
+name = "file-noqa"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa: RUF058\nimport itertools\nitertools.starmap(function, zip(values))\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 56, "end" = 64 }, { "rule" = "F821", "file" = "case.py", "start" = 70, "end" = 76 }]
+
+[[cases]]
+name = "multiple"
+comparison = "full"
+files = { "case.py" = "import itertools\nitertools.starmap(fn, zip(a, b))\nitertools.starmap(fn, zip(c))\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 35, "end" = 37 }, { "rule" = "F821", "file" = "case.py", "start" = 43, "end" = 44 }, { "rule" = "F821", "file" = "case.py", "start" = 46, "end" = 47 }, { "rule" = "F821", "file" = "case.py", "start" = 68, "end" = 70 }, { "rule" = "F821", "file" = "case.py", "start" = 76, "end" = 77 }, { "rule" = "RUF058", "file" = "case.py", "start" = 17, "end" = 49 }, { "rule" = "RUF058", "file" = "case.py", "start" = 50, "end" = 79 }]

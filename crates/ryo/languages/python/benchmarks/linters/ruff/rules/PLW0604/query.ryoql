@@ -1,5 +1,5 @@
 let statements = select id, file, span from "semantic-syntax" where kind = "global";
-let scopes = select id, kind from "semantic-syntax" where kind = "module" or kind = "function-def" or kind = "class-def" or kind = "lambda";
+let scopes = select id, kind from "semantic-syntax" where kind = "module" or kind = "function-def" or kind = "async-function-def" or kind = "class-def" or kind = "lambda";
 let owners = axis(from=statements, relation="semantic-child", direction=nearest-ancestor, domain=scopes);
 let modules = select id from scopes where kind = "module";
 let module_statements = select l.id as id from owners as l join modules as r on l.related = r.id;

@@ -1,0 +1,154 @@
+//! Regression cases for raw format readers bindings.
+use super::{RawFormatFieldItem, RawFormatSegmentItem};
+use crate::domain::relations::collections::relations::fixtures::contract::check;
+use crate::fixtures::reading::{proposed, reading};
+use ryo::languages::contract::Want;
+
+#[test]
+fn raw_format_rows_keep_empty_segments_repeated_keys_and_star_conversions() {
+    check::<RawFormatSegmentItem>();
+    check::<RawFormatFieldItem>();
+    let source = "'' '%%' '%(x)d %(x)s %*.*d'\n";
+    let segments = reading::<RawFormatSegmentItem>(source);
+    assert!(segments.causes.is_empty(), "{:?}", segments.causes);
+    assert_eq!(segments.rows.len(), 3);
+    assert!(segments.rows[0].len() > 8);
+    assert!(segments.rows[2].len() > 11);
+    assert_eq!(segments.rows[0][8], Want::Number(0));
+    assert_eq!(segments.rows[1][8], Want::Number(0));
+    assert_eq!(segments.rows[2][8], Want::Number(3));
+    assert_eq!(segments.rows[2][9], Want::Flag(true));
+    assert_eq!(segments.rows[2][10], Want::Flag(true));
+    assert_eq!(segments.rows[2][11], Want::Flag(true));
+    assert_eq!(segments.rows[0][0], segments.rows[2][0]);
+    assert_ne!(segments.rows[0][1], segments.rows[2][1]);
+    let fields = reading::<RawFormatFieldItem>(source);
+    assert!(fields.causes.is_empty());
+    assert_eq!(fields.rows.len(), 3);
+    for (at, row) in fields.rows.iter().enumerate() {
+        assert!(row.len() > 4);
+        let expected_index = i64::try_from(at).unwrap_or(i64::MAX);
+        assert_eq!(row[2], Want::Number(2));
+        assert_eq!(row[3], Want::Number(expected_index));
+        assert_eq!(row[4], Want::Number(expected_index));
+    }
+    assert_eq!(fields.rows[0][6], Want::Name("x"));
+    assert_eq!(fields.rows[1][6], Want::Name("x"));
+    assert!(fields.rows[2].len() > 9);
+    assert_eq!(fields.rows[2][8], Want::Name("star"));
+    assert_eq!(fields.rows[2][9], Want::Name("star"));
+}
+
+#[test]
+fn raw_format_failed_segments_contribute_no_valid_prefix_fields() {
+    let source = "'%s' '%d%q' '%x'\n";
+    let segments = reading::<RawFormatSegmentItem>(source);
+    assert!(segments.causes.is_empty());
+    assert_eq!(segments.rows.len(), 3);
+    assert!(segments.rows[1].len() > 7);
+    assert_eq!(segments.rows[1][4], Want::Name("malformed"));
+    assert_eq!(segments.rows[1][6], Want::Name("q"));
+    assert_eq!(segments.rows[1][7], Want::Number(3));
+    let fields = reading::<RawFormatFieldItem>(source);
+    assert!(fields.causes.is_empty());
+    assert_eq!(fields.rows.len(), 2);
+    assert!(fields.rows[1].len() > 7);
+    assert_eq!(fields.rows[0][3], Want::Number(0));
+    assert_eq!(fields.rows[1][2], Want::Number(2));
+    assert_eq!(fields.rows[1][3], Want::Number(1));
+    assert_eq!(fields.rows[1][4], Want::Number(0));
+    assert_eq!(fields.rows[1][7], Want::Name("x"));
+}
+
+#[test]
+fn raw_format_preserves_escapes_segment_boundaries_and_unicode_indices() {
+    let source = "'\\x25d' '%d'\n'%' 'd'\n'é%n'\n'%(\\x78)d'\n";
+    let segments = reading::<RawFormatSegmentItem>(source);
+    assert!(segments.causes.is_empty());
+    assert_eq!(segments.rows.len(), 6);
+    assert_eq!(segments.rows[0][8], Want::Number(0));
+    assert_eq!(segments.rows[1][8], Want::Number(1));
+    assert_eq!(segments.rows[2][4], Want::Name("malformed"));
+    assert_eq!(segments.rows[3][4], Want::Name("parsed"));
+    assert_eq!(segments.rows[4][7], Want::Number(2));
+    let fields = reading::<RawFormatFieldItem>(source);
+    assert!(fields.causes.is_empty());
+    assert_eq!(fields.rows.len(), 2);
+    assert!(fields.rows[0].len() > 3);
+    assert_eq!(fields.rows[0][2], Want::Number(1));
+    assert_eq!(fields.rows[0][3], Want::Number(0));
+    assert_eq!(fields.rows[1][6], Want::Name(r"\x78"));
+}
+
+#[test]
+fn raw_format_accepts_prefixes_quotes_comments_and_original_crlf() {
+    let segments = reading::<RawFormatSegmentItem>("(r'%d' # keep\r\n U\"%s\" '''%c\r\n%x''')\r\n");
+    assert!(segments.causes.is_empty(), "{:?}", segments.causes);
+    assert_eq!(segments.rows.len(), 3);
+    assert_eq!(segments.rows[0][8], Want::Number(1));
+    assert_eq!(segments.rows[1][8], Want::Number(1));
+    assert_eq!(segments.rows[2][8], Want::Number(2));
+}
+
+#[test]
+fn raw_format_uses_embedded_logical_spelling_and_excludes_hidden_candidates() {
+    let source =
+        "from typing import Literal\nx: \"Literal[\\\"%d\\\"]\"\ny: \"Literal['%(\\\\x78)d']\"\n";
+    let segments = reading::<RawFormatSegmentItem>(source);
+    assert!(segments.causes.is_empty(), "{:?}", segments.causes);
+    assert_eq!(
+        segments.rows.len(),
+        4,
+        "native carriers and enabled embedded literals retain distinct identities"
+    );
+    assert!(
+        segments
+            .rows
+            .iter()
+            .all(|row| row[4] == Want::Name("parsed"))
+    );
+    let fields = reading::<RawFormatFieldItem>(source);
+    assert!(fields.causes.is_empty(), "{:?}", fields.causes);
+    assert_eq!(fields.rows.len(), 4);
+    assert_eq!(fields.rows[0][7], Want::Name("d"));
+    assert!(
+        fields.rows.iter().any(|row| row[6] == Want::Name(r"\x78")),
+        "embedded token uses logical spelling"
+    );
+    assert!(
+        fields.rows.iter().any(|row| row[6] == Want::Name(r"\\x78")),
+        "native carrier keeps its own spelling"
+    );
+    let hidden = "from typing import Literal\nx: Literal[\"list['%d']\"]\n";
+    let hidden_segments = reading::<RawFormatSegmentItem>(hidden);
+    assert!(
+        hidden_segments.causes.is_empty(),
+        "{:?}",
+        hidden_segments.causes
+    );
+    assert_eq!(
+        hidden_segments.rows.len(),
+        1,
+        "value-only embedded candidates are hidden, while the native literal remains visible"
+    );
+}
+
+#[test]
+fn raw_format_excludes_bytes_interpolated_and_template_strings() {
+    let source = "b'%d'\nf'%d'\nf'%d {x}'\nt'%d'\n";
+    let segments = reading::<RawFormatSegmentItem>(source);
+    assert!(segments.causes.is_empty(), "{:?}", segments.causes);
+    assert!(segments.rows.is_empty());
+    let fields = reading::<RawFormatFieldItem>(source);
+    assert!(fields.causes.is_empty());
+    assert!(fields.rows.is_empty());
+}
+
+#[test]
+fn raw_format_incomplete_syntax_is_partial_and_has_no_precise_global_fields() {
+    let segments = proposed::<RawFormatSegmentItem>("'%d'\n(\n");
+    assert!(!segments.causes.is_empty());
+    let fields = proposed::<RawFormatFieldItem>("'%d'\n(\n");
+    assert!(!fields.causes.is_empty());
+    assert!(fields.rows.is_empty());
+}

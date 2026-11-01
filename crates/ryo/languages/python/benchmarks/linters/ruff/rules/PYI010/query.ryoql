@@ -7,7 +7,7 @@ let values = select parent, child from "semantic-child" where field = "value";
 let expressions = select id from "semantic-syntax" where kind = "expr";
 let raw_ellipsis = select l.parent as id from values as l join ellipsis_values as r on l.child = r.id;
 let ellipsis_statements = select l.id as id from raw_ellipsis as l join expressions as r on l.id = r.id;
-let functions = select id from "semantic-syntax" where kind = "function-def" and glob_any(file, "**/*.pyi");
+let functions = select id from "semantic-syntax" where (kind = "function-def" or kind = "async-function-def") and glob_any(file, "**/*.pyi");
 let scoped = select r.child as id from functions as l join single as r on l.id = r.parent;
 let constants = select id from "semantic-syntax" where kind = "constant";
 let string_values = select l.id as id from constants as l join "string-literal" as r on l.id = r.occurrence;

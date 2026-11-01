@@ -1,0 +1,83 @@
+[[cases]]
+name = "module"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime.date.today()\n" }
+expected = [{ "rule" = "DTZ011", "file" = "case.py", "start" = 16, "end" = 37 }]
+
+[[cases]]
+name = "alias"
+comparison = "full"
+files = { "case.py" = "import datetime as alias\nalias.date.today()\n" }
+expected = [{ "rule" = "DTZ011", "file" = "case.py", "start" = 25, "end" = 43 }]
+
+[[cases]]
+name = "from-import"
+comparison = "full"
+files = { "case.py" = "from datetime.date import today as target\ntarget()\n" }
+expected = [{ "rule" = "DTZ011", "file" = "case.py", "start" = 42, "end" = 50 }]
+
+[[cases]]
+name = "unimported"
+comparison = "full"
+files = { "case.py" = "datetime.date.today()\n" }
+expected = [{ "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 8 }]
+
+[[cases]]
+name = "shadowed"
+comparison = "full"
+files = { "case.py" = "import datetime\ndef f(datetime):\n    datetime.date.today()\n" }
+expected = [{ "rule" = "F401", "file" = "case.py", "start" = 7, "end" = 15 }, { "rule" = "F811", "file" = "case.py", "start" = 22, "end" = 30 }]
+
+[[cases]]
+name = "rebound"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime = other\ndatetime.date.today()\n" }
+expected = [{ "rule" = "F811", "file" = "case.py", "start" = 16, "end" = 24 }, { "rule" = "F821", "file" = "case.py", "start" = 27, "end" = 32 }]
+
+[[cases]]
+name = "before-import"
+comparison = "full"
+files = { "case.py" = "datetime.date.today()\nimport datetime\n" }
+expected = [{ "rule" = "F401", "file" = "case.py", "start" = 29, "end" = 37 }, { "rule" = "F821", "file" = "case.py", "start" = 0, "end" = 8 }]
+
+[[cases]]
+name = "deferred-body"
+comparison = "full"
+files = { "case.py" = "def f():\n    datetime.date.today()\nimport datetime\n" }
+expected = [{ "rule" = "DTZ011", "file" = "case.py", "start" = 13, "end" = 34 }]
+
+[[cases]]
+name = "ordinary-call"
+comparison = "full"
+files = { "case.py" = "import datetime\ndef f(x):\n    x()\n    datetime.date.today()\n" }
+expected = [{ "rule" = "DTZ011", "file" = "case.py", "start" = 38, "end" = 59 }]
+
+[[cases]]
+name = "attribute-only"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime.date.today\n" }
+expected = [{ "rule" = "B018", "file" = "case.py", "start" = 16, "end" = 35 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime.date.today() # noqa: DTZ011\n" }
+expected = []
+
+[[cases]]
+name = "range"
+comparison = "full"
+files = { "case.py" = "import datetime\n# ruff: disable[DTZ011]\ndatetime.date.today()\n# ruff: enable[DTZ011]\n" }
+expected = []
+
+[[cases]]
+name = "other-type"
+comparison = "full"
+files = { "case.py" = "import datetime\ndatetime.datetime.now()\n" }
+expected = [{ "rule" = "DTZ005", "file" = "case.py", "start" = 16, "end" = 39 }]
+
+[[cases]]
+name = "assigned"
+comparison = "full"
+files = { "case.py" = "import datetime\nvalue = datetime.date.today()\n" }
+expected = [{ "rule" = "DTZ011", "file" = "case.py", "start" = 24, "end" = 45 }]

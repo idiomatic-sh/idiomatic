@@ -24,8 +24,9 @@ fn composed(
     };
     for span in [left, right] {
         if span != NO_SPAN {
-            let end = usize::try_from(span.end.0).map_err(|_| OperatingError::InvalidSpan)?;
-            if span.start > span.end || end > length {
+            let span_end =
+                usize::try_from(span.end.0).map_err(|_error| OperatingError::InvalidSpan)?;
+            if span.start > span.end || span_end > length {
                 return Err(OperatingError::InvalidSpan);
             }
         }

@@ -117,6 +117,59 @@ fn semantic_syntax_checks_only_run_after_an_accepted_parse() {
 }
 
 #[test]
+fn comprehension_rebinding_preserves_ast_and_respects_lambda_scope() {
+    let cases = [
+        (
+            "x=[data[index] for index,value in data.items() if (index:=0)]\n",
+            Some((51, 56)),
+        ),
+        ("x=[(i:=0) for i in data]\n", Some((4, 5))),
+        ("x=[[(i:=0) for j in other] for i in data]\n", Some((5, 6))),
+        ("x=[(i:=0) for j in data for i in other]\n", Some((4, 5))),
+        ("x=[lambda: (i:=0) for i in data]\n", None),
+        ("x=[(obj:=0) for obj.attr in data]\n", None),
+        ("x=[(other:=0) for i in data]\n", None),
+        ("x={(i:=0) for i in data}\n", Some((4, 5))),
+        ("x={i:(i:=0) for i in data}\n", Some((6, 7))),
+        ("x=((i:=0) for i in data)\n", Some((4, 5))),
+        (
+            "x=[(lambda arg=(i:=0): arg) for i in data]\n",
+            Some((16, 17)),
+        ),
+    ];
+    for (source, expected) in cases {
+        let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
+        let mut builder =
+            languages::table_builder(&mut elements, &mut symbols, ByteSlice(source.as_bytes()));
+        SyntaxRuffPythonParserAdapter.read(
+            SourceText(source.as_bytes()),
+            PythonSourceKind::Python,
+            &PythonParserSettings::new(PythonTargetVersion::Py310),
+            &mut builder,
+        );
+        assert_eq!(
+            languages::syntax_acceptance(&elements),
+            languages::SyntaxAcceptance::Accepted,
+            "{source}"
+        );
+        assert!(!languages::has_incomplete_syntax(&elements), "{source}");
+        let diagnostics: Vec<_> = languages::diagnostics(&elements)
+            .map(|diagnostic| {
+                assert_eq!(diagnostic.phase.name(), "validation", "{source}");
+                assert_eq!(diagnostic.impact.name(), "preserved", "{source}");
+                assert_eq!(diagnostic.code.as_str(), "comprehension-rebind", "{source}");
+                (diagnostic.start.0, diagnostic.end.0)
+            })
+            .collect();
+        assert_eq!(
+            diagnostics,
+            expected.into_iter().collect::<Vec<_>>(),
+            "{source}"
+        );
+    }
+}
+
+#[test]
 fn named_expression_in_stub_annotation_is_a_parse_diagnostic_only_for_stubs() {
     let diagnostics_for = |source: &str, source_kind| {
         let (mut elements, mut symbols) = (Elements::default(), Symbols::default());

@@ -1,0 +1,89 @@
+[[cases]]
+name = "print-function"
+comparison = "full"
+files = { "case.py" = "from __future__ import print_function\n" }
+expected = [{ "rule" = "UP010", "file" = "case.py", "start" = 0, "end" = 37 }]
+
+[[cases]]
+name = "division"
+comparison = "full"
+files = { "case.py" = "from __future__ import division\n" }
+expected = [{ "rule" = "UP010", "file" = "case.py", "start" = 0, "end" = 31 }]
+
+[[cases]]
+name = "generator-stop"
+comparison = "full"
+files = { "case.py" = "from __future__ import generator_stop\n" }
+expected = [{ "rule" = "UP010", "file" = "case.py", "start" = 0, "end" = 37 }]
+
+[[cases]]
+name = "multi"
+comparison = "full"
+files = { "case.py" = "from __future__ import print_function, unicode_literals, annotations\n" }
+expected = [{ "rule" = "UP010", "file" = "case.py", "start" = 0, "end" = 68 }]
+
+[[cases]]
+name = "used"
+comparison = "full"
+files = { "case.py" = "from __future__ import print_function\nprint_function\n" }
+expected = [{ "rule" = "B018", "file" = "case.py", "start" = 38, "end" = 52 }]
+
+[[cases]]
+name = "nested-use"
+comparison = "full"
+files = { "case.py" = "from __future__ import print_function\ndef f():\n    return print_function\n" }
+expected = []
+
+[[cases]]
+name = "aliased"
+comparison = "full"
+files = { "case.py" = "from __future__ import print_function as pf\n" }
+expected = []
+
+[[cases]]
+name = "annotations"
+comparison = "full"
+files = { "case.py" = "from __future__ import annotations\n" }
+expected = []
+
+[[cases]]
+name = "ordinary-import"
+comparison = "full"
+files = { "case.py" = "import __future__\n" }
+expected = [{ "rule" = "F401", "file" = "case.py", "start" = 7, "end" = 17 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "from __future__ import print_function  # noqa: UP010\n" }
+expected = []
+
+[[cases]]
+name = "file-noqa"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa: UP010\nfrom __future__ import print_function\n" }
+expected = []
+
+[[cases]]
+name = "other-noqa"
+comparison = "full"
+files = { "case.py" = "from __future__ import print_function  # noqa: F401\n" }
+expected = [{ "rule" = "UP010", "file" = "case.py", "start" = 0, "end" = 37 }]
+
+[[cases]]
+name = "used-and-unused"
+comparison = "full"
+files = { "case.py" = "from __future__ import print_function, division\nprint_function\n" }
+expected = [{ "rule" = "B018", "file" = "case.py", "start" = 48, "end" = 62 }, { "rule" = "UP010", "file" = "case.py", "start" = 0, "end" = 47 }]
+
+[[cases]]
+name = "multiple-statements"
+comparison = "full"
+files = { "case.py" = "from __future__ import print_function\nfrom __future__ import division\n" }
+expected = [{ "rule" = "UP010", "file" = "case.py", "start" = 0, "end" = 37 }, { "rule" = "UP010", "file" = "case.py", "start" = 38, "end" = 69 }]
+
+[[cases]]
+name = "Unicode-leading"
+comparison = "full"
+files = { "case.py" = "π = 1\nfrom __future__ import print_function\n" }
+expected = [{ "rule" = "F404", "file" = "case.py", "start" = 7, "end" = 44 }, { "rule" = "UP010", "file" = "case.py", "start" = 7, "end" = 44 }]
