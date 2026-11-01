@@ -46,11 +46,17 @@ pub(super) enum ProgramLine {
 
 /// One fragment module line before the module document is assembled.
 enum FragmentLine {
+    /// A module dependency declaration.
     Import(ImportDeclaration),
+    /// A declared relation input.
     Input(FragmentInput),
+    /// A scalar parameter declaration.
     Parameter(ParameterDeclaration),
+    /// The module output signature and its source span.
     Output(RelationSignature, QuerySpan),
+    /// A module-local step definition.
     Step(LetStep),
+    /// The returned module step.
     Return(FragmentReturn),
 }
 
@@ -58,7 +64,7 @@ impl SyntaxPort for SyntaxWinnowAdapter {
     fn read(&self, text: QueryView<'_>) -> Result<Program, SyntaxError> {
         program
             .parse(LocatingSlice::new(text.0))
-            .map_err(unreadable)
+            .map_err(|error| unreadable(&error))
     }
 
     fn read_bundle(
@@ -121,8 +127,9 @@ impl SyntaxPort for SyntaxWinnowAdapter {
     }
 }
 
+/// Converts a parser failure into a source span and user-facing message.
 fn unreadable(
-    error: winnow::error::ParseError<Input<'_>, winnow::error::ContextError>,
+    error: &winnow::error::ParseError<Input<'_>, winnow::error::ContextError>,
 ) -> SyntaxError {
     let said = error.inner().to_string();
     SyntaxError::Unreadable {
@@ -239,21 +246,23 @@ pub(super) fn fragment_program(input: &mut Input<'_>) -> ModalResult<FragmentPro
 
 /// Gives each definition a source-local identity and binds preceding-step references to that
 /// identity. Unknown and forward references remain unresolved for validation.
+/// Assigns each local step an identity and resolves only preceding local references.
 fn assign_step_identities(steps: &mut [LetStep], result: &mut StepName) {
     for (place, step) in steps.iter_mut().enumerate() {
         step.name.1 = Some(StepIdentity(u64::try_from(place).unwrap_or(u64::MAX)));
     }
     for place in 0..steps.len() {
         let (preceding, current) = steps.split_at_mut(place);
-        let step = &mut current[0];
-        match &mut step.expression {
-            Expression::Select(select) => {
-                resolve_source_step(&mut select.from, preceding);
-                if let Joining::Joined(join) = &mut select.join {
-                    resolve_source_step(&mut join.source, preceding);
+        if let Some(step) = current.first_mut() {
+            match &mut step.expression {
+                Expression::Select(select) => {
+                    resolve_source_step(&mut select.from, preceding);
+                    if let Joining::Joined(join) = &mut select.join {
+                        resolve_source_step(&mut join.source, preceding);
+                    }
                 }
+                Expression::Call(_) => {}
             }
-            Expression::Call(_) => {}
         }
     }
     result.1 = steps
@@ -263,6 +272,7 @@ fn assign_step_identities(steps: &mut [LetStep], result: &mut StepName) {
         .and_then(|candidate| candidate.name.1);
 }
 
+/// Resolves a step source only when an earlier definition with that name exists.
 fn resolve_source_step(source: &mut QuerySource, preceding: &[LetStep]) {
     if let SourceReference::Step(reference) = &mut source.reference {
         reference.1 = preceding
@@ -273,6 +283,7 @@ fn resolve_source_step(source: &mut QuerySource, preceding: &[LetStep]) {
     }
 }
 
+/// Parses one import, signature, declaration, step, or return line in a module.
 fn fragment_line(input: &mut Input<'_>) -> ModalResult<FragmentLine> {
     alt((
         import_line.map(FragmentLine::Import),
@@ -329,6 +340,7 @@ pub(super) fn fragment_output_line(
     .parse_next(input)
 }
 
+/// Parses an ordered relation signature with byte spans for each declared column.
 pub(super) fn relation_signature(input: &mut Input<'_>) -> ModalResult<RelationSignature> {
     let (columns, span) = delimited(
         (keyword(Keyword::Relation), multispace0, '<', multispace0),
@@ -402,7 +414,7 @@ pub(super) fn import_line(input: &mut Input<'_>) -> ModalResult<ImportDeclaratio
     .parse_next(input)?;
     Ok(ImportDeclaration {
         alias: WrittenName(Box::from(alias.0)),
-        module: WrittenLiteral(Box::from(module.0)),
+        module: WrittenLiteral(module.0),
         span: QuerySpan {
             start: ByteOffset(span.start),
             end: ByteOffset(span.end),

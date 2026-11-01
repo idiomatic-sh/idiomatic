@@ -29,6 +29,10 @@ use ryo_values::domain::program::types::{self as syntax, QuerySpelling};
 /// # Errors
 ///
 /// The first name that resolves to nothing, or comparison of unlike types, with its place.
+#[expect(
+    clippy::too_many_lines,
+    reason = "lowering keeps the ordered whole-plan optimization pipeline explicit"
+)]
 pub(crate) fn lower(
     program: &syntax::Program,
     catalog: &[Relation],
@@ -160,6 +164,7 @@ pub(crate) fn lower(
     })
 }
 
+/// Attaches the expanded fragment origin to a lowering error for one root step.
 fn locate_step_error(
     program: &syntax::Program,
     identity: Option<syntax::StepIdentity>,
@@ -171,6 +176,7 @@ fn locate_step_error(
     )
 }
 
+/// Attaches an optional source origin to a lowering error.
 fn locate_error(
     origin: Option<ryo_values::domain::program::types::QueryOrigin>,
     error: LoweringError,
@@ -184,6 +190,7 @@ fn locate_error(
     }
 }
 
+/// Checks that each linked fragment input has the declared relation shape.
 fn check_fragment_inputs(
     builder: &Builder<'_>,
     contract: &syntax::FragmentContract,
@@ -205,7 +212,10 @@ fn check_fragment_inputs(
                     origin,
                 });
             }
-            _ => {
+            syntax::ArgumentValue::Number(_)
+            | syntax::ArgumentValue::Parameter(_)
+            | syntax::ArgumentValue::List(_)
+            | syntax::ArgumentValue::Map(_) => {
                 return Err(LoweringError::FragmentContract {
                     message: format!("input `{}` is not a relation source", input.name.0),
                     origin,
@@ -227,6 +237,7 @@ fn check_fragment_inputs(
     Ok(())
 }
 
+/// Checks the fragment result against its declared output relation.
 fn check_fragment_output(
     builder: &Builder<'_>,
     contract: &syntax::FragmentContract,
@@ -245,6 +256,7 @@ fn check_fragment_output(
     check_relation_shape(fields, &contract.output, contract.origin.clone())
 }
 
+/// Checks a lowered set of columns against a source relation signature.
 fn check_relation_shape(
     actual: &[PlannedColumn],
     expected: &syntax::RelationSignature,
@@ -260,8 +272,8 @@ fn check_relation_shape(
             origin,
         });
     }
-    for (actual, expected) in actual.iter().zip(&expected.columns) {
-        let expected_kind = match expected.kind.0.as_ref() {
+    for (actual_column, expected_column) in actual.iter().zip(&expected.columns) {
+        let expected_kind = match expected_column.kind.0.as_ref() {
             "node" => CellKind::Node,
             "symbol" | "text" => CellKind::Symbol,
             "file" => CellKind::File,
@@ -275,11 +287,14 @@ fn check_relation_shape(
                 });
             }
         };
-        if actual.name != expected.name || actual.kind != expected_kind {
+        if actual_column.name != expected_column.name || actual_column.kind != expected_kind {
             return Err(LoweringError::FragmentContract {
                 message: format!(
                     "expected column `{}` of type `{}`, found `{}` of type `{:?}`",
-                    expected.name.0, expected.kind.0, actual.name.0, actual.kind
+                    expected_column.name.0,
+                    expected_column.kind.0,
+                    actual_column.name.0,
+                    actual_column.kind
                 ),
                 origin,
             });

@@ -296,7 +296,7 @@ pub(crate) fn comparison_of(
         origin.span = filter.span;
         let id = u32::try_from(builder.comparison_origins.len())
             .map(ComparisonOriginId)
-            .map_err(|_| LoweringError::TooManyComparisonOrigins { span: filter.span })?;
+            .map_err(|_overflow| LoweringError::TooManyComparisonOrigins { span: filter.span })?;
         builder.comparison_origins.push(origin);
         Some(id)
     } else {

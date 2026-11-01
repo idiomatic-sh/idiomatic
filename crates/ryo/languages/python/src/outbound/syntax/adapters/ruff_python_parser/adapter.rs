@@ -102,7 +102,8 @@ fn semantic_syntax_errors(module: &Mod) -> Vec<SemanticSyntaxDiagnostic> {
             match stmt {
                 Stmt::Global(global) => {
                     for name in &global.names {
-                        self.globals
+                        let _previous_global = self
+                            .globals
                             .insert(name.as_str().to_owned(), name.range().start());
                     }
                 }

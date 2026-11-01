@@ -52,7 +52,7 @@ impl CompileUseCase for CompileUseCaseImpl {
                 },
             })?;
         let program =
-            crate::domain::linking::service::link(&request.text, parsed.root, parsed.fragments)
+            crate::domain::linking::service::link(&request.text, parsed.root, &parsed.fragments)
                 .map_err(|error| {
                     let span = error.origin.span;
                     CompileError::Located {

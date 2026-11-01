@@ -234,7 +234,7 @@ fn check_call(
                     check_relation(QuerySpelling(&text.0), call.span, catalog, known)?;
                 }
                 ArgumentValue::Word(text) if !known.linked => {
-                    check_step(QuerySpelling(&text.0), call.span, known)?
+                    check_step(QuerySpelling(&text.0), call.span, known)?;
                 }
                 ArgumentValue::Word(text) => {
                     return Err(ValidationError::UnknownStep {

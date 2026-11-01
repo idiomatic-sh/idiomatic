@@ -17,16 +17,20 @@ use crate::domain::syntax::service::shape_named;
 pub(crate) fn link(
     bundle: &QueryBundle,
     mut root: Program,
-    fragments: BTreeMap<QuerySourceId, FragmentProgram>,
+    fragments: &BTreeMap<QuerySourceId, FragmentProgram>,
 ) -> Result<Program, LinkError> {
     let root_id = bundle.root.id.clone();
     validate_step_names(&root_id, &root.steps)?;
     let mut imports = BTreeMap::new();
-    let _previous_imports = imports.insert(root_id.clone(), imports_for(&root_id, &root.imports)?);
-    for (id, fragment) in &fragments {
+    let previous_root_imports =
+        imports.insert(root_id.clone(), imports_for(&root_id, &root.imports)?);
+    debug_assert!(previous_root_imports.is_none());
+    for (id, fragment) in fragments {
         validate_step_names(id, &fragment.steps)?;
         validate_fragment_signature(id, fragment)?;
-        let _previous_imports = imports.insert(id.clone(), imports_for(id, &fragment.imports)?);
+        let previous_fragment_imports =
+            imports.insert(id.clone(), imports_for(id, &fragment.imports)?);
+        debug_assert!(previous_fragment_imports.is_none());
     }
     validate_import_targets(bundle, &imports)?;
     reject_cycles(&root_id, &imports, &fragments)?;
@@ -43,8 +47,7 @@ pub(crate) fn link(
     let mut contracts = Vec::new();
     let root_imports = imports.get(&root_id).cloned().unwrap_or_default();
     for original in root.steps.clone() {
-        let step = original.clone();
-        if let Expression::Call(call) = &step.expression
+        if let Expression::Call(call) = &original.expression
             && let Some(import) = root_imports.get(call.name.0.as_ref())
         {
             let target = source_id(&root_id, import)?;
@@ -55,24 +58,23 @@ pub(crate) fn link(
                 &imports,
                 &target,
                 call,
-                &step.name,
+                &original.name,
                 &root_visible,
                 &Bindings::new(),
                 &Bindings::new(),
                 &root.parameters,
                 &mut next,
-                &mut trace,
+                &trace,
                 &mut root.origins,
                 &mut root.step_origins,
                 &mut contracts,
             )?;
             linked.extend(expanded);
         } else {
-            let mut step = original.clone();
-            if let Expression::Call(call) = &mut step.expression {
+            let mut remapped_step = original.clone();
+            if let Expression::Call(call) = &mut remapped_step.expression {
                 remap_call(
                     call,
-                    &BTreeMap::new(),
                     &Bindings::new(),
                     &Bindings::new(),
                     &root_visible,
@@ -81,7 +83,7 @@ pub(crate) fn link(
                     false,
                 )?;
             }
-            linked.push(step);
+            linked.push(remapped_step);
         }
         root_visible.push(original);
     }
@@ -92,6 +94,7 @@ pub(crate) fn link(
     Ok(root)
 }
 
+/// Rejects repeated step names within one source module.
 fn validate_step_names(source: &QuerySourceId, steps: &[LetStep]) -> Result<(), LinkError> {
     let mut names = BTreeSet::new();
     for step in steps {
@@ -110,6 +113,7 @@ fn validate_step_names(source: &QuerySourceId, steps: &[LetStep]) -> Result<(), 
     Ok(())
 }
 
+/// Checks a fragment's input, parameter, and output signature for valid unique names.
 fn validate_fragment_signature(
     source: &QuerySourceId,
     fragment: &FragmentProgram,
@@ -156,6 +160,7 @@ fn validate_fragment_signature(
     validate_relation_signature(source, &fragment.output)
 }
 
+/// Checks that relation signature columns use supported kinds and unique names.
 fn validate_relation_signature(
     source: &QuerySourceId,
     signature: &ryo_values::domain::program::types::RelationSignature,
@@ -196,6 +201,7 @@ fn validate_relation_signature(
     Ok(())
 }
 
+/// Indexes module imports by local alias and rejects duplicate aliases.
 fn imports_for(
     source: &QuerySourceId,
     imports: &[ImportDeclaration],
@@ -217,6 +223,7 @@ fn imports_for(
     Ok(indexed)
 }
 
+/// Rejects imports whose target module is absent from the immutable bundle.
 fn validate_import_targets(
     bundle: &QueryBundle,
     imports: &BTreeMap<QuerySourceId, Imported>,
@@ -237,6 +244,7 @@ fn validate_import_targets(
     Ok(())
 }
 
+/// Rejects cyclic imports before expansion begins.
 fn reject_cycles(
     root: &QuerySourceId,
     imports: &BTreeMap<QuerySourceId, Imported>,
@@ -279,7 +287,15 @@ fn reject_cycles(
     Ok(())
 }
 
-#[allow(clippy::too_many_arguments)]
+/// Expands one call while preserving source-local visibility, bindings, and provenance.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "expansion carries independent lexical, identity, and provenance state"
+)]
+#[expect(
+    clippy::too_many_lines,
+    reason = "the expansion transaction must preserve one source-local frame"
+)]
 fn expand(
     fragments: &BTreeMap<QuerySourceId, FragmentProgram>,
     imports: &BTreeMap<QuerySourceId, Imported>,
@@ -291,7 +307,7 @@ fn expand(
     inherited_parameters: &Bindings,
     root_parameters: &[ryo_values::domain::program::types::ParameterDeclaration],
     next: &mut u64,
-    trace: &mut Vec<QueryTraceSite>,
+    trace: &[QueryTraceSite],
     origins: &mut Vec<QueryOrigin>,
     step_origins: &mut BTreeMap<StepIdentity, QueryOrigin>,
     contracts: &mut Vec<FragmentContract>,
@@ -300,7 +316,7 @@ fn expand(
         located(
             source,
             call.span,
-            trace.clone(),
+            trace.to_vec(),
             format!("query module `{}` was not parsed", source.0),
         )
     })?;
@@ -318,7 +334,7 @@ fn expand(
         located(
             source,
             fragment.result.span,
-            trace.clone(),
+            trace.to_vec(),
             "the returned step is not declared in this fragment",
         )
     })?;
@@ -328,7 +344,7 @@ fn expand(
             located(
                 source,
                 step.span,
-                trace.clone(),
+                trace.to_vec(),
                 "a fragment step has no definition identity",
             )
         })?;
@@ -337,7 +353,7 @@ fn expand(
                 located(
                     source,
                     call.span,
-                    trace.clone(),
+                    trace.to_vec(),
                     "the call result has no definition identity",
                 )
             })?
@@ -346,7 +362,7 @@ fn expand(
             *next = next.saturating_add(1);
             fresh
         };
-        identities.insert(identity, replacement);
+        let _previous_identity = identities.insert(identity, replacement);
     }
 
     let mut expanded = Vec::new();
@@ -367,7 +383,7 @@ fn expand(
         if step.name.1 == result_name.1 {
             step.name.0 = result_name.0.clone();
         }
-        let mut step_trace = trace.clone();
+        let mut step_trace = trace.to_vec();
         let step_origin = QueryOrigin {
             source_id: source.clone(),
             span: step.span,
@@ -396,7 +412,7 @@ fn expand(
                 &parameters,
                 root_parameters,
                 next,
-                &mut step_trace,
+                &step_trace,
                 origins,
                 step_origins,
                 contracts,
@@ -415,7 +431,7 @@ fn expand(
             located(
                 source,
                 fragment.output_span,
-                trace.clone(),
+                trace.to_vec(),
                 "fragment expands to no step definitions",
             )
         })?;
@@ -423,7 +439,7 @@ fn expand(
         located(
             source,
             fragment.result.span,
-            trace.clone(),
+            trace.to_vec(),
             "fragment result has no linked identity",
         )
     })?;
@@ -435,7 +451,7 @@ fn expand(
                 located(
                     source,
                     input.span,
-                    trace.clone(),
+                    trace.to_vec(),
                     format!("relation input `{}` was not bound", input.name.0),
                 )
             })?;
@@ -456,12 +472,17 @@ fn expand(
         origin: QueryOrigin {
             source_id: source.clone(),
             span: fragment.output_span,
-            trace: trace.clone(),
+            trace: trace.to_vec(),
         },
     });
     Ok(expanded)
 }
 
+/// Binds a call's named inputs and scalar parameters to a fragment signature.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "binding compares one call against its lexical inputs and declarations"
+)]
 fn bind_arguments(
     source: &QuerySourceId,
     fragment: &FragmentProgram,
@@ -559,6 +580,7 @@ fn bind_arguments(
     Ok((inputs, parameters))
 }
 
+/// Resolves a relation argument against inherited bindings and visible preceding steps.
 fn bind_relation_argument(
     value: &ArgumentValue,
     inherited: &Bindings,
@@ -575,10 +597,16 @@ fn bind_relation_argument(
                     |step| ArgumentValue::Step(step.name.clone()),
                 )
         }),
-        _ => substitute_value(value, inherited),
+        ArgumentValue::Text(_)
+        | ArgumentValue::Number(_)
+        | ArgumentValue::Step(_)
+        | ArgumentValue::Parameter(_)
+        | ArgumentValue::List(_)
+        | ArgumentValue::Map(_) => substitute_value(value, inherited),
     }
 }
 
+/// Checks a fragment scalar argument against its declared parameter type.
 fn scalar_matches(
     kind: &str,
     value: &ArgumentValue,
@@ -592,7 +620,10 @@ fn scalar_matches(
             .iter()
             .find(|declared| declared.name.0.as_ref() == parameter.0.as_ref())
             .map_or("", |declared| declared.kind.0.as_ref()),
-        _ => "",
+        ArgumentValue::Word(_)
+        | ArgumentValue::Step(_)
+        | ArgumentValue::List(_)
+        | ArgumentValue::Map(_) => "",
     };
     matches!(
         (kind, actual),
@@ -602,6 +633,7 @@ fn scalar_matches(
     )
 }
 
+/// Rewrites one fragment step's local identities, inputs, parameters, and nested calls.
 fn remap_step(
     step: &mut LetStep,
     identities: &BTreeMap<StepIdentity, StepIdentity>,
@@ -618,13 +650,14 @@ fn remap_step(
         Expression::Select(select) => {
             remap_select(select, identities, inputs, parameters, source, trace)?;
         }
-        Expression::Call(call) => remap_call(
-            call, identities, inputs, parameters, preceding, source, trace, true,
-        )?,
+        Expression::Call(call) => {
+            remap_call(call, inputs, parameters, preceding, source, trace, true)?;
+        }
     }
     Ok(())
 }
 
+/// Rewrites step and relation sources in a select to their caller bindings.
 fn remap_select(
     select: &mut Select,
     identities: &BTreeMap<StepIdentity, StepIdentity>,
@@ -633,11 +666,11 @@ fn remap_select(
     source: &QuerySourceId,
     trace: &[QueryTraceSite],
 ) -> Result<(), LinkError> {
-    for source in std::iter::once(&mut select.from).chain(match &mut select.join {
+    for query_source in std::iter::once(&mut select.from).chain(match &mut select.join {
         ryo_values::domain::program::types::Joining::Alone => None,
         ryo_values::domain::program::types::Joining::Joined(join) => Some(&mut join.source),
     }) {
-        let SourceReference::Step(reference) = &source.reference else {
+        let SourceReference::Step(reference) = &query_source.reference else {
             continue;
         };
         let replacement = if let Some(identity) = reference.1 {
@@ -655,11 +688,14 @@ fn remap_select(
                     ArgumentValue::Word(word) => {
                         Some(SourceReference::Step(StepName(word.0.clone(), None)))
                     }
-                    _ => None,
+                    ArgumentValue::Number(_)
+                    | ArgumentValue::Parameter(_)
+                    | ArgumentValue::List(_)
+                    | ArgumentValue::Map(_) => None,
                 })
         };
         if let Some(replacement) = replacement {
-            source.reference = replacement;
+            query_source.reference = replacement;
         }
     }
     for condition in &mut select.filters {
@@ -668,6 +704,7 @@ fn remap_select(
     Ok(())
 }
 
+/// Rewrites parameters through a nested boolean condition.
 fn remap_condition(
     condition: &mut Condition,
     parameters: &Bindings,
@@ -678,8 +715,8 @@ fn remap_condition(
         Condition::Test(filter) => remap_filter(filter, parameters, source, trace),
         Condition::Any(alternatives) => {
             for alternative in alternatives {
-                for condition in alternative {
-                    remap_condition(condition, parameters, source, trace)?;
+                for nested_condition in alternative {
+                    remap_condition(nested_condition, parameters, source, trace)?;
                 }
             }
             Ok(())
@@ -687,6 +724,7 @@ fn remap_condition(
     }
 }
 
+/// Rewrites both operands in one filter.
 fn remap_filter(
     filter: &mut Filter,
     parameters: &Bindings,
@@ -697,6 +735,7 @@ fn remap_filter(
     remap_operand(&mut filter.right, parameters, filter.span, source, trace)
 }
 
+/// Rewrites a parameter operand using the current fragment bindings.
 fn remap_operand(
     operand: &mut WrittenOperand,
     parameters: &Bindings,
@@ -716,9 +755,12 @@ fn remap_operand(
             })?;
             *operand = match value {
                 ArgumentValue::Text(value) => WrittenOperand::Text(value.clone()),
-                ArgumentValue::Number(value) => WrittenOperand::Number(value.clone()),
+                ArgumentValue::Number(value) => WrittenOperand::Number(*value),
                 ArgumentValue::Parameter(value) => WrittenOperand::Parameter(value.clone()),
-                _ => {
+                ArgumentValue::Word(_)
+                | ArgumentValue::Step(_)
+                | ArgumentValue::List(_)
+                | ArgumentValue::Map(_) => {
                     return Err(located(
                         source,
                         span,
@@ -738,9 +780,9 @@ fn remap_operand(
     Ok(())
 }
 
+/// Substitutes fragment arguments and resolves relation inputs at a call site.
 fn remap_call(
     call: &mut Call,
-    _identities: &BTreeMap<StepIdentity, StepIdentity>,
     inputs: &Bindings,
     parameters: &Bindings,
     preceding: &[LetStep],
@@ -748,19 +790,18 @@ fn remap_call(
     trace: &[QueryTraceSite],
     strict_parameters: bool,
 ) -> Result<(), LinkError> {
-    if strict_parameters {
-        if let Some(parameter) = call
+    if strict_parameters
+        && let Some(parameter) = call
             .arguments
             .iter()
             .find_map(|argument| unbound_parameter(&argument.value, parameters))
-        {
-            return Err(located(
-                source,
-                call.span,
-                trace.to_vec(),
-                format!("fragment parameter `${}` is not declared", parameter.0),
-            ));
-        }
+    {
+        return Err(located(
+            source,
+            call.span,
+            trace.to_vec(),
+            format!("fragment parameter `${}` is not declared", parameter.0),
+        ));
     }
     for argument in &mut call.arguments {
         substitute_argument_value(&mut argument.value, parameters);
@@ -803,6 +844,7 @@ fn remap_call(
 }
 
 /// The first parameter reference in a call value that has no local fragment binding.
+/// Finds the first parameter reference absent from the current fragment's declarations.
 fn unbound_parameter<'a>(
     value: &'a ArgumentValue,
     bindings: &Bindings,
@@ -813,7 +855,7 @@ fn unbound_parameter<'a>(
         }
         ArgumentValue::List(values) => values
             .iter()
-            .find_map(|value| unbound_parameter(value, bindings)),
+            .find_map(|nested_value| unbound_parameter(nested_value, bindings)),
         ArgumentValue::Map(arguments) => arguments
             .iter()
             .find_map(|argument| unbound_parameter(&argument.value, bindings)),
@@ -824,6 +866,7 @@ fn unbound_parameter<'a>(
     }
 }
 
+/// Recursively substitutes scalar parameters in an argument value.
 fn substitute_value(value: &ArgumentValue, bindings: &Bindings) -> ArgumentValue {
     match value {
         ArgumentValue::Parameter(parameter) => bindings
@@ -833,7 +876,7 @@ fn substitute_value(value: &ArgumentValue, bindings: &Bindings) -> ArgumentValue
         ArgumentValue::List(values) => ArgumentValue::List(
             values
                 .iter()
-                .map(|value| substitute_value(value, bindings))
+                .map(|nested_value| substitute_value(nested_value, bindings))
                 .collect(),
         ),
         ArgumentValue::Map(arguments) => ArgumentValue::Map(
@@ -845,14 +888,19 @@ fn substitute_value(value: &ArgumentValue, bindings: &Bindings) -> ArgumentValue
                 })
                 .collect(),
         ),
-        _ => value.clone(),
+        ArgumentValue::Text(_)
+        | ArgumentValue::Number(_)
+        | ArgumentValue::Word(_)
+        | ArgumentValue::Step(_) => value.clone(),
     }
 }
 
+/// Replaces an argument with its recursively substituted value.
 fn substitute_argument_value(value: &mut ArgumentValue, bindings: &Bindings) {
     *value = substitute_value(value, bindings);
 }
 
+/// Resolves the target module identifier written by an import.
 fn source_id(
     source: &QuerySourceId,
     import: &ImportDeclaration,
@@ -867,6 +915,7 @@ fn source_id(
     })
 }
 
+/// Records one source-to-target import location in a diagnostic trace.
 fn trace_site(source: &QuerySourceId, target: &QuerySourceId, span: QuerySpan) -> QueryTraceSite {
     QueryTraceSite {
         source_id: source.clone(),
@@ -875,6 +924,7 @@ fn trace_site(source: &QuerySourceId, target: &QuerySourceId, span: QuerySpan) -
     }
 }
 
+/// Builds a link error with its source and import trace.
 fn located(
     source_id: &QuerySourceId,
     span: QuerySpan,
@@ -891,6 +941,7 @@ fn located(
     }
 }
 
+/// Assigns root source locations to parser nodes not already attributed to fragments.
 fn attribute_root(program: &mut Program, root: &QuerySourceId) {
     for import in &program.imports {
         program.origins.push(QueryOrigin {

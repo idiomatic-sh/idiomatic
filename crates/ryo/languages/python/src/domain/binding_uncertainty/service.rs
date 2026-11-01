@@ -135,7 +135,7 @@ pub(crate) fn refine(input: Refinement<'_, '_>) -> ReadState {
         name,
         state,
         mutations,
-        mut candidates,
+        candidates,
     } = input;
     let key = BindingKey {
         scope: binding_scope(tree, model, reference, name),

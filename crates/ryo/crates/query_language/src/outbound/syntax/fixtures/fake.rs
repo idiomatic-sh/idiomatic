@@ -90,7 +90,7 @@ impl SyntaxPort for SyntaxFake {
         self.read(QueryView(&bundle.root.text))
             .map(|root| ParsedQueryBundle {
                 root,
-                fragments: Default::default(),
+                fragments: std::collections::BTreeMap::default(),
             })
     }
 
