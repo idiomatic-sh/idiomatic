@@ -130,6 +130,16 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         )])),
     },
     Case {
+        name: CaseName("a_nonlocal_after_global_has_the_pinned_statement_range"),
+        word: Word::Succeeds,
+        input: || Given::Diagnostics("global x\nnonlocal x\n"),
+        expect: Expect::Value(Seen::Diagnostics(&[(
+            "nonlocal declaration not allowed at module level",
+            9,
+            19,
+        )])),
+    },
+    Case {
         name: CaseName("a_nonlocal_in_a_module_compound_statement_is_still_module_scoped"),
         word: Word::Succeeds,
         input: || Given::Diagnostics("if True:\n    nonlocal x\n"),
