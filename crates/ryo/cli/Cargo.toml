@@ -28,20 +28,20 @@ tracing.workspace = true
 tracing-chrome.workspace = true
 tracing-subscriber.workspace = true
 thiserror.workspace = true
-ryo_core = { package = "idiomatic-sh-ryo-core", path = "../crates/core", version = "0.1.1" }
-ryo_language = { package = "idiomatic-sh-ryo-language", path = "../crates/language", version = "0.1.1" }
-ryo_values = { package = "idiomatic-sh-ryo-values", path = "../crates/values", version = "0.1.1" }
-ryo_query_language = { package = "idiomatic-sh-ryo-query_language", path = "../crates/query_language", version = "0.1.1" }
-ryo_css = { package = "idiomatic-sh-ryo-css", path = "../languages/css", optional = true, version = "0.1.1" }
-ryo_go = { package = "idiomatic-sh-ryo-go", path = "../languages/go", optional = true, version = "0.1.1" }
-ryo_html = { package = "idiomatic-sh-ryo-html", path = "../languages/html", optional = true, version = "0.1.1" }
-ryo_javascript = { package = "idiomatic-sh-ryo-javascript", path = "../languages/javascript", optional = true, version = "0.1.1" }
-ryo_json = { package = "idiomatic-sh-ryo-json", path = "../languages/json", optional = true, version = "0.1.1" }
-ryo_markdown = { package = "idiomatic-sh-ryo-markdown", path = "../languages/markdown", optional = true, version = "0.1.1" }
-ryo_python = { package = "idiomatic-sh-ryo-python", path = "../languages/python", optional = true, version = "0.1.1" }
-ryo_rust = { package = "idiomatic-sh-ryo-rust", path = "../languages/rust", optional = true, version = "0.1.1" }
-ryo_toml = { package = "idiomatic-sh-ryo-toml", path = "../languages/toml", optional = true, version = "0.1.1" }
-ryo_typescript = { package = "idiomatic-sh-ryo-typescript", path = "../languages/typescript", optional = true, version = "0.1.1" }
+ryo_core = { package = "idiomatic-sh-ryo-core", path = "../crates/core", version = "0.1.2" }
+ryo_language = { package = "idiomatic-sh-ryo-language", path = "../crates/language", version = "0.1.2" }
+ryo_values = { package = "idiomatic-sh-ryo-values", path = "../crates/values", version = "0.1.2" }
+ryo_query_language = { package = "idiomatic-sh-ryo-query_language", path = "../crates/query_language", version = "0.1.2" }
+ryo_css = { package = "idiomatic-sh-ryo-css", path = "../languages/css", optional = true, version = "0.1.2" }
+ryo_go = { package = "idiomatic-sh-ryo-go", path = "../languages/go", optional = true, version = "0.1.2" }
+ryo_html = { package = "idiomatic-sh-ryo-html", path = "../languages/html", optional = true, version = "0.1.2" }
+ryo_javascript = { package = "idiomatic-sh-ryo-javascript", path = "../languages/javascript", optional = true, version = "0.1.2" }
+ryo_json = { package = "idiomatic-sh-ryo-json", path = "../languages/json", optional = true, version = "0.1.2" }
+ryo_markdown = { package = "idiomatic-sh-ryo-markdown", path = "../languages/markdown", optional = true, version = "0.1.2" }
+ryo_python = { package = "idiomatic-sh-ryo-python", path = "../languages/python", optional = true, version = "0.1.2" }
+ryo_rust = { package = "idiomatic-sh-ryo-rust", path = "../languages/rust", optional = true, version = "0.1.2" }
+ryo_toml = { package = "idiomatic-sh-ryo-toml", path = "../languages/toml", optional = true, version = "0.1.2" }
+ryo_typescript = { package = "idiomatic-sh-ryo-typescript", path = "../languages/typescript", optional = true, version = "0.1.2" }
 
 [target.'cfg(all(not(target_os = "windows"), not(target_os = "openbsd"), not(target_os = "aix"), not(target_os = "android"), any(target_arch = "x86_64", target_arch = "aarch64", target_arch = "powerpc64", target_arch = "riscv64")))'.dependencies]
 tikv-jemallocator.workspace = true
