@@ -88,13 +88,27 @@ jobs:
             ~/.cargo/.crates2.json
           key: cargo-bin-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml') }}-${{ github.sha }}
       - id: build_check
-        run: asymptote check --groups build
+        run: |
+          mkdir -p target/checks
+          set +e
+          asymptote check --groups build --format json > target/checks/build.json 2> target/checks/build.stderr
+          build_status=$?
+          set -e
+          cat target/checks/build.json
+          cat target/checks/build.stderr >&2
+          printf '%s\n' "$build_status" > target/checks/build.status
+          exit "$build_status"
       - name: Failed tool diagnostics
         if: failure() && steps.build_check.outcome == 'failure'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: failed-tools-build-${{ runner.os }}-${{ github.run_attempt }}
           path: |
+            target/checks/
+            crates/*/target/checks/
+            .asymptote/cache/check.store
+            crates/*/.asymptote/cache/check.store
+            tools/lints/.asymptote/cache/check.store
             .asymptote/cache/check.failures.json
             crates/*/.asymptote/cache/check.failures.json
             tools/lints/.asymptote/cache/check.failures.json
@@ -177,13 +191,27 @@ jobs:
             ~/.cargo/.crates2.json
           key: cargo-bin-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml') }}-${{ github.sha }}
       - id: quality
-        run: asymptote check --groups ${{ matrix.group }}
+        run: |
+          mkdir -p target/checks
+          set +e
+          asymptote check --groups ${{ matrix.group }} --format json > target/checks/${{ matrix.group }}.json 2> target/checks/${{ matrix.group }}.stderr
+          quality_status=$?
+          set -e
+          cat target/checks/${{ matrix.group }}.json
+          cat target/checks/${{ matrix.group }}.stderr >&2
+          printf '%s\n' "$quality_status" > target/checks/${{ matrix.group }}.status
+          exit "$quality_status"
       - name: Failed tool diagnostics
         if: failure() && steps.quality.outcome == 'failure'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: failed-tools-${{ matrix.group }}-${{ runner.os }}-${{ github.run_attempt }}
           path: |
+            target/checks/
+            crates/*/target/checks/
+            .asymptote/cache/check.store
+            crates/*/.asymptote/cache/check.store
+            tools/lints/.asymptote/cache/check.store
             .asymptote/cache/check.failures.json
             crates/*/.asymptote/cache/check.failures.json
             tools/lints/.asymptote/cache/check.failures.json

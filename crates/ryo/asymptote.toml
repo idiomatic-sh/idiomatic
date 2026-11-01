@@ -226,9 +226,9 @@ inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
 [[tools]]
 id = "build"
 group = "build"
-# Compiles what the `check` group's tools compile, as they compile it, so that CI builds once per machine and every group's job
-# reuses the build from the cache this job saves: clippy's analysis, the test targets nextest and `cargo test` run, and the docs.
-run = ["bash", "-c", "set -e; cargo clippy --workspace --all-targets --all-features --locked; cargo test --workspace --locked --all-features --no-run; cargo doc --workspace --no-deps --all-features --locked"]
+# Compile reusable test/doc artifacts before independent quality and speed jobs.
+# Clippy remains mandatory in its quality group; denied style findings do not gate Rust speed execution.
+run = ["bash", "-c", "set -eo pipefail; mkdir -p target/checks/build; cargo check --workspace --all-targets --all-features --locked 2>&1 | tee target/checks/build/compile.log; cargo test --workspace --locked --all-features --no-run 2>&1 | tee target/checks/build/test.log; cargo doc --workspace --no-deps --all-features --locked 2>&1 | tee target/checks/build/doc.log"]
 timeout-seconds = 7200
 inputs = [".", "../../clippy.toml", "../../rust-toolchain.toml", "../../.cargo"]
 
