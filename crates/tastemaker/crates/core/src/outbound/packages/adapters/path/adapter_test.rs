@@ -106,7 +106,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Scenario::ReadMissing,
         expect: Expect::Refusal(|error| {
-            if matches!(error, PackagesError::Read {path,reason} if path.ends_with("/absent.toml") && !reason.is_empty())
+            if matches!(error, PackagesError::Read {path,reason} if std::path::Path::new(path).ends_with("absent.toml") && !reason.is_empty())
             {
                 crate::cases::Selection::Matches
             } else {

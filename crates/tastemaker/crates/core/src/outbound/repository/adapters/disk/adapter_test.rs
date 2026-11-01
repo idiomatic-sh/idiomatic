@@ -374,11 +374,14 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             std::fs::create_dir_all(&below).map_err(failure)?;
             let found = disk().repository(&MachinePath(below.display().to_string().into()))?;
             let expected = std::fs::canonicalize(directory.path()).map_err(failure)?;
-            return Ok(if std::path::Path::new(&*found.0) == expected {
-                String::new()
-            } else {
-                format!("found {}", found.0)
-            });
+            // The same place, however each spells it (Windows' canonical form is verbatim, the adapter's is not).
+            return Ok(
+                if std::fs::canonicalize(&*found.0).ok() == Some(expected.clone()) {
+                    String::new()
+                } else {
+                    format!("found {}", found.0)
+                },
+            );
         }
         Scenario::AboveRepository => {
             std::fs::write(directory.path().join("tastemaker.toml"), "version = 2\n")

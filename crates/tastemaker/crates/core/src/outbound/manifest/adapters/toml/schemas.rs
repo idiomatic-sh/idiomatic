@@ -2224,7 +2224,8 @@ pub(super) fn rebased(
     let here = &*here.0;
     let mut document = text.0.parse::<toml_edit::DocumentMut>().map_err(shape)?;
     let resolve = |path: &str| -> Option<String> {
-        if std::path::Path::new(path).is_absolute() {
+        // Rooted, not only absolute: a held package's `/tastemaker-held/<n>` is no path from `here` on Windows either.
+        if std::path::Path::new(path).has_root() {
             return None;
         }
         let mut joined = std::path::PathBuf::from(here);
