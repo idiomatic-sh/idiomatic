@@ -17,7 +17,7 @@ let exc_info_names = select keyword from keyword_arg_names where name = "exc_inf
 let exc_info_keyword_calls = select l.call as call, l.keyword as keyword from call_keywords as l join exc_info_names as r on l.keyword = r.keyword;
 let keyword_values = select parent as keyword, child as value from "semantic-child" where field = "value";
 let exc_info_values = select l.call as call, l.keyword as keyword, r.value as value from exc_info_keyword_calls as l join keyword_values as r on l.keyword = r.keyword;
-let true_literals = select id, file from "literal-properties" where boolean = true;
+let true_literals = select id, file from "literal-properties" where boolean = "true";
 let true_exc_info = select l.call as call, l.keyword as keyword from exc_info_values as l join true_literals as r on l.value = r.id;
 let sys_exc_info_functions = select id from "qualified-name" where path = "sys.exc_info";
 let sys_exc_info_calls = select l.parent as call from function_fields as l join sys_exc_info_functions as r on l.child = r.id;

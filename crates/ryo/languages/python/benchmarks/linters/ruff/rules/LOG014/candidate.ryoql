@@ -18,10 +18,10 @@ let keyword_values = select parent as keyword, child as value from "semantic-chi
 let exc_info_keyword_calls = select l.call as call, l.keyword as keyword from actual_keywords as l join exc_info_keywords as r on l.keyword = r.keyword;
 let exc_info_values = select l.call as call, l.keyword as keyword, r.value as value from exc_info_keyword_calls as l join keyword_values as r on l.keyword = r.keyword;
 let literals = select id, file, kind, zero, empty, boolean from "literal-properties";
-let truthy_booleans = select id, file from literals where boolean = true;
+let truthy_booleans = select id, file from literals where boolean = "true";
 let truthy_ellipsis = select id, file from literals where kind = "ellipsis";
-let nonzero_numbers = select id, file from literals where (kind = "integer" or kind = "float" or kind = "complex") and zero = false;
-let nonempty_strings = select id, file from literals where (kind = "string" or kind = "bytes") and empty = false;
+let nonzero_numbers = select id, file from literals where (kind = "integer" or kind = "float" or kind = "complex") and zero = "false";
+let nonempty_strings = select id, file from literals where (kind = "string" or kind = "bytes") and empty = "false";
 let truthy_scalar_a = union(left=truthy_booleans, right=truthy_ellipsis);
 let truthy_scalar_b = union(left=nonzero_numbers, right=nonempty_strings);
 let truthy_literals = union(left=truthy_scalar_a, right=truthy_scalar_b);
