@@ -1,5 +1,27 @@
 {
   "status": "54-rule corpus comparison passed; configured lint/check/perf gate failed",
+  "candidate_acceptance_checkpoint": {
+    "status": "unpromoted; current shared-verifier execution pending",
+    "prepared_profiles": 8,
+    "combined_profile": {
+      "name": "shape-110",
+      "selected_rules": 110,
+      "case_count": 2128,
+      "comparison_counts": { "rule": 2023, "full": 105 },
+      "full_report_scope": "the 105 shape cases only"
+    },
+    "isolated_fixture_evidence": {
+      "rules": { "F602": 13, "PLR0124": 15 },
+      "matched_cases": 28,
+      "comparison": "complete findings, byte spans and multiplicity",
+      "worker_source": "9003086b",
+      "worker_sha256": "270f5ee96ba67f94c85d27de7cad9a50a27a01a4d0a39173144cf66aa661e3c7",
+      "artifact": "/tmp/ruff-candidate-smoke-6e36628e.json",
+      "artifact_sha256": "48f33c6a88619c79de3ade24b478ed3fb201d920b1a5908748bf84ac53eea665",
+      "scope_limit": "older frozen worker only; not current-engine, combined-profile, corpus-parity, or promotion evidence"
+    },
+    "pending_frontend_configuration": "Python parser target version and cache identity must match Ruff PY310 before full frontend parity claims"
+  },
   "cases": 1124,
   "rules": 54,
   "deferred": 359,

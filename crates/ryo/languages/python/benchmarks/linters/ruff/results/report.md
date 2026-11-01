@@ -4,6 +4,14 @@ All three pinned projects passed for **104 implemented rules and 2,023 independe
 
 **The overall quality gate remains unresolved.** Remote checks exposed additional compilation/scaffolding issues, and the replay-coverage repair is still being validated. The benchmark has not been seeded through a failed gate; no unrelated regression was accepted.
 
+## Unpromoted candidate acceptance
+
+The current prepared candidate set contains eight independent one-rule profiles and a combined 110-rule shape profile. The combined profile contains 2,128 fixtures: the historical 2,023 use rule-scoped comparisons and the 105 new shape cases use full-report comparisons. It is **not** a full-report proof for all 2,128 cases. All profiles remain prepared, unpromoted, and pending execution through the current shared verifier and current engine; no active-rule inventory or measured count changes here.
+
+F602 and PLR0124 have separate isolated fixture evidence: all 28 cases (13 F602 and 15 PLR0124) matched their complete expected diagnostics, byte spans and multiplicities on frozen worker `270f5ee96ba67f94c85d27de7cad9a50a27a01a4d0a39173144cf66aa661e3c7`, built from source `9003086b`. The preserved output is `/tmp/ruff-candidate-smoke-6e36628e.json`, SHA-256 `48f33c6a88619c79de3ade24b478ed3fb201d920b1a5908748bf84ac53eea665`. This is isolated fixture evidence for that older worker, not acceptance of the current engine, the combined profile, corpus parity, or promotion.
+
+The candidate work found two query-shape lessons: Python `Name` nodes expose their identifier through an `id` token child, and semantic-child ordinals are global child positions rather than field-local indices. The Python frontend also still needs target-version-aware parser configuration and cache identity to match Ruff's PY310 invocation; that change is in progress. No performance conclusion follows from these fixture checks.
+
 Cold performance is unacceptable. Ryo takes **291.87 seconds and 7.80 GiB on Django**, **325.16 seconds and 6.10 GiB on pandas**, and **40.57 seconds and 3.49 GiB on FastAPI**. Ruff takes 0.343, 0.424 and 0.063 seconds respectively. Retained results do not erase this cost.
 
 | Project | Tool-cache condition | Ruff wall ms | Ryo wall ms | Ryo / Ruff | Peak RSS MiB Ruff / Ryo |
