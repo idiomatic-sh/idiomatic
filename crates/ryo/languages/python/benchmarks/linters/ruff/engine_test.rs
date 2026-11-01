@@ -604,7 +604,7 @@ fn literal_properties_reach_engine_queries_for_true_and_false_boolean_nodes() ->
     std::fs::create_dir_all(&rule_directory)?;
     std::fs::write(
         rule_directory.join("query.ryoql"),
-        "let truth = select id, file, span from \"literal-properties\" where kind = \"boolean\" and boolean = true;\nemit truth subject file key(span);",
+        "let truth = select id, file, span from \"literal-properties\" where kind = \"boolean\" and boolean = \"true\";\nemit truth subject file key(span);",
     )?;
     std::fs::write(root.path().join("true.py"), "value = True\n")?;
     std::fs::write(root.path().join("false.py"), "value = False\n")?;
