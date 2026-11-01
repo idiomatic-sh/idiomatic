@@ -106,3 +106,70 @@ comparison = "full"
 files = { "case.py" = "import builtins\nx and not x and builtins.list()\n" }
 expected = []
 
+[[cases]]
+name = "inner-lambda-shadow-does-not-change-enclosing-builtin-check"
+comparison = "full"
+files = { "case.py" = "x and not x and (lambda list: list())\n" }
+expected = [{ rule = "SIM220", file = "case.py", start = 0, end = 37 }]
+
+[[cases]]
+name = "enclosing-function-shadow-applies-inside-lambda"
+comparison = "full"
+files = { "case.py" = "def f(list):\n    x and not x and (lambda: list())\n" }
+expected = []
+
+[[cases]]
+name = "lambda-body-ordinary-call-is-effectful"
+comparison = "full"
+files = { "case.py" = "x and not x and (lambda: work())\n" }
+expected = []
+
+
+[[cases]]
+name = "conditional-shadow-before-check"
+comparison = "full"
+files = { "case.py" = "if flag:\n    list = custom\nx and not x and (lambda list: list())\n" }
+expected = []
+
+[[cases]]
+name = "annotation-before-check-is-skipped"
+comparison = "full"
+files = { "case.py" = "list: object\nx and not x and (lambda list: list())\n" }
+expected = [{ rule = "SIM220", file = "case.py", start = 13, end = 24 }]
+
+[[cases]]
+name = "delete-before-check-blocks-builtin"
+comparison = "full"
+files = { "case.py" = "list = custom\ndel list\nx and not x and (lambda list: list())\n" }
+expected = []
+
+[[cases]]
+name = "function-local-assignment-after-check"
+comparison = "full"
+files = { "case.py" = "def f():\n    x and not x and (lambda list: list())\n    list = custom\n" }
+expected = [{ rule = "SIM220", file = "case.py", start = 13, end = 24 }]
+
+[[cases]]
+name = "module-binding-after-function-before-deferred-check"
+comparison = "full"
+files = { "case.py" = "def f():\n    x and not x and (lambda list: list())\nlist = custom\n" }
+expected = []
+
+[[cases]]
+name = "nested-class-skips-outer-class-binding"
+comparison = "full"
+files = { "case.py" = "class Outer:\n    list = custom\n    class Inner:\n        x and not x and (lambda list: list())\n" }
+expected = [{ rule = "SIM220", file = "case.py", start = 56, end = 67 }]
+
+[[cases]]
+name = "function-in-class-skips-class-binding"
+comparison = "full"
+files = { "case.py" = "class C:\n    list = custom\n    def f(self):\n        x and not x and (lambda list: list())\n" }
+expected = [{ rule = "SIM220", file = "case.py", start = 52, end = 63 }]
+
+[[cases]]
+name = "current-class-binding-is-visible"
+comparison = "full"
+files = { "case.py" = "class C:\n    list = custom\n    x and not x and (lambda list: list())\n" }
+expected = []
+
