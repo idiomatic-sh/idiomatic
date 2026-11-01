@@ -1,5 +1,5 @@
 //! Preparation and decoding are deliberately outside the measured interval.
-use crate::domain::diagnostics::errors::DiagnosticsError as Error;
+use crate::domain::diagnostics::{errors::DiagnosticsError as Error, types::RunReport};
 use crate::domain::measurements::types::Measurement;
 use crate::domain::suite::types::RunRequest;
 use crate::outbound::execution::interface::ExecutionPort;
@@ -61,7 +61,9 @@ pub fn verify(
     rules: &Path,
     scratch: &Path,
 ) -> Result<crate::domain::suite::types::CaseCount, Error> {
-    verify_shard(suite, reference, candidate, execution, rules, scratch, None)
+    verify_shard(
+        suite, reference, candidate, execution, rules, scratch, None, None,
+    )
 }
 
 /// A deterministic partition of the globally audited case inventory.
@@ -95,6 +97,7 @@ pub fn verify_shard(
     rules: &Path,
     scratch: &Path,
     shard: Option<CaseShard>,
+    case_selection: Option<&std::collections::BTreeSet<String>>,
 ) -> Result<crate::domain::suite::types::CaseCount, Error> {
     let cases = suite.cases(
         crate::outbound::suite::types::ArtifactPath(rules),
@@ -103,13 +106,29 @@ pub fn verify_shard(
     let mut cases = cases;
     cases.sort_by(|left, right| (&left.rule, &left.name).cmp(&(&right.rule, &right.name)));
     let global_count = cases.len();
-    let cases = match shard {
+    let assigned = match shard {
         Some(shard) => cases
             .into_iter()
             .enumerate()
             .filter_map(|(index, case)| (index % shard.count == shard.index).then_some(case))
             .collect::<Vec<_>>(),
         None => cases,
+    };
+    let assigned_ids = assigned
+        .iter()
+        .map(|case| format!("{}/{}", case.rule, case.name))
+        .collect::<std::collections::BTreeSet<_>>();
+    let cases = match case_selection {
+        Some(selected) if selected.is_empty() || !selected.is_subset(&assigned_ids) => {
+            return Err(Error::Invalid(
+                "case selection is empty or outside this shard".into(),
+            ));
+        }
+        Some(selected) => assigned
+            .into_iter()
+            .filter(|case| selected.contains(&format!("{}/{}", case.rule, case.name)))
+            .collect::<Vec<_>>(),
+        None => assigned,
     };
     let count = cases.len();
     let first = cases
@@ -131,7 +150,10 @@ pub fn verify_shard(
             } else {
                 run(tool, execution, &case.request)
             };
-            write_case_observation(&case, name, &result)?;
+            let full_report = result
+                .as_ref()
+                .ok()
+                .map(|measurement| measurement.report.clone());
             match result {
                 Ok(mut result) => {
                     if case.comparison == crate::domain::suite::types::CaseComparison::Rule {
@@ -141,14 +163,25 @@ pub fn verify_shard(
                                     == crate::domain::diagnostics::constants::FRONTEND_SYNTAX
                         });
                     }
-                    if let Err(difference) = compare(&case.expected, &result.report) {
+                    let comparison = compare(&case.expected, &result.report);
+                    write_case_observation(
+                        &case,
+                        name,
+                        full_report.as_ref(),
+                        None,
+                        comparison.is_ok(),
+                    )?;
+                    if let Err(difference) = comparison {
                         failures.push(format!(
                             "{}/{} expected-vs-{name}: expected={:?}; actual={:?}",
                             case.rule, case.name, difference.reference, difference.candidate
                         ));
                     }
                 }
-                Err(error) => failures.push(format!("{}/{} {name}: {error}", case.rule, case.name)),
+                Err(error) => {
+                    write_case_observation(&case, name, None, Some(&error.to_string()), false)?;
+                    failures.push(format!("{}/{} {name}: {error}", case.rule, case.name));
+                }
             }
         }
     }
@@ -166,14 +199,15 @@ pub fn verify_shard(
 fn write_case_observation(
     case: &crate::domain::suite::types::PreparedCase,
     side: &str,
-    result: &Result<Measurement, Error>,
+    report: Option<&RunReport>,
+    error: Option<&str>,
+    passed: bool,
 ) -> Result<(), Error> {
     let Some(path) = std::env::var_os("RYO_VERIFY_CASE_RESULTS") else {
         return Ok(());
     };
-    let findings = result.as_ref().ok().map(|measurement| {
-        measurement
-            .report
+    let findings = report.map(|report| {
+        report
             .diagnostics
             .iter()
             .map(|finding| {
@@ -186,15 +220,13 @@ fn write_case_observation(
             })
             .collect::<Vec<_>>()
     });
-    let files = result.as_ref().ok().map(|measurement| {
-        measurement
-            .report
+    let files = report.map(|report| {
+        report
             .files
             .iter()
             .map(|file| file.0.as_ref())
             .collect::<Vec<_>>()
     });
-    let error = result.as_ref().err().map(ToString::to_string);
     let expected = case
         .expected
         .diagnostics
@@ -225,6 +257,7 @@ fn write_case_observation(
         "expected": expected,
         "source_sha256": format!("{:x}", source_hasher.finalize()),
         "error": error,
+        "case_passed": passed,
         "complete": true,
     });
     let mut line =
@@ -307,7 +340,7 @@ pub fn verify_accounted(
     scratch: &Path,
 ) -> Result<crate::domain::suite::types::CaseCount, Error> {
     verify_accounted_shard(
-        suite, reference, candidate, execution, profile, scratch, None,
+        suite, reference, candidate, execution, profile, scratch, None, None,
     )
 }
 
@@ -320,6 +353,7 @@ pub fn verify_accounted_shard(
     profile: &Path,
     scratch: &Path,
     shard: Option<CaseShard>,
+    case_selection: Option<&std::collections::BTreeSet<String>>,
 ) -> Result<crate::domain::suite::types::CaseCount, Error> {
     let path = crate::outbound::suite::types::ArtifactPath(profile);
     let tool = suite.profile(path)?;
@@ -333,6 +367,7 @@ pub fn verify_accounted_shard(
         &profile.join(super::constants::RULES),
         scratch,
         shard,
+        case_selection,
     )
 }
 

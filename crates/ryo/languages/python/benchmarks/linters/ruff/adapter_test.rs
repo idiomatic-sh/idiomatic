@@ -16,6 +16,7 @@ enum AdapterScenario {
     Operational,
     EmptyInput,
     Invocation,
+    InvocationPy311,
     MissingExecutable,
     WarningFinding,
     MissingCleanFile,
@@ -50,6 +51,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("isolated_defaults_and_one_worker_invocation"),
         word: Word::Succeeds,
         input: || AdapterScenario::Invocation,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("python_311_target_is_passed_to_the_reference_cli"),
+        word: Word::Succeeds,
+        input: || AdapterScenario::InvocationPy311,
         expect: Expect::Value(true),
     },
     Case {
@@ -143,12 +150,17 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn exercise(scenario: Input) -> Result<Value, Error> {
     let root = tempfile::tempdir()?;
     let executable = root.path().join("missing-ruff");
+    let target_version = if matches!(scenario, AdapterScenario::InvocationPy311) {
+        "py311"
+    } else {
+        "py310"
+    };
     let ruff = LinterRuffAdapter::new(LinterRuffSettings {
         executable: executable.clone(),
         defaults: [RuleId::try_from("E722").expect("valid rule")]
             .into_iter()
             .collect(),
-        target_version: "py310".into(),
+        target_version: target_version.into(),
     });
     if matches!(scenario, AdapterScenario::Contract) {
         check(&ruff);
@@ -166,8 +178,11 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
         request.files.clear();
         return ruff.prepare(&request).map(|_| false);
     }
-    if matches!(scenario, AdapterScenario::Invocation) {
-        return invocation_matches(&ruff, &request, &executable);
+    if matches!(
+        scenario,
+        AdapterScenario::Invocation | AdapterScenario::InvocationPy311
+    ) {
+        return invocation_matches(&ruff, &request, &executable, target_version);
     }
     if !matches!(
         scenario,
@@ -207,6 +222,7 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
         AdapterScenario::Contract
         | AdapterScenario::EmptyInput
         | AdapterScenario::Invocation
+        | AdapterScenario::InvocationPy311
         | AdapterScenario::MissingExecutable
         | AdapterScenario::WarningFinding
         | AdapterScenario::FrontendFinding
@@ -275,6 +291,7 @@ fn invocation_matches(
     ruff: &LinterRuffAdapter,
     request: &RunRequest,
     executable: &std::path::Path,
+    target_version: &str,
 ) -> Result<bool, Error> {
     let invocation = ruff.prepare(request)?;
     let expected: Vec<std::ffi::OsString> = [
@@ -291,7 +308,7 @@ fn invocation_matches(
         "--select".into(),
         "E722".into(),
         "--target-version".into(),
-        "py310".into(),
+        target_version.into(),
         "--".into(),
         "case.py".into(),
     ])

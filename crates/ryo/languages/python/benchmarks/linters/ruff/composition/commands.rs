@@ -100,12 +100,32 @@ pub(super) fn verify_cases(
     let source = args
         .next()
         .map_or_else(directory, |argument| PathBuf::from(argument.0));
-    let shard = args
-        .next()
-        .map(|argument| parse_shard(&argument.0))
-        .transpose()?;
-    if args.next().is_some() {
-        return Err(Error::Invalid("unexpected verify-cases argument".into()));
+    let mut shard = None;
+    let mut case_selection = None;
+    for argument in args {
+        if argument.0.starts_with("--shard=") {
+            if shard.replace(parse_shard(&argument.0)?).is_some() {
+                return Err(Error::Invalid("duplicate case shard argument".into()));
+            }
+        } else if let Some(path) = argument.0.strip_prefix("--case-selection=") {
+            if case_selection.is_some() {
+                return Err(Error::Invalid("duplicate case selection argument".into()));
+            }
+            let selected: Vec<String> = serde_json::from_slice(&std::fs::read(path)?)
+                .map_err(|error| Error::Invalid(error.to_string()))?;
+            let selected_count = selected.len();
+            let selected = selected
+                .into_iter()
+                .collect::<std::collections::BTreeSet<_>>();
+            if selected.is_empty() || selected.len() != selected_count {
+                return Err(Error::Invalid(
+                    "case selection must be nonempty and unique".into(),
+                ));
+            }
+            case_selection = Some(selected);
+        } else {
+            return Err(Error::Invalid("unexpected verify-cases argument".into()));
+        }
     }
     let mut tool = suite_source.profile(ArtifactPath(&source))?;
     let query_modules = tool.query_modules.clone();
@@ -133,6 +153,7 @@ pub(super) fn verify_cases(
         &profile,
         &root.join(constants::CASES_DIRECTORY),
         shard,
+        case_selection.as_ref(),
     )?;
     Ok(count)
 }
@@ -226,32 +247,6 @@ pub(super) enum WorkerTracing {
     Enabled,
 }
 
-#[cfg(test)]
-mod target_configuration_tests {
-    use super::{parser_target, ruff_target};
-    use ryo_python::settings::PythonTargetVersion;
-
-    #[test]
-    fn target_configuration_is_shared_by_reference_and_candidate() {
-        for (identity, cli, parser) in [
-            (None, "py310", PythonTargetVersion::Py310),
-            (
-                Some("python-target=3.11"),
-                "py311",
-                PythonTargetVersion::Py311,
-            ),
-        ] {
-            assert_eq!(ruff_target(identity).expect("supported target"), cli);
-            assert_eq!(parser_target(identity).expect("supported target"), parser);
-        }
-    }
-
-    #[test]
-    fn unsupported_target_configuration_is_refused() {
-        assert!(ruff_target(Some("python-target=3.12")).is_err());
-        assert!(parser_target(Some("python-target=3.12")).is_err());
-    }
-}
 /// Locate this language-owned linter profile from the Cargo manifest.
 pub(super) fn directory() -> PathBuf {
     std::path::Path::new(constants::MANIFEST_DIRECTORY).join(constants::RUFF_DIRECTORY)
