@@ -112,13 +112,16 @@ fn semantic_child_ordinals_are_global_across_call_argument_fields() {
     let children = reading::<SemanticChildItem>("call(first, key=second)\n");
     assert!(children.causes.is_empty());
     let argument = children.rows.iter().find(|row| {
-        row.get(3) == Some(&Want::Name("args")) && row.get(2) == Some(&Want::Number(0))
+        row.get(3) == Some(&Want::Name("args")) && row.get(2) == Some(&Want::Number(1))
     });
     let keyword = children.rows.iter().find(|row| {
-        row.get(3) == Some(&Want::Name("keywords")) && row.get(2) == Some(&Want::Number(1))
+        row.get(3) == Some(&Want::Name("keywords")) && row.get(2) == Some(&Want::Number(4))
     });
-    assert!(argument.is_some(), "the positional argument is child zero");
-    assert!(keyword.is_some(), "the keyword follows positional children");
+    assert!(argument.is_some(), "the args edge has global ordinal one");
+    assert!(
+        keyword.is_some(),
+        "the keyword edge has global ordinal four"
+    );
     assert_eq!(
         argument.and_then(|row| row.first()),
         keyword.and_then(|row| row.first())

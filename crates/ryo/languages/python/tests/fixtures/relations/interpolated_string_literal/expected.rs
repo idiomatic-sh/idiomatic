@@ -1,4 +1,4 @@
-//! The fixture sample intentionally contains no interpolated strings.
+/// The fixture sample intentionally contains no interpolated strings.
 
 use ryo::languages::contract::{Expected, InterpolatedStringLiteralExpectedRow, expected_rows};
 

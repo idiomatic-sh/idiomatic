@@ -2,7 +2,8 @@
 
 use crate::domain::{
     extras::types::Extra,
-    fields::{service::field_of, types::Field},
+    fields::service::field_of,
+    labels::types::Field,
     model::types::Declarations,
     nodes::types::Node,
     semantic_syntax::service::{positions, visibility},
@@ -12,7 +13,7 @@ use crate::domain::{
     },
     tokens::types::Token,
 };
-use ryo::languages::{self, Position, Symbols, Tree};
+use ryo::languages::{self, NameText, Position, Tree};
 
 const MISSING: &str = "f-string literal fragment requires its parser-decoded token payload";
 
@@ -32,23 +33,37 @@ fn owner(tree: &Tree<'_>, at: Position) -> Option<Position> {
     None
 }
 
+fn fragment_token(tree: &Tree<'_>, at: Position) -> Option<Token> {
+    match (kind(tree, at), kind(tree, parent(tree, at))) {
+        (Kind::Node(Node::Constant), Kind::Extra(Extra::FStringPart)) => Some(Token::FstringMiddle),
+        (Kind::Extra(Extra::StringPart), Kind::Node(Node::JoinedStr)) => Some(Token::String),
+        _ => None,
+    }
+}
+
+fn decoded_fragment<'a>(tree: &'a Tree<'_>, at: Position) -> Result<NameText<'a>, ()> {
+    let token_kind = fragment_token(tree, at).ok_or(())?;
+    below(tree, at)
+        .filter(|child| kind(tree, *child) == Kind::Token(token_kind))
+        .next()
+        .ok_or(())
+        .and_then(|token| languages::decoded_at(tree.elements, token).ok_or(()))
+}
+
 ryo::reads! {
     InterpolatedStringLiteralItem => languages::InterpolatedStringLiteral, model(Declarations) |tree, model, at, symbols| {
         kinds: [Kind::Node(Node::Module)] as crate::domain::syntax::service::kind_bits,
-        each positions(tree) as element {
+        each (positions(tree)) as element {
             require visibility(tree, model, element, symbols) == crate::domain::semantic_syntax::types::Visibility::Visible;
-            require kind(tree, element) == Kind::Extra(Extra::FStringPart);
+            require fragment_token(tree, element).is_some();
             when owner(tree, element) {
                 None => {}
                 Some(owner) => {
-                    let mut fragments = below(tree, element).filter(|child| {
-                        kind(tree, *child) == Kind::Token(Token::FstringMiddle)
-                    });
-                    when fragments.find_map(|token| languages::decoded_at(tree.elements, token)) {
-                        None => { partial MISSING => languages::Missing::Any; }
-                        Some(value) => {
-                            given decoded = languages::intern_derived(symbols, tree.source, languages::NameText(value.0));
-                            row { id: node(element), owner: node(owner), value: value(decoded), file: file, span: span(element), }
+                    when decoded_fragment(tree, element) {
+                        Err(()) => { partial MISSING => languages::Missing::Any; }
+                        Ok(decoded) => {
+                            given value = languages::intern_derived(symbols, tree.source, decoded);
+                            row { id: node(element), owner: node(owner), value: value(value), file: file, span: span(element), }
                         }
                     }
                 }
