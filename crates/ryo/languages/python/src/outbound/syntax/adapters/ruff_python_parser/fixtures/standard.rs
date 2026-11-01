@@ -267,7 +267,9 @@ fn project(tree: &Tree<'_>, text: &str, at: Position, inherited: &str, out: &mut
             }
             out.push(Shape {
                 field: field.to_owned(),
-                name: kind_name(kind).0.to_owned(),
+                // The reference AST stores Async* and TryStar as distinct constructors. Our lossless tree retains Async* kinds,
+                // but its syntax-token keyword is not an AST child, so normalize these names to the documented split boundary.
+                name: unsplit(kind_name(kind).0.to_owned()),
                 children,
             });
         }
