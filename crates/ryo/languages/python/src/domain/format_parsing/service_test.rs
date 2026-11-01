@@ -19,7 +19,7 @@ struct CountingParser;
 
 impl FormatSyntax for CountingParser {
     fn parse(_input: &str, _dialect: FormatDialect) -> FormatParseResult {
-        COUNTING_PARSES.fetch_add(1, Ordering::SeqCst);
+        let _ = COUNTING_PARSES.fetch_add(1, Ordering::SeqCst);
         FormatParseResult::Parsed(ParsedFormat {
             fields: Vec::new(),
             summary: FormatSummary::default(),
@@ -31,7 +31,7 @@ struct MalformedParser;
 
 impl FormatSyntax for MalformedParser {
     fn parse(_input: &str, _dialect: FormatDialect) -> FormatParseResult {
-        MALFORMED_PARSES.fetch_add(1, Ordering::SeqCst);
+        let _ = MALFORMED_PARSES.fetch_add(1, Ordering::SeqCst);
         FormatParseResult::Malformed(FormatParseError {
             kind: FormatErrorKind::IncompleteFormat,
             character: None,

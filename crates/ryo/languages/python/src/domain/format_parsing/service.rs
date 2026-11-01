@@ -6,7 +6,7 @@ use ryo::languages::{self, Position, Symbols, Tree};
 use super::super::format_syntax::interface::FormatSyntax;
 use super::super::format_syntax::types::{
     CachedFormat, FormatDialect, FormatOccurrence, FormatParseIndex, FormatParseResult,
-    FormatParseState, ParsedFormat,
+    FormatParseState,
 };
 use super::super::model::types::Declarations;
 use super::super::nodes::types::Node;
@@ -161,19 +161,6 @@ pub(crate) fn state(index: &FormatParseIndex) -> FormatParseState {
 #[must_use]
 pub(crate) fn occurrences(index: &FormatParseIndex) -> &[FormatOccurrence] {
     &index.occurrences
-}
-
-/// A parsed value for the occurrence, or nothing when it is dynamic or unavailable.
-#[must_use]
-pub(crate) fn parsed<'a>(
-    index: &'a FormatParseIndex,
-    occurrence: &FormatOccurrence,
-) -> Option<&'a ParsedFormat> {
-    let cached = index.values.get(occurrence.cached?)?;
-    match &cached.result {
-        FormatParseResult::Parsed(parsed) => Some(parsed),
-        FormatParseResult::Malformed(_) | FormatParseResult::Unavailable => None,
-    }
 }
 
 /// The cached result for one occurrence, when the occurrence was static.
