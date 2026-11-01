@@ -39,6 +39,7 @@ fn subject(nonempty: Input) -> Result<Value, Failure> {
         deferred: std::collections::BTreeMap::default(),
         pending: std::collections::BTreeMap::default(),
         query_modules: std::collections::BTreeMap::default(),
+        parser_configuration: None,
     };
     AuditUseCaseImpl::new(Arc::new(SuiteFake::default()))
         .audit(std::path::Path::new("."), &tool)

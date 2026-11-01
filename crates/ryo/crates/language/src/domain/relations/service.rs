@@ -41,6 +41,7 @@ macro_rules! each_relation {
                 ExpressionShape expression_shape ExpressionShapeRow ExpressionShapeColumn;
                 LiteralProperties literal_properties LiteralPropertiesRow LiteralPropertiesColumn;
                 InterpolatedStringLiteral interpolated_string_literal InterpolatedStringLiteralRow InterpolatedStringLiteralColumn;
+                LanguageTarget language_target LanguageTargetRow LanguageTargetColumn;
                 ConstantKey constant_key ConstantKeyRow ConstantKeyColumn;
                 StaticImport static_import StaticImportRow StaticImportColumn;
                 StringLiteral string_literal StringLiteralRow StringLiteralColumn;
@@ -407,6 +408,7 @@ pub const fn capability_relation(capability: super::types::OptionalCapability) -
         OptionalCapability::ImplicitSymbol => Relation::ImplicitSymbol,
         OptionalCapability::LiteralProperties => Relation::LiteralProperties,
         OptionalCapability::InterpolatedStringLiteral => Relation::InterpolatedStringLiteral,
+        OptionalCapability::LanguageTarget => Relation::LanguageTarget,
         OptionalCapability::ConstantKey => Relation::ConstantKey,
     }
 }

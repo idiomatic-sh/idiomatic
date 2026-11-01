@@ -335,7 +335,7 @@ fn compile_error(error: RefusedQuery) -> ValidateError {
     };
     match origin {
         Some(origin) => ValidateError::Located {
-            origin,
+            origin: crate::domain::query::errors::QueryOrigin::from_internal(origin),
             error: Box::new(error),
         },
         None => error,

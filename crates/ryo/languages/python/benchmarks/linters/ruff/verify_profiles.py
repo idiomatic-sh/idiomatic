@@ -80,9 +80,9 @@ def manifest_paths(manifest: dict[str, object], helper_path: str) -> set[str]:
     paths = {helper_path, base_profile.relative_to(REPOSITORY).as_posix()}
     base_data = tomllib.loads(base_profile.read_text(encoding="utf-8"))
     paths.update(module_path(path) for path in profile_modules(base_data).values())
-    for rule in profiles:
-        profile = PROFILE_DIR / rule / "benchmark.toml"
-        recorded = profiles[rule]
+    for profile_name, recorded in profiles.items():
+        rule = recorded.get("rule_id", profile_name)
+        profile = prepared_profile_path(profile_name, recorded)
         case_file = prepared_case_path(rule, recorded)
         candidate_file = prepared_candidate_path(rule, recorded)
         paths.update({
@@ -92,16 +92,35 @@ def manifest_paths(manifest: dict[str, object], helper_path: str) -> set[str]:
             })
         profile_data = tomllib.loads(profile.read_text(encoding="utf-8"))
         paths.update(module_path(path) for path in profile_modules(profile_data).values())
-        if "oracle_file" in profiles[rule]:
-            paths.add(profiles[rule]["oracle_file"])
-        if "reference_audit_file" in profiles[rule]:
-            paths.add(profiles[rule]["reference_audit_file"])
+        if "oracle_file" in recorded:
+            paths.add(recorded["oracle_file"])
+        if "reference_audit_file" in recorded:
+            paths.add(recorded["reference_audit_file"])
     for descriptor in manifest.get("combined_profiles", {}).values():
         paths.update(descriptor["input_files"])
         combined_profile = REPOSITORY / descriptor["profile_file"]
         combined_data = tomllib.loads(combined_profile.read_text(encoding="utf-8"))
         paths.update(module_path(path) for path in profile_modules(combined_data).values())
     return paths
+
+
+def prepared_profile_path(profile_name: str, recorded: dict[str, object]) -> Path:
+    """Resolve a sealed profile TOML, allowing target-specific profile aliases."""
+    value = recorded.get("profile_file", f"profiles/{profile_name}/benchmark.toml")
+    if not isinstance(value, str):
+        raise ValueError(f"prepared profile path must be a string for {profile_name}")
+    path = Path(value)
+    if path.is_absolute() or not path.parts or any(part in (".", "..") for part in path.parts):
+        raise ValueError(f"unsafe prepared profile path for {profile_name}: {value}")
+    source = RUFF_DIR
+    for part in path.parts:
+        source = source / part
+        if source.is_symlink():
+            raise ValueError(f"prepared profile path traverses a symlink for {profile_name}: {value}")
+    resolved = source.resolve(strict=True)
+    if not resolved.is_file() or not resolved.is_relative_to(RUFF_DIR.resolve()):
+        raise ValueError(f"prepared profile path is outside Ruff profile for {profile_name}: {value}")
+    return resolved
 
 
 def module_path(value: object) -> str:
@@ -172,19 +191,38 @@ def profile_modules(profile_data: dict[str, object]) -> dict[str, str]:
     return result
 
 
-def write_staged_profile(source: Path, destination: Path, registry: dict[str, str]) -> None:
+def write_staged_profile(
+    source: Path,
+    destination: Path,
+    registry: dict[str, str],
+    parser_configuration: str = "python-target=3.10",
+) -> None:
     """Serialize the supported profile fields, replacing any existing module table."""
     parsed = tomllib.loads(source.read_text(encoding="utf-8"))
     current = profile_modules(parsed)
     registry = profile_modules({"query-modules": registry})
     if any(key in registry and registry[key] != value for key, value in current.items()):
         raise ValueError("staged profile conflicts with its query module registry")
+    if parser_configuration not in {"python-target=3.10", "python-target=3.11"}:
+        raise ValueError(f"unsupported staged parser configuration: {parser_configuration}")
     merged = {**current, **registry}
     parsed.pop("query-modules", None)
+    parsed["parser-configuration"] = parser_configuration
     if merged:
         parsed["query-modules"] = merged
     rendered = "".join(f"{key} = {toml_value(value)}\n" for key, value in parsed.items())
     destination.write_text(rendered, encoding="utf-8")
+
+
+def parser_configuration(target_version: object) -> str:
+    """Resolve only target versions whose Ruff and Python parser behavior is supported."""
+    configurations = {
+        "py310": "python-target=3.10",
+        "py311": "python-target=3.11",
+    }
+    if not isinstance(target_version, str) or target_version not in configurations:
+        raise ValueError(f"unsupported prepared Python target version: {target_version}")
+    return configurations[target_version]
 
 
 def copy_modules(registry: dict[str, str], destination: Path) -> None:
@@ -219,10 +257,25 @@ def verify_files(manifest: dict[str, object], helper_path: str) -> None:
     files = manifest["files"]
     if manifest.get("target_version") != "py310":
         raise ValueError("prepared Ruff target version must be py310")
+    allowed_targets = {"py310", "py311"}
+    if any(
+        profile.get("target_version", "py310") not in allowed_targets
+        for profile in manifest["profiles"].values()
+    ):
+        raise ValueError("prepared single-rule profile has an unsupported target version")
+    if any(
+        profile.get("target_version", "py310") not in allowed_targets
+        for profile in manifest.get("combined_profiles", {}).values()
+    ):
+        raise ValueError("prepared combined profile has an unsupported target version")
     if set(files) != manifest_paths(manifest, helper_path):
         raise ValueError("prepared input paths do not match the candidate acceptance cohorts")
     defaults = set(tomllib.loads((RUFF_DIR / "benchmark.toml").read_text(encoding="utf-8"))["defaults"])
-    if set(manifest["profiles"]) - defaults:
+    profile_rules = {
+        profile.get("rule_id", profile_name)
+        for profile_name, profile in manifest["profiles"].items()
+    }
+    if profile_rules - defaults:
         raise ValueError("prepared profile contains a non-default rule")
     for descriptor in manifest.get("combined_profiles", {}).values():
         selected = descriptor["selected_rules"]
@@ -570,7 +623,9 @@ def run_identity(
         "manifest_path": MANIFEST.relative_to(REPOSITORY).as_posix(),
         "manifest_sha256": sha256(MANIFEST),
         "manifest_status": manifest.get("status"),
-        "target_version": manifest.get("target_version"),
+        "target_version": tomllib.loads(
+            (profile_root / "benchmark.toml").read_text(encoding="utf-8")
+        ).get("parser-configuration", "python-target=3.10"),
         "manifest_source_commits": manifest.get("source_commits"),
         "sealed_source_hashes": manifest["files"],
         "worker": {
@@ -618,14 +673,15 @@ def stage_binding(
     staged = []
     profiles = manifest["profiles"]
     # Validate and materialize every selected profile before any command can run.
-    for rule in selected:
-        profile = PROFILE_DIR / rule / "benchmark.toml"
+    for profile_name in selected:
+        recorded = profiles[profile_name]
+        rule = recorded.get("rule_id", profile_name)
+        profile = prepared_profile_path(profile_name, recorded)
         profile_data = tomllib.loads(profile.read_text(encoding="utf-8"))
         if profile_data.get("defaults") != [rule]:
             raise ValueError(f"profile must select only {rule}")
         if not profile_tool_matches(profile_data, manifest):
             raise ValueError(f"tool identity mismatch for {rule}")
-        recorded = profiles[rule]
         candidate_path = prepared_candidate_path(rule, recorded)
         cases_path = prepared_case_path(rule, recorded)
         cases = tomllib.loads(cases_path.read_text(encoding="utf-8"))["cases"]
@@ -644,15 +700,21 @@ def stage_binding(
             audit = REPOSITORY / recorded["reference_audit_file"]
             if not audit.is_file() or sha256(audit) != recorded["reference_audit_sha256"]:
                 raise ValueError(f"reference case audit mismatch for {rule}")
-        destination = stage_directory(rule, stack, output_directory)
+        destination = stage_directory(profile_name, stack, output_directory)
         rule_dir = destination / "rules" / rule
         rule_dir.mkdir(parents=True)
         registry = combined_modules(profile_data, [rule], manifest)
         copy_modules(registry, destination)
-        write_staged_profile(profile, destination / "benchmark.toml", registry)
+        target_version = recorded.get("target_version", "py310")
+        write_staged_profile(
+            profile,
+            destination / "benchmark.toml",
+            registry,
+            parser_configuration(target_version),
+        )
         shutil.copyfile(candidate_path, rule_dir / "query.ryoql")
         shutil.copyfile(cases_path, rule_dir / "cases.toml")
-        staged.append((rule, destination))
+        staged.append((profile_name, destination))
     return staged
 
 
@@ -802,7 +864,13 @@ def stage_combined(
     destination = stage_directory(profile_name, stack, output_directory)
     registry = combined_modules(profile_data, selected_rules, manifest)
     copy_modules(registry, destination)
-    write_staged_profile(profile_path, destination / "benchmark.toml", registry)
+    target_version = descriptor.get("target_version", "py310")
+    write_staged_profile(
+        profile_path,
+        destination / "benchmark.toml",
+        registry,
+        parser_configuration(target_version),
+    )
     for rule in selected_rules:
         rule_dir = destination / "rules" / rule
         rule_dir.mkdir(parents=True)
@@ -891,6 +959,26 @@ def self_test() -> int:
             or not (staged_profile.parent / module_source).is_file()
         ):
             print("single-rule profile did not inherit the shared query module", file=sys.stderr)
+            return 1
+        py311_profile = root / "py311" / "benchmark.toml"
+        py311_profile.parent.mkdir(parents=True)
+        write_staged_profile(
+            single_profile,
+            py311_profile,
+            registry,
+            parser_configuration("py311"),
+        )
+        if tomllib.loads(py311_profile.read_text(encoding="utf-8")).get(
+            "parser-configuration"
+        ) != "python-target=3.11":
+            print("target-specific parser configuration was not staged", file=sys.stderr)
+            return 1
+        try:
+            parser_configuration("py312")
+        except ValueError:
+            pass
+        else:
+            print("unsupported Python target version was accepted", file=sys.stderr)
             return 1
         durable = root / "durable-run"
         durable.mkdir()
@@ -1513,10 +1601,19 @@ def main() -> int:
             selections = [arguments.profile]
         else:
             profiles = manifest["profiles"]
-            selected = arguments.rules or sorted(profiles)
-            if len(set(selected)) != len(selected) or set(selected) - profiles.keys():
+            defaults = set(
+                tomllib.loads((RUFF_DIR / "benchmark.toml").read_text(encoding="utf-8"))["defaults"]
+            )
+            if len(set(arguments.rules)) != len(arguments.rules) or set(arguments.rules) - defaults:
                 raise ValueError("unknown or duplicate profile rule")
-            selections = selected
+            selections = [
+                profile_name
+                for profile_name, profile in sorted(profiles.items())
+                if not arguments.rules
+                or profile.get("rule_id", profile_name) in arguments.rules
+            ]
+            if not selections:
+                raise ValueError("selected rules have no prepared candidate profiles")
         ruff = arguments.ruff.resolve()
         with contextlib.ExitStack() as stack:
             staged = []

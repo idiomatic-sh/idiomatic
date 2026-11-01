@@ -15,6 +15,7 @@ use ryo_values::domain::hosted::types::{
 use super::types::{StepCount, ValidateReport, ValidateRequest};
 use crate::domain::host::types::{HostDeclaration, HostKind};
 use crate::domain::operator::types::OperatorName;
+use crate::domain::query::errors::QueryBundleError;
 use crate::domain::query::errors::ValidateError;
 use crate::domain::query::types::{ByteOffset, QuerySpan, RyoQlQuery};
 use crate::domain::relation::types::RelationName;
@@ -50,13 +51,11 @@ impl crate::domain::query::types::QueryModuleSource {
     ///
     /// # Errors
     ///
-    /// Returns [`ryo_values::domain::program::errors::QueryBundleError::BlankSourceId`] when `id` is blank.
-    pub fn try_new(
-        id: &str,
-        text: &str,
-    ) -> Result<Self, ryo_values::domain::program::errors::QueryBundleError> {
+    /// Returns [`QueryBundleError::BlankSourceId`] when `id` is blank.
+    pub fn try_new(id: &str, text: &str) -> Result<Self, QueryBundleError> {
         Ok(Self::from_parts(
-            ryo_values::domain::program::service::source_id(id)?,
+            ryo_values::domain::program::service::source_id(id)
+                .map_err(QueryBundleError::from_internal)?,
             text.into(),
         ))
     }
@@ -71,26 +70,31 @@ impl RyoQlQuery {
     ///
     /// # Errors
     ///
-    /// Returns [`ryo_values::domain::program::errors::QueryBundleError::BlankRootText`] for blank root text,
-    /// [`ryo_values::domain::program::errors::QueryBundleError::BlankSourceId`] for a blank source id, and
-    /// [`ryo_values::domain::program::errors::QueryBundleError::DuplicateSourceId`] for repeated source ids.
+    /// Returns [`QueryBundleError::BlankRootText`] for blank root text,
+    /// [`QueryBundleError::BlankSourceId`] for a blank source id, and
+    /// [`QueryBundleError::DuplicateSourceId`] for repeated source ids.
     pub fn with_modules(
         root_id: &str,
         root_text: &str,
         modules: impl IntoIterator<Item = crate::domain::query::types::QueryModuleSource>,
-    ) -> Result<Self, ryo_values::domain::program::errors::QueryBundleError> {
-        use ryo_values::domain::program::errors::QueryBundleError;
+    ) -> Result<Self, QueryBundleError> {
         use ryo_values::domain::program::service::{document_source, query_bundle, source_id};
         if root_text.trim().is_empty() {
             return Err(QueryBundleError::BlankRootText);
         }
-        let root_id = source_id(root_id)?;
+        let root_id = source_id(root_id).map_err(QueryBundleError::from_internal)?;
         let root = document_source(root_id, root_text);
         let modules = modules
             .into_iter()
-            .map(|module| Ok(document_source(source_id(module.id())?, module.text())))
+            .map(|module| {
+                source_id(module.id())
+                    .map(|id| document_source(id, module.text()))
+                    .map_err(QueryBundleError::from_internal)
+            })
             .collect::<Result<Vec<_>, QueryBundleError>>()?;
-        query_bundle(root, modules).map(Self::from_bundle)
+        query_bundle(root, modules)
+            .map(Self::from_bundle)
+            .map_err(QueryBundleError::from_internal)
     }
 }
 
@@ -169,7 +173,7 @@ fn refused(error: RefusedQuery) -> ValidateError {
     };
     match origin {
         Some(origin) => ValidateError::Located {
-            origin,
+            origin: crate::domain::query::errors::QueryOrigin::from_internal(origin),
             error: Box::new(error),
         },
         None => error,
@@ -182,7 +186,7 @@ impl From<ValidateErrorSchema<'_>> for ValidateError {
             CoreError::Refused { error } => refused(error),
             CoreError::Uncompilable { error } => match error.origin.clone() {
                 Some(origin) => ValidateError::Located {
-                    origin,
+                    origin: crate::domain::query::errors::QueryOrigin::from_internal(origin),
                     error: Box::new(ValidateError::Invalid {
                         span: SpanSchema(error.span).into(),
                         message: error.message.0.clone(),
@@ -192,7 +196,9 @@ impl From<ValidateErrorSchema<'_>> for ValidateError {
             },
             CoreError::UnknownKind { reason, origin } => match origin {
                 Some(origin) => ValidateError::Located {
-                    origin: origin.clone(),
+                    origin: crate::domain::query::errors::QueryOrigin::from_internal(
+                        origin.clone(),
+                    ),
                     error: Box::new(ValidateError::Invalid {
                         span: QuerySpan {
                             start: ByteOffset(origin.span.start.0),

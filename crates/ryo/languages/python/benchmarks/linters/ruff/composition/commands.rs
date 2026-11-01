@@ -19,10 +19,46 @@ pub(super) fn worker(
         .next()
         .map(|argument| argument.0)
         .ok_or_else(|| Error::Invalid(constants::MISSING_WORKER_REQUEST.into()))?;
+    let next_argument = args.next().map(|argument| argument.0);
+    let (parser_configuration, trace_path) = match next_argument {
+        Some(configuration) if configuration.starts_with("python-target=") => {
+            let trace_path = if tracing == WorkerTracing::Enabled {
+                Some(
+                    args.next()
+                        .map(|argument| argument.0)
+                        .ok_or_else(|| Error::Invalid(constants::MISSING_TRACE.into()))?,
+                )
+            } else {
+                None
+            };
+            (Some(configuration), trace_path)
+        }
+        Some(path) if tracing == WorkerTracing::Enabled => (None, Some(path)),
+        Some(_) => return Err(Error::Invalid("unexpected worker configuration".into())),
+        None if tracing == WorkerTracing::Enabled => {
+            return Err(Error::Invalid(constants::MISSING_TRACE.into()));
+        }
+        None => (None, None),
+    };
+    if let Some(configuration) = parser_configuration.as_deref() {
+        let input_text = input
+            .to_str()
+            .ok_or_else(|| Error::Invalid("worker request is not UTF-8".into()))?;
+        let request: serde_json::Value =
+            serde_json::from_str(input_text).map_err(|error| Error::Invalid(error.to_string()))?;
+        if request
+            .get("parser_configuration")
+            .and_then(serde_json::Value::as_str)
+            != Some(configuration)
+        {
+            return Err(Error::Invalid(
+                "worker parser configuration differs from its profile identity".into(),
+            ));
+        }
+    }
+    let target_version = parser_target(parser_configuration.as_deref())?;
     let languages = ryo::linter::Languages(vec![ryo_python::linked_with_settings(
-        ryo_python::settings::PythonParserSettings::new(
-            ryo_python::settings::PythonTargetVersion::Py310,
-        ),
+        ryo_python::settings::PythonParserSettings::new(target_version),
     )]);
     let frontend_diagnostic =
         ryo_benchmark::outbound::engine::factory::FrontendDiagnosticProjection {
@@ -31,31 +67,22 @@ pub(super) fn worker(
             query: ryo::query::RyoQlQuery::try_from(crate::constants::FRONTEND_DIAGNOSTIC_QUERY)
                 .map_err(|error| Error::Invalid(error.to_string()))?,
         };
-    let engine: Arc<dyn ryo_benchmark::outbound::engine::interface::EnginePort> =
-        match if tracing == WorkerTracing::Enabled {
-            Some(
-                args.next()
-                    .map(|argument| argument.0)
-                    .ok_or_else(|| Error::Invalid(constants::MISSING_TRACE.into()))?,
-            )
-        } else {
-            None
-        } {
-            Some(path) => Arc::new(
-                ryo_benchmark::outbound::engine::factory::local_with_frontend_diagnostic(
-                    languages,
-                    Some(path.into()),
-                    frontend_diagnostic.clone(),
-                ),
+    let engine: Arc<dyn ryo_benchmark::outbound::engine::interface::EnginePort> = match trace_path {
+        Some(path) => Arc::new(
+            ryo_benchmark::outbound::engine::factory::local_with_frontend_diagnostic(
+                languages,
+                Some(path.into()),
+                frontend_diagnostic.clone(),
             ),
-            None => Arc::new(
-                ryo_benchmark::outbound::engine::factory::local_with_frontend_diagnostic(
-                    languages,
-                    None,
-                    frontend_diagnostic,
-                ),
+        ),
+        None => Arc::new(
+            ryo_benchmark::outbound::engine::factory::local_with_frontend_diagnostic(
+                languages,
+                None,
+                frontend_diagnostic,
             ),
-        };
+        ),
+    };
     let transport =
         ryo_benchmark::outbound::worker::factory::json(input.into(), Box::new(std::io::stdout()));
     RunRyoUseCaseImpl::new(engine, Arc::new(transport)).run_ryo()
@@ -78,11 +105,12 @@ pub(super) fn verify_cases(
         .map_or_else(directory, |argument| PathBuf::from(argument.0));
     let mut tool = suite_source.profile(ArtifactPath(&source))?;
     let query_modules = tool.query_modules.clone();
+    let parser_configuration = tool.parser_configuration.clone();
     suite_source.verify_tool(ArtifactPath(&executable), &tool)?;
     let audit = suite_source.audit(ArtifactPath(&source), &tool)?;
     ryo_benchmark::domain::suite::service::require_accounted(&audit, &tool)?;
     tool.defaults = audit.authored().to_vec();
-    let reference = Arc::new(reference(executable, tool));
+    let reference = Arc::new(reference(executable, tool)?);
     let scratch = tempfile::tempdir()?;
     let root = scratch.path().canonicalize()?;
     let profile = root.join(constants::PROFILE_DIRECTORY);
@@ -91,6 +119,7 @@ pub(super) fn verify_cases(
         std::env::current_exe()?,
         profile.join(constants::RULES_DIRECTORY),
         query_modules,
+        parser_configuration,
     ));
     let count = ryo_benchmark::application::run::service::verify_accounted(
         suite_source.as_ref(),
@@ -120,7 +149,7 @@ pub(super) fn verify_reference_cases(
         .map_or_else(directory, |argument| PathBuf::from(argument.0));
     let tool = suite_source.profile(ArtifactPath(&source))?;
     suite_source.verify_tool(ArtifactPath(&executable), &tool)?;
-    let reference = reference(executable, tool);
+    let reference = reference(executable, tool)?;
     let scratch = tempfile::tempdir()?;
     ryo_benchmark::application::run::service::verify_reference_cases(
         &suite_source,
@@ -132,11 +161,37 @@ pub(super) fn verify_reference_cases(
 }
 
 /// Compose the selected reference rule subset with its verified executable.
-pub(super) fn reference(executable: PathBuf, tool: Tool) -> LinterRuffAdapter {
-    LinterRuffAdapter::new(LinterRuffSettings {
+pub(super) fn reference(executable: PathBuf, tool: Tool) -> Result<LinterRuffAdapter, Error> {
+    let target_version = ruff_target(tool.parser_configuration.as_deref())?.to_owned();
+    Ok(LinterRuffAdapter::new(LinterRuffSettings {
         executable,
         defaults: tool.defaults.into_iter().collect(),
-    })
+        target_version,
+    }))
+}
+
+/// Map the sealed shared identity to Ruff's explicit CLI value.
+fn ruff_target(configuration: Option<&str>) -> Result<&'static str, Error> {
+    match configuration {
+        None | Some("python-target=3.10") => Ok("py310"),
+        Some("python-target=3.11") => Ok("py311"),
+        Some(_) => Err(Error::Invalid(
+            "unsupported Ruff parser configuration".into(),
+        )),
+    }
+}
+
+/// Map the same sealed identity to the linked Python parser settings.
+fn parser_target(
+    configuration: Option<&str>,
+) -> Result<ryo_python::settings::PythonTargetVersion, Error> {
+    match configuration {
+        None | Some("python-target=3.10") => Ok(ryo_python::settings::PythonTargetVersion::Py310),
+        Some("python-target=3.11") => Ok(ryo_python::settings::PythonTargetVersion::Py311),
+        Some(_) => Err(Error::Invalid(
+            "unsupported Ruff parser configuration".into(),
+        )),
+    }
 }
 
 /// Text supplied as one executable command argument.
@@ -148,6 +203,33 @@ pub(super) enum WorkerTracing {
     Disabled,
     /// Explicit profiling invocation excluded from timing observations.
     Enabled,
+}
+
+#[cfg(test)]
+mod target_configuration_tests {
+    use super::{parser_target, ruff_target};
+    use ryo_python::settings::PythonTargetVersion;
+
+    #[test]
+    fn target_configuration_is_shared_by_reference_and_candidate() {
+        for (identity, cli, parser) in [
+            (None, "py310", PythonTargetVersion::Py310),
+            (
+                Some("python-target=3.11"),
+                "py311",
+                PythonTargetVersion::Py311,
+            ),
+        ] {
+            assert_eq!(ruff_target(identity).expect("supported target"), cli);
+            assert_eq!(parser_target(identity).expect("supported target"), parser);
+        }
+    }
+
+    #[test]
+    fn unsupported_target_configuration_is_refused() {
+        assert!(ruff_target(Some("python-target=3.12")).is_err());
+        assert!(parser_target(Some("python-target=3.12")).is_err());
+    }
 }
 /// Locate this language-owned linter profile from the Cargo manifest.
 pub(super) fn directory() -> PathBuf {

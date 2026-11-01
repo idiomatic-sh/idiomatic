@@ -22,6 +22,7 @@ enum EngineScenario {
     FrontendRuleCollision,
     ProjectionCacheQueryChange,
     QueryModuleInlineEquivalence,
+    TargetConfigurationCacheChange,
 }
 type Input = EngineScenario;
 type Value = bool;
@@ -82,6 +83,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(true),
     },
     Case {
+        name: CaseName("retained_cache_recomputes_target_gated_query_after_configuration_change"),
+        word: Word::Succeeds,
+        input: || EngineScenario::TargetConfigurationCacheChange,
+        expect: Expect::Value(true),
+    },
+    Case {
         name: CaseName("unread_input_is_not_checked"),
         word: Word::Refuses,
         input: || EngineScenario::Unread,
@@ -105,6 +112,9 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
     if scenario == EngineScenario::QueryModuleInlineEquivalence {
         return query_module_inline_equivalence(root.path());
     }
+    if scenario == EngineScenario::TargetConfigurationCacheChange {
+        return target_configuration_cache_change(root.path());
+    }
     if scenario == EngineScenario::ProjectionCacheQueryChange {
         return projection_cache_query_change(root.path());
     }
@@ -117,7 +127,8 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
     let request = WorkerRequest {
         root: root.path().to_owned(),
         rules,
-        query_modules: std::collections::BTreeMap::default(),
+        query_modules: suppress_modules(),
+        parser_configuration: None,
         files: vec![ryo::linter::RelativePath(file.into())],
         state: ryo_benchmark::domain::suite::types::WorkerState::Fresh,
     };
@@ -143,7 +154,8 @@ fn input_file(scenario: EngineScenario) -> &'static str {
         | EngineScenario::UnknownFutureWithoutConsumer
         | EngineScenario::FrontendRuleCollision
         | EngineScenario::ProjectionCacheQueryChange
-        | EngineScenario::QueryModuleInlineEquivalence => "input.py",
+        | EngineScenario::QueryModuleInlineEquivalence
+        | EngineScenario::TargetConfigurationCacheChange => "input.py",
     }
 }
 
@@ -161,11 +173,16 @@ fn source_for(scenario: EngineScenario) -> &'static str {
         EngineScenario::Finding
         | EngineScenario::Missing
         | EngineScenario::Unread
-        | EngineScenario::QueryModuleInlineEquivalence => "try:\n    pass\nexcept:\n    pass\n",
+        | EngineScenario::QueryModuleInlineEquivalence
+        | EngineScenario::TargetConfigurationCacheChange => "try:\n    pass\nexcept:\n    pass\n",
     }
 }
 
 fn write_rule_fixtures(rules: &std::path::Path, scenario: EngineScenario) -> Result<(), Error> {
+    let root = rules
+        .parent()
+        .ok_or_else(|| Error::Invalid("rules directory has no root".into()))?;
+    write_suppress_module(root)?;
     let e722 = rules.join("E722");
     std::fs::create_dir_all(&e722)?;
     std::fs::write(
@@ -188,6 +205,23 @@ fn write_rule_fixtures(rules: &std::path::Path, scenario: EngineScenario) -> Res
             include_str!("rules/E722/query.ryoql"),
         )?;
     }
+    Ok(())
+}
+
+fn suppress_modules() -> std::collections::BTreeMap<String, std::path::PathBuf> {
+    std::collections::BTreeMap::from([(
+        "python/ruff/suppress".to_owned(),
+        std::path::PathBuf::from("fragments/suppress.ryoql"),
+    )])
+}
+
+fn write_suppress_module(root: &std::path::Path) -> Result<(), Error> {
+    let path = root.join("fragments/suppress.ryoql");
+    let parent = path
+        .parent()
+        .ok_or_else(|| Error::Invalid("suppress module has no parent".into()))?;
+    std::fs::create_dir_all(parent)?;
+    std::fs::write(path, include_str!("fragments/suppress.ryoql"))?;
     Ok(())
 }
 
@@ -272,6 +306,7 @@ fn expected_diagnostics(scenario: EngineScenario) -> Result<Vec<BenchmarkFinding
         | EngineScenario::FrontendRuleCollision
         | EngineScenario::ProjectionCacheQueryChange
         | EngineScenario::QueryModuleInlineEquivalence => ("E722", 14, 20),
+        EngineScenario::TargetConfigurationCacheChange => ("UP017", 16, 37),
     };
     Ok(vec![BenchmarkFinding {
         rule: ryo::linter::RuleId::try_from(rule)
@@ -293,7 +328,8 @@ fn projection_cache_query_change(root: &std::path::Path) -> Result<Value, Error>
     let request = WorkerRequest {
         root: root.to_owned(),
         rules,
-        query_modules: std::collections::BTreeMap::default(),
+        query_modules: suppress_modules(),
+        parser_configuration: None,
         files: vec![ryo::linter::RelativePath(file.into())],
         state: ryo_benchmark::domain::suite::types::WorkerState::Fresh,
     };
@@ -347,6 +383,7 @@ fn query_module_inline_equivalence(root: &std::path::Path) -> Result<bool, Error
         root: root.into(),
         rules: rules.clone(),
         query_modules: std::collections::BTreeMap::default(),
+        parser_configuration: None,
         files: vec![ryo::linter::RelativePath("input.py".into())],
         state: ryo_benchmark::domain::suite::types::WorkerState::Fresh,
     })?;
@@ -372,10 +409,71 @@ fn query_module_inline_equivalence(root: &std::path::Path) -> Result<bool, Error
         root: root.into(),
         rules,
         query_modules: modules,
+        parser_configuration: None,
         files: vec![ryo::linter::RelativePath("input.py".into())],
         state: ryo_benchmark::domain::suite::types::WorkerState::Fresh,
     })?;
     Ok(plain == imported)
+}
+
+fn target_configuration_cache_change(root: &std::path::Path) -> Result<bool, Error> {
+    use ryo_benchmark::domain::diagnostics::types::SourceByteOffset;
+    use ryo_benchmark::domain::suite::types::WorkerState;
+
+    let rules = root.join("rules");
+    let rule_directory = rules.join("UP017");
+    std::fs::create_dir_all(&rule_directory)?;
+    std::fs::write(
+        rule_directory.join("query.ryoql"),
+        include_str!("rules/UP017/candidate.ryoql"),
+    )?;
+    let module_path = root.join("fragments/suppress.ryoql");
+    std::fs::create_dir_all(
+        module_path
+            .parent()
+            .ok_or_else(|| Error::Invalid("suppress module has no parent".into()))?,
+    )?;
+    std::fs::write(&module_path, include_str!("fragments/suppress.ryoql"))?;
+    let source = "import datetime\ndatetime.timezone.utc\n";
+    std::fs::write(root.join("input.py"), source)?;
+    let files = vec![ryo::linter::RelativePath("input.py".into())];
+    let cache = root.join("retained-target-cache");
+    let query_modules = std::collections::BTreeMap::from([(
+        "python/ruff/suppress".to_owned(),
+        std::path::PathBuf::from("fragments/suppress.ryoql"),
+    )]);
+    let run = |target, identity: &'static str| {
+        let engine = factory::local(
+            ryo::linter::Languages(vec![ryo_python::linked_with_settings(
+                ryo_python::settings::PythonParserSettings::new(target),
+            )]),
+            None,
+        );
+        engine.run(WorkerRequest {
+            root: root.to_owned(),
+            rules: rules.clone(),
+            query_modules: query_modules.clone(),
+            parser_configuration: Some(identity.to_owned()),
+            files: files.clone(),
+            state: WorkerState::Retained(cache.clone()),
+        })
+    };
+    let py310 = run(
+        ryo_python::settings::PythonTargetVersion::Py310,
+        "python-target=3.10",
+    )?;
+    let py311 = run(
+        ryo_python::settings::PythonTargetVersion::Py311,
+        "python-target=3.11",
+    )?;
+    let expected = vec![BenchmarkFinding {
+        rule: ryo::linter::RuleId::try_from("UP017")
+            .map_err(|error| Error::Invalid(error.to_string()))?,
+        file: files[0].clone(),
+        start: SourceByteOffset(16),
+        end: SourceByteOffset(37),
+    }];
+    Ok(py310.diagnostics.is_empty() && py311.diagnostics == expected)
 }
 
 fn case_identities(
@@ -474,6 +572,7 @@ fn shared_suppression_fragment_matches_the_historical_inline_queries() -> Result
             root: case.request.root,
             rules: inline_rules.clone(),
             query_modules: std::collections::BTreeMap::default(),
+            parser_configuration: None,
             files: case.request.files,
             state,
         })?;
@@ -481,6 +580,7 @@ fn shared_suppression_fragment_matches_the_historical_inline_queries() -> Result
             root: imported.request.root.clone(),
             rules: imported_rules.clone(),
             query_modules: registry.clone(),
+            parser_configuration: None,
             files: imported.request.files.clone(),
             state: ryo_benchmark::domain::suite::types::WorkerState::Fresh,
         })?;
@@ -571,6 +671,7 @@ fn assert_single_rule_fragment_equivalence(
             root: case.request.root,
             rules: inline_parent.to_path_buf(),
             query_modules: std::collections::BTreeMap::default(),
+            parser_configuration: None,
             files: case.request.files,
             state: ryo_benchmark::domain::suite::types::WorkerState::Fresh,
         })?;
@@ -581,6 +682,7 @@ fn assert_single_rule_fragment_equivalence(
                 "python/ruff/suppress".to_owned(),
                 std::path::PathBuf::from("fragments/suppress.ryoql"),
             )]),
+            parser_configuration: None,
             files: imported_case.request.files.clone(),
             state: ryo_benchmark::domain::suite::types::WorkerState::Fresh,
         })?;
@@ -612,6 +714,7 @@ fn literal_properties_reach_engine_queries_for_true_and_false_boolean_nodes() ->
         root: root.path().to_owned(),
         rules,
         query_modules: std::collections::BTreeMap::default(),
+        parser_configuration: None,
         files: ["true.py", "false.py"]
             .into_iter()
             .map(|path| ryo::linter::RelativePath(path.into()))

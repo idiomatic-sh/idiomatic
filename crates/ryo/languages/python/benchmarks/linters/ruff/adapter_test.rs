@@ -148,6 +148,7 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
         defaults: [RuleId::try_from("E722").expect("valid rule")]
             .into_iter()
             .collect(),
+        target_version: "py310".into(),
     });
     if matches!(scenario, AdapterScenario::Contract) {
         check(&ruff);

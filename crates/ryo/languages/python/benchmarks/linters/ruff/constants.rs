@@ -36,8 +36,6 @@ pub(crate) const EMPTY_DISCOVERY: &str = "empty discovered corpus";
 pub(crate) const SELECT: &str = "--select";
 /// Pin syntax and target-gated diagnostics to the prepared Python 3.10 oracle.
 pub(crate) const TARGET_VERSION: &str = "--target-version";
-/// Python language version pinned by the prepared Ruff reference profiles.
-pub(crate) const PYTHON_310: &str = "py310";
 /// Visible query mapping preserved parser errors into Ruff's generic syntax diagnostic identity.
 pub(crate) const FRONTEND_DIAGNOSTIC_QUERY: &str = "let diagnostics = select id, file, span from \"syntax-error\" where (phase = \"parse\" and impact = \"incomplete\") or (phase = \"validation\" and impact = \"preserved\" and code != \"future-feature-not-defined\");\nemit diagnostics subject file key(id);\n";
 /// Separator in the reference rule-selection argument.

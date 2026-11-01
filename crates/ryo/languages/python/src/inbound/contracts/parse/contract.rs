@@ -92,6 +92,7 @@ impl Parse for ParseContract {
             languages::OptionalCapability::LiteralProperties,
             languages::OptionalCapability::InterpolatedStringLiteral,
             languages::OptionalCapability::ConstantKey,
+            languages::OptionalCapability::LanguageTarget,
         ]
     }
 
@@ -100,6 +101,7 @@ impl Parse for ParseContract {
     }
 
     fn file_model(&self, tree: &languages::Tree<'_>, model: &mut Declarations) {
+        model.language_target = self.settings.target_version().components();
         crate::domain::expression_shapes::service::clear(model.expression_shapes.get_mut());
         crate::domain::constant_keys::service::clear(model.constant_keys.get_mut());
         crate::domain::indentation::service::clear(model.indentation.get_mut());
@@ -255,6 +257,12 @@ impl Parse for ParseContract {
     ) -> Support<Reader<languages::InterpolatedStringLiteral, Self::FileModel>> {
         languages::reads::<
             crate::domain::relations::collections::relations::interpolated_string_literal::item::InterpolatedStringLiteralItem,
+        >()
+    }
+
+    fn language_target(&self) -> Support<Reader<languages::LanguageTarget, Self::FileModel>> {
+        languages::reads::<
+            crate::domain::relations::collections::relations::language_target::item::LanguageTargetItem,
         >()
     }
 

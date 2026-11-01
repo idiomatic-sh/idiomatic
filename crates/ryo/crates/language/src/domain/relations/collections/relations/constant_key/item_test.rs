@@ -13,7 +13,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
     name: CaseName("constant keys retain occurrence and representative identities"),
     word: Word::Succeeds,
     input: || (),
-    expect: Expect::Value([2, 5, 3, 17]),
+    expect: Expect::Value([2, 5, 3, (11_u64 << 32) | 17]),
 }];
 
 fn subject(_: Input) -> Result<Value, Failure> {

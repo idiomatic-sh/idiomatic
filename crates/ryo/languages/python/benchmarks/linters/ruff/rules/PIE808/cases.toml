@@ -77,6 +77,12 @@ files = { "case.py" = "range(0, 10, 2)\n" }
 expected = []
 
 [[cases]]
+name = "starred-before-zero"
+comparison = "full"
+files = { "case.py" = "range(*prefix, 0, 10)\n" }
+expected = []
+
+[[cases]]
 name = "keyword"
 comparison = "full"
 files = { "case.py" = "range(0, stop=10)\n" }

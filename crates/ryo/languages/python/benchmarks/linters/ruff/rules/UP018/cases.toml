@@ -113,6 +113,12 @@ files = { "case.py" = "int(\"1\", 10)\n" }
 expected = []
 
 [[cases]]
+name = "starred-argument"
+comparison = "full"
+files = { "case.py" = "int(*arguments)\n" }
+expected = []
+
+[[cases]]
 name = "wrong-keyword"
 comparison = "full"
 files = { "case.py" = "str(value=\"x\")\n" }

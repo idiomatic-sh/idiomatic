@@ -16,6 +16,8 @@ pub(crate) struct LinterRyoAdapter {
     pub rules: PathBuf,
     /// Explicit logical query-module registry under the frozen profile root.
     pub query_modules: std::collections::BTreeMap<String, PathBuf>,
+    /// Parser configuration forwarded to the isolated SDK worker.
+    pub parser_configuration: Option<String>,
 }
 impl LinterPort for LinterRyoAdapter {
     fn prepare(&self, request: &RunRequest) -> Result<Invocation, Error> {
@@ -23,17 +25,22 @@ impl LinterPort for LinterRyoAdapter {
             root: request.root.clone(),
             rules: self.rules.clone(),
             query_modules: self.query_modules.clone(),
+            parser_configuration: self.parser_configuration.clone(),
             files: request.files.clone(),
             state: crate::domain::suite::types::WorkerState::Retained(
                 request.state.join(super::constants::CACHE),
             ),
         };
+        let mut arguments = vec![
+            super::constants::WORKER.into(),
+            super::schemas::encode_request(worker)?.into(),
+        ];
+        if let Some(configuration) = &self.parser_configuration {
+            arguments.push(configuration.clone().into());
+        }
         Ok(Invocation {
             executable: self.executable.clone(),
-            arguments: vec![
-                super::constants::WORKER.into(),
-                super::schemas::encode_request(worker)?.into(),
-            ],
+            arguments,
             environment: std::collections::BTreeMap::default(),
             directory: request.root.clone(),
         })

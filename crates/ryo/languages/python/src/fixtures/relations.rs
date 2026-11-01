@@ -20,6 +20,10 @@ mod literal_properties {
 mod interpolated_string_literal {
     include!("../../tests/fixtures/relations/interpolated_string_literal/expected.rs");
 }
+/// Parser-target metadata is present even for an empty Python file.
+mod language_target {
+    include!("../../tests/fixtures/relations/language_target/expected.rs");
+}
 /// Normalized parser-owned constant expression keys.
 mod constant_key {
     include!("../../tests/fixtures/relations/constant_key/expected.rs");
@@ -135,6 +139,7 @@ pub(super) fn expected() -> Vec<Expected> {
         expression_shape::expected(),
         literal_properties::expected(),
         interpolated_string_literal::expected(),
+        language_target::expected(),
         constant_key::expected(),
         call_argument::expected(),
         static_import::expected(),

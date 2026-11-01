@@ -10,6 +10,7 @@ pub fn request() -> WorkerRequest {
         root: "workspace".into(),
         rules: "rules".into(),
         query_modules: std::collections::BTreeMap::default(),
+        parser_configuration: None,
         files: vec![ryo::linter::RelativePath("source.txt".into())],
         state: crate::domain::suite::types::WorkerState::Retained("cache".into()),
     }

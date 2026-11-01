@@ -519,6 +519,8 @@ pub enum OptionalCapability {
     LiteralProperties,
     /// Parser-decoded literal fragments belonging to interpolated strings.
     InterpolatedStringLiteral,
+    /// Parser target version attached to each source file.
+    LanguageTarget,
     /// Collision-checked keys for supported parsed constant expressions.
     ConstantKey,
 }

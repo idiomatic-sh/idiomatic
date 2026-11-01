@@ -10,6 +10,18 @@ pub use ryo::languages::AnnotatesRow
 pub use ryo::languages::Assigns
 pub use ryo::languages::AssignsColumn
 pub use ryo::languages::AssignsRow
+pub use ryo::languages::BindingEvent
+pub use ryo::languages::BindingEventColumn
+pub use ryo::languages::BindingEventRow
+pub use ryo::languages::BindingRead
+pub use ryo::languages::BindingReadColumn
+pub use ryo::languages::BindingReadRow
+pub use ryo::languages::BindingShadow
+pub use ryo::languages::BindingShadowColumn
+pub use ryo::languages::BindingShadowRow
+pub use ryo::languages::BindingUse
+pub use ryo::languages::BindingUseColumn
+pub use ryo::languages::BindingUseRow
 pub use ryo::languages::Bits
 pub use ryo::languages::ByteSlice
 pub use ryo::languages::Bytes
@@ -25,6 +37,9 @@ pub use ryo::languages::Comment
 pub use ryo::languages::CommentColumn
 pub use ryo::languages::CommentRow
 pub use ryo::languages::Completion
+pub use ryo::languages::ConstantKey
+pub use ryo::languages::ConstantKeyColumn
+pub use ryo::languages::ConstantKeyRow
 pub use ryo::languages::Count
 pub use ryo::languages::DeclarationKind
 pub use ryo::languages::Decorates
@@ -36,16 +51,27 @@ pub use ryo::languages::DefinesRow
 pub use ryo::languages::DependencyKind
 pub use ryo::languages::DependencyOrigin
 pub use ryo::languages::Diagnostic
+pub use ryo::languages::DiagnosticCode
+pub use ryo::languages::DiagnosticMetadata
+pub use ryo::languages::DiagnosticPhase
 pub use ryo::languages::Directive
 pub use ryo::languages::DirectiveColumn
 pub use ryo::languages::DirectiveRow
 pub use ryo::languages::ElementOrigin
 pub use ryo::languages::Elements
+pub use ryo::languages::EmbeddedExpression
+pub use ryo::languages::EmbeddedExpressionColumn
+pub use ryo::languages::EmbeddedExpressionRow
+pub use ryo::languages::EmbeddedMapping
+pub use ryo::languages::EmbeddedSource
 pub use ryo::languages::Entry
 pub use ryo::languages::EntryColumn
 pub use ryo::languages::EntryRow
 pub use ryo::languages::ExpansionId
 pub use ryo::languages::Expansions
+pub use ryo::languages::ExpressionShape
+pub use ryo::languages::ExpressionShapeColumn
+pub use ryo::languages::ExpressionShapeRow
 pub use ryo::languages::Extent
 pub use ryo::languages::FieldId
 pub use ryo::languages::FieldRequest
@@ -68,13 +94,31 @@ pub use ryo::languages::FunctionColumn
 pub use ryo::languages::FunctionRow
 pub use ryo::languages::Holds
 pub use ryo::languages::IMPLIED
+pub use ryo::languages::Identifier
+pub use ryo::languages::IdentifierColumn
+pub use ryo::languages::IdentifierRow
+pub use ryo::languages::ImplicitSymbol
+pub use ryo::languages::ImplicitSymbolColumn
+pub use ryo::languages::ImplicitSymbolRow
+pub use ryo::languages::IndentRegion
+pub use ryo::languages::IndentRegionColumn
+pub use ryo::languages::IndentRegionRow
 pub use ryo::languages::Inherits
 pub use ryo::languages::InheritsColumn
 pub use ryo::languages::InheritsRow
 pub use ryo::languages::Integer
+pub use ryo::languages::InterpolatedStringLiteral
+pub use ryo::languages::InterpolatedStringLiteralColumn
+pub use ryo::languages::InterpolatedStringLiteralRow
 pub use ryo::languages::KindBits
 pub use ryo::languages::KindName
 pub use ryo::languages::KindNames
+pub use ryo::languages::LanguageTarget
+pub use ryo::languages::LanguageTargetColumn
+pub use ryo::languages::LanguageTargetRow
+pub use ryo::languages::LiteralProperties
+pub use ryo::languages::LiteralPropertiesColumn
+pub use ryo::languages::LiteralPropertiesRow
 pub use ryo::languages::Locatedness
 pub use ryo::languages::Lossless
 pub use ryo::languages::ManifestFile
@@ -102,6 +146,7 @@ pub use ryo::languages::NodeId
 pub use ryo::languages::NoteRequest
 pub use ryo::languages::Noted
 pub use ryo::languages::Offset
+pub use ryo::languages::OptionalCapability
 pub use ryo::languages::Optionality
 pub use ryo::languages::PackageDependency
 pub use ryo::languages::PackageDependencyColumn
@@ -123,6 +168,9 @@ pub use ryo::languages::Prose
 pub use ryo::languages::ProseColumn
 pub use ryo::languages::ProseRow
 pub use ryo::languages::Provenance
+pub use ryo::languages::QualifiedName
+pub use ryo::languages::QualifiedNameColumn
+pub use ryo::languages::QualifiedNameRow
 pub use ryo::languages::ReadItem
 pub use ryo::languages::ReadableText
 pub use ryo::languages::Reader
@@ -149,6 +197,12 @@ pub use ryo::languages::SampleText
 pub use ryo::languages::Scope
 pub use ryo::languages::ScopeColumn
 pub use ryo::languages::ScopeRow
+pub use ryo::languages::SemanticChild
+pub use ryo::languages::SemanticChildColumn
+pub use ryo::languages::SemanticChildRow
+pub use ryo::languages::SemanticSyntax
+pub use ryo::languages::SemanticSyntaxColumn
+pub use ryo::languages::SemanticSyntaxRow
 pub use ryo::languages::SequenceElement
 pub use ryo::languages::SequenceElementColumn
 pub use ryo::languages::SequenceElementRow
@@ -190,6 +244,7 @@ pub use ryo::languages::TargetReach
 pub use ryo::languages::Term
 pub use ryo::languages::ToolMessage
 pub use ryo::languages::Tree
+pub use ryo::languages::TreeImpact
 pub use ryo::languages::UnknownName
 pub use ryo::languages::UnknownReason
 pub use ryo::languages::Value
@@ -207,15 +262,19 @@ pub use ryo::languages::absent
 pub use ryo::languages::adopt
 pub use ryo::languages::all
 pub use ryo::languages::begin_name
+pub use ryo::languages::builder_position
 pub use ryo::languages::child_of_kind
 pub use ryo::languages::children
 pub use ryo::languages::clear_elements
 pub use ryo::languages::decoded_at
 pub use ryo::languages::decoded_token
 pub use ryo::languages::diagnose
+pub use ryo::languages::diagnose_with_metadata
 pub use ryo::languages::diagnostic_count
 pub use ryo::languages::diagnostic_id
 pub use ryo::languages::diagnostics
+pub use ryo::languages::embedded_expressions
+pub use ryo::languages::embedded_source_at
 pub use ryo::languages::end_at
 pub use ryo::languages::end_name
 pub use ryo::languages::end_of
@@ -226,6 +285,8 @@ pub use ryo::languages::field_name_at
 pub use ryo::languages::fill_to
 pub use ryo::languages::first_token_text
 pub use ryo::languages::flags_at
+pub use ryo::languages::has_incomplete_lexical_stream
+pub use ryo::languages::has_incomplete_syntax
 pub use ryo::languages::has_noted_words
 pub use ryo::languages::intern_derived
 pub use ryo::languages::kind_at
@@ -241,10 +302,13 @@ pub use ryo::languages::lossless_token
 pub use ryo::languages::mark_expansion
 pub use ryo::languages::name_field
 pub use ryo::languages::name_kind
+pub use ryo::languages::native_semantic_child
+pub use ryo::languages::native_semantic_syntax
 pub use ryo::languages::node_file
 pub use ryo::languages::node_id
 pub use ryo::languages::node_position
 pub use ryo::languages::node_property
+pub use ryo::languages::node_property_fmt
 pub use ryo::languages::note_of
 pub use ryo::languages::note_word
 pub use ryo::languages::ordinal_at
@@ -275,6 +339,7 @@ pub use ryo::languages::text_of
 pub use ryo::languages::token
 pub use ryo::languages::unknown_symbol
 pub use ryo::languages::vocabulary_symbol
+pub use ryo::languages::write_embedded
 pub use ryo::languages::write_fields
 pub use ryo::languages::write_notes
 pub struct ryo::languages::Language
@@ -2137,6 +2202,22 @@ pub fn ryo::query::DescribeError::fmt(&self, &mut core::fmt::Formatter<'_>) -> c
 impl core::fmt::Display for ryo::query::DescribeError
 pub fn ryo::query::DescribeError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for ryo::query::DescribeError
+#[non_exhaustive] pub enum ryo::query::QueryBundleError
+pub ryo::query::QueryBundleError::BlankRootText
+pub ryo::query::QueryBundleError::BlankSourceId
+pub ryo::query::QueryBundleError::DuplicateSourceId
+pub ryo::query::QueryBundleError::DuplicateSourceId::id: alloc::string::String
+impl core::clone::Clone for ryo::query::QueryBundleError
+pub fn ryo::query::QueryBundleError::clone(&self) -> ryo::query::QueryBundleError
+impl core::cmp::Eq for ryo::query::QueryBundleError
+impl core::cmp::PartialEq for ryo::query::QueryBundleError
+pub fn ryo::query::QueryBundleError::eq(&self, &ryo::query::QueryBundleError) -> bool
+impl core::error::Error for ryo::query::QueryBundleError
+impl core::fmt::Debug for ryo::query::QueryBundleError
+pub fn ryo::query::QueryBundleError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for ryo::query::QueryBundleError
+pub fn ryo::query::QueryBundleError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for ryo::query::QueryBundleError
 #[non_exhaustive] pub enum ryo::query::RunError
 pub ryo::query::RunError::Corpus
 pub ryo::query::RunError::Corpus::reason: alloc::string::String
@@ -2199,6 +2280,9 @@ pub ryo::query::ValidateError::Catalog::reason: alloc::string::String
 pub ryo::query::ValidateError::Invalid
 pub ryo::query::ValidateError::Invalid::message: alloc::string::String
 pub ryo::query::ValidateError::Invalid::span: ryo::query::QuerySpan
+pub ryo::query::ValidateError::Located
+pub ryo::query::ValidateError::Located::error: alloc::boxed::Box<ryo::query::ValidateError>
+pub ryo::query::ValidateError::Located::origin: ryo::query::QueryOrigin
 pub ryo::query::ValidateError::Syntax
 pub ryo::query::ValidateError::Syntax::message: alloc::string::String
 pub ryo::query::ValidateError::Syntax::span: ryo::query::QuerySpan
@@ -2305,6 +2389,38 @@ pub fn ryo::query::ProductionName::fmt(&self, &mut core::fmt::Formatter<'_>) -> 
 impl core::hash::Hash for ryo::query::ProductionName
 pub fn ryo::query::ProductionName::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::StructuralPartialEq for ryo::query::ProductionName
+pub struct ryo::query::QueryModuleSource
+impl ryo::query::QueryModuleSource
+pub fn ryo::query::QueryModuleSource::id(&self) -> &str
+pub fn ryo::query::QueryModuleSource::text(&self) -> &str
+impl ryo::query::QueryModuleSource
+pub fn ryo::query::QueryModuleSource::try_new(&str, &str) -> core::result::Result<Self, ryo::query::QueryBundleError>
+impl core::clone::Clone for ryo::query::QueryModuleSource
+pub fn ryo::query::QueryModuleSource::clone(&self) -> ryo::query::QueryModuleSource
+impl core::cmp::Eq for ryo::query::QueryModuleSource
+impl core::cmp::Ord for ryo::query::QueryModuleSource
+pub fn ryo::query::QueryModuleSource::cmp(&self, &ryo::query::QueryModuleSource) -> core::cmp::Ordering
+impl core::cmp::PartialEq for ryo::query::QueryModuleSource
+pub fn ryo::query::QueryModuleSource::eq(&self, &ryo::query::QueryModuleSource) -> bool
+impl core::cmp::PartialOrd for ryo::query::QueryModuleSource
+pub fn ryo::query::QueryModuleSource::partial_cmp(&self, &ryo::query::QueryModuleSource) -> core::option::Option<core::cmp::Ordering>
+impl core::fmt::Debug for ryo::query::QueryModuleSource
+pub fn ryo::query::QueryModuleSource::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for ryo::query::QueryModuleSource
+pub fn ryo::query::QueryModuleSource::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::StructuralPartialEq for ryo::query::QueryModuleSource
+pub struct ryo::query::QueryOrigin
+pub ryo::query::QueryOrigin::source_id: alloc::string::String
+pub ryo::query::QueryOrigin::span: ryo::query::QuerySpan
+pub ryo::query::QueryOrigin::trace: alloc::vec::Vec<ryo::query::QueryTraceSite>
+impl core::clone::Clone for ryo::query::QueryOrigin
+pub fn ryo::query::QueryOrigin::clone(&self) -> ryo::query::QueryOrigin
+impl core::cmp::Eq for ryo::query::QueryOrigin
+impl core::cmp::PartialEq for ryo::query::QueryOrigin
+pub fn ryo::query::QueryOrigin::eq(&self, &ryo::query::QueryOrigin) -> bool
+impl core::fmt::Debug for ryo::query::QueryOrigin
+pub fn ryo::query::QueryOrigin::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for ryo::query::QueryOrigin
 pub struct ryo::query::QuerySpan
 pub ryo::query::QuerySpan::end: ryo::query::ByteOffset
 pub ryo::query::QuerySpan::start: ryo::query::ByteOffset
@@ -2317,6 +2433,18 @@ impl core::fmt::Debug for ryo::query::QuerySpan
 pub fn ryo::query::QuerySpan::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for ryo::query::QuerySpan
 impl core::marker::StructuralPartialEq for ryo::query::QuerySpan
+pub struct ryo::query::QueryTraceSite
+pub ryo::query::QueryTraceSite::source_id: alloc::string::String
+pub ryo::query::QueryTraceSite::span: ryo::query::QuerySpan
+pub ryo::query::QueryTraceSite::target_id: alloc::string::String
+impl core::clone::Clone for ryo::query::QueryTraceSite
+pub fn ryo::query::QueryTraceSite::clone(&self) -> ryo::query::QueryTraceSite
+impl core::cmp::Eq for ryo::query::QueryTraceSite
+impl core::cmp::PartialEq for ryo::query::QueryTraceSite
+pub fn ryo::query::QueryTraceSite::eq(&self, &ryo::query::QueryTraceSite) -> bool
+impl core::fmt::Debug for ryo::query::QueryTraceSite
+pub fn ryo::query::QueryTraceSite::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for ryo::query::QueryTraceSite
 pub struct ryo::query::RelationName(pub alloc::boxed::Box<str>)
 impl core::clone::Clone for ryo::query::RelationName
 pub fn ryo::query::RelationName::clone(&self) -> ryo::query::RelationName
@@ -2408,6 +2536,10 @@ impl core::fmt::Debug for ryo::query::RunRequest
 pub fn ryo::query::RunRequest::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for ryo::query::RunRequest
 pub struct ryo::query::RyoQlQuery(_)
+impl ryo::query::RyoQlQuery
+pub fn ryo::query::RyoQlQuery::root_text(&self) -> &str
+impl ryo::query::RyoQlQuery
+pub fn ryo::query::RyoQlQuery::with_modules(&str, &str, impl core::iter::traits::collect::IntoIterator<Item = ryo::query::QueryModuleSource>) -> core::result::Result<Self, ryo::query::QueryBundleError>
 impl core::clone::Clone for ryo::query::RyoQlQuery
 pub fn ryo::query::RyoQlQuery::clone(&self) -> ryo::query::RyoQlQuery
 impl core::cmp::Eq for ryo::query::RyoQlQuery

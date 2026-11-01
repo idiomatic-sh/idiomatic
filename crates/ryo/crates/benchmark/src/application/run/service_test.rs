@@ -516,6 +516,7 @@ fn prepared(scenario: Scenario) -> (SuiteFake, BenchmarkFinding) {
         deferred: std::collections::BTreeMap::default(),
         pending: std::collections::BTreeMap::default(),
         query_modules: std::collections::BTreeMap::default(),
+        parser_configuration: None,
     });
     (suite, expected)
 }

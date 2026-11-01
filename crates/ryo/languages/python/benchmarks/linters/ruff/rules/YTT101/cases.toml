@@ -17,6 +17,12 @@ expected = []
 comparison = "full"
 
 [[cases]]
+name = "nested-arithmetic-bound"
+files = { "case.py" = "import sys\nvalue = sys.version[:3 + 0]\n" }
+expected = []
+comparison = "full"
+
+[[cases]]
 name = "lower_bound"
 files = { "case.py" = "import sys\nvalue = sys.version[0:3]\n" }
 expected = []

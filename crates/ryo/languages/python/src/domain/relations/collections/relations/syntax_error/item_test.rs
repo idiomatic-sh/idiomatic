@@ -40,7 +40,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 want_node(2_147_483_648),
                 want_name("expected 'except' or 'finally' block"),
                 want_name("parse"),
-                want_name("incomplete"),
+                want_name("lexically-complete"),
                 want_name("else-without-except"),
                 want_file(SHOWN),
                 want_span((3, 1), (3, 5)),

@@ -317,6 +317,18 @@
       "case": "inline_noqa",
       "source_sha256": "2ea3b254dacc03e3a706af540bd0be58ccb1794493a450dceabf0609a0057fbc",
       "diagnostics": []
+    },
+    {
+      "rule": "YTT201",
+      "case": "nested-arithmetic-comparator",
+      "source_sha256": "e71accece91c454c35f56771ff807f194a420b9992da8959a0eee374708766c6",
+      "diagnostics": []
+    },
+    {
+      "rule": "YTT201",
+      "case": "nested-tuple-comparator",
+      "source_sha256": "856e1bbdec0ed520900f0a8f56e7b7a1eb92b66d6e59ad5c4e4a5a9fe392e4b1",
+      "diagnostics": []
     }
   ]
 }

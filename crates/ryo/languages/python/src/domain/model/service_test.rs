@@ -37,6 +37,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 fn subject((scope, name): Input) -> Value {
     let model = Declarations {
+        language_target: (3, 15),
         bindings: Vec::default(),
         expression_shapes: RefCell::default(),
         constant_keys: RefCell::default(),

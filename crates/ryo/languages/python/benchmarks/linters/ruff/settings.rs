@@ -9,4 +9,6 @@ pub(crate) struct LinterRuffSettings {
     pub executable: PathBuf,
     /// Rules permitted in normalized reference output.
     pub defaults: BTreeSet<RuleId>,
+    /// Effective Python version selected by the sealed benchmark profile.
+    pub target_version: String,
 }

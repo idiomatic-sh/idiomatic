@@ -2,17 +2,17 @@
 [[cases]]
 name = "module"
 files = { "case.py" = "return 1\n" }
-expected = [{"file" = "case.py", "start" = 0, "end" = 8}]
+expected = [{ "file" = "case.py", "start" = 0, "end" = 8 }]
 
 [[cases]]
 name = "bare"
 files = { "case.py" = "return\n" }
-expected = [{"file" = "case.py", "start" = 0, "end" = 6}]
+expected = [{ "file" = "case.py", "start" = 0, "end" = 6 }]
 
 [[cases]]
 name = "class"
 files = { "case.py" = "class C:\n    return 1\n" }
-expected = [{"file" = "case.py", "start" = 13, "end" = 21}]
+expected = [{ "file" = "case.py", "start" = 13, "end" = 21 }]
 
 [[cases]]
 name = "function"
@@ -32,12 +32,12 @@ expected = []
 [[cases]]
 name = "nested-class"
 files = { "case.py" = "def f():\n    class C:\n        return 1\n" }
-expected = [{"file" = "case.py", "start" = 30, "end" = 38}]
+expected = [{ "file" = "case.py", "start" = 30, "end" = 38 }]
 
 [[cases]]
 name = "conditional"
 files = { "case.py" = "if ready:\n    return 1\n" }
-expected = [{"file" = "case.py", "start" = 14, "end" = 22}]
+expected = [{ "file" = "case.py", "start" = 14, "end" = 22 }]
 
 [[cases]]
 name = "noqa"
@@ -52,7 +52,7 @@ expected = []
 [[cases]]
 name = "other-code"
 files = { "case.py" = "return 1 # noqa: F401\n" }
-expected = [{"file" = "case.py", "start" = 0, "end" = 8}]
+expected = [{ "file" = "case.py", "start" = 0, "end" = 8 }]
 
 [[cases]]
 name = "file-noqa"
@@ -62,12 +62,12 @@ expected = []
 [[cases]]
 name = "multiline"
 files = { "case.py" = "return (\n 1\n)\n" }
-expected = [{"file" = "case.py", "start" = 0, "end" = 13}]
+expected = [{ "file" = "case.py", "start" = 0, "end" = 13 }]
 
 [[cases]]
 name = "unicode-offset"
 files = { "case.py" = "label = \"\u96ea\"\nreturn 1\n" }
-expected = [{"file" = "case.py", "start" = 14, "end" = 22}]
+expected = [{ "file" = "case.py", "start" = 14, "end" = 22 }]
 
 [[cases]]
 name = "shared-block-suppressed"

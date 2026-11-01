@@ -20,6 +20,7 @@ fn subject(_: Input) -> Result<Value, Failure> {
         executable: "fixture".into(),
         rules: "rules".into(),
         query_modules: std::collections::BTreeMap::default(),
+        parser_configuration: None,
     });
     Ok(())
 }

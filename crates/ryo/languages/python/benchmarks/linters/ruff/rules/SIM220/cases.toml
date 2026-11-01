@@ -172,4 +172,3 @@ name = "current-class-binding-is-visible"
 comparison = "full"
 files = { "case.py" = "class C:\n    list = custom\n    x and not x and (lambda list: list())\n" }
 expected = []
-

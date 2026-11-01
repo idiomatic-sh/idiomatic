@@ -279,6 +279,12 @@
           "end": 45
         }
       ]
+    },
+    {
+      "rule": "YTT101",
+      "case": "nested-arithmetic-bound",
+      "source_sha256": "59057f9cb4ea7628bde1d1292d33a66597669fd409f76c5c76f954d534870e0b",
+      "diagnostics": []
     }
   ]
 }

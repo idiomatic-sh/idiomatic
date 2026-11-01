@@ -41,13 +41,10 @@ pub use validate::schemas::RyoQlQuerySchemaError;
 
 pub use crate::domain::query::types::RyoQlQuery;
 
+pub use crate::domain::query::errors::{QueryOrigin, QueryTraceSite};
 pub use crate::domain::query::types::QueryModuleSource;
-pub use ryo_values::domain::program::types::QueryOrigin;
-pub use ryo_values::domain::program::types::QueryTraceSite;
 
-pub use ryo_values::domain::program::types::QuerySourceId;
-
-pub use ryo_values::domain::program::errors::QueryBundleError;
+pub use crate::domain::query::errors::QueryBundleError;
 
 pub use validate::types::ValidateRequest;
 

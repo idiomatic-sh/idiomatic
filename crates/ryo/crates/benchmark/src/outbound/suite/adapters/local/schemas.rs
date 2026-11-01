@@ -24,6 +24,9 @@ struct ToolSchema {
     /// Explicit logical query-module IDs mapped to profile-relative source paths.
     #[serde(default, rename = "query-modules")]
     query_modules: BTreeMap<String, String>,
+    #[serde(default, rename = "parser-configuration")]
+    /// Language parser configuration shared by both contestants.
+    parser_configuration: Option<String>,
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -123,6 +126,15 @@ impl TryFrom<ToolSchema> for types::Tool {
                 return Err(Error::Invalid("duplicate query module ID".into()));
             }
         }
+        if wire
+            .parser_configuration
+            .as_ref()
+            .is_some_and(|configuration| configuration.trim().is_empty())
+        {
+            return Err(Error::Invalid(
+                "parser configuration must not be blank".into(),
+            ));
+        }
         Ok(Self {
             tool: wire.tool.into(),
             version: wire.version.into(),
@@ -135,6 +147,7 @@ impl TryFrom<ToolSchema> for types::Tool {
             deferred: dispositions(wire.deferred)?,
             pending: dispositions(wire.pending)?,
             query_modules,
+            parser_configuration: wire.parser_configuration,
         })
     }
 }

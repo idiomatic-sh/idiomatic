@@ -17,6 +17,12 @@ expected = []
 comparison = "full"
 
 [[cases]]
+name = "nested-arithmetic-index"
+files = { "case.py" = "import sys\nvalue = sys.version[2 + 0]\n" }
+expected = []
+comparison = "full"
+
+[[cases]]
 name = "major_index"
 files = { "case.py" = "import sys\nvalue = sys.version[0]\n" }
 expected = []

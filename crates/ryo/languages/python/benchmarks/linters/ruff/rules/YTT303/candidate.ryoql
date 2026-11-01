@@ -15,7 +15,9 @@ let no_lower = antijoin(left=checked_slices, right=lower_fields, left-on=["slice
 let simple_slices = antijoin(left=no_lower, right=step_fields, left-on=["slice"], right-on=["slice"]);
 let present_upper = select l.slice as slice, l.upper as upper, l.file as file from upper_bounds as l join simple_slices as r on l.slice = r.slice and l.file = r.file;
 let bound_literals = select id, file from "semantic-syntax" where kind = "number" and matches(text, "^(?:1|0[xX]_?1|0[oO]_?1|0[bB]_?1)$");
-let selected_slices = select l.slice as id, l.file as file from present_upper as l join bound_literals as r on l.upper = r.id and l.file = r.file;
+let upper_roots = select upper as id, file from present_upper;
+let upper_literal_axes = axis(from=upper_roots, relation="semantic-child", direction=child, domain=bound_literals);
+let selected_slices = select l.slice as id, l.file as file from present_upper as l join upper_literal_axes as r on l.upper = r.id and l.file = r.file;
 let selected_subscripts = select r.subscript as id, l.file as file from selected_slices as l join slices as r on l.id = r.slice and l.file = r.file;
 let selected_values = select r.value as id, l.file as file from selected_subscripts as l join values as r on l.id = r.subscript and l.file = r.file;
 let reportable = select l.id as id, l.file as file, r.span as span from selected_values as l join "semantic-syntax" as r on l.id = r.id and l.file = r.file;

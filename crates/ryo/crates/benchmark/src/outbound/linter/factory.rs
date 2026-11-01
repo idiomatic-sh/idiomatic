@@ -6,10 +6,12 @@ pub fn ryo(
     executable: std::path::PathBuf,
     rules: std::path::PathBuf,
     query_modules: std::collections::BTreeMap<String, std::path::PathBuf>,
+    parser_configuration: Option<String>,
 ) -> impl super::interface::LinterPort {
     LinterRyoAdapter {
         executable,
         rules,
         query_modules,
+        parser_configuration,
     }
 }

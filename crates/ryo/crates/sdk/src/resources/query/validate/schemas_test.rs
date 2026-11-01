@@ -6,7 +6,10 @@ use ryo_language::domain::relations::types::{CellKind, Offset, Span as CoreSpan}
 use ryo_values::domain::hosted::types::{ColumnLabel, HostedColumn, HostedName, HostedRelation};
 use ryo_values::domain::{
     plan_parts::types::{QueryText, RefusalMessage, RefusedKind, RefusedQuery},
-    program::types::{ByteOffset, QueryOrigin, QuerySourceId, QuerySpan},
+    program::types::{
+        ByteOffset as CoreByteOffset, QueryOrigin as CoreQueryOrigin, QuerySourceId,
+        QuerySpan as CoreQuerySpan,
+    },
 };
 
 use super::{error, request};
@@ -14,8 +17,9 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::host::types::{
     HostColumn, HostColumnName, HostDeclaration, HostKind, HostRelationName,
 };
+use crate::domain::query::errors::QueryOrigin;
 use crate::domain::query::errors::ValidateError;
-use crate::domain::query::types::RyoQlQuery;
+use crate::domain::query::types::{ByteOffset, QuerySpan, RyoQlQuery};
 use crate::resources::query::validate::types::ValidateRequest;
 
 /// The core's error offered to the conversion.
@@ -126,15 +130,23 @@ fn subject(input: Input) -> Result<Value, Failure> {
 #[test]
 fn an_uncompilable_fragment_error_keeps_its_module_location() {
     let origin = QueryOrigin {
-        source_id: QuerySourceId("nested/module".into()),
+        source_id: "nested/module".into(),
         span: QuerySpan {
             start: ByteOffset(7),
             end: ByteOffset(12),
         },
         trace: Vec::new(),
     };
+    let core_origin = CoreQueryOrigin {
+        source_id: QuerySourceId("nested/module".into()),
+        span: CoreQuerySpan {
+            start: CoreByteOffset(7),
+            end: CoreByteOffset(12),
+        },
+        trace: Vec::new(),
+    };
     let mut core_error = refused(RefusedKind::Invalid, 7, 12);
-    core_error.origin = Some(origin.clone());
+    core_error.origin = Some(core_origin);
     let converted = error(TEXT, CoreError::Uncompilable { error: core_error });
     assert!(matches!(
         converted,
@@ -146,10 +158,18 @@ fn an_uncompilable_fragment_error_keeps_its_module_location() {
 #[test]
 fn an_unknown_kind_fragment_error_keeps_its_module_location() {
     let origin = QueryOrigin {
-        source_id: QuerySourceId("nested/module".into()),
+        source_id: "nested/module".into(),
         span: QuerySpan {
             start: ByteOffset(7),
             end: ByteOffset(12),
+        },
+        trace: Vec::new(),
+    };
+    let core_origin = CoreQueryOrigin {
+        source_id: QuerySourceId("nested/module".into()),
+        span: CoreQuerySpan {
+            start: CoreByteOffset(7),
+            end: CoreByteOffset(12),
         },
         trace: Vec::new(),
     };
@@ -157,7 +177,7 @@ fn an_unknown_kind_fragment_error_keeps_its_module_location() {
         TEXT,
         CoreError::UnknownKind {
             reason: "unknown kind".to_owned(),
-            origin: Some(origin.clone()),
+            origin: Some(core_origin),
         },
     );
     assert!(matches!(

@@ -75,4 +75,3 @@ name = "noqa-suppression"
 comparison = "full"
 files = { "case.py" = "{item: 1, item: 2}  # noqa: F602\n" }
 expected = []
-

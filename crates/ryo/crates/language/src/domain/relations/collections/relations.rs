@@ -55,6 +55,7 @@ pub mod binding_event;
 pub mod expression_shape;
 /// Decoded literal fragments of interpolated strings.
 pub mod interpolated_string_literal;
+pub mod language_target;
 /// Typed primitive literal properties.
 pub mod literal_properties;
 

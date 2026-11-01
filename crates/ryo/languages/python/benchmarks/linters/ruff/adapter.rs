@@ -17,6 +17,7 @@ pub(crate) struct LinterRuffAdapter {
     executable: PathBuf,
     /// Permitted rule identities in the compared reference profile.
     defaults: BTreeSet<RuleId>,
+    target_version: String,
 }
 impl LinterPort for LinterRuffAdapter {
     fn prepare(&self, request: &RunRequest) -> Result<Invocation, Error> {
@@ -38,7 +39,7 @@ impl LinterPort for LinterRuffAdapter {
                 .join(constants::RULE_SEPARATOR)
                 .into(),
             constants::TARGET_VERSION.into(),
-            constants::PYTHON_310.into(),
+            self.target_version.clone().into(),
             constants::END_OPTIONS.into(),
         ];
         for file in &request.files {
@@ -77,6 +78,7 @@ impl LinterRuffAdapter {
         Self {
             executable: settings.executable,
             defaults: settings.defaults,
+            target_version: settings.target_version,
         }
     }
 

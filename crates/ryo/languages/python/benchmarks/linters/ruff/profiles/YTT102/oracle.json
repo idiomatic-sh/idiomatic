@@ -279,6 +279,12 @@
           "end": 45
         }
       ]
+    },
+    {
+      "rule": "YTT102",
+      "case": "nested-arithmetic-index",
+      "source_sha256": "e9abc1e9efec7308523e8076e91b8403620f286671d0b575d3318c0a32107e9c",
+      "diagnostics": []
     }
   ]
 }

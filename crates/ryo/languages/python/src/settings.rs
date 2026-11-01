@@ -26,6 +26,24 @@ pub enum PythonTargetVersion {
     Latest,
 }
 
+impl PythonTargetVersion {
+    /// Numeric language version used by generic target-aware queries.
+    #[must_use]
+    pub(crate) const fn components(self) -> (i64, i64) {
+        match self {
+            Self::Py37 => (3, 7),
+            Self::Py38 => (3, 8),
+            Self::Py39 => (3, 9),
+            Self::Py310 => (3, 10),
+            Self::Py311 => (3, 11),
+            Self::Py312 => (3, 12),
+            Self::Py313 => (3, 13),
+            Self::Py314 => (3, 14),
+            Self::Py315 | Self::Latest => (3, 15),
+        }
+    }
+}
+
 /// Settings that determine version-related parser diagnostics.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub struct PythonParserSettings {

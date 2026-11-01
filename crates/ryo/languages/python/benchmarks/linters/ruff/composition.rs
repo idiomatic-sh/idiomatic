@@ -111,8 +111,9 @@ pub(crate) fn run(
             let deferred_count = tool.deferred.len();
             let pending_count = tool.pending.len();
             let query_modules = tool.query_modules.clone();
+            let parser_configuration = tool.parser_configuration.clone();
             tool.defaults = audit.authored().to_vec();
-            let reference = Arc::new(commands::reference(executable.clone(), tool));
+            let reference = Arc::new(commands::reference(executable.clone(), tool)?);
             let selected_scratch = tempfile::Builder::new()
                 .prefix(constants::CERTIFICATION_PREFIX)
                 .tempdir_in(&cache)?
@@ -139,6 +140,7 @@ pub(crate) fn run(
                     candidate_executable.clone(),
                     selected_rules.clone(),
                     query_modules,
+                    parser_configuration,
                 ));
             let case_scratch = tempfile::tempdir()?;
             let certificate = CertifyUseCaseImpl::new(

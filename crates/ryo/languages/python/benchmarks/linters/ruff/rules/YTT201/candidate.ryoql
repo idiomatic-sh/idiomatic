@@ -22,12 +22,16 @@ let slice_fields = select parent, child from "semantic-child" where field = "sli
 let zero_literals = select id, file from "literal-properties" where kind = "integer" and zero = "true";
 let indexed_subscripts = select l.subscript as subscript, l.file as file, r.child as index from version_info_subscripts as l join slice_fields as r on l.subscript = r.parent;
 let selected_zero_subscripts = select l.subscript as id, l.file as file from indexed_subscripts as l join zero_literals as r on l.index = r.id and l.file = r.file;
-let three_literals = select id, file from "semantic-syntax" where kind = "number" and matches(text, "^(?:3|0[xX]_?3|0[oO]_?3|0[bB]_?1_?1)$");
+let three_literals = select id, file, span from "semantic-syntax" where kind = "number" and matches(text, "^(?:3|0[xX]_?3|0[oO]_?3|0[bB]_?1_?1)$");
 let relevant_ops = select id from "semantic-syntax" where text = "==" or text = "!=";
 let matching_ops = select l.comparison as comparison, l.comparator as comparator, l.file as file from one_comparisons as l join relevant_ops as r on l.operator = r.id;
 let left_matches = select l.comparison as comparison, l.left as left, l.file as file, l.comparator as comparator from left_comparisons as l join selected_zero_subscripts as r on l.left = r.id and l.file = r.file;
 let matched_comparisons = select l.comparison as comparison, l.left as left, l.file as file, l.comparator as comparator from left_matches as l join matching_ops as r on l.comparison = r.comparison and l.file = r.file;
-let reported_lefts = select l.left as id, l.file as file from matched_comparisons as l join three_literals as r on l.comparator = r.id and l.file = r.file;
+let comparator_roots = select l.comparator as id, l.file as file, r.span as span from matched_comparisons as l join "semantic-syntax" as r on l.comparator = r.id and l.file = r.file;
+let comparator_literal_axes = axis(from=comparator_roots, relation="semantic-child", direction=child, domain=three_literals);
+let axis_literal_candidates = select l.comparison as comparison, l.left as left, l.file as file, r.related as literal, r.span as root_span from matched_comparisons as l join comparator_literal_axes as r on l.comparator = r.id and l.file = r.file;
+let literal_matched_comparisons = select l.comparison as comparison, l.left as left, l.file as file from axis_literal_candidates as l join three_literals as r on l.literal = r.id and l.file = r.file where l.root_span = r.span;
+let reported_lefts = select l.left as id, l.file as file from literal_matched_comparisons as l;
 let reportable = select l.id as id, l.file as file, r.span as span from reported_lefts as l join "semantic-syntax" as r on l.id = r.id and l.file = r.file;
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id and l.file = r.file;
 let quoted = select id from "syntax-tree" where kind = "f-string-part" or kind = "string" and matches(text, "(?i)^[rub]*(?:\x22\x22\x22|'\x27')");

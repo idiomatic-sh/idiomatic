@@ -124,6 +124,7 @@ fn subject(operation: Input) -> Result<Value, Failure> {
         "worker".into(),
         "rules".into(),
         std::collections::BTreeMap::default(),
+        None,
     );
     let request = RunRequest {
         root: "workspace".into(),
