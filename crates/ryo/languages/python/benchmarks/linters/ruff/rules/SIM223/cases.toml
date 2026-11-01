@@ -1,0 +1,81 @@
+[[cases]]
+name = "literal-last"
+comparison = "full"
+files = { "case.py" = "x and False\n" }
+expected = [] # removed because the truthy/falsy operand is the final value
+
+[[cases]]
+name = "literal-first"
+comparison = "full"
+files = { "case.py" = "False and x\n" }
+expected = [{ rule = "SIM223", file = "case.py", start = 0, end = 11 }]
+
+[[cases]]
+name = "safe-opposite"
+comparison = "full"
+files = { "case.py" = "x and True\n" }
+expected = []
+
+[[cases]]
+name = "literal-middle"
+comparison = "full"
+files = { "case.py" = "x and 0 and y\n" }
+expected = [{ rule = "SIM223", file = "case.py", start = 6, end = 13 }]
+
+# Added oracle cases: Ruff 0.16.5, upstream tag commit 9e4938c4a60bed3e87a11ee1e1db1bd23f4d964a.
+
+[[cases]]
+name = "unicode-prefix"
+comparison = "full"
+files = { "case.py" = "é and 0 and y\n" }
+expected = [{ rule = "SIM223", file = "case.py", start = 7, end = 14 }]
+
+[[cases]]
+name = "multiline-suffix"
+comparison = "full"
+files = { "case.py" = "(\n    x\n    and 0\n    and y\n)\n" }
+expected = [{ rule = "SIM223", file = "case.py", start = 16, end = 27 }]
+
+[[cases]]
+name = "multiple-matching-literals"
+comparison = "full"
+files = { "case.py" = "x and 0 and False and y\n" }
+expected = [{ rule = "SIM223", file = "case.py", start = 6, end = 23 }]
+
+[[cases]]
+name = "known-literal-prefix"
+comparison = "full"
+files = { "case.py" = "True and False and x\n" }
+expected = [{ rule = "SIM223", file = "case.py", start = 0, end = 20 }]
+
+[[cases]]
+name = "terminal-known-prefix"
+comparison = "full"
+files = { "case.py" = "True and False\n" }
+expected = [{ rule = "SIM223", file = "case.py", start = 0, end = 14 }]
+
+[[cases]]
+# Known limitation: parenthesized_range includes opening parentheses outside the semantic AST operand span.
+name = "parenthesized-start"
+comparison = "full"
+files = { "case.py" = "(x and (False) and y)\n" }
+expected = [{ rule = "SIM223", file = "case.py", start = 7, end = 20 }]
+
+[[cases]]
+# Known limitation: the query does not yet apply the boolean-test context/effect policy; AST ancestry makes context expressible.
+name = "boolean-test-context"
+comparison = "full"
+files = { "case.py" = "if x and False:\n    pass\n" }
+expected = [{ rule = "SIM223", file = "case.py", start = 3, end = 14 }]
+
+[[cases]]
+name = "suffix-line-suppression"
+comparison = "full"
+files = { "case.py" = "(\n    x\n    and 0  # noqa: SIM223\n    and y\n)\n" }
+expected = []
+
+[[cases]]
+name = "earlier-line-suppression"
+comparison = "full"
+files = { "case.py" = "(\n    x  # noqa: SIM223\n    and 0\n    and y\n)\n" }
+expected = [{ rule = "SIM223", file = "case.py", start = 32, end = 43 }]
