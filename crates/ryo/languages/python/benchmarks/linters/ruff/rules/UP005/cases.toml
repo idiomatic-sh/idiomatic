@@ -1,129 +1,185 @@
 [[cases]]
 name = "alias"
-files = { "case.py" = "self.assertEquals(1, 2)\n" }
-expected = [{ file = "case.py", start = 0, end = 17 }]
+comparison = "full"
+files = {"case.py" = "self.assertEquals(1, 2)\n"}
+expected = [{ rule = "UP005", file = "case.py", start = 0, end = 17 }]
 
 [[cases]]
 name = "modern"
-files = { "case.py" = "self.assertEqual(1, 2)\n" }
+comparison = "full"
+files = {"case.py" = "self.assertEqual(1, 2)\n"}
 expected = []
 
 [[cases]]
 name = "other-object"
-files = { "case.py" = "other.assertEquals(1, 2)\n" }
+comparison = "full"
+files = {"case.py" = "other.assertEquals(1, 2)\n"}
 expected = []
 
 [[cases]]
 name = "nested-base"
-files = { "case.py" = "other.self.assertEquals(1, 2)\n" }
+comparison = "full"
+files = {"case.py" = "other.self.assertEquals(1, 2)\n"}
 expected = []
 
 [[cases]]
 name = "inner-attribute"
-files = { "case.py" = "value = self.assertEquals.__name__\n" }
+comparison = "full"
+files = {"case.py" = "value = self.assertEquals.__name__\n"}
 expected = []
 
 [[cases]]
 name = "reference"
-files = { "case.py" = "value = self.failUnlessRaises\n" }
+comparison = "full"
+files = {"case.py" = "value = self.failUnlessRaises\n"}
 expected = []
 
 [[cases]]
 name = "parenthesized"
-files = { "case.py" = "(self).assertEquals(1, 2)\n" }
-expected = [{ file = "case.py", start = 0, end = 19 }]
+comparison = "full"
+files = {"case.py" = "(self).assertEquals(1, 2)\n"}
+expected = [{ rule = "UP005", file = "case.py", start = 0, end = 19 }]
 
 [[cases]]
 name = "unknown-alias"
-files = { "case.py" = "self.assertWhatever(1, 2)\n" }
+comparison = "full"
+files = {"case.py" = "self.assertWhatever(1, 2)\n"}
 expected = []
 
 [[cases]]
 name = "noqa"
-files = { "case.py" = "self.assertEquals(1, 2) # noqa\n" }
+comparison = "full"
+files = {"case.py" = "self.assertEquals(1, 2) # noqa\n"}
 expected = []
 
 [[cases]]
 name = "code-noqa"
-files = { "case.py" = "self.assertEquals(1, 2) # noqa: UP005\n" }
+comparison = "full"
+files = {"case.py" = "self.assertEquals(1, 2) # noqa: UP005\n"}
 expected = []
 
 [[cases]]
 name = "other-code"
-files = { "case.py" = "self.assertEquals(1, 2) # noqa: F401\n" }
-expected = [{ file = "case.py", start = 0, end = 17 }]
+comparison = "full"
+files = {"case.py" = "self.assertEquals(1, 2) # noqa: F401\n"}
+expected = [{ rule = "UP005", file = "case.py", start = 0, end = 17 }]
 
 [[cases]]
 name = "file-noqa"
-files = { "case.py" = "# ruff: noqa\nself.assertEquals(1, 2)\n" }
+comparison = "full"
+files = {"case.py" = "# ruff: noqa\nself.assertEquals(1, 2)\n"}
 expected = []
 
 [[cases]]
 name = "shared-block-suppressed"
-files = { "case.py" = "# ruff: disable[UP005]\nself.assertEquals(1, 2)\n\n# ruff: enable[UP005]\n" }
+comparison = "full"
+files = {"case.py" = "# ruff: disable[UP005]\nself.assertEquals(1, 2)\n\n# ruff: enable[UP005]\n"}
 expected = []
 
 [[cases]]
 name = "shared-block-reenabled"
-files = { "case.py" = "# ruff: disable[UP005]\n# ruff: enable[UP005]\nself.assertEquals(1, 2)\n" }
-expected = [{ file = "case.py", start = 45, end = 62 }]
+comparison = "full"
+files = {"case.py" = "# ruff: disable[UP005]\n# ruff: enable[UP005]\nself.assertEquals(1, 2)\n"}
+expected = [{ rule = "UP005", file = "case.py", start = 45, end = 62 }]
 
 [[cases]]
 name = "shared-block-unmatched-disable"
-files = { "case.py" = "# ruff: disable[UP005]\nself.assertEquals(1, 2)\n" }
+comparison = "full"
+files = {"case.py" = "# ruff: disable[UP005]\nself.assertEquals(1, 2)\n"}
 expected = []
 
 [[cases]]
 name = "shared-block-wrong-code"
-files = { "case.py" = "# ruff: disable[E501]\nself.assertEquals(1, 2)\n" }
-expected = [{ file = "case.py", start = 22, end = 39 }]
+comparison = "full"
+files = {"case.py" = "# ruff: disable[E501]\nself.assertEquals(1, 2)\n"}
+expected = [{ rule = "UP005", file = "case.py", start = 22, end = 39 }]
 
 [[cases]]
 name = "shared-file-ignore"
-files = { "case.py" = "# ruff: file-ignore[UP005]\nself.assertEquals(1, 2)\n" }
+comparison = "full"
+files = {"case.py" = "# ruff: file-ignore[UP005]\nself.assertEquals(1, 2)\n"}
 expected = []
 
 [[cases]]
 name = "redirected-range-code-U005"
-files = { "case.py" = "# ruff: disable[U005]\nself.assertEquals(1, 2)\n" }
+comparison = "full"
+files = {"case.py" = "# ruff: disable[U005]\nself.assertEquals(1, 2)\n"}
 expected = []
 
 [[cases]]
 name = "redirected-file-noqa-code-U005"
-files = { "case.py" = "# ruff: noqa: U005\nself.assertEquals(1, 2)\n" }
+comparison = "full"
+files = {"case.py" = "# ruff: noqa: U005\nself.assertEquals(1, 2)\n"}
 expected = []
 
 [[cases]]
 name = "pairing-alias-to-canonical"
-files = { "case.py" = "# ruff: disable[U005]\n# ruff: enable[UP005]\nself.assertEquals(1, 2)\n" }
+comparison = "full"
+files = {"case.py" = "# ruff: disable[U005]\n# ruff: enable[UP005]\nself.assertEquals(1, 2)\n"}
 expected = []
 
 [[cases]]
 name = "pairing-canonical-to-alias"
-files = { "case.py" = "# ruff: disable[UP005]\n# ruff: enable[U005]\nself.assertEquals(1, 2)\n" }
+comparison = "full"
+files = {"case.py" = "# ruff: disable[UP005]\n# ruff: enable[U005]\nself.assertEquals(1, 2)\n"}
 expected = []
 
 [[cases]]
 name = "pairing-duplicate-aliases"
-files = { "case.py" = "# ruff: disable[U005,UP005]\n# ruff: enable[UP005]\nself.assertEquals(1, 2)\n" }
+comparison = "full"
+files = {"case.py" = "# ruff: disable[U005,UP005]\n# ruff: enable[UP005]\nself.assertEquals(1, 2)\n"}
 expected = []
 
 [[cases]]
 name = "pairing-alias-reordered"
-files = { "case.py" = "# ruff: disable[U005,E722]\n# ruff: enable[E722,U005]\nself.assertEquals(1, 2)\n" }
+comparison = "full"
+files = {"case.py" = "# ruff: disable[U005,E722]\n# ruff: enable[E722,U005]\nself.assertEquals(1, 2)\n"}
 expected = []
 
 [[cases]]
 name = "nfkc-method"
-files = { "case.py" = "self.\uff41\uff53\uff53\uff45\uff52\uff54\uff25\uff51\uff55\uff41\uff4c\uff53(a, b)\n" }
-expected = [{ file = "case.py", start = 0, end = 41 }]
+comparison = "full"
+files = {"case.py" = "self.ａｓｓｅｒｔＥｑｕａｌｓ(a, b)\n"}
+expected = [{ rule = "UP005", file = "case.py", start = 0, end = 41 }]
 
 [[cases]]
 name = "nfkc-receiver"
-files = { "case.py" = "\uff53\uff45\uff4c\uff46.assertEquals(a, b)\n" }
-expected = [{ file = "case.py", start = 0, end = 25 }]
+comparison = "full"
+files = {"case.py" = "ｓｅｌｆ.assertEquals(a, b)\n"}
+expected = [{ rule = "UP005", file = "case.py", start = 0, end = 25 }]
 
 [[cases]]
 name = "nfkc-other-receiver"
-files = { "case.py" = "other.\uff41\uff53\uff53\uff45\uff52\uff54\uff25\uff51\uff55\uff41\uff4c\uff53(a, b)\n" }
+comparison = "full"
+files = {"case.py" = "other.ａｓｓｅｒｔＥｑｕａｌｓ(a, b)\n"}
 expected = []
+
+[[cases]]
+name = "reference-self"
+comparison = "full"
+files = {"case.py" = "value = self.assertEquals\n"}
+expected = []
+
+[[cases]]
+name = "reference-two"
+comparison = "full"
+files = {"case.py" = "self.failUnlessRaises\n"}
+expected = []
+
+[[cases]]
+name = "method-call"
+comparison = "full"
+files = {"case.py" = "self.assertAlmostEquals(1, 1)\n"}
+expected = [{ rule = "UP005", file = "case.py", start = 0, end = 23 }]
+
+[[cases]]
+name = "not-self"
+comparison = "full"
+files = {"case.py" = "case.assertEquals(1, 1)\n"}
+expected = []
+
+[[cases]]
+name = "Unicode-offset"
+comparison = "full"
+files = {"case.py" = "é = 1\nself.assertEquals(1, 1)\n"}
+expected = [{ rule = "UP005", file = "case.py", start = 7, end = 24 }]

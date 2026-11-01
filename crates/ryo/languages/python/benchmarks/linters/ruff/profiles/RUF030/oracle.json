@@ -1,0 +1,113 @@
+{
+  "direct": {
+    "source": "assert condition, print(\"bad\")\n",
+    "expected": [
+      {
+        "rule": "RUF030",
+        "file": "case.py",
+        "start": 18,
+        "end": 30
+      }
+    ]
+  },
+  "empty-print": {
+    "source": "assert condition, print()\n",
+    "expected": [
+      {
+        "rule": "RUF030",
+        "file": "case.py",
+        "start": 18,
+        "end": 25
+      }
+    ]
+  },
+  "format-print": {
+    "source": "assert condition, print(\"bad\", value)\n",
+    "expected": [
+      {
+        "rule": "RUF030",
+        "file": "case.py",
+        "start": 18,
+        "end": 37
+      }
+    ]
+  },
+  "keyword-print": {
+    "source": "assert condition, print(value, sep=\" \")\n",
+    "expected": [
+      {
+        "rule": "RUF030",
+        "file": "case.py",
+        "start": 18,
+        "end": 39
+      }
+    ]
+  },
+  "no-message": {
+    "source": "assert condition\n",
+    "expected": []
+  },
+  "not-assert": {
+    "source": "print(\"bad\")\n",
+    "expected": []
+  },
+  "other-message": {
+    "source": "assert condition, log(\"bad\")\n",
+    "expected": []
+  },
+  "print-expression": {
+    "source": "assert condition, (print(\"bad\"))\n",
+    "expected": [
+      {
+        "rule": "RUF030",
+        "file": "case.py",
+        "start": 19,
+        "end": 31
+      }
+    ]
+  },
+  "shadowed-parameter": {
+    "source": "def f(print):\n    assert condition, print(\"bad\")\n",
+    "expected": []
+  },
+  "shadowed-module": {
+    "source": "print = custom\nassert condition, print(\"bad\")\n",
+    "expected": []
+  },
+  "noqa": {
+    "source": "assert condition, print(\"bad\")  # noqa: RUF030\n",
+    "expected": []
+  },
+  "file-noqa": {
+    "source": "# ruff: noqa: RUF030\nassert condition, print(\"bad\")\n",
+    "expected": []
+  },
+  "other-code": {
+    "source": "assert condition, print(\"bad\")  # noqa: F401\n",
+    "expected": [
+      {
+        "rule": "RUF030",
+        "file": "case.py",
+        "start": 18,
+        "end": 30
+      }
+    ]
+  },
+  "multiple": {
+    "source": "assert first, print(\"one\")\nassert second, print(\"two\")\n",
+    "expected": [
+      {
+        "rule": "RUF030",
+        "file": "case.py",
+        "start": 14,
+        "end": 26
+      },
+      {
+        "rule": "RUF030",
+        "file": "case.py",
+        "start": 42,
+        "end": 54
+      }
+    ]
+  }
+}

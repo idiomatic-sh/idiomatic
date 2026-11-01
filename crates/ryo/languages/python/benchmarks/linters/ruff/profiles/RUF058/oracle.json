@@ -1,0 +1,106 @@
+{
+  "direct": {
+    "source": "import itertools\nitertools.starmap(function, zip(values))\n",
+    "expected": [
+      {
+        "rule": "RUF058",
+        "file": "case.py",
+        "start": 17,
+        "end": 57
+      }
+    ]
+  },
+  "from-alias": {
+    "source": "from itertools import starmap as sm\nsm(function, zip(values))\n",
+    "expected": [
+      {
+        "rule": "RUF058",
+        "file": "case.py",
+        "start": 36,
+        "end": 61
+      }
+    ]
+  },
+  "zip-alias": {
+    "source": "import itertools\nfrom builtins import zip as z\nitertools.starmap(function, z(values))\n",
+    "expected": [
+      {
+        "rule": "RUF058",
+        "file": "case.py",
+        "start": 47,
+        "end": 85
+      }
+    ]
+  },
+  "one-starred": {
+    "source": "import itertools\nitertools.starmap(function, zip(*values, extra))\n",
+    "expected": [
+      {
+        "rule": "RUF058",
+        "file": "case.py",
+        "start": 17,
+        "end": 65
+      }
+    ]
+  },
+  "empty-zip": {
+    "source": "import itertools\nitertools.starmap(function, zip())\n",
+    "expected": [
+      {
+        "rule": "RUF058",
+        "file": "case.py",
+        "start": 17,
+        "end": 51
+      }
+    ]
+  },
+  "all-starred": {
+    "source": "import itertools\nitertools.starmap(function, zip(*values, *other))\n",
+    "expected": []
+  },
+  "zip-keyword": {
+    "source": "import itertools\nitertools.starmap(function, zip(values, strict=True))\n",
+    "expected": []
+  },
+  "starmap-keyword": {
+    "source": "import itertools\nitertools.starmap(function, zip(values), other=True)\n",
+    "expected": []
+  },
+  "wrong-map": {
+    "source": "import other\nother.starmap(function, zip(values))\n",
+    "expected": []
+  },
+  "wrong-iterable": {
+    "source": "import itertools\nitertools.starmap(function, sorted(values))\n",
+    "expected": []
+  },
+  "shadowed-zip": {
+    "source": "def f(zip):\n    import itertools\n    itertools.starmap(function, zip(values))\n",
+    "expected": []
+  },
+  "noqa": {
+    "source": "import itertools\nitertools.starmap(function, zip(values))  # noqa: RUF058\n",
+    "expected": []
+  },
+  "file-noqa": {
+    "source": "# ruff: noqa: RUF058\nimport itertools\nitertools.starmap(function, zip(values))\n",
+    "expected": []
+  },
+  "multiple": {
+    "source": "import itertools\nitertools.starmap(fn, zip(a, b))\nitertools.starmap(fn, zip(c))\n",
+    "expected": [
+      {
+        "rule": "RUF058",
+        "file": "case.py",
+        "start": 17,
+        "end": 49
+      },
+      {
+        "rule": "RUF058",
+        "file": "case.py",
+        "start": 50,
+        "end": 79
+      }
+    ]
+  }
+}

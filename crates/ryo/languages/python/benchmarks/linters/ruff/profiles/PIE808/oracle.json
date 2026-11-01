@@ -1,0 +1,93 @@
+{
+  "direct": {
+    "source": "range(0, 10)\n",
+    "expected": [
+      {
+        "rule": "PIE808",
+        "file": "case.py",
+        "start": 6,
+        "end": 7
+      }
+    ]
+  },
+  "alias": {
+    "source": "from builtins import range as r\nr(0, 10)\n",
+    "expected": [
+      {
+        "rule": "PIE808",
+        "file": "case.py",
+        "start": 34,
+        "end": 35
+      }
+    ]
+  },
+  "module": {
+    "source": "import builtins\nbuiltins.range(0, 10)\n",
+    "expected": [
+      {
+        "rule": "PIE808",
+        "file": "case.py",
+        "start": 31,
+        "end": 32
+      }
+    ]
+  },
+  "hex-zero": {
+    "source": "range(0x0, 10)\n",
+    "expected": [
+      {
+        "rule": "PIE808",
+        "file": "case.py",
+        "start": 6,
+        "end": 9
+      }
+    ]
+  },
+  "underscore-zero": {
+    "source": "range(0_0, 10)\n",
+    "expected": [
+      {
+        "rule": "PIE808",
+        "file": "case.py",
+        "start": 6,
+        "end": 9
+      }
+    ]
+  },
+  "nonzero": {
+    "source": "range(1, 10)\n",
+    "expected": []
+  },
+  "negative-zero": {
+    "source": "range(-0, 10)\n",
+    "expected": []
+  },
+  "float-zero": {
+    "source": "range(0.0, 10)\n",
+    "expected": []
+  },
+  "shadowed": {
+    "source": "def f(range):\n    range(0, 10)\n",
+    "expected": []
+  },
+  "other-call": {
+    "source": "other.range(0, 10)\n",
+    "expected": []
+  },
+  "noqa": {
+    "source": "range(0, 10) # noqa: PIE808\n",
+    "expected": []
+  },
+  "file-noqa": {
+    "source": "# ruff: noqa: PIE808\nrange(0, 10)\n",
+    "expected": []
+  },
+  "extra-args": {
+    "source": "range(0, 10, 2)\n",
+    "expected": []
+  },
+  "keyword": {
+    "source": "range(0, stop=10)\n",
+    "expected": []
+  }
+}
