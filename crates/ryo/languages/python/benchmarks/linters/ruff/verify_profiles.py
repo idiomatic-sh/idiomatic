@@ -111,6 +111,11 @@ def manifest_paths(manifest: dict[str, object], helper_path: str) -> set[str]:
     base_profile = RUFF_DIR / "benchmark.toml"
     paths = {helper_path, base_profile.relative_to(REPOSITORY).as_posix()}
     paths.add(RULE_PHASES_FILE.relative_to(REPOSITORY).as_posix())
+    paths.add(
+        (RUFF_DIR / "results/standard-suppression-policy.json")
+        .relative_to(REPOSITORY)
+        .as_posix()
+    )
     base_data = tomllib.loads(base_profile.read_text(encoding="utf-8"))
     paths.update(module_path(path) for path in profile_modules(base_data).values())
     for profile_name, recorded in profiles.items():
@@ -643,6 +648,87 @@ def check_staged_applicability(
         raise ValueError(
             "staged rule applicability differs from the pinned phase registry"
         )
+
+
+def check_canonical_standard_suppression(
+    profile: Path, query_sources: dict[str, Path]
+) -> None:
+    """Apply migration policy to canonical sources; retain historical snapshots."""
+    policy = json.loads(
+        (RUFF_DIR / "results/standard-suppression-policy.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    selected = [
+        rule
+        for rule, source in query_sources.items()
+        if rule in policy["canonical_queries"]
+        and source == RUFF_DIR / policy["canonical_queries"][rule]
+    ]
+    check_standard_suppression(profile, selected)
+
+
+def check_standard_suppression(
+    profile: Path,
+    selected_rules: list[str],
+    policies: dict[str, str] | None = None,
+) -> None:
+    """Guard the explicitly migrated source forms, not arbitrary query semantics."""
+    if policies is None:
+        policy = json.loads(
+            (RUFF_DIR / "results/standard-suppression-policy.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        if policy.get("schema") != "standard-suppression-policy/v1":
+            raise ValueError("unsupported standard suppression policy")
+        policies = policy["rules"]
+    scoped = set(selected_rules) & policies.keys()
+    if not scoped:
+        return
+    registry = profile_modules(tomllib.loads(profile.read_text(encoding="utf-8")))
+    if registry.get("python/ruff/suppress") != "fragments/suppress.ryoql":
+        raise ValueError("standard suppression requires its declared module source")
+    if not (profile.parent / registry["python/ruff/suppress"]).is_file():
+        raise ValueError("standard suppression module was not staged")
+    for rule in sorted(scoped):
+        if policies[rule] != "standard-module":
+            raise ValueError(f"unreviewed suppression policy for {rule}")
+        source = (profile.parent / "rules" / rule / "query.ryoql").read_text(
+            encoding="utf-8"
+        )
+        imports = re.findall(
+            r'^import\s+(\w+)\s+from\s+"python/ruff/suppress"\s*;',
+            source,
+            re.MULTILINE,
+        )
+        if len(imports) != 1:
+            raise ValueError(f"{rule} requires one standard suppression import")
+        if re.search(
+            r"^let\s+(?:mapping_edges|supp_range_comments)\s*=", source, re.MULTILINE
+        ):
+            raise ValueError(f"{rule} contains a copied suppression implementation")
+        # This is a source dependency guard. Actual full-report and compiled-plan
+        # checks establish behavior; token references alone are not an IR proof.
+        bindings = dict(
+            re.findall(r"^let\s+(\w+)\s*=\s*(.*);\s*$", source, re.MULTILINE)
+        )
+        pending = re.findall(r"^emit\s+(\w+)\s+subject\b", source, re.MULTILINE)
+        visited = set()
+        used = False
+        while pending:
+            name = pending.pop()
+            if name in visited or name not in bindings:
+                continue
+            visited.add(name)
+            expression = re.sub(r'"(?:\\.|[^"\\])*"', '""', bindings[name])
+            if re.search(r"\b" + re.escape(imports[0]) + r"\s*\(", expression):
+                used = True
+            pending.extend(set(re.findall(r"\b\w+\b", expression)) & bindings.keys())
+        if not used:
+            raise ValueError(
+                f"{rule} does not emit a result depending on standard suppression"
+            )
 
 
 def profile_tool_matches(
@@ -2304,6 +2390,9 @@ def stage_binding(
         check_staged_applicability(destination / "benchmark.toml", [rule], manifest)
         shutil.copyfile(candidate_path, rule_dir / "query.ryoql")
         shutil.copyfile(cases_path, rule_dir / "cases.toml")
+        check_canonical_standard_suppression(
+            destination / "benchmark.toml", {rule: candidate_path}
+        )
         staged.append((profile_name, destination))
     return staged
 
@@ -2574,6 +2663,10 @@ def stage_combined(
             if full_report:
                 case["comparison"] = "full"
         write_cases(rule_dir / "cases.toml", cases)
+    check_canonical_standard_suppression(
+        destination / "benchmark.toml",
+        {rule: combined_query_path(rule, descriptor) for rule in selected_rules},
+    )
     return profile_name, destination
 
 
@@ -2913,7 +3006,166 @@ def context_guard_self_test() -> None:
             raise AssertionError("ListedDisk was silently transported over stdin")
 
 
+def complete_run_ryo_report(
+    status: int, stdout: str, stderr: str, files: list[str], rules: list[str]
+) -> dict[str, object]:
+    """Validate a direct worker report before using it in an equivalence proof."""
+    if status != 0 or stderr:
+        raise ValueError("direct worker did not complete successfully")
+    report = json.loads(stdout)
+    if not isinstance(report, dict) or set(report) != {
+        "diagnostics",
+        "skipped",
+        "coverage",
+        "files",
+    }:
+        raise ValueError("direct worker report has an invalid schema")
+    if report["files"] != sorted(set(files)):
+        raise ValueError("direct worker file inventory is incomplete")
+    coverage = report["coverage"]
+    if not isinstance(coverage, dict) or set(coverage) != {
+        "selected",
+        "evaluated",
+        "skipped",
+        "unknown_or_unread",
+    }:
+        raise ValueError("direct worker coverage is incomplete")
+    if any(type(value) is not int or value < 0 for value in coverage.values()):
+        raise ValueError("direct worker coverage contains invalid counts")
+    selected = len(set(files)) * len(set(rules))
+    if (
+        coverage["selected"] != selected
+        or coverage["unknown_or_unread"] != 0
+        or coverage["evaluated"] + coverage["skipped"] != selected
+    ):
+        raise ValueError("direct worker did not account for every rule/file pair")
+    if (
+        not isinstance(report["skipped"], list)
+        or len(report["skipped"]) != coverage["skipped"]
+    ):
+        raise ValueError("direct worker skip receipts are incomplete")
+    if not isinstance(report["diagnostics"], list):
+        raise ValueError("direct worker diagnostics are missing")
+    for diagnostic in report["diagnostics"]:
+        if (
+            not isinstance(diagnostic, dict)
+            or set(diagnostic) != {"rule", "file", "start", "end"}
+            or diagnostic["file"] not in files
+            or diagnostic["rule"] not in [*rules, "invalid-syntax"]
+            or type(diagnostic["start"]) is not int
+            or type(diagnostic["end"]) is not int
+            or not 0 <= diagnostic["start"] <= diagnostic["end"]
+        ):
+            raise ValueError("direct worker diagnostic has an invalid schema")
+    return report
+
+
+def self_test_standard_suppression() -> None:
+    """Reject declaration-only, dead-call, missing-module and copied-body forms."""
+    with tempfile.TemporaryDirectory() as temporary:
+        root = Path(temporary)
+        profile = root / "benchmark.toml"
+        module = root / "fragments/suppress.ryoql"
+        module.parent.mkdir()
+        module.write_text("return candidates;\n", encoding="utf-8")
+        query = root / "rules/GUARD001/query.ryoql"
+        query.parent.mkdir(parents=True)
+        declared = (
+            '[query-modules]\n"python/ruff/suppress" = "fragments/suppress.ryoql"\n'
+        )
+        imported = 'import hide from "python/ruff/suppress";\n'
+        called = "let filtered = hide(candidates=candidate_locations);\n"
+        emitted = "let violations = select id, file, span from filtered;\nemit violations subject file key(id);\n"
+        policies = {"GUARD001": "standard-module"}
+        profile.write_text(declared, encoding="utf-8")
+        query.write_text(imported + called + emitted, encoding="utf-8")
+        check_standard_suppression(profile, ["GUARD001"], policies)
+        for source in (
+            imported + "emit candidate_locations subject file key(id);\n",
+            imported + called + "emit candidate_locations subject file key(id);\n",
+            called + emitted,
+            imported
+            + called
+            + emitted
+            + 'let mapping_edges = select * from "semantic-child";\n',
+        ):
+            query.write_text(source, encoding="utf-8")
+            try:
+                check_standard_suppression(profile, ["GUARD001"], policies)
+            except ValueError:
+                continue
+            raise AssertionError("invalid standard suppression source was accepted")
+        query.write_text(imported + called + emitted, encoding="utf-8")
+        profile.write_text("", encoding="utf-8")
+        try:
+            check_standard_suppression(profile, ["GUARD001"], policies)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("undeclared standard suppression module was accepted")
+        profile.write_text(declared, encoding="utf-8")
+        module.unlink()
+        try:
+            check_standard_suppression(profile, ["GUARD001"], policies)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("unstaged standard suppression module was accepted")
+        # An unreviewed partial form is outside this guard's explicit policy scope.
+        check_standard_suppression(profile, ["UNMAPPED001"], policies)
+    valid_report = {
+        "diagnostics": [],
+        "skipped": [],
+        "files": ["case.py"],
+        "coverage": {
+            "selected": 1,
+            "evaluated": 1,
+            "skipped": 0,
+            "unknown_or_unread": 0,
+        },
+    }
+    complete_run_ryo_report(0, json.dumps(valid_report), "", ["case.py"], ["GUARD001"])
+    for status, stdout, stderr in (
+        (1, "", "query module is a symlink: fragments/suppress.ryoql\n"),
+        (1, "", "same refusal from both workers\n"),
+        (0, "", ""),
+        (0, "{}", ""),
+        (0, json.dumps({**valid_report, "coverage": {"selected": 1}}), ""),
+        (0, json.dumps({**valid_report, "files": []}), ""),
+        (
+            0,
+            json.dumps(
+                {
+                    **valid_report,
+                    "coverage": {**valid_report["coverage"], "evaluated": 0},
+                }
+            ),
+            "",
+        ),
+        (
+            0,
+            json.dumps(
+                {
+                    **valid_report,
+                    "coverage": {**valid_report["coverage"], "unknown_or_unread": 1},
+                }
+            ),
+            "",
+        ),
+    ):
+        # Each side must validate independently: two identical refusals cannot pass.
+        for _side in ("baseline", "candidate"):
+            try:
+                complete_run_ryo_report(
+                    status, stdout, stderr, ["case.py"], ["GUARD001"]
+                )
+            except (ValueError, json.JSONDecodeError):
+                continue
+            raise AssertionError("incomplete direct worker report was accepted")
+
+
 def self_test() -> int:
+    self_test_standard_suppression()
     """Exercise fail-closed profile-selection and hash-mismatch guards without invoking Cargo."""
     global MANIFEST
     context_guard_self_test()
@@ -3880,6 +4132,12 @@ def self_test() -> int:
                 file=sys.stderr,
             )
             return 1
+        # These copied CLI fixtures exercise selection, transport and resume.
+        # Live READY admission may legitimately be pending a helper migration;
+        # its independent actual-proof guard has dedicated positive/negative tests.
+        # Do not rewrite or remove any production admission receipt.
+        for receipt in manifest.pop("actual_proof_receipts", []):
+            manifest["files"].pop(receipt, None)
         for relative in manifest["files"]:
             source = REPOSITORY / relative
             destination = root / relative

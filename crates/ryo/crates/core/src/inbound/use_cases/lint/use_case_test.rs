@@ -1500,7 +1500,7 @@ fn changed_nested_module() -> Result<Value, Failure> {
 
 /// A module-only predicate edit changes actual findings through a retained real compiler plan.
 fn changed_fragment_plan() -> Result<Value, Failure> {
-    use super::types::CompiledPlans;
+    use crate::application::rule_compilation::types::CompiledPlans;
     use crate::outbound::query_language::factory;
     use crate::outbound::query_language::interface::QueryLanguagePort;
 
@@ -1599,9 +1599,9 @@ fn changed_ids_keep_one_plan() -> Result<Value, Failure> {
         rules: vec!["one"; PER_RUN],
         ..violations()
     };
-    let plans = super::types::CompiledPlans::default();
+    let plans = crate::application::rule_compilation::types::CompiledPlans::default();
     let use_case = world(given()).use_case.compiling_into(plans.clone());
-    let runs = super::constants::COMPILED_PLANS / PER_RUN + 2;
+    let runs = crate::application::rule_compilation::constants::COMPILED_PLANS / PER_RUN + 2;
     let mut most = 0;
     for run in 0..runs {
         let mut asked = request(&given());
@@ -1618,7 +1618,9 @@ fn changed_ids_keep_one_plan() -> Result<Value, Failure> {
         most = most.max(kept);
     }
     Ok((
-        usize::from(most > 0 && most <= super::constants::COMPILED_PLANS),
+        usize::from(
+            most > 0 && most <= crate::application::rule_compilation::constants::COMPILED_PLANS,
+        ),
         0,
     ))
 }
@@ -1639,25 +1641,36 @@ fn lint_under_ids(use_case: &LintUseCaseImpl, tag: &str, count: usize) -> Result
 
 /// Lints one request that names more rules than the cap: answers 1 when the plans kept are no more than the cap.
 fn one_request_over_the_cap() -> Result<Value, Failure> {
-    let plans = super::types::CompiledPlans::default();
+    let plans = crate::application::rule_compilation::types::CompiledPlans::default();
     let use_case = world(violations()).use_case.compiling_into(plans.clone());
-    lint_under_ids(&use_case, "big", super::constants::COMPILED_PLANS + 1)?;
-    lint_under_ids(&use_case, "bigger", super::constants::COMPILED_PLANS * 2)?;
+    lint_under_ids(
+        &use_case,
+        "big",
+        crate::application::rule_compilation::constants::COMPILED_PLANS + 1,
+    )?;
+    lint_under_ids(
+        &use_case,
+        "bigger",
+        crate::application::rule_compilation::constants::COMPILED_PLANS * 2,
+    )?;
     let kept = plans
         .0
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
         .plans
         .len();
-    Ok((usize::from(kept == super::constants::COMPILED_PLANS), 0))
+    Ok((
+        usize::from(kept == crate::application::rule_compilation::constants::COMPILED_PLANS),
+        0,
+    ))
 }
 
 /// Fills the plans of a session to the cap, then lints one rule more: answers 1 when only the plan kept longest was dropped and the
 /// plans of the runs before it all stayed.
 fn eviction_drops_one_plan_at_a_time() -> Result<Value, Failure> {
-    let plans = super::types::CompiledPlans::default();
+    let plans = crate::application::rule_compilation::types::CompiledPlans::default();
     let use_case = world(violations()).use_case.compiling_into(plans.clone());
-    let cap = super::constants::COMPILED_PLANS;
+    let cap = crate::application::rule_compilation::constants::COMPILED_PLANS;
     lint_under_ids(&use_case, "old", cap / 2)?;
     lint_under_ids(&use_case, "newer", cap - cap / 2)?;
     lint_under_ids(&use_case, "latest", 1)?;
@@ -1741,7 +1754,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 ..violations()
             };
             let (first, second) = (request(&rule("one")), request(&rule("two")));
-            let plans = super::types::CompiledPlans::default();
+            let plans = crate::application::rule_compilation::types::CompiledPlans::default();
             let use_case = world(rule("one")).use_case.compiling_into(plans.clone());
             let _first = use_case.lint(first)?;
             let _second = use_case.lint(second)?;

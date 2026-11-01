@@ -92,6 +92,16 @@ fn subject(input: Input) -> Result<Value, Failure> {
 
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
+        name: CaseName("signed_self_match_pairs_every_nonmaximum_with_its_successor"),
+        word: Word::Succeeds,
+        input: || Input {
+            left: &[(2, 0), (1, -1), (1, -9), (2, -7), (1, -3)],
+            right: &[(2, 0), (1, -1), (1, -9), (2, -7), (1, -3)],
+            expected: &[(-9, -3), (-3, -1), (-7, 0)],
+        },
+        expect: Expect::Value(true),
+    },
+    Case {
         name: CaseName("adjacent_large_integer_orders_remain_distinct"),
         word: Word::Succeeds,
         input: || Input {

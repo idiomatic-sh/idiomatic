@@ -2,3 +2,4 @@
 
 pub mod cross_file;
 pub mod file_analysis;
+pub mod rule_compilation;

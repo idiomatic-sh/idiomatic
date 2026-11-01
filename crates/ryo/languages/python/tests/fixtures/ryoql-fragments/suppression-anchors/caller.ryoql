@@ -1,0 +1,6 @@
+import suppress from "python/ruff/suppress";
+let native = select id, file, span from "semantic-syntax" where kind = "pass";
+let located = select l.id as id, l.file as file, l.span as span, r."start-line" as line from native as l join "source-location" as r on l.id = r.id and l.file = r.file;
+let candidates = union(left=located, right=located);
+let violations = suppress(candidates=candidates, inline-pattern="(?:^|[^A-Z0-9])ANCHOR001(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:ANCHOR001)(?:,|$)");
+emit violations subject file key(id);

@@ -262,3 +262,17 @@ impl std::fmt::Display for ProviderFault {
         })
     }
 }
+
+impl From<crate::application::rule_compilation::errors::RuleCompilationError> for LintError {
+    fn from(error: crate::application::rule_compilation::errors::RuleCompilationError) -> Self {
+        match error {
+            crate::application::rule_compilation::errors::RuleCompilationError::Rules(reason) => {
+                reason.into()
+            }
+            crate::application::rule_compilation::errors::RuleCompilationError::Query {
+                id,
+                error,
+            } => Self::Query { id, error },
+        }
+    }
+}

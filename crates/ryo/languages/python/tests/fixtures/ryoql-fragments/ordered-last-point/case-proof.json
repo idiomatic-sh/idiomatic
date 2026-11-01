@@ -1,0 +1,70 @@
+{
+  "schema": "plc0206-ordered-max-case-proof/v1",
+  "reference": "Ruff0.16.5/PY310",
+  "cases": 50,
+  "side_records": 100,
+  "complete_records": 100,
+  "unknown_or_unread_rule_file_pairs": 0,
+  "candidate_query_sha256": "eedc98caf63ba83519640770a1681a4c5dae6a25f5eb44eef8130d66949eb4b0",
+  "baseline_query_sha256": "154200d9ef76fa9c0240dce692dbd38078b09a5533986403db84807e5f0431a3",
+  "only_changed_statement": "older_file_points",
+  "unchanged_final_antijoin": "let final_file_points = antijoin(left=file_event_points, right=older_file_points, left-on=[\"point\", \"file\"], right-on=[\"point\", \"file\"]);",
+  "staged_cases_sha256": "ff3a54400d8bfe7fba5e62727199deb1505e177d5d78fffc204f0d4dd8d9aef5",
+  "canonical_cases_sha256": "ff3a54400d8bfe7fba5e62727199deb1505e177d5d78fffc204f0d4dd8d9aef5",
+  "staged_profile_sha256": "608139862489a28d00dc7e6e8783365ad9a01ac4a9bbb436972cc78113db0865",
+  "module_registry": {
+    "python/ruff/assigned-values": {
+      "path": "fragments/assigned-values.ryoql",
+      "sha256": "852264db928fc27090b96ea437515bafe58defea8b93f04efd2cfe61e22c30ed"
+    },
+    "python/ruff/class-bases": {
+      "path": "fragments/class-bases.ryoql",
+      "sha256": "fc1631c5cff467313bf8355b76a416475ccf17597cea2fc9a762746e1ee51424"
+    },
+    "python/ruff/deferred-class-origins": {
+      "path": "fragments/deferred-class-origins.ryoql",
+      "sha256": "4667ad8e34a470d5252fde9ea4822a41ec675ae49bd3a7b0c11b654c2e2a3d7c"
+    },
+    "python/ruff/enum-bases": {
+      "path": "fragments/enum-bases.ryoql",
+      "sha256": "2435c26a20c51b1ccdf03835c5fcdff56f60d9672274c560371aa2f616d5b5c7"
+    },
+    "python/ruff/literal-members": {
+      "path": "fragments/literal-members.ryoql",
+      "sha256": "2b2efda02620a07bbcd470b960e6bd628f486d284add38b73a4fa7e8faefc237"
+    },
+    "python/ruff/lookup-attribute": {
+      "path": "fragments/lookup-attribute.ryoql",
+      "sha256": "ed4c627599e82cdd9055e81db2b5bdbae8fdbbd253ca4b66e908ea7adc4f4ee1"
+    },
+    "python/ruff/lookup-symbol-events": {
+      "path": "fragments/lookup-symbol-events.ryoql",
+      "sha256": "7840b31b7bad8d9491595bf63cdcc5c3f27aa4b751d401209e87a1404a96b231"
+    },
+    "python/ruff/metaclass": {
+      "path": "fragments/metaclass.ryoql",
+      "sha256": "9524812dd4d131f2f5308732d2539ee83f7a8616312ffebfd9e502c635d9819a"
+    },
+    "python/ruff/qualified-origins": {
+      "path": "fragments/qualified-origins.ryoql",
+      "sha256": "102cd490a9d15e3f4a95600d5644ce18418e1d4059ae8344019edb8d79699ab5"
+    },
+    "python/ruff/suppress": {
+      "path": "fragments/suppress.ryoql",
+      "sha256": "72eaeed41d5a9a6393d5048cb7bf7389479a9ce622f4748db92f980e724a8b80"
+    },
+    "python/ruff/union-members": {
+      "path": "fragments/union-members.ryoql",
+      "sha256": "4300be9432454ce1c1deaa3a25dee58808198d96edc9d3bb95097bcd18273bd6"
+    }
+  },
+  "raw_append_log_sha256": "e540f514126881f3794a545144d3ad81b6923b225b373fe9f1b5eb466745a5bd",
+  "selected_record_lines": [
+    84,
+    184
+  ],
+  "selected_record_sha256": "04ede69740c794aa4d27f17ae3eec5a9531fdb8765872fd8dc29e6b5b366fecc",
+  "evidence": "/tmp/plc0206-ordered-max-20261101",
+  "negative_typed_case": "signed_self_match_pairs_every_nonmaximum_with_its_successor",
+  "negative_typed_case_status": "added to existing core operator fixtures; awaits next required integration test gate, no local Cargo run"
+}

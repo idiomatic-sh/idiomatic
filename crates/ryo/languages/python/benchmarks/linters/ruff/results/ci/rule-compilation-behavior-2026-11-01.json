@@ -1,0 +1,33 @@
+{
+  "schema": "terminal-source-check/v1",
+  "status": "complete",
+  "passed": true,
+  "command": [
+    "flock",
+    "/workspaces/.cargo-build.lock",
+    "cargo",
+    "test",
+    "--locked",
+    "-j6",
+    "-p",
+    "idiomatic-sh-ryo-core",
+    "-p",
+    "idiomatic-sh-ryo-sdk",
+    "--lib",
+    "--no-fail-fast"
+  ],
+  "cwd": "/workspaces/idiomatic-benchmark-guards/crates/ryo",
+  "runner_sha256": "6fd6b47bd5ccf056d5a8577ea11a6780e6af19a136bed1fe3f7a05901714e2ae",
+  "started_utc": "2026-11-01T16:02:32.543583+00:00",
+  "completed_utc": "2026-11-01T16:03:33.803011+00:00",
+  "exit_code": 0,
+  "error": null,
+  "source_stable": true,
+  "stdout_sha256": "0e86d4201e93e6a31df0bb3607787a0efd419b577cbebe1f90393d5ec5abd4d6",
+  "stderr_sha256": "5c50e8760269ff6ba9231615988ed4f1645fb15ee5cf4492f0f9d41f62115c7b",
+  "head": "032aad9a9f5b2a963797557a6cb3dfe3694e5863",
+  "source_tree_sha256": "e1f391f369ca43fa038257d851258e111873a5d78adc6715dddcf30f72241e81",
+  "raw_receipt_path": "/tmp/rule-compilation-core-sdk-gate-20261101/result.json",
+  "raw_receipt_sha256": "577c579b03e094bf7c3f61fb9d818ec6606475773ae79a8007745926984eb206",
+  "source_file_count": 16289
+}

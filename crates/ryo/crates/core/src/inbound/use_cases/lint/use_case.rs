@@ -4,15 +4,15 @@
 //! the rules that govern it on them. Only the words of the rows the rules emit and the cross-file steps read are kept; the workers'
 //! tables meet once, the cross-file steps run on the kept words, and the findings are written. What is decided of the rules, the
 //! files and the rows is the domain's; this calls it between the calls of the ports.
-use super::constants::COMPILED_PLANS;
 use super::errors::LintError;
 use super::interface::LintUseCase;
 use super::service::{answered, handed_of, records_of};
 use super::types::{
-    CachedPlan, Compiled, Course, FeatureFed, LintReport, LintRequest, LintRun, Listed,
-    RepositoryListing, RuleWork, StepFed, Streaming, TaskIndex, Wanting,
+    Course, FeatureFed, LintReport, LintRequest, LintRun, Listed, RepositoryListing, RuleWork,
+    StepFed, Streaming, TaskIndex, Wanting,
 };
 use crate::application::file_analysis::types::{FileVisit, Worker};
+use crate::application::rule_compilation::types::Compiled;
 
 use crate::domain::answering::service::{cross_steps, settle, todo_list};
 use crate::domain::answering::types::Todo;
@@ -46,7 +46,7 @@ use crate::domain::render::types::{Answering, Rendered, RowLimit};
 use crate::domain::reporting::service::{room_left, totals};
 use crate::domain::reporting::types::RowCounts;
 use crate::domain::repository::service::{by_path, configuration, paths_of};
-use crate::domain::rules::service::{bind, check_ids, ids_of, owner_of, scopes_of};
+use crate::domain::rules::service::{ids_of, owner_of, scopes_of};
 use crate::domain::rules::types::RuleSpec;
 use crate::domain::storing::service::{
     as_kept, decide as reuse_of, later_from, made_again, records_from, skipped_from, stored_of,
@@ -80,7 +80,6 @@ use crate::outbound::lint_store::types::StoreKeeping;
 use crate::outbound::matching::errors::MatchingError;
 use crate::outbound::matching::interface::MatchingPort;
 use crate::outbound::memory::interface::MemoryPort;
-use crate::outbound::query_language::errors::QueryLanguageError;
 use crate::outbound::query_language::interface::QueryLanguagePort;
 use crate::outbound::rows::interface::RowsPort;
 use crate::outbound::rows::types::{LentCell, Summary};
@@ -95,7 +94,6 @@ use ryo_language::domain::symbols::types::Symbols;
 
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::files::types::{CorpusEntry, FileBytes, Glob};
-use ryo_values::domain::hosted::service::declarations;
 use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::plan_parts::types::{Heading, InputNumber};
 use ryo_values::domain::plans::types::Plan;
@@ -125,8 +123,8 @@ pub struct LintUseCaseImpl {
     language: Arc<dyn LanguagePort>,
     /// Decides which files a rule's include and exclude globs govern.
     matching: Arc<dyn MatchingPort>,
-    /// Compiles each rule's query into the plan the lint evaluates.
-    query_language: Arc<dyn QueryLanguagePort>,
+    /// Owns rule compilation, independent per-request binding and bounded session plans.
+    compilation: crate::application::rule_compilation::service::RuleCompilation,
     /// Says how much memory the machine has, which sizes the lint's budget.
     memory: Arc<dyn MemoryPort>,
     /// Runs the files' jobs on the workers.
@@ -139,9 +137,6 @@ pub struct LintUseCaseImpl {
     digest: Arc<dyn DigestPort>,
     /// Keeps what a run found of each file and rule for the next run, for the build that made it.
     store: Arc<dyn LintStorePort>,
-    /// The plan compiled so far for each rule id, shared with every use case built over the same: a rule is compiled once
-    /// while they live and the relations the host declares are the same.
-    compiled: super::types::CompiledPlans,
     /// Whether the steps that read only the tree run as operators and not over the positions of its elements.
     unlowered: TreeSteps,
     /// Whether the rows each step is fed are counted, for the report's `features`: a count that costs a call for every row.
@@ -183,14 +178,15 @@ impl LintUseCaseImpl {
             facts,
             language,
             matching,
-            query_language,
+            compilation: crate::application::rule_compilation::service::RuleCompilation::new(
+                query_language,
+            ),
             memory,
             scheduler,
             workers,
             rows,
             digest,
             store,
-            compiled: super::types::CompiledPlans::default(),
             unlowered: TreeSteps::Lowered,
             counting: Counting::DoesNotCount,
         }
@@ -198,8 +194,11 @@ impl LintUseCaseImpl {
 
     /// The same, keeping the plans it compiles in `plans`, which other use cases share.
     #[must_use]
-    pub fn compiling_into(mut self, plans: super::types::CompiledPlans) -> Self {
-        self.compiled = plans;
+    pub fn compiling_into(
+        mut self,
+        plans: crate::application::rule_compilation::types::CompiledPlans,
+    ) -> Self {
+        self.compilation = self.compilation.compiling_into(plans);
         self
     }
 
@@ -224,66 +223,6 @@ impl LintUseCaseImpl {
         plans: impl FnOnce() -> Vec<RuleId>,
     ) -> Result<(), LintError> {
         Ok(within(self.memory.resident_bytes()?, budget, plans)?)
-    }
-
-    /// The plans of the rules, compiled once while this lives, and what each binds its parameters to.
-    fn compile_rules(
-        &self,
-        rules: &[RuleSpec],
-        hosted: &[HostRelation],
-    ) -> Result<Compiled, LintError> {
-        check_ids(rules)?;
-        let declared = declarations(hosted);
-        let (mut plans, mut bindings) = (Vec::new(), Vec::new());
-        for rule in rules {
-            let known = self
-                .compiled
-                .0
-                .lock()
-                .unwrap_or_else(PoisonError::into_inner)
-                .plans
-                .get(&rule.id)
-                .filter(|cached| cached.query == rule.query && cached.hosted == declared)
-                .map(|cached| cached.plan.clone());
-            let plan = if let Some(plan) = known {
-                plan
-            } else {
-                let plan = self
-                    .query_language
-                    .compile(&rule.query, &declared)
-                    .map_err(|QueryLanguageError::Refused { error }| LintError::Query {
-                        id: rule.id.0.to_string(),
-                        error,
-                    })?;
-                let cached = CachedPlan {
-                    query: rule.query.clone(),
-                    hosted: declared.clone(),
-                    plan: plan.clone(),
-                };
-                let mut kept = self
-                    .compiled
-                    .0
-                    .lock()
-                    .unwrap_or_else(PoisonError::into_inner);
-                // Past the cap the plan kept longest is dropped, whichever run it was kept for and whatever this request names: a
-                // session that lints under new rule ids again and again stays bounded, and runs sharing the engine lose one plan at
-                // a time, never all of theirs at once. A run holds its own plans, so a dropped one is only compiled again later.
-                if kept.plans.insert(rule.id.clone(), cached).is_none() {
-                    kept.order.push_back(rule.id.clone());
-                }
-                while kept.plans.len() > COMPILED_PLANS {
-                    let Some(oldest) = kept.order.pop_front() else {
-                        break;
-                    };
-                    drop(kept.plans.remove(&oldest));
-                }
-                drop(kept);
-                plan
-            };
-            bindings.push(bind(&plan, rule)?);
-            plans.push(plan);
-        }
-        Ok(Compiled { plans, bindings })
     }
 
     /// Which rule governs which file, and which relations the rules read: those the languages are asked for.
@@ -815,7 +754,7 @@ impl LintUseCaseImpl {
         rules: &[RuleSpec],
         hosted: &[HostRelation],
     ) -> Result<Compiled, LintError> {
-        let compiled = self.compile_rules(rules, hosted)?;
+        let compiled = self.compilation.compile(rules, hosted)?;
         // A word a rule writes for a kind that no linked language has fails the run before a file is read: nothing runs until it is fixed.
         // Rules that write no word for a kind need no vocabulary.
         if compiled
@@ -1326,7 +1265,7 @@ impl LintUseCase for LintUseCaseImpl {
         let rules: Vec<RuleSpec> = request.rules.iter().map(RuleSpec::from).collect();
         let compiling = tracing::info_span!("compile").entered();
         let Compiled { plans, bindings } = self.checked_rules(&rules, &request.hosted)?;
-        super::observing::compiled(&rules, &plans, &bindings);
+        crate::application::rule_compilation::service::observed(&rules, &plans, &bindings);
         let ids = ids_of(&rules);
         let Wanting { placed, wants } = self.wanting(&rules, &plans, &ids)?;
         drop(compiling);

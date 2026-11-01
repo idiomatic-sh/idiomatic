@@ -3,7 +3,6 @@
 pub mod constants;
 pub mod errors;
 pub mod interface;
-mod observing;
 mod service;
 pub mod types;
 pub mod use_case;

@@ -745,14 +745,15 @@ impl ryo_language::inbound::use_cases::parse::types::ParseEngine for CapabilityP
         if wanted.contains(&Relation::RawFormatSegment) {
             use ryo_language::domain::relations::collections::relations::raw_format_segment::item::RawFormatSegmentRow;
             if self.0.contains(&OptionalCapability::RawFormatSegment) {
-                let intern = |symbols: &mut ryo_language::domain::symbols::types::Symbols,
-                              text: &str| {
-                    ryo_language::domain::symbols::service::intern_derived(
-                        symbols,
-                        source,
-                        NameText(text),
-                    )
-                };
+                let intern =
+                    |interned_symbols: &mut ryo_language::domain::symbols::types::Symbols,
+                     text: &str| {
+                        ryo_language::domain::symbols::service::intern_derived(
+                            interned_symbols,
+                            source,
+                            NameText(text),
+                        )
+                    };
                 let id = ryo_language::domain::relations::service::node_id(file, Position(0));
                 out.write(RawFormatSegmentRow {
                     id,

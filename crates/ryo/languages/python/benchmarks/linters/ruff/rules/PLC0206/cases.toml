@@ -250,3 +250,51 @@ name = "file-suppression"
 comparison = "full"
 files = { "case.py" = "# ruff: noqa: PLC0206\nd={}\nfor k in d:\n print(d[k])\n" }
 expected = []
+
+[[cases]]
+name="ordinal-empty"
+comparison="full"
+files={"case.py"="pass\n"}
+expected=[]
+
+[[cases]]
+name="ordinal-literal-only"
+comparison="full"
+files={"case.py"="\"literal\"\n"}
+expected=[]
+
+[[cases]]
+name="ordinal-global-alias-ties-at-final-event"
+comparison="full"
+files={"case.py"="d={}\nfor key in d:\n    print(d[key])\ndef declarations():\n    global a,b,c\n"}
+expected=[{rule="PLC0206", file="case.py", start=9, end=17}]
+
+[[cases]]
+name="ordinal-nonlocal-alias-ties-at-final-event"
+comparison="full"
+files={"case.py"="def outer():\n    a=b=c=0\n    d={}\n    for key in d:\n        print(d[key])\n    def declarations():\n        nonlocal a,b,c\n"}
+expected=[{rule="PLC0206", file="case.py", start=42, end=50}]
+
+[[cases]]
+name="ordinal-schedule-control-gaps"
+comparison="full"
+files={"case.py"="if condition:\n    x=1\nelse:\n    x=2\nd={}\nfor key in d:\n    print(d[key])\ndef tail():\n    if condition:\n        pass\n    else:\n        pass\n"}
+expected=[{rule="PLC0206", file="case.py", start=45, end=53}]
+
+[[cases]]
+name="ordinal-independent-files"
+comparison="full"
+files={"a.py"="d={}\nfor key in d:\n    print(d[key])\ndef declarations():\n    global a,b,c\n","b.py"="pass\n"}
+expected=[{rule="PLC0206", file="a.py", start=9, end=17}]
+
+[[cases]]
+name="ordinal-repeated-source-identifiers-scopes"
+comparison="full"
+files={"case.py"="d={}\nfor key in d:\n    print(d[key])\ndef other():\n    d={}\n    for key in d:\n        print(d[key])\n    def declarations():\n        global a,b,c\n"}
+expected=[{rule="PLC0206", file="case.py", start=9, end=17}, {rule="PLC0206", file="case.py", start=67, end=75}]
+
+[[cases]]
+name="ordinal-suppressed-marker"
+comparison="full"
+files={"case.py"="# ruff: noqa: PLC0206\nd={}\nfor key in d:\n    print(d[key])\ndef declarations():\n    global a,b,c\n"}
+expected=[]

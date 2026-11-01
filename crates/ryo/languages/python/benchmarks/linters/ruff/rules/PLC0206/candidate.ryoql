@@ -45,7 +45,7 @@ let loop_events = select l.loop as loop, l.point as point, l.file as file from l
 let older_loop_points = select l.loop as loop, l.point as point, l.file as file from loop_events as l join loop_events as r on l.loop = r.loop and l.file = r.file where l.point < r.point;
 let final_loop_points = antijoin(left=loop_events, right=older_loop_points, left-on=["loop", "point", "file"], right-on=["loop", "point", "file"]);
 let file_event_points = select ordinal as point, file from "binding-event";
-let older_file_points = select l.point as point, l.file as file from file_event_points as l join file_event_points as r on l.file = r.file where l.point < r.point;
+let older_file_points = ordered-match(left=file_event_points, right=file_event_points, left-on=["file"], right-on=["file"], left-order="point", right-order="point", output={point:[left,point],file:[left,file]});
 let final_file_points = antijoin(left=file_event_points, right=older_file_points, left-on=["point", "file"], right-on=["point", "file"]);
 let loop_context_points = select l.loop as context, r.point as point, r.point as header_point, l.initial_scope as initial_scope, l.file as file from loop_scopes as l join final_file_points as r on l.file = r.file;
 let loop_context_rows = extend(from=loop_context_points, values={stage: 0});

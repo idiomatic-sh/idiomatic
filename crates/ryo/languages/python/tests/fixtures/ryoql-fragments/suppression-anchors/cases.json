@@ -1,0 +1,55 @@
+[
+  {
+    "name": "positive-duplicate-candidates-and-markers",
+    "files": {
+      "case.py": "# ruff: noqa: ANCHOR001\n# ruff: noqa: ANCHOR001\npass\n# ruff: disable[ANCHOR001]\npass\n# ruff: enable[ANCHOR001]\npass\nx = (\n # ruff: ignore[ANCHOR001]\n 1\n)\npass # note # ruff: ignore[ANCHOR001]\n"
+    },
+    "plan": true
+  },
+  {
+    "name": "no-markers",
+    "files": {
+      "case.py": "pass\npass\n"
+    }
+  },
+  {
+    "name": "no-candidates",
+    "files": {
+      "case.py": "# ruff: noqa: ANCHOR001\n# ruff: disable[ANCHOR001]\nx=1\n"
+    }
+  },
+  {
+    "name": "nested-head-without-range-prefix",
+    "files": {
+      "case.py": "pass # note # ruff: ignore[ANCHOR001]\npass\n"
+    }
+  },
+  {
+    "name": "different-rule-marker",
+    "files": {
+      "case.py": "# ruff: disable[OTHER001]\npass\n"
+    }
+  },
+  {
+    "name": "lexically-complete-recovery",
+    "files": {
+      "case.py": "pass\nx = (\n # ruff: ignore[ANCHOR001]\n"
+    },
+    "partial": true
+  },
+  {
+    "name": "incomplete-lexical-stream",
+    "files": {
+      "case.py": "pass\nx = '''unterminated\n # ruff: disable[ANCHOR001]\n"
+    },
+    "partial": true
+  },
+  {
+    "name": "multiple-files",
+    "files": {
+      "a.py": "# ruff: noqa: ANCHOR001\npass\n",
+      "b.py": "pass\n",
+      "c.py": "# ruff: disable[ANCHOR001]\nx=1\n"
+    }
+  }
+]
