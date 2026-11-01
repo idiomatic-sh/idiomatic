@@ -20,17 +20,17 @@ pub(crate) mod outbound;
 
 mod domain;
 
-pub use crate::domain::language::settings::{PythonParserSettings, PythonTargetVersion};
+pub mod settings;
 
 /// The Python language, composed over its ports: what an edge links to read Python.
 #[must_use]
 pub fn linked() -> ryo::languages::Language {
-    linked_with_settings(PythonParserSettings::default())
+    linked_with_settings(settings::PythonParserSettings::default())
 }
 
 /// The Python language with explicit parser settings.
 #[must_use]
-pub fn linked_with_settings(settings: PythonParserSettings) -> ryo::languages::Language {
+pub fn linked_with_settings(settings: settings::PythonParserSettings) -> ryo::languages::Language {
     use std::sync::Arc;
 
     use crate::inbound::contracts::parse::contract::ParseContract;

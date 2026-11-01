@@ -8,7 +8,7 @@ use super::schemas::{offset, readable};
 use super::types::{AnnotationCandidate, AnnotationContext, ByteIndex, Readable, Writer};
 use crate::outbound::syntax::interface::SyntaxPort;
 use crate::outbound::syntax::types::{PythonSourceKind, SourceText};
-use crate::{PythonParserSettings, PythonTargetVersion};
+use crate::settings::{PythonParserSettings, PythonTargetVersion};
 use ruff_python_ast::visitor::source_order::SourceOrderVisitor as _;
 use ruff_python_ast::visitor::{Visitor, walk_stmt};
 use ruff_python_ast::{Arguments, Expr, Mod, Parameters, Stmt, TypeParams};

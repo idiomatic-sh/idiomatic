@@ -930,7 +930,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 fn subject(given: Input) -> Result<Value, Failure> {
     let language = ParseContract::new(
-        crate::PythonParserSettings::default(),
+        crate::settings::PythonParserSettings::default(),
         Arc::new(ruff_python_parser()),
         Arc::new(postcard()),
     );

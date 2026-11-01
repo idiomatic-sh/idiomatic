@@ -2,7 +2,7 @@
 //! out.
 
 use super::types::{PythonSourceKind, SourceText};
-use crate::PythonParserSettings;
+use crate::settings::PythonParserSettings;
 use ryo::languages::TableBuilder;
 
 /// What every `syntax` adapter implements.

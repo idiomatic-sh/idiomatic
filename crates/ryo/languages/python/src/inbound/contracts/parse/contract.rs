@@ -8,7 +8,6 @@ use std::sync::Arc;
 
 use ryo::languages::{self, AbsenceCause, Parse, Reader, Support, UnknownName};
 
-use crate::PythonParserSettings;
 use crate::domain::fact_notes::service::noted;
 use crate::domain::fields::service::role_of;
 use crate::domain::labels::service::{field_bits, field_name, fields};
@@ -36,6 +35,7 @@ use crate::domain::syntax::service::{kind_bits, kind_name, kinds};
 use crate::outbound::notes::interface::NotesPort;
 use crate::outbound::syntax::interface::SyntaxPort;
 use crate::outbound::syntax::types::{PythonSourceKind, SourceText};
+use crate::settings::PythonParserSettings;
 
 /// `parse`, implementing `ryo::languages::Parse`.
 pub(crate) struct ParseContract {

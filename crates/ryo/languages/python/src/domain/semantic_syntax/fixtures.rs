@@ -15,7 +15,7 @@ pub(super) fn reparse(
     use ryo::languages::Parse as _;
     use std::sync::Arc;
     let parser = ParseContract::new(
-        crate::PythonParserSettings::default(),
+        crate::settings::PythonParserSettings::default(),
         Arc::new(ruff_python_parser()),
         Arc::new(postcard()),
     );

@@ -11,7 +11,7 @@ use crate::outbound::notes::fixtures::fake::NotesFake;
 use crate::outbound::syntax::fixtures::fake::SyntaxFake;
 use crate::outbound::syntax::interface::SyntaxPort;
 use crate::outbound::syntax::types::{PythonSourceKind, SourceText};
-use crate::{PythonParserSettings, PythonTargetVersion};
+use crate::settings::{PythonParserSettings, PythonTargetVersion};
 use std::sync::Mutex;
 
 /// What a row does: reads a file (its path, its bytes and the relations wanted), or runs the language contract.
@@ -59,7 +59,7 @@ fn subject(given: Input) -> Result<Value, Failure> {
         Given::Read(path, bytes, wanted) => (path, bytes, wanted),
         Given::Contract => {
             let language = ParseContract::new(
-                crate::PythonParserSettings::default(),
+                crate::settings::PythonParserSettings::default(),
                 Arc::new(crate::outbound::syntax::factory::ruff_python_parser()),
                 Arc::new(crate::outbound::notes::factory::postcard()),
             );
@@ -69,7 +69,7 @@ fn subject(given: Input) -> Result<Value, Failure> {
         }
     };
     let language = ParseContract::new(
-        crate::PythonParserSettings::default(),
+        crate::settings::PythonParserSettings::default(),
         Arc::new(SyntaxFake),
         Arc::new(NotesFake),
     );

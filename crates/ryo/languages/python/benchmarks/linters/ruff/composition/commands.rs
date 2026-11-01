@@ -20,7 +20,9 @@ pub(super) fn worker(
         .map(|argument| argument.0)
         .ok_or_else(|| Error::Invalid(constants::MISSING_WORKER_REQUEST.into()))?;
     let languages = ryo::linter::Languages(vec![ryo_python::linked_with_settings(
-        ryo_python::PythonParserSettings::new(ryo_python::PythonTargetVersion::Py310),
+        ryo_python::settings::PythonParserSettings::new(
+            ryo_python::settings::PythonTargetVersion::Py310,
+        ),
     )]);
     let frontend_diagnostic =
         ryo_benchmark::outbound::engine::factory::FrontendDiagnosticProjection {

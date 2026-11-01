@@ -16,7 +16,7 @@ use crate::outbound::syntax::factory::ruff_python_parser;
 #[must_use]
 pub fn parse() -> impl languages::Parse {
     ParseContract::new(
-        crate::PythonParserSettings::default(),
+        crate::settings::PythonParserSettings::default(),
         Arc::new(ruff_python_parser()),
         Arc::new(postcard()),
     )

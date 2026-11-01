@@ -11,7 +11,7 @@ use crate::domain::tokens::types::Token;
 use crate::outbound::syntax::fixtures::contract::{check, elements_of};
 use crate::outbound::syntax::interface::SyntaxPort as _;
 use crate::outbound::syntax::types::{PythonSourceKind, SourceText};
-use crate::{PythonParserSettings, PythonTargetVersion};
+use crate::settings::{PythonParserSettings, PythonTargetVersion};
 use ruff_python_ast::{PySourceType, PythonVersion};
 use ryo::languages::{self, ByteSlice, Elements, Symbols};
 

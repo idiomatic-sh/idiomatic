@@ -31,7 +31,7 @@ pub(crate) struct Parsed {
 /// When the language refuses the bytes, which it never does for a Python file.
 pub(crate) fn parsed(bytes: &'static [u8]) -> Result<Parsed, languages::ParseError> {
     let parse = ParseContract::new(
-        crate::PythonParserSettings::default(),
+        crate::settings::PythonParserSettings::default(),
         Arc::new(ruff_python_parser()),
         Arc::new(postcard()),
     );
@@ -81,7 +81,7 @@ pub(crate) fn initialize_model(
 ) {
     use languages::Parse as _;
     ParseContract::new(
-        crate::PythonParserSettings::default(),
+        crate::settings::PythonParserSettings::default(),
         Arc::new(ruff_python_parser()),
         Arc::new(postcard()),
     )
@@ -106,7 +106,7 @@ where
         file: languages::FileId(0),
     };
     let parse = ParseContract::new(
-        crate::PythonParserSettings::default(),
+        crate::settings::PythonParserSettings::default(),
         Arc::new(ruff_python_parser()),
         Arc::new(postcard()),
     );

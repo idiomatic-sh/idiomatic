@@ -79,7 +79,7 @@ fn table_of(adapter: &impl SyntaxPort, text: &str) -> Elements {
     adapter.read(
         SourceText(text.as_bytes()),
         PythonSourceKind::Python,
-        &crate::PythonParserSettings::default(),
+        &crate::settings::PythonParserSettings::default(),
         &mut builder,
     );
     elements

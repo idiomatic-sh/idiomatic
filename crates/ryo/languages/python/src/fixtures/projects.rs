@@ -176,7 +176,7 @@ fn adapters(available: &[languages::ManifestFile]) -> Vec<Arc<dyn ManifestReadin
 #[must_use]
 pub(crate) fn notes_of(path: &str, text: &str) -> languages::Bytes {
     let parse = ParseContract::new(
-        crate::PythonParserSettings::default(),
+        crate::settings::PythonParserSettings::default(),
         Arc::new(ruff_python_parser()),
         Arc::new(postcard()),
     );

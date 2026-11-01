@@ -165,7 +165,7 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
         let rule = ryo::linter::RuleId::try_from("cache-probe").expect("cache probe identity");
         let first = factory::local_with_frontend_diagnostic(
             ryo::linter::Languages(vec![ryo_python::linked_with_settings(
-                ryo_python::PythonParserSettings::new(ryo_python::PythonTargetVersion::Py310),
+                ryo_python::settings::PythonParserSettings::new(ryo_python::settings::PythonTargetVersion::Py310),
             )]),
             None,
             ryo_benchmark::outbound::engine::factory::FrontendDiagnosticProjection {
@@ -182,7 +182,7 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
         })?;
         let second = factory::local_with_frontend_diagnostic(
             ryo::linter::Languages(vec![ryo_python::linked_with_settings(
-                ryo_python::PythonParserSettings::new(ryo_python::PythonTargetVersion::Py310),
+                ryo_python::settings::PythonParserSettings::new(ryo_python::settings::PythonTargetVersion::Py310),
             )]),
             None,
             ryo_benchmark::outbound::engine::factory::FrontendDiagnosticProjection {
@@ -204,7 +204,9 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
     let result = if matches!(scenario, EngineScenario::InvalidSyntaxProjectionDisabled) {
         factory::local(
             ryo::linter::Languages(vec![ryo_python::linked_with_settings(
-                ryo_python::PythonParserSettings::new(ryo_python::PythonTargetVersion::Py310),
+                ryo_python::settings::PythonParserSettings::new(
+                    ryo_python::settings::PythonTargetVersion::Py310,
+                ),
             )]),
             None,
         )
@@ -228,7 +230,9 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
         };
         factory::local_with_frontend_diagnostic(
             ryo::linter::Languages(vec![ryo_python::linked_with_settings(
-                ryo_python::PythonParserSettings::new(ryo_python::PythonTargetVersion::Py310),
+                ryo_python::settings::PythonParserSettings::new(
+                    ryo_python::settings::PythonTargetVersion::Py310,
+                ),
             )]),
             None,
             projection,

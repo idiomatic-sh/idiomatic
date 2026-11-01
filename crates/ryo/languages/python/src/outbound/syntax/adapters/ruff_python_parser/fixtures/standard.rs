@@ -2,7 +2,6 @@
 //! and our tree of the same file projected onto the standard, so that the two can be compared node for node, each in the field of its
 //! parent that holds it.
 
-use crate::PythonParserSettings;
 use crate::domain::extras::types::Extra;
 use crate::domain::fields::service::field_of;
 use crate::domain::labels::service::field_name;
@@ -15,6 +14,7 @@ use crate::domain::tokens::types::Token;
 use crate::outbound::syntax::interface::SyntaxPort as _;
 use crate::outbound::syntax::types::PythonSourceKind;
 use crate::outbound::syntax::types::SourceText;
+use crate::settings::PythonParserSettings;
 use ryo::languages::{
     ByteSlice, Elements, FileId, Position, Symbols, TOKEN, Tree, children as children_at, end_at,
     kind_at, start_at, table_builder,

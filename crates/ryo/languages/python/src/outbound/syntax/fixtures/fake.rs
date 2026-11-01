@@ -17,7 +17,7 @@ impl SyntaxPort for SyntaxFake {
         &self,
         text: SourceText<'_>,
         _source_kind: PythonSourceKind,
-        _settings: &crate::PythonParserSettings,
+        _settings: &crate::settings::PythonParserSettings,
         builder: &mut languages::TableBuilder<'_>,
     ) {
         let end = languages::Offset(u32::try_from(text.0.len()).unwrap_or(u32::MAX));

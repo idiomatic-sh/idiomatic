@@ -167,7 +167,7 @@ fn subject((source, wanted, environment): Input) -> Result<Value, Failure> {
         file: languages::FileId(0),
     };
     let parser = ParseContract::new(
-        crate::PythonParserSettings::default(),
+        crate::settings::PythonParserSettings::default(),
         Arc::new(ruff_python_parser()),
         Arc::new(postcard()),
     );
