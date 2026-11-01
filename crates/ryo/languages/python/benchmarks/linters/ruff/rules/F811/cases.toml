@@ -35,9 +35,45 @@ files = { "case.py" = "if flag:\n    import os\nelse:\n    import os\n" }
 expected = []
 
 [[cases]]
+name = "same-branch-redefinition"
+comparison = "full"
+files = { "case.py" = "if flag:\n    import os\n    import os\n" }
+expected = [{ rule = "F811", file = "case.py", start = 34, end = 36 }]
+
+[[cases]]
+name = "elif-arms-are-distinct"
+comparison = "full"
+files = { "case.py" = "if a:\n    import os\nelif b:\n    import os\n" }
+expected = []
+
+[[cases]]
+name = "elif-same-arm-redefinition"
+comparison = "full"
+files = { "case.py" = "if a:\n    import os\nelif b:\n    import os\n    import os\n" }
+expected = [{ rule = "F811", file = "case.py", start = 53, end = 55 }]
+
+[[cases]]
 name = "deleted-before-reimport"
 comparison = "full"
 files = { "case.py" = "import os\ndel os\nimport os\n" }
+expected = []
+
+[[cases]]
+name = "conditional-delete-does-not-break-other-arm"
+comparison = "full"
+files = { "case.py" = "import os\nif flag:\n    del os\nelse:\n    import os\n" }
+expected = []
+
+[[cases]]
+name = "conditional-delete-does-not-break-later-binding"
+comparison = "full"
+files = { "case.py" = "import os\nif flag:\n    del os\nimport os\n" }
+expected = []
+
+[[cases]]
+name = "else-delete-breaks-static-history"
+comparison = "full"
+files = { "case.py" = "if flag:\n    import os\nelse:\n    del os\nimport os\n" }
 expected = []
 
 [[cases]]
@@ -68,4 +104,40 @@ expected = []
 name = "noqa-redefinition"
 comparison = "full"
 files = { "case.py" = "import os\nimport os  # noqa: F811\n" }
+expected = []
+
+[[cases]]
+name = "noqa-blanket-redefinition"
+comparison = "full"
+files = { "case.py" = "import os\nimport os  # noqa\n" }
+expected = []
+
+[[cases]]
+name = "noqa-other-rule-does-not-suppress"
+comparison = "full"
+files = { "case.py" = "import os\nimport os  # noqa: F401\n" }
+expected = [{ rule = "F811", file = "case.py", start = 17, end = 19 }]
+
+[[cases]]
+name = "file-ruff-noqa"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa: F811\nimport os\nimport os\n" }
+expected = []
+
+[[cases]]
+name = "file-flake8-noqa"
+comparison = "full"
+files = { "case.py" = "# flake8: noqa\nimport os\nimport os\n" }
+expected = []
+
+[[cases]]
+name = "range-disable-enable"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[F811]\nimport os\nimport os\n# ruff: enable[F811]\nimport sys\nimport sys\n" }
+expected = [{ rule = "F811", file = "case.py", start = 81, end = 84 }]
+
+[[cases]]
+name = "range-file-ignore"
+comparison = "full"
+files = { "case.py" = "# ruff: file-ignore[F811]\nimport os\nimport os\n" }
 expected = []
