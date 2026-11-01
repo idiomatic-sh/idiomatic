@@ -39,7 +39,7 @@ fn root() -> PathBuf {
         .unwrap_or_default()
 }
 
-/// Copies a tree, leaving out every `target` directory.
+/// Copies a tree, leaving out every `target` directory, each workspace file pinned to the built `tm`.
 fn copy(from: &Path, to: &Path) -> std::io::Result<()> {
     std::fs::create_dir_all(to)?;
     for entry in std::fs::read_dir(from)? {
@@ -56,6 +56,9 @@ fn copy(from: &Path, to: &Path) -> std::io::Result<()> {
             copy(&source, &target)?;
         } else {
             let _: u64 = std::fs::copy(&source, &target)?;
+            if name == crate::fixes::WORKSPACE_FILE {
+                crate::fixes::pinned(&target)?;
+            }
         }
     }
     Ok(())

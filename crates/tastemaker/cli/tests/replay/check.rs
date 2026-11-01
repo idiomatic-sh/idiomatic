@@ -336,6 +336,8 @@ fn checking_crates_ryo_cold_stays_under_its_memory_guard() {
         .status()
         .expect("git archive starts");
     assert!(archive.success(), "the repository is archived");
+    crate::fixes::pinned(&scratch.path().join("crates/ryo/tastemaker.toml"))
+        .expect("the workspace pinned to the built tm");
     let init = std::process::Command::new("git")
         .args(["init", "-q"])
         .arg(scratch.path())
