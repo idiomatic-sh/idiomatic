@@ -26,7 +26,7 @@ let names = select id, file, span from "semantic-syntax" where kind = "name";
 let name_values = select l.parent as id, r.name as name from identifier_edges as l join "identifier" as r on l.child = r.id;
 let selected_names = select l.call as call, l.argument as id, r.name as name, l.file as file from selected as l join name_values as r on l.argument = r.id;
 let special_names = select l.call as call, l.id as id, l.name as name, l.file as file, r.span as span from selected_names as l join names as r on l.id = r.id where l.name = "__file__" or l.name = "__cached__";
-let catalog = select name, file from "implicit-symbol" where kind = "module-global" and ("since-major" < 3 or "since-major" = 3 and "since-minor" <= 10);
+let catalog = select catalog.name as name, catalog.file as file from "implicit-symbol" as catalog where catalog.kind = "module-global" and (catalog."since-major" < 3 or catalog."since-major" = 3 and catalog."since-minor" <= 10);
 let candidates = select l.call as call, l.id as id, l.name as name, l.file as file, l.span as span from special_names as l join catalog as r on l.name = r.name and l.file = r.file;
 let read_events = select occurrence as id, name, scope, phase, ordinal, file from "binding-event" where kind = "read";
 let anchored = select l.call as call, l.id as id, l.name as name, l.file as file, l.span as span, r.scope as scope, r.phase as phase, r.ordinal as ordinal from candidates as l join read_events as r on l.id = r.id and l.name = r.name and l.file = r.file;
