@@ -381,9 +381,7 @@ fn scalar_property(
     use std::fmt::Write as _;
     scratch.clear();
     // `String` implements `fmt::Write` infallibly; assert that contract while consuming the result.
-    debug_assert!(
-        write!(scratch, "{value}").is_ok(),
-        "formatting into String is infallible"
-    );
+    let result = write!(scratch, "{value}");
+    debug_assert!(result.is_ok(), "formatting into String is infallible");
     languages::node_property(builder, property, languages::NameText(scratch));
 }

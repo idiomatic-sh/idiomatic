@@ -70,6 +70,14 @@ fn primitive_values_use_parser_payload_and_decoded_tokens() {
 }
 
 #[test]
+fn boolean_parser_payload_is_written_in_optimized_builds() {
+    assert_eq!(
+        properties("True\n"),
+        [property("boolean", false, false, true)]
+    );
+}
+
+#[test]
 fn f_string_fragments_are_excluded_but_interpolation_expressions_are_literals() {
     assert_eq!(
         properties("f'{0}x{\"\"!r:{1}}'\n"),
