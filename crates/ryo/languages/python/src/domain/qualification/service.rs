@@ -41,7 +41,7 @@ pub(crate) fn complete<'a>(
     tree: &Tree<'_>,
     model: &'a Declarations,
 ) -> Option<Ref<'a, QualificationIndex>> {
-    if languages::diagnostics(tree.elements).next().is_some() {
+    if languages::has_incomplete_syntax(tree.elements) {
         return None;
     }
     Some(prepare(tree, model))

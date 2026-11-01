@@ -31,7 +31,7 @@ fn build(tree: &Tree<'_>, index: &mut IndentationIndex) {
     index.rows.clear();
     index.stack.clear();
     index.state = IndentationState::Incomplete;
-    if languages::diagnostics(tree.elements).next().is_some() {
+    if languages::has_incomplete_syntax(tree.elements) {
         return;
     }
     let Ok(length) = u32::try_from(tree.source.0.len()) else {

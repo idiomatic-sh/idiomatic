@@ -48,3 +48,10 @@ fn subject(source: Input) -> Value {
 fn succeeds() {
     run(CASES, Word::Succeeds, |input| Ok(subject(input)));
 }
+
+#[test]
+fn module_nonlocal_validation_keeps_expression_shapes_complete() {
+    let result = subject("nonlocal x\n1\n");
+    assert!(result.causes.is_empty());
+    assert_eq!(result.rows.len(), 1);
+}

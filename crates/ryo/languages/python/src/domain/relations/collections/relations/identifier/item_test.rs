@@ -2,6 +2,7 @@
 use super::super::fixtures::contract::check;
 use super::item::IdentifierItem;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::relations::collections::relations::syntax_error::item::SyntaxErrorItem;
 use crate::fixtures::reading::{SHOWN, reading};
 use ryo::languages::contract::{Reading, want_file, want_name, want_node, want_span};
 type Input = &'static str;
@@ -75,4 +76,24 @@ fn subject(source: Input) -> Value {
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, |input| Ok(subject(input)));
+}
+
+#[test]
+fn complete_ast_semantic_error_does_not_hide_identifiers() {
+    let result = subject("global x\nnonlocal x\nx\n");
+    assert!(result.causes.is_empty());
+    assert_eq!(result.rows.len(), 3);
+}
+
+#[test]
+fn incomplete_parse_still_refuses_facts_beside_preserved_validation_errors() {
+    let source = "global x\nnonlocal x\nif:\n";
+    let identifiers = subject(source);
+    let diagnostics = reading::<SyntaxErrorItem>(source);
+    assert_eq!(
+        identifiers.causes,
+        &["identifiers require a complete syntax tree"]
+    );
+    assert!(identifiers.rows.is_empty());
+    assert!(diagnostics.rows.len() >= 2);
 }

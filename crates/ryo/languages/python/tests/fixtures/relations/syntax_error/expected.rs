@@ -10,12 +10,18 @@ pub(super) fn expected() -> Expected {
         SyntaxErrorExpectedRow {
             id: node(2_147_483_648),
             message: name("Expected a parameter or the end of the parameter list"),
+            phase: name("parse"),
+            impact: name("incomplete"),
+            code: name("parser-error"),
             file: file("syntax_error/input.py"),
             span: span((5, 12), (5, 13)),
         },
         SyntaxErrorExpectedRow {
             id: node(2_147_483_649),
             message: name("Expected `)`, found newline"),
+            phase: name("parse"),
+            impact: name("incomplete"),
+            code: name("parser-error"),
             file: file("syntax_error/input.py"),
             span: span((5, 13), (6, 1)),
         },

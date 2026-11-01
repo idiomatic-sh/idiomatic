@@ -271,7 +271,7 @@ pub(crate) fn identifier_text<'a>(tree: &'a Tree<'a>, at: Position) -> Text<'a> 
 
 /// All lexical identifier fields and name expressions in a complete source tree.
 pub(crate) fn identifiers<'a>(tree: &'a Tree<'a>) -> Option<impl Iterator<Item = Position> + 'a> {
-    if languages::diagnostics(tree.elements).next().is_some() {
+    if languages::has_incomplete_syntax(tree.elements) {
         return None;
     }
     Some(

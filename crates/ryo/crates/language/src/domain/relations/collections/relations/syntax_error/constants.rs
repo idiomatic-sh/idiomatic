@@ -11,7 +11,7 @@ pub fn name() -> &'static str {
 /// What the relation holds, in a sentence.
 #[must_use]
 pub fn summary() -> &'static str {
-    "A diagnostic of the parser, kept beside the recovered tree."
+    "A parser or validation diagnostic with its stable provider code and its impact on semantic tree completeness."
 }
 
 /// A column's name in RyoQL and in listings: text that leaves the engine.
@@ -20,6 +20,9 @@ pub fn column_name(column: SyntaxErrorColumn) -> &'static str {
     match column {
         SyntaxErrorColumn::Id => "id",
         SyntaxErrorColumn::Message => "message",
+        SyntaxErrorColumn::Phase => "phase",
+        SyntaxErrorColumn::Impact => "impact",
+        SyntaxErrorColumn::Code => "code",
         SyntaxErrorColumn::File => "file",
         SyntaxErrorColumn::Span => "span",
     }

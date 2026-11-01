@@ -7,6 +7,7 @@ use ryo_language::inbound::use_cases::parse::fixtures::contract as parse_contrac
 use ryo_language::inbound::use_cases::parse::fixtures::samples as parse_samples;
 use ryo_language::inbound::use_cases::project::fixtures::contract as project_contract;
 
+pub use ryo_language::domain::elements::service::has_incomplete_syntax;
 pub use ryo_language::domain::elements::service::{element_count, notes_of};
 pub use ryo_language::domain::symbols::service::name_count;
 pub use ryo_language::inbound::use_cases::parse::fixtures::contract::{Collect, Discard};

@@ -40,3 +40,31 @@ pub(super) const UNKNOWN_FEATURE: &str = "future feature ";
 
 /// What `CPython`'s parser says of a feature it does not know, after the feature's name.
 pub(super) const NOT_DEFINED: &str = " is not defined";
+
+/// Stable provider-owned codes for parser and validation diagnostics.
+pub(super) const PARSER_ERROR: ryo::languages::DiagnosticCode =
+    ryo::languages::DiagnosticCode::provider_owned("parser-error");
+pub(super) const UNSUPPORTED_SYNTAX: ryo::languages::DiagnosticCode =
+    ryo::languages::DiagnosticCode::provider_owned("unsupported-syntax");
+pub(super) const INVALID_UTF8: ryo::languages::DiagnosticCode =
+    ryo::languages::DiagnosticCode::provider_owned("invalid-utf8");
+pub(super) const ELSE_WITHOUT_EXCEPT_CODE: ryo::languages::DiagnosticCode =
+    ryo::languages::DiagnosticCode::provider_owned("else-without-except");
+pub(super) const FUTURE_FEATURE_NOT_DEFINED: ryo::languages::DiagnosticCode =
+    ryo::languages::DiagnosticCode::provider_owned("future-feature-not-defined");
+pub(super) const DUPLICATE_PARAMETER: ryo::languages::DiagnosticCode =
+    ryo::languages::DiagnosticCode::provider_owned("duplicate-parameter");
+pub(super) const DUPLICATE_TYPE_PARAMETER: ryo::languages::DiagnosticCode =
+    ryo::languages::DiagnosticCode::provider_owned("duplicate-type-parameter");
+pub(super) const TYPE_PARAMETER_DEFAULT_ORDER: ryo::languages::DiagnosticCode =
+    ryo::languages::DiagnosticCode::provider_owned("type-parameter-default-order");
+pub(super) const DUPLICATE_KEYWORD_ARGUMENT: ryo::languages::DiagnosticCode =
+    ryo::languages::DiagnosticCode::provider_owned("duplicate-keyword-argument");
+pub(super) const NONLOCAL_AT_MODULE: ryo::languages::DiagnosticCode =
+    ryo::languages::DiagnosticCode::provider_owned("nonlocal-at-module");
+pub(super) const NONLOCAL_PARAMETER: ryo::languages::DiagnosticCode =
+    ryo::languages::DiagnosticCode::provider_owned("nonlocal-parameter");
+pub(super) const GLOBAL_PARAMETER: ryo::languages::DiagnosticCode =
+    ryo::languages::DiagnosticCode::provider_owned("global-parameter");
+pub(super) const ANNOTATED_GLOBAL: ryo::languages::DiagnosticCode =
+    ryo::languages::DiagnosticCode::provider_owned("annotated-global");

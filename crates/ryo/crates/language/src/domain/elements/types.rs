@@ -30,9 +30,9 @@ pub struct ElementPlacement {
     pub ordinal: ChildOrdinal,
 }
 
-/// What the parser reported about a file: each message with where it was found. The messages are
-/// kept as text, not as names, so reporting one while the table is built leaves the names of the
-/// file's bytes first, as they must be.
+/// What parsing and validation reported about a file, with stable metadata and source ranges.
+/// Messages are kept as text, not as names, so reporting them while the table is built leaves the
+/// names of the file's bytes first, as they must be.
 #[derive(Debug, Default)]
 pub(crate) struct Diagnostics {
     /// The text of every message, one after another.
@@ -45,6 +45,96 @@ pub(crate) struct Diagnostics {
     pub start: Vec<Offset>,
     /// Where each ends.
     pub end: Vec<Offset>,
+    /// Stable provider-owned codes, one per diagnostic.
+    pub code: Vec<DiagnosticCode>,
+    /// The reporting stage, one per diagnostic.
+    pub phase: Vec<DiagnosticPhase>,
+    /// Whether each diagnostic leaves the parsed tree incomplete.
+    pub impact: Vec<TreeImpact>,
+}
+
+/// Stable diagnostic identity owned by the language provider.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct DiagnosticCode(&'static str);
+
+impl DiagnosticCode {
+    /// Used by existing providers that report messages without a narrower stable code.
+    pub const UNSPECIFIED: Self = Self::provider_owned("unspecified");
+
+    /// Construct a stable diagnostic code owned by a language provider.
+    #[must_use]
+    pub const fn provider_owned(code: &'static str) -> Self {
+        Self(code)
+    }
+
+    /// The stable code text for the provider's relation reader.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        self.0
+    }
+}
+
+/// Stage that produced a diagnostic.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DiagnosticPhase {
+    /// The parser or recovery machinery reported the diagnostic.
+    Parse,
+    /// A validation pass reported it after producing a tree.
+    Validation,
+}
+
+impl DiagnosticPhase {
+    /// The stable query vocabulary.
+    #[must_use]
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Parse => "parse",
+            Self::Validation => "validation",
+        }
+    }
+}
+
+/// Whether the diagnostic indicates missing or recovered syntax.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TreeImpact {
+    /// This diagnostic does not indicate missing or recovered syntax.
+    Preserved,
+    /// The tree may be recovered or incomplete.
+    Incomplete,
+}
+
+/// Typed metadata attached to a parser or validation diagnostic.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct DiagnosticMetadata {
+    /// The stage that reported the diagnostic.
+    pub phase: DiagnosticPhase,
+    /// Whether this diagnostic indicates an incomplete syntax tree.
+    pub impact: TreeImpact,
+    /// The stable code owned by the language provider.
+    pub code: DiagnosticCode,
+}
+
+impl DiagnosticMetadata {
+    /// Build metadata for a provider-owned diagnostic.
+    #[must_use]
+    pub const fn new(phase: DiagnosticPhase, impact: TreeImpact, code: DiagnosticCode) -> Self {
+        Self {
+            phase,
+            impact,
+            code,
+        }
+    }
+}
+
+impl TreeImpact {
+    /// The stable query vocabulary.
+    #[must_use]
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Preserved => "preserved",
+            Self::Incomplete => "incomplete",
+        }
+    }
 }
 
 /// A column of numbers, one for each row, indexed by the row's [`Position`]: the engine writes it, a language only reads it.
@@ -329,12 +419,18 @@ pub struct Tree<'a> {
 /// What the parser reported at one place of the file.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Diagnostic<'a> {
-    /// What the parser said.
+    /// What parsing or validation reported.
     pub message: ByteSlice<'a>,
     /// Where it was found.
     pub start: Offset,
     /// Where it ends.
     pub end: Offset,
+    /// The stable code supplied by the language provider.
+    pub code: DiagnosticCode,
+    /// The stage that produced this finding.
+    pub phase: DiagnosticPhase,
+    /// Whether this finding affects the completeness of semantic facts.
+    pub impact: TreeImpact,
 }
 
 /// Whether a builder writes what it is given into the table.

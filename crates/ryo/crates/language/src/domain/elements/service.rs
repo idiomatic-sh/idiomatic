@@ -7,8 +7,9 @@ use crate::domain::symbols::types::ByteSlice;
 use super::constants::FOREIGN_POSITION;
 use super::types::Diagnostic;
 use crate::domain::elements::types::{
-    BuilderEngine, Children, DecodedProperty, ElementPlacement, Elements, ElementsEngine, KindSum,
-    Numbers, OpenNode, Parent, SourceOrder, TableBuilder, TableWriting,
+    BuilderEngine, Children, DecodedProperty, DiagnosticCode, DiagnosticMetadata, DiagnosticPhase,
+    ElementPlacement, Elements, ElementsEngine, KindSum, Numbers, OpenNode, Parent, SourceOrder,
+    TableBuilder, TableWriting, TreeImpact,
 };
 use crate::domain::relations::constants::{IMPLIED, NO_FIELD, NO_SPAN, NO_SYMBOL, TOKEN};
 use crate::domain::relations::types::ReportText;
@@ -64,6 +65,9 @@ pub fn clear_elements(elements: &mut Elements) {
     engine.diagnostics.to.clear();
     engine.diagnostics.start.clear();
     engine.diagnostics.end.clear();
+    engine.diagnostics.code.clear();
+    engine.diagnostics.phase.clear();
+    engine.diagnostics.impact.clear();
     engine.expanded_from = None;
 }
 
@@ -394,9 +398,30 @@ pub fn property_at(
         .map(NameText)
 }
 
-/// Records what the parser reported, found between `start` and `end` of the file's bytes.
+/// Records an untyped parser diagnostic with conservative incomplete-tree defaults.
 pub fn diagnose(
     builder: &mut TableBuilder<'_>,
+    message: ReportText<'_>,
+    start: Offset,
+    end: Offset,
+) {
+    diagnose_with_metadata(
+        builder,
+        DiagnosticMetadata::new(
+            DiagnosticPhase::Parse,
+            TreeImpact::Incomplete,
+            DiagnosticCode::UNSPECIFIED,
+        ),
+        message,
+        start,
+        end,
+    );
+}
+
+/// Records a diagnostic with its producer stage, stable provider code, and semantic tree impact.
+pub fn diagnose_with_metadata(
+    builder: &mut TableBuilder<'_>,
+    metadata: DiagnosticMetadata,
     message: ReportText<'_>,
     start: Offset,
     end: Offset,
@@ -415,6 +440,9 @@ pub fn diagnose(
     ));
     diagnostics.start.push(start);
     diagnostics.end.push(end);
+    diagnostics.code.push(metadata.code);
+    diagnostics.phase.push(metadata.phase);
+    diagnostics.impact.push(metadata.impact);
 }
 
 /// The builder of the table of the file whose bytes are `source`; the table is cleared first.
@@ -517,10 +545,37 @@ pub fn diagnostics(elements: &Elements) -> impl Iterator<Item = Diagnostic<'_>> 
             ),
             start: found.start.get(number).copied().unwrap_or_default(),
             end: found.end.get(number).copied().unwrap_or_default(),
+            code: found
+                .code
+                .get(number)
+                .copied()
+                .unwrap_or(DiagnosticCode::UNSPECIFIED),
+            phase: found
+                .phase
+                .get(number)
+                .copied()
+                .unwrap_or(DiagnosticPhase::Parse),
+            impact: found
+                .impact
+                .get(number)
+                .copied()
+                .unwrap_or(TreeImpact::Incomplete),
         })
 }
 
-/// How many things the parser reported about the file.
+/// Whether any diagnostic indicates missing or recovered syntax.
+#[must_use]
+pub fn has_incomplete_syntax(elements: &Elements) -> bool {
+    let diagnostics = &engine(elements).diagnostics;
+    diagnostics.from.iter().enumerate().any(|(index, _)| {
+        diagnostics
+            .impact
+            .get(index)
+            .is_none_or(|impact| *impact == TreeImpact::Incomplete)
+    })
+}
+
+/// How many parse and validation diagnostics the provider reported about the file.
 #[must_use]
 pub fn diagnostic_count(elements: &Elements) -> Count {
     Count(engine(elements).diagnostics.from.len())

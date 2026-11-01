@@ -292,7 +292,7 @@ pub(crate) fn prepare<'a>(
     let held = &model.expression_shapes;
     if held.borrow().state == ShapeState::Fresh {
         let mut index = held.borrow_mut();
-        if languages::diagnostics(tree.elements).next().is_some() {
+        if languages::has_incomplete_syntax(tree.elements) {
             index.state = ShapeState::Partial;
             return None;
         }

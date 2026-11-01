@@ -36,7 +36,7 @@ pub(crate) fn build(
     index: &mut BindingAnalysisIndex,
 ) {
     clear(index);
-    if languages::diagnostics(tree.elements).next().is_some() {
+    if languages::has_incomplete_syntax(tree.elements) {
         index.state = BindingAnalysisState::Incomplete;
         return;
     }

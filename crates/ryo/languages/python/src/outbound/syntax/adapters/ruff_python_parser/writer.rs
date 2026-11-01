@@ -1,5 +1,5 @@
 //! Serialize native and embedded AST occurrences through one source-order writer.
-use super::constants::ELSE_WITHOUT_EXCEPT;
+use super::constants::{ELSE_WITHOUT_EXCEPT, ELSE_WITHOUT_EXCEPT_CODE};
 use super::schemas::{
     decoded_of, else_without_except, node_kind, opens, token_kind, unknown_futures,
 };
@@ -20,7 +20,7 @@ use ruff_python_ast::visitor::source_order::{
 };
 use ruff_python_ast::{AnyNodeRef, InterpolatedStringElement};
 use ruff_text_size::Ranged as _;
-use ryo::languages::{self, Offset};
+use ryo::languages::{self, DiagnosticMetadata, DiagnosticPhase, Offset, TreeImpact};
 
 /// Visits an element of an f-string or a t-string as the library does, but with an interpolation's format spec entered as the node
 /// it is: the library's own walk visits the spec's parts and never the spec, which the standard has as the `JoinedStr` of the
@@ -269,6 +269,11 @@ impl<'a> SourceOrderVisitor<'a> for Writer<'_, '_, '_> {
             self.refused.push(ParserRefusal {
                 at,
                 said: Said(ELSE_WITHOUT_EXCEPT.to_owned()),
+                metadata: DiagnosticMetadata::new(
+                    DiagnosticPhase::Parse,
+                    TreeImpact::Incomplete,
+                    ELSE_WITHOUT_EXCEPT_CODE,
+                ),
             });
         }
         if let AnyNodeRef::StmtImportFrom(statement) = node {

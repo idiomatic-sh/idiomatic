@@ -1,5 +1,9 @@
 //! Parse native source, report frontend diagnostics, and schedule embedded expression writing.
-use super::constants::NOT_UTF8;
+use super::constants::{
+    ANNOTATED_GLOBAL, DUPLICATE_KEYWORD_ARGUMENT, DUPLICATE_PARAMETER, DUPLICATE_TYPE_PARAMETER,
+    GLOBAL_PARAMETER, INVALID_UTF8, NONLOCAL_AT_MODULE, NONLOCAL_PARAMETER, NOT_UTF8, PARSER_ERROR,
+    TYPE_PARAMETER_DEFAULT_ORDER, UNSUPPORTED_SYNTAX,
+};
 use super::schemas::{offset, readable};
 use super::types::{AnnotationCandidate, AnnotationContext, ByteIndex, Readable, Writer};
 use crate::outbound::syntax::interface::SyntaxPort;
@@ -12,6 +16,7 @@ use ruff_python_ast::{PySourceType, PythonVersion};
 use ruff_python_parser::{ParseOptions, parse_unchecked};
 use ruff_text_size::{Ranged as _, TextSize};
 use ryo::languages::{self, Offset};
+use ryo::languages::{DiagnosticCode, DiagnosticMetadata, DiagnosticPhase, TreeImpact};
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 
@@ -50,6 +55,7 @@ pub(super) const fn source_type(source_kind: PythonSourceKind) -> PySourceType {
 struct SemanticSyntaxDiagnostic {
     message: String,
     range: ruff_text_size::TextRange,
+    code: DiagnosticCode,
 }
 
 /// Report local AST semantic errors Ruff classifies as invalid syntax.
@@ -122,10 +128,16 @@ fn semantic_syntax_errors(module: &Mod) -> Vec<SemanticSyntaxDiagnostic> {
             self.scopes.last().expect("every statement is in a scope")
         }
 
-        fn report(&mut self, message: impl Into<String>, range: ruff_text_size::TextRange) {
+        fn report(
+            &mut self,
+            code: DiagnosticCode,
+            message: impl Into<String>,
+            range: ruff_text_size::TextRange,
+        ) {
             self.errors.push(SemanticSyntaxDiagnostic {
                 message: message.into(),
                 range,
+                code,
             });
         }
 
@@ -138,6 +150,7 @@ fn semantic_syntax_errors(module: &Mod) -> Vec<SemanticSyntaxDiagnostic> {
                 let name = parameter.name().as_str();
                 if !names.insert(name) {
                     self.report(
+                        DUPLICATE_PARAMETER,
                         format!(r#"Duplicate parameter "{name}""#),
                         parameter.name().range(),
                     );
@@ -153,13 +166,18 @@ fn semantic_syntax_errors(module: &Mod) -> Vec<SemanticSyntaxDiagnostic> {
             for parameter in parameters {
                 let name = parameter.name().id.as_str();
                 if !names.insert(name) {
-                    self.report("duplicate type parameter", parameter.range());
+                    self.report(
+                        DUPLICATE_TYPE_PARAMETER,
+                        "duplicate type parameter",
+                        parameter.range(),
+                    );
                 }
             }
             let mut saw_default = false;
             for parameter in parameters {
                 if saw_default && parameter.default().is_none() {
                     self.report(
+                        TYPE_PARAMETER_DEFAULT_ORDER,
                         format!(
                             "non default type parameter `{}` follows default type parameter",
                             parameter.name().id.as_str()
@@ -183,6 +201,7 @@ fn semantic_syntax_errors(module: &Mod) -> Vec<SemanticSyntaxDiagnostic> {
             {
                 if !names.insert(name.as_str()) {
                     self.report(
+                        DUPLICATE_KEYWORD_ARGUMENT,
                         format!("Duplicate keyword argument `{}`", name.as_str()),
                         range,
                     );
@@ -197,6 +216,7 @@ fn semantic_syntax_errors(module: &Mod) -> Vec<SemanticSyntaxDiagnostic> {
                 Stmt::Nonlocal(nonlocal) => {
                     if self.scope().kind == ScopeKind::Module {
                         self.report(
+                            NONLOCAL_AT_MODULE,
                             "nonlocal declaration not allowed at module level",
                             nonlocal.range,
                         );
@@ -204,6 +224,7 @@ fn semantic_syntax_errors(module: &Mod) -> Vec<SemanticSyntaxDiagnostic> {
                         for name in &nonlocal.names {
                             if self.scope().parameters.contains(name.as_str()) {
                                 self.report(
+                                    NONLOCAL_PARAMETER,
                                     format!(
                                         "name `{}` cannot refer to a parameter and a nonlocal variable",
                                         name.as_str()
@@ -218,6 +239,7 @@ fn semantic_syntax_errors(module: &Mod) -> Vec<SemanticSyntaxDiagnostic> {
                     for name in &global.names {
                         if self.scope().parameters.contains(name.as_str()) {
                             self.report(
+                                GLOBAL_PARAMETER,
                                 format!(
                                     "name `{}` cannot refer to a parameter and a global variable",
                                     name.as_str()
@@ -234,6 +256,7 @@ fn semantic_syntax_errors(module: &Mod) -> Vec<SemanticSyntaxDiagnostic> {
                             let is_module = self.scope().kind == ScopeKind::Module;
                             if !is_module || name.range().start() < global {
                                 self.report(
+                                    ANNOTATED_GLOBAL,
                                     format!(
                                         "annotated name `{}` can't be global",
                                         name.id.as_str()
@@ -331,8 +354,13 @@ impl SyntaxPort for SyntaxRuffPythonParserAdapter {
                 at += chunk.valid().len();
                 let bad = chunk.invalid().len();
                 if bad > 0 {
-                    languages::diagnose(
+                    languages::diagnose_with_metadata(
                         writer.tree.builder,
+                        DiagnosticMetadata::new(
+                            DiagnosticPhase::Parse,
+                            TreeImpact::Incomplete,
+                            INVALID_UTF8,
+                        ),
                         languages::ReportText(NOT_UTF8),
                         offset(ByteIndex(at)),
                         offset(ByteIndex(at + bad)),
@@ -343,24 +371,39 @@ impl SyntaxPort for SyntaxRuffPythonParserAdapter {
         }
         for error in parsed.errors() {
             // The error's own message: the library's `Display` of the whole error adds the byte range the row already holds.
-            languages::diagnose(
+            languages::diagnose_with_metadata(
                 writer.tree.builder,
+                DiagnosticMetadata::new(
+                    DiagnosticPhase::Parse,
+                    TreeImpact::Incomplete,
+                    PARSER_ERROR,
+                ),
                 languages::ReportText(&error.error.to_string()),
                 Offset(error.location.start().to_u32()),
                 Offset(error.location.end().to_u32()),
             );
         }
         for error in parsed.unsupported_syntax_errors() {
-            languages::diagnose(
+            languages::diagnose_with_metadata(
                 writer.tree.builder,
+                DiagnosticMetadata::new(
+                    DiagnosticPhase::Validation,
+                    TreeImpact::Preserved,
+                    UNSUPPORTED_SYNTAX,
+                ),
                 languages::ReportText(&error.to_string()),
                 Offset(error.range.start().to_u32()),
                 Offset(error.range.end().to_u32()),
             );
         }
         for error in semantic_errors {
-            languages::diagnose(
+            languages::diagnose_with_metadata(
                 writer.tree.builder,
+                DiagnosticMetadata::new(
+                    DiagnosticPhase::Validation,
+                    TreeImpact::Preserved,
+                    error.code,
+                ),
                 languages::ReportText(&error.message),
                 Offset(error.range.start().to_u32()),
                 Offset(error.range.end().to_u32()),
@@ -368,8 +411,9 @@ impl SyntaxPort for SyntaxRuffPythonParserAdapter {
         }
         let refused = std::mem::take(&mut writer.refused);
         for refusal in refused {
-            languages::diagnose(
+            languages::diagnose_with_metadata(
                 writer.tree.builder,
+                refusal.metadata,
                 languages::ReportText(&refusal.said.0),
                 Offset(refusal.at.start().to_u32()),
                 Offset(refusal.at.end().to_u32()),

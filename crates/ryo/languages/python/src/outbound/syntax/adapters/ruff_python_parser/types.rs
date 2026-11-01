@@ -63,6 +63,8 @@ pub(crate) struct ParserRefusal {
     pub at: ruff_text_size::TextRange,
     /// What.
     pub said: Said,
+    /// Diagnostic stage and tree impact.
+    pub metadata: ryo::languages::DiagnosticMetadata,
 }
 
 /// The writer of the table: it walks the library's tree in the order of the file and writes its tokens between the nodes.

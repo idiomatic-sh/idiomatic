@@ -16,6 +16,7 @@
 use ruff_python_ast::NodeKind as RuffNode;
 use ruff_python_ast::{StmtImportFrom, StmtTry};
 
+use super::constants::FUTURE_FEATURE_NOT_DEFINED;
 use super::constants::{
     BRACES, FUTURE, FUTURE_FEATURES, NOT_A_CHANCE, NOT_DEFINED, UNKNOWN_FEATURE, UNREADABLE,
 };
@@ -30,7 +31,7 @@ use crate::domain::tokens::types::Token;
 use super::types::{ByteIndex, Decoded, ParserRefusal, Readable, Said, Strings};
 use crate::outbound::syntax::types::SourceText;
 use ruff_python_ast::AnyNodeRef;
-use ryo::languages::Offset;
+use ryo::languages::{DiagnosticMetadata, DiagnosticPhase, Offset, TreeImpact};
 use std::borrow::Cow;
 
 /// A kind of node of the library's tree, and the kind of string an interpolation inside it is in.
@@ -342,6 +343,11 @@ pub(super) fn unknown_futures(
             ParserRefusal {
                 at: alias.name.range(),
                 said: Said(said),
+                metadata: DiagnosticMetadata::new(
+                    DiagnosticPhase::Validation,
+                    TreeImpact::Preserved,
+                    FUTURE_FEATURE_NOT_DEFINED,
+                ),
             }
         })
 }

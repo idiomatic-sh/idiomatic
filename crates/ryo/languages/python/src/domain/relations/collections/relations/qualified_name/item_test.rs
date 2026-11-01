@@ -43,3 +43,10 @@ fn subject(source: Input) -> Value {
 fn succeeds() {
     run(CASES, Word::Succeeds, |input| Ok(subject(input)));
 }
+
+#[test]
+fn complete_ast_semantic_error_does_not_hide_qualified_names() {
+    let result = subject("global x\nnonlocal x\nx\n");
+    assert!(result.causes.is_empty());
+    assert_eq!(result.rows.len(), 1);
+}

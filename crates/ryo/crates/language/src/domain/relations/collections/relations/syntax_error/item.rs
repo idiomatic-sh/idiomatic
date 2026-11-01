@@ -35,6 +35,12 @@ macro_rules! syntax_error {
                 id Id: NodeId => Node;
                 /// The parser's message. Free text: the parser's sentence.
                 message Message: Symbol => Symbol;
+                /// The stage that reported this diagnostic.
+                phase Phase: Symbol => Symbol;
+                /// Whether semantic facts remain complete despite this diagnostic.
+                impact Impact: Symbol => Symbol;
+                /// The stable code owned by the language provider.
+                code Code: Symbol => Symbol;
                 /// The file it is in.
                 file File: FileId => File;
                 /// Where the error is.

@@ -73,7 +73,9 @@ pub use ryo_language::domain::relations::types::Relation;
 
 pub use ryo_language::domain::relations::types::Column;
 
-pub use ryo_language::domain::elements::types::Elements;
+pub use ryo_language::domain::elements::types::{
+    DiagnosticCode, DiagnosticMetadata, DiagnosticPhase, Elements, TreeImpact,
+};
 
 pub use ryo_language::domain::elements::types::Children;
 
@@ -140,7 +142,9 @@ pub use ryo_language::domain::symbols::service::push_name;
 
 pub use ryo_language::domain::symbols::service::end_name;
 
-pub use ryo_language::domain::elements::service::diagnose;
+pub use ryo_language::domain::elements::service::{
+    diagnose, diagnose_with_metadata, has_incomplete_syntax,
+};
 
 pub use ryo_language::domain::expansions::service::adopt;
 

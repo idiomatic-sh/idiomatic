@@ -3,12 +3,12 @@
 use crate::domain::symbols::types::ByteSlice;
 
 use super::service::{
-    child_of_kind, children, decoded_at, decoded_token, end_at, end_of, enter_node,
-    first_token_text, kind_at, leave_node, number_mut, positions, start_at, table_builder, text_at,
-    token,
+    child_of_kind, children, clear_elements, decoded_at, decoded_token, diagnose,
+    diagnose_with_metadata, end_at, end_of, enter_node, first_token_text, has_incomplete_syntax,
+    kind_at, leave_node, number_mut, positions, start_at, table_builder, text_at, token,
 };
-use super::types::Elements;
-use crate::domain::relations::types::{KindBits, Offset, Position};
+use super::types::{DiagnosticCode, DiagnosticMetadata, DiagnosticPhase, Elements, TreeImpact};
+use crate::domain::relations::types::{KindBits, Offset, Position, ReportText};
 use crate::domain::symbols::types::Symbols;
 use crate::domain::terms::types::NameText;
 
@@ -187,6 +187,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(1),
     },
     Case {
+        name: CaseName("diagnostics_retain_metadata_and_reset_between_sources"),
+        word: Word::Succeeds,
+        input: || diagnostics_retain_metadata_and_reset_between_sources,
+        expect: Expect::Value(1),
+    },
+    Case {
         name: CaseName("a_child_is_found_by_its_kind_and_a_node_holds_the_text_of_its_first_token"),
         word: Word::Succeeds,
         input: || a_child_is_found_by_its_kind_and_a_node_holds_the_text_of_its_first_token,
@@ -213,6 +219,74 @@ fn a_write_past_the_table_crashes() -> usize {
         *number_mut(&mut elements.size, Position(3)) = crate::domain::relations::types::Extent(1);
     });
     usize::from(message == "a position this table gave")
+}
+
+/// Diagnostics retain typed metadata and clear completely before the next source uses the table.
+fn diagnostics_retain_metadata_and_reset_between_sources() -> usize {
+    let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
+    let mut builder = table_builder(&mut elements, &mut symbols, ByteSlice(b"x"));
+    diagnose(
+        &mut builder,
+        ReportText("old provider"),
+        Offset(0),
+        Offset(1),
+    );
+    diagnose_with_metadata(
+        &mut builder,
+        DiagnosticMetadata::new(
+            DiagnosticPhase::Validation,
+            TreeImpact::Preserved,
+            DiagnosticCode::provider_owned("fixture.semantic"),
+        ),
+        ReportText("complete tree"),
+        Offset(0),
+        Offset(1),
+    );
+    drop(builder);
+
+    let before = super::service::diagnostics(&elements).collect::<Vec<_>>();
+    let retained = before.len() == 2
+        && before[0].phase == DiagnosticPhase::Parse
+        && before[0].impact == TreeImpact::Incomplete
+        && before[0].code == DiagnosticCode::UNSPECIFIED
+        && before[1].phase == DiagnosticPhase::Validation
+        && before[1].impact == TreeImpact::Preserved
+        && before[1].code.as_str() == "fixture.semantic"
+        && has_incomplete_syntax(&elements);
+
+    let (mut next_symbols, next_source) = (Symbols::default(), ByteSlice(b"valid"));
+    let next = table_builder(&mut elements, &mut next_symbols, next_source);
+    drop(next);
+    let cleared = !has_incomplete_syntax(&elements)
+        && super::service::diagnostic_count(&elements).0 == 0
+        && super::service::diagnostics(&elements).next().is_none();
+
+    let mut next = table_builder(&mut elements, &mut next_symbols, next_source);
+    diagnose_with_metadata(
+        &mut next,
+        DiagnosticMetadata::new(
+            DiagnosticPhase::Validation,
+            TreeImpact::Preserved,
+            DiagnosticCode::provider_owned("fixture.validation"),
+        ),
+        ReportText("still complete"),
+        Offset(0),
+        Offset(5),
+    );
+    drop(next);
+    usize::from(
+        retained
+            && cleared
+            && !has_incomplete_syntax(&elements)
+            && super::service::diagnostic_count(&elements).0 == 1
+            && super::service::diagnostics(&elements)
+                .next()
+                .is_some_and(|diagnostic| {
+                    diagnostic.code.as_str() == "fixture.validation"
+                        && diagnostic.phase == DiagnosticPhase::Validation
+                        && diagnostic.impact == TreeImpact::Preserved
+                }),
+    )
 }
 
 /// What `work` crashed with: its panic's message, or nothing when it did not crash.
