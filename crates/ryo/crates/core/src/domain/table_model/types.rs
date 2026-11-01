@@ -74,14 +74,38 @@ pub(crate) struct Table {
 
 /// The rows an operator reads: the columns of a relation as the store keeps them, or the table
 /// another step computed.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub(crate) enum Rows<'a> {
     /// A relation's columns, read where the store keeps them.
     Stored(ColumnsView<'a>),
+    /// Ordered physical row positions and projected columns of a resident relation.
+    Selected(SelectedRows<'a>),
     /// The edges of a file's syntax tree, read from the tree itself: no row of them is stored.
     Tree(TreeRows<'a>),
     /// The rows of an earlier step.
     Computed(&'a Table),
+}
+
+/// A compact row view borrows only its generation's provider; its metadata has owned lifetime.
+#[derive(Clone, Debug)]
+pub(crate) struct SelectedRows<'a> {
+    /// Immutable rectangular provider population.
+    pub source: ColumnsView<'a>,
+    /// Original row positions and output column map, shared without copying cells.
+    pub selection: std::sync::Arc<StoredSelection>,
+}
+
+/// Owned, generation-local metadata; it contains no provider/source references.
+#[derive(Debug)]
+pub(crate) struct StoredSelection {
+    /// Provider to reacquire before replay, preserving availability/error checks.
+    pub relation: ryo_language::domain::relations::types::Relation,
+    /// Original row IDs in source order, including repeated positions when present.
+    pub rows: std::sync::Arc<Vec<u32>>,
+    /// Physical source columns, in output order and with repeats retained.
+    pub columns: Vec<ColumnIndex>,
+    /// Types of the projected output columns, including zero-column projections.
+    pub kinds: Vec<CellKind>,
 }
 
 /// What a parameter is bound to when a query runs: text that came from the host.

@@ -13,10 +13,16 @@ use crate::domain::operating::types::Room;
 /// allocates nothing once they have grown to the largest file.
 #[derive(Debug, Default)]
 pub(crate) struct Pool {
+    /// Pure stored selector programs, compiled once under this worker's request bindings.
+    pub selection_plans: Vec<crate::domain::stored_selection::types::PreparedPlan>,
+    /// Compact kept outputs for the current rule only; cleared before its generation ends.
+    pub selected: Vec<Option<std::sync::Arc<crate::domain::table_model::types::StoredSelection>>>,
     /// The rows of each step that keeps them.
     pub steps: Vec<Table>,
     /// The rows of each input handed to the cross-file steps.
     pub frontier: Vec<Table>,
+    /// Whether each frontier still awaits successful packed-word retention, even with zero rows.
+    pub frontier_pending: Vec<bool>,
     /// What each step keeps for itself.
     pub rooms: Vec<Option<Box<Room>>>,
     /// How each plan this pool has run is laid out.

@@ -235,6 +235,34 @@ fn join_stored_rows(
         order,
         built,
     } = buffers;
+    if let Rows::Selected(view) = right {
+        crate::domain::table_model::service::index_selected(view, right_on, order)?;
+        reset(built, &view.selection.kinds);
+        if state.enabled {
+            state.builds += 1;
+        }
+        for position in positions(count_of(left)) {
+            let Some(left_row) = read_row(left, position, row) else {
+                continue;
+            };
+            key_of(left_row, On::Columns(left_on), key)?;
+            if state.enabled {
+                state.probes += 1;
+            }
+            for hit in
+                crate::domain::table_model::service::matching_selected(view, right_on, order, key)
+            {
+                if state.enabled {
+                    state.hits += 1;
+                }
+                crate::domain::table_model::service::joined_selected(
+                    view, hit, left_row, output, other,
+                )?;
+                emit.row(context, other)?;
+            }
+        }
+        return Ok(());
+    }
     let Rows::Stored(stored_view) = right else {
         return Err(OperatingError::WrongOperation);
     };
@@ -412,7 +440,8 @@ pub(crate) fn join_rows(
             && stored_join_diagnostics_enabled(),
         ..LookupState::default()
     };
-    let stored = matches!(right, Rows::Stored(stored_view) if rectangular(*stored_view));
+    let stored = matches!(right, Rows::Selected(_))
+        || matches!(right, Rows::Stored(stored_view) if rectangular(*stored_view));
     let columns = LookupColumns {
         right_input: *right_input,
         left_on,
@@ -596,6 +625,32 @@ fn stream_lookup_row(
         right: built,
         ..
     } = scratch;
+    if let Rows::Selected(view) = right {
+        if !state.indexed {
+            crate::domain::table_model::service::index_selected(view, right_on, order)?;
+            reset(built, &view.selection.kinds);
+            if state.enabled {
+                state.builds += 1;
+            }
+            state.indexed = true;
+        }
+        key_of(left_row, On::Columns(left_on), key)?;
+        if state.enabled {
+            state.probes += 1;
+        }
+        for hit in
+            crate::domain::table_model::service::matching_selected(view, right_on, order, key)
+        {
+            if state.enabled {
+                state.hits += 1;
+            }
+            crate::domain::table_model::service::joined_selected(
+                view, hit, left_row, output, other,
+            )?;
+            emit.row(context, other)?;
+        }
+        return Ok(());
+    }
     let stored = state.stored;
     if let Some(view) = stored {
         if !state.indexed {
@@ -640,7 +695,7 @@ fn stream_lookup_row(
             }
             table
         }
-        Rows::Stored(_) | Rows::Tree(_) => {
+        Rows::Stored(_) | Rows::Selected(_) | Rows::Tree(_) => {
             if !state.indexed {
                 let table = table_in(right, built, row);
                 index(table, On::Columns(right_on), order)?;
@@ -701,7 +756,7 @@ fn stream_lookup(
     };
     let stored = match right {
         Rows::Stored(view) if rectangular(*view) => Some(*view),
-        Rows::Stored(_) | Rows::Tree(_) | Rows::Computed(_) => None,
+        Rows::Stored(_) | Rows::Selected(_) | Rows::Tree(_) | Rows::Computed(_) => None,
     };
     let columns = LookupColumns {
         right_input: *right_input,

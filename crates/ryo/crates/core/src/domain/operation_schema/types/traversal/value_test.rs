@@ -192,9 +192,9 @@ fn native(scenario: Scenario) -> Result<Value, Failure> {
             starts.count.0 = 0;
         }
         let rows = if matches!(scenario, Scenario::NativeAxis) {
-            vec![Rows::Computed(&starts), edges, reached]
+            vec![Rows::Computed(&starts), edges.clone(), reached.clone()]
         } else {
-            vec![Rows::Computed(&starts), reached]
+            vec![Rows::Computed(&starts), reached.clone()]
         };
         let schemas: Vec<_> = rows
             .iter()

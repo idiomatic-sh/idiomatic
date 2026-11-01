@@ -33,7 +33,6 @@ use crate::domain::coverage::service::drop_uncertain;
 use crate::domain::coverage::types::Partials;
 use crate::domain::table_model::service::{copy_table, count_of, kinds_of};
 use crate::domain::table_model::types::{Frontier, RowCount, Rows, Table};
-use crate::domain::table_scratch::service::{ROOM, trim_scratch, trim_table};
 use crate::domain::trust::service::{files_for, needs_of};
 use ryo_values::domain::plan_parts::service::step_in;
 use ryo_values::domain::plan_parts::types::Input;
@@ -136,26 +135,14 @@ pub(crate) fn pool_for(plans: &[Plan]) -> Pool {
     Pool {
         steps: vec![Table::default(); steps],
         frontier: vec![Table::default(); frontier],
+        frontier_pending: vec![false; frontier],
         ..Pool::default()
     }
 }
 
 /// Gives back what a huge file made the pool's tables grow past the room a worker keeps.
 pub(crate) fn trim_pool(pool: &mut Pool) {
-    pool.steps
-        .iter_mut()
-        .chain(&mut pool.frontier)
-        .for_each(trim_table);
-    for room in pool.rooms.iter_mut().flatten() {
-        room.held.iter_mut().for_each(trim_table);
-        trim_table(&mut room.out);
-        trim_scratch(&mut room.scratch);
-        room.memo.shrink_to(ROOM);
-        room.counts.0.shrink_to(ROOM);
-        room.hashed.shrink_to(ROOM);
-        room.pairs.clear();
-        room.pairs.shrink_to(ROOM);
-    }
+    crate::domain::working_set::service::clear_rule(pool);
 }
 
 /// What a step that reads nothing reads.
@@ -218,7 +205,7 @@ pub(crate) fn evaluate_cross(
             continue;
         }
         let inputs = inputs_of(&step.operation);
-        let mut rows = [Rows::Computed(&NOTHING); 3];
+        let mut rows = std::array::from_fn::<_, 3, _>(|_| Rows::Computed(&NOTHING));
         for (slot, input) in rows.iter_mut().zip(named(&inputs)) {
             let handed_over = frontier
                 .iter()

@@ -69,3 +69,6 @@ pub(crate) mod workers;
 
 /// Complete stored indexes owned by a single physical file generation.
 pub(crate) mod stored_indexes;
+pub(crate) mod stored_selection;
+
+pub(crate) mod working_set;

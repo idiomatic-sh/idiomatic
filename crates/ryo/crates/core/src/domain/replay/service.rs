@@ -64,7 +64,7 @@ pub(crate) fn replay_computed(
     } = room;
     let [first, second, third] = held;
     {
-        let mut rows: [Rows<'_>; 3] = [Rows::Computed(&NOTHING); 3];
+        let mut rows: [Rows<'_>; 3] = std::array::from_fn(|_| Rows::Computed(&NOTHING));
         rows[0] = ins.hold(InputPlace(0), context, first)?;
         if used > 1 {
             rows[1] = ins.hold(InputPlace(1), context, second)?;
@@ -120,6 +120,14 @@ pub(crate) fn scan(
 ) -> Result<(), OperatingError> {
     for position in positions(count_of(rows)) {
         if let Some(row) = read_row(rows, position, buffer) {
+            if matches!(rows, Rows::Selected(_))
+                && let Some(cache) = context.stored_indexes.as_mut()
+            {
+                cache.selection_counts.output_cells = cache
+                    .selection_counts
+                    .output_cells
+                    .saturating_add(row.len() as u64);
+            }
             emit.row(context, row)?;
         }
     }

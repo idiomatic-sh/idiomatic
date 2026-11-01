@@ -16,7 +16,6 @@ use crate::domain::rules::errors::RulesError;
 use crate::domain::rules::service::{failed, id_at};
 use crate::domain::shared_walk::service::install;
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
-use crate::domain::table_scratch::service::trim_scratch;
 use crate::domain::table_texts::types::SourceView;
 use crate::domain::table_words::service::{encode_table, pack_onto};
 use crate::domain::table_words::types::WordSlice;
@@ -136,7 +135,7 @@ pub(crate) fn evaluate_rule<'f>(
             memo: &mut tables.memo,
             scratch: &mut tables.scratch,
         };
-        evaluate_file(
+        let evaluated = evaluate_file(
             plan,
             relations,
             Some(TreeRows {
@@ -147,7 +146,11 @@ pub(crate) fn evaluate_rule<'f>(
             &mut context,
             pool,
         )
-        .map_err(|error| refuse(&error))?;
+        .map_err(|error| refuse(&error));
+        if evaluated.is_err() {
+            crate::domain::working_set::service::clear_rule(pool);
+        }
+        evaluated?;
     }
     if let Some(table) = emitted(plan, pool) {
         let scene = Scene {
@@ -159,7 +162,7 @@ pub(crate) fn evaluate_rule<'f>(
             unknown: setting.unknown,
         };
         let id = FindingRule(setting.ids.get(rule.0).map(|id| &*id.0).unwrap_or_default());
-        render_rows(
+        let rendered = render_rows(
             RenderInput {
                 rule: number,
                 table,
@@ -171,9 +174,25 @@ pub(crate) fn evaluate_rule<'f>(
             &mut tables.starts,
             &mut tables.rendered,
         )
-        .map_err(|error| refuse(&error))?;
+        .map_err(|error| refuse(&error));
+        if rendered.is_err() {
+            crate::domain::working_set::service::clear_rule(pool);
+        }
+        rendered?;
     }
+    crate::domain::working_set::service::retire(pool, &mut tables.scratch);
     Ok(())
+}
+
+/// A frontier is dead only after its packed words were successfully retained/captured.
+pub(crate) fn consumed_frontier(tables: &mut Tables, place: InputNumber) {
+    if let Some(table) = tables.pool.frontier.get_mut(place.0) {
+        table.cells.clear();
+        table.count = crate::domain::table_model::types::RowCount(0);
+    }
+    if let Some(pending) = tables.pool.frontier_pending.get_mut(place.0) {
+        *pending = false;
+    }
 }
 
 /// Hands what the rule's per-file steps leave for the cross-file steps to `keep`, input by input, and keeps a copy when the run
@@ -230,8 +249,12 @@ pub(crate) fn capture_frontier(tables: &mut Tables, answering: &Answering, bucke
 /// Gives back what a huge file made the tables grow past, and puts the file's findings in their order: rows of the rules' own
 /// columns stay in the order of the rules and, for a rule, of their places.
 pub(crate) fn settle(tables: &mut Tables, answering: &Answering) {
+    // Shared native selections are live until the final rule; they must not be cleared per rule.
+    for class in &mut tables.pool.made.classes {
+        class.0.clear();
+    }
     trim_pool(&mut tables.pool);
-    trim_scratch(&mut tables.scratch);
+    crate::domain::working_set::service::retire(&mut tables.pool, &mut tables.scratch);
     if *answering == Answering::Findings {
         sort_findings(&mut tables.rendered);
     }

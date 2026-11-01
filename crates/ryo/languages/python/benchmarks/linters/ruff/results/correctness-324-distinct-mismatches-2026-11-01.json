@@ -1,0 +1,4159 @@
+[
+  {
+    "source_sha256": "c3172ce5dbde218803997b6dc1ce5bc55e99379c10f13b5569d326624b8e275c",
+    "extra": [],
+    "missing": [
+      [
+        "B006",
+        "case.py",
+        11,
+        17
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 372,
+        "rule": "B008",
+        "case": "policy-call-3",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/00372/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/00372/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/00372/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "3620727ec02dfc72993aa9c1b9720a684a2cf3bef3bceae475cef6c58953ba3d",
+    "extra": [],
+    "missing": [
+      [
+        "B006",
+        "case.py",
+        11,
+        22
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 373,
+        "rule": "B008",
+        "case": "policy-call-4",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/00373/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/00373/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/00373/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "442f15de42a76b1610de8e03b61efa08c0db50c2b7610af8c4d1e5c11cebf4d2",
+    "extra": [],
+    "missing": [
+      [
+        "B006",
+        "case.py",
+        11,
+        16
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 374,
+        "rule": "B008",
+        "case": "policy-call-5",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/00374/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/00374/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/00374/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "0a70e9bb14bcea5d9477a3b7e9e3ea3c7c3ba100772c7214c6946d9e4c5b11f1",
+    "extra": [],
+    "missing": [
+      [
+        "B006",
+        "case.py",
+        11,
+        17
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 375,
+        "rule": "B008",
+        "case": "policy-call-6",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/00375/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/00375/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/00375/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "9f948eee1b21da991ca487a116472d88a8a5757e54c9e9197b2bfcc111a4187d",
+    "extra": [],
+    "missing": [
+      [
+        "B006",
+        "case.py",
+        11,
+        23
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 379,
+        "rule": "B008",
+        "case": "policy-call-10",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/00379/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/00379/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/00379/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "c8826782c52b6992ce165eaaf3b77ec8eb0f1128c9a68862fc2d413edf5690e9",
+    "extra": [],
+    "missing": [
+      [
+        "B006",
+        "case.py",
+        27,
+        48
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 385,
+        "rule": "B008",
+        "case": "policy-catalog-16",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/00385/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/00385/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/00385/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "810628b9bbd2674cd3090fdc0c72d5c9195c412f836a74ee8e9fa2ae656babfc",
+    "extra": [],
+    "missing": [
+      [
+        "B006",
+        "case.py",
+        27,
+        52
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 386,
+        "rule": "B008",
+        "case": "policy-catalog-17",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/00386/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/00386/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/00386/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "434809ce7af4794655c18ec922b281efb91b006465f5e2962d91e638bbe1f245",
+    "extra": [
+      [
+        "B006",
+        "case.py",
+        5000,
+        5005
+      ]
+    ],
+    "missing": [
+      [
+        "B006",
+        "case.py",
+        1357,
+        1382
+      ],
+      [
+        "B006",
+        "case.py",
+        1426,
+        1451
+      ],
+      [
+        "B006",
+        "case.py",
+        1489,
+        1508
+      ],
+      [
+        "B006",
+        "case.py",
+        1617,
+        1641
+      ],
+      [
+        "B006",
+        "case.py",
+        1700,
+        1727
+      ],
+      [
+        "B006",
+        "case.py",
+        1785,
+        1809
+      ],
+      [
+        "B006",
+        "case.py",
+        1855,
+        1857
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 421,
+        "rule": "B008",
+        "case": "policy-tagged-flake8_bugbear-B006_B008.py",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/00421/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/00421/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/00421/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "31f181b7eced712685ed19000217a201b80f612b7638b65bc71e665ab481d6da",
+    "extra": [
+      [
+        "F401",
+        "case.py",
+        54,
+        62
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 456,
+        "rule": "B008",
+        "case": "policy-future-enclosing-body-rebind",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/00456/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/00456/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/00456/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "73fdb76bd701f018e7e9dc8c61bc23b99c4d31daef366637e5c69b98e38aad02",
+    "extra": [
+      [
+        "F401",
+        "case.pyi",
+        75,
+        83
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 459,
+        "rule": "B008",
+        "case": "policy-stub-newtype-forward-import",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/00459/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/00459/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/00459/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "a572e9f07246b7a91f273cfedf6e37435c756134f4950430f6cc8c0b3054abd5",
+    "extra": [],
+    "missing": [
+      [
+        "F401",
+        "case.py",
+        84,
+        87
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 465,
+        "rule": "B008",
+        "case": "policy-future-shadowed-type-parameter",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/00465/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/00465/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/00465/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "7984f4812e6b929dd44af52539ae96597cf23973c95f66f14b3319ef04491435",
+    "extra": [],
+    "missing": [
+      [
+        "PERF102",
+        "case.py",
+        31,
+        43
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 754,
+        "rule": "B020",
+        "case": "tuple-target-selects-the-overridden-name",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/00754/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/00754/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/00754/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "396a2972b90a366c32171fa11059416f3ee43e248561545a5eba2658bfd858b7",
+    "extra": [
+      [
+        "invalid-syntax",
+        "case.py",
+        77,
+        114
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 1603,
+        "rule": "F404",
+        "case": "consecutive-before-import",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/01603/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/01603/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/01603/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "8e1e1ea59bef26fc002deba094bbadf5d42d1dbed780a3314450f082252a6551",
+    "extra": [
+      [
+        "invalid-syntax",
+        "case.py",
+        6,
+        40
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 1604,
+        "rule": "F404",
+        "case": "after-assignment",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/01604/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/01604/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/01604/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "3bfb1a15352f7f8cf3b8618c2681783117b4b490862da1b6e4e4a74f190e37d3",
+    "extra": [
+      [
+        "invalid-syntax",
+        "case.py",
+        14,
+        48
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 1605,
+        "rule": "F404",
+        "case": "second-string-is-boundary",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/01605/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/01605/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/01605/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "8915f58f1e91a6812cb6ed52de889f4be1144423c4c32f20877bbbe2609fa706",
+    "extra": [
+      [
+        "invalid-syntax",
+        "case.py",
+        13,
+        47
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 1606,
+        "rule": "F404",
+        "case": "inside-function",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/01606/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/01606/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/01606/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "c0212a2aadc8daba5c7a2e573abf4d4f2cff55bc86a0e25338408eeaa1fc12fd",
+    "extra": [
+      [
+        "invalid-syntax",
+        "case.py",
+        13,
+        47
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 1607,
+        "rule": "F404",
+        "case": "inside-class",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/01607/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/01607/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/01607/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "1207aba749ee847d429fa63f64501540b9c990952f15510f542703fba95a6309",
+    "extra": [
+      [
+        "invalid-syntax",
+        "case.py",
+        13,
+        47
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 1608,
+        "rule": "F404",
+        "case": "inside-module-if",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/01608/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/01608/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/01608/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "b0a9a63c328dfd2b386400748cfef3c4d4f9d7744c98fc1a9672315879185554",
+    "extra": [
+      [
+        "invalid-syntax",
+        "case.py",
+        13,
+        47
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 1610,
+        "rule": "F404",
+        "case": "unicode-prefix",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/01610/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/01610/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/01610/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "bd2e7da15b6a6942a8b16d07c468828eebc6bedde361ce943996c553f10d2a74",
+    "extra": [
+      [
+        "invalid-syntax",
+        "case.py",
+        6,
+        40
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 1611,
+        "rule": "F404",
+        "case": "inline-noqa",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/01611/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/01611/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/01611/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "2787cb9e4f87c35172a5186b34b8eefb25552d6339935d6bb3ac52efdb4c0cca",
+    "extra": [
+      [
+        "invalid-syntax",
+        "case.py",
+        25,
+        59
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 1612,
+        "rule": "F404",
+        "case": "file-noqa",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/01612/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/01612/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/01612/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "b255acee54971f3744b0257fd37534632df43040bf8ec47ca2694343c838ac2b",
+    "extra": [
+      [
+        "invalid-syntax",
+        "case.py",
+        9,
+        43
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 1613,
+        "rule": "F404",
+        "case": "bytes-is-not-a-docstring",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/01613/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/01613/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/01613/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "b3db82c0dd82f7d8839b79ce1f717c4042e9a375212c4d9873584ebc5b4ca47f",
+    "extra": [
+      [
+        "invalid-syntax",
+        "case.py",
+        7,
+        41
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 1614,
+        "rule": "F404",
+        "case": "fstring-is-not-a-docstring",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/01614/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/01614/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/01614/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "40c26e3f49056345086b6cbb1885c074ce042c1e77a87e8f743927f0406304ea",
+    "extra": [
+      [
+        "invalid-syntax",
+        "case.py",
+        50,
+        81
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 1616,
+        "rule": "F404",
+        "case": "second-docstring-is-a-boundary",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/01616/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/01616/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/01616/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "23e5748c4a9944bb88c472655d339c7887b0b52c8f9b7a5692d52c8ff6aca7fc",
+    "extra": [
+      [
+        "invalid-syntax",
+        "case.py",
+        6,
+        30
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 1617,
+        "rule": "F404",
+        "case": "late-wildcard-future-import",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/01617/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/01617/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/01617/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "948d0d0334a3b3b2be61855d93db1d70cf9e6fc3de07b8055af75f9d832a43f5",
+    "extra": [
+      [
+        "invalid-syntax",
+        "case.py",
+        6,
+        49
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 1618,
+        "rule": "F404",
+        "case": "multiline-future-import",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/01618/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/01618/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/01618/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "06d73e39e55db31014be56aed7f96bfb658b98722d50204f2a81394e5fc987c8",
+    "extra": [
+      [
+        "invalid-syntax",
+        "case.py",
+        6,
+        63
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 1619,
+        "rule": "F404",
+        "case": "multiline-parent-noqa",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/01619/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/01619/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/01619/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "6f566dc9386976a73583d6adc1360ad01a3a9cf686e70309b746681731bed70d",
+    "extra": [
+      [
+        "invalid-syntax",
+        "case.py",
+        36,
+        67
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 1622,
+        "rule": "F404",
+        "case": "relative-then-absolute-before-boundary",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/01622/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/01622/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/01622/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "d96176f642d521568e83bdc31b554ef80736defdc39953a85809ae4b69821dea",
+    "extra": [
+      [
+        "invalid-syntax",
+        "case.py",
+        4,
+        38
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 1623,
+        "rule": "F404",
+        "case": "multi-code-inline-noqa",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/01623/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/01623/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/01623/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "d4cad669c8593d31a67e2b9279e4e4231e1d27bbc19894eba70fd4118c11907f",
+    "extra": [
+      [
+        "invalid-syntax",
+        "case.py",
+        4,
+        66
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 1624,
+        "rule": "F404",
+        "case": "multiline-import-inline-noqa",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/01624/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/01624/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/01624/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "382c054d9661028b20b5180dcd48db50304adda33c8aa42509552952f00ff751",
+    "extra": [
+      [
+        "invalid-syntax",
+        "case.py",
+        4,
+        50
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 1626,
+        "rule": "F404",
+        "case": "nfkc-future-module-after-statement",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/01626/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/01626/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/01626/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "b5e778c3fdc57c0c8cfaee261565666ea72ac7e93db1ad0b2aee2ad38b4a87eb",
+    "extra": [
+      [
+        "invalid-syntax",
+        "case.py",
+        13,
+        51
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 1633,
+        "rule": "F407",
+        "case": "unicode-prefix",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/01633/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/01633/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/01633/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "5a714f83180459bb9204adc79c48d09df723afdd9ad50d91010c20ff3920b32b",
+    "extra": [
+      [
+        "invalid-syntax",
+        "PYI019_0.py",
+        5094,
+        5128
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 3,
+    "cases": [
+      {
+        "case_index": 2103,
+        "rule": "F811",
+        "case": "cross-PYI019-tagged-PYI019_0.py",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02103/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02103/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02103/report.json"
+      },
+      {
+        "case_index": 2257,
+        "rule": "F821",
+        "case": "cross-PYI019-tagged-PYI019_0.py",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02257/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02257/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02257/report.json"
+      },
+      {
+        "case_index": 5507,
+        "rule": "PYI019",
+        "case": "tagged-PYI019_0.py",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/05507/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/05507/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/05507/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "7103f88831b8f9eff04447862e8f53610fa7fc827996287b02c521a772e0e84e",
+    "extra": [
+      [
+        "invalid-syntax",
+        "PYI019_0.pyi",
+        4629,
+        4663
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 5,
+    "cases": [
+      {
+        "case_index": 2104,
+        "rule": "F811",
+        "case": "cross-PYI019-tagged-PYI019_0.pyi",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02104/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02104/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02104/report.json"
+      },
+      {
+        "case_index": 2261,
+        "rule": "F821",
+        "case": "cross-PYI019-tagged-PYI019_0.pyi",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02261/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02261/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02261/report.json"
+      },
+      {
+        "case_index": 2490,
+        "rule": "F841",
+        "case": "cross-PYI019-tagged-PYI019_0.pyi",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02490/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02490/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02490/report.json"
+      },
+      {
+        "case_index": 5508,
+        "rule": "PYI019",
+        "case": "tagged-PYI019_0.pyi",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/05508/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/05508/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/05508/report.json"
+      },
+      {
+        "case_index": 5653,
+        "rule": "PYI020",
+        "case": "cross-rule-tagged-PYI019",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/05653/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/05653/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/05653/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "4dd5a2a5c96d7d2eb9fd9b0e7fb30026b936166d86d002cb4e79fb86fb10fff8",
+    "extra": [],
+    "missing": [
+      [
+        "invalid-syntax",
+        "case.pyi",
+        74,
+        84
+      ]
+    ],
+    "raw_case_count": 3,
+    "cases": [
+      {
+        "case_index": 2106,
+        "rule": "F811",
+        "case": "cross-PYI034-metaclass-function-annotation-typescope",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02106/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02106/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02106/report.json"
+      },
+      {
+        "case_index": 2267,
+        "rule": "F821",
+        "case": "cross-PYI034-metaclass-function-annotation-typescope",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02267/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02267/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02267/report.json"
+      },
+      {
+        "case_index": 5831,
+        "rule": "PYI034",
+        "case": "metaclass-function-annotation-typescope",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/05831/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/05831/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/05831/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "0863a501f34c545e97d12d61e245d0178c752156ef6cd591308e55e3421f1979",
+    "extra": [],
+    "missing": [
+      [
+        "invalid-syntax",
+        "case.pyi",
+        74,
+        84
+      ]
+    ],
+    "raw_case_count": 2,
+    "cases": [
+      {
+        "case_index": 2107,
+        "rule": "F811",
+        "case": "cross-PYI019-metaclass-function-annotation-typescope",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02107/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02107/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02107/report.json"
+      },
+      {
+        "case_index": 5620,
+        "rule": "PYI019",
+        "case": "metaclass-function-annotation-typescope",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/05620/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/05620/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/05620/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "9c9cf92898ad8ec35d4fccd31798d5e2c926b0be8562036173ab9a84d8d01417",
+    "extra": [
+      [
+        "F404",
+        "case.py",
+        56,
+        90
+      ],
+      [
+        "PLE0117",
+        "case.py",
+        50,
+        55
+      ],
+      [
+        "invalid-syntax",
+        "case.py",
+        56,
+        90
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 4,
+    "cases": [
+      {
+        "case_index": 2160,
+        "rule": "F811",
+        "case": "future-scope-early-definition",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02160/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02160/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02160/report.json"
+      },
+      {
+        "case_index": 2367,
+        "rule": "F821",
+        "case": "future-scope-early-definition",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02367/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02367/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02367/report.json"
+      },
+      {
+        "case_index": 2516,
+        "rule": "F841",
+        "case": "nonlocal-policy-early-annotation-before-late-future",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02516/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02516/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02516/report.json"
+      },
+      {
+        "case_index": 4736,
+        "rule": "PLW0602",
+        "case": "nonlocal-policy-early-annotation-before-late-future",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/04736/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/04736/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/04736/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "0cc68ab1136146b6497bbd5441a79c08df51e80498d9ac6bc46c9d2603c09a8a",
+    "extra": [
+      [
+        "F404",
+        "case.py",
+        35,
+        69
+      ],
+      [
+        "invalid-syntax",
+        "case.py",
+        35,
+        69
+      ]
+    ],
+    "missing": [
+      [
+        "invalid-syntax",
+        "case.py",
+        83,
+        96
+      ]
+    ],
+    "raw_case_count": 4,
+    "cases": [
+      {
+        "case_index": 2162,
+        "rule": "F811",
+        "case": "future-scope-later-definition",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02162/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02162/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02162/report.json"
+      },
+      {
+        "case_index": 2369,
+        "rule": "F821",
+        "case": "future-scope-later-definition",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02369/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02369/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02369/report.json"
+      },
+      {
+        "case_index": 2528,
+        "rule": "F841",
+        "case": "future-scope-later-definition",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02528/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02528/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02528/report.json"
+      },
+      {
+        "case_index": 4748,
+        "rule": "PLW0602",
+        "case": "future-scope-later-definition",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/04748/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/04748/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/04748/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "8d7c84c712e910444ad7c4806257e686c33e331019e63fd9ac64eb0acad8007d",
+    "extra": [
+      [
+        "F404",
+        "case.py",
+        49,
+        83
+      ],
+      [
+        "invalid-syntax",
+        "case.py",
+        49,
+        83
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 4,
+    "cases": [
+      {
+        "case_index": 2163,
+        "rule": "F811",
+        "case": "future-scope-nested-early-definition",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02163/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02163/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02163/report.json"
+      },
+      {
+        "case_index": 2370,
+        "rule": "F821",
+        "case": "future-scope-nested-early-definition",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02370/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02370/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02370/report.json"
+      },
+      {
+        "case_index": 2529,
+        "rule": "F841",
+        "case": "future-scope-nested-early-definition",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02529/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02529/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02529/report.json"
+      },
+      {
+        "case_index": 4749,
+        "rule": "PLW0602",
+        "case": "future-scope-nested-early-definition",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/04749/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/04749/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/04749/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "b0704fcc009747661af4edac382872eca8c1aeb83635b7f818438eef369dedc3",
+    "extra": [
+      [
+        "F404",
+        "case.pyi",
+        30,
+        64
+      ],
+      [
+        "invalid-syntax",
+        "case.pyi",
+        30,
+        64
+      ]
+    ],
+    "missing": [
+      [
+        "invalid-syntax",
+        "case.pyi",
+        9,
+        22
+      ]
+    ],
+    "raw_case_count": 4,
+    "cases": [
+      {
+        "case_index": 2164,
+        "rule": "F811",
+        "case": "future-scope-stub-remains-postponed",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02164/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02164/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02164/report.json"
+      },
+      {
+        "case_index": 2371,
+        "rule": "F821",
+        "case": "future-scope-stub-remains-postponed",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02371/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02371/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02371/report.json"
+      },
+      {
+        "case_index": 2530,
+        "rule": "F841",
+        "case": "future-scope-stub-remains-postponed",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02530/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02530/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02530/report.json"
+      },
+      {
+        "case_index": 4750,
+        "rule": "PLW0602",
+        "case": "future-scope-stub-remains-postponed",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/04750/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/04750/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/04750/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "eef024774c0cb633046b59cba1e310c8f314efb043dc586882dbc23b8db7ad62",
+    "extra": [
+      [
+        "invalid-syntax",
+        "case.py",
+        41,
+        75
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 4,
+    "cases": [
+      {
+        "case_index": 2165,
+        "rule": "F811",
+        "case": "future-scope-class-early-definition",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02165/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02165/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02165/report.json"
+      },
+      {
+        "case_index": 2372,
+        "rule": "F821",
+        "case": "future-scope-class-early-definition",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02372/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02372/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02372/report.json"
+      },
+      {
+        "case_index": 2531,
+        "rule": "F841",
+        "case": "future-scope-class-early-definition",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02531/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02531/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02531/report.json"
+      },
+      {
+        "case_index": 4751,
+        "rule": "PLW0602",
+        "case": "future-scope-class-early-definition",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/04751/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/04751/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/04751/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "deb273a6c3de92b35ff25d25fcf4af025eb57540f87bba961b03c2806959eed1",
+    "extra": [
+      [
+        "invalid-syntax",
+        "case.py",
+        14,
+        48
+      ]
+    ],
+    "missing": [
+      [
+        "invalid-syntax",
+        "case.py",
+        63,
+        76
+      ]
+    ],
+    "raw_case_count": 4,
+    "cases": [
+      {
+        "case_index": 2166,
+        "rule": "F811",
+        "case": "future-scope-function-scoped-import",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02166/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02166/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02166/report.json"
+      },
+      {
+        "case_index": 2373,
+        "rule": "F821",
+        "case": "future-scope-function-scoped-import",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02373/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02373/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02373/report.json"
+      },
+      {
+        "case_index": 2532,
+        "rule": "F841",
+        "case": "future-scope-function-scoped-import",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02532/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02532/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02532/report.json"
+      },
+      {
+        "case_index": 4752,
+        "rule": "PLW0602",
+        "case": "future-scope-function-scoped-import",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/04752/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/04752/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/04752/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "d98eb28e7c2c3040692d1935e4c96d517f84aa20cb6c6fbce3d59120bd46472f",
+    "extra": [
+      [
+        "invalid-syntax",
+        "case.py",
+        10,
+        44
+      ]
+    ],
+    "missing": [
+      [
+        "invalid-syntax",
+        "case.py",
+        55,
+        68
+      ]
+    ],
+    "raw_case_count": 4,
+    "cases": [
+      {
+        "case_index": 2167,
+        "rule": "F811",
+        "case": "future-scope-class-scoped-import",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02167/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02167/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02167/report.json"
+      },
+      {
+        "case_index": 2374,
+        "rule": "F821",
+        "case": "future-scope-class-scoped-import",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02374/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02374/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02374/report.json"
+      },
+      {
+        "case_index": 2533,
+        "rule": "F841",
+        "case": "future-scope-class-scoped-import",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02533/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02533/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02533/report.json"
+      },
+      {
+        "case_index": 4753,
+        "rule": "PLW0602",
+        "case": "future-scope-class-scoped-import",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/04753/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/04753/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/04753/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "14c1b202ce8e08ef7a79ef9155998756bbfe879208168252f79196905781a51d",
+    "extra": [
+      [
+        "invalid-syntax",
+        "case.py",
+        14,
+        48
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 4,
+    "cases": [
+      {
+        "case_index": 2168,
+        "rule": "F811",
+        "case": "future-scope-function-forward-type",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02168/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02168/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02168/report.json"
+      },
+      {
+        "case_index": 2375,
+        "rule": "F821",
+        "case": "future-scope-function-forward-type",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02375/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02375/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02375/report.json"
+      },
+      {
+        "case_index": 2534,
+        "rule": "F841",
+        "case": "future-scope-function-forward-type",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02534/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02534/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02534/report.json"
+      },
+      {
+        "case_index": 4754,
+        "rule": "PLW0602",
+        "case": "future-scope-function-forward-type",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/04754/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/04754/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/04754/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "39267262fe2f096c9b6dfa0ee5317df59ce57e54e2d484876b9ca2a6084ee6a3",
+    "extra": [
+      [
+        "invalid-syntax",
+        "case.py",
+        10,
+        44
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 4,
+    "cases": [
+      {
+        "case_index": 2169,
+        "rule": "F811",
+        "case": "future-scope-class-forward-type",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02169/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02169/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02169/report.json"
+      },
+      {
+        "case_index": 2376,
+        "rule": "F821",
+        "case": "future-scope-class-forward-type",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02376/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02376/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02376/report.json"
+      },
+      {
+        "case_index": 2535,
+        "rule": "F841",
+        "case": "future-scope-class-forward-type",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02535/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02535/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02535/report.json"
+      },
+      {
+        "case_index": 4755,
+        "rule": "PLW0602",
+        "case": "future-scope-class-forward-type",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/04755/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/04755/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/04755/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "b2ab1c9a1a752799adb12c95ac7048722980e40ba5edd77510c910259868a4bf",
+    "extra": [
+      [
+        "invalid-syntax",
+        "case.py",
+        10,
+        44
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 4,
+    "cases": [
+      {
+        "case_index": 2170,
+        "rule": "F811",
+        "case": "future-scope-class-import-does-not-leak",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02170/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02170/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02170/report.json"
+      },
+      {
+        "case_index": 2377,
+        "rule": "F821",
+        "case": "future-scope-class-import-does-not-leak",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02377/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02377/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02377/report.json"
+      },
+      {
+        "case_index": 2536,
+        "rule": "F841",
+        "case": "future-scope-class-import-does-not-leak",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02536/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02536/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02536/report.json"
+      },
+      {
+        "case_index": 4756,
+        "rule": "PLW0602",
+        "case": "future-scope-class-import-does-not-leak",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/04756/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/04756/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/04756/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "72bde3ab4705b961187ce38175538804597781a5928715ff49c1decb363e2dad",
+    "extra": [
+      [
+        "invalid-syntax",
+        "case.py",
+        14,
+        48
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 4,
+    "cases": [
+      {
+        "case_index": 2171,
+        "rule": "F811",
+        "case": "future-scope-function-import-does-not-leak",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02171/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02171/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02171/report.json"
+      },
+      {
+        "case_index": 2378,
+        "rule": "F821",
+        "case": "future-scope-function-import-does-not-leak",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02378/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02378/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02378/report.json"
+      },
+      {
+        "case_index": 2537,
+        "rule": "F841",
+        "case": "future-scope-function-import-does-not-leak",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02537/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02537/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02537/report.json"
+      },
+      {
+        "case_index": 4757,
+        "rule": "PLW0602",
+        "case": "future-scope-function-import-does-not-leak",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/04757/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/04757/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/04757/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "6c95c078f8bd4a4814d74c017e246a604cc9ba6212a5328c64f3a9316fa67f93",
+    "extra": [
+      [
+        "invalid-syntax",
+        "case.py",
+        10,
+        44
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 4,
+    "cases": [
+      {
+        "case_index": 2172,
+        "rule": "F811",
+        "case": "future-scope-if-restoration",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02172/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02172/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02172/report.json"
+      },
+      {
+        "case_index": 2379,
+        "rule": "F821",
+        "case": "future-scope-if-restoration",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02379/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02379/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02379/report.json"
+      },
+      {
+        "case_index": 2538,
+        "rule": "F841",
+        "case": "future-scope-if-restoration",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02538/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02538/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02538/report.json"
+      },
+      {
+        "case_index": 4758,
+        "rule": "PLW0602",
+        "case": "future-scope-if-restoration",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/04758/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/04758/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/04758/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "9cf796d94378c2dfe752ffcfa1b843992ea2906d656985a9609d5197e7d34a0e",
+    "extra": [
+      [
+        "invalid-syntax",
+        "case.py",
+        28,
+        62
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 4,
+    "cases": [
+      {
+        "case_index": 2173,
+        "rule": "F811",
+        "case": "future-scope-except-restoration",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02173/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02173/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02173/report.json"
+      },
+      {
+        "case_index": 2380,
+        "rule": "F821",
+        "case": "future-scope-except-restoration",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02380/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02380/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02380/report.json"
+      },
+      {
+        "case_index": 2539,
+        "rule": "F841",
+        "case": "future-scope-except-restoration",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02539/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02539/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02539/report.json"
+      },
+      {
+        "case_index": 4759,
+        "rule": "PLW0602",
+        "case": "future-scope-except-restoration",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/04759/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/04759/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/04759/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "511e6c42c753853c582aa15dfecd3625097c120f8b4fd01aa008bfd4d81ecf58",
+    "extra": [
+      [
+        "invalid-syntax",
+        "case.py",
+        10,
+        44
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 4,
+    "cases": [
+      {
+        "case_index": 2174,
+        "rule": "F811",
+        "case": "future-scope-if-else-inheritance",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02174/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02174/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02174/report.json"
+      },
+      {
+        "case_index": 2381,
+        "rule": "F821",
+        "case": "future-scope-if-else-inheritance",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02381/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02381/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02381/report.json"
+      },
+      {
+        "case_index": 2540,
+        "rule": "F841",
+        "case": "future-scope-if-else-inheritance",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02540/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02540/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02540/report.json"
+      },
+      {
+        "case_index": 4760,
+        "rule": "PLW0602",
+        "case": "future-scope-if-else-inheritance",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/04760/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/04760/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/04760/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "f4066258f404e49f537a72ce28e9a6854c2e93a36b5afcd200c9f81e84a80ef0",
+    "extra": [
+      [
+        "invalid-syntax",
+        "case.py",
+        6,
+        40
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 4,
+    "cases": [
+      {
+        "case_index": 2175,
+        "rule": "F811",
+        "case": "future-scope-try-handler-inheritance",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02175/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02175/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02175/report.json"
+      },
+      {
+        "case_index": 2382,
+        "rule": "F821",
+        "case": "future-scope-try-handler-inheritance",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02382/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02382/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02382/report.json"
+      },
+      {
+        "case_index": 2541,
+        "rule": "F841",
+        "case": "future-scope-try-handler-inheritance",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02541/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02541/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02541/report.json"
+      },
+      {
+        "case_index": 4761,
+        "rule": "PLW0602",
+        "case": "future-scope-try-handler-inheritance",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/04761/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/04761/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/04761/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "fbff1286a59e77e90119a95eb17e38f40f57a46a90413bc72e4af974ae260aac",
+    "extra": [
+      [
+        "invalid-syntax",
+        "case.py",
+        14,
+        48
+      ]
+    ],
+    "missing": [
+      [
+        "PLE0117",
+        "case.py",
+        102,
+        107
+      ],
+      [
+        "invalid-syntax",
+        "case.py",
+        59,
+        72
+      ]
+    ],
+    "raw_case_count": 4,
+    "cases": [
+      {
+        "case_index": 2176,
+        "rule": "F811",
+        "case": "future-scope-nested-future-blocks-type-scope-walrus",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02176/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02176/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02176/report.json"
+      },
+      {
+        "case_index": 2383,
+        "rule": "F821",
+        "case": "future-scope-nested-future-blocks-type-scope-walrus",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02383/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02383/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02383/report.json"
+      },
+      {
+        "case_index": 2542,
+        "rule": "F841",
+        "case": "future-scope-nested-future-blocks-type-scope-walrus",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02542/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02542/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02542/report.json"
+      },
+      {
+        "case_index": 4762,
+        "rule": "PLW0602",
+        "case": "future-scope-nested-future-blocks-type-scope-walrus",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/04762/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/04762/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/04762/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "9acddb8441e76e598d10761e6696167c9437666abd1005805847a4ccc960d86f",
+    "extra": [],
+    "missing": [
+      [
+        "invalid-syntax",
+        "case.py",
+        45,
+        58
+      ]
+    ],
+    "raw_case_count": 4,
+    "cases": [
+      {
+        "case_index": 2177,
+        "rule": "F811",
+        "case": "future-scope-relative-future-flag",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02177/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02177/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02177/report.json"
+      },
+      {
+        "case_index": 2384,
+        "rule": "F821",
+        "case": "future-scope-relative-future-flag",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02384/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02384/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02384/report.json"
+      },
+      {
+        "case_index": 2543,
+        "rule": "F841",
+        "case": "future-scope-relative-future-flag",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02543/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02543/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02543/report.json"
+      },
+      {
+        "case_index": 4763,
+        "rule": "PLW0602",
+        "case": "future-scope-relative-future-flag",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/04763/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/04763/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/04763/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "d14102eca7322cfb2bf5448b332abcb58c97653d236bfd4b1e85d8b2c5a74bac",
+    "extra": [],
+    "missing": [
+      [
+        "F401",
+        "case.py",
+        28,
+        39
+      ]
+    ],
+    "raw_case_count": 4,
+    "cases": [
+      {
+        "case_index": 2179,
+        "rule": "F811",
+        "case": "future-scope-lazy-future-does-not-enable",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02179/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02179/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02179/report.json"
+      },
+      {
+        "case_index": 2386,
+        "rule": "F821",
+        "case": "future-scope-lazy-future-does-not-enable",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02386/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02386/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02386/report.json"
+      },
+      {
+        "case_index": 2545,
+        "rule": "F841",
+        "case": "future-scope-lazy-future-does-not-enable",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02545/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02545/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02545/report.json"
+      },
+      {
+        "case_index": 4765,
+        "rule": "PLW0602",
+        "case": "future-scope-lazy-future-does-not-enable",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/04765/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/04765/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/04765/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "2fb21f9d9a44a6ab9398d55ab0938117a1698da1dc44f6f4617b3fa9a8cff625",
+    "extra": [],
+    "missing": [
+      [
+        "invalid-syntax",
+        "case.pyi",
+        10,
+        16
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 2239,
+        "rule": "F821",
+        "case": "stub-named-expression-preserves-undefined-read",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02239/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02239/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02239/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "57c39467917cfcf3c2bb8a90752f3c42e5de125d7415091e354823870f1d31ab",
+    "extra": [
+      [
+        "F404",
+        "case.py",
+        20,
+        54
+      ],
+      [
+        "invalid-syntax",
+        "case.py",
+        20,
+        54
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 2275,
+        "rule": "F821",
+        "case": "deferred-late-future-does-not-revisit",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02275/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02275/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02275/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "9cbbaa696edd954a4a9d766967b7a4f7e9de03ce48f5609a039781cc1e4b8039",
+    "extra": [
+      [
+        "invalid-syntax",
+        "case.py",
+        8,
+        42
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 2306,
+        "rule": "F821",
+        "case": "deferred-late-future-module-variable",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02306/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02306/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02306/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "1fe6a7c50b5feb788a8d3957bd79826e5182bcef3cabff01f1ad74758efc0d20",
+    "extra": [
+      [
+        "invalid-syntax",
+        "case.py",
+        18,
+        52
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 2307,
+        "rule": "F821",
+        "case": "deferred-late-future-class-variable",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02307/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02307/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02307/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "417976eebe465dc8ec9149e80f954f8b7a95f0453e184ed5eaa1a13f2f2714e1",
+    "extra": [
+      [
+        "F404",
+        "case.py",
+        18,
+        52
+      ],
+      [
+        "invalid-syntax",
+        "case.py",
+        18,
+        52
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 2308,
+        "rule": "F821",
+        "case": "deferred-late-future-function-variable",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02308/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02308/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02308/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "e9a80bf12527fcca9f8bed2e37f5be05d1bb28298fe1a80125d7359fb9b7914e",
+    "extra": [
+      [
+        "invalid-syntax",
+        "case.py",
+        21,
+        55
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 2309,
+        "rule": "F821",
+        "case": "deferred-late-future-value-walrus",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02309/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02309/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02309/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "0fd7cd81dc0fc3b96e7c4e3e0c1b08b0802544eff603f5a00cdc3a39600b478e",
+    "extra": [
+      [
+        "F404",
+        "case.py",
+        16,
+        50
+      ],
+      [
+        "invalid-syntax",
+        "case.py",
+        16,
+        50
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 2310,
+        "rule": "F821",
+        "case": "deferred-late-future-self-function",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02310/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02310/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02310/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "a1cf2e8a5d7ecae493057593098822761f920b2e9d8b0eb3a66d96318af4daa2",
+    "extra": [
+      [
+        "F404",
+        "case.py",
+        29,
+        63
+      ],
+      [
+        "invalid-syntax",
+        "case.py",
+        29,
+        63
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 2311,
+        "rule": "F821",
+        "case": "deferred-late-future-prior-self-function",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02311/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02311/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02311/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "dde576557157f1ab5689ff070304309090be6647bdfda765842f2404cab86f9b",
+    "extra": [
+      [
+        "invalid-syntax",
+        "case.py",
+        36,
+        70
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 2312,
+        "rule": "F821",
+        "case": "deferred-late-future-star-import",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02312/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02312/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02312/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "a500d169fde6c14e16157576794f0a21e1dde579b166e5300efb4bc2bd017945",
+    "extra": [
+      [
+        "invalid-syntax",
+        "case.py",
+        30,
+        64
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 2313,
+        "rule": "F821",
+        "case": "deferred-late-future-class-self",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02313/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02313/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02313/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "e70a5bb23294bf6c7d1b2eb348a025ac0b84061e353201c95d2e44d462f323d1",
+    "extra": [
+      [
+        "invalid-syntax",
+        "case.py",
+        14,
+        48
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 2314,
+        "rule": "F821",
+        "case": "deferred-late-future-class-variable-self",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02314/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02314/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02314/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "cfac4e230665e49f9afda0994834c73ae33cce37e9f574f5f6fa4bcd8694a443",
+    "extra": [
+      [
+        "invalid-syntax",
+        "case.py",
+        18,
+        52
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 2315,
+        "rule": "F821",
+        "case": "deferred-late-future-module-annotation-known",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02315/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02315/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02315/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "d0e7d71e56e5c60698278d4e4940d18bf2fd37b81ef59146599c1193d3ad3b70",
+    "extra": [],
+    "missing": [
+      [
+        "F811",
+        "case.py",
+        53,
+        58
+      ]
+    ],
+    "raw_case_count": 2,
+    "cases": [
+      {
+        "case_index": 2498,
+        "rule": "F841",
+        "case": "nonlocal-policy-own-local-and-valid-nonlocal",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02498/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02498/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02498/report.json"
+      },
+      {
+        "case_index": 4718,
+        "rule": "PLW0602",
+        "case": "nonlocal-policy-own-local-and-valid-nonlocal",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/04718/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/04718/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/04718/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "ee964320c86c344a329772f54e7d2e9793e371214d7687e7b5a8c65c35d1c87c",
+    "extra": [
+      [
+        "F842",
+        "case.py",
+        14,
+        19
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 2,
+    "cases": [
+      {
+        "case_index": 2507,
+        "rule": "F841",
+        "case": "nonlocal-policy-annotation-outer",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02507/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02507/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02507/report.json"
+      },
+      {
+        "case_index": 4727,
+        "rule": "PLW0602",
+        "case": "nonlocal-policy-annotation-outer",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/04727/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/04727/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/04727/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "4177f507cc1e6e2f9499048fd83fc53986bc142a229f9829d93169a6034d8700",
+    "extra": [
+      [
+        "PLE0117",
+        "case.py",
+        48,
+        49
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 2,
+    "cases": [
+      {
+        "case_index": 2513,
+        "rule": "F841",
+        "case": "nonlocal-policy-class-type-parameter",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02513/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02513/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02513/report.json"
+      },
+      {
+        "case_index": 4733,
+        "rule": "PLW0602",
+        "case": "nonlocal-policy-class-type-parameter",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/04733/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/04733/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/04733/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "371823765306542b6eb9f8e08c30daa42820a2bc461cabd17fd59435f535360a",
+    "extra": [
+      [
+        "PLE0117",
+        "case.py",
+        48,
+        49
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 2,
+    "cases": [
+      {
+        "case_index": 2514,
+        "rule": "F841",
+        "case": "nonlocal-policy-nested-function-type-parameter",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02514/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02514/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02514/report.json"
+      },
+      {
+        "case_index": 4734,
+        "rule": "PLW0602",
+        "case": "nonlocal-policy-nested-function-type-parameter",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/04734/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/04734/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/04734/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "0d4d5645aa39d43e2072190b388033b87541e8ace814902bc67c85edbc12e73e",
+    "extra": [],
+    "missing": [
+      [
+        "PLE0117",
+        "case.pyi",
+        83,
+        88
+      ]
+    ],
+    "raw_case_count": 2,
+    "cases": [
+      {
+        "case_index": 2515,
+        "rule": "F841",
+        "case": "nonlocal-policy-local-stub-class-header-is-late",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02515/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02515/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02515/report.json"
+      },
+      {
+        "case_index": 4735,
+        "rule": "PLW0602",
+        "case": "nonlocal-policy-local-stub-class-header-is-late",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/04735/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/04735/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/04735/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "b4216b5cde38e28dcb28afdcce54798a6a8048dc65aa3775b9bf34feca4f02ba",
+    "extra": [],
+    "missing": [
+      [
+        "PLE0117",
+        "case.pyi",
+        50,
+        55
+      ]
+    ],
+    "raw_case_count": 2,
+    "cases": [
+      {
+        "case_index": 2519,
+        "rule": "F841",
+        "case": "nonlocal-policy-type-scope-class-body-pyi",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02519/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02519/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02519/report.json"
+      },
+      {
+        "case_index": 4739,
+        "rule": "PLW0602",
+        "case": "nonlocal-policy-type-scope-class-body-pyi",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/04739/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/04739/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/04739/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "ea82e4a34c3597928deb2556ce61426d228c43d6e7376dffb3a1bcc6f1df3870",
+    "extra": [
+      [
+        "PLE0117",
+        "case.py",
+        66,
+        71
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 2,
+    "cases": [
+      {
+        "case_index": 2520,
+        "rule": "F841",
+        "case": "nonlocal-policy-type-scope-class-method-py",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02520/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02520/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02520/report.json"
+      },
+      {
+        "case_index": 4740,
+        "rule": "PLW0602",
+        "case": "nonlocal-policy-type-scope-class-method-py",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/04740/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/04740/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/04740/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "6e8470857eeb7460a8b67afe40f857bfc587142bd8dee218bff92ac316a812a6",
+    "extra": [
+      [
+        "PLE0117",
+        "case.pyi",
+        66,
+        71
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 2,
+    "cases": [
+      {
+        "case_index": 2521,
+        "rule": "F841",
+        "case": "nonlocal-policy-type-scope-class-method-pyi",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02521/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02521/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02521/report.json"
+      },
+      {
+        "case_index": 4741,
+        "rule": "PLW0602",
+        "case": "nonlocal-policy-type-scope-class-method-pyi",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/04741/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/04741/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/04741/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "e6cc9ce98ebee25cc39c9645f5dcc6614cda2077864c07b9a92bc25628318cae",
+    "extra": [
+      [
+        "PLE0117",
+        "case.py",
+        50,
+        55
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 2,
+    "cases": [
+      {
+        "case_index": 2522,
+        "rule": "F841",
+        "case": "nonlocal-policy-type-scope-annotation-py",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02522/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02522/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02522/report.json"
+      },
+      {
+        "case_index": 4742,
+        "rule": "PLW0602",
+        "case": "nonlocal-policy-type-scope-annotation-py",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/04742/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/04742/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/04742/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "06caa7d1e027510de035b8fc25f6266c0527e194cfe3d1a738336fa26904e098",
+    "extra": [],
+    "missing": [
+      [
+        "invalid-syntax",
+        "case.pyi",
+        9,
+        22
+      ]
+    ],
+    "raw_case_count": 2,
+    "cases": [
+      {
+        "case_index": 2523,
+        "rule": "F841",
+        "case": "nonlocal-policy-type-scope-annotation-pyi",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02523/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02523/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02523/report.json"
+      },
+      {
+        "case_index": 4743,
+        "rule": "PLW0602",
+        "case": "nonlocal-policy-type-scope-annotation-pyi",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/04743/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/04743/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/04743/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "0f1f3967740e29b6683211e08aaf1fe030a4adbadf741eb7a95ee203676ce7f0",
+    "extra": [
+      [
+        "PLE0117",
+        "case.py",
+        32,
+        33
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 2,
+    "cases": [
+      {
+        "case_index": 2524,
+        "rule": "F841",
+        "case": "nonlocal-policy-type-scope-parameter-py",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02524/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02524/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02524/report.json"
+      },
+      {
+        "case_index": 4744,
+        "rule": "PLW0602",
+        "case": "nonlocal-policy-type-scope-parameter-py",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/04744/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/04744/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/04744/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "ca21c62c65c8f8eaa1945fb9ea65b9afa8aca10efaedcdeee8410415e37bd905",
+    "extra": [
+      [
+        "PLE0117",
+        "case.pyi",
+        32,
+        33
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 2,
+    "cases": [
+      {
+        "case_index": 2525,
+        "rule": "F841",
+        "case": "nonlocal-policy-type-scope-parameter-pyi",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/02525/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/02525/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/02525/report.json"
+      },
+      {
+        "case_index": 4745,
+        "rule": "PLW0602",
+        "case": "nonlocal-policy-type-scope-parameter-pyi",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/04745/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/04745/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/04745/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "54b711ee33f87631514c5f25fc752419380b98d4bf2a9a9ae9745891287dc257",
+    "extra": [
+      [
+        "F821",
+        "case.py",
+        19,
+        20
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 3960,
+        "rule": "PLE0118",
+        "case": "scope-policy-1",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/03960/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/03960/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/03960/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "e34f4dacd220cd2e6c26c5d8017faccebc619663f13378c1532f4f18ac1c7d0b",
+    "extra": [],
+    "missing": [
+      [
+        "F821",
+        "case.py",
+        23,
+        24
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 3962,
+        "rule": "PLE0118",
+        "case": "scope-policy-3",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/03962/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/03962/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/03962/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "340ec90078056cce9425b2294912f8ffa425ada14fc941dcbfc4a86577fcb012",
+    "extra": [
+      [
+        "F821",
+        "case.py",
+        45,
+        46
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 3963,
+        "rule": "PLE0118",
+        "case": "scope-policy-4",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/03963/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/03963/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/03963/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "347c1b3f8cf5d4cb61b5af4ac7f753e6efc4456fe333418fe28a02fd4a629b9d",
+    "extra": [
+      [
+        "F821",
+        "case.py",
+        23,
+        24
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 3967,
+        "rule": "PLE0118",
+        "case": "scope-policy-8",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/03967/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/03967/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/03967/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "f5ce3053ad0e58453d75c8855de3c0aefefbdb9bc7d532ce4dceab371aceae24",
+    "extra": [
+      [
+        "F821",
+        "case.py",
+        23,
+        24
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 3968,
+        "rule": "PLE0118",
+        "case": "scope-policy-9",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/03968/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/03968/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/03968/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "ef84efac561f91610d9c8f7b2ba43cbe30381f0cda65c3e07d46c54444055f32",
+    "extra": [
+      [
+        "F821",
+        "case.py",
+        22,
+        23
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 3969,
+        "rule": "PLE0118",
+        "case": "scope-policy-10",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/03969/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/03969/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/03969/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "22ecd6453430730daf022e483873241b369eea08aaaed1d8d288121961585e35",
+    "extra": [
+      [
+        "F821",
+        "case.py",
+        19,
+        20
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 3970,
+        "rule": "PLE0118",
+        "case": "scope-policy-11",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/03970/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/03970/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/03970/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "80c3fec7b59dc342e578cae4f85ae4fdde4ff7c0757cffe7a2dcfc1ecbce11e7",
+    "extra": [
+      [
+        "F821",
+        "case.py",
+        20,
+        21
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 3971,
+        "rule": "PLE0118",
+        "case": "scope-policy-12",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/03971/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/03971/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/03971/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "69c52ddaa65a14362ced8fae5ab18b8e75417b10f04ee2674c14030c9bb78854",
+    "extra": [
+      [
+        "F811",
+        "case.py",
+        11,
+        12
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 3972,
+        "rule": "PLE0118",
+        "case": "scope-policy-13",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/03972/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/03972/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/03972/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "ae5651cf99f7354bfecc5f65ba805abc5e87ef25f6d43f6145912802efcfee9d",
+    "extra": [],
+    "missing": [
+      [
+        "F811",
+        "case.py",
+        37,
+        38
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 3973,
+        "rule": "PLE0118",
+        "case": "scope-policy-14",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/03973/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/03973/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/03973/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "9591cb355027f8f9b0dbc90588c0bef3d584972cded28d95eb112a3c8488db2e",
+    "extra": [],
+    "missing": [
+      [
+        "F811",
+        "case.py",
+        37,
+        38
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 3974,
+        "rule": "PLE0118",
+        "case": "scope-policy-15",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/03974/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/03974/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/03974/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "6cf5670625d7abda78f598928d18bcdedc8458e1455c033026cdf0f3626e1f2b",
+    "extra": [
+      [
+        "F401",
+        "case.py",
+        20,
+        21
+      ]
+    ],
+    "missing": [
+      [
+        "F811",
+        "case.py",
+        33,
+        34
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 3975,
+        "rule": "PLE0118",
+        "case": "scope-policy-16",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/03975/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/03975/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/03975/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "19c0c06e5aff01e288e7a23fd6b935742109e508935b74056338b4bde234148d",
+    "extra": [
+      [
+        "F401",
+        "case.py",
+        29,
+        30
+      ]
+    ],
+    "missing": [
+      [
+        "F811",
+        "case.py",
+        42,
+        43
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 3976,
+        "rule": "PLE0118",
+        "case": "scope-policy-17",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/03976/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/03976/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/03976/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "ded4dead1fc6a41439ff40f150e0751c3de38678b0272328ed2a41e27d8d9706",
+    "extra": [],
+    "missing": [
+      [
+        "invalid-syntax",
+        "case.py",
+        15,
+        31
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 4664,
+        "rule": "PLW0177",
+        "case": "policy-match-or",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/04664/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/04664/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/04664/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "6cc0afa02c38d6d517ca1b6c71733ec7f45cc10fe2477948b95a977c3a1f4c8f",
+    "extra": [
+      [
+        "PYI006",
+        "case.pyi",
+        13,
+        41
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 2,
+    "cases": [
+      {
+        "case_index": 5107,
+        "rule": "PYI003",
+        "case": "policy-noncondition",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/05107/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/05107/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/05107/report.json"
+      },
+      {
+        "case_index": 5133,
+        "rule": "PYI004",
+        "case": "policy-noncondition",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/05133/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/05133/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/05133/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "034144b8eaa2d3585505bca762547617924c922757bdd7b7865bd82b971a6d76",
+    "extra": [
+      [
+        "PYI006",
+        "case.pyi",
+        17,
+        45
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 2,
+    "cases": [
+      {
+        "case_index": 5108,
+        "rule": "PYI003",
+        "case": "policy-while",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/05108/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/05108/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/05108/report.json"
+      },
+      {
+        "case_index": 5134,
+        "rule": "PYI004",
+        "case": "policy-while",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/05134/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/05134/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/05134/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "4c3ec67ddd047230ca40333f95b7ca9bb2668c64df30550ae76808ddc2b78353",
+    "extra": [
+      [
+        "PYI006",
+        "case.pyi",
+        33,
+        61
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 2,
+    "cases": [
+      {
+        "case_index": 5110,
+        "rule": "PYI003",
+        "case": "policy-boolean-nested",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/05110/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/05110/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/05110/report.json"
+      },
+      {
+        "case_index": 5136,
+        "rule": "PYI004",
+        "case": "policy-boolean-nested",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/05136/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/05136/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/05136/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "1416b941c1845addd19acfcb0c750ebde2b2238ec9c09c7d93405533bcbc1764",
+    "extra": [
+      [
+        "PYI006",
+        "case.pyi",
+        14,
+        52
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 2,
+    "cases": [
+      {
+        "case_index": 5111,
+        "rule": "PYI003",
+        "case": "policy-chained",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/05111/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/05111/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/05111/report.json"
+      },
+      {
+        "case_index": 5137,
+        "rule": "PYI004",
+        "case": "policy-chained",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/05137/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/05137/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/05137/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "bb3ff0bf06bbe93bf8ad0c1ee876ce892512ddd26af741206665cfe1b02cc0be",
+    "extra": [],
+    "missing": [
+      [
+        "PYI006",
+        "PYI003.py",
+        1975,
+        2000
+      ],
+      [
+        "PYI006",
+        "PYI003.py",
+        2059,
+        2085
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 5121,
+        "rule": "PYI003",
+        "case": "tagged-PYI003.py",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/05121/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/05121/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/05121/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "d72e10051ec1fade706144b917bbf5de4a3965aba9c0b53d794312e86327f98e",
+    "extra": [],
+    "missing": [
+      [
+        "PYI006",
+        "PYI003.pyi",
+        1975,
+        2000
+      ],
+      [
+        "PYI006",
+        "PYI003.pyi",
+        2059,
+        2085
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 5122,
+        "rule": "PYI003",
+        "case": "tagged-PYI003.pyi",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/05122/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/05122/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/05122/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "b8ea484ec71b9bd7a7fe63e53ad49528d3f24af336ccc54aa0a8f30ce9a3a970",
+    "extra": [],
+    "missing": [
+      [
+        "PYI052",
+        "case.pyi",
+        27,
+        56
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 5335,
+        "rule": "PYI015",
+        "case": "policy-plain-30",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/05335/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/05335/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/05335/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "9c5743eaee2561800a2a6133fcb289a4957f314943657d13b35c68c45d03409c",
+    "extra": [],
+    "missing": [
+      [
+        "PYI052",
+        "case.pyi",
+        27,
+        40
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 5339,
+        "rule": "PYI015",
+        "case": "policy-plain-34",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/05339/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/05339/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/05339/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "9d16a1156f1281f2c850d8c5185a6a81764ddb30db2ecb5cd885c278604d8aea",
+    "extra": [
+      [
+        "PYI026",
+        "case.pyi",
+        23,
+        24
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 5371,
+        "rule": "PYI015",
+        "case": "policy-plain-66",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/05371/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/05371/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/05371/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "bb59d8bcccd7e0108a41a69600c0693354cf7070a9edad8140b8304cb661b4db",
+    "extra": [
+      [
+        "PYI026",
+        "case.pyi",
+        23,
+        24
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 5373,
+        "rule": "PYI015",
+        "case": "policy-plain-68",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/05373/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/05373/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/05373/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "14950117b638c0dbc8d26c4c8cc91307bce00dc01f6c9aaf5b5edfbf7932c556",
+    "extra": [],
+    "missing": [
+      [
+        "F401",
+        "case.py",
+        19,
+        24
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 5447,
+        "rule": "PYI016",
+        "case": "type-context-policy-35",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/05447/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/05447/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/05447/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "e5b6806f86912a573b57b1e5be32cbfea3e5108c5255cb179d4f746ec8306425",
+    "extra": [],
+    "missing": [
+      [
+        "F821",
+        "case.py",
+        156,
+        157
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 5658,
+        "rule": "PYI020",
+        "case": "quote-context-2-py",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/05658/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/05658/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/05658/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "d985742f309f7aae09ba6cff005d825d9b92ecc68f810c3c2980dafe8911a203",
+    "extra": [],
+    "missing": [
+      [
+        "F821",
+        "case.pyi",
+        156,
+        157
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 5659,
+        "rule": "PYI020",
+        "case": "quote-context-2-pyi",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/05659/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/05659/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/05659/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "5e4ffa71ad3cf0aa7d2e3549f0b72ac50749071661b61673b1b70d62ea508843",
+    "extra": [],
+    "missing": [
+      [
+        "F821",
+        "case.py",
+        157,
+        158
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 5660,
+        "rule": "PYI020",
+        "case": "quote-context-3-py",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/05660/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/05660/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/05660/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "75f53118f62c5882b54f020a5c01a6681a7582f5f748727c2d0cafcb0892a273",
+    "extra": [],
+    "missing": [
+      [
+        "F821",
+        "case.pyi",
+        157,
+        158
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 5661,
+        "rule": "PYI020",
+        "case": "quote-context-3-pyi",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/05661/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/05661/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/05661/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "edfaa60a7ffc0f44dc71f6afadcfc66ca00735794f45e951e3b946b7314a5e00",
+    "extra": [],
+    "missing": [
+      [
+        "F821",
+        "case.py",
+        160,
+        161
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 5662,
+        "rule": "PYI020",
+        "case": "quote-context-4-py",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/05662/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/05662/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/05662/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "8db495bfbd7c1375a73032a6cf28cd144026060e737f041e9756e6bbf468296e",
+    "extra": [],
+    "missing": [
+      [
+        "F821",
+        "case.pyi",
+        160,
+        161
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 5663,
+        "rule": "PYI020",
+        "case": "quote-context-4-pyi",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/05663/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/05663/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/05663/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "8b4481f2030f598cac5d0404161142560128171b14670e1da5682ec327cb2e1c",
+    "extra": [],
+    "missing": [
+      [
+        "F821",
+        "case.py",
+        161,
+        162
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 5668,
+        "rule": "PYI020",
+        "case": "quote-context-7-py",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/05668/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/05668/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/05668/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "c745f9f3a1e3c1cf761df614d6d85f07ff5ecfbcabce474067ce28a494db17ae",
+    "extra": [],
+    "missing": [
+      [
+        "F821",
+        "case.pyi",
+        161,
+        162
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 5669,
+        "rule": "PYI020",
+        "case": "quote-context-7-pyi",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/05669/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/05669/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/05669/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "564252da2da497c066f3456cfba66a1474d8a9b49a98d36db0f42de2afb7ced2",
+    "extra": [],
+    "missing": [
+      [
+        "F821",
+        "case.py",
+        172,
+        173
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 5684,
+        "rule": "PYI020",
+        "case": "quote-context-15-py",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/05684/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/05684/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/05684/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "2ff65d342c4a28e26e6a068bddd1e3740b4698851ad9e909bed50fd7486d2da7",
+    "extra": [],
+    "missing": [
+      [
+        "F821",
+        "case.pyi",
+        172,
+        173
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 5685,
+        "rule": "PYI020",
+        "case": "quote-context-15-pyi",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/05685/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/05685/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/05685/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "e045bca39a48e594f523210cdd6d4164f9dfc05586e96244e415b54207683952",
+    "extra": [],
+    "missing": [
+      [
+        "F821",
+        "case.py",
+        170,
+        171
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 5686,
+        "rule": "PYI020",
+        "case": "quote-context-16-py",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/05686/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/05686/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/05686/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "d8c95d5fd52b4001def4fc18a4e38d473c5047e861966f941e627a0dd9a25d2b",
+    "extra": [],
+    "missing": [
+      [
+        "F821",
+        "case.pyi",
+        170,
+        171
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 5687,
+        "rule": "PYI020",
+        "case": "quote-context-16-pyi",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/05687/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/05687/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/05687/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "8f4350149c1980d34c4c3bb6513307b6129a448580c0e8b76ed85c9e3127dd29",
+    "extra": [],
+    "missing": [
+      [
+        "F821",
+        "case.py",
+        169,
+        170
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 5688,
+        "rule": "PYI020",
+        "case": "quote-context-17-py",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/05688/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/05688/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/05688/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "5d63ef87b9d5345dfd9696a788a694f6296ec1e0c5fbcba2175c1900177c244b",
+    "extra": [],
+    "missing": [
+      [
+        "F821",
+        "case.pyi",
+        169,
+        170
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 5689,
+        "rule": "PYI020",
+        "case": "quote-context-17-pyi",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/05689/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/05689/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/05689/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "a7473c65fd7b06b1d4df33f39861520c2ba2df24221d541a69a98c45bbca04ee",
+    "extra": [],
+    "missing": [
+      [
+        "F821",
+        "case.py",
+        156,
+        157
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 5702,
+        "rule": "PYI020",
+        "case": "quote-context-24-py",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/05702/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/05702/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/05702/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "d72acdb348fd581ad0ba7c1ae885bc85a52ba283082ec7bdb258ec6d9caa360b",
+    "extra": [],
+    "missing": [
+      [
+        "F821",
+        "case.pyi",
+        156,
+        157
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 5703,
+        "rule": "PYI020",
+        "case": "quote-context-24-pyi",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/05703/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/05703/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/05703/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "a81d97a85f3efe0ddd8fd51ad8146e1115747240fc104c3be90f1e5a204a2ede",
+    "extra": [
+      [
+        "UP025",
+        "case.pyi",
+        21,
+        27
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 5709,
+        "rule": "PYI020",
+        "case": "parse-concat-comment-crlf",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/05709/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/05709/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/05709/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "33eb4c450f2bf04588da15034cd2764db3e96335f4874bcaf53e0fe953ae2558",
+    "extra": [],
+    "missing": [
+      [
+        "F821",
+        "case.pyi",
+        15,
+        16
+      ],
+      [
+        "PYI020",
+        "case.pyi",
+        14,
+        17
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 5715,
+        "rule": "PYI020",
+        "case": "parse-runtime-nested-quotes",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/05715/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/05715/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/05715/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "cbeac46267050381b49fec395f897b5980a415561cb96c9c68bfccdb07332d64",
+    "extra": [],
+    "missing": [
+      [
+        "F821",
+        "case.py",
+        21,
+        22
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 5720,
+        "rule": "PYI020",
+        "case": "parse-python-control",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/05720/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/05720/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/05720/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "f370a26ecd1f4db5da7c880f5151acb33015733f876b16a395bd9c42c5cfcac5",
+    "extra": [],
+    "missing": [
+      [
+        "F401",
+        "case.py",
+        19,
+        24
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 6733,
+        "rule": "RUF020",
+        "case": "ruf020-unvisited",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/06733/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/06733/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/06733/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "4ec0aa6c88389e2afc8246300781c2a8847c5ead8d05d0862129d61d455d9fd8",
+    "extra": [
+      [
+        "PYI030",
+        "case.py",
+        653,
+        722
+      ],
+      [
+        "PYI030",
+        "case.py",
+        653,
+        762
+      ]
+    ],
+    "missing": [
+      [
+        "PYI030",
+        "case.py",
+        631,
+        764
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 6737,
+        "rule": "RUF020",
+        "case": "ruf020-tagged-RUF020-py",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/06737/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/06737/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/06737/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "5a30083448336e8d4b9e5d1efa876d98741efb5c74cfca53c0457fad4a155e94",
+    "extra": [],
+    "missing": [
+      [
+        "F401",
+        "case.py",
+        19,
+        24
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 6742,
+        "rule": "RUF020",
+        "case": "ruf020-native-generic-never-shadow",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/06742/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/06742/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/06742/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "51673e6d96322d45de7691f38f2a517698728dde54a3a4edd1b823207e957359",
+    "extra": [],
+    "missing": [
+      [
+        "F401",
+        "case.py",
+        19,
+        24
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 6744,
+        "rule": "RUF020",
+        "case": "ruf020-native-generic-union-shadow",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/06744/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/06744/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/06744/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "d6ff7ea7e665ec6130c67446e5aa59cfaed3f4614ead6d0cb3bd68a46e087f50",
+    "extra": [],
+    "missing": [
+      [
+        "F401",
+        "case.py",
+        19,
+        24
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 6746,
+        "rule": "RUF020",
+        "case": "ruf020-alias-generic-never-shadow",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/06746/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/06746/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/06746/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "da230e8076967beb19ae69bbc6a4978cfc3d516d9baa1057b6d9278cb88439f2",
+    "extra": [],
+    "missing": [
+      [
+        "F401",
+        "case.py",
+        17,
+        18
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 6749,
+        "rule": "RUF020",
+        "case": "ruf020-native-module-attribute-generic",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/06749/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/06749/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/06749/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "4880549c857a99b342a51db102b65a92526f94da9e9289f2900872da6ce106f2",
+    "extra": [],
+    "missing": [
+      [
+        "F401",
+        "case.py",
+        81,
+        86
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 6750,
+        "rule": "RUF020",
+        "case": "ruf020-forward-module-value-overrides-local",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/06750/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/06750/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/06750/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "8244602950dad58147d9c31ceb28e92bb218e3b5f2cc52436f6e3d714e45b792",
+    "extra": [],
+    "missing": [
+      [
+        "F401",
+        "case.py",
+        77,
+        81
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 6753,
+        "rule": "RUF020",
+        "case": "ruf020-forward-module-builtin-overrides-local",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/06753/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/06753/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/06753/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "a6d08f1b0e97654643ebf460e6c0312edbaf15990e2457478b0614df390800b5",
+    "extra": [],
+    "missing": [
+      [
+        "F401",
+        "case.py",
+        91,
+        96
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 6755,
+        "rule": "RUF020",
+        "case": "ruf020-dispatch-register-runtime-generic",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/06755/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/06755/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/06755/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "af6b0a63cb8c2f9bb7ba4e25b6efd2572f643539edec1070e181205d58791be7",
+    "extra": [
+      [
+        "PYI030",
+        "case.py",
+        29,
+        54
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 6929,
+        "rule": "RUF041",
+        "case": "ruf041-union-with-literal",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/06929/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/06929/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/06929/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "ff2eeea4f4ff4b3f4b296def0bd9ed70c22edccc2bc83795b1631a852d734515",
+    "extra": [],
+    "missing": [
+      [
+        "F401",
+        "case.py",
+        19,
+        26
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 6930,
+        "rule": "RUF041",
+        "case": "ruf041-unvisited",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/06930/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/06930/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/06930/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "46462fd4543c36bd38ed8cd19b983cfcf2fc546fef5cb31ee38e2c2f57c6ec1f",
+    "extra": [],
+    "missing": [
+      [
+        "F401",
+        "case.py",
+        19,
+        26
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 6940,
+        "rule": "RUF041",
+        "case": "ruf041-native-generic-literal-shadow",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/06940/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/06940/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/06940/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "ee40680f42e30bbdb6c10cfee03df9ce828b49ac0886c7b102520748544f5e3e",
+    "extra": [],
+    "missing": [
+      [
+        "F401",
+        "case.py",
+        19,
+        26
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 6942,
+        "rule": "RUF041",
+        "case": "ruf041-alias-generic-literal-shadow",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/06942/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/06942/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/06942/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "fe9f2e78b1c42a84ad52f34d534735b942f963f18561357fb48f6992ec874f09",
+    "extra": [],
+    "missing": [
+      [
+        "F401",
+        "case.py",
+        17,
+        18
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 6945,
+        "rule": "RUF041",
+        "case": "ruf041-native-module-attribute-generic",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/06945/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/06945/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/06945/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "98baded0509fd811cbc865c1f5ebc8d5d861a4c5f335f9f08d0c1bddfec073c9",
+    "extra": [],
+    "missing": [
+      [
+        "F401",
+        "case.py",
+        83,
+        90
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 6946,
+        "rule": "RUF041",
+        "case": "ruf041-forward-module-value-overrides-local",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/06946/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/06946/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/06946/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "6932403c67e36129f713e955a9c7e672cca14258797ca4ada2afd09b131505e7",
+    "extra": [],
+    "missing": [
+      [
+        "F401",
+        "case.py",
+        79,
+        83
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 6949,
+        "rule": "RUF041",
+        "case": "ruf041-forward-module-builtin-overrides-local",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/06949/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/06949/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/06949/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "11ace1a46cdb3b5ac7cd496b37ab2f986762342a71580df2590a7e0a60f8eb0b",
+    "extra": [],
+    "missing": [
+      [
+        "F401",
+        "case.py",
+        91,
+        98
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 6951,
+        "rule": "RUF041",
+        "case": "ruf041-dispatch-register-runtime-generic",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/06951/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/06951/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/06951/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "fbaa41480906cac7adc76067bf70e90f9ff20bf62427232786ec2e93b0156719",
+    "extra": [
+      [
+        "UP006",
+        "case.py",
+        57,
+        68
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 7131,
+        "rule": "RUF051",
+        "case": "ruf051-future-typing-module-rebind",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/07131/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/07131/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/07131/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "8aaf1884e2e50f27420b10791df3e49304f8dab86e992fa24763a0a1f7f93e83",
+    "extra": [
+      [
+        "B008",
+        "case.py",
+        58,
+        64
+      ]
+    ],
+    "missing": [
+      [
+        "C408",
+        "case.py",
+        58,
+        64
+      ]
+    ],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 7157,
+        "rule": "RUF051",
+        "case": "ruf051-class-default-before-outer-builtin-rebind",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/07157/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/07157/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/07157/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "8509cb7e8fc323006cb9f15ebdafb8fd819a7877256ba743ebb71be498bb648c",
+    "extra": [
+      [
+        "F821",
+        "case.py",
+        51,
+        52
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 7286,
+        "rule": "SIM114",
+        "case": "nested-tree-different",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/07286/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/07286/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/07286/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "83897839f65682325632895a8e25aedd95f51de123039be87a11fb1a52c0e126",
+    "extra": [
+      [
+        "F821",
+        "case.py",
+        21,
+        22
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 7307,
+        "rule": "SIM114",
+        "case": "statement-shape-assignment-operator-False",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/07307/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/07307/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/07307/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "29b8ecd1e0877a15cfccb723cc4355d7933b3500cc0a6748575d986bbe88a3d6",
+    "extra": [
+      [
+        "F821",
+        "case.py",
+        21,
+        22
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 7308,
+        "rule": "SIM114",
+        "case": "statement-shape-assignment-operator-True",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/07308/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/07308/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/07308/report.json"
+      }
+    ]
+  },
+  {
+    "source_sha256": "66cfd73523d7f793d7d1d807f90dc8bd532f64ad485c883d2a8b10e77c008b86",
+    "extra": [
+      [
+        "invalid-syntax",
+        "case.py",
+        7,
+        44
+      ]
+    ],
+    "missing": [],
+    "raw_case_count": 1,
+    "cases": [
+      {
+        "case_index": 7729,
+        "rule": "UP010",
+        "case": "Unicode-leading",
+        "raw_result": "/tmp/current-324-cohort-20261101/candidate-279a/07729/result.json",
+        "reference": "/tmp/current-324-cohort-20261101/candidate-279a/07729/reference.json",
+        "candidate_report": "/tmp/current-324-cohort-20261101/candidate-279a/07729/report.json"
+      }
+    ]
+  }
+]

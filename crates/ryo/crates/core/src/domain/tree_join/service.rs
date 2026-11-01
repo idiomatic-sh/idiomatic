@@ -115,7 +115,8 @@ pub(crate) fn take_state(
     };
     needed_of(comparisons, &mut needed);
     kind_tests(tree, comparisons, context, &mut kinds);
-    let elements = kinds_of(&Rows::Tree(*tree));
+    let tree_rows = Rows::Tree(*tree);
+    let elements = kinds_of(&tree_rows);
     let missing = needed
         .0
         .iter()
@@ -194,7 +195,8 @@ pub(crate) fn probe(
         }));
     }
     let first = usize::from(tree.form == TreeForm::Edges);
-    let elements = kinds_of(&Rows::Tree(*tree));
+    let tree_rows = Rows::Tree(*tree);
+    let elements = kinds_of(&tree_rows);
     state.stretched.clear();
     match finding {
         Finding::Node(left_key, key)

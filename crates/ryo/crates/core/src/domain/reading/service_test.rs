@@ -437,7 +437,9 @@ fn duplicate_resident_join_plan() -> Plan {
 #[test]
 fn two_real_rule_evaluations_share_only_the_index_and_keep_ordered_duplicate_rows() {
     use crate::domain::stored_indexes::service::{LIMIT, new};
-    let join = duplicate_resident_join_plan();
+    let mut join = duplicate_resident_join_plan();
+    // Capture the same emitted multiset at its explicit cross-file ownership boundary.
+    join.frontier = vec![PlanInput::Step(StepId(0))];
     let plans = [join.clone(), join];
     let mut tables = worker(&plans);
     tables.bytes = FileBytes(SOURCE.to_vec());
@@ -472,18 +474,17 @@ fn two_real_rule_evaluations_share_only_the_index_and_keep_ordered_duplicate_row
         },
     )
     .expect("first rule");
-    // Shape inference currently computes direct relation inputs with real stored rows.
-    // One acquisition belongs to layout and one to execution, not to each of the five hits.
+    // Pure metadata layout acquires no index; only the actual rule execution does.
     assert_eq!(
         (cache.builds, cache.reuses),
-        (1, 1),
-        "first-rule layout plus execution"
+        (1, 0),
+        "one real execution, no schema-stage acquisition"
     );
     let first = tables
         .pool
-        .steps
+        .frontier
         .first()
-        .expect("kept emitted join")
+        .expect("owned emitted frontier")
         .clone();
     let reads_after_first = reads.get();
     evaluate_rule(
@@ -501,15 +502,39 @@ fn two_real_rule_evaluations_share_only_the_index_and_keep_ordered_duplicate_row
         },
     )
     .expect("second rule");
-    assert_eq!(tables.pool.steps.first(), Some(&first));
+    assert_eq!(tables.pool.frontier.first(), Some(&first));
+    assert!(
+        tables
+            .pool
+            .steps
+            .iter()
+            .all(|table| table.cells.is_empty() && table.count.0 == 0)
+    );
+    assert_eq!(tables.rendered.total.0, 10);
+    let displayed = |row| {
+        crate::domain::render::service::lent_row(
+            ryo_values::domain::records::types::RowsTextView(&tables.rendered.text.0),
+            crate::domain::render::service::row_cells(
+                &tables.rendered.cells,
+                &tables.rendered.ends,
+                RowNumber(row),
+            ),
+        )
+        .skip(1)
+        .collect::<Vec<_>>() // rule ID differs; every payload cell/order must agree
+    };
+    assert_eq!(
+        (0..5).map(displayed).collect::<Vec<_>>(),
+        (5..10).map(displayed).collect::<Vec<_>>()
+    );
     assert_eq!(
         first.count.0, 5,
         "duplicate keys preserve the ordered join multiset"
     );
     assert_eq!(
         (cache.builds, cache.reuses),
-        (1, 3),
-        "two rule layouts and two executions still build one physical index"
+        (1, 1),
+        "two real executions share one physical index; layouts do not execute"
     );
     assert!(
         reads.get() > reads_after_first,

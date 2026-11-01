@@ -12,10 +12,12 @@ use crate::domain::pipeline::service::{deliver, feed, input, keep};
 use crate::domain::positions::types::LoweredRoom;
 use crate::domain::replay::types::Pipe;
 use crate::domain::table_cells::types::TreeRows;
-use crate::domain::table_model::service::{count_of, kinds_of};
+use crate::domain::table_model::service::count_of;
 use crate::domain::table_model::types::{RowCount, Rows, Table};
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plans::types::Plan;
+
+pub(crate) mod compact;
 
 /// The tree of a file, when the steps that read only it run over positions.
 #[derive(Clone, Copy, Debug)]
@@ -34,6 +36,11 @@ pub(crate) struct Stepper<'a, 'f> {
     pub read: &'a dyn Reading<'f>,
     /// The tables of the steps before the one being made.
     pub done: &'a [Table],
+    /// Compact kept outputs alongside the materialized table slots.
+    pub selected:
+        &'a [Option<std::sync::Arc<crate::domain::table_model::types::StoredSelection>>],
+    /// Prepared stored programs for the current request's plan.
+    pub selectors: &'a [Option<std::sync::Arc<crate::domain::stored_selection::types::Selector>>],
     /// What each step keeps for itself.
     pub rooms: &'a mut [Option<Box<Room>>],
     /// Rows being read one at a time from a relation, one buffer for each scan at once.
@@ -73,7 +80,19 @@ impl<'f, F: Fn(Relation) -> Result<Rows<'f>, OperatingError>> Reading<'f> for F 
 impl<'a> Feed<'a> for Stepper<'a, '_> {
     fn kinds(&self, which: InputPlace) -> Result<&[CellKind], OperatingError> {
         Ok(match input(self, which)? {
-            Input::Relation(relation) => kinds_of(&self.read.rows(relation)?),
+            Input::Relation(relation) => match self.read.rows(relation)? {
+                Rows::Stored(view) => view.kinds,
+                Rows::Tree(tree) => {
+                    ryo_language::domain::relations::service::kinds(match tree.form {
+                        crate::domain::table_cells::types::TreeForm::Elements => {
+                            Relation::SyntaxTree
+                        }
+                        crate::domain::table_cells::types::TreeForm::Edges => Relation::SyntaxChild,
+                    })
+                }
+                Rows::Computed(table) => &table.kinds,
+                Rows::Selected(_) => return Err(OperatingError::WrongOperation),
+            },
             Input::Step(id) => self
                 .layout
                 .kinds

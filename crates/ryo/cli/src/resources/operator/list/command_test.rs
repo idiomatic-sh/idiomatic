@@ -24,10 +24,10 @@ struct Line {
 
 /// The rows of this command's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[Case {
-    name: CaseName("prints_all_nineteen"),
+    name: CaseName("prints_all_twenty_one"),
     word: Word::Succeeds,
     input: || vec![],
-    expect: Expect::Value((19, crate::output::Format::Terminal)),
+    expect: Expect::Value((21, crate::output::Format::Terminal)),
 }];
 
 /// Runs `operator list` on one command line and returns what it printed or the outcome it ended with.

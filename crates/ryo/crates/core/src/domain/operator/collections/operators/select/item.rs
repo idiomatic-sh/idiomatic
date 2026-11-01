@@ -20,7 +20,7 @@ use crate::domain::table_cells::service::{read_cells, read_tree_cells};
 use crate::domain::table_cells::types::{CellsRead, ColumnPlaces, RowIndex, TreeForm, TreeRows};
 use crate::domain::table_model::errors::TableModelError;
 use crate::domain::table_model::service::{
-    cell, column_in, count_of, kinds_of, positions, read_row, reset,
+    cell, column_in, count_of, kinds_of, positions, read_row, rectangular, reset,
 };
 use crate::domain::table_model::types::{Rows, Table, Verdict};
 use crate::domain::table_scratch::types::{ElementIndex, KindsBy};
@@ -324,6 +324,12 @@ pub(crate) fn select_rows(
     let outcome = match rows {
         // A stored row is decided on the cells the comparisons read, and read whole only if it holds.
         Rows::Stored(view) => {
+            let projected = !kept.is_empty()
+                && rectangular(*view)
+                && kept
+                    .iter()
+                    .all(|column| (column.0 as usize) < view.kinds.len());
+            let projection = ColumnPlaces(kept.iter().map(|column| column.0 as usize).collect());
             let mut needed = std::mem::take(&mut context.scratch.needed);
             needed_of(comparisons, &mut needed);
             if let Some(missing) = needed
@@ -345,6 +351,12 @@ pub(crate) fn select_rows(
                     return Ok(());
                 }
                 if holds_all(comparisons, &buffer, view.kinds, names, context)? == Verdict::Holds {
+                    if projected {
+                        if read_cells(view, index, &mut buffer, &projection) == CellsRead::Read {
+                            emit_kept(emit, context, &buffer, kept, &mut cut)?;
+                        }
+                        return Ok(());
+                    }
                     let Some(row) = read_row(rows, index, &mut buffer) else {
                         return Ok(());
                     };
@@ -370,7 +382,7 @@ pub(crate) fn select_rows(
                 emit_kept(emit, walked, row, kept, &mut cut)
             },
         ),
-        Rows::Computed(_) => positions(count_of(rows)).try_for_each(|index| {
+        Rows::Computed(_) | Rows::Selected(_) => positions(count_of(rows)).try_for_each(|index| {
             let Some(row) = read_row(rows, index, &mut buffer) else {
                 return Ok(());
             };

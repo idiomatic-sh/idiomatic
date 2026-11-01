@@ -39,6 +39,10 @@ pub(crate) fn new(wanted: &[Relation], partials: &[Partial], limit: usize) -> Op
     let bytes = size_of::<FileIndexes>()
         .checked_add(eligible.capacity().checked_mul(size_of::<Relation>())?)?;
     (bytes <= limit).then_some(FileIndexes {
+        selectors: Vec::new(),
+        selections: Vec::new(),
+        discriminator_columns: Vec::new(),
+        selection_counts: Default::default(),
         eligible,
         entries: Vec::new(),
         bytes,
@@ -47,6 +51,43 @@ pub(crate) fn new(wanted: &[Relation], partials: &[Partial], limit: usize) -> Op
         reuses: 0,
         refusals: 0,
     })
+}
+
+/// Prepare bounded equality demand; duplicate projections alone cannot justify a new index.
+pub(crate) fn candidate_columns(cache: &mut FileIndexes) {
+    use crate::domain::stored_selection::types::CandidateColumn;
+    use ryo_values::domain::plan_parts::types::{Operand, Test};
+    let mut columns = std::collections::BTreeMap::new();
+    for selector in &cache.selectors {
+        for comparison in &selector.comparisons {
+            let ((Test::Equal, Operand::Column(column), _)
+            | (Test::Equal, _, Operand::Column(column))) =
+                (&comparison.test, &comparison.left, &comparison.right)
+            else {
+                continue;
+            };
+            let entry = columns
+                .entry((selector.relation, *column))
+                .or_insert_with(|| CandidateColumn {
+                    relation: selector.relation,
+                    column: *column,
+                    first: Arc::clone(selector),
+                    repeated: false,
+                });
+            entry.repeated |= entry.first.comparisons != selector.comparisons
+                || entry.first.bindings != selector.bindings;
+        }
+    }
+    let columns: Vec<_> = columns.into_values().collect();
+    if let Some(bytes) = columns
+        .capacity()
+        .checked_mul(size_of::<CandidateColumn>())
+        .and_then(|bytes| cache.bytes.checked_add(bytes))
+        .filter(|bytes| *bytes <= cache.limit)
+    {
+        cache.bytes = bytes;
+        cache.discriminator_columns = columns;
+    }
 }
 
 /// Sum actual capacities of every index vector and the Arc allocation metadata.
@@ -80,6 +121,24 @@ fn minimum_bytes(rows: usize, columns: usize) -> Option<usize> {
         .checked_add(buckets.checked_mul(size_of::<ChainLink>())?)?
         .checked_add(columns.checked_mul(size_of::<ColumnIndex>())?)?
         .checked_add(size_of::<Entry>())
+}
+
+/// A selector should scan instead of building an index that cannot possibly be shared.
+pub(crate) fn can_retain(
+    cache: &FileIndexes,
+    relation: Relation,
+    view: ColumnsView<'_>,
+    columns: &[ColumnIndex],
+) -> bool {
+    let rows = view.columns.first().map_or(0, |column| column.0.len());
+    cache.entries.iter().any(|entry| {
+        entry.relation == relation
+            && entry.columns == columns
+            && entry.kinds == view.kinds
+            && entry.rows == rows
+    }) || minimum_bytes(rows, columns.len())
+        .and_then(|bytes| cache.bytes.checked_add(bytes))
+        .is_some_and(|bytes| bytes <= cache.limit)
 }
 
 /// Build the existing invocation-local path when sharing is unavailable or refused.

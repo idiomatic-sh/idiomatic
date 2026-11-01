@@ -83,8 +83,16 @@ impl FactsWorker for MemoryWorker {
     }
 
     fn release(&mut self) -> Result<(), FactsError> {
+        // Provider columns are a separate owner from the execution pool and file-local indexes.
+        let mut remaining = 16_usize * 1024 * 1024;
         for column in self.tables.iter_mut().flatten() {
             column.0.clear();
+            let bytes = column.0.capacity().saturating_mul(size_of::<u64>());
+            if bytes > remaining {
+                column.0 = Vec::new();
+            } else {
+                remaining -= bytes;
+            }
         }
         Ok(())
     }

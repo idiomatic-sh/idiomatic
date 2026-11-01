@@ -2,7 +2,7 @@
 
 use ryo_language::domain::relations::types::{CellKind, KindBits};
 
-use super::service::{kind_has, trim_table};
+use super::service::{kind_has, table_bytes};
 use super::types::{KindMask, KindSet};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::table_model::types::{SetMembership, Table};
@@ -14,16 +14,20 @@ type Value = usize;
 /// This part has no failure of its own.
 type Failure = ();
 
-/// A table that grew past the room a worker keeps is given back what it grew past.
-fn a_big_table_is_trimmed() -> Value {
+/// Capacity accounting uses actual Value width and vector capacity, not the former per-vector threshold.
+fn a_big_table_accounts_actual_capacity() -> Value {
     let mut table = Table {
         kinds: vec![CellKind::Number],
         ..Table::default()
     };
     table.cells.reserve(1 << 20);
     let before = table.cells.capacity();
-    trim_table(&mut table);
-    usize::from(before >= 1 << 20 && table.cells.capacity() < before)
+    usize::from(
+        before >= 1 << 20
+            && table_bytes(&table)
+                == before * size_of::<ryo_language::domain::relations::types::Value>()
+                    + table.kinds.capacity() * size_of::<CellKind>(),
+    )
 }
 
 /// A kind is in a set when its bit is, and a kind beyond the set is out.
@@ -42,9 +46,9 @@ fn a_kind_is_in_the_set_by_its_bit() -> Value {
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("a_table_grown_past_the_room_is_trimmed"),
+        name: CaseName("a_large_table_accounts_actual_vector_capacity"),
         word: Word::Succeeds,
-        input: || || Ok(a_big_table_is_trimmed()),
+        input: || || Ok(a_big_table_accounts_actual_capacity()),
         expect: Expect::Value(1),
     },
     Case {

@@ -33,7 +33,25 @@ impl<'a> TraversalSchema<'a> {
             Operation::Axis { .. } => axis_schema(operation, self.inputs, bindings),
             Operation::OrderedMatch { .. } => ordered_schema(operation, self.inputs),
             Operation::OrderedDfs { .. } => dfs_schema(operation, self.inputs),
-            _ => Err(OperatingError::WrongOperation),
+            Operation::Select { .. }
+            | Operation::Project { .. }
+            | Operation::Extend { .. }
+            | Operation::Join { .. }
+            | Operation::Union { .. }
+            | Operation::Intersection { .. }
+            | Operation::Difference { .. }
+            | Operation::Antijoin { .. }
+            | Operation::GroupCount { .. }
+            | Operation::GroupDigest { .. }
+            | Operation::Capture { .. }
+            | Operation::Rank { .. }
+            | Operation::Replace { .. }
+            | Operation::Words { .. }
+            | Operation::SpanBetween { .. }
+            | Operation::Closure { .. }
+            | Operation::Cycles { .. }
+            | Operation::Rows { .. }
+            | Operation::Hosted { .. } => Err(OperatingError::WrongOperation),
         }
     }
 }
@@ -115,10 +133,9 @@ fn dfs_schema(
         || Some(kind) != column_in(edges.kinds, *destination)
         || column_in(edges.kinds, *order) != Some(&CellKind::Number)
         || root_keys.len() != edge_keys.len()
-        || root_keys
-            .iter()
-            .zip(edge_keys)
-            .any(|(l, r)| column_in(roots.kinds, *l) != column_in(edges.kinds, *r))
+        || root_keys.iter().zip(edge_keys).any(|(root_key, edge_key)| {
+            column_in(roots.kinds, *root_key) != column_in(edges.kinds, *edge_key)
+        })
     {
         return Err(OperatingError::ShapeMismatch);
     }

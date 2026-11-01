@@ -273,7 +273,8 @@ pub(crate) fn walk(shared: &mut MergedWalk, walking: Walking<'_>) {
     scratch.kind_names = kinds.names;
     scratch.kind_sets = kinds.sets;
     scratch.kind_tests = kinds.tests;
-    let element_kinds = kinds_of(&Rows::Tree(tree));
+    let tree_rows = Rows::Tree(tree);
+    let element_kinds = kinds_of(&tree_rows);
     let mut pass = Pass {
         bindings,
         paths,

@@ -262,7 +262,7 @@ fn the_elements_covering_a_stretch_are_found_by_it_alone() -> Result<Value, Oper
 fn counted(left: &Table, right: Option<&Table>) -> Result<Value, OperatingError> {
     let output = [(Side::Left, 1), (Side::Right, 1)];
     let operation = plan(&[0], &[0], &output, Vec::new(), &[]);
-    let rows: Vec<Rows<'_>> = [Some(left), right]
+    let rows: Vec<Rows<'_>> = [Some(left), right.clone()]
         .into_iter()
         .flatten()
         .map(Rows::Computed)
@@ -358,7 +358,7 @@ impl<'f> Feed<'f> for ControlledFeed<'f> {
         if self.right_fails {
             return Err(OperatingError::NotRead);
         }
-        Ok(self.right)
+        Ok(self.right.clone())
     }
 }
 
@@ -404,7 +404,7 @@ fn stream_lookup(
         &operation,
         room,
         left,
-        right,
+        right.clone(),
         left_fails,
         right_fails,
         emit_fails,
@@ -425,7 +425,7 @@ fn stream_operation(
         operation,
         room,
         left,
-        right,
+        right.clone(),
         (left_fails, right_fails, emit_fails),
         None,
     )
@@ -443,7 +443,7 @@ fn stream_with_indexes(
     let (left_fails, right_fails, emit_fails) = failures;
     let mut feed = ControlledFeed {
         left,
-        right,
+        right: right.clone(),
         right_holds: 0,
         left_fails,
         right_fails,
@@ -479,7 +479,7 @@ fn empty_left_does_not_materialize_stored_right() -> Result<Value, OperatingErro
             columns: &columns,
         });
         let mut room = Room::default();
-        let (rows, holds) = stream_lookup(&mut room, &left, right, false, false, false)?;
+        let (rows, holds) = stream_lookup(&mut room, &left, right.clone(), false, false, false)?;
         if !rows.is_empty() || holds != 1 || room.scratch.right != Table::default() {
             return Ok(0);
         }
@@ -504,7 +504,7 @@ fn duplicate_unsorted_right_rows_keep_their_order() -> Result<Value, OperatingEr
         columns: &columns,
     });
     let mut room = Room::default();
-    let (rows, holds) = stream_lookup(&mut room, &left, right, false, false, false)?;
+    let (rows, holds) = stream_lookup(&mut room, &left, right.clone(), false, false, false)?;
     let expected = [vec![number(20)], vec![number(21)], vec![number(22)]];
     Ok(Value::from(rows == expected && holds == 1))
 }
@@ -553,7 +553,7 @@ fn a_left_failure_before_its_first_row_does_not_materialize_the_right()
         columns: &columns,
     });
     let mut room = Room::default();
-    let result = stream_lookup(&mut room, &left, right, true, false, false);
+    let result = stream_lookup(&mut room, &left, right.clone(), true, false, false);
     if room.scratch.right.count == RowCount(0) && room.scratch.right.cells.is_empty() {
         result.map(|_| 1)
     } else {
@@ -570,7 +570,7 @@ fn an_emit_failure_propagates_after_the_right_is_indexed() -> Result<Value, Oper
         columns: &columns,
     });
     let mut room = Room::default();
-    let result = stream_lookup(&mut room, &left, right, false, false, true);
+    let result = stream_lookup(&mut room, &left, right.clone(), false, false, true);
     if room.scratch.right.count == RowCount(1) {
         result.map(|_| 1)
     } else {
@@ -712,7 +712,7 @@ fn assert_stored_join_shape(
     .expect("computed join");
     let actual = made(
         operation,
-        &[Rows::Computed(left), right],
+        &[Rows::Computed(left), right.clone()],
         &mut Symbols::default(),
         &[],
     )
@@ -725,7 +725,7 @@ fn assert_stored_join_shape(
                 .to_vec()
         })
         .collect::<Vec<_>>();
-    let stored_rows = stream_operation(operation, room, left, right, false, false, false)
+    let stored_rows = stream_operation(operation, room, left, right.clone(), false, false, false)
         .expect("streamed stored")
         .0;
     assert_eq!(stored_rows, expected_rows);
@@ -748,7 +748,7 @@ fn assert_stored_join_shape(
     assert_eq!(computed_rows, expected_rows);
     let empty = table_of(&left.kinds, &[]);
     assert!(
-        stream_operation(operation, room, &empty, right, false, false, false)
+        stream_operation(operation, room, &empty, right.clone(), false, false, false)
             .expect("empty left")
             .0
             .is_empty()
@@ -813,7 +813,61 @@ fn stored_right_joins_match_computed_order_for_composite_reordered_and_empty_key
             Vec::new(),
             &[],
         );
-        assert_stored_join_shape(&operation, &left, right, &computed, &mut room);
+        assert_stored_join_shape(&operation, &left, right.clone(), &computed, &mut room);
+    }
+}
+
+#[test]
+fn compact_right_joins_preserve_duplicate_positions_reordered_keys_and_typed_flags() {
+    use crate::domain::table_model::service::materialize;
+    use crate::domain::table_model::types::{SelectedRows, StoredSelection};
+    use std::sync::Arc;
+    let columns = [
+        fact_column(&[1, 2, 1, 3, 1]),
+        FactColumn(vec![2, 0, 1, 1, 0]),
+        fact_column(&[10, 20, 11, 30, 12]),
+    ];
+    let right = Rows::Selected(SelectedRows {
+        source: ColumnsView {
+            kinds: &[CellKind::Number, CellKind::Flag, CellKind::Number],
+            columns: &columns,
+        },
+        selection: Arc::new(StoredSelection {
+            relation: Relation::Function,
+            rows: Arc::new(vec![4, 1, 0, 4]),
+            columns: vec![ColumnIndex(2), ColumnIndex(0), ColumnIndex(1)],
+            kinds: vec![CellKind::Number, CellKind::Number, CellKind::Flag],
+        }),
+    });
+    let left = table_of(
+        &[CellKind::Number, CellKind::Flag],
+        &[
+            &[
+                Cell::Number(Integer(1)),
+                Cell::Flag(ryo_language::domain::relations::types::Flag::Lowered),
+            ],
+            &[
+                Cell::Number(Integer(1)),
+                Cell::Flag(ryo_language::domain::relations::types::Flag::Raised),
+            ],
+        ],
+    );
+    let mut computed = Table::default();
+    materialize(&right, &mut computed, &mut Vec::new());
+    let mut room = Room::default();
+    for (left_on, right_on) in [
+        (vec![0, 1], vec![1, 2]),
+        (vec![1, 0], vec![2, 1]),
+        (vec![], vec![]),
+    ] {
+        let operation = plan(
+            &left_on,
+            &right_on,
+            &[(Side::Right, 0), (Side::Right, 0), (Side::Left, 0)],
+            Vec::new(),
+            &[],
+        );
+        assert_stored_join_shape(&operation, &left, right.clone(), &computed, &mut room);
     }
 }
 
@@ -832,7 +886,7 @@ fn malformed_stored_views_keep_the_original_materializing_fallback() {
     assert_eq!(
         made(
             &operation,
-            &[Rows::Computed(&left), right],
+            &[Rows::Computed(&left), right.clone()],
             &mut Symbols::default(),
             &[]
         ),
@@ -845,9 +899,17 @@ fn malformed_stored_views_keep_the_original_materializing_fallback() {
     );
     let mut room = Room::default();
     assert_eq!(
-        stream_operation(&operation, &mut room, &left, right, false, false, false)
-            .expect("stored")
-            .0,
+        stream_operation(
+            &operation,
+            &mut room,
+            &left,
+            right.clone(),
+            false,
+            false,
+            false
+        )
+        .expect("stored")
+        .0,
         stream_operation(
             &operation,
             &mut room,
@@ -885,7 +947,7 @@ fn stored_right_key_errors_match_computed_before_any_emission() {
         assert_eq!(
             made(
                 &operation,
-                &[Rows::Computed(&left), right],
+                &[Rows::Computed(&left), right.clone()],
                 &mut Symbols::default(),
                 &[]
             ),
@@ -896,7 +958,7 @@ fn stored_right_key_errors_match_computed_before_any_emission() {
                 &operation,
                 &mut Room::default(),
                 &left,
-                right,
+                right.clone(),
                 false,
                 false,
                 false
@@ -1011,25 +1073,25 @@ fn stored_join_diagnostics_emit_one_aggregate_including_empty_and_failed_invocat
     tracing::subscriber::with_default(diagnostics, || {
         let mut room = Room::default();
         assert_eq!(
-            stream_lookup(&mut room, &left, right, false, false, false)
+            stream_lookup(&mut room, &left, right.clone(), false, false, false)
                 .expect("stored join")
                 .0
                 .len(),
             4
         );
         assert!(
-            stream_lookup(&mut room, &empty, right, false, false, false)
+            stream_lookup(&mut room, &empty, right.clone(), false, false, false)
                 .expect("empty")
                 .0
                 .is_empty()
         );
-        let _emit_refusal = stream_lookup(&mut room, &left, right, false, false, true)
+        let _emit_refusal = stream_lookup(&mut room, &left, right.clone(), false, false, true)
             .expect_err("downstream refusal must propagate");
         let operation = plan(&[0], &[0], &[(Side::Right, 1)], Vec::new(), &[]);
         assert_eq!(
             made(
                 &operation,
-                &[Rows::Computed(&left), right],
+                &[Rows::Computed(&left), right.clone()],
                 &mut Symbols::default(),
                 &[]
             )
@@ -1081,7 +1143,7 @@ fn separate_rule_rooms_reuse_one_index_and_still_read_the_provider_before_hits()
         &operation,
         &mut Room::default(),
         &left,
-        right,
+        right.clone(),
         (false, false, false),
         Some(&mut cache),
     )
@@ -1090,7 +1152,7 @@ fn separate_rule_rooms_reuse_one_index_and_still_read_the_provider_before_hits()
         &operation,
         &mut Room::default(),
         &left,
-        right,
+        right.clone(),
         (false, false, false),
         Some(&mut cache),
     )
@@ -1114,7 +1176,7 @@ fn separate_rule_rooms_reuse_one_index_and_still_read_the_provider_before_hits()
         &operation,
         &mut Room::default(),
         &left,
-        right,
+        right.clone(),
         (false, true, false),
         Some(&mut cache),
     )
@@ -1130,7 +1192,7 @@ fn separate_rule_rooms_reuse_one_index_and_still_read_the_provider_before_hits()
             &invalid,
             &mut Room::default(),
             &empty,
-            right,
+            right.clone(),
             (false, false, false),
             Some(&mut cache)
         )
@@ -1157,7 +1219,7 @@ fn cached_emit_error_releases_invocation_handle_and_next_generation_uses_new_row
             &operation,
             &mut Room::default(),
             &left,
-            right,
+            right.clone(),
             (false, false, true),
             Some(&mut cache),
         )
@@ -1208,7 +1270,7 @@ impl Emit for NestedStoredJoin<'_> {
         let mut output = Table::default();
         JoinItem.compute(
             &operation,
-            &[Rows::Computed(&left), self.right],
+            &[Rows::Computed(&left), self.right.clone()],
             context,
             &mut output,
         )?;
@@ -1249,13 +1311,13 @@ fn shared_index_handle_releases_mutable_cache_borrow_before_nested_emission() {
     };
     let mut feed = ControlledFeed {
         left: &left,
-        right,
+        right: right.clone(),
         right_holds: 0,
         left_fails: false,
         right_fails: false,
     };
     let mut emitted = NestedStoredJoin {
-        right,
+        right: right.clone(),
         rows: Vec::new(),
     };
     JoinItem
@@ -1294,7 +1356,7 @@ fn malformed_views_and_failed_upstream_still_use_original_paths_with_a_file_cach
         &operation,
         &mut Room::default(),
         &left,
-        right,
+        right.clone(),
         (false, false, false),
         Some(&mut cache),
     )

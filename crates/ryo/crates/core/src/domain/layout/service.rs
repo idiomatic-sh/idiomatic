@@ -10,7 +10,6 @@ use crate::domain::operation_schema::service::schema_of;
 use crate::domain::operation_schema::types::InputSchema;
 use crate::domain::operator::types::{KeptSteps, PlanIdentity, PlanLayout, ReadCount, StepPlace};
 use crate::domain::table_cells::types::TreeForm;
-use crate::domain::table_model::service::kinds_of;
 use crate::domain::table_model::types::{Frontier, ParameterBinding, Rows};
 use crate::domain::trust::service::needs_of;
 use ryo_values::domain::plan_parts::types::Input;
@@ -74,13 +73,23 @@ pub(crate) fn layout_of<'f>(
         tracing::trace_span!(target: "ryo::diagnostic::layout", "schema", plan = index.0).entered();
     let metadata = |relation| {
         // Probe every actual view before exposing only its schema to derivation.
-        let view = read(relation)?;
-        Ok(InputSchema {
-            kinds: kinds_of(&view),
-            tree: match view {
-                Rows::Tree(tree) => Some(tree.form),
-                Rows::Stored(_) | Rows::Computed(_) => None,
+        Ok(match read(relation)? {
+            Rows::Stored(view) => InputSchema {
+                kinds: view.kinds,
+                tree: None,
             },
+            Rows::Computed(table) => InputSchema {
+                kinds: &table.kinds,
+                tree: None,
+            },
+            Rows::Tree(tree) => InputSchema {
+                kinds: ryo_language::domain::relations::service::kinds(match tree.form {
+                    TreeForm::Elements => Relation::SyntaxTree,
+                    TreeForm::Edges => Relation::SyntaxChild,
+                }),
+                tree: Some(tree.form),
+            },
+            Rows::Selected(_) => return Err(OperatingError::WrongOperation),
         })
     };
     let kinds = schema_steps(plan, &metadata, context.bindings)?;

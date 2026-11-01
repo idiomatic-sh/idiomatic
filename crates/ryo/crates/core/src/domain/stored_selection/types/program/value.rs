@@ -1,0 +1,178 @@
+//! Derivation of ordered stored predicates and physical output maps from a compiled plan.
+
+use crate::domain::stored_selection::types::{PreparedPlan, SelectionPlanId, Selector};
+use crate::domain::table_model::types::ParameterBinding;
+use ryo_language::domain::relations::service::kinds;
+use ryo_values::domain::plan_parts::types::{
+    ColumnIndex, Input, Operand, ParameterId, RepeatedRows, Test,
+};
+use ryo_values::domain::plans::types::{Operation, Plan, StepScope};
+use std::sync::Arc;
+
+/// A plan's static stored selectors; no file population, provider or mutable symbols is accepted.
+#[derive(Debug)]
+pub(crate) struct SelectionProgram<'a> {
+    /// Compiled plan being described, without any physical file population.
+    plan: &'a Plan,
+    /// Request values borrowed only while preparing immutable descriptors.
+    bindings: &'a [ParameterBinding],
+}
+
+impl<'a> SelectionProgram<'a> {
+    /// Borrow the compiled plan and its frozen request bindings.
+    pub(crate) fn new(plan: &'a Plan, bindings: &'a [ParameterBinding]) -> Self {
+        Self { plan, bindings }
+    }
+
+    /// Compile supported chains in topological order; unsupported steps retain ordinary execution.
+    pub(crate) fn prepare(&self) -> PreparedPlan {
+        let mut steps: Vec<Option<Arc<Selector>>> = Vec::with_capacity(self.plan.steps.len());
+        for step in &self.plan.steps {
+            let selector = (step.scope == StepScope::PerFile)
+                .then(|| self.derive(&step.operation, &steps))
+                .flatten()
+                .map(Arc::new);
+            steps.push(selector);
+        }
+        PreparedPlan {
+            identity: SelectionPlanId(std::ptr::from_ref(self.plan).addr()),
+            bound: self.bindings.to_vec(),
+            steps,
+        }
+    }
+
+    /// Compose the input map without changing its predicates, bags or physical order.
+    fn input(&self, from: Input, steps: &[Option<Arc<Selector>>]) -> Option<Selector> {
+        match from {
+            Input::Step(id) => steps.get(usize::try_from(id.0).ok()?)?.as_deref().cloned(),
+            Input::Relation(
+                ryo_language::domain::relations::types::Relation::SyntaxTree
+                | ryo_language::domain::relations::types::Relation::SyntaxChild,
+            ) => None,
+            Input::Relation(relation) => Some(Selector {
+                relation,
+                comparisons: Vec::new(),
+                bindings: Vec::new(),
+                columns: (0..kinds(relation).len())
+                    .map(|index| ColumnIndex(u32::try_from(index).unwrap_or(u32::MAX)))
+                    .collect(),
+            }),
+        }
+    }
+
+    /// Derive a direct filter or non-distinct column map; error-sensitive operators are boundaries.
+    fn derive(&self, operation: &Operation, steps: &[Option<Arc<Selector>>]) -> Option<Selector> {
+        match operation {
+            Operation::Select {
+                from,
+                comparisons,
+                kept,
+            } => {
+                let mut selector = self.input(*from, steps)?;
+                for comparison in comparisons {
+                    // These families have no data-dependent refusal. Regex, functions and numeric-text
+                    // parsing remain owner-local, so a successful cache never changes their error origin.
+                    if !matches!(
+                        comparison.test,
+                        Test::Equal
+                            | Test::NotEqual
+                            | Test::LessThan
+                            | Test::LessThanOrEqual
+                            | Test::GreaterThan
+                            | Test::GreaterThanOrEqual
+                            | Test::StartsWith
+                            | Test::EndsWith
+                            | Test::In
+                            | Test::NotIn
+                    ) {
+                        return None;
+                    }
+                    let mut normalized = comparison.clone();
+                    normalized.left = self.operand(&comparison.left, &mut selector)?;
+                    normalized.right = self.operand(&comparison.right, &mut selector)?;
+                    normalized.origin = None;
+                    selector.comparisons.push(normalized);
+                }
+                if !kept.is_empty() {
+                    selector.columns = kept
+                        .iter()
+                        .map(|index| {
+                            selector
+                                .columns
+                                .get(usize::try_from(index.0).ok()?)
+                                .copied()
+                        })
+                        .collect::<Option<_>>()?;
+                }
+                Some(selector)
+            }
+            Operation::Project {
+                from,
+                columns,
+                distinct: RepeatedRows::Kept,
+            } => {
+                let mut selector = self.input(*from, steps)?;
+                selector.columns = columns
+                    .iter()
+                    .map(|index| {
+                        selector
+                            .columns
+                            .get(usize::try_from(index.0).ok()?)
+                            .copied()
+                    })
+                    .collect::<Option<_>>()?;
+                Some(selector)
+            }
+            Operation::Project { .. }
+            | Operation::Extend { .. }
+            | Operation::Join { .. }
+            | Operation::Union { .. }
+            | Operation::Intersection { .. }
+            | Operation::Difference { .. }
+            | Operation::Antijoin { .. }
+            | Operation::GroupCount { .. }
+            | Operation::GroupDigest { .. }
+            | Operation::Axis { .. }
+            | Operation::Capture { .. }
+            | Operation::Rank { .. }
+            | Operation::Replace { .. }
+            | Operation::Words { .. }
+            | Operation::SpanBetween { .. }
+            | Operation::Closure { .. }
+            | Operation::Cycles { .. }
+            | Operation::Rows { .. }
+            | Operation::OrderedMatch { .. }
+            | Operation::OrderedDfs { .. }
+            | Operation::Hosted { .. } => None,
+        }
+    }
+
+    /// Remap physical columns and only the bindings this exact predicate sequence references.
+    fn operand(&self, operand: &Operand, selector: &mut Selector) -> Option<Operand> {
+        Some(match operand {
+            Operand::Column(index) => {
+                Operand::Column(*selector.columns.get(usize::try_from(index.0).ok()?)?)
+            }
+            Operand::Literal(value) => Operand::Literal(value.clone()),
+            Operand::Parameter(id) => {
+                let value = self.bindings.get(usize::try_from(id.0).ok()?)?;
+                if matches!(
+                    value,
+                    ParameterBinding::Tables(_) | ParameterBinding::TextSets(_)
+                ) {
+                    return None;
+                }
+                let index = selector
+                    .bindings
+                    .iter()
+                    .position(|bound| bound == value)
+                    .unwrap_or_else(|| {
+                        selector.bindings.push(value.clone());
+                        selector.bindings.len() - 1
+                    });
+                Operand::Parameter(ParameterId(u32::try_from(index).ok()?))
+            }
+            Operand::Function(_) => return None,
+        })
+    }
+}

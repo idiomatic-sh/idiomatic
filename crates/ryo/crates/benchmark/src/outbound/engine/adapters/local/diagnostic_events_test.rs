@@ -97,3 +97,44 @@ fn ordinary_info_subscriber_does_not_enable_diagnostic_step_events() {
     );
     assert!(!enabled);
 }
+
+/// The same subscriber can expose coarse work without enabling it by default.
+#[test]
+fn aggregate_profile_is_explicit_and_keeps_counter_fields() -> Result<(), Box<dyn std::error::Error>>
+{
+    let directory = tempfile::tempdir()?;
+    for level in [
+        tracing_subscriber::filter::LevelFilter::OFF,
+        tracing_subscriber::filter::LevelFilter::TRACE,
+    ] {
+        let path = directory.path().join(format!("{level}.jsonl"));
+        let dispatch = tracing::Dispatch::new(super::subscriber_with_aggregates(&path, level)?);
+        tracing::dispatcher::with_default(&dispatch, || {
+            tracing::trace!(target: super::EXECUTION_TARGET, phase = "provider_parse", elapsed_ns = 3_u64);
+            tracing::trace!(target: super::SELECTION_TARGET, event = "file_selections", scanned_rows = 7_u64);
+            tracing::trace!(target: super::WORKING_SET_TARGET, event = "rule_released", retained_bytes = 11_usize);
+            tracing::trace!(target: super::LAYOUT_TARGET, event = "layout_schema", payload_rows = 0_usize);
+        });
+        let output = std::fs::read_to_string(path)?;
+        if level == tracing_subscriber::filter::LevelFilter::OFF {
+            assert!(output.is_empty());
+        } else {
+            let events = output
+                .lines()
+                .map(serde_json::from_str::<serde_json::Value>)
+                .collect::<Result<Vec<_>, _>>()?;
+            assert_eq!(events.len(), 4);
+            assert!(
+                events
+                    .iter()
+                    .any(|event| event["fields"]["scanned_rows"] == 7)
+            );
+            assert!(
+                events
+                    .iter()
+                    .any(|event| event["fields"]["retained_bytes"] == 11)
+            );
+        }
+    }
+    Ok(())
+}

@@ -8893,7 +8893,7 @@
   },
   "files": {
     "crates/ryo/crates/benchmark/tests/fixtures/reference-discrepancy-canonical.json": "9847064e9b87f24bbad655552e2159d3de99d94522da38c9612dccdf02179561",
-    "crates/ryo/languages/python/benchmarks/linters/ruff/benchmark.toml": "4d99f72fc9f72b2f087324087191845731fb493e3a40d145a82bdfb3c5dbedad",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/benchmark.toml": "a5fd56d976720330d622ae59a2d056e3fa38a3222dda27419384ac79c8e36fa1",
     "crates/ryo/languages/python/benchmarks/linters/ruff/fixtures/reference-discrepancy/README.md": "28f1ba92289797824ec53b623d330a9af1dc15744588bc339500ae9061df44d2",
     "crates/ryo/languages/python/benchmarks/linters/ruff/fixtures/reference-discrepancy/benchmark.toml": "d003d65f4be2bba807e169241cdb7c47ccff08bd6ad9888eafaa1910c3ad388c",
     "crates/ryo/languages/python/benchmarks/linters/ruff/fixtures/reference-discrepancy/evidence/compile_controls.py": "8207fdb62335f046ce52ad7f63cc2d07504d34e23e7c2d28232ea65ba423cc16",
@@ -11602,7 +11602,7 @@
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/YTT302/cases.toml": "8573e2020b0ed1c8a2cf80d6a21470ec5bcb8de23291a1228788a59d2a140db0",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/YTT303/candidate.ryoql": "53771e39aadaa4f99d94d3059e6d9c995efc942eaee52d8c57fec6a20d7923d2",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/YTT303/cases.toml": "bc6d57fe3b7d11670f4ee826da0219a5da64b917fa8cb6e87a15a110767509a9",
-    "crates/ryo/languages/python/benchmarks/linters/ruff/verify_profiles.py": "14c0be4490de43997ec5eecce4cd59bd607c572586c830701d5a6f6155a8da5d",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/verify_profiles.py": "70d9838d0bfb5e147d6a32bba71c870bcdcb2b1cc82b42535a61a138d3d04598",
     "crates/ryo/languages/python/tests/fixtures/ryoql-fragments/pie794-rooted/README.md": "a2de58607dbcee0fe068c98960ac33f5774e2674f2812576ffaba0aa381c0757",
     "crates/ryo/languages/python/tests/fixtures/ryoql-fragments/pie794-rooted/baseline-cases.toml": "1d90d40cef01f05910fb2890cd52b09cc8fef94a3280106d6689eed91fcc255b",
     "crates/ryo/languages/python/tests/fixtures/ryoql-fragments/pie794-rooted/baseline.ryoql": "16cd200253533a208e9cb43debf2821e5f6d82ac258cd43a8f35bbeec6243e22",

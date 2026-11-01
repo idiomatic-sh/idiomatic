@@ -316,6 +316,11 @@ impl FileAnalysis {
         file: FileId,
     ) -> Result<(), FileAnalysisError> {
         let (tables, facts) = (&mut worker.tables, &mut worker.facts);
+        crate::domain::stored_selection::service::prepare(
+            &mut tables.pool,
+            visit.setting.plans,
+            visit.setting.bindings,
+        );
         // Preserve path scope, but keep syntax-gated rules out of the shared element walk when this provider did not accept the file.
         let acceptance = syntax_acceptance(&tables.elements);
         let scoped_mask =
@@ -327,9 +332,17 @@ impl FileAnalysis {
         // Keep physical reader partiality before any rule's Rows output can relax evaluation coverage.
         let physical_partials = tables.partials.clone();
         // Only relation views needed by active rules are demanded after acceptance is known.
+        let mut selectable = Vec::new();
         for relation in active_wanted.iter() {
-            if let Err(error) = facts.rows(*relation) {
-                return Err(error.into());
+            let view = facts.rows(*relation)?;
+            if crate::domain::table_model::service::rectangular(view)
+                && view.kinds == ryo_language::domain::relations::service::kinds(*relation)
+                && view
+                    .columns
+                    .first()
+                    .is_none_or(|column| column.0.len() <= u32::MAX as usize)
+            {
+                selectable.push(*relation);
             }
         }
         let mut stored_indexes = Self::indexes_for(
@@ -338,7 +351,25 @@ impl FileAnalysis {
             active_wanted.as_ref(),
             &physical_partials,
         );
+        if let Some(indexes) = stored_indexes.as_mut() {
+            crate::domain::stored_selection::service::activate(
+                indexes,
+                &tables.pool,
+                &selectable,
+                |index| {
+                    governs_rule(tables, RuleIndex(index)) == Governing::Governs
+                        && !skipped
+                            .as_ref()
+                            .and_then(|skipped| skipped.get(index))
+                            .copied()
+                            .unwrap_or(false)
+                },
+            );
+        }
         // The steps of the rules that select from the elements are decided in one pass over them.
+        let execution_diagnostics =
+            tracing::enabled!(target: "ryo::diagnostic::execution", tracing::Level::TRACE);
+        let shared_started = execution_diagnostics.then(Instant::now);
         {
             let Tables {
                 mask,
@@ -370,15 +401,29 @@ impl FileAnalysis {
         if let Some(scoped_mask) = scoped_mask {
             tables.mask = scoped_mask;
         }
-        Self::evaluate_file_rules(
+        if let Some(started) = shared_started {
+            tracing::trace!(target: "ryo::diagnostic::execution", phase = "native_shared_walk", file = file.0, elapsed_ns = started.elapsed().as_nanos() as u64);
+        }
+        let rules_started = execution_diagnostics.then(Instant::now);
+        let evaluated = Self::evaluate_file_rules(
             tables,
             facts.as_mut(),
             visit,
             file,
             skipped.as_deref(),
             stored_indexes.as_mut(),
-        )?;
+        );
+        if let Some(started) = rules_started {
+            tracing::trace!(target: "ryo::diagnostic::execution", phase = "rules_and_frontiers", file = file.0, elapsed_ns = started.elapsed().as_nanos() as u64, success = evaluated.is_ok());
+        }
         if let Some(indexes) = stored_indexes.as_ref() {
+            tracing::trace!(target: "ryo::diagnostic::selection", event = "file_selections", file = file.0,
+                source_rows_scanned = indexes.selection_counts.scanned, indexed_candidates = indexes.selection_counts.candidates,
+                predicate_cells_decoded = indexes.selection_counts.predicate_cells, output_cells_decoded = indexes.selection_counts.output_cells,
+                selections_built = indexes.selection_counts.builds, selections_reused = indexes.selection_counts.reuses,
+                selections_refused = indexes.selection_counts.refusals, cache_bytes = indexes.bytes,
+                collected_cell_bytes = indexes.selection_counts.collected_cells.saturating_mul(size_of::<ryo_language::domain::relations::types::Value>() as u64),
+                compact_id_bytes = indexes.selections.iter().map(|entry| entry.rows.capacity().saturating_mul(size_of::<u32>())).sum::<usize>());
             tracing::trace!(target: "ryo::diagnostic::stored_join", event = "file_indexes", file = file.0,
                 entries = indexes.entries.len(), eligible_relations = indexes.eligible.len(),
                 retained_bytes = indexes.bytes, physical_builds = indexes.builds,
@@ -386,8 +431,19 @@ impl FileAnalysis {
         }
         // No index handle or allocation survives release or the next visit, even for the same FileId.
         drop(stored_indexes);
+        let settle_started = execution_diagnostics.then(Instant::now);
+        crate::domain::working_set::service::retire(&mut tables.pool, &mut tables.scratch);
+        for frontier in &mut tables.pool.frontier {
+            crate::domain::table_model::service::reset(frontier, &[]);
+        }
+        tables.pool.frontier_pending.fill(false);
+        evaluated?;
         settle_file(tables, visit.setting.answering);
-        Ok(facts.release()?)
+        facts.release()?;
+        if let Some(started) = settle_started {
+            tracing::trace!(target: "ryo::diagnostic::execution", phase = "settle_and_release", file = file.0, elapsed_ns = started.elapsed().as_nanos() as u64);
+        }
+        Ok(())
     }
 
     /// Evaluate active rules against the same immutable physical file generation.
@@ -488,6 +544,10 @@ impl FileAnalysis {
                 if visit.setting.keeping == Keeping::Keeps {
                     capture_frontier(tables, visit.setting.answering, bucket);
                 }
+                crate::domain::reading::service::consumed_frontier(
+                    tables,
+                    ryo_values::domain::plan_parts::types::InputNumber(place),
+                );
             }
         }
         Ok(())
@@ -704,12 +764,18 @@ impl FileAnalysis {
             roles: setting.roled.into(),
         };
         let mut writer = worker.facts.columns_mut()?;
+        let parse_started =
+            tracing::enabled!(target: "ryo::diagnostic::execution", tracing::Level::TRACE)
+                .then(Instant::now);
         let reading = self.language.parse(
             source,
             &mut worker.tables.elements,
             &mut worker.tables.symbols,
             &mut writer,
         );
+        if let Some(started) = parse_started {
+            tracing::trace!(target: "ryo::diagnostic::execution", phase = "provider_parse", file = number.0, elapsed_ns = started.elapsed().as_nanos() as u64);
+        }
         let said: Vec<ReadInPart> = std::mem::take(&mut writer.partials);
         let acceptance = syntax_acceptance(&worker.tables.elements);
         let active_wanted = Self::active_wanted(&worker.tables, setting, acceptance);

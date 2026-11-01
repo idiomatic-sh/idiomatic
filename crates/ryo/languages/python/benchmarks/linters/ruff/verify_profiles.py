@@ -690,7 +690,11 @@ def verify_files(manifest: dict[str, object], helper_path: str) -> None:
     files = manifest["files"]
     if manifest.get("target_version") != "py310":
         raise ValueError("prepared Ruff target version must be py310")
-    verify_rule_phase_registry(manifest)
+    phase_registry = verify_rule_phase_registry(manifest)
+    check_base_rule_applicability(
+        tomllib.loads((RUFF_DIR / "benchmark.toml").read_text(encoding="utf-8")),
+        phase_registry,
+    )
     allowed_targets = {"py310", "py311"}
     if any(
         profile.get("target_version", "py310") not in allowed_targets
@@ -896,6 +900,23 @@ def verify_active_combined_cohort(manifest: dict[str, object]) -> None:
         raise ValueError(
             f"active combined cohort {name} is not a complete full-report profile"
         )
+
+
+def check_base_rule_applicability(
+    profile: dict[str, object], registry: dict[str, object]
+) -> None:
+    """Keep all shipped defaults and their exact tagged phases in the native profile."""
+    defaults = profile.get("defaults")
+    expected_ids = registry["shipped_default_rules"]
+    if (
+        not isinstance(defaults, list)
+        or len(defaults) != 413
+        or len(defaults) != len(set(defaults))
+        or set(defaults) != set(expected_ids)
+        or profile.get("rule-applicability")
+        != {rule: registry["rules"][rule]["applicability"] for rule in expected_ids}
+    ):
+        raise ValueError("base profile changed shipped defaults or their tagged phases")
 
 
 def selected_rule_applicability(
@@ -3523,7 +3544,10 @@ def canonical_run_ryo_settings(
 
 
 def check_run_ryo_settings(
-    request: dict[str, object], expected: dict[str, object]
+    request: dict[str, object],
+    expected: dict[str, object],
+    *,
+    expected_cache_path: Path | None = None,
 ) -> None:
     """Refuse wrong phase, target, context, selection or unreviewed request flags."""
     if set(request) != {
@@ -3542,7 +3566,8 @@ def check_run_ryo_settings(
         or request["parser_configuration"] != expected["parser_configuration"]
         or request["rule_applicability"] != expected["rule_applicability"]
         or sorted(request["rule_applicability"]) != expected["defaults"]
-        or request["cache"] is not None
+        or request["cache"]
+        != (str(expected_cache_path) if expected_cache_path is not None else None)
     ):
         raise ValueError(
             "direct worker request differs from canonical execution settings"
@@ -3558,12 +3583,17 @@ def complete_run_ryo_report(
     *,
     request: dict[str, object] | None = None,
     settings: dict[str, object] | None = None,
+    expected_cache_path: Path | None = None,
 ) -> dict[str, object]:
-    """Validate a direct worker report before using it in an equivalence proof."""
+    """Validate complete reports with default-disabled or explicitly bound cache state."""
     if (request is None) != (settings is None):
         raise ValueError("direct report settings must be supplied with their request")
+    if expected_cache_path is not None and request is None:
+        raise ValueError("cache state requires the actual request and canonical settings")
     if request is not None:
-        check_run_ryo_settings(request, settings)
+        check_run_ryo_settings(
+            request, settings, expected_cache_path=expected_cache_path
+        )
     if status != 0 or stderr:
         raise ValueError("direct worker did not complete successfully")
     report = json.loads(stdout)
@@ -3612,6 +3642,49 @@ def complete_run_ryo_report(
         ):
             raise ValueError("direct worker diagnostic has an invalid schema")
     return report
+
+
+def report_cache_contract_self_test() -> None:
+    """Bind enabled CLI cache paths without weakening fresh-case defaults."""
+    with tempfile.TemporaryDirectory() as temporary:
+        cache = Path(temporary) / "trial-cache"
+        settings = {
+            "defaults": ["GUARD001"],
+            "parser_configuration": "python-target=3.10",
+            "project_context_mode": "isolated",
+            "rule_applicability": {"GUARD001": "accepted-syntax"},
+            "flags": {},
+        }
+        request = {
+            "root": temporary,
+            "rules": temporary,
+            "query_modules": {},
+            "rule_applicability": settings["rule_applicability"],
+            "parser_configuration": settings["parser_configuration"],
+            "files": ["case.py"],
+            "cache": str(cache),
+        }
+        report = json.dumps({
+            "diagnostics": [],
+            "files": ["case.py"],
+            "skipped": [],
+            "coverage": {"selected": 1, "evaluated": 1, "skipped": 0, "unknown_or_unread": 0},
+        })
+        complete_run_ryo_report(0, report, "", ["case.py"], ["GUARD001"], request=request, settings=settings, expected_cache_path=cache)
+        cache.mkdir()
+        complete_run_ryo_report(0, report, "", ["case.py"], ["GUARD001"], request=request, settings=settings, expected_cache_path=cache)
+        for arguments in (
+            {"request": request, "settings": settings},
+            {"request": {**request, "cache": None}, "settings": settings, "expected_cache_path": cache},
+            {"request": {**request, "cache": str(cache / "wrong")}, "settings": settings, "expected_cache_path": cache},
+            {"expected_cache_path": cache},
+            {"request": {**request, "cache_dir": str(cache)}, "settings": settings, "expected_cache_path": cache},
+        ):
+            try:
+                complete_run_ryo_report(0, report, "", ["case.py"], ["GUARD001"], **arguments)
+            except ValueError:
+                continue
+            raise AssertionError("unbound, overridden or default-enabled cache was accepted")
 
 
 def self_test_standard_suppression() -> None:
@@ -3959,6 +4032,7 @@ def reference_discrepancy_self_test() -> None:
 def self_test() -> int:
     """Exercise fail-closed profile-selection and hash-mismatch guards without invoking Cargo."""
     self_test_standard_suppression()
+    report_cache_contract_self_test()
     reference_discrepancy_self_test()
     global MANIFEST
     context_guard_self_test()
@@ -4038,6 +4112,19 @@ def self_test() -> int:
                 "default acceptance allowed multiple active combined cohorts"
             )
         phase_registry = verify_rule_phase_registry(prepared)
+        base = tomllib.loads((RUFF_DIR / "benchmark.toml").read_text(encoding="utf-8"))
+        check_base_rule_applicability(base, phase_registry)
+        missing_default = {**base, "defaults": base["defaults"][:-1]}
+        duplicate_default = {**base, "defaults": [*base["defaults"][:-1], base["defaults"][0]]}
+        missing_policy = {**base, "rule-applicability": dict(base["rule-applicability"])}
+        missing_policy["rule-applicability"].pop("UP025")
+        wrong_policy = {**base, "rule-applicability": {**base["rule-applicability"], "UP025": "always"}}
+        for wrong_base in (missing_default, duplicate_default, missing_policy, wrong_policy):
+            try:
+                check_base_rule_applicability(wrong_base, phase_registry)
+            except ValueError:
+                continue
+            raise ValueError("native phase guard admitted missing/duplicate rules or wrong phases")
         if selected_rule_applicability(
             prepared,
             prepared["combined_profiles"]["current-canonical"]["selected_rules"],

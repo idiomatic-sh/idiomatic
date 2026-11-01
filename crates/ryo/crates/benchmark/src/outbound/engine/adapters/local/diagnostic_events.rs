@@ -13,6 +13,14 @@ const COMPILED_PREFIX_TARGET: &str = "ryo::diagnostic::compiled_prefix";
 const STORED_JOIN_TARGET: &str = "ryo::diagnostic::stored_join";
 /// Events describing one operator step within a selected rule.
 const RULE_STEP_TARGET: &str = "ryo::diagnostic::rule_step";
+/// Aggregate phase timings for the explicitly requested execution profile.
+const EXECUTION_TARGET: &str = "ryo::diagnostic::execution";
+/// Aggregate stored selection and materialization work.
+const SELECTION_TARGET: &str = "ryo::diagnostic::selection";
+/// Logical release and retained-capacity accounting.
+const WORKING_SET_TARGET: &str = "ryo::diagnostic::working_set";
+/// Metadata-only layout accounting.
+const LAYOUT_TARGET: &str = "ryo::diagnostic::layout";
 
 /// Shared append-only file writer; each event holds the lock until its JSON line is complete.
 #[derive(Clone)]
@@ -34,6 +42,20 @@ impl DiagnosticEventWriter {
 pub(super) fn subscriber(
     path: &Path,
 ) -> io::Result<impl tracing::Subscriber + Send + Sync + 'static> {
+    let aggregate_level =
+        if std::env::var_os("RYO_DIAGNOSTIC_EXECUTION").is_some_and(|value| value == "1") {
+            tracing_subscriber::filter::LevelFilter::TRACE
+        } else {
+            tracing_subscriber::filter::LevelFilter::OFF
+        };
+    subscriber_with_aggregates(path, aggregate_level)
+}
+
+/// Admit aggregate targets only for an explicitly selected diagnostic profile.
+fn subscriber_with_aggregates(
+    path: &Path,
+    aggregate_level: tracing_subscriber::filter::LevelFilter,
+) -> io::Result<impl tracing::Subscriber + Send + Sync + 'static> {
     use tracing_subscriber::Layer as _;
     use tracing_subscriber::layer::SubscriberExt as _;
     let writer = DiagnosticEventWriter::create(path)?;
@@ -48,6 +70,10 @@ pub(super) fn subscriber(
         .with_writer(writer)
         .with_filter(
             tracing_subscriber::filter::Targets::new()
+                .with_target(EXECUTION_TARGET, aggregate_level)
+                .with_target(SELECTION_TARGET, aggregate_level)
+                .with_target(WORKING_SET_TARGET, aggregate_level)
+                .with_target(LAYOUT_TARGET, aggregate_level)
                 .with_target(
                     RULE_FILE_TARGET,
                     tracing_subscriber::filter::LevelFilter::TRACE,

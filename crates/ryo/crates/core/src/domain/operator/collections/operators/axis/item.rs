@@ -54,7 +54,7 @@ impl OperatorsItem for AxisItem {
         if let Some(tree) = tree_to_walk(operation, edges, domain) {
             let reached = match domain {
                 Rows::Tree(each) if each.form == TreeForm::Elements => each,
-                Rows::Stored(_) | Rows::Tree(_) | Rows::Computed(_) => tree,
+                Rows::Stored(_) | Rows::Selected(_) | Rows::Tree(_) | Rows::Computed(_) => tree,
             };
             walk_kinds(kinds_of(from), kinds_of(&Rows::Tree(*reached)), output, out)?;
             let mut walk = start_walk(
@@ -358,7 +358,12 @@ fn compute_held(
     let HeldRoom { memo, scratch, out } = room;
     {
         let mut own = derive(context, memo, scratch);
-        AxisItem.compute(operation, &[*held[0], *held[1], *held[2]], &mut own, out)?;
+        AxisItem.compute(
+            operation,
+            &[held[0].clone(), held[1].clone(), held[2].clone()],
+            &mut own,
+            out,
+        )?;
     }
     let mut own = derive(context, memo, scratch);
     for index in positions(out.count) {

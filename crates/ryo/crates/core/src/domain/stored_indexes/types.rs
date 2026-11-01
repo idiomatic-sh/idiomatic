@@ -22,6 +22,14 @@ pub(crate) struct Entry {
 /// A file-local owner: dropping it releases all admitted allocations without eviction.
 #[derive(Debug)]
 pub(crate) struct FileIndexes {
+    /// Active pure stored descriptors; prepared metadata is owned by the worker's plans.
+    pub selectors: Vec<Arc<crate::domain::stored_selection::types::Selector>>,
+    /// Successful exact selections admitted under this same byte allowance.
+    pub selections: Vec<crate::domain::stored_selection::types::Matches>,
+    /// Candidate indexes are built only for columns shared by distinct active predicates.
+    pub discriminator_columns: Vec<crate::domain::stored_selection::types::CandidateColumn>,
+    /// Aggregate compact-selection execution counters.
+    pub selection_counts: crate::domain::stored_selection::types::SelectionCounts,
     /// Active relations whose physical read reported no partiality, of any missing kind.
     pub eligible: Vec<Relation>,
     /// Admitted indexes and their exact keys; linear lookup is bounded by the byte budget.

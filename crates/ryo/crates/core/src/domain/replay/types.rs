@@ -26,10 +26,16 @@ impl<F: FnMut(&mut OperatorContext<'_>, &[Value]) -> Result<(), OperatingError>>
 impl Emit for Collect<'_> {
     fn row(
         &mut self,
-        _context: &mut OperatorContext<'_>,
+        context: &mut OperatorContext<'_>,
         row: &[Value],
     ) -> Result<(), OperatingError> {
         push_row(self.0, row);
+        if let Some(cache) = context.stored_indexes.as_mut() {
+            cache.selection_counts.collected_cells = cache
+                .selection_counts
+                .collected_cells
+                .saturating_add(row.len() as u64);
+        }
         Ok(())
     }
 }

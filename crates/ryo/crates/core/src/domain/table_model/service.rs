@@ -71,9 +71,10 @@ pub(crate) fn copy_table(from: &Table, into: &mut Table) {
 
 /// What each column of the rows holds.
 #[must_use]
-pub(crate) fn kinds_of<'a>(rows: &Rows<'a>) -> &'a [CellKind] {
+pub(crate) fn kinds_of<'a>(rows: &'a Rows<'_>) -> &'a [CellKind] {
     match rows {
         Rows::Stored(view) => view.kinds,
+        Rows::Selected(view) => &view.selection.kinds,
         Rows::Tree(TreeRows {
             form: TreeForm::Edges,
             ..
@@ -90,6 +91,7 @@ pub(crate) fn kinds_of<'a>(rows: &Rows<'a>) -> &'a [CellKind] {
 #[must_use]
 pub(crate) fn count_of(rows: &Rows<'_>) -> RowCount {
     match rows {
+        Rows::Selected(view) => RowCount(view.selection.rows.len()),
         Rows::Stored(view) => RowCount(view.columns.first().map_or(0, |column| column.0.len())),
         Rows::Computed(table) => table.count,
         Rows::Tree(tree) => RowCount(
@@ -127,6 +129,14 @@ pub(crate) fn read_row<'s>(
     scratch: &'s mut Vec<Value>,
 ) -> Option<&'s [Value]> {
     match rows {
+        Rows::Selected(view) => {
+            let physical = RowIndex(usize::try_from(*view.selection.rows.get(index.0)?).ok()?);
+            scratch.clear();
+            for column in &view.selection.columns {
+                scratch.push(stored_cell(view.source, physical, *column)?);
+            }
+            Some(scratch)
+        }
         Rows::Computed(table) => row_in(table, index),
         Rows::Tree(tree) => {
             scratch.clear();
@@ -174,6 +184,10 @@ pub(crate) fn materialize(rows: &Rows<'_>, into: &mut Table, scratch: &mut Vec<V
             push_row(into, row);
         }
     }
+    tracing::trace!(target: "ryo::diagnostic::selection", event = "materialized",
+        rows = into.count.0, columns = into.kinds.len(),
+        cell_bytes = into.cells.len().saturating_mul(size_of::<ryo_language::domain::relations::types::Value>()),
+        capacity_bytes = into.cells.capacity().saturating_mul(size_of::<ryo_language::domain::relations::types::Value>()));
 }
 
 /// The cells of `row` that `on` names, written into `key`, whose room is reused.
@@ -330,6 +344,94 @@ fn stored_cell(view: ColumnsView<'_>, row: RowIndex, column: ColumnIndex) -> Opt
     let kind = view.kinds.get(place)?;
     let bits = view.columns.get(place)?.0.get(row.0)?;
     Some(from_bits(*kind, Bits(*bits)))
+}
+
+/// Decode one logical compact-view cell directly from its physical provider column.
+fn selected_cell(
+    view: &super::types::SelectedRows<'_>,
+    row: RowIndex,
+    column: ColumnIndex,
+) -> Option<Value> {
+    let physical = RowIndex(usize::try_from(*view.selection.rows.get(row.0)?).ok()?);
+    stored_cell(
+        view.source,
+        physical,
+        *view.selection.columns.get(column.0 as usize)?,
+    )
+}
+
+/// Index only projected keys of a compact population, preserving logical duplicate row positions.
+pub(crate) fn index_selected(
+    view: &super::types::SelectedRows<'_>,
+    columns: &[ColumnIndex],
+    order: &mut KeyIndex,
+) -> Result<(), TableModelError> {
+    check_columns(&view.selection.kinds, columns)?;
+    order.rows.clear();
+    order
+        .rows
+        .extend(positions(RowCount(view.selection.rows.len())));
+    order.hashes.clear();
+    order.hashes.extend(order.rows.iter().map(|row| {
+        columns.iter().fold(KeyCellsHash(0), |hash, column| {
+            mix(
+                hash,
+                selected_cell(view, *row, *column).map_or(HashWord(0), |value| word_of(&value)),
+            )
+        })
+    }));
+    chain(order, view.selection.rows.len());
+    Ok(())
+}
+
+/// Exact typed key comparison after hashing; every duplicate selected position is returned in order.
+pub(crate) fn matching_selected<'a>(
+    view: &'a super::types::SelectedRows<'_>,
+    columns: &'a [ColumnIndex],
+    order: &'a KeyIndex,
+    key: &'a [Value],
+) -> impl Iterator<Item = RowIndex> + 'a {
+    let hash = hash_key(key.iter().map(Some));
+    let bucket = usize::try_from(hash.0).unwrap_or(0) & order.heads.len().saturating_sub(1);
+    let mut at = order.heads.get(bucket).copied().unwrap_or(ChainLink(0));
+    std::iter::from_fn(move || {
+        while at.0 != 0 {
+            let position = usize::try_from(at.0 - 1).unwrap_or(usize::MAX);
+            at = order.next.get(position).copied().unwrap_or(ChainLink(0));
+            if order.hashes.get(position) == Some(&hash)
+                && columns.iter().zip(key).all(|(column, value)| {
+                    selected_cell(view, RowIndex(position), *column) == Some(*value)
+                })
+            {
+                return order.rows.get(position).copied();
+            }
+        }
+        None
+    })
+}
+
+/// Decode only the requested joined cells, without a full-width intermediate RHS row.
+pub(crate) fn joined_selected(
+    view: &super::types::SelectedRows<'_>,
+    row: RowIndex,
+    left: &[Value],
+    output: &[ryo_values::domain::plan_parts::types::JoinColumn],
+    into: &mut Vec<Value>,
+) -> Result<(), TableModelError> {
+    use ryo_values::domain::plan_parts::types::Side;
+    into.clear();
+    for column in output {
+        let value = match column.side {
+            Side::Left => cell(left, column.column)?,
+            Side::Right => {
+                selected_cell(view, row, column.column).ok_or(TableModelError::NoSuchColumn {
+                    index: column.column.0,
+                })?
+            }
+        };
+        into.push(value);
+    }
+    Ok(())
 }
 
 /// Index only the typed key cells of a rectangular stored relation, retaining original row IDs.

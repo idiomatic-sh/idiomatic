@@ -12,6 +12,7 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::{Emit, InputPlace, OperatorContext};
 use crate::domain::operator::service::operate;
 use crate::domain::operator::types::{PlanIdentity, Pool, RowsFed, StepPlace, TreeSteps};
+use crate::domain::pipeline::types::compact::value::CompactInput;
 use crate::domain::pipeline::types::{LoweredTree, Stepper};
 use crate::domain::positions::types::Readiness;
 use crate::domain::replay::service::scan;
@@ -203,6 +204,14 @@ where
         return outcome;
     }
     let operation = &plan.steps.get(id).ok_or(OperatingError::NotRun)?.operation;
+    if stepper.counting == Counting::DoesNotCount
+        && let Some(rows) = CompactInput::new(stepper).selected(StepPlace(id), context)?
+    {
+        let mut buffer = stepper.spare.pop().unwrap_or_default();
+        let result = scan(&rows, &mut buffer, context, emit);
+        stepper.spare.push(buffer);
+        return result;
+    }
     let mut room = stepper
         .rooms
         .get_mut(id)
@@ -263,8 +272,9 @@ where
     if stepper.layout.kept.0.get(id.0) == Some(&true) {
         let id = id.0;
         let table = stepper.done.get(id).ok_or(OperatingError::NotRun)?;
+        let rows = CompactInput::new(stepper).kept(id, table)?;
         let mut buffer = stepper.spare.pop().unwrap_or_default();
-        let outcome = scan(&Rows::Computed(table), &mut buffer, context, emit);
+        let outcome = scan(&rows, &mut buffer, context, emit);
         stepper.spare.push(buffer);
         outcome
     } else {
@@ -323,9 +333,13 @@ where
         Input::Step(id) => {
             let id = usize::try_from(id.0).unwrap_or(usize::MAX);
             if stepper.layout.kept.0.get(id) == Some(&true) {
-                return Ok(Rows::Computed(
-                    stepper.done.get(id).ok_or(OperatingError::NotRun)?,
-                ));
+                let table = stepper.done.get(id).ok_or(OperatingError::NotRun)?;
+                return CompactInput::new(stepper).kept(id, table);
+            }
+            if stepper.counting == Counting::DoesNotCount
+                && let Some(rows) = CompactInput::new(stepper).selected(StepPlace(id), context)?
+            {
+                return Ok(rows);
             }
             let kinds = stepper.layout.kinds.get(id).ok_or(OperatingError::NotRun)?;
             reset(into, kinds);
@@ -378,8 +392,23 @@ pub(crate) fn evaluate_file<'f>(
     if pool.rooms.len() < plan.steps.len() {
         pool.rooms.resize_with(plan.steps.len(), || None);
     }
+    if pool.selected.len() < plan.steps.len() {
+        pool.selected.resize_with(plan.steps.len(), || None);
+    }
+    pool.selected.iter_mut().for_each(|slot| *slot = None);
+    pool.frontier_pending.clear();
+    pool.frontier_pending.resize(pool.frontier.len(), false);
+    for pending in pool.frontier_pending.iter_mut().take(plan.frontier.len()) {
+        *pending = true;
+    }
+    let selectors = pool
+        .selection_plans
+        .iter()
+        .find(|prepared| prepared.identity.0 == identity.0)
+        .map_or(&[][..], |prepared| prepared.steps.as_slice());
     let Pool {
         steps,
+        selected,
         frontier,
         rooms,
         layouts,
@@ -389,6 +418,7 @@ pub(crate) fn evaluate_file<'f>(
         counting,
         partial,
         fed,
+        ..
     } = pool;
     made.ready.clear();
     made.ready.resize(plan.steps.len(), Readiness::NotMade);
@@ -421,6 +451,8 @@ pub(crate) fn evaluate_file<'f>(
             plan,
             read: &read,
             done: before,
+            selected: &selected[..index],
+            selectors,
             rooms,
             spare,
             layout,
@@ -431,6 +463,13 @@ pub(crate) fn evaluate_file<'f>(
             fed: &mut *plan_fed,
             counting: *counting,
         };
+        if *counting == Counting::DoesNotCount
+            && let Some(Rows::Selected(rows)) =
+                CompactInput::new(&stepper).selected(StepPlace(index), context)?
+        {
+            selected[index] = Some(rows.selection);
+            continue;
+        }
         pass_on(
             &mut stepper,
             StepPlace(index),
@@ -438,7 +477,28 @@ pub(crate) fn evaluate_file<'f>(
             &mut Collect(target),
         )?;
     }
-    hand_over(plan, steps, &read, context, frontier)
+    hand_over(plan, steps, selected, &read, context, frontier)?;
+    // The exported/rendered table is the materialization boundary; intermediate kept steps stay compact.
+    if let Some(selection) = usize::try_from(plan.emit.step.0)
+        .ok()
+        .and_then(|index| selected.get(index))
+        .and_then(Option::as_ref)
+    {
+        let Rows::Stored(source) = read(selection.relation)? else {
+            return Err(OperatingError::WrongOperation);
+        };
+        if let Some(target) = steps.get_mut(plan.emit.step.0 as usize) {
+            materialize(
+                &Rows::Selected(crate::domain::table_model::types::SelectedRows {
+                    source,
+                    selection: std::sync::Arc::clone(selection),
+                }),
+                target,
+                &mut context.scratch.row,
+            );
+        }
+    }
+    Ok(())
 }
 
 /// The inputs the cross-file steps are handed, into `frontier`: a relation's rows of the file, or a per-file step's table.
@@ -449,6 +509,7 @@ pub(crate) fn evaluate_file<'f>(
 fn hand_over<'f>(
     plan: &Plan,
     steps: &[Table],
+    selected: &[Option<std::sync::Arc<crate::domain::table_model::types::StoredSelection>>],
     read: &dyn Fn(Relation) -> Result<Rows<'f>, OperatingError>,
     context: &mut OperatorContext<'_>,
     frontier: &mut [Table],
@@ -459,6 +520,20 @@ fn hand_over<'f>(
                 materialize(&read(*relation)?, into, &mut context.scratch.row);
             }
             Input::Step(id) => {
+                if let Some(selection) = selected.get(id.0 as usize).and_then(Option::as_ref) {
+                    let Rows::Stored(source) = read(selection.relation)? else {
+                        return Err(OperatingError::WrongOperation);
+                    };
+                    materialize(
+                        &Rows::Selected(crate::domain::table_model::types::SelectedRows {
+                            source,
+                            selection: std::sync::Arc::clone(selection),
+                        }),
+                        into,
+                        &mut context.scratch.row,
+                    );
+                    continue;
+                }
                 let table = steps
                     .get(usize::try_from(id.0).unwrap_or(usize::MAX))
                     .ok_or(OperatingError::NotRun)?;
