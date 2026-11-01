@@ -1,4 +1,3 @@
-
 [[cases]]
 name = "first-future"
 comparison = "full"
@@ -112,3 +111,45 @@ name = "multiline-parent-noqa"
 comparison = "full"
 files = { "case.py" = "x = 1\nfrom __future__ import (  # noqa: F404\n    annotations,\n)\n" }
 expected = []
+
+[[cases]]
+name = "relative-future-after-statement"
+comparison = "full"
+files = { "case.py" = "x=1\nfrom .__future__ import annotations\n" }
+expected = [{ rule = "F404", file = "case.py", start = 4, end = 39 }]
+
+[[cases]]
+name = "nested-relative-future"
+comparison = "full"
+files = { "case.py" = "def f():\n    from .__future__ import annotations\n" }
+expected = [{ rule = "F404", file = "case.py", start = 13, end = 48 }]
+
+[[cases]]
+name = "relative-then-absolute-before-boundary"
+comparison = "full"
+files = { "case.py" = "from .__future__ import annotations\nfrom __future__ import division\n" }
+expected = []
+
+[[cases]]
+name = "multi-code-inline-noqa"
+comparison = "full"
+files = { "case.py" = "x=1\nfrom __future__ import annotations # noqa: F401, F404\n" }
+expected = []
+
+[[cases]]
+name = "multiline-import-inline-noqa"
+comparison = "full"
+files = { "case.py" = "x=1\nfrom __future__ import ( # noqa: F401, F404\n    annotations,\n)\n" }
+expected = []
+
+[[cases]]
+name = "relative-future-permutation"
+comparison = "full"
+files = { "case.py" = "from .__future__ import annotations\nfrom .__future__ import division\n" }
+expected = []
+
+[[cases]]
+name = "nfkc-future-module-after-statement"
+comparison = "full"
+files = { "case.py" = "x=1\nfrom __ｆｕｔｕｒｅ__ import annotations\n" }
+expected = [{ rule = "F404", file = "case.py", start = 4, end = 50 }]

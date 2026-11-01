@@ -1,4 +1,3 @@
-
 [[cases]]
 name = "known-feature"
 comparison = "full"
@@ -70,3 +69,69 @@ name = "nfkc-unknown-feature"
 comparison = "full"
 files = { "case.py" = "from __future__ import ｎｏｐｅ\n" }
 expected = [{ rule = "F407", file = "case.py", start = 23, end = 35 }]
+
+[[cases]]
+name = "relative-known-feature"
+comparison = "full"
+files = { "case.py" = "from .__future__ import annotations\n" }
+expected = []
+
+[[cases]]
+name = "relative-braces"
+comparison = "full"
+files = { "case.py" = "from .__future__ import braces\n" }
+expected = [{ rule = "F407", file = "case.py", start = 24, end = 30 }]
+
+[[cases]]
+name = "relative-wildcard"
+comparison = "full"
+files = { "case.py" = "from .__future__ import *\n" }
+expected = [{ rule = "F407", file = "case.py", start = 24, end = 25 }]
+
+[[cases]]
+name = "relative-aliased-feature"
+comparison = "full"
+files = { "case.py" = "from .__future__ import no_such_feature as alias\n" }
+expected = [{ rule = "F407", file = "case.py", start = 24, end = 48 }]
+
+[[cases]]
+name = "relative-nfkc-unknown"
+comparison = "full"
+files = { "case.py" = "from .__future__ import ｎｏｐｅ\n" }
+expected = [{ rule = "F407", file = "case.py", start = 24, end = 36 }]
+
+[[cases]]
+name = "relative-known-nfkc"
+comparison = "full"
+files = { "case.py" = "from .__future__ import ａｎｎｏｔａｔｉｏｎｓ\n" }
+expected = []
+
+[[cases]]
+name = "nested-relative-unknown"
+comparison = "full"
+files = { "case.py" = "def f():\n    from .__future__ import no_such_feature\n" }
+expected = [{ rule = "F407", file = "case.py", start = 37, end = 52 }]
+
+[[cases]]
+name = "multiple-relative-unknown"
+comparison = "full"
+files = { "case.py" = "from .__future__ import no_such_feature, other_missing\n" }
+expected = [{ rule = "F407", file = "case.py", start = 24, end = 39 }, { rule = "F407", file = "case.py", start = 41, end = 54 }]
+
+[[cases]]
+name = "nfkc-future-module-unknown-feature"
+comparison = "full"
+files = { "case.py" = "from __ｆｕｔｕｒｅ__ import no_such_feature\n" }
+expected = [{ rule = "F407", file = "case.py", start = 35, end = 50 }]
+
+[[cases]]
+name = "relative-inline-noqa"
+comparison = "full"
+files = { "case.py" = "from .__future__ import missing_feature  # noqa: F407\n" }
+expected = []
+
+[[cases]]
+name = "relative-file-noqa"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa: F407\nfrom .__future__ import missing_feature\n" }
+expected = []
