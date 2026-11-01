@@ -59,6 +59,7 @@ def main() -> int:
             parser.error(f"prepared input hash mismatch: {relative}")
 
     ruff = arguments.ruff.resolve()
+    statuses = []
     for rule in selected:
         profile = PROFILE_DIR / rule / "benchmark.toml"
         profile_data = tomllib.loads(profile.read_text(encoding="utf-8"))
@@ -91,23 +92,34 @@ def main() -> int:
                 destination / "rules" / rule / "query.ryoql",
             )
             shutil.copyfile(cases_path, destination / "rules" / rule / "cases.toml")
-            subprocess.run(
-                [
-                    "cargo",
-                    "bench",
-                    "--locked",
-                    "-p",
-                    "idiomatic-sh-ryo-python",
-                    "--bench",
-                    "ruff",
-                    "--",
-                    "verify-cases",
-                    str(ruff),
-                    str(destination),
-                ],
-                cwd=REPOSITORY / "crates" / "ryo",
-                check=True,
-            )
+            try:
+                result = subprocess.run(
+                    [
+                        "cargo",
+                        "bench",
+                        "--locked",
+                        "-p",
+                        "idiomatic-sh-ryo-python",
+                        "--bench",
+                        "ruff",
+                        "--",
+                        "verify-cases",
+                        str(ruff),
+                        str(destination),
+                    ],
+                    cwd=REPOSITORY / "crates" / "ryo",
+                    check=False,
+                )
+                status = result.returncode
+            except OSError as error:
+                print(f"{rule}: could not start verifier: {error}", file=sys.stderr)
+                status = 1
+            print(f"{rule}: verifier exit status {status}", file=sys.stderr)
+            statuses.append((rule, status))
+    failed = [rule for rule, status in statuses if status != 0]
+    if failed:
+        print(f"candidate profiles failed: {', '.join(failed)}", file=sys.stderr)
+        return 1
     return 0
 
 

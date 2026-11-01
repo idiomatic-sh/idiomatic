@@ -231,6 +231,6 @@
     "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/F841/benchmark.toml": "27d8973057b5e62775e73b8cd817c275cac15bd540114e848f572f4b9bbcf957",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/F841/candidate.ryoql": "892229f93af9652b57cb15677c484721aef11ece0225b2b923a0a7689a7fb569",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/F841/cases.toml": "e1368fd5b911f109a1c2ff21e51292dec31c80bc140f9f32386860af708876fb",
-    "crates/ryo/languages/python/benchmarks/linters/ruff/verify_profiles.py": "e20a5b0efba33f4a2c3db89c43fbb13adae83db3c1cb24367fc557471dfb0ee7"
+    "crates/ryo/languages/python/benchmarks/linters/ruff/verify_profiles.py": "d06502b497f9245b32ccdad3537d9ace1cbd76d1d5024a4017503763f3f188e7"
   }
 }
