@@ -354,12 +354,21 @@ fn stream_lookup(
         right: built,
         ..
     } = scratch;
-    let looked_up = table_in(right, built, row);
     let mut indexed = false;
     ins.stream(
         InputPlace(0),
         context,
         &mut Pipe(|each: &mut OperatorContext<'_>, left_row: &[Value]| {
+            let looked_up = match right {
+                Rows::Computed(table) => table,
+                _ if indexed => &*built,
+                _ => {
+                    let table = table_in(right, built, row);
+                    index(table, On::Columns(right_on), order)?;
+                    indexed = true;
+                    table
+                }
+            };
             if !indexed {
                 index(looked_up, On::Columns(right_on), order)?;
                 indexed = true;

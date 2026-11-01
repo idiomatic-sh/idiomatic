@@ -4,9 +4,10 @@ use ryo_language::domain::completion::service::{completion, name_kind};
 use ryo_language::domain::elements::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::kind_index::service::index_kinds;
-use ryo_language::domain::relations::service::node_id;
+use ryo_language::domain::relations::service::{node_id, to_bits};
 use ryo_language::domain::relations::types::{
-    CellKind, FileId, Integer, KindBits, Offset, Position, Relation, Span, Value as Cell,
+    CellKind, ColumnsView, FactColumn, FileId, Integer, KindBits, Offset, Position, Relation, Span,
+    Value as Cell,
 };
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
 use ryo_language::domain::terms::types::NameText;
@@ -16,10 +17,10 @@ use super::super::interface::OperatorsItem as _;
 use super::item::JoinItem;
 use crate::cases::{Case, CaseName, Expect, Word, run, selects};
 use crate::domain::operating::errors::OperatingError;
-use crate::domain::operating::types::OperatorContext;
+use crate::domain::operating::types::{Emit, Feed, InputPlace, OperatorContext, Room, Supply};
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
-use crate::domain::table_model::service::push_row;
-use crate::domain::table_model::types::{Rows, Table};
+use crate::domain::table_model::service::{kinds_of, push_row, row_in};
+use crate::domain::table_model::types::{RowCount, Rows, Table};
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
 use ryo_values::domain::plan_parts::types::{
@@ -34,6 +35,7 @@ type Failure = OperatingError;
 type Input = fn() -> Result<Value, OperatingError>;
 
 const FROM: PlanInput = PlanInput::Relation(Relation::Function);
+const NUMBER_PAIR_KINDS: &[CellKind] = &[CellKind::Number, CellKind::Number];
 
 fn node(position: u32) -> Cell {
     Cell::Node(node_id(FileId(0), Position(position)))
@@ -287,6 +289,252 @@ fn joins_without_the_right_input() -> Result<Value, OperatingError> {
     counted(&left, None)
 }
 
+struct ControlledFeed<'a> {
+    left: &'a Table,
+    right: Rows<'a>,
+    right_holds: usize,
+    left_fails: bool,
+    right_fails: bool,
+}
+
+impl<'f> Feed<'f> for ControlledFeed<'f> {
+    fn kinds(&self, which: InputPlace) -> Result<&[CellKind], OperatingError> {
+        match which {
+            InputPlace(0) => Ok(&self.left.kinds),
+            InputPlace(1) => Ok(kinds_of(&self.right)),
+            _ => Err(OperatingError::MissingInput {
+                position: which.0 + 1,
+            }),
+        }
+    }
+
+    fn streams(&self, which: InputPlace) -> Supply {
+        match which {
+            InputPlace(0) => Supply::Streamed,
+            _ => Supply::AtHand,
+        }
+    }
+
+    fn stream(
+        &mut self,
+        which: InputPlace,
+        context: &mut OperatorContext<'_>,
+        emit: &mut dyn Emit,
+    ) -> Result<(), OperatingError> {
+        if which != InputPlace(0) {
+            return Err(OperatingError::WrongOperation);
+        }
+        if self.left_fails {
+            return Err(OperatingError::NotRun);
+        }
+        for position in 0..self.left.count.0 {
+            let Some(row) = row_in(
+                self.left,
+                crate::domain::table_cells::types::RowIndex(position),
+            ) else {
+                continue;
+            };
+            emit.row(context, row)?;
+        }
+        Ok(())
+    }
+
+    fn found(&mut self, _which: InputPlace, _rows: RowCount) {}
+
+    fn hold<'t>(
+        &mut self,
+        which: InputPlace,
+        _context: &mut OperatorContext<'_>,
+        _into: &'t mut Table,
+    ) -> Result<Rows<'t>, OperatingError>
+    where
+        'f: 't,
+    {
+        if which != InputPlace(1) {
+            return Err(OperatingError::WrongOperation);
+        }
+        self.right_holds += 1;
+        if self.right_fails {
+            return Err(OperatingError::NotRead);
+        }
+        Ok(self.right)
+    }
+}
+
+#[derive(Default)]
+struct CollectedRows {
+    rows: Vec<Vec<Cell>>,
+    fails: bool,
+}
+
+impl Emit for CollectedRows {
+    fn row(
+        &mut self,
+        _context: &mut OperatorContext<'_>,
+        row: &[Cell],
+    ) -> Result<(), OperatingError> {
+        if self.fails {
+            return Err(OperatingError::NotRun);
+        }
+        self.rows.push(row.to_vec());
+        Ok(())
+    }
+}
+
+fn fact_column(values: &[i64]) -> FactColumn {
+    FactColumn(
+        values
+            .iter()
+            .map(|value| to_bits(Cell::Number(Integer(*value))).0)
+            .collect(),
+    )
+}
+
+fn stream_lookup(
+    room: &mut Room,
+    left: &Table,
+    right: Rows<'_>,
+    left_fails: bool,
+    right_fails: bool,
+    emit_fails: bool,
+) -> Result<(Vec<Vec<Cell>>, usize), OperatingError> {
+    let operation = plan(&[0], &[0], &[(Side::Right, 1)], Vec::new(), &[]);
+    let mut feed = ControlledFeed {
+        left,
+        right,
+        right_holds: 0,
+        left_fails,
+        right_fails,
+    };
+    let mut emitted = CollectedRows {
+        fails: emit_fails,
+        ..CollectedRows::default()
+    };
+    let mut symbols = Symbols::default();
+    let mut memo = Vec::new();
+    let mut scratch = OperatorScratch::default();
+    let mut context = OperatorContext {
+        bindings: &[],
+        symbols: &mut symbols,
+        source: SourceView(&[]),
+        paths: &[],
+        arenas: &[],
+        memo: &mut memo,
+        scratch: &mut scratch,
+    };
+    JoinItem.stream(&operation, &mut feed, &mut context, room, &mut emitted)?;
+    Ok((emitted.rows, feed.right_holds))
+}
+
+fn empty_left_does_not_materialize_stored_right() -> Result<Value, OperatingError> {
+    let left = table_of(&[CellKind::Number], &[]);
+    for size in [1_i64, 1024] {
+        let values: Vec<_> = (0..size).collect();
+        let columns = [fact_column(&values), fact_column(&values)];
+        let right = Rows::Stored(ColumnsView {
+            kinds: NUMBER_PAIR_KINDS,
+            columns: &columns,
+        });
+        let mut room = Room::default();
+        let (rows, holds) = stream_lookup(&mut room, &left, right, false, false, false)?;
+        if !rows.is_empty() || holds != 1 || room.scratch.right != Table::default() {
+            return Ok(0);
+        }
+    }
+    Ok(1)
+}
+
+fn empty_left_still_refuses_unread_right() -> Result<Value, OperatingError> {
+    let left = table_of(&[CellKind::Number], &[]);
+    let right = table_of(&[CellKind::Number, CellKind::Number], &[]);
+    let mut room = Room::default();
+    let _held = stream_lookup(&mut room, &left, Rows::Computed(&right), false, true, false)?;
+    Ok(1)
+}
+
+fn duplicate_unsorted_right_rows_keep_their_order() -> Result<Value, OperatingError> {
+    let number = |value| Cell::Number(Integer(value));
+    let left = table_of(&[CellKind::Number], &[&[number(2)]]);
+    let columns = [fact_column(&[2, 1, 2, 2]), fact_column(&[20, 10, 21, 22])];
+    let right = Rows::Stored(ColumnsView {
+        kinds: NUMBER_PAIR_KINDS,
+        columns: &columns,
+    });
+    let mut room = Room::default();
+    let (rows, holds) = stream_lookup(&mut room, &left, right, false, false, false)?;
+    let expected = [vec![number(20)], vec![number(21)], vec![number(22)]];
+    Ok(Value::from(rows == expected && holds == 1))
+}
+
+fn a_reused_room_skips_then_replaces_its_right_table() -> Result<Value, OperatingError> {
+    let number = |value| Cell::Number(Integer(value));
+    let first_left = table_of(&[CellKind::Number], &[&[number(1)]]);
+    let empty_left = table_of(&[CellKind::Number], &[]);
+    let last_left = table_of(&[CellKind::Number], &[&[number(1)]]);
+    let first_columns = [fact_column(&[1, 1]), fact_column(&[11, 12])];
+    let middle_columns = [fact_column(&[1]), fact_column(&[99])];
+    let last_columns = [fact_column(&[1]), fact_column(&[31])];
+    let first_right = Rows::Stored(ColumnsView {
+        kinds: NUMBER_PAIR_KINDS,
+        columns: &first_columns,
+    });
+    let middle_right = Rows::Stored(ColumnsView {
+        kinds: NUMBER_PAIR_KINDS,
+        columns: &middle_columns,
+    });
+    let last_right = Rows::Stored(ColumnsView {
+        kinds: NUMBER_PAIR_KINDS,
+        columns: &last_columns,
+    });
+    let mut room = Room::default();
+    let first = stream_lookup(&mut room, &first_left, first_right, false, false, false)?.0;
+    let retained = room.scratch.right.clone();
+    let skipped = stream_lookup(&mut room, &empty_left, middle_right, false, false, false)?.0;
+    let unchanged = room.scratch.right == retained;
+    let last = stream_lookup(&mut room, &last_left, last_right, false, false, false)?.0;
+    Ok(Value::from(
+        first == [vec![number(11)], vec![number(12)]]
+            && skipped.is_empty()
+            && unchanged
+            && last == [vec![number(31)]],
+    ))
+}
+
+fn a_left_failure_before_its_first_row_does_not_materialize_the_right()
+-> Result<Value, OperatingError> {
+    let left = table_of(&[CellKind::Number], &[]);
+    let values: Vec<_> = (0..1024).collect();
+    let columns = [fact_column(&values), fact_column(&values)];
+    let right = Rows::Stored(ColumnsView {
+        kinds: NUMBER_PAIR_KINDS,
+        columns: &columns,
+    });
+    let mut room = Room::default();
+    let result = stream_lookup(&mut room, &left, right, true, false, false);
+    if room.scratch.right.count == RowCount(0) && room.scratch.right.cells.is_empty() {
+        result.map(|_| 1)
+    } else {
+        Ok(0)
+    }
+}
+
+fn an_emit_failure_propagates_after_the_right_is_indexed() -> Result<Value, OperatingError> {
+    let number = Cell::Number(Integer(1));
+    let left = table_of(&[CellKind::Number], &[&[number]]);
+    let columns = [fact_column(&[1]), fact_column(&[10])];
+    let right = Rows::Stored(ColumnsView {
+        kinds: NUMBER_PAIR_KINDS,
+        columns: &columns,
+    });
+    let mut room = Room::default();
+    let result = stream_lookup(&mut room, &left, right, false, false, true);
+    if room.scratch.right.count == RowCount(1) {
+        result.map(|_| 1)
+    } else {
+        Ok(0)
+    }
+}
+
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
@@ -350,6 +598,42 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Refusal(|error| {
             selects(matches!(error, OperatingError::MissingInput { .. }))
         }),
+    },
+    Case {
+        name: CaseName("an_empty_streamed_left_leaves_the_stored_right_unmaterialized"),
+        word: Word::Succeeds,
+        input: || empty_left_does_not_materialize_stored_right,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("an_empty_left_still_holds_and_refuses_an_unread_right"),
+        word: Word::Refuses,
+        input: || empty_left_still_refuses_unread_right,
+        expect: Expect::Refusal(|error| selects(matches!(error, OperatingError::NotRead))),
+    },
+    Case {
+        name: CaseName("unsorted_duplicate_stored_rows_keep_their_order"),
+        word: Word::Succeeds,
+        input: || duplicate_unsorted_right_rows_keep_their_order,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("a_reused_room_skips_empty_then_uses_the_next_right"),
+        word: Word::Succeeds,
+        input: || a_reused_room_skips_then_replaces_its_right_table,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("a_left_failure_before_the_first_row_does_not_materialize_the_right"),
+        word: Word::Refuses,
+        input: || a_left_failure_before_its_first_row_does_not_materialize_the_right,
+        expect: Expect::Refusal(|error| selects(matches!(error, OperatingError::NotRun))),
+    },
+    Case {
+        name: CaseName("an_emit_failure_after_the_first_row_propagates"),
+        word: Word::Refuses,
+        input: || an_emit_failure_propagates_after_the_right_is_indexed,
+        expect: Expect::Refusal(|error| selects(matches!(error, OperatingError::NotRun))),
     },
 ];
 
