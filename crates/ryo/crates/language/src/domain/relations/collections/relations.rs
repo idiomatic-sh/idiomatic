@@ -53,6 +53,8 @@ pub mod embedded_expression;
 pub mod binding_event;
 /// Structural expression identity.
 pub mod expression_shape;
+/// Decoded literal fragments of interpolated strings.
+pub mod interpolated_string_literal;
 /// Typed primitive literal properties.
 pub mod literal_properties;
 

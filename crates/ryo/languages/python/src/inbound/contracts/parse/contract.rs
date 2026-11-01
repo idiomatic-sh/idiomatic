@@ -90,6 +90,7 @@ impl Parse for ParseContract {
             languages::OptionalCapability::BindingShadow,
             languages::OptionalCapability::ImplicitSymbol,
             languages::OptionalCapability::LiteralProperties,
+            languages::OptionalCapability::InterpolatedStringLiteral,
             languages::OptionalCapability::ConstantKey,
         ]
     }
@@ -246,6 +247,14 @@ impl Parse for ParseContract {
     fn literal_properties(&self) -> Support<Reader<languages::LiteralProperties, Self::FileModel>> {
         languages::reads::<
             crate::domain::relations::collections::relations::literal_properties::item::LiteralPropertiesItem,
+        >()
+    }
+
+    fn interpolated_string_literal(
+        &self,
+    ) -> Support<Reader<languages::InterpolatedStringLiteral, Self::FileModel>> {
+        languages::reads::<
+            crate::domain::relations::collections::relations::interpolated_string_literal::item::InterpolatedStringLiteralItem,
         >()
     }
 

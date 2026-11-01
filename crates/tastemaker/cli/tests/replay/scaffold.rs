@@ -204,6 +204,7 @@ fn a_fresh_language_compiles_and_lacks_no_part() {
         ("embedded_expression", "EmbeddedExpression"),
         ("expression_shape", "ExpressionShape"),
         ("literal_properties", "LiteralProperties"),
+        ("interpolated_string_literal", "InterpolatedStringLiteral"),
         ("implicit_symbol", "ImplicitSymbol"),
         ("binding_event", "BindingEvent"),
         ("binding_read", "BindingRead"),

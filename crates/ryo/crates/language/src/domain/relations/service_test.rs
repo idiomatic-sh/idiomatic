@@ -185,6 +185,7 @@ fn optional_promises_are_closed() -> usize {
         OptionalCapability::BindingShadow,
         OptionalCapability::ImplicitSymbol,
         OptionalCapability::LiteralProperties,
+        OptionalCapability::InterpolatedStringLiteral,
         OptionalCapability::ConstantKey,
     ];
     capabilities

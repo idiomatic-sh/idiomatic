@@ -167,5 +167,6 @@ pub const OPTIONAL_CAPABILITIES: &[super::types::OptionalCapability] = &[
     super::types::OptionalCapability::BindingShadow,
     super::types::OptionalCapability::ImplicitSymbol,
     super::types::OptionalCapability::LiteralProperties,
+    super::types::OptionalCapability::InterpolatedStringLiteral,
     super::types::OptionalCapability::ConstantKey,
 ];

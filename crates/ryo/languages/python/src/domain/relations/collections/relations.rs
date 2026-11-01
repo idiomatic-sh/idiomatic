@@ -55,4 +55,5 @@ pub(crate) mod binding_shadow;
 pub(crate) mod constant_key;
 /// Optional builtin inventory independent of Name expressions.
 pub(crate) mod implicit_symbol;
+pub(crate) mod interpolated_string_literal;
 pub(crate) mod literal_properties;

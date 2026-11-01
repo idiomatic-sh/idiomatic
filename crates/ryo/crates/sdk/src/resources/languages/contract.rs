@@ -32,6 +32,7 @@ pub use ryo_language::inbound::use_cases::parse::fixtures::expected_rows::{
     filesystem_line_count::FilesystemLineCountExpectedRow, function::FunctionExpectedRow,
     identifier::IdentifierExpectedRow, implicit_symbol::ImplicitSymbolExpectedRow,
     indent_region::IndentRegionExpectedRow, inherits::InheritsExpectedRow,
+    interpolated_string_literal::InterpolatedStringLiteralExpectedRow,
     literal_properties::LiteralPropertiesExpectedRow, mapping::MappingExpectedRow,
     mention::MentionExpectedRow, package_dependency::PackageDependencyExpectedRow,
     parameter::ParameterExpectedRow, prose::ProseExpectedRow,
