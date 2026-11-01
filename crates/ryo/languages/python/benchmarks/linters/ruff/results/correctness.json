@@ -1,7 +1,23 @@
 {
-  "status": "54-rule corpus comparison passed; configured lint/check/perf gate failed",
+  "status": "latest 205-rule current-canonical full-report comparison failed; prior corpus and timing evidence remains historical",
+  "current_summary": {
+    "profile": "current-canonical",
+    "target_version": "python-target=3.10",
+    "selected_rules": 205,
+    "cases": 3641,
+    "worker_sha256": "4d15cfba326c826bbf19650d2caac921718006b20fab2a37da9bde10a7c22933",
+    "case_results": {
+      "matched_full_report": 2210,
+      "full_report_mismatch": 1427,
+      "incomplete_or_error": 4,
+      "exactly_once_across_shards": true
+    },
+    "public_evidence": "results/current-canonical-2026-11-01/",
+    "promotion": "not accepted; the aggregate has widespread cross-rule mismatches and four incomplete UP025 malformed-prefix cases",
+    "performance": "no current Rust performance result"
+  },
   "candidate_acceptance_checkpoint": {
-    "status": "unpromoted; current shared-verifier execution pending",
+    "status": "historical unpromoted checkpoint; superseded by current_summary, whose 205-rule run failed",
     "prepared_profiles": 24,
     "combined_profile": {
       "name": "shape-110",
@@ -6506,11 +6522,11 @@
     "status": "integrated source and focused tests; remote compile, provider contracts, SDK API and replay validation pending",
     "measured_rules_changed": false
   },
-  "current_prepared_profile_checkpoint": {
+  "historical_prepared_profile_checkpoint_at_2bf9a7e2": {
     "source_commit": "2bf9a7e2b754d5c3f84aaa34b04b3032087d0300",
     "prepared_single_profiles": 109,
     "historical_combined_profiles": 2,
-    "current_canonical_combined_validation": "pending; historical combined snapshots are unchanged and their known failures are retained separately",
+    "current_canonical_combined_validation": "superseded by current_canonical_205_2026_11_01 below; that full-report comparison failed and is preserved separately",
     "new_profile_fixture_evidence": {
       "worker_sha256": "f2031bff09e99614828375dfe9d53cdda1185bef46165bf96627da67f66a8b88",
       "status": "separate frozen-worker full-report passes per profile; not current-engine, combined-profile, corpus-parity, or promotion evidence",
@@ -6595,5 +6611,164 @@
     "worker_sha256": "b77fd2e85c711ba70469586f4fc960427b8d9c22047e9984dcbf7dfc9ab6fa05",
     "reference_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
     "completed_cases_claimed": 0
+  },
+  "candidate_source_batches": {
+    "percent_format_2026_11_01": {
+      "status": "isolated_candidate_profiles_passed_on_frozen_current_engine_worker; combined-profile proof pending",
+      "rules": [
+        "F501",
+        "F502",
+        "F503",
+        "F504",
+        "F505",
+        "F506",
+        "F508",
+        "F509",
+        "PLE1205",
+        "PLE1206"
+      ],
+      "profiles": 10,
+      "cases": 91,
+      "reference": "Ruff 0.16.5 PY310 with UTF-8 byte-span conversion",
+      "oracle_sha256": "6b6cedc9c11045b3dfaf89ebdaeee538f726cc8677341b26a58301e14c9e3448",
+      "format_candidate_commit": "4a0d4c7c64c74f0f14ef0a93d31653144d34727a",
+      "receiver_fixture_commit": "3a08debf0650683812d732ddc56f4133c68a3424",
+      "provider_commit": "0cc44b130165b2bd01d6c96c2c1801aa457feb40",
+      "query_fix_commits": ["43cac51a", "94204a66"],
+      "isolated_worker_sha256": "4d15cfba326c826bbf19650d2caac921718006b20fab2a37da9bde10a7c22933",
+      "isolated_evidence": "/tmp/ruff-percent-query-fix-proof-2026-11-01.json",
+      "isolated_evidence_sha256": "e24013853ea1e7892e6e363e9857aa03749ef798c0ed64f3a316dc3cbe5350e5",
+      "scope": "Each isolated percent-format profile passed its pinned full reports after the query fixes, but the corrected queries were not present in the failed 205-rule combined run."
+    },
+    "immutable_annotations_b006_b008": {
+      "status": "isolated_full_report_pass_on_frozen_worker_not_current_combined_proof",
+      "rules": {
+        "B006": {
+          "cases": 26,
+          "pass": 26
+        },
+        "B008": {
+          "cases": 22,
+          "pass": 22
+        }
+      },
+      "worker_sha256": "1f14c8c053a1d1442634a18d6f968836a7df506f6eea0613f301aa145f8d8a52",
+      "query_commit": "a2f16472cfa8dcdf40750a101ff837975bb7f5de"
+    }
+  },
+  "current_canonical_205_2026_11_01": {
+    "status": "failed_full_report_comparison",
+    "target_version": "python-target=3.10",
+    "selected_rules": 205,
+    "cases": 3641,
+    "worker_sha256": "4d15cfba326c826bbf19650d2caac921718006b20fab2a37da9bde10a7c22933",
+    "prepared_manifest_sha256": "5390addfbc64a2460e63f5d35c0c962c79324dd220db54b5515d130a642a4b6c",
+    "input_inventory_sha256": "e82dd1111e194f87cb6de8c9395ad67439586059f15ed84240e21cd7eddd80b0",
+    "aggregate_receipt": "results/current-canonical-2026-11-01/aggregate.json",
+    "aggregate_sha256": "1ee15afee33a5fa488033a9adba3fe03f712cfe65b71fb9f7fe1c9142c225d23",
+    "case_mismatch_buckets": "results/current-canonical-2026-11-01/mismatch-buckets.json",
+    "shard_receipts": "results/current-canonical-2026-11-01/shards/",
+    "case_mismatch_buckets_sha256": "c095fcd7810ac0aeaa23b410ea3caea264271f62c0f29c25e865db41d04d435b",
+    "case_results": {
+      "exactly_once_across_5_shards": true,
+      "matched_full_report": 2210,
+      "full_report_mismatch": 1427,
+      "incomplete_or_error": 4
+    },
+    "largest_diagnostic_deltas": {
+      "extra": {
+        "B018": 1688,
+        "DTZ007": 285,
+        "RUF059": 69,
+        "PLW0602": 13,
+        "F821": 8,
+        "F841": 7,
+        "F811": 4
+      },
+      "missing": {
+        "B018": 57,
+        "F821": 18,
+        "F811": 17,
+        "F401": 8,
+        "F841": 5,
+        "B030": 4,
+        "PLW0602": 2
+      }
+    },
+    "incomplete_cases": [
+      "UP025/bytes-with-u",
+      "UP025/uppercase-raw",
+      "UP025/raw-ru",
+      "UP025/raw-u"
+    ],
+    "scope": "Current canonical selection and exact full-report case inventory, but failed comparison. This is not a clean correctness certificate, promotion, corpus parity, or performance measurement."
+  },
+  "single_profile_runs_2026_11_01": {
+    "status": "mixed_initial_profile_results_plus_same_worker_query_fix_evidence",
+    "target_version": "python-target=3.10",
+    "worker_sha256": "4d15cfba326c826bbf19650d2caac921718006b20fab2a37da9bde10a7c22933",
+    "initial_batch": {
+      "profiles": 10,
+      "cases": 220,
+      "passed_profiles": 10,
+      "artifact_directory": "/tmp/ruff-current-all-profiles-2026-11-01",
+      "build_identity_sha256": "4d15cfba326c826bbf19650d2caac921718006b20fab2a37da9bde10a7c22933"
+    },
+    "remainder_batch": {
+      "profiles": 111,
+      "case_result_records": 3268,
+      "passed_profiles": 104,
+      "failed_profiles": [
+        "F502",
+        "F504",
+        "F505",
+        "F506",
+        "F508",
+        "PLE1205",
+        "PLE1206"
+      ],
+      "two_query_profiles_failed_before_case_execution": ["PLE1205", "PLE1206"],
+      "artifact_directory": "/tmp/ruff-current-remainder-2026-11-01",
+      "build_identity_sha256": "4d15cfba326c826bbf19650d2caac921718006b20fab2a37da9bde10a7c22933"
+    },
+    "post_fix_percent_profiles": {
+      "profiles": 10,
+      "cases": 91,
+      "passed_profiles": 10,
+      "query_fix_commits": ["43cac51a", "94204a66"],
+      "artifact": "/tmp/ruff-percent-query-fix-proof-2026-11-01.json",
+      "artifact_sha256": "e24013853ea1e7892e6e363e9857aa03749ef798c0ed64f3a316dc3cbe5350e5",
+      "scope": "Focused isolated current-worker evidence for corrected percent-format query sources; not combined-profile evidence."
+    },
+    "reconciliation": "Both original build receipts bind the same immutable worker SHA. The seven failed single-profile records are preserved as pre-fix results; the ten post-fix profile passes are separate records and do not rewrite those earlier outcomes."
+  },
+  "focused_cross_rule_replays_2026_11_01": {
+    "status": "isolated_projections_on_same_frozen_worker; not a replacement for the failed 205-rule report",
+    "worker_sha256": "4d15cfba326c826bbf19650d2caac921718006b20fab2a37da9bde10a7c22933",
+    "target_version": "python-target=3.10",
+    "artifact_directory": "/tmp/ruff-focused-mismatch-replay-2026-11-01",
+    "B018": {
+      "cases": 1164,
+      "passed": 1154,
+      "failed": 10,
+      "query_sha256": "32bcbd411d3d678e9fa8c0002577bf69f23ff12a2814bb4b79b1ae1ee2bbf23b",
+      "cases_sha256": "6208c51696c585b8ec695206c0e1363272e30952406033c233c5de567d027012",
+      "failure_scope": "Five SIM220/SIM221 caller-gate source cases, each present under both owning rules: annotation-before-check, function-local binding, function-in-class binding, nested class binding, and nested lambda binding."
+    },
+    "DTZ007": {
+      "cases": 303,
+      "passed": 303,
+      "failed": 0,
+      "query_sha256": "2b780ce7331989583fd3ce25d53cd980108364de2de8cb957850f76bb256e999",
+      "cases_sha256": "cba9d457c1fa374912064d250045b58528c57dfb13cf1f3727473c97bf9abc48"
+    },
+    "RUF059": {
+      "cases": 44,
+      "passed": 43,
+      "failed": 1,
+      "query_sha256": "553af452174a9160296db08f9fc75611ed9d836109938df8f38bd3eb894767c0",
+      "cases_sha256": "aae8ec1802f324e1d5f5817596d5f67b41e5758b81f4c079331db71d03e7af16",
+      "failure_scope": "Literal tuple-unpacking targets inside a function are incorrectly reported as unused."
+    }
   }
 }
