@@ -13,7 +13,7 @@ use crate::outbound::syntax::interface::SyntaxPort as _;
 use crate::outbound::syntax::types::{PythonSourceKind, SourceText};
 use crate::settings::{PythonParserSettings, PythonTargetVersion};
 use ruff_python_ast::{PySourceType, PythonVersion};
-use ryo::languages::{self, ByteSlice, Elements, Symbols};
+use ryo::languages::{self, ByteSlice, Elements, Symbols, TreeImpact};
 
 #[test]
 fn preserves_async_statement_kinds() {
@@ -66,6 +66,82 @@ fn target_version_syntax_warning_preserves_the_tree() {
 
     let (_py311, supported) = diagnostics_for(PythonTargetVersion::Py311);
     assert!(supported.is_empty());
+}
+
+#[test]
+fn parser_errors_distinguish_complete_tokens_from_lexical_failure() {
+    let impacts = |source: &str| {
+        let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
+        let mut builder =
+            languages::table_builder(&mut elements, &mut symbols, ByteSlice(source.as_bytes()));
+        SyntaxRuffPythonParserAdapter.read(
+            SourceText(source.as_bytes()),
+            PythonSourceKind::Python,
+            &PythonParserSettings::new(PythonTargetVersion::Py310),
+            &mut builder,
+        );
+        let impacts: Vec<_> = languages::diagnostics(&elements)
+            .map(|diagnostic| diagnostic.impact)
+            .collect();
+        (
+            impacts,
+            languages::has_incomplete_syntax(&elements),
+            languages::has_incomplete_lexical_stream(&elements),
+        )
+    };
+
+    for prefix in ["ur", "ru", "UR", "bu"] {
+        let source = format!("value = {prefix}\"text\" # retained comment\n");
+        let (impacts, incomplete_syntax, incomplete_lexical) = impacts(&source);
+        assert!(!impacts.is_empty(), "{prefix} must be rejected for PY310");
+        assert!(
+            impacts
+                .iter()
+                .all(|impact| *impact == TreeImpact::LexicallyComplete),
+            "{prefix}: {impacts:?}"
+        );
+        assert!(incomplete_syntax);
+        assert!(!incomplete_lexical);
+    }
+
+    for source in [
+        "value = 'unterminated\n",
+        "if ready:\n    work(\"unfinished\n",
+    ] {
+        let (impacts, incomplete_syntax, incomplete_lexical) = impacts(source);
+        assert!(!impacts.is_empty(), "source must report a parse error");
+        assert!(incomplete_syntax);
+        assert!(
+            incomplete_lexical,
+            "{source:?} must not certify lexical facts"
+        );
+    }
+}
+
+#[test]
+fn parser_refusal_with_complete_tokens_keeps_lexical_facts_available() {
+    let source = "try:\n    work()\nelse:\n    recover()\n";
+    let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
+    let mut builder =
+        languages::table_builder(&mut elements, &mut symbols, ByteSlice(source.as_bytes()));
+    SyntaxRuffPythonParserAdapter.read(
+        SourceText(source.as_bytes()),
+        PythonSourceKind::Python,
+        &PythonParserSettings::default(),
+        &mut builder,
+    );
+    let diagnostics: Vec<_> = languages::diagnostics(&elements).collect();
+    assert!(
+        diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code.as_str() == "else-without-except")
+    );
+    assert!(diagnostics.iter().all(|diagnostic| {
+        diagnostic.phase == languages::DiagnosticPhase::Parse
+            && diagnostic.impact == TreeImpact::LexicallyComplete
+    }));
+    assert!(languages::has_incomplete_syntax(&elements));
+    assert!(!languages::has_incomplete_lexical_stream(&elements));
 }
 
 /// What a row reads: a file whose tokens are joined again, or a file whose elements are listed.

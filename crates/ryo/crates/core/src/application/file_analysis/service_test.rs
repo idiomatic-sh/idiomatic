@@ -22,7 +22,8 @@ fn only_incomplete_diagnostics_mark_code_relations_as_recovery() {
     use crate::domain::coverage::types::Recovery;
     use crate::outbound::language::types::FileReading;
     use ryo_language::domain::elements::service::{
-        diagnose, diagnose_with_metadata, diagnostics, has_incomplete_syntax, table_builder,
+        diagnose, diagnose_with_metadata, diagnostics, has_incomplete_lexical_stream,
+        has_incomplete_syntax, table_builder,
     };
     use ryo_language::domain::elements::types::{
         DiagnosticCode, DiagnosticMetadata, DiagnosticPhase, Elements, TreeImpact,
@@ -30,9 +31,9 @@ fn only_incomplete_diagnostics_mark_code_relations_as_recovery() {
     use ryo_language::domain::relations::types::{Offset, Relation, ReportText};
     use ryo_language::domain::symbols::types::ByteSlice;
 
+    let source = ByteSlice(b"x");
     let mut elements = Elements::default();
     let mut symbols = Symbols::default();
-    let source = ByteSlice(b"x");
     let mut builder = table_builder(&mut elements, &mut symbols, source);
     diagnose_with_metadata(
         &mut builder,
@@ -45,7 +46,7 @@ fn only_incomplete_diagnostics_mark_code_relations_as_recovery() {
         Offset(0),
         Offset(1),
     );
-
+    drop(builder);
     let preserved = recovery_of(
         &FileReading::Read(ryo_values::domain::stored_facts::types::LanguageNumber(0)),
         &elements,
@@ -59,20 +60,58 @@ fn only_incomplete_diagnostics_mark_code_relations_as_recovery() {
     );
     assert!(partial_of(&[], preserved, &[Relation::Function]).is_empty());
 
-    let mut validation_builder = table_builder(&mut elements, &mut symbols, source);
+    let mut lexical_elements = Elements::default();
+    let mut lexical_symbols = Symbols::default();
+    let mut lexical_builder = table_builder(&mut lexical_elements, &mut lexical_symbols, source);
+    diagnose_with_metadata(
+        &mut lexical_builder,
+        DiagnosticMetadata::new(
+            DiagnosticPhase::Parse,
+            TreeImpact::LexicallyComplete,
+            DiagnosticCode::provider_owned("fixture.parser-recovered"),
+        ),
+        ReportText("invalid syntax, complete token stream"),
+        Offset(0),
+        Offset(1),
+    );
+    drop(lexical_builder);
+    let lexical_recovery = recovery_of(
+        &FileReading::Read(ryo_values::domain::stored_facts::types::LanguageNumber(0)),
+        &lexical_elements,
+    );
+    assert_eq!(lexical_recovery, Recovery::LexicallyCompleteSyntaxErrors);
+    assert!(has_incomplete_syntax(&lexical_elements));
+    assert!(!has_incomplete_lexical_stream(&lexical_elements));
+    let lexical_partials = partial_of(
+        &[],
+        lexical_recovery,
+        &[
+            Relation::Comment,
+            Relation::IndentRegion,
+            Relation::Function,
+        ],
+    );
+    assert_eq!(lexical_partials.len(), 1);
+    assert_eq!(lexical_partials[0].relation, Relation::Function);
+    let mut incomplete_elements = Elements::default();
+    let mut incomplete_symbols = Symbols::default();
+    let mut validation_builder =
+        table_builder(&mut incomplete_elements, &mut incomplete_symbols, source);
     diagnose(
         &mut validation_builder,
         ReportText("legacy parser diagnostic without impact metadata"),
         Offset(0),
         Offset(1),
     );
+    drop(validation_builder);
     let incomplete = recovery_of(
         &FileReading::Read(ryo_values::domain::stored_facts::types::LanguageNumber(0)),
-        &elements,
+        &incomplete_elements,
     );
     assert_eq!(incomplete, Recovery::SyntaxErrors);
-    assert!(has_incomplete_syntax(&elements));
-    assert_eq!(diagnostics(&elements).count(), 1);
+    assert!(has_incomplete_syntax(&incomplete_elements));
+    assert!(has_incomplete_lexical_stream(&incomplete_elements));
+    assert_eq!(diagnostics(&incomplete_elements).count(), 1);
     assert!(!partial_of(&[], incomplete, &[Relation::Function]).is_empty());
 }
 

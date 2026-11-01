@@ -31,7 +31,7 @@ fn build(tree: &Tree<'_>, index: &mut IndentationIndex) {
     index.rows.clear();
     index.stack.clear();
     index.state = IndentationState::Incomplete;
-    if languages::has_incomplete_syntax(tree.elements) {
+    if languages::has_incomplete_lexical_stream(tree.elements) {
         return;
     }
     let Ok(length) = u32::try_from(tree.source.0.len()) else {
@@ -73,6 +73,7 @@ fn build(tree: &Tree<'_>, index: &mut IndentationIndex) {
                 region.span.end = end;
                 index.rows.push(region);
             }
+            Kind::Token(Token::Errortoken) => return,
             Kind::Node(_) | Kind::Extra(_) | Kind::Token(_) => {}
         }
     }

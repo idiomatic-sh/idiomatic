@@ -9,11 +9,12 @@ use super::types::{AnnotationCandidate, AnnotationContext, ByteIndex, Readable, 
 use crate::outbound::syntax::interface::SyntaxPort;
 use crate::outbound::syntax::types::{PythonSourceKind, SourceText};
 use crate::settings::{PythonParserSettings, PythonTargetVersion};
+use ruff_python_ast::token::Token as RuffToken;
 use ruff_python_ast::visitor::source_order::SourceOrderVisitor as _;
 use ruff_python_ast::visitor::{Visitor, walk_stmt};
 use ruff_python_ast::{Arguments, Expr, Mod, Parameters, Stmt, TypeParams};
 use ruff_python_ast::{PySourceType, PythonVersion};
-use ruff_python_parser::{ParseOptions, parse_unchecked};
+use ruff_python_parser::{ParseErrorType, ParseOptions, parse_unchecked};
 use ruff_text_size::{Ranged as _, TextSize};
 use ryo::languages::{self, Offset};
 use ryo::languages::{DiagnosticCode, DiagnosticMetadata, DiagnosticPhase, TreeImpact};
@@ -440,6 +441,16 @@ impl SyntaxPort for SyntaxRuffPythonParserAdapter {
     ) {
         let Readable(source) = readable(text);
         let parsed = parse_unchecked(&source, options(source_kind, settings));
+        let lexical_complete = matches!(&source, Cow::Borrowed(_))
+            && token_stream_is_complete(parsed.tokens(), text.0)
+            && !parsed.errors().iter().any(|error| {
+                matches!(
+                    error.error,
+                    ParseErrorType::Lexical(_)
+                        | ParseErrorType::FStringError(_)
+                        | ParseErrorType::TStringError(_)
+                )
+            });
         let length = offset(ByteIndex(text.0.len()));
         let mut writer = Writer::new(
             builder,
@@ -478,7 +489,11 @@ impl SyntaxPort for SyntaxRuffPythonParserAdapter {
                 writer.tree.builder,
                 DiagnosticMetadata::new(
                     DiagnosticPhase::Parse,
-                    TreeImpact::Incomplete,
+                    if lexical_complete {
+                        TreeImpact::LexicallyComplete
+                    } else {
+                        TreeImpact::Incomplete
+                    },
                     PARSER_ERROR,
                 ),
                 languages::ReportText(&error.error.to_string()),
@@ -514,9 +529,21 @@ impl SyntaxPort for SyntaxRuffPythonParserAdapter {
         }
         let refused = std::mem::take(&mut writer.refused);
         for refusal in refused {
+            let metadata = if lexical_complete
+                && refusal.metadata.impact == TreeImpact::Incomplete
+                && refusal.metadata.phase == DiagnosticPhase::Parse
+            {
+                DiagnosticMetadata::new(
+                    refusal.metadata.phase,
+                    TreeImpact::LexicallyComplete,
+                    refusal.metadata.code,
+                )
+            } else {
+                refusal.metadata
+            };
             languages::diagnose_with_metadata(
                 writer.tree.builder,
-                refusal.metadata,
+                metadata,
                 languages::ReportText(&refusal.said.0),
                 Offset(refusal.at.start().to_u32()),
                 Offset(refusal.at.end().to_u32()),
@@ -532,6 +559,50 @@ impl SyntaxPort for SyntaxRuffPythonParserAdapter {
             );
         }
     }
+}
+
+/// Whether the parser returned a complete ordered token stream covering all non-whitespace input through EOF.
+fn token_stream_is_complete(tokens: &[RuffToken], source: &[u8]) -> bool {
+    if u32::try_from(source.len()).is_err() {
+        return false;
+    }
+    let mut previous_end = 0_u32;
+    for (index, token) in tokens.iter().enumerate() {
+        let start = token.start().to_u32();
+        let end = token.end().to_u32();
+        let start_index = usize::try_from(start).unwrap_or(usize::MAX);
+        let end_index = usize::try_from(end).unwrap_or(usize::MAX);
+        if start < previous_end
+            || start > end
+            || end_index > source.len()
+            || !source
+                .get(usize::try_from(previous_end).unwrap_or(usize::MAX)..start_index)
+                .is_some_and(|gap| gap.iter().all(u8::is_ascii_whitespace))
+        {
+            return false;
+        }
+        let kind = super::schemas::token_kind(token.kind());
+        if kind
+            == crate::domain::syntax::types::Kind::Token(
+                crate::domain::tokens::types::Token::Errortoken,
+            )
+        {
+            return false;
+        }
+        if kind
+            == crate::domain::syntax::types::Kind::Token(
+                crate::domain::tokens::types::Token::Endmarker,
+            )
+        {
+            if index + 1 != tokens.len() || end_index != source.len() {
+                return false;
+            }
+        }
+        previous_end = end;
+    }
+    source
+        .get(usize::try_from(previous_end).unwrap_or(usize::MAX)..)
+        .is_some_and(|gap| gap.iter().all(u8::is_ascii_whitespace))
 }
 
 /// Retain a parsed annotation's logical tokens independently of its physical source map.

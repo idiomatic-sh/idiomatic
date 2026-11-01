@@ -50,6 +50,25 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         }])),
     },
     Case {
+        name: CaseName("balanced_indentation_survives_target_syntax_error"),
+        word: Word::Succeeds,
+        input: || Input::Source("value = ur\"text\" # note\nif ready:\n    work()\n"),
+        expect: Expect::Value(Some(&[
+            Shown {
+                start: 0,
+                end: 45,
+                parent_start: 0,
+                indentation: "",
+            },
+            Shown {
+                start: 34,
+                end: 45,
+                parent_start: 0,
+                indentation: "    ",
+            },
+        ])),
+    },
+    Case {
         name: CaseName("eof_without_newline"),
         word: Word::Succeeds,
         input: || Input::Source("if yes:\n    pass"),
@@ -208,10 +227,23 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         ])),
     },
     Case {
-        name: CaseName("syntax_error_is_incomplete"),
+        name: CaseName("complete_tokens_preserve_indentation_after_syntax_error"),
         word: Word::Succeeds,
         input: || Input::Source("if:\n    pass\n"),
-        expect: Expect::Value(None),
+        expect: Expect::Value(Some(&[
+            Shown {
+                start: 0,
+                end: 13,
+                parent_start: 0,
+                indentation: "",
+            },
+            Shown {
+                start: 4,
+                end: 13,
+                parent_start: 0,
+                indentation: "    ",
+            },
+        ])),
     },
     Case {
         name: CaseName("unbalanced_indentation_is_incomplete"),
@@ -293,7 +325,7 @@ fn subject(input: Input) -> Value {
         Input::Source(source) => read(source, &mut cache),
         Input::Reused => {
             assert!(read("if yes:\n    pass", &mut cache).is_some());
-            assert!(read("if:\n    pass\n", &mut cache).is_none());
+            assert!(read("value = 'unterminated\n", &mut cache).is_none());
             assert_eq!(cache.borrow().state, IndentationState::Incomplete);
             assert_eq!(
                 read("", &mut cache),

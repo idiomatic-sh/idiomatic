@@ -148,14 +148,20 @@ pub(crate) fn partial_of(
     let cause = match everything {
         Recovery::Whole => None,
         Recovery::SyntaxErrors => Some(SYNTAX_ERRORS),
+        Recovery::LexicallyCompleteSyntaxErrors => Some(SYNTAX_ERRORS),
         Recovery::Unparsed => Some(UNPARSED),
     };
     if let Some(cause) = cause {
-        for relation in wanted.iter().filter(|each| {
-            matches!(
+        for relation in wanted.iter().filter(|each| match everything {
+            Recovery::SyntaxErrors | Recovery::Unparsed => matches!(
+                class_of(**each),
+                Class::Code | Class::Literal | Class::Document | Class::Lexical
+            ),
+            Recovery::LexicallyCompleteSyntaxErrors => matches!(
                 class_of(**each),
                 Class::Code | Class::Literal | Class::Document
-            )
+            ),
+            Recovery::Whole => false,
         }) {
             partial.push(Partial {
                 relation: *relation,

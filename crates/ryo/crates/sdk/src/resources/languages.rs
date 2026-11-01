@@ -143,7 +143,7 @@ pub use ryo_language::domain::symbols::service::push_name;
 pub use ryo_language::domain::symbols::service::end_name;
 
 pub use ryo_language::domain::elements::service::{
-    diagnose, diagnose_with_metadata, has_incomplete_syntax,
+    diagnose, diagnose_with_metadata, has_incomplete_lexical_stream, has_incomplete_syntax,
 };
 
 pub use ryo_language::domain::expansions::service::adopt;

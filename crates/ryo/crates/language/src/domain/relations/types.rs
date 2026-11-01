@@ -188,8 +188,10 @@ const _: () = assert!(size_of::<Value>() == 16, "a cell is sixteen bytes");
 pub enum Class {
     /// The shape of the tree itself, which every language has.
     Structure,
-    /// Text written in a file whatever it holds: comments, string literals, and lexical indentation.
+    /// Literal payloads such as string and numeric values.
     Literal,
+    /// Facts read directly from a complete lexical token stream, independent of AST recovery.
+    Lexical,
     /// Code: declarations, scopes, references and what they say of one another.
     Code,
     /// Keyed documents: mappings, entries and sequences.

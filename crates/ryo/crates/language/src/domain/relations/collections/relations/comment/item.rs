@@ -29,7 +29,7 @@ macro_rules! comment {
                 /// One row of `comment` as a fixture states it.
                 CommentExpectedRow
             },
-            class Literal,
+            class Lexical,
             columns {
                 /// The comment: its file and where it starts.
                 id Id: NodeId => Node;

@@ -94,11 +94,13 @@ impl DiagnosticPhase {
     }
 }
 
-/// Whether the diagnostic indicates missing or recovered syntax.
+/// Whether a diagnostic leaves the syntax tree or the token stream incomplete.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TreeImpact {
     /// This diagnostic does not indicate missing or recovered syntax.
     Preserved,
+    /// The syntax tree may be incomplete, but the provider certified tokenization through EOF.
+    LexicallyComplete,
     /// The tree may be recovered or incomplete.
     Incomplete,
 }
@@ -108,7 +110,7 @@ pub enum TreeImpact {
 pub struct DiagnosticMetadata {
     /// The stage that reported the diagnostic.
     pub phase: DiagnosticPhase,
-    /// Whether this diagnostic indicates an incomplete syntax tree.
+    /// Whether this diagnostic indicates incomplete syntax or only certifies a complete token stream.
     pub impact: TreeImpact,
     /// The stable code owned by the language provider.
     pub code: DiagnosticCode,
@@ -132,6 +134,7 @@ impl TreeImpact {
     pub const fn name(self) -> &'static str {
         match self {
             Self::Preserved => "preserved",
+            Self::LexicallyComplete => "lexically-complete",
             Self::Incomplete => "incomplete",
         }
     }

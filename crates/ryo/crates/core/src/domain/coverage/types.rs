@@ -104,6 +104,8 @@ pub(crate) enum Recovery {
     Whole,
     /// The tree is a recovery from syntax errors.
     SyntaxErrors,
+    /// The AST was recovered, but lexical tokenization is complete.
+    LexicallyCompleteSyntaxErrors,
     /// No language could parse the file.
     Unparsed,
 }

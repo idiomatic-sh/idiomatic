@@ -9,9 +9,37 @@ type Value = Reading;
 type Failure = ();
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("invalid syntax marks lexical regions partial"),
+        name: CaseName("complete tokens preserve lexical regions after parser syntax errors"),
         word: Word::Succeeds,
         input: || "if:\n    pass\n",
+        expect: Expect::Value(Reading {
+            rows: &[
+                &[
+                    want_node(0),
+                    want_node(0),
+                    want_name(""),
+                    want_number(0),
+                    want_number(13),
+                    want_file(SHOWN),
+                    want_span((1, 1), (3, 1)),
+                ],
+                &[
+                    want_node(6),
+                    want_node(0),
+                    want_name("    "),
+                    want_number(4),
+                    want_number(13),
+                    want_file(SHOWN),
+                    want_span((2, 1), (3, 1)),
+                ],
+            ],
+            causes: &[],
+        }),
+    },
+    Case {
+        name: CaseName("lexical error keeps lexical regions partial"),
+        word: Word::Succeeds,
+        input: || "value = 'unterminated\n",
         expect: Expect::Value(Reading {
             rows: &[],
             causes: &["indentation regions require a complete balanced lexical stream"],

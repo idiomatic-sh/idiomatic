@@ -266,7 +266,7 @@ pub fn all() -> &'static [Relation] {
 pub fn is_declaring(relation: Relation) -> RelationDeclaring {
     if matches!(
         class_of(relation),
-        Class::Code | Class::Literal | Class::Document
+        Class::Code | Class::Literal | Class::Lexical | Class::Document
     ) {
         RelationDeclaring::Declares
     } else {

@@ -63,7 +63,9 @@ use crate::outbound::language::types::{FileReading, FileToRead, ProjectInput};
 use crate::outbound::memory::interface::MemoryPort;
 
 use crate::outbound::scheduler::types::JobNumber;
-use ryo_language::domain::elements::service::has_incomplete_syntax;
+use ryo_language::domain::elements::service::{
+    has_incomplete_lexical_stream, has_incomplete_syntax,
+};
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::kind_index::service::index_kinds;
 use ryo_language::domain::relations::collections::relations::filesystem_file::item::FilesystemFileRow;
@@ -88,7 +90,13 @@ use std::sync::Arc;
 /// Whether the language read a complete tree or a recovery from missing syntax.
 pub(super) fn recovery_of(reading: &FileReading, elements: &Elements) -> Recovery {
     match reading {
-        FileReading::Read(_) if has_incomplete_syntax(elements) => Recovery::SyntaxErrors,
+        FileReading::Read(_) if has_incomplete_syntax(elements) => {
+            if has_incomplete_lexical_stream(elements) {
+                Recovery::SyntaxErrors
+            } else {
+                Recovery::LexicallyCompleteSyntaxErrors
+            }
+        }
         FileReading::Failed(_) => Recovery::Unparsed,
         FileReading::Read(_) | FileReading::Manifest | FileReading::Unsupported => Recovery::Whole,
     }

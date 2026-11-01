@@ -571,6 +571,19 @@ pub fn has_incomplete_syntax(elements: &Elements) -> bool {
         diagnostics
             .impact
             .get(index)
+            .is_none_or(|impact| *impact != TreeImpact::Preserved)
+    })
+}
+
+/// Whether lexical facts may be incomplete because tokenization failed or stopped early.
+/// Missing impact metadata remains conservative: older providers do not certify lexical completeness.
+#[must_use]
+pub fn has_incomplete_lexical_stream(elements: &Elements) -> bool {
+    let diagnostics = &engine(elements).diagnostics;
+    diagnostics.from.iter().enumerate().any(|(index, _)| {
+        diagnostics
+            .impact
+            .get(index)
             .is_none_or(|impact| *impact == TreeImpact::Incomplete)
     })
 }

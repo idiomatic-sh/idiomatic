@@ -41,6 +41,7 @@ pub(super) fn reasons_of(class: Class) -> &'static [AbsenceCause] {
             AbsenceCause::NotYetRead,
         ],
         Class::Literal => &[AbsenceCause::NoSuchConstruct, AbsenceCause::NotYetRead],
+        Class::Lexical => &[AbsenceCause::NoSuchConstruct, AbsenceCause::NotYetRead],
         Class::Manifest => &[AbsenceCause::NoManifests, AbsenceCause::NotYetRead],
     }
 }
@@ -57,9 +58,12 @@ pub(super) fn judge_classes(
         let absence = match class {
             Class::Manifest => language.absence_of(relation),
             Class::Engine => None,
-            Class::Structure | Class::Code | Class::Keyed | Class::Literal | Class::Document => {
-                parse_absence(parse, relation)
-            }
+            Class::Structure
+            | Class::Code
+            | Class::Keyed
+            | Class::Literal
+            | Class::Lexical
+            | Class::Document => parse_absence(parse, relation),
         };
         if let Some(reason) = absence
             && !reasons_of(class).contains(&reason)
