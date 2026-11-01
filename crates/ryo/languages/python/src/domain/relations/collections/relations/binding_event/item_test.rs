@@ -244,9 +244,10 @@ fn class_lookup_uses_the_current_class_and_skips_outer_class_scopes() {
         .expect("outer class binding exists");
     let scopes = scope_parents(source);
     assert_ne!(class_binding.scope, site.scope);
-    let inner_class = scopes
-        .get(&site.scope)
-        .expect("BoolOp is scoped by the inner class");
-    assert_eq!(scopes.get(inner_class), Some(&class_binding.scope));
+    assert_eq!(
+        scopes.get(&site.scope),
+        Some(&class_binding.scope),
+        "the outer class is the physical parent of the inner check scope"
+    );
     assert!(class_binding.ordinal < site.ordinal);
 }
