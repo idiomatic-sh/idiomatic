@@ -6551,5 +6551,49 @@
         "PLE0309"
       ]
     }
+  },
+  "durable_worker_batch_33042": {
+    "artifact_directory": "/tmp/ruff-33042b",
+    "run_json_sha256": "f71e953f82bf410ed81b4210eb175867393d830fe9c04a28111c79fabf1d9906",
+    "manifest_sha256": "28052b5672759212eb4c724c851a0fe3975f50e20835eddec358eee7d3c7b734",
+    "target_version": "py310",
+    "ruff_version": "0.16.5",
+    "ruff_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+    "worker_source_revision": "33042b08c25e653f3ffda8f9d913b124af5336cf",
+    "source_tree_sha256": "96a66e7c9390a0a954ba0a9c0024f33827027c650db14bc0c8473ae55fa1c027",
+    "source_stable_during_build": true,
+    "source_tree_clean": false,
+    "working_changes": [
+      {
+        "path": "crates/ryo/languages/python/benchmarks/linters/ruff/composition/commands.rs",
+        "diff_sha256": "52b4a70cbe9d524f749dcd6c3fe88457c56ad1ae7bf66b88be7a66e9d955cb10"
+      }
+    ],
+    "worker_executable_sha256": "1f14c8c053a1d1442634a18d6f968836a7df506f6eea0613f301aa145f8d8a52",
+    "profiles": 87,
+    "passed": 82,
+    "failed": 5,
+    "failed_profiles": {
+      "DTZ007": "four false positives: timezone-directive, fstring-literal-zone, fstring-tail-zone, concatenated-zone; corrected query/cases later passed 26/26 on this worker",
+      "UP017": "PY310 negative-only profile rejected by positive/negative coverage invariant; replaced by PY311 positive profile and explicit all-case PY310 negative guard",
+      "UP025": "raw-u, raw-ru, uppercase-raw, bytes-with-u omitted expected invalid-syntax findings; projection fixed and later 23/23 passed",
+      "expanded-defaults": "historical profile failed compiling stale SIM220 snapshot query (`no column named file`, byte 6805); retained as historical failure",
+      "shape-110": "six async mismatches; canonical query corrections in 5d523829 later passed F701 24/24, F702 24/24, F704 37/37, F706 19/19, PYI009 22/22, PYI048 21/21 on the same worker"
+    },
+    "scope": "Durable mixed multi-profile run; failures were preserved. Not current combined-corpus proof, not clean-tree source identity, and not a performance measurement."
+  },
+  "current_canonical_monolithic_checkpoint": {
+    "status": "interrupted_before_any_reliable_case_receipt",
+    "reason": "The unsharded verifier only writes a final summary; it did not provide durable completed-case records. The run was stopped to replace it with exact-once deterministic sharding.",
+    "checkpoint_file": "/tmp/ruff-current-canonical-stage/partial-run-checkpoint.json",
+    "profile": "current-canonical",
+    "target_version": "py310",
+    "selected_rules": 205,
+    "cases": 3641,
+    "inventory_sha256": "ab5aefb9c9986014ed44d11e3b3b3d2b3b7b49127795036af8ec5e30d843e325",
+    "reference_oracle_sha256": "72a59bd7327bfaa399aa746dec61db39c9b75f54bcd3ea35183ae26ac3ad192f",
+    "worker_sha256": "b77fd2e85c711ba70469586f4fc960427b8d9c22047e9984dcbf7dfc9ab6fa05",
+    "reference_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+    "completed_cases_claimed": 0
   }
 }

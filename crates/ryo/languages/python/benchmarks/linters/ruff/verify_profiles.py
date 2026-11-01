@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import tomllib
@@ -25,6 +26,16 @@ SHAPE_PROFILE = "shape-110"
 
 def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def atomic_json_write(path: Path, value: object) -> None:
+    """Commit a machine-readable receipt by rename after its bytes reach disk."""
+    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    with temporary.open("w", encoding="utf-8") as output:
+        output.write(json.dumps(value, indent=2, ensure_ascii=False) + "\n")
+        output.flush()
+        os.fsync(output.fileno())
+    temporary.replace(path)
 
 
 def source_hash(files: dict[str, str]) -> str:
@@ -297,14 +308,257 @@ def profile_tool_matches(profile_data: dict[str, object], manifest: dict[str, ob
     )
 
 
-def command_for(worker: Path, ruff: Path, profile_root: Path, reference_only: bool = False) -> list[str]:
+def command_for(
+    worker: Path,
+    ruff: Path,
+    profile_root: Path,
+    reference_only: bool = False,
+    shard: tuple[int, int] | None = None,
+) -> list[str]:
     """Invoke the one immutable benchmark executable built for this profile batch."""
-    return [
+    command = [
         str(worker),
         "verify-reference-cases" if reference_only else "verify-cases",
         str(ruff),
         str(profile_root),
     ]
+    if shard is not None:
+        command.append(f"--shard={shard[0]}/{shard[1]}")
+    return command
+
+
+def profile_case_inventory(profile_root: Path) -> list[dict[str, object]]:
+    """Derive canonical case identities after the staged profile is sealed."""
+    inventory = []
+    for rule_root in sorted((profile_root / "rules").iterdir(), key=lambda path: path.name):
+        cases_path = rule_root / "cases.toml"
+        if not cases_path.is_file():
+            continue
+        cases = tomllib.loads(cases_path.read_text(encoding="utf-8"))["cases"]
+        for case in cases:
+            identity = {"rule": rule_root.name, "name": case["name"]}
+            encoded = json.dumps(case, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+            inventory.append({**identity, "case_sha256": hashlib.sha256(encoded.encode()).hexdigest()})
+    inventory.sort(key=lambda case: (case["rule"], case["name"]))
+    ids = [(case["rule"], case["name"]) for case in inventory]
+    if not ids or len(ids) != len(set(ids)):
+        raise ValueError("staged case inventory is empty or has duplicate (rule, name) identities")
+    return inventory
+
+
+def partition_case_inventory(
+    inventory: list[dict[str, object]], shard_count: int
+) -> list[list[dict[str, object]]]:
+    """Assign each sorted global case exactly once by index modulo shard count."""
+    if shard_count < 1 or shard_count > len(inventory):
+        raise ValueError("invalid shard count for case inventory")
+    return [
+        [case for index, case in enumerate(inventory) if index % shard_count == shard]
+        for shard in range(shard_count)
+    ]
+
+
+def valid_shard_receipts(
+    inventory: list[dict[str, object]],
+    receipts: list[dict[str, object]],
+    shard_count: int,
+    global_identity: dict[str, object],
+) -> bool:
+    """Reject gaps, overlaps, failed cases, and cross-run identity mixing."""
+    if len(receipts) != shard_count:
+        return False
+    partitions = partition_case_inventory(inventory, shard_count)
+    by_index = {receipt.get("shard_index"): receipt for receipt in receipts}
+    if set(by_index) != set(range(shard_count)):
+        return False
+    all_ids = []
+    for index, expected_cases in enumerate(partitions):
+        receipt = by_index[index]
+        expected_ids = [f"{case['rule']}/{case['name']}" for case in expected_cases]
+        if (
+            receipt.get("case_ids") != expected_ids
+            or receipt.get("global_identity") != global_identity
+            or receipt.get("shard_count") != shard_count
+            or receipt.get("status") != 0
+            or receipt.get("case_result_records_valid") is not True
+        ):
+            return False
+        all_ids.extend(receipt["case_ids"])
+    expected_global = [f"{case['rule']}/{case['name']}" for case in inventory]
+    return len(all_ids) == len(set(all_ids)) and sorted(all_ids) == sorted(expected_global)
+
+
+def shard_worker_limit() -> int:
+    """Bound verifier concurrency using available memory and logical CPU count."""
+    cpu_count = os.cpu_count() or 1
+    available_bytes = None
+    try:
+        pages = os.sysconf("SC_AVPHYS_PAGES")
+        page_size = os.sysconf("SC_PAGE_SIZE")
+        available_bytes = pages * page_size
+    except (OSError, ValueError):
+        pass
+    if available_bytes is None:
+        return max(1, cpu_count // 2)
+    memory_slots = max(1, (available_bytes - 4 * 1024**3) // (3 * 1024**3))
+    return max(1, min(max(1, cpu_count // 2), int(memory_slots)))
+
+
+def verify_profile_sharded(
+    name: str,
+    profile_root: Path,
+    worker: Path,
+    ruff: Path,
+    output_directory: Path,
+    identities: dict[str, object],
+    shard_count: int,
+    *,
+    resume: bool = False,
+    runner=subprocess.run,
+) -> int:
+    """Run each audited canonical case once and persist an aggregatable receipt."""
+    inventory = profile_case_inventory(profile_root)
+    inventory_bytes = json.dumps(inventory, sort_keys=True, separators=(",", ":")).encode()
+    inventory_sha = hashlib.sha256(inventory_bytes).hexdigest()
+    profile_output = output_directory / "profiles" / name
+    shard_root = profile_output / "shards"
+    shard_root.mkdir(parents=True, exist_ok=resume)
+    global_identity = {
+        "inventory_sha256": inventory_sha,
+        "selection": identities,
+        "worker_sha256": sha256(worker),
+        "ruff_sha256": sha256(ruff),
+        "target": tomllib.loads((profile_root / "benchmark.toml").read_text(encoding="utf-8")).get("parser-configuration"),
+    }
+    shards = list(enumerate(partition_case_inventory(inventory, shard_count)))
+    if any(not selected for _, selected in shards):
+        raise ValueError("shard count exceeds number of canonical cases")
+
+    def run_one(item: tuple[int, list[dict[str, object]]]) -> dict[str, object]:
+        shard_index, selected = item
+        shard_name = f"{shard_index:03d}"
+        result_path = shard_root / f"{shard_name}.cases.jsonl"
+        command = command_for(worker, ruff, profile_root, shard=(shard_index, shard_count))
+        environment = os.environ.copy()
+        environment["RYO_VERIFY_CASE_RESULTS"] = str(result_path)
+        try:
+            result = runner(
+                command,
+                cwd=REPOSITORY / "crates" / "ryo",
+                env=environment,
+                capture_output=True,
+                text=False,
+                check=False,
+            )
+            error = None
+            status = result.returncode
+            stdout = result.stdout
+            stderr = result.stderr
+        except Exception as exception:
+            result = None
+            error = f"{type(exception).__name__}: {exception}"
+            status = 1
+            stdout = b""
+            stderr = error.encode()
+        stdout_path = shard_root / f"{shard_name}.stdout.bin"
+        stderr_path = shard_root / f"{shard_name}.stderr.bin"
+        stdout_path.write_bytes(stdout)
+        stderr_path.write_bytes(stderr)
+        expected_ids = [f"{case['rule']}/{case['name']}" for case in selected]
+        observed = []
+        if result_path.is_file():
+            for line in result_path.read_text(encoding="utf-8").splitlines():
+                record = json.loads(line)
+                observed.append(record)
+        side_counts = collections.Counter((row.get("rule"), row.get("name"), row.get("side")) for row in observed)
+        valid_records = (
+            all(row.get("complete") is True and row.get("error") is None for row in observed)
+            and all(side_counts[(case["rule"], case["name"], side)] == 1 for case in selected for side in ("reference", "candidate"))
+            and len(observed) == 2 * len(selected)
+        )
+        receipt = {
+            "profile": name,
+            "shard_index": shard_index,
+            "shard_count": shard_count,
+            "case_ids": expected_ids,
+            "status": status,
+            "error": error,
+            "global_identity": global_identity,
+            "stdout_sha256": hashlib.sha256(stdout).hexdigest(),
+            "stderr_sha256": hashlib.sha256(stderr).hexdigest(),
+            "case_results_sha256": sha256(result_path) if result_path.is_file() else None,
+            "case_result_records_valid": valid_records,
+        }
+        atomic_json_write(shard_root / f"{shard_name}.receipt.json", receipt)
+        return receipt
+
+    prior_aggregate_path = profile_output / "aggregate.json"
+    if resume:
+        if not prior_aggregate_path.is_file():
+            raise ValueError("cannot resume: prior aggregate receipt is missing")
+        prior_aggregate = json.loads(prior_aggregate_path.read_text(encoding="utf-8"))
+        if prior_aggregate.get("global_identity") != global_identity:
+            raise ValueError("cannot resume with changed global inventory/worker/reference/target identity")
+        if prior_aggregate.get("staged_inputs") != staged_hashes(profile_root):
+            raise ValueError("cannot resume with changed staged profile inputs")
+    receipts = []
+    pending_shards = []
+    for shard_index, selected in shards:
+        shard_name = f"{shard_index:03d}"
+        receipt_path = shard_root / f"{shard_name}.receipt.json"
+        records_path = shard_root / f"{shard_name}.cases.jsonl"
+        expected_ids = [f"{case['rule']}/{case['name']}" for case in selected]
+        reused = False
+        if resume and receipt_path.is_file() and records_path.is_file():
+            try:
+                receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+                records = [json.loads(line) for line in records_path.read_text(encoding="utf-8").splitlines()]
+                counts = collections.Counter((row.get("rule"), row.get("name"), row.get("side")) for row in records)
+                records_valid = (
+                    all(row.get("complete") is True and row.get("error") is None for row in records)
+                    and all(counts[(case["rule"], case["name"], side)] == 1 for case in selected for side in ("reference", "candidate"))
+                    and len(records) == 2 * len(selected)
+                )
+                reused = (
+                    receipt.get("global_identity") == global_identity
+                    and receipt.get("case_ids") == expected_ids
+                    and receipt.get("status") == 0
+                    and receipt.get("case_result_records_valid") is True
+                    and receipt.get("case_results_sha256") == sha256(records_path)
+                    and records_valid
+                )
+                if reused:
+                    receipts.append(receipt)
+            except (OSError, ValueError, json.JSONDecodeError):
+                reused = False
+        if not reused:
+            if not resume and (receipt_path.exists() or records_path.exists()):
+                raise ValueError("shard output already exists; use --resume with matching identities")
+            for path in (receipt_path, records_path, shard_root / f"{shard_name}.stdout.bin", shard_root / f"{shard_name}.stderr.bin"):
+                path.unlink(missing_ok=True)
+            pending_shards.append((shard_index, selected))
+    with ThreadPoolExecutor(max_workers=min(shard_count, shard_worker_limit())) as pool:
+        futures = [pool.submit(run_one, shard) for shard in pending_shards]
+        for future in as_completed(futures):
+            receipts.append(future.result())
+    receipts.sort(key=lambda receipt: receipt["shard_index"])
+    flattened = [case_id for receipt in receipts for case_id in receipt["case_ids"]]
+    receipts_valid = valid_shard_receipts(inventory, receipts, shard_count, global_identity)
+    aggregate = {
+        "profile": name,
+        "global_identity": global_identity,
+        "staged_inputs": staged_hashes(profile_root),
+        "case_count": len(inventory),
+        "shard_count": shard_count,
+        "receipts": [f"shards/{index:03d}.receipt.json" for index in range(shard_count)],
+        "all_shards_passed": receipts_valid,
+        "case_ids_exact_once": len(flattened) == len(set(flattened))
+        and sorted(flattened) == sorted(f"{case['rule']}/{case['name']}" for case in inventory),
+    }
+    aggregate["status"] = 0 if aggregate["all_shards_passed"] and aggregate["case_ids_exact_once"] else 1
+    atomic_json_write(profile_output / "aggregate.json", aggregate)
+    print(f"{name}: {aggregate['case_count']} cases across {shard_count} shards; status {aggregate['status']}", file=sys.stderr)
+    return int(aggregate["status"])
 
 
 def cargo_worker_build_command() -> list[str]:
@@ -497,6 +751,7 @@ def persist_run_record(
     *,
     error: str | None = None,
     identities: dict[str, object] | None = None,
+    case_results_path: Path | None = None,
 ) -> int:
     """Persist raw command output and exact identities before temporary inputs can be removed."""
     status = result.returncode if result is not None else 1
@@ -523,6 +778,10 @@ def persist_run_record(
         "stdout_file": f"profiles/{name}/stdout.bin",
         "stderr_file": f"profiles/{name}/stderr.bin",
         "reproduction_directory": f"profiles/{name}/repro",
+        "case_results_file": (
+            f"profiles/{name}/cases.jsonl" if case_results_path is not None and case_results_path.is_file() else None
+        ),
+        "case_results_sha256": sha256(case_results_path) if case_results_path is not None and case_results_path.is_file() else None,
     }
     (record_directory / "result.json").write_text(
         json.dumps(record, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
@@ -539,6 +798,11 @@ def verify_profile(
     *,
     runner=subprocess.run,
 ) -> int:
+    case_results_path = None
+    environment = os.environ.copy()
+    if output_directory is not None and command[1] != "verify-reference-cases":
+        case_results_path = output_directory / "profiles" / name / "cases.jsonl"
+        environment["RYO_VERIFY_CASE_RESULTS"] = str(case_results_path)
     try:
         result = runner(
             command,
@@ -546,6 +810,7 @@ def verify_profile(
             capture_output=True,
             text=False,
             check=False,
+            env=environment,
         )
     except Exception as error:
         return persist_run_record(
@@ -556,6 +821,7 @@ def verify_profile(
             None,
             error=f"{type(error).__name__}: {error}",
             identities=identities,
+            case_results_path=case_results_path,
         )
     return persist_run_record(
         output_directory,
@@ -564,6 +830,7 @@ def verify_profile(
         profile_root,
         result,
         identities=identities,
+        case_results_path=case_results_path,
     )
 
 
@@ -940,6 +1207,82 @@ def combined_filename(rule: str, descriptor: dict[str, object], *names: str) -> 
 
 def self_test() -> int:
     """Exercise fail-closed profile-selection and hash-mismatch guards without invoking Cargo."""
+    sample_inventory = [
+        {"rule": "A", "name": "one", "case_sha256": "a"},
+        {"rule": "A", "name": "two", "case_sha256": "b"},
+        {"rule": "B", "name": "one", "case_sha256": "c"},
+        {"rule": "C", "name": "one", "case_sha256": "d"},
+        {"rule": "C", "name": "two", "case_sha256": "e"},
+    ]
+    partitions = partition_case_inventory(sample_inventory, 3)
+    identity = {"inventory_sha256": "sealed"}
+    receipts = [
+        {
+            "shard_index": index,
+            "shard_count": 3,
+            "case_ids": [f"{case['rule']}/{case['name']}" for case in partition],
+            "status": 0,
+            "case_result_records_valid": True,
+            "global_identity": identity,
+        }
+        for index, partition in enumerate(partitions)
+    ]
+    if not valid_shard_receipts(sample_inventory, receipts, 3, identity):
+        print("valid deterministic shard receipts were rejected", file=sys.stderr)
+        return 1
+    overlapping = json.loads(json.dumps(receipts))
+    overlapping[1]["case_ids"].append(overlapping[0]["case_ids"][0])
+    incomplete = json.loads(json.dumps(receipts))
+    incomplete.pop()
+    mixed_worker = json.loads(json.dumps(receipts))
+    mixed_worker[2]["global_identity"]["worker_sha256"] = "different"
+    if any(
+        valid_shard_receipts(sample_inventory, altered, 3, identity)
+        for altered in (overlapping, incomplete, mixed_worker)
+    ):
+        print("shard aggregation accepted overlap, missing shard, or mixed worker", file=sys.stderr)
+        return 1
+    with tempfile.TemporaryDirectory(prefix="ryo-ruff-shard-test-") as temporary:
+        root = Path(temporary)
+        profile_root = root / "repro"
+        rules_root = profile_root / "rules"
+        for rule, names in (("A", ("one", "two")), ("B", ("one",))):
+            rule_root = rules_root / rule
+            rule_root.mkdir(parents=True)
+            cases = [{"name": name, "files": {"case.py": f"value = {index}\n"}, "expected": []} for index, name in enumerate(names)]
+            (rule_root / "cases.toml").write_text(
+                "\n".join(f'[[cases]]\nname = "{case["name"]}"\nfiles = {{ "case.py" = {json.dumps(case["files"]["case.py"])} }}\nexpected = []\n' for case in cases),
+                encoding="utf-8",
+            )
+        (profile_root / "benchmark.toml").write_text('parser-configuration = "python-target=3.10"\n', encoding="utf-8")
+        worker = root / "worker"
+        ruff = root / "ruff"
+        worker.write_bytes(b"worker")
+        ruff.write_bytes(b"ruff")
+        output = root / "output"
+        output.mkdir()
+        inv = profile_case_inventory(profile_root)
+        calls = []
+
+        def fake_runner(command, *, env, **_kwargs):
+            shard_index, shard_count = (int(value) for value in command[-1].removeprefix("--shard=").split("/"))
+            selected = partition_case_inventory(inv, shard_count)[shard_index]
+            calls.append(shard_index)
+            with Path(env["RYO_VERIFY_CASE_RESULTS"]).open("w", encoding="utf-8") as records:
+                for case in selected:
+                    for side in ("reference", "candidate"):
+                        records.write(json.dumps({"rule": case["rule"], "name": case["name"], "side": side, "complete": True, "error": None}) + "\n")
+            return subprocess.CompletedProcess(command, 0, b"cases passed\n", b"")
+
+        identities = {"prepared_sha256": "sealed"}
+        first = verify_profile_sharded("test", profile_root, worker, ruff, output, identities, 2, runner=fake_runner)
+        second = verify_profile_sharded(
+            "test", profile_root, worker, ruff, output, identities, 2, resume=True,
+            runner=lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("complete shard was rerun")),
+        )
+        if first != 0 or second != 0 or calls != [0, 1]:
+            print("shard execution or identity-checked resume self-test failed", file=sys.stderr)
+            return 1
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
     with tempfile.TemporaryDirectory(prefix="ryo-ruff-profile-guards-") as temporary:
         root = Path(temporary)
@@ -1570,6 +1913,8 @@ def main() -> int:
     parser.add_argument("ruff", type=Path, nargs="?", help="pinned Ruff executable")
     parser.add_argument("rules", nargs="*", help="optional rule IDs; default: every prepared profile")
     parser.add_argument("--profile", help="run one named combined prepared profile")
+    parser.add_argument("--shards", type=int, help="execute each case once across deterministic case shards")
+    parser.add_argument("--resume", action="store_true", help="reuse only complete shard receipts with identical sealed identities")
     parser.add_argument(
         "--output-dir",
         type=Path,
@@ -1582,11 +1927,23 @@ def main() -> int:
         return self_test()
     if arguments.ruff is None:
         parser.error("the pinned Ruff executable is required unless --self-test is selected")
+    if arguments.shards is not None and (
+        arguments.shards < 2
+        or arguments.reference_only
+        or (arguments.profile is None and len(arguments.rules) != 1)
+    ):
+        parser.error("--shards requires one combined profile or one single-rule profile")
+    if arguments.resume and (arguments.shards is None or arguments.output_dir is None):
+        parser.error("--resume requires --shards and --output-dir")
 
     output_directory = arguments.output_dir.resolve() if arguments.output_dir else None
     if output_directory is not None:
-        output_directory.mkdir(parents=True, exist_ok=False)
-        shutil.copyfile(MANIFEST, output_directory / "prepared.json")
+        if arguments.resume:
+            if not output_directory.is_dir() or (output_directory / "prepared.json").read_bytes() != MANIFEST.read_bytes():
+                parser.error("resume output does not contain the exact current prepared manifest")
+        else:
+            output_directory.mkdir(parents=True, exist_ok=False)
+            shutil.copyfile(MANIFEST, output_directory / "prepared.json")
 
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
     helper_path = Path(__file__).relative_to(REPOSITORY).as_posix()
@@ -1619,9 +1976,12 @@ def main() -> int:
             staged = []
             if arguments.profile is not None:
                 descriptor = manifest["combined_profiles"][arguments.profile]
-                staged.append(
-                    stage_combined(arguments.profile, descriptor, manifest, stack, output_directory)
-                )
+                if arguments.resume:
+                    staged.append((arguments.profile, output_directory / "profiles" / arguments.profile / "repro"))
+                else:
+                    staged.append(
+                        stage_combined(arguments.profile, descriptor, manifest, stack, output_directory)
+                    )
             else:
                 staged.extend(stage_binding(manifest, selections, stack, output_directory))
                 if not arguments.rules:
@@ -1639,7 +1999,21 @@ def main() -> int:
                     manifest, ruff, profile_root, worker_executable, build_identity
                 )
                 worker_identity(identities, worker_executable)
-                status = verify_profile(name, profile_root, command, output_directory, identities)
+                if arguments.shards is not None:
+                    if output_directory is None:
+                        raise ValueError("sharded verification requires --output-dir for durable receipts")
+                    status = verify_profile_sharded(
+                        name,
+                        profile_root,
+                        worker_executable,
+                        ruff,
+                        output_directory,
+                        identities,
+                        arguments.shards,
+                        resume=arguments.resume,
+                    )
+                else:
+                    status = verify_profile(name, profile_root, command, output_directory, identities)
                 print(f"{name}: verifier exit status {status}", file=sys.stderr)
                 statuses.append((name, status))
     except (KeyError, TypeError, ValueError, OSError) as error:

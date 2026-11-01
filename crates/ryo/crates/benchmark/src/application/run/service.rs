@@ -61,10 +61,56 @@ pub fn verify(
     rules: &Path,
     scratch: &Path,
 ) -> Result<crate::domain::suite::types::CaseCount, Error> {
+    verify_shard(suite, reference, candidate, execution, rules, scratch, None)
+}
+
+/// A deterministic partition of the globally audited case inventory.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct CaseShard {
+    /// Zero-based shard number.
+    pub index: usize,
+    /// Number of disjoint shards.
+    pub count: usize,
+}
+
+impl CaseShard {
+    /// Validate shard coordinates.
+    pub fn new(index: usize, count: usize) -> Result<Self, Error> {
+        if count == 0 || index >= count {
+            return Err(Error::Invalid("invalid case shard coordinates".into()));
+        }
+        Ok(Self { index, count })
+    }
+}
+
+/// Verify one deterministic shard after loading and validating the entire case inventory.
+///
+/// Cases are ordered by `(rule, name)` before assigning index modulo shard count. The
+/// suite loader and profile accounting run over the full inventory before this partition.
+pub fn verify_shard(
+    suite: &dyn SuitePort,
+    reference: &dyn LinterPort,
+    candidate: &dyn LinterPort,
+    execution: &dyn ExecutionPort,
+    rules: &Path,
+    scratch: &Path,
+    shard: Option<CaseShard>,
+) -> Result<crate::domain::suite::types::CaseCount, Error> {
     let cases = suite.cases(
         crate::outbound::suite::types::ArtifactPath(rules),
         crate::outbound::suite::types::ArtifactPath(scratch),
     )?;
+    let mut cases = cases;
+    cases.sort_by(|left, right| (&left.rule, &left.name).cmp(&(&right.rule, &right.name)));
+    let global_count = cases.len();
+    let cases = match shard {
+        Some(shard) => cases
+            .into_iter()
+            .enumerate()
+            .filter_map(|(index, case)| (index % shard.count == shard.index).then_some(case))
+            .collect::<Vec<_>>(),
+        None => cases,
+    };
     let count = cases.len();
     let first = cases
         .first()
@@ -85,6 +131,7 @@ pub fn verify(
             } else {
                 run(tool, execution, &case.request)
             };
+            write_case_observation(&case, name, &result)?;
             match result {
                 Ok(mut result) => {
                     if case.comparison == crate::domain::suite::types::CaseComparison::Rule {
@@ -106,6 +153,7 @@ pub fn verify(
         }
     }
     if failures.is_empty() {
+        debug_assert!(count <= global_count);
         Ok(crate::domain::suite::types::CaseCount(count))
     } else {
         Err(Error::Invalid(format!(
@@ -113,6 +161,83 @@ pub fn verify(
             failures.join(super::constants::LINE_SEPARATOR)
         )))
     }
+}
+
+fn write_case_observation(
+    case: &crate::domain::suite::types::PreparedCase,
+    side: &str,
+    result: &Result<Measurement, Error>,
+) -> Result<(), Error> {
+    let Some(path) = std::env::var_os("RYO_VERIFY_CASE_RESULTS") else {
+        return Ok(());
+    };
+    let findings = result.as_ref().ok().map(|measurement| {
+        measurement
+            .report
+            .diagnostics
+            .iter()
+            .map(|finding| {
+                serde_json::json!({
+                    "rule": finding.rule.as_ref(),
+                    "file": finding.file.0.as_ref(),
+                    "start": finding.start.0,
+                    "end": finding.end.0,
+                })
+            })
+            .collect::<Vec<_>>()
+    });
+    let files = result.as_ref().ok().map(|measurement| {
+        measurement
+            .report
+            .files
+            .iter()
+            .map(|file| file.0.as_ref())
+            .collect::<Vec<_>>()
+    });
+    let error = result.as_ref().err().map(ToString::to_string);
+    let expected = case
+        .expected
+        .diagnostics
+        .iter()
+        .map(|finding| {
+            serde_json::json!({
+                "rule": finding.rule.as_ref(),
+                "file": finding.file.0.as_ref(),
+                "start": finding.start.0,
+                "end": finding.end.0,
+            })
+        })
+        .collect::<Vec<_>>();
+    let mut source_hasher = sha2::Sha256::new();
+    for file in &case.request.files {
+        use sha2::Digest as _;
+        source_hasher.update(file.0.as_bytes());
+        source_hasher.update([0]);
+        source_hasher.update(std::fs::read(case.request.root.join(file.0.as_ref()))?);
+    }
+    use sha2::Digest as _;
+    let record = serde_json::json!({
+        "rule": case.rule.as_ref(),
+        "name": case.name.to_string(),
+        "side": side,
+        "files": files,
+        "diagnostics": findings,
+        "expected": expected,
+        "source_sha256": format!("{:x}", source_hasher.finalize()),
+        "error": error,
+        "complete": true,
+    });
+    let mut line =
+        serde_json::to_vec(&record).map_err(|error| Error::Invalid(error.to_string()))?;
+    line.push(b'\n');
+    use std::io::Write as _;
+    let mut output = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)?;
+    output.write_all(&line)?;
+    output.sync_data()?;
+    Ok(())
 }
 
 /// Check independently authored cases against only the reference executable.
@@ -181,16 +306,51 @@ pub fn verify_accounted(
     profile: &Path,
     scratch: &Path,
 ) -> Result<crate::domain::suite::types::CaseCount, Error> {
+    verify_accounted_shard(
+        suite, reference, candidate, execution, profile, scratch, None,
+    )
+}
+
+/// Verify the full profile accounting and then execute one deterministic case shard.
+pub fn verify_accounted_shard(
+    suite: &dyn SuitePort,
+    reference: &dyn LinterPort,
+    candidate: &dyn LinterPort,
+    execution: &dyn ExecutionPort,
+    profile: &Path,
+    scratch: &Path,
+    shard: Option<CaseShard>,
+) -> Result<crate::domain::suite::types::CaseCount, Error> {
     let path = crate::outbound::suite::types::ArtifactPath(profile);
     let tool = suite.profile(path)?;
     let audit = suite.audit(path, &tool)?;
     crate::domain::suite::service::require_accounted(&audit, &tool)?;
-    verify(
+    verify_shard(
         suite,
         reference,
         candidate,
         execution,
         &profile.join(super::constants::RULES),
         scratch,
+        shard,
     )
+}
+
+#[cfg(test)]
+mod shard_tests {
+    use super::CaseShard;
+
+    #[test]
+    fn shard_coordinates_are_zero_based_and_bounded() {
+        assert!(matches!(
+            CaseShard::new(0, 3),
+            Ok(CaseShard { index: 0, count: 3 })
+        ));
+        assert!(matches!(
+            CaseShard::new(2, 3),
+            Ok(CaseShard { index: 2, count: 3 })
+        ));
+        assert!(CaseShard::new(3, 3).is_err());
+        assert!(CaseShard::new(0, 0).is_err());
+    }
 }

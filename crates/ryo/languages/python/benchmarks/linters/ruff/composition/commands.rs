@@ -100,6 +100,13 @@ pub(super) fn verify_cases(
     let source = args
         .next()
         .map_or_else(directory, |argument| PathBuf::from(argument.0));
+    let shard = args
+        .next()
+        .map(|argument| parse_shard(&argument.0))
+        .transpose()?;
+    if args.next().is_some() {
+        return Err(Error::Invalid("unexpected verify-cases argument".into()));
+    }
     let mut tool = suite_source.profile(ArtifactPath(&source))?;
     let query_modules = tool.query_modules.clone();
     let parser_configuration = tool.parser_configuration.clone();
@@ -118,15 +125,32 @@ pub(super) fn verify_cases(
         query_modules,
         parser_configuration,
     ));
-    let count = ryo_benchmark::application::run::service::verify_accounted(
+    let count = ryo_benchmark::application::run::service::verify_accounted_shard(
         suite_source.as_ref(),
         reference.as_ref(),
         candidate.as_ref(),
         execution.as_ref(),
         &profile,
         &root.join(constants::CASES_DIRECTORY),
+        shard,
     )?;
     Ok(count)
+}
+
+fn parse_shard(value: &str) -> Result<ryo_benchmark::application::run::service::CaseShard, Error> {
+    let coordinates = value
+        .strip_prefix("--shard=")
+        .ok_or_else(|| Error::Invalid("expected --shard=INDEX/COUNT".into()))?;
+    let (index, count) = coordinates
+        .split_once('/')
+        .ok_or_else(|| Error::Invalid("expected --shard=INDEX/COUNT".into()))?;
+    let index = index
+        .parse()
+        .map_err(|_| Error::Invalid("invalid case shard index".into()))?;
+    let count = count
+        .parse()
+        .map_err(|_| Error::Invalid("invalid case shard count".into()))?;
+    ryo_benchmark::application::run::service::CaseShard::new(index, count)
 }
 
 /// Validate authored fixture expectations against Ruff without loading a Ryo candidate.
