@@ -265,6 +265,114 @@ fn fragment_relation_contracts_reject_input_and_output_shape_mismatches() {
     );
 }
 
+#[test]
+fn nested_fragment_validation_error_keeps_the_inner_source_and_import_trace() {
+    use crate::outbound::syntax::adapters::winnow::adapter::SyntaxWinnowAdapter;
+
+    let bundle = ryo_values::domain::program::service::query_bundle(
+        ryo_values::domain::program::service::document_source(
+            ryo_values::domain::program::service::source_id("root").unwrap(),
+            "import outer from \"query/outer\";\nlet nodes = select id from \"syntax-tree\";\nlet result = outer(source=nodes);\nemit result subject id key(id);",
+        ),
+        [
+            ryo_values::domain::program::service::document_source(
+                ryo_values::domain::program::service::source_id("query/outer").unwrap(),
+                "import inner from \"query/inner\";\ninput source: relation<id: node>;\noutput relation<id: node>;\nlet result = inner(source=source);\nreturn result;",
+            ),
+            ryo_values::domain::program::service::document_source(
+                ryo_values::domain::program::service::source_id("query/inner").unwrap(),
+                "input source: relation<id: node>;\noutput relation<id: node>;\nlet result = select missing from source;\nreturn result;",
+            ),
+        ],
+    )
+    .unwrap();
+    let use_case = CompileUseCaseImpl::new(
+        Arc::new(SyntaxWinnowAdapter),
+        Arc::new(CatalogFake {
+            relations: vec![Relation::SyntaxTree],
+            fails: false,
+        }),
+    );
+    let error = use_case
+        .compile(CompileRequest {
+            text: bundle,
+            hosted: Vec::new(),
+        })
+        .expect_err("the inner fragment reads an unknown column");
+    assert!(matches!(
+        error,
+        CompileError::Located { origin, .. }
+            if origin.source_id.0.as_ref() == "query/inner" && origin.trace.len() >= 4
+    ));
+}
+
+#[test]
+fn fragment_calls_cannot_capture_caller_or_nested_private_steps() {
+    use crate::outbound::syntax::adapters::winnow::adapter::SyntaxWinnowAdapter;
+
+    let root_with_caller = "import query from \"query\";\nlet secret = select id from \"syntax-tree\";\nlet result = query();\nemit result subject id key(id);";
+    let caller_capture = "output relation<id: node, n: number>;\nlet counted = group-count(from=secret, keys=[\"id\"], count=\"n\");\nreturn counted;";
+    let root_with_nested =
+        "import outer from \"outer\";\nlet result = outer();\nemit result subject id key(id);";
+    let outer = "import inner from \"inner\";\noutput relation<id: node>;\nlet result = inner();\nlet counted = group-count(from=hidden, keys=[\"id\"], count=\"n\");\nreturn result;";
+    let inner =
+        "output relation<id: node>;\nlet hidden = select id from \"syntax-tree\";\nreturn hidden;";
+    let bundles = [
+        (
+            ryo_values::domain::program::service::query_bundle(
+                ryo_values::domain::program::service::document_source(
+                    ryo_values::domain::program::service::source_id("root").unwrap(),
+                    root_with_caller,
+                ),
+                [ryo_values::domain::program::service::document_source(
+                    ryo_values::domain::program::service::source_id("query").unwrap(),
+                    caller_capture,
+                )],
+            )
+            .unwrap(),
+            "query",
+        ),
+        (
+            ryo_values::domain::program::service::query_bundle(
+                ryo_values::domain::program::service::document_source(
+                    ryo_values::domain::program::service::source_id("root").unwrap(),
+                    root_with_nested,
+                ),
+                [
+                    ryo_values::domain::program::service::document_source(
+                        ryo_values::domain::program::service::source_id("outer").unwrap(),
+                        outer,
+                    ),
+                    ryo_values::domain::program::service::document_source(
+                        ryo_values::domain::program::service::source_id("inner").unwrap(),
+                        inner,
+                    ),
+                ],
+            )
+            .unwrap(),
+            "outer",
+        ),
+    ];
+    let use_case = CompileUseCaseImpl::new(
+        Arc::new(SyntaxWinnowAdapter),
+        Arc::new(CatalogFake {
+            relations: vec![Relation::SyntaxTree],
+            fails: false,
+        }),
+    );
+    for (bundle, source) in bundles {
+        let error = use_case
+            .compile(CompileRequest {
+                text: bundle,
+                hosted: Vec::new(),
+            })
+            .expect_err("caller and nested private step spellings are not visible");
+        assert!(
+            matches!(error, CompileError::Located { origin, .. } if origin.source_id.0.as_ref() == source)
+        );
+    }
+}
+
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {

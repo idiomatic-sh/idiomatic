@@ -8,6 +8,10 @@ use super::errors::QueryBundleError;
 use super::types::{QueryBundle, QueryDocumentSource, QuerySourceId};
 
 /// Validate and construct a stable source identifier.
+///
+/// # Errors
+///
+/// Returns [`QueryBundleError::BlankSourceId`] when the identifier is blank.
 pub fn source_id(text: &str) -> Result<QuerySourceId, QueryBundleError> {
     if text.trim().is_empty() {
         return Err(QueryBundleError::BlankSourceId);
@@ -25,6 +29,10 @@ pub fn document_source(id: QuerySourceId, text: impl Into<Box<str>>) -> QueryDoc
 }
 
 /// Validate and index a root source with its modules.
+///
+/// # Errors
+///
+/// Returns [`QueryBundleError::DuplicateSourceId`] if a module repeats the root id or another module id.
 pub fn query_bundle(
     root: QueryDocumentSource,
     modules: impl IntoIterator<Item = QueryDocumentSource>,
@@ -43,6 +51,10 @@ pub fn query_bundle(
 }
 
 /// Construct a standalone root source.
+///
+/// # Errors
+///
+/// Returns [`QueryBundleError::BlankRootText`] when the query is blank.
 pub fn standalone(text: &str) -> Result<QueryBundle, QueryBundleError> {
     if text.trim().is_empty() {
         return Err(QueryBundleError::BlankRootText);

@@ -39,9 +39,11 @@ pub(crate) fn link(
         .unwrap_or(0)
         .saturating_add(1);
     let mut linked = Vec::new();
+    let mut root_visible = Vec::new();
     let mut contracts = Vec::new();
     let root_imports = imports.get(&root_id).cloned().unwrap_or_default();
-    for step in root.steps.clone() {
+    for original in root.steps.clone() {
+        let step = original.clone();
         if let Expression::Call(call) = &step.expression
             && let Some(import) = root_imports.get(call.name.0.as_ref())
         {
@@ -54,7 +56,7 @@ pub(crate) fn link(
                 &target,
                 call,
                 &step.name,
-                &linked,
+                &root_visible,
                 &Bindings::new(),
                 &Bindings::new(),
                 &root.parameters,
@@ -66,20 +68,22 @@ pub(crate) fn link(
             )?;
             linked.extend(expanded);
         } else {
-            let mut step = step;
+            let mut step = original.clone();
             if let Expression::Call(call) = &mut step.expression {
                 remap_call(
                     call,
                     &BTreeMap::new(),
                     &Bindings::new(),
                     &Bindings::new(),
-                    &linked,
+                    &root_visible,
                     &root_id,
                     &[],
+                    false,
                 )?;
             }
             linked.push(step);
         }
+        root_visible.push(original);
     }
     root.steps = linked;
     root.linked = true;
@@ -346,10 +350,11 @@ fn expand(
     }
 
     let mut expanded = Vec::new();
-    for step in &fragment.steps {
-        let mut visible = preceding.to_vec();
-        visible.extend(expanded.iter().cloned());
-        let mut step = step.clone();
+    // Keep the fragment's lexical frame separate from flattened expansion output: a nested
+    // fragment exposes only its call result, never its private local definitions.
+    let mut visible = Vec::new();
+    for original in &fragment.steps {
+        let mut step = original.clone();
         remap_step(
             &mut step,
             &identities,
@@ -397,8 +402,11 @@ fn expand(
                 contracts,
             )?);
         } else {
-            expanded.push(step);
+            expanded.push(step.clone());
         }
+        let mut visible_step = original.clone();
+        visible_step.name.1 = step.name.1;
+        visible.push(visible_step);
     }
     let first = expanded
         .first()
@@ -611,7 +619,7 @@ fn remap_step(
             remap_select(select, identities, inputs, parameters, source, trace)?;
         }
         Expression::Call(call) => remap_call(
-            call, identities, inputs, parameters, preceding, source, trace,
+            call, identities, inputs, parameters, preceding, source, trace, true,
         )?,
     }
     Ok(())
@@ -738,7 +746,22 @@ fn remap_call(
     preceding: &[LetStep],
     source: &QuerySourceId,
     trace: &[QueryTraceSite],
+    strict_parameters: bool,
 ) -> Result<(), LinkError> {
+    if strict_parameters {
+        if let Some(parameter) = call
+            .arguments
+            .iter()
+            .find_map(|argument| unbound_parameter(&argument.value, parameters))
+        {
+            return Err(located(
+                source,
+                call.span,
+                trace.to_vec(),
+                format!("fragment parameter `${}` is not declared", parameter.0),
+            ));
+        }
+    }
     for argument in &mut call.arguments {
         substitute_argument_value(&mut argument.value, parameters);
     }
@@ -777,6 +800,28 @@ fn remap_call(
         }
     }
     Ok(())
+}
+
+/// The first parameter reference in a call value that has no local fragment binding.
+fn unbound_parameter<'a>(
+    value: &'a ArgumentValue,
+    bindings: &Bindings,
+) -> Option<&'a ryo_values::domain::program::types::WrittenParameter> {
+    match value {
+        ArgumentValue::Parameter(parameter) => {
+            (!bindings.contains_key(&parameter.0)).then_some(parameter)
+        }
+        ArgumentValue::List(values) => values
+            .iter()
+            .find_map(|value| unbound_parameter(value, bindings)),
+        ArgumentValue::Map(arguments) => arguments
+            .iter()
+            .find_map(|argument| unbound_parameter(&argument.value, bindings)),
+        ArgumentValue::Text(_)
+        | ArgumentValue::Number(_)
+        | ArgumentValue::Word(_)
+        | ArgumentValue::Step(_) => None,
+    }
 }
 
 fn substitute_value(value: &ArgumentValue, bindings: &Bindings) -> ArgumentValue {

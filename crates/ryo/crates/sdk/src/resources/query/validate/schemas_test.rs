@@ -122,6 +122,26 @@ fn subject(input: Input) -> Result<Value, Failure> {
     }
 }
 
+#[test]
+fn an_uncompilable_fragment_error_keeps_its_module_location() {
+    let origin = ryo_values::domain::program::types::QueryOrigin {
+        source_id: ryo_values::domain::program::types::QuerySourceId("nested/module".into()),
+        span: ryo_values::domain::program::types::QuerySpan {
+            start: ryo_values::domain::program::types::ByteOffset(7),
+            end: ryo_values::domain::program::types::ByteOffset(12),
+        },
+        trace: Vec::new(),
+    };
+    let mut error = refused(RefusedKind::Invalid, 7, 12);
+    error.origin = Some(origin.clone());
+    let converted = super::error(TEXT, CoreError::Uncompilable { error });
+    assert!(matches!(
+        converted,
+        ValidateError::Located { origin: found, error }
+            if found == origin && matches!(*error, ValidateError::Invalid { span, .. } if span.start.0 == 7 && span.end.0 == 12)
+    ));
+}
+
 /// What a row of the requests gives: the relations the caller declares, and the ones the core is expected to be told of.
 type Declared = (Vec<HostDeclaration>, Vec<HostedRelation>);
 

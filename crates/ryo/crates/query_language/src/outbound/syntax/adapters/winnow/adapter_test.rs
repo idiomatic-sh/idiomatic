@@ -298,6 +298,180 @@ fn nested_fragments_forward_relation_and_scalar_inputs() {
 }
 
 #[test]
+fn fragment_scope_does_not_capture_caller_steps_or_import_aliases() {
+    use ryo_values::domain::program::types::ArgumentValue;
+
+    let root = "import outer from \"outer\";\nimport nested from \"root/nested\";\nlet secret = select id from \"syntax-tree\";\nlet result = outer();\nemit result subject id key(id);";
+    let outer = "import nested from \"outer/nested\";\noutput relation<id: node>;\nlet counted = group-count(from=secret, keys=[\"id\"], count=\"n\");\nlet result = nested();\nlet counted_nested = group-count(from=hidden, keys=[\"id\"], count=\"n\");\nreturn result;";
+    let outer_identity = "output relation<id: node>;\nlet hidden = select id from \"function\";\nlet rows = select id from hidden;\nreturn rows;";
+    let root_identity =
+        "output relation<id: node>;\nlet rows = select id from \"syntax-tree\";\nreturn rows;";
+    let bundle = ryo_values::domain::program::service::query_bundle(
+        ryo_values::domain::program::service::document_source(
+            ryo_values::domain::program::service::source_id("root").unwrap(),
+            root,
+        ),
+        [
+            ryo_values::domain::program::service::document_source(
+                ryo_values::domain::program::service::source_id("outer").unwrap(),
+                outer,
+            ),
+            ryo_values::domain::program::service::document_source(
+                ryo_values::domain::program::service::source_id("outer/nested").unwrap(),
+                outer_identity,
+            ),
+            ryo_values::domain::program::service::document_source(
+                ryo_values::domain::program::service::source_id("root/nested").unwrap(),
+                root_identity,
+            ),
+        ],
+    )
+    .unwrap();
+    let program = parse_and_link(&bundle).unwrap();
+    for (name, reference) in [("counted", "secret"), ("counted_nested", "hidden")] {
+        let step = program
+            .steps
+            .iter()
+            .find(|step| step.name.0.as_ref() == name)
+            .unwrap();
+        let Expression::Call(counted) = &step.expression else {
+            panic!("the fragment's local count operation remains present");
+        };
+        assert_eq!(
+            counted.arguments[0].value,
+            ArgumentValue::Word(WordText(reference.into()))
+        );
+    }
+    let result = program.emit.step.1.unwrap();
+    assert_eq!(
+        program.step_origins[&result].source_id.0.as_ref(),
+        "outer/nested"
+    );
+}
+
+#[test]
+fn a_fragment_cannot_forward_an_undeclared_caller_parameter() {
+    let root = "import outer from \"outer\";\nparam secret: string;\nlet result = outer();\nemit result subject id key(id);";
+    let outer = "import inner from \"inner\";\noutput relation<id: node>;\nlet result = inner(secret=$secret);\nreturn result;";
+    let inner = "param secret: string;\noutput relation<id: node>;\nlet rows = select id from \"syntax-tree\";\nreturn rows;";
+    let bundle = ryo_values::domain::program::service::query_bundle(
+        ryo_values::domain::program::service::document_source(
+            ryo_values::domain::program::service::source_id("root").unwrap(),
+            root,
+        ),
+        [
+            ryo_values::domain::program::service::document_source(
+                ryo_values::domain::program::service::source_id("outer").unwrap(),
+                outer,
+            ),
+            ryo_values::domain::program::service::document_source(
+                ryo_values::domain::program::service::source_id("inner").unwrap(),
+                inner,
+            ),
+        ],
+    )
+    .unwrap();
+    assert!(
+        parse_and_link(&bundle)
+            .unwrap_err()
+            .contains("fragment parameter `$secret` is not declared")
+    );
+}
+
+#[test]
+fn duplicate_fragment_aliases_and_invalid_signatures_are_refused() {
+    let root =
+        "import query from \"query\";\nlet result = query();\nemit result subject id key(id);";
+    let cases = [
+        (
+            "duplicate input",
+            "input rows: relation<id: node>;\ninput rows: relation<id: node>;\noutput relation<id: node>;\nlet result = select id from rows;\nreturn result;",
+        ),
+        (
+            "duplicate parameter",
+            "param limit: integer;\nparam limit: integer;\noutput relation<id: node>;\nlet result = select id from \"syntax-tree\";\nreturn result;",
+        ),
+        (
+            "duplicate column",
+            "output relation<id: node, id: node>;\nlet result = select id from \"syntax-tree\";\nreturn result;",
+        ),
+        (
+            "unknown column kind",
+            "output relation<id: unknown>;\nlet result = select id from \"syntax-tree\";\nreturn result;",
+        ),
+        (
+            "unsupported parameter kind",
+            "param limit: list<string>;\noutput relation<id: node>;\nlet result = select id from \"syntax-tree\";\nreturn result;",
+        ),
+    ];
+    for (label, module) in cases {
+        let bundle = ryo_values::domain::program::service::query_bundle(
+            ryo_values::domain::program::service::document_source(
+                ryo_values::domain::program::service::source_id("root").unwrap(),
+                root,
+            ),
+            [ryo_values::domain::program::service::document_source(
+                ryo_values::domain::program::service::source_id("query").unwrap(),
+                module,
+            )],
+        )
+        .unwrap();
+        assert!(parse_and_link(&bundle).is_err(), "{label} is refused");
+    }
+
+    let duplicate_aliases = ryo_values::domain::program::service::query_bundle(
+        ryo_values::domain::program::service::document_source(
+            ryo_values::domain::program::service::source_id("root").unwrap(),
+            root,
+        ),
+        [
+            ryo_values::domain::program::service::document_source(
+                ryo_values::domain::program::service::source_id("query").unwrap(),
+                "import helper from \"one\";\nimport helper from \"two\";\noutput relation<id: node>;\nlet result = select id from \"syntax-tree\";\nreturn result;",
+            ),
+            ryo_values::domain::program::service::document_source(
+                ryo_values::domain::program::service::source_id("one").unwrap(),
+                "output relation<id: node>;\nlet result = select id from \"syntax-tree\";\nreturn result;",
+            ),
+            ryo_values::domain::program::service::document_source(
+                ryo_values::domain::program::service::source_id("two").unwrap(),
+                "output relation<id: node>;\nlet result = select id from \"syntax-tree\";\nreturn result;",
+            ),
+        ],
+    )
+    .unwrap();
+    assert!(
+        parse_and_link(&duplicate_aliases)
+            .unwrap_err()
+            .contains("import alias is declared more than once")
+    );
+}
+
+#[test]
+fn fragment_emit_is_rejected_at_its_original_module_span() {
+    use crate::outbound::syntax::errors::SyntaxError;
+    use crate::outbound::syntax::interface::SyntaxPort;
+
+    let bundle = ryo_values::domain::program::service::query_bundle(
+        ryo_values::domain::program::service::document_source(
+            ryo_values::domain::program::service::source_id("root").unwrap(),
+            "let rows = select id from \"syntax-tree\"; emit rows subject id key(id);",
+        ),
+        [ryo_values::domain::program::service::document_source(
+            ryo_values::domain::program::service::source_id("fragment").unwrap(),
+            "output relation<id: node>;\nlet rows = select id from \"syntax-tree\";\nreturn rows;\nemit rows subject id key(id);",
+        )],
+    )
+    .unwrap();
+    let error = SyntaxWinnowAdapter
+        .read_bundle(&bundle)
+        .expect_err("fragment modules have return, not emit");
+    assert!(
+        matches!(error, SyntaxError::Located { origin, .. } if origin.source_id.0.as_ref() == "fragment" && origin.span.start.0 > 0)
+    );
+}
+
+#[test]
 fn imported_module_cycle_is_refused() {
     let bundle = ryo_values::domain::program::service::query_bundle(
         ryo_values::domain::program::service::document_source(

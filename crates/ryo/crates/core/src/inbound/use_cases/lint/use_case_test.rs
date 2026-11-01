@@ -102,6 +102,8 @@ enum Scenario {
     ManyRuns,
     /// Lints a rule, then the rule of the same id with another query, over plans one session shares.
     ChangedQueryKeepsOnePlan,
+    /// Changes a directly imported module with the real compiler and checks changed findings.
+    ChangedFragmentPlan,
     /// Changes only a nested query module and checks both plan and persisted-result invalidation.
     ChangedNestedModule,
     /// Lints under new rule ids again and again, over plans one session shares, until more ids were named than the plans it keeps.
@@ -302,6 +304,18 @@ fn world(mut given: Given) -> World {
 
 /// The same fixture over an explicitly injected production scheduler.
 fn scheduled_world(given: Given, scheduler: Arc<dyn SchedulerPort>, workers: WorkerCount) -> World {
+    let query_language: Arc<dyn crate::outbound::query_language::interface::QueryLanguagePort> =
+        Arc::<QueryLanguageFake>::clone(&given.query);
+    scheduled_world_with_query(given, scheduler, workers, query_language)
+}
+
+/// The same test world with an explicitly supplied query compiler.
+fn scheduled_world_with_query(
+    given: Given,
+    scheduler: Arc<dyn SchedulerPort>,
+    workers: WorkerCount,
+    query_language: Arc<dyn crate::outbound::query_language::interface::QueryLanguagePort>,
+) -> World {
     let collected = rows::types::Collector::default();
     let kept: Arc<dyn RowsPort> = Arc::new(rows::factory::collect(collected.clone()));
     let ports: Arc<dyn RowsPort> = if given.ends == Ends::Well {
@@ -346,7 +360,7 @@ fn scheduled_world(given: Given, scheduler: Arc<dyn SchedulerPort>, workers: Wor
             Arc::new(given.facts),
             Arc::clone(&analysis_language),
             Arc::new(MatchingFake),
-            Arc::<QueryLanguageFake>::clone(&given.query),
+            query_language,
             Arc::clone(&analysis_memory),
             scheduler,
             workers,
@@ -716,6 +730,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_rule_keeps_one_plan_whatever_queries_it_had"),
         word: Word::Succeeds,
         input: || Scenario::ChangedQueryKeepsOnePlan,
+        expect: Expect::Value((1, 0)),
+    },
+    Case {
+        name: CaseName("a_changed_fragment_replaces_the_retained_compiled_plan"),
+        word: Word::Succeeds,
+        input: || Scenario::ChangedFragmentPlan,
         expect: Expect::Value((1, 0)),
     },
     Case {
@@ -1382,6 +1402,98 @@ fn changed_nested_module() -> Result<Value, Failure> {
     Ok((usize::from(parsed_again && compiled_twice), 0))
 }
 
+/// A module-only predicate edit changes actual findings through a retained real compiler plan.
+fn changed_fragment_plan() -> Result<Value, Failure> {
+    use super::types::CompiledPlans;
+    use crate::outbound::query_language::adapters::use_case::adapter::QueryLanguageUseCaseAdapter;
+    use crate::outbound::query_language::interface::QueryLanguagePort;
+
+    let make_bundle = |prefix: &str| {
+        let module = format!(
+            "input files: relation<path: file>;\noutput relation<path: file>;\nlet selected = select path from files where starts_with(path, \"{prefix}\");\nreturn selected;"
+        );
+        ryo_values::domain::program::service::query_bundle(
+            ryo_values::domain::program::service::document_source(
+                ryo_values::domain::program::service::source_id("root").unwrap(),
+                "import choose from \"query/filter\"; let files = select path from \"filesystem.file\"; let result = choose(files=files); emit result subject \"path\" key(\"path\");",
+            ),
+            [ryo_values::domain::program::service::document_source(
+                ryo_values::domain::program::service::source_id("query/filter").unwrap(),
+                module.into_boxed_str(),
+            )],
+        )
+        .unwrap()
+    };
+    let given = Given {
+        files: vec![("alpha.txt", "alpha"), ("beta.txt", "beta")],
+        ..violations()
+    };
+    let mut first = request(&given);
+    first.rules[0].query = make_bundle("alpha");
+    let mut second = request(&given);
+    second.rules[0].query = make_bundle("beta");
+    let syntax = || Arc::new(ryo_query_language::outbound::syntax::factory::winnow());
+    let catalog = || Arc::new(ryo_query_language::outbound::catalog::factory::language());
+    let compile = Arc::new(
+        ryo_query_language::inbound::use_cases::compile::use_case::CompileUseCaseImpl::new(
+            syntax(),
+            catalog(),
+        ),
+    );
+    let typecheck = Arc::new(
+        ryo_query_language::inbound::use_cases::typecheck::use_case::TypecheckUseCaseImpl::new(
+            syntax(),
+            catalog(),
+        ),
+    );
+    let query_language: Arc<dyn QueryLanguagePort> =
+        Arc::new(QueryLanguageUseCaseAdapter::new(compile, typecheck));
+    let scheduler: Arc<dyn SchedulerPort> = Arc::new(SchedulerFake::default());
+    let mut world = scheduled_world_with_query(given, scheduler, WorkerCount(1), query_language);
+    let plans = CompiledPlans::default();
+    world.use_case = world.use_case.compiling_into(plans.clone());
+
+    world.use_case.lint(first)?;
+    let first_paths = collected_file_paths(&world);
+    world.use_case.lint(second)?;
+    let second_paths = collected_file_paths(&world);
+    let retained = plans
+        .0
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let updated_bundle = retained
+        .plans
+        .get(&RuleId("0".into()))
+        .is_some_and(|cached| cached.query == make_bundle("beta"));
+    Ok((
+        usize::from(
+            first_paths == std::collections::BTreeSet::from(["alpha.txt".to_owned()])
+                && second_paths == std::collections::BTreeSet::from(["beta.txt".to_owned()])
+                && updated_bundle,
+        ),
+        0,
+    ))
+}
+
+/// Takes the file subjects written by one lint run and clears the shared collector.
+fn collected_file_paths(world: &World) -> std::collections::BTreeSet<String> {
+    let rows = std::mem::take(
+        &mut world
+            .collected
+            .0
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .rows,
+    );
+    rows.iter()
+        .flat_map(|row| row.0.iter())
+        .filter_map(|cell| match cell {
+            Some(ryo_values::domain::records::types::Cell::File(path)) => Some(path.to_string()),
+            _ => None,
+        })
+        .collect()
+}
+
 /// Lints one query under new ids, a run at a time, until more ids were named than the cap: answers whether the session kept
 /// some plans and no more than the cap.
 fn changed_ids_keep_one_plan() -> Result<Value, Failure> {
@@ -1545,6 +1657,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 .len();
             Ok((kept, 0))
         }
+        Scenario::ChangedFragmentPlan => changed_fragment_plan(),
         Scenario::ChangedNestedModule => changed_nested_module(),
         Scenario::ChangedIdsKeepOnePlan => changed_ids_keep_one_plan(),
         Scenario::InterleavedRuns => interleaved_runs(),

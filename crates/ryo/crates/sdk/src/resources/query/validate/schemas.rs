@@ -43,6 +43,10 @@ impl TryFrom<&str> for RyoQlQuery {
 
 impl crate::domain::query::types::QueryModuleSource {
     /// Build a module source under its stable logical id.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ryo_values::domain::program::errors::QueryBundleError::BlankSourceId`] when `id` is blank.
     pub fn try_new(
         id: &str,
         text: &str,
@@ -56,6 +60,12 @@ impl crate::domain::query::types::QueryModuleSource {
 
 impl RyoQlQuery {
     /// Construct a checked root query and its immutable named module registry.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ryo_values::domain::program::errors::QueryBundleError::BlankRootText`] for blank root text,
+    /// [`ryo_values::domain::program::errors::QueryBundleError::BlankSourceId`] for a blank source id, and
+    /// [`ryo_values::domain::program::errors::QueryBundleError::DuplicateSourceId`] for repeated source ids.
     pub fn with_modules(
         root_id: &str,
         root_text: &str,
@@ -161,7 +171,16 @@ impl From<ValidateErrorSchema<'_>> for ValidateError {
     fn from(schema: ValidateErrorSchema<'_>) -> Self {
         match schema.error {
             CoreError::Refused { error } => refused(error),
-            CoreError::Uncompilable { error } => invalid(schema.text, error.to_string()),
+            CoreError::Uncompilable { error } => match error.origin.clone() {
+                Some(origin) => ValidateError::Located {
+                    origin,
+                    error: Box::new(ValidateError::Invalid {
+                        span: SpanSchema(error.span).into(),
+                        message: error.message.0.to_string(),
+                    }),
+                },
+                None => invalid(schema.text, error.to_string()),
+            },
             CoreError::UnknownKind { reason } => invalid(schema.text, reason),
         }
     }
