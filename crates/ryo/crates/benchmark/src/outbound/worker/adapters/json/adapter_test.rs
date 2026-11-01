@@ -134,13 +134,13 @@ fn subject(operation: Input) -> Result<Value, Failure> {
     };
     let payload = match operation {
         Operation::Malformed => "{".into(),
-        Operation::RoundTrip => parent
-            .prepare(&request)
-            .map_err(classify)?
-            .arguments
-            .get(1)
-            .cloned()
-            .ok_or(Refusal::Unexpected)?,
+        Operation::RoundTrip => {
+            let invocation = parent.prepare(&request).map_err(classify)?;
+            let request_path = invocation.arguments.get(2).ok_or(Refusal::Unexpected)?;
+            std::fs::read_to_string(std::path::PathBuf::from(request_path))
+                .map_err(|_| Refusal::Unexpected)?
+                .into()
+        }
         Operation::Contract | Operation::WriteFailure | Operation::FlushFailure => {
             r#"{"root":"workspace","rules":"rules","files":["source.txt"],"cache":"cache"}"#.into()
         }

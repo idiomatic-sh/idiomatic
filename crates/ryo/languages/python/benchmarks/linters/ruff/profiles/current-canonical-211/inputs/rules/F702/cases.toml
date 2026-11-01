@@ -1,0 +1,120 @@
+
+[[cases]]
+name = "module"
+files = { "case.py" = "continue\n" }
+expected = [{ "file" = "case.py", "start" = 0, "end" = 8 }]
+
+[[cases]]
+name = "function"
+files = { "case.py" = "def f():\n    continue\n" }
+expected = [{ "file" = "case.py", "start" = 13, "end" = 21 }]
+
+[[cases]]
+name = "while"
+files = { "case.py" = "while ready:\n    continue\n" }
+expected = []
+
+[[cases]]
+name = "for"
+files = { "case.py" = "for item in items:\n    continue\n" }
+expected = []
+
+[[cases]]
+name = "nested-if"
+files = { "case.py" = "while ready:\n    if item:\n        continue\n" }
+expected = []
+
+[[cases]]
+name = "loop-else"
+files = { "case.py" = "while ready:\n    pass\nelse:\n    continue\n" }
+expected = [{ "file" = "case.py", "start" = 32, "end" = 40 }]
+
+[[cases]]
+name = "nested-else"
+files = { "case.py" = "while ready:\n    for item in items:\n        pass\n    else:\n        continue\n" }
+expected = []
+
+[[cases]]
+name = "nested-function"
+files = { "case.py" = "while ready:\n    def f():\n        continue\n" }
+expected = [{ "file" = "case.py", "start" = 34, "end" = 42 }]
+
+[[cases]]
+name = "nested-class"
+files = { "case.py" = "while ready:\n    class C:\n        continue\n" }
+expected = [{ "file" = "case.py", "start" = 34, "end" = 42 }]
+
+[[cases]]
+name = "function-loop"
+files = { "case.py" = "def f():\n    while ready:\n        continue\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "continue # noqa\n" }
+expected = []
+
+[[cases]]
+name = "code-noqa"
+files = { "case.py" = "continue # noqa: F702\n" }
+expected = []
+
+[[cases]]
+name = "other-code"
+files = { "case.py" = "continue # noqa: F401\n" }
+expected = [{ "file" = "case.py", "start" = 0, "end" = 8 }]
+
+[[cases]]
+name = "file-noqa"
+files = { "case.py" = "# ruff: noqa\ncontinue\n" }
+expected = []
+
+[[cases]]
+name = "async-for"
+files = { "case.py" = "async def f():\n    async for x in items:\n        continue\n" }
+expected = []
+
+[[cases]]
+name = "nested-finally"
+files = { "case.py" = "while ready:\n    try:\n        pass\n    finally:\n        continue\n" }
+expected = []
+
+[[cases]]
+name = "unicode-offset"
+files = { "case.py" = "label = \"\u96ea\"\ncontinue\n" }
+expected = [{ "file" = "case.py", "start" = 14, "end" = 22 }]
+
+[[cases]]
+name = "loop-body-nested-class-loop"
+files = { "case.py" = "while ready:\n    class C:\n        while ready:\n            continue\n" }
+expected = []
+
+[[cases]]
+name = "nested-loop-else-no-outer"
+files = { "case.py" = "def f():\n    for x in items:\n        pass\n    else:\n        continue\n" }
+expected = [{ "file" = "case.py", "start" = 60, "end" = 68 }]
+
+[[cases]]
+name = "shared-block-suppressed"
+files = { "case.py" = "# ruff: disable[F702]\ncontinue\n\n# ruff: enable[F702]\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-reenabled"
+files = { "case.py" = "# ruff: disable[F702]\n# ruff: enable[F702]\ncontinue\n" }
+expected = [{ file = "case.py", start = 43, end = 51 }]
+
+[[cases]]
+name = "shared-block-unmatched-disable"
+files = { "case.py" = "# ruff: disable[F702]\ncontinue\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-wrong-code"
+files = { "case.py" = "# ruff: disable[E501]\ncontinue\n" }
+expected = [{ file = "case.py", start = 22, end = 30 }]
+
+[[cases]]
+name = "shared-file-ignore"
+files = { "case.py" = "# ruff: file-ignore[F702]\ncontinue\n" }
+expected = []

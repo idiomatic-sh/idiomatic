@@ -35,6 +35,18 @@ files = { "case.py" = "\"{name}\".format(name=value, unused=other)  # noqa: F522
 expected = []
 
 [[cases]]
+name = "malformed-field-path-does-not-consume-keywords"
+comparison = "full"
+files = { "case.py" = "\"{x..}\".format(x=1)\n" }
+expected = []
+
+[[cases]]
+name = "malformed-nested-field-path-does-not-consume-keywords"
+comparison = "full"
+files = { "case.py" = "\"{x:{y..}}\".format(x=1, y=2)\n" }
+expected = []
+
+[[cases]]
 name = "non-format-method"
 comparison = "full"
 files = { "case.py" = "render(\"{name}\", name=value, unused=other)\n" }

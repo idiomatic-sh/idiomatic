@@ -32,9 +32,10 @@ let nonnearest_right = select l.comparison as comparison, l.operator as operator
 let nearest_right = antijoin(left=possible_right, right=nonnearest_right, left-on=["comparison", "operator", "operand"], right-on=["comparison", "operator", "operand"]);
 let bad_left = select l.comparison as comparison, l.operator as operator from nearest_left as l join bad_operands as r on l.operand = r.id and l.file = r.file;
 let bad_right = select l.comparison as comparison, l.operator as operator from nearest_right as l join bad_operands as r on l.operand = r.id and l.file = r.file;
-let bad_identity_ops = union(left=bad_left, right=bad_right);
-let reportable = select l.id as id, l.file as file, l.span as span from comparisons as l join bad_identity_ops as r on l.id = r.comparison;
-let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id and l.file = r.file;
+let bad_right_only = antijoin(left=bad_right, right=bad_left, left-on=["comparison", "operator"], right-on=["comparison", "operator"]);
+let bad_identity_ops = union(left=bad_left, right=bad_right_only);
+let reportable = select r.operator as id, l.id as comparison, l.file as file, l.span as span from comparisons as l join bad_identity_ops as r on l.id = r.comparison;
+let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.comparison = r.id and l.file = r.file;
 let quoted = select id from "syntax-tree" where kind = "f-string-part" or kind = "string" and matches(text, "(?i)^[rub]*(?:\x22\x22\x22|'\x27')");
 let continued = select id from "syntax-tree" where kind = "whitespace" and matches(text, "\\(?:\r\n|\r|\n)");
 let mapped_tokens = union(left=quoted, right=continued);

@@ -23,6 +23,12 @@ files = { "case.py" = "\"{name}\".format()\n" }
 expected = [{ rule = "F524", file = "case.py", start = 0, end = 17 }]
 
 [[cases]]
+name = "malformed-field-path-does-not-require-keywords"
+comparison = "full"
+files = { "case.py" = "\"{x..}\".format()\n" }
+expected = []
+
+[[cases]]
 name = "keyword-present"
 comparison = "full"
 files = { "case.py" = "\"{name}\".format(name=value)\n" }

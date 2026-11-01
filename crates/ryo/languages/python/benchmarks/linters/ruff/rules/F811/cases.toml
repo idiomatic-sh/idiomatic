@@ -153,3 +153,39 @@ name = "for-target-shadow-is-owned-by-F402"
 comparison = "full"
 files = { "case.py" = "import os\nfor os in range(3):\n    pass\n" }
 expected = []
+
+[[cases]]
+name = "lambda-parameter-does-not-redefine-outer-assignment"
+comparison = "full"
+files = { "case.py" = "list = custom\nx and not x and (lambda list: list())\n" }
+expected = []
+
+[[cases]]
+name = "lambda-parameter-does-not-redefine-later-function-assignment"
+comparison = "full"
+files = { "case.py" = "def f():\n    x or not x or (lambda list: list())\n    list = custom\n" }
+expected = []
+
+[[cases]]
+name = "lambda-parameter-does-not-redefine-class-assignment"
+comparison = "full"
+files = { "case.py" = "class C:\n    list = custom\n    x or not x or (lambda list: list())\n" }
+expected = []
+
+[[cases]]
+name = "assignment-before-global"
+comparison = "full"
+files = { "case.py" = "def f():\n    value = 1\n    global value\n" }
+expected = [{ rule = "F811", file = "case.py", start = 34, end = 39 }]
+
+[[cases]]
+name = "global-before-assignment-is-not-redefinition"
+comparison = "full"
+files = { "case.py" = "def f():\n    global value\n    value = 1\n" }
+expected = []
+
+[[cases]]
+name = "used-prior-assignment-is-not-redefined"
+comparison = "full"
+files = { "case.py" = "def f():\n    value = 1\n    print(value)\n    global value\n" }
+expected = []

@@ -23,6 +23,12 @@ files = { "case.py" = "\"{} {}\".format(first, second, extra)\n" }
 expected = [{ rule = "F523", file = "case.py", start = 0, end = 36 }]
 
 [[cases]]
+name = "malformed-field-path-does-not-use-positionals"
+comparison = "full"
+files = { "case.py" = "\"{x..}\".format(value, unused)\n" }
+expected = []
+
+[[cases]]
 name = "starred-leading-argument-shifts-index"
 comparison = "full"
 files = { "case.py" = "\"{1}\".format(*values, used, extra)\n" }

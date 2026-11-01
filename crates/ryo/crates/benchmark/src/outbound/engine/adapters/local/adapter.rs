@@ -24,6 +24,8 @@ pub(crate) struct EngineLocalAdapter {
     languages: Languages,
     /// Optional trace destination for a separately labelled profiling invocation.
     trace: Option<std::path::PathBuf>,
+    /// Optional flushed JSONL event destination for a separately labelled diagnostic invocation.
+    diagnostic_events: Option<std::path::PathBuf>,
     /// Optional explicit query mapping provider diagnostics to benchmark findings.
     frontend_diagnostic: Option<FrontendDiagnosticProjection>,
 }
@@ -37,6 +39,20 @@ impl EngineLocalAdapter {
         Self {
             languages,
             trace,
+            diagnostic_events: None,
+            frontend_diagnostic,
+        }
+    }
+    /// Bind an explicit live JSONL diagnostic sink without changing the timing worker.
+    pub(crate) fn with_diagnostic_events(
+        languages: Languages,
+        path: std::path::PathBuf,
+        frontend_diagnostic: Option<FrontendDiagnosticProjection>,
+    ) -> Self {
+        Self {
+            languages,
+            trace: None,
+            diagnostic_events: Some(path),
             frontend_diagnostic,
         }
     }
@@ -203,6 +219,10 @@ impl EnginePort for EngineLocalAdapter {
             )
             .map_err(|error| Error::Invalid(error.to_string()))?;
             Some(guard)
+        } else if let Some(path) = &self.diagnostic_events {
+            tracing::subscriber::set_global_default(super::diagnostic_events::subscriber(path)?)
+                .map_err(|error| Error::Invalid(error.to_string()))?;
+            None
         } else {
             None
         };

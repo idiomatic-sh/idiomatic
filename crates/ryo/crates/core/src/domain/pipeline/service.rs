@@ -26,6 +26,9 @@ use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::StepId;
 use ryo_values::domain::plans::service::{inputs_of, named};
 use ryo_values::domain::plans::types::{Plan, StepScope};
+use std::sync::atomic::{AtomicU64, Ordering};
+
+static NEXT_DIAGNOSTIC_STEP_ID: AtomicU64 = AtomicU64::new(1);
 
 /// Notes that the step `consumer` was fed `rows` rows.
 pub(crate) fn feed(
@@ -70,6 +73,67 @@ pub(crate) fn input(stepper: &Stepper<'_, '_>, which: InputPlace) -> Result<Inpu
 ///
 /// Whatever the step, its inputs or `emit` refuse.
 pub(crate) fn pass_on<'a, 'f>(
+    stepper: &mut Stepper<'a, 'f>,
+    id: StepPlace,
+    context: &mut OperatorContext<'_>,
+    emit: &mut dyn Emit,
+) -> Result<(), OperatingError>
+where
+    'f: 'a,
+{
+    let diagnostic = tracing::enabled!(
+        target: "ryo::diagnostic::rule_step",
+        tracing::Level::TRACE
+    );
+    if !diagnostic {
+        return pass_on_inner(stepper, id, context, emit);
+    }
+    let operation = stepper
+        .plan
+        .steps
+        .get(id.0)
+        .map_or("missing", |step| operation_name(&step.operation));
+    let details = stepper.plan.steps.get(id.0).map(|step| &step.operation);
+    let parent_step_index = stepper.current.0;
+    let invocation_id = NEXT_DIAGNOSTIC_STEP_ID.fetch_add(1, Ordering::Relaxed);
+    let step_span = tracing::trace_span!(
+        target: "ryo::diagnostic::rule_step",
+        "rule_step",
+        invocation_id,
+        step_index = id.0,
+        parent_step_index,
+        nested = parent_step_index != id.0,
+        operation,
+        operation_details = ?details,
+    );
+    let _entered = step_span.enter();
+    let started = std::time::Instant::now();
+    tracing::trace!(
+        target: "ryo::diagnostic::rule_step",
+        event = "rule_step_start",
+        invocation_id,
+        step_index = id.0,
+        parent_step_index,
+        nested = parent_step_index != id.0,
+        operation,
+    );
+    let outcome = pass_on_inner(stepper, id, context, emit);
+    let parent_step_index = stepper.current.0;
+    tracing::trace!(
+        target: "ryo::diagnostic::rule_step",
+        event = "rule_step_end",
+        invocation_id,
+        step_index = id.0,
+        parent_step_index,
+        nested = parent_step_index != id.0,
+        operation,
+        elapsed_ns = u64::try_from(started.elapsed().as_nanos()).unwrap_or(u64::MAX),
+        outcome = if outcome.is_ok() { "ok" } else { "error" },
+    );
+    outcome
+}
+
+fn pass_on_inner<'a, 'f>(
     stepper: &mut Stepper<'a, 'f>,
     id: StepPlace,
     context: &mut OperatorContext<'_>,
@@ -149,6 +213,33 @@ where
         *slot = Some(room);
     }
     outcome
+}
+
+fn operation_name(operation: &ryo_values::domain::plans::types::Operation) -> &'static str {
+    use ryo_values::domain::plans::types::Operation;
+    match operation {
+        Operation::Select { .. } => "select",
+        Operation::Project { .. } => "project",
+        Operation::Extend { .. } => "extend",
+        Operation::Join { .. } => "join",
+        Operation::Union { .. } => "union",
+        Operation::Intersection { .. } => "intersection",
+        Operation::Difference { .. } => "difference",
+        Operation::Antijoin { .. } => "antijoin",
+        Operation::GroupCount { .. } => "group-count",
+        Operation::GroupDigest { .. } => "group-digest",
+        Operation::Capture { .. } => "capture",
+        Operation::Rank { .. } => "rank",
+        Operation::Replace { .. } => "replace",
+        Operation::OrderedMatch { .. } => "ordered-match",
+        Operation::Words { .. } => "words",
+        Operation::Axis { .. } => "axis",
+        Operation::Closure { .. } => "closure",
+        Operation::Cycles { .. } => "cycles",
+        Operation::Rows { .. } => "rows",
+        Operation::Hosted { .. } => "hosted",
+        Operation::SpanBetween { .. } => "span-between",
+    }
 }
 
 /// Passes on the rows of the step `id`: its table when it keeps them, else as it makes them.

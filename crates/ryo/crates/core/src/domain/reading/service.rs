@@ -101,6 +101,29 @@ pub(crate) fn evaluate_rule<'f>(
     let refuse = |reason: &dyn std::fmt::Display| failed(&id_at(setting.ids, rule), reason);
     let number = RuleNumber(u32::try_from(rule.0).unwrap_or(u32::MAX));
     let pool = &mut tables.pool;
+    let diagnostic = tracing::enabled!(
+        target: "ryo::diagnostic::rule_step",
+        tracing::Level::TRACE
+    );
+    let rule_span = if diagnostic {
+        let rule_id = setting
+            .ids
+            .get(rule.0)
+            .map_or("<unknown>", |id| id.0.as_ref());
+        let file_path = usize::try_from(file.0)
+            .ok()
+            .and_then(|index| setting.paths.get(index))
+            .map_or("<unknown>", |path| path.0.as_ref());
+        tracing::trace_span!(
+            target: "ryo::diagnostic::rule_step",
+            "rule_file",
+            rule = rule_id,
+            file = file_path,
+        )
+    } else {
+        tracing::Span::none()
+    };
+    let _entered = rule_span.enter();
     {
         let mut context = OperatorContext {
             bindings: bound,

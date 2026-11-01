@@ -7,8 +7,12 @@ pub(crate) const CARGO_BENCH_ARGUMENT: &str = "--bench";
 pub(crate) const RUN_RYO: &str = "run-ryo";
 /// Separate trace-only child execution command.
 pub(crate) const PROFILE_RYO: &str = "profile-ryo";
+/// Diagnostic-only worker that flushes rule/file events as JSONL.
+pub(crate) const DIAGNOSTIC_RYO: &str = "diagnostic-ryo";
 /// Required argument or refusal for missing worker request.
 pub(crate) const MISSING_WORKER_REQUEST: &str = "missing worker request";
+/// Child argument that carries a request from an owned JSON file.
+pub(crate) const REQUEST_FILE: &str = "--request-file";
 /// Complete profile fixture-verification command.
 pub(crate) const VERIFY_CASES: &str = "verify-cases";
 /// Check authored fixtures with the pinned reference only; never runs a candidate.
@@ -89,7 +93,7 @@ pub(crate) const VERIFY_TOOL: &str = "verify-tool";
 /// Required argument or refusal for expected executable.
 pub(crate) const EXPECTED_EXECUTABLE: &str = "expected executable path";
 /// CLI usage shown when command dispatch fails.
-pub(crate) const USAGE: &str = "usage: ruff benchmark: audit | verify-tool <executable> | verify-cases <ruff> [profile] | verify-reference-cases <ruff> [profile] | measure <ruff> <fresh-cache> | run-ryo <json>";
+pub(crate) const USAGE: &str = "usage: ruff benchmark: audit | verify-tool <executable> | verify-cases <ruff> [profile] | verify-reference-cases <ruff> [profile] | measure <ruff> <fresh-cache> | run-ryo <json>|--request-file <path> | diagnostic-ryo <json>|--request-file <path> [python-target=3.10|python-target=3.11] <events.jsonl>";
 /// Stable command, artifact or observation identity for ruff directory.
 pub(crate) const RUFF_DIRECTORY: &str = "benchmarks/linters/ruff";
 

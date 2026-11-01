@@ -1,0 +1,77 @@
+[[cases]]
+name = "basic"
+comparison = "full"
+files = { "case.py" = "import pytest\n@pytest.yield_fixture\ndef resource():\n    yield 1\n" }
+expected = [{ rule = "PT020", file = "case.py", start = 14, end = 35 }]
+
+[[cases]]
+name = "call"
+comparison = "full"
+files = { "case.py" = "import pytest\n@pytest.yield_fixture()\ndef resource():\n    yield 1\n" }
+expected = [{ rule = "PT020", file = "case.py", start = 14, end = 37 }]
+
+[[cases]]
+name = "module-alias"
+comparison = "full"
+files = { "case.py" = "import pytest as pt\n@pt.yield_fixture\ndef resource():\n    yield 1\n" }
+expected = [{ rule = "PT020", file = "case.py", start = 20, end = 37 }]
+
+[[cases]]
+name = "from-import"
+comparison = "full"
+files = { "case.py" = "from pytest import yield_fixture\n@yield_fixture\ndef resource():\n    yield 1\n" }
+expected = [{ rule = "PT020", file = "case.py", start = 33, end = 47 }]
+
+[[cases]]
+name = "from-import-alias"
+comparison = "full"
+files = { "case.py" = "from pytest import yield_fixture as fixture\n@fixture\ndef resource():\n    yield 1\n" }
+expected = [{ rule = "PT020", file = "case.py", start = 44, end = 52 }]
+
+[[cases]]
+name = "whitespace-and-parentheses"
+comparison = "full"
+files = { "case.py" = "import pytest as pt\n@ (pt.yield_fixture)\ndef resource():\n    yield 1\n" }
+expected = [{ rule = "PT020", file = "case.py", start = 20, end = 40 }]
+
+[[cases]]
+name = "wrong-fixture"
+comparison = "full"
+files = { "case.py" = "import pytest\n@pytest.fixture\ndef resource():\n    yield 1\n" }
+expected = []
+
+[[cases]]
+name = "shadowed-receiver"
+comparison = "full"
+files = { "case.py" = "import pytest\npytest = object()\n@pytest.yield_fixture\ndef resource():\n    yield 1\n" }
+expected = []
+
+[[cases]]
+name = "nested-decoy"
+comparison = "full"
+files = { "case.py" = "import pytest\n@wrapper(pytest.yield_fixture)\ndef resource():\n    yield 1\n" }
+expected = []
+
+[[cases]]
+name = "inline-noqa"
+comparison = "full"
+files = { "case.py" = "import pytest\n@pytest.yield_fixture  # noqa: PT020\ndef resource():\n    yield 1\n" }
+expected = []
+
+[[cases]]
+name = "file-noqa"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa: PT020\nimport pytest\n@pytest.yield_fixture\ndef resource():\n    yield 1\n" }
+expected = []
+
+[[cases]]
+name = "unicode-prefix"
+comparison = "full"
+files = { "case.py" = "import pytest\nπ = 1\n@pytest.yield_fixture\ndef resource():\n    yield 1\n" }
+expected = [{ rule = "PT020", file = "case.py", start = 21, end = 42 }]
+
+[[cases]]
+name = "nfkc-module-alias"
+comparison = "full"
+files = { "case.py" = "import pytest as ｐｔ\n@ｐｔ.yield_fixture\ndef resource():\n    yield 1\n" }
+expected = [{ rule = "PT020", file = "case.py", start = 24, end = 45 }]

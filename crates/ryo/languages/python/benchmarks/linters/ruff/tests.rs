@@ -3,11 +3,14 @@ mod adapter;
 #[path = "adapter_test.rs"]
 mod adapter_test;
 mod constants;
+#[path = "composition/diagnostic_protocol.rs"]
+mod diagnostic_protocol;
 mod engine_test;
 mod schemas;
 #[path = "schemas_test.rs"]
 mod schemas_test;
 mod settings;
+mod worker_request_input;
 
 /// Comparable failure categories retain the actual boundary error variant in case tables.
 #[derive(Debug, PartialEq, Eq)]

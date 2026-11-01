@@ -1,7 +1,9 @@
 //! Python composition provides its linked language only at this outer edge.
 mod commands;
 mod constants;
+mod diagnostic_protocol;
 mod output;
+mod request_input;
 use ryo_benchmark::application::run::service::run as execute;
 use ryo_benchmark::domain::diagnostics::errors::DiagnosticsError as Error;
 use ryo_benchmark::domain::measurements::types::{RunOrder, sample::value::BenchmarkSample};
@@ -37,21 +39,21 @@ pub(crate) fn run(
     let comparison = CompareUseCaseImpl::new();
     let command = args.next();
     match command.as_deref() {
-        Some(constants::RUN_RYO | constants::PROFILE_RYO) => commands::worker(
-            args.map(commands::BenchmarkArgument),
-            if command.as_deref() == Some(constants::PROFILE_RYO) {
-                commands::WorkerTracing::Enabled
-            } else {
-                commands::WorkerTracing::Disabled
-            },
-        ),
+        Some(constants::RUN_RYO | constants::PROFILE_RYO | constants::DIAGNOSTIC_RYO) => {
+            commands::worker(
+                args.map(request_input::BenchmarkArgument),
+                diagnostic_protocol::tracing_for_command(command.as_deref().unwrap_or_default())
+                    .ok_or_else(|| Error::Invalid("unsupported worker command".into()))?,
+            )
+        }
         Some(constants::VERIFY_CASES) => {
-            let count = commands::verify_cases(args.map(commands::BenchmarkArgument))?;
+            let count = commands::verify_cases(args.map(request_input::BenchmarkArgument))?;
             writeln!(output, "{count} cases passed against both contestants")?;
             Ok(())
         }
         Some(constants::VERIFY_REFERENCE_CASES) => {
-            let count = commands::verify_reference_cases(args.map(commands::BenchmarkArgument))?;
+            let count =
+                commands::verify_reference_cases(args.map(request_input::BenchmarkArgument))?;
             writeln!(
                 output,
                 "{count} cases matched the reference; no candidate was executed"

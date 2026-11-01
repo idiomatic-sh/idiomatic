@@ -1,0 +1,161 @@
+[[cases]]
+name = "logging-module"
+comparison = "full"
+files = { "case.py" = "import logging\nlogging.warn(\"x\")\n" }
+expected = [{ rule = "G010", file = "case.py", start = 23, end = 27 }]
+
+[[cases]]
+name = "aliased-module"
+comparison = "full"
+files = { "case.py" = "import logging as log\nlog.warn(\"x\")\n" }
+expected = [{ rule = "G010", file = "case.py", start = 26, end = 30 }]
+
+[[cases]]
+name = "from-import"
+comparison = "full"
+files = { "case.py" = "from logging import warn\nwarn(\"x\")\n" }
+expected = [{ rule = "G010", file = "case.py", start = 25, end = 29 }]
+
+[[cases]]
+name = "from-import-alias"
+comparison = "full"
+files = { "case.py" = "from logging import warn as log_warning\nlog_warning(\"x\")\n" }
+expected = [{ rule = "G010", file = "case.py", start = 40, end = 51 }]
+
+[[cases]]
+name = "logger-name"
+comparison = "full"
+files = { "case.py" = "logger.warn(\"x\")\n" }
+expected = [{ rule = "G010", file = "case.py", start = 7, end = 11 }]
+
+[[cases]]
+name = "upper-logger-name"
+comparison = "full"
+files = { "case.py" = "LOGGER.warn(\"x\")\n" }
+expected = [{ rule = "G010", file = "case.py", start = 7, end = 11 }]
+
+[[cases]]
+name = "log-prefix"
+comparison = "full"
+files = { "case.py" = "logfile.warn(\"x\")\n" }
+expected = [{ rule = "G010", file = "case.py", start = 8, end = 12 }]
+
+[[cases]]
+name = "logging-suffix"
+comparison = "full"
+files = { "case.py" = "my_logging.warn(\"x\")\n" }
+expected = [{ rule = "G010", file = "case.py", start = 11, end = 15 }]
+
+[[cases]]
+name = "my-logger-suffix"
+comparison = "full"
+files = { "case.py" = "my_logger.warn(\"x\")\n" }
+expected = [{ rule = "G010", file = "case.py", start = 10, end = 14 }]
+
+[[cases]]
+name = "self-logger"
+comparison = "full"
+files = { "case.py" = "class C:\n    def f(self):\n        self.logger.warn(\"x\")\n" }
+expected = [{ rule = "G010", file = "case.py", start = 46, end = 50 }]
+
+[[cases]]
+name = "attribute-logger-suffix"
+comparison = "full"
+files = { "case.py" = "class C:\n    def f(self):\n        self.log.warn(\"x\")\n" }
+expected = [{ rule = "G010", file = "case.py", start = 43, end = 47 }]
+
+[[cases]]
+name = "inline-getlogger"
+comparison = "full"
+files = { "case.py" = "import logging\nlogging.getLogger().warn(\"x\")\n" }
+expected = [{ rule = "G010", file = "case.py", start = 35, end = 39 }]
+
+[[cases]]
+name = "getlogger-import-alias"
+comparison = "full"
+files = { "case.py" = "from logging import getLogger as make_logger\nmake_logger().warn(\"x\")\n" }
+expected = [{ rule = "G010", file = "case.py", start = 59, end = 63 }]
+
+[[cases]]
+name = "inline-logger-class"
+comparison = "full"
+files = { "case.py" = "import logging\nlogging.Logger().warn(\"x\")\n" }
+expected = [{ rule = "G010", file = "case.py", start = 32, end = 36 }]
+
+[[cases]]
+name = "flask-current-app"
+comparison = "full"
+files = { "case.py" = "from flask import current_app\ncurrent_app.logger.warn(\"x\")\n" }
+expected = [{ rule = "G010", file = "case.py", start = 49, end = 53 }]
+
+[[cases]]
+name = "wrong-imported-object"
+comparison = "full"
+files = { "case.py" = "import os as logger\nlogger.warn(\"x\")\n" }
+expected = []
+
+[[cases]]
+name = "logging-class-method"
+comparison = "full"
+files = { "case.py" = "import logging\nlogging.Logger.warn(\"x\")\n" }
+expected = []
+
+[[cases]]
+name = "imported-logger-object"
+comparison = "full"
+files = { "case.py" = "from package import logger\nlogger.warn(\"x\")\n" }
+expected = []
+
+[[cases]]
+name = "ordinary-object"
+comparison = "full"
+files = { "case.py" = "thing.warn(\"x\")\n" }
+expected = []
+
+[[cases]]
+name = "warning-method"
+comparison = "full"
+files = { "case.py" = "logger.warning(\"x\")\n" }
+expected = []
+
+[[cases]]
+name = "no-message-args"
+comparison = "full"
+files = { "case.py" = "logger.warn()\n" }
+expected = [{ rule = "G010", file = "case.py", start = 7, end = 11 }]
+
+[[cases]]
+name = "attribute-not-call"
+comparison = "full"
+files = { "case.py" = "logger.warn\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "logger.warn(\"x\")  # noqa: G010\n" }
+expected = []
+
+[[cases]]
+name = "file-noqa"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa: G010\nlogger.warn(\"x\")\n" }
+expected = []
+
+[[cases]]
+name = "logging-module-alias-name"
+comparison = "full"
+files = { "case.py" = "import logging as logger\nlogger.warn(\"x\")\n" }
+expected = [{ rule = "G010", file = "case.py", start = 32, end = 36 }]
+
+[[cases]]
+name = "unknown-chained-logger"
+comparison = "full"
+files = { "case.py" = "unknown.logger.warn(\"x\")\n" }
+expected = [{ rule = "G010", file = "case.py", start = 15, end = 19 }]
+
+[[cases]]
+name = "imported-unknown-chained-logger"
+comparison = "full"
+files = { "case.py" = "import os\nos.logger.warn(\"x\")\n" }
+expected = []

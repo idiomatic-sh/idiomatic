@@ -90,6 +90,7 @@ use ryo_values::domain::runs::types::RuleApplicability;
 use ryo_values::domain::stored_facts::types::{ArenaBase, Digest, LanguageNumber, ReadFailure};
 use std::borrow::Cow;
 use std::sync::Arc;
+use std::time::Instant;
 
 /// Whether the language read a complete tree or a recovery from missing syntax.
 pub(super) fn recovery_of(reading: &FileReading, elements: &Elements) -> Recovery {
@@ -360,6 +361,31 @@ impl FileAnalysis {
             let rows = &*facts;
             // A view the store refuses stops the file: the step that asked for it is not read as given no rows.
             let refused = std::cell::RefCell::new(None);
+            let diagnostic = tracing::enabled!(
+                target: "ryo::diagnostic::rule_file",
+                tracing::Level::TRACE
+            );
+            let identity = diagnostic.then(|| {
+                let rule_id = visit
+                    .setting
+                    .ids
+                    .get(rule.0)
+                    .map_or("<unknown>", |id| id.0.as_ref());
+                let file_path = usize::try_from(file.0)
+                    .ok()
+                    .and_then(|index| visit.setting.paths.get(index))
+                    .map_or("<unknown>", |path| path.0.as_ref());
+                (rule_id, file_path)
+            });
+            let started = diagnostic.then(Instant::now);
+            if let Some((rule_id, file_path)) = identity {
+                tracing::trace!(
+                    target: "ryo::diagnostic::rule_file",
+                    event = "rule_file_start",
+                    rule = rule_id,
+                    file = file_path,
+                );
+            }
             let evaluated =
                 evaluate_rule(tables, &visit.setting, rule, file, &|relation| match rows
                     .rows(relation)
@@ -370,10 +396,21 @@ impl FileAnalysis {
                         None
                     }
                 });
-            if let Some(error) = refused.take() {
-                return Err(error.into());
+            let outcome = match refused.take() {
+                Some(error) => Err(FileAnalysisError::from(error)),
+                None => evaluated.map_err(FileAnalysisError::from),
+            };
+            if let (Some(started), Some((rule_id, file_path))) = (started, identity) {
+                tracing::trace!(
+                    target: "ryo::diagnostic::rule_file",
+                    event = "rule_file_end",
+                    rule = rule_id,
+                    file = file_path,
+                    elapsed_ns = u64::try_from(started.elapsed().as_nanos()).unwrap_or(u64::MAX),
+                    outcome = if outcome.is_ok() { "ok" } else { "error" },
+                );
             }
-            evaluated?;
+            outcome?;
             let inputs = visit
                 .setting
                 .plans

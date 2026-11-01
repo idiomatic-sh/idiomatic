@@ -23,8 +23,11 @@ fn composed(
         return Err(OperatingError::ShapeMismatch);
     };
     for span in [left, right] {
-        if span != NO_SPAN && (span.start > span.end || span.end.0 as usize > length) {
-            return Err(OperatingError::InvalidSpan);
+        if span != NO_SPAN {
+            let end = usize::try_from(span.end.0).map_err(|_| OperatingError::InvalidSpan)?;
+            if span.start > span.end || end > length {
+                return Err(OperatingError::InvalidSpan);
+            }
         }
     }
     if left == NO_SPAN || right == NO_SPAN {

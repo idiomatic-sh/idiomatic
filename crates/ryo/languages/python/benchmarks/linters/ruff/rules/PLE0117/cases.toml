@@ -105,3 +105,9 @@ name = "class-cell-name-is-an-implicit-nonlocal-binding"
 comparison = "full"
 files = { "case.py" = "class C:\n    def f(self):\n        nonlocal __class__\n" }
 expected = []
+
+[[cases]]
+name = "outer-global-prevents-nonlocal-without-binding"
+comparison = "full"
+files = { "case.py" = "def outer():\n    global value\n    def inner():\n        nonlocal value\n" }
+expected = []

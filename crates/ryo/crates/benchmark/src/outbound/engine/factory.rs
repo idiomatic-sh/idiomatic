@@ -28,3 +28,13 @@ pub fn local_with_frontend_diagnostic(
 ) -> impl super::interface::EnginePort {
     EngineLocalAdapter::new(languages, trace, Some(projection))
 }
+
+/// Construct the engine with a synchronous JSONL event sink for bounded diagnostic runs.
+#[must_use]
+pub fn local_with_diagnostic_events(
+    languages: ryo::linter::Languages,
+    events: std::path::PathBuf,
+    projection: FrontendDiagnosticProjection,
+) -> impl super::interface::EnginePort {
+    EngineLocalAdapter::with_diagnostic_events(languages, events, Some(projection))
+}

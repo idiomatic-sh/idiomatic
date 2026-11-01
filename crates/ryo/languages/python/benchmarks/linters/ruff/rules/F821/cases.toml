@@ -285,3 +285,33 @@ name = "initializer-path-stub-is-not-module"
 comparison = "full"
 files = { "pkg/__init__.pyi" = "print(__path__)\n" }
 expected = [{ rule = "F821", file = "pkg/__init__.pyi", start = 6, end = 14 }]
+
+[[cases]]
+name = "global-read-is-not-undefined-name"
+comparison = "full"
+files = { "case.py" = "def f():\n    global X\n    print(X)\n" }
+expected = []
+
+[[cases]]
+name = "nested-function-global-read-is-not-undefined-name"
+comparison = "full"
+files = { "case.py" = "def f():\n    def g():\n        print(value)\n    global value\n" }
+expected = []
+
+[[cases]]
+name = "delete-after-annotation-only"
+comparison = "full"
+files = { "case.py" = "def f():\n    x: int\n    del x\n" }
+expected = [{ rule = "F821", file = "case.py", start = 28, end = 29 }]
+
+[[cases]]
+name = "delete-after-valued-annotation-is-bound"
+comparison = "full"
+files = { "case.py" = "def f():\n    x: int = 1\n    del x\n" }
+expected = []
+
+[[cases]]
+name = "module-delete-after-annotation-only"
+comparison = "full"
+files = { "case.py" = "x: int\ndel x\n" }
+expected = [{ rule = "F821", file = "case.py", start = 11, end = 12 }]

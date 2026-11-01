@@ -625,13 +625,26 @@ def valid_shard_receipts(
     for index, expected_cases in enumerate(partitions):
         receipt = by_index[index]
         expected_ids = [f"{case['rule']}/{case['name']}" for case in expected_cases]
+        process_proven = (
+            receipt.get("stdout_summary_valid") is True
+            and receipt.get("last_process_status") == 0
+            and receipt.get("reconstructed_from_case_records") is not True
+        )
+        reconstructed = (
+            receipt.get("reconstructed_from_case_records") is True
+            and receipt.get("stdout_summary_valid") is None
+            and receipt.get("last_process_status") is None
+            and isinstance(receipt.get("reconstruction"), dict)
+            and receipt["reconstruction"].get("method") == "complete-case-records-no-process-summary"
+            and receipt["reconstruction"].get("records_sha256") == receipt.get("case_results_sha256")
+        )
         if (
             receipt.get("case_ids") != expected_ids
             or receipt.get("global_identity") != global_identity
             or receipt.get("shard_count") != shard_count
             or receipt.get("status") != 0
             or receipt.get("case_result_records_valid") is not True
-            or receipt.get("stdout_summary_valid") is not True
+            or not (process_proven or reconstructed)
         ):
             return False
         all_ids.extend(receipt["case_ids"])
@@ -945,20 +958,33 @@ def verify_profile_sharded(
             to_run = [case for case in selected if f"{case['rule']}/{case['name']}" not in completed]
             if not to_run:
                 failed = any(not row.get("case_passed", False) for row in keep)
+                records_valid = (
+                    len(keep) == 2 * len(selected)
+                    and completed == completed_ids
+                    and all(row.get("complete") is True and row.get("error") is None for row in keep)
+                )
                 receipt = {
                     "profile": name,
                     "shard_index": shard_index,
                     "shard_count": effective_shard_count,
                     "case_ids": expected_ids,
                     "executed_case_ids": [],
-                    "status": int(failed),
-                    "last_process_status": 0,
+                    "status": int(failed or not records_valid),
+                    "last_process_status": None,
                     "error": None,
                     "global_identity": global_identity,
                     "stdout_sha256": None,
                     "stderr_sha256": None,
                     "case_results_sha256": sha256(records_path),
-                    "case_result_records_valid": len(keep) == 2 * len(selected),
+                    "case_result_records_valid": records_valid,
+                    "stdout_summary_valid": None,
+                    "reconstructed_from_case_records": True,
+                    "reconstruction": {
+                        "method": "complete-case-records-no-process-summary",
+                        "records_sha256": sha256(records_path),
+                        "process_exit_observed": False,
+                        "stdout_summary_observed": False,
+                    },
                 }
                 atomic_json_write(receipt_path, receipt)
                 receipts.append(receipt)
@@ -1305,6 +1331,143 @@ def verify_profile(
         error=validation_error,
         status_override=status_override,
     )
+
+
+def ruff_location_to_byte(source: str, location: dict[str, object]) -> int:
+    """Convert Ruff's one-based Unicode row/column to the wire's UTF-8 byte offset."""
+    row = location.get("row")
+    column = location.get("column")
+    if not isinstance(row, int) or not isinstance(column, int) or row < 1 or column < 1:
+        raise ValueError("Ruff returned an invalid source location")
+    separators = list(re.finditer(r"\r\n|\r|\n", source))
+    starts = [0, *(match.end() for match in separators)]
+    if row > len(starts):
+        if row == len(starts) + 1 and column == 1:
+            return len(source.encode("utf-8"))
+        raise ValueError("Ruff returned a row beyond the staged source")
+    start = starts[row - 1]
+    end = separators[row - 1].start() if row <= len(separators) else len(source)
+    line = source[start:end]
+    prefix = line[: column - 1]
+    if len(prefix) != column - 1:
+        raise ValueError("Ruff returned a column beyond the staged source")
+    return len(source[:start].encode("utf-8")) + len(prefix.encode("utf-8"))
+
+
+def verify_reference_profile(
+    name: str,
+    profile_root: Path,
+    ruff: Path,
+    output_directory: Path | None,
+    identities: dict[str, object],
+    *,
+    runner=subprocess.run,
+) -> int:
+    """Check pinned full-report fixtures directly with Ruff, without building Ryo."""
+    profile = tomllib.loads((profile_root / "benchmark.toml").read_text(encoding="utf-8"))
+    target_config = profile.get("parser-configuration", "python-target=3.10")
+    match = re.fullmatch(r"python-target=(3)\.(10|11)", target_config)
+    if match is None:
+        raise ValueError(f"unsupported reference-only parser configuration: {target_config}")
+    target = f"py{match.group(1)}{match.group(2)}"
+    rules = profile.get("defaults")
+    if not isinstance(rules, list) or not rules or any(not isinstance(rule, str) for rule in rules):
+        raise ValueError("reference-only profile must have a nonempty defaults list")
+    cases_path = profile_root / "rules" / rules[0] / "cases.toml"
+    cases = tomllib.loads(cases_path.read_text(encoding="utf-8")).get("cases")
+    if not isinstance(cases, list) or not cases:
+        raise ValueError("reference-only profile has no canonical cases")
+    rows = []
+    failures = []
+    command_log = []
+    for case in cases:
+        actual = []
+        process_records = []
+        for file, source in sorted(case["files"].items()):
+            command = [
+                str(ruff), "check", "--isolated", "--no-cache", "--output-format", "json",
+                "--select", ",".join(rules), "--target-version", target,
+                "--stdin-filename", file, "-",
+            ]
+            command_log.append(command)
+            try:
+                result = runner(
+                    command,
+                    cwd=REPOSITORY / "crates" / "ryo",
+                    input=source.encode("utf-8"),
+                    capture_output=True,
+                    check=False,
+                )
+                if result.returncode not in {0, 1}:
+                    raise ValueError(f"Ruff exited {result.returncode}: {result.stderr!r}")
+                findings = json.loads(result.stdout)
+                if not isinstance(findings, list):
+                    raise ValueError("Ruff JSON response was not an array")
+                for finding in findings:
+                    start = ruff_location_to_byte(source, finding["location"])
+                    end_location = finding.get("end_location")
+                    if not isinstance(end_location, dict):
+                        raise ValueError("Ruff finding is missing end_location")
+                    end = ruff_location_to_byte(source, end_location)
+                    if start > end:
+                        raise ValueError("Ruff returned a reversed source span")
+                    actual.append({"rule": finding["code"], "file": file, "start": start, "end": end})
+                process_records.append({
+                    "file": file,
+                    "status": result.returncode,
+                    "stdout": result.stdout.decode("utf-8"),
+                    "stderr": result.stderr.decode("utf-8"),
+                })
+            except (OSError, UnicodeDecodeError, KeyError, TypeError, ValueError, json.JSONDecodeError) as error:
+                failures.append(f"{case['name']}/{file}: {error}")
+                process_records.append({"file": file, "error": f"{type(error).__name__}: {error}"})
+        actual.sort(key=lambda row: (row["rule"], row["file"], row["start"], row["end"]))
+        expected = sorted(
+            ({"rule": item.get("rule", rules[0]), "file": item["file"], "start": item["start"], "end": item["end"]}
+             for item in case.get("expected", [])),
+            key=lambda row: (row["rule"], row["file"], row["start"], row["end"]),
+        )
+        case_passed = actual == expected
+        if not case_passed:
+            failures.append(f"{case['name']}: expected {expected!r}; observed {actual!r}")
+        rows.append({
+            "rule": rules[0], "name": case["name"], "side": "reference",
+            "complete": not any(record.get("error") for record in process_records),
+            "case_passed": case_passed, "expected": expected, "actual": actual,
+            "source_sha256": source_hash(case["files"]),
+            "files": sorted(case["files"]), "commands": process_records,
+        })
+    summary = f"{len(cases)} cases matched the reference; no candidate was executed\n"
+    status = 1 if failures else 0
+    result = subprocess.CompletedProcess(
+        ["ruff-reference-only", str(ruff), str(profile_root)],
+        status,
+        summary.encode("utf-8"),
+        ("\n".join(failures) + ("\n" if failures else "")).encode("utf-8"),
+    )
+    case_results_path = None
+    if output_directory is not None:
+        case_results_path = output_directory / "profiles" / name / "reference-cases.jsonl"
+        case_results_path.write_text("\n".join(json.dumps(row, ensure_ascii=False) for row in rows) + "\n", encoding="utf-8")
+    return persist_run_record(
+        output_directory, name, command_log, profile_root, result,
+        identities={**identities, "reference_only": True, "candidate_worker_built": False},
+        case_results_path=case_results_path,
+    )
+
+
+def reference_tool_identity(ruff: Path, manifest: dict[str, object]) -> dict[str, object]:
+    """Require the executable itself to match a pinned Ruff wheel and version."""
+    executable = ruff.resolve()
+    if sha256(executable) not in manifest.get("reference_sha256", []):
+        raise ValueError("reference-only executable hash is not one of the pinned Ruff wheels")
+    version = subprocess.run([str(executable), "--version"], capture_output=True, check=False)
+    if version.returncode != 0 or version.stderr:
+        raise ValueError("reference-only executable did not return a clean version response")
+    expected = f"ruff {manifest['reference_version']}\n".encode()
+    if version.stdout != expected:
+        raise ValueError(f"reference-only executable version mismatch: {version.stdout!r}")
+    return {"path": str(executable), "sha256": sha256(executable), "version": manifest["reference_version"]}
 
 
 def worker_identity(identities: dict[str, object], executable: Path) -> None:
@@ -1688,6 +1851,12 @@ def combined_filename(rule: str, descriptor: dict[str, object], *names: str) -> 
 
 def self_test() -> int:
     """Exercise fail-closed profile-selection and hash-mismatch guards without invoking Cargo."""
+    if (
+        ruff_location_to_byte("é\fvalue\r\nx", {"row": 1, "column": 8}) != 8
+        or ruff_location_to_byte("é\fvalue\r\nx", {"row": 2, "column": 2}) != 11
+    ):
+        print("Ruff coordinate conversion must count physical CR/LF lines and UTF-8 bytes", file=sys.stderr)
+        return 1
     sample_inventory = [
         {"rule": "A", "name": "one", "case_sha256": "a"},
         {"rule": "A", "name": "two", "case_sha256": "b"},
@@ -1755,6 +1924,7 @@ def self_test() -> int:
             "shard_count": 3,
             "case_ids": [f"{case['rule']}/{case['name']}" for case in partition],
             "status": 0,
+            "last_process_status": 0,
             "case_result_records_valid": True,
             "stdout_summary_valid": True,
             "global_identity": identity,
@@ -1868,6 +2038,27 @@ def self_test() -> int:
         if not case_observations_match(monolithic, sorted(shards_dir.glob("*.cases.jsonl"))):
             print("monolithic/sharded full-report comparison failed", file=sys.stderr)
             return 1
+        # Model a crash after every case row is atomically appended but before
+        # the shard receipt rename. Recovery may prove comparisons from those
+        # complete rows, but must not invent a process exit or stdout summary.
+        lost_receipt = shards_dir / "000.receipt.json"
+        lost_receipt.unlink()
+        recovered = verify_profile_sharded(
+            "test", profile_root, worker, ruff, output, identities, 2, resume=True,
+            runner=lambda *_args, **_kwargs: (_ for _ in ()).throw(
+                AssertionError("complete case rows should be reconstructed without rerunning")
+            ),
+        )
+        recovered_receipt = json.loads(lost_receipt.read_text(encoding="utf-8"))
+        if (
+            recovered != 0
+            or recovered_receipt.get("reconstructed_from_case_records") is not True
+            or recovered_receipt.get("stdout_summary_valid") is not None
+            or recovered_receipt.get("last_process_status") is not None
+            or recovered_receipt.get("reconstruction", {}).get("process_exit_observed") is not False
+        ):
+            print("full-record/missing-receipt recovery fabricated process proof", file=sys.stderr)
+            return 1
         second = verify_profile_sharded(
             "test", profile_root, worker, ruff, output, identities, 2, resume=True,
             runner=lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("complete shard was rerun")),
@@ -1891,9 +2082,9 @@ def self_test() -> int:
         fourth = verify_profile_sharded(
             "test", profile_root, worker, ruff, output, identities, 2, resume=True, runner=fake_runner
         )
-        if first != 0 or second != 0 or third != 0 or fourth != 0 or calls != [0, 1, 0, 0]:
+        if first != 0 or recovered != 0 or second != 0 or third != 0 or fourth != 0 or calls != [0, 1, 0, 0]:
             print("shard execution or identity-checked resume self-test failed", file=sys.stderr)
-            print(f"statuses={first, second, third, fourth}; worker-calls={calls}", file=sys.stderr)
+            print(f"statuses={first, recovered, second, third, fourth}; worker-calls={calls}", file=sys.stderr)
             return 1
         more_shards = verify_profile_sharded(
             "bounded-shards", profile_root, worker, ruff, output, identities, 5, runner=fake_runner
@@ -2286,7 +2477,7 @@ def self_test() -> int:
         cargo_build_marker = root / "cargo-build-count"
         reference_worker = root / "reference-worker"
         reference_worker.write_text(
-            f"#!/bin/sh\n"
+            "#!/bin/sh\n"
             "if [ \"$1\" = audit ]; then echo 'ruff 0.16.5: 104 queries authored / 413 shipped defaults (not a parity certificate)'; exit 0; fi\n"
             f"printf '%s\\n' \"$*\" >> {marker}\nexit 0\n",
             encoding="utf-8",
@@ -2307,30 +2498,38 @@ def self_test() -> int:
             encoding="utf-8",
         )
         fake_cargo.chmod(0o755)
+        pinned_ruff = shutil.which("ruff")
+        if pinned_ruff is None:
+            print("reference-only self-test requires the pinned Ruff executable on PATH", file=sys.stderr)
+            return 1
+        reference_output = root / "reference-only-output"
         reference_only = subprocess.run(
-            [sys.executable, str(helper), ruff, "--reference-only", "F401"],
+            [sys.executable, str(helper), pinned_ruff, "--output-dir", str(reference_output), "--reference-only", "F401"],
             capture_output=True,
             text=True,
             check=False,
-            env={**os.environ, "PATH": f"{fake_bin}:{os.environ['PATH']}"},
+            env={
+                **os.environ,
+                "PATH": f"{fake_bin}:{os.environ['PATH']}",
+                "RYO_RUFF_PREPARED_MANIFEST": str(temporary_manifest),
+            },
         )
-        invocations = marker.read_text().splitlines() if marker.exists() else []
         builds = cargo_build_marker.read_text().splitlines() if cargo_build_marker.exists() else []
-        worker_invocations = [line for line in invocations if "verify-reference-cases" in line]
+        reference_records = reference_output / "profiles" / "F401" / "reference-cases.jsonl"
         if (
             reference_only.returncode != 0
-            or len(worker_invocations) != 1
-            or len(builds) != 1
+            or builds
+            or not reference_records.is_file()
+            or len(reference_records.read_text(encoding="utf-8").splitlines()) != 22
         ):
             print(
-                "reference-only mode did not dispatch the reference verifier: "
+                "reference-only mode did not verify all cases without building a candidate: "
                 f"status={reference_only.returncode}; stderr={reference_only.stderr!r}; "
-                f"builds={builds!r}; invocations={invocations!r}",
+                f"builds={builds!r}; records={reference_records.is_file()}",
                 file=sys.stderr,
             )
             return 1
-        marker.unlink()
-        cargo_build_marker.unlink()
+        cargo_build_marker.unlink(missing_ok=True)
         invalid_rule_manifest = json.loads(json.dumps(pristine_manifest))
         invalid_rule_manifest["combined_profiles"]["expanded-defaults"]["selected_rules"].append(
             "NOT-SHIPPED"
@@ -2357,12 +2556,13 @@ def self_test() -> int:
 
         def later_combined_preflight_failure() -> tuple[bool, str]:
             trial_manifest = json.loads(json.dumps(pristine_manifest))
-            for item in trial_manifest["combined_profiles"].values():
-                item["validation_status"] = "archived-historical"
             later_name = next(
                 name
                 for name, descriptor in sorted(trial_manifest["combined_profiles"].items())
+                if descriptor.get("validation_status") == "active-current"
             )
+            for item in trial_manifest["combined_profiles"].values():
+                item["validation_status"] = "archived-historical"
             descriptor = trial_manifest["combined_profiles"][later_name]
             descriptor["validation_status"] = "active-current"
             descriptor["case_count"] += 1
@@ -2461,7 +2661,12 @@ def self_test() -> int:
 
         def expanded_preflight_failure(kind: str, expected_error: str) -> bool:
             trial_manifest = json.loads(json.dumps(pristine_manifest))
-            descriptor = trial_manifest["combined_profiles"]["expanded-defaults"]
+            active_name = next(
+                name
+                for name, item in trial_manifest["combined_profiles"].items()
+                if item.get("validation_status") == "active-current"
+            )
+            descriptor = trial_manifest["combined_profiles"][active_name]
             overlay_path = root / descriptor["expectations_file"]
             overlay = json.loads(overlay_path.read_text(encoding="utf-8"))
             if kind == "source-hash":
@@ -2519,7 +2724,7 @@ def self_test() -> int:
             temporary_manifest.write_text(json.dumps(trial_manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
             marker.unlink(missing_ok=True)
             check = subprocess.run(
-                [sys.executable, str(helper), ruff, "--output-dir", str(root / f"expanded-{kind}-output"), "--profile", "expanded-defaults"],
+                [sys.executable, str(helper), ruff, "--output-dir", str(root / f"active-{kind}-output"), "--profile", active_name],
                 capture_output=True,
                 text=True,
                 check=False,
@@ -2528,24 +2733,29 @@ def self_test() -> int:
             success = check.returncode == 2 and expected_error in check.stderr and not marker.exists()
             if not success:
                 print(
-                    f"expanded {kind}: status={check.returncode}; stderr={check.stderr.strip()!r}; "
+                    f"active {kind}: status={check.returncode}; stderr={check.stderr.strip()!r}; "
                     f"cargo-started={marker.exists()}",
                     file=sys.stderr,
                 )
             return success
 
-        expanded_overlay_relative = pristine_manifest["combined_profiles"]["expanded-defaults"]["expectations_file"]
+        active_name = next(
+            name
+            for name, item in pristine_manifest["combined_profiles"].items()
+            if item.get("validation_status") == "active-current"
+        )
+        expanded_overlay_relative = pristine_manifest["combined_profiles"][active_name]["expectations_file"]
         expanded_overlay_bytes = (root / expanded_overlay_relative).read_bytes()
         for kind, message in (
             ("source-hash", "case source hash mismatch"),
             ("case-key", "overlay case is absent or duplicated"),
             ("missing-case", "complete expected inventory count mismatch"),
-            ("missing-rule", "invalid expanded-defaults expected finding"),
+            ("missing-rule", f"invalid {active_name} expected finding"),
             ("duplicate", "overlay diagnostics differ from the sealed oracle"),
         ):
             (root / expanded_overlay_relative).write_bytes(expanded_overlay_bytes)
             if not expanded_preflight_failure(kind, message):
-                print(f"expanded full-report {kind} refusal did not fail before candidate work", file=sys.stderr)
+                print(f"active full-report {kind} refusal did not fail before candidate work", file=sys.stderr)
                 return 1
     print("profile selection and hash-mismatch guards passed")
     return 0
@@ -2657,29 +2867,56 @@ def main() -> int:
                 if output_directory is None:
                     raise ValueError("resume requires an output directory")
                 worker_executable, build_identity = reuse_frozen_worker(output_directory)
+            elif arguments.reference_only:
+                worker_executable = None
+                build_identity = {
+                    "status": "not-built",
+                    "reason": "reference-only mode invokes the sealed Ruff executable directly",
+                }
             else:
                 worker_executable, build_identity = build_worker_once(output_directory, stack)
-            protocol_ok, protocol_message = audit_worker_protocol(worker_executable)
-            protocol_record = {
-                "command": [str(worker_executable), "audit"],
-                "worker_sha256": sha256(worker_executable),
-                "status": 0 if protocol_ok else 1,
-                "message": protocol_message,
-            }
-            build_identity["protocol_smoke"] = protocol_record
-            if not protocol_ok:
-                if output_directory is not None:
-                    atomic_json_write(output_directory / "worker-protocol.json", protocol_record)
-                print(f"worker protocol smoke failed: {protocol_message}", file=sys.stderr)
-                return 1
+            if not arguments.reference_only:
+                assert worker_executable is not None
+                protocol_ok, protocol_message = audit_worker_protocol(worker_executable)
+                protocol_record = {
+                    "command": [str(worker_executable), "audit"],
+                    "worker_sha256": sha256(worker_executable),
+                    "status": 0 if protocol_ok else 1,
+                    "message": protocol_message,
+                }
+                build_identity["protocol_smoke"] = protocol_record
+                if not protocol_ok:
+                    if output_directory is not None:
+                        atomic_json_write(output_directory / "worker-protocol.json", protocol_record)
+                    print(f"worker protocol smoke failed: {protocol_message}", file=sys.stderr)
+                    return 1
             for name, profile_root in staged:
+                if arguments.reference_only:
+                    ref_identity = reference_tool_identity(ruff, manifest)
+                    identities = {
+                        "manifest_path": MANIFEST.relative_to(REPOSITORY).as_posix(),
+                        "manifest_sha256": sha256(MANIFEST),
+                        "target_version": tomllib.loads(
+                            (profile_root / "benchmark.toml").read_text(encoding="utf-8")
+                        ).get("parser-configuration", "python-target=3.10"),
+                        "pinned_reference": ref_identity,
+                        "staged_profile_sha256": staged_hashes(profile_root),
+                        "selected_rule_applicability": tomllib.loads(
+                            (profile_root / "benchmark.toml").read_text(encoding="utf-8")
+                        ).get("rule-applicability", {}),
+                    }
+                    status = verify_reference_profile(
+                        name, profile_root, ruff, output_directory, identities
+                    )
+                    print(f"{name}: verifier exit status {status}", file=sys.stderr)
+                    statuses.append((name, status))
+                    continue
+                assert worker_executable is not None
                 executable = build_identity["frozen_executable"]
                 if not isinstance(executable, dict) or sha256(Path(executable["path"])) != executable["sha256"]:
                     raise ValueError("frozen worker executable hash changed before profile invocation")
-                command = command_for(worker_executable, ruff, profile_root, arguments.reference_only)
-                identities = run_identity(
-                    manifest, ruff, profile_root, worker_executable, build_identity
-                )
+                command = command_for(worker_executable, ruff, profile_root, False)
+                identities = run_identity(manifest, ruff, profile_root, worker_executable, build_identity)
                 worker_identity(identities, worker_executable)
                 if arguments.shards is not None and (
                     arguments.profile is not None and name == arguments.profile

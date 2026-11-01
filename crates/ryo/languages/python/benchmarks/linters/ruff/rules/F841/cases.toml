@@ -177,3 +177,21 @@ name = "locals-call-suppresses-sync-local"
 comparison = "full"
 files = { "case.py" = "def f():\n    x = 1\n    locals()\n" }
 expected = []
+
+[[cases]]
+name = "nonlocal-declaration-uses-enclosing-binding"
+comparison = "full"
+files = { "case.py" = "def outer():\n    value = 1\n    def inner():\n        nonlocal value\n" }
+expected = []
+
+[[cases]]
+name = "nonlocal-through-class-uses-enclosing-binding"
+comparison = "full"
+files = { "case.py" = "def outer():\n    value = 1\n    class C:\n        def inner():\n            nonlocal value\n" }
+expected = []
+
+[[cases]]
+name = "nearest-nonlocal-binding-only"
+comparison = "full"
+files = { "case.py" = "def outer():\n    value = 1\n    def middle():\n        value = 2\n        def inner():\n            nonlocal value\n" }
+expected = [{ rule = "F841", file = "case.py", start = 17, end = 22 }]

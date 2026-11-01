@@ -1,7 +1,11 @@
 //! The concrete ryo implementation executes the complete shared contract.
 use super::adapter::LinterRyoAdapter;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::suite::types::RunRequest;
 use crate::outbound::linter::fixtures::contract::check;
+use crate::outbound::linter::interface::LinterPort as _;
+use ryo::linter::RelativePath;
+use std::collections::BTreeMap;
 type Input = ();
 type Value = ();
 type Failure = ();
@@ -19,8 +23,8 @@ fn subject(_: Input) -> Result<Value, Failure> {
     check(&LinterRyoAdapter {
         executable: "fixture".into(),
         rules: "rules".into(),
-        query_modules: std::collections::BTreeMap::default(),
-        rule_applicability: std::collections::BTreeMap::default(),
+        query_modules: BTreeMap::default(),
+        rule_applicability: BTreeMap::default(),
         parser_configuration: None,
     });
     Ok(())
@@ -28,4 +32,53 @@ fn subject(_: Input) -> Result<Value, Failure> {
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn oversized_request_is_staged_as_json_file_instead_of_argv()
+-> Result<(), Box<dyn std::error::Error>> {
+    let root = tempfile::tempdir()?;
+    let state = root.path().join("state");
+    let request = RunRequest {
+        root: root.path().to_owned(),
+        files: (0..8_000)
+            .map(|index| RelativePath(format!("sources/module_{index:05}.py").into_boxed_str()))
+            .collect(),
+        state: state.clone(),
+    };
+    let adapter = LinterRyoAdapter {
+        executable: "candidate".into(),
+        rules: "rules".into(),
+        query_modules: BTreeMap::new(),
+        rule_applicability: BTreeMap::new(),
+        parser_configuration: Some("python-target=3.10".into()),
+    };
+    let invocation = adapter.prepare(&request)?;
+    let request_path = state.join("request.json");
+    let bytes = std::fs::read(&request_path)?;
+    let decoded: serde_json::Value = serde_json::from_slice(&bytes)?;
+    assert!(
+        bytes.len() > 132_199,
+        "fixture must exceed the Linux argv limit"
+    );
+    assert_eq!(invocation.arguments[0], "run-ryo");
+    assert_eq!(invocation.arguments[1], "--request-file");
+    assert_eq!(invocation.arguments[2], request_path.as_os_str());
+    assert_eq!(invocation.arguments[3], "python-target=3.10");
+    assert_eq!(decoded["files"].as_array().map(Vec::len), Some(8_000));
+    assert_eq!(decoded["parser_configuration"], "python-target=3.10");
+    assert!(
+        invocation
+            .arguments
+            .iter()
+            .all(|argument| argument.len() < 4096)
+    );
+    let spawned = std::process::Command::new(std::env::current_exe()?)
+        .args(&invocation.arguments)
+        .output()?;
+    assert!(
+        spawned.status.code().is_some(),
+        "small file-based argv must spawn"
+    );
+    Ok(())
 }

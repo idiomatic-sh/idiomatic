@@ -1,6 +1,8 @@
 //! Independent worker and fixture commands at the Cargo executable boundary.
 use super::super::{adapter::LinterRuffAdapter, settings::LinterRuffSettings};
 use super::constants;
+use super::diagnostic_protocol::WorkerTracing;
+use super::request_input::{BenchmarkArgument, worker_input};
 use ryo_benchmark::domain::diagnostics::errors::DiagnosticsError as Error;
 use ryo_benchmark::domain::suite::types::CaseCount;
 use ryo_benchmark::domain::suite::types::Tool;
@@ -15,14 +17,11 @@ pub(super) fn worker(
     mut args: impl Iterator<Item = BenchmarkArgument>,
     tracing: WorkerTracing,
 ) -> Result<(), Error> {
-    let input = args
-        .next()
-        .map(|argument| argument.0)
-        .ok_or_else(|| Error::Invalid(constants::MISSING_WORKER_REQUEST.into()))?;
+    let input = worker_input(&mut args)?;
     let next_argument = args.next().map(|argument| argument.0);
     let (parser_configuration, trace_path) = match next_argument {
         Some(configuration) if configuration.starts_with("python-target=") => {
-            let trace_path = if tracing == WorkerTracing::Enabled {
+            let trace_path = if tracing != WorkerTracing::Disabled {
                 Some(
                     args.next()
                         .map(|argument| argument.0)
@@ -33,9 +32,9 @@ pub(super) fn worker(
             };
             (Some(configuration), trace_path)
         }
-        Some(path) if tracing == WorkerTracing::Enabled => (None, Some(path)),
+        Some(path) if tracing != WorkerTracing::Disabled => (None, Some(path)),
         Some(_) => return Err(Error::Invalid("unexpected worker configuration".into())),
-        None if tracing == WorkerTracing::Enabled => {
+        None if tracing != WorkerTracing::Disabled => {
             return Err(Error::Invalid(constants::MISSING_TRACE.into()));
         }
         None => (None, None),
@@ -64,22 +63,31 @@ pub(super) fn worker(
             query: ryo::query::RyoQlQuery::try_from(crate::constants::FRONTEND_DIAGNOSTIC_QUERY)
                 .map_err(|error| Error::Invalid(error.to_string()))?,
         };
-    let engine: Arc<dyn ryo_benchmark::outbound::engine::interface::EnginePort> = match trace_path {
-        Some(path) => Arc::new(
-            ryo_benchmark::outbound::engine::factory::local_with_frontend_diagnostic(
-                languages,
-                Some(path.into()),
-                frontend_diagnostic.clone(),
+    let engine: Arc<dyn ryo_benchmark::outbound::engine::interface::EnginePort> =
+        match (tracing, trace_path) {
+            (WorkerTracing::Chrome, Some(path)) => Arc::new(
+                ryo_benchmark::outbound::engine::factory::local_with_frontend_diagnostic(
+                    languages,
+                    Some(path.into()),
+                    frontend_diagnostic.clone(),
+                ),
             ),
-        ),
-        None => Arc::new(
-            ryo_benchmark::outbound::engine::factory::local_with_frontend_diagnostic(
-                languages,
-                None,
-                frontend_diagnostic,
+            (WorkerTracing::JsonLines, Some(path)) => Arc::new(
+                ryo_benchmark::outbound::engine::factory::local_with_diagnostic_events(
+                    languages,
+                    path.into(),
+                    frontend_diagnostic,
+                ),
             ),
-        ),
-    };
+            (WorkerTracing::Disabled, None) => Arc::new(
+                ryo_benchmark::outbound::engine::factory::local_with_frontend_diagnostic(
+                    languages,
+                    None,
+                    frontend_diagnostic,
+                ),
+            ),
+            _ => return Err(Error::Invalid(constants::MISSING_TRACE.into())),
+        };
     let transport =
         ryo_benchmark::outbound::worker::factory::json(input.into(), Box::new(std::io::stdout()));
     RunRyoUseCaseImpl::new(engine, Arc::new(transport)).run_ryo()
@@ -236,17 +244,6 @@ fn parser_target(
             "unsupported Ruff parser configuration".into(),
         )),
     }
-}
-
-/// Text supplied as one executable command argument.
-pub(super) struct BenchmarkArgument(pub String);
-/// Whether this worker invocation records a separate profiling trace.
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub(super) enum WorkerTracing {
-    /// Ordinary correctness or timing invocation.
-    Disabled,
-    /// Explicit profiling invocation excluded from timing observations.
-    Enabled,
 }
 
 /// Locate this language-owned linter profile from the Cargo manifest.

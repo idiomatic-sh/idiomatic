@@ -18,7 +18,7 @@ let positional_arguments = select l.call as call, r.child as argument, l.file as
 let format_calls_with_literal = select l.call as call, l.file as file, l.span as span, r.receiver as format_id from format_calls as l join literal_receivers as r on l.function = r.attribute and l.file = r.file;
 let parse_rows = select id, file, outcome, "error-category" as error_category, "automatic-count" as automatic_count, "indexed-count" as indexed_count, "keyword-count" as keyword_count, "nested-field-count" as nested_field_count from "brace-format-parse" where representation = "decoded-string";
 let parsed_calls = select l.call as call, l.file as file, l.span as span, l.format_id as format_id, r.outcome as outcome, r.error_category as error_category, r.automatic_count as automatic_count, r.indexed_count as indexed_count, r.keyword_count as keyword_count, r.nested_field_count as nested_field_count from format_calls_with_literal as l join parse_rows as r on l.format_id = r.id and l.file = r.file;
-let format_keyword_fields = select l.call as call, l.file as file, f."selector-name" as name from parsed_calls as l join "brace-format-field" as f on l.format_id = f.id and l.file = f.file where f."selector-kind" = "keyword";
+let format_keyword_fields = select l.call as call, l.file as file, f."selector-name" as name from parsed_calls as l join "brace-format-field" as f on l.format_id = f.id and l.file = f.file where l.outcome = "parsed" and f."selector-kind" = "keyword";
 let keyword_fields = select parent, child from "semantic-child" where field = "keywords";
 let keyword_edges = select l.call as call, r.child as keyword, l.file as file from argument_owners as l join keyword_fields as r on l.wrapper = r.parent;
 let keyword_nodes = select id from "semantic-syntax" where kind = "keyword";
@@ -36,7 +36,7 @@ let call_keyword_names = select l.call as call, l.file as file, l.keyword as key
 let extra_keyword_names = antijoin(left=call_keyword_names, right=format_keyword_fields, left-on=["call", "name", "file"], right-on=["call", "name", "file"]);
 let no_spread_extras = antijoin(left=extra_keyword_names, right=spread_calls, left-on=["call", "file"], right-on=["call", "file"]);
 let extra_keyword_counts = group-count(from=no_spread_extras, keys=["call", "file"], count="extra_count", distinct="keyword");
-let candidates = select l.call as call, l.file as file, r.span as span from extra_keyword_counts as l join format_calls as r on l.call = r.call and l.file = r.file;
+let candidates = select l.call as call, l.file as file, r.span as span from extra_keyword_counts as l join parsed_calls as r on l.call = r.call and l.file = r.file where r.outcome = "parsed";
 let candidate_locations = select l.call as id, l.file as file, l.span as span, r."start-line" as line from candidates as l join "source-location" as r on l.call = r.id and l.file = r.file;
 let violations = suppress(candidates=candidate_locations, inline-pattern="(?:^|[^A-Z0-9])F522(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:F522)(?:,|$)");
 emit violations subject file key(id);

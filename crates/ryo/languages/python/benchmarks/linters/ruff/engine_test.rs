@@ -631,9 +631,9 @@ fn write_rule_profile(
 
 #[test]
 fn shared_suppression_fragment_matches_the_historical_inline_queries() -> Result<(), Error> {
-    // These inline baselines are exact query bytes from pre-fragment head b9223b8613:
-    // E722 cdcca980d4a6d8e771e40b46306e5afcb9b12ad3bbb69af38d3114c8b1737a9a;
-    // F632 08832f8d91a994220563a2f480cb52c81936358516cb794f65c865b619bcda51.
+    // E722 retains its historical inline-query baseline. F632 independently exercises
+    // inline suppression with current operator-ID semantics: distinct chained operators
+    // remain distinct findings even when they share the same source span.
     let temporary = tempfile::tempdir()?;
     let inline_profile = temporary.path().join("inline");
     let imported_profile = temporary.path().join("imported");

@@ -1,4 +1,4 @@
-//! Serialized requests avoid shell interpretation and preserve the input list.
+//! Serialized request files avoid shell interpretation and OS argument-size limits.
 use crate::domain::measurements::types::{Invocation, ProcessOutput};
 use crate::domain::suite::types::WorkerRequest;
 use crate::domain::{
@@ -34,9 +34,14 @@ impl LinterPort for LinterRyoAdapter {
                 request.state.join(super::constants::CACHE),
             ),
         };
+        let request_json = super::schemas::encode_request(worker)?;
+        let request_path = request.state.join(super::constants::REQUEST_FILENAME);
+        std::fs::create_dir_all(&request.state)?;
+        std::fs::write(&request_path, request_json)?;
         let mut arguments = vec![
             super::constants::WORKER.into(),
-            super::schemas::encode_request(worker)?.into(),
+            super::constants::REQUEST_FILE.into(),
+            request_path.into_os_string(),
         ];
         if let Some(configuration) = &self.parser_configuration {
             arguments.push(configuration.clone().into());
