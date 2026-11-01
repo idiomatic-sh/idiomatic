@@ -98,7 +98,7 @@ fn full_report_case_polarity_is_relative_to_the_enclosing_rule() {
             },
         ],
     };
-    assert!(validate_cases(&rule, &cases).is_ok());
+    validate_cases(&rule, &cases).expect("one positive and one negative case are valid");
     assert_eq!(
         cases.cases[0].expected.len(),
         2,

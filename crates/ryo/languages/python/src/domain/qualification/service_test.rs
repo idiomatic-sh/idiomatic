@@ -2,7 +2,7 @@
 use crate::cases::{Case, CaseName, Expect, Word, run};
 type Input = (&'static str, &'static str);
 type Value = (Option<&'static str>, &'static str, i64, i64);
-type Failure = ();
+type Failure = String;
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("wildcard_preserves_builtin"),
@@ -409,8 +409,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value((Some("contextlib.suppress"), "import", 0, 0)),
     },
 ];
-fn subject(input: Input) -> Result<Value, ()> {
-    Ok(super::fixtures::replay(input).unwrap_or_else(|error| panic!("{error}")))
+fn subject(input: Input) -> Result<Value, Failure> {
+    super::fixtures::replay(input).map_err(|error| error.clone())
 }
 
 #[test]

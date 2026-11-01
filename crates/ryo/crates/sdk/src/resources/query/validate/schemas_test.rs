@@ -4,7 +4,10 @@ use ryo_core::inbound::use_cases::validate::errors::ValidateError as CoreError;
 use ryo_core::inbound::use_cases::validate::types::ValidateRequest as CoreRequest;
 use ryo_language::domain::relations::types::{CellKind, Offset, Span as CoreSpan};
 use ryo_values::domain::hosted::types::{ColumnLabel, HostedColumn, HostedName, HostedRelation};
-use ryo_values::domain::plan_parts::types::{QueryText, RefusalMessage, RefusedKind, RefusedQuery};
+use ryo_values::domain::{
+    plan_parts::types::{QueryText, RefusalMessage, RefusedKind, RefusedQuery},
+    program::types::{ByteOffset, QueryOrigin, QuerySourceId, QuerySpan},
+};
 
 use super::{error, request};
 use crate::cases::{Case, CaseName, Expect, Word, run};
@@ -114,10 +117,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
             | ValidateError::UnknownRelation { span, .. }
             | ValidateError::Type { span, .. }
             | ValidateError::Invalid { span, .. } => Ok(span.start.0),
-            error @ ValidateError::Catalog { .. } => Err(error),
-            ValidateError::Located { .. } => {
-                unreachable!("located errors are flattened by the outer conversion")
-            }
+            error @ (ValidateError::Catalog { .. } | ValidateError::Located { .. }) => Err(error),
         },
         error @ ValidateError::Catalog { .. } => Err(error),
     }
@@ -125,17 +125,17 @@ fn subject(input: Input) -> Result<Value, Failure> {
 
 #[test]
 fn an_uncompilable_fragment_error_keeps_its_module_location() {
-    let origin = ryo_values::domain::program::types::QueryOrigin {
-        source_id: ryo_values::domain::program::types::QuerySourceId("nested/module".into()),
-        span: ryo_values::domain::program::types::QuerySpan {
-            start: ryo_values::domain::program::types::ByteOffset(7),
-            end: ryo_values::domain::program::types::ByteOffset(12),
+    let origin = QueryOrigin {
+        source_id: QuerySourceId("nested/module".into()),
+        span: QuerySpan {
+            start: ByteOffset(7),
+            end: ByteOffset(12),
         },
         trace: Vec::new(),
     };
-    let mut error = refused(RefusedKind::Invalid, 7, 12);
-    error.origin = Some(origin.clone());
-    let converted = super::error(TEXT, CoreError::Uncompilable { error });
+    let mut core_error = refused(RefusedKind::Invalid, 7, 12);
+    core_error.origin = Some(origin.clone());
+    let converted = error(TEXT, CoreError::Uncompilable { error: core_error });
     assert!(matches!(
         converted,
         ValidateError::Located { origin: found, error }
@@ -145,15 +145,15 @@ fn an_uncompilable_fragment_error_keeps_its_module_location() {
 
 #[test]
 fn an_unknown_kind_fragment_error_keeps_its_module_location() {
-    let origin = ryo_values::domain::program::types::QueryOrigin {
-        source_id: ryo_values::domain::program::types::QuerySourceId("nested/module".into()),
-        span: ryo_values::domain::program::types::QuerySpan {
-            start: ryo_values::domain::program::types::ByteOffset(7),
-            end: ryo_values::domain::program::types::ByteOffset(12),
+    let origin = QueryOrigin {
+        source_id: QuerySourceId("nested/module".into()),
+        span: QuerySpan {
+            start: ByteOffset(7),
+            end: ByteOffset(12),
         },
         trace: Vec::new(),
     };
-    let converted = super::error(
+    let converted = error(
         TEXT,
         CoreError::UnknownKind {
             reason: "unknown kind".to_owned(),
@@ -265,13 +265,12 @@ fn query_bundle_retains_module_identity_and_exact_source() {
     assert_eq!(first, same);
     assert_ne!(first, changed_source);
     assert_eq!(first.root_text(), "root query\n");
-    assert!(QueryModuleSource::try_new(" \t", "body").is_err());
-    assert!(
-        RyoQlQuery::with_modules(
-            "rules/F401",
-            "root query",
-            [QueryModuleSource::try_new("rules/F401", "body").expect("module id is nonblank")],
-        )
-        .is_err()
-    );
+    let _blank_module_error =
+        QueryModuleSource::try_new(" \t", "body").expect_err("blank module ids must be rejected");
+    let _duplicate_id_error = RyoQlQuery::with_modules(
+        "rules/F401",
+        "root query",
+        [QueryModuleSource::try_new("rules/F401", "body").expect("module id is nonblank")],
+    )
+    .expect_err("a module cannot reuse the root source id");
 }

@@ -36,11 +36,15 @@ impl TryFrom<&str> for RyoQlQuery {
             return Err(RyoQlQuerySchemaError);
         }
         let bundle = ryo_values::domain::program::service::standalone(text)
-            .map_err(|_| RyoQlQuerySchemaError)?;
+            .map_err(|_error| RyoQlQuerySchemaError)?;
         Ok(Self::from_bundle(bundle))
     }
 }
 
+#[expect(
+    clippy::multiple_inherent_impl,
+    reason = "checked SDK construction belongs in the query validation schema boundary"
+)]
 impl crate::domain::query::types::QueryModuleSource {
     /// Build a module source under its stable logical id.
     ///
@@ -51,13 +55,17 @@ impl crate::domain::query::types::QueryModuleSource {
         id: &str,
         text: &str,
     ) -> Result<Self, ryo_values::domain::program::errors::QueryBundleError> {
-        Ok(Self {
-            id: ryo_values::domain::program::service::source_id(id)?,
-            text: text.into(),
-        })
+        Ok(Self::from_parts(
+            ryo_values::domain::program::service::source_id(id)?,
+            text.into(),
+        ))
     }
 }
 
+#[expect(
+    clippy::multiple_inherent_impl,
+    reason = "bundle validation belongs beside the SDK query schema conversion"
+)]
 impl RyoQlQuery {
     /// Construct a checked root query and its immutable named module registry.
     ///
@@ -80,7 +88,8 @@ impl RyoQlQuery {
         let root = document_source(root_id, root_text);
         let modules = modules
             .into_iter()
-            .map(|module| document_source(module.id, module.text));
+            .map(|module| Ok(document_source(source_id(module.id())?, module.text())))
+            .collect::<Result<Vec<_>, QueryBundleError>>()?;
         query_bundle(root, modules).map(Self::from_bundle)
     }
 }
@@ -176,7 +185,7 @@ impl From<ValidateErrorSchema<'_>> for ValidateError {
                     origin,
                     error: Box::new(ValidateError::Invalid {
                         span: SpanSchema(error.span).into(),
-                        message: error.message.0.to_string(),
+                        message: error.message.0.clone(),
                     }),
                 },
                 None => invalid(schema.text, error.to_string()),

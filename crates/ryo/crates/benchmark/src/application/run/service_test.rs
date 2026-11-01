@@ -2,7 +2,10 @@
 use super::service::{verify, verify_reference_cases};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::{
-    diagnostics::types::{BenchmarkFinding, RunReport},
+    diagnostics::{
+        errors::DiagnosticsError as Error,
+        types::{BenchmarkFinding, RunReport},
+    },
     suite::types::{PreparedCase, RunRequest},
 };
 use crate::outbound::{
@@ -367,37 +370,36 @@ fn reference_only_refuses_empty_cases_and_reference_launch_failure() {
         Path::new("rules"),
         Path::new("scratch"),
     );
-    assert!(no_cases.is_err());
+    let empty_cases_error = no_cases.expect_err("empty reference cases must be refused");
+    assert!(matches!(empty_cases_error, Error::Invalid(_)));
     assert_eq!(history_len(&execution), Some(0));
 
     let (suite, finding) = prepared(Scenario::Agreement);
-    let reference = LinterFake {
+    let launch_reference = LinterFake {
         diagnostics: vec![finding],
         ..Default::default()
     };
-    let execution = ExecutionFake {
+    let launch_execution = ExecutionFake {
         status: 2,
         ..Default::default()
     };
     let launch_failure = verify_reference_cases(
         &suite,
-        &reference,
-        &execution,
+        &launch_reference,
+        &launch_execution,
         Path::new("rules"),
         Path::new("scratch"),
     );
-    assert!(launch_failure.is_err());
-    assert_eq!(history_len(&execution), Some(1));
+    let reference_exit_error = launch_failure.expect_err("nonzero reference exit must be refused");
+    assert!(matches!(reference_exit_error, Error::Invalid(_)));
+    assert_eq!(history_len(&launch_execution), Some(1));
 }
 
 fn history_len(execution: &ExecutionFake) -> Option<usize> {
     execution.history.lock().ok().map(|history| history.len())
 }
 
-use crate::domain::{
-    diagnostics::errors::DiagnosticsError as Error,
-    measurements::types::{Invocation, ProcessOutput},
-};
+use crate::domain::measurements::types::{Invocation, ProcessOutput};
 use crate::outbound::{execution::interface::ExecutionPort, linter::interface::LinterPort};
 struct Empty;
 impl LinterPort for Empty {

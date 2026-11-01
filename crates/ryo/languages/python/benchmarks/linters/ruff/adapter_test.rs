@@ -136,6 +136,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     clippy::expect_used,
     reason = "fixed fixture rule identifiers must be valid before testing the adapter"
 )]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one scenario dispatcher keeps the adapter contract matrix aligned with its cases"
+)]
 fn exercise(scenario: Input) -> Result<Value, Error> {
     let root = tempfile::tempdir()?;
     let executable = root.path().join("missing-ruff");

@@ -302,7 +302,8 @@ const OPTIONAL_CAPABILITY_RULES: [(&str, &str); 20] = [
 fn unadvertised_semantics_are_unknown_and_never_prove_absence_cold_or_warm() {
     let _beside = crate::beside();
     let root = directory(&[("input.rs", "fn example() { let value = 1; }")]);
-    let kept = Arc::new(ryo_core::outbound::lint_store::fixtures::fake::LintStoreFake::default());
+    let kept: Arc<dyn ryo_core::outbound::lint_store::interface::LintStorePort> =
+        Arc::new(ryo_core::outbound::lint_store::fixtures::fake::LintStoreFake::default());
     for phase in ["cold", "warm"] {
         let rules = OPTIONAL_CAPABILITY_RULES
             .iter()
@@ -313,7 +314,7 @@ fn unadvertised_semantics_are_unknown_and_never_prove_absence_cold_or_warm() {
             root.path(),
             rules,
             Arc::new(ryo_core::outbound::facts::factory::memory()),
-            kept.clone(),
+            Arc::clone(&kept),
         )
         .expect("optional capability queries compile and execute");
         assert!(

@@ -160,7 +160,9 @@ fn subject((source, wanted, environment): Input) -> Result<Value, Failure> {
     use crate::outbound::{notes::factory::postcard, syntax::factory::ruff_python_parser};
     use ryo::languages::Parse as _;
     use std::sync::Arc;
-    let mut file = parsed(source.as_bytes()).map_err(|_| ())?;
+    let Ok(mut file) = parsed(source.as_bytes()) else {
+        return Err(());
+    };
     let tree = Tree {
         elements: &file.elements,
         source: ByteSlice(file.bytes),

@@ -722,6 +722,10 @@ impl ryo_language::inbound::use_cases::parse::types::ParseEngine for CapabilityP
 }
 
 /// Same-process promises must not replay findings retained by a different advertised contract.
+#[expect(
+    clippy::too_many_lines,
+    reason = "this regression keeps cold, warm, and changed-capability cache paths in one scenario"
+)]
 fn capability_cache(query: &str) -> Value {
     use ryo_language::domain::relations::types::OptionalCapability;
     let root = tempfile::tempdir().expect("corpus");

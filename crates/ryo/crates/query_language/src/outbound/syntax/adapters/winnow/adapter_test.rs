@@ -12,7 +12,7 @@ use ryo_values::domain::program::types::{
     Program, QueryBundle, QueryView, SourceReference, WordText, WrittenFunction, WrittenLiteral,
     WrittenOperand, WrittenParameter, WrittenRelation, WrittenTest,
 };
-use winnow::Parser;
+use winnow::Parser as _;
 
 const FRAGMENT_DOCUMENT: &str = "import nested from \"shared/predicate\";\ninput candidates: relation<id: node, file: file, span: span, line: number>;\nparam inline-pattern: string;\nparam range-pattern: string;\noutput relation<id: node, file: file, span: span>;\nlet violations = select id, file, span from candidates;\nreturn violations;";
 
@@ -125,8 +125,12 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
 }
 
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "this integration case proves relation-slot hygiene across two isolated fragment calls"
+)]
 fn fragment_calls_are_hygienic_and_only_relation_slots_are_linked() {
-    use crate::outbound::syntax::interface::SyntaxPort;
+    use crate::outbound::syntax::interface::SyntaxPort as _;
     use ryo_values::domain::program::types::ArgumentValue;
 
     let root_id = ryo_values::domain::program::service::source_id("root").unwrap();
@@ -224,16 +228,14 @@ fn fragment_calls_are_hygienic_and_only_relation_slots_are_linked() {
     );
     let sources = matched
         .iter()
-        .map(|step| {
+        .filter_map(|step| {
             let Expression::Call(call) = &step.expression else {
-                unreachable!()
+                return None;
             };
             call.arguments
                 .iter()
                 .find(|argument| argument.name.0.as_ref() == "from")
-                .unwrap()
-                .value
-                .clone()
+                .map(|argument| argument.value.clone())
         })
         .collect::<Vec<_>>();
     assert_eq!(
@@ -253,25 +255,28 @@ fn fragment_calls_are_hygienic_and_only_relation_slots_are_linked() {
 
 #[test]
 fn nested_fragments_forward_relation_and_scalar_inputs() {
-    use crate::outbound::syntax::interface::SyntaxPort;
+    use crate::outbound::syntax::interface::SyntaxPort as _;
     use ryo_values::domain::program::types::{ArgumentValue, ParsedQueryBundle};
 
     let root_id = ryo_values::domain::program::service::source_id("root").unwrap();
     let outer_id = ryo_values::domain::program::service::source_id("outer").unwrap();
     let inner_id = ryo_values::domain::program::service::source_id("inner").unwrap();
-    let root = "import outer from \"outer\";\nlet source = select id from \"syntax-tree\";\nlet first = outer(source=source, label=\"a\");\nlet second = outer(source=source, label=\"b\");\nemit second subject id key(id);";
+    let root_source = "import outer from \"outer\";\nlet source = select id from \"syntax-tree\";\nlet first = outer(source=source, label=\"a\");\nlet second = outer(source=source, label=\"b\");\nemit second subject id key(id);";
     let outer = "import inner from \"inner\";\ninput source: relation<id: node>;\nparam label: string;\noutput relation<id: node>;\nlet found = inner(rows=source, label=$label);\nreturn found;";
     let inner = "input rows: relation<id: node>;\nparam label: string;\noutput relation<id: node>;\nlet found = capture(from=rows, path=\"id\", pattern=$label, captures=[\"hit\"]);\nreturn found;";
     let bundle = ryo_values::domain::program::service::query_bundle(
-        ryo_values::domain::program::service::document_source(root_id, root),
+        ryo_values::domain::program::service::document_source(root_id, root_source),
         [
             ryo_values::domain::program::service::document_source(outer_id, outer),
             ryo_values::domain::program::service::document_source(inner_id, inner),
         ],
     )
     .unwrap();
-    let ParsedQueryBundle { root, fragments } = SyntaxWinnowAdapter.read_bundle(&bundle).unwrap();
-    let program = crate::domain::linking::service::link(&bundle, root, &fragments).unwrap();
+    let ParsedQueryBundle {
+        root: linked_root,
+        fragments,
+    } = SyntaxWinnowAdapter.read_bundle(&bundle).unwrap();
+    let program = crate::domain::linking::service::link(&bundle, linked_root, &fragments).unwrap();
     assert_eq!(program.steps.len(), 3);
     for (step, pattern) in program.steps[1..].iter().zip(["a", "b"]) {
         let Expression::Call(call) = &step.expression else {
@@ -450,7 +455,7 @@ fn duplicate_fragment_aliases_and_invalid_signatures_are_refused() {
 #[test]
 fn fragment_emit_is_rejected_at_its_original_module_span() {
     use crate::outbound::syntax::errors::SyntaxError;
-    use crate::outbound::syntax::interface::SyntaxPort;
+    use crate::outbound::syntax::interface::SyntaxPort as _;
 
     let bundle = ryo_values::domain::program::service::query_bundle(
         ryo_values::domain::program::service::document_source(

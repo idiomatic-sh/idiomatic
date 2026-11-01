@@ -217,6 +217,10 @@ fn qualified(origin: &str, path: Option<&str>, major: u64, minor: u64) -> Result
         source,
     ))
 }
+#[expect(
+    clippy::too_many_lines,
+    reason = "one contract dispatch keeps every parser-diagnostic transport case aligned with its table"
+)]
 fn subject(operation: Input) -> Result<Value, Failure> {
     let mut output = Collect::default();
     match operation {

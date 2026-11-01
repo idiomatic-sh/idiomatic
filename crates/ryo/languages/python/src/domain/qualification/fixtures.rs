@@ -24,6 +24,11 @@ type Input = (&'static str, &'static str);
 type Value = (Option<&'static str>, &'static str, i64, i64);
 /// A fixture failure with its explanation.
 type FixtureResult = Result<Value, String>;
+/// Parse one fixture file and observe the requested load expression's qualification.
+///
+/// # Errors
+///
+/// Returns the parser's explanation when the fixture source cannot be parsed.
 fn observe(input: Input, model: &mut Declarations) -> FixtureResult {
     clear(model.qualification.get_mut());
     let file = parsed(input.0.as_bytes()).map_err(|error| error.to_string())?;

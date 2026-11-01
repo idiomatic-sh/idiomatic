@@ -62,7 +62,6 @@ const U64_LIMIT: f64 = f64::from_bits(0x43f0_0000_0000_0000);
     clippy::as_conversions,
     clippy::cast_possible_truncation,
     clippy::cast_precision_loss,
-    clippy::default_numeric_fallback,
     clippy::float_cmp,
     reason = "the upper bound and exact round trip prove this value is an exact supported integer"
 )]
@@ -130,15 +129,8 @@ fn child_at(tree: &Tree<'_>, at: Position, wanted: Field) -> Option<Position> {
 fn literal_word(tree: &Tree<'_>, at: Position, symbols: &mut Symbols) -> Option<KeyWord> {
     let scalar = property(tree, at, SCALAR_KIND)?;
     let (category, value) = match scalar {
-        BYTES_SCALAR | INTEGER_SCALAR => (
-            if scalar == BYTES_SCALAR {
-                LiteralKind::Bytes
-            } else {
-                LiteralKind::Integer
-            },
-            property(tree, at, SCALAR_VALUE)?,
-        ),
-        FLOAT_SCALAR | COMPLEX_SCALAR | BOOLEAN_SCALAR => return None,
+        BYTES_SCALAR => (LiteralKind::Bytes, property(tree, at, SCALAR_VALUE)?),
+        INTEGER_SCALAR => (LiteralKind::Integer, property(tree, at, SCALAR_VALUE)?),
         NONE_SCALAR => return Some(KeyWord::Literal(LiteralKind::Null, None)),
         ELLIPSIS_SCALAR => return Some(KeyWord::Literal(LiteralKind::Ellipsis, None)),
         _ => return None,

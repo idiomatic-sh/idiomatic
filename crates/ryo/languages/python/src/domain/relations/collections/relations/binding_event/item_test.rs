@@ -155,18 +155,18 @@ fn contextual_lookup_sees_outer_parameters_but_not_later_function_locals() {
     assert!(parameter.ordinal < site.ordinal);
     assert!(site.ordinal < call_read.ordinal);
 
-    let source = "def f():\n    x and not x and (lambda: list())\n    list = custom\n";
-    let rows = events(source);
-    let site = check_site(&rows);
-    let later_local = rows
+    let later_source = "def f():\n    x and not x and (lambda: list())\n    list = custom\n";
+    let later_rows = events(later_source);
+    let later_site = check_site(&later_rows);
+    let later_local = later_rows
         .iter()
         .find(|row| row.name == "list" && row.kind == "bind" && row.line == 3)
         .expect("later function-local binding exists");
-    let call_read = event(&rows, "list", "read");
-    assert_eq!(later_local.scope, site.scope);
-    assert_eq!(later_local.phase, site.phase);
-    assert!(site.ordinal < later_local.ordinal);
-    assert!(later_local.ordinal < call_read.ordinal);
+    let later_call_read = event(&later_rows, "list", "read");
+    assert_eq!(later_local.scope, later_site.scope);
+    assert_eq!(later_local.phase, later_site.phase);
+    assert!(later_site.ordinal < later_local.ordinal);
+    assert!(later_local.ordinal < later_call_read.ordinal);
 }
 
 #[test]
@@ -205,19 +205,19 @@ fn deletion_and_exception_cleanup_precede_the_lookup_anchor() {
     assert!(binding.ordinal < deletion.ordinal);
     assert!(deletion.ordinal < site.ordinal);
 
-    let source =
+    let exception_source =
         "try:\n    pass\nexcept Exception as list:\n    pass\nx and not x and (lambda: list())\n";
-    let rows = events(source);
-    let site = check_site(&rows);
-    let binding = rows
+    let exception_rows = events(exception_source);
+    let exception_site = check_site(&exception_rows);
+    let exception_binding = exception_rows
         .iter()
         .find(|row| row.name == "list" && row.kind == "bind")
         .expect("exception target binding exists");
-    let cleanup = event(&rows, "list", "cleanup");
-    let call_read = event(&rows, "list", "read");
-    assert!(binding.ordinal < cleanup.ordinal);
-    assert!(cleanup.ordinal < site.ordinal);
-    assert!(site.ordinal < call_read.ordinal);
+    let cleanup = event(&exception_rows, "list", "cleanup");
+    let exception_call_read = event(&exception_rows, "list", "read");
+    assert!(exception_binding.ordinal < cleanup.ordinal);
+    assert!(cleanup.ordinal < exception_site.ordinal);
+    assert!(exception_site.ordinal < exception_call_read.ordinal);
 }
 
 #[test]
@@ -235,19 +235,19 @@ fn class_lookup_uses_the_current_class_and_skips_outer_class_scopes() {
     assert!(class_binding.ordinal < site.ordinal);
     assert!(site.ordinal < lambda_parameter.ordinal);
 
-    let source = "class Outer:\n    list = custom\n    class Inner:\n        x and not x and (lambda list: list())\n";
-    let rows = events(source);
-    let site = check_site(&rows);
-    let class_binding = rows
+    let inner_source = "class Outer:\n    list = custom\n    class Inner:\n        x and not x and (lambda list: list())\n";
+    let inner_rows = events(inner_source);
+    let inner_site = check_site(&inner_rows);
+    let outer_class_binding = inner_rows
         .iter()
         .find(|row| row.name == "list" && row.kind == "bind" && row.line == 2)
         .expect("outer class binding exists");
-    let scopes = scope_parents(source);
-    assert_ne!(class_binding.scope, site.scope);
+    let scopes = scope_parents(inner_source);
+    assert_ne!(outer_class_binding.scope, inner_site.scope);
     assert_eq!(
-        scopes.get(&site.scope),
-        Some(&class_binding.scope),
+        scopes.get(&inner_site.scope),
+        Some(&outer_class_binding.scope),
         "the outer class is the physical parent of the inner check scope"
     );
-    assert!(class_binding.ordinal < site.ordinal);
+    assert!(outer_class_binding.ordinal < inner_site.ordinal);
 }

@@ -114,8 +114,8 @@ impl EngineLocalAdapter {
         if rules.is_empty() {
             return Err(Error::Invalid(constants::EMPTY_RULES.into()));
         }
-        if let Some(projection) = frontend_diagnostic {
-            if rules
+        if let Some(projection) = frontend_diagnostic
+            && rules
                 .insert(
                     projection.rule,
                     Rule {
@@ -126,9 +126,8 @@ impl EngineLocalAdapter {
                     },
                 )
                 .is_some()
-            {
-                return Err(Error::Invalid(constants::DUPLICATE_RULE.into()));
-            }
+        {
+            return Err(Error::Invalid(constants::DUPLICATE_RULE.into()));
         }
         Ok(rules)
     }
@@ -238,11 +237,15 @@ impl EnginePort for EngineLocalAdapter {
 }
 
 #[cfg(test)]
+#[expect(
+    clippy::inline_modules,
+    reason = "these worker registry tests stay next to the local adapter contract"
+)]
 mod query_module_tests {
     use super::EngineLocalAdapter;
     use std::{collections::BTreeMap, path::PathBuf};
 
-    fn profile() -> (tempfile::TempDir, std::path::PathBuf) {
+    fn profile() -> (tempfile::TempDir, PathBuf) {
         let root = tempfile::tempdir().expect("profile root");
         let rules = root.path().join("rules");
         std::fs::create_dir_all(rules.join("F401")).expect("rule directory");

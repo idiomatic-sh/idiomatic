@@ -16,11 +16,21 @@ pub struct QuerySpan {
 /// A named query module source that the compiler receives in memory.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct QueryModuleSource {
-    pub(crate) id: ryo_values::domain::program::types::QuerySourceId,
-    pub(crate) text: Box<str>,
+    /// The validated logical identity used by imports in the bundle.
+    id: ryo_values::domain::program::types::QuerySourceId,
+    /// Exact module source bytes interpreted as UTF-8 text.
+    text: Box<str>,
 }
 
 impl QueryModuleSource {
+    /// Construct a module value from already checked components.
+    pub(crate) const fn from_parts(
+        id: ryo_values::domain::program::types::QuerySourceId,
+        text: Box<str>,
+    ) -> Self {
+        Self { id, text }
+    }
+
     /// The stable logical module id.
     #[must_use]
     pub fn id(&self) -> &str {

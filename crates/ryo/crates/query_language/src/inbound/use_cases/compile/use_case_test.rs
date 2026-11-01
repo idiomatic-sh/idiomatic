@@ -435,8 +435,8 @@ fn a_fused_fragment_comparison_keeps_its_original_source_span() {
     assert_eq!(origin.source_id.0.as_ref(), "filter");
     assert!(!origin.trace.is_empty());
     assert_eq!(
-        &module[origin.span.start.0..origin.span.end.0],
-        "kind = \"totally-unknown\""
+        module.get(origin.span.start.0..origin.span.end.0),
+        Some("kind = \"totally-unknown\"")
     );
 }
 

@@ -143,12 +143,12 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             } else {
                 ""
             };
-            let module = r#"input candidates: relation<path: file>;
-param prefix: string;
-output relation<left_path: file, right_path: file>;
-let filtered = select path from candidates where starts_with(path, $prefix);
-let pairs = join(left=filtered, right=filtered, left-on=[], right-on=[], output={left_path: [left, path], right_path: [right, path]});
-return pairs;"#;
+            let module = "input candidates: relation<path: file>;\n\
+param prefix: string;\n\
+output relation<left_path: file, right_path: file>;\n\
+let filtered = select path from candidates where starts_with(path, $prefix);\n\
+let pairs = join(left=filtered, right=filtered, left-on=[], right-on=[], output={left_path: [left, path], right_path: [right, path]});\n\
+return pairs;";
             let root_text = text.replace("prefix=\"\"", &format!("prefix=\"{prefix}\""));
             RyoQlQuery::with_modules(
                 "test/root",

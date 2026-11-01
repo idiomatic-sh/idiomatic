@@ -156,13 +156,13 @@ fn underflow_subnormal_infinity_complex_and_unary_values_follow_typed_payloads()
         })
         .map(|at| (written(&tree, at).0, key_of(&index, at)))
         .collect();
-    let find = |source: &str| {
+    let find = |spelling: &str| {
         occurrences
             .iter()
-            .find(|(text, _)| *text == source)
+            .find(|(text, _)| *text == spelling)
             .and_then(|(_, key)| *key)
     };
-    let key = |source: &str| find(source).expect("supported value has a constant key");
+    let key = |spelling: &str| find(spelling).expect("supported value has a constant key");
     assert_eq!(key("0"), key("1e-9999"));
     assert_ne!(key("0"), key("5e-324"));
     assert_ne!(key("0"), key("1e9999"));

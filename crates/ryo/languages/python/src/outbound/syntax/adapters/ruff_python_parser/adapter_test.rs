@@ -757,13 +757,13 @@ fn subject(given: Input) -> Result<Value, Failure> {
                 .lines()
                 .eq(super::constants::FUTURE_FEATURES.iter().copied()),
         )),
-        Given::Diagnostics(text) => diagnostics_of(
+        Given::Diagnostics(text) => Ok(diagnostics_of(
             text,
             PythonSourceKind::Python,
             PythonParserSettings::default(),
-        ),
+        )),
         Given::ConfiguredDiagnostics(text, settings, source_kind) => {
-            diagnostics_of(text, source_kind, settings)
+            Ok(diagnostics_of(text, source_kind, settings))
         }
         Given::Tree(text) => {
             let elements: Vec<(Kind, &'static str)> =
@@ -780,7 +780,7 @@ fn diagnostics_of(
     text: &'static str,
     source_kind: PythonSourceKind,
     settings: PythonParserSettings,
-) -> Result<Seen, Failure> {
+) -> Seen {
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
     let mut builder =
         languages::table_builder(&mut elements, &mut symbols, ByteSlice(text.as_bytes()));
@@ -800,7 +800,7 @@ fn diagnostics_of(
             )
         })
         .collect();
-    Ok(Seen::Diagnostics(Box::leak(diagnostics.into_boxed_slice())))
+    Seen::Diagnostics(Box::leak(diagnostics.into_boxed_slice()))
 }
 
 #[test]

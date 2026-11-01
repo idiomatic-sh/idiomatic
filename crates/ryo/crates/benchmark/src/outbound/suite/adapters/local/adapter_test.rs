@@ -85,6 +85,10 @@ fn empty_cases_are_refused() {
     }
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "the test helper stages one complete profile snapshot in one controlled fixture"
+)]
 fn selected_snapshot(directory: &std::path::Path, destination: &std::path::Path) {
     std::fs::create_dir_all(directory.join("fragments")).expect("fragment directory");
     std::fs::write(

@@ -8,7 +8,7 @@ use ryo_benchmark::domain::{
 use ryo_benchmark::outbound::engine::{factory, interface::EnginePort as _};
 use ryo_benchmark::outbound::suite::interface::SuitePort as _;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 enum EngineScenario {
     Finding,
     Missing,
@@ -100,36 +100,40 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Error(BoundaryFailure::Io(std::io::ErrorKind::NotFound)),
     },
 ];
-#[expect(
-    clippy::expect_used,
-    reason = "the fixed fixture rule identifier must be valid for engine assertions"
-)]
 fn exercise(scenario: Input) -> Result<Value, Error> {
     let root = tempfile::tempdir()?;
-    if matches!(scenario, EngineScenario::QueryModuleInlineEquivalence) {
+    if scenario == EngineScenario::QueryModuleInlineEquivalence {
         return query_module_inline_equivalence(root.path());
     }
+    if scenario == EngineScenario::ProjectionCacheQueryChange {
+        return projection_cache_query_change(root.path());
+    }
     let rules = root.path().join("rules");
-    std::fs::create_dir_all(rules.join("E722"))?;
-    std::fs::write(
-        rules.join("E722/query.ryoql"),
-        include_str!("rules/E722/query.ryoql"),
-    )?;
-    if matches!(scenario, EngineScenario::FutureFeatureProjection) {
-        std::fs::create_dir_all(rules.join("F407"))?;
-        std::fs::write(
-            rules.join("F407/query.ryoql"),
-            include_str!("rules/F407/candidate.ryoql"),
-        )?;
+    write_rule_fixtures(&rules, scenario)?;
+    let file = input_file(scenario);
+    if scenario != EngineScenario::Missing {
+        std::fs::write(root.path().join(file), source_for(scenario))?;
     }
-    if matches!(scenario, EngineScenario::FrontendRuleCollision) {
-        std::fs::create_dir_all(rules.join("invalid-syntax"))?;
-        std::fs::write(
-            rules.join("invalid-syntax/query.ryoql"),
-            include_str!("rules/E722/query.ryoql"),
-        )?;
-    }
-    let file = match scenario {
+    let request = WorkerRequest {
+        root: root.path().to_owned(),
+        rules,
+        query_modules: std::collections::BTreeMap::default(),
+        files: vec![ryo::linter::RelativePath(file.into())],
+        state: ryo_benchmark::domain::suite::types::WorkerState::Fresh,
+    };
+    let result = run_with_projection(scenario, request);
+    check_expected_failure(scenario, &result);
+    let report = result?;
+    Ok(
+        report.files == [ryo::linter::RelativePath("input.py".into())]
+            && report.diagnostics == expected_diagnostics(scenario)?,
+    )
+}
+
+fn input_file(scenario: EngineScenario) -> &'static str {
+    match scenario {
+        EngineScenario::Missing => "missing.py",
+        EngineScenario::Unread => "input.unknown",
         EngineScenario::Finding
         | EngineScenario::Partial
         | EngineScenario::InvalidSyntax
@@ -140,171 +144,194 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
         | EngineScenario::FrontendRuleCollision
         | EngineScenario::ProjectionCacheQueryChange
         | EngineScenario::QueryModuleInlineEquivalence => "input.py",
-        EngineScenario::Missing => "missing.py",
-        EngineScenario::Unread => "input.unknown",
-    };
-    if !matches!(scenario, EngineScenario::Missing) {
+    }
+}
+
+fn source_for(scenario: EngineScenario) -> &'static str {
+    match scenario {
+        EngineScenario::Partial => "try:\n    pass\nexcept:\n    pass\n\ndef broken(\n",
+        EngineScenario::InvalidSyntax
+        | EngineScenario::InvalidSyntaxProjectionDisabled
+        | EngineScenario::CustomFrontendProjection
+        | EngineScenario::FrontendRuleCollision => "global x\nnonlocal x\n",
+        EngineScenario::FutureFeatureProjection | EngineScenario::UnknownFutureWithoutConsumer => {
+            "from __future__ import no_such_feature\n"
+        }
+        EngineScenario::ProjectionCacheQueryChange => "nonlocal x\n",
+        EngineScenario::Finding
+        | EngineScenario::Missing
+        | EngineScenario::Unread
+        | EngineScenario::QueryModuleInlineEquivalence => "try:\n    pass\nexcept:\n    pass\n",
+    }
+}
+
+fn write_rule_fixtures(rules: &std::path::Path, scenario: EngineScenario) -> Result<(), Error> {
+    let e722 = rules.join("E722");
+    std::fs::create_dir_all(&e722)?;
+    std::fs::write(
+        e722.join("query.ryoql"),
+        include_str!("rules/E722/query.ryoql"),
+    )?;
+    if scenario == EngineScenario::FutureFeatureProjection {
+        let f407 = rules.join("F407");
+        std::fs::create_dir_all(&f407)?;
         std::fs::write(
-            root.path().join(file),
-            if matches!(scenario, EngineScenario::Partial) {
-                "try:\n    pass\nexcept:\n    pass\n\ndef broken(\n"
-            } else if matches!(
-                scenario,
-                EngineScenario::InvalidSyntax
-                    | EngineScenario::InvalidSyntaxProjectionDisabled
-                    | EngineScenario::CustomFrontendProjection
-                    | EngineScenario::FrontendRuleCollision
-            ) {
-                "global x\nnonlocal x\n"
-            } else if matches!(scenario, EngineScenario::FutureFeatureProjection) {
-                "from __future__ import no_such_feature\n"
-            } else if matches!(scenario, EngineScenario::UnknownFutureWithoutConsumer) {
-                "from __future__ import no_such_feature\n"
-            } else if matches!(scenario, EngineScenario::ProjectionCacheQueryChange) {
-                "nonlocal x\n"
-            } else {
-                "try:\n    pass\nexcept:\n    pass\n"
-            },
+            f407.join("query.ryoql"),
+            include_str!("rules/F407/candidate.ryoql"),
         )?;
     }
-    let request = WorkerRequest {
-        root: root.path().to_owned(),
-        rules,
-        query_modules: std::collections::BTreeMap::default(),
-        files: vec![ryo::linter::RelativePath(file.into())],
-        state: ryo_benchmark::domain::suite::types::WorkerState::Fresh,
-    };
-    if matches!(scenario, EngineScenario::ProjectionCacheQueryChange) {
-        let rule = ryo::linter::RuleId::try_from("cache-probe").expect("cache probe identity");
-        let first = factory::local_with_frontend_diagnostic(
-            ryo::linter::Languages(vec![ryo_python::linked_with_settings(
-                ryo_python::settings::PythonParserSettings::new(ryo_python::settings::PythonTargetVersion::Py310),
-            )]),
-            None,
-            factory::FrontendDiagnosticProjection {
-                rule: rule.clone(),
-                query: ryo::query::RyoQlQuery::try_from("let diagnostics = select id, file, span from \"syntax-error\" where code = \"nonlocal-at-module\";\nemit diagnostics subject file key(id);\n")
-                    .map_err(|error| Error::Invalid(error.to_string()))?,
-            },
-        )
-        .run(WorkerRequest {
-            state: ryo_benchmark::domain::suite::types::WorkerState::Retained(
-                root.path().join("retained-parse-cache"),
-            ),
-            ..request.clone()
-        })?;
-        let second = factory::local_with_frontend_diagnostic(
-            ryo::linter::Languages(vec![ryo_python::linked_with_settings(
-                ryo_python::settings::PythonParserSettings::new(ryo_python::settings::PythonTargetVersion::Py310),
-            )]),
-            None,
-            factory::FrontendDiagnosticProjection {
-                rule,
-                query: ryo::query::RyoQlQuery::try_from("let diagnostics = select id, file, span from \"syntax-error\" where code = \"no-such-parser-code\";\nemit diagnostics subject file key(id);\n")
-                    .map_err(|error| Error::Invalid(error.to_string()))?,
-            },
-        )
-        .run(WorkerRequest {
-            state: ryo_benchmark::domain::suite::types::WorkerState::Retained(
-                root.path().join("retained-parse-cache"),
-            ),
-            ..request
-        })?;
-        return Ok(first.diagnostics.len() == 1
-            && first.diagnostics[0].rule.as_ref() == "cache-probe"
-            && second.diagnostics.is_empty());
+    if scenario == EngineScenario::FrontendRuleCollision {
+        let invalid_syntax = rules.join("invalid-syntax");
+        std::fs::create_dir_all(&invalid_syntax)?;
+        std::fs::write(
+            invalid_syntax.join("query.ryoql"),
+            include_str!("rules/E722/query.ryoql"),
+        )?;
     }
-    let result = if matches!(scenario, EngineScenario::InvalidSyntaxProjectionDisabled) {
-        factory::local(
-            ryo::linter::Languages(vec![ryo_python::linked_with_settings(
-                ryo_python::settings::PythonParserSettings::new(
-                    ryo_python::settings::PythonTargetVersion::Py310,
-                ),
-            )]),
-            None,
+    Ok(())
+}
+
+fn python_310() -> ryo::linter::Languages {
+    ryo::linter::Languages(vec![ryo_python::linked_with_settings(
+        ryo_python::settings::PythonParserSettings::new(
+            ryo_python::settings::PythonTargetVersion::Py310,
+        ),
+    )])
+}
+
+fn run_with_projection(
+    scenario: EngineScenario,
+    request: WorkerRequest,
+) -> Result<ryo_benchmark::domain::diagnostics::types::RunReport, Error> {
+    if scenario == EngineScenario::InvalidSyntaxProjectionDisabled {
+        return factory::local(python_310(), None).run(request);
+    }
+    let projection = frontend_projection(scenario)?;
+    factory::local_with_frontend_diagnostic(python_310(), None, projection).run(request)
+}
+
+fn frontend_projection(
+    scenario: EngineScenario,
+) -> Result<factory::FrontendDiagnosticProjection, Error> {
+    let (rule, query) = if scenario == EngineScenario::CustomFrontendProjection {
+        (
+            "parser-check",
+            r#"let diagnostics = select id, file, span from "syntax-error" where message = "nonlocal declaration not allowed at module level";
+emit diagnostics subject file key(id);
+"#,
         )
-        .run(request)
     } else {
-        let projection = if matches!(scenario, EngineScenario::CustomFrontendProjection) {
-            factory::FrontendDiagnosticProjection {
-                rule: ryo::linter::RuleId::try_from("parser-check")
-                    .expect("custom diagnostic identity"),
-                query: ryo::query::RyoQlQuery::try_from("let diagnostics = select id, file, span from \"syntax-error\" where message = \"nonlocal declaration not allowed at module level\";\nemit diagnostics subject file key(id);\n")
-                    .map_err(|error| Error::Invalid(error.to_string()))?,
-            }
-        } else {
-            factory::FrontendDiagnosticProjection {
-                rule: ryo::linter::RuleId::try_from("invalid-syntax").expect("frontend identity"),
-                query: ryo::query::RyoQlQuery::try_from(
-                    crate::constants::FRONTEND_DIAGNOSTIC_QUERY,
-                )
-                .map_err(|error| Error::Invalid(error.to_string()))?,
-            }
-        };
-        factory::local_with_frontend_diagnostic(
-            ryo::linter::Languages(vec![ryo_python::linked_with_settings(
-                ryo_python::settings::PythonParserSettings::new(
-                    ryo_python::settings::PythonTargetVersion::Py310,
-                ),
-            )]),
-            None,
-            projection,
+        (
+            "invalid-syntax",
+            crate::constants::FRONTEND_DIAGNOSTIC_QUERY,
         )
-        .run(request)
     };
-    if matches!(scenario, EngineScenario::Unread) {
+    Ok(factory::FrontendDiagnosticProjection {
+        rule: ryo::linter::RuleId::try_from(rule)
+            .map_err(|error| Error::Invalid(error.to_string()))?,
+        query: ryo::query::RyoQlQuery::try_from(query)
+            .map_err(|error| Error::Invalid(error.to_string()))?,
+    })
+}
+
+fn check_expected_failure(
+    scenario: EngineScenario,
+    result: &Result<ryo_benchmark::domain::diagnostics::types::RunReport, Error>,
+) {
+    if scenario == EngineScenario::Unread {
         assert!(
-            matches!(&result, Err(Error::Invalid(message)) if message.starts_with("incomplete candidate:") && message.contains("input.unknown")),
+            matches!(result, Err(Error::Invalid(message)) if message.starts_with("incomplete candidate:") && message.contains("input.unknown")),
             "unread input must be reported as incomplete candidate coverage"
         );
     }
-    if matches!(scenario, EngineScenario::Partial) {
+    if scenario == EngineScenario::Partial {
         assert!(
-            matches!(&result, Err(Error::Invalid(message))
+            matches!(result, Err(Error::Invalid(message))
                 if message.starts_with("incomplete candidate:")
                     && !message.contains("unknowns=[]")
                     && message.contains("unread=[]")),
             "partial relation availability must refuse despite complete file coverage"
         );
     }
-    let report = result?;
-    let expected_diagnostics = if matches!(scenario, EngineScenario::InvalidSyntax) {
-        vec![BenchmarkFinding {
-            rule: ryo::linter::RuleId::try_from("invalid-syntax").expect("syntax rule"),
-            file: ryo::linter::RelativePath("input.py".into()),
-            start: ryo_benchmark::domain::diagnostics::types::SourceByteOffset(9),
-            end: ryo_benchmark::domain::diagnostics::types::SourceByteOffset(19),
-        }]
-    } else if matches!(scenario, EngineScenario::InvalidSyntaxProjectionDisabled) {
-        vec![]
-    } else if matches!(scenario, EngineScenario::CustomFrontendProjection) {
-        vec![BenchmarkFinding {
-            rule: ryo::linter::RuleId::try_from("parser-check").expect("custom rule"),
-            file: ryo::linter::RelativePath("input.py".into()),
-            start: ryo_benchmark::domain::diagnostics::types::SourceByteOffset(9),
-            end: ryo_benchmark::domain::diagnostics::types::SourceByteOffset(19),
-        }]
-    } else if matches!(scenario, EngineScenario::FutureFeatureProjection) {
-        vec![BenchmarkFinding {
-            rule: ryo::linter::RuleId::try_from("F407").expect("future feature rule"),
-            file: ryo::linter::RelativePath("input.py".into()),
-            start: ryo_benchmark::domain::diagnostics::types::SourceByteOffset(23),
-            end: ryo_benchmark::domain::diagnostics::types::SourceByteOffset(38),
-        }]
-    } else if matches!(scenario, EngineScenario::UnknownFutureWithoutConsumer) {
-        vec![]
-    } else {
-        vec![BenchmarkFinding {
-            rule: ryo::linter::RuleId::try_from("E722").expect("fixture rule"),
-            file: ryo::linter::RelativePath("input.py".into()),
-            start: ryo_benchmark::domain::diagnostics::types::SourceByteOffset(14),
-            end: ryo_benchmark::domain::diagnostics::types::SourceByteOffset(20),
-        }]
+}
+
+fn expected_diagnostics(scenario: EngineScenario) -> Result<Vec<BenchmarkFinding>, Error> {
+    use ryo_benchmark::domain::diagnostics::types::SourceByteOffset as At;
+    let (rule, start, end) = match scenario {
+        EngineScenario::InvalidSyntax => ("invalid-syntax", 9, 19),
+        EngineScenario::InvalidSyntaxProjectionDisabled
+        | EngineScenario::UnknownFutureWithoutConsumer => {
+            return Ok(Vec::new());
+        }
+        EngineScenario::CustomFrontendProjection => ("parser-check", 9, 19),
+        EngineScenario::FutureFeatureProjection => ("F407", 23, 38),
+        EngineScenario::Finding
+        | EngineScenario::Missing
+        | EngineScenario::Unread
+        | EngineScenario::Partial
+        | EngineScenario::FrontendRuleCollision
+        | EngineScenario::ProjectionCacheQueryChange
+        | EngineScenario::QueryModuleInlineEquivalence => ("E722", 14, 20),
     };
-    Ok(
-        report.files == [ryo::linter::RelativePath("input.py".into())]
-            && report.diagnostics == expected_diagnostics,
-    )
+    Ok(vec![BenchmarkFinding {
+        rule: ryo::linter::RuleId::try_from(rule)
+            .map_err(|error| Error::Invalid(error.to_string()))?,
+        file: ryo::linter::RelativePath("input.py".into()),
+        start: At(start),
+        end: At(end),
+    }])
+}
+
+fn projection_cache_query_change(root: &std::path::Path) -> Result<Value, Error> {
+    let rules = root.join("rules");
+    write_rule_fixtures(&rules, EngineScenario::ProjectionCacheQueryChange)?;
+    let file = input_file(EngineScenario::ProjectionCacheQueryChange);
+    std::fs::write(
+        root.join(file),
+        source_for(EngineScenario::ProjectionCacheQueryChange),
+    )?;
+    let request = WorkerRequest {
+        root: root.to_owned(),
+        rules,
+        query_modules: std::collections::BTreeMap::default(),
+        files: vec![ryo::linter::RelativePath(file.into())],
+        state: ryo_benchmark::domain::suite::types::WorkerState::Fresh,
+    };
+    let rule = ryo::linter::RuleId::try_from("cache-probe")
+        .map_err(|error| Error::Invalid(error.to_string()))?;
+    let run = |code| {
+        let query = format!(
+            "let diagnostics = select id, file, span from \"syntax-error\" where code = \"{code}\";\nemit diagnostics subject file key(id);\n"
+        );
+        let projection = factory::FrontendDiagnosticProjection {
+            rule: rule.clone(),
+            query: ryo::query::RyoQlQuery::try_from(query.as_str())
+                .map_err(|error| Error::Invalid(error.to_string()))?,
+        };
+        Ok::<_, Error>(factory::local_with_frontend_diagnostic(
+            python_310(),
+            None,
+            projection,
+        ))
+    };
+    let first = run("nonlocal-at-module")?.run(WorkerRequest {
+        state: ryo_benchmark::domain::suite::types::WorkerState::Retained(
+            root.join("retained-parse-cache"),
+        ),
+        ..request.clone()
+    })?;
+    let second = run("no-such-parser-code")?.run(WorkerRequest {
+        state: ryo_benchmark::domain::suite::types::WorkerState::Retained(
+            root.join("retained-parse-cache"),
+        ),
+        ..request
+    })?;
+    Ok(first.diagnostics.len() == 1
+        && first
+            .diagnostics
+            .first()
+            .is_some_and(|finding| finding.rule.as_ref() == "cache-probe")
+        && second.diagnostics.is_empty())
 }
 
 fn query_module_inline_equivalence(root: &std::path::Path) -> Result<bool, Error> {
@@ -351,6 +378,29 @@ fn query_module_inline_equivalence(root: &std::path::Path) -> Result<bool, Error
     Ok(plain == imported)
 }
 
+fn case_identities(
+    cases: Vec<ryo_benchmark::domain::suite::types::PreparedCase>,
+) -> std::collections::BTreeMap<(String, String), ryo_benchmark::domain::suite::types::PreparedCase>
+{
+    cases
+        .into_iter()
+        .map(|case| ((case.rule.as_ref().to_owned(), case.name.0.clone()), case))
+        .collect()
+}
+
+fn write_rule_profile(
+    rules: &std::path::Path,
+    rule: &str,
+    query: &str,
+    cases: &str,
+) -> Result<(), Error> {
+    let directory = rules.join(rule);
+    std::fs::create_dir_all(&directory)?;
+    std::fs::write(directory.join("query.ryoql"), query)?;
+    std::fs::write(directory.join("cases.toml"), cases)?;
+    Ok(())
+}
+
 #[test]
 fn shared_suppression_fragment_matches_the_historical_inline_queries() -> Result<(), Error> {
     // These inline baselines are exact query bytes from pre-fragment head b9223b8613:
@@ -375,12 +425,8 @@ fn shared_suppression_fragment_matches_the_historical_inline_queries() -> Result
             include_str!("rules/F632/cases.toml"),
         ),
     ] {
-        for (root, query) in [(&inline_rules, baseline), (&imported_rules, imported)] {
-            let rule_root = root.join(rule);
-            std::fs::create_dir_all(&rule_root)?;
-            std::fs::write(rule_root.join("query.ryoql"), query)?;
-            std::fs::write(rule_root.join("cases.toml"), cases)?;
-        }
+        write_rule_profile(&inline_rules, rule, baseline, cases)?;
+        write_rule_profile(&imported_rules, rule, imported, cases)?;
     }
     let fragment_root = imported_profile.join("fragments");
     std::fs::create_dir_all(&fragment_root)?;
@@ -400,10 +446,7 @@ fn shared_suppression_fragment_matches_the_historical_inline_queries() -> Result
             &temporary.path().join("imported-cases"),
         ),
     )?;
-    let imported_by_name: std::collections::BTreeMap<_, _> = imported_cases
-        .into_iter()
-        .map(|case| ((case.rule.to_string(), case.name.0.to_string()), case))
-        .collect();
+    let imported_by_name = case_identities(imported_cases);
     let languages = ryo::linter::Languages(vec![ryo_python::linked_with_settings(
         ryo_python::settings::PythonParserSettings::new(
             ryo_python::settings::PythonTargetVersion::Py310,
@@ -416,7 +459,7 @@ fn shared_suppression_fragment_matches_the_historical_inline_queries() -> Result
         std::path::PathBuf::from("fragments/suppress.ryoql"),
     )]);
     for case in inline_cases {
-        let key = (case.rule.to_string(), case.name.0.to_string());
+        let key = (case.rule.as_ref().to_owned(), case.name.0.clone());
         let imported = imported_by_name
             .get(&key)
             .ok_or_else(|| Error::Invalid(format!("missing imported counterpart for {key:?}")))?;
@@ -501,7 +544,7 @@ fn assert_single_rule_fragment_equivalence(
     )?;
     let imported_by_name: std::collections::BTreeMap<_, _> = imported_cases
         .into_iter()
-        .map(|case| ((case.name.0.to_string(), case.rule.to_string()), case))
+        .map(|case| ((case.name.0.clone(), case.rule.as_ref().to_owned()), case))
         .collect();
     let languages = ryo::linter::Languages(vec![ryo_python::linked_with_settings(
         ryo_python::settings::PythonParserSettings::new(
@@ -520,7 +563,7 @@ fn assert_single_rule_fragment_equivalence(
     std::fs::create_dir_all(module_parent)?;
     std::fs::write(&module, include_str!("fragments/suppress.ryoql"))?;
     for case in inline_cases {
-        let key = (case.name.0.to_string(), case.rule.to_string());
+        let key = (case.name.0.clone(), case.rule.as_ref().to_owned());
         let imported_case = imported_by_name
             .get(&key)
             .ok_or_else(|| Error::Invalid(format!("missing imported case for {key:?}")))?;

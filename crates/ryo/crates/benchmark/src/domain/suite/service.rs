@@ -88,9 +88,7 @@ pub fn validate_cases(rule: &ryo::linter::RuleId, cases: &Cases) -> Result<(), E
         }),
     }
     };
-    if !cases.cases.iter().any(|case| has_rule_finding(case))
-        || cases.cases.iter().all(|case| has_rule_finding(case))
-    {
+    if !cases.cases.iter().any(&has_rule_finding) || cases.cases.iter().all(&has_rule_finding) {
         return Err(Error::Invalid(super::constants::MISSING_POLARITY.into()));
     }
     validate_case_sources(cases)

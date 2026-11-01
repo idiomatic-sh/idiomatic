@@ -154,7 +154,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
                 Input::UnknownArm => uncertain(&mut state, right, key),
                 Input::MissingArm | Input::ZeroIterations => {}
                 Input::Overwrite | Input::DeferredOverlay | Input::Reparse => {
-                    unreachable!("handled outside alternatives")
+                    return Err(());
                 }
             }
             join(&mut state, root, &[right, left]);

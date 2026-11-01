@@ -201,7 +201,9 @@ fn subject((source, wanted): Input) -> Result<Value, Failure> {
     use crate::outbound::{notes::factory::postcard, syntax::factory::ruff_python_parser};
     use ryo::languages::Parse as _;
     use std::sync::Arc;
-    let mut file = parsed(source.as_bytes()).map_err(|_| ())?;
+    let Ok(mut file) = parsed(source.as_bytes()) else {
+        return Err(());
+    };
     let tree = Tree {
         elements: &file.elements,
         source: ByteSlice(file.bytes),
@@ -261,6 +263,10 @@ fn succeeds() {
     run(CASES, Word::Succeeds, subject);
 }
 
+#[expect(
+    clippy::inline_modules,
+    reason = "the retained-cache lifecycle case is grouped with its service contract fixtures"
+)]
 mod retained {
     use crate::cases::{Case, CaseName, Expect, Word, run};
     use crate::domain::{
@@ -299,7 +305,9 @@ mod retained {
             "missing\n",
             "x = 1\nuse(x)\n",
         ] {
-            let mut file = parsed(source.as_bytes()).map_err(|_| ())?;
+            let Ok(mut file) = parsed(source.as_bytes()) else {
+                return Err(());
+            };
             let tree = Tree {
                 elements: &file.elements,
                 source: ByteSlice(file.bytes),

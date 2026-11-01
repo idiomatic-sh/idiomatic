@@ -66,9 +66,14 @@ fn refuses() {
 #[test]
 fn request_transports_the_explicit_module_registry() {
     let mut request = crate::outbound::worker::fixtures::data::request();
-    request.query_modules.insert(
-        "python/ruff/suppress".into(),
-        "fragments/suppress.ryoql".into(),
+    assert!(
+        request
+            .query_modules
+            .insert(
+                "python/ruff/suppress".into(),
+                "fragments/suppress.ryoql".into(),
+            )
+            .is_none()
     );
     let encoded = super::encode_request(request).expect("request JSON");
     let value: serde_json::Value = serde_json::from_str(&encoded).expect("valid request JSON");

@@ -22,8 +22,8 @@ type Failure = ();
 
 struct RefusingScalar;
 impl std::fmt::Display for RefusingScalar {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.write_str("must roll back")?;
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("must roll back")?;
         Err(std::fmt::Error)
     }
 }
@@ -33,8 +33,12 @@ fn formatted_properties_are_atomic_and_reuse_storage() -> usize {
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
     let mut builder = table_builder(&mut elements, &mut symbols, ByteSlice(b"x"));
     enter_node(&mut builder, KindBits(1), Offset(0));
-    node_property_fmt(&mut builder, PropertyId(2), format_args!("{}:{}", 17, 23))
-        .expect("memory format");
+    node_property_fmt(
+        &mut builder,
+        PropertyId(2),
+        format_args!("{}:{}", 17_u8, 23_u8),
+    )
+    .expect("memory format");
     assert!(
         node_property_fmt(
             &mut builder,
@@ -43,7 +47,7 @@ fn formatted_properties_are_atomic_and_reuse_storage() -> usize {
         )
         .is_err()
     );
-    node_property_fmt(&mut builder, PropertyId(3), format_args!("{}", 42))
+    node_property_fmt(&mut builder, PropertyId(3), format_args!("{}", 42_u8))
         .expect("next memory format");
     leave_node(&mut builder, Offset(1));
     usize::from(
@@ -242,8 +246,6 @@ fn diagnostics_retain_metadata_and_reset_between_sources() -> usize {
         Offset(0),
         Offset(1),
     );
-    drop(builder);
-
     let before = super::service::diagnostics(&elements).collect::<Vec<_>>();
     let retained = before.len() == 2
         && before[0].phase == DiagnosticPhase::Parse
@@ -255,15 +257,14 @@ fn diagnostics_retain_metadata_and_reset_between_sources() -> usize {
         && has_incomplete_syntax(&elements);
 
     let (mut next_symbols, next_source) = (Symbols::default(), ByteSlice(b"valid"));
-    let next = table_builder(&mut elements, &mut next_symbols, next_source);
-    drop(next);
+    let _next_builder = table_builder(&mut elements, &mut next_symbols, next_source);
     let cleared = !has_incomplete_syntax(&elements)
         && super::service::diagnostic_count(&elements).0 == 0
         && super::service::diagnostics(&elements).next().is_none();
 
-    let mut next = table_builder(&mut elements, &mut next_symbols, next_source);
+    let mut validation_builder = table_builder(&mut elements, &mut next_symbols, next_source);
     diagnose_with_metadata(
-        &mut next,
+        &mut validation_builder,
         DiagnosticMetadata::new(
             DiagnosticPhase::Validation,
             TreeImpact::Preserved,
@@ -273,7 +274,6 @@ fn diagnostics_retain_metadata_and_reset_between_sources() -> usize {
         Offset(0),
         Offset(5),
     );
-    drop(next);
     usize::from(
         retained
             && cleared

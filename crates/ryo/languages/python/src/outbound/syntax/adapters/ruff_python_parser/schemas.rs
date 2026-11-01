@@ -282,22 +282,113 @@ pub(super) fn node_kind(kind: RuffNode, strings: Strings) -> Kind {
 }
 
 /// The language's kind of a concrete node, retaining async statement variants Ruff stores in a flag.
+#[expect(
+    clippy::too_many_lines,
+    reason = "the exhaustive upstream node mapping prevents new AST variants from falling through"
+)]
 #[must_use]
 pub(super) fn concrete_node_kind(node: AnyNodeRef<'_>, strings: Strings) -> Kind {
-    if let AnyNodeRef::StmtFunctionDef(statement) = node {
-        if statement.is_async {
-            return Kind::Node(Node::AsyncFunctionDef);
+    match node {
+        AnyNodeRef::StmtFunctionDef(statement) if statement.is_async => {
+            Kind::Node(Node::AsyncFunctionDef)
         }
-    } else if let AnyNodeRef::StmtFor(statement) = node {
-        if statement.is_async {
-            return Kind::Node(Node::AsyncFor);
+        AnyNodeRef::StmtFor(statement) if statement.is_async => Kind::Node(Node::AsyncFor),
+        AnyNodeRef::StmtWith(statement) if statement.is_async => Kind::Node(Node::AsyncWith),
+        AnyNodeRef::StmtFunctionDef(_) | AnyNodeRef::StmtFor(_) | AnyNodeRef::StmtWith(_) => {
+            node_kind(node.kind(), strings)
         }
-    } else if let AnyNodeRef::StmtWith(statement) = node {
-        if statement.is_async {
-            return Kind::Node(Node::AsyncWith);
-        }
+        AnyNodeRef::ModModule(_)
+        | AnyNodeRef::ModExpression(_)
+        | AnyNodeRef::StmtClassDef(_)
+        | AnyNodeRef::StmtReturn(_)
+        | AnyNodeRef::StmtDelete(_)
+        | AnyNodeRef::StmtTypeAlias(_)
+        | AnyNodeRef::StmtAssign(_)
+        | AnyNodeRef::StmtAugAssign(_)
+        | AnyNodeRef::StmtAnnAssign(_)
+        | AnyNodeRef::StmtWhile(_)
+        | AnyNodeRef::StmtIf(_)
+        | AnyNodeRef::StmtMatch(_)
+        | AnyNodeRef::StmtRaise(_)
+        | AnyNodeRef::StmtTry(_)
+        | AnyNodeRef::StmtAssert(_)
+        | AnyNodeRef::StmtImport(_)
+        | AnyNodeRef::StmtImportFrom(_)
+        | AnyNodeRef::StmtGlobal(_)
+        | AnyNodeRef::StmtNonlocal(_)
+        | AnyNodeRef::StmtExpr(_)
+        | AnyNodeRef::StmtPass(_)
+        | AnyNodeRef::StmtBreak(_)
+        | AnyNodeRef::StmtContinue(_)
+        | AnyNodeRef::StmtIpyEscapeCommand(_)
+        | AnyNodeRef::ExprBoolOp(_)
+        | AnyNodeRef::ExprNamed(_)
+        | AnyNodeRef::ExprBinOp(_)
+        | AnyNodeRef::ExprUnaryOp(_)
+        | AnyNodeRef::ExprLambda(_)
+        | AnyNodeRef::ExprIf(_)
+        | AnyNodeRef::ExprDict(_)
+        | AnyNodeRef::ExprSet(_)
+        | AnyNodeRef::ExprListComp(_)
+        | AnyNodeRef::ExprSetComp(_)
+        | AnyNodeRef::ExprDictComp(_)
+        | AnyNodeRef::ExprGenerator(_)
+        | AnyNodeRef::ExprAwait(_)
+        | AnyNodeRef::ExprYield(_)
+        | AnyNodeRef::ExprYieldFrom(_)
+        | AnyNodeRef::ExprCompare(_)
+        | AnyNodeRef::ExprCall(_)
+        | AnyNodeRef::ExprFString(_)
+        | AnyNodeRef::ExprTString(_)
+        | AnyNodeRef::ExprStringLiteral(_)
+        | AnyNodeRef::ExprBytesLiteral(_)
+        | AnyNodeRef::ExprNumberLiteral(_)
+        | AnyNodeRef::ExprBooleanLiteral(_)
+        | AnyNodeRef::ExprNoneLiteral(_)
+        | AnyNodeRef::ExprEllipsisLiteral(_)
+        | AnyNodeRef::ExprAttribute(_)
+        | AnyNodeRef::ExprSubscript(_)
+        | AnyNodeRef::ExprStarred(_)
+        | AnyNodeRef::ExprName(_)
+        | AnyNodeRef::ExprList(_)
+        | AnyNodeRef::ExprTuple(_)
+        | AnyNodeRef::ExprSlice(_)
+        | AnyNodeRef::ExprIpyEscapeCommand(_)
+        | AnyNodeRef::ExceptHandlerExceptHandler(_)
+        | AnyNodeRef::InterpolatedElement(_)
+        | AnyNodeRef::InterpolatedStringLiteralElement(_)
+        | AnyNodeRef::PatternMatchValue(_)
+        | AnyNodeRef::PatternMatchSingleton(_)
+        | AnyNodeRef::PatternMatchSequence(_)
+        | AnyNodeRef::PatternMatchMapping(_)
+        | AnyNodeRef::PatternMatchClass(_)
+        | AnyNodeRef::PatternMatchStar(_)
+        | AnyNodeRef::PatternMatchAs(_)
+        | AnyNodeRef::PatternMatchOr(_)
+        | AnyNodeRef::TypeParamTypeVar(_)
+        | AnyNodeRef::TypeParamTypeVarTuple(_)
+        | AnyNodeRef::TypeParamParamSpec(_)
+        | AnyNodeRef::InterpolatedStringFormatSpec(_)
+        | AnyNodeRef::PatternArguments(_)
+        | AnyNodeRef::PatternKeyword(_)
+        | AnyNodeRef::Comprehension(_)
+        | AnyNodeRef::Arguments(_)
+        | AnyNodeRef::Parameters(_)
+        | AnyNodeRef::Parameter(_)
+        | AnyNodeRef::ParameterWithDefault(_)
+        | AnyNodeRef::Keyword(_)
+        | AnyNodeRef::Alias(_)
+        | AnyNodeRef::WithItem(_)
+        | AnyNodeRef::MatchCase(_)
+        | AnyNodeRef::Decorator(_)
+        | AnyNodeRef::ElifElseClause(_)
+        | AnyNodeRef::TypeParams(_)
+        | AnyNodeRef::FString(_)
+        | AnyNodeRef::TString(_)
+        | AnyNodeRef::StringLiteral(_)
+        | AnyNodeRef::BytesLiteral(_)
+        | AnyNodeRef::Identifier(_) => node_kind(node.kind(), strings),
     }
-    node_kind(node.kind(), strings)
 }
 
 /// The language's kind of a token of the library.

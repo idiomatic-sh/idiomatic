@@ -45,7 +45,6 @@ fn only_incomplete_diagnostics_mark_code_relations_as_recovery() {
         Offset(0),
         Offset(1),
     );
-    drop(builder);
 
     let preserved = recovery_of(
         &FileReading::Read(ryo_values::domain::stored_facts::types::LanguageNumber(0)),
@@ -60,14 +59,13 @@ fn only_incomplete_diagnostics_mark_code_relations_as_recovery() {
     );
     assert!(partial_of(&[], preserved, &[Relation::Function]).is_empty());
 
-    let mut builder = table_builder(&mut elements, &mut symbols, source);
+    let mut validation_builder = table_builder(&mut elements, &mut symbols, source);
     diagnose(
-        &mut builder,
+        &mut validation_builder,
         ReportText("legacy parser diagnostic without impact metadata"),
         Offset(0),
         Offset(1),
     );
-    drop(builder);
     let incomplete = recovery_of(
         &FileReading::Read(ryo_values::domain::stored_facts::types::LanguageNumber(0)),
         &elements,

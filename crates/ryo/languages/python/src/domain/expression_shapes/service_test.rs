@@ -256,38 +256,44 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(false),
     },
 ];
+#[expect(
+    clippy::unnecessary_wraps,
+    reason = "the shared fixture runner requires every case subject to return Result"
+)]
 fn subject((source, left, right): Input) -> Result<Value, Failure> {
     if source == "embedding witness" {
-        return embedded_shapes();
+        return Ok(embedded_shapes());
     }
     if source == "collision witness" {
         let mut index = ExpressionShapeIndex::default();
         index
             .scratch
             .push(ShapeWord::Identifier(languages::Symbol(1)));
-        let a = intern(&mut index, languages::Position(2), ShapeHash(0));
+        let left_class = intern(&mut index, languages::Position(2), ShapeHash(0));
         index.scratch.clear();
         index
             .scratch
             .push(ShapeWord::Identifier(languages::Symbol(2)));
-        let b = intern(&mut index, languages::Position(6), ShapeHash(0));
+        let right_class = intern(&mut index, languages::Position(6), ShapeHash(0));
         index.scratch.clear();
         index
             .scratch
             .push(ShapeWord::Identifier(languages::Symbol(1)));
-        let again = intern(&mut index, languages::Position(9), ShapeHash(0));
-        return Ok(a != b && a == again && index.records.len() == 2);
+        let repeated_class = intern(&mut index, languages::Position(9), ShapeHash(0));
+        return Ok(left_class != right_class
+            && left_class == repeated_class
+            && index.records.len() == 2);
     }
     if source == "reparse witness" {
         let mut model = Declarations::default();
-        for (source, complete) in [
+        for (fixture_source, complete) in [
             ("x\nx\n", true),
             ("x +\ny *\n", false),
             ("", true),
             ("y\nx\n", true),
         ] {
             clear(model.expression_shapes.get_mut());
-            let file = parsed(source.as_bytes()).expect("parser retains diagnostics");
+            let file = parsed(fixture_source.as_bytes()).expect("parser retains diagnostics");
             let tree = Tree {
                 elements: &file.elements,
                 source: ByteSlice(file.bytes),
@@ -327,24 +333,24 @@ fn subject((source, left, right): Input) -> Result<Value, Failure> {
     let index = prepare(&tree, &model, &mut symbols).unwrap_or_else(|| {
         panic!("complete source has shapes: {source:?}; left={left:?}; right={right:?}")
     });
-    let a = shape_of(&index, first).expect("left shape");
-    let b = shape_of(&index, last).expect("right shape");
+    let left_shape = shape_of(&index, first).expect("left shape");
+    let right_shape = shape_of(&index, last).expect("right shape");
     let reentrant = prepare(&tree, &model, &mut symbols).expect("immutable read can reenter");
-    assert_eq!(Some(a), shape_of(&reentrant, first));
+    assert_eq!(Some(left_shape), shape_of(&reentrant, first));
     drop(reentrant);
     drop(index);
     let repeated = prepare(&tree, &model, &mut symbols).expect("repeat read is complete");
-    assert_eq!(Some(a), shape_of(&repeated, first));
+    assert_eq!(Some(left_shape), shape_of(&repeated, first));
     drop(repeated);
     clear(&mut model.expression_shapes.borrow_mut());
     assert!(model.expression_shapes.borrow().classes.is_empty());
     let reparsed = prepare(&tree, &model, &mut symbols).expect("cleared index rebuilds");
-    assert_eq!(Some(a), shape_of(&reparsed, first));
-    Ok(a == b)
+    assert_eq!(Some(left_shape), shape_of(&reparsed, first));
+    Ok(left_shape == right_shape)
 }
 
 /// Whole-host relocation must not use carrier text as the embedded literal value.
-fn embedded_shapes() -> Result<Value, Failure> {
+fn embedded_shapes() -> Value {
     use crate::domain::{
         semantic_syntax::{
             service::{positions, visibility},
@@ -412,7 +418,7 @@ fn embedded_shapes() -> Result<Value, Failure> {
     let shape_first = prepare(&tree, &model, &mut symbols)
         .expect("shape-first read initializes semantic visibility");
     assert_eq!(classes, shape_first.classes);
-    Ok(true)
+    true
 }
 
 #[test]
