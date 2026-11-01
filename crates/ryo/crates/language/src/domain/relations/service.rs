@@ -45,6 +45,8 @@ macro_rules! each_relation {
                 ConstantKey constant_key ConstantKeyRow ConstantKeyColumn;
                 FormatParse format_parse FormatParseRow FormatParseColumn;
                 FormatField format_field FormatFieldRow FormatFieldColumn;
+                BraceFormatParse brace_format_parse BraceFormatParseRow BraceFormatParseColumn;
+                BraceFormatField brace_format_field BraceFormatFieldRow BraceFormatFieldColumn;
                 StaticImport static_import StaticImportRow StaticImportColumn;
                 StringLiteral string_literal StringLiteralRow StringLiteralColumn;
                 SyntaxChild syntax_child SyntaxChildRow SyntaxChildColumn;
@@ -414,5 +416,7 @@ pub const fn capability_relation(capability: super::types::OptionalCapability) -
         OptionalCapability::ConstantKey => Relation::ConstantKey,
         OptionalCapability::FormatParse => Relation::FormatParse,
         OptionalCapability::FormatField => Relation::FormatField,
+        OptionalCapability::BraceFormatParse => Relation::BraceFormatParse,
+        OptionalCapability::BraceFormatField => Relation::BraceFormatField,
     }
 }

@@ -172,4 +172,6 @@ pub const OPTIONAL_CAPABILITIES: &[super::types::OptionalCapability] = &[
     super::types::OptionalCapability::ConstantKey,
     super::types::OptionalCapability::FormatParse,
     super::types::OptionalCapability::FormatField,
+    super::types::OptionalCapability::BraceFormatParse,
+    super::types::OptionalCapability::BraceFormatField,
 ];

@@ -56,6 +56,8 @@ pub(crate) mod binding_analysis;
 
 /// Explicit uncertainty for repeated and exceptional namespace effects.
 pub(crate) mod binding_uncertainty;
+/// Lazy brace-format parsing, separate from percent-format parsing.
+pub(crate) mod brace_format;
 /// Lazy per-source percent-format parse results.
 pub(crate) mod format_parsing;
 /// Application-owned decoded format grammar results and parser port.

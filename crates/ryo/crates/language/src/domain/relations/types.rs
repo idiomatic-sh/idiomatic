@@ -527,4 +527,8 @@ pub enum OptionalCapability {
     FormatParse,
     /// Parsed Python percent-format strings and their format fields.
     FormatField,
+    /// Parsed Python brace-format strings, kept separate from percent-format demand.
+    BraceFormatParse,
+    /// Ordered Python brace-format fields, including nested format-spec fields.
+    BraceFormatField,
 }

@@ -94,6 +94,8 @@ impl Parse for ParseContract {
             languages::OptionalCapability::ConstantKey,
             languages::OptionalCapability::FormatParse,
             languages::OptionalCapability::FormatField,
+            languages::OptionalCapability::BraceFormatParse,
+            languages::OptionalCapability::BraceFormatField,
             languages::OptionalCapability::LanguageTarget,
         ]
     }
@@ -107,6 +109,7 @@ impl Parse for ParseContract {
         crate::domain::expression_shapes::service::clear(model.expression_shapes.get_mut());
         crate::domain::constant_keys::service::clear(model.constant_keys.get_mut());
         crate::domain::format_parsing::service::clear(model.format_parsing.get_mut());
+        crate::domain::brace_format::service::clear(model.brace_format.get_mut());
         crate::domain::indentation::service::clear(model.indentation.get_mut());
         crate::domain::qualification::service::clear(model.qualification.get_mut());
         crate::domain::binding_analysis::service::clear(model.binding_analysis.get_mut());
@@ -255,6 +258,14 @@ impl Parse for ParseContract {
 
     fn format_field(&self) -> Support<Reader<languages::FormatField, Self::FileModel>> {
         languages::reads::<super::format_readers::FormatFieldItem>()
+    }
+
+    fn brace_format_parse(&self) -> Support<Reader<languages::BraceFormatParse, Self::FileModel>> {
+        languages::reads::<super::brace_format_readers::BraceFormatParseItem>()
+    }
+
+    fn brace_format_field(&self) -> Support<Reader<languages::BraceFormatField, Self::FileModel>> {
+        languages::reads::<super::brace_format_readers::BraceFormatFieldItem>()
     }
 
     fn literal_properties(&self) -> Support<Reader<languages::LiteralProperties, Self::FileModel>> {

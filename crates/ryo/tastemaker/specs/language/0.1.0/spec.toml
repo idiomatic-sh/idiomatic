@@ -1295,6 +1295,15 @@ impl Parse for ParseContract {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
+    fn brace_format_parse(&self) -> Support<Reader<languages::BraceFormatParse, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn brace_format_field(&self) -> Support<Reader<languages::BraceFormatField, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+
     fn constant_key(&self) -> Support<Reader<languages::ConstantKey, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
@@ -13830,6 +13839,15 @@ impl Parse for ParseContract {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
+    fn brace_format_parse(&self) -> Support<Reader<languages::BraceFormatParse, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn brace_format_field(&self) -> Support<Reader<languages::BraceFormatField, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+
     fn constant_key(&self) -> Support<Reader<languages::ConstantKey, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
@@ -14813,6 +14831,15 @@ impl Parse for ParseContract {
     fn format_field(&self) -> Support<Reader<languages::FormatField, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
+
+    fn brace_format_parse(&self) -> Support<Reader<languages::BraceFormatParse, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn brace_format_field(&self) -> Support<Reader<languages::BraceFormatField, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
 
     fn constant_key(&self) -> Support<Reader<languages::ConstantKey, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
@@ -15799,6 +15826,15 @@ impl Parse for ParseContract {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
+    fn brace_format_parse(&self) -> Support<Reader<languages::BraceFormatParse, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn brace_format_field(&self) -> Support<Reader<languages::BraceFormatField, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+
     fn constant_key(&self) -> Support<Reader<languages::ConstantKey, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
@@ -16779,6 +16815,15 @@ impl Parse for ParseContract {
     fn format_field(&self) -> Support<Reader<languages::FormatField, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
+
+    fn brace_format_parse(&self) -> Support<Reader<languages::BraceFormatParse, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn brace_format_field(&self) -> Support<Reader<languages::BraceFormatField, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
 
     fn constant_key(&self) -> Support<Reader<languages::ConstantKey, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
@@ -17761,6 +17806,15 @@ impl Parse for ParseContract {
     fn format_field(&self) -> Support<Reader<languages::FormatField, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
+
+    fn brace_format_parse(&self) -> Support<Reader<languages::BraceFormatParse, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn brace_format_field(&self) -> Support<Reader<languages::BraceFormatField, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
 
     fn constant_key(&self) -> Support<Reader<languages::ConstantKey, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)

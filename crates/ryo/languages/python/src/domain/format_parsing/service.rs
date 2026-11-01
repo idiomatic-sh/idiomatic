@@ -28,14 +28,14 @@ pub(crate) fn clear(index: &mut FormatParseIndex) {
 }
 
 /// Whether this is one original visible string-literal node.
-fn is_string_occurrence(tree: &Tree<'_>, at: Position) -> bool {
+pub(crate) fn is_string_occurrence(tree: &Tree<'_>, at: Position) -> bool {
     matches!(kind(tree, at), Kind::Node(Node::JoinedStr))
         || (kind(tree, at) == Kind::Node(Node::Constant) && literal(tree, at) == Literal::String)
 }
 
 /// Concatenate parser-decoded string pieces. Dynamic interpolations are known unknown inputs;
 /// missing decoded parser payload is unavailable and must make the relation partial.
-fn decoded_string(tree: &Tree<'_>, at: Position) -> Result<Option<String>, ()> {
+pub(crate) fn decoded_string(tree: &Tree<'_>, at: Position) -> Result<Option<String>, ()> {
     if interpolation(tree, at) == Interpolation::Interpolates {
         return Ok(None);
     }

@@ -3,6 +3,8 @@
 pub mod analyzed_source;
 pub mod annotates;
 pub mod assigns;
+pub mod brace_format_field;
+pub mod brace_format_parse;
 pub mod call_argument;
 pub mod comment;
 pub mod decorates;

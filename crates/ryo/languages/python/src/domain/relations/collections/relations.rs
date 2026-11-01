@@ -52,6 +52,8 @@ pub(crate) mod binding_use;
 /// Generic static binding analysis.
 pub(crate) mod binding_shadow;
 
+pub(crate) mod brace_format_field;
+pub(crate) mod brace_format_parse;
 pub(crate) mod constant_key;
 pub(crate) mod format_field;
 pub(crate) mod format_parse;

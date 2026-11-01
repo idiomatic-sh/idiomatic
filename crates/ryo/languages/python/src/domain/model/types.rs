@@ -1,6 +1,7 @@
 //! The types of the `model` concept: plain data, public fields and derives, with no constructor and no inherent impl. What the
 //! language works out of a file once, before its readers run.
 
+use crate::domain::brace_format::types::BraceFormatIndex;
 use crate::domain::constant_keys::types::ConstantKeyIndex;
 use crate::domain::format_syntax::types::FormatParseIndex;
 use crate::domain::indentation::types::IndentationIndex;
@@ -57,6 +58,8 @@ pub(crate) struct Declarations {
     pub constant_keys: RefCell<ConstantKeyIndex>,
     /// Lazy decoded percent-format parses, invalidated between source revisions.
     pub format_parsing: RefCell<FormatParseIndex>,
+    /// Lazy decoded brace-format parses, invalidated between source revisions.
+    pub brace_format: RefCell<BraceFormatIndex>,
     /// Every declared name.
     pub declared: Vec<ScopeDeclaration>,
     /// Definitions indexed by lexical scope and name, in source order.
