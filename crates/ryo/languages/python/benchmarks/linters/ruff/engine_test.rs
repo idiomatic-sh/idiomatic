@@ -352,11 +352,11 @@ fn query_module_inline_equivalence(root: &std::path::Path) -> Result<bool, Error
 }
 
 #[test]
-fn shared_suppression_fragment_matches_the_historical_inline_queries() {
+fn shared_suppression_fragment_matches_the_historical_inline_queries() -> Result<(), Error> {
     // These inline baselines are exact query bytes from pre-fragment head b9223b8613:
     // E722 cdcca980d4a6d8e771e40b46306e5afcb9b12ad3bbb69af38d3114c8b1737a9a;
     // F632 08832f8d91a994220563a2f480cb52c81936358516cb794f65c865b619bcda51.
-    let temporary = tempfile::tempdir().expect("profile roots");
+    let temporary = tempfile::tempdir()?;
     let inline_profile = temporary.path().join("inline");
     let imported_profile = temporary.path().join("imported");
     let inline_rules = inline_profile.join("rules");
@@ -377,36 +377,29 @@ fn shared_suppression_fragment_matches_the_historical_inline_queries() {
     ] {
         for (root, query) in [(&inline_rules, baseline), (&imported_rules, imported)] {
             let rule_root = root.join(rule);
-            std::fs::create_dir_all(&rule_root).expect("rule directory");
-            std::fs::write(rule_root.join("query.ryoql"), query).expect("query source");
-            std::fs::write(rule_root.join("cases.toml"), cases).expect("cases");
+            std::fs::create_dir_all(&rule_root)?;
+            std::fs::write(rule_root.join("query.ryoql"), query)?;
+            std::fs::write(rule_root.join("cases.toml"), cases)?;
         }
     }
     let fragment_root = imported_profile.join("fragments");
-    std::fs::create_dir_all(&fragment_root).expect("fragment directory");
+    std::fs::create_dir_all(&fragment_root)?;
     std::fs::write(
         fragment_root.join("suppress.ryoql"),
         include_str!("fragments/suppress.ryoql"),
-    )
-    .expect("shared suppression fragment");
+    )?;
 
     let suite = ryo_benchmark::outbound::suite::factory::local();
-    let inline_cases = suite
-        .cases(
-            ryo_benchmark::outbound::suite::types::ArtifactPath(&inline_rules),
-            ryo_benchmark::outbound::suite::types::ArtifactPath(
-                &temporary.path().join("inline-cases"),
-            ),
-        )
-        .expect("historical inline cases");
-    let imported_cases = suite
-        .cases(
-            ryo_benchmark::outbound::suite::types::ArtifactPath(&imported_rules),
-            ryo_benchmark::outbound::suite::types::ArtifactPath(
-                &temporary.path().join("imported-cases"),
-            ),
-        )
-        .expect("imported cases");
+    let inline_cases = suite.cases(
+        ryo_benchmark::outbound::suite::types::ArtifactPath(&inline_rules),
+        ryo_benchmark::outbound::suite::types::ArtifactPath(&temporary.path().join("inline-cases")),
+    )?;
+    let imported_cases = suite.cases(
+        ryo_benchmark::outbound::suite::types::ArtifactPath(&imported_rules),
+        ryo_benchmark::outbound::suite::types::ArtifactPath(
+            &temporary.path().join("imported-cases"),
+        ),
+    )?;
     let imported_by_name: std::collections::BTreeMap<_, _> = imported_cases
         .into_iter()
         .map(|case| ((case.rule.to_string(), case.name.0.to_string()), case))
@@ -426,30 +419,28 @@ fn shared_suppression_fragment_matches_the_historical_inline_queries() {
         let key = (case.rule.to_string(), case.name.0.to_string());
         let imported = imported_by_name
             .get(&key)
-            .expect("each inline case has an imported counterpart");
+            .ok_or_else(|| Error::Invalid(format!("missing imported counterpart for {key:?}")))?;
         let module = imported.request.root.join("fragments/suppress.ryoql");
-        std::fs::create_dir_all(module.parent().expect("module parent")).expect("module directory");
-        std::fs::write(&module, include_str!("fragments/suppress.ryoql"))
-            .expect("staged module bytes");
+        let module_parent = module
+            .parent()
+            .ok_or_else(|| Error::Invalid("staged fragment has no parent directory".to_owned()))?;
+        std::fs::create_dir_all(module_parent)?;
+        std::fs::write(&module, include_str!("fragments/suppress.ryoql"))?;
         let state = ryo_benchmark::domain::suite::types::WorkerState::Fresh;
-        let inline = inline_engine
-            .run(WorkerRequest {
-                root: case.request.root,
-                rules: inline_rules.clone(),
-                query_modules: std::collections::BTreeMap::default(),
-                files: case.request.files,
-                state,
-            })
-            .expect("inline query report");
-        let fragmented = imported_engine
-            .run(WorkerRequest {
-                root: imported.request.root.clone(),
-                rules: imported_rules.clone(),
-                query_modules: registry.clone(),
-                files: imported.request.files.clone(),
-                state: ryo_benchmark::domain::suite::types::WorkerState::Fresh,
-            })
-            .expect("fragment query report");
+        let inline = inline_engine.run(WorkerRequest {
+            root: case.request.root,
+            rules: inline_rules.clone(),
+            query_modules: std::collections::BTreeMap::default(),
+            files: case.request.files,
+            state,
+        })?;
+        let fragmented = imported_engine.run(WorkerRequest {
+            root: imported.request.root.clone(),
+            rules: imported_rules.clone(),
+            query_modules: registry.clone(),
+            files: imported.request.files.clone(),
+            state: ryo_benchmark::domain::suite::types::WorkerState::Fresh,
+        })?;
         assert_eq!(
             inline, fragmented,
             "inline and fragment reports differ for {}/{}",
@@ -470,8 +461,9 @@ fn shared_suppression_fragment_matches_the_historical_inline_queries() {
             include_str!("rules/F632/cases.toml"),
         ),
     ] {
-        assert_single_rule_fragment_equivalence(temporary.path(), rule, baseline, imported, cases);
+        assert_single_rule_fragment_equivalence(temporary.path(), rule, baseline, imported, cases)?;
     }
+    Ok(())
 }
 
 fn assert_single_rule_fragment_equivalence(
@@ -480,35 +472,33 @@ fn assert_single_rule_fragment_equivalence(
     baseline: &str,
     imported: &str,
     cases: &str,
-) {
+) -> Result<(), Error> {
     let inline_rules = root.join(format!("single-inline/{rule}"));
     let imported_rules = root.join(format!("single-imported/{rule}"));
     for (directory, query) in [(&inline_rules, baseline), (&imported_rules, imported)] {
-        std::fs::create_dir_all(directory).expect("single-rule directory");
-        std::fs::write(directory.join("query.ryoql"), query).expect("single-rule query");
-        std::fs::write(directory.join("cases.toml"), cases).expect("single-rule cases");
+        std::fs::create_dir_all(directory)?;
+        std::fs::write(directory.join("query.ryoql"), query)?;
+        std::fs::write(directory.join("cases.toml"), cases)?;
     }
     let suite = ryo_benchmark::outbound::suite::factory::local();
-    let inline_cases = suite
-        .cases(
-            ryo_benchmark::outbound::suite::types::ArtifactPath(
-                &inline_rules.parent().unwrap().to_path_buf(),
-            ),
-            ryo_benchmark::outbound::suite::types::ArtifactPath(
-                &root.join(format!("single-inline-cases-{rule}")),
-            ),
-        )
-        .expect("single inline cases");
-    let imported_cases = suite
-        .cases(
-            ryo_benchmark::outbound::suite::types::ArtifactPath(
-                &imported_rules.parent().unwrap().to_path_buf(),
-            ),
-            ryo_benchmark::outbound::suite::types::ArtifactPath(
-                &root.join(format!("single-imported-cases-{rule}")),
-            ),
-        )
-        .expect("single imported cases");
+    let inline_parent = inline_rules
+        .parent()
+        .ok_or_else(|| Error::Invalid("inline rule directory has no parent".to_owned()))?;
+    let imported_parent = imported_rules
+        .parent()
+        .ok_or_else(|| Error::Invalid("imported rule directory has no parent".to_owned()))?;
+    let inline_cases = suite.cases(
+        ryo_benchmark::outbound::suite::types::ArtifactPath(inline_parent),
+        ryo_benchmark::outbound::suite::types::ArtifactPath(
+            &root.join(format!("single-inline-cases-{rule}")),
+        ),
+    )?;
+    let imported_cases = suite.cases(
+        ryo_benchmark::outbound::suite::types::ArtifactPath(imported_parent),
+        ryo_benchmark::outbound::suite::types::ArtifactPath(
+            &root.join(format!("single-imported-cases-{rule}")),
+        ),
+    )?;
     let imported_by_name: std::collections::BTreeMap<_, _> = imported_cases
         .into_iter()
         .map(|case| ((case.name.0.to_string(), case.rule.to_string()), case))
@@ -520,40 +510,40 @@ fn assert_single_rule_fragment_equivalence(
     )]);
     let inline_engine = factory::local(languages.clone(), None);
     let imported_engine = factory::local(languages, None);
-    let module = imported_rules
+    let profile_root = imported_parent
         .parent()
-        .expect("profile parent")
+        .ok_or_else(|| Error::Invalid("imported profile has no root".to_owned()))?;
+    let module = profile_root.join("fragments/suppress.ryoql");
+    let module_parent = module
         .parent()
-        .expect("profile root")
-        .join("fragments/suppress.ryoql");
-    std::fs::create_dir_all(module.parent().expect("module parent")).expect("module directory");
-    std::fs::write(&module, include_str!("fragments/suppress.ryoql")).expect("module source");
+        .ok_or_else(|| Error::Invalid("fragment path has no parent directory".to_owned()))?;
+    std::fs::create_dir_all(module_parent)?;
+    std::fs::write(&module, include_str!("fragments/suppress.ryoql"))?;
     for case in inline_cases {
         let key = (case.name.0.to_string(), case.rule.to_string());
-        let imported_case = imported_by_name.get(&key).expect("matching imported case");
-        let inline = inline_engine
-            .run(WorkerRequest {
-                root: case.request.root,
-                rules: inline_rules.parent().unwrap().to_path_buf(),
-                query_modules: std::collections::BTreeMap::default(),
-                files: case.request.files,
-                state: ryo_benchmark::domain::suite::types::WorkerState::Fresh,
-            })
-            .expect("inline report");
-        let fragmented = imported_engine
-            .run(WorkerRequest {
-                root: imported_case.request.root.clone(),
-                rules: imported_rules.parent().unwrap().to_path_buf(),
-                query_modules: std::collections::BTreeMap::from([(
-                    "python/ruff/suppress".to_owned(),
-                    std::path::PathBuf::from("fragments/suppress.ryoql"),
-                )]),
-                files: imported_case.request.files.clone(),
-                state: ryo_benchmark::domain::suite::types::WorkerState::Fresh,
-            })
-            .expect("fragment report");
+        let imported_case = imported_by_name
+            .get(&key)
+            .ok_or_else(|| Error::Invalid(format!("missing imported case for {key:?}")))?;
+        let inline = inline_engine.run(WorkerRequest {
+            root: case.request.root,
+            rules: inline_parent.to_path_buf(),
+            query_modules: std::collections::BTreeMap::default(),
+            files: case.request.files,
+            state: ryo_benchmark::domain::suite::types::WorkerState::Fresh,
+        })?;
+        let fragmented = imported_engine.run(WorkerRequest {
+            root: imported_case.request.root.clone(),
+            rules: imported_parent.to_path_buf(),
+            query_modules: std::collections::BTreeMap::from([(
+                "python/ruff/suppress".to_owned(),
+                std::path::PathBuf::from("fragments/suppress.ryoql"),
+            )]),
+            files: imported_case.request.files.clone(),
+            state: ryo_benchmark::domain::suite::types::WorkerState::Fresh,
+        })?;
         assert_eq!(inline, fragmented, "single-rule mismatch for {key:?}");
     }
+    Ok(())
 }
 fn subject(input: Input) -> Result<Value, Failure> {
     exercise(input).map_err(failure)

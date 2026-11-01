@@ -78,13 +78,14 @@ fn observe(input: Input, model: &mut Declarations) -> FixtureResult {
         answer.since.minor.0,
     ))
 }
-/// Reuse one declarations model across builtin, wildcard, and empty-file sources.
+/// Replay one qualification case across populated and empty files in one retained model.
 pub(super) fn replay(input: Input) -> FixtureResult {
     assert_eq!(
         BUILTIN_NAMES.iter().map(|name| name.0).collect::<Vec<_>>(),
         include_str!("../../../tests/fixtures/standard/builtin_names.txt")
             .lines()
-            .collect::<Vec<_>>()
+            .collect::<Vec<_>>(),
+        "the builtin catalog matches its checked fixture"
     );
     let mut model = Declarations::default();
     let first = observe(input, &mut model)?;
@@ -102,7 +103,11 @@ pub(super) fn replay(input: Input) -> FixtureResult {
         prepare(&tree, &model).hazards.is_empty(),
         "empty source clears stale qualification hazards"
     );
-    assert_eq!(first, observe(input, &mut model)?);
+    assert_eq!(
+        first,
+        observe(input, &mut model)?,
+        "reusing the model reproduces the original qualification"
+    );
     // Numeric target guards: a minor version of 10 must follow 9, not sort lexically before it.
     if input.1 == "aiter" || input.1 == "anext" {
         assert!(

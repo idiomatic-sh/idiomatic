@@ -215,7 +215,7 @@ fn the_unknown_reasons_of_the_linked_languages_are_numbered_apart() {
 }
 
 /// Optional semantic facts are unavailable from Rust, rather than a known empty set.
-const OPTIONAL_CAPABILITY_RULES: [(&str, &str); 18] = [
+const OPTIONAL_CAPABILITY_RULES: [(&str, &str); 20] = [
     (
         "shape-positive",
         "let rows = select * from \"expression-shape\"; emit rows subject file key(span);",

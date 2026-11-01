@@ -14,7 +14,9 @@ use crate::domain::{
 };
 use ryo::languages;
 
+/// Reads one source's supported constant-expression keys.
 pub(crate) struct ConstantKeyItem;
+/// The retained key reader's completeness state.
 fn state(index: &ConstantKeyIndex) -> KeyState {
     index.state
 }

@@ -410,7 +410,24 @@ fn a_fused_fragment_comparison_keeps_its_original_source_span() {
             filter: comparisons,
             ..
         } => comparisons.iter().find_map(|comparison| comparison.origin),
-        _ => None,
+        Operation::Project { .. }
+        | Operation::Extend { .. }
+        | Operation::Union { .. }
+        | Operation::Intersection { .. }
+        | Operation::Difference { .. }
+        | Operation::Antijoin { .. }
+        | Operation::GroupCount { .. }
+        | Operation::GroupDigest { .. }
+        | Operation::Capture { .. }
+        | Operation::Rank { .. }
+        | Operation::Replace { .. }
+        | Operation::OrderedMatch { .. }
+        | Operation::Words { .. }
+        | Operation::Axis { .. }
+        | Operation::Closure { .. }
+        | Operation::Cycles { .. }
+        | Operation::Rows { .. }
+        | Operation::Hosted { .. } => None,
     });
     let origin = source
         .and_then(|id| plan.comparison_origins.get(usize::try_from(id.0).ok()?))

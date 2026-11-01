@@ -284,14 +284,20 @@ pub(super) fn node_kind(kind: RuffNode, strings: Strings) -> Kind {
 /// The language's kind of a concrete node, retaining async statement variants Ruff stores in a flag.
 #[must_use]
 pub(super) fn concrete_node_kind(node: AnyNodeRef<'_>, strings: Strings) -> Kind {
-    match node {
-        AnyNodeRef::StmtFunctionDef(statement) if statement.is_async => {
-            Kind::Node(Node::AsyncFunctionDef)
+    if let AnyNodeRef::StmtFunctionDef(statement) = node {
+        if statement.is_async {
+            return Kind::Node(Node::AsyncFunctionDef);
         }
-        AnyNodeRef::StmtFor(statement) if statement.is_async => Kind::Node(Node::AsyncFor),
-        AnyNodeRef::StmtWith(statement) if statement.is_async => Kind::Node(Node::AsyncWith),
-        _ => node_kind(node.kind(), strings),
+    } else if let AnyNodeRef::StmtFor(statement) = node {
+        if statement.is_async {
+            return Kind::Node(Node::AsyncFor);
+        }
+    } else if let AnyNodeRef::StmtWith(statement) = node {
+        if statement.is_async {
+            return Kind::Node(Node::AsyncWith);
+        }
     }
+    node_kind(node.kind(), strings)
 }
 
 /// The language's kind of a token of the library.

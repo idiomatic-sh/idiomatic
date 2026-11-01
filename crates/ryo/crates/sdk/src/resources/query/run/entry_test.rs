@@ -160,7 +160,11 @@ return pairs;"#;
             )
             .expect("fragment bundle has unique, nonblank source ids")
         }
-        _ => RyoQlQuery::try_from(text).expect("a query"),
+        Scenario::Query(_) | Scenario::MissingRoot | Scenario::ZeroLimit => {
+            RyoQlQuery::try_from(text).expect("a query")
+        }
+        #[cfg(any(unix, windows))]
+        Scenario::RootNotText => RyoQlQuery::try_from(text).expect("a query"),
     };
     let request = RunRequest {
         root: directory,

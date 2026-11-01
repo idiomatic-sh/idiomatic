@@ -14,10 +14,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
     name: CaseName("lists_relations"),
     word: Word::Succeeds,
     input: || (),
-    // 33 syntax facts (including semantic syntax, semantic children and embedded roots),
-    // five manifest facts, and two engine filesystem facts.
-    expect: Expect::Value(40),
-    // 36 syntax facts (including semantic syntax, semantic children and embedded roots),
     // 37 syntax facts (including semantic syntax, semantic children and embedded roots),
     // five manifest facts, and two engine filesystem facts.
     expect: Expect::Value(44),

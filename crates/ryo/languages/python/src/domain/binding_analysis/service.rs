@@ -158,5 +158,5 @@ pub(crate) fn indexed<'a>(
         );
     }
     let index = model.binding_analysis.borrow();
-    (index.state == BindingAnalysisState::Complete).then(|| index)
+    (index.state == BindingAnalysisState::Complete).then_some(index)
 }
