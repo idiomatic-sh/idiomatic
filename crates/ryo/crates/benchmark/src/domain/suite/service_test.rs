@@ -1,8 +1,11 @@
 //! Coverage gates require the entire pinned default inventory.
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::diagnostics::errors::DiagnosticsError as Error;
-use crate::domain::suite::service::require_complete;
+use crate::domain::suite::service::{require_complete, validate_cases};
 use crate::domain::suite::types::audit::value::Audit;
+use crate::domain::suite::types::{
+    BenchmarkCaseName, Case as SuiteCase, CaseComparison, Cases, Expected, ExpectedRule,
+};
 type Input = Audit;
 type Value = ();
 #[derive(Debug, PartialEq, Eq)]
@@ -64,6 +67,51 @@ fn succeeds() {
 #[test]
 fn refuses() {
     run(CASES, Word::Refuses, subject);
+}
+
+#[test]
+fn full_report_case_polarity_is_relative_to_the_enclosing_rule() {
+    let rule = ryo::linter::RuleId::try_from("F601").expect("rule identity");
+    let other_rule = ryo::linter::RuleId::try_from("B017").expect("other rule identity");
+    let file = ryo::linter::RelativePath("case.py".into());
+    let expected = |identity| Expected {
+        identity: ExpectedRule::Explicit(identity),
+        file: file.clone(),
+        start: crate::domain::diagnostics::types::SourceByteOffset(0),
+        end: crate::domain::diagnostics::types::SourceByteOffset(1),
+    };
+    let source =
+        || std::collections::BTreeMap::from([(file.clone(), ryo::linter::SourceText("x".into()))]);
+    let cases = Cases {
+        cases: vec![
+            SuiteCase {
+                comparison: CaseComparison::Full,
+                name: BenchmarkCaseName("positive".into()),
+                files: source(),
+                expected: vec![expected(rule.clone()), expected(rule.clone())],
+            },
+            SuiteCase {
+                comparison: CaseComparison::Full,
+                name: BenchmarkCaseName("other-rule-only".into()),
+                files: source(),
+                expected: vec![expected(other_rule)],
+            },
+        ],
+    };
+    assert!(validate_cases(&rule, &cases).is_ok());
+    assert_eq!(
+        cases.cases[0].expected.len(),
+        2,
+        "duplicate findings remain significant"
+    );
+
+    let missing_negative = Cases {
+        cases: vec![cases.cases[0].clone()],
+    };
+    assert!(matches!(
+        validate_cases(&rule, &missing_negative),
+        Err(Error::Invalid(message)) if message == super::constants::MISSING_POLARITY
+    ));
 }
 
 type Failure = Refusal;

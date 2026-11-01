@@ -167,10 +167,13 @@ fn selected_snapshot(directory: &std::path::Path, destination: &std::path::Path)
             .fingerprint(ArtifactSet(std::slice::from_ref(&snapshot)))
             .expect("changed staged module seal")
     );
+    let changed_module_fingerprint = SuiteLocalAdapter
+        .fingerprint(ArtifactSet(std::slice::from_ref(&snapshot)))
+        .expect("seal after staged module edit");
     std::fs::write(directory.join("rules/F704/query.ryoql"), "concurrent work")
         .expect("unselected edit");
     assert_eq!(
-        fingerprint,
+        changed_module_fingerprint,
         SuiteLocalAdapter
             .fingerprint(ArtifactSet(std::slice::from_ref(&snapshot)))
             .expect("unchanged seal")

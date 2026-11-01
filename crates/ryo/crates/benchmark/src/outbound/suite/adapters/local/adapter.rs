@@ -54,7 +54,7 @@ fn audit(directory: &Path, tool: &Tool) -> Result<Audit, Error> {
         )?)?;
         validate_case_sources(&cases)?;
         if query.is_some() {
-            validate_cases(&cases)?;
+            validate_cases(&rule, &cases)?;
             if tool.deferred.contains_key(&rule) || tool.pending.contains_key(&rule) {
                 return Err(Error::Invalid(format!(
                     "authored rule still has a deferred or pending disposition: {rule}"
@@ -306,6 +306,7 @@ fn prepare_cases(
             .file_name()
             .into_string()
             .map_err(|_invalid_utf8| Error::Invalid(constants::INVALID_RULE_ID_TEXT.into()))?;
+        let rule = super::schemas::rule(&rule)?;
         let cases: Cases = super::schemas::cases(&std::fs::read_to_string(
             entry.path().join(constants::CASES),
         )?)?;
@@ -316,8 +317,7 @@ fn prepare_cases(
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
             Err(error) => return Err(error.into()),
         }
-        validate_cases(&cases)?;
-        let rule = super::schemas::rule(&rule)?;
+        validate_cases(&rule, &cases)?;
         for (index, case) in cases.cases.into_iter().enumerate() {
             let root = scratch.join(rule.to_string()).join(index.to_string());
             std::fs::create_dir_all(&root)?;

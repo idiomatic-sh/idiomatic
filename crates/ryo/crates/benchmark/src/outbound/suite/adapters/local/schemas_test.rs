@@ -7,7 +7,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("profile preserves exact selected rules"),
         word: Word::Succeeds,
-        input: || "tool='ruff'\nversion='1'\nsha256=['abc','def']\ndefaults=['F401']",
+        input: || "tool='ruff'\nversion='1'\nsha256=['aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb']\ndefaults=['F401']",
         expect: Expect::Value(true),
     },
     Case {
@@ -31,7 +31,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("query modules retain logical IDs and safe relative paths"),
         word: Word::Succeeds,
-        input: || "tool='ruff'\nversion='1'\nsha256=['abc']\ndefaults=['F401']\n[query-modules]\n'python/ruff/suppress'='fragments/suppress.ryoql'",
+        input: || "tool='ruff'\nversion='1'\nsha256=['aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb']\ndefaults=['F401']\n[query-modules]\n'python/ruff/suppress'='fragments/suppress.ryoql'",
         expect: Expect::Value(true),
     },
     Case {
@@ -76,7 +76,11 @@ fn subject(text: Input) -> Result<Value, Failure> {
     })?;
     Ok(tool.tool.0 == "ruff"
         && tool.version.0 == "1"
-        && tool.sha256 == vec!["abc".into(), "def".into()]
+        && tool.sha256
+            == vec![
+                "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".into(),
+                "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb".into(),
+            ]
         && tool
             .defaults
             .iter()

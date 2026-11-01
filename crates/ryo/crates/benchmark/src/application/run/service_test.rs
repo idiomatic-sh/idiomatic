@@ -233,12 +233,6 @@ fn reference_only_preserves_frontend_findings_in_rule_comparison() {
                 end: crate::domain::diagnostics::types::SourceByteOffset(6),
             },
             BenchmarkFinding {
-                rule: "invalid-syntax".try_into().unwrap(),
-                file: ryo::linter::RelativePath("case.py".into()),
-                start: crate::domain::diagnostics::types::SourceByteOffset(9),
-                end: crate::domain::diagnostics::types::SourceByteOffset(19),
-            },
-            BenchmarkFinding {
                 rule: "F401".try_into().unwrap(),
                 file: ryo::linter::RelativePath("case.py".into()),
                 start: crate::domain::diagnostics::types::SourceByteOffset(20),
@@ -301,7 +295,7 @@ fn reference_only_rejects_wrong_byte_end_offset() {
         status: 0,
         ..Default::default()
     };
-    let error = verify_reference_cases(
+    let result = verify_reference_cases(
         &suite,
         &reference,
         &execution,

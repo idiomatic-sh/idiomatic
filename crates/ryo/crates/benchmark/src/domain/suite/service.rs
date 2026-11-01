@@ -74,13 +74,22 @@ pub fn relative_path(path: impl AsRef<Path>) -> Result<(), Error> {
     Ok(())
 }
 
-/// Require independent positive/negative cases with valid source spans and names.
+/// Require independent positive/negative cases for the enclosing rule with valid source spans and names.
 ///
 /// # Errors
+/// Full-report cases are positive only when they contain the enclosing rule's finding; unrelated diagnostics do not change polarity.
 /// Refuses missing positive or negative expectations and invalid case sources.
-pub fn validate_cases(cases: &Cases) -> Result<(), Error> {
-    if !cases.cases.iter().any(|case| case.expected.is_empty())
-        || !cases.cases.iter().any(|case| !case.expected.is_empty())
+pub fn validate_cases(rule: &ryo::linter::RuleId, cases: &Cases) -> Result<(), Error> {
+    let has_rule_finding = |case: &super::types::Case| {
+        match case.comparison {
+        super::types::CaseComparison::Rule => !case.expected.is_empty(),
+        super::types::CaseComparison::Full => case.expected.iter().any(|finding| {
+            matches!(&finding.identity, super::types::ExpectedRule::Explicit(found) if found == rule)
+        }),
+    }
+    };
+    if !cases.cases.iter().any(|case| has_rule_finding(case))
+        || cases.cases.iter().all(|case| has_rule_finding(case))
     {
         return Err(Error::Invalid(super::constants::MISSING_POLARITY.into()));
     }
