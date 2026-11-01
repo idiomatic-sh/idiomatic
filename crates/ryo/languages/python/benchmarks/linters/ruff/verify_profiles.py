@@ -8,6 +8,7 @@ import contextlib
 import hashlib
 import json
 import os
+import shlex
 import shutil
 import subprocess
 import sys
@@ -226,6 +227,7 @@ def command_for(ruff: Path, profile_root: Path, reference_only: bool = False) ->
     return [
         "cargo",
         "bench",
+        "--verbose",
         "--locked",
         "-p",
         "idiomatic-sh-ryo-python",
@@ -317,6 +319,7 @@ def verify_profile(
             check=False,
         )
     except Exception as error:
+        worker_identity(identities, None)
         return persist_run_record(
             output_directory,
             name,
@@ -326,6 +329,7 @@ def verify_profile(
             error=f"{type(error).__name__}: {error}",
             identities=identities,
         )
+    worker_identity(identities, result.stderr)
     return persist_run_record(
         output_directory,
         name,
@@ -333,6 +337,32 @@ def verify_profile(
         profile_root,
         result,
         identities=identities,
+    )
+
+
+def worker_identity(identities: dict[str, object], stderr: bytes | None) -> None:
+    """Record the exact benchmark executable Cargo launched, when it reports one."""
+    worker = identities.setdefault("worker", {})
+    if not isinstance(worker, dict):
+        return
+    executable = None
+    if stderr is not None:
+        for line in stderr.decode(errors="replace").splitlines():
+            if not line.startswith("Running `") or not line.endswith("`"):
+                continue
+            try:
+                arguments = shlex.split(line[len("Running `") : -1])
+            except ValueError:
+                continue
+            if arguments and Path(arguments[0]).name.startswith("ruff-"):
+                candidate = Path(arguments[0])
+                if candidate.is_file():
+                    executable = candidate.resolve()
+                    break
+    worker["executable"] = (
+        {"path": str(executable), "sha256": sha256(executable)}
+        if executable is not None
+        else {"available": False, "reason": "Cargo launch path not found in captured stderr"}
     )
 
 
@@ -665,10 +695,22 @@ def self_test() -> int:
             or (durable / "profiles" / "mock" / "stdout.bin").read_bytes() != fake_output.stdout
             or (durable / "profiles" / "mock" / "stderr.bin").read_bytes() != fake_output.stderr
             or result["status"] != 7
-            or result["identities"] != {"identity": "sealed"}
+            or result["identities"]["identity"] != "sealed"
+            or result["identities"]["worker"]["executable"]["available"] is not False
             or result["staged_inputs"] != {"benchmark.toml": sha256(repro / "benchmark.toml")}
         ):
             print("durable verifier output or identities were not preserved", file=sys.stderr)
+            return 1
+
+        fake_worker = root / "ruff-fake-worker"
+        fake_worker.write_bytes(b"worker binary fixture")
+        worker_record = {"worker": {}}
+        worker_identity(worker_record, f"Running `{fake_worker} --exact`\n".encode())
+        if worker_record["worker"]["executable"] != {
+            "path": str(fake_worker.resolve()),
+            "sha256": sha256(fake_worker),
+        }:
+            print("launched worker binary identity was not captured", file=sys.stderr)
             return 1
 
         def failing_runner(_command, **_options):
