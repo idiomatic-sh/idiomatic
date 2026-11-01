@@ -32,7 +32,7 @@ let joined_format_arguments = select l.call as call, r.id as joined from second_
 let value_fields = select parent, child from "semantic-child" where field = "values";
 let joined_parts = select l.call as call, r.child as part from joined_format_arguments as l join value_fields as r on l.joined = r.parent;
 let constants = select id from "semantic-syntax" where kind = "constant";
-let joined_string_parts = select l.call as call, r.part as part from joined_parts as l join constants as r on l.part = r.id;
+let joined_string_parts = select l.call as call, l.part as part from joined_parts as l join constants as r on l.part = r.id;
 let joined_literals = select l.call as call, r.value as value from joined_string_parts as l join "string-literal" as r on l.part = r.occurrence;
 let joined_timezone_formats = select call from joined_literals where matches(value, "[\s\S]*%z[\s\S]*");
 let timezone_formats = union(left=direct_timezone_formats, right=joined_timezone_formats);

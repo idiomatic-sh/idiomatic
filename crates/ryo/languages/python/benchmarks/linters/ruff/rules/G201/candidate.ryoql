@@ -40,13 +40,7 @@ let inside_handler_calls = antijoin(left=handler_call_ids, right=reset_call_ids,
 let reportable_calls = select id, function, keyword, r.file as file from inside_handler_calls as l join calls as r on l.id = r.id;
 let function_nodes = select id, file, span, kind from "semantic-syntax" where kind = "attribute" or kind = "name";
 let reportable_functions = select l.function as id, l.file as file from reportable_calls as l;
-let attr_function_nodes = select l.id as id, l.file as file from reportable_functions as l join function_nodes as r on l.id = r.id where r.kind = "attribute";
-let attr_fields = select parent, child from "semantic-child" where field = "attr";
-let attr_token_edges = select l.parent as parent, r.child as child from attr_fields as l join "semantic-child" as r on l.child = r.parent;
-let attr_tokens = select l.parent as function, r.child as id from attr_function_nodes as l join attr_token_edges as r on l.id = r.parent;
-let attr_locations = select l.function as function, l.id as id, r.file as file, r.span as span from attr_tokens as l join "semantic-syntax" as r on l.id = r.id;
-let name_functions = select l.id as function, l.id as id, l.file as file, l.span as span from function_nodes as l join reportable_functions as r on l.id = r.id where l.kind = "name";
-let locations = union(left=attr_locations, right=name_functions);
+let locations = select l.id as function, l.id as id, r.file as file, r.span as span from reportable_functions as l join function_nodes as r on l.id = r.id;
 let reportable = select l.id as id, l.file as file, l.span as span from locations as l join reportable_calls as r on l.function = r.function and l.file = r.file;
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id and l.file = r.file;
 let quoted = select id from "syntax-tree" where kind = "f-string-part" or kind = "string" and matches(text, "(?i)^[rub]*(?:\x22\x22\x22|'\x27')");

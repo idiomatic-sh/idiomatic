@@ -17,8 +17,7 @@ let keyword_arg_ids = select l.parent as keyword, l.child as id, r.file as file 
 let identifiers = select id, name, file from "identifier";
 let named_keyword_args = select l.keyword as keyword, l.id as id, r.name as name, l.file as file from keyword_arg_ids as l join identifiers as r on l.id = r.id;
 let run_universal_keywords = select keyword, id, file from named_keyword_args where name = "universal_newlines";
-let name_tokens = select id, file, span from "semantic-syntax" where kind = "name-token";
-let reportable = select l.id as id, l.file as file, r.span as span from run_universal_keywords as l join name_tokens as r on l.id = r.id and l.file = r.file;
+let reportable = select l.id as id, l.file as file, r.span as span from run_universal_keywords as l join "identifier" as r on l.id = r.id and l.file = r.file;
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id and l.file = r.file;
 let violations = suppress(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*UP021(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:UP021)(?:,|$)");
 emit violations subject file key(id);
