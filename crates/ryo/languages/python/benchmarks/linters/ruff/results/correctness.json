@@ -20,7 +20,7 @@
       "artifact_sha256": "48f33c6a88619c79de3ade24b478ed3fb201d920b1a5908748bf84ac53eea665",
       "scope_limit": "older frozen worker only; not current-engine, combined-profile, corpus-parity, or promotion evidence"
     },
-    "pending_frontend_configuration": "Python parser target version and cache identity must match Ruff PY310 before full frontend parity claims"
+    "pending_frontend_configuration": "Typed PY310 parser settings and target-version cache identity are integrated at 8862e35034; remote validation is pending before full frontend parity claims"
   },
   "cases": 1124,
   "rules": 54,
