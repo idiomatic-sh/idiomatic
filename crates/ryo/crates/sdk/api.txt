@@ -23,6 +23,12 @@ pub use ryo::languages::BindingUse
 pub use ryo::languages::BindingUseColumn
 pub use ryo::languages::BindingUseRow
 pub use ryo::languages::Bits
+pub use ryo::languages::BraceFormatField
+pub use ryo::languages::BraceFormatFieldColumn
+pub use ryo::languages::BraceFormatFieldRow
+pub use ryo::languages::BraceFormatParse
+pub use ryo::languages::BraceFormatParseColumn
+pub use ryo::languages::BraceFormatParseRow
 pub use ryo::languages::ByteSlice
 pub use ryo::languages::Bytes
 pub use ryo::languages::CallArgument
@@ -36,6 +42,9 @@ pub use ryo::languages::Column
 pub use ryo::languages::Comment
 pub use ryo::languages::CommentColumn
 pub use ryo::languages::CommentRow
+pub use ryo::languages::CompilerFeature
+pub use ryo::languages::CompilerFeatureColumn
+pub use ryo::languages::CompilerFeatureRow
 pub use ryo::languages::Completion
 pub use ryo::languages::ConstantKey
 pub use ryo::languages::ConstantKeyColumn
@@ -72,6 +81,9 @@ pub use ryo::languages::Expansions
 pub use ryo::languages::ExpressionShape
 pub use ryo::languages::ExpressionShapeColumn
 pub use ryo::languages::ExpressionShapeRow
+pub use ryo::languages::ExpressionType
+pub use ryo::languages::ExpressionTypeColumn
+pub use ryo::languages::ExpressionTypeRow
 pub use ryo::languages::Extent
 pub use ryo::languages::FieldId
 pub use ryo::languages::FieldRequest
@@ -89,9 +101,18 @@ pub use ryo::languages::FilesystemLineCountRow
 pub use ryo::languages::Flag
 pub use ryo::languages::Flags
 pub use ryo::languages::Folder
+pub use ryo::languages::FormatField
+pub use ryo::languages::FormatFieldColumn
+pub use ryo::languages::FormatFieldRow
+pub use ryo::languages::FormatParse
+pub use ryo::languages::FormatParseColumn
+pub use ryo::languages::FormatParseRow
 pub use ryo::languages::Function
 pub use ryo::languages::FunctionColumn
 pub use ryo::languages::FunctionRow
+pub use ryo::languages::FunctionTerminal
+pub use ryo::languages::FunctionTerminalColumn
+pub use ryo::languages::FunctionTerminalRow
 pub use ryo::languages::Holds
 pub use ryo::languages::IMPLIED
 pub use ryo::languages::Identifier
@@ -116,6 +137,9 @@ pub use ryo::languages::KindNames
 pub use ryo::languages::LanguageTarget
 pub use ryo::languages::LanguageTargetColumn
 pub use ryo::languages::LanguageTargetRow
+pub use ryo::languages::LiteralExpressionParse
+pub use ryo::languages::LiteralExpressionParseColumn
+pub use ryo::languages::LiteralExpressionParseRow
 pub use ryo::languages::LiteralProperties
 pub use ryo::languages::LiteralPropertiesColumn
 pub use ryo::languages::LiteralPropertiesRow
@@ -135,6 +159,9 @@ pub use ryo::languages::Mention
 pub use ryo::languages::MentionColumn
 pub use ryo::languages::MentionRow
 pub use ryo::languages::Missing
+pub use ryo::languages::ModuleIdentity
+pub use ryo::languages::ModuleIdentityColumn
+pub use ryo::languages::ModuleIdentityRow
 pub use ryo::languages::NO_FIELD
 pub use ryo::languages::NO_FILE
 pub use ryo::languages::NO_SPAN
@@ -171,6 +198,12 @@ pub use ryo::languages::Provenance
 pub use ryo::languages::QualifiedName
 pub use ryo::languages::QualifiedNameColumn
 pub use ryo::languages::QualifiedNameRow
+pub use ryo::languages::RawFormatField
+pub use ryo::languages::RawFormatFieldColumn
+pub use ryo::languages::RawFormatFieldRow
+pub use ryo::languages::RawFormatSegment
+pub use ryo::languages::RawFormatSegmentColumn
+pub use ryo::languages::RawFormatSegmentRow
 pub use ryo::languages::ReadItem
 pub use ryo::languages::ReadableText
 pub use ryo::languages::Reader
@@ -229,6 +262,7 @@ pub use ryo::languages::StringLiteralRow
 pub use ryo::languages::Support
 pub use ryo::languages::Symbol
 pub use ryo::languages::Symbols
+pub use ryo::languages::SyntaxAcceptance
 pub use ryo::languages::SyntaxChild
 pub use ryo::languages::SyntaxChildColumn
 pub use ryo::languages::SyntaxChildRow
@@ -328,10 +362,12 @@ pub use ryo::languages::relation_named
 pub use ryo::languages::release
 pub use ryo::languages::resolve_target
 pub use ryo::languages::set_note
+pub use ryo::languages::set_syntax_acceptance
 pub use ryo::languages::size_at
 pub use ryo::languages::source_locations
 pub use ryo::languages::source_order
 pub use ryo::languages::start_at
+pub use ryo::languages::syntax_acceptance
 pub use ryo::languages::table_builder
 pub use ryo::languages::term_symbol
 pub use ryo::languages::text_at
@@ -385,6 +421,7 @@ impl core::marker::StructuralPartialEq for ryo::languages::LanguageName
 pub mod ryo::linter
 pub mod ryo::linter::lint
 pub mod ryo::linter::lint::entry
+pub fn ryo::linter::lint::entry::dependency_fingerprint(&[u8]) -> ryo::linter::DependencyFingerprint
 pub fn ryo::linter::lint::entry::lint(ryo::linter::Languages, &ryo::linter::WorkerPool, ryo::linter::MemoryBudget, ryo::linter::Cache, ryo::linter::LintRequest) -> core::result::Result<ryo::linter::LintReport, ryo::linter::LintError>
 pub fn ryo::linter::lint::entry::lint_with(&ryo::linter::Linter, ryo::linter::LintRequest) -> core::result::Result<ryo::linter::LintReport, ryo::linter::LintError>
 pub mod ryo::linter::lint::errors
@@ -541,6 +578,51 @@ impl core::fmt::Debug for ryo::linter::Port
 pub fn ryo::linter::Port::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for ryo::linter::Port
 impl core::marker::StructuralPartialEq for ryo::linter::Port
+pub enum ryo::linter::lint::types::ProjectDependencyState
+pub ryo::linter::lint::types::ProjectDependencyState::Missing
+pub ryo::linter::lint::types::ProjectDependencyState::Present(ryo::linter::DependencyFingerprint)
+impl core::clone::Clone for ryo::linter::ProjectDependencyState
+pub fn ryo::linter::ProjectDependencyState::clone(&self) -> ryo::linter::ProjectDependencyState
+impl core::cmp::Eq for ryo::linter::ProjectDependencyState
+impl core::cmp::PartialEq for ryo::linter::ProjectDependencyState
+pub fn ryo::linter::ProjectDependencyState::eq(&self, &ryo::linter::ProjectDependencyState) -> bool
+impl core::fmt::Debug for ryo::linter::ProjectDependencyState
+pub fn ryo::linter::ProjectDependencyState::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for ryo::linter::ProjectDependencyState
+impl core::marker::StructuralPartialEq for ryo::linter::ProjectDependencyState
+pub enum ryo::linter::lint::types::RuleApplicability
+pub ryo::linter::lint::types::RuleApplicability::AcceptedSyntax
+pub ryo::linter::lint::types::RuleApplicability::Always
+impl core::clone::Clone for ryo::linter::RuleApplicability
+pub fn ryo::linter::RuleApplicability::clone(&self) -> ryo::linter::RuleApplicability
+impl core::cmp::Eq for ryo::linter::RuleApplicability
+impl core::cmp::PartialEq for ryo::linter::RuleApplicability
+pub fn ryo::linter::RuleApplicability::eq(&self, &ryo::linter::RuleApplicability) -> bool
+impl core::default::Default for ryo::linter::RuleApplicability
+pub fn ryo::linter::RuleApplicability::default() -> ryo::linter::RuleApplicability
+impl core::fmt::Debug for ryo::linter::RuleApplicability
+pub fn ryo::linter::RuleApplicability::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for ryo::linter::RuleApplicability
+pub fn ryo::linter::RuleApplicability::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for ryo::linter::RuleApplicability
+impl core::marker::StructuralPartialEq for ryo::linter::RuleApplicability
+pub enum ryo::linter::lint::types::SkipReason
+pub ryo::linter::lint::types::SkipReason::SyntaxRejected
+impl core::clone::Clone for ryo::linter::SkipReason
+pub fn ryo::linter::SkipReason::clone(&self) -> ryo::linter::SkipReason
+impl core::cmp::Eq for ryo::linter::SkipReason
+impl core::cmp::Ord for ryo::linter::SkipReason
+pub fn ryo::linter::SkipReason::cmp(&self, &ryo::linter::SkipReason) -> core::cmp::Ordering
+impl core::cmp::PartialEq for ryo::linter::SkipReason
+pub fn ryo::linter::SkipReason::eq(&self, &ryo::linter::SkipReason) -> bool
+impl core::cmp::PartialOrd for ryo::linter::SkipReason
+pub fn ryo::linter::SkipReason::partial_cmp(&self, &ryo::linter::SkipReason) -> core::option::Option<core::cmp::Ordering>
+impl core::fmt::Debug for ryo::linter::SkipReason
+pub fn ryo::linter::SkipReason::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for ryo::linter::SkipReason
+pub fn ryo::linter::SkipReason::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for ryo::linter::SkipReason
+impl core::marker::StructuralPartialEq for ryo::linter::SkipReason
 pub struct ryo::linter::lint::types::CaseSource
 pub ryo::linter::lint::types::CaseSource::path: ryo::linter::RelativePath
 pub ryo::linter::lint::types::CaseSource::text: ryo::linter::SourceText
@@ -568,6 +650,20 @@ impl core::hash::Hash for ryo::linter::Column
 pub fn ryo::linter::Column::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::Copy for ryo::linter::Column
 impl core::marker::StructuralPartialEq for ryo::linter::Column
+pub struct ryo::linter::lint::types::DependencyFingerprint(pub [u8; 16])
+impl core::clone::Clone for ryo::linter::DependencyFingerprint
+pub fn ryo::linter::DependencyFingerprint::clone(&self) -> ryo::linter::DependencyFingerprint
+impl core::cmp::Eq for ryo::linter::DependencyFingerprint
+impl core::cmp::Ord for ryo::linter::DependencyFingerprint
+pub fn ryo::linter::DependencyFingerprint::cmp(&self, &ryo::linter::DependencyFingerprint) -> core::cmp::Ordering
+impl core::cmp::PartialEq for ryo::linter::DependencyFingerprint
+pub fn ryo::linter::DependencyFingerprint::eq(&self, &ryo::linter::DependencyFingerprint) -> bool
+impl core::cmp::PartialOrd for ryo::linter::DependencyFingerprint
+pub fn ryo::linter::DependencyFingerprint::partial_cmp(&self, &ryo::linter::DependencyFingerprint) -> core::option::Option<core::cmp::Ordering>
+impl core::fmt::Debug for ryo::linter::DependencyFingerprint
+pub fn ryo::linter::DependencyFingerprint::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for ryo::linter::DependencyFingerprint
+impl core::marker::StructuralPartialEq for ryo::linter::DependencyFingerprint
 #[non_exhaustive] pub struct ryo::linter::lint::types::Finding
 pub ryo::linter::lint::types::Finding::columns: alloc::vec::Vec<ryo::linter::FindingColumn>
 pub ryo::linter::lint::types::Finding::key: ryo::linter::FindingKey
@@ -668,7 +764,9 @@ pub fn ryo::linter::Line::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::Copy for ryo::linter::Line
 impl core::marker::StructuralPartialEq for ryo::linter::Line
 #[non_exhaustive] pub struct ryo::linter::lint::types::LintReport
+pub ryo::linter::lint::types::LintReport::dependencies: alloc::vec::Vec<ryo::linter::ProjectDependency>
 pub ryo::linter::lint::types::LintReport::findings: alloc::vec::Vec<ryo::linter::Finding>
+pub ryo::linter::lint::types::LintReport::skipped: alloc::vec::Vec<ryo::linter::Skipped>
 pub ryo::linter::lint::types::LintReport::unknowns: alloc::vec::Vec<ryo::linter::Unknown>
 pub ryo::linter::lint::types::LintReport::unread: alloc::vec::Vec<ryo::linter::Unread>
 impl core::clone::Clone for ryo::linter::LintReport
@@ -795,6 +893,17 @@ pub fn ryo::linter::ParameterText::fmt(&self, &mut core::fmt::Formatter<'_>) -> 
 impl core::hash::Hash for ryo::linter::ParameterText
 pub fn ryo::linter::ParameterText::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::StructuralPartialEq for ryo::linter::ParameterText
+pub struct ryo::linter::lint::types::ProjectDependency
+pub ryo::linter::lint::types::ProjectDependency::path: ryo::linter::RelativePath
+pub ryo::linter::lint::types::ProjectDependency::state: ryo::linter::ProjectDependencyState
+impl core::clone::Clone for ryo::linter::ProjectDependency
+pub fn ryo::linter::ProjectDependency::clone(&self) -> ryo::linter::ProjectDependency
+impl core::cmp::Eq for ryo::linter::ProjectDependency
+impl core::cmp::PartialEq for ryo::linter::ProjectDependency
+pub fn ryo::linter::ProjectDependency::eq(&self, &ryo::linter::ProjectDependency) -> bool
+impl core::fmt::Debug for ryo::linter::ProjectDependency
+pub fn ryo::linter::ProjectDependency::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for ryo::linter::ProjectDependency
 pub struct ryo::linter::lint::types::ProviderName(pub alloc::boxed::Box<str>)
 impl core::clone::Clone for ryo::linter::ProviderName
 pub fn ryo::linter::ProviderName::clone(&self) -> ryo::linter::ProviderName
@@ -823,6 +932,7 @@ pub fn ryo::linter::RowNumber::fmt(&self, &mut core::fmt::Formatter<'_>) -> core
 impl core::marker::Copy for ryo::linter::RowNumber
 impl core::marker::StructuralPartialEq for ryo::linter::RowNumber
 pub struct ryo::linter::lint::types::Rule
+pub ryo::linter::lint::types::Rule::applicability: ryo::linter::RuleApplicability
 pub ryo::linter::lint::types::Rule::exclude: alloc::vec::Vec<ryo::linter::Glob>
 pub ryo::linter::lint::types::Rule::include: alloc::vec::Vec<ryo::linter::Glob>
 pub ryo::linter::lint::types::Rule::parameters: alloc::collections::btree::map::BTreeMap<ryo::linter::ParameterName, ryo::linter::ParameterValue>
@@ -857,6 +967,18 @@ pub fn ryo::linter::RuleId::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::f
 impl core::hash::Hash for ryo::linter::RuleId
 pub fn ryo::linter::RuleId::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::StructuralPartialEq for ryo::linter::RuleId
+pub struct ryo::linter::lint::types::Skipped
+pub ryo::linter::lint::types::Skipped::path: ryo::linter::RelativePath
+pub ryo::linter::lint::types::Skipped::reason: ryo::linter::SkipReason
+pub ryo::linter::lint::types::Skipped::rule: ryo::linter::RuleId
+impl core::clone::Clone for ryo::linter::Skipped
+pub fn ryo::linter::Skipped::clone(&self) -> ryo::linter::Skipped
+impl core::cmp::Eq for ryo::linter::Skipped
+impl core::cmp::PartialEq for ryo::linter::Skipped
+pub fn ryo::linter::Skipped::eq(&self, &ryo::linter::Skipped) -> bool
+impl core::fmt::Debug for ryo::linter::Skipped
+pub fn ryo::linter::Skipped::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for ryo::linter::Skipped
 pub struct ryo::linter::lint::types::SourceText(pub alloc::boxed::Box<str>)
 impl core::clone::Clone for ryo::linter::SourceText
 pub fn ryo::linter::SourceText::clone(&self) -> ryo::linter::SourceText
@@ -1069,6 +1191,18 @@ impl core::fmt::Debug for ryo::linter::Port
 pub fn ryo::linter::Port::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for ryo::linter::Port
 impl core::marker::StructuralPartialEq for ryo::linter::Port
+pub enum ryo::linter::ProjectDependencyState
+pub ryo::linter::ProjectDependencyState::Missing
+pub ryo::linter::ProjectDependencyState::Present(ryo::linter::DependencyFingerprint)
+impl core::clone::Clone for ryo::linter::ProjectDependencyState
+pub fn ryo::linter::ProjectDependencyState::clone(&self) -> ryo::linter::ProjectDependencyState
+impl core::cmp::Eq for ryo::linter::ProjectDependencyState
+impl core::cmp::PartialEq for ryo::linter::ProjectDependencyState
+pub fn ryo::linter::ProjectDependencyState::eq(&self, &ryo::linter::ProjectDependencyState) -> bool
+impl core::fmt::Debug for ryo::linter::ProjectDependencyState
+pub fn ryo::linter::ProjectDependencyState::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for ryo::linter::ProjectDependencyState
+impl core::marker::StructuralPartialEq for ryo::linter::ProjectDependencyState
 #[non_exhaustive] pub enum ryo::linter::ProviderCode
 pub ryo::linter::ProviderCode::FileNotVisited
 pub ryo::linter::ProviderCode::NodeOfAnotherFile
@@ -1086,6 +1220,39 @@ impl core::fmt::Display for ryo::linter::ProviderCode
 pub fn ryo::linter::ProviderCode::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for ryo::linter::ProviderCode
 impl core::marker::StructuralPartialEq for ryo::linter::ProviderCode
+pub enum ryo::linter::RuleApplicability
+pub ryo::linter::RuleApplicability::AcceptedSyntax
+pub ryo::linter::RuleApplicability::Always
+impl core::clone::Clone for ryo::linter::RuleApplicability
+pub fn ryo::linter::RuleApplicability::clone(&self) -> ryo::linter::RuleApplicability
+impl core::cmp::Eq for ryo::linter::RuleApplicability
+impl core::cmp::PartialEq for ryo::linter::RuleApplicability
+pub fn ryo::linter::RuleApplicability::eq(&self, &ryo::linter::RuleApplicability) -> bool
+impl core::default::Default for ryo::linter::RuleApplicability
+pub fn ryo::linter::RuleApplicability::default() -> ryo::linter::RuleApplicability
+impl core::fmt::Debug for ryo::linter::RuleApplicability
+pub fn ryo::linter::RuleApplicability::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for ryo::linter::RuleApplicability
+pub fn ryo::linter::RuleApplicability::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for ryo::linter::RuleApplicability
+impl core::marker::StructuralPartialEq for ryo::linter::RuleApplicability
+pub enum ryo::linter::SkipReason
+pub ryo::linter::SkipReason::SyntaxRejected
+impl core::clone::Clone for ryo::linter::SkipReason
+pub fn ryo::linter::SkipReason::clone(&self) -> ryo::linter::SkipReason
+impl core::cmp::Eq for ryo::linter::SkipReason
+impl core::cmp::Ord for ryo::linter::SkipReason
+pub fn ryo::linter::SkipReason::cmp(&self, &ryo::linter::SkipReason) -> core::cmp::Ordering
+impl core::cmp::PartialEq for ryo::linter::SkipReason
+pub fn ryo::linter::SkipReason::eq(&self, &ryo::linter::SkipReason) -> bool
+impl core::cmp::PartialOrd for ryo::linter::SkipReason
+pub fn ryo::linter::SkipReason::partial_cmp(&self, &ryo::linter::SkipReason) -> core::option::Option<core::cmp::Ordering>
+impl core::fmt::Debug for ryo::linter::SkipReason
+pub fn ryo::linter::SkipReason::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for ryo::linter::SkipReason
+pub fn ryo::linter::SkipReason::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for ryo::linter::SkipReason
+impl core::marker::StructuralPartialEq for ryo::linter::SkipReason
 #[non_exhaustive] pub enum ryo::linter::Slot
 pub ryo::linter::Slot::Is(ryo::linter::Cell)
 pub ryo::linter::Slot::Nothing
@@ -1158,6 +1325,20 @@ pub fn ryo::linter::ColumnName::fmt(&self, &mut core::fmt::Formatter<'_>) -> cor
 impl core::hash::Hash for ryo::linter::ColumnName
 pub fn ryo::linter::ColumnName::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::StructuralPartialEq for ryo::linter::ColumnName
+pub struct ryo::linter::DependencyFingerprint(pub [u8; 16])
+impl core::clone::Clone for ryo::linter::DependencyFingerprint
+pub fn ryo::linter::DependencyFingerprint::clone(&self) -> ryo::linter::DependencyFingerprint
+impl core::cmp::Eq for ryo::linter::DependencyFingerprint
+impl core::cmp::Ord for ryo::linter::DependencyFingerprint
+pub fn ryo::linter::DependencyFingerprint::cmp(&self, &ryo::linter::DependencyFingerprint) -> core::cmp::Ordering
+impl core::cmp::PartialEq for ryo::linter::DependencyFingerprint
+pub fn ryo::linter::DependencyFingerprint::eq(&self, &ryo::linter::DependencyFingerprint) -> bool
+impl core::cmp::PartialOrd for ryo::linter::DependencyFingerprint
+pub fn ryo::linter::DependencyFingerprint::partial_cmp(&self, &ryo::linter::DependencyFingerprint) -> core::option::Option<core::cmp::Ordering>
+impl core::fmt::Debug for ryo::linter::DependencyFingerprint
+pub fn ryo::linter::DependencyFingerprint::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for ryo::linter::DependencyFingerprint
+impl core::marker::StructuralPartialEq for ryo::linter::DependencyFingerprint
 #[non_exhaustive] pub struct ryo::linter::Finding
 pub ryo::linter::Finding::columns: alloc::vec::Vec<ryo::linter::FindingColumn>
 pub ryo::linter::Finding::key: ryo::linter::FindingKey
@@ -1366,7 +1547,9 @@ pub fn ryo::linter::Line::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::Copy for ryo::linter::Line
 impl core::marker::StructuralPartialEq for ryo::linter::Line
 #[non_exhaustive] pub struct ryo::linter::LintReport
+pub ryo::linter::LintReport::dependencies: alloc::vec::Vec<ryo::linter::ProjectDependency>
 pub ryo::linter::LintReport::findings: alloc::vec::Vec<ryo::linter::Finding>
+pub ryo::linter::LintReport::skipped: alloc::vec::Vec<ryo::linter::Skipped>
 pub ryo::linter::LintReport::unknowns: alloc::vec::Vec<ryo::linter::Unknown>
 pub ryo::linter::LintReport::unread: alloc::vec::Vec<ryo::linter::Unread>
 impl core::clone::Clone for ryo::linter::LintReport
@@ -1493,6 +1676,17 @@ pub fn ryo::linter::ParameterText::fmt(&self, &mut core::fmt::Formatter<'_>) -> 
 impl core::hash::Hash for ryo::linter::ParameterText
 pub fn ryo::linter::ParameterText::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::StructuralPartialEq for ryo::linter::ParameterText
+pub struct ryo::linter::ProjectDependency
+pub ryo::linter::ProjectDependency::path: ryo::linter::RelativePath
+pub ryo::linter::ProjectDependency::state: ryo::linter::ProjectDependencyState
+impl core::clone::Clone for ryo::linter::ProjectDependency
+pub fn ryo::linter::ProjectDependency::clone(&self) -> ryo::linter::ProjectDependency
+impl core::cmp::Eq for ryo::linter::ProjectDependency
+impl core::cmp::PartialEq for ryo::linter::ProjectDependency
+pub fn ryo::linter::ProjectDependency::eq(&self, &ryo::linter::ProjectDependency) -> bool
+impl core::fmt::Debug for ryo::linter::ProjectDependency
+pub fn ryo::linter::ProjectDependency::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for ryo::linter::ProjectDependency
 pub struct ryo::linter::ProviderName(pub alloc::boxed::Box<str>)
 impl core::clone::Clone for ryo::linter::ProviderName
 pub fn ryo::linter::ProviderName::clone(&self) -> ryo::linter::ProviderName
@@ -1551,6 +1745,7 @@ pub fn ryo::linter::RowNumber::fmt(&self, &mut core::fmt::Formatter<'_>) -> core
 impl core::marker::Copy for ryo::linter::RowNumber
 impl core::marker::StructuralPartialEq for ryo::linter::RowNumber
 pub struct ryo::linter::Rule
+pub ryo::linter::Rule::applicability: ryo::linter::RuleApplicability
 pub ryo::linter::Rule::exclude: alloc::vec::Vec<ryo::linter::Glob>
 pub ryo::linter::Rule::include: alloc::vec::Vec<ryo::linter::Glob>
 pub ryo::linter::Rule::parameters: alloc::collections::btree::map::BTreeMap<ryo::linter::ParameterName, ryo::linter::ParameterValue>
@@ -1597,6 +1792,18 @@ pub fn ryo::linter::RuleIdSchemaError::fmt(&self, &mut core::fmt::Formatter<'_>)
 impl core::fmt::Display for ryo::linter::RuleIdSchemaError
 pub fn ryo::linter::RuleIdSchemaError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for ryo::linter::RuleIdSchemaError
+pub struct ryo::linter::Skipped
+pub ryo::linter::Skipped::path: ryo::linter::RelativePath
+pub ryo::linter::Skipped::reason: ryo::linter::SkipReason
+pub ryo::linter::Skipped::rule: ryo::linter::RuleId
+impl core::clone::Clone for ryo::linter::Skipped
+pub fn ryo::linter::Skipped::clone(&self) -> ryo::linter::Skipped
+impl core::cmp::Eq for ryo::linter::Skipped
+impl core::cmp::PartialEq for ryo::linter::Skipped
+pub fn ryo::linter::Skipped::eq(&self, &ryo::linter::Skipped) -> bool
+impl core::fmt::Debug for ryo::linter::Skipped
+pub fn ryo::linter::Skipped::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for ryo::linter::Skipped
 pub struct ryo::linter::SourceText(pub alloc::boxed::Box<str>)
 impl core::clone::Clone for ryo::linter::SourceText
 pub fn ryo::linter::SourceText::clone(&self) -> ryo::linter::SourceText
@@ -1650,6 +1857,7 @@ impl core::fmt::Debug for ryo::linter::Workers
 pub fn ryo::linter::Workers::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for ryo::linter::Workers
 impl core::marker::StructuralPartialEq for ryo::linter::Workers
+pub fn ryo::linter::dependency_fingerprint(&[u8]) -> ryo::linter::DependencyFingerprint
 pub fn ryo::linter::lint(ryo::linter::Languages, &ryo::linter::WorkerPool, ryo::linter::MemoryBudget, ryo::linter::Cache, ryo::linter::LintRequest) -> core::result::Result<ryo::linter::LintReport, ryo::linter::LintError>
 pub fn ryo::linter::lint_with(&ryo::linter::Linter, ryo::linter::LintRequest) -> core::result::Result<ryo::linter::LintReport, ryo::linter::LintError>
 pub mod ryo::operator

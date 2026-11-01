@@ -78,6 +78,10 @@ impl Parse for {{ part | pascal }}Contract {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
+    fn compiler_feature(&self) -> Support<Reader<languages::CompilerFeature, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn language_target(&self) -> Support<Reader<languages::LanguageTarget, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
@@ -420,6 +424,10 @@ impl Parse for ParseContract {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
+    fn compiler_feature(&self) -> Support<Reader<languages::CompilerFeature, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn language_target(&self) -> Support<Reader<languages::LanguageTarget, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
@@ -709,6 +717,10 @@ impl Parse for ParseContract {
     }
 
     fn interpolated_string_literal(&self) -> Support<Reader<languages::InterpolatedStringLiteral, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn compiler_feature(&self) -> Support<Reader<languages::CompilerFeature, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -1015,6 +1027,10 @@ impl Parse for OtherContract {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
+    fn compiler_feature(&self) -> Support<Reader<languages::CompilerFeature, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn language_target(&self) -> Support<Reader<languages::LanguageTarget, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
@@ -1225,6 +1241,7 @@ impl Parse for OtherContract {
 }
 '''
 then.findings = [
+  { rule = 'contract#template', path = 'contract.rs' },
   { rule = 'contract#template', path = 'contract.rs' },
   { rule = 'contract#template', path = 'contract.rs' },
   { rule = 'contract#template', path = 'contract.rs' },
@@ -1374,6 +1391,10 @@ impl Different for ParseContract {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
+    fn compiler_feature(&self) -> Support<Reader<languages::CompilerFeature, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn language_target(&self) -> Support<Reader<languages::LanguageTarget, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
@@ -1584,6 +1605,7 @@ impl Different for ParseContract {
 }
 '''
 then.findings = [
+  { rule = 'contract#template', path = 'contract.rs' },
   { rule = 'contract#template', path = 'contract.rs' },
   { rule = 'contract#template', path = 'contract.rs' },
   { rule = 'contract#template', path = 'contract.rs' },
@@ -1745,6 +1767,7 @@ then.findings = [
   { rule = 'contract#template', path = 'contract.rs' },
   { rule = 'contract#template', path = 'contract.rs' },
   { rule = 'contract#template', path = 'contract.rs' },
+  { rule = 'contract#template', path = 'contract.rs' },
 ]
 [[scenarios]]
 id = 'example-project'
@@ -1837,6 +1860,305 @@ use crate::outbound::syntax::types::SourceText;
 
 /// `parse`, implementing `ryo::languages::Parse`.
 pub struct ParseContract {
+    syntax: Arc<dyn SyntaxPort>,
+}
+
+impl ParseContract {
+    /// `parse` over the ports it calls, which the edge injects.
+    #[must_use]
+    pub(crate) fn new(syntax: Arc<dyn SyntaxPort>) -> Self {
+        Self { syntax }
+    }
+}
+
+impl Parse for ParseContract {
+    type FileModel = ();
+
+    fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
+        languages::ParseConfigurationIdentity("")
+    }
+
+    fn file_model(&self, _tree: &languages::Tree<'_>, _model: &mut ()) {}
+
+    fn capabilities(&self) -> &'static [languages::OptionalCapability] {
+        &[]
+    }
+
+    fn semantic_syntax(&self) -> Support<Reader<languages::SemanticSyntax, Self::FileModel>> {
+        languages::native_semantic_syntax()
+    }
+
+    fn semantic_child(&self) -> Support<Reader<languages::SemanticChild, Self::FileModel>> {
+        languages::native_semantic_child()
+    }
+
+    fn source_location(&self) -> Support<Reader<languages::SourceLocation, Self::FileModel>> {
+        languages::source_locations()
+    }
+
+    fn identifier(&self) -> Support<Reader<languages::Identifier, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn qualified_name(&self) -> Support<Reader<languages::QualifiedName, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn embedded_expression(&self) -> Support<Reader<languages::EmbeddedExpression, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn expression_shape(&self) -> Support<Reader<languages::ExpressionShape, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn literal_properties(&self) -> Support<Reader<languages::LiteralProperties, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn interpolated_string_literal(&self) -> Support<Reader<languages::InterpolatedStringLiteral, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn compiler_feature(&self) -> Support<Reader<languages::CompilerFeature, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn language_target(&self) -> Support<Reader<languages::LanguageTarget, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn constant_key(&self) -> Support<Reader<languages::ConstantKey, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn format_parse(&self) -> Support<Reader<languages::FormatParse, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn format_field(&self) -> Support<Reader<languages::FormatField, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn literal_expression_parse(&self) -> Support<Reader<languages::LiteralExpressionParse, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn raw_format_segment(&self) -> Support<Reader<languages::RawFormatSegment, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn raw_format_field(&self) -> Support<Reader<languages::RawFormatField, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn brace_format_parse(&self) -> Support<Reader<languages::BraceFormatParse, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn brace_format_field(&self) -> Support<Reader<languages::BraceFormatField, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn function_terminal(&self) -> Support<Reader<languages::FunctionTerminal, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn expression_type(&self) -> Support<Reader<languages::ExpressionType, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+
+    fn implicit_symbol(&self) -> Support<Reader<languages::ImplicitSymbol, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_event(&self) -> Support<Reader<languages::BindingEvent, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_read(&self) -> Support<Reader<languages::BindingRead, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_use(&self) -> Support<Reader<languages::BindingUse, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_shadow(&self) -> Support<Reader<languages::BindingShadow, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn indent_region(&self) -> Support<Reader<languages::IndentRegion, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn unknown_reasons(&self) -> &'static [UnknownName] {
+        &[]
+    }
+
+    fn recognizes(&self, request: &languages::ParseRequest<'_>) -> languages::Recognition {
+        reads(request.path)
+    }
+
+    fn skips(&self) -> &'static [languages::SkippedDirectory] {
+        crate::domain::language::constants::SKIPS
+    }
+
+    fn kind_count(&self) -> languages::Count {
+        languages::Count(kinds().count())
+    }
+
+    fn kind_names(&self) -> languages::KindNames {
+        languages::KindNames(kinds().map(kind_name).collect())
+    }
+
+    fn read_tree(
+        &self,
+        request: &languages::ParseRequest<'_>,
+        builder: &mut languages::TableBuilder<'_>,
+    ) -> Result<(), languages::ParseError> {
+        self.syntax.read(SourceText(request.bytes.0), builder);
+        Ok(())
+    }
+
+    fn complete(
+        &self,
+        _request: &languages::ParseRequest<'_>,
+        completion: &mut languages::Completion<'_>,
+    ) {
+        for kind in kinds() {
+            languages::name_kind(completion, kind_bits(kind), kind_name(kind));
+        }
+    }
+
+    fn syntax_tree(&self) -> Support<Reader<languages::SyntaxTree, ()>> {
+        languages::reads::<SyntaxTreeItem>()
+    }
+
+    fn comment(&self) -> Support<Reader<languages::Comment, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn directive(&self) -> Support<Reader<languages::Directive, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn visibility(&self) -> Support<Reader<languages::Visibility, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn string_literal(&self) -> Support<Reader<languages::StringLiteral, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn prose(&self) -> Support<Reader<languages::Prose, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn syntax_child(&self) -> Support<Reader<languages::SyntaxChild, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn syntax_error(&self) -> Support<Reader<languages::SyntaxError, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn mapping(&self) -> Support<Reader<languages::Mapping, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn entry(&self) -> Support<Reader<languages::Entry, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn sequence_element(&self) -> Support<Reader<languages::SequenceElement, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn function(&self) -> Support<Reader<languages::Function, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn annotates(&self) -> Support<Reader<languages::Annotates, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn assigns(&self) -> Support<Reader<languages::Assigns, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn decorates(&self) -> Support<Reader<languages::Decorates, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn defines(&self) -> Support<Reader<languages::Defines, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn inherits(&self) -> Support<Reader<languages::Inherits, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn mention(&self) -> Support<Reader<languages::Mention, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn parameter(&self) -> Support<Reader<languages::Parameter, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn reference(&self) -> Support<Reader<languages::Reference, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn scope(&self) -> Support<Reader<languages::Scope, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn static_call(&self) -> Support<Reader<languages::StaticCall, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn call_argument(&self) -> Support<Reader<languages::CallArgument, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn resolves(&self) -> Support<Reader<languages::Resolves, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn static_import(&self) -> Support<Reader<languages::StaticImport, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+}
+'''
+then.findings = [
+  { rule = 'contract#template', path = 'contract.rs' },
+]
+
+[[scenarios]]
+id = 'compiler-feature-method-is-required'
+scenario = 'Omitting the optional compiler-feature method leaves the Parse contract unanswered; it cannot default to a false feature row.'
+given.file = 'contract.rs'
+given.params = { part = 'parse', trait = 'ryo::languages::Parse' }
+given.files.'contract.rs' = '''
+//! The `parse` contract: the language's implementation of `ryo::languages::Parse`. It says which files are the language's, builds the file's
+//! tree in the worker's element table through the syntax port, and answers, for every syntax relation of ryo's catalog, how the
+//! language reads it or that it is not in the language yet.
+
+use std::sync::Arc;
+
+use ryo::languages::{self, Parse, Reader, AbsenceCause, Support, UnknownName};
+
+use crate::domain::language::service::reads;
+use crate::domain::relations::collections::relations::syntax_tree::item::SyntaxTreeItem;
+use crate::domain::syntax::service::{kind_bits, kind_name, kinds};
+use crate::outbound::syntax::interface::SyntaxPort;
+use crate::outbound::syntax::types::SourceText;
+
+/// `parse`, implementing `ryo::languages::Parse`.
+pub(crate) struct ParseContract {
     syntax: Arc<dyn SyntaxPort>,
 }
 

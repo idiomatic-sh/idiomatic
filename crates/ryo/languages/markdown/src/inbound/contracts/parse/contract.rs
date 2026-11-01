@@ -295,6 +295,10 @@ impl Parse for ParseContract {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
+    fn compiler_feature(&self) -> Support<Reader<languages::CompilerFeature, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn language_target(&self) -> Support<Reader<languages::LanguageTarget, Self::FileModel>> {
         // This provider does not expose a parser target version.
         languages::absent(AbsenceCause::NotYetRead)

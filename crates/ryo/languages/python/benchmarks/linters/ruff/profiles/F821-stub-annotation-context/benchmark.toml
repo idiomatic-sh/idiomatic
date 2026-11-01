@@ -33,3 +33,5 @@ defaults = ["F821"]
 "python/ruff/suppress" = "fragments/suppress.ryoql"
 "python/ruff/suppress-directives" = "fragments/suppress-directives.ryoql"
 "python/ruff/type-definition-context" = "fragments/type-definition-context.ryoql"
+
+"python/ruff/annotation-evaluation-context" = "fragments/annotation-evaluation-context.ryoql"

@@ -1,0 +1,757 @@
+{
+  "schema": "current-profile-mismatch-groups/v1",
+  "rule": "F821",
+  "cases": 207,
+  "raw_matches": 175,
+  "raw_mismatches": 32,
+  "distinct_source_and_delta_groups": 32,
+  "delta_families": {
+    "syntax-only": 26,
+    "rule-and-syntax": 6
+  },
+  "limits": "Grouping uses exact source digest and diagnostic multiset delta only. Family labels describe output differences, not proven oracle bugs. No expectation changed, diagnostic filtered, or discrepancy automatically admitted. Seven exact-source links are pinned Ruff observations, not independent CPython evidence; no independent exact-case evidence is claimed for them.",
+  "groups": [
+    {
+      "source_sha256": "fc738a60b9a89f15b354f6e120fbd9bb63f1a27cdb67f8a56bfff138d0bde383",
+      "extra": [
+        [
+          "invalid-syntax",
+          "PYI019_0.py",
+          5094,
+          5128
+        ]
+      ],
+      "missing": [],
+      "cases": [
+        {
+          "name": "cross-PYI019-tagged-PYI019_0.py",
+          "review_family": "syntax-only",
+          "exact_source_existing_evidence": []
+        }
+      ]
+    },
+    {
+      "source_sha256": "5be3b1c6d48d485ebcbb6d550275dc7037c3ebe2f5e8883f390b0c7b517fc008",
+      "extra": [
+        [
+          "invalid-syntax",
+          "PYI019_0.pyi",
+          4629,
+          4663
+        ]
+      ],
+      "missing": [],
+      "cases": [
+        {
+          "name": "cross-PYI019-tagged-PYI019_0.pyi",
+          "review_family": "syntax-only",
+          "exact_source_existing_evidence": []
+        }
+      ]
+    },
+    {
+      "source_sha256": "1b4d05236102e73f5f73202674f39a57ea735c458b66d2f0598dbbd89a0b61ba",
+      "extra": [],
+      "missing": [
+        [
+          "invalid-syntax",
+          "case.pyi",
+          74,
+          84
+        ]
+      ],
+      "cases": [
+        {
+          "name": "cross-PYI034-metaclass-function-annotation-typescope",
+          "review_family": "syntax-only",
+          "exact_source_existing_evidence": []
+        }
+      ]
+    },
+    {
+      "source_sha256": "5e8119e7d8a84e19f18c4d6560a7fa2db5839ff68bb7abdb88237a3e7f89f137",
+      "extra": [
+        [
+          "invalid-syntax",
+          "case.py",
+          30,
+          64
+        ]
+      ],
+      "missing": [],
+      "cases": [
+        {
+          "name": "deferred-late-future-class-self",
+          "review_family": "syntax-only",
+          "exact_source_existing_evidence": []
+        }
+      ]
+    },
+    {
+      "source_sha256": "abd211a0111aec60ae5995be65292665eef1c0367daad4520dc38f8e3355421a",
+      "extra": [
+        [
+          "invalid-syntax",
+          "case.py",
+          18,
+          52
+        ]
+      ],
+      "missing": [],
+      "cases": [
+        {
+          "name": "deferred-late-future-class-variable",
+          "review_family": "syntax-only",
+          "exact_source_existing_evidence": []
+        }
+      ]
+    },
+    {
+      "source_sha256": "8325f11358674c18351d27dc5f34f6566d4638e917a14b5c6173bc7996b55a74",
+      "extra": [
+        [
+          "invalid-syntax",
+          "case.py",
+          14,
+          48
+        ]
+      ],
+      "missing": [],
+      "cases": [
+        {
+          "name": "deferred-late-future-class-variable-self",
+          "review_family": "syntax-only",
+          "exact_source_existing_evidence": []
+        }
+      ]
+    },
+    {
+      "source_sha256": "a1d07d63833fc5a04aa4a12bb63ee51018057887f5a16f3d49782267029bbc7d",
+      "extra": [
+        [
+          "invalid-syntax",
+          "case.py",
+          20,
+          54
+        ]
+      ],
+      "missing": [],
+      "cases": [
+        {
+          "name": "deferred-late-future-does-not-revisit",
+          "review_family": "syntax-only",
+          "exact_source_existing_evidence": []
+        }
+      ]
+    },
+    {
+      "source_sha256": "2994bbb897edda79f6133981487114cdc14ccabb3c4149c216863e8c75602b5e",
+      "extra": [
+        [
+          "invalid-syntax",
+          "case.py",
+          18,
+          52
+        ]
+      ],
+      "missing": [],
+      "cases": [
+        {
+          "name": "deferred-late-future-function-variable",
+          "review_family": "syntax-only",
+          "exact_source_existing_evidence": []
+        }
+      ]
+    },
+    {
+      "source_sha256": "eb07bea58f09102edec2a9d04dfff71825fc113194c2c82777a3f0cc95ba4fb5",
+      "extra": [
+        [
+          "invalid-syntax",
+          "case.py",
+          18,
+          52
+        ]
+      ],
+      "missing": [],
+      "cases": [
+        {
+          "name": "deferred-late-future-module-annotation-known",
+          "review_family": "syntax-only",
+          "exact_source_existing_evidence": []
+        }
+      ]
+    },
+    {
+      "source_sha256": "28f8c5e97271d3ea1cfd7d2e7f5c4dafec0af3bb3257cfab0e85b579c606963e",
+      "extra": [
+        [
+          "invalid-syntax",
+          "case.py",
+          8,
+          42
+        ]
+      ],
+      "missing": [],
+      "cases": [
+        {
+          "name": "deferred-late-future-module-variable",
+          "review_family": "syntax-only",
+          "exact_source_existing_evidence": []
+        }
+      ]
+    },
+    {
+      "source_sha256": "eab414dd5c70bcc867f56ec62a7893612858660b79be2a0d04d90b6af5ad4e53",
+      "extra": [
+        [
+          "invalid-syntax",
+          "case.py",
+          29,
+          63
+        ]
+      ],
+      "missing": [],
+      "cases": [
+        {
+          "name": "deferred-late-future-prior-self-function",
+          "review_family": "syntax-only",
+          "exact_source_existing_evidence": []
+        }
+      ]
+    },
+    {
+      "source_sha256": "1cd6affe39c70c0faa01acc105bdb182723e01846a5a963b973a2fe0fa4e0108",
+      "extra": [
+        [
+          "invalid-syntax",
+          "case.py",
+          16,
+          50
+        ]
+      ],
+      "missing": [],
+      "cases": [
+        {
+          "name": "deferred-late-future-self-function",
+          "review_family": "syntax-only",
+          "exact_source_existing_evidence": []
+        }
+      ]
+    },
+    {
+      "source_sha256": "43544432aac7ba5485c60dfaf1b5a00be8c365279476b791789fae3803b2311e",
+      "extra": [
+        [
+          "invalid-syntax",
+          "case.py",
+          36,
+          70
+        ]
+      ],
+      "missing": [],
+      "cases": [
+        {
+          "name": "deferred-late-future-star-import",
+          "review_family": "syntax-only",
+          "exact_source_existing_evidence": []
+        }
+      ]
+    },
+    {
+      "source_sha256": "afdf591781112a3198f79bc83b7d39117d00b3263ed5b3eb2e2616dd12247c0c",
+      "extra": [
+        [
+          "invalid-syntax",
+          "case.py",
+          21,
+          55
+        ]
+      ],
+      "missing": [],
+      "cases": [
+        {
+          "name": "deferred-late-future-value-walrus",
+          "review_family": "syntax-only",
+          "exact_source_existing_evidence": []
+        }
+      ]
+    },
+    {
+      "source_sha256": "583972c8848ba0f603ca397b8090fa7f014f5c9799069e01c4a91d35c12e71ae",
+      "extra": [
+        [
+          "invalid-syntax",
+          "case.py",
+          41,
+          75
+        ]
+      ],
+      "missing": [],
+      "cases": [
+        {
+          "name": "future-scope-class-early-definition",
+          "review_family": "syntax-only",
+          "exact_source_existing_evidence": [
+            {
+              "path": "crates/ryo/languages/python/tests/fixtures/standard/future-annotation-order/order-reference-receipts.json",
+              "artifact_sha256": "53c292096f9bfc78ec39b6f7b3741e7b97c15ace5ccc1a34f95cbb1fc282a074",
+              "case": "class-before-late.py",
+              "observed_accepted": null,
+              "scope": "Exact source matches an existing pinned Ruff observation; this is not independent language acceptance evidence.",
+              "evidence_kind": "pinned-reference-observation"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "source_sha256": "51b15befe82a0b1b9c5342fae7ee16f3eb26842e790d3df2076f62d9b216f7f7",
+      "extra": [
+        [
+          "F821",
+          "case.py",
+          59,
+          64
+        ],
+        [
+          "invalid-syntax",
+          "case.py",
+          10,
+          44
+        ]
+      ],
+      "missing": [],
+      "cases": [
+        {
+          "name": "future-scope-class-forward-type",
+          "review_family": "rule-and-syntax",
+          "exact_source_existing_evidence": []
+        }
+      ]
+    },
+    {
+      "source_sha256": "0897fb77b8fcdce7dd90a4f519fe4273128f4da943ebabac2e24b534250a6d04",
+      "extra": [
+        [
+          "invalid-syntax",
+          "case.py",
+          10,
+          44
+        ]
+      ],
+      "missing": [],
+      "cases": [
+        {
+          "name": "future-scope-class-import-does-not-leak",
+          "review_family": "syntax-only",
+          "exact_source_existing_evidence": []
+        }
+      ]
+    },
+    {
+      "source_sha256": "960e14287a7444d6507610406054581ddf30a7a1ef111651bc852dbf699de21b",
+      "extra": [
+        [
+          "invalid-syntax",
+          "case.py",
+          10,
+          44
+        ]
+      ],
+      "missing": [
+        [
+          "invalid-syntax",
+          "case.py",
+          55,
+          68
+        ]
+      ],
+      "cases": [
+        {
+          "name": "future-scope-class-scoped-import",
+          "review_family": "syntax-only",
+          "exact_source_existing_evidence": [
+            {
+              "path": "crates/ryo/languages/python/tests/fixtures/standard/future-annotation-order/order-reference-receipts.json",
+              "artifact_sha256": "53c292096f9bfc78ec39b6f7b3741e7b97c15ace5ccc1a34f95cbb1fc282a074",
+              "case": "future-in-class.py",
+              "observed_accepted": null,
+              "scope": "Exact source matches an existing pinned Ruff observation; this is not independent language acceptance evidence.",
+              "evidence_kind": "pinned-reference-observation"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "source_sha256": "d8b709e7ab4ee80fabe83ce383a2873a5e6f1245a8916531e5e8d96520889b01",
+      "extra": [
+        [
+          "invalid-syntax",
+          "case.py",
+          56,
+          90
+        ]
+      ],
+      "missing": [],
+      "cases": [
+        {
+          "name": "future-scope-early-definition",
+          "review_family": "syntax-only",
+          "exact_source_existing_evidence": [
+            {
+              "path": "crates/ryo/languages/python/tests/fixtures/standard/future-annotation-order/order-reference-receipts.json",
+              "artifact_sha256": "53c292096f9bfc78ec39b6f7b3741e7b97c15ace5ccc1a34f95cbb1fc282a074",
+              "case": "early-late-future.py",
+              "observed_accepted": null,
+              "scope": "Exact source matches an existing pinned Ruff observation; this is not independent language acceptance evidence.",
+              "evidence_kind": "pinned-reference-observation"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "source_sha256": "16a3b46bc43a054395d4fb6728d79f0e2a2004a86bdfd356c8f1cf5d48d32777",
+      "extra": [
+        [
+          "F821",
+          "case.py",
+          77,
+          83
+        ],
+        [
+          "invalid-syntax",
+          "case.py",
+          28,
+          62
+        ]
+      ],
+      "missing": [],
+      "cases": [
+        {
+          "name": "future-scope-except-restoration",
+          "review_family": "rule-and-syntax",
+          "exact_source_existing_evidence": []
+        }
+      ]
+    },
+    {
+      "source_sha256": "96b9876416826fe6cb466ae4e697e0f598f70a457cbfc6edda9d7f5683c8e440",
+      "extra": [
+        [
+          "F821",
+          "case.py",
+          63,
+          68
+        ],
+        [
+          "invalid-syntax",
+          "case.py",
+          14,
+          48
+        ]
+      ],
+      "missing": [],
+      "cases": [
+        {
+          "name": "future-scope-function-forward-type",
+          "review_family": "rule-and-syntax",
+          "exact_source_existing_evidence": []
+        }
+      ]
+    },
+    {
+      "source_sha256": "229a32bd60c781b45df1f82daa928c055dcf47014b04dc5ff148a8561c600ab6",
+      "extra": [
+        [
+          "invalid-syntax",
+          "case.py",
+          14,
+          48
+        ]
+      ],
+      "missing": [],
+      "cases": [
+        {
+          "name": "future-scope-function-import-does-not-leak",
+          "review_family": "syntax-only",
+          "exact_source_existing_evidence": []
+        }
+      ]
+    },
+    {
+      "source_sha256": "4474a20062d828c9a752c7560e15103f00227e88b6c1b5840dfde830e74b3cab",
+      "extra": [
+        [
+          "invalid-syntax",
+          "case.py",
+          14,
+          48
+        ]
+      ],
+      "missing": [
+        [
+          "invalid-syntax",
+          "case.py",
+          63,
+          76
+        ]
+      ],
+      "cases": [
+        {
+          "name": "future-scope-function-scoped-import",
+          "review_family": "syntax-only",
+          "exact_source_existing_evidence": [
+            {
+              "path": "crates/ryo/languages/python/tests/fixtures/standard/future-annotation-order/order-reference-receipts.json",
+              "artifact_sha256": "53c292096f9bfc78ec39b6f7b3741e7b97c15ace5ccc1a34f95cbb1fc282a074",
+              "case": "future-in-function.py",
+              "observed_accepted": null,
+              "scope": "Exact source matches an existing pinned Ruff observation; this is not independent language acceptance evidence.",
+              "evidence_kind": "pinned-reference-observation"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "source_sha256": "dc0296bf6ccb59c2c972b5ada9f74844ecdc79977b8731ff9b1543af0205d3a7",
+      "extra": [
+        [
+          "F821",
+          "case.py",
+          61,
+          66
+        ],
+        [
+          "invalid-syntax",
+          "case.py",
+          10,
+          44
+        ]
+      ],
+      "missing": [],
+      "cases": [
+        {
+          "name": "future-scope-if-else-inheritance",
+          "review_family": "rule-and-syntax",
+          "exact_source_existing_evidence": []
+        }
+      ]
+    },
+    {
+      "source_sha256": "83d04b643bc7d66e21cbef1ac3187bb1189ec888fc8985a878c1391a62d2aa45",
+      "extra": [
+        [
+          "F821",
+          "case.py",
+          59,
+          65
+        ],
+        [
+          "invalid-syntax",
+          "case.py",
+          10,
+          44
+        ]
+      ],
+      "missing": [],
+      "cases": [
+        {
+          "name": "future-scope-if-restoration",
+          "review_family": "rule-and-syntax",
+          "exact_source_existing_evidence": []
+        }
+      ]
+    },
+    {
+      "source_sha256": "86a8382183e54f2e39bfdc19cbe094b10132895cc0acc2c2c38ba877d9d34d88",
+      "extra": [
+        [
+          "invalid-syntax",
+          "case.py",
+          35,
+          69
+        ]
+      ],
+      "missing": [
+        [
+          "invalid-syntax",
+          "case.py",
+          83,
+          96
+        ]
+      ],
+      "cases": [
+        {
+          "name": "future-scope-later-definition",
+          "review_family": "syntax-only",
+          "exact_source_existing_evidence": [
+            {
+              "path": "crates/ryo/languages/python/tests/fixtures/standard/future-annotation-order/order-reference-receipts.json",
+              "artifact_sha256": "53c292096f9bfc78ec39b6f7b3741e7b97c15ace5ccc1a34f95cbb1fc282a074",
+              "case": "early-and-late.py",
+              "observed_accepted": null,
+              "scope": "Exact source matches an existing pinned Ruff observation; this is not independent language acceptance evidence.",
+              "evidence_kind": "pinned-reference-observation"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "source_sha256": "dd010bbc1d6ec041cd4f767b1e4a5287c3365432a1e6b7231cc24c6a72e56b04",
+      "extra": [
+        [
+          "invalid-syntax",
+          "case.py",
+          49,
+          83
+        ]
+      ],
+      "missing": [],
+      "cases": [
+        {
+          "name": "future-scope-nested-early-definition",
+          "review_family": "syntax-only",
+          "exact_source_existing_evidence": [
+            {
+              "path": "crates/ryo/languages/python/tests/fixtures/standard/future-annotation-order/order-reference-receipts.json",
+              "artifact_sha256": "53c292096f9bfc78ec39b6f7b3741e7b97c15ace5ccc1a34f95cbb1fc282a074",
+              "case": "nested-before-late.py",
+              "observed_accepted": null,
+              "scope": "Exact source matches an existing pinned Ruff observation; this is not independent language acceptance evidence.",
+              "evidence_kind": "pinned-reference-observation"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "source_sha256": "4ca7149c206ece87263a0193632f89ebd1a1b21a8efc365ec5b66d1dfd742f14",
+      "extra": [
+        [
+          "invalid-syntax",
+          "case.py",
+          14,
+          48
+        ]
+      ],
+      "missing": [
+        [
+          "invalid-syntax",
+          "case.py",
+          59,
+          72
+        ]
+      ],
+      "cases": [
+        {
+          "name": "future-scope-nested-future-blocks-type-scope-walrus",
+          "review_family": "syntax-only",
+          "exact_source_existing_evidence": []
+        }
+      ]
+    },
+    {
+      "source_sha256": "820d1888ef056cf0986d1bdeb07088a9679c95e376950a07091c15f96649abc9",
+      "extra": [],
+      "missing": [
+        [
+          "invalid-syntax",
+          "case.py",
+          45,
+          58
+        ]
+      ],
+      "cases": [
+        {
+          "name": "future-scope-relative-future-flag",
+          "review_family": "syntax-only",
+          "exact_source_existing_evidence": []
+        }
+      ]
+    },
+    {
+      "source_sha256": "2a3bf7c6f049e45c75fdb55d25fed5332db6fc6c054c22c7ca3e56fba148597f",
+      "extra": [
+        [
+          "invalid-syntax",
+          "case.pyi",
+          30,
+          64
+        ]
+      ],
+      "missing": [
+        [
+          "invalid-syntax",
+          "case.pyi",
+          9,
+          22
+        ]
+      ],
+      "cases": [
+        {
+          "name": "future-scope-stub-remains-postponed",
+          "review_family": "syntax-only",
+          "exact_source_existing_evidence": [
+            {
+              "path": "crates/ryo/languages/python/tests/fixtures/standard/future-annotation-order/order-reference-receipts.json",
+              "artifact_sha256": "53c292096f9bfc78ec39b6f7b3741e7b97c15ace5ccc1a34f95cbb1fc282a074",
+              "case": "stub-late.pyi",
+              "observed_accepted": null,
+              "scope": "Exact source matches an existing pinned Ruff observation; this is not independent language acceptance evidence.",
+              "evidence_kind": "pinned-reference-observation"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "source_sha256": "7859b991400c4d9ee4b7622768ee5151cd403317aef7b01ab6ab0b8fb13024b2",
+      "extra": [
+        [
+          "F821",
+          "case.py",
+          69,
+          74
+        ],
+        [
+          "invalid-syntax",
+          "case.py",
+          6,
+          40
+        ]
+      ],
+      "missing": [],
+      "cases": [
+        {
+          "name": "future-scope-try-handler-inheritance",
+          "review_family": "rule-and-syntax",
+          "exact_source_existing_evidence": []
+        }
+      ]
+    },
+    {
+      "source_sha256": "0ed62bf6c331b703490d06daadeb5926b7e738aeefd1fa4f332ebec256c8c9f6",
+      "extra": [],
+      "missing": [
+        [
+          "invalid-syntax",
+          "case.pyi",
+          10,
+          16
+        ]
+      ],
+      "cases": [
+        {
+          "name": "stub-named-expression-preserves-undefined-read",
+          "review_family": "syntax-only",
+          "exact_source_existing_evidence": []
+        }
+      ]
+    }
+  ]
+}

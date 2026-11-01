@@ -69,3 +69,6 @@ pub(crate) mod raw_format_segment;
 
 /// Optional syntactic validity is statically bound in the inbound parser contract.
 pub(crate) mod literal_expression_parse;
+
+/// Canonical known module compiler features; absence is not a disabled flag.
+pub(crate) mod compiler_feature;

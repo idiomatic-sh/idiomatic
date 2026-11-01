@@ -42,16 +42,20 @@ class FakeTree(Tree):
 class FakeBench(Bench):
     """Every measure is 100 in the base; in the head, `slower` scales the named measures, round by round."""
 
-    def __init__(self, journal: Journal, slower: dict[str, list[float]] | None = None, fails: bool = False) -> None:
+    def __init__(self, journal: Journal, slower: dict[str, list[float]] | None = None, fails: bool = False,
+                 measurements: dict[str, dict[str, float]] | None = None) -> None:
         self.journal = journal
         self.slower = slower or {}
         self.fails = fails
+        self.measurements = measurements or {}
         self.rounds: dict[str, int] = {}
 
     def measure(self, tree: Path, product: str, bench: str, label: str) -> dict[str, float]:
         self.journal.calls.append(("measure", tree, product, bench, label))
         if self.fails:
             raise RuntimeError(f"{bench} of {product} does not build")
+        if label in self.measurements:
+            return self.measurements[label]
         measured = {"check/cpu-ms": 100.0, "check/peak-megabytes": 100.0}
         if tree != HEAD:
             return measured
@@ -145,3 +149,61 @@ def test_no_bench_or_an_unknown_one_is_refused() -> None:
         job(Journal()).run(against())
     with pytest.raises(Refused, match="no bench clippy"):
         job(Journal()).run(against("clippy"))
+
+
+@pytest.mark.parametrize("measurements", [
+    {"head-1": {"check/cpu-ms": 100.0}},
+    {"head-1": {"check/cpu-ms": 100.0, "check/peak-megabytes": 100.0, "extra": 1.0}},
+    {"base-1": {}},
+    {"head-1": {}},
+    {"base-1": {}, "head-1": {}},
+])
+def test_missing_extra_or_empty_metrics_refuse_the_comparison(measurements) -> None:
+    journal = Journal()
+    with pytest.raises(Refused, match="ryo/lint/round-1: .*same nonempty metric set"):
+        job(journal, measurements=measurements).run(against("lint"))
+    assert journal.calls[-1] == ("remove", BASE)
+    assert not any(call[0] == "ratio" for call in journal.calls)
+
+
+@pytest.mark.parametrize("side, value, reason", [
+    ("base", 0.0, "baseline"), ("base", -1.0, "baseline"),
+    ("base", float("nan"), "baseline"), ("base", float("inf"), "baseline"),
+    ("base", float("-inf"), "baseline"), ("head", -1.0, "head"),
+    ("head", float("nan"), "head"), ("head", float("inf"), "head"),
+    ("head", float("-inf"), "head"),
+])
+def test_invalid_metric_values_refuse_the_comparison(side, value, reason) -> None:
+    journal = Journal()
+    measurements = {f"{side}-1": {"check/cpu-ms": value, "check/peak-megabytes": 100.0}}
+    with pytest.raises(Refused, match=f"ryo/lint/round-1/check/cpu-ms: {reason} must be finite"):
+        job(journal, measurements=measurements).run(against("lint"))
+    assert journal.calls[-1] == ("remove", BASE)
+    assert not any(call[0] == "ratio" for call in journal.calls)
+
+
+def test_equal_metric_sets_must_remain_stable_across_rounds() -> None:
+    journal = Journal()
+    changed = {"check/cpu-ms": 100.0}
+    with pytest.raises(Refused, match="round-2: metric set changed between rounds"):
+        job(journal, measurements={"base-2": changed, "head-2": changed}).run(against("lint"))
+    assert journal.calls[-1] == ("remove", BASE)
+    assert not any(call[0] == "ratio" for call in journal.calls)
+
+
+def test_zero_head_is_a_valid_zero_ratio_in_all_five_rounds() -> None:
+    journal = Journal()
+    zero = {"check/cpu-ms": 0.0, "check/peak-megabytes": 0.0}
+    assert job(journal, measurements={f"head-{index}": zero for index in range(1, ROUNDS + 1)}).run(against("lint")) == 0
+    assert [call for call in journal.calls if call[0] == "ratio"] == [
+        ("ratio", "ryo/lint/check/cpu-ms", 0.0, "pass"),
+        ("ratio", "ryo/lint/check/peak-megabytes", 0.0, "pass"),
+    ]
+
+
+def test_finite_metrics_cannot_overflow_into_an_infinite_ratio() -> None:
+    journal = Journal()
+    measurements = {"base-1": {"metric": 1e-300}, "head-1": {"metric": 1e300}}
+    with pytest.raises(Refused, match="ratio must be finite"):
+        job(journal, measurements=measurements).run(against("lint"))
+    assert journal.calls[-1] == ("remove", BASE)

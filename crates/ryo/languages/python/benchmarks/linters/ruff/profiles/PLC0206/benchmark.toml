@@ -33,3 +33,5 @@ parser-configuration = "python-target=3.10"
 "python/ruff/qualified-origins" = "fragments/qualified-origins.ryoql"
 "python/ruff/suppress" = "fragments/suppress.ryoql"
 "python/ruff/suppress-directives" = "fragments/suppress-directives.ryoql"
+
+"python/ruff/annotation-evaluation-context" = "fragments/annotation-evaluation-context.ryoql"

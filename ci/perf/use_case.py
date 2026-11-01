@@ -10,6 +10,7 @@ are the runner's, not the change's.
 from __future__ import annotations
 
 import dataclasses
+import math
 import statistics
 import typing
 
@@ -30,7 +31,7 @@ REACHES = {"commands": ("crates/", "Cargo.lock"), "distribution": ("crates/", "C
 
 
 class Refused(Exception):
-    """A request the job cannot run, said before any step runs."""
+    """A request the job cannot run, or a measured comparison it cannot judge."""
 
 
 @dataclasses.dataclass(frozen=True)
@@ -46,6 +47,26 @@ class Request:
 def reaches(bench: str, changed: tuple[str, ...]) -> bool:
     """Whether a change to `changed` can move `bench`."""
     return any(path.startswith(REACHES[bench]) for path in changed)
+
+
+def comparison(before: dict[str, float], after: dict[str, float], expected: set[str] | None, label: str) -> dict[str, float]:
+    """Validate one complete pair before computing ratios; zero head values are valid improvements."""
+    if not before or before.keys() != after.keys():
+        raise Refused(f"{label}: base and head must report the same nonempty metric set")
+    if expected is not None and before.keys() != expected:
+        raise Refused(f"{label}: metric set changed between rounds")
+    ratios = {}
+    for measure, baseline in sorted(before.items()):
+        head = after[measure]
+        if not math.isfinite(baseline) or baseline <= 0:
+            raise Refused(f"{label}/{measure}: baseline must be finite and positive")
+        if not math.isfinite(head) or head < 0:
+            raise Refused(f"{label}/{measure}: head must be finite and nonnegative")
+        ratio = head / baseline
+        if not math.isfinite(ratio):
+            raise Refused(f"{label}/{measure}: ratio must be finite")
+        ratios[measure] = ratio
+    return ratios
 
 
 class UseCase:
@@ -76,15 +97,18 @@ class UseCase:
             return 0
         base = self.tree.checkout(request.base, request.scratch / "base")
         ratios: dict[str, list[float]] = {}
+        metrics: dict[str, set[str]] = {}
         try:
             for index in range(1, ROUNDS + 1):
                 for name in benches:
                     for product in PRODUCTS[name]:
                         before = self.bench.measure(base, product, name, f"base-{index}")
                         after = self.bench.measure(self.head, product, name, f"head-{index}")
-                        for measure in sorted(before.keys() & after.keys()):
-                            if before[measure] > 0:
-                                ratios.setdefault(f"{product}/{name}/{measure}", []).append(after[measure] / before[measure])
+                        group = f"{product}/{name}"
+                        compared = comparison(before, after, metrics.get(group), f"{group}/round-{index}")
+                        metrics[group] = set(compared)
+                        for measure, ratio in compared.items():
+                            ratios.setdefault(f"{group}/{measure}", []).append(ratio)
         finally:
             self.tree.remove(base)
         failed = False

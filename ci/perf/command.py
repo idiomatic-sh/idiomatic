@@ -46,7 +46,7 @@ def parse(argv: list[str]) -> argparse.Namespace:
 
 def run(argv: list[str], compose: Callable[[Path | None], UseCase]) -> int:
     """Runs the job `compose` makes as the command line asks: 0 when it passes, 1 when a measure is too slow,
-    2 when the request is refused."""
+    2 when the request or measured comparison is refused."""
     arguments = parse(argv)
     output = arguments.output.resolve() if arguments.output else None
     with tempfile.TemporaryDirectory(prefix="perf-") as scratch:

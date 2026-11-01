@@ -167,6 +167,7 @@ pub(super) fn expected() -> Vec<Expected> {
         function_terminal::expected(),
         interpolated_string_literal::expected(),
         language_target::expected(),
+        compiler_feature::expected(),
         constant_key::expected(),
         format_parse::expected(),
         format_field::expected(),
@@ -268,4 +269,9 @@ mod embedded_expression {
 /// Syntactic outcomes preserve original carrier identity and span.
 mod literal_expression_parse {
     include!("../../tests/fixtures/relations/literal_expression_parse/expected.rs");
+}
+
+/// A valid Python module future mode comes from the frontend-owned compiler flag.
+mod compiler_feature {
+    include!("../../tests/fixtures/relations/compiler_feature/expected.rs");
 }

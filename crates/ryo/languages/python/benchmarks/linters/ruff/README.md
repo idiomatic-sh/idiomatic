@@ -27,3 +27,11 @@ A complete report with a wrong phase, target or context cannot certify current
 execution. Version 1 receipts remain historical evidence; missing settings are not
 invented or promoted to current READY admission. Historical byte audits are explicit
 and do not replace current v2 admission.
+
+The [current proof refresh](results/current-proof-refresh-2026-11-01/summary.json)
+admits five freshly executed canonical profile closures (230 case pairs). F821's
+32 complete-report differences remain pending and visible; the frozen 324-rule
+aggregate above is unchanged. Standalone staging uses exactly the declared module
+registry, and v2 execution artifacts are hash-bound. Compiler-feature producer
+checks and the unchanged allocation guard passed on worker `8eabb206`; no new
+performance claim is attached to that worker.

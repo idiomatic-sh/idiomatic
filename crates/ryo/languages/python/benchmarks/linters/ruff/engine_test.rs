@@ -1018,3 +1018,6 @@ fn fails() {
 
 #[path = "project_context_test.rs"]
 mod project_context;
+
+#[path = "compiler_feature_test.rs"]
+mod compiler_features;

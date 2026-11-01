@@ -523,6 +523,8 @@ pub enum OptionalCapability {
     InterpolatedStringLiteral,
     /// Parser target version attached to each source file.
     LanguageTarget,
+    /// Explicit known file-wide compiler-language feature flags.
+    CompilerFeature,
     /// Collision-checked keys for supported parsed constant expressions.
     ConstantKey,
     /// Parsed Python percent-format strings and their format fields.

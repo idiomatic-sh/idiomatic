@@ -697,3 +697,32 @@ fn optional_readiness_is_fail_closed() -> usize {
     }
     passed
 }
+
+/// A language without the optional compiler-feature promise cannot imply a disabled flag.
+#[test]
+fn unsupported_compiler_feature_is_unknown_and_emits_no_false_row() {
+    let mut elements = Elements::default();
+    let mut symbols = Symbols::default();
+    let source = ByteSlice(b"ab");
+    let mut builder = table_builder(&mut elements, &mut symbols, source);
+    enter_node(&mut builder, KindBits(1), Offset(0));
+    token(&mut builder, KindBits(2), Offset(0), Offset(1));
+    token(&mut builder, KindBits(2), Offset(1), Offset(2));
+    leave_node(&mut builder, Offset(2));
+    assert_eq!(
+        absence(&Small, Relation::CompilerFeature),
+        Some(AbsenceCause::NotYetRead)
+    );
+    let mut out = Collect::default();
+    walk(
+        &Small,
+        &mut elements,
+        &mut symbols,
+        source,
+        FileId(0),
+        &[Relation::CompilerFeature],
+        &mut out,
+    );
+    assert!(out.rows().is_empty());
+    assert_eq!(out.partials_at.len(), 1);
+}

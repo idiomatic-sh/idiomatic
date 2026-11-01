@@ -170,6 +170,7 @@ pub const OPTIONAL_CAPABILITIES: &[super::types::OptionalCapability] = &[
     super::types::OptionalCapability::LiteralProperties,
     super::types::OptionalCapability::InterpolatedStringLiteral,
     super::types::OptionalCapability::LanguageTarget,
+    super::types::OptionalCapability::CompilerFeature,
     super::types::OptionalCapability::ConstantKey,
     super::types::OptionalCapability::FormatParse,
     super::types::OptionalCapability::FormatField,

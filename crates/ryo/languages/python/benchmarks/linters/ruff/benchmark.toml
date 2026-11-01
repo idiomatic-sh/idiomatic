@@ -873,6 +873,7 @@ typing_rules = ["FA100", "FA102", "PYI002", "PYI003", "PYI004", "PYI005", "PYI00
 upstream_inactive = ["F621"]
 
 [query-modules]
+"python/ruff/annotation-evaluation-context" = "fragments/annotation-evaluation-context.ryoql"
 "python/ruff/annotation-origins" = "fragments/annotation-origins.ryoql"
 "python/ruff/assigned-values" = "fragments/assigned-values.ryoql"
 "python/ruff/binding-type" = "fragments/binding-type.ryoql"

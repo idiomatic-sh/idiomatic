@@ -18,6 +18,9 @@ use tastemaker_core::inbound::use_cases::check::fixtures::{
 use tastemaker_core::inbound::use_cases::check::interface::CheckUseCase as _;
 use tastemaker_core::inbound::use_cases::check::types::Fixing;
 
+#[path = "../../tests/replay/benchmark_fixture.rs"]
+mod fixture_version;
+
 /// The core's warm and cold `check`.
 pub(crate) fn measured() -> Vec<crate::measure::Measured> {
     let mut measured = vec![warm(), cold()];
@@ -128,6 +131,8 @@ mod cost {
         let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
         let copy = tempfile::tempdir().expect("a temporary directory");
         copy_tree(&source.join("ryo"), &copy.path().join("crates/ryo"));
+        super::fixture_version::normalize(&copy.path().join("crates/ryo"))
+            .expect("the benchmark's copied fixture uses its executing tool version");
         copy_tree(
             &source.join("../tastemaker"),
             &copy.path().join("tastemaker"),

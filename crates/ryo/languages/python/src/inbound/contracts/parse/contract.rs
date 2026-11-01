@@ -101,6 +101,7 @@ impl Parse for ParseContract {
             languages::OptionalCapability::BraceFormatParse,
             languages::OptionalCapability::BraceFormatField,
             languages::OptionalCapability::LanguageTarget,
+            languages::OptionalCapability::CompilerFeature,
             languages::OptionalCapability::FunctionTerminal,
             languages::OptionalCapability::ExpressionType,
         ]
@@ -314,6 +315,10 @@ impl Parse for ParseContract {
         languages::reads::<
             crate::domain::relations::collections::relations::interpolated_string_literal::item::InterpolatedStringLiteralItem,
         >()
+    }
+
+    fn compiler_feature(&self) -> Support<Reader<languages::CompilerFeature, Self::FileModel>> {
+        languages::reads::<crate::domain::relations::collections::relations::compiler_feature::item::CompilerFeatureItem>()
     }
 
     fn language_target(&self) -> Support<Reader<languages::LanguageTarget, Self::FileModel>> {

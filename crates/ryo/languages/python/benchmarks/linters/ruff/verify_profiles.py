@@ -378,7 +378,10 @@ def manifest_paths(manifest: dict[str, object], helper_path: str) -> set[str]:
         paths.update(
             module_path(path) for path in profile_modules(combined_data).values()
         )
-    paths.update(manifest.get("actual_proof_receipts", []))
+    for receipt_path in manifest.get("actual_proof_receipts", []):
+        paths.add(receipt_path)
+        receipt = json.loads((REPOSITORY / receipt_path).read_text(encoding="utf-8"))
+        paths.update(receipt.get("execution_artifacts", {}))
     for fixture in [
         RUFF_DIR / "fixtures/reference-discrepancy",
         RUFF_DIR.parents[2] / "tests/fixtures/ryoql-fragments/sparse-traversal-guards",
@@ -608,6 +611,10 @@ def verify_actual_proof_assets(
         schema = receipt.get("schema")
         if schema not in {"actual-proof-assets/v1", "actual-proof-assets/v2"}:
             raise ValueError("unsupported actual-proof asset receipt")
+        for artifact, expected_hash in receipt.get("execution_artifacts", {}).items():
+            path = repository / artifact
+            if not path.is_file() or sha256(path) != expected_hash:
+                raise ValueError(f"actual-proof execution artifact mismatch: {artifact}")
         phases = None
         if schema == "actual-proof-assets/v2":
             phase_asset = receipt.get("phase_registry", {})
@@ -2817,7 +2824,9 @@ def stage_binding(
         destination = stage_directory(profile_name, stack, output_directory)
         rule_dir = destination / "rules" / rule
         rule_dir.mkdir(parents=True)
-        registry = combined_modules(profile_data, [rule], manifest)
+        # Standalone execution must use exactly its authored registry. Global
+        # modules belong to combined staging and must not mask missing imports.
+        registry = profile_modules(profile_data)
         copy_modules(registry, destination)
         target_version = recorded.get("target_version", "py310")
         write_staged_profile(
@@ -2835,6 +2844,31 @@ def stage_binding(
         )
         staged.append((profile_name, destination))
     return staged
+
+
+def standalone_registry_self_test() -> None:
+    """A standalone proof cannot silently acquire the global module registry."""
+    manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    rule = "PLW0406"
+    canonical = profile_modules(
+        tomllib.loads(prepared_profile_path(rule, manifest["profiles"][rule]).read_text())
+    )
+    global_registry = profile_modules(
+        tomllib.loads((RUFF_DIR / "benchmark.toml").read_text())
+    )
+    assert set(global_registry) - set(canonical), "fixture needs an unrelated global module"
+    with tempfile.TemporaryDirectory(prefix="ryo-standalone-registry-") as directory:
+        with contextlib.ExitStack() as stack:
+            staged = stage_binding(manifest, [rule], stack, Path(directory))
+            assert len(staged) == 1
+            root = staged[0][1]
+            actual = profile_modules(tomllib.loads((root / "benchmark.toml").read_text()))
+            assert actual == canonical, "standalone registry was silently expanded"
+            assert {
+                path.relative_to(root).as_posix()
+                for path in (root / "fragments").rglob("*")
+                if path.is_file()
+            } == set(canonical.values()), "undeclared module bytes were staged"
 
 
 def stage_combined(
@@ -3365,6 +3399,19 @@ def actual_proof_asset_guard_self_test() -> None:
         }
         (root / "receipt.json").write_text(json.dumps(current), encoding="utf-8")
         verify_actual_proof_assets(manifest, root)
+        artifact = root / "executed-case-records.jsonl"
+        artifact.write_bytes(b"complete execution receipt")
+        current["execution_artifacts"] = {artifact.name: sha256(artifact)}
+        (root / "receipt.json").write_text(json.dumps(current), encoding="utf-8")
+        verify_actual_proof_assets(manifest, root)
+        artifact.write_bytes(b"changed execution receipt")
+        try:
+            verify_actual_proof_assets(manifest, root)
+        except ValueError as error:
+            assert "execution artifact mismatch" in str(error)
+        else:
+            raise AssertionError("changed raw execution evidence was admitted")
+        artifact.write_bytes(b"complete execution receipt")
         correct_settings = dict(profile["settings"])
         for changed in (
             {"rule_applicability": {"F401": "always"}},
@@ -4037,6 +4084,7 @@ def self_test() -> int:
     global MANIFEST
     context_guard_self_test()
     actual_proof_asset_guard_self_test()
+    standalone_registry_self_test()
     if (
         ruff_location_to_byte("é\fvalue\r\nx", {"row": 1, "column": 8}) != 8
         or ruff_location_to_byte("é\fvalue\r\nx", {"row": 2, "column": 2}) != 11
@@ -5033,6 +5081,9 @@ def self_test() -> int:
         # Do not rewrite or remove any production admission receipt.
         for receipt in manifest.pop("actual_proof_receipts", []):
             manifest["files"].pop(receipt, None)
+            receipt_data = json.loads((REPOSITORY / receipt).read_text(encoding="utf-8"))
+            for artifact in receipt_data.get("execution_artifacts", {}):
+                manifest["files"].pop(artifact, None)
         for relative in manifest["files"]:
             source = REPOSITORY / relative
             destination = root / relative

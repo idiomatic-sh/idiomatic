@@ -1,0 +1,42 @@
+{
+  "profile": "PLW0406",
+  "command": [
+    "/tmp/compiler-feature-language-baseline-gate-5-20261101/worker/ruff-8eabb206f8a265d8901e9ad2c0ba9e3d4c9edc1fe83460ed38690b3c9392bd81",
+    "verify-cases",
+    "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+    "/tmp/six-current-v2-exact-registry-20261101/profiles/PLW0406/repro"
+  ],
+  "cwd": "/workspaces/idiomatic-benchmark-guards/crates/ryo",
+  "status": 0,
+  "process_status": 0,
+  "error": null,
+  "identities": {
+    "worker_sha256": "8eabb206f8a265d8901e9ad2c0ba9e3d4c9edc1fe83460ed38690b3c9392bd81",
+    "ruff_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+    "worker_receipt_sha256": "1c245deb1c40f7b6014d717777ff8b81ca475b3e51b6e5fc0949e4c27d0fe2b5",
+    "purpose": "fresh current-module native v2 proof; prior v1 remains immutable historical"
+  },
+  "staged_inputs": {
+    "benchmark.toml": "553cc7d2732bc2598752e3fd9bb0a039ea98279b64e2678203cbdcfc1a66bab4",
+    "fragments/suppress-directives.ryoql": "29efaa45457a591ccd20d340327095ef9f6d9644feec94929f245cc420fc3382",
+    "fragments/suppress.ryoql": "b3f9278dec26f739d1ee68a53b834629bc51b26fa868ec250e0eaaf5854d9c26",
+    "fragments/text-units.ryoql": "e9beaf583559c23cf68c94cbc41e2ef9ae8d7d65e6dc4e702b625138fbc70b0e",
+    "rules/PLW0406/cases.toml": "503b6de29cf575454a5925dae7ce7e19ae4208b5f3cd670e275489639f47065e",
+    "rules/PLW0406/query.ryoql": "f79d6ea92595289218894271769bd1a8635d70b1324221865952a928065740dc"
+  },
+  "stdout_file": "profiles/PLW0406/stdout.bin",
+  "stderr_file": "profiles/PLW0406/stderr.bin",
+  "reproduction_directory": "profiles/PLW0406/repro",
+  "case_results_file": "profiles/PLW0406/cases.jsonl",
+  "case_results_sha256": "5cd1704177efab2105869de694ce9e5bb9c1d0cc78ee2c0c6818ad7546f803b5",
+  "case_expectation_summary": {
+    "complete_case_pairs": 21,
+    "incomplete_cases": 0,
+    "raw_parity_matches": 21,
+    "raw_parity_mismatches": 0,
+    "documented_reference_discrepancies": 0,
+    "unexplained_mismatches": 0,
+    "intended_behavior_passes": 21,
+    "intended_behavior_failures": 0
+  }
+}

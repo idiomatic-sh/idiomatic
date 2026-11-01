@@ -481,6 +481,15 @@ fn rows(subject: &dyn ParseEngine, samples: &[SourceFile]) {
                     if matches!(*relation, Relation::Scope | Relation::IndentRegion) {
                         return count == 1;
                     }
+                    // Compiler features describe module configuration even without source constructs.
+                    if *relation == Relation::CompilerFeature {
+                        return out.rows().iter().all(|(feature_relation, row)| {
+                            *feature_relation != Relation::CompilerFeature
+                                || (row.len() == columns(Relation::CompilerFeature).len()
+                                    && row.first().is_some_and(|file| *file == 0)
+                                    && row.get(2).is_some_and(|flag| *flag <= 1))
+                        });
+                    }
                     // Versioned implicit-symbol rows describe the environment catalog, not source text.
                     if *relation == Relation::ImplicitSymbol {
                         return out.rows().iter().all(|(catalog_relation, row)| {

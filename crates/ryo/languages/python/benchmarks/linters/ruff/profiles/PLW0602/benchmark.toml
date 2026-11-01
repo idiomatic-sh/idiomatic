@@ -33,3 +33,5 @@ defaults = ["PLW0602"]
 "python/ruff/nonlocal-bindings" = "fragments/nonlocal-bindings.ryoql"
 "python/ruff/suppress" = "fragments/suppress.ryoql"
 "python/ruff/suppress-directives" = "fragments/suppress-directives.ryoql"
+
+"python/ruff/annotation-evaluation-context" = "fragments/annotation-evaluation-context.ryoql"

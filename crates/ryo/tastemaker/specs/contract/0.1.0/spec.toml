@@ -77,6 +77,10 @@ impl Parse for ParseContract {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
+    fn compiler_feature(&self) -> Support<Reader<languages::CompilerFeature, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn language_target(&self) -> Support<Reader<languages::LanguageTarget, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
@@ -441,6 +445,10 @@ impl Parse for ParseContract {
     }
 
     fn interpolated_string_literal(&self) -> Support<Reader<languages::InterpolatedStringLiteral, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn compiler_feature(&self) -> Support<Reader<languages::CompilerFeature, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -927,6 +935,7 @@ then.findings = [
   { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
   { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
   { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
 ]
 
 [[scenarios]]
@@ -978,6 +987,10 @@ impl Parse for ParseContract {
     }
 
     fn interpolated_string_literal(&self) -> Support<Reader<languages::InterpolatedStringLiteral, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn compiler_feature(&self) -> Support<Reader<languages::CompilerFeature, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -1354,6 +1367,10 @@ impl Parse for ParseContract {
     }
 
     fn interpolated_string_literal(&self) -> Support<Reader<languages::InterpolatedStringLiteral, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn compiler_feature(&self) -> Support<Reader<languages::CompilerFeature, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 

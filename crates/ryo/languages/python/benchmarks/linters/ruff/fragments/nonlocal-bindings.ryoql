@@ -1,4 +1,4 @@
-import future_context from "python/ruff/future-annotation-context";
+import annotation_context from "python/ruff/annotation-evaluation-context";
 import type_scope_events from "python/ruff/checker-type-scope-events";
 input events: relation<occurrence: node, name: symbol, scope: node, ordinal: number, kind: symbol, file: file>;
 output relation<declaration: node, name: symbol, scope: node, binding: node, target_scope: node, kind: symbol, file: file>;
@@ -38,9 +38,9 @@ let classes = select id, file from nodes where kind = "class-def";
 let class_type_events = select l.occurrence as occurrence, l.name as name, l.owner as owner, l.ordinal as ordinal, l.file as file from raw_type_events as l join classes as r on l.owner = r.id and l.file = r.file;
 let function_type_events = select l.occurrence as occurrence, l.name as name, l.owner as owner, l.ordinal as ordinal, l.file as file from raw_type_events as l join functions as r on l.owner = r.id and l.file = r.file;
 let function_type_inputs = select occurrence as id, file from function_type_events;
-let deferred_function_events0 = future_context(expressions=function_type_inputs);
-let deferred_function_events = select id as occurrence, file from deferred_function_events0;
-let eager_function_events = antijoin(left=function_type_events, right=deferred_function_events, left-on=["occurrence", "file"], right-on=["occurrence", "file"]);
+let function_annotation_contexts = annotation_context(expressions=function_type_inputs);
+let eager_function_ids = select id as occurrence, file from function_annotation_contexts where evaluation = "eager";
+let eager_function_events = select l.occurrence as occurrence, l.name as name, l.owner as owner, l.ordinal as ordinal, l.file as file from function_type_events as l join eager_function_ids as r on l.occurrence = r.occurrence and l.file = r.file;
 let runtime_functions = select occurrence, name, owner, ordinal, file from eager_function_events where matches(file, "[.]py$");
 let runtime_classes = select occurrence, name, owner, ordinal, file from class_type_events where matches(file, "[.]py$");
 let runtime_type_events = union(left=runtime_functions, right=runtime_classes);

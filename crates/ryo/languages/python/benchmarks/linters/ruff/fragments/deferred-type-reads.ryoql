@@ -1,5 +1,5 @@
 import type_context from "python/ruff/type-definition-context";
-import future_context from "python/ruff/future-annotation-context";
+import annotation_context from "python/ruff/annotation-evaluation-context";
 input expressions: relation<id: node, file: file>;
 output relation<id: node, file: file, visit: symbol>;
 let nodes = select id, kind, file from "semantic-syntax";
@@ -23,7 +23,8 @@ let annotation_axes = axis(from=expressions, relation="semantic-child", directio
 let annotation_nested = select id, file from annotation_axes;
 let annotation_self = select l.id as id, l.file as file from expressions as l join annotation_roots as r on l.id = r.id and l.file = r.file;
 let annotation_members = union(left=annotation_nested, right=annotation_self);
-let future_annotations = future_context(expressions=annotation_members);
+let annotation_contexts = annotation_context(expressions=annotation_members);
+let future_annotations = select id, file from annotation_contexts where evaluation = "postponed" or evaluation = "deferred";
 let stub_annotations = select id, file from annotation_members where matches(file, "[.]pyi$");
 let classes = select id, file from nodes where kind = "class-def";
 let argument_nodes = select id, file from nodes where kind = "call-arguments";

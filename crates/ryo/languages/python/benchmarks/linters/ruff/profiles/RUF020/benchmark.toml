@@ -37,3 +37,5 @@ defaults = ["RUF020"]
 "python/ruff/type-definition-context" = "fragments/type-definition-context.ryoql"
 "python/ruff/type-match-at-check" = "fragments/type-match-at-check.ryoql"
 "python/ruff/typing-match-at-visit" = "fragments/typing-match-at-visit.ryoql"
+
+"python/ruff/annotation-evaluation-context" = "fragments/annotation-evaluation-context.ryoql"

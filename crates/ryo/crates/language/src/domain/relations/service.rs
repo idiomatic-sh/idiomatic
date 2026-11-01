@@ -44,6 +44,7 @@ macro_rules! each_relation {
                 ExpressionType expression_type ExpressionTypeRow ExpressionTypeColumn;
                 InterpolatedStringLiteral interpolated_string_literal InterpolatedStringLiteralRow InterpolatedStringLiteralColumn;
                 LanguageTarget language_target LanguageTargetRow LanguageTargetColumn;
+                CompilerFeature compiler_feature CompilerFeatureRow CompilerFeatureColumn;
                 ConstantKey constant_key ConstantKeyRow ConstantKeyColumn;
                 FormatParse format_parse FormatParseRow FormatParseColumn;
                 FormatField format_field FormatFieldRow FormatFieldColumn;
@@ -419,6 +420,7 @@ pub const fn capability_relation(capability: super::types::OptionalCapability) -
         OptionalCapability::LiteralProperties => Relation::LiteralProperties,
         OptionalCapability::InterpolatedStringLiteral => Relation::InterpolatedStringLiteral,
         OptionalCapability::LanguageTarget => Relation::LanguageTarget,
+        OptionalCapability::CompilerFeature => Relation::CompilerFeature,
         OptionalCapability::ConstantKey => Relation::ConstantKey,
         OptionalCapability::FormatParse => Relation::FormatParse,
         OptionalCapability::FormatField => Relation::FormatField,

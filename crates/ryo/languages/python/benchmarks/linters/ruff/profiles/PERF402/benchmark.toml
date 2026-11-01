@@ -38,3 +38,5 @@ parser-configuration = "python-target=3.10"
 "python/ruff/suppress-directives" = "fragments/suppress-directives.ryoql"
 "python/ruff/type-definition-context" = "fragments/type-definition-context.ryoql"
 "python/ruff/type-match-at-check" = "fragments/type-match-at-check.ryoql"
+
+"python/ruff/annotation-evaluation-context" = "fragments/annotation-evaluation-context.ryoql"

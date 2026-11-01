@@ -1336,6 +1336,10 @@ impl Parse for ParseContract {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
+    fn compiler_feature(&self) -> Support<Reader<languages::CompilerFeature, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn language_target(&self) -> Support<Reader<languages::LanguageTarget, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
@@ -14029,6 +14033,10 @@ impl Parse for ParseContract {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
+    fn compiler_feature(&self) -> Support<Reader<languages::CompilerFeature, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn language_target(&self) -> Support<Reader<languages::LanguageTarget, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
@@ -14682,7 +14690,7 @@ The release or commit of the suite that is pinned here.
 '''
 then.only = ['idiomatic.ryo/language/thiserror-in-errors']
 then.findings = [
-  { rule = 'idiomatic.ryo/language/thiserror-in-errors', path = 'demo/src/inbound/contracts/parse/contract.rs', line = 287 },
+  { rule = 'idiomatic.ryo/language/thiserror-in-errors', path = 'demo/src/inbound/contracts/parse/contract.rs', line = 291 },
 ]
 
 [[scenarios]]
@@ -15051,6 +15059,10 @@ impl Parse for ParseContract {
 
 
     fn constant_key(&self) -> Support<Reader<languages::ConstantKey, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn compiler_feature(&self) -> Support<Reader<languages::CompilerFeature, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -15708,7 +15720,7 @@ The release or commit of the suite that is pinned here.
 '''
 then.only = ['idiomatic.ryo/language/error-shape']
 then.findings = [
-  { rule = 'idiomatic.ryo/language/error-shape', path = 'demo/src/inbound/contracts/parse/contract.rs', line = 290 },
+  { rule = 'idiomatic.ryo/language/error-shape', path = 'demo/src/inbound/contracts/parse/contract.rs', line = 294 },
 ]
 
 [[scenarios]]
@@ -16077,6 +16089,10 @@ impl Parse for ParseContract {
 
 
     fn constant_key(&self) -> Support<Reader<languages::ConstantKey, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn compiler_feature(&self) -> Support<Reader<languages::CompilerFeature, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -17099,6 +17115,10 @@ impl Parse for ParseContract {
 
 
     fn constant_key(&self) -> Support<Reader<languages::ConstantKey, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn compiler_feature(&self) -> Support<Reader<languages::CompilerFeature, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -18125,6 +18145,10 @@ impl Parse for ParseContract {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
+    fn compiler_feature(&self) -> Support<Reader<languages::CompilerFeature, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn language_target(&self) -> Support<Reader<languages::LanguageTarget, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
@@ -18778,5 +18802,5 @@ The release or commit of the suite that is pinned here.
 '''
 then.only = ['idiomatic.arch/io-at-boundary']
 then.findings = [
-  { rule = 'idiomatic.arch/io-at-boundary', path = 'demo/src/inbound/contracts/parse/contract.rs', line = 288 },
+  { rule = 'idiomatic.arch/io-at-boundary', path = 'demo/src/inbound/contracts/parse/contract.rs', line = 292 },
 ]
