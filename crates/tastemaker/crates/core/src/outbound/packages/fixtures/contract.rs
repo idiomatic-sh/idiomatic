@@ -60,7 +60,7 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Question::NotOffered,
         expect: Expect::Refusal(|error| {
-            if matches!(error, PackagesError::Read {path,reason} if path.ends_with("/rules/absent/0.1.0/rule.toml") && !reason.is_empty())
+            if matches!(error, PackagesError::Read {path,reason} if std::path::Path::new(path).ends_with("rules/absent/0.1.0/rule.toml") && !reason.is_empty())
             {
                 crate::cases::Selection::Matches
             } else {
@@ -79,7 +79,7 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Question::Missing,
         expect: Expect::Refusal(|error| {
-            if matches!(error, PackagesError::Read {path,reason} if path.ends_with("/rules/absent/0.1.0/rule.toml") && !reason.is_empty())
+            if matches!(error, PackagesError::Read {path,reason} if std::path::Path::new(path).ends_with("rules/absent/0.1.0/rule.toml") && !reason.is_empty())
             {
                 crate::cases::Selection::Matches
             } else {

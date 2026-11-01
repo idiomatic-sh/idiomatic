@@ -822,7 +822,8 @@ impl ScaffoldUseCaseImpl {
         workspace: &Workspace,
         request: &ScaffoldRequest,
     ) -> Result<Option<ScaffoldReport>, ScaffoldError> {
-        if std::path::Path::new(&*request.at.0).is_absolute() {
+        // A rooted path (`/outside`, not absolute on Windows without a drive) is as far outside as an absolute one.
+        if std::path::Path::new(&*request.at.0).has_root() {
             return Err(ScaffoldError::InvalidPath {
                 path: request.at.0.to_string(),
             });

@@ -95,7 +95,7 @@ fn fixed_programs_build_and_pass() -> Vec<String> {
         }
         for command in &sample.fixes.commands {
             let ran = command.split_first().map(|(program, arguments)| {
-                Command::new(program)
+                Command::new(crate::fixes::found(program))
                     .args(arguments)
                     .current_dir(&project)
                     .output()

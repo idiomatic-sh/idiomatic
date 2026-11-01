@@ -93,7 +93,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Scenario::Locate(PackageSource::Path(SourcePath("absent".into())), ""),
         expect: Expect::Refusal(|error| {
-            if matches!(error, PackagesError::Missing {package,path} if package == "p" && path.ends_with("/absent"))
+            if matches!(error, PackagesError::Missing {package,path} if package == "p" && std::path::Path::new(path).ends_with("absent"))
             {
                 crate::cases::Selection::Matches
             } else {
