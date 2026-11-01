@@ -264,6 +264,27 @@
           }
         }
       ]
+    },
+    {
+      "rule": "SIM221",
+      "name": "lambda-body-call-is-effectful",
+      "case_source_sha256": "5a5c948554f71401e7b27963be1b5be0f5f2fd3ef8f8cc6aa7b08b950aa3301d",
+      "comparison": "full",
+      "expected": []
+    },
+    {
+      "rule": "SIM221",
+      "name": "imported-alias-empty-constructor-is-call",
+      "case_source_sha256": "0043e0bded76ca4913fbd845f240e0778e6384c074ebc83982e34e24993e6050",
+      "comparison": "full",
+      "expected": []
+    },
+    {
+      "rule": "SIM221",
+      "name": "qualified-builtins-attribute-is-call",
+      "case_source_sha256": "93f96d9f97292def45df9e7ab0dd07f230bc2f6d61d7189b3f15647d609ca2a5",
+      "comparison": "full",
+      "expected": []
     }
   ]
 }

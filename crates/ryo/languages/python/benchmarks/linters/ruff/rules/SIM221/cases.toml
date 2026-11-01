@@ -88,3 +88,21 @@ comparison = "full"
 files = { "case.py" = "x or y or not x or not y\n" }
 expected = [{ rule = "SIM221", file = "case.py", start = 0, end = 24 }, { rule = "SIM221", file = "case.py", start = 0, end = 24 }]
 
+[[cases]]
+name = "lambda-body-call-is-effectful"
+comparison = "full"
+files = { "case.py" = "x or not x or (lambda: call())\n" }
+expected = []
+
+[[cases]]
+name = "imported-alias-empty-constructor-is-call"
+comparison = "full"
+files = { "case.py" = "from builtins import list as make_list\nx or not x or make_list()\n" }
+expected = []
+
+[[cases]]
+name = "qualified-builtins-attribute-is-call"
+comparison = "full"
+files = { "case.py" = "import builtins\nx or not x or builtins.list()\n" }
+expected = []
+
