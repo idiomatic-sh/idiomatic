@@ -63,7 +63,8 @@ use crate::outbound::language::types::{FileReading, FileToRead, ProjectInput};
 use crate::outbound::memory::interface::MemoryPort;
 
 use crate::outbound::scheduler::types::JobNumber;
-use ryo_language::domain::elements::service::diagnostic_count;
+use ryo_language::domain::elements::service::has_incomplete_syntax;
+use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::kind_index::service::index_kinds;
 use ryo_language::domain::relations::collections::relations::filesystem_file::item::FilesystemFileRow;
 use ryo_language::domain::relations::collections::relations::filesystem_line_count::item::FilesystemLineCountRow;
@@ -82,6 +83,15 @@ use ryo_values::domain::records::types::{FileOutcome, Freshness, Handed, Ran, Un
 use ryo_values::domain::runs::types::ManifestRefused;
 
 use ryo_values::domain::stored_facts::types::{ArenaBase, Digest, LanguageNumber, ReadFailure};
+
+/// Whether the language read a complete tree or a recovery from missing syntax.
+fn recovery_of(reading: &FileReading, elements: &Elements) -> Recovery {
+    match reading {
+        FileReading::Read(_) if has_incomplete_syntax(elements) => Recovery::SyntaxErrors,
+        FileReading::Failed(_) => Recovery::Unparsed,
+        FileReading::Read(_) | FileReading::Manifest | FileReading::Unsupported => Recovery::Whole,
+    }
+}
 
 use std::sync::Arc;
 
@@ -471,15 +481,7 @@ impl FileAnalysis {
         let asked = engine_asked(setting.wanted);
         Self::write_engine_rows(worker, asked, number)?;
         // The relations this file is read in part: those a reader said so of, and all of code if what was read is a recovery.
-        let everything = match &reading {
-            FileReading::Read(_) if diagnostic_count(&worker.tables.elements).0 > 0 => {
-                Recovery::SyntaxErrors
-            }
-            FileReading::Failed(_) => Recovery::Unparsed,
-            FileReading::Read(_) | FileReading::Manifest | FileReading::Unsupported => {
-                Recovery::Whole
-            }
-        };
+        let everything = recovery_of(&reading, &worker.tables.elements);
         start_partials(&mut worker.tables, &said, everything, setting.wanted);
         // Findings are not decided over a relation read in part; rows of the queries' own columns are the rows of what was read.
         if matches!(setting.answering, Answering::Rows(_)) {

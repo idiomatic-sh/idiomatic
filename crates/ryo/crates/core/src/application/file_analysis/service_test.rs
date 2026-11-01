@@ -1,6 +1,6 @@
 //! Analysis uses its injected language and propagates required failures.
 use super::errors::FileAnalysisError;
-use super::service::FileAnalysis;
+use super::service::{FileAnalysis, recovery_of};
 use crate::cases::{Case, CaseName, Expect, Selection, Word, run};
 use crate::outbound::corpus::fixtures::fake::CorpusFake;
 use crate::outbound::digest::fixtures::fake::DigestFake;
@@ -15,6 +15,68 @@ use ryo_language::domain::symbols::types::Symbols;
 use ryo_language::inbound::use_cases::project::types::RootPath;
 use ryo_language::inbound::use_cases::project::types::{ManifestFile, ManifestText};
 use std::sync::{Arc, atomic::Ordering};
+
+#[test]
+fn only_incomplete_diagnostics_mark_code_relations_as_recovery() {
+    use crate::domain::coverage::service::partial_of;
+    use crate::domain::coverage::types::Recovery;
+    use crate::outbound::language::types::FileReading;
+    use ryo_language::domain::elements::service::{
+        diagnose, diagnose_with_metadata, diagnostics, has_incomplete_syntax, table_builder,
+    };
+    use ryo_language::domain::elements::types::{
+        DiagnosticCode, DiagnosticMetadata, DiagnosticPhase, Elements, TreeImpact,
+    };
+    use ryo_language::domain::relations::types::{Offset, Relation, ReportText};
+    use ryo_language::domain::symbols::types::ByteSlice;
+
+    let mut elements = Elements::default();
+    let mut symbols = Symbols::default();
+    let source = ByteSlice(b"x");
+    let mut builder = table_builder(&mut elements, &mut symbols, source);
+    diagnose_with_metadata(
+        &mut builder,
+        DiagnosticMetadata::new(
+            DiagnosticPhase::Validation,
+            TreeImpact::Preserved,
+            DiagnosticCode::provider_owned("fixture.target-syntax"),
+        ),
+        ReportText("syntax is unsupported by this target"),
+        Offset(0),
+        Offset(1),
+    );
+    drop(builder);
+
+    let preserved = recovery_of(
+        &FileReading::Read(ryo_values::domain::stored_facts::types::LanguageNumber(0)),
+        &elements,
+    );
+    assert_eq!(preserved, Recovery::Whole);
+    assert!(!has_incomplete_syntax(&elements));
+    assert_eq!(
+        diagnostics(&elements).count(),
+        1,
+        "diagnostic remains reportable"
+    );
+    assert!(partial_of(&[], preserved, &[Relation::Function]).is_empty());
+
+    let mut builder = table_builder(&mut elements, &mut symbols, source);
+    diagnose(
+        &mut builder,
+        ReportText("legacy parser diagnostic without impact metadata"),
+        Offset(0),
+        Offset(1),
+    );
+    drop(builder);
+    let incomplete = recovery_of(
+        &FileReading::Read(ryo_values::domain::stored_facts::types::LanguageNumber(0)),
+        &elements,
+    );
+    assert_eq!(incomplete, Recovery::SyntaxErrors);
+    assert!(has_incomplete_syntax(&elements));
+    assert_eq!(diagnostics(&elements).count(), 1);
+    assert!(!partial_of(&[], incomplete, &[Relation::Function]).is_empty());
+}
 
 /// What the last run kept, for a run that uses nothing of it.
 static NOTHING_STORED: std::sync::LazyLock<ryo_values::domain::stores::types::Stored> =
