@@ -6,12 +6,13 @@ use crate::outbound::syntax::interface::SyntaxPort;
 use crate::outbound::syntax::types::SourceText;
 use ruff_python_ast::PythonVersion;
 use ruff_python_ast::visitor::{Visitor, walk_stmt};
-use ruff_python_ast::{Mod, Stmt};
+use ruff_python_ast::{Arguments, Expr, Mod, Parameters, Stmt, TypeParams};
 use ruff_python_ast::visitor::source_order::SourceOrderVisitor as _;
 use ruff_python_parser::{Mode, ParseOptions, parse_unchecked};
 use ruff_text_size::Ranged as _;
 use ryo::languages::{self, Offset};
 use std::borrow::Cow;
+use std::collections::HashSet;
 
 /// The `ruff_python_parser` syntax adapter.
 #[derive(Debug)]
@@ -22,30 +23,111 @@ pub(super) fn options() -> ParseOptions {
     ParseOptions::from(Mode::Module).with_target_version(PythonVersion::latest())
 }
 
-/// Module-level `nonlocal` is a semantic syntax error; compound statements do not create scopes.
-fn module_level_nonlocals(module: &Mod) -> Vec<ruff_text_size::TextRange> {
+struct SemanticSyntaxDiagnostic {
+    message: String,
+    range: ruff_text_size::TextRange,
+}
+
+/// Report local AST semantic errors Ruff classifies as invalid syntax.
+fn semantic_syntax_errors(module: &Mod) -> Vec<SemanticSyntaxDiagnostic> {
     let Mod::Module(module) = module else {
         return Vec::new();
     };
 
     #[derive(Default)]
-    struct Nonlocals(Vec<ruff_text_size::TextRange>);
+    struct VisitorState {
+        lexical_scope_depth: usize,
+        errors: Vec<SemanticSyntaxDiagnostic>,
+    }
 
-    impl<'a> Visitor<'a> for Nonlocals {
-        fn visit_stmt(&mut self, stmt: &'a Stmt) {
-            match stmt {
-                Stmt::Nonlocal(nonlocal) => self.0.push(nonlocal.range),
-                Stmt::FunctionDef(_) | Stmt::ClassDef(_) => {}
-                _ => walk_stmt(self, stmt),
+    impl VisitorState {
+        fn report(&mut self, message: impl Into<String>, range: ruff_text_size::TextRange) {
+            self.errors.push(SemanticSyntaxDiagnostic { message: message.into(), range });
+        }
+
+        fn duplicate_parameters(&mut self, parameters: &Parameters) {
+            if parameters.len() < 2 { return; }
+            let mut names = HashSet::new();
+            for parameter in parameters.iter() {
+                let name = parameter.name().as_str();
+                if !names.insert(name) {
+                    self.report(format!(r#"Duplicate parameter "{name}""#), parameter.name().range());
+                }
+            }
+        }
+
+        fn type_parameters(&mut self, parameters: &TypeParams) {
+            if parameters.len() < 2 { return; }
+            let mut names = HashSet::new();
+            for parameter in parameters {
+                let name = parameter.name().id.as_str();
+                if !names.insert(name) {
+                    self.report("duplicate type parameter", parameter.range());
+                }
+            }
+            let mut saw_default = false;
+            for parameter in parameters {
+                if saw_default && parameter.default().is_none() {
+                    self.report(format!("non default type parameter `{}` follows default type parameter", parameter.name().id.as_str()), parameter.range());
+                }
+                saw_default |= parameter.default().is_some();
+            }
+        }
+
+        fn duplicate_keywords(&mut self, arguments: &Arguments) {
+            if arguments.keywords.len() < 2 { return; }
+            let mut names = HashSet::new();
+            for (name, range) in arguments.keywords.iter().filter_map(|keyword| keyword.arg.as_ref().map(|name| (name, keyword.range))) {
+                if !names.insert(name.as_str()) {
+                    self.report(format!("Duplicate keyword argument `{}`", name.as_str()), range);
+                }
             }
         }
     }
 
-    let mut visitor = Nonlocals::default();
+    impl<'a> Visitor<'a> for VisitorState {
+        fn visit_stmt(&mut self, stmt: &'a Stmt) {
+            match stmt {
+                Stmt::Nonlocal(nonlocal) if self.lexical_scope_depth == 0 => self.report("nonlocal declaration not allowed at module level", nonlocal.range),
+                Stmt::FunctionDef(function) => {
+                    if let Some(parameters) = &function.type_params { self.type_parameters(parameters); }
+                    self.duplicate_parameters(&function.parameters);
+                    self.lexical_scope_depth += 1;
+                    walk_stmt(self, stmt);
+                    self.lexical_scope_depth -= 1;
+                }
+                Stmt::ClassDef(class) => {
+                    if let Some(parameters) = &class.type_params { self.type_parameters(parameters); }
+                    if let Some(arguments) = &class.arguments { self.duplicate_keywords(arguments); }
+                    self.lexical_scope_depth += 1;
+                    walk_stmt(self, stmt);
+                    self.lexical_scope_depth -= 1;
+                }
+                Stmt::TypeAlias(alias) => {
+                    if let Some(parameters) = &alias.type_params { self.type_parameters(parameters); }
+                    walk_stmt(self, stmt);
+                }
+                _ => walk_stmt(self, stmt),
+            }
+        }
+
+        fn visit_expr(&mut self, expr: &'a Expr) {
+            match expr {
+                Expr::Lambda(lambda) => {
+                    if let Some(parameters) = &lambda.parameters { self.duplicate_parameters(parameters); }
+                }
+                Expr::Call(call) => self.duplicate_keywords(&call.arguments),
+                _ => {}
+            }
+            ruff_python_ast::visitor::walk_expr(self, expr);
+        }
+    }
+
+    let mut visitor = VisitorState::default();
     for statement in &module.body {
         visitor.visit_stmt(statement);
     }
-    visitor.0
+    visitor.errors
 }
 
 impl SyntaxPort for SyntaxRuffPythonParserAdapter {
@@ -62,7 +144,7 @@ impl SyntaxPort for SyntaxRuffPythonParserAdapter {
             AnnotationContext::Runtime,
         );
         writer.visit_mod(parsed.syntax());
-        let module_nonlocals = module_level_nonlocals(parsed.syntax());
+        let semantic_errors = semantic_syntax_errors(parsed.syntax());
         if source.len() == text.0.len() && matches!(source, Cow::Owned(_)) {
             let mut at = 0_usize;
             for chunk in text.0.utf8_chunks() {
@@ -96,12 +178,12 @@ impl SyntaxPort for SyntaxRuffPythonParserAdapter {
                 Offset(error.range.end().to_u32()),
             );
         }
-        for range in module_nonlocals {
+        for error in semantic_errors {
             languages::diagnose(
                 writer.tree.builder,
-                languages::ReportText("nonlocal declaration not allowed at module level"),
-                Offset(range.start().to_u32()),
-                Offset(range.end().to_u32()),
+                languages::ReportText(&error.message),
+                Offset(error.range.start().to_u32()),
+                Offset(error.range.end().to_u32()),
             );
         }
         let refused = std::mem::take(&mut writer.refused);

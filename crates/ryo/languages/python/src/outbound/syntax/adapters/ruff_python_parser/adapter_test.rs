@@ -178,6 +178,107 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(Seen::Diagnostics(&[])),
     },
     Case {
+        name: CaseName("duplicate_function_parameters_report_each_repeated_name"),
+        word: Word::Succeeds,
+        input: || Given::Diagnostics("def f(a, /, a, *, b, b): ...\n"),
+        expect: Expect::Value(Seen::Diagnostics(&[
+            ("Duplicate parameter \"a\"", 12, 13),
+            ("Duplicate parameter \"b\"", 21, 22),
+        ])),
+    },
+    Case {
+        name: CaseName("positional_only_keyword_only_and_variadic_parameters_can_be_distinct"),
+        word: Word::Succeeds,
+        input: || Given::Diagnostics("def f(a, /, b, *args, c, **kwargs): ...\n"),
+        expect: Expect::Value(Seen::Diagnostics(&[])),
+    },
+    Case {
+        name: CaseName("duplicate_lambda_parameters_are_reported"),
+        word: Word::Succeeds,
+        input: || Given::Diagnostics("lambda x, x: x\n"),
+        expect: Expect::Value(Seen::Diagnostics(&[("Duplicate parameter \"x\"", 10, 11)])),
+    },
+    Case {
+        name: CaseName("same_parameter_name_in_nested_functions_is_not_a_duplicate"),
+        word: Word::Succeeds,
+        input: || Given::Diagnostics("def outer(x):\n    def inner(x): ...\n"),
+        expect: Expect::Value(Seen::Diagnostics(&[])),
+    },
+    Case {
+        name: CaseName("duplicate_type_parameters_report_each_later_occurrence"),
+        word: Word::Succeeds,
+        input: || Given::Diagnostics("def f[T, T, T](): ...\n"),
+        expect: Expect::Value(Seen::Diagnostics(&[
+            ("duplicate type parameter", 9, 10),
+            ("duplicate type parameter", 12, 13),
+        ])),
+    },
+    Case {
+        name: CaseName("non_default_type_parameters_after_a_default_are_reported"),
+        word: Word::Succeeds,
+        input: || Given::Diagnostics("def f[T = int, U, V](): ...\n"),
+        expect: Expect::Value(Seen::Diagnostics(&[
+            (
+                "non default type parameter `U` follows default type parameter",
+                15,
+                16,
+            ),
+            (
+                "non default type parameter `V` follows default type parameter",
+                18,
+                19,
+            ),
+        ])),
+    },
+    Case {
+        name: CaseName("a_fully_defaulted_type_parameter_suffix_is_valid"),
+        word: Word::Succeeds,
+        input: || Given::Diagnostics("def f[T, U = int, V = str](): ...\n"),
+        expect: Expect::Value(Seen::Diagnostics(&[])),
+    },
+    Case {
+        name: CaseName("class_type_parameter_default_order_uses_its_local_scope"),
+        word: Word::Succeeds,
+        input: || Given::Diagnostics("class C[T = int, U]: ...\n"),
+        expect: Expect::Value(Seen::Diagnostics(&[(
+            "non default type parameter `U` follows default type parameter",
+            17,
+            18,
+        )])),
+    },
+    Case {
+        name: CaseName("duplicate_call_keywords_report_the_second_keyword_range"),
+        word: Word::Succeeds,
+        input: || Given::Diagnostics("call(x=1, x=2)\n"),
+        expect: Expect::Value(Seen::Diagnostics(&[(
+            "Duplicate keyword argument `x`",
+            10,
+            13,
+        )])),
+    },
+    Case {
+        name: CaseName("dictionary_expansion_keyword_duplicates_are_not_syntax_errors"),
+        word: Word::Succeeds,
+        input: || Given::Diagnostics("call(x=1, **{\"x\": 2})\n"),
+        expect: Expect::Value(Seen::Diagnostics(&[])),
+    },
+    Case {
+        name: CaseName("duplicate_class_keywords_report_the_second_keyword_range"),
+        word: Word::Succeeds,
+        input: || Given::Diagnostics("class C(metaclass=A, metaclass=B): ...\n"),
+        expect: Expect::Value(Seen::Diagnostics(&[(
+            "Duplicate keyword argument `metaclass`",
+            21,
+            32,
+        )])),
+    },
+    Case {
+        name: CaseName("duplicate_parameter_diagnostic_survives_an_unbound_name_in_the_body"),
+        word: Word::Succeeds,
+        input: || Given::Diagnostics("def f(x, x):\n    print(missing)\n"),
+        expect: Expect::Value(Seen::Diagnostics(&[("Duplicate parameter \"x\"", 9, 10)])),
+    },
+    Case {
         name: CaseName("a_call_is_nodes_with_its_punctuation_as_tokens"),
         word: Word::Succeeds,
         input: || Given::Tree("f(x)"),
