@@ -344,7 +344,7 @@ pub(super) fn intern_with_hash(
         representative: at,
         previous: index.buckets.get(&hash).copied(),
     });
-    let _ = index.buckets.insert(hash, place);
+    let _previous_bucket_head = index.buckets.insert(hash, place);
     Some(at)
 }
 
