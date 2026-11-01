@@ -79,3 +79,27 @@ expected = []
 name = "python-source-excluded"
 files = { "case.py" = "from typing import TypeVar\nT = TypeVar(\"T\")\n" }
 expected = []
+
+[[cases]]
+name = "function-scope-barrier-py-False"
+comparison = "full"
+files = { "case.py" = "from typing import TypeVar\nclass C:\n    def f(self):\n        T=TypeVar(\"T\")\n" }
+expected = []
+
+[[cases]]
+name = "function-scope-barrier-py-True"
+comparison = "full"
+files = { "case.py" = "from typing import TypeVar\nclass C:\n    async def f(self):\n        T=TypeVar(\"T\")\n" }
+expected = []
+
+[[cases]]
+name = "function-scope-barrier-pyi-False"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nclass C:\n    def f(self):\n        T=TypeVar(\"T\")\n" }
+expected = []
+
+[[cases]]
+name = "function-scope-barrier-pyi-True"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nclass C:\n    async def f(self):\n        T=TypeVar(\"T\")\n" }
+expected = []

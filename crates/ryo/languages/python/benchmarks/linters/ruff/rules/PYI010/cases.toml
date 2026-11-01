@@ -145,3 +145,15 @@ expected = [{ file = "case.pyi", start = 31, end = 39 }]
 name = "shared-file-ignore"
 files = { "case.pyi" = "# ruff: file-ignore[PYI010]\ndef f(): return 1\n" }
 expected = []
+
+[[cases]]
+name = "crossrule-PYI001-typevar-inside-async-method-is-not-module-level"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nclass C:\n    async def f(self):\n        T = TypeVar(\"T\")\n" }
+expected = [{ rule = "PYI010", file = "case.pyi", start = 67, end = 83 }]
+
+[[cases]]
+name = "crossrule-PYI035-slots-inside-async-method-is-not-class-attribute"
+comparison = "full"
+files = { "case.pyi" = "class C:\n    async def f(self):\n        __slots__: tuple[str]\n" }
+expected = [{ rule = "PYI010", file = "case.pyi", start = 40, end = 61 }]
