@@ -1,0 +1,54 @@
+[[cases]]
+name = "loop_target_captured_by_lambda"
+files = { "case.py" = "def f():\n    funcs = []\n    for i in range(3):\n        funcs.append(lambda: i)\n" }
+expected = [{ rule = "B023", file = "case.py", start = 76, end = 77 }]
+
+[[cases]]
+name = "loop_target_captured_by_named_function"
+files = { "case.py" = "def f():\n    funcs = []\n    for i in range(3):\n        def inner():\n            return i\n        funcs.append(inner)\n" }
+expected = [{ rule = "B023", file = "case.py", start = 87, end = 88 }]
+
+[[cases]]
+name = "lambda_default_binds_loop_value"
+files = { "case.py" = "def f():\n    funcs = []\n    for i in range(3):\n        funcs.append(lambda i=i: i)\n" }
+expected = []
+
+[[cases]]
+name = "function_local_assignment_shadows_loop_value"
+files = { "case.py" = "def f():\n    for i in range(3):\n        def inner():\n            i = 2\n            return i\n" }
+expected = []
+
+[[cases]]
+name = "map_lambda_is_immediately_consumed"
+files = { "case.py" = "def f():\n    for i in range(3):\n        funcs.append(map(lambda: i, values))\n" }
+expected = []
+
+[[cases]]
+name = "nested_lambda_inside_map_argument_is_not_immediately_consumed"
+files = { "case.py" = "def f():\n    for i in range(3):\n        funcs.append(map(wrap(lambda: i), values))\n" }
+expected = [{ rule = "B023", file = "case.py", start = 70, end = 71 }]
+
+[[cases]]
+name = "shadowed_map_name_is_still_immediately_consumed"
+files = { "case.py" = "def f():\n    for i in range(3):\n        map = custom\n        map(lambda: i, values)\n" }
+expected = []
+
+[[cases]]
+name = "functools_reduce_lambda_is_immediately_consumed"
+files = { "case.py" = "import functools\ndef f():\n    for i in range(3):\n        funcs.append(functools.reduce(lambda: i, values))\n" }
+expected = []
+
+[[cases]]
+name = "loop_body_assignment_captured_by_lambda"
+files = { "case.py" = "def f():\n    funcs = []\n    for item in values:\n        current = item\n        funcs.append(lambda: current)\n" }
+expected = [{ rule = "B023", file = "case.py", start = 100, end = 107 }]
+
+[[cases]]
+name = "immediately-invoked-lambda-is-safe"
+files = { "case.py" = "def f():\n    for i in range(3):\n        (lambda: i)()\n" }
+expected = []
+
+[[cases]]
+name = "returned-lambda-is-safe"
+files = { "case.py" = "def f():\n    for i in range(3):\n        return lambda: i\n" }
+expected = []
