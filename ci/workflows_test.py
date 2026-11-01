@@ -16,10 +16,10 @@ WORKFLOWS = sorted(DIRECTORY.glob("*.yml"))
 # The one command a job's checks are, with the product root and the groups it names: Asymptote decides what runs.
 CHECK = re.compile(r"asymptote check( --root [\w./-]+)?( --groups [a-z][a-z-]*(,[a-z][a-z-]*)*)?")
 # The release itself: a job that does not check runs one job command (`ci/<job>/command.py`) with plain arguments, which no shell
-# chains anything to, or only actions (a build matrix). The values it is handed are crates.io's token, from the `release` environment
-# or its trusted publishing, npm's token for a first publish, and the token `gh` creates the GitHub Release with.
+# chains anything to, or only actions (a build matrix). The values it is handed are crates.io's token, from its trusted publishing,
+# and the token `gh` creates the GitHub Release with; npm and PyPI exchange the OIDC token themselves.
 COMMAND = re.compile(r"uv run ci/[a-z_]+/command\.py( [\w./=-]+)*")
-HANDED = {"CARGO_REGISTRY_TOKEN", "GH_TOKEN", "NODE_AUTH_TOKEN"}
+HANDED = {"CARGO_REGISTRY_TOKEN", "GH_TOKEN"}
 # What may start a workflow: a hand run, a pull request, a push to main. A schedule starts only the workflows `SCHEDULED` names, and a
 # workflow that publishes starts only by hand; `pull_request_target`, which runs a fork's code with the repository's secrets, never.
 ALLOWED = {"workflow_dispatch", "pull_request", "push"}
@@ -164,7 +164,7 @@ def test_a_step_handed_more_than_the_tokens_is_refused() -> None:
     publish = job("uv run ci/release/command.py", needs="check")
     publish["steps"][0]["env"] = {"CARGO_REGISTRY_TOKEN": "x", "OTHER": "y"}
     assert problems({"jobs": {"check": job("asymptote check"), "publish": publish}}) == [
-        "publish hands a step more than ['CARGO_REGISTRY_TOKEN', 'GH_TOKEN', 'NODE_AUTH_TOKEN']"
+        "publish hands a step more than ['CARGO_REGISTRY_TOKEN', 'GH_TOKEN']"
     ]
 
 
@@ -281,10 +281,15 @@ def test_only_the_release_job_that_uploads_is_handed_a_token_and_only_after_the_
     assert all(row["runner"] == "ubuntu-26.04" for row in rows if row["group"] not in {"release-tests", "check", "api"})
     assert len(rows) == len({(row["runner"], row["group"]) for row in rows})
     (uploading,) = [step for step in publish["steps"] if "CARGO_REGISTRY_TOKEN" in step.get("env", {})]
-    assert uploading["env"]["CARGO_REGISTRY_TOKEN"].startswith("${{ env.PUBLISH == 'true' &&")
-    assert uploading["env"]["NODE_AUTH_TOKEN"].startswith("${{ env.PUBLISH == 'true' &&")
+    # Trusted publishing only: crates.io's token is the one its auth action exchanged, and no step reads a secret.
+    assert uploading["env"]["CARGO_REGISTRY_TOKEN"] == "${{ env.PUBLISH == 'true' && steps.crates-io.outputs.token || '' }}"
     (auth,) = [step for step in publish["steps"] if step.get("uses", "").startswith("rust-lang/crates-io-auth-action@")]
-    assert "env.PUBLISH == 'true'" in auth["if"]
+    assert auth["if"] == "env.PUBLISH == 'true'"
+    assert "secrets." not in (DIRECTORY / "release.yml").read_text()
+    assert publish["permissions"]["id-token"] == "write"
+    # npm's trusted publishing needs npm 11.5.1 or later, which the latest Node 24 bundles.
+    (node,) = [step for step in publish["steps"] if step.get("uses", "").startswith("actions/setup-node@")]
+    assert node["with"]["node-version"] == 24 and node["with"]["check-latest"] is True
     (release,) = [step for step in publish["steps"] if step.get("name") == RELEASE_STEP]
     assert release["if"] == "env.PUBLISH == 'true'"
 

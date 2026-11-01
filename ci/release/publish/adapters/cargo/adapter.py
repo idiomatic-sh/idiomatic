@@ -154,8 +154,8 @@ class CargoPublish(Publish):
             print(f"{product.package}: crates.io is not yet possible: the manifest says publish = false", flush=True)
             return
         if not dry_run and not os.environ.get("CARGO_REGISTRY_TOKEN"):
-            # The workflow hands the token: the `release` environment's secret on the first
-            # run, crates.io's trusted publishing (its auth action) after.
+            # The workflow hands the token: the one crates.io's trusted publishing (its auth
+            # action) exchanges this run's OIDC token for.
             raise RuntimeError(f"{product.package}: no crates.io token: the workflow handed none")
         metadata = cargo_metadata(artifact.path / "Cargo.toml")
         order = publication_order(metadata, product.package)
