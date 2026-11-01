@@ -25,7 +25,7 @@ let selected_zero_subscripts = select l.subscript as id, l.file as file from ind
 let three_literals = select id, file from "semantic-syntax" where kind = "number" and matches(text, "^(?:3|0[xX]_?3|0[oO]_?3|0[bB]_?1_?1)$");
 let relevant_ops = select id from "semantic-syntax" where text = "==" or text = "!=";
 let matching_ops = select l.comparison as comparison, l.comparator as comparator, l.file as file from one_comparisons as l join relevant_ops as r on l.operator = r.id;
-let left_matches = select l.comparison as comparison, l.left as left, l.file as file, r.comparator as comparator from left_comparisons as l join selected_zero_subscripts as r on l.left = r.id and l.file = r.file;
+let left_matches = select l.comparison as comparison, l.left as left, l.file as file, l.comparator as comparator from left_comparisons as l join selected_zero_subscripts as r on l.left = r.id and l.file = r.file;
 let matched_comparisons = select l.comparison as comparison, l.left as left, l.file as file, l.comparator as comparator from left_matches as l join matching_ops as r on l.comparison = r.comparison and l.file = r.file;
 let reported_lefts = select l.left as id, l.file as file from matched_comparisons as l join three_literals as r on l.comparator = r.id and l.file = r.file;
 let reportable = select l.id as id, l.file as file, r.span as span from reported_lefts as l join "semantic-syntax" as r on l.id = r.id and l.file = r.file;

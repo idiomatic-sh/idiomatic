@@ -8,8 +8,6 @@ import contextlib
 import hashlib
 import json
 import os
-import re
-import shlex
 import shutil
 import subprocess
 import sys
@@ -246,21 +244,176 @@ def profile_tool_matches(profile_data: dict[str, object], manifest: dict[str, ob
     )
 
 
-def command_for(ruff: Path, profile_root: Path, reference_only: bool = False) -> list[str]:
+def command_for(worker: Path, ruff: Path, profile_root: Path, reference_only: bool = False) -> list[str]:
+    """Invoke the one immutable benchmark executable built for this profile batch."""
+    return [
+        str(worker),
+        "verify-reference-cases" if reference_only else "verify-cases",
+        str(ruff),
+        str(profile_root),
+    ]
+
+
+def cargo_worker_build_command() -> list[str]:
+    """Build the benchmark once and request machine-readable artifact paths."""
     return [
         "cargo",
         "bench",
-        "--verbose",
+        "--no-run",
         "--locked",
         "-p",
         "idiomatic-sh-ryo-python",
         "--bench",
         "ruff",
-        "--",
-        "verify-reference-cases" if reference_only else "verify-cases",
-        str(ruff),
-        str(profile_root),
+        "--message-format=json",
     ]
+
+
+def parse_worker_artifact(stdout: bytes) -> Path:
+    """Read Cargo JSON output and return the ruff bench executable."""
+    matches = []
+    for line in stdout.splitlines():
+        try:
+            message = json.loads(line)
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            continue
+        target = message.get("target", {})
+        if (
+            message.get("reason") == "compiler-artifact"
+            and target.get("name") == "ruff"
+            and "bench" in target.get("kind", [])
+            and isinstance(message.get("executable"), str)
+        ):
+            matches.append(Path(message["executable"]))
+    if len(matches) != 1:
+        raise ValueError(f"Cargo JSON reported {len(matches)} ruff benchmark executables")
+    return matches[0].resolve(strict=True)
+
+
+def worker_source_identity() -> dict[str, object]:
+    """Capture the Ryo source identity needed to detect edits during the build."""
+    try:
+        revision = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=REPOSITORY, capture_output=True, check=True
+        ).stdout.decode().strip()
+        diff = subprocess.run(
+            ["git", "diff", "--binary", "HEAD", "--", "crates/ryo"],
+            cwd=REPOSITORY,
+            capture_output=True,
+            check=True,
+        ).stdout
+        status = subprocess.run(
+            ["git", "status", "--porcelain", "--untracked-files=all", "--", "crates/ryo"],
+            cwd=REPOSITORY,
+            capture_output=True,
+            check=True,
+        ).stdout.decode().splitlines()
+        source_paths = subprocess.run(
+            [
+                "git",
+                "ls-files",
+                "-z",
+                "--cached",
+                "--others",
+                "--exclude-standard",
+                "--",
+                "crates/ryo",
+            ],
+            cwd=REPOSITORY,
+            capture_output=True,
+            check=True,
+        ).stdout.split(b"\0")
+    except (OSError, subprocess.CalledProcessError) as error:
+        raise ValueError(f"could not identify Ryo source before worker build: {error}") from error
+    source_digest = hashlib.sha256()
+    for raw_path in sorted(path for path in source_paths if path):
+        relative = Path(os.fsdecode(raw_path))
+        path = REPOSITORY / relative
+        if path.is_symlink():
+            content = os.fsencode(os.readlink(path))
+        elif path.is_file():
+            content = path.read_bytes()
+        else:
+            continue
+        source_digest.update(len(raw_path).to_bytes(8, "big"))
+        source_digest.update(raw_path)
+        source_digest.update(len(content).to_bytes(8, "big"))
+        source_digest.update(content)
+    return {
+        "repository_revision": revision,
+        "working_tree_status": status,
+        "working_tree_diff_sha256": hashlib.sha256(diff).hexdigest(),
+        "source_tree_sha256": source_digest.hexdigest(),
+    }
+
+
+def build_worker_once(
+    output_directory: Path | None,
+    stack: contextlib.ExitStack,
+    *,
+    runner=subprocess.run,
+) -> tuple[Path, dict[str, object]]:
+    """Build, identify and freeze one executable before any profile is run."""
+    command = cargo_worker_build_command()
+    before = worker_source_identity()
+    environment = {**os.environ, "CARGO_BUILD_JOBS": "6"}
+    error = None
+    result = None
+    try:
+        result = runner(
+            command,
+            cwd=REPOSITORY / "crates" / "ryo",
+            env=environment,
+            capture_output=True,
+            text=False,
+            check=False,
+        )
+        if result.returncode != 0:
+            raise ValueError(f"Cargo benchmark build exited with status {result.returncode}")
+        artifact = parse_worker_artifact(result.stdout)
+        after = worker_source_identity()
+        if before != after:
+            raise ValueError("Ryo sources changed while building the benchmark executable")
+        if output_directory is None:
+            worker_directory = Path(
+                stack.enter_context(tempfile.TemporaryDirectory(prefix="ryo-ruff-worker-"))
+            )
+        else:
+            worker_directory = output_directory / "worker"
+            worker_directory.mkdir(parents=True, exist_ok=False)
+        worker_copy = worker_directory / f"ruff-{sha256(artifact)}"
+        shutil.copy2(artifact, worker_copy)
+        identities = {
+            "command": command,
+            "status": result.returncode,
+            "source_before_build": before,
+            "source_after_build": after,
+            "source_stable_during_build": True,
+            "cargo_artifact": str(artifact),
+            "frozen_executable": {"path": str(worker_copy.resolve()), "sha256": sha256(worker_copy)},
+        }
+    except Exception as caught:
+        error = f"{type(caught).__name__}: {caught}"
+        after = worker_source_identity()
+        identities = {
+            "command": command,
+            "status": result.returncode if result is not None else 1,
+            "source_before_build": before,
+            "source_after_build": after,
+            "source_stable_during_build": before == after,
+            "error": error,
+        }
+    if output_directory is not None:
+        build_directory = output_directory / "build"
+        build_directory.mkdir(exist_ok=True)
+        (build_directory / "stdout.bin").write_bytes(result.stdout if result is not None else b"")
+        (build_directory / "stderr.bin").write_bytes(result.stderr if result is not None else b"")
+        (build_directory / "result.json").write_text(
+            json.dumps(identities, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+        )
+    if error is not None:
+        raise ValueError(error)
+    return worker_copy, identities
 
 
 def stage_directory(
@@ -342,7 +495,6 @@ def verify_profile(
             check=False,
         )
     except Exception as error:
-        worker_identity(identities, None)
         return persist_run_record(
             output_directory,
             name,
@@ -352,7 +504,6 @@ def verify_profile(
             error=f"{type(error).__name__}: {error}",
             identities=identities,
         )
-    worker_identity(identities, result.stdout + b"\n" + result.stderr)
     return persist_run_record(
         output_directory,
         name,
@@ -363,37 +514,20 @@ def verify_profile(
     )
 
 
-def worker_identity(identities: dict[str, object], stderr: bytes | None) -> None:
-    """Record the exact benchmark executable Cargo launched on either output stream."""
+def worker_identity(identities: dict[str, object], executable: Path) -> None:
+    """Record and verify the immutable executable used for this profile."""
     worker = identities.setdefault("worker", {})
     if not isinstance(worker, dict):
         return
-    executable = None
-    if stderr is not None:
-        for line in stderr.decode(errors="replace").splitlines():
-            line = re.sub(r"\x1b\[[0-9;]*m", "", line).strip()
-            if not line.startswith("Running "):
-                continue
-            try:
-                arguments = shlex.split(line[len("Running ") :].strip("`"))
-            except ValueError:
-                continue
-            for argument in arguments:
-                candidate = Path(argument.strip("()"))
-                if candidate.name.startswith("ruff-") and candidate.is_file():
-                    executable = candidate.resolve()
-                    break
-            if executable is not None:
-                break
-    worker["executable"] = (
-        {"path": str(executable), "sha256": sha256(executable)}
-        if executable is not None
-        else {"available": False, "reason": "Cargo launch path not found in captured stderr"}
-    )
+    worker["executable"] = {"path": str(executable.resolve()), "sha256": sha256(executable)}
 
 
 def run_identity(
-    manifest: dict[str, object], ruff: Path, profile_root: Path
+    manifest: dict[str, object],
+    ruff: Path,
+    profile_root: Path,
+    worker_executable: Path,
+    build_identity: dict[str, object],
 ) -> dict[str, object]:
     """Describe the sealed inputs, candidate worker source, and pinned reference binary."""
     try:
@@ -418,6 +552,7 @@ def run_identity(
     except (OSError, subprocess.CalledProcessError):
         worker_diff = b""
         worker_status = None
+    current_source = worker_source_identity()
     lock = REPOSITORY / "crates" / "ryo" / "Cargo.lock"
     resolved_ruff = ruff.resolve()
     cargo = shutil.which("cargo")
@@ -447,6 +582,22 @@ def run_identity(
             "cargo_path": cargo,
             "cargo_version": cargo_version,
             "rustc_version": rustc_version,
+            "build": build_identity,
+            "source_status_changed_after_build": (
+                not isinstance(build_identity.get("source_after_build"), dict)
+                or any(
+                    build_identity["source_after_build"].get(key) != current
+                    for key, current in (
+                        ("repository_revision", revision),
+                        ("working_tree_status", worker_status),
+                        ("working_tree_diff_sha256", hashlib.sha256(worker_diff).hexdigest()),
+                        (
+                            "source_tree_sha256",
+                            current_source.get("source_tree_sha256"),
+                        ),
+                    )
+                )
+            ),
             "staged_profile_sha256": staged_hashes(profile_root),
         },
         "ruff": {
@@ -756,8 +907,19 @@ def self_test() -> int:
             return fake_output
 
         command = ["fake-worker", "--case", "exact"]
+        mock_executable = root / "mock-executable"
+        mock_executable.write_bytes(b"fixed mock executable")
+        mock_identity = {
+            "identity": "sealed",
+            "worker": {
+                "executable": {
+                    "path": str(mock_executable.resolve()),
+                    "sha256": sha256(mock_executable),
+                }
+            },
+        }
         if verify_profile(
-            "mock", repro, command, durable, {"identity": "sealed"}, runner=fake_runner
+            "mock", repro, command, durable, mock_identity, runner=fake_runner
         ) != 7:
             print("mock verifier status was not preserved", file=sys.stderr)
             return 1
@@ -772,22 +934,127 @@ def self_test() -> int:
             or (durable / "profiles" / "mock" / "stderr.bin").read_bytes() != fake_output.stderr
             or result["status"] != 7
             or result["identities"]["identity"] != "sealed"
-            or result["identities"]["worker"]["executable"]["available"] is not False
+            or result["identities"]["worker"]["executable"]["sha256"] != sha256(mock_executable)
             or result["staged_inputs"] != {"benchmark.toml": sha256(repro / "benchmark.toml")}
         ):
             print("durable verifier output or identities were not preserved", file=sys.stderr)
             return 1
 
         fake_worker = root / "ruff-fake-worker"
-        fake_worker.write_bytes(b"worker binary fixture")
+        fake_worker.write_text(
+            "#!/usr/bin/env python3\n"
+            "import os, pathlib, subprocess, sys\n"
+            "label = 'child' if len(sys.argv) > 1 and sys.argv[1] == 'run-ryo' else 'parent'\n"
+            "pathlib.Path(os.environ['WORKER_PATHS']).open('a').write(label + '|' + sys.argv[0] + '\\n')\n"
+            "if label == 'parent': subprocess.run([sys.argv[0], 'run-ryo'], check=True)\n",
+            encoding="utf-8",
+        )
+        fake_worker.chmod(0o755)
         worker_record = {"worker": {}}
-        worker_identity(worker_record, f"  Running benchmarks/ruff.rs ({fake_worker})\n".encode())
+        worker_identity(worker_record, fake_worker)
         if worker_record["worker"]["executable"] != {
             "path": str(fake_worker.resolve()),
             "sha256": sha256(fake_worker),
         }:
-            print("launched worker binary identity was not captured", file=sys.stderr)
+            print("frozen worker identity was not captured", file=sys.stderr)
             return 1
+
+        build_root = root / "worker-build"
+        build_root.mkdir()
+        artifact_line = json.dumps(
+            {
+                "reason": "compiler-artifact",
+                "target": {"name": "ruff", "kind": ["bench"]},
+                "executable": str(fake_worker),
+            }
+        ).encode()
+        build_calls = []
+
+        def successful_build_runner(build_command, **options):
+            build_calls.append((build_command, options))
+            return subprocess.CompletedProcess(
+                build_command, 0, stdout=artifact_line + b"\n", stderr=b"build output\n"
+            )
+
+        frozen_worker, build_identity = build_worker_once(
+            build_root, contextlib.ExitStack(), runner=successful_build_runner
+        )
+        profile_commands = [
+            command_for(frozen_worker, Path("ruff"), root / "profile-a"),
+            command_for(frozen_worker, Path("ruff"), root / "profile-b"),
+        ]
+        worker_paths = root / "worker-paths.log"
+        env = {**os.environ, "WORKER_PATHS": str(worker_paths)}
+        runs = [subprocess.run(command, env=env, capture_output=True, check=False) for command in profile_commands]
+        observed_paths = worker_paths.read_text(encoding="utf-8").splitlines()
+        if (
+            len(build_calls) != 1
+            or len(runs) != 2
+            or any(run.returncode != 0 for run in runs)
+            or profile_commands[0][0] != profile_commands[1][0]
+            or observed_paths
+            != [
+                f"parent|{frozen_worker}",
+                f"child|{frozen_worker}",
+                f"parent|{frozen_worker}",
+                f"child|{frozen_worker}",
+            ]
+            or any("--bench" in command for command in profile_commands)
+            or build_identity["frozen_executable"]["sha256"] != sha256(frozen_worker)
+            or not build_identity["source_stable_during_build"]
+        ):
+            print("profile batch did not use one stable frozen worker", file=sys.stderr)
+            return 1
+
+        failed_build_root = root / "failed-worker-build"
+        failed_build_root.mkdir()
+
+        def failed_build_runner(build_command, **_options):
+            return subprocess.CompletedProcess(
+                build_command, 101, stdout=b"cargo stdout\n", stderr=b"cargo compiler diagnostic\n"
+            )
+
+        try:
+            build_worker_once(failed_build_root, contextlib.ExitStack(), runner=failed_build_runner)
+            print("failed worker build unexpectedly succeeded", file=sys.stderr)
+            return 1
+        except ValueError:
+            failed_build = json.loads((failed_build_root / "build/result.json").read_text())
+            if (
+                failed_build["status"] != 101
+                or (failed_build_root / "build/stdout.bin").read_bytes() != b"cargo stdout\n"
+                or (failed_build_root / "build/stderr.bin").read_bytes()
+                != b"cargo compiler diagnostic\n"
+            ):
+                print("failed worker build diagnostics were not persisted", file=sys.stderr)
+                return 1
+
+        source_identity = globals()["worker_source_identity"]
+        identities = iter(
+            [
+                {"revision": "before", "source_tree_sha256": "before"},
+                {"revision": "after", "source_tree_sha256": "after"},
+                {"revision": "after", "source_tree_sha256": "after"},
+            ]
+        )
+        globals()["worker_source_identity"] = lambda: next(identities)
+        changed_build_root = root / "changed-worker-build"
+        changed_build_root.mkdir()
+        try:
+            build_worker_once(
+                changed_build_root,
+                contextlib.ExitStack(),
+                runner=successful_build_runner,
+            )
+            print("worker source edit during build unexpectedly succeeded", file=sys.stderr)
+            return 1
+        except ValueError:
+            changed_build = json.loads((changed_build_root / "build/result.json").read_text())
+            if changed_build["source_stable_during_build"] or "sources changed" not in changed_build["error"]:
+                print("worker source edit during build was not recorded", file=sys.stderr)
+                return 1
+        finally:
+            globals()["worker_source_identity"] = source_identity
 
         def failing_runner(_command, **_options):
             raise OSError("mock worker could not start")
@@ -938,9 +1205,39 @@ def self_test() -> int:
         temporary_manifest.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
         fake_bin = root / "fake-bin"
         fake_bin.mkdir()
-        marker = root / "cargo-was-started"
+        marker = root / "worker-was-started"
         fake_cargo = fake_bin / "cargo"
-        fake_cargo.write_text(f"#!/bin/sh\nprintf '%s\\n' \"$*\" >> {marker}\n", encoding="utf-8")
+        fake_git = fake_bin / "git"
+        fake_git.write_text(
+            "#!/bin/sh\n"
+            "case \"$1\" in\n"
+            "  rev-parse) echo self-test-revision ;;\n"
+            "  diff|status|ls-files) : ;;\n"
+            "  *) exit 2 ;;\n"
+            "esac\n",
+            encoding="utf-8",
+        )
+        fake_git.chmod(0o755)
+        cargo_build_marker = root / "cargo-build-count"
+        reference_worker = root / "reference-worker"
+        reference_worker.write_text(
+            f"#!/bin/sh\nprintf '%s\\n' \"$*\" >> {marker}\nexit 0\n", encoding="utf-8"
+        )
+        reference_worker.chmod(0o755)
+        artifact_json = json.dumps(
+            {
+                "reason": "compiler-artifact",
+                "target": {"name": "ruff", "kind": ["bench"]},
+                "executable": str(reference_worker),
+            }
+        )
+        fake_cargo.write_text(
+            "#!/bin/sh\n"
+            "if [ \"$1\" = \"--version\" ]; then echo 'cargo test'; exit 0; fi\n"
+            f"printf '%s\\n' \"$*\" >> {cargo_build_marker}\n"
+            f"printf '%s\\n' '{artifact_json}'\n",
+            encoding="utf-8",
+        )
         fake_cargo.chmod(0o755)
         reference_only = subprocess.run(
             [sys.executable, str(helper), ruff, "--reference-only", "F401"],
@@ -950,19 +1247,22 @@ def self_test() -> int:
             env={**os.environ, "PATH": f"{fake_bin}:{os.environ['PATH']}"},
         )
         invocations = marker.read_text().splitlines() if marker.exists() else []
+        builds = cargo_build_marker.read_text().splitlines() if cargo_build_marker.exists() else []
         worker_invocations = [line for line in invocations if "verify-reference-cases" in line]
         if (
             reference_only.returncode != 0
             or len(worker_invocations) != 1
+            or len(builds) != 1
         ):
             print(
                 "reference-only mode did not dispatch the reference verifier: "
                 f"status={reference_only.returncode}; stderr={reference_only.stderr!r}; "
-                f"invocations={invocations!r}",
+                f"builds={builds!r}; invocations={invocations!r}",
                 file=sys.stderr,
             )
             return 1
         marker.unlink()
+        cargo_build_marker.unlink()
         invalid_rule_manifest = json.loads(json.dumps(pristine_manifest))
         invalid_rule_manifest["combined_profiles"]["expanded-defaults"]["selected_rules"].append(
             "NOT-SHIPPED"
@@ -1232,9 +1532,16 @@ def main() -> int:
                         staged.append(
                             stage_combined(name, descriptor, manifest, stack, output_directory)
                         )
+            worker_executable, build_identity = build_worker_once(output_directory, stack)
             for name, profile_root in staged:
-                command = command_for(ruff, profile_root, arguments.reference_only)
-                identities = run_identity(manifest, ruff, profile_root)
+                executable = build_identity["frozen_executable"]
+                if not isinstance(executable, dict) or sha256(Path(executable["path"])) != executable["sha256"]:
+                    raise ValueError("frozen worker executable hash changed before profile invocation")
+                command = command_for(worker_executable, ruff, profile_root, arguments.reference_only)
+                identities = run_identity(
+                    manifest, ruff, profile_root, worker_executable, build_identity
+                )
+                worker_identity(identities, worker_executable)
                 status = verify_profile(name, profile_root, command, output_directory, identities)
                 print(f"{name}: verifier exit status {status}", file=sys.stderr)
                 statuses.append((name, status))
@@ -1268,6 +1575,7 @@ def main() -> int:
                     "ruff_argument": str(arguments.ruff),
                     "reference_version": manifest.get("reference_version"),
                     "reference_sha256": manifest.get("reference_sha256"),
+                    "worker_build": build_identity,
                     "statuses": dict(statuses),
                     "aggregate_status": 1 if failed else 0,
                 },

@@ -8,7 +8,7 @@ let literal_values = select id, file, kind from "literal-properties" where kind 
 let valid_values_a = select l.subscript as subscript, l.file as file from subscript_values as l join value_exprs as r on l.value = r.id and l.file = r.file;
 let valid_values_b = select l.subscript as subscript, l.file as file from subscript_values as l join literal_values as r on l.value = r.id and l.file = r.file;
 let valid_values = union(left=valid_values_a,right=valid_values_b);
-let checked_subscripts = select l.subscript as subscript, l.file as file, r.index as index from subscript_slices as l join valid_values as r on l.subscript = r.subscript and l.file = r.file;
+let checked_subscripts = select l.subscript as subscript, l.file as file, l.index as index from subscript_slices as l join valid_values as r on l.subscript = r.subscript and l.file = r.file;
 let invalid_simple_literals = select id, file from "literal-properties" where kind != "integer" and kind != "boolean";
 let checked_nodes = select id, file from "semantic-syntax" where kind = "list" or kind = "list-comp" or kind = "tuple" or kind = "joined-str" or kind = "template-str" or kind = "dict" or kind = "dict-comp" or kind = "set" or kind = "set-comp" or kind = "slice" or kind = "generator-exp" or kind = "lambda";
 let invalid_simple_a = select l.index as id, l.file as file from checked_subscripts as l join invalid_simple_literals as r on l.index = r.id and l.file = r.file;
@@ -32,7 +32,7 @@ let invalid_slice = union(left=invalid_slice_a,right=invalid_slice_b);
 let invalid_rows = union(left=invalid_simple,right=invalid_slice);
 let reportable = select l.id as id, l.file as file, r.span as span from invalid_rows as l join "semantic-syntax" as r on l.id = r.id and l.file = r.file;
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id and l.file = r.file;
-let located = select id, file, span from candidate_locations;
+let located = select id, file, span, line from candidate_locations;
 let comments = select * from "comment" where matches(text, "(?i:noqa)");
 let internal_markers = capture(from=comments, path="text", pattern="{*before}#{*tail}", captures=["before", "tail"]);
 let leading_markers = capture(from=comments, path="text", pattern="#{*tail}", captures=["tail"]);

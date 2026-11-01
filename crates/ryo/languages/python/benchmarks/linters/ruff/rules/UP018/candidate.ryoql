@@ -100,7 +100,7 @@ let direct_valid_calls = select call, reference, file, span from nonnested_calls
 let qualified_valid_calls = select call, reference, file, span from nonnested_calls where mode = "qualified";
 let read_events = select occurrence as id, name, scope, phase, ordinal, file from "binding-event" where kind = "read";
 let anchored = select l.reference as id, l.call as call, l.reference as reference, l.file as file, l.span as span, r.name as name, r.scope as scope, r.phase as phase, r.ordinal as ordinal from direct_valid_calls as l join read_events as r on l.reference = r.id and l.file = r.file;
-let scopes = select id, file from "scope";
+let scopes = select child as id, file from "scope";
 let scope_ancestors = axis(from=anchored,relation="semantic-child",direction=ancestor,domain=scopes);
 let visible_scopes = select l.call as call, l.reference as reference, l.name as name, l.file as file, l.span as span, r.related as lookup_scope, l.phase as phase, l.ordinal as ordinal from anchored as l join scope_ancestors as r on l.reference = r.id and l.file = r.file;
 let class_scopes = select id, file from "semantic-syntax" where kind = "class-def";
@@ -118,7 +118,7 @@ let direct_reportable = select call as id, file, span from unshadowed;
 let qualified_reportable = select call as id, file, span from qualified_without_direct;
 let reportable = union(left=direct_reportable,right=qualified_reportable);
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id and l.file = r.file;
-let located = select id, file, span from candidate_locations;
+let located = select id, file, span, line from candidate_locations;
 let comments = select * from "comment" where matches(text, "(?i:noqa)");
 let internal_markers = capture(from=comments, path="text", pattern="{*before}#{*tail}", captures=["before", "tail"]);
 let leading_markers = capture(from=comments, path="text", pattern="#{*tail}", captures=["tail"]);

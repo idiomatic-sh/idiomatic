@@ -24,7 +24,7 @@ let inner_calls = select l.call as outer, r.argument as inner, l.file as file fr
 let nested_zip_calls = select l.outer as outer, l.inner as inner, l.file as file from inner_calls as l join zip_calls as r on l.inner = r.call and l.file = r.file;
 let nested_zip_wrappers = select l.outer as outer, l.inner as inner, r.wrapper as wrapper, l.file as file from nested_zip_calls as l join inner_wrappers as r on l.inner = r.call and l.file = r.file;
 let inner_keywords = select parent as wrapper, file from keyword_fields;
-let keyworded_zip = select l.outer as outer, l.inner as inner, l.file as file from nested_zip_wrappers as l join inner_keywords as r on l.wrapper = r.parent and l.file = r.file;
+let keyworded_zip = select l.outer as outer, l.inner as inner, l.file as file from nested_zip_wrappers as l join inner_keywords as r on l.wrapper = r.wrapper and l.file = r.file;
 let keyword_free_zip = antijoin(left=nested_zip_wrappers,right=keyworded_zip,left-on=["outer","inner","file"],right-on=["outer","inner","file"]);
 let inner_positional = select l.outer as outer, l.inner as inner, r.child as argument, l.file as file from nested_zip_wrappers as l join positional_fields as r on l.wrapper = r.parent;
 let starred_nodes = select id, file from "semantic-syntax" where kind = "starred";
@@ -35,7 +35,7 @@ let all_starred_calls = select l.outer as outer, l.inner as inner, l.file as fil
 let valid_zip_calls = antijoin(left=keyword_free_zip,right=all_starred_calls,left-on=["outer","inner","file"],right-on=["outer","inner","file"]);
 let reportable = select l.outer as id, l.file as file, r.span as span from valid_zip_calls as l join calls as r on l.outer = r.id and l.file = r.file;
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id and l.file = r.file;
-let located = select id, file, span from candidate_locations;
+let located = select id, file, span, line from candidate_locations;
 let comments = select * from "comment" where matches(text, "(?i:noqa)");
 let internal_markers = capture(from=comments, path="text", pattern="{*before}#{*tail}", captures=["before", "tail"]);
 let leading_markers = capture(from=comments, path="text", pattern="#{*tail}", captures=["tail"]);

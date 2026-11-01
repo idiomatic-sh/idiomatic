@@ -60,7 +60,8 @@ let first_check_read_events = antijoin(left=check_read_events,right=earlier_chec
 let owner_check_anchors = select l.owner as owner, l.phase as phase, l.ordinal as ordinal, r.scope as scope, l.file as file from first_check_read_events as l join nearest_owner_scopes as r on l.owner = r.owner and l.file = r.file;
 let owner_scope_calls = select l.owner as owner, l.call as call, l.name as name, l.file as file, r.scope as scope, r.phase as phase, r.ordinal as ordinal from owner_call_candidates as l join owner_check_anchors as r on l.owner = r.owner and l.file = r.file;
 let lookup_events = select name, scope, kind, phase, ordinal, file from "binding-event" where kind = "bind" or kind = "delete" or kind = "cleanup";
-let prior_scope_events = select l.owner as owner, l.call as call from owner_scope_calls as l join lookup_events as r on l.name = r.name and l.scope = r.scope and l.file = r.file where r.ordinal < l.ordinal;
+let visible_owner_lookup_scopes = select l.owner as owner, l.call as call, l.name as name, l.file as file, l.ordinal as ordinal, r.scope as scope from owner_scope_calls as l join visible_owner_scopes as r on l.owner = r.owner and l.file = r.file;
+let prior_scope_events = select l.owner as owner, l.call as call from visible_owner_lookup_scopes as l join lookup_events as r on l.name = r.name and l.scope = r.scope and l.file = r.file where r.ordinal < l.ordinal;
 let shadowed_owner_calls = select owner, call from prior_scope_events;
 let unshadowed_builtin_calls = antijoin(left=owner_call_candidates,right=shadowed_owner_calls,left-on=["owner","call"],right-on=["owner","call"]);
 let pure_empty_builtin_calls = select owner, call from unshadowed_builtin_calls;

@@ -7,9 +7,9 @@ let slice_fields = select parent, child from "semantic-child" where field = "sli
 let indices = select l.parent as subscript, l.child as index, r.file as file from slice_fields as l join target_subscripts as r on l.parent = r.subscript;
 let index_literals = select id, file from "semantic-syntax" where kind = "number" and matches(text, "^(?:2|0[xX]_?2|0[oO]_?2|0[bB]_?1_?0)$");
 let indexed = select l.subscript as id, l.file as file from indices as l join index_literals as r on l.index = r.id and l.file = r.file;
-let selected_subscripts = select l.subscript as subscript, l.file as file from indexed as l join target_subscripts as r on l.id = r.subscript and l.file = r.file;
-let selected_values = select l.value as id, l.file as file from selected_subscripts as l join values as r on l.subscript = r.subscript and l.file = r.file;
-let reportable = select l.id as id, l.file as file, r.span as span from selected_values as l join qnames as r on l.id = r.id and l.file = r.file;
+let selected_subscripts = select r.subscript as subscript, l.file as file from indexed as l join target_subscripts as r on l.id = r.subscript and l.file = r.file;
+let selected_values = select r.value as id, l.file as file from selected_subscripts as l join values as r on l.subscript = r.subscript and l.file = r.file;
+let reportable = select l.id as id, l.file as file, r.span as span from selected_values as l join "semantic-syntax" as r on l.id = r.id and l.file = r.file;
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id and l.file = r.file;
 let quoted = select id from "syntax-tree" where kind = "f-string-part" or kind = "string" and matches(text, "(?i)^[rub]*(?:\x22\x22\x22|'\x27')");
 let continued = select id from "syntax-tree" where kind = "whitespace" and matches(text, "\\(?:\r\n|\r|\n)");
