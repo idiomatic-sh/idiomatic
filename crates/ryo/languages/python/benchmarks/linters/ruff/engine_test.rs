@@ -595,6 +595,40 @@ fn subject(input: Input) -> Result<Value, Failure> {
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
 }
+
+#[test]
+fn literal_properties_reach_engine_queries_for_true_and_false_boolean_nodes() -> Result<(), Error> {
+    let root = tempfile::tempdir()?;
+    let rules = root.path().join("rules");
+    let rule_directory = rules.join("LIT");
+    std::fs::create_dir_all(&rule_directory)?;
+    std::fs::write(
+        rule_directory.join("query.ryoql"),
+        "let truth = select id, file, span from \"literal-properties\" where kind = \"boolean\" and boolean = true;\nemit truth subject file key(span);",
+    )?;
+    std::fs::write(root.path().join("true.py"), "value = True\n")?;
+    std::fs::write(root.path().join("false.py"), "value = False\n")?;
+    let report = factory::local(python_310(), None).run(WorkerRequest {
+        root: root.path().to_owned(),
+        rules,
+        query_modules: std::collections::BTreeMap::default(),
+        files: ["true.py", "false.py"]
+            .into_iter()
+            .map(|path| ryo::linter::RelativePath(path.into()))
+            .collect(),
+        state: ryo_benchmark::domain::suite::types::WorkerState::Fresh,
+    })?;
+    assert_eq!(report.diagnostics.len(), 1);
+    let finding = report
+        .diagnostics
+        .first()
+        .ok_or_else(|| Error::Invalid("the true literal should produce a finding".to_owned()))?;
+    assert_eq!(finding.rule.as_ref(), "LIT");
+    assert_eq!(finding.file.as_ref(), "true.py");
+    assert_eq!(finding.start.0, 8);
+    assert_eq!(finding.end.0, 12);
+    Ok(())
+}
 #[test]
 fn refuses() {
     run(CASES, Word::Refuses, subject);
