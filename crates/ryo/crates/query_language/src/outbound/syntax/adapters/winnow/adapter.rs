@@ -102,7 +102,7 @@ impl SyntaxPort for SyntaxWinnowAdapter {
                         },
                     }
                 })?;
-            fragments.insert(source_id.clone(), fragment);
+            let _previous_fragment = fragments.insert(source_id.clone(), fragment);
         }
         Ok(ParsedQueryBundle { root, fragments })
     }
@@ -273,7 +273,7 @@ fn resolve_source_step(source: &mut QuerySource, preceding: &[LetStep]) {
     }
 }
 
-pub(super) fn fragment_line(input: &mut Input<'_>) -> ModalResult<FragmentLine> {
+fn fragment_line(input: &mut Input<'_>) -> ModalResult<FragmentLine> {
     alt((
         import_line.map(FragmentLine::Import),
         fragment_input_line.map(FragmentLine::Input),

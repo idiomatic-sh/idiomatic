@@ -82,10 +82,12 @@ def manifest_paths(manifest: dict[str, object], helper_path: str) -> set[str]:
     paths.update(module_path(path) for path in profile_modules(base_data).values())
     for rule in profiles:
         profile = PROFILE_DIR / rule / "benchmark.toml"
+        recorded = profiles[rule]
+        case_file = prepared_case_path(rule, recorded)
         paths.update({
                 profile.relative_to(REPOSITORY).as_posix(),
                 (RUFF_DIR / "rules" / rule / "candidate.ryoql").relative_to(REPOSITORY).as_posix(),
-                (RUFF_DIR / "rules" / rule / "cases.toml").relative_to(REPOSITORY).as_posix(),
+                case_file.relative_to(REPOSITORY).as_posix(),
             })
         profile_data = tomllib.loads(profile.read_text(encoding="utf-8"))
         paths.update(module_path(path) for path in profile_modules(profile_data).values())
@@ -116,6 +118,25 @@ def module_path(value: object) -> str:
     if not resolved.is_file() or not resolved.is_relative_to(RUFF_DIR.resolve()):
         raise ValueError(f"query module is outside the Ruff profile: {value}")
     return resolved.relative_to(REPOSITORY).as_posix()
+
+
+def prepared_case_path(rule: str, recorded: dict[str, object]) -> Path:
+    """Resolve a profile-specific frozen case snapshot, or its canonical rule case file."""
+    value = recorded.get("cases_file", f"rules/{rule}/cases.toml")
+    if not isinstance(value, str):
+        raise ValueError(f"prepared case file path must be a string for {rule}")
+    path = Path(value)
+    if path.is_absolute() or not path.parts or any(part in (".", "..") for part in path.parts):
+        raise ValueError(f"unsafe prepared case path for {rule}: {value}")
+    source = RUFF_DIR
+    for part in path.parts:
+        source = source / part
+        if source.is_symlink():
+            raise ValueError(f"prepared case path traverses a symlink for {rule}: {value}")
+    resolved = source.resolve(strict=True)
+    if not resolved.is_file() or not resolved.is_relative_to(RUFF_DIR.resolve()):
+        raise ValueError(f"prepared case path is outside the Ruff profile for {rule}: {value}")
+    return resolved
 
 
 def profile_modules(profile_data: dict[str, object]) -> dict[str, str]:
@@ -231,9 +252,9 @@ def stage_binding(
         if not profile_tool_matches(profile_data, manifest):
             raise ValueError(f"tool identity mismatch for {rule}")
         candidate_path = RUFF_DIR / "rules" / rule / "candidate.ryoql"
-        cases_path = RUFF_DIR / "rules" / rule / "cases.toml"
-        cases = tomllib.loads(cases_path.read_text(encoding="utf-8"))["cases"]
         recorded = profiles[rule]
+        cases_path = prepared_case_path(rule, recorded)
+        cases = tomllib.loads(cases_path.read_text(encoding="utf-8"))["cases"]
         names = [case["name"] for case in cases]
         if (
             recorded.get("selected_rules") != [rule]
@@ -377,7 +398,7 @@ def stage_combined(
         source_dir = RUFF_DIR / "rules" / rule
         candidate = source_dir / "candidate.ryoql"
         query = candidate if candidate.is_file() else source_dir / "query.ryoql"
-        cases_path = source_dir / "cases.toml"
+        cases_path = source_dir / combined_filename(rule, descriptor, "cases.toml")
         if not query.is_file() or not cases_path.is_file():
             raise ValueError(f"{profile_name} source is missing for {rule}")
         cases = tomllib.loads(cases_path.read_text(encoding="utf-8"))["cases"]
@@ -429,11 +450,16 @@ def stage_combined(
 
 def combined_query_filename(rule: str, descriptor: dict[str, object]) -> str:
     """Use the source filename sealed by this combined cohort, even if a candidate is added later."""
+    return combined_filename(rule, descriptor, "candidate.ryoql", "query.ryoql")
+
+
+def combined_filename(rule: str, descriptor: dict[str, object], *names: str) -> str:
+    """Select one per-rule artifact filename from a combined cohort's sealed inputs."""
     inputs = set(descriptor["input_files"])
     source_dir = f"crates/ryo/languages/python/benchmarks/linters/ruff/rules/{rule}"
-    candidates = [name for name in ("candidate.ryoql", "query.ryoql") if f"{source_dir}/{name}" in inputs]
+    candidates = [name for name in names if f"{source_dir}/{name}" in inputs]
     if len(candidates) != 1:
-        raise ValueError(f"combined profile must seal exactly one query source for {rule}")
+        raise ValueError(f"combined profile must seal exactly one {names} source for {rule}")
     return candidates[0]
 
 
@@ -465,6 +491,17 @@ def self_test() -> int:
         if combined_query_filename("LOG015", expanded_descriptor) != "query.ryoql":
             print("expanded cohort did not retain its sealed LOG015 query", file=sys.stderr)
             return 1
+        for rule in ("LOG015", "ASYNC115"):
+            profile_case = prepared_case_path(rule, manifest["profiles"][rule])
+            canonical_case = RUFF_DIR / "rules" / rule / "cases.toml"
+            if (
+                profile_case == canonical_case
+                or profile_case.read_bytes() == canonical_case.read_bytes()
+                or combined_filename(rule, expanded_descriptor, "cases.toml") != "cases.toml"
+                or combined_query_filename(rule, expanded_descriptor) != "query.ryoql"
+            ):
+                print(f"{rule} candidate snapshot changed the frozen expanded cohort", file=sys.stderr)
+                return 1
         shape_profile = tomllib.loads(
             (REPOSITORY / shape_descriptor["profile_file"]).read_text(encoding="utf-8")
         )

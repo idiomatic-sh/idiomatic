@@ -22,11 +22,11 @@ pub(crate) fn link(
     let root_id = bundle.root.id.clone();
     validate_step_names(&root_id, &root.steps)?;
     let mut imports = BTreeMap::new();
-    imports.insert(root_id.clone(), imports_for(&root_id, &root.imports)?);
+    let _previous_imports = imports.insert(root_id.clone(), imports_for(&root_id, &root.imports)?);
     for (id, fragment) in &fragments {
         validate_step_names(id, &fragment.steps)?;
         validate_fragment_signature(id, fragment)?;
-        imports.insert(id.clone(), imports_for(id, &fragment.imports)?);
+        let _previous_imports = imports.insert(id.clone(), imports_for(id, &fragment.imports)?);
     }
     validate_import_targets(bundle, &imports)?;
     reject_cycles(&root_id, &imports, &fragments)?;
@@ -248,7 +248,7 @@ fn reject_cycles(
         colors: &mut BTreeSet<QuerySourceId>,
         path: &mut Vec<QueryTraceSite>,
     ) -> Result<(), LinkError> {
-        colors.insert(source.clone());
+        let _new_color = colors.insert(source.clone());
         for import in imports.get(source).into_iter().flat_map(BTreeMap::values) {
             let target = source_id(source, import)?;
             let edge = trace_site(source, &target, import.span);
@@ -264,9 +264,9 @@ fn reject_cycles(
             }
             path.push(edge);
             visit(&target, imports, colors, path)?;
-            path.pop();
+            let _edge = path.pop();
         }
-        colors.remove(source);
+        let _removed_color = colors.remove(source);
         Ok(())
     }
 
@@ -375,7 +375,7 @@ fn expand(
         };
         origins.push(step_origin.clone());
         if let Some(identity) = step.name.1 {
-            step_origins.insert(identity, step_origin);
+            let _previous_step_origin = step_origins.insert(identity, step_origin);
         }
         if let Expression::Call(inner) = &step.expression
             && let Some(import) = imports
@@ -530,7 +530,7 @@ fn bind_arguments(
                 ),
             ));
         }
-        inputs.insert(input.name.0.clone(), value);
+        let _previous_input = inputs.insert(input.name.0.clone(), value);
     }
     let mut parameters = Bindings::new();
     for parameter in &fragment.parameters {
@@ -554,7 +554,7 @@ fn bind_arguments(
                 ),
             ));
         }
-        parameters.insert(parameter.name.0.clone(), value);
+        let _previous_parameter = parameters.insert(parameter.name.0.clone(), value);
     }
     Ok((inputs, parameters))
 }
@@ -901,14 +901,15 @@ fn attribute_root(program: &mut Program, root: &QuerySourceId) {
     }
     for step in &program.steps {
         if let Some(identity) = step.name.1 {
-            program
-                .step_origins
-                .entry(identity)
-                .or_insert_with(|| QueryOrigin {
-                    source_id: root.clone(),
-                    span: step.span,
-                    trace: Vec::new(),
-                });
+            let _root_step_origin =
+                program
+                    .step_origins
+                    .entry(identity)
+                    .or_insert_with(|| QueryOrigin {
+                        source_id: root.clone(),
+                        span: step.span,
+                        trace: Vec::new(),
+                    });
         }
         program.origins.push(QueryOrigin {
             source_id: root.clone(),
