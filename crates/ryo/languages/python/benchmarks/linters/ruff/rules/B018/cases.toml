@@ -17,3 +17,87 @@ expected = []
 name = "comparison_is_handled_separately"
 files = { "case.py" = "def f(left, right):\n    left == right\n" }
 expected = []
+
+[[cases]]
+name = "nested-literal-in-container-is-not-an-expression-statement"
+comparison = "full"
+files = { "case.py" = "def f():\n    values = [1]\n    return values\n" }
+expected = []
+
+[[cases]]
+name = "literal-in-control-flow-condition-is-not-an-expression-statement"
+comparison = "full"
+files = { "case.py" = "def f():\n    if [1]:\n        pass\n" }
+expected = []
+
+[[cases]]
+name = "direct-name-expression-remains-reportable"
+comparison = "full"
+files = { "case.py" = "def f(value):\n    value\n" }
+expected = [{ rule = "B018", file = "case.py", start = 18, end = 23 }]
+
+[[cases]]
+name = "async-context-literal-is-not-a-direct-expression-statement"
+comparison = "full"
+files = { "case.py" = "import asyncio\nasync def f():\n    async with asyncio.timeout(1):\n        async with other():\n            work()\n" }
+expected = []
+
+[[cases]]
+name = "safe-literal-binop-is-unused"
+comparison = "full"
+files = { "case.py" = "def f():\n    1 + 2\n" }
+expected = [{ rule = "B018", file = "case.py", start = 13, end = 18 }]
+
+[[cases]]
+name = "name-binop-may-have-overloaded-effects"
+comparison = "full"
+files = { "case.py" = "def f(value):\n    value + 2\n" }
+expected = []
+
+[[cases]]
+name = "effectful-descendant-in-container-is-not-unused"
+comparison = "full"
+files = { "case.py" = "def f():\n    [work()]\n" }
+expected = []
+
+[[cases]]
+name = "empty-builtin-iterable-constructor-is-unused"
+comparison = "full"
+files = { "case.py" = "def f():\n    list()\n" }
+expected = [{ rule = "B018", file = "case.py", start = 13, end = 19 }]
+
+[[cases]]
+name = "shadowed-empty-constructor-may-have-effects"
+comparison = "full"
+files = { "case.py" = "def f(list):\n    list()\n" }
+expected = []
+
+[[cases]]
+name = "lambda-parameter-does-not-shadow-builtin-in-current-scope"
+comparison = "full"
+files = { "case.py" = "x and not x and (lambda list: list())\n" }
+expected = [{ rule = "B018", file = "case.py", start = 0, end = 37 }]
+
+[[cases]]
+name = "module-annotation-does-not-shadow-builtin-in-current-scope"
+comparison = "full"
+files = { "case.py" = "list: object\nx and not x and (lambda list: list())\n" }
+expected = [{ rule = "B018", file = "case.py", start = 13, end = 50 }]
+
+[[cases]]
+name = "outer-binding-before-expression-shadows-builtin-in-lambda-body"
+comparison = "full"
+files = { "case.py" = "list = custom\nx and not x and (lambda list: list())\n" }
+expected = []
+
+[[cases]]
+name = "function-binding-after-expression-does-not-shadow-at-check-site"
+comparison = "full"
+files = { "case.py" = "def f():\n    x and not x and (lambda list: list())\n    list = custom\n" }
+expected = [{ rule = "B018", file = "case.py", start = 13, end = 50 }]
+
+[[cases]]
+name = "module-binding-before-deferred-function-check-shadows-builtin"
+comparison = "full"
+files = { "case.py" = "def f():\n    x and not x and (lambda list: list())\nlist = custom\n" }
+expected = []
