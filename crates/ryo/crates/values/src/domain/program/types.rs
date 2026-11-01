@@ -28,14 +28,18 @@ pub struct QuerySourceId(pub Box<str>);
 /// One exact source in a query bundle, with its logical identity retained for diagnostics.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct QueryDocumentSource {
+    /// The stable logical identity used by imports and diagnostics.
     pub id: QuerySourceId,
+    /// Exact UTF-8 query bytes held by this source.
     pub text: Box<str>,
 }
 
 /// The in-memory root and immutable named module sources for one query.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct QueryBundle {
+    /// The entry document compiled for this query.
     pub root: QueryDocumentSource,
+    /// Explicitly registered immutable modules, keyed by logical identity.
     pub modules: BTreeMap<QuerySourceId, QueryDocumentSource>,
 }
 
