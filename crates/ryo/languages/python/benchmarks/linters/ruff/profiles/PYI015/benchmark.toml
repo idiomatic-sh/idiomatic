@@ -25,5 +25,6 @@ sha256 = [
 defaults = ["PYI015"]
 
 [query-modules]
+"python/ruff/suppress-directives" = "fragments/suppress-directives.ryoql"
 "python/ruff/simple-stub-defaults" = "fragments/simple-stub-defaults.ryoql"
 "python/ruff/suppress" = "fragments/suppress.ryoql"

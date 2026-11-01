@@ -119,11 +119,13 @@ pub(crate) struct FormatOccurrence {
     pub unknown_input: bool,
 }
 
-/// A retained, source-local parse cache. Its allocations survive reparses; its entries do not.
+/// Current source occurrences and a separate byte-budgeted content memo.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct FormatParseIndex {
+    /// Budgeted previous-source grammar results; no source-node identities.
+    pub memo: crate::domain::grammar_cache::types::Memo<FormatParseResult>,
     /// Input text to one cached result, avoiding duplicate grammar work.
-    pub by_input: std::collections::HashMap<String, usize>,
+    pub by_input: indexmap::IndexMap<String, usize>,
     /// Parsed or malformed results, one per distinct decoded input.
     pub values: Vec<CachedFormat>,
     /// Source occurrences and their cached values.

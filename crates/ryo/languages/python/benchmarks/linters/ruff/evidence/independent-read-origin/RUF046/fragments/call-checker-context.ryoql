@@ -1,0 +1,4 @@
+input calls: relation<id: node,file: file>;
+output relation<check: node,root: node,file: file>;
+let result=select l.id as check,r.child as root,l.file as file from calls as l join "semantic-child" as r on l.id=r.parent and l.file=r.file where r.field="func";
+return result;

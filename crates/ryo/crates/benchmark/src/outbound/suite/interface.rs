@@ -31,6 +31,25 @@ pub trait SuitePort {
     ///
     /// Returns an error for unreadable artifacts or unsupported filesystem entries.
     fn fingerprint(&self, paths: ArtifactSet<'_>) -> Result<ArtifactDigest, Error>;
+    /// Read optional reference expectation wire data from authored rule cases.
+    ///
+    /// # Errors
+    /// Refuses unreadable or malformed artifacts; semantic conversion belongs to the application.
+    fn case_reference_wires(
+        &self,
+        profile: ArtifactPath<'_>,
+    ) -> Result<
+        Vec<super::types::discrepancy::CaseReferenceWire>,
+        super::types::discrepancy::ArtifactError,
+    >;
+    /// Validate explicit source/evidence bytes inside their physical boundaries.
+    ///
+    /// # Errors
+    /// Refuses unreadable sources, escaping paths and stale artifact digests.
+    fn verify_discrepancy_artifacts(
+        &self,
+        artifacts: super::types::discrepancy::CaseArtifacts<'_>,
+    ) -> Result<(), super::types::discrepancy::ArtifactError>;
     /// Hash one regular file's exact bytes with unframed SHA256 for executable pinning.
     ///
     /// # Errors

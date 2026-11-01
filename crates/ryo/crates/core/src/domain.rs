@@ -30,6 +30,7 @@ pub(crate) mod lowering;
 pub(crate) mod matching;
 pub(crate) mod operands;
 pub(crate) mod operating;
+pub(crate) mod operation_schema;
 pub(crate) mod operator;
 pub(crate) mod ordering;
 pub(crate) mod pipeline;

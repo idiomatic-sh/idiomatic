@@ -98,3 +98,19 @@ fn template_strings_are_not_percent_string_inputs() {
     assert!(report.causes.is_empty(), "{:?}", report.causes);
     assert!(report.rows.is_empty());
 }
+
+#[test]
+fn error_characters_preserve_two_and_four_byte_unicode_scalars() {
+    let report = reading::<FormatParseItem>("a = '%é'\nb = '%🧪'\nc = '%s'\n");
+    assert!(report.causes.is_empty(), "{:?}", report.causes);
+    assert_eq!(report.rows.len(), 3);
+    assert!(report.rows[0].len() > 6);
+    assert!(report.rows[1].len() > 6);
+    assert_eq!(report.rows[0][5], Want::Name("é"));
+    assert_eq!(report.rows[1][5], Want::Name("🧪"));
+    assert_eq!(report.rows[2][5], Want::Name(""));
+    assert_eq!(report.rows[0][6], Want::Number(1));
+    assert_eq!(report.rows[1][6], Want::Number(1));
+    let fields = reading::<FormatFieldItem>("a = '%s'\n");
+    assert_eq!(fields.rows[0][4], Want::Name("s"));
+}

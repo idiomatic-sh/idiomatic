@@ -8,6 +8,11 @@ parser.add_argument("--candidate-root", type=Path, required=True)
 parser.add_argument("--baseline-root", type=Path, required=True)
 parser.add_argument("--worker", type=Path, required=True)
 parser.add_argument("--output", type=Path, required=True)
+parser.add_argument(
+    "--source-receipt",
+    type=Path,
+    default=Path(__file__).with_name("source-receipt.json"),
+)
 args = parser.parse_args()
 root = args.output.resolve()
 root.mkdir(exist_ok=False)
@@ -24,19 +29,37 @@ guard.self_test_standard_suppression()
 src = args.candidate_root.resolve()
 canonical = args.baseline_root.resolve()
 rel = Path("crates/ryo/languages/python/benchmarks/linters/ruff")
-receipt_path = Path(__file__).with_name("source-receipt.json")
+receipt_path = args.source_receipt.resolve()
 receipt = json.loads(receipt_path.read_text())
 worker = args.worker.resolve()
 sha = lambda p: hashlib.sha256(p.read_bytes()).hexdigest()
 (root / "validator-source.py").write_bytes(Path(guard.__file__).read_bytes())
+phase_path = src / rel / "profiles/pinned-rule-phases.json"
+phases = json.loads(phase_path.read_text())
+shutil.copyfile(phase_path, root / "pinned-rule-phases.json")
+settings = {}
+for row in receipt["rows"]:
+    rule = row["rule"]
+    profile_path = src / rel / "profiles" / rule / "benchmark.toml"
+    if not profile_path.is_file():
+        profile_path = src / rel / "benchmark.toml"
+    destination = root / "canonical-profiles" / (rule + ".toml")
+    destination.parent.mkdir(exist_ok=True)
+    shutil.copyfile(profile_path, destination)
+    settings[rule] = {
+        "profile_source": profile_path.relative_to(src).as_posix(),
+        "profile_sha256": sha(profile_path),
+        "effective": guard.canonical_run_ryo_settings(
+            tomllib.loads(profile_path.read_text()), [rule], phases
+        ),
+    }
 profiles = {}
 for side in ("baseline", "candidate"):
     stage = root / side
     shutil.copytree(
-        canonical / rel / "fragments", stage / "fragments", dirs_exist_ok=True
-    )
-    shutil.copyfile(
-        src / rel / "fragments/suppress.ryoql", stage / "fragments/suppress.ryoql"
+        (canonical if side == "baseline" else src) / rel / "fragments",
+        stage / "fragments",
+        dirs_exist_ok=True,
     )
     registry = {
         "python/ruff/" + p.stem: "fragments/" + p.name
@@ -68,6 +91,8 @@ manifest = {
         for s, p in profiles.items()
     },
     "validator_sha256": sha(Path(guard.__file__)),
+    "rule_phase_registry_sha256": sha(phase_path),
+    "canonical_settings": settings,
     "policy": "Exact current baseline vs migrated full-report equality. Existing cases expected diagnostics checked separately; no Ruff executable invoked.",
 }
 (root / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
@@ -107,8 +132,12 @@ with output.open("w") as records:
                     "root": str(corpus),
                     "rules": str(profile["path"] / "single" / rule / "rules"),
                     "query_modules": profile["registry"],
-                    "rule_applicability": {rule: "accepted-syntax"},
-                    "parser_configuration": "python-target=3.10",
+                    "rule_applicability": settings[rule]["effective"][
+                        "rule_applicability"
+                    ],
+                    "parser_configuration": settings[rule]["effective"][
+                        "parser_configuration"
+                    ],
                     "files": list(case["files"]),
                     "cache": None,
                 }
@@ -129,7 +158,13 @@ with output.open("w") as records:
                 except json.JSONDecodeError:
                     report = None
                 report = guard.complete_run_ryo_report(
-                    p.returncode, p.stdout, p.stderr, list(case["files"]), [rule]
+                    p.returncode,
+                    p.stdout,
+                    p.stderr,
+                    list(case["files"]),
+                    [rule],
+                    request=request,
+                    settings=settings[rule]["effective"],
                 )
                 observed[side] = {
                     "exit": p.returncode,
@@ -204,4 +239,4 @@ spec = importlib.util.spec_from_file_location(
 )
 sealer = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(sealer)
-sealer.seal(root)
+sealer.seal(root, receipt_path)

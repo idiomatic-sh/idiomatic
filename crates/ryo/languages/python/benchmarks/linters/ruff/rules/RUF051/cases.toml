@@ -1,0 +1,414 @@
+
+[[cases]]
+name="ruf051-simple"
+comparison="full"
+files={"case.py"="d={}\nif key in d: del d[key]\n"}
+expected=[{rule="RUF051", file="case.py", start=18, end=28}]
+
+[[cases]]
+name="ruf051-dict-call"
+comparison="full"
+files={"case.py"="d=dict()\nif key in d: del d[key]\n"}
+expected=[{rule="RUF051", file="case.py", start=22, end=32}]
+
+[[cases]]
+name="ruf051-unknown"
+comparison="full"
+files={"case.py"="if key in d: del d[key]\n"}
+expected=[]
+
+[[cases]]
+name="ruf051-annotated"
+comparison="full"
+files={"case.py"="def f(d:dict):\n if key in d: del d[key]\n"}
+expected=[{rule="RUF051", file="case.py", start=29, end=39}]
+
+[[cases]]
+name="ruf051-typing-annotated"
+comparison="full"
+files={"case.py"="from typing import Dict\ndef f(d:Dict):\n if key in d: del d[key]\n"}
+expected=[{rule="RUF051", file="case.py", start=53, end=63}]
+
+[[cases]]
+name="ruf051-different-key"
+comparison="full"
+files={"case.py"="d={}\nif key in d: del d[other]\n"}
+expected=[]
+
+[[cases]]
+name="ruf051-different-dict"
+comparison="full"
+files={"case.py"="d={}\nother={}\nif key in d: del other[key]\n"}
+expected=[]
+
+[[cases]]
+name="ruf051-two-targets"
+comparison="full"
+files={"case.py"="d={}\nif key in d: del d[key], d[key]\n"}
+expected=[]
+
+[[cases]]
+name="ruf051-two-statements"
+comparison="full"
+files={"case.py"="d={}\nif key in d:\n del d[key]\n pass\n"}
+expected=[]
+
+[[cases]]
+name="ruf051-else"
+comparison="full"
+files={"case.py"="d={}\nif key in d: del d[key]\nelse: pass\n"}
+expected=[]
+
+[[cases]]
+name="ruf051-elif"
+comparison="full"
+files={"case.py"="d={}\nif key in d: del d[key]\nelif flag: pass\n"}
+expected=[]
+
+[[cases]]
+name="ruf051-not-in"
+comparison="full"
+files={"case.py"="d={}\nif key not in d: del d[key]\n"}
+expected=[]
+
+[[cases]]
+name="ruf051-chain"
+comparison="full"
+files={"case.py"="d={}\nif key in d in other: del d[key]\n"}
+expected=[]
+
+[[cases]]
+name="ruf051-attribute"
+comparison="full"
+files={"case.py"="obj.d={}\nif key in obj.d: del obj.d[key]\n"}
+expected=[]
+
+[[cases]]
+name="ruf051-none-key"
+comparison="full"
+files={"case.py"="d={}\nif None in d: del d[None]\n"}
+expected=[{rule="RUF051", file="case.py", start=19, end=30}]
+
+[[cases]]
+name="ruf051-ellipsis-key"
+comparison="full"
+files={"case.py"="d={}\nif ... in d: del d[...]\n"}
+expected=[{rule="RUF051", file="case.py", start=18, end=28}]
+
+[[cases]]
+name="ruf051-bool-key"
+comparison="full"
+files={"case.py"="d={}\nif True in d: del d[True]\n"}
+expected=[{rule="RUF051", file="case.py", start=19, end=30}]
+
+[[cases]]
+name="ruf051-bool-int-key"
+comparison="full"
+files={"case.py"="d={}\nif True in d: del d[1]\n"}
+expected=[]
+
+[[cases]]
+name="ruf051-numeric-key"
+comparison="full"
+files={"case.py"="d={}\nif 0x10 in d: del d[16]\n"}
+expected=[{rule="RUF051", file="case.py", start=19, end=28}]
+
+[[cases]]
+name="ruf051-numeric-type-key"
+comparison="full"
+files={"case.py"="d={}\nif 1 in d: del d[1.0]\n"}
+expected=[]
+
+[[cases]]
+name="ruf051-negative-key"
+comparison="full"
+files={"case.py"="d={}\nif -1 in d: del d[-1]\n"}
+expected=[]
+
+[[cases]]
+name="ruf051-string-key"
+comparison="full"
+files={"case.py"="d={}\nif \"a\" \"b\" in d: del d[\"ab\"]\n"}
+expected=[{rule="RUF051", file="case.py", start=22, end=33}]
+
+[[cases]]
+name="ruf051-bytes-key"
+comparison="full"
+files={"case.py"="d={}\nif b\"a\" b\"b\" in d: del d[b\"ab\"]\n"}
+expected=[{rule="RUF051", file="case.py", start=24, end=36}]
+
+[[cases]]
+name="ruf051-bytes-escape"
+comparison="full"
+files={"case.py"="d={}\nif b\"\\xff\" in d: del d[b\"\\377\"]\n"}
+expected=[{rule="RUF051", file="case.py", start=22, end=36}]
+
+[[cases]]
+name="ruf051-tuple-key"
+comparison="full"
+files={"case.py"="d={}\nif (1,2) in d: del d[1,2]\n"}
+expected=[]
+
+[[cases]]
+name="ruf051-earlier-rebind"
+comparison="full"
+files={"case.py"="d=[]\nd={}\nif key in d: del d[key]\n"}
+expected=[]
+
+[[cases]]
+name="ruf051-later-rebind"
+comparison="full"
+files={"case.py"="d={}\nif key in d: del d[key]\nd=[]\n"}
+expected=[{rule="RUF051", file="case.py", start=18, end=28}]
+
+[[cases]]
+name="ruf051-nested-unpack"
+comparison="full"
+files={"case.py"="((d,),x)=(({},),0)\nif key in d: del d[key]\n"}
+expected=[{rule="RUF051", file="case.py", start=32, end=42}]
+
+[[cases]]
+name="ruf051-function-definition"
+comparison="full"
+files={"case.py"="def d()->dict: ...\nif key in d: del d[key]\n"}
+expected=[{rule="RUF051", file="case.py", start=32, end=42}]
+
+[[cases]]
+name="ruf051-noqa"
+comparison="full"
+files={"case.py"="d={}\nif key in d: del d[key] # noqa: RUF051\n"}
+expected=[]
+
+[[cases]]
+name="ruf051-tagged-RUF051-py"
+comparison="full"
+files={"case.py"="d = {}\nl = []\n\n\n### Errors\n\nif k in d:                          # Bare name\n    del d[k]\n\nif '' in d:                         # String\n    del d[\"\"]                       # Different quotes\n\nif b\"\" in d:                        # Bytes\n    del d[                          # Multiline slice\n        b''''''                     # Triple quotes\n    ]\n\nif 0 in d: del d[0]                 # Single-line statement\n\nif 3j in d:                         # Complex\n    del d[3j]\n\nif 0.1234 in d:                     # Float\n    del d[.1_2_3_4]                 # Number separators and shorthand syntax\n\nif True in d:                       # True\n    del d[True]\n\nif False in d:                      # False\n    del d[False]\n\nif None in d:                       # None\n    del d[\n        # Comment in the middle\n        None\n    ]\n\nif ... in d:                        # Ellipsis\n    del d[\n                                    # Comment in the middle, indented\n        ...]\n\nif \"a\" \"bc\" in d:                   # String concatenation\n    del d['abc']\n\nif r\"\\foo\" in d:                    # Raw string\n    del d['\\\\foo']\n\nif b'yt' b'es' in d:                # Bytes concatenation\n    del d[rb\"\"\"ytes\"\"\"]             # Raw bytes\n\nif k in d:\n    # comment that gets dropped\n    del d[k]\n\n### Safely fixable\n\nif k in d:\n    del d[k]\n\nif '' in d:\n    del d[\"\"]\n\nif b\"\" in d:\n    del d[\n        b''''''\n    ]\n\nif 0 in d: del d[0]\n\nif 3j in d:\n    del d[3j]\n\nif 0.1234 in d:\n    del d[.1_2_3_4]\n\nif True in d:\n    del d[True]\n\nif False in d:\n    del d[False]\n\nif None in d:\n    del d[\n        None\n    ]\n\nif ... in d:\n    del d[\n        ...]\n\nif \"a\" \"bc\" in d:\n    del d['abc']\n\nif r\"\\foo\" in d:\n    del d['\\\\foo']\n\nif b'yt' b'es' in d:\n    del d[rb\"\"\"ytes\"\"\"]             # This should not make the fix unsafe\n\n\n\n### No errors\n\nif k in l:                          # Not a dict\n    del l[k]\n\nif d.__contains__(k):               # Explicit dunder call\n    del d[k]\n\nif a.k in d:                        # Attribute\n    del d[a.k]\n\nif (a, b) in d:                     # Tuple\n    del d[a, b]\n\nif 2 in d:                          # Different key value (int)\n    del d[3]\n\nif 2_4j in d:                       # Different key value (complex)\n    del d[3.6]                      # Different key value (float)\n\nif 0.1 + 0.2 in d:                  # Complex expression\n    del d[0.3]\n\nif f\"0\" in d:                       # f-string\n    del d[f\"0\"]\n\nif k in a.d:                        # Attribute dict\n    del a.d[k]\n\nif k in d:                          # else statement\n    del d[k]\nelse:\n    pass\n\nif k in d:                          # elif and else statements\n    del d[k]\nelif 0 in d:\n    del d[0]\nelse:\n    pass\n"}
+expected=[{rule="RUF051", file="case.py", start=80, end=88}, {rule="RUF051", file="case.py", start=139, end=148}, {rule="RUF051", file="case.py", start=239, end=346}, {rule="RUF051", file="case.py", start=359, end=367}, {rule="RUF051", file="case.py", start=459, end=468}, {rule="RUF051", file="case.py", start=518, end=533}, {rule="RUF051", file="case.py", start=639, end=650}, {rule="RUF051", file="case.py", start=700, end=712}, {rule="RUF051", file="case.py", start=761, end=818}, {rule="RUF051", file="case.py", start=871, end=960}, {rule="RUF051", file="case.py", start=1025, end=1037}, {rule="RUF051", file="case.py", start=1092, end=1106}, {rule="RUF051", file="case.py", start=1170, end=1189}, {rule="RUF051", file="case.py", start=1262, end=1270}, {rule="RUF051", file="case.py", start=1307, end=1315}, {rule="RUF051", file="case.py", start=1333, end=1342}, {rule="RUF051", file="case.py", start=1361, end=1389}, {rule="RUF051", file="case.py", start=1402, end=1410}, {rule="RUF051", file="case.py", start=1428, end=1437}, {rule="RUF051", file="case.py", start=1459, end=1474}, {rule="RUF051", file="case.py", start=1494, end=1505}, {rule="RUF051", file="case.py", start=1526, end=1538}, {rule="RUF051", file="case.py", start=1558, end=1583}, {rule="RUF051", file="case.py", start=1602, end=1621}, {rule="RUF051", file="case.py", start=1645, end=1657}, {rule="RUF051", file="case.py", start=1680, end=1694}, {rule="RUF051", file="case.py", start=1721, end=1740}]
+
+[[cases]]
+name="ruf051-bytes-kind-mismatch"
+comparison="full"
+files={"case.py"="d={}\nif b\"ab\" in d: del d[\"ab\"]\n"}
+expected=[]
+
+[[cases]]
+name="ruf051-float-kind-equality"
+comparison="full"
+files={"case.py"="d={}\nif 1.00 in d: del d[1e0]\n"}
+expected=[{rule="RUF051", file="case.py", start=19, end=29}]
+
+[[cases]]
+name="ruf051-complex-kind-equality"
+comparison="full"
+files={"case.py"="d={}\nif 1.00j in d: del d[1e0j]\n"}
+expected=[{rule="RUF051", file="case.py", start=20, end=31}]
+
+[[cases]]
+name="ruf051-negative-complex-key"
+comparison="full"
+files={"case.py"="d={}\nif -1j in d: del d[-1j]\n"}
+expected=[]
+
+[[cases]]
+name="ruf051-annotation-beats-initializer"
+comparison="full"
+files={"case.py"="d:object={}\nif key in d: del d[key]\n"}
+expected=[]
+
+[[cases]]
+name="ruf051-annotation-only"
+comparison="full"
+files={"case.py"="d:dict\nif key in d: del d[key]\n"}
+expected=[]
+
+[[cases]]
+name="ruf051-future-parameter-shadow"
+comparison="full"
+files={"case.py"="from __future__ import annotations\ndef f(d:dict,dict):\n if key in d: del d[key]\n"}
+expected=[]
+
+[[cases]]
+name="ruf051-future-module-rebind"
+comparison="full"
+files={"case.py"="from __future__ import annotations\ndef f(d:dict):\n if key in d: del d[key]\ndict=custom\n"}
+expected=[]
+
+[[cases]]
+name="ruf051-eager-module-rebind"
+comparison="full"
+files={"case.py"="def f(d:dict):\n if key in d: del d[key]\ndict=custom\n"}
+expected=[]
+
+[[cases]]
+name="ruf051-future-body-earlier-bind"
+comparison="full"
+files={"case.py"="from __future__ import annotations\ndef f(d:dict):\n dict=custom\n if key in d: del d[key]\n"}
+expected=[]
+
+[[cases]]
+name="ruf051-future-body-later-bind"
+comparison="full"
+files={"case.py"="from __future__ import annotations\ndef f(d:dict):\n if key in d: del d[key]\n dict=custom\n"}
+expected=[{rule="RUF051", file="case.py", start=64, end=74}]
+
+[[cases]]
+name="ruf051-future-typing-module-rebind"
+comparison="full"
+files={"case.py"="from __future__ import annotations\nimport typing\ndef f(d:typing.Dict):\n if key in d: del d[key]\ntyping=custom\n"}
+expected=[]
+
+[[cases]]
+name="ruf051-future-type-parameter"
+comparison="full"
+files={"case.py"="from __future__ import annotations\ndef f[dict](d:dict):\n if key in d: del d[key]\n"}
+expected=[{rule="invalid-syntax", file="case.py", start=40, end=46}]
+
+[[cases]]
+name="ruf051-unbound-delete-before-first-binding"
+comparison="full"
+files={"case.py"="del d\nd={}\nif key in d: del d[key]\n"}
+expected=[]
+
+[[cases]]
+name="ruf051-bound-delete-before-binding"
+comparison="full"
+files={"case.py"="d={}\ndel d\nd={}\nif key in d: del d[key]\n"}
+expected=[]
+
+[[cases]]
+name="ruf051-conditional-definitions"
+comparison="full"
+files={"case.py"="if flag: d={}\nelse: d={}\nif key in d: del d[key]\n"}
+expected=[]
+
+[[cases]]
+name="ruf051-annotation-then-assignment"
+comparison="full"
+files={"case.py"="d:dict\nd={}\nif key in d: del d[key]\n"}
+expected=[]
+
+[[cases]]
+name="ruf051-constructor-assignment-alias"
+comparison="full"
+files={"case.py"="D=dict\nd=D()\nif key in d: del d[key]\n"}
+expected=[]
+
+[[cases]]
+name="ruf051-named-expression"
+comparison="full"
+files={"case.py"="if (d:={}): pass\nif key in d: del d[key]\n"}
+expected=[{rule="RUF051", file="case.py", start=30, end=40}]
+
+[[cases]]
+name="ruf051-with-target"
+comparison="full"
+files={"case.py"="with {} as d:\n if key in d: del d[key]\n"}
+expected=[{rule="RUF051", file="case.py", start=28, end=38}]
+
+[[cases]]
+name="ruf051-async-with-target"
+comparison="full"
+files={"case.py"="async def f():\n async with {} as d:\n  if key in d: del d[key]\n"}
+expected=[{rule="RUF051", file="case.py", start=51, end=61}]
+
+[[cases]]
+name="ruf051-subscripted-constructor"
+comparison="full"
+files={"case.py"="d=dict[int,str]()\nif key in d: del d[key]\n"}
+expected=[]
+
+[[cases]]
+name="ruf051-future-module-rebind-builtins-slow"
+comparison="full"
+files={"case.py"="from __future__ import annotations\nimport builtins\ndef f(d:dict):\n if key in d: del d[key]\ndict=custom\n"}
+expected=[]
+
+[[cases]]
+name="ruf051-eager-module-rebind-builtins-slow"
+comparison="full"
+files={"case.py"="import builtins\ndef f(d:dict):\n if key in d: del d[key]\ndict=custom\n"}
+expected=[{rule="RUF051", file="case.py", start=45, end=55}]
+
+[[cases]]
+name="ruf051-future-module-rebind-late-builtins"
+comparison="full"
+files={"case.py"="from __future__ import annotations\ndef f(d:dict):\n if key in d: del d[key]\ndict=custom\nimport builtins\n"}
+expected=[]
+
+[[cases]]
+name="ruf051-eager-module-rebind-late-builtins"
+comparison="full"
+files={"case.py"="def f(d:dict):\n if key in d: del d[key]\ndict=custom\nimport builtins\n"}
+expected=[{rule="RUF051", file="case.py", start=29, end=39}]
+
+[[cases]]
+name="ruf051-eager-module-rebind-unseen-later-function"
+comparison="full"
+files={"case.py"="def f(d:dict):\n if key in d: del d[key]\ndef g():\n import builtins\ndict=custom\n"}
+expected=[]
+
+[[cases]]
+name="ruf051-eager-module-rebind-seen-earlier-function"
+comparison="full"
+files={"case.py"="def g():\n import builtins\ndef f(d:dict):\n if key in d: del d[key]\ndict=custom\n"}
+expected=[{rule="RUF051", file="case.py", start=55, end=65}]
+
+[[cases]]
+name="ruf051-future-class-inside-function-before-later-bind"
+comparison="full"
+files={"case.py"="from __future__ import annotations\ndef outer(d:dict):\n class C:\n  if key in d: del d[key]\n dict=custom\n"}
+expected=[{rule="RUF051", file="case.py", start=79, end=89}]
+
+[[cases]]
+name="ruf051-builtin-variable-name-shadow"
+comparison="full"
+files={"case.py"="dict={}\nif key in dict: del dict[key]\n"}
+expected=[]
+
+[[cases]]
+name="ruf051-constructor-before-current-rebind"
+comparison="full"
+files={"case.py"="d=dict()\ndef f():\n if key in d: del d[key]\ndict=custom\n"}
+expected=[]
+
+[[cases]]
+name="ruf051-constructor-before-current-rebind-seen"
+comparison="full"
+files={"case.py"="import builtins\nd=dict()\ndef f():\n if key in d: del d[key]\ndict=custom\n"}
+expected=[{rule="RUF051", file="case.py", start=48, end=58}]
+
+[[cases]]
+name="ruf051-function-type-parameter-return-fast"
+comparison="full"
+files={"case.py"="def d[dict]()->dict: ...\nif key in d: del d[key]\n"}
+expected=[{rule="RUF051", file="case.py", start=38, end=48}, {rule="invalid-syntax", file="case.py", start=5, end=11}]
+
+[[cases]]
+name="ruf051-function-type-parameter-return-slow"
+comparison="full"
+files={"case.py"="import builtins\ndef d[dict]()->dict: ...\nif key in d: del d[key]\n"}
+expected=[{rule="invalid-syntax", file="case.py", start=21, end=27}]
+
+[[cases]]
+name="ruf051-parameter-type-parameter-slow"
+comparison="full"
+files={"case.py"="import builtins\ndef f[dict](d:dict):\n if key in d: del d[key]\n"}
+expected=[{rule="invalid-syntax", file="case.py", start=21, end=27}]
+
+[[cases]]
+name="ruf051-future-param-generic-slow"
+comparison="full"
+files={"case.py"="from __future__ import annotations\nimport builtins\ndef f[dict](d:dict):\n if key in d: del d[key]\n"}
+expected=[{rule="invalid-syntax", file="case.py", start=56, end=62}]
+
+[[cases]]
+name="ruf051-future-function-generic-return-slow"
+comparison="full"
+files={"case.py"="from __future__ import annotations\nimport builtins\ndef d[dict]()->dict: ...\nif key in d: del d[key]\n"}
+expected=[{rule="RUF051", file="case.py", start=89, end=99}, {rule="invalid-syntax", file="case.py", start=56, end=62}]
+
+[[cases]]
+name="ruf051-class-default-before-outer-builtin-rebind"
+comparison="full"
+files={"case.py"="import builtins\ndef outer():\n class C:\n  def method(x=(d:=dict())): ...\n  if key in d: del d[key]\n dict=custom\n"}
+expected=[{rule="RUF051", file="case.py", start=87, end=97}]

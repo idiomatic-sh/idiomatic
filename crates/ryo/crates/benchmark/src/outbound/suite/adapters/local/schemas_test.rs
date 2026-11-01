@@ -155,7 +155,8 @@ fn explicit_context_mode_defaults_and_unknown_modes_are_checked() {
             .project_context_mode,
         crate::domain::suite::types::ProjectContextMode::ListedDisk
     );
-    let _verified_1 = super::tool(&format!("{base}project-context-mode='implicit-disk'\n")).expect_err("expected refusal");
+    let _verified_1 = super::tool(&format!("{base}project-context-mode='implicit-disk'\n"))
+        .expect_err("expected refusal");
     let case = "[[cases]]\nname='context'\nfiles={'mod.py'='import pkg.mod'}\ncontext={logical-root='pkg',auxiliary-files={'pkg/__init__.py'=[0,1,255]},missing=['__init__.py']}\nexpected=[]\n";
     let parsed = super::cases(case).expect("binary auxiliary bytes");
     let context = parsed.cases[0].context.as_ref().expect("context");

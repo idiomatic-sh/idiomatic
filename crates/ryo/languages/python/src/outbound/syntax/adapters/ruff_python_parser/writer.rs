@@ -9,7 +9,8 @@ use super::types::{
 };
 use crate::domain::extras::types::Extra;
 use crate::domain::syntax::constants::{
-    ANNOTATION_CONTEXT, ANNOTATION_SEED, CANDIDATE_SEED, NORMALIZED_IDENTIFIER,
+    ANNOTATION_CONTEXT, ANNOTATION_SEED, CANDIDATE_SEED, MODULE_FUTURE_ANNOTATIONS,
+    NORMALIZED_IDENTIFIER,
 };
 use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::Kind;
@@ -66,6 +67,7 @@ impl<'b, 'w, 't> Writer<'b, 'w, 't> {
         context: AnnotationContext,
     ) -> Self {
         Self {
+            future_annotations: false,
             annotations: Vec::new(),
             annotation: context,
             start,
@@ -230,6 +232,17 @@ impl<'a> SourceOrderVisitor<'a> for Writer<'_, '_, '_> {
                     ANNOTATION_SEED
                 } else {
                     CANDIDATE_SEED
+                }),
+            );
+        }
+        if matches!(node, AnyNodeRef::ModModule(_)) {
+            languages::node_property(
+                self.tree.builder,
+                MODULE_FUTURE_ANNOTATIONS,
+                languages::NameText(if self.future_annotations {
+                    crate::domain::syntax::constants::MODULE_FUTURE_ANNOTATIONS_ENABLED
+                } else {
+                    crate::domain::syntax::constants::MODULE_FUTURE_ANNOTATIONS_DISABLED
                 }),
             );
         }

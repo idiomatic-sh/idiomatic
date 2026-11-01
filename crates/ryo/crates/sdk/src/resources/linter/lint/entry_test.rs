@@ -412,7 +412,7 @@ fn subject(given: Input) -> Result<Value, Failure> {
             id,
             Rule {
                 query: crate::resources::query::RyoQlQuery::try_from(given.query).expect("a query"),
-                applicability: ryo_values::domain::runs::types::RuleApplicability::Always,
+                applicability: crate::resources::linter::RuleApplicability::Always,
                 parameters: BTreeMap::new(),
                 include: Vec::new(),
                 exclude: Vec::new(),
@@ -502,7 +502,7 @@ fn fails() {
 fn shared_calls(root: &std::path::Path) -> [LintRequest; 2] {
     let rule = |query: &str, include: &str| Rule {
         query: crate::resources::query::RyoQlQuery::try_from(query).expect("a query"),
-        applicability: ryo_values::domain::runs::types::RuleApplicability::Always,
+        applicability: crate::resources::linter::RuleApplicability::Always,
         parameters: BTreeMap::new(),
         include: vec![
             crate::resources::linter::lint::types::Glob::try_from(include).expect("a glob"),
@@ -895,7 +895,7 @@ fn capability_cache(query: &str) -> Value {
             RuleId::try_from("optional").expect("rule"),
             Rule {
                 query: crate::resources::query::RyoQlQuery::try_from(query).expect("query"),
-                applicability: ryo_values::domain::runs::types::RuleApplicability::Always,
+                applicability: crate::resources::linter::RuleApplicability::Always,
                 parameters: BTreeMap::new(),
                 include: vec![super::types::Glob::try_from("*.txt").expect("glob")],
                 exclude: vec![],

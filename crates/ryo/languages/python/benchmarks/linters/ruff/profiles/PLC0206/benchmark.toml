@@ -27,7 +27,9 @@ defaults = ["PLC0206"]
 parser-configuration = "python-target=3.10"
 
 [query-modules]
-"python/ruff/suppress" = "fragments/suppress.ryoql"
 "python/ruff/assigned-values" = "fragments/assigned-values.ryoql"
-"python/ruff/qualified-origins" = "fragments/qualified-origins.ryoql"
+"python/ruff/future-annotation-context" = "fragments/future-annotation-context.ryoql"
 "python/ruff/lookup-symbol-events" = "fragments/lookup-symbol-events.ryoql"
+"python/ruff/qualified-origins" = "fragments/qualified-origins.ryoql"
+"python/ruff/suppress" = "fragments/suppress.ryoql"
+"python/ruff/suppress-directives" = "fragments/suppress-directives.ryoql"

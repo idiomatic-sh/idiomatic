@@ -15,13 +15,13 @@ use std::sync::Arc;
 pub(crate) const SHOWN: &str = "item.py";
 
 /// A file read with the language's own parse: its table and its names, for its readers to be run on.
-pub(crate) struct Parsed {
+pub(crate) struct Parsed<'a> {
     /// The table.
     pub elements: languages::Elements,
     /// The names.
     pub symbols: Symbols,
     /// The bytes.
-    pub bytes: &'static [u8],
+    pub bytes: &'a [u8],
 }
 
 /// Reads `bytes` with the language's own parse, as the file numbered 0.
@@ -29,7 +29,7 @@ pub(crate) struct Parsed {
 /// # Errors
 ///
 /// When the language refuses the bytes, which it never does for a Python file.
-pub(crate) fn parsed(bytes: &'static [u8]) -> Result<Parsed, languages::ParseError> {
+pub(crate) fn parsed(bytes: &[u8]) -> Result<Parsed<'_>, languages::ParseError> {
     let parse = ParseContract::new(
         crate::settings::PythonParserSettings::default(),
         Arc::new(ruff_python_parser()),

@@ -25,7 +25,10 @@ sha256 = [
 defaults = ["F811"]
 
 [query-modules]
+"python/ruff/deferred-read-events" = "fragments/deferred-read-events.ryoql"
+"python/ruff/deferred-type-reads" = "fragments/deferred-type-reads.ryoql"
+"python/ruff/future-annotation-context" = "fragments/future-annotation-context.ryoql"
+"python/ruff/lookup-read-events" = "fragments/lookup-read-events.ryoql"
 "python/ruff/suppress" = "fragments/suppress.ryoql"
-"python/ruff/deferred-read-events"="fragments/deferred-read-events.ryoql"
-"python/ruff/lookup-read-events"="fragments/lookup-read-events.ryoql"
-"python/ruff/type-definition-context"="fragments/type-definition-context.ryoql"
+"python/ruff/suppress-directives" = "fragments/suppress-directives.ryoql"
+"python/ruff/type-definition-context" = "fragments/type-definition-context.ryoql"

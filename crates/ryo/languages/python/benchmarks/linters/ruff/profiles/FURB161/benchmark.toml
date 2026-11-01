@@ -25,4 +25,5 @@ sha256 = [
 defaults = ["FURB161"]
 
 [query-modules]
+"python/ruff/suppress-directives" = "fragments/suppress-directives.ryoql"
 "python/ruff/suppress" = "fragments/suppress.ryoql"

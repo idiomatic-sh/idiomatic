@@ -220,3 +220,8 @@ defaults = [
   "F524",
   "F525",
 ]
+
+[query-modules]
+"python/ruff/suppress-directives" = "fragments/suppress-directives.ryoql"
+"python/ruff/suppress-unmapped" = "fragments/suppress-unmapped.ryoql"
+"python/ruff/suppress-with-additional-lines" = "fragments/suppress-with-additional-lines.ryoql"

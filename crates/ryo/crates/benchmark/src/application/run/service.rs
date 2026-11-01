@@ -111,26 +111,19 @@ pub struct CaseSelection<'a> {
     pub ids: Option<&'a std::collections::BTreeSet<String>>,
 }
 
-/// Verify one deterministic shard after loading and validating the entire case inventory.
-///
-/// Cases are ordered by `(rule, name)` before assigning index modulo shard count. The
-/// suite loader and profile accounting run over the full inventory before this partition.
-///
-/// # Errors
-/// Propagates inventory, execution and observation errors, and refuses mismatched case reports.
-pub fn verify_shard(
-    suite: &dyn SuitePort,
-    reference: &dyn LinterPort,
-    candidate: &dyn LinterPort,
-    execution: &dyn ExecutionPort,
-    rules: &Path,
-    scratch: &Path,
+/// Audited global inventory and its exact selected partition.
+struct Selection {
+    /// Number of cases before partitioning.
+    global_count: usize,
+    /// Cases admitted to this invocation, preserving deterministic order.
+    selected_cases: Vec<crate::domain::suite::types::PreparedCase>,
+}
+
+/// Select an exact, nonempty subset only after the complete inventory is loaded.
+fn select_cases(
+    mut cases: Vec<crate::domain::suite::types::PreparedCase>,
     selection: CaseSelection<'_>,
-) -> Result<crate::domain::suite::types::CaseCount, Error> {
-    let mut cases = suite.cases(
-        crate::outbound::suite::types::ArtifactPath(rules),
-        crate::outbound::suite::types::ArtifactPath(scratch),
-    )?;
+) -> Result<Selection, Error> {
     cases.sort_by(|left, right| (&left.rule, &left.name).cmp(&(&right.rule, &right.name)));
     let global_count = cases.len();
     let assigned = match selection.shard {
@@ -157,15 +150,47 @@ pub fn verify_shard(
             .collect::<Vec<_>>(),
         None => assigned,
     };
+    Ok(Selection {
+        global_count,
+        selected_cases,
+    })
+}
+
+/// Verify one deterministic shard after loading and validating the entire case inventory.
+///
+/// Cases are ordered by `(rule, name)` before assigning index modulo shard count. The
+/// suite loader and profile accounting run over the full inventory before this partition.
+///
+/// # Errors
+/// Propagates inventory, execution and observation errors, and refuses mismatched case reports.
+pub fn verify_shard(
+    suite: &dyn SuitePort,
+    reference: &dyn LinterPort,
+    candidate: &dyn LinterPort,
+    execution: &dyn ExecutionPort,
+    rules: &Path,
+    scratch: &Path,
+    selection: CaseSelection<'_>,
+) -> Result<crate::domain::suite::types::CaseCount, Error> {
+    let mut cases = suite.cases(
+        crate::outbound::suite::types::ArtifactPath(rules),
+        crate::outbound::suite::types::ArtifactPath(scratch),
+    )?;
+    super::discrepancy::attach(suite, rules, &mut cases)?;
+    let Selection {
+        global_count,
+        selected_cases,
+    } = select_cases(cases, selection)?;
     let count = selected_cases.len();
     let first = selected_cases
         .first()
         .ok_or_else(|| Error::Invalid(super::constants::NO_CASES.into()))?;
+    let validations = super::discrepancy::validate_all(suite, reference, rules, &selected_cases)?;
     // The normal candidate path loads and compiles the whole selected profile.
     // Reuse its first result; a startup failure must not repeat for every fixture.
     let mut initial = Some(run(candidate, execution, &first.request)?);
     let mut failures = Vec::new();
-    for case in selected_cases {
+    for (case, validation) in selected_cases.into_iter().zip(validations) {
         for (name, tool) in [
             (super::constants::REFERENCE, reference),
             (super::constants::CANDIDATE, candidate),
@@ -190,13 +215,24 @@ pub fn verify_shard(
                                     == crate::domain::diagnostics::constants::FRONTEND_SYNTAX
                         });
                     }
-                    let comparison = compare(&case.expected, &result.report);
+                    let expected = if name == super::constants::REFERENCE {
+                        super::discrepancy::reference_expected(&case)
+                    } else {
+                        &case.expected
+                    };
+                    super::discrepancy::complete(
+                        &case,
+                        &result.report,
+                        name == super::constants::CANDIDATE,
+                    )?;
+                    let comparison = compare(expected, &result.report);
                     write_case_observation(
                         &case,
                         name,
                         full_report.as_ref(),
                         None,
                         comparison.is_ok(),
+                        validation.as_ref(),
                     )?;
                     if let Err(difference) = comparison {
                         failures.push(format!(
@@ -211,7 +247,14 @@ pub fn verify_shard(
                     }
                 }
                 Err(error) => {
-                    write_case_observation(&case, name, None, Some(&error.to_string()), false)?;
+                    write_case_observation(
+                        &case,
+                        name,
+                        None,
+                        Some(&error.to_string()),
+                        false,
+                        validation.as_ref(),
+                    )?;
                     failures.push(format!("{}/{} {name}: {error}", case.rule, case.name));
                 }
             }
@@ -238,6 +281,7 @@ fn write_case_observation(
     report: Option<&RunReport>,
     error: Option<&str>,
     passed: bool,
+    validation: Option<&serde_json::Value>,
 ) -> Result<(), Error> {
     let Some(path) = std::env::var_os("RYO_VERIFY_CASE_RESULTS") else {
         return Ok(());
@@ -297,6 +341,10 @@ fn write_case_observation(
         "context_manifest": context_identity,
         "project_context": report.and_then(|report| report.project_context.clone()).map(crate::outbound::context::adapters::local::schemas::ReceiptSchema::from),
         "expected": expected,
+        "reference_expected": finding_values(&super::discrepancy::reference_expected(case).diagnostics),
+        "documented_reference_discrepancy": case.reference_discrepancy.is_some(),
+        "discrepancy_validation": validation,
+        "raw_parity_matches_intended": report.map(|actual| super::discrepancy::matches_intended(case, actual)),
         "source_sha256": format!("{:x}", source_hasher.finalize()),
         "error": error,
         "case_passed": passed,
@@ -329,18 +377,21 @@ pub fn verify_reference_cases(
     rules: &Path,
     scratch: &Path,
 ) -> Result<crate::domain::suite::types::ReferenceCaseCount, Error> {
-    let cases = suite.cases(
+    let mut cases = suite.cases(
         crate::outbound::suite::types::ArtifactPath(rules),
         crate::outbound::suite::types::ArtifactPath(scratch),
     )?;
+    super::discrepancy::attach(suite, rules, &mut cases)?;
     let count = cases.len();
     if cases.is_empty() {
         return Err(Error::Invalid(super::constants::NO_CASES.into()));
     }
     let mut failures = Vec::new();
-    for case in cases {
+    let validations = super::discrepancy::validate_all(suite, reference, rules, &cases)?;
+    for (case, validation) in cases.into_iter().zip(validations) {
         match run(reference, execution, &case.request) {
             Ok(mut result) => {
+                let full_report = result.report.clone();
                 if case.comparison == crate::domain::suite::types::CaseComparison::Rule {
                     result.report.diagnostics.retain(|finding| {
                         finding.rule == case.rule
@@ -348,14 +399,37 @@ pub fn verify_reference_cases(
                                 == crate::domain::diagnostics::constants::FRONTEND_SYNTAX
                     });
                 }
-                if let Err(difference) = compare(&case.expected, &result.report) {
+                super::discrepancy::complete(&case, &result.report, false)?;
+                let comparison = compare(
+                    super::discrepancy::reference_expected(&case),
+                    &result.report,
+                );
+                write_case_observation(
+                    &case,
+                    super::constants::REFERENCE,
+                    Some(&full_report),
+                    None,
+                    comparison.is_ok(),
+                    validation.as_ref(),
+                )?;
+                if let Err(difference) = comparison {
                     failures.push(format!(
                         "{}/{} expected-vs-reference: expected={:?}; actual={:?}",
                         case.rule, case.name, difference.reference, difference.candidate
                     ));
                 }
             }
-            Err(error) => failures.push(format!("{}/{} reference: {error}", case.rule, case.name)),
+            Err(error) => {
+                write_case_observation(
+                    &case,
+                    super::constants::REFERENCE,
+                    None,
+                    Some(&error.to_string()),
+                    false,
+                    validation.as_ref(),
+                )?;
+                failures.push(format!("{}/{} reference: {error}", case.rule, case.name));
+            }
         }
     }
     if failures.is_empty() {

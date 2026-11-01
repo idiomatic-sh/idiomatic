@@ -1,0 +1,9 @@
+RUF008 candidate for the pinned Ruff 0.16.5 default policy, target Python 3.10.
+
+The query checks direct annotated assignments in recognized dataclass class bodies, with the first recognized decorator controlling the dataclass kind. It preserves the stable-mode boundary: the preview-only `field(default=...)` expansion is not enabled. Mutable literal/comprehension/constructor defaults are excluded for ClassVar or immutable annotations. Suppression uses the diagnosed default's line and range.
+
+Source contract: `crates/ruff_linter/src/rules/ruff/rules/mutable_dataclass_default.rs` at tag `0.16.5`, its dataclass helpers, `ruff_python_stdlib::typing` immutable catalogs, and `checkers/ast/mod.rs::visit_expr` annotation deferral. Complete copies of all three tagged fixtures are retained under `upstream/`.
+
+The annotation-origin helper handles the finite module families consumed by the immutable/ClassVar policies, not arbitrary qualified-name construction. Immediate known bindings stay cached. Unresolved immediate names use the final module namespace; deferred native and embedded annotation names use the final lexical namespace. Import aliases, collection-module chains, builtin fallback and shadows remain explicit. Lookup is restricted to requested annotation descendants. The shared lookup-symbol-events fragment is copied unchanged from the integration tree.
+
+Validation: 100/100 full-report cases against both the pinned Ruff executable and frozen actual benchmark worker `097f5c…`; 200 complete records, no errors, skipped rows or Unknown rule/file pairs. This includes the three tagged fixtures, stdlib/attrs decorators, mutable and immutable shapes, suppression, 38 paired deferred/cached-name, import-alias, class-shadow, stub and builtin controls. `proof.json` binds the tested query and helper bytes. This is bounded fixture evidence; default registration and cross-rule cohort validation remain integration work.

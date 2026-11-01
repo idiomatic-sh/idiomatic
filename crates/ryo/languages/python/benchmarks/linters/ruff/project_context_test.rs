@@ -29,7 +29,7 @@ fn staged(root: &Path) -> Result<(PathBuf, Vec<PreparedCase>), Error> {
         source.join("rules/PLW0406/cases.toml"),
         profile.join("rules/PLW0406/cases.toml"),
     )?;
-    for name in ["suppress", "text-units"] {
+    for name in ["suppress", "suppress-directives", "text-units"] {
         let _copied_fragment = std::fs::copy(
             source.join(format!("fragments/{name}.ryoql")),
             profile.join(format!("fragments/{name}.ryoql")),
@@ -47,16 +47,14 @@ fn request(profile: &Path, case: &PreparedCase, cache: &Path) -> WorkerRequest {
         context_manifest: case.request.context_manifest.clone(),
         root: case.request.root.clone(),
         rules: profile.join("rules"),
-        query_modules: BTreeMap::from([
-            (
-                "python/ruff/suppress".into(),
-                "fragments/suppress.ryoql".into(),
-            ),
-            (
+        query_modules: {
+            let mut modules = super::suppress_modules();
+            let _previous = modules.insert(
                 "python/ruff/text-units".into(),
                 "fragments/text-units.ryoql".into(),
-            ),
-        ]),
+            );
+            modules
+        },
         rule_applicability: BTreeMap::new(),
         parser_configuration: Some("python-target=3.10".into()),
         files: case.request.files.clone(),

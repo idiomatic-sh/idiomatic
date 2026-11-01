@@ -31,7 +31,7 @@ use super::errors::{LintError, ProviderCode};
 use super::types::{
     Column, Corpus, Finding, FindingColumn, FindingKey, FlagState, Glob, HostRelation, HostRow,
     Line, LintReport, LintRequest, Message, ParameterValue, Place, Port, ProviderName, RowNumber,
-    RuleId, Unknown,
+    RuleApplicability, RuleId, SkipReason, Unknown,
 };
 use crate::domain::capacity::types::MemoryBudget;
 use crate::domain::cell::types::{Cell, HostNumber, HostText, Slot};
@@ -182,7 +182,14 @@ impl TryFrom<LintRequestSchema> for CoreRequest {
                 .map(|(id, rule)| CoreRule {
                     id: ryo_values::domain::runs::types::RuleId(id.as_ref().into()),
                     query: rule.query.into_bundle(),
-                    applicability: rule.applicability,
+                    applicability: match rule.applicability {
+                        RuleApplicability::Always => {
+                            ryo_values::domain::runs::types::RuleApplicability::Always
+                        }
+                        RuleApplicability::AcceptedSyntax => {
+                            ryo_values::domain::runs::types::RuleApplicability::AcceptedSyntax
+                        }
+                    },
                     parameters: rule
                         .parameters
                         .into_iter()
@@ -250,7 +257,9 @@ impl TryFrom<LintReportSchema> for LintReport {
                 .map(|each| crate::resources::linter::lint::types::Skipped {
                     rule: RuleId::from_text(each.rule.0),
                     path: RelativePath(each.path.0),
-                    reason: each.reason,
+                    reason: match each.reason {
+                        ryo_values::domain::runs::types::SkipReason::SyntaxRejected => SkipReason::SyntaxRejected,
+                    },
                 })
                 .collect(),
         })

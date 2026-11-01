@@ -69,6 +69,8 @@ pub(crate) struct ParserRefusal {
 
 /// The writer of the table: it walks the library's tree in the order of the file and writes its tokens between the nodes.
 pub(super) struct Writer<'b, 'w, 't> {
+    /// Valid compiler activation computed from the module’s legal future-statement prefix.
+    pub future_annotations: bool,
     /// Annotation candidates are collected only in explicit annotation contexts.
     pub annotations: Vec<AnnotationCandidate>,
     /// Current syntactic context, refined by semantic binding before projection.

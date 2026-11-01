@@ -1,6 +1,6 @@
 //! Parser-free values retained between literal-expression reads.
+use indexmap::IndexMap;
 use ryo::languages::Position;
-use std::collections::HashMap;
 
 /// The syntax requested for a reconstructed source carrier.
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
@@ -44,8 +44,12 @@ pub(crate) struct LiteralParseOccurrence {
 /// An independently demanded per-source cache of positive and negative outcomes.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct LiteralParseIndex {
+    /// Budgeted previous-source grammar results; no source-node identities.
+    pub memo: crate::domain::grammar_cache::types::Memo<LiteralParseOutcome>,
+    /// Reusable current-source lookup of already parsed embedded carriers.
+    pub embedded: std::collections::HashSet<Position>,
     /// Complete quoted/prefixed token spelling, with token boundaries and dialect preserved.
-    pub by_carrier: HashMap<(LiteralDialect, String), LiteralParseOutcome>,
+    pub by_carrier: IndexMap<(LiteralDialect, String), LiteralParseOutcome>,
     /// Current source identities, independent of cache-key sharing.
     pub occurrences: Vec<LiteralParseOccurrence>,
     /// Whether demand has established complete current-source knowledge.

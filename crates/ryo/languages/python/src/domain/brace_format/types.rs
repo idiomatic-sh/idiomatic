@@ -1,6 +1,6 @@
 //! Plain values for the decoded brace-format parser.
+use indexmap::IndexMap;
 use ryo::languages::Position;
-use std::collections::HashMap;
 
 /// Stable categories reported by the brace field parser.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -114,8 +114,10 @@ pub(crate) struct BraceFormatOccurrence {
 /// Retained parse state for one source tree; populated only when either brace relation is requested.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct BraceFormatIndex {
+    /// Budgeted previous-source grammar results; no source-node identities.
+    pub memo: crate::domain::grammar_cache::types::Memo<BraceFormatResult>,
     /// Decoded input to cached parse result.
-    pub by_input: HashMap<String, usize>,
+    pub by_input: IndexMap<String, usize>,
     /// Distinct decoded input results.
     pub values: Vec<CachedBraceFormat>,
     /// Source occurrences.

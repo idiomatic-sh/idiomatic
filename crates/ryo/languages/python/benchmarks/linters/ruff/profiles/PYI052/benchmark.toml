@@ -27,6 +27,7 @@ defaults = ["PYI052"]
 parser-configuration = "python-target=3.10"
 
 [query-modules]
+"python/ruff/suppress-directives" = "fragments/suppress-directives.ryoql"
 "python/ruff/suppress" = "fragments/suppress.ryoql"
 "python/ruff/enum-bases" = "fragments/enum-bases.ryoql"
 "python/ruff/class-bases" = "fragments/class-bases.ryoql"

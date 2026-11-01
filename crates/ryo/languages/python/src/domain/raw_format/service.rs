@@ -23,10 +23,20 @@ pub(crate) const INCOMPLETE: &str =
 
 /// Discard current source identities and bodies while retaining collection capacities.
 pub(crate) fn clear(index: &mut RawFormatIndex) {
-    index.by_input.clear();
-    index.values.clear();
-    index.occurrences.clear();
-    index.segments.clear();
+    crate::domain::grammar_cache::service::empty(&mut index.memo);
+    for (input, at) in index.by_input.drain(..) {
+        if let Some(value) = index.values.get_mut(at) {
+            let result = std::mem::replace(value, FormatParseResult::Unavailable);
+            let bytes = crate::domain::format_parsing::service::owned_bytes(&result);
+            if result != FormatParseResult::Unavailable {
+                crate::domain::grammar_cache::service::admit(&mut index.memo, input, result, bytes);
+            }
+        }
+    }
+    crate::domain::grammar_cache::service::reset_map(&mut index.by_input);
+    crate::domain::grammar_cache::service::reset(&mut index.values);
+    crate::domain::grammar_cache::service::reset(&mut index.occurrences);
+    crate::domain::grammar_cache::service::reset(&mut index.segments);
     index.state = FormatParseState::Fresh;
 }
 
@@ -69,15 +79,20 @@ where
     if let Some(cached) = index.by_input.get(body) {
         return Some(*cached);
     }
+    let reused = crate::domain::grammar_cache::service::take(&mut index.memo, body);
     let mut owned = String::new();
-    if owned.try_reserve(body.len()).is_err()
-        || index.by_input.try_reserve(1).is_err()
+    if (reused.is_none() && owned.try_reserve(body.len()).is_err())
+        || !crate::domain::grammar_cache::service::reserve(&mut index.by_input)
         || index.values.try_reserve(1).is_err()
     {
         return None;
     }
-    owned.push_str(body);
-    let result = P::parse(body, FormatDialect::PercentString);
+    let (owned, result) = if let Some(reused) = reused {
+        reused
+    } else {
+        owned.push_str(body);
+        (owned, P::parse(body, FormatDialect::PercentString))
+    };
     if result == FormatParseResult::Unavailable {
         index.state = FormatParseState::Partial;
     }
@@ -167,8 +182,18 @@ pub(crate) fn prepare<'a, P>(
 where
     P: FormatSyntax,
 {
+    if !crate::domain::grammar_cache::service::is_grammar::<P, _>(
+        &model.raw_format.borrow().memo,
+        "python-percent-raw-v1",
+    ) {
+        clear(&mut model.raw_format.borrow_mut());
+    }
     if model.raw_format.borrow().state == FormatParseState::Fresh {
         let mut index = model.raw_format.borrow_mut();
+        crate::domain::grammar_cache::service::grammar::<P, _>(
+            &mut index.memo,
+            "python-percent-raw-v1",
+        );
         let source_complete = !languages::has_incomplete_syntax(tree.elements)
             && !languages::has_incomplete_lexical_stream(tree.elements);
         index.state = if source_complete {
@@ -187,6 +212,7 @@ where
             }
             occurrence::<P>(tree, &mut index, node, symbols, source_complete);
         }
+        crate::domain::grammar_cache::service::empty(&mut index.memo);
     }
     model.raw_format.borrow()
 }

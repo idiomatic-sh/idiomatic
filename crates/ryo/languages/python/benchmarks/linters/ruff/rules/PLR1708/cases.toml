@@ -100,3 +100,58 @@ name = "file-suppression"
 comparison = "full"
 files = { "case.py" = "# ruff: noqa: PLR1708\ndef f():\n yield 1\n raise StopIteration\n" }
 expected = []
+
+[[cases]]
+name = "rooted-direct-yield-in-raise"
+files = { "case.py" = "def f():\n    raise StopIteration((yield 1))\n" }
+expected = [{ "rule" = "PLR1708", "file" = "case.py", "start" = 13, "end" = 43 }]
+
+[[cases]]
+name = "rooted-deep-yield-and-raise"
+files = { "case.py" = "def f(flag):\n    if flag:\n        yield outer(deep(1))\n    try:\n        call()\n    finally:\n        raise StopIteration\n" }
+expected = [{ "rule" = "PLR1708", "file" = "case.py", "start" = 100, "end" = 119 }]
+
+[[cases]]
+name = "rooted-nested-method-not-outer"
+files = { "case.py" = "def f():\n    class C:\n        def g(self):\n            yield 1\n    raise StopIteration\n" }
+expected = []
+
+[[cases]]
+name = "rooted-class-body-yield-owner"
+files = { "case.py" = "def f():\n    yield 1\n    class C:\n        raise StopIteration\n        def g(self):\n            raise StopIteration\n" }
+expected = [{ "rule" = "PLR1708", "file" = "case.py", "start" = 42, "end" = 61 }]
+
+[[cases]]
+name = "rooted-nested-function-annotation-excluded"
+files = { "case.py" = "def f():\n    def g(x: (yield 1)): pass\n    raise StopIteration\n" }
+expected = []
+
+[[cases]]
+name = "rooted-embedded-string-yield-excluded"
+files = { "case.py" = "def f():\n    x: \"(yield 1)\"\n    raise StopIteration\n" }
+expected = []
+
+[[cases]]
+name = "rooted-embedded-string-raise-with-real-yield"
+files = { "case.py" = "def f():\n    x: \"StopIteration\"\n    yield 1\n    raise StopIteration\n" }
+expected = [{ "rule" = "PLR1708", "file" = "case.py", "start" = 48, "end" = 67 }]
+
+[[cases]]
+name = "rooted-nested-lambda-no-expansion"
+files = { "case.py" = "def f():\n    callback = lambda: (yield 1)\n    raise StopIteration\n" }
+expected = []
+
+[[cases]]
+name = "rooted-multiple-generator-roots"
+files = { "case.py" = "def f():\n    yield 1\n    raise StopIteration\ndef g():\n    yield from values\n    raise StopIteration()\n" }
+expected = [{ "rule" = "PLR1708", "file" = "case.py", "start" = 25, "end" = 44 }, { "rule" = "PLR1708", "file" = "case.py", "start" = 80, "end" = 101 }]
+
+[[cases]]
+name = "rooted-unicode-and-suppression"
+files = { "case.py" = "def café():\n    yield 1\n    raise StopIteration  # noqa: PLR1708\ndef other():\n    yield 2\n    raise StopIteration\n" }
+expected = [{ "rule" = "PLR1708", "file" = "case.py", "start" = 95, "end" = 114 }]
+
+[[cases]]
+name = "rooted-two-real-files-same-local-positions"
+files = { "a.py" = "def f():\n    yield 1\n    raise StopIteration\ndef g():\n    yield from values\n    raise StopIteration()\n", "b.py" = "def f():\n    callback = lambda: (yield 1)\n    raise StopIteration\n" }
+expected = [{ "rule" = "PLR1708", "file" = "a.py", "start" = 25, "end" = 44 }, { "rule" = "PLR1708", "file" = "a.py", "start" = 80, "end" = 101 }]

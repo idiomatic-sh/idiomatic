@@ -12,10 +12,11 @@ let comprehension_body_fields = select parent, child from "semantic-child" where
 let statement_loop_bodies = select l.id as loop, r.child as id, l.file as file from loops as l join body_fields as r on l.id = r.parent where l.kind = "for" or l.kind = "async-for";
 let comprehension_bodies = select l.id as loop, r.child as id, l.file as file from loops as l join comprehension_body_fields as r on l.id = r.parent;
 let loop_body_roots = union(left=statement_loop_bodies, right=comprehension_bodies);
-let child_edges = select parent as origin, child as destination from "semantic-child";
-let descendants = closure(edges=child_edges, source="origin", destination="destination");
-let target_descendants = select l.loop as loop, r.destination as id, l.file as file from loop_target_roots as l join descendants as r on l.id = r.origin;
-let body_descendants = select l.loop as loop, r.destination as id, l.file as file from loop_body_roots as l join descendants as r on l.id = r.origin;
+let descendant_nodes = select child as id from "semantic-child";
+let target_walk = axis(from=loop_target_roots, relation="semantic-child", direction=descendant, domain=descendant_nodes);
+let target_descendants = select loop, related as id, file from target_walk;
+let body_walk = axis(from=loop_body_roots, relation="semantic-child", direction=descendant, domain=descendant_nodes);
+let body_descendants = select loop, related as id, file from body_walk;
 let target_ids = select loop, id, file from loop_target_roots;
 let target_children = select loop, id, file from target_descendants;
 let all_target_ids = union(left=target_ids, right=target_children);
@@ -34,7 +35,8 @@ let functions_in_loop = axis(from=functions, relation="semantic-child", directio
 let nested_functions_all = select l.id as function, r.related as loop, l.file as file from functions as l join functions_in_loop as r on l.id = r.id and l.file = r.file;
 let iter_fields = select parent, child from "semantic-child" where field = "iter";
 let loop_iter_roots = select l.id as loop, r.child as id, l.file as file from loops as l join iter_fields as r on l.id = r.parent;
-let iter_descendants = select l.loop as loop, r.destination as id, l.file as file from loop_iter_roots as l join descendants as r on l.id = r.origin;
+let iter_walk = axis(from=loop_iter_roots, relation="semantic-child", direction=descendant, domain=descendant_nodes);
+let iter_descendants = select loop, related as id, file from iter_walk;
 let iter_nodes = union(left=loop_iter_roots, right=iter_descendants);
 let functions_in_iter = select l.loop as loop, r.id as function, l.file as file from iter_nodes as l join functions as r on l.id = r.id and l.file = r.file;
 let nested_functions = antijoin(left=nested_functions_all, right=functions_in_iter, left-on=["loop", "function", "file"], right-on=["loop", "function", "file"]);

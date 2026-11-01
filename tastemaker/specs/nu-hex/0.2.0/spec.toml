@@ -22,6 +22,7 @@ templates = [
   { template = "port-module", file = "src/outbound/{port}.rs", count = { min = 0 }, description = "One port's module file, beside the port part: it declares the interface, its adapters and its fixtures under the `fixtures` feature." },
 ]
 rules = [
+  { rule = "idiomatic.arch/layer-matrix@0.1.0", include = ["src/**"], description = "The explicit four-layer matrix over resolved local dependencies, including module files, runtime benchmark code and tests; no blanket exemptions." },
   { rule = "idiomatic.arch/orphan-rust-files@0.1.0", include = ["**"], exclude = ["**/tests/fixtures/**", "**/tests/ui/**"], description = "Every Rust file of the core is a module its crate root reaches: a file no `mod` declares is never compiled." },
   { rule = "idiomatic.arch/io-at-boundary@0.1.0", include = ["src/domain/**", "src/inbound/use_cases/**", "src/outbound/**", "src/application/**"], exclude = ["**/adapters/**", "**/*_test.rs", "**/acceptance.rs", "**/fixtures.rs", "**/fixtures/**"], description = "Core operations reach external effects only through injected contracts." },
 

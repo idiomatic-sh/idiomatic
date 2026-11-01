@@ -17,7 +17,6 @@ use crate::domain::host::types::{HostColumn, HostRelationName};
 use crate::domain::query::types::RyoQlQuery;
 use crate::domain::relation::types::ColumnName;
 use ryo_values::domain::files::types::{CorpusFile, CorpusListing};
-use ryo_values::domain::runs::types::RuleApplicability;
 
 /// The name a rule's findings carry: text that is not blank. Made through `RuleId::try_from`.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -107,6 +106,23 @@ pub enum Cache {
     None,
     /// Under this directory, which the caller owns.
     At(PathBuf),
+}
+
+/// Whether a rule runs on every admitted file or only explicitly accepted syntax.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub enum RuleApplicability {
+    /// Run regardless of parser acceptance.
+    #[default]
+    Always,
+    /// Run only when the language provider accepted the file's syntax.
+    AcceptedSyntax,
+}
+
+/// Why the linter explicitly skipped a rule for one file.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum SkipReason {
+    /// The language provider explicitly rejected the file's syntax.
+    SyntaxRejected,
 }
 
 /// One rule: a query whose rows are violations.
@@ -355,7 +371,7 @@ pub struct Skipped {
     /// The file.
     pub path: RelativePath,
     /// Why the rule was skipped.
-    pub reason: ryo_values::domain::runs::types::SkipReason,
+    pub reason: SkipReason,
 }
 
 /// A relation the host declares beside ryo's own: the name a rule writes, the columns its rows have, and the rows.

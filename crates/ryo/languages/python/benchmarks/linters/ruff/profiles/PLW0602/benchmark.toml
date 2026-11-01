@@ -27,7 +27,9 @@ sha256 = [
 defaults = ["PLW0602"]
 
 [query-modules]
-"python/ruff/checker-namespace-events"="fragments/checker-namespace-events.ryoql"
-"python/ruff/suppress"="fragments/suppress.ryoql"
-"python/ruff/nonlocal-bindings"="fragments/nonlocal-bindings.ryoql"
-"python/ruff/checker-type-scope-events"="fragments/checker-type-scope-events.ryoql"
+"python/ruff/checker-namespace-events" = "fragments/checker-namespace-events.ryoql"
+"python/ruff/checker-type-scope-events" = "fragments/checker-type-scope-events.ryoql"
+"python/ruff/future-annotation-context" = "fragments/future-annotation-context.ryoql"
+"python/ruff/nonlocal-bindings" = "fragments/nonlocal-bindings.ryoql"
+"python/ruff/suppress" = "fragments/suppress.ryoql"
+"python/ruff/suppress-directives" = "fragments/suppress-directives.ryoql"

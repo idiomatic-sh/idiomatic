@@ -67,3 +67,48 @@ expected = [{ file = "case.py", start = 23, end = 59 }]
 name = "noqa"
 files = { "case.py" = "all([x for x in values]) # noqa: C419\n" }
 expected = []
+
+[[cases]]
+name = "rooted-direct-root-await"
+files = { "case.py" = "async def f(items):\n    return any([await work(x) for x in items])\n" }
+expected = []
+
+[[cases]]
+name = "rooted-nested-await-through-intermediates"
+files = { "case.py" = "async def f(items):\n    return any([call(deep(await work(x)), other) for x in items])\n" }
+expected = []
+
+[[cases]]
+name = "rooted-fstring-await-descendant"
+files = { "case.py" = "async def f(items):\n    return any([f\"{await work(x)}\" for x in items])\n" }
+expected = []
+
+[[cases]]
+name = "rooted-await-outside-element-does-not-prune"
+files = { "case.py" = "async def f(items):\n    await work()\n    return any([call(deep(x)) for x in items])\n" }
+expected = [{ "rule" = "C419", "file" = "case.py", "start" = 52, "end" = 82 }]
+
+[[cases]]
+name = "rooted-await-in-condition-keeps-existing-policy"
+files = { "case.py" = "async def f(items):\n    return any([x for x in items if await work()])\n" }
+expected = [{ "rule" = "C419", "file" = "case.py", "start" = 35, "end" = 69 }]
+
+[[cases]]
+name = "rooted-async-generator-exclusion-unchanged"
+files = { "case.py" = "async def f(items):\n    return any([call(x) async for x in items])\n" }
+expected = []
+
+[[cases]]
+name = "rooted-multiple-comprehensions-and-owner-order"
+files = { "case.py" = "async def f(items):\n    await work()\n    a = any([call(deep(x)) for x in items])\n    b = all({call(x) for x in items})\n    return a,b\n" }
+expected = [{ "rule" = "C419", "file" = "case.py", "start" = 49, "end" = 79 }, { "rule" = "C419", "file" = "case.py", "start" = 93, "end" = 117 }]
+
+[[cases]]
+name = "rooted-unicode-multiline-elt"
+files = { "case.py" = "async def f(items):\n    await work()\n    return any([\n        call(café)\n        for café in items\n    ])\n" }
+expected = [{ "rule" = "C419", "file" = "case.py", "start" = 52, "end" = 106 }]
+
+[[cases]]
+name = "rooted-two-files-reused-identities"
+files = { "a.py" = "async def f(items):\n    return any([await work(x) for x in items])\n", "b.py" = "async def f(items):\n    await work()\n    return any([call(deep(x)) for x in items])\n" }
+expected = [{ "rule" = "C419", "file" = "b.py", "start" = 52, "end" = 82 }]

@@ -19,11 +19,21 @@ use super::super::tokens::types::Token;
 pub(crate) const INCOMPLETE: &str =
     "format parsing needs complete decoded string inputs and source syntax";
 
-/// Clear current values while retaining collection capacities for the next source.
+/// Reset current identities and admit small, content-only results for one following source.
 pub(crate) fn clear(index: &mut FormatParseIndex) {
-    index.by_input.clear();
-    index.values.clear();
-    index.occurrences.clear();
+    crate::domain::grammar_cache::service::empty(&mut index.memo);
+    for (input, at) in index.by_input.drain(..) {
+        if let Some(value) = index.values.get_mut(at) {
+            let result = std::mem::replace(&mut value.result, FormatParseResult::Unavailable);
+            let bytes = owned_bytes(&result);
+            if result != FormatParseResult::Unavailable {
+                crate::domain::grammar_cache::service::admit(&mut index.memo, input, result, bytes);
+            }
+        }
+    }
+    crate::domain::grammar_cache::service::reset_map(&mut index.by_input);
+    crate::domain::grammar_cache::service::reset(&mut index.values);
+    crate::domain::grammar_cache::service::reset(&mut index.occurrences);
     index.state = FormatParseState::Fresh;
 }
 
@@ -35,11 +45,11 @@ pub(crate) fn is_string_occurrence(tree: &Tree<'_>, at: Position) -> bool {
 
 /// Concatenate parser-decoded string pieces. Dynamic interpolations are known unknown inputs;
 /// missing decoded parser payload is unavailable and must make the relation partial.
-pub(crate) fn decoded_string(tree: &Tree<'_>, at: Position) -> Result<Option<String>, ()> {
+pub(crate) fn decoded_into(tree: &Tree<'_>, at: Position, text: &mut String) -> Result<bool, ()> {
+    text.clear();
     if interpolation(tree, at) == Interpolation::Interpolates {
-        return Ok(None);
+        return Ok(false);
     }
-    let mut text = String::new();
     for token in below(tree, at).filter(|each| {
         matches!(
             kind(tree, *each),
@@ -54,7 +64,33 @@ pub(crate) fn decoded_string(tree: &Tree<'_>, at: Position) -> Result<Option<Str
         }
         text.push_str(piece.0);
     }
-    Ok(Some(text))
+    Ok(true)
+}
+
+/// Owned child capacity of a grammar result, excluding its inline representation.
+#[must_use]
+pub(crate) fn owned_bytes(result: &FormatParseResult) -> usize {
+    match result {
+        FormatParseResult::Parsed(parsed) => parsed
+            .fields
+            .capacity()
+            .saturating_mul(size_of::<
+                crate::domain::format_syntax::types::FormatFieldValue,
+            >())
+            .saturating_add(
+                parsed
+                    .fields
+                    .iter()
+                    .map(|field| match &field.argument {
+                        crate::domain::format_syntax::types::FormatArgument::Mapping(key) => {
+                            key.capacity()
+                        }
+                        crate::domain::format_syntax::types::FormatArgument::Positional => 0,
+                    })
+                    .sum::<usize>(),
+            ),
+        FormatParseResult::Malformed(_) | FormatParseResult::Unavailable => 0,
+    }
 }
 
 /// Add one occurrence, sharing a prior parse when its decoded value has already appeared.
@@ -62,9 +98,11 @@ fn occurrence<P>(tree: &Tree<'_>, index: &mut FormatParseIndex, at: Position)
 where
     P: FormatSyntax,
 {
-    let decoded = match decoded_string(tree, at) {
-        Ok(Some(decoded)) => decoded,
-        Ok(None) => {
+    let mut decoded = std::mem::take(&mut index.memo.scratch);
+    match decoded_into(tree, at, &mut decoded) {
+        Ok(true) => {}
+        Ok(false) => {
+            crate::domain::grammar_cache::service::scratch(&mut index.memo, decoded);
             if index.occurrences.try_reserve(1).is_err() {
                 index.state = FormatParseState::Partial;
                 return;
@@ -77,6 +115,7 @@ where
             return;
         }
         Err(()) => {
+            crate::domain::grammar_cache::service::scratch(&mut index.memo, decoded);
             index.state = FormatParseState::Partial;
             if index.occurrences.try_reserve(1).is_ok() {
                 index.occurrences.push(FormatOccurrence {
@@ -87,13 +126,14 @@ where
             }
             return;
         }
-    };
+    }
 
     if let Some(cached) = index.by_input.get(decoded.as_str()).copied() {
         if index.occurrences.try_reserve(1).is_err() {
             index.state = FormatParseState::Partial;
             return;
         }
+        crate::domain::grammar_cache::service::scratch(&mut index.memo, decoded);
         index.occurrences.push(FormatOccurrence {
             node: at,
             cached: Some(cached),
@@ -104,12 +144,20 @@ where
 
     if index.values.try_reserve(1).is_err()
         || index.occurrences.try_reserve(1).is_err()
-        || index.by_input.try_reserve(1).is_err()
+        || !crate::domain::grammar_cache::service::reserve(&mut index.by_input)
     {
         index.state = FormatParseState::Partial;
         return;
     }
-    let parsed = P::parse(&decoded, FormatDialect::PercentString);
+    let (decoded, parsed) = if let Some((key, result)) =
+        crate::domain::grammar_cache::service::take(&mut index.memo, &decoded)
+    {
+        crate::domain::grammar_cache::service::scratch(&mut index.memo, decoded);
+        (key, result)
+    } else {
+        let parsed = P::parse(&decoded, FormatDialect::PercentString);
+        (decoded, parsed)
+    };
     if parsed == FormatParseResult::Unavailable {
         index.state = FormatParseState::Partial;
     }
@@ -132,9 +180,19 @@ pub(crate) fn prepare<'a, P>(
 where
     P: FormatSyntax,
 {
+    if !crate::domain::grammar_cache::service::is_grammar::<P, _>(
+        &model.format_parsing.borrow().memo,
+        "python-percent-decoded-v1",
+    ) {
+        clear(&mut model.format_parsing.borrow_mut());
+    }
     let held: &RefCell<FormatParseIndex> = &model.format_parsing;
     if held.borrow().state == FormatParseState::Fresh {
         let mut index = held.borrow_mut();
+        crate::domain::grammar_cache::service::grammar::<P, _>(
+            &mut index.memo,
+            "python-percent-decoded-v1",
+        );
         if languages::has_incomplete_syntax(tree.elements)
             || languages::has_incomplete_lexical_stream(tree.elements)
         {
@@ -153,6 +211,7 @@ where
             }
             occurrence::<P>(tree, &mut index, at);
         }
+        crate::domain::grammar_cache::service::empty(&mut index.memo);
     }
     held.borrow()
 }

@@ -1463,6 +1463,7 @@ dependencies = [
  "idiomatic-sh-ryo-benchmark",
  "idiomatic-sh-ryo-python",
  "idiomatic-sh-ryo-sdk",
+ "indexmap",
  "postcard",
  "ruff_python_ast",
  "ruff_python_parser",

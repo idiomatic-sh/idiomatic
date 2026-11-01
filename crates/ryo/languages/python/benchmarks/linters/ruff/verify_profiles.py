@@ -72,6 +72,239 @@ def diagnostic_multiset(
     )
 
 
+def discrepancy_json_hash(value: object) -> str:
+    """Canonical certificate encoding shared with the native benchmark harness."""
+    return hashlib.sha256(
+        json.dumps(
+            value, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+        ).encode()
+    ).hexdigest()
+
+
+def discrepancy_output(
+    files: list[str], findings: list[dict[str, object]]
+) -> dict[str, object]:
+    """Bind exact files and the complete diagnostic multiset, preserving duplicates."""
+    return {
+        "files": sorted(files),
+        "diagnostics": sorted(
+            findings,
+            key=lambda row: (row["rule"], row["file"], row["start"], row["end"]),
+        ),
+        "skipped": [],
+    }
+
+
+def validate_reference_discrepancy(
+    profile_root: Path, case: dict[str, object], parent_rule: str
+) -> dict[str, object] | None:
+    """Admit two concrete expectations only with pinned independent language evidence.
+
+    This validates evidence identity, not the truth of a specification interpretation.
+    Runtime verification must additionally bind the actual invocation and approved tool.
+    """
+    annotation = case.get("reference-discrepancy")
+    if annotation is None:
+        return None
+    if not isinstance(annotation, dict) or set(annotation) != {
+        "expected",
+        "identity",
+        "evidence",
+        "reason",
+    }:
+        raise ValueError("invalid reference-discrepancy schema")
+    if (
+        case.get("comparison", "rule") != "full"
+        or not str(annotation["reason"]).strip()
+    ):
+        raise ValueError("reference discrepancy requires full comparison and a reason")
+    identity = annotation["identity"]
+    identity_fields = {
+        "tool",
+        "version",
+        "observed-executable-sha256",
+        "profile-sha256",
+        "settings-sha256",
+        "source-sha256",
+        "reference-output-sha256",
+        "intended-output-sha256",
+    }
+    if not isinstance(identity, dict) or set(identity) != identity_fields:
+        raise ValueError("incomplete reference discrepancy identity")
+    for field in identity_fields - {"tool", "version"}:
+        if (
+            not isinstance(identity[field], str)
+            or re.fullmatch(r"[a-f0-9]{64}", identity[field]) is None
+        ):
+            raise ValueError(
+                "reference discrepancy requires lowercase SHA256 identities"
+            )
+    profile_path = profile_root / "benchmark.toml"
+    profile = tomllib.loads(profile_path.read_text(encoding="utf-8"))
+    if (
+        identity["tool"] != profile["tool"]
+        or identity["version"] != profile["version"]
+        or identity["observed-executable-sha256"] not in profile["sha256"]
+        or identity["profile-sha256"] != sha256(profile_path)
+    ):
+        raise ValueError("stale discrepancy tool/profile identity")
+    source = hashlib.sha256()
+    for file, text in sorted(case["files"].items()):
+        source.update(file.encode())
+        source.update(b"\0")
+        source.update(text.encode())
+    if source.hexdigest() != identity["source-sha256"]:
+        raise ValueError("stale discrepancy source identity")
+
+    def expected_rows(rows: object) -> list[dict[str, object]]:
+        if not isinstance(rows, list):
+            raise ValueError("discrepancy expectation must be an array")
+        normalized = []
+        for row in rows:
+            if not isinstance(row, dict) or set(row) != {
+                "rule",
+                "file",
+                "start",
+                "end",
+            }:
+                raise ValueError(
+                    "full discrepancy expectations require explicit diagnostic identities"
+                )
+            if (
+                row["file"] not in case["files"]
+                or not isinstance(row["rule"], str)
+                or not row["rule"]
+            ):
+                raise ValueError("discrepancy diagnostic outside supplied source")
+            text = case["files"][row["file"]].encode()
+            if (
+                type(row["start"]) is not int
+                or type(row["end"]) is not int
+                or not 0 <= row["start"] <= row["end"] <= len(text)
+            ):
+                raise ValueError("invalid discrepancy diagnostic range")
+            text[: row["start"]].decode()
+            text[: row["end"]].decode()
+            normalized.append(dict(row))
+        return normalized
+
+    intended = discrepancy_output(list(case["files"]), expected_rows(case["expected"]))
+    reference = discrepancy_output(
+        list(case["files"]), expected_rows(annotation["expected"])
+    )
+    if intended == reference:
+        raise ValueError("identical expectations are not a reference discrepancy")
+    if (
+        discrepancy_json_hash(intended) != identity["intended-output-sha256"]
+        or discrepancy_json_hash(reference) != identity["reference-output-sha256"]
+    ):
+        raise ValueError("stale reference/intended expectation identity")
+    evidence = annotation["evidence"]
+    if not isinstance(evidence, list) or not evidence:
+        raise ValueError("reference discrepancy requires independent evidence")
+    for item in evidence:
+        fields = {
+            "path",
+            "sha256",
+            "kind",
+            "language-version",
+            "target-configuration",
+            "version-rationale",
+        }
+        if not isinstance(item, dict) or set(item) != fields:
+            raise ValueError("incomplete discrepancy evidence")
+        path = Path(item["path"])
+        if (
+            path.is_absolute()
+            or not path.parts
+            or any(part in {".", ".."} for part in path.parts)
+        ):
+            raise ValueError("unsafe discrepancy evidence path")
+        resolved = (profile_root / path).resolve(strict=True)
+        if (
+            not resolved.is_relative_to(profile_root.resolve())
+            or not resolved.is_file()
+            or sha256(resolved) != item["sha256"]
+            or item["kind"] not in {"language-spec", "independent-language-run"}
+            or not str(item["language-version"]).strip()
+            or not str(item["version-rationale"]).strip()
+            or item["target-configuration"] != profile.get("parser-configuration")
+        ):
+            raise ValueError("stale/external evidence or unsupported language contract")
+    return {
+        "identity": identity,
+        "approved_executable_sha256": profile["sha256"],
+        "reference_expected": reference["diagnostics"],
+        "intended_expected": intended["diagnostics"],
+        "reason": annotation["reason"],
+    }
+
+
+def classify_reference_discrepancy(
+    profile_root: Path,
+    case: dict[str, object],
+    parent_rule: str,
+    reference: dict[str, object],
+    candidate: dict[str, object],
+    *,
+    actual_executable_sha256: str,
+    actual_settings_sha256: str,
+) -> dict[str, object]:
+    """Retain raw parity mismatch while separately asserting the intended language behavior."""
+    certificate = validate_reference_discrepancy(profile_root, case, parent_rule)
+    if certificate is None:
+        raise ValueError("classification requires an explicit discrepancy certificate")
+    profile = tomllib.loads((profile_root / "benchmark.toml").read_text())
+    if (
+        actual_executable_sha256 not in profile["sha256"]
+        or actual_settings_sha256 != certificate["identity"]["settings-sha256"]
+    ):
+        raise ValueError("unapproved executable or stale actual invocation settings")
+    files = sorted(case["files"])
+    for side, report in (("reference", reference), ("candidate", candidate)):
+        if (
+            report.get("complete") is not True
+            or report.get("error") is not None
+            or report.get("files") != files
+            or report.get("skipped") != []
+            or not isinstance(report.get("diagnostics"), list)
+        ):
+            raise ValueError("discrepancy cannot accept an incomplete or failed report")
+        coverage = report.get("coverage")
+        if coverage is None and side == "candidate":
+            raise ValueError("candidate discrepancy classification needs accounting")
+        if coverage is not None and (
+            coverage.get("unknown_or_unread_rule_file_pairs") != 0
+            or coverage.get("skipped_rule_file_pairs") != 0
+            or coverage.get("selected_rule_file_pairs", 0) <= 0
+            or coverage.get("selected_rule_file_pairs")
+            != coverage.get("evaluated_rule_file_pairs")
+        ):
+            raise ValueError(
+                "unknown/inconsistent coverage is not a reference discrepancy"
+            )
+    ref_exact = diagnostic_multiset(reference["diagnostics"]) == diagnostic_multiset(
+        certificate["reference_expected"]
+    )
+    intended_exact = diagnostic_multiset(
+        candidate["diagnostics"]
+    ) == diagnostic_multiset(certificate["intended_expected"])
+    raw_exact = diagnostic_multiset(reference["diagnostics"]) == diagnostic_multiset(
+        candidate["diagnostics"]
+    )
+    if not ref_exact or not intended_exact:
+        raise ValueError(
+            "reference or candidate violated its separate exact expectation"
+        )
+    return {
+        "raw_parity_match": raw_exact,
+        "documented_reference_discrepancy": True,
+        "intended_behavior_pass": intended_exact,
+        "reference_expectation_pass": ref_exact,
+        "reason": certificate["reason"],
+    }
+
+
 def toml_value(value: object) -> str:
     if isinstance(value, str):
         return json.dumps(value, ensure_ascii=False)
@@ -146,6 +379,22 @@ def manifest_paths(manifest: dict[str, object], helper_path: str) -> set[str]:
             module_path(path) for path in profile_modules(combined_data).values()
         )
     paths.update(manifest.get("actual_proof_receipts", []))
+    for fixture in [
+        RUFF_DIR / "fixtures/reference-discrepancy",
+        RUFF_DIR.parents[2] / "tests/fixtures/ryoql-fragments/sparse-traversal-guards",
+        RUFF_DIR.parents[2] / "tests/fixtures/ryoql-fragments/pie794-rooted",
+        RUFF_DIR.parents[2]
+        / "tests/fixtures/ryoql-fragments/sparse-descendant-consumers",
+        RUFF_DIR.parents[2] / "tests/fixtures/ryoql-fragments/plr1708-rooted",
+    ]:
+        paths.update(
+            path.relative_to(REPOSITORY).as_posix()
+            for path in fixture.rglob("*")
+            if path.is_file()
+        )
+    paths.add(
+        "crates/ryo/crates/benchmark/tests/fixtures/reference-discrepancy-canonical.json"
+    )
     return paths
 
 
@@ -348,13 +597,26 @@ def combined_modules(
 
 
 def verify_actual_proof_assets(
-    manifest: dict[str, object], repository: Path = REPOSITORY
+    manifest: dict[str, object],
+    repository: Path = REPOSITORY,
+    *,
+    historical_only: bool = False,
 ) -> None:
-    """READY admission binds executed proof bytes, independently of source commit metadata."""
+    """Admit v2 execution identities; an explicit historical audit cannot admit v1 READY."""
     for relative in manifest.get("actual_proof_receipts", []):
         receipt = json.loads((repository / relative).read_text(encoding="utf-8"))
-        if receipt.get("schema") != "actual-proof-assets/v1":
+        schema = receipt.get("schema")
+        if schema not in {"actual-proof-assets/v1", "actual-proof-assets/v2"}:
             raise ValueError("unsupported actual-proof asset receipt")
+        phases = None
+        if schema == "actual-proof-assets/v2":
+            phase_asset = receipt.get("phase_registry", {})
+            phase_path = RULE_PHASES_FILE.relative_to(REPOSITORY).as_posix()
+            if phase_asset.get("canonical_path") != phase_path or phase_asset.get(
+                "proof_sha256"
+            ) != sha256(repository / phase_path):
+                raise ValueError("READY actual-proof phase registry identity mismatch")
+            phases = json.loads((repository / phase_path).read_text(encoding="utf-8"))
         for profile in receipt["profiles"]:
             recorded = manifest.get("profiles", {}).get(profile["rule"])
             if not isinstance(recorded, dict):
@@ -390,6 +652,10 @@ def verify_actual_proof_assets(
                     "project-context-mode", "isolated"
                 ),
             }
+            if schema == "actual-proof-assets/v2":
+                settings = canonical_run_ryo_settings(
+                    canonical, canonical["defaults"], phases
+                )
             if (
                 settings != profile["settings"]
                 or canonical.get("query-modules", {}) != profile["module_registry"]
@@ -414,6 +680,10 @@ def verify_actual_proof_assets(
                     raise ValueError(
                         f"READY actual-proof asset mismatch: {asset['canonical_path']}"
                     )
+        if schema == "actual-proof-assets/v1" and not historical_only:
+            raise ValueError(
+                "historical v1 proof lacks explicit canonical phase/flags; current admission requires v2"
+            )
 
 
 def verify_files(manifest: dict[str, object], helper_path: str) -> None:
@@ -687,18 +957,42 @@ def check_standard_suppression(
     if not scoped:
         return
     registry = profile_modules(tomllib.loads(profile.read_text(encoding="utf-8")))
-    if registry.get("python/ruff/suppress") != "fragments/suppress.ryoql":
-        raise ValueError("standard suppression requires its declared module source")
-    if not (profile.parent / registry["python/ruff/suppress"]).is_file():
-        raise ValueError("standard suppression module was not staged")
+    variants = {
+        "standard-module": "suppress",
+        "unmapped-module": "suppress-unmapped",
+        "additional-lines-module": "suppress-with-additional-lines",
+    }
     for rule in sorted(scoped):
-        if policies[rule] != "standard-module":
+        if policies[rule] not in variants:
             raise ValueError(f"unreviewed suppression policy for {rule}")
+        module = variants[policies[rule]]
+        logical = "python/ruff/" + module
+        if registry.get(logical) != "fragments/" + module + ".ryoql":
+            raise ValueError(f"{rule} requires its declared suppression module source")
+        pending_modules = [logical]
+        checked_modules = set()
+        while pending_modules:
+            dependency = pending_modules.pop()
+            if dependency in checked_modules:
+                continue
+            checked_modules.add(dependency)
+            if dependency not in registry:
+                raise ValueError(f"{rule} has an undeclared suppression dependency")
+            staged = profile.parent / registry[dependency]
+            if not staged.is_file():
+                raise ValueError(f"{rule} suppression dependency was not staged")
+            pending_modules.extend(
+                re.findall(
+                    r'^import\s+\w+\s+from\s+"([^"]+)"\s*;',
+                    staged.read_text(encoding="utf-8"),
+                    re.MULTILINE,
+                )
+            )
         source = (profile.parent / "rules" / rule / "query.ryoql").read_text(
             encoding="utf-8"
         )
         imports = re.findall(
-            r'^import\s+(\w+)\s+from\s+"python/ruff/suppress"\s*;',
+            r'^import\s+(\w+)\s+from\s+"' + re.escape(logical) + r'"\s*;',
             source,
             re.MULTILINE,
         )
@@ -955,6 +1249,9 @@ def profile_case_inventory(profile_root: Path) -> list[dict[str, object]]:
                     "files": sorted(case["files"]),
                     "comparison": case.get("comparison", "rule"),
                     "expected": expected,
+                    "reference_discrepancy": validate_reference_discrepancy(
+                        profile_root, case, rule_root.name
+                    ),
                 }
             )
     inventory.sort(key=lambda case: (case["rule"], case["name"]))
@@ -964,6 +1261,60 @@ def profile_case_inventory(profile_root: Path) -> list[dict[str, object]]:
             "staged case inventory is empty or has duplicate (rule, name) identities"
         )
     return inventory
+
+
+def discrepancy_record_pair_valid(
+    case: dict[str, object], sides: dict[str, dict[str, object]]
+) -> bool:
+    """Native attestations bind the actually verified request, not inferred historical settings."""
+    certificate = case.get("reference_discrepancy")
+    if certificate is None:
+        return True
+    identity = certificate["identity"]
+    for side, row in sides.items():
+        proof = row.get("discrepancy_validation")
+        if not isinstance(proof, dict) or proof != sides["reference"].get(
+            "discrepancy_validation"
+        ):
+            return False
+        checks = {
+            "settings_sha256": "settings-sha256",
+            "profile_sha256": "profile-sha256",
+            "source_sha256": "source-sha256",
+            "reference_output_sha256": "reference-output-sha256",
+            "intended_output_sha256": "intended-output-sha256",
+        }
+        if any(proof.get(key) != identity[value] for key, value in checks.items()):
+            return False
+        if (
+            proof.get("actual_executable_sha256")
+            not in certificate["approved_executable_sha256"]
+        ):
+            return False
+        expected = (
+            certificate["reference_expected"]
+            if side == "reference"
+            else certificate["intended_expected"]
+        )
+        if row.get("skipped") != [] or not isinstance(row.get("diagnostics"), list):
+            return False
+        actual_matches = diagnostic_multiset(row["diagnostics"]) == diagnostic_multiset(
+            expected
+        )
+        if row.get("case_passed") is not actual_matches:
+            return False
+        coverage = row.get("coverage")
+        if coverage is None and side == "candidate":
+            return False
+        if coverage is not None and (
+            coverage.get("unknown_or_unread_rule_file_pairs") != 0
+            or coverage.get("skipped_rule_file_pairs") != 0
+            or coverage.get("selected_rule_file_pairs", 0) <= 0
+            or coverage.get("selected_rule_file_pairs")
+            != coverage.get("evaluated_rule_file_pairs")
+        ):
+            return False
+    return True
 
 
 def complete_case_ids(
@@ -988,17 +1339,71 @@ def complete_case_ids(
         expected_case = expected_cases[case_id]
         if case_id in duplicates or set(sides) != {"reference", "candidate"}:
             continue
-        if all(
-            row.get("complete") is True
-            and row.get("error") is None
-            and row.get("source_sha256") == expected_case["source_sha256"]
-            and row.get("files") == expected_case["files"]
-            and row.get("expected") == expected_case["expected"]
-            and isinstance(row.get("case_passed"), bool)
-            for row in sides.values()
-        ) and context_receipts_valid(expected_case, sides):
+        if (
+            all(
+                row.get("complete") is True
+                and row.get("error") is None
+                and row.get("source_sha256") == expected_case["source_sha256"]
+                and row.get("files") == expected_case["files"]
+                and row.get("expected") == expected_case["expected"]
+                and isinstance(row.get("case_passed"), bool)
+                for row in sides.values()
+            )
+            and context_receipts_valid(expected_case, sides)
+            and discrepancy_record_pair_valid(expected_case, sides)
+        ):
             completed.add(case_id)
     return completed
+
+
+def case_expectation_summary(
+    inventory: list[dict[str, object]], records: list[dict[str, object]]
+) -> dict[str, int]:
+    """Raw parity and independently intended behavior are separate, never interchangeable totals."""
+    completed = complete_case_ids(inventory, records)
+    grouped: dict[str, dict[str, dict[str, object]]] = {}
+    for row in records:
+        case_id = f"{row.get('rule')}/{row.get('name')}"
+        if case_id in completed:
+            grouped.setdefault(case_id, {})[row["side"]] = row
+    counts = {
+        "complete_case_pairs": len(completed),
+        "incomplete_cases": len(inventory) - len(completed),
+        "raw_parity_matches": 0,
+        "raw_parity_mismatches": 0,
+        "documented_reference_discrepancies": 0,
+        "unexplained_mismatches": 0,
+        "intended_behavior_passes": 0,
+        "intended_behavior_failures": 0,
+    }
+    for case in inventory:
+        sides = grouped.get(f"{case['rule']}/{case['name']}")
+        if sides is None:
+            continue
+        reference, candidate = sides["reference"], sides["candidate"]
+        raw_match = diagnostic_multiset(
+            reference["diagnostics"]
+        ) == diagnostic_multiset(candidate["diagnostics"]) and reference.get(
+            "skipped", []
+        ) == candidate.get("skipped", [])
+        intended_pass = candidate.get("case_passed") is True
+        counts["raw_parity_matches" if raw_match else "raw_parity_mismatches"] += 1
+        counts[
+            "intended_behavior_passes"
+            if intended_pass
+            else "intended_behavior_failures"
+        ] += 1
+        documented = (
+            not raw_match
+            and case.get("reference_discrepancy") is not None
+            and reference.get("case_passed") is True
+            and intended_pass
+        )
+        if documented:
+            counts["documented_reference_discrepancies"] += 1
+        elif not raw_match:
+            counts["unexplained_mismatches"] += 1
+    return counts
 
 
 def partition_case_inventory(
@@ -1908,6 +2313,16 @@ def persist_run_record(
         if case_results_path is not None and case_results_path.is_file()
         else None,
     }
+    if case_results_path is not None and case_results_path.is_file():
+        try:
+            observed = [
+                json.loads(line) for line in case_results_path.read_text().splitlines()
+            ]
+            record["case_expectation_summary"] = case_expectation_summary(
+                profile_case_inventory(profile_root), observed
+            )
+        except (OSError, ValueError, KeyError, TypeError) as summary_error:
+            record["case_expectation_summary_error"] = str(summary_error)
     (record_directory / "result.json").write_text(
         json.dumps(record, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
     )
@@ -2035,6 +2450,10 @@ def verify_reference_profile(
     failures = []
     command_log = []
     for case in cases:
+        if case.get("reference-discrepancy") is not None:
+            raise ValueError(
+                "reference discrepancy cases require native verify-reference-cases evidence enforcement"
+            )
         actual = []
         process_records = []
         for file, source in sorted(case["files"].items()):
@@ -2860,7 +3279,7 @@ def actual_proof_asset_guard_self_test() -> None:
                 "source-commit metadata bypassed actual executed query identity"
             )
         (root / query_path).write_bytes(b"different actual executed proof bytes")
-        verify_actual_proof_assets(manifest, root)
+        verify_actual_proof_assets(manifest, root, historical_only=True)
         # A correctly tracked source commit cannot substitute a different dependency either.
         (root / profile_path).write_text(
             'defaults = ["F401"]\n[query-modules]\n"python/ruff/suppress" = "fragments/suppress.ryoql"\n',
@@ -2891,7 +3310,58 @@ def actual_proof_asset_guard_self_test() -> None:
                 "dependency source metadata bypassed actual proof bytes"
             )
         (root / module).write_bytes(b"actual executed helper")
+        verify_actual_proof_assets(manifest, root, historical_only=True)
+        try:
+            verify_actual_proof_assets(manifest, root)
+        except ValueError as error:
+            assert "historical v1 proof" in str(error)
+        else:
+            raise AssertionError(
+                "historical v1 proof was promoted to current admission"
+            )
+
+        phase_path = RULE_PHASES_FILE.relative_to(REPOSITORY)
+        (root / phase_path).parent.mkdir(parents=True, exist_ok=True)
+        (root / phase_path).write_bytes(RULE_PHASES_FILE.read_bytes())
+        phases = json.loads((root / phase_path).read_text(encoding="utf-8"))
+        (root / profile_path).write_text(
+            'tool = "ruff"\nversion = "0.16.5"\ndefaults = ["F401"]\n'
+            '[query-modules]\n"python/ruff/suppress" = "fragments/suppress.ryoql"\n',
+            encoding="utf-8",
+        )
+        profile["settings"] = canonical_run_ryo_settings(
+            tomllib.loads((root / profile_path).read_text(encoding="utf-8")),
+            ["F401"],
+            phases,
+        )
+        current = {
+            "schema": "actual-proof-assets/v2",
+            "profiles": [profile],
+            "phase_registry": {
+                "canonical_path": phase_path.as_posix(),
+                "proof_sha256": sha256(root / phase_path),
+            },
+        }
+        (root / "receipt.json").write_text(json.dumps(current), encoding="utf-8")
         verify_actual_proof_assets(manifest, root)
+        correct_settings = dict(profile["settings"])
+        for changed in (
+            {"rule_applicability": {"F401": "always"}},
+            {"parser_configuration": "python-target=3.11"},
+            {"project_context_mode": "listed-disk"},
+            {"flags": {"preview": True}},
+            {"unreviewed_flag": True},
+        ):
+            profile["settings"] = {**correct_settings, **changed}
+            (root / "receipt.json").write_text(json.dumps(current), encoding="utf-8")
+            try:
+                verify_actual_proof_assets(manifest, root)
+            except ValueError:
+                continue
+            raise AssertionError(
+                "v2 proof with noncanonical execution settings was accepted"
+            )
+        profile["settings"] = correct_settings
 
 
 def context_guard_self_test() -> None:
@@ -3006,10 +3476,94 @@ def context_guard_self_test() -> None:
             raise AssertionError("ListedDisk was silently transported over stdin")
 
 
+def canonical_run_ryo_settings(
+    profile: dict[str, object], rules: list[str], phases: dict[str, object]
+) -> dict[str, object]:
+    """Normalize a selected profile without silently ignoring new execution flags."""
+    allowed = {
+        "tool",
+        "version",
+        "sha256",
+        "defaults",
+        "parser-configuration",
+        "project-context-mode",
+        "query-modules",
+        "rule-applicability",
+        "deferred",  # Suite accounting metadata, never a worker execution option.
+    }
+    if set(profile) - allowed:
+        raise ValueError("unreviewed execution settings in canonical profile")
+    if profile.get("tool") != "ruff" or profile.get("version") != PINNED_RUFF_VERSION:
+        raise ValueError("canonical execution settings have a different tool pin")
+    if set(rules) - set(profile["defaults"]):
+        raise ValueError("execution selection is not in the canonical profile")
+    if (
+        phases.get("ruff_version") != PINNED_RUFF_VERSION
+        or phases.get("ruff_source_commit") != PINNED_RUFF_SOURCE_COMMIT
+    ):
+        raise ValueError("execution phase registry has a different source pin")
+    applicability = {rule: phases["rules"][rule]["applicability"] for rule in rules}
+    if set(applicability.values()) - {"always", "accepted-syntax"}:
+        raise ValueError("unreviewed canonical execution phase")
+    declared = profile.get("rule-applicability", {})
+    if any(declared.get(rule, value) != value for rule, value in applicability.items()):
+        raise ValueError("canonical profile conflicts with the pinned execution phase")
+    context = profile.get("project-context-mode", "isolated")
+    if context not in {"isolated", "listed-disk"}:
+        raise ValueError("unreviewed canonical project context mode")
+    return {
+        "defaults": sorted(set(rules)),
+        "parser_configuration": profile.get(
+            "parser-configuration", "python-target=3.10"
+        ),
+        "project_context_mode": context,
+        "rule_applicability": applicability,
+        "flags": {},
+    }
+
+
+def check_run_ryo_settings(
+    request: dict[str, object], expected: dict[str, object]
+) -> None:
+    """Refuse wrong phase, target, context, selection or unreviewed request flags."""
+    if set(request) != {
+        "root",
+        "rules",
+        "query_modules",
+        "rule_applicability",
+        "parser_configuration",
+        "files",
+        "cache",
+    }:
+        raise ValueError("direct worker request has unreviewed flags or context")
+    if (
+        expected["project_context_mode"] != "isolated"
+        or expected["flags"] != {}
+        or request["parser_configuration"] != expected["parser_configuration"]
+        or request["rule_applicability"] != expected["rule_applicability"]
+        or sorted(request["rule_applicability"]) != expected["defaults"]
+        or request["cache"] is not None
+    ):
+        raise ValueError(
+            "direct worker request differs from canonical execution settings"
+        )
+
+
 def complete_run_ryo_report(
-    status: int, stdout: str, stderr: str, files: list[str], rules: list[str]
+    status: int,
+    stdout: str,
+    stderr: str,
+    files: list[str],
+    rules: list[str],
+    *,
+    request: dict[str, object] | None = None,
+    settings: dict[str, object] | None = None,
 ) -> dict[str, object]:
     """Validate a direct worker report before using it in an equivalence proof."""
+    if (request is None) != (settings is None):
+        raise ValueError("direct report settings must be supplied with their request")
+    if request is not None:
+        check_run_ryo_settings(request, settings)
     if status != 0 or stderr:
         raise ValueError("direct worker did not complete successfully")
     report = json.loads(stdout)
@@ -3111,6 +3665,62 @@ def self_test_standard_suppression() -> None:
             pass
         else:
             raise AssertionError("unstaged standard suppression module was accepted")
+        module.write_text(
+            'import core from "python/ruff/suppress-directives";\nreturn candidates;\n',
+            encoding="utf-8",
+        )
+        try:
+            check_standard_suppression(profile, ["GUARD001"], policies)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError(
+                "undeclared transitive suppression module was accepted"
+            )
+        profile.write_text(
+            declared
+            + '"python/ruff/suppress-directives" = "fragments/suppress-directives.ryoql"\n',
+            encoding="utf-8",
+        )
+        try:
+            check_standard_suppression(profile, ["GUARD001"], policies)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("unstaged transitive suppression module was accepted")
+        (module.parent / "suppress-directives.ryoql").write_text(
+            "return candidates;\n", encoding="utf-8"
+        )
+        check_standard_suppression(profile, ["GUARD001"], policies)
+        for policy_name, wrapper in (
+            ("unmapped-module", "suppress-unmapped"),
+            ("additional-lines-module", "suppress-with-additional-lines"),
+        ):
+            variant = {"GUARD001": policy_name}
+            profile.write_text(
+                "[query-modules]\n"
+                + f'"python/ruff/{wrapper}" = "fragments/{wrapper}.ryoql"\n',
+                encoding="utf-8",
+            )
+            (module.parent / (wrapper + ".ryoql")).write_text(
+                "return candidates;\n", encoding="utf-8"
+            )
+            query.write_text(
+                imported.replace("python/ruff/suppress", "python/ruff/" + wrapper)
+                + called
+                + emitted,
+                encoding="utf-8",
+            )
+            check_standard_suppression(profile, ["GUARD001"], variant)
+            query.write_text(imported + called + emitted, encoding="utf-8")
+            try:
+                check_standard_suppression(profile, ["GUARD001"], variant)
+            except ValueError:
+                pass
+            else:
+                raise AssertionError(
+                    "wrong mapped/unmapped suppression import was accepted"
+                )
         # An unreviewed partial form is outside this guard's explicit policy scope.
         check_standard_suppression(profile, ["UNMAPPED001"], policies)
     valid_report = {
@@ -3125,6 +3735,53 @@ def self_test_standard_suppression() -> None:
         },
     }
     complete_run_ryo_report(0, json.dumps(valid_report), "", ["case.py"], ["GUARD001"])
+    phases = json.loads(RULE_PHASES_FILE.read_text(encoding="utf-8"))
+    for rule in ("EXE005", "PYI033"):
+        settings = canonical_run_ryo_settings(
+            {"tool": "ruff", "version": PINNED_RUFF_VERSION, "defaults": [rule]},
+            [rule],
+            phases,
+        )
+        assert settings["rule_applicability"] == {rule: "always"}
+        request = {
+            "root": "/corpus",
+            "rules": "/profile/rules",
+            "query_modules": {},
+            "rule_applicability": settings["rule_applicability"],
+            "parser_configuration": settings["parser_configuration"],
+            "files": ["case.py"],
+            "cache": None,
+        }
+        complete_run_ryo_report(
+            0,
+            json.dumps(valid_report),
+            "",
+            ["case.py"],
+            [rule],
+            request=request,
+            settings=settings,
+        )
+        for wrong in (
+            {**request, "rule_applicability": {rule: "accepted-syntax"}},
+            {**request, "parser_configuration": "python-target=3.11"},
+            {**request, "project_context": {"mode": "listed-disk"}},
+            {**request, "preview": True},
+        ):
+            try:
+                complete_run_ryo_report(
+                    0,
+                    json.dumps(valid_report),
+                    "",
+                    ["case.py"],
+                    [rule],
+                    request=wrong,
+                    settings=settings,
+                )
+            except ValueError:
+                continue
+            raise AssertionError(
+                "complete report with noncanonical settings was accepted"
+            )
     for status, stdout, stderr in (
         (1, "", "query module is a symlink: fragments/suppress.ryoql\n"),
         (1, "", "same refusal from both workers\n"),
@@ -3164,9 +3821,145 @@ def self_test_standard_suppression() -> None:
             raise AssertionError("incomplete direct worker report was accepted")
 
 
+def reference_discrepancy_self_test() -> None:
+    """Two concrete independent-language fixtures exercise admission, not diagnostic ignores."""
+    cross = json.loads(
+        (
+            REPOSITORY
+            / "crates/ryo/crates/benchmark/tests/fixtures/reference-discrepancy-canonical.json"
+        ).read_text()
+    )
+    assert discrepancy_json_hash(cross["output"]) == cross["sha256"]
+    source_digest = hashlib.sha256()
+    for filename, text in sorted(cross["source_files"].items()):
+        source_digest.update(filename.encode())
+        source_digest.update(b"\0")
+        source_digest.update(text.encode())
+    assert source_digest.hexdigest() == cross["source_sha256"]
+    assert (
+        json.dumps(
+            cross["output"], sort_keys=True, separators=(",", ":"), ensure_ascii=False
+        )
+        == cross["canonical_utf8"]
+    )
+    source = RUFF_DIR / "fixtures/reference-discrepancy"
+    with tempfile.TemporaryDirectory(
+        prefix="reference-discrepancy-guard-"
+    ) as temporary:
+        profile = Path(temporary)
+        shutil.copyfile(source / "benchmark.toml", profile / "benchmark.toml")
+        shutil.copytree(source / "evidence", profile / "evidence")
+        cases = tomllib.loads((source / "rules/F821/cases.toml").read_text())["cases"]
+        case = cases[0]
+        certificate = validate_reference_discrepancy(profile, case, "F821")
+        assert certificate is not None
+        coverage = {
+            "selected_rule_file_pairs": 1,
+            "evaluated_rule_file_pairs": 1,
+            "skipped_rule_file_pairs": 0,
+            "unknown_or_unread_rule_file_pairs": 0,
+        }
+        reference = {
+            "complete": True,
+            "error": None,
+            "files": sorted(case["files"]),
+            "skipped": [],
+            "diagnostics": certificate["reference_expected"],
+            "coverage": None,
+        }
+        candidate = {
+            **reference,
+            "diagnostics": certificate["intended_expected"],
+            "coverage": coverage,
+        }
+        kwargs = {
+            "actual_executable_sha256": certificate["approved_executable_sha256"][1],
+            "actual_settings_sha256": certificate["identity"]["settings-sha256"],
+        }
+        result = classify_reference_discrepancy(
+            profile, case, "F821", reference, candidate, **kwargs
+        )
+        assert result["intended_behavior_pass"] and not result["raw_parity_match"]
+
+        def rejected(
+            changed_case: dict[str, object],
+            ref: dict[str, object] = reference,
+            actual: dict[str, object] = candidate,
+            options: dict[str, str] = kwargs,
+        ) -> None:
+            try:
+                classify_reference_discrepancy(
+                    profile, changed_case, "F821", ref, actual, **options
+                )
+            except (ValueError, OSError, UnicodeError):
+                return
+            raise AssertionError("invalid discrepancy was accepted")
+
+        clone = lambda value: json.loads(json.dumps(value))
+        changed = clone(case)
+        changed["reference-discrepancy"]["evidence"] = []
+        rejected(changed)
+        changed = clone(case)
+        changed["comparison"] = "rule"
+        rejected(changed)
+        changed = clone(case)
+        changed["reference-discrepancy"]["expected"] = clone(changed["expected"])
+        rejected(changed)
+        changed = clone(case)
+        changed["reference-discrepancy"]["identity"]["reference-output-sha256"] = (
+            "0" * 64
+        )
+        rejected(changed)
+        changed = clone(case)
+        changed["expected"] = clone(changed["reference-discrepancy"]["expected"])
+        rejected(changed)
+        changed = clone(case)
+        changed["expected"] = [
+            {"rule": "F821", "file": "case.pyi", "start": 0, "end": 1}
+        ]
+        rejected(changed)
+        changed = clone(case)
+        changed["reference-discrepancy"]["identity"]["profile-sha256"] = "0" * 64
+        rejected(changed)
+        changed = clone(case)
+        changed["files"]["case.pyi"] += "pass\n"
+        rejected(changed)
+        changed = clone(case)
+        changed["reference-discrepancy"]["evidence"][0]["sha256"] = "0" * 64
+        rejected(changed)
+        changed = clone(case)
+        changed["reference-discrepancy"]["evidence"][0]["kind"] = "competitor-output"
+        rejected(changed)
+        changed = clone(case)
+        changed["reference-discrepancy"]["evidence"][0]["target-configuration"] = (
+            "python-target=3.11"
+        )
+        rejected(changed)
+        rejected(case, actual={**candidate, "diagnostics": reference["diagnostics"]})
+        rejected(case, ref={**reference, "diagnostics": candidate["diagnostics"]})
+        rejected(
+            case,
+            actual={
+                **candidate,
+                "coverage": {**coverage, "unknown_or_unread_rule_file_pairs": 1},
+            },
+        )
+        rejected(case, actual={**candidate, "coverage": None})
+        rejected(
+            case, actual={**candidate, "complete": False, "error": "worker failed"}
+        )
+        rejected(case, options={**kwargs, "actual_executable_sha256": "0" * 64})
+        rejected(case, options={**kwargs, "actual_settings_sha256": "0" * 64})
+        for annotated in cases[:2]:
+            assert (
+                validate_reference_discrepancy(profile, annotated, "F821") is not None
+            )
+
+
 def self_test() -> int:
-    self_test_standard_suppression()
     """Exercise fail-closed profile-selection and hash-mismatch guards without invoking Cargo."""
+    self_test_standard_suppression()
+    reference_discrepancy_self_test()
     global MANIFEST
     context_guard_self_test()
     actual_proof_asset_guard_self_test()
@@ -3697,6 +4490,17 @@ def self_test() -> int:
         registry = combined_modules(single_data, ["UP006"], manifest)
         module_id = "python/ruff/suppress"
         module_source = "fragments/suppress.ryoql"
+        expected_registry = profile_modules(
+            tomllib.loads((RUFF_DIR / "benchmark.toml").read_text(encoding="utf-8"))
+        )
+        expected_registry.update(profile_modules(single_data))
+        if (
+            expected_registry.get("python/ruff/suppress-directives")
+            != "fragments/suppress-directives.ryoql"
+        ):
+            raise AssertionError(
+                "standard suppression lost its explicit transitive directive module"
+            )
         staged_profile = root / "single" / "benchmark.toml"
         staged_profile.parent.mkdir(parents=True)
         write_staged_profile(
@@ -3707,16 +4511,20 @@ def self_test() -> int:
         )
         copy_modules(registry, staged_profile.parent)
         if (
-            registry.get(module_id) != module_source
+            registry != expected_registry
             or tomllib.loads(staged_profile.read_text(encoding="utf-8")).get(
                 "query-modules"
             )
-            != {module_id: module_source}
+            != expected_registry
             or tomllib.loads(staged_profile.read_text(encoding="utf-8")).get(
                 "rule-applicability"
             )
             != {"UP006": "accepted-syntax"}
-            or not (staged_profile.parent / module_source).is_file()
+            or any(
+                not (staged_profile.parent / value).is_file()
+                or sha256(staged_profile.parent / value) != sha256(RUFF_DIR / value)
+                for value in expected_registry.values()
+            )
         ):
             print(
                 "single-rule profile did not inherit the shared query module",
@@ -5012,6 +5820,32 @@ def main() -> int:
                         file=sys.stderr,
                     )
                     return 1
+            if not arguments.reference_only:
+                # The worker is already built and protocol-audited. These sparse
+                # traversal guards neither build another worker nor invoke Ruff.
+                guard_script = REPOSITORY / (
+                    "crates/ryo/languages/python/tests/fixtures/ryoql-fragments/"
+                    "sparse-traversal-guards/run.py"
+                )
+                subprocess.run(
+                    [sys.executable, str(guard_script), "--self-test"], check=True
+                )
+                guard_root = Path(
+                    tempfile.mkdtemp(prefix="sparse-traversal-", dir=output_directory)
+                )
+                subprocess.run(
+                    [
+                        sys.executable,
+                        str(guard_script),
+                        "--candidate-root",
+                        str(REPOSITORY),
+                        "--worker",
+                        str(worker_executable),
+                        "--output",
+                        str(guard_root / "proof"),
+                    ],
+                    check=True,
+                )
             for name, profile_root in staged:
                 if arguments.reference_only:
                     ref_identity = reference_tool_identity(ruff, manifest)

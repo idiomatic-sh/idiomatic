@@ -152,3 +152,19 @@ fn raw_format_incomplete_syntax_is_partial_and_has_no_precise_global_fields() {
     assert!(!fields.causes.is_empty());
     assert!(fields.rows.is_empty());
 }
+
+#[test]
+fn raw_error_characters_preserve_two_and_four_byte_unicode_scalars() {
+    let report = reading::<RawFormatSegmentItem>("a = '%é'\nb = '%🧪'\nc = '%s'\n");
+    assert!(report.causes.is_empty(), "{:?}", report.causes);
+    assert_eq!(report.rows.len(), 3);
+    assert!(report.rows[0].len() > 7);
+    assert!(report.rows[1].len() > 7);
+    assert_eq!(report.rows[0][6], Want::Name("é"));
+    assert_eq!(report.rows[1][6], Want::Name("🧪"));
+    assert_eq!(report.rows[2][6], Want::Name(""));
+    assert_eq!(report.rows[0][7], Want::Number(1));
+    assert_eq!(report.rows[1][7], Want::Number(1));
+    let fields = reading::<RawFormatFieldItem>("a = '%s'\n");
+    assert_eq!(fields.rows[0][7], Want::Name("s"));
+}

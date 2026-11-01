@@ -72,3 +72,6 @@ pub(crate) mod terminal_flow;
 pub(crate) mod literal_expression_parsing;
 /// Project-established importable module context.
 pub(crate) mod module_context;
+
+/// Bounded application-owned grammar reuse.
+pub(crate) mod grammar_cache;

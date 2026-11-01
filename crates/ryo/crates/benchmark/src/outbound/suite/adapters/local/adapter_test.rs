@@ -105,7 +105,7 @@ fn selected_snapshot(directory: &std::path::Path, destination: &std::path::Path)
         let root = directory.join("rules").join(rule);
         std::fs::create_dir_all(&root).expect("rule root");
         std::fs::write(root.join("query.ryoql"), rule).expect("query");
-        std::fs::write(root.join("cases.toml"), "case bytes").expect("cases");
+        std::fs::write(root.join("cases.toml"), "cases = []\n").expect("cases");
     }
     let inventory = Audit {
         implemented: vec![
@@ -287,4 +287,109 @@ patch = "patches/project.patch"
             .fingerprint(ArtifactSet(&[frozen]))
             .unwrap()
     );
+}
+
+#[test]
+fn discrepancy_artifacts_survive_staging_and_refuse_source_or_evidence_edits() {
+    let source = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../languages/python/benchmarks/linters/ruff/fixtures/reference-discrepancy");
+    let parent = tempfile::tempdir().expect("fixture staging parent");
+    let staged = parent.path().join("profile");
+    let adapter = SuiteLocalAdapter;
+    let tool = adapter
+        .profile(ArtifactPath(&source))
+        .expect("pinned profile");
+    let audit = adapter
+        .audit(ArtifactPath(&source), &tool)
+        .expect("independent positive and negative cases");
+    adapter
+        .stage(ArtifactPath(&source), ArtifactPath(&staged), &audit)
+        .expect("evidence included in staged profile");
+    let scratch = parent.path().join("cases");
+    let cases = adapter
+        .cases(ArtifactPath(&staged.join("rules")), ArtifactPath(&scratch))
+        .expect("typed discrepancy cases");
+    let wires = adapter
+        .case_reference_wires(ArtifactPath(&staged))
+        .expect("raw boundary-owned expectations");
+    assert_eq!(wires.len(), 2, "two independent language disagreements");
+    for wire in &wires {
+        let case = cases
+            .iter()
+            .find(|case| case.name.to_string() == wire.name)
+            .expect("materialized source case");
+        verify_discrepancy_fixture(
+            &adapter,
+            &staged,
+            &case.request.root,
+            &case.request.files,
+            wire,
+        )
+        .expect("source and evidence seal");
+    }
+    let wire = &wires[0];
+    let case = cases
+        .iter()
+        .find(|case| case.name.to_string() == wire.name)
+        .expect("materialized source case");
+    let verify_selected = || {
+        verify_discrepancy_fixture(
+            &adapter,
+            &staged,
+            &case.request.root,
+            &case.request.files,
+            wire,
+        )
+    };
+    let path = case.request.root.join(case.request.files[0].0.as_ref());
+    let original = std::fs::read(&path).expect("source bytes");
+    std::fs::write(&path, b"changed source").expect("source mutation");
+    assert!(
+        verify_selected().is_err(),
+        "source changes invalidate evidence"
+    );
+    std::fs::write(&path, original).expect("restore source");
+    std::fs::write(
+        staged.join("evidence/cpython313.json"),
+        b"changed observation",
+    )
+    .expect("evidence mutation");
+    assert!(
+        verify_selected().is_err(),
+        "changed independent evidence invalidates admission"
+    );
+}
+
+/// Construct one explicit IO-boundary request from the staged fixture's external file identities.
+fn verify_discrepancy_fixture(
+    adapter: &SuiteLocalAdapter,
+    profile: &std::path::Path,
+    root: &std::path::Path,
+    input_files: &[ryo::linter::RelativePath],
+    wire: &crate::outbound::suite::types::discrepancy::CaseReferenceWire,
+) -> Result<(), crate::outbound::suite::types::discrepancy::ArtifactError> {
+    let files = input_files
+        .iter()
+        .map(|file| std::path::PathBuf::from(file.0.as_ref()))
+        .collect::<Vec<_>>();
+    let evidence = wire
+        .discrepancy
+        .evidence
+        .iter()
+        .map(
+            |item| crate::outbound::suite::types::discrepancy::EvidenceArtifact {
+                path: item.path.clone(),
+                sha256: item.sha256.clone(),
+            },
+        )
+        .collect::<Vec<_>>();
+    adapter.verify_discrepancy_artifacts(
+        crate::outbound::suite::types::discrepancy::CaseArtifacts {
+            profile,
+            root,
+            files: &files,
+            source_sha256: &wire.discrepancy.identity.source_sha256,
+            evidence: &evidence,
+        },
+    )
 }

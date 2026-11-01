@@ -25,3 +25,7 @@ sha256 = [
 defaults = ["UP017"]
 
 parser-configuration = "python-target=3.11"
+
+[query-modules]
+"python/ruff/suppress" = "fragments/suppress.ryoql"
+"python/ruff/suppress-directives" = "fragments/suppress-directives.ryoql"

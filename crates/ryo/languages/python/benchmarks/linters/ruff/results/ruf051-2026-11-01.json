@@ -1,0 +1,108 @@
+{
+  "status": "scoped-ready",
+  "rule": "RUF051",
+  "version": "0.16.5",
+  "target": "py310",
+  "worker_sha256": "2ea405976bf51410cea6829c29af140ff7ffbef026213fa7ad3ed5f9ceeb9f58",
+  "cases": 69,
+  "matched": 69,
+  "complete_records": 138,
+  "unknown_or_unread": 0,
+  "skipped": 0,
+  "authored_rule_count_delta": 1,
+  "assets": {
+    "profiles/RUF051/benchmark.toml": "b6992823de8be9f7f000f3b8dc7e05243fbf9fd4c15dc3a246932d79b1d1da98",
+    "rules/RUF051/candidate.ryoql": "699f109fe07bdc064db20928b9ba8477e2086c381c0d7e9ee62df444064e7a5e",
+    "rules/RUF051/cases.toml": "e7a53272f72cf46ee30aa4a2f532f97a0920cad4a80c298dad7b45d9981ce531",
+    "rules/RUF051/full-cases.toml": "d2094d86441e8e96e068220d4015903b5ee84936b11a14f91beb854acb8cacc7",
+    "fragments/assigned-values.ryoql": "c78ef906aa7e8b31cc6a4935eed21b9da2034ed392cb56da712889d5168ffb86",
+    "fragments/binding-type.ryoql": "c9aa093fb763f1f09f5cdd1ccc0c5ed09d1616a42e9e2b9bd90dd37c2ae74263",
+    "fragments/checker-type-scope-events.ryoql": "73e0c247d934179dbf5ac9a80c1a1d051384245fa141b3734b94ebf48b7fca43",
+    "fragments/deferred-type-reads.ryoql": "0563043ef8bbc9e5c308d343fa60f5a35a84fa70e72deb4eded07842122453ce",
+    "fragments/future-annotation-context.ryoql": "0548854431b90da6fa41daeb7cd5d3243e270937478ce5de54db48d29b1d0fda",
+    "fragments/in-comparison.ryoql": "4c555f7ff2c3190b54133ace818d2367948e41ae4b165d8624849ee9f471c5ac",
+    "fragments/lookup-symbol-events.ryoql": "a0a1b2238698a35673f844a6d168ad76fdb602fec68d83cec7e5a021430463ae",
+    "fragments/seen-module-at-check.ryoql": "1a514acefab730f5c361e220904b14d42f5289b516ca31fabdf80e7c5003b963",
+    "fragments/suppress.ryoql": "72eaeed41d5a9a6393d5048cb7bf7389479a9ce622f4748db92f980e724a8b80",
+    "fragments/type-definition-context.ryoql": "a0451b6cf5bebeea9a8cae4fe8c66555d66bca72fdfa1c64c1f159e2d9d957ce",
+    "fragments/type-match-at-check.ryoql": "7e14f91dbdac29452abf2aac51ce38cdca05ce226c77aa20af3c8a443376b9c1"
+  },
+  "replays": {
+    "RUF051": {
+      "path": "/tmp/ruf051-independent-ready2-sol/RUF051",
+      "cases": 69,
+      "matched": 69,
+      "complete_records": 138,
+      "records_sha256": "ea4cf647b885ff588051977822e516388fc37cf6047c771e3bbc2d27928e481a",
+      "query_modules_sha256": "73e20b56a3752c87c8f700e04d2e0c4fbb52b9653d61ad234721c1ff7349a35e",
+      "profile_sha256": "b6992823de8be9f7f000f3b8dc7e05243fbf9fd4c15dc3a246932d79b1d1da98"
+    },
+    "FURB132": {
+      "path": "/tmp/shared-type-consumer-final-sol/FURB132",
+      "cases": 101,
+      "matched": 101,
+      "complete_records": 202,
+      "records_sha256": "89047d645006de939fe0d3957bbef21af5f4e44c188e7cea60be258174dd8f25",
+      "query_modules_sha256": "a009f9cb9d907154d1dc6b6ceb01d3a0a89c95d35010bc30ef5adac085336943",
+      "profile_sha256": "d8d0645a1314e20897438f4d5b8d65ce410e30c6c95aa11b7093c7ed1f36eb51"
+    },
+    "PERF402": {
+      "path": "/tmp/shared-type-consumer-final-sol/PERF402",
+      "cases": 65,
+      "matched": 65,
+      "complete_records": 130,
+      "records_sha256": "0e6a38a73f7c14d3e6795faa2ca669f6e33cef688a201f784baaaf7f28dfd0be",
+      "query_modules_sha256": "3c8d7e937d0030c75c4176036901f43b5d40bef4a49b5fcfba7758003b78ca1e",
+      "profile_sha256": "5aee441a71e714298dd1122d3d37af6614c8597ecf689d94295a5999ccff4712"
+    },
+    "RUF008": {
+      "path": "/tmp/shared-type-consumer-final-sol/RUF008",
+      "cases": 100,
+      "matched": 100,
+      "complete_records": 200,
+      "records_sha256": "139d0a0d24c4aa42908cb70b03f3b4f5cf1929040b9800fac8c2b6eb42a51bc4",
+      "query_modules_sha256": "a0b9fa6505fc69045e2efab1ba590ad5876bdda6ca3220e89dde3d7c8f4eba0d",
+      "profile_sha256": "31379cacbbabdd465ae2b987b5b943acf67f0dd1e086bc5a2380b9aedf3fe461"
+    },
+    "FURB129": {
+      "path": "/tmp/shared-type-consumer-final-sol/FURB129",
+      "cases": 106,
+      "matched": 106,
+      "complete_records": 212,
+      "records_sha256": "a582ff500ef20841baee95449bedf636e66d62861979b8b1fd5ea1c1a878e1f0",
+      "query_modules_sha256": "4e6b0ea0b75e465e82a15915936b0d3a8eb428168c99a8303531c9c748cba503",
+      "profile_sha256": "68cec76bcebc7135933b06adae0c91137b88a409cb198e59e71130098d5baa6c"
+    },
+    "B008": {
+      "path": "/tmp/ruf051-final-shared-sol/B008",
+      "cases": 129,
+      "matched": 129,
+      "complete_records": 258,
+      "records_sha256": "3d8f5c300cec386235c69972e7e44612834d5c5a1c7260a4ee6b4467cd6459bd",
+      "query_modules_sha256": "7ca8bd69e0bd8351569c3b49abb7ff20a5656a52c03fd96000cbae1a4dc727b2",
+      "profile_sha256": "93b440cffb5c59320e9b3ce75ce72f6bf1c2b65df5a23a8746fc131c94582311"
+    },
+    "PYI019": {
+      "path": "/tmp/ruf051-final-shared-sol/PYI019",
+      "cases": 139,
+      "matched": 139,
+      "complete_records": 278,
+      "records_sha256": "7b219461a16356071eadda80bdcdc259dab8332fca38973bb3d11c9448bc7d19",
+      "query_modules_sha256": "77e669fa70f846633e7ad2851c3576fbd6cb53d6c7f4cba943641872e77dcdd2",
+      "profile_sha256": "c318ca9034c21f269df5fe600ea9c40c67cbd39f589222a3c73140ad2c51ca18"
+    },
+    "PYI034": {
+      "path": "/tmp/ruf051-final-shared-sol/PYI034",
+      "cases": 72,
+      "matched": 72,
+      "complete_records": 144,
+      "records_sha256": "3c3ba7462f190448ea976e0e017ad2057870642b658408c1dbf90cd55c8a8dcb",
+      "query_modules_sha256": "77e669fa70f846633e7ad2851c3576fbd6cb53d6c7f4cba943641872e77dcdd2",
+      "profile_sha256": "66b36ee5f5d16121ec92e34ee042f11831f58b28a8706c715ee2c3e438c9c02a"
+    }
+  },
+  "reference_selection": "RUF051 references retain all 413 diagnostics; cases.toml explicitly projects RUF051 and invalid-syntax. Existing consumer references reused byte-identical inputs and settings.",
+  "module_admission": "Use the exact benchmark.toml and query_modules.json beside each replay. Existing FURB132/PERF402 need the added transitive modules shown there; RUF008/FURB129 need future-annotation-context in their registry. No source-level inference replaces these registries.",
+  "prerequisites": "Canonical suppress72ea, type-definition-context38badb39, assigned-values8bfcaf52; their executed bytes are bound in assets.",
+  "claim": "Bounded source-policy differential evidence, not full 413-rule parity."
+}

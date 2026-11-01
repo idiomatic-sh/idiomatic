@@ -499,6 +499,7 @@ fn prepared(scenario: Scenario) -> (SuiteFake, BenchmarkFinding) {
     let mut suite = SuiteFake::default();
     if !matches!(scenario, Scenario::NoCases) {
         suite.prepared.push(PreparedCase {
+            reference_discrepancy: None,
             comparison: crate::domain::suite::types::CaseComparison::Rule,
             rule: ryo::linter::RuleId::try_from("E722").unwrap(),
             name: "positive".into(),
@@ -530,4 +531,210 @@ fn prepared(scenario: Scenario) -> (SuiteFake, BenchmarkFinding) {
         parser_configuration: None,
     });
     (suite, expected)
+}
+
+/// Candidate fixture exposes complete execution accounting independently of its findings.
+struct CoveredCandidate(LinterFake);
+impl LinterPort for CoveredCandidate {
+    fn prepare(&self, request: &RunRequest) -> Result<Invocation, Error> {
+        LinterPort::prepare(&self.0, request)
+    }
+    fn decode(&self, request: &RunRequest, output: ProcessOutput) -> Result<RunReport, Error> {
+        let mut report = LinterPort::decode(&self.0, request, output)?;
+        report.coverage = Some(crate::domain::diagnostics::types::RuleCoverage {
+            selected: 1,
+            evaluated: 1,
+            skipped: 0,
+            unknown_or_unread: 0,
+        });
+        Ok(report)
+    }
+}
+
+/// Explicit fake-port evidence lets orchestration tests distinguish reference and candidate contracts.
+fn discrepancy_suite() -> SuiteFake {
+    use crate::domain::suite::types::{
+        ArtifactDigest, DiscrepancyEvidence, DiscrepancyEvidenceKind, PreparedReferenceDiscrepancy,
+        ProjectContextMode, ReferenceDiscrepancyIdentity, Tool,
+    };
+    let (mut suite, _) = prepared(Scenario::Agreement);
+    let case = suite.prepared.first_mut().expect("authored case");
+    case.comparison = crate::domain::suite::types::CaseComparison::Full;
+    case.request.root = "/case".into();
+    let mut reference = case.expected.clone();
+    reference.diagnostics.clear();
+    let profile_hash = ArtifactDigest("a".repeat(64));
+    let binary_hash = ArtifactDigest("b".repeat(64));
+    let settings = super::discrepancy::json_digest(&serde_json::json!({
+        "arguments": [], "environment": {}, "directory": "$ROOT",
+        "parser_configuration": "python-target=3.10", "project_context_mode": "Isolated",
+    }));
+    case.reference_discrepancy = Some(PreparedReferenceDiscrepancy {
+        identity: ReferenceDiscrepancyIdentity {
+            tool: "fixture".into(),
+            version: "1".into(),
+            observed_executable_sha256: binary_hash.clone(),
+            profile_sha256: profile_hash.clone(),
+            settings_sha256: settings,
+            source_sha256: ArtifactDigest("c".repeat(64)),
+            intended_output_sha256: super::discrepancy::output_digest(&case.expected),
+            reference_output_sha256: super::discrepancy::output_digest(&reference),
+        },
+        expected: reference,
+        reason: "independent language contract differs from the pinned reference".into(),
+        evidence: vec![DiscrepancyEvidence {
+            path: "evidence.json".into(),
+            sha256: ArtifactDigest("d".repeat(64)),
+            kind: DiscrepancyEvidenceKind::IndependentLanguageRun,
+            language_version: "3.10".into(),
+            target_configuration: "python-target=3.10".into(),
+            version_rationale: "exact target independently evaluated".into(),
+        }],
+    });
+    suite.profile = Some(Tool {
+        project_context_mode: ProjectContextMode::Isolated,
+        tool: "fixture".into(),
+        version: "1".into(),
+        sha256: vec![binary_hash.0.clone().into()],
+        defaults: vec![case.rule.clone()],
+        deferred: std::collections::BTreeMap::default(),
+        pending: std::collections::BTreeMap::default(),
+        query_modules: std::collections::BTreeMap::default(),
+        rule_applicability: std::collections::BTreeMap::default(),
+        parser_configuration: Some("python-target=3.10".into()),
+    });
+    let _previous_profile = suite
+        .artifact_digests
+        .insert("/profile/benchmark.toml".into(), profile_hash);
+    let _previous_binary = suite.artifact_digests.insert("fixture".into(), binary_hash);
+    suite.discrepancy_artifacts_valid = true;
+    let authored_case = suite.prepared.first_mut().expect("authored case");
+    let item = authored_case
+        .reference_discrepancy
+        .take()
+        .expect("fixture canonical certificate");
+    let identity = item.identity;
+    let discrepancy = serde_json::from_value(serde_json::json!({
+        "expected": [], "reason": item.reason,
+        "identity": { "tool": identity.tool.to_string(), "version": identity.version.to_string(),
+            "observed-executable-sha256": identity.observed_executable_sha256.0, "profile-sha256": identity.profile_sha256.0,
+            "settings-sha256": identity.settings_sha256.0, "source-sha256": identity.source_sha256.0,
+            "reference-output-sha256": identity.reference_output_sha256.0, "intended-output-sha256": identity.intended_output_sha256.0 },
+        "evidence": [{ "path": "evidence.json", "sha256": "d".repeat(64), "kind": "independent-language-run",
+            "language-version": "3.10", "target-configuration": "python-target=3.10", "version-rationale": "exact target independently evaluated" }],
+    })).expect("boundary-owned raw wire certificate");
+    suite.reference_wires.push(
+        crate::outbound::suite::types::discrepancy::CaseReferenceWire {
+            rule: authored_case.rule.to_string(),
+            name: authored_case.name.to_string(),
+            discrepancy,
+        },
+    );
+    suite
+}
+
+#[test]
+fn native_both_sides_require_intended_behavior_even_when_wrong_oracle_matches() {
+    let suite = discrepancy_suite();
+    let reference = LinterFake::default();
+    let intended = CoveredCandidate(LinterFake {
+        diagnostics: suite.prepared[0].expected.diagnostics.clone(),
+        ..Default::default()
+    });
+    let execution = ExecutionFake {
+        status: 0,
+        ..Default::default()
+    };
+    let rules = Path::new("/profile/rules");
+    assert_eq!(
+        verify(
+            &suite,
+            &reference,
+            &intended,
+            &execution,
+            rules,
+            Path::new("scratch")
+        )
+        .expect("distinct exact expectations both hold")
+        .0,
+        1
+    );
+    assert_eq!(
+        execution.history.lock().expect("observed calls").len(),
+        2,
+        "both actual sides executed"
+    );
+    let wrong_oracle = CoveredCandidate(LinterFake::default());
+    assert!(
+        verify(
+            &suite,
+            &reference,
+            &wrong_oracle,
+            &execution,
+            rules,
+            Path::new("scratch")
+        )
+        .is_err(),
+        "agreement with incorrect oracle must fail intended contract"
+    );
+    let mut canonical = suite.prepared.clone();
+    super::discrepancy::attach(&suite, rules, &mut canonical)
+        .expect("application owns wire conversion");
+    assert!(
+        !super::discrepancy::matches_intended(
+            &canonical[0],
+            super::discrepancy::reference_expected(&canonical[0])
+        ),
+        "JSONL retains raw reference mismatch"
+    );
+}
+
+#[test]
+fn native_reference_only_checks_the_distinct_pinned_reference_expectation() {
+    let suite = discrepancy_suite();
+    let reference = LinterFake::default();
+    let execution = ExecutionFake {
+        status: 0,
+        ..Default::default()
+    };
+    assert_eq!(
+        verify_reference_cases(
+            &suite,
+            &reference,
+            &execution,
+            Path::new("/profile/rules"),
+            Path::new("scratch")
+        )
+        .expect("pinned reference expectation holds")
+        .0,
+        1
+    );
+    let wrong_reference = LinterFake {
+        diagnostics: suite.prepared[0].expected.diagnostics.clone(),
+        ..Default::default()
+    };
+    assert!(
+        verify_reference_cases(
+            &suite,
+            &wrong_reference,
+            &execution,
+            Path::new("/profile/rules"),
+            Path::new("scratch")
+        )
+        .is_err(),
+        "intended candidate output cannot replace pinned reference behavior"
+    );
+    let mut stale = suite;
+    stale.discrepancy_artifacts_valid = false;
+    assert!(
+        verify_reference_cases(
+            &stale,
+            &reference,
+            &execution,
+            Path::new("/profile/rules"),
+            Path::new("scratch")
+        )
+        .is_err(),
+        "reference-only path cannot bypass independent evidence"
+    );
 }

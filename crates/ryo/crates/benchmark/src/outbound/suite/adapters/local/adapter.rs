@@ -135,6 +135,21 @@ fn verify_executable(path: &Path, tool: &Tool) -> Result<(), Error> {
 /// Reads and freezes validated benchmark artifacts from the local filesystem.
 pub(crate) struct SuiteLocalAdapter;
 impl SuitePort for SuiteLocalAdapter {
+    fn case_reference_wires(
+        &self,
+        ArtifactPath(profile): ArtifactPath<'_>,
+    ) -> Result<
+        Vec<crate::outbound::suite::types::discrepancy::CaseReferenceWire>,
+        crate::outbound::suite::types::discrepancy::ArtifactError,
+    > {
+        super::discrepancy_artifacts::case_reference_wires(profile)
+    }
+    fn verify_discrepancy_artifacts(
+        &self,
+        artifacts: crate::outbound::suite::types::discrepancy::CaseArtifacts<'_>,
+    ) -> Result<(), crate::outbound::suite::types::discrepancy::ArtifactError> {
+        super::discrepancy_artifacts::verify(artifacts)
+    }
     fn digest(&self, ArtifactPath(path): ArtifactPath<'_>) -> Result<ArtifactDigest, Error> {
         digest(path)
     }
@@ -222,6 +237,11 @@ impl SuitePort for SuiteLocalAdapter {
                         .join(rule.to_string())
                         .join(constants::CASES),
                 )?,
+            )?;
+            super::discrepancy_artifacts::copy_evidence(
+                directory,
+                destination,
+                &target.join(constants::CASES),
             )?;
         }
         Ok(())
@@ -369,6 +389,7 @@ fn prepare_cases(
             };
             let expected = expected_report(&rule, request.files.clone(), case.expected);
             prepared.push(PreparedCase {
+                reference_discrepancy: None,
                 comparison: case.comparison,
                 rule: rule.clone(),
                 name: case.name,

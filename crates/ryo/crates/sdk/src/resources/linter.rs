@@ -71,8 +71,8 @@ pub use lint::types::Rule;
 
 pub use lint::types::RuleId;
 
-pub use ryo_values::domain::runs::types::RuleApplicability;
-pub use ryo_values::domain::runs::types::SkipReason;
+pub use lint::types::RuleApplicability;
+pub use lint::types::SkipReason;
 
 pub use lint::types::Unknown;
 

@@ -27,4 +27,5 @@ defaults = ["PLE0704"]
 parser-configuration = "python-target=3.10"
 
 [query-modules]
+"python/ruff/suppress-directives" = "fragments/suppress-directives.ryoql"
 "python/ruff/suppress" = "fragments/suppress.ryoql"

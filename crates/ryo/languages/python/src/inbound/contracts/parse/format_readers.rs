@@ -26,6 +26,20 @@ pub(super) fn intern(
     languages::intern_derived(symbols, source, languages::NameText(value))
 }
 
+/// Intern one Unicode scalar from stack storage, or the empty diagnostic default.
+pub(super) fn intern_character(
+    symbols: &mut languages::Symbols,
+    source: languages::ByteSlice<'_>,
+    character: Option<char>,
+) -> languages::Symbol {
+    let mut buffer = [0_u8; 4];
+    let text = match character {
+        Some(character) => character.encode_utf8(&mut buffer),
+        None => "",
+    };
+    intern(symbols, source, text)
+}
+
 /// Returns the parse summary and its stable outcome label.
 pub(super) fn summary_of(
     result: Option<&FormatParseResult>,
@@ -40,9 +54,9 @@ pub(super) fn summary_of(
 }
 
 /// Returns the error category, character and scalar index, or empty defaults.
-pub(super) fn error_parts(result: Option<&FormatParseResult>) -> (&'static str, String, i64) {
+pub(super) fn error_parts(result: Option<&FormatParseResult>) -> (&'static str, Option<char>, i64) {
     let Some(FormatParseResult::Malformed(error)) = result else {
-        return ("none", String::new(), 0);
+        return ("none", None, 0);
     };
     let category = match error.kind {
         FormatErrorKind::UnmatchedKeyParentheses => "unmatched-key-parentheses",
@@ -50,9 +64,7 @@ pub(super) fn error_parts(result: Option<&FormatParseResult>) -> (&'static str, 
         FormatErrorKind::UnsupportedFormatCharacter => "unsupported-format-character",
         FormatErrorKind::WidthOrPrecisionTooLarge => "width-or-precision-too-large",
     };
-    let character = error
-        .character
-        .map_or_else(String::new, |value| value.to_string());
+    let character = error.character;
     let index = i64::try_from(error.index).unwrap_or(i64::MAX);
     (category, character, index)
 }
@@ -94,7 +106,7 @@ ryo::reads! {
             given representation = intern(symbols, tree.source, "decoded-string");
             given outcome = intern(symbols, tree.source, summary.1);
             given error_category = intern(symbols, tree.source, error_parts.0);
-            given error_character = intern(symbols, tree.source, &error_parts.1);
+            given error_character = intern_character(symbols, tree.source, error_parts.1);
             given error_index = languages::Integer(error_parts.2);
             given positional_consumption = languages::Integer(i64::try_from(summary.0.positional_consumption).unwrap_or(i64::MAX));
             row { id: node(occurrence.node), dialect: value(dialect), representation: value(representation), outcome: value(outcome), error_category: value(error_category), error_character: value(error_character), error_index: value(error_index), positional_consumption: value(positional_consumption), mapping_present: value(flag(summary.0.mapping_present)), dynamic_width: value(flag(summary.0.dynamic_width)), dynamic_precision: value(flag(summary.0.dynamic_precision)), file: file, span: span(occurrence.node), }
@@ -117,7 +129,7 @@ ryo::reads! {
                     each (parsed.fields.iter()) as field {
                         given argument_kind = intern(symbols, tree.source, match &field.argument { FormatArgument::Positional => "positional", FormatArgument::Mapping(_) => "mapping" });
                         given mapping_key = intern(symbols, tree.source, match &field.argument { FormatArgument::Positional => "", FormatArgument::Mapping(key) => key });
-                        given conversion = intern(symbols, tree.source, &field.conversion.to_string());
+                        given conversion = intern_character(symbols, tree.source, Some(field.conversion));
                         given width = intern(symbols, tree.source, width_mode(field.width));
                         given precision = intern(symbols, tree.source, precision_mode(field.precision));
                         given ordinal = languages::Integer(i64::try_from(field.ordinal).unwrap_or(i64::MAX));

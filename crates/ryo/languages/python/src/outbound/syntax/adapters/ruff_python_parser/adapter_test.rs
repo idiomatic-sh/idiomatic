@@ -170,7 +170,7 @@ fn comprehension_rebinding_preserves_ast_and_respects_lambda_scope() {
 }
 
 #[test]
-fn named_expression_in_stub_annotation_is_a_parse_diagnostic_only_for_stubs() {
+fn named_expression_annotation_validity_does_not_depend_on_filename() {
     let diagnostics_for = |source: &str, source_kind| {
         let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
         let mut builder =
@@ -207,16 +207,7 @@ fn named_expression_in_stub_annotation_is_a_parse_diagnostic_only_for_stubs() {
         !stub_incomplete,
         "semantic syntax diagnostics preserve AST facts"
     );
-    assert_eq!(
-        stub_diagnostics,
-        [(
-            "parse".to_owned(),
-            "preserved".to_owned(),
-            "parser-error".to_owned(),
-            10,
-            16
-        )]
-    );
+    assert!(stub_diagnostics.is_empty());
 
     let (python_acceptance, python_incomplete, python_diagnostics) =
         diagnostics_for(source, PythonSourceKind::Python);
@@ -1083,5 +1074,216 @@ fn parser_options_keep_source_kind_and_configured_target() {
         )
         .target_version(),
         PythonVersion::PY310
+    );
+}
+
+/// One independent compiler input and its expected module-mode and validity outcomes.
+struct CompilerDirectiveCase {
+    /// Complete source, identical for the Python and stub syntax acceptance checks.
+    source: &'static str,
+    /// Expected valid module-prefix future-annotations activation.
+    enabled: bool,
+    /// Exact source fragments whose byte spans receive validity diagnostics.
+    refused_fragments: &'static [&'static str],
+}
+
+/// All original compiler controls, including relative, late, nested, lazy and generic negatives.
+const COMPILER_DIRECTIVE_CASES: &[CompilerDirectiveCase] = &[
+    CompilerDirectiveCase {
+        source: "x:(value:=int)\n",
+        enabled: false,
+        refused_fragments: &[],
+    },
+    CompilerDirectiveCase {
+        source: "from __future__ import annotations\nx:(value:=int)\n",
+        enabled: true,
+        refused_fragments: &["value:=int"],
+    },
+    CompilerDirectiveCase {
+        source: "def f(x:(value:=int)): pass\n",
+        enabled: false,
+        refused_fragments: &[],
+    },
+    CompilerDirectiveCase {
+        source: "from __future__ import annotations\ndef f(x:(value:=int)): pass\n",
+        enabled: true,
+        refused_fragments: &["value:=int"],
+    },
+    CompilerDirectiveCase {
+        source: "\"module docstring\"\nfrom __future__ import annotations\ndef f(x:Missing): pass\n",
+        enabled: true,
+        refused_fragments: &[],
+    },
+    CompilerDirectiveCase {
+        source: "from .__future__ import annotations\ndef f(x:(value:=int)): pass\n",
+        enabled: false,
+        refused_fragments: &[],
+    },
+    CompilerDirectiveCase {
+        source: "x=1\nfrom __future__ import annotations\ndef f(x:(value:=int)): pass\n",
+        enabled: false,
+        refused_fragments: &["from __future__ import annotations"],
+    },
+    CompilerDirectiveCase {
+        source: "def outer():\n from __future__ import annotations\n def f(x:(value:=int)): pass\n",
+        enabled: false,
+        refused_fragments: &["from __future__ import annotations"],
+    },
+    CompilerDirectiveCase {
+        source: "from __future__ import annotations, not_a_feature\ndef f(x:Missing): pass\n",
+        enabled: false,
+        refused_fragments: &["not_a_feature"],
+    },
+    CompilerDirectiveCase {
+        source: "lazy from __future__ import annotations\ndef f(x:(value:=int)): pass\n",
+        enabled: false,
+        refused_fragments: &["lazy", "lazy from __future__ import annotations"],
+    },
+    CompilerDirectiveCase {
+        source: "def f[T](x:(value:=int)): pass\n",
+        enabled: false,
+        refused_fragments: &["value:=int"],
+    },
+    CompilerDirectiveCase {
+        source: "class C[T]((value:=int)): pass\n",
+        enabled: false,
+        refused_fragments: &["value:=int"],
+    },
+    CompilerDirectiveCase {
+        source: "def f[T:(value:=int)](): pass\n",
+        enabled: false,
+        refused_fragments: &["value:=int"],
+    },
+    CompilerDirectiveCase {
+        source: "type Alias=(value:=int)\n",
+        enabled: false,
+        refused_fragments: &["value:=int"],
+    },
+    CompilerDirectiveCase {
+        source: "type Alias=(lambda:(value:=int))\n",
+        enabled: false,
+        refused_fragments: &[],
+    },
+    CompilerDirectiveCase {
+        source: "type Alias=(lambda x=(value:=int): x)\n",
+        enabled: false,
+        refused_fragments: &["value:=int"],
+    },
+    CompilerDirectiveCase {
+        source: "from __future__ import annotations\ndef f(x:(lambda:(value:=int))): pass\n",
+        enabled: true,
+        refused_fragments: &[],
+    },
+    CompilerDirectiveCase {
+        source: "from __future__ import annotations\ndef f(x:(lambda y=(value:=int):y)): pass\n",
+        enabled: true,
+        refused_fragments: &["value:=int"],
+    },
+];
+
+/// Independent compiler controls; exact external observations are retained beside the fixture.
+#[test]
+fn future_annotations_use_only_valid_compiler_directives() {
+    for case in COMPILER_DIRECTIVE_CASES {
+        let source = case.source;
+        let refused_fragments = case.refused_fragments;
+        for source_kind in [PythonSourceKind::Python, PythonSourceKind::Stub] {
+            let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
+            let mut builder =
+                languages::table_builder(&mut elements, &mut symbols, ByteSlice(source.as_bytes()));
+            SyntaxRuffPythonParserAdapter.read(
+                SourceText(source.as_bytes()),
+                source_kind,
+                &PythonParserSettings::new(PythonTargetVersion::Py313),
+                &mut builder,
+            );
+            assert_eq!(
+                languages::property_at(
+                    &elements,
+                    languages::Position(0),
+                    crate::domain::syntax::constants::MODULE_FUTURE_ANNOTATIONS
+                )
+                .map(|value| value.0),
+                Some(if case.enabled { "enabled" } else { "disabled" }),
+                "{source}"
+            );
+            let mut expected = refused_fragments
+                .iter()
+                .map(|fragment| {
+                    let start = source
+                        .find(*fragment)
+                        .expect("the independently named fragment exists");
+                    (
+                        u32::try_from(start).expect("small fixture offset"),
+                        u32::try_from(start + fragment.len()).expect("small fixture end"),
+                    )
+                })
+                .collect::<Vec<_>>();
+            expected.sort_unstable();
+            let mut actual = languages::diagnostics(&elements)
+                .map(|diagnostic| (diagnostic.start.0, diagnostic.end.0))
+                .collect::<Vec<_>>();
+            actual.sort_unstable();
+            assert_eq!(actual, expected, "{source_kind:?}: {source}");
+            assert!(!languages::has_incomplete_syntax(&elements), "{source}");
+        }
+    }
+}
+
+/// The compiler's native annotation scopes are independent of a future import.
+#[test]
+fn native_annotation_scopes_are_version_sensitive() {
+    let source = "x:(value:=int)\n";
+    for (target, reject) in [
+        (PythonTargetVersion::Py313, false),
+        (PythonTargetVersion::Py314, true),
+        (PythonTargetVersion::Py315, true),
+    ] {
+        let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
+        let mut builder =
+            languages::table_builder(&mut elements, &mut symbols, ByteSlice(source.as_bytes()));
+        SyntaxRuffPythonParserAdapter.read(
+            SourceText(source.as_bytes()),
+            PythonSourceKind::Python,
+            &PythonParserSettings::new(target),
+            &mut builder,
+        );
+        let actual = languages::diagnostics(&elements)
+            .map(|diagnostic| (diagnostic.start.0, diagnostic.end.0))
+            .collect::<Vec<_>>();
+        assert_eq!(actual, if reject { vec![(3, 13)] } else { Vec::new() });
+        assert_eq!(
+            languages::property_at(
+                &elements,
+                languages::Position(0),
+                crate::domain::syntax::constants::MODULE_FUTURE_ANNOTATIONS
+            )
+            .map(|value| value.0),
+            Some("disabled")
+        );
+    }
+}
+
+#[test]
+fn malformed_future_import_never_enables_a_compiler_feature() {
+    let source = "from __future__ import (\n";
+    let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
+    let mut builder =
+        languages::table_builder(&mut elements, &mut symbols, ByteSlice(source.as_bytes()));
+    SyntaxRuffPythonParserAdapter.read(
+        SourceText(source.as_bytes()),
+        PythonSourceKind::Python,
+        &PythonParserSettings::new(PythonTargetVersion::Py310),
+        &mut builder,
+    );
+    assert!(languages::diagnostics(&elements).next().is_some());
+    assert_ne!(
+        languages::property_at(
+            &elements,
+            languages::Position(0),
+            crate::domain::syntax::constants::MODULE_FUTURE_ANNOTATIONS
+        )
+        .map(|value| value.0),
+        Some("enabled")
     );
 }

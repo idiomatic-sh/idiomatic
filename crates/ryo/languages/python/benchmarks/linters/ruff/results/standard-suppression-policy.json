@@ -1,6 +1,6 @@
 {
   "schema": "standard-suppression-policy/v1",
-  "scope": "Explicit migrated simple full suppressors only; custom export, extra-key and unmapped variants are not implicitly accepted.",
+  "scope": "Explicit migrated full and reviewed unmapped variants; each policy binds its own wrapper and declared transitive modules.",
   "rules": {
     "ASYNC100": "standard-module",
     "ASYNC105": "standard-module",
@@ -143,7 +143,19 @@
     "YTT203": "standard-module",
     "YTT204": "standard-module",
     "YTT301": "standard-module",
-    "YTT303": "standard-module"
+    "YTT303": "standard-module",
+    "SIM220": "standard-module",
+    "SIM221": "standard-module",
+    "F401": "additional-lines-module",
+    "F822": "additional-lines-module",
+    "PIE807": "unmapped-module",
+    "RUF016": "unmapped-module",
+    "RUF058": "unmapped-module",
+    "UP009": "unmapped-module",
+    "UP011": "unmapped-module",
+    "UP018": "unmapped-module",
+    "UP026": "unmapped-module",
+    "UP028": "unmapped-module"
   },
   "canonical_queries": {
     "ASYNC100": "rules/ASYNC100/candidate.ryoql",
@@ -287,6 +299,18 @@
     "YTT203": "rules/YTT203/candidate.ryoql",
     "YTT204": "rules/YTT204/candidate.ryoql",
     "YTT301": "rules/YTT301/candidate.ryoql",
-    "YTT303": "rules/YTT303/candidate.ryoql"
+    "YTT303": "rules/YTT303/candidate.ryoql",
+    "SIM220": "rules/SIM220/candidate.ryoql",
+    "SIM221": "rules/SIM221/candidate.ryoql",
+    "F401": "rules/F401/candidate.ryoql",
+    "F822": "rules/F822/candidate.ryoql",
+    "PIE807": "rules/PIE807/candidate.ryoql",
+    "RUF016": "rules/RUF016/candidate.ryoql",
+    "RUF058": "rules/RUF058/candidate.ryoql",
+    "UP009": "rules/UP009/candidate.ryoql",
+    "UP011": "rules/UP011/candidate.ryoql",
+    "UP018": "rules/UP018/candidate.ryoql",
+    "UP026": "rules/UP026/candidate.ryoql",
+    "UP028": "rules/UP028/candidate.ryoql"
   }
 }

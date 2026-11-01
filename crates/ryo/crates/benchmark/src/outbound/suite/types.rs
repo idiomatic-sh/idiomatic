@@ -5,3 +5,6 @@ pub struct ArtifactPath<'a>(pub &'a std::path::Path);
 /// Exact artifact paths whose names and bytes participate in one fingerprint.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ArtifactSet<'a>(pub &'a [std::path::PathBuf]);
+
+/// Reference evidence wire values owned by this boundary.
+pub mod discrepancy;

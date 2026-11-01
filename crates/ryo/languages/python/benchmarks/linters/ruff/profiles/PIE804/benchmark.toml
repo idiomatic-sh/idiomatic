@@ -28,3 +28,4 @@ defaults = ["PIE804"]
 
 [query-modules]
 "python/ruff/suppress" = "fragments/suppress.ryoql"
+"python/ruff/suppress-directives" = "fragments/suppress-directives.ryoql"

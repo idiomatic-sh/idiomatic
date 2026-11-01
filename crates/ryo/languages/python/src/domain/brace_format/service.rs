@@ -12,11 +12,21 @@ use std::cell::{Ref, RefCell};
 /// Why brace-format rows are partial.
 pub(crate) const INCOMPLETE: &str = "brace-format parsing needs complete decoded string inputs";
 
-/// Clear source-specific results while retaining allocation capacity.
+/// Reset source identities; retain only byte-budgeted content-only grammar results.
 pub(crate) fn clear(index: &mut BraceFormatIndex) {
-    index.by_input.clear();
-    index.values.clear();
-    index.occurrences.clear();
+    crate::domain::grammar_cache::service::empty(&mut index.memo);
+    for (input, at) in index.by_input.drain(..) {
+        if let Some(value) = index.values.get_mut(at) {
+            let result = std::mem::replace(&mut value.result, BraceFormatResult::Unavailable);
+            let bytes = owned_bytes(&result);
+            if result != BraceFormatResult::Unavailable {
+                crate::domain::grammar_cache::service::admit(&mut index.memo, input, result, bytes);
+            }
+        }
+    }
+    crate::domain::grammar_cache::service::reset_map(&mut index.by_input);
+    crate::domain::grammar_cache::service::reset(&mut index.values);
+    crate::domain::grammar_cache::service::reset(&mut index.occurrences);
     index.state = BraceFormatState::Fresh;
 }
 
@@ -25,18 +35,19 @@ fn occurrence<P>(tree: &Tree<'_>, index: &mut BraceFormatIndex, at: Position)
 where
     P: BraceFormatSyntax,
 {
-    let decoded = super::super::format_parsing::service::decoded_string(tree, at);
+    let mut input = std::mem::take(&mut index.memo.scratch);
+    let decoded = super::super::format_parsing::service::decoded_into(tree, at, &mut input);
     let (cached, unknown_input) = match decoded {
-        Ok(None) => (None, true),
+        Ok(false) => (None, true),
         Err(()) => {
             index.state = BraceFormatState::Partial;
             (None, false)
         }
-        Ok(Some(input)) => {
+        Ok(true) => {
             if let Some(cached) = index.by_input.get(&input).copied() {
                 (Some(cached), false)
             } else {
-                if index.by_input.try_reserve(1).is_err()
+                if !crate::domain::grammar_cache::service::reserve(&mut index.by_input)
                     || index.values.try_reserve(1).is_err()
                     || index.occurrences.try_reserve(1).is_err()
                 {
@@ -44,11 +55,20 @@ where
                     return;
                 }
                 let cached = index.values.len();
-                let result = P::parse(&input);
+                let (key, result) = if let Some((key, result)) =
+                    crate::domain::grammar_cache::service::take(&mut index.memo, &input)
+                {
+                    (key, result)
+                } else {
+                    {
+                        let result = P::parse(&input);
+                        (std::mem::take(&mut input), result)
+                    }
+                };
                 if result == BraceFormatResult::Unavailable {
                     index.state = BraceFormatState::Partial;
                 }
-                let _prior = index.by_input.insert(input, cached);
+                let _prior = index.by_input.insert(key, cached);
                 index
                     .values
                     .push(super::types::CachedBraceFormat { result });
@@ -56,6 +76,7 @@ where
             }
         }
     };
+    crate::domain::grammar_cache::service::scratch(&mut index.memo, input);
     if index.occurrences.try_reserve(1).is_err() {
         index.state = BraceFormatState::Partial;
         return;
@@ -76,9 +97,19 @@ pub(crate) fn prepare<'a, P>(
 where
     P: BraceFormatSyntax,
 {
+    if !crate::domain::grammar_cache::service::is_grammar::<P, _>(
+        &model.brace_format.borrow().memo,
+        "python-brace-decoded-v1",
+    ) {
+        clear(&mut model.brace_format.borrow_mut());
+    }
     let held: &RefCell<BraceFormatIndex> = &model.brace_format;
     if held.borrow().state == BraceFormatState::Fresh {
         let mut index = held.borrow_mut();
+        crate::domain::grammar_cache::service::grammar::<P, _>(
+            &mut index.memo,
+            "python-brace-decoded-v1",
+        );
         for at in super::super::semantic_syntax::service::positions(tree) {
             if !matches!(kind(tree, at), Kind::Node(Node::Constant | Node::JoinedStr))
                 || !super::super::format_parsing::service::is_string_occurrence(tree, at)
@@ -89,6 +120,7 @@ where
             }
             occurrence::<P>(tree, &mut index, at);
         }
+        crate::domain::grammar_cache::service::empty(&mut index.memo);
         if index.state == BraceFormatState::Fresh {
             index.state = BraceFormatState::Complete;
         }
@@ -118,4 +150,27 @@ pub(crate) fn result<'a>(
         .values
         .get(occurrence.cached?)
         .map(|cached| &cached.result)
+}
+
+/// Owned result buffers, independent of the file occurrence that uses the result.
+#[must_use]
+pub(crate) fn owned_bytes(result: &BraceFormatResult) -> usize {
+    match result {
+        BraceFormatResult::Parsed(parsed) => parsed
+            .fields
+            .capacity()
+            .saturating_mul(size_of::<super::types::BraceFormatField>())
+            .saturating_add(
+                parsed
+                    .fields
+                    .iter()
+                    .map(|field| match &field.selector {
+                        super::types::BraceSelector::Automatic { .. } => 0,
+                        super::types::BraceSelector::Index { text, .. }
+                        | super::types::BraceSelector::Keyword(text) => text.capacity(),
+                    })
+                    .sum::<usize>(),
+            ),
+        BraceFormatResult::Malformed(_) | BraceFormatResult::Unavailable => 0,
+    }
 }

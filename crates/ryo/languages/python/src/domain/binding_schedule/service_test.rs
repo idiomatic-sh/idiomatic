@@ -46,7 +46,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("annotation-only target does not become an initialized store"),
         word: Word::Succeeds,
         input: || "x: Missing\n",
-        expect: Expect::Value("read:Missing@module|annotation:x@module"),
+        expect: Expect::Value("annotation:x@module|read:Missing@name"),
     },
     Case {
         name: CaseName("augmented assignment reads target before value and replacement"),
@@ -139,4 +139,101 @@ fn subject(source: Input) -> Result<Value, Failure> {
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
+}
+
+/// Compiler-mode metadata is shared with syntax checks, not inferred from alias spelling.
+#[test]
+fn future_annotation_timing_uses_validated_module_activation() {
+    use crate::domain::model::types::BindingAnnotationTiming;
+    use crate::inbound::contracts::parse::contract::ParseContract;
+    use crate::outbound::{notes::factory::postcard, syntax::factory::ruff_python_parser};
+    use crate::settings::{PythonParserSettings, PythonTargetVersion};
+    use ryo::languages::Parse as _;
+    use std::sync::Arc;
+
+    let cases = [
+        ("from __future__ import annotations\nx: Missing\n", true),
+        (
+            "\"module docstring\"\nfrom __future__ import annotations\nx: Missing\n",
+            true,
+        ),
+        (
+            "from __future__ import division\nfrom __future__ import annotations\nx: Missing\n",
+            true,
+        ),
+        ("from .__future__ import annotations\nx: Missing\n", false),
+        (
+            "lazy from __future__ import annotations\nx: Missing\n",
+            false,
+        ),
+        (
+            "x=1\nfrom __future__ import annotations\nx: Missing\n",
+            false,
+        ),
+        (
+            "def outer():\n from __future__ import annotations\nx: Missing\n",
+            false,
+        ),
+        (
+            "if condition:\n from __future__ import annotations\nx: Missing\n",
+            false,
+        ),
+        (
+            "from __future__ import annotations, not_a_feature\nx: Missing\n",
+            false,
+        ),
+        ("from __future__ import (\n", false),
+        ("x: Missing\n", false),
+    ];
+    for (source, enabled) in cases {
+        for target in [PythonTargetVersion::Py313, PythonTargetVersion::Py314] {
+            let parser = ParseContract::new(
+                PythonParserSettings::new(target),
+                Arc::new(ruff_python_parser()),
+                Arc::new(postcard()),
+            );
+            let (mut elements, mut symbols) = (
+                languages::Elements::default(),
+                languages::Symbols::default(),
+            );
+            languages::contract::build(
+                &parser,
+                languages::ParseRequest {
+                    path: languages::SourcePath("compiler-mode.py"),
+                    file: languages::FileId(0),
+                    bytes: ByteSlice(source.as_bytes()),
+                    notes: languages::NoteRequest::Unwanted,
+                    fields: languages::FieldRequest::Unwanted,
+                },
+                &mut elements,
+                &mut symbols,
+            )
+            .expect("Python source keeps a parsed or recovered tree");
+            let tree = Tree {
+                elements: &elements,
+                source: ByteSlice(source.as_bytes()),
+                file: languages::FileId(0),
+            };
+            let mut model = Declarations::default();
+            parser.file_model(&tree, &mut model);
+            let mut plan = BindingSchedule::default();
+            schedule(&tree, &model, &mut symbols, &mut plan);
+            let expected = if enabled || target >= PythonTargetVersion::Py314 {
+                BindingAnnotationTiming::Deferred
+            } else {
+                BindingAnnotationTiming::Immediate
+            };
+            assert_eq!(plan.annotations, expected, "{target:?}: {source}");
+            let property = languages::property_at(
+                &elements,
+                languages::Position(0),
+                crate::domain::syntax::constants::MODULE_FUTURE_ANNOTATIONS,
+            );
+            assert_eq!(
+                property.map(|value| value.0),
+                Some(if enabled { "enabled" } else { "disabled" }),
+                "{source}"
+            );
+        }
+    }
 }

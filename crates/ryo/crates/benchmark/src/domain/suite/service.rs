@@ -112,7 +112,18 @@ pub fn validate_case_sources(cases: &Cases) -> Result<(), Error> {
         for name in case.files.keys() {
             relative_path(name.0.as_ref())?;
         }
-        for expected in &case.expected {
+        if case.reference_discrepancy.is_some()
+            && case.comparison != super::types::CaseComparison::Full
+        {
+            return Err(Error::Invalid(
+                "reference discrepancies require full comparison".into(),
+            ));
+        }
+        for expected in case.expected.iter().chain(
+            case.reference_discrepancy
+                .iter()
+                .flat_map(|item| &item.expected),
+        ) {
             if case.comparison == super::types::CaseComparison::Full
                 && matches!(expected.identity, super::types::ExpectedRule::Parent)
             {

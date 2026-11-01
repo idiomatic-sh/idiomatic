@@ -1,0 +1,228 @@
+
+[[cases]]
+name="ruf019-if"
+comparison="full"
+files={"case.py"="if key in data and data[key]: ...\n"}
+expected=[{rule="RUF019", file="case.py", start=3, end=28}]
+
+[[cases]]
+name="ruf019-while"
+comparison="full"
+files={"case.py"="while key in data and data[key]: break\n"}
+expected=[{rule="RUF019", file="case.py", start=6, end=31}]
+
+[[cases]]
+name="ruf019-assert"
+comparison="full"
+files={"case.py"="assert key in data and data[key]\n"}
+expected=[{rule="RUF019", file="case.py", start=7, end=32}]
+
+[[cases]]
+name="ruf019-not"
+comparison="full"
+files={"case.py"="x=not (key in data and data[key])\n"}
+expected=[{rule="RUF019", file="case.py", start=7, end=32}]
+
+[[cases]]
+name="ruf019-conditional"
+comparison="full"
+files={"case.py"="x=1 if key in data and data[key] else 2\n"}
+expected=[{rule="RUF019", file="case.py", start=7, end=32}]
+
+[[cases]]
+name="ruf019-comprehension"
+comparison="full"
+files={"case.py"="x=[x for x in xs if key in data and data[key]]\n"}
+expected=[{rule="RUF019", file="case.py", start=20, end=45}]
+
+[[cases]]
+name="ruf019-match-guard"
+comparison="full"
+files={"case.py"="match value:\n case x if key in data and data[key]: ...\n"}
+expected=[{rule="RUF019", file="case.py", start=24, end=49}]
+
+[[cases]]
+name="ruf019-bool-call"
+comparison="full"
+files={"case.py"="x=bool(key in data and data[key])\n"}
+expected=[{rule="RUF019", file="case.py", start=7, end=32}]
+
+[[cases]]
+name="ruf019-bool-keyword"
+comparison="full"
+files={"case.py"="x=bool(other=(key in data and data[key]))\n"}
+expected=[]
+
+[[cases]]
+name="ruf019-bool-extra-pos"
+comparison="full"
+files={"case.py"="x=bool(False,(key in data and data[key]))\n"}
+expected=[]
+
+[[cases]]
+name="ruf019-assignment"
+comparison="full"
+files={"case.py"="x=key in data and data[key]\n"}
+expected=[]
+
+[[cases]]
+name="ruf019-return"
+comparison="full"
+files={"case.py"="def f(): return key in data and data[key]\n"}
+expected=[]
+
+[[cases]]
+name="ruf019-nested-or"
+comparison="full"
+files={"case.py"="if flag or (key in data and data[key]): ...\n"}
+expected=[{rule="RUF019", file="case.py", start=12, end=37}]
+
+[[cases]]
+name="ruf019-inside-call"
+comparison="full"
+files={"case.py"="if identity(key in data and data[key]): ...\n"}
+expected=[]
+
+[[cases]]
+name="ruf019-three-operands"
+comparison="full"
+files={"case.py"="if key in data and data[key] and flag: ...\n"}
+expected=[]
+
+[[cases]]
+name="ruf019-or"
+comparison="full"
+files={"case.py"="if key in data or data[key]: ...\n"}
+expected=[]
+
+[[cases]]
+name="ruf019-not-in"
+comparison="full"
+files={"case.py"="if key not in data and data[key]: ...\n"}
+expected=[]
+
+[[cases]]
+name="ruf019-chain"
+comparison="full"
+files={"case.py"="if key in data in other and data[key]: ...\n"}
+expected=[]
+
+[[cases]]
+name="ruf019-different-key"
+comparison="full"
+files={"case.py"="if key in data and data[other]: ...\n"}
+expected=[]
+
+[[cases]]
+name="ruf019-different-object"
+comparison="full"
+files={"case.py"="if key in data and other[key]: ...\n"}
+expected=[]
+
+[[cases]]
+name="ruf019-attribute-object"
+comparison="full"
+files={"case.py"="if key in obj.data and obj.data[key]: ...\n"}
+expected=[{rule="RUF019", file="case.py", start=3, end=36}]
+
+[[cases]]
+name="ruf019-effectful-key"
+comparison="full"
+files={"case.py"="if make() in data and data[make()]: ...\n"}
+expected=[]
+
+[[cases]]
+name="ruf019-effectful-object"
+comparison="full"
+files={"case.py"="if key in make() and make()[key]: ...\n"}
+expected=[]
+
+[[cases]]
+name="ruf019-possible-fstring"
+comparison="full"
+files={"case.py"="if f\"{key}\" in data and data[f\"{key}\"]: ...\n"}
+expected=[{rule="RUF019", file="case.py", start=3, end=38}]
+
+[[cases]]
+name="ruf019-lambda-effect"
+comparison="full"
+files={"case.py"="if (lambda:make()) in data and data[lambda:make()]: ...\n"}
+expected=[]
+
+[[cases]]
+name="ruf019-literal-key"
+comparison="full"
+files={"case.py"="if \"a\" \"b\" in data and data[\"ab\"]: ...\n"}
+expected=[{rule="RUF019", file="case.py", start=3, end=33}]
+
+[[cases]]
+name="ruf019-typed-key"
+comparison="full"
+files={"case.py"="if 1 in data and data[1.0]: ...\n"}
+expected=[]
+
+[[cases]]
+name="ruf019-empty-constructor"
+comparison="full"
+files={"case.py"="if list() in data and data[list()]: ...\n"}
+expected=[{rule="RUF019", file="case.py", start=3, end=34}]
+
+[[cases]]
+name="ruf019-builtin-import-constructor"
+comparison="full"
+files={"case.py"="from builtins import list\nif list() in data and data[list()]: ...\n"}
+expected=[]
+
+[[cases]]
+name="ruf019-noqa"
+comparison="full"
+files={"case.py"="if key in data and data[key]: ... # noqa: RUF019\n"}
+expected=[]
+
+[[cases]]
+name="ruf019-tagged-RUF019-py"
+comparison="full"
+files={"case.py"="d = {}\n# RUF019\nif \"k\" in d and d[\"k\"]:\n    pass\n\nk = \"k\"\nif k in d and d[k]:\n    pass\n\nif (k) in d and d[k]:\n    pass\n\nif k in d and d[(k)]:\n    pass\n\nnot (\"key\" in dct and dct[\"key\"])\n\nbool(\"key\" in dct and dct[\"key\"])\n\n# OK\nv = \"k\" in d and d[\"k\"]\n\nif f() in d and d[f()]:\n    pass\n\n\nif (\n        \"key\" in d\n        and  # text\n        d [\"key\"]\n):\n    ...\n\n# https://github.com/astral-sh/ruff/issues/12953\n# F-string with non-literal interpolation — unsafe fix (may invoke __str__)\nclass Formatter:\n    def __str__(self):\n        print(\"side effect!\")\n        return \"key\"\n\nc = Formatter()\nif f\"{c}\" in d and d[f\"{c}\"]:\n    pass\n\n# F-string with only literal interpolation — safe fix\nif f\"{1}\" in d and d[f\"{1}\"]:\n    pass\n\n# Plain f-string without interpolation — safe fix\nif f\"key\" in d and d[f\"key\"]:\n    pass\n\n# Walrus operator is a side effect — should not emit\nif (k := \"key\") in d and d[(k := \"key\")]:\n    pass\n"}
+expected=[{rule="RUF019", file="case.py", start=19, end=38}, {rule="RUF019", file="case.py", start=61, end=76}, {rule="RUF019", file="case.py", start=91, end=108}, {rule="RUF019", file="case.py", start=123, end=140}, {rule="RUF019", file="case.py", start=157, end=184}, {rule="RUF019", file="case.py", start=192, end=219}, {rule="RUF019", file="case.py", start=300, end=348}, {rule="RUF019", file="case.py", start=599, end=624}, {rule="RUF019", file="case.py", start=695, end=720}, {rule="RUF019", file="case.py", start=787, end=812}]
+
+[[cases]]
+name="ruf019-safe-binop"
+comparison="full"
+files={"case.py"="if key in ([1]+[2]) and ([1]+[2])[key]: ...\n"}
+expected=[{rule="RUF019", file="case.py", start=3, end=38}]
+
+[[cases]]
+name="ruf019-unsafe-binop"
+comparison="full"
+files={"case.py"="if key in (a+b) and (a+b)[key]: ...\n"}
+expected=[]
+
+[[cases]]
+name="ruf019-lambda-pure"
+comparison="full"
+files={"case.py"="if (lambda:None) in d and d[lambda:None]: ...\n"}
+expected=[{rule="RUF019", file="case.py", start=3, end=40}]
+
+[[cases]]
+name="ruf019-possible-interpolation-with-effect"
+comparison="full"
+files={"case.py"="if f\"{make()}\" in d and d[f\"{make()}\"]: ...\n"}
+expected=[]
+
+[[cases]]
+name="ruf019-second-bool-positional-not-tested"
+comparison="full"
+files={"case.py"="x=bool(False,key in d and d[key])\n"}
+expected=[]
+
+[[cases]]
+name="ruf019-nested-bool-value-not-tested"
+comparison="full"
+files={"case.py"="x=flag or (key in d and d[key])\n"}
+expected=[]
+
+[[cases]]
+name="ruf019-elif-test"
+comparison="full"
+files={"case.py"="if flag: ...\nelif key in d and d[key]: ...\n"}
+expected=[{rule="RUF019", file="case.py", start=18, end=37}]

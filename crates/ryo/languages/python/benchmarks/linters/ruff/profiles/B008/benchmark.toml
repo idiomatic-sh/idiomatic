@@ -25,3 +25,12 @@ sha256 = [
   "29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e",
 ]
 defaults = ["B008"]
+
+[query-modules]
+"python/ruff/deferred-type-reads" = "fragments/deferred-type-reads.ryoql"
+"python/ruff/future-annotation-context" = "fragments/future-annotation-context.ryoql"
+"python/ruff/immutable-annotations" = "fragments/immutable-annotations.ryoql"
+"python/ruff/lookup-symbol-events" = "fragments/lookup-symbol-events.ryoql"
+"python/ruff/suppress" = "fragments/suppress.ryoql"
+"python/ruff/suppress-directives" = "fragments/suppress-directives.ryoql"
+"python/ruff/type-definition-context" = "fragments/type-definition-context.ryoql"

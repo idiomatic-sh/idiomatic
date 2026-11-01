@@ -106,3 +106,12 @@ pub(crate) const BOOLEAN_SCALAR: &str = "boolean";
 pub(crate) const NONE_SCALAR: &str = "none";
 /// The unique ellipsis literal category.
 pub(crate) const ELLIPSIS_SCALAR: &str = "ellipsis";
+
+/// Compiler future-annotations activation from a validated module prefix.
+pub(crate) const MODULE_FUTURE_ANNOTATIONS: ryo::languages::PropertyId =
+    ryo::languages::PropertyId(8);
+
+/// A valid module-prefix future directive enabled postponed annotations.
+pub(crate) const MODULE_FUTURE_ANNOTATIONS_ENABLED: &str = "enabled";
+/// No valid module compiler directive enables postponed annotations.
+pub(crate) const MODULE_FUTURE_ANNOTATIONS_DISABLED: &str = "disabled";

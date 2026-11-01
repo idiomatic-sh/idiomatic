@@ -22,8 +22,8 @@ let named_targets = select l.id as id, r.name as name from targets as l join nam
 let candidates = select l.owner as owner, l.id as id, r.name as name from class_statements as l join named_targets as r on l.id = r.id;
 let values = select parent, child from "semantic-child" where field = "value";
 let candidate_values = select l.id as statement, l.name as name, r.child as id from candidates as l join values as r on l.id = r.parent;
-let expression_paths = closure(edges="semantic-child", source="parent", destination="child");
-let nested_values = select l.statement as statement, l.name as name, r.child as id from candidate_values as l join expression_paths as r on l.id = r.parent;
+let nested_value_names = axis(from=candidate_values, relation="semantic-child", direction=descendant, domain=names);
+let nested_values = select statement, name, related as id from nested_value_names;
 let all_values = union(left=candidate_values, right=nested_values);
 let self_references = select l.statement as id from all_values as l join names as r on l.id = r.id and l.name = r.name;
 let ordinary = antijoin(left=candidates, right=self_references, left-on=["id"], right-on=["id"]);

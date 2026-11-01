@@ -106,6 +106,7 @@ fn reset_discards_old_identities_results_and_key_bytes_but_keeps_capacity() {
     let mut retained_capacity = 0;
     for (bytes, expected, calls) in [
         (&b"'T'\n"[..], Some(LiteralParseOutcome::Parsed), 1),
+        (&b"# moved\n'T'\n"[..], Some(LiteralParseOutcome::Parsed), 1),
         (&b"'T +'\n"[..], Some(LiteralParseOutcome::Malformed), 2),
         (&b"''\n"[..], Some(LiteralParseOutcome::Malformed), 3),
         (&b"pass\n"[..], None, 3),

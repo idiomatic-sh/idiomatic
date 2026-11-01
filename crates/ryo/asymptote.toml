@@ -192,7 +192,7 @@ id = "peak"
 group = "perf"
 # The warm run's memory peak over ruff, held to its bound (`cli/tests/replay/peak.rs`): measured here, apart from the release's
 # tests, until it holds its bound on every runner.
-run = ["cargo", "nextest", "run", "--workspace", "--locked", "-E", "test(/^peak::/)"]
+run = ["cargo", "nextest", "run", "--package", "idiomatic-sh-ryo", "--locked", "-E", "test(/^peak::/)"]
 timeout-seconds = 3600
 inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
 

@@ -58,7 +58,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(true),
     },
     Case {
-        name: CaseName("stub_semantic_parse_diagnostic_keeps_f821_and_frontend_rows"),
+        name: CaseName("stub_future_annotation_error_keeps_f821_and_frontend_rows"),
         word: Word::Succeeds,
         input: || EngineScenario::PreservedStubSemanticSyntaxError,
         expect: Expect::Value(true),
@@ -254,11 +254,11 @@ fn source_for(scenario: EngineScenario) -> &'static str {
         | EngineScenario::CustomFrontendProjection
         | EngineScenario::FrontendRuleCollision => "global x\nnonlocal x\n",
         EngineScenario::LexicallyCompleteSyntaxError => "value = ur\"hello\"\n",
-        EngineScenario::PreservedSemanticSyntaxError => {
+        EngineScenario::PreservedSemanticSyntaxError
+        | EngineScenario::PreservedStubSemanticSyntaxError => {
             "from __future__ import annotations\ndef f(x: (a := b)): ...\n"
         }
-        EngineScenario::PreservedStubSemanticSyntaxError
-        | EngineScenario::OrdinaryAnnotationNamedExpression => "def f(x: (a := b)): ...\n",
+        EngineScenario::OrdinaryAnnotationNamedExpression => "def f(x: (a := b)): ...\n",
         EngineScenario::FutureFeatureProjection | EngineScenario::UnknownFutureWithoutConsumer => {
             "from __future__ import no_such_feature\n"
         }
@@ -351,19 +351,30 @@ fn modules_for(scenario: EngineScenario) -> Result<BTreeMap<String, std::path::P
 }
 
 fn suppress_modules() -> BTreeMap<String, std::path::PathBuf> {
-    BTreeMap::from([(
-        "python/ruff/suppress".to_owned(),
-        std::path::PathBuf::from("fragments/suppress.ryoql"),
-    )])
+    BTreeMap::from([
+        (
+            "python/ruff/suppress".to_owned(),
+            std::path::PathBuf::from("fragments/suppress.ryoql"),
+        ),
+        (
+            "python/ruff/suppress-directives".to_owned(),
+            std::path::PathBuf::from("fragments/suppress-directives.ryoql"),
+        ),
+    ])
 }
 
 fn write_suppress_module(root: &std::path::Path) -> Result<(), Error> {
-    let path = root.join("fragments/suppress.ryoql");
-    let parent = path
-        .parent()
-        .ok_or_else(|| Error::Invalid("suppress module has no parent".into()))?;
-    std::fs::create_dir_all(parent)?;
-    std::fs::write(path, include_str!("fragments/suppress.ryoql"))?;
+    let directory = root.join("fragments");
+    std::fs::create_dir_all(&directory)?;
+    for (name, source) in [
+        ("suppress", include_str!("fragments/suppress.ryoql")),
+        (
+            "suppress-directives",
+            include_str!("fragments/suppress-directives.ryoql"),
+        ),
+    ] {
+        std::fs::write(directory.join(format!("{name}.ryoql")), source)?;
+    }
     Ok(())
 }
 
@@ -442,7 +453,7 @@ fn expected_diagnostics(scenario: EngineScenario) -> Result<Vec<BenchmarkFinding
             if scenario == EngineScenario::PreservedSemanticSyntaxError {
                 ("input.py", 45, 51, 50, 51)
             } else {
-                ("input.pyi", 10, 16, 15, 16)
+                ("input.pyi", 45, 51, 50, 51)
             };
         return Ok(vec![
             BenchmarkFinding {
@@ -661,23 +672,14 @@ fn target_configuration_cache_change(root: &std::path::Path) -> Result<bool, Err
         rule_directory.join("query.ryoql"),
         include_str!("rules/UP017/candidate.ryoql"),
     )?;
-    let module_path = root.join("fragments/suppress.ryoql");
-    std::fs::create_dir_all(
-        module_path
-            .parent()
-            .ok_or_else(|| Error::Invalid("suppress module has no parent".into()))?,
-    )?;
-    std::fs::write(&module_path, include_str!("fragments/suppress.ryoql"))?;
+    write_suppress_module(root)?;
     std::fs::write(
         root.join("input.py"),
         "import datetime\ndatetime.timezone.utc\n",
     )?;
     let files = vec![ryo::linter::RelativePath("input.py".into())];
     let cache = root.join("retained-target-cache");
-    let query_modules = BTreeMap::from([(
-        "python/ruff/suppress".to_owned(),
-        std::path::PathBuf::from("fragments/suppress.ryoql"),
-    )]);
+    let query_modules = suppress_modules();
     let negative_files = stage_py310_negative_files(root)?;
     let negative = factory::local(
         ryo::linter::Languages(vec![ryo_python::linked_with_settings(
@@ -803,12 +805,7 @@ fn shared_suppression_fragment_matches_the_historical_inline_queries() -> Result
         write_rule_profile(&inline_rules, rule, baseline, cases)?;
         write_rule_profile(&imported_rules, rule, imported, cases)?;
     }
-    let fragment_root = imported_profile.join("fragments");
-    std::fs::create_dir_all(&fragment_root)?;
-    std::fs::write(
-        fragment_root.join("suppress.ryoql"),
-        include_str!("fragments/suppress.ryoql"),
-    )?;
+    write_suppress_module(&imported_profile)?;
 
     let suite = ryo_benchmark::outbound::suite::factory::local();
     let inline_cases = suite.cases(
@@ -829,21 +826,13 @@ fn shared_suppression_fragment_matches_the_historical_inline_queries() -> Result
     )]);
     let inline_engine = factory::local(languages.clone(), None);
     let imported_engine = factory::local(languages, None);
-    let registry = BTreeMap::from([(
-        "python/ruff/suppress".to_owned(),
-        std::path::PathBuf::from("fragments/suppress.ryoql"),
-    )]);
+    let registry = suppress_modules();
     for case in inline_cases {
         let key = (case.rule.as_ref().to_owned(), case.name.0.clone());
         let imported = imported_by_name
             .get(&key)
             .ok_or_else(|| Error::Invalid(format!("missing imported counterpart for {key:?}")))?;
-        let module = imported.request.root.join("fragments/suppress.ryoql");
-        let module_parent = module
-            .parent()
-            .ok_or_else(|| Error::Invalid("staged fragment has no parent directory".to_owned()))?;
-        std::fs::create_dir_all(module_parent)?;
-        std::fs::write(&module, include_str!("fragments/suppress.ryoql"))?;
+        write_suppress_module(&imported.request.root)?;
         let state = ryo_benchmark::domain::suite::types::WorkerState::Fresh;
         let inline = inline_engine.run(WorkerRequest {
             project_context_mode: ryo_benchmark::domain::suite::types::ProjectContextMode::default(
@@ -928,12 +917,7 @@ fn assert_single_rule_fragment_equivalence(
     let profile_root = imported_parent
         .parent()
         .ok_or_else(|| Error::Invalid("imported profile has no root".to_owned()))?;
-    let module = profile_root.join("fragments/suppress.ryoql");
-    let module_parent = module
-        .parent()
-        .ok_or_else(|| Error::Invalid("fragment path has no parent directory".to_owned()))?;
-    std::fs::create_dir_all(module_parent)?;
-    std::fs::write(&module, include_str!("fragments/suppress.ryoql"))?;
+    write_suppress_module(profile_root)?;
     for case in inline_cases {
         let key = (case.name.0.clone(), case.rule.as_ref().to_owned());
         let imported_case = imported_by_name
@@ -957,10 +941,7 @@ fn assert_single_rule_fragment_equivalence(
             context_manifest: None,
             root: imported_case.request.root.clone(),
             rules: imported_parent.to_path_buf(),
-            query_modules: BTreeMap::from([(
-                "python/ruff/suppress".to_owned(),
-                std::path::PathBuf::from("fragments/suppress.ryoql"),
-            )]),
+            query_modules: suppress_modules(),
             rule_applicability: BTreeMap::default(),
             parser_configuration: None,
             files: imported_case.request.files.clone(),

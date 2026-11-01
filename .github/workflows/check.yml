@@ -266,13 +266,21 @@ jobs:
             ~/.cargo/.crates2.json
           key: cargo-bin-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml') }}-${{ github.sha }}
       - id: speed_check
-        run: asymptote check --groups speed
+        run: |
+          mkdir -p target/benchmarks/speed
+          set +e
+          asymptote check --groups speed --format json > target/benchmarks/speed/check.json 2> target/benchmarks/speed/check.stderr.log
+          speed_status=$?
+          cat target/benchmarks/speed/check.json
+          cat target/benchmarks/speed/check.stderr.log >&2
+          exit "$speed_status"
       - name: Failed tool diagnostics
         if: failure() && steps.speed_check.outcome == 'failure'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: failed-tools-speed-${{ runner.os }}-${{ github.run_attempt }}
           path: |
+            target/benchmarks/speed/**
             .asymptote/cache/check.failures.json
             crates/*/.asymptote/cache/check.failures.json
             tools/lints/.asymptote/cache/check.failures.json

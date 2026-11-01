@@ -31,8 +31,10 @@ pub(crate) struct RawFormatSegment {
 /// A cache independent of decoded percent and brace grammar demand.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct RawFormatIndex {
+    /// Budgeted previous-source grammar results; no source-node identities.
+    pub memo: crate::domain::grammar_cache::types::Memo<FormatParseResult>,
     /// Exact unescaped raw bodies, parsed once per distinct input.
-    pub by_input: std::collections::HashMap<String, usize>,
+    pub by_input: indexmap::IndexMap<String, usize>,
     /// One complete grammar result per distinct body.
     pub values: Vec<FormatParseResult>,
     /// Each visible source expression, retaining source order.

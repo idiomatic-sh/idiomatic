@@ -3,7 +3,17 @@ use super::super::adapter::SuiteLocalAdapter;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::suite::types::ArtifactPath;
 #[cfg(unix)]
-type PinCase = Case<(&'static [&'static str], &'static str, bool), (), Failure>;
+type PinCase = Case<(&'static [&'static str], &'static str, PinFixture), (), Failure>;
+/// Immutable executables differ in bytes; refused non-executables are independently provisioned.
+#[derive(Clone, Copy)]
+enum PinFixture {
+    /// Original approved binary.
+    Original,
+    /// Distinct approved executable with identical version output.
+    Alternate,
+    /// Bytes cannot execute, proving hash refusal happens first.
+    NonExecutable,
+}
 #[derive(Debug, PartialEq, Eq)]
 enum Failure {
     Hash,
@@ -19,7 +29,7 @@ const CASES: &[PinCase] = &[
             (
                 &["b145a69e05e755a39d063badddeffe112a67d4f55993e373cc4db2074b984c0b"],
                 "1.0",
-                true,
+                PinFixture::Original,
             )
         },
         expect: Expect::Value(()),
@@ -30,11 +40,11 @@ const CASES: &[PinCase] = &[
         input: || {
             (
                 &[
-                    "different-platform-pin",
                     "b145a69e05e755a39d063badddeffe112a67d4f55993e373cc4db2074b984c0b",
+                    "77969ba69caaf5db2ee1bbea84cc3f917a3f21afaa4e964e89f1ab9671074de0",
                 ],
                 "1.0",
-                true,
+                PinFixture::Alternate,
             )
         },
         expect: Expect::Value(()),
@@ -42,13 +52,19 @@ const CASES: &[PinCase] = &[
     Case {
         name: CaseName("an empty pin set refuses before executing"),
         word: Word::Refuses,
-        input: || (&[], "1.0", false),
+        input: || (&[], "1.0", PinFixture::NonExecutable),
         expect: Expect::Error(Failure::Hash),
     },
     Case {
         name: CaseName("wrong digest refuses before attempting a non executable file"),
         word: Word::Refuses,
-        input: || (&["wrong", "another-wrong-pin"], "1.0", false),
+        input: || {
+            (
+                &["wrong", "another-wrong-pin"],
+                "1.0",
+                PinFixture::NonExecutable,
+            )
+        },
         expect: Expect::Error(Failure::Hash),
     },
     Case {
@@ -58,7 +74,7 @@ const CASES: &[PinCase] = &[
             (
                 &["b145a69e05e755a39d063badddeffe112a67d4f55993e373cc4db2074b984c0b"],
                 "2.0",
-                true,
+                PinFixture::Original,
             )
         },
         expect: Expect::Error(Failure::Version),
@@ -70,13 +86,24 @@ const CASES: &[PinCase] = &[
     clippy::expect_used,
     reason = "fixed executable pin fixtures must be created before testing verification"
 )]
-fn verify_pin((sha256, version, executable): (&[&str], &str, bool)) -> Result<(), Failure> {
+fn verify_pin((sha256, version, fixture): (&[&str], &str, PinFixture)) -> Result<(), Failure> {
     use crate::domain::{diagnostics::errors::DiagnosticsError as Error, suite::types::Tool};
     use crate::outbound::suite::interface::SuitePort as _;
     let directory = tempfile::tempdir().expect("tool directory");
-    let path = directory.path().join("fixture");
-    std::fs::write(&path, b"#!/bin/sh\necho fixture 1.0\n").expect("fixture bytes");
-    permissions(&path, executable).expect("fixture mode");
+    // Parallel process tests can fork while a temporary executable is still open for writing.
+    // Execute immutable repository bytes; only non-executable refusal cases need a new file.
+    let path = match fixture {
+        PinFixture::Original => std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("src/outbound/suite/adapters/local/fixtures/pins.sh"),
+        PinFixture::Alternate => std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("src/outbound/suite/adapters/local/fixtures/pins-alternate.sh"),
+        PinFixture::NonExecutable => {
+            let path = directory.path().join("fixture");
+            std::fs::write(&path, include_bytes!("pins.sh")).expect("non-executable fixture bytes");
+            permissions(&path, false).expect("fixture mode");
+            path
+        }
+    };
     let tool = Tool {
         project_context_mode: crate::domain::suite::types::ProjectContextMode::default(),
         tool: "fixture".into(),

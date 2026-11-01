@@ -5873,7 +5873,7 @@ given.files.'src/outbound/names/factory.rs' = '''
 
 /// The memory names adapter, built from the clients the edge passes.
 #[must_use]
-pub fn memory(root: crate::domain::root::types::Root, budget: u64) -> impl crate::outbound::names::interface::NamesPort {
+pub fn memory(root: crate::outbound::names::types::Root, budget: u64) -> impl crate::outbound::names::interface::NamesPort {
     super::adapters::memory::adapter::NamesMemoryAdapter
 }
 '''
@@ -6604,7 +6604,7 @@ given.files.'src/outbound/names/factory.rs' = '''
 
 /// The memory names adapter, built from the clients the edge passes.
 #[must_use]
-pub fn memory(root: crate::domain::root::types::Root, budget: u64) -> impl crate::outbound::names::interface::NamesPort {
+pub fn memory(root: crate::outbound::names::types::Root, budget: u64) -> impl crate::outbound::names::interface::NamesPort {
     super::adapters::memory::adapter::NamesMemoryAdapter
 }
 '''

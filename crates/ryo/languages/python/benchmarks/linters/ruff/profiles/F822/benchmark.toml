@@ -23,3 +23,7 @@ sha256 = [
   "29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e",
 ]
 defaults = ["F822"]
+
+[query-modules]
+"python/ruff/suppress-directives" = "fragments/suppress-directives.ryoql"
+"python/ruff/suppress-with-additional-lines" = "fragments/suppress-with-additional-lines.ryoql"

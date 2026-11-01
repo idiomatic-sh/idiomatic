@@ -46,3 +46,13 @@ The incomplete physical retry and revoked summary/log are explicitly archived in
 proof. Permanent validator negatives reject equal nonzero refusals, symlink
 refusals, empty stdout, malformed schema, missing files and truncated/Unknown
 coverage. The sealed v2 raw hash differs from that revoked run.
+
+Phase-coverage erratum: the original v2-directory author replay above recorded
+`accepted-syntax` for every rule. That is canonical for 140/142 rules; EXE005 and
+PYI033 are pinned `always` token rules. Its report equality remains evidence under
+those recorded requests, but is not canonical phase coverage for those two. The
+frozen paired performance profiles already used the proper phase map. The current
+runner captures canonical profile settings and the pinned registry; the v2 sealer
+checks phase, target, context and all request flags before accepting a report.
+A supplemental/current common-core proof must supply the missing canonical scope.
+Historical requests and proof hashes are not rewritten or silently promoted.

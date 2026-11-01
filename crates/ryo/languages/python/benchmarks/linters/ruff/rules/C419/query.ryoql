@@ -35,10 +35,10 @@ let comprehensions = select id from "semantic-syntax" where kind = "list-comp" o
 let candidates = select l.call as call, r.id as id from arguments as l join comprehensions as r on l.id = r.id;
 let elements = select parent, child from "semantic-child" where field = "elt";
 let candidate_elements = select l.id as comprehension, r.child as id from candidates as l join elements as r on l.id = r.parent;
-let paths = closure(edges="semantic-child", source="parent", destination="child");
-let descendants = select l.comprehension as comprehension, r.child as id from candidate_elements as l join paths as r on l.id = r.parent;
-let all_elements = union(left=candidate_elements, right=descendants);
 let awaits = select id from "semantic-syntax" where kind = "await";
+let element_awaits = axis(from=candidate_elements, relation="semantic-child", direction=descendant, domain=awaits);
+let descendants = select comprehension, related as id from element_awaits;
+let all_elements = union(left=candidate_elements, right=descendants);
 let awaits_in_element = select l.comprehension as id from all_elements as l join awaits as r on l.id = r.id;
 let generators = select parent, child from "semantic-child" where field = "generators";
 let async_fields = select parent from "semantic-child" where field = "is-async";

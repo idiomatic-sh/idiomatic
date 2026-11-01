@@ -20,10 +20,42 @@ pub struct SuiteFake {
     pub(crate) projects: Option<Suite>,
     /// Independent cases already materialized by the fixture.
     pub prepared: Vec<crate::domain::suite::types::PreparedCase>,
+    /// Explicit digest observations supplied by evidence-admission orchestration tests.
+    pub(crate) artifact_digests: std::collections::BTreeMap<std::path::PathBuf, ArtifactDigest>,
+    /// Whether this fixture has independently validated its declared source and evidence inputs.
+    pub(crate) discrepancy_artifacts_valid: bool,
+    /// Raw authored wire data for application conversion tests.
+    pub(crate) reference_wires: Vec<crate::outbound::suite::types::discrepancy::CaseReferenceWire>,
 }
 impl SuitePort for SuiteFake {
-    fn digest(&self, _: ArtifactPath<'_>) -> Result<ArtifactDigest, Error> {
-        Err(std::io::Error::from(std::io::ErrorKind::NotFound).into())
+    fn case_reference_wires(
+        &self,
+        _: ArtifactPath<'_>,
+    ) -> Result<
+        Vec<crate::outbound::suite::types::discrepancy::CaseReferenceWire>,
+        crate::outbound::suite::types::discrepancy::ArtifactError,
+    > {
+        Ok(self.reference_wires.clone())
+    }
+    fn verify_discrepancy_artifacts(
+        &self,
+        _: crate::outbound::suite::types::discrepancy::CaseArtifacts<'_>,
+    ) -> Result<(), crate::outbound::suite::types::discrepancy::ArtifactError> {
+        if self.discrepancy_artifacts_valid {
+            Ok(())
+        } else {
+            Err(
+                crate::outbound::suite::types::discrepancy::ArtifactError::Invalid(
+                    "fixture has no independent discrepancy artifacts".into(),
+                ),
+            )
+        }
+    }
+    fn digest(&self, ArtifactPath(path): ArtifactPath<'_>) -> Result<ArtifactDigest, Error> {
+        self.artifact_digests
+            .get(path)
+            .cloned()
+            .ok_or_else(|| std::io::Error::from(std::io::ErrorKind::NotFound).into())
     }
     fn cases(
         &self,

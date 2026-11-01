@@ -6,6 +6,7 @@ import hashlib
 import importlib.util
 import json
 from pathlib import Path
+import shutil
 import tomllib
 
 
@@ -13,7 +14,8 @@ def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def seal(root):
+def seal(root, receipt_path=None):
+    receipt_path = receipt_path or Path(__file__).with_name("source-receipt.json")
     manifest = json.loads((root / "manifest.json").read_text())
     validator = (
         root
@@ -21,20 +23,28 @@ def seal(root):
     )
     validator.parent.mkdir(parents=True, exist_ok=True)
     validator.write_bytes((root / "validator-source.py").read_bytes())
-    (validator.parent / "fragments").mkdir(exist_ok=True)
-    (validator.parent / "fragments/suppress.ryoql").write_bytes(
-        (root / "candidate/fragments/suppress.ryoql").read_bytes()
+    shutil.copytree(
+        root / "candidate/fragments", validator.parent / "fragments", dirs_exist_ok=True
     )
+    phases = None
+    if "rule_phase_registry_sha256" in manifest:
+        assert (
+            digest(root / "pinned-rule-phases.json")
+            == manifest["rule_phase_registry_sha256"]
+        )
+        phases = json.loads((root / "pinned-rule-phases.json").read_text())
+        (validator.parent / "profiles").mkdir(exist_ok=True)
+        shutil.copyfile(
+            root / "pinned-rule-phases.json",
+            validator.parent / "profiles/pinned-rule-phases.json",
+        )
     spec = importlib.util.spec_from_file_location("captured_validator", validator)
     guard = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(guard)
     assert digest(root / "validator-source.py") == manifest["validator_sha256"]
     guard.self_test_standard_suppression()
-    source = json.loads(Path(__file__).with_name("source-receipt.json").read_text())
-    assert (
-        digest(Path(__file__).with_name("source-receipt.json"))
-        == manifest["source_receipt_sha256"]
-    )
+    source = json.loads(receipt_path.read_text())
+    assert digest(receipt_path) == manifest["source_receipt_sha256"]
     records = [
         json.loads(line) for line in (root / "records.jsonl").read_text().splitlines()
     ]
@@ -48,6 +58,15 @@ def seal(root):
     cases_hashes = {}
     for row in source["rows"]:
         rule = row["rule"]
+        settings = None
+        if phases is not None:
+            captured = root / "canonical-profiles" / (rule + ".toml")
+            expected = manifest["canonical_settings"][rule]
+            assert digest(captured) == expected["profile_sha256"]
+            settings = guard.canonical_run_ryo_settings(
+                tomllib.loads(captured.read_text()), [rule], phases
+            )
+            assert settings == expected["effective"]
         single = root / "candidate/single" / rule
         cases_path = single / "rules" / rule / "cases.toml"
         cases_hashes[rule] = digest(cases_path)
@@ -92,16 +111,29 @@ def seal(root):
                     actual["request"]["query_modules"]
                     == manifest["profiles"][side]["module_registry"]
                 )
-                assert actual["request"]["parser_configuration"] == "python-target=3.10"
-                assert actual["request"]["rule_applicability"] == {
-                    rule: "accepted-syntax"
-                }
+                if settings is not None:
+                    guard.check_run_ryo_settings(actual["request"], settings)
+                else:
+                    # This is the recorded legacy author configuration, not a
+                    # claim that EXE005/PYI033 had canonical token-phase coverage.
+                    assert (
+                        actual["request"]["parser_configuration"]
+                        == "python-target=3.10"
+                    )
+                    assert actual["request"]["rule_applicability"] == {
+                        rule: "accepted-syntax"
+                    }
                 report = guard.complete_run_ryo_report(
                     actual["exit"],
                     actual["stdout"],
                     actual["stderr"],
                     list(case["files"]),
                     [rule],
+                    **(
+                        {"request": actual["request"], "settings": settings}
+                        if settings is not None
+                        else {}
+                    ),
                 )
                 assert report == actual["report"]
                 reports[side] = report
@@ -134,7 +166,9 @@ def seal(root):
         set(index) == expected_keys and len(records) == len(expected_keys) == 2 * total
     )
     proof = {
-        "schema": "standard-suppression-migration-proof/v1",
+        "schema": "standard-suppression-migration-proof/v2"
+        if phases is not None
+        else "standard-suppression-migration-proof/v1",
         "claim": "All complete baseline/candidate reports exactly equal; existing Ruff expectation differences remain separate.",
         "rules": len(source["rows"]),
         "cases": total,
@@ -152,6 +186,10 @@ def seal(root):
         "worker_sha256": manifest["worker_sha256"],
         "helper_sha256": manifest["suppress_sha256"],
         "no_ruff_invocations": True,
+        "phase_settings_policy": "explicit-pinned-canonical"
+        if phases is not None
+        else "legacy all-accepted-syntax; EXE005/PYI033 canonical coverage pending",
+        "rule_phase_registry_sha256": manifest.get("rule_phase_registry_sha256"),
         "rejected_prior_run": "/tmp/suppress-migration-20261101-rejected-v1/REVOKED.txt",
         "benchmark_measurement": False,
     }

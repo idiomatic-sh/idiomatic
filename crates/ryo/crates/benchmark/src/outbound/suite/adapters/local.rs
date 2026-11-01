@@ -8,3 +8,5 @@ mod adapter_test;
 
 #[cfg(any(test, feature = "fixtures"))]
 mod fixtures;
+
+mod discrepancy_artifacts;

@@ -483,3 +483,153 @@ name="nonlocal-policy-delayed-annotation-keeps-outer-value"
 comparison="full"
 files={"case.py"="def outer():\n value=1\n value:int\n def inner():\n  global value\n  nonlocal value\n"}
 expected=[]
+
+[[cases]]
+name="future-scope-postponed-definition"
+comparison="full"
+files={"case.py"="from __future__ import annotations\ndef f(x:(value:=object)):\n pass\n"}
+expected=[{rule="invalid-syntax", file="case.py", start=44, end=57}]
+
+[[cases]]
+name="future-scope-later-definition"
+comparison="full"
+files={"case.py"="def early(x:(value:=object)): pass\nfrom __future__ import annotations\ndef later(x:(other:=object)): pass\n"}
+expected=[{rule="invalid-syntax", file="case.py", start=83, end=96}]
+
+[[cases]]
+name="future-scope-nested-early-definition"
+comparison="full"
+files={"case.py"="def early():\n def inner(x:(value:=object)): pass\nfrom __future__ import annotations\n"}
+expected=[]
+
+[[cases]]
+name="future-scope-stub-remains-postponed"
+comparison="full"
+files={"case.pyi"="def f(x:(value:=object)): ...\nfrom __future__ import annotations\n"}
+expected=[{rule="invalid-syntax", file="case.pyi", start=9, end=22}]
+
+[[cases]]
+name="future-scope-class-early-definition"
+comparison="full"
+files={"case.py"="class C:\n def f(x:(value:=object)): pass\nfrom __future__ import annotations\n"}
+expected=[]
+
+[[cases]]
+name="future-scope-function-scoped-import"
+comparison="full"
+files={"case.py"="def outer():\n from __future__ import annotations\n def inner(x:(value:=object)): pass\ndef later(x:(other:=object)): pass\n"}
+expected=[{rule="invalid-syntax", file="case.py", start=63, end=76}]
+
+[[cases]]
+name="future-scope-class-scoped-import"
+comparison="full"
+files={"case.py"="class C:\n from __future__ import annotations\n def f(x:(value:=object)): pass\ndef later(x:(other:=object)): pass\n"}
+expected=[{rule="invalid-syntax", file="case.py", start=55, end=68}]
+
+[[cases]]
+name="future-scope-function-forward-type"
+comparison="full"
+files={"case.py"="def outer():\n from __future__ import annotations\n def inner()->Later: ...\n class Later: ...\n"}
+expected=[]
+
+[[cases]]
+name="future-scope-class-forward-type"
+comparison="full"
+files={"case.py"="class C:\n from __future__ import annotations\n def f(self)->Later: ...\n class Later: ...\n"}
+expected=[]
+
+[[cases]]
+name="future-scope-class-import-does-not-leak"
+comparison="full"
+files={"case.py"="class C:\n from __future__ import annotations\ndef f()->Later: ...\nclass Later: ...\n"}
+expected=[]
+
+[[cases]]
+name="future-scope-function-import-does-not-leak"
+comparison="full"
+files={"case.py"="def outer():\n from __future__ import annotations\ndef f()->Later: ...\nclass Later: ...\n"}
+expected=[]
+
+[[cases]]
+name="future-scope-if-restoration"
+comparison="full"
+files={"case.py"="if flag:\n from __future__ import annotations\n def inner()->Inside: ...\n class Inside: ...\ndef later()->Outside: ...\nclass Outside: ...\n"}
+expected=[]
+
+[[cases]]
+name="future-scope-except-restoration"
+comparison="full"
+files={"case.py"="try: ...\nexcept Exception:\n from __future__ import annotations\n def inner()->Inside: ...\n class Inside: ...\ndef later()->Outside: ...\nclass Outside: ...\n"}
+expected=[]
+
+[[cases]]
+name="future-scope-if-else-inheritance"
+comparison="full"
+files={"case.py"="if flag:\n from __future__ import annotations\nelse:\n def f()->Later: ...\n class Later: ...\n"}
+expected=[]
+
+[[cases]]
+name="future-scope-try-handler-inheritance"
+comparison="full"
+files={"case.py"="try:\n from __future__ import annotations\nexcept Exception:\n def f()->Later: ...\n class Later: ...\n"}
+expected=[]
+
+[[cases]]
+name="future-scope-nested-future-blocks-type-scope-walrus"
+comparison="full"
+files={"case.py"="def outer():\n from __future__ import annotations\n def f(x:(value:=object)):\n  global value\n  nonlocal value\n"}
+expected=[{rule="invalid-syntax", file="case.py", start=59, end=72}]
+
+[[cases]]
+name="future-scope-relative-future-flag"
+comparison="full"
+files={"case.py"="from .__future__ import annotations\ndef f(x:(value:=object)): ...\n"}
+expected=[{rule="invalid-syntax", file="case.py", start=45, end=58}]
+
+[[cases]]
+name="future-scope-aliased-future-flag"
+comparison="full"
+files={"case.py"="from __future__ import annotations as feature\ndef f(x:(value:=object)): ...\n"}
+expected=[{rule="invalid-syntax", file="case.py", start=55, end=68}]
+
+[[cases]]
+name="future-scope-lazy-future-does-not-enable"
+comparison="full"
+files={"case.py"="lazy from __future__ import annotations\ndef f(x:(value:=object)): ...\n"}
+expected=[{rule="invalid-syntax", file="case.py", start=0, end=4}, {rule="invalid-syntax", file="case.py", start=0, end=39}]
+
+[[cases]]
+name="future-scope-native-future-does-not-defer-class-base"
+comparison="full"
+files={"case.py"="from __future__ import annotations\nclass C(Later): ...\nclass Later: ...\n"}
+expected=[]
+
+[[cases]]
+name="future-scope-native-future-does-not-defer-pep613"
+comparison="full"
+files={"case.py"="from __future__ import annotations\nfrom typing import TypeAlias\nAlias:TypeAlias=Later\nclass Later: ...\n"}
+expected=[]
+
+[[cases]]
+name="future-scope-native-future-does-not-defer-typevar-bound"
+comparison="full"
+files={"case.py"="from __future__ import annotations\nfrom typing import TypeVar\nT=TypeVar(\"T\",bound=Later)\nclass Later: ...\n"}
+expected=[]
+
+[[cases]]
+name="future-scope-whole-native-annotation-call"
+comparison="full"
+files={"case.py"="from __future__ import annotations\ndef f(x:identity(Later)): ...\ndef identity(x): return x\nclass Later: ...\n"}
+expected=[]
+
+[[cases]]
+name="future-scope-whole-stub-annotation-call"
+comparison="full"
+files={"case.pyi"="def f(x:identity(Later)): ...\ndef identity(x): ...\nclass Later: ...\n"}
+expected=[]
+
+[[cases]]
+name="future-scope-whole-stub-typevar-bound-call"
+comparison="full"
+files={"case.pyi"="from typing import TypeVar\n_T=TypeVar(\"_T\",bound=identity(Later))\ndef identity(x): ...\nclass Later: ...\n"}
+expected=[]

@@ -323,8 +323,89 @@ fn walks_with_two_inputs() -> Result<Value, OperatingError> {
     compute(&operation, &[&numbers(&[&[1]]), &numbers(&[&[1, 2]])], &[])
 }
 
+/// A sparse computed-edge walk retains payloads, crosses non-domain nodes and
+/// visits no unrelated component, including equal local positions in another file.
+fn sparse_computed_walk_work_is_rooted() -> Result<Value, OperatingError> {
+    let mut scratch = OperatorScratch::default();
+    let mut symbols = Symbols::default();
+    let mut memo = Vec::new();
+    for unrelated in [0_u32, 64, 4096] {
+        for cycle in [false, true] {
+            let mut edges = Table {
+                kinds: vec![CellKind::Node; 2],
+                ..Table::default()
+            };
+            for [parent, child] in [[1, 4], [4, 2], [1, 3]] {
+                push_row(&mut edges, &[node(parent), node(child)]);
+            }
+            if cycle {
+                push_row(&mut edges, &[node(2), node(1)]);
+            }
+            for position in 1..=unrelated {
+                push_row(
+                    &mut edges,
+                    &[
+                        Cell::Node(node_id(FileId(1), Position(position))),
+                        Cell::Node(node_id(FileId(1), Position(position + 1))),
+                    ],
+                );
+            }
+            let mut starts = Table {
+                kinds: vec![CellKind::Node, CellKind::Number],
+                ..Table::default()
+            };
+            for payload in [11, 22] {
+                push_row(&mut starts, &[node(1), Cell::Number(Integer(payload))]);
+            }
+            let domain = node_table([1, 2, 3]);
+            let inputs = [
+                Rows::Computed(&starts),
+                Rows::Computed(&edges),
+                Rows::Computed(&domain),
+            ];
+            let mut out = Table::default();
+            let mut context = OperatorContext {
+                stored_indexes: None,
+                bindings: &[],
+                symbols: &mut symbols,
+                source: SourceView(&[]),
+                paths: &[],
+                arenas: &[],
+                memo: &mut memo,
+                scratch: &mut scratch,
+            };
+            AxisItem.compute(
+                &axis(Direction::Descendant, Vec::new(), Vec::new()),
+                &inputs,
+                &mut context,
+                &mut out,
+            )?;
+            let expected_targets: &[u32] = if cycle { &[3, 2, 1] } else { &[3, 2] };
+            let mut expected = Vec::new();
+            for payload in [11, 22] {
+                for target in expected_targets {
+                    expected.extend([node(1), Cell::Number(Integer(payload)), node(*target)]);
+                }
+            }
+            if out.cells != expected
+                || out.count.0 != 2 * expected_targets.len()
+                || context.scratch.walk.visited.len() != if cycle { 4 } else { 3 }
+            {
+                return Ok(0);
+            }
+        }
+    }
+    Ok(1)
+}
+
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("sparse_computed_walk_work_is_rooted"),
+        word: Word::Succeeds,
+        input: || sparse_computed_walk_work_is_rooted,
+        expect: Expect::Value(1),
+    },
     Case {
         name: CaseName("descendants_are_appended"),
         word: Word::Succeeds,

@@ -90,6 +90,81 @@ pub struct Case {
     pub files: BTreeMap<RelativePath, SourceText>,
     /// Expected finding multiset; an empty list is a negative case.
     pub expected: Vec<Expected>,
+    /// Optional pinned reference behavior that intentionally differs from the candidate contract.
+    pub reference_discrepancy: Option<ReferenceDiscrepancy>,
+}
+
+/// Evidence for a documented reference defect, never a wildcard diagnostic exception.
+#[derive(Clone, Debug)]
+pub struct ReferenceDiscrepancy {
+    /// Exact reference diagnostics; `Case.expected` remains the intended candidate contract.
+    pub expected: Vec<Expected>,
+    /// Tool/version/profile/settings/source and both canonical output identities.
+    pub identity: ReferenceDiscrepancyIdentity,
+    /// Independent language/specification observations, checked by content digest.
+    pub evidence: Vec<DiscrepancyEvidence>,
+    /// Explanation of the independently intended behavior and reference disagreement.
+    pub reason: String,
+}
+
+/// Immutable identities required before admitting a reference discrepancy.
+#[derive(Clone, Debug)]
+pub struct ReferenceDiscrepancyIdentity {
+    /// Reference tool name.
+    pub tool: ToolName,
+    /// Exact reference version.
+    pub version: ToolVersion,
+    /// Executable used to observe the defect; must be an approved profile pin.
+    pub observed_executable_sha256: ArtifactDigest,
+    /// Exact profile bytes, including all approved platform executable pins.
+    pub profile_sha256: ArtifactDigest,
+    /// Normalized effective reference invocation and parser/context settings.
+    pub settings_sha256: ArtifactDigest,
+    /// Exact authored relative filenames and source bytes.
+    pub source_sha256: ArtifactDigest,
+    /// Exact normalized expected reference report.
+    pub reference_output_sha256: ArtifactDigest,
+    /// Exact normalized intended candidate report; changing expectations invalidates evidence.
+    pub intended_output_sha256: ArtifactDigest,
+}
+
+/// Independent authority accepted for a reference discrepancy.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DiscrepancyEvidenceKind {
+    /// A versioned language specification artifact.
+    LanguageSpec,
+    /// An independent language implementation observation.
+    IndependentLanguageRun,
+}
+
+/// One independent evidence artifact within the explicit profile boundary.
+#[derive(Clone, Debug)]
+pub struct DiscrepancyEvidence {
+    /// Safe profile-relative artifact path; no implicit external evidence reads.
+    pub path: PathBuf,
+    /// Exact independent artifact content digest.
+    pub sha256: ArtifactDigest,
+    /// `language-spec` or `independent-language-run`, never competitor output alone.
+    pub kind: DiscrepancyEvidenceKind,
+    /// Language target/contract version supported by this evidence.
+    pub language_version: String,
+    /// Exact parser contract this evidence supports.
+    pub target_configuration: String,
+    /// Explicit justification connecting the observed language version to that target.
+    pub version_rationale: String,
+}
+
+/// Materialized reference expectation with independently validated evidence.
+#[derive(Clone, Debug)]
+pub struct PreparedReferenceDiscrepancy {
+    /// Exact reference report; distinct from the candidate's intended expected report.
+    pub expected: crate::domain::diagnostics::types::RunReport,
+    /// Immutable execution and output identities.
+    pub identity: ReferenceDiscrepancyIdentity,
+    /// Independent evidence retained for reporting and stale-artifact refusal.
+    pub evidence: Vec<DiscrepancyEvidence>,
+    /// Human-readable explanation retained beside raw parity mismatches.
+    pub reason: String,
 }
 
 /// An independently authored case materialized by the suite boundary.
@@ -105,6 +180,8 @@ pub struct PreparedCase {
     pub request: RunRequest,
     /// Independently authored findings and input coverage.
     pub expected: crate::domain::diagnostics::types::RunReport,
+    /// Optional separate reference expectation; never changes the intended candidate output.
+    pub reference_discrepancy: Option<PreparedReferenceDiscrepancy>,
 }
 
 /// One expected finding in a case, located by UTF-8 byte offsets.

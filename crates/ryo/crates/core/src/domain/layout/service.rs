@@ -1,16 +1,17 @@
 //! The `layout` service: free functions named by verb that lay a plan out for the worker that runs it.
 
-use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::relations::service::kinds as relation_kinds;
-use ryo_language::domain::relations::types::{CellKind, FileId, Relation};
+use ryo_language::domain::relations::types::{CellKind, Relation};
 
 use crate::domain::lowering::service::lower;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
-use crate::domain::operator::service::compute;
+use crate::domain::operation_schema::service::schema_of;
+use crate::domain::operation_schema::types::InputSchema;
 use crate::domain::operator::types::{KeptSteps, PlanIdentity, PlanLayout, ReadCount, StepPlace};
-use crate::domain::table_cells::types::{TreeForm, TreeRows};
-use crate::domain::table_model::types::{Frontier, Rows, Table};
+use crate::domain::table_cells::types::TreeForm;
+use crate::domain::table_model::service::kinds_of;
+use crate::domain::table_model::types::{Frontier, ParameterBinding, Rows};
 use crate::domain::trust::service::needs_of;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::StepId;
@@ -54,7 +55,6 @@ pub(crate) fn layout_of<'f>(
     read: &dyn Fn(Relation) -> Result<Rows<'f>, OperatingError>,
     context: &mut OperatorContext<'_>,
 ) -> Result<PlanLayout, OperatingError> {
-    let count = plan.steps.len();
     let emitted = usize::try_from(plan.emit.step.0).unwrap_or(usize::MAX);
     // A step keeps its rows when it is the one emitted, is handed to the cross-file steps, or is read by more than one step.
     let kept: Vec<bool> =
@@ -69,48 +69,39 @@ pub(crate) fn layout_of<'f>(
                     && (id == emitted || handed || reads_of(plan, StepPlace(id)).0 > 1)
             })
             .collect();
-    // What each step answers, found by running each on inputs with the columns and no rows: the tree has no element.
-    let nothing = Elements::default();
-    let mut kinds: Vec<Vec<CellKind>> = vec![Vec::new(); count];
-    let mut scratch_out = Table::default();
-    for (id, step) in plan.steps.iter().enumerate() {
-        if step.scope == StepScope::CrossFile {
-            continue;
-        }
-        let inputs = inputs_of(&step.operation);
-        let mut empties: [Table; 3] = [Table::default(), Table::default(), Table::default()];
-        for (empty, input) in empties.iter_mut().zip(named(&inputs)) {
-            if let Input::Step(source) = input {
-                empty.kinds = kinds
-                    .get(usize::try_from(source.0).unwrap_or(usize::MAX))
-                    .cloned()
-                    .ok_or(OperatingError::NotRun)?;
-            }
-        }
-        let mut rows: Vec<Rows<'_>> = Vec::new();
-        for (empty, input) in empties.iter().zip(named(&inputs)) {
-            rows.push(match input {
-                Input::Step(_) => Rows::Computed(empty),
-                Input::Relation(relation @ (Relation::SyntaxTree | Relation::SyntaxChild)) => {
-                    // The tree must be readable, though what is run here reads none of its elements.
-                    read(*relation).map(|_| ())?;
-                    Rows::Tree(TreeRows {
-                        elements: &nothing,
-                        file: FileId(0),
-                        form: if *relation == Relation::SyntaxChild {
-                            TreeForm::Edges
-                        } else {
-                            TreeForm::Elements
-                        },
-                    })
-                }
-                Input::Relation(relation) => read(*relation)?,
-            });
-        }
-        compute(&step.operation, &rows, context, &mut scratch_out)?;
-        if let Some(answered) = kinds.get_mut(id) {
-            answered.clone_from(&scratch_out.kinds);
-        }
+    // Layout reads provider availability and column metadata only. No operator is run.
+    let _span =
+        tracing::trace_span!(target: "ryo::diagnostic::layout", "schema", plan = index.0).entered();
+    let metadata = |relation| {
+        // Probe every actual view before exposing only its schema to derivation.
+        let view = read(relation)?;
+        Ok(InputSchema {
+            kinds: kinds_of(&view),
+            tree: match view {
+                Rows::Tree(tree) => Some(tree.form),
+                Rows::Stored(_) | Rows::Computed(_) => None,
+            },
+        })
+    };
+    let kinds = schema_steps(plan, &metadata, context.bindings)?;
+    if tracing::enabled!(target: "ryo::diagnostic::layout", tracing::Level::TRACE) {
+        let file_steps = plan
+            .steps
+            .iter()
+            .filter(|step| step.scope != StepScope::CrossFile);
+        let relation_probes = file_steps
+            .clone()
+            .map(|step| {
+                named(&inputs_of(&step.operation))
+                    .iter()
+                    .filter(|input| matches!(input, Input::Relation(_)))
+                    .count()
+            })
+            .sum::<usize>();
+        tracing::trace!(target: "ryo::diagnostic::layout", plan = index.0,
+            schema_steps = file_steps.count(), relation_probes,
+            output_columns = kinds.iter().map(Vec::len).sum::<usize>(),
+            payload_rows = 0, metadata_only = true, "plan layout");
     }
     Ok(PlanLayout {
         plan: index,
@@ -136,32 +127,19 @@ pub(crate) fn shaped(
     if frontier.iter().all(|each| !each.table.kinds.is_empty()) {
         return Ok(frontier.to_vec());
     }
-    let tables: Vec<(Relation, Table)> = plan
-        .steps
-        .iter()
-        .flat_map(|step| named(&inputs_of(&step.operation)).to_vec())
-        .filter_map(|input| match input {
-            Input::Relation(relation) => Some(relation),
-            Input::Step(_) => None,
+    // No file supplied this frontier. Use the declared relation representation,
+    // as the old empty-tree fallback did, without making any table or elements.
+    let metadata = |relation| {
+        Ok(InputSchema {
+            kinds: relation_kinds(relation),
+            tree: match relation {
+                Relation::SyntaxTree => Some(TreeForm::Elements),
+                Relation::SyntaxChild => Some(TreeForm::Edges),
+                _ => None,
+            },
         })
-        .map(|relation| {
-            (
-                relation,
-                Table {
-                    kinds: relation_kinds(relation).to_vec(),
-                    ..Table::default()
-                },
-            )
-        })
-        .collect();
-    let read = |relation: Relation| -> Result<Rows<'_>, OperatingError> {
-        tables
-            .iter()
-            .find(|(each, _)| *each == relation)
-            .map(|(_, table)| Rows::Computed(table))
-            .ok_or(OperatingError::NotRead)
     };
-    let layout = layout_of(plan, PlanIdentity(0), &read, context)?;
+    let kinds = schema_steps(plan, &metadata, context.bindings)?;
     frontier
         .iter()
         .map(|each| {
@@ -169,8 +147,7 @@ pub(crate) fn shaped(
             if shaped.table.kinds.is_empty() {
                 shaped.table.kinds = match each.input {
                     Input::Relation(relation) => relation_kinds(relation).to_vec(),
-                    Input::Step(id) => layout
-                        .kinds
+                    Input::Step(id) => kinds
                         .get(usize::try_from(id.0).unwrap_or(usize::MAX))
                         .cloned()
                         .ok_or(OperatingError::NotRun)?,
@@ -179,4 +156,39 @@ pub(crate) fn shaped(
             Ok(shaped)
         })
         .collect()
+}
+
+/// Propagate schemas topologically, with only the caller's metadata/probe boundary.
+fn schema_steps<'a>(
+    plan: &Plan,
+    read: &dyn Fn(Relation) -> Result<InputSchema<'a>, OperatingError>,
+    bindings: &[ParameterBinding],
+) -> Result<Vec<Vec<CellKind>>, OperatingError> {
+    let mut kinds: Vec<Vec<CellKind>> = vec![Vec::new(); plan.steps.len()];
+    for (id, step) in plan.steps.iter().enumerate() {
+        if step.scope == StepScope::CrossFile {
+            continue;
+        }
+        let inputs = inputs_of(&step.operation);
+        let schemas = named(&inputs)
+            .iter()
+            .map(|input| {
+                match input {
+                    Input::Step(source) => Ok(InputSchema {
+                        kinds: kinds
+                            .get(usize::try_from(source.0).unwrap_or(usize::MAX))
+                            .ok_or(OperatingError::NotRun)?,
+                        tree: None,
+                    }),
+                    Input::Relation(relation) => {
+                        // Do not substitute catalog metadata for a missing/refusing view.
+                        read(*relation)
+                    }
+                }
+            })
+            .collect::<Result<Vec<_>, OperatingError>>()?;
+        let answered = schema_of(&step.operation, &schemas, bindings)?;
+        kinds[id] = answered;
+    }
+    Ok(kinds)
 }

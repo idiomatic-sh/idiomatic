@@ -79,6 +79,10 @@ struct CaseSchema {
     files: BTreeMap<String, String>,
     /// Expected diagnostic ranges, preserving multiplicity.
     expected: Vec<ExpectedSchema>,
+    /// Optional separately pinned reference behavior and independent evidence.
+    #[serde(default, rename = "reference-discrepancy")]
+    reference_discrepancy:
+        Option<crate::outbound::suite::types::discrepancy::ReferenceDiscrepancyWire>,
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -241,6 +245,7 @@ impl TryFrom<CasesSchema> for types::Cases {
                 .into_iter()
                 .map(|case| {
                     Ok(types::Case {
+                        reference_discrepancy: None,
                         context: case.context.map(Into::into),
                         comparison: match case.comparison {
                             ComparisonSchema::Rule => types::CaseComparison::Rule,
@@ -329,4 +334,21 @@ impl From<CaseContextSchema> for types::CaseContext {
             missing: value.missing,
         }
     }
+}
+
+/// Read raw reference wire values without constructing domain expectations.
+pub(super) fn case_reference_wires(
+    text: &str,
+) -> Result<
+    Vec<(
+        String,
+        crate::outbound::suite::types::discrepancy::ReferenceDiscrepancyWire,
+    )>,
+    toml::de::Error,
+> {
+    Ok(toml::from_str::<CasesSchema>(text)?
+        .cases
+        .into_iter()
+        .filter_map(|case| case.reference_discrepancy.map(|wire| (case.name, wire)))
+        .collect())
 }

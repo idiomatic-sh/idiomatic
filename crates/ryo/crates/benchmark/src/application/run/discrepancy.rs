@@ -1,0 +1,341 @@
+//! Admit independently evidenced reference disagreements without relaxing either contract.
+use crate::domain::diagnostics::{
+    errors::DiagnosticsError as Error, service::compare, types::RunReport,
+};
+use crate::domain::suite::types::{ArtifactDigest, CaseComparison, PreparedCase};
+use crate::outbound::{
+    linter::interface::LinterPort,
+    suite::{interface::SuitePort, types::ArtifactPath},
+};
+use sha2::Digest as _;
+use std::path::Path;
+
+/// Convert boundary-owned wire data into canonical case expectations before verification.
+pub(super) fn attach(
+    suite: &dyn SuitePort,
+    rules: &Path,
+    cases: &mut [PreparedCase],
+) -> Result<(), Error> {
+    let profile = rules
+        .parent()
+        .ok_or_else(|| Error::Invalid("missing case profile boundary".into()))?;
+    let wires = suite
+        .case_reference_wires(ArtifactPath(profile))
+        .map_err(|error| Error::Invalid(error.to_string()))?;
+    let mut seen = std::collections::BTreeSet::new();
+    for wire in wires {
+        if !seen.insert((wire.rule.clone(), wire.name.clone())) {
+            return Err(Error::Invalid(
+                "duplicate reference expectation identity".into(),
+            ));
+        }
+        let case = cases
+            .iter_mut()
+            .find(|case| case.rule.as_ref() == wire.rule && case.name.to_string() == wire.name)
+            .ok_or_else(|| {
+                Error::Invalid("reference expectation outside executable case inventory".into())
+            })?;
+        if case.reference_discrepancy.is_some() {
+            return Err(Error::Invalid(
+                "duplicate canonical reference expectation".into(),
+            ));
+        }
+        case.reference_discrepancy = Some(convert(wire.discrepancy, case)?);
+    }
+    Ok(())
+}
+
+/// Validate immutable identity spelling at the semantic conversion boundary.
+fn digest(value: String) -> Result<ArtifactDigest, Error> {
+    if value.len() != 64
+        || !value
+            .bytes()
+            .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+    {
+        return Err(Error::Invalid(
+            "discrepancy requires lowercase SHA256 identities".into(),
+        ));
+    }
+    Ok(ArtifactDigest(value))
+}
+
+/// Construct only complete domain expectations, without any filesystem reads.
+fn convert(
+    wire: crate::outbound::suite::types::discrepancy::ReferenceDiscrepancyWire,
+    case: &PreparedCase,
+) -> Result<crate::domain::suite::types::PreparedReferenceDiscrepancy, Error> {
+    use crate::domain::suite::types::{
+        DiscrepancyEvidence, DiscrepancyEvidenceKind, PreparedReferenceDiscrepancy,
+        ReferenceDiscrepancyIdentity,
+    };
+    use crate::outbound::suite::types::discrepancy::EvidenceKindWire;
+    let identity = wire.identity;
+    let mut expected = case.expected.clone();
+    expected.diagnostics = wire
+        .expected
+        .into_iter()
+        .map(|row| {
+            let file = ryo::linter::RelativePath(row.file.into_boxed_str());
+            if !case.request.files.contains(&file) || row.start > row.end {
+                return Err(Error::Invalid(
+                    "invalid reference expectation source/range".into(),
+                ));
+            }
+            Ok(crate::domain::diagnostics::types::BenchmarkFinding {
+                rule: ryo::linter::RuleId::try_from(row.rule.as_str())
+                    .map_err(|error| Error::Invalid(error.to_string()))?,
+                file,
+                start: crate::domain::diagnostics::types::SourceByteOffset(row.start),
+                end: crate::domain::diagnostics::types::SourceByteOffset(row.end),
+            })
+        })
+        .collect::<Result<_, Error>>()?;
+    expected.diagnostics.sort();
+    let evidence = wire.evidence.into_iter().map(|item| {
+        crate::domain::suite::service::relative_path(&item.path)?;
+        if item.language_version.trim().is_empty() || item.target_configuration.trim().is_empty() || item.version_rationale.trim().is_empty() {
+            return Err(Error::Invalid("independent evidence requires explicit language contract and version rationale".into()));
+        }
+        Ok(DiscrepancyEvidence { path: item.path, sha256: digest(item.sha256)?, language_version: item.language_version,
+            target_configuration: item.target_configuration, version_rationale: item.version_rationale,
+            kind: match item.kind { EvidenceKindWire::LanguageSpec => DiscrepancyEvidenceKind::LanguageSpec, EvidenceKindWire::IndependentLanguageRun => DiscrepancyEvidenceKind::IndependentLanguageRun } })
+    }).collect::<Result<_, Error>>()?;
+    Ok(PreparedReferenceDiscrepancy {
+        expected,
+        evidence,
+        reason: wire.reason,
+        identity: ReferenceDiscrepancyIdentity {
+            tool: identity.tool.into(),
+            version: identity.version.into(),
+            observed_executable_sha256: digest(identity.observed_executable_sha256)?,
+            profile_sha256: digest(identity.profile_sha256)?,
+            settings_sha256: digest(identity.settings_sha256)?,
+            source_sha256: digest(identity.source_sha256)?,
+            reference_output_sha256: digest(identity.reference_output_sha256)?,
+            intended_output_sha256: digest(identity.intended_output_sha256)?,
+        },
+    })
+}
+
+/// Preserve the strict intended contract unless an independently pinned reference differs.
+pub(super) fn reference_expected(case: &PreparedCase) -> &RunReport {
+    case.reference_discrepancy
+        .as_ref()
+        .map_or(&case.expected, |item| &item.expected)
+}
+
+/// Raw parity remains false for the pinned reference disagreement even when intended behavior passes.
+pub(super) fn matches_intended(case: &PreparedCase, actual: &RunReport) -> bool {
+    compare(&case.expected, actual).is_ok()
+}
+
+/// Hash a canonical JSON value using the same sorted-object encoding as the Python harness.
+pub(super) fn json_digest(value: &serde_json::Value) -> ArtifactDigest {
+    ArtifactDigest(format!(
+        "{:x}",
+        sha2::Sha256::digest(value.to_string().as_bytes())
+    ))
+}
+
+/// Exact diagnostic multiset and input inventory; execution accounting is checked separately.
+pub(super) fn output_digest(report: &RunReport) -> ArtifactDigest {
+    let mut findings = report.diagnostics.clone();
+    findings.sort();
+    let mut files = report
+        .files
+        .iter()
+        .map(|file| file.0.as_ref())
+        .collect::<Vec<_>>();
+    files.sort_unstable();
+    json_digest(&serde_json::json!({
+        "files": files,
+        "diagnostics": findings.iter().map(|row| serde_json::json!({
+            "rule": row.rule.as_ref(), "file": row.file.0.as_ref(), "start": row.start.0, "end": row.end.0,
+        })).collect::<Vec<_>>(),
+        "skipped": [],
+    }))
+}
+
+/// A discrepancy cannot hide unknown execution, syntax skips or missing candidate accounting.
+pub(super) fn complete(
+    case: &PreparedCase,
+    report: &RunReport,
+    candidate: bool,
+) -> Result<(), Error> {
+    if case.reference_discrepancy.is_none() {
+        return Ok(());
+    }
+    if !report.skipped.is_empty()
+        || report.coverage.is_some_and(|coverage| {
+            coverage.selected == 0
+                || coverage.unknown_or_unread != 0
+                || coverage.skipped != 0
+                || coverage.evaluated != coverage.selected
+        })
+        || (candidate && report.coverage.is_none())
+    {
+        return Err(Error::Invalid(
+            "reference discrepancy requires complete, known execution coverage".into(),
+        ));
+    }
+    Ok(())
+}
+
+/// Refuse stale evidence across the selected inventory before either contestant executes.
+pub(super) fn validate_all(
+    suite: &dyn SuitePort,
+    reference: &dyn LinterPort,
+    rules: &Path,
+    cases: &[PreparedCase],
+) -> Result<Vec<Option<serde_json::Value>>, Error> {
+    cases
+        .iter()
+        .map(|case| validate(suite, reference, rules, case))
+        .collect()
+}
+
+/// Bind both expected outputs, independent evidence and the actual approved reference invocation.
+pub(super) fn validate(
+    suite: &dyn SuitePort,
+    reference: &dyn LinterPort,
+    rules: &Path,
+    case: &PreparedCase,
+) -> Result<Option<serde_json::Value>, Error> {
+    let Some(item) = &case.reference_discrepancy else {
+        return Ok(None);
+    };
+    if case.comparison != CaseComparison::Full
+        || compare(&case.expected, &item.expected).is_ok()
+        || item.reason.trim().is_empty()
+        || item.evidence.is_empty()
+    {
+        return Err(Error::Invalid(
+            "reference discrepancy requires distinct full expectations and independent evidence"
+                .into(),
+        ));
+    }
+    let profile_root = rules
+        .parent()
+        .ok_or_else(|| Error::Invalid("missing profile root".into()))?;
+    let profile = suite.profile(ArtifactPath(profile_root))?;
+    let identity = &item.identity;
+    let invocation = reference.prepare(&case.request)?;
+    suite.verify_tool(ArtifactPath(&invocation.executable), &profile)?;
+    let actual_executable = suite.digest(ArtifactPath(&invocation.executable))?;
+    validate_pins(
+        identity,
+        &profile,
+        &actual_executable,
+        &suite.digest(ArtifactPath(&profile_root.join("benchmark.toml")))?,
+    )?;
+    let settings = invocation_settings(&invocation, case, &profile)?;
+    let files = case
+        .request
+        .files
+        .iter()
+        .map(|file| std::path::PathBuf::from(file.0.as_ref()))
+        .collect::<Vec<_>>();
+    let evidence = item
+        .evidence
+        .iter()
+        .map(
+            |row| crate::outbound::suite::types::discrepancy::EvidenceArtifact {
+                path: row.path.clone(),
+                sha256: row.sha256.0.clone(),
+            },
+        )
+        .collect::<Vec<_>>();
+    for row in &item.evidence {
+        if row.language_version.trim().is_empty()
+            || row.version_rationale.trim().is_empty()
+            || profile.parser_configuration.as_deref() != Some(row.target_configuration.as_str())
+        {
+            return Err(Error::Invalid(
+                "independent evidence does not support configured language contract".into(),
+            ));
+        }
+    }
+    suite
+        .verify_discrepancy_artifacts(crate::outbound::suite::types::discrepancy::CaseArtifacts {
+            profile: profile_root,
+            root: &case.request.root,
+            files: &files,
+            source_sha256: &identity.source_sha256.0,
+            evidence: &evidence,
+        })
+        .map_err(|error| Error::Invalid(error.to_string()))?;
+    if settings != identity.settings_sha256
+        || output_digest(&case.expected) != identity.intended_output_sha256
+        || output_digest(&item.expected) != identity.reference_output_sha256
+    {
+        return Err(Error::Invalid(
+            "stale reference discrepancy settings/source/expectation identity".into(),
+        ));
+    }
+    Ok(Some(serde_json::json!({
+        "settings_sha256": settings.0,
+        "actual_executable_sha256": actual_executable.0,
+        "profile_sha256": identity.profile_sha256.0,
+        "source_sha256": identity.source_sha256.0,
+        "reference_output_sha256": identity.reference_output_sha256.0,
+        "intended_output_sha256": identity.intended_output_sha256.0,
+    })))
+}
+
+/// Normalize explicitly supplied invocation paths while preserving flags and environment overrides.
+fn invocation_settings(
+    invocation: &crate::domain::measurements::types::Invocation,
+    case: &PreparedCase,
+    profile: &crate::domain::suite::types::Tool,
+) -> Result<ArtifactDigest, Error> {
+    let normalize = |value: &std::ffi::OsStr| -> Result<String, Error> {
+        let value = value
+            .to_str()
+            .ok_or_else(|| Error::Invalid("non-UTF8 reference invocation".into()))?;
+        Ok(value
+            .replace(&case.request.state.to_string_lossy().to_string(), "$STATE")
+            .replace(&case.request.root.to_string_lossy().to_string(), "$ROOT")
+            .replace('\\', "/"))
+    };
+    let arguments = invocation
+        .arguments
+        .iter()
+        .map(|value| normalize(value))
+        .collect::<Result<Vec<_>, _>>()?;
+    let environment = invocation
+        .environment
+        .iter()
+        .map(|(key, value)| Ok((normalize(key)?, normalize(value)?)))
+        .collect::<Result<std::collections::BTreeMap<_, _>, Error>>()?;
+    Ok(json_digest(&serde_json::json!({
+        "arguments": arguments, "environment": environment,
+        "directory": normalize(invocation.directory.as_os_str())?,
+        "parser_configuration": profile.parser_configuration,
+        "project_context_mode": format!("{:?}", profile.project_context_mode),
+    })))
+}
+
+/// Approved native binaries may differ from the binary used in the original observation.
+fn validate_pins(
+    identity: &crate::domain::suite::types::ReferenceDiscrepancyIdentity,
+    profile: &crate::domain::suite::types::Tool,
+    actual: &ArtifactDigest,
+    profile_digest: &ArtifactDigest,
+) -> Result<(), Error> {
+    let approved = |digest: &ArtifactDigest| profile.sha256.iter().any(|pin| pin.0 == digest.0);
+    if identity.tool != profile.tool
+        || identity.version != profile.version
+        || !approved(&identity.observed_executable_sha256)
+        || !approved(actual)
+        || profile_digest != &identity.profile_sha256
+    {
+        return Err(Error::Invalid(
+            "stale reference discrepancy tool/profile or unapproved executable".into(),
+        ));
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+#[path = "discrepancy_test.rs"]
+mod tests;

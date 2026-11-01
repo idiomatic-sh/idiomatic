@@ -30,3 +30,4 @@ rule-applicability = { "B019" = "accepted-syntax" }
 
 [query-modules]
 "python/ruff/suppress" = "fragments/suppress.ryoql"
+"python/ruff/suppress-directives" = "fragments/suppress-directives.ryoql"

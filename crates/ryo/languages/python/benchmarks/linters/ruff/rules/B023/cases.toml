@@ -129,3 +129,53 @@ name = "returned-lambda-is-safe"
 comparison = "full"
 files = { "case.py" = "def f():\n    for i in range(3):\n        return lambda: i\n" }
 expected = []
+
+[[cases]]
+name = "rooted-deep-body-references-through-intermediate-nodes"
+files = { "case.py" = "funcs=[]\nfor x in items:\n    funcs.append(lambda: call(deep(x)))\n" }
+expected = [{ "rule" = "B023", "file" = "case.py", "start" = 60, "end" = 61 }]
+
+[[cases]]
+name = "rooted-body-assignment-binding-kept"
+files = { "case.py" = "funcs=[]\nfor x in items:\n    y = call(x)\n    funcs.append(lambda: deep(y))\n" }
+expected = [{ "rule" = "B023", "file" = "case.py", "start" = 71, "end" = 72 }]
+
+[[cases]]
+name = "rooted-destructured-targets-complete-endpoint-domain"
+files = { "case.py" = "funcs=[]\nfor x,(y,z) in items:\n    funcs.append(lambda: (deep(x), y, z))\n" }
+expected = [{ "rule" = "B023", "file" = "case.py", "start" = 62, "end" = 63 }, { "rule" = "B023", "file" = "case.py", "start" = 66, "end" = 67 }, { "rule" = "B023", "file" = "case.py", "start" = 69, "end" = 70 }]
+
+[[cases]]
+name = "rooted-nested-loop-duplicate-reference-dedup"
+files = { "case.py" = "funcs=[]\nfor x in items:\n    for y in other:\n        funcs.append(lambda: (x,y))\n" }
+expected = [{ "rule" = "B023", "file" = "case.py", "start" = 75, "end" = 76 }, { "rule" = "B023", "file" = "case.py", "start" = 77, "end" = 78 }]
+
+[[cases]]
+name = "rooted-iterator-functions-excluded-body-retained"
+files = { "case.py" = "funcs=[]\nfor x in map(lambda: x, items):\n    funcs.append(lambda: x)\n" }
+expected = [{ "rule" = "B023", "file" = "case.py", "start" = 66, "end" = 67 }]
+
+[[cases]]
+name = "rooted-default-capture-remains-safe"
+files = { "case.py" = "funcs=[]\nfor x in items:\n    funcs.append(lambda x=x: deep(x))\n" }
+expected = []
+
+[[cases]]
+name = "rooted-nested-def-body-binding-scope-unchanged"
+files = { "case.py" = "funcs=[]\nfor x in items:\n    def f():\n        y = 1\n        return x,y\n    funcs.append(f)\n" }
+expected = [{ "rule" = "B023", "file" = "case.py", "start" = 67, "end" = 68 }]
+
+[[cases]]
+name = "rooted-comprehension-lambda-roots"
+files = { "case.py" = "funcs = [lambda: deep(x) for x in items]\n" }
+expected = [{ "rule" = "B023", "file" = "case.py", "start" = 22, "end" = 23 }]
+
+[[cases]]
+name = "rooted-unicode-multiline-loop"
+files = { "case.py" = "funcs=[]\nfor café in items:\n    funcs.append(\n        lambda: deep(café)\n    )\n" }
+expected = [{ "rule" = "B023", "file" = "case.py", "start" = 68, "end" = 73 }]
+
+[[cases]]
+name = "rooted-two-files-reused-identities"
+files = { "a.py" = "funcs=[]\nfor x in items:\n    funcs.append(lambda: call(deep(x)))\n", "b.py" = "funcs=[]\nfor x in items:\n    for y in other:\n        funcs.append(lambda: (x,y))\n" }
+expected = [{ "rule" = "B023", "file" = "a.py", "start" = 60, "end" = 61 }, { "rule" = "B023", "file" = "b.py", "start" = 75, "end" = 76 }, { "rule" = "B023", "file" = "b.py", "start" = 77, "end" = 78 }]

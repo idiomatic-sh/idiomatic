@@ -413,12 +413,14 @@ pub(crate) fn schedule(
 ) {
     plan.steps.clear();
     plan.phases.clear();
-    plan.annotations = if languages::positions(tree.elements)
-        .filter(|at| kind(tree, *at) == Kind::Node(Node::Alias))
-        .any(|alias| {
-            crate::domain::imports::service::import_target(tree, symbols, alias)
-                .and_then(|name| languages::text_of(symbols, tree.source, name))
-                .is_some_and(|name| name.0 == super::constants::FUTURE_ANNOTATIONS)
+    plan.annotations = if model.language_target >= (3, 14)
+        || languages::property_at(
+            tree.elements,
+            Position(0),
+            crate::domain::syntax::constants::MODULE_FUTURE_ANNOTATIONS,
+        )
+        .is_some_and(|value| {
+            value.0 == crate::domain::syntax::constants::MODULE_FUTURE_ANNOTATIONS_ENABLED
         }) {
         BindingAnnotationTiming::Deferred
     } else {
