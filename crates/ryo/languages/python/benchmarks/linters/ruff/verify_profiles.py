@@ -8,6 +8,7 @@ import contextlib
 import hashlib
 import json
 import os
+import re
 import shlex
 import shutil
 import subprocess
@@ -329,7 +330,7 @@ def verify_profile(
             error=f"{type(error).__name__}: {error}",
             identities=identities,
         )
-    worker_identity(identities, result.stderr)
+    worker_identity(identities, result.stdout + b"\n" + result.stderr)
     return persist_run_record(
         output_directory,
         name,
@@ -341,24 +342,27 @@ def verify_profile(
 
 
 def worker_identity(identities: dict[str, object], stderr: bytes | None) -> None:
-    """Record the exact benchmark executable Cargo launched, when it reports one."""
+    """Record the exact benchmark executable Cargo launched on either output stream."""
     worker = identities.setdefault("worker", {})
     if not isinstance(worker, dict):
         return
     executable = None
     if stderr is not None:
         for line in stderr.decode(errors="replace").splitlines():
-            if not line.startswith("Running `") or not line.endswith("`"):
+            line = re.sub(r"\x1b\[[0-9;]*m", "", line).strip()
+            if not line.startswith("Running "):
                 continue
             try:
-                arguments = shlex.split(line[len("Running `") : -1])
+                arguments = shlex.split(line[len("Running ") :].strip("`"))
             except ValueError:
                 continue
-            if arguments and Path(arguments[0]).name.startswith("ruff-"):
-                candidate = Path(arguments[0])
-                if candidate.is_file():
+            for argument in arguments:
+                candidate = Path(argument.strip("()"))
+                if candidate.name.startswith("ruff-") and candidate.is_file():
                     executable = candidate.resolve()
                     break
+            if executable is not None:
+                break
     worker["executable"] = (
         {"path": str(executable), "sha256": sha256(executable)}
         if executable is not None
@@ -705,7 +709,7 @@ def self_test() -> int:
         fake_worker = root / "ruff-fake-worker"
         fake_worker.write_bytes(b"worker binary fixture")
         worker_record = {"worker": {}}
-        worker_identity(worker_record, f"Running `{fake_worker} --exact`\n".encode())
+        worker_identity(worker_record, f"  Running benchmarks/ruff.rs ({fake_worker})\n".encode())
         if worker_record["worker"]["executable"] != {
             "path": str(fake_worker.resolve()),
             "sha256": sha256(fake_worker),
