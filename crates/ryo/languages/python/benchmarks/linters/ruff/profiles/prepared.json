@@ -8,7 +8,8 @@
     "3f14eeaf157ede482e34b54794112795822a7df9",
     "6e36628e7cc7f6fa1d402098184d06aa036c21f9",
     "1fb0ac3b5418a5ce3a4bfe5481d7c81629078c8e",
-    "47ea97a97b21551950c68df1409a8245a551b40d"
+    "47ea97a97b21551950c68df1409a8245a551b40d",
+    "17abae8c741b7f6fe769dc86d6e24a438f55264d"
   ],
   "reference": "Ruff 0.16.5 isolated, no-cache, PY310 selection; complete full-report comparison for each prepared candidate profile",
   "reference_version": "0.16.5",
@@ -269,7 +270,7 @@
       "selected_rules": [
         "SIM220"
       ],
-      "case_count": 18,
+      "case_count": 29,
       "case_names": [
         "same-name",
         "duplicate-pairs",
@@ -288,16 +289,27 @@
         "all-pairs-keep-multiplicity",
         "lambda-body-call-is-effectful",
         "imported-alias-empty-constructor-is-call",
-        "qualified-builtins-attribute-is-call"
+        "qualified-builtins-attribute-is-call",
+        "inner-lambda-shadow-does-not-change-enclosing-builtin-check",
+        "enclosing-function-shadow-applies-inside-lambda",
+        "lambda-body-ordinary-call-is-effectful",
+        "conditional-shadow-before-check",
+        "annotation-before-check-is-skipped",
+        "delete-before-check-blocks-builtin",
+        "function-local-assignment-after-check",
+        "module-binding-after-function-before-deferred-check",
+        "nested-class-skips-outer-class-binding",
+        "function-in-class-skips-class-binding",
+        "current-class-binding-is-visible"
       ],
       "oracle_file": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/SIM220/oracle.json",
-      "oracle_sha256": "e5f18d5c88ae209961a88b51036e750e849d0cd5f6a38cf5eaeaf073eb902045"
+      "oracle_sha256": "1e7c622f5ad7a3282e2a7306ca574e39f1fcdb16b3f30423387c8f96ee4ff846"
     },
     "SIM221": {
       "selected_rules": [
         "SIM221"
       ],
-      "case_count": 18,
+      "case_count": 29,
       "case_names": [
         "same-name",
         "duplicate-pairs",
@@ -316,10 +328,21 @@
         "all-pairs-keep-multiplicity",
         "lambda-body-call-is-effectful",
         "imported-alias-empty-constructor-is-call",
-        "qualified-builtins-attribute-is-call"
+        "qualified-builtins-attribute-is-call",
+        "inner-lambda-shadow-does-not-change-enclosing-builtin-check",
+        "enclosing-function-shadow-applies-inside-lambda",
+        "lambda-body-ordinary-call-is-effectful",
+        "conditional-shadow-before-check",
+        "annotation-before-check-is-skipped",
+        "delete-before-check-blocks-builtin",
+        "function-local-assignment-after-check",
+        "module-binding-after-function-before-deferred-check",
+        "nested-class-skips-outer-class-binding",
+        "function-in-class-skips-class-binding",
+        "current-class-binding-is-visible"
       ],
       "oracle_file": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/SIM221/oracle.json",
-      "oracle_sha256": "7a0b22349b544c9f943521a5979c1c0d5f85d3ecff5baef61b9f4744ca369161"
+      "oracle_sha256": "37df376ae5939d73172f5623e29f959bc0bb6da3bc5b149a69f13be084218a5d"
     }
   },
   "files": {
@@ -573,14 +596,14 @@
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PLR0124/candidate.ryoql": "935a3a0d878c39110c2be2098c83cf5d8c2d84d6c944b58776ebb0cfbb3e2e51",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PLR0124/cases.toml": "b52ca31dc08815c3fd0e417480ca87942d98344626858b71c3b4cba971251d41",
     "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PLR0124/oracle.json": "bb34782018a22ddec74502e5dcf820b2648fba2d0775b29d2ce7d2a1fb801e3e",
-    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/SIM220/cases.toml": "95610cb64aaff4f4c2b3ff045b4e3d07f26c31f2d89285dd6abaef0c50123dcb",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/SIM220/cases.toml": "2f557f046c7faf45f408ee4cf8b78cc18a68f494045f7564d0c9882cfe430d43",
     "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/SIM220/benchmark.toml": "1ddb79bbc553edc80f81e16c12dd35f4615a918309117167ba09e9b3049db6bc",
-    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/SIM220/candidate.ryoql": "24ca09c2668bf95e5537ac195489d4ef62d6cc53407586015a1f4753dcfa6a6b",
-    "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/SIM220/oracle.json": "e5f18d5c88ae209961a88b51036e750e849d0cd5f6a38cf5eaeaf073eb902045",
-    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/SIM221/cases.toml": "1938014a95f984ff168df83a0c42e7b5b0eb57a21dbcbeeb143ab3fc27e23078",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/SIM220/candidate.ryoql": "e58286861a1c89736b521faa29b0f3ab0de9665caa89e5bcef412387331b689a",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/SIM220/oracle.json": "1e7c622f5ad7a3282e2a7306ca574e39f1fcdb16b3f30423387c8f96ee4ff846",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/SIM221/cases.toml": "a6ed907003594587952ac2d891f05595bb94dda4fce0b6a12eb2ab898968ebb4",
     "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/SIM221/benchmark.toml": "7963c6f42c83baafb4ae702dc78178e0cb360811c74c5e8b13f579c95f12f1c6",
-    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/SIM221/candidate.ryoql": "7ff963b175dfdc804c55848dd7b06f39392741e83d62f85e5234cc9ea959af31",
-    "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/SIM221/oracle.json": "7a0b22349b544c9f943521a5979c1c0d5f85d3ecff5baef61b9f4744ca369161"
+    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/SIM221/candidate.ryoql": "6ff481fd5fb65e604cedefcb1350201e0c5e7a9ff4bfa3c69957c941e9fb6799",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/SIM221/oracle.json": "37df376ae5939d73172f5623e29f959bc0bb6da3bc5b149a69f13be084218a5d"
   },
   "combined_profiles": {
     "shape-110": {

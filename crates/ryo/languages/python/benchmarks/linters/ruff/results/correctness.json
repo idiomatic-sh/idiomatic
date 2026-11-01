@@ -1,7 +1,7 @@
 {
   "status": "54-rule corpus comparison passed; configured lint/check/perf gate failed",
   "candidate_acceptance_checkpoint": {
-    "status": "unpromoted; current shared-verifier execution pending, with a known out-of-cohort SIM220 scope miss",
+    "status": "unpromoted; current shared-verifier execution pending",
     "prepared_profiles": 10,
     "combined_profile": {
       "name": "shape-110",
@@ -45,7 +45,14 @@
         "rule": "SIM220",
         "reference": "pinned Ruff reports SIM220; its builtin-binding lookup uses the enclosing BoolOp scope despite descending into the lambda body",
         "candidate": "does not report SIM220",
-        "status": "unresolved; do not promote SIM220/SIM221"
+        "status": "regression targeted by source commit 17abae8c741b7f6fe769dc86d6e24a438f55264d; updated candidate remains unvalidated by Ryo"
+      },
+      "candidate_fix_commit": "17abae8c741b7f6fe769dc86d6e24a438f55264d",
+      "updated_prepared_cases": {
+        "SIM220": 29,
+        "SIM221": 29,
+        "total": 58,
+        "validation": "pinned Ruff expectations prepared; current Ryo execution pending"
       }
     },
     "integrated_python_diagnostic_source": {
