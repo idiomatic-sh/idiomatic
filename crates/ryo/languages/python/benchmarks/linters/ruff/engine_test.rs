@@ -27,7 +27,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(true),
     },
     Case {
-        name: CaseName("sdk_projects_every_python_syntax_error_as_invalid_syntax"),
+        name: CaseName("sdk_projects_module_nonlocal_as_invalid_syntax"),
         word: Word::Succeeds,
         input: || EngineScenario::InvalidSyntax,
         expect: Expect::Value(true),
@@ -98,16 +98,16 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
         files: vec![ryo::linter::RelativePath(file.into())],
         state: ryo_benchmark::domain::suite::types::WorkerState::Fresh,
     };
-    let request_engine = if matches!(scenario, EngineScenario::InvalidSyntaxProjectionDisabled) {
-        factory::local(ryo::linter::Languages(vec![ryo_python::linked()]), None)
+    let result = if matches!(scenario, EngineScenario::InvalidSyntaxProjectionDisabled) {
+        factory::local(ryo::linter::Languages(vec![ryo_python::linked()]), None).run(request)
     } else {
         factory::local_with_frontend_diagnostic(
             ryo::linter::Languages(vec![ryo_python::linked()]),
             None,
             ryo::linter::RuleId::try_from("invalid-syntax").expect("frontend identity"),
         )
+        .run(request)
     };
-    let result = request_engine.run(request);
     if matches!(scenario, EngineScenario::Unread) {
         assert!(
             matches!(&result, Err(Error::Invalid(message)) if message.starts_with("incomplete candidate:") && message.contains("input.unknown")),
