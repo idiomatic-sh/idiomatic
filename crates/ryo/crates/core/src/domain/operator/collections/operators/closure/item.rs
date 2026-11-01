@@ -1,7 +1,5 @@
 //! The `closure` operator: every pair of entities joined by a chain of edges.
 
-use ryo_language::domain::relations::types::Value;
-
 use super::super::interface::OperatorsItem;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::service::first;
@@ -42,6 +40,7 @@ impl OperatorsItem for ClosureItem {
             order,
             right,
             walk,
+            other,
             ..
         } = &mut *context.scratch;
         let right = table_in(edges, right, row);
@@ -61,7 +60,7 @@ impl OperatorsItem for ClosureItem {
             from: &starts,
             to: *destination,
         };
-        let mut previous: Option<Value> = None;
+        other.clear();
         for hit in &walked.order.rows {
             let Some(start) = row_in(right, *hit)
                 .and_then(|edge| column_in(edge, *source))
@@ -69,10 +68,12 @@ impl OperatorsItem for ClosureItem {
             else {
                 continue;
             };
-            if previous == Some(start) {
-                continue;
-            }
-            previous = Some(start);
+            other.push(start);
+        }
+        // The index preserves edge order, so one source can occur in several runs.
+        other.sort_unstable();
+        other.dedup();
+        for start in other.iter().copied() {
             reach_all(&walked, start, walk);
             for reached in &walk.reached {
                 push_row(out, &[start, *reached]);
