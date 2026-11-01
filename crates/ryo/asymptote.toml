@@ -9,11 +9,11 @@ inputs = [".", "../../rustfmt.toml", "../../rust-toolchain.toml"]
 [[tools]]
 id = "tastemaker"
 group = "lint"
-# ryo's gate is Tastemaker, built from this checkout's crates/tastemaker and the crates/ryo it links.
+# ryo's gate is Tastemaker, the release the root's tastemaker.toml pins.
 run = ["tm", "check", "--format", "sarif"]
 output = "sarif"
 timeout-seconds = 1800
-inputs = [".", "../tastemaker", "../../tastemaker"]
+inputs = [".", "../../tastemaker"]
 
 [[tools]]
 id = "cargo-machete"

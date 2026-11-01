@@ -44,12 +44,6 @@ def test_every_tool_is_declared_in_one_place() -> None:
     assert len(names) == len(set(names)), sorted(names)
 
 
-def test_a_path_is_read_relative_to_the_manifest_that_declares_it(tmp_path) -> None:
-    manifest(tmp_path / "crates/a/Cargo.toml", 'tool = { version = "0.1.0", path = "cli", bins = ["t"] }')
-    (crate,) = install.declared_crates(tmp_path, shared=[])
-    assert crate.path == (tmp_path / "crates/a/cli").resolve()
-
-
 def test_the_installed_crates_are_read_from_cargo(monkeypatch) -> None:
     listing = "cargo-deny v0.20.2:\n    cargo-deny\ntm v0.1.0 (/work/crates/tastemaker/cli):\n    tm\n"
     monkeypatch.setattr(install, "run", lambda *a, **k: subprocess.CompletedProcess(a, 0, listing, ""))
@@ -81,12 +75,10 @@ def test_asymptote_is_the_version_the_root_asymptote_toml_pins(tmp_path) -> None
     assert "idiomatic-sh-asymptote" not in {crate.name for crate in install.declared_crates()}
 
 
-def test_the_own_tools_are_prebuilt_once_published_and_built_from_their_paths_until_then() -> None:
+def test_the_own_tools_are_their_published_releases_pinned_apart_from_their_workspaces() -> None:
     crates = {crate.name: crate for crate in [*install.ROOT_CRATES, *install.declared_crates()]}
-    assert crates["idiomatic-sh-tastemaker"].path == (ROOT / "crates/tastemaker/cli").resolve()
-    assert crates["idiomatic-sh-asymptote"].path is None
-    assert crates["idiomatic-sh-ryo"].path is None
-    assert (crates["idiomatic-sh-ryo"].bins, crates["idiomatic-sh-ryo"].version) == (("ryo",), install.workspace_version("ryo"))
+    assert (crates["idiomatic-sh-tastemaker"].version, crates["idiomatic-sh-tastemaker"].bins) == (install.pinned("tastemaker"), ("tm",))
+    assert (crates["idiomatic-sh-ryo"].version, crates["idiomatic-sh-ryo"].bins) == ("0.1.1", ("ryo",))
     assert install.ARCHIVES["taplo"]["version"] == "0.10.0"
 
 

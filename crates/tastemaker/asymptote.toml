@@ -9,11 +9,11 @@ inputs = [".", "../../rustfmt.toml", "../../rust-toolchain.toml"]
 [[tools]]
 id = "tastemaker"
 group = "lint"
-# Tastemaker is checked by itself, built from this checkout: the package it reads, idiomatic.arch at Tastemaker, is written in its vocabulary.
+# Tastemaker is checked by its release the root's tastemaker.toml pins: the package it reads, idiomatic.arch at Tastemaker, is written in its vocabulary.
 run = ["tm", "check", "--format", "sarif"]
 output = "sarif"
 timeout-seconds = 1800
-inputs = [".", "../ryo", "../../tastemaker"]
+inputs = [".", "../../tastemaker"]
 
 [[tools]]
 id = "cargo-machete"
