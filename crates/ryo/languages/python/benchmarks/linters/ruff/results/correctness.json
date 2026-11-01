@@ -2,7 +2,7 @@
   "status": "54-rule corpus comparison passed; configured lint/check/perf gate failed",
   "candidate_acceptance_checkpoint": {
     "status": "unpromoted; current shared-verifier execution pending",
-    "prepared_profiles": 12,
+    "prepared_profiles": 13,
     "combined_profile": {
       "name": "shape-110",
       "selected_rules": 110,
@@ -90,6 +90,20 @@
       "matched_cases": 11,
       "known_gap": "relative unknown future feature has no normalized parser syntax-error row",
       "scope": "not included among the twelve prepared profiles or current validation selection"
+    },
+    "f632_reference_expectations": {
+      "case_count": 36,
+      "source_commits": [
+        "d8779e7fd3611408c1dbdb25dc3575be6d461afe",
+        "34ca6f27637e0c29cab0032e5e6d93bc18a24129"
+      ],
+      "candidate_sha256": "42d1c8a97a52322000b57c14941d84da1a97a80b3715e4102d0b77a555b3f302",
+      "cases_sha256": "5edfccff1ca65fa601218b60ef426fe43c8f6b95455171b53672370db7f2a16c",
+      "reference": "pinned Ruff 0.16.5, PY310, full-report identity comparison",
+      "artifact": "/tmp/ruff-f632-pinned-oracle.json",
+      "artifact_sha256": "d719f54740ea53b8d70c1863f6116d24dc01af3acc3abcca36f4ce6f892beee5",
+      "candidate_runtime": "not executed; requires the newly integrated literal-properties reader",
+      "scope_limit": "reference expectations only; no current-engine or candidate acceptance claim"
     }
   },
   "cases": 1124,

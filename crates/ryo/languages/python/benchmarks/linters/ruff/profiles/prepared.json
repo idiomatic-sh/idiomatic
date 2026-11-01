@@ -10,7 +10,9 @@
     "1fb0ac3b5418a5ce3a4bfe5481d7c81629078c8e",
     "47ea97a97b21551950c68df1409a8245a551b40d",
     "17abae8c741b7f6fe769dc86d6e24a438f55264d",
-    "25bf1a3ffa1a32da6790cb037acac455d17c1352"
+    "25bf1a3ffa1a32da6790cb037acac455d17c1352",
+    "d8779e7fd3611408c1dbdb25dc3575be6d461afe",
+    "34ca6f27637e0c29cab0032e5e6d93bc18a24129"
   ],
   "reference": "Ruff 0.16.5 isolated, no-cache, PY310 selection; complete full-report comparison for each prepared candidate profile",
   "reference_version": "0.16.5",
@@ -21,7 +23,7 @@
     "894431afcb8addcd8e3752e53634fdb0a6f9063153cd62ed730ce59d02878487",
     "29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e"
   ],
-  "scope": "Twelve independent single-rule candidate acceptance profiles plus one combined shape-110 profile; exact profile, query, cases, oracle evidence, helper and tool pins are hash-bound; no active inventory change or promotion.",
+  "scope": "Thirteen independent single-rule candidate acceptance profiles plus one combined shape-110 profile; exact profile, query, cases, oracle evidence where present, helper and tool pins are hash-bound; no active inventory change or promotion.",
   "profiles": {
     "F401": {
       "selected_rules": [
@@ -99,6 +101,50 @@
       ],
       "oracle_file": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/F602/oracle.json",
       "oracle_sha256": "655d3d5ceb4b0f8765dd17f3cb31a82aca9bf3186cc3cea450da4163992f6be8"
+    },
+    "F632": {
+      "selected_rules": [
+        "F632"
+      ],
+      "case_count": 36,
+      "case_names": [
+        "integer-left",
+        "integer-right",
+        "string-constant",
+        "boolean-singleton",
+        "none-singleton",
+        "ellipsis-singleton",
+        "tuple-constant",
+        "tuple-with-singleton",
+        "tuple-with-name",
+        "tuple-with-operation",
+        "empty-list",
+        "list-literal",
+        "set-literal",
+        "dict-literal",
+        "list-comprehension",
+        "set-comprehension",
+        "dict-comprehension",
+        "parenthesized-literal",
+        "identity-chain-positive-left",
+        "identity-chain-positive-right",
+        "chain-unrelated-literal",
+        "chain-right-identity",
+        "chain-left-identity",
+        "chain-multiple-identities",
+        "chain-nonidentity-between",
+        "multiline",
+        "inline-noqa",
+        "file-noqa",
+        "unicode-prefix",
+        "unicode-literal",
+        "is-not-extra-whitespace",
+        "is-not-line-continuation",
+        "is-not-parenthesized-newline",
+        "empty-tuple",
+        "tuple-nested-singletons",
+        "nested-compare"
+      ]
     },
     "F633": {
       "selected_rules": [
@@ -662,7 +708,10 @@
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/F633/candidate.ryoql": "ee8d6fe87b4b04a5b3103c918b77a375f67149c4d48e0a39250a8a9c211666ee",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/F633/cases.toml": "26f37e5df431b31693edd24f42f377159359f713390e529a095a02670d06f74c",
     "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/F633/benchmark.toml": "171af443b4d0b741df51b7551b4c2da8ffd286a3258876c166998f01526eab74",
-    "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/F633/oracle.json": "80f4b1eff5d131bc0329512ba7264fbcc95136d6e394095a900826ce5cffe597"
+    "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/F633/oracle.json": "80f4b1eff5d131bc0329512ba7264fbcc95136d6e394095a900826ce5cffe597",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/F632/candidate.ryoql": "42d1c8a97a52322000b57c14941d84da1a97a80b3715e4102d0b77a555b3f302",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/F632/cases.toml": "5edfccff1ca65fa601218b60ef426fe43c8f6b95455171b53672370db7f2a16c",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/F632/benchmark.toml": "5d7e9735f3d8526eba4c0b60fe4fba36116d0dc7a4dd41d4efef369fcfd3f1b8"
   },
   "combined_profiles": {
     "shape-110": {
