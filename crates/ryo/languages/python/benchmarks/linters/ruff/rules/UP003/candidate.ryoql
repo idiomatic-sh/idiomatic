@@ -25,7 +25,7 @@ let qualified_type_calls = select l.call as call, l.reference as reference, r.ar
 let primitive_arguments = select id, file from "literal-properties" where kind = "boolean" or kind = "string" or kind = "bytes" or kind = "integer" or kind = "float" or kind = "complex";
 let direct_typed_calls = select l.call as call, l.reference as reference, l.file as file from direct_type_calls as l join primitive_arguments as r on l.argument = r.id and l.file = r.file;
 let qualified_typed_calls = select l.call as call, l.reference as reference, l.file as file from qualified_type_calls as l join primitive_arguments as r on l.argument = r.id and l.file = r.file;
-let builtin_catalog = select name, file from "implicit-symbol" where kind = "builtin" and name = "type" and ("since-major" < 3 or "since-major" = 3 and "since-minor" <= 10);
+let builtin_catalog = select catalog.name as name, catalog.file as file from "implicit-symbol" as catalog where catalog.kind = "builtin" and catalog.name = "type" and (catalog."since-major" < 3 or catalog."since-major" = 3 and catalog."since-minor" <= 10);
 let cataloged_names = select l.reference as reference, l.file as file from function_names as l join builtin_catalog as r on l.name = r.name and l.file = r.file;
 let cataloged_calls = select l.call as call, l.reference as reference, l.file as file from direct_typed_calls as l join cataloged_names as r on l.reference = r.reference and l.file = r.file;
 let candidates = select l.call as call, l.reference as reference, l.file as file, r.span as span from cataloged_calls as l join calls as r on l.call = r.id and l.file = r.file;

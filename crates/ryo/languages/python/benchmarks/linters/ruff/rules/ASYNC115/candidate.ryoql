@@ -31,7 +31,7 @@ let single_arguments = select l.call as call, l.id as id, l.path as path, l.name
 let relevant_positional = select l.call as call, l.id as id from single_arguments as l where l.name = "";
 let relevant_keyword = select l.call as call, l.id as id from single_arguments as l where (l.path = "trio.sleep" and l.name = "seconds") or (l.path = "anyio.sleep" and l.name = "delay");
 let eligible_arguments = union(left=relevant_positional, right=relevant_keyword);
-let zero_integer_literals = select id, file from "literal-properties" where kind = "integer" and zero = true;
+let zero_integer_literals = select id, file from "literal-properties" where kind = "integer" and zero = "true";
 let zero_sleep_calls = select l.call as id from eligible_arguments as l join zero_integer_literals as r on l.id = r.id;
 let reportable = select l.id as id, r.file as file, r.span as span from zero_sleep_calls as l join calls as r on l.id = r.id;
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id and l.file = r.file;

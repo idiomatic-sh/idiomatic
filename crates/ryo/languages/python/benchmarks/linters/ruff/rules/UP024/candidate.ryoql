@@ -29,7 +29,7 @@ let alias_reportable_ab = union(left=alias_reportable_a,right=alias_reportable_b
 let alias_reportable = union(left=alias_reportable_ab,right=alias_reportable_c);
 let reportable = union(left=alias_reportable,right=tuple_reportable);
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id and l.file = r.file;
-let located = select id, file, span from candidate_locations;
+let located = select id, file, span, line from candidate_locations;
 let comments = select * from "comment" where matches(text, "(?i:noqa)");
 let internal_markers = capture(from=comments, path="text", pattern="{*before}#{*tail}", captures=["before", "tail"]);
 let leading_markers = capture(from=comments, path="text", pattern="#{*tail}", captures=["tail"]);
