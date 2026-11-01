@@ -422,6 +422,7 @@ pub(crate) fn rule_of(each: &Recording) -> Rule {
         query: ryo_values::domain::program::types::QueryBundle::from(CoreQueryText(
             each.query.as_str().into(),
         )),
+        applicability: ryo_values::domain::runs::types::RuleApplicability::Always,
         parameters: each.parameters.clone(),
         include: each
             .include

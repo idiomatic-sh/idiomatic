@@ -39,6 +39,7 @@ fn a_member_of_a_workspace_the_scope_does_not_list_is_found() {
     let rule = Rule {
         id: RuleId("members".into()),
         query: ryo_values::domain::program::types::QueryBundle::from(QueryText("let members = select * from \"workspace-member\"; emit members subject package key(package);".into())),
+        applicability: ryo_values::domain::runs::types::RuleApplicability::Always,
         parameters: Vec::new(),
         include: vec![Glob("**".into())],
         exclude: vec![Glob("outside/**".into())],
@@ -125,6 +126,7 @@ fn a_manifest_that_does_not_parse_is_a_finding_and_the_others_are_read_cold_and_
     let rule = Rule {
         id: RuleId("members".into()),
         query: ryo_values::domain::program::types::QueryBundle::from(QueryText("let members = select * from \"workspace-member\"; emit members subject package key(package);".into())),
+        applicability: ryo_values::domain::runs::types::RuleApplicability::Always,
         parameters: Vec::new(),
         include: vec![Glob("**".into())],
         exclude: Vec::new(),

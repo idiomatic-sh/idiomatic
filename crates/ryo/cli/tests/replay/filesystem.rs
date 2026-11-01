@@ -28,6 +28,7 @@ fn every_inventoried_file_is_a_row_whatever_it_holds() {
             "let files = select * from \"filesystem.file\"; emit files subject path key(path);"
                 .into(),
         )),
+        applicability: ryo_values::domain::runs::types::RuleApplicability::Always,
         parameters: Vec::new(),
         include: vec![Glob("**".into())],
         exclude: Vec::new(),

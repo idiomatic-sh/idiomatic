@@ -54,6 +54,7 @@ pub(crate) fn sdk_request(
             RuleId::try_from("consumer").expect("rule id"),
             Rule {
                 query: RyoQlQuery::try_from(query).expect("query"),
+                applicability: ryo_sdk::linter::RuleApplicability::Always,
                 parameters: std::collections::BTreeMap::new(),
                 include: Vec::new(),
                 exclude: Vec::new(),

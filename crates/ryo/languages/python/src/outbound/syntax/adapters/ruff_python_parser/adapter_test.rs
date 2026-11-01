@@ -96,18 +96,24 @@ fn semantic_syntax_checks_only_run_after_an_accepted_parse() {
 
     let (accepted, semantic_errors) = diagnostics_for("nonlocal x\n");
     assert_eq!(accepted, languages::SyntaxAcceptance::Accepted);
-    assert!(semantic_errors.iter().any(|(phase, code)| {
-        phase == "validation" && code == "nonlocal-at-module"
-    }));
+    assert!(
+        semantic_errors
+            .iter()
+            .any(|(phase, code)| { phase == "validation" && code == "nonlocal-at-module" })
+    );
 
     let (rejected, parse_errors) = diagnostics_for("nonlocal x\nx =\n");
     assert_eq!(rejected, languages::SyntaxAcceptance::Rejected);
-    assert!(parse_errors.iter().any(|(phase, code)| {
-        phase == "parse" && code == "parser-error"
-    }));
-    assert!(!parse_errors.iter().any(|(phase, code)| {
-        phase == "validation" && code == "nonlocal-at-module"
-    }));
+    assert!(
+        parse_errors
+            .iter()
+            .any(|(phase, code)| { phase == "parse" && code == "parser-error" })
+    );
+    assert!(
+        !parse_errors
+            .iter()
+            .any(|(phase, code)| { phase == "validation" && code == "nonlocal-at-module" })
+    );
 }
 
 #[test]

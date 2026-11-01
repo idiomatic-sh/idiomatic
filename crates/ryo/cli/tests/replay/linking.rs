@@ -125,6 +125,7 @@ fn a_file_whose_words_cannot_move_is_read_again_and_keeps_its_findings() {
             RuleId::try_from("identity").expect("id"),
             SdkRule {
                 query: RyoQlQuery::try_from(IDENTITY).expect("q"),
+                applicability: ryo_sdk::linter::RuleApplicability::Always,
                 parameters: std::collections::BTreeMap::new(),
                 include: vec![ryo_sdk::linter::Glob::try_from("package.json").expect("g")],
                 exclude: Vec::new(),
@@ -134,6 +135,7 @@ fn a_file_whose_words_cannot_move_is_read_again_and_keeps_its_findings() {
             RuleId::try_from("pinned").expect("id"),
             SdkRule {
                 query: RyoQlQuery::try_from(PINNED).expect("q"),
+                applicability: ryo_sdk::linter::RuleApplicability::Always,
                 parameters: std::collections::BTreeMap::new(),
                 include: vec![ryo_sdk::linter::Glob::try_from("package.json").expect("g")],
                 exclude: Vec::new(),
