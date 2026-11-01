@@ -109,13 +109,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("optional capability identities round trip without weakening baseline"),
         word: Word::Succeeds,
         input: || optional_promises_are_closed,
-        expect: Expect::Value(14),
+        expect: Expect::Value(16),
     },
     Case {
         name: CaseName("every_relation_is_found_by_its_name"),
         word: Word::Succeeds,
         input: || every_relation_is_named_and_found_by_its_name,
-        expect: Expect::Value(49),
+        expect: Expect::Value(51),
     },
     Case {
         name: CaseName("a_name_no_relation_has_finds_nothing"),
