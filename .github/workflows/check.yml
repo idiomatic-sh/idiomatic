@@ -302,11 +302,11 @@ jobs:
           cat target/benchmarks/speed/check.json
           cat target/benchmarks/speed/check.stderr.log >&2
           exit "$speed_status"
-      - name: Failed tool diagnostics
-        if: failure() && steps.speed_check.outcome == 'failure'
+      - name: Speed comparison and Rust memory evidence
+        if: always() && steps.speed_check.outcome != 'skipped'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: failed-tools-speed-${{ runner.os }}-${{ github.run_attempt }}
+          name: speed-evidence-${{ runner.os }}-${{ github.run_attempt }}
           path: |
             target/benchmarks/speed/**
             .asymptote/cache/check.failures.json

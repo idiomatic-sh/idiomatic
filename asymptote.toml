@@ -104,7 +104,7 @@ id = "ryo-rust-peak"
 group = "speed"
 # The existing Ryo warm-memory regression guard belongs with the same change-speed job; running this focused test group avoids
 # discovering unrelated custom Python test harnesses; Python allocation and linter guards remain separate.
-run = ["cargo", "nextest", "run", "--manifest-path", "crates/ryo/Cargo.toml", "--package", "idiomatic-sh-ryo", "--locked", "-E", "test(/^peak::/)"]
+run = ["bash", "-c", "mkdir -p target/benchmarks/speed; set +e; cargo nextest run --manifest-path crates/ryo/Cargo.toml --package idiomatic-sh-ryo --locked -E 'test(/^peak::/)' > target/benchmarks/speed/ryo-rust-peak.stdout.log 2> target/benchmarks/speed/ryo-rust-peak.stderr.log; peak_status=$?; cat target/benchmarks/speed/ryo-rust-peak.stdout.log; cat target/benchmarks/speed/ryo-rust-peak.stderr.log >&2; printf '%s\\n' \"$peak_status\" > target/benchmarks/speed/ryo-rust-peak.status; exit \"$peak_status\""]
 timeout-seconds = 3600
 inputs = ["crates/ryo", "tastemaker", "rust-toolchain.toml", ".cargo"]
 
