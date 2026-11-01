@@ -27,6 +27,7 @@ enum AdapterScenario {
     UnexpectedRule,
     ReversedSpan,
     CanonicalRoot,
+    FrontendFinding,
 }
 type Input = AdapterScenario;
 type Value = bool;
@@ -55,6 +56,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("lint_json_with_warning_is_valid"),
         word: Word::Succeeds,
         input: || AdapterScenario::WarningFinding,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("one selected rule keeps the Python 3.10 frontend diagnostic"),
+        word: Word::Succeeds,
+        input: || AdapterScenario::FrontendFinding,
         expect: Expect::Value(true),
     },
     Case {
@@ -197,6 +204,7 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
         | AdapterScenario::Invocation
         | AdapterScenario::MissingExecutable
         | AdapterScenario::WarningFinding
+        | AdapterScenario::FrontendFinding
         | AdapterScenario::UnrequestedFile
         | AdapterScenario::DuplicateInput
         | AdapterScenario::UnexpectedRule
@@ -217,6 +225,21 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
     )?;
     let expected = if matches!(scenario, AdapterScenario::CleanWarning) {
         vec![]
+    } else if matches!(scenario, AdapterScenario::FrontendFinding) {
+        vec![
+            BenchmarkFinding {
+                rule: RuleId::try_from("E722").expect("fixture rule"),
+                file: ryo::linter::RelativePath("case.py".into()),
+                start: ryo_benchmark::domain::diagnostics::types::SourceByteOffset(14),
+                end: ryo_benchmark::domain::diagnostics::types::SourceByteOffset(20),
+            },
+            BenchmarkFinding {
+                rule: RuleId::try_from("invalid-syntax").expect("frontend rule"),
+                file: ryo::linter::RelativePath("case.py".into()),
+                start: ryo_benchmark::domain::diagnostics::types::SourceByteOffset(20),
+                end: ryo_benchmark::domain::diagnostics::types::SourceByteOffset(21),
+            },
+        ]
     } else {
         vec![BenchmarkFinding {
             rule: RuleId::try_from("E722").expect("fixture rule"),
@@ -262,6 +285,8 @@ fn invocation_matches(
         request.state.join("ruff").into_os_string(),
         "--select".into(),
         "E722".into(),
+        "--target-version".into(),
+        "py310".into(),
         "--".into(),
         "case.py".into(),
     ])
@@ -292,7 +317,21 @@ fn finding_bytes(scenario: Input, filename: &std::path::Path) -> Result<Vec<u8>,
     } else {
         1_usize
     };
-    serde_json::to_vec(
-        &serde_json::json!([{"code":code,"filename":filename,"cell":null,"location":{"row":3_usize,"column":start},"end_location":{"row":3_usize,"column":end}}]),
-    ).map_err(|error| Error::Json(Box::new(error)))
+    let mut findings = vec![serde_json::json!({
+        "code": code,
+        "filename": filename,
+        "cell": null,
+        "location": {"row": 3_usize, "column": start},
+        "end_location": {"row": 3_usize, "column": end}
+    })];
+    if matches!(scenario, AdapterScenario::FrontendFinding) {
+        findings.push(serde_json::json!({
+            "code": "invalid-syntax",
+            "filename": filename,
+            "cell": null,
+            "location": {"row": 3_usize, "column": 7_usize},
+            "end_location": {"row": 3_usize, "column": 8_usize}
+        }));
+    }
+    serde_json::to_vec(&findings).map_err(|error| Error::Json(Box::new(error)))
 }

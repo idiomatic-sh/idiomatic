@@ -101,7 +101,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("the_catalog_lists_every_operation_way_of_comparing_direction_and_relation"),
         word: Word::Succeeds,
         input: || Scenario::Catalog,
-        expect: Expect::Value(20 + 14 + 8 + 44),
+        expect: Expect::Value(20 + 14 + 8 + 47),
     },
     Case {
         name: CaseName("a_select_is_fed_the_rows_of_its_input"),

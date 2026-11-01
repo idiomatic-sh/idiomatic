@@ -199,6 +199,8 @@ def combined_modules(
 
 def verify_files(manifest: dict[str, object], helper_path: str) -> None:
     files = manifest["files"]
+    if manifest.get("target_version") != "py310":
+        raise ValueError("prepared Ruff target version must be py310")
     if set(files) != manifest_paths(manifest, helper_path):
         raise ValueError("prepared input paths do not match the candidate acceptance cohorts")
     defaults = set(tomllib.loads((RUFF_DIR / "benchmark.toml").read_text(encoding="utf-8"))["defaults"])
@@ -413,6 +415,7 @@ def run_identity(
         "manifest_path": MANIFEST.relative_to(REPOSITORY).as_posix(),
         "manifest_sha256": sha256(MANIFEST),
         "manifest_status": manifest.get("status"),
+        "target_version": manifest.get("target_version"),
         "manifest_source_commits": manifest.get("source_commits"),
         "sealed_source_hashes": manifest["files"],
         "worker": {
@@ -473,7 +476,7 @@ def stage_binding(
         destination = stage_directory(rule, stack, output_directory)
         rule_dir = destination / "rules" / rule
         rule_dir.mkdir(parents=True)
-        registry = profile_modules(profile_data)
+        registry = combined_modules(profile_data, [rule], manifest)
         copy_modules(registry, destination)
         write_staged_profile(profile, destination / "benchmark.toml", registry)
         shutil.copyfile(candidate_path, rule_dir / "query.ryoql")
@@ -669,6 +672,23 @@ def self_test() -> int:
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
     with tempfile.TemporaryDirectory(prefix="ryo-ruff-profile-guards-") as temporary:
         root = Path(temporary)
+        single_profile = PROFILE_DIR / "UP006" / "benchmark.toml"
+        single_data = tomllib.loads(single_profile.read_text(encoding="utf-8"))
+        registry = combined_modules(single_data, ["UP006"], manifest)
+        module_id = "python/ruff/suppress"
+        module_source = "fragments/suppress.ryoql"
+        staged_profile = root / "single" / "benchmark.toml"
+        staged_profile.parent.mkdir(parents=True)
+        write_staged_profile(single_profile, staged_profile, registry)
+        copy_modules(registry, staged_profile.parent)
+        if (
+            registry.get(module_id) != module_source
+            or tomllib.loads(staged_profile.read_text(encoding="utf-8")).get("query-modules")
+            != {module_id: module_source}
+            or not (staged_profile.parent / module_source).is_file()
+        ):
+            print("single-rule profile did not inherit the shared query module", file=sys.stderr)
+            return 1
         durable = root / "durable-run"
         durable.mkdir()
         repro = durable / "profiles" / "mock" / "repro"
@@ -1177,6 +1197,7 @@ def main() -> int:
                 {
                     "manifest_path": MANIFEST.relative_to(REPOSITORY).as_posix(),
                     "manifest_sha256": sha256(MANIFEST),
+                    "target_version": manifest.get("target_version"),
                     "ruff_argument": str(arguments.ruff),
                     "reference_version": manifest.get("reference_version"),
                     "reference_sha256": manifest.get("reference_sha256"),

@@ -37,6 +37,8 @@ impl LinterPort for LinterRuffAdapter {
                 .collect::<Vec<_>>()
                 .join(constants::RULE_SEPARATOR)
                 .into(),
+            constants::TARGET_VERSION.into(),
+            constants::PYTHON_310.into(),
             constants::END_OPTIONS.into(),
         ];
         for file in &request.files {
