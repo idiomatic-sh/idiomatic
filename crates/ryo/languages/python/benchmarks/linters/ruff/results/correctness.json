@@ -2,7 +2,7 @@
   "status": "54-rule corpus comparison passed; configured lint/check/perf gate failed",
   "candidate_acceptance_checkpoint": {
     "status": "unpromoted; current shared-verifier execution pending",
-    "prepared_profiles": 15,
+    "prepared_profiles": 18,
     "combined_profile": {
       "name": "shape-110",
       "selected_rules": 110,
@@ -24,7 +24,34 @@
       "worker_sha256": "270f5ee96ba67f94c85d27de7cad9a50a27a01a4d0a39173144cf66aa661e3c7",
       "artifact": "/tmp/ruff-candidate-smoke-6e36628e.json",
       "artifact_sha256": "48f33c6a88619c79de3ade24b478ed3fb201d920b1a5908748bf84ac53eea665",
-      "scope_limit": "older frozen worker only; not current-engine, combined-profile, corpus-parity, or promotion evidence"
+      "scope_limit": "older frozen worker only; not current-engine, combined-profile, corpus-parity, or promotion evidence",
+      "B009_B010": {
+        "rules": {
+          "B009": 26,
+          "B010": 26
+        },
+        "matched_cases": 52,
+        "comparison": "complete findings, byte spans and multiplicity",
+        "source_commit": "118a5df4d2a02941a6dca2b0e07a9d5da4503a7b",
+        "worker_source": "9003086b",
+        "worker_sha256": "270f5ee96ba67f94c85d27de7cad9a50a27a01a4d0a39173144cf66aa661e3c7",
+        "artifact": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/B009-B010/oracle.json",
+        "artifact_sha256": "4da10291c47966b0670fe526e391a7b90d40d89e87bdc0dc8b3896755be2ff30",
+        "scope_limit": "older frozen worker only; not current-engine, combined-profile, corpus-parity, or promotion evidence"
+      },
+      "PTH124": {
+        "rules": {
+          "PTH124": 18
+        },
+        "matched_cases": 18,
+        "comparison": "complete findings, byte spans and multiplicity",
+        "source_commit": "f34ed8288378d2f8f6ba968263e8c6680143b307",
+        "worker_source": "9003086b",
+        "worker_sha256": "270f5ee96ba67f94c85d27de7cad9a50a27a01a4d0a39173144cf66aa661e3c7",
+        "artifact": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PTH124/oracle.json",
+        "artifact_sha256": "624d8d63959e4c0b2f7b85578b0514ccfa34fa946055048df88c498fc62f34db",
+        "scope_limit": "older frozen worker only; not current-engine, combined-profile, corpus-parity, or promotion evidence"
+      }
     },
     "pending_frontend_configuration": "Typed PY310 parser settings and target-version cache identity are integrated at 8862e35034; remote validation is pending before full frontend parity claims",
     "sim220_sim221_isolated_fixture_evidence": {
