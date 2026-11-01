@@ -6,6 +6,7 @@ use ryo_benchmark::domain::{
     suite::types::WorkerRequest,
 };
 use ryo_benchmark::outbound::engine::{factory, interface::EnginePort as _};
+use ryo_benchmark::outbound::suite::interface::SuitePort as _;
 
 #[derive(Clone, Copy)]
 enum EngineScenario {
@@ -137,7 +138,8 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
         | EngineScenario::FutureFeatureProjection
         | EngineScenario::UnknownFutureWithoutConsumer
         | EngineScenario::FrontendRuleCollision
-        | EngineScenario::ProjectionCacheQueryChange => "input.py",
+        | EngineScenario::ProjectionCacheQueryChange
+        | EngineScenario::QueryModuleInlineEquivalence => "input.py",
         EngineScenario::Missing => "missing.py",
         EngineScenario::Unread => "input.unknown",
     };
@@ -179,7 +181,7 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
                 ryo_python::settings::PythonParserSettings::new(ryo_python::settings::PythonTargetVersion::Py310),
             )]),
             None,
-            ryo_benchmark::outbound::engine::factory::FrontendDiagnosticProjection {
+            factory::FrontendDiagnosticProjection {
                 rule: rule.clone(),
                 query: ryo::query::RyoQlQuery::try_from("let diagnostics = select id, file, span from \"syntax-error\" where code = \"nonlocal-at-module\";\nemit diagnostics subject file key(id);\n")
                     .map_err(|error| Error::Invalid(error.to_string()))?,
@@ -196,7 +198,7 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
                 ryo_python::settings::PythonParserSettings::new(ryo_python::settings::PythonTargetVersion::Py310),
             )]),
             None,
-            ryo_benchmark::outbound::engine::factory::FrontendDiagnosticProjection {
+            factory::FrontendDiagnosticProjection {
                 rule,
                 query: ryo::query::RyoQlQuery::try_from("let diagnostics = select id, file, span from \"syntax-error\" where code = \"no-such-parser-code\";\nemit diagnostics subject file key(id);\n")
                     .map_err(|error| Error::Invalid(error.to_string()))?,
@@ -224,14 +226,14 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
         .run(request)
     } else {
         let projection = if matches!(scenario, EngineScenario::CustomFrontendProjection) {
-            ryo_benchmark::outbound::engine::factory::FrontendDiagnosticProjection {
+            factory::FrontendDiagnosticProjection {
                 rule: ryo::linter::RuleId::try_from("parser-check")
                     .expect("custom diagnostic identity"),
                 query: ryo::query::RyoQlQuery::try_from("let diagnostics = select id, file, span from \"syntax-error\" where message = \"nonlocal declaration not allowed at module level\";\nemit diagnostics subject file key(id);\n")
                     .map_err(|error| Error::Invalid(error.to_string()))?,
             }
         } else {
-            ryo_benchmark::outbound::engine::factory::FrontendDiagnosticProjection {
+            factory::FrontendDiagnosticProjection {
                 rule: ryo::linter::RuleId::try_from("invalid-syntax").expect("frontend identity"),
                 query: ryo::query::RyoQlQuery::try_from(
                     crate::constants::FRONTEND_DIAGNOSTIC_QUERY,
@@ -335,7 +337,7 @@ fn query_module_inline_equivalence(root: &std::path::Path) -> Result<bool, Error
         ),
     )?;
     let mut modules = std::collections::BTreeMap::new();
-    modules.insert(
+    let _previous = modules.insert(
         "test/identity".to_owned(),
         std::path::PathBuf::from("fragments/identity.ryoql"),
     );
@@ -362,13 +364,13 @@ fn shared_suppression_fragment_matches_the_historical_inline_queries() {
     for (rule, baseline, imported, cases) in [
         (
             "E722",
-            include_str!("../../../tests/fixtures/ryoql-fragments/e722-inline.ryoql"),
+            include_str!("../../../tests/fixtures/ryoql-fragments/E722/query.ryoql"),
             include_str!("rules/E722/query.ryoql"),
             include_str!("rules/E722/cases.toml"),
         ),
         (
             "F632",
-            include_str!("../../../tests/fixtures/ryoql-fragments/f632-inline.ryoql"),
+            include_str!("../../../tests/fixtures/ryoql-fragments/F632/query.ryoql"),
             include_str!("rules/F632/candidate.ryoql"),
             include_str!("rules/F632/cases.toml"),
         ),
@@ -518,12 +520,17 @@ fn assert_single_rule_fragment_equivalence(
     )]);
     let inline_engine = factory::local(languages.clone(), None);
     let imported_engine = factory::local(languages, None);
+    let module = imported_rules
+        .parent()
+        .expect("profile parent")
+        .parent()
+        .expect("profile root")
+        .join("fragments/suppress.ryoql");
+    std::fs::create_dir_all(module.parent().expect("module parent")).expect("module directory");
+    std::fs::write(&module, include_str!("fragments/suppress.ryoql")).expect("module source");
     for case in inline_cases {
         let key = (case.name.0.to_string(), case.rule.to_string());
         let imported_case = imported_by_name.get(&key).expect("matching imported case");
-        let module = imported_case.request.root.join("fragments/suppress.ryoql");
-        std::fs::create_dir_all(module.parent().expect("module parent")).expect("module directory");
-        std::fs::write(module, include_str!("fragments/suppress.ryoql")).expect("module source");
         let inline = inline_engine
             .run(WorkerRequest {
                 root: case.request.root,
