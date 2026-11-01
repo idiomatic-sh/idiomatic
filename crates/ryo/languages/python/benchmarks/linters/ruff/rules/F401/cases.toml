@@ -87,3 +87,15 @@ name = "normalized-distinct-unused-alias"
 comparison = "full"
 files = { "case.py" = "import os as ｘ\n" }
 expected = [{ rule = "F401", file = "case.py", start = 13, end = 16 }]
+
+[[cases]]
+name = "file-ruff-noqa-unused-import"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa: F401\nimport os\n" }
+expected = []
+
+[[cases]]
+name = "parent-line-noqa-multiline-import"
+comparison = "full"
+files = { "case.py" = "from os import (  # noqa: F401\n    path,\n)\n" }
+expected = []
