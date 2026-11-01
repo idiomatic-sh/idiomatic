@@ -34,7 +34,7 @@ let nearest_right = antijoin(left=possible_right, right=nonnearest_right, left-o
 let bad_left = select l.comparison as comparison, l.operator as operator from nearest_left as l join bad_operands as r on l.operand = r.id and l.file = r.file;
 let bad_right = select l.comparison as comparison, l.operator as operator from nearest_right as l join bad_operands as r on l.operand = r.id and l.file = r.file;
 let bad_identity_ops = union(left=bad_left, right=bad_right);
-let reportable = select l.id as id, l.file as file, l.span as span from comparisons as l join bad_identity_ops as r on l.id = r.comparison;
-let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id and l.file = r.file;
+let reportable = select r.operator as id, l.id as comparison, l.file as file, l.span as span from comparisons as l join bad_identity_ops as r on l.id = r.comparison;
+let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.comparison = r.id and l.file = r.file;
 let violations = suppress(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*F632(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:F632)(?:,|$)");
 emit violations subject file key(id);

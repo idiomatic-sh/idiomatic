@@ -14,7 +14,7 @@ let keyword_nodes = select id from "semantic-syntax" where kind = "keyword";
 let keyword_edges = select l.call as call, r.child as keyword from call_arguments as l join keyword_fields as r on l.wrapper = r.parent;
 let call_keywords = select l.call as call, l.keyword as keyword from keyword_edges as l join keyword_nodes as r on l.keyword = r.id;
 let arg_fields = select parent as keyword, child from "semantic-child" where field = "arg";
-let arg_tokens = select l.parent as keyword, r.child as token from arg_fields as l join "semantic-child" as r on l.child = r.parent;
+let arg_tokens = select l.keyword as keyword, r.child as token from arg_fields as l join "semantic-child" as r on l.child = r.parent;
 let semantic_tokens = select id from "semantic-syntax" where kind = "name-token";
 let identifier_children = select r.child as id, l.name as name from "identifier" as l join "semantic-child" as r on l.id = r.parent;
 let identifiers = select l.id as id, l.name as name from identifier_children as l join semantic_tokens as r on l.id = r.id;

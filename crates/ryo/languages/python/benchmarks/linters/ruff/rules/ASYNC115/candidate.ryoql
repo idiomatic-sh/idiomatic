@@ -19,7 +19,7 @@ let semantic_token_nodes = select id from "semantic-syntax" where kind = "name-t
 let semantic_identifier_children = select r.child as id, l.name as name from "identifier" as l join "semantic-child" as r on l.id = r.parent;
 let identifiers = select l.id as id, l.name as name from semantic_identifier_children as l join semantic_token_nodes as r on l.id = r.id;
 let keyword_argument_name_ids = select l.call as call, l.id as id, r.id as name_id from keyword_value_arguments as l join keyword_name_ids as r on l.keyword = r.keyword;
-let keyword_argument_names = select l.call as call, l.id as id, r.name as name from keyword_argument_name_ids as l join identifiers as r on l.name_id = r.id;
+let keyword_argument_names = select l.call as call, l.id as id, r.name as name from keyword_argument_name_ids as l join "identifier" as r on l.name_id = r.id;
 let keyword_named_sleep_arguments = select l.call as call, l.id as id, s.path as path, l.name as name from keyword_argument_names as l join sleep_calls as s on l.call = s.call;
 let candidate_arguments = union(left=positional_arguments, right=keyword_named_sleep_arguments);
 let all_positional_argument_ids = select call, id from positional_argument_rows;

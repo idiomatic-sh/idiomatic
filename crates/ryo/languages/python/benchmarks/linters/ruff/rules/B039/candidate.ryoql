@@ -4,7 +4,7 @@ let call_functions = select l.parent as call, l.child as function from function_
 let contextvar_qualified = select id from "qualified-name" where path = "contextvars.ContextVar";
 let contextvar_subscripts = select id, file from "semantic-syntax" where kind = "subscript";
 let subscript_value_fields = select parent, child from "semantic-child" where field = "value";
-let subscript_values = select l.parent as subscript, r.child as value from subscript_value_fields as l join contextvar_subscripts as r on l.parent = r.id;
+let subscript_values = select l.parent as subscript, l.child as value from subscript_value_fields as l join contextvar_subscripts as r on l.parent = r.id;
 let contextvar_subscript_calls = select l.subscript as id from subscript_values as l join contextvar_qualified as r on l.value = r.id;
 let contextvar_functions = union(left=contextvar_qualified, right=contextvar_subscript_calls);
 let contextvar_calls = select l.call as call from call_functions as l join contextvar_functions as r on l.function = r.id;

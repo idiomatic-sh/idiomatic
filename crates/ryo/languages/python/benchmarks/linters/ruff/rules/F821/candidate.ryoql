@@ -1,4 +1,4 @@
-let read_rows = select reference, name, scope, phase, context, state, since_major, since_minor, file, span from "binding-read";
+let read_rows = select reference, name, scope, phase, context, state, "since-major" as since_major, "since-minor" as since_minor, file, span from "binding-read";
 let ordinary_missing = select reference as id, name, scope, phase, file, span from read_rows where state = "unbound" and context != "deletion";
 let read_events = select occurrence as id, ordinal, scope, phase, name, file from "binding-event" where kind = "read";
 let local_declarations = select name, scope, phase, ordinal, file from "binding-event" where kind = "bind" or kind = "annotation";

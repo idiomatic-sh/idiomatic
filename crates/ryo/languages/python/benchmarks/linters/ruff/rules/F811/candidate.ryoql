@@ -16,7 +16,8 @@ let try_orelse = select l.binding as binding, l.owner as owner from branch_membe
 let try_main = union(left=try_body,right=try_orelse);
 let ordinary_branch_fields = select l.binding as binding, l.owner as owner, l.field as arm, l.owner as arm_id from branch_members as l join nodes as r on l.owner = r.id where r.kind != "try" and r.kind != "try-star" or (r.kind = "try" or r.kind = "try-star") and l.field = "finalbody";
 let clause_branch_fields = select l.binding as binding, l.owner as owner, l.field as arm, l.arm_node as arm_id from branch_members as l join nodes as r on l.owner = r.id where r.kind = "try" and l.field = "handlers" or r.kind = "try-star" and l.field = "handlers";
-let try_main_arms = select binding, owner, "try-main" as arm, owner as arm_id from try_main;
+let try_main_owners = select binding, owner, owner as arm_id from try_main;
+let try_main_arms = extend(from=try_main_owners, values={arm: "try-main"});
 let branch_paths_ordinary = union(left=ordinary_branch_fields,right=clause_branch_fields);
 let branch_paths = union(left=branch_paths_ordinary,right=try_main_arms);
 let eligible_previous = select * from unused where declaration_kind = "variable" or declaration_kind = "function" or declaration_kind = "class" or declaration_kind = "import";

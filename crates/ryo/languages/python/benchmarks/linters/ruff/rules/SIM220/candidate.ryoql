@@ -48,7 +48,7 @@ let current_class_owner_scopes = select l.owner as owner, l.file as file, l.scop
 let visible_class_owner_scopes = select l.owner as owner, l.file as file, l.scope as scope from class_owner_scopes as l join current_class_owner_scopes as r on l.owner = r.owner and l.scope = r.scope and l.file = r.file;
 let visible_owner_scopes = union(left=nonclass_owner_scopes,right=visible_class_owner_scopes);
 let initializer_catalog = select catalog.name as name, catalog.file as file from "implicit-symbol" as catalog where catalog.kind = "builtin" and (catalog."since-major" < 3 or catalog."since-major" = 3 and catalog."since-minor" <= 10) and (catalog.name = "list" or catalog.name = "tuple" or catalog.name = "set" or catalog.name = "dict" or catalog.name = "frozenset");
-let call_candidates = select l.call as call, l.name as name, l.file as file from empty_call_names as l join initializer_catalog as r on l.name = r.name and l.file = r.file;
+let call_candidates = select l.call as id, l.call as call, l.name as name, l.file as file from empty_call_names as l join initializer_catalog as r on l.name = r.name and l.file = r.file;
 let owner_call_roots = axis(from=owners,relation="semantic-child",direction=descendant,domain=call_candidates);
 let owner_call_candidates = select l.id as owner, r.call as call, r.name as name, r.file as file from owner_call_roots as l join call_candidates as r on l.related = r.call;
 let candidate_check_reads = select l.owner as owner, l.name as name, l.id as reference, l.file as file from positive_values as l;

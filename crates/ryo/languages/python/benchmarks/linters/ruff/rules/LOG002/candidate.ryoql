@@ -11,7 +11,7 @@ let positional = select l.call as call, r.child as argument, r.ordinal as ordina
 let first_positional = select call, argument from positional where ordinal = 0;
 let keyword_fields = select parent, child from "semantic-child" where field = "keywords";
 let keyword_nodes = select id from "semantic-syntax" where kind = "keyword";
-let call_keywords = select l.call as call, r.id as keyword from call_wrappers as l join keyword_fields as r on l.wrapper = r.parent;
+let call_keywords = select l.call as call, r.child as keyword from call_wrappers as l join keyword_fields as r on l.wrapper = r.parent;
 let actual_keywords = select l.call as call, l.keyword as keyword from call_keywords as l join keyword_nodes as r on l.keyword = r.id;
 let keyword_names = select parent as keyword, child from "semantic-child" where field = "arg";
 let name_identifiers = select l.keyword as keyword, r.name as name from keyword_names as l join "identifier" as r on l.child = r.id;
