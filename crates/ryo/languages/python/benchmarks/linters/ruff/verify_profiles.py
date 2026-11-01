@@ -776,7 +776,9 @@ def verify_profile_sharded(
         "selection": identities,
         "worker_sha256": sha256(worker),
         "ruff_sha256": sha256(ruff),
-        "rule_phase_registry_sha256": sha256(RULE_PHASES_FILE),
+        "rule_phase_registry_sha256": identities.get(
+            "rule_phase_registry_sha256", sha256(RULE_PHASES_FILE)
+        ),
         "selected_rule_applicability_sha256": source_hash(
             identities.get("selected_rule_applicability", {})
         ),
@@ -1045,10 +1047,14 @@ def parse_worker_artifact(stdout: bytes) -> Path:
         except (json.JSONDecodeError, UnicodeDecodeError):
             continue
         target = message.get("target", {})
+        source_path = target.get("src_path", "")
+        normalized_source = source_path.replace("\\", "/") if isinstance(source_path, str) else ""
         if (
             message.get("reason") == "compiler-artifact"
             and target.get("name") == "ruff"
             and "bench" in target.get("kind", [])
+            and target.get("test") is False
+            and normalized_source.endswith("/languages/python/benchmarks/linters/ruff/bench.rs")
             and isinstance(message.get("executable"), str)
         ):
             matches.append(Path(message["executable"]))
@@ -1184,25 +1190,73 @@ def build_worker_once(
 
 
 def reuse_frozen_worker(output_directory: Path) -> tuple[Path, dict[str, object]]:
-    """Resume only with the same persisted executable and unchanged worker sources."""
+    """Resume with the executable whose stable build provenance was saved."""
     record_path = output_directory / "build" / "result.json"
     record = json.loads(record_path.read_text(encoding="utf-8"))
     frozen = record.get("frozen_executable")
-    current_source = worker_source_identity()
     if (
         record.get("status") != 0
         or record.get("source_stable_during_build") is not True
         or record.get("source_before_build") != record.get("source_after_build")
-        or record.get("source_after_build") != current_source
         or not isinstance(frozen, dict)
         or not isinstance(frozen.get("path"), str)
         or not isinstance(frozen.get("sha256"), str)
     ):
-        raise ValueError("cannot resume: frozen worker build identity differs from current sources")
+        raise ValueError("cannot resume: frozen worker build provenance is invalid")
     executable = Path(frozen["path"])
     if not executable.is_file() or sha256(executable) != frozen["sha256"]:
         raise ValueError("cannot resume: frozen worker executable is missing or changed")
+    build_stdout = output_directory / "build" / "stdout.bin"
+    try:
+        artifact = parse_worker_artifact(build_stdout.read_bytes())
+    except (OSError, ValueError) as error:
+        raise ValueError(f"cannot resume: saved Cargo artifact record is invalid: {error}") from error
+    if (
+        record.get("cargo_artifact") != str(artifact)
+        or record.get("command") != cargo_worker_build_command()
+    ):
+        raise ValueError("cannot resume: saved Cargo artifact is not the Ruff benchmark target")
     return executable, record
+
+
+def resume_manifest(output_directory: Path, profile_name: str) -> dict[str, object]:
+    """Load the immutable manifest snapshot bound to a prior shard plan."""
+    prepared_path = output_directory / "prepared.json"
+    plan_path = output_directory / "profiles" / profile_name / "shard-plan.json"
+    try:
+        manifest_bytes = prepared_path.read_bytes()
+        manifest = json.loads(manifest_bytes)
+        plan = json.loads(plan_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise ValueError(f"cannot resume: saved manifest or shard plan is unreadable: {error}") from error
+    selection = plan.get("global_identity", {}).get("selection", {})
+    if (
+        plan.get("profile") != profile_name
+        or selection.get("manifest_sha256") != hashlib.sha256(manifest_bytes).hexdigest()
+        or profile_name not in manifest.get("combined_profiles", {})
+        or manifest["combined_profiles"][profile_name].get("validation_status") != "active-current"
+        or selection.get("sealed_source_hashes") != manifest.get("files")
+    ):
+        raise ValueError("cannot resume: saved manifest does not match the sealed active profile plan")
+    repro = output_directory / "profiles" / profile_name / "repro"
+    if not repro.is_dir() or plan.get("staged_inputs") != staged_hashes(repro):
+        raise ValueError("cannot resume: staged profile inputs differ from the saved shard plan")
+    profile_data = tomllib.loads((repro / "benchmark.toml").read_text(encoding="utf-8"))
+    if profile_data.get("defaults") != manifest["combined_profiles"][profile_name].get("selected_rules"):
+        raise ValueError("cannot resume: profile rule selection differs from the saved manifest")
+    if selection.get("target_version") != profile_data.get("parser-configuration", "python-target=3.10"):
+        raise ValueError("cannot resume: parser target differs from the saved run identity")
+    if selection.get("selected_rule_applicability") != profile_data.get("rule-applicability", {}):
+        raise ValueError("cannot resume: rule applicability differs from the saved run identity")
+    return manifest
+
+
+def validate_output_directory(output_directory: Path, *, resume: bool) -> None:
+    """Keep new verifier receipts outside the Rust source identity being built."""
+    rust_root = (REPOSITORY / "crates" / "ryo").resolve()
+    resolved = output_directory.resolve()
+    if not resume and resolved.is_relative_to(rust_root):
+        raise ValueError("new candidate output directories must be outside crates/ryo")
 
 
 def stage_directory(
@@ -1851,6 +1905,7 @@ def combined_filename(rule: str, descriptor: dict[str, object], *names: str) -> 
 
 def self_test() -> int:
     """Exercise fail-closed profile-selection and hash-mismatch guards without invoking Cargo."""
+    global MANIFEST
     if (
         ruff_location_to_byte("é\fvalue\r\nx", {"row": 1, "column": 8}) != 8
         or ruff_location_to_byte("é\fvalue\r\nx", {"row": 2, "column": 2}) != 11
@@ -1916,6 +1971,62 @@ def self_test() -> int:
     except (OSError, ValueError, KeyError, TypeError) as error:
         print(f"pinned Ruff phase registry validation failed: {error}", file=sys.stderr)
         return 1
+    with tempfile.TemporaryDirectory(prefix="ryo-ruff-resume-manifest-") as temporary:
+        resume_root = Path(temporary)
+        profile_name = "sealed-active"
+        resume_manifest_data = {
+            "files": {},
+            "combined_profiles": {
+                profile_name: {
+                    "validation_status": "active-current",
+                    "expectations_mode": "complete-full-report",
+                    "selected_rules": ["A"],
+                }
+            },
+        }
+        prepared_path = resume_root / "prepared.json"
+        manifest_bytes = json.dumps(resume_manifest_data, separators=(",", ":")).encode()
+        prepared_path.write_bytes(manifest_bytes)
+        repro = resume_root / "profiles" / profile_name / "repro"
+        repro.mkdir(parents=True)
+        (repro / "benchmark.toml").write_text(
+            'defaults = ["A"]\nparser-configuration = "python-target=3.10"\n'
+            'rule-applicability = {}\n',
+            encoding="utf-8",
+        )
+        staged = staged_hashes(repro)
+        selection = {
+            "manifest_sha256": hashlib.sha256(manifest_bytes).hexdigest(),
+            "sealed_source_hashes": {},
+            "staged_profile_sha256": staged,
+            "target_version": "python-target=3.10",
+            "selected_rule_applicability": {},
+        }
+        plan_root = resume_root / "profiles" / profile_name
+        plan_root.mkdir(exist_ok=True)
+        (plan_root / "shard-plan.json").write_text(
+            json.dumps({
+                "profile": profile_name,
+                "staged_inputs": staged,
+                "global_identity": {"selection": selection},
+            }),
+            encoding="utf-8",
+        )
+        try:
+            if resume_manifest(resume_root, profile_name) != resume_manifest_data:
+                raise ValueError("resume did not use its saved manifest snapshot")
+            # Replacing the mutable current manifest must not affect this run's snapshot.
+            original_manifest_path = MANIFEST
+            MANIFEST = resume_root / "mutable-current.json"
+            MANIFEST.write_text('{"different":true}', encoding="utf-8")
+            try:
+                if resume_manifest(resume_root, profile_name) != resume_manifest_data:
+                    raise ValueError("resume followed the mutable current manifest")
+            finally:
+                MANIFEST = original_manifest_path
+        except (OSError, ValueError, KeyError, TypeError) as error:
+            print(f"sealed resume manifest check failed: {error}", file=sys.stderr)
+            return 1
     partitions = partition_case_inventory(sample_inventory, 3)
     identity = {"inventory_sha256": "sealed"}
     receipts = [
@@ -2086,6 +2197,23 @@ def self_test() -> int:
             print("shard execution or identity-checked resume self-test failed", file=sys.stderr)
             print(f"statuses={first, recovered, second, third, fourth}; worker-calls={calls}", file=sys.stderr)
             return 1
+        cases_path = rules_root / "A" / "cases.toml"
+        original_cases = cases_path.read_bytes()
+        cases_path.write_bytes(original_cases + b"# staged-input mutation\n")
+        try:
+            verify_profile_sharded(
+                "test", profile_root, worker, ruff, output, identities, 2, resume=True,
+                runner=lambda *_args, **_kwargs: (_ for _ in ()).throw(
+                    AssertionError("changed staged cases should fail before worker execution")
+                ),
+            )
+            print("changed staged case inputs were accepted on resume", file=sys.stderr)
+            return 1
+        except ValueError as error:
+            if "staged profile inputs" not in str(error):
+                raise
+        finally:
+            cases_path.write_bytes(original_cases)
         more_shards = verify_profile_sharded(
             "bounded-shards", profile_root, worker, ruff, output, identities, 5, runner=fake_runner
         )
@@ -2220,7 +2348,12 @@ def self_test() -> int:
         artifact_line = json.dumps(
             {
                 "reason": "compiler-artifact",
-                "target": {"name": "ruff", "kind": ["bench"]},
+                "target": {
+                    "name": "ruff",
+                    "kind": ["bench"],
+                    "src_path": "/repo/languages/python/benchmarks/linters/ruff/bench.rs",
+                    "test": False,
+                },
                 "executable": str(fake_worker),
             }
         ).encode()
@@ -2232,9 +2365,48 @@ def self_test() -> int:
                 build_command, 0, stdout=artifact_line + b"\n", stderr=b"build output\n"
             )
 
-        frozen_worker, build_identity = build_worker_once(
-            build_root, contextlib.ExitStack(), runner=successful_build_runner
+        source_identity = globals()["worker_source_identity"]
+        stable_source_identity = {
+            "repository_revision": "self-test-revision",
+            "working_tree_status": [],
+            "working_tree_diff_sha256": "0" * 64,
+            "source_tree_sha256": "1" * 64,
+        }
+        globals()["worker_source_identity"] = lambda: dict(stable_source_identity)
+        try:
+            frozen_worker, build_identity = build_worker_once(
+                build_root, contextlib.ExitStack(), runner=successful_build_runner
+            )
+        finally:
+            globals()["worker_source_identity"] = source_identity
+        globals()["worker_source_identity"] = lambda: (_ for _ in ()).throw(
+            AssertionError("resuming a frozen worker must not re-identify current sources")
         )
+        try:
+            reused_worker, reused_identity = reuse_frozen_worker(build_root)
+        finally:
+            globals()["worker_source_identity"] = source_identity
+        if reused_worker != frozen_worker or reused_identity["source_before_build"] != reused_identity["source_after_build"]:
+            print("source edits after a stable build invalidated the frozen worker", file=sys.stderr)
+            return 1
+        original_worker_bytes = frozen_worker.read_bytes()
+        frozen_worker.write_bytes(b"changed worker")
+        try:
+            reuse_frozen_worker(build_root)
+            print("changed frozen worker bytes were accepted", file=sys.stderr)
+            return 1
+        except ValueError as error:
+            if "missing or changed" not in str(error):
+                raise
+        finally:
+            frozen_worker.write_bytes(original_worker_bytes)
+        try:
+            validate_output_directory(REPOSITORY / "crates" / "ryo" / "unsafe-output", resume=False)
+            print("new output under the Rust source tree was accepted", file=sys.stderr)
+            return 1
+        except ValueError as error:
+            if "outside crates/ryo" not in str(error):
+                raise
         profile_commands = [
             command_for(frozen_worker, Path("ruff"), root / "profile-a"),
             command_for(frozen_worker, Path("ruff"), root / "profile-b"),
@@ -2486,7 +2658,12 @@ def self_test() -> int:
         artifact_json = json.dumps(
             {
                 "reason": "compiler-artifact",
-                "target": {"name": "ruff", "kind": ["bench"]},
+                "target": {
+                    "name": "ruff",
+                    "kind": ["bench"],
+                    "src_path": "/repo/languages/python/benchmarks/linters/ruff/bench.rs",
+                    "test": False,
+                },
                 "executable": str(reference_worker),
             }
         )
@@ -2785,6 +2962,10 @@ def main() -> int:
         parser.error("--shards requires at least two shards and candidate verification")
     if arguments.resume and (arguments.shards is None or arguments.output_dir is None):
         parser.error("--resume requires --shards and --output-dir")
+    if arguments.resume and arguments.profile is None:
+        parser.error("--resume requires the exact prior --profile selection")
+    if arguments.resume and arguments.rules:
+        parser.error("--resume does not accept a changed rule selection")
     if not arguments.reference_only and arguments.output_dir is None:
         parser.error("candidate verification requires --output-dir for exact case receipts")
 
@@ -2799,22 +2980,36 @@ def main() -> int:
         parser.error("--parity-check requires output-dir, shards, and exactly one selected rule (plus a combined profile when specified)")
     if output_directory is not None:
         if arguments.resume:
-            if not output_directory.is_dir() or (output_directory / "prepared.json").read_bytes() != MANIFEST.read_bytes():
-                parser.error("resume output does not contain the exact current prepared manifest")
+            if not output_directory.is_dir():
+                parser.error("resume output directory does not exist")
         else:
+            try:
+                validate_output_directory(output_directory, resume=False)
+            except ValueError as error:
+                parser.error(str(error))
             output_directory.mkdir(parents=True, exist_ok=False)
             shutil.copyfile(MANIFEST, output_directory / "prepared.json")
 
-    manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    try:
+        manifest = (
+            resume_manifest(output_directory, arguments.profile)
+            if arguments.resume and output_directory is not None and arguments.profile is not None
+            else json.loads(MANIFEST.read_text(encoding="utf-8"))
+        )
+    except (OSError, ValueError, json.JSONDecodeError) as error:
+        parser.error(str(error))
     helper_path = Path(__file__).relative_to(REPOSITORY).as_posix()
     statuses = []
     try:
-        verify_files(manifest, helper_path)
-        if arguments.profile is None and not arguments.rules:
+        if not arguments.resume:
+            verify_files(manifest, helper_path)
+        if arguments.profile is None and not arguments.rules and not arguments.resume:
             verify_active_combined_cohort(manifest)
         if arguments.profile is not None:
             if arguments.profile not in manifest.get("combined_profiles", {}):
                 raise ValueError(f"unknown prepared combined profile: {arguments.profile}")
+            if arguments.resume:
+                verify_active_combined_cohort(manifest)
             defaults = set(
                 tomllib.loads((RUFF_DIR / "benchmark.toml").read_text(encoding="utf-8"))["defaults"]
             )
@@ -2916,7 +3111,18 @@ def main() -> int:
                 if not isinstance(executable, dict) or sha256(Path(executable["path"])) != executable["sha256"]:
                     raise ValueError("frozen worker executable hash changed before profile invocation")
                 command = command_for(worker_executable, ruff, profile_root, False)
-                identities = run_identity(manifest, ruff, profile_root, worker_executable, build_identity)
+                if arguments.resume:
+                    prior_plan_path = output_directory / "profiles" / name / "shard-plan.json"
+                    prior_plan = json.loads(prior_plan_path.read_text(encoding="utf-8"))
+                    identities = prior_plan["global_identity"]["selection"]
+                    reference_identity = reference_tool_identity(ruff, manifest)
+                    if (
+                        identities.get("manifest_sha256") != sha256(output_directory / "prepared.json")
+                        or identities.get("ruff", {}).get("sha256") != reference_identity["sha256"]
+                    ):
+                        raise ValueError("cannot resume with a changed manifest or pinned reference executable")
+                else:
+                    identities = run_identity(manifest, ruff, profile_root, worker_executable, build_identity)
                 worker_identity(identities, worker_executable)
                 if arguments.shards is not None and (
                     arguments.profile is not None and name == arguments.profile
