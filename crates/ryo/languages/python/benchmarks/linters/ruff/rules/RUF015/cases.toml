@@ -1,0 +1,295 @@
+# Exact Ruff 0.16.5 tag 9e4938c4a60bed3e87a11ee1e1db1bd23f4d964a; target py310; shipped default settings.
+
+[[cases]]
+name = "upstream-pinned-fixture-0"
+comparison = "full"
+files = { "case.py" = "x = range(10)\n\n# RUF015\nlist(x)[0]\ntuple(x)[0]\nlist(i for i in x)[0]\n[i for i in x][0]\n\n# OK (not indexing (solely) the first element)\nlist(x)\nlist(x)[1]\nlist(x)[-1]\nlist(x)[1:]\nlist(x)[:3:2]\nlist(x)[::2]\nlist(x)[::]\n[i for i in x]\n[i for i in x][1]\n[i for i in x][-1]\n[i for i in x][:1]\n[i for i in x][:1:1]\n[i for i in x][:1:2]\n[i for i in x][1:]\n[i for i in x][:3:2]\n[i for i in x][::2]\n[i for i in x][::]\n\n# RUF015 (doesn't mirror the underlying list)\n[i + 1 for i in x][0]\n[i for i in x if i > 5][0]\n[(i, i + 1) for i in x][0]\n\n# RUF015 (multiple generators)\ny = range(10)\n[i + j for i in x for j in y][0]\n\n# RUF015\nlist(range(10))[0]\nlist(x.y)[0]\nlist(x[\"y\"])[0]\n[*range(10)][0]\n[*x[\"y\"]][0]\n[*x.y][0]\n[* x.y][0]\n[\n    *x.y\n][0]\n\n# RUF015 (multi-line)\nrevision_heads_map_ast = [\n    a\n    for a in revision_heads_map_ast_obj.body\n    if isinstance(a, ast.Assign) and a.targets[0].id == \"REVISION_HEADS_MAP\"\n][0]\n\n# RUF015 (zip)\nlist(zip(x, y))[0]\n[*zip(x, y)][0]\n\n# RUF015 (pop)\nlist(x).pop(0)\n[i for i in x].pop(0)\nlist(i for i in x).pop(0)\n\n# OK\nlist(x).pop(1)\nlist(x).remove(0)\nlist(x).remove(1)\n\n\ndef test():\n    zip = list  # Overwrite the builtin zip\n    list(zip(x, y))[0]\n" }
+expected = [{ rule = "RUF015", file = "case.py", start = 24, end = 34 }, { rule = "RUF015", file = "case.py", start = 35, end = 46 }, { rule = "RUF015", file = "case.py", start = 47, end = 68 }, { rule = "RUF015", file = "case.py", start = 69, end = 86 }, { rule = "RUF015", file = "case.py", start = 456, end = 477 }, { rule = "RUF015", file = "case.py", start = 478, end = 504 }, { rule = "RUF015", file = "case.py", start = 505, end = 531 }, { rule = "RUF015", file = "case.py", start = 578, end = 610 }, { rule = "RUF015", file = "case.py", start = 621, end = 639 }, { rule = "RUF015", file = "case.py", start = 640, end = 652 }, { rule = "RUF015", file = "case.py", start = 653, end = 668 }, { rule = "RUF015", file = "case.py", start = 669, end = 684 }, { rule = "RUF015", file = "case.py", start = 685, end = 697 }, { rule = "RUF015", file = "case.py", start = 698, end = 707 }, { rule = "RUF015", file = "case.py", start = 708, end = 718 }, { rule = "RUF015", file = "case.py", start = 719, end = 734 }, { rule = "RUF015", file = "case.py", start = 783, end = 917 }, { rule = "RUF015", file = "case.py", start = 934, end = 952 }, { rule = "RUF015", file = "case.py", start = 953, end = 968 }, { rule = "RUF015", file = "case.py", start = 985, end = 999 }, { rule = "RUF015", file = "case.py", start = 1000, end = 1021 }, { rule = "RUF015", file = "case.py", start = 1022, end = 1047 }, { rule = "RUF015", file = "case.py", start = 1167, end = 1185 }]
+
+[[cases]]
+name = "allocation-shapes-0"
+comparison = "full"
+files = { "case.py" = "async def f():\n    x=list(xs)[0]\n    y=list(xs).pop(0)\n" }
+expected = [{ rule = "RUF015", file = "case.py", start = 21, end = 32 }, { rule = "RUF015", file = "case.py", start = 39, end = 54 }]
+
+[[cases]]
+name = "allocation-shapes-1"
+comparison = "full"
+files = { "case.py" = "async def f():\n    x=tuple(xs)[0]\n    y=tuple(xs).pop(0)\n" }
+expected = [{ rule = "RUF015", file = "case.py", start = 21, end = 33 }, { rule = "RUF015", file = "case.py", start = 40, end = 56 }]
+
+[[cases]]
+name = "allocation-shapes-2"
+comparison = "full"
+files = { "case.py" = "async def f():\n    x=[x for x in xs][0]\n    y=[x for x in xs].pop(0)\n" }
+expected = [{ rule = "RUF015", file = "case.py", start = 21, end = 39 }, { rule = "RUF015", file = "case.py", start = 46, end = 68 }]
+
+[[cases]]
+name = "allocation-shapes-3"
+comparison = "full"
+files = { "case.py" = "async def f():\n    x=[f(x) for x in xs if pred(x)][0]\n    y=[f(x) for x in xs if pred(x)].pop(0)\n" }
+expected = [{ rule = "RUF015", file = "case.py", start = 21, end = 53 }, { rule = "RUF015", file = "case.py", start = 60, end = 96 }]
+
+[[cases]]
+name = "allocation-shapes-4"
+comparison = "full"
+files = { "case.py" = "async def f():\n    x=[*xs][0]\n    y=[*xs].pop(0)\n" }
+expected = [{ rule = "RUF015", file = "case.py", start = 21, end = 29 }, { rule = "RUF015", file = "case.py", start = 36, end = 48 }]
+
+[[cases]]
+name = "allocation-shapes-5"
+comparison = "full"
+files = { "case.py" = "async def f():\n    x=[x][0]\n    y=[x].pop(0)\n" }
+expected = []
+
+[[cases]]
+name = "allocation-shapes-6"
+comparison = "full"
+files = { "case.py" = "async def f():\n    x=[x,*xs][0]\n    y=[x,*xs].pop(0)\n" }
+expected = []
+
+[[cases]]
+name = "allocation-shapes-7"
+comparison = "full"
+files = { "case.py" = "async def f():\n    x=(*xs,)[0]\n    y=(*xs,).pop(0)\n" }
+expected = []
+
+[[cases]]
+name = "allocation-shapes-8"
+comparison = "full"
+files = { "case.py" = "async def f():\n    x={x for x in xs}[0]\n    y={x for x in xs}.pop(0)\n" }
+expected = []
+
+[[cases]]
+name = "allocation-shapes-9"
+comparison = "full"
+files = { "case.py" = "async def f():\n    x=list()[0]\n    y=list().pop(0)\n" }
+expected = []
+
+[[cases]]
+name = "allocation-shapes-10"
+comparison = "full"
+files = { "case.py" = "async def f():\n    x=list(xs,ys)[0]\n    y=list(xs,ys).pop(0)\n" }
+expected = []
+
+[[cases]]
+name = "allocation-shapes-11"
+comparison = "full"
+files = { "case.py" = "async def f():\n    x=list(xs,extra=True)[0]\n    y=list(xs,extra=True).pop(0)\n" }
+expected = [{ rule = "RUF015", file = "case.py", start = 21, end = 43 }, { rule = "RUF015", file = "case.py", start = 50, end = 76 }]
+
+[[cases]]
+name = "allocation-shapes-12"
+comparison = "full"
+files = { "case.py" = "async def f():\n    x=list(*xs)[0]\n    y=list(*xs).pop(0)\n" }
+expected = [{ rule = "RUF015", file = "case.py", start = 21, end = 33 }, { rule = "RUF015", file = "case.py", start = 40, end = 56 }]
+
+[[cases]]
+name = "allocation-shapes-13"
+comparison = "full"
+files = { "case.py" = "async def f():\n    x=tuple(*xs)[0]\n    y=tuple(*xs).pop(0)\n" }
+expected = [{ rule = "RUF015", file = "case.py", start = 21, end = 34 }, { rule = "RUF015", file = "case.py", start = 41, end = 58 }]
+
+[[cases]]
+name = "allocation-shapes-14"
+comparison = "full"
+files = { "case.py" = "async def f():\n    x=list(xs,**kw)[0]\n    y=list(xs,**kw).pop(0)\n" }
+expected = [{ rule = "RUF015", file = "case.py", start = 21, end = 37 }, { rule = "RUF015", file = "case.py", start = 44, end = 64 }]
+
+[[cases]]
+name = "allocation-shapes-15"
+comparison = "full"
+files = { "case.py" = "async def f():\n    x=[x async for x in xs][0]\n    y=[x async for x in xs].pop(0)\n" }
+expected = [{ rule = "RUF015", file = "case.py", start = 21, end = 45 }, { rule = "RUF015", file = "case.py", start = 52, end = 80 }]
+
+[[cases]]
+name = "index-shapes-0"
+comparison = "full"
+files = { "case.py" = "x=list(xs)[0]\n" }
+expected = [{ rule = "RUF015", file = "case.py", start = 2, end = 13 }]
+
+[[cases]]
+name = "index-shapes-1"
+comparison = "full"
+files = { "case.py" = "x=list(xs)[0x0]\n" }
+expected = [{ rule = "RUF015", file = "case.py", start = 2, end = 15 }]
+
+[[cases]]
+name = "index-shapes-2"
+comparison = "full"
+files = { "case.py" = "x=list(xs)[0_0]\n" }
+expected = [{ rule = "RUF015", file = "case.py", start = 2, end = 15 }]
+
+[[cases]]
+name = "index-shapes-3"
+comparison = "full"
+files = { "case.py" = "x=list(xs)[False]\n" }
+expected = []
+
+[[cases]]
+name = "index-shapes-4"
+comparison = "full"
+files = { "case.py" = "x=list(xs)[0.0]\n" }
+expected = []
+
+[[cases]]
+name = "index-shapes-5"
+comparison = "full"
+files = { "case.py" = "x=list(xs)[0j]\n" }
+expected = []
+
+[[cases]]
+name = "index-shapes-6"
+comparison = "full"
+files = { "case.py" = "x=list(xs)[-0]\n" }
+expected = []
+
+[[cases]]
+name = "index-shapes-7"
+comparison = "full"
+files = { "case.py" = "x=list(xs)[+0]\n" }
+expected = []
+
+[[cases]]
+name = "index-shapes-8"
+comparison = "full"
+files = { "case.py" = "x=list(xs)[1]\n" }
+expected = []
+
+[[cases]]
+name = "index-shapes-9"
+comparison = "full"
+files = { "case.py" = "x=list(xs)[slice(0)]\n" }
+expected = []
+
+[[cases]]
+name = "index-shapes-10"
+comparison = "full"
+files = { "case.py" = "x=list(xs)[(0,)]\n" }
+expected = []
+
+[[cases]]
+name = "index-shapes-11"
+comparison = "full"
+files = { "case.py" = "x=list(xs)[0:1]\n" }
+expected = []
+
+[[cases]]
+name = "index-shapes-12"
+comparison = "full"
+files = { "case.py" = "x=list(xs)[None]\n" }
+expected = []
+
+[[cases]]
+name = "index-shapes-13"
+comparison = "full"
+files = { "case.py" = "x=list(xs)[(0)]\n" }
+expected = [{ rule = "RUF015", file = "case.py", start = 2, end = 15 }]
+
+[[cases]]
+name = "index-shapes-14"
+comparison = "full"
+files = { "case.py" = "x=list(xs)[unknown]\n" }
+expected = []
+
+[[cases]]
+name = "pop-arguments"
+comparison = "full"
+files = { "case.py" = "list(xs).pop()\nlist(xs).pop(0,1)\nlist(xs).pop(index=0)\nlist(xs).pop(0,**{})\nlist(xs).pop(*[0])\nlist(xs).pop(False)\nlist(xs).pop(0.0)\nlist(xs).pop(-0)\nlist(xs).pop(0)\n" }
+expected = [{ rule = "RUF015", file = "case.py", start = 150, end = 165 }]
+
+[[cases]]
+name = "pop-attribute-names"
+comparison = "full"
+files = { "case.py" = "list(xs).remove(0)\nlist(xs).pＯp(0)\nlist(xs).ｐｏｐ(0)\ngetattr(list(xs),\"pop\")(0)\n" }
+expected = [{ rule = "RUF015", file = "case.py", start = 37, end = 58 }]
+
+[[cases]]
+name = "builtin-import-aliases"
+comparison = "full"
+files = { "case.py" = "import builtins as b\nfrom builtins import list as L, tuple as T\nx=b.list(xs)[0]\ny=L(xs).pop(0)\nz=T(xs)[0]\n" }
+expected = [{ rule = "RUF015", file = "case.py", start = 66, end = 79 }, { rule = "RUF015", file = "case.py", start = 82, end = 94 }, { rule = "RUF015", file = "case.py", start = 97, end = 105 }]
+
+[[cases]]
+name = "assignment-alias-unknown"
+comparison = "full"
+files = { "case.py" = "L=list\nx=L(xs)[0]\n" }
+expected = []
+
+[[cases]]
+name = "shadowed-builtin"
+comparison = "full"
+files = { "case.py" = "list=unknown\nx=list(xs)[0]\ny=tuple(xs)[0]\n" }
+expected = [{ rule = "RUF015", file = "case.py", start = 29, end = 41 }]
+
+[[cases]]
+name = "local-shadowed-builtin"
+comparison = "full"
+files = { "case.py" = "def f(list,tuple):\n    return list(xs)[0],tuple(xs).pop(0),[*xs][0]\n" }
+expected = [{ rule = "RUF015", file = "case.py", start = 59, end = 67 }]
+
+[[cases]]
+name = "qualified-without-import"
+comparison = "full"
+files = { "case.py" = "x=builtins.list(xs)[0]\n" }
+expected = []
+
+[[cases]]
+name = "nonbuiltins"
+comparison = "full"
+files = { "case.py" = "from other import list,tuple\nx=list(xs)[0]\ny=tuple(xs).pop(0)\n" }
+expected = []
+
+[[cases]]
+name = "store-delete-context"
+comparison = "full"
+files = { "case.py" = "list(xs)[0]=1\ndel list(xs)[0]\n" }
+expected = [{ rule = "RUF015", file = "case.py", start = 0, end = 11 }, { rule = "RUF015", file = "case.py", start = 18, end = 29 }]
+
+[[cases]]
+name = "nested-allocations"
+comparison = "full"
+files = { "case.py" = "list(tuple(xs)[0])[0]\nlist(xs)[0][0]\n" }
+expected = [{ rule = "RUF015", file = "case.py", start = 0, end = 21 }, { rule = "RUF015", file = "case.py", start = 5, end = 17 }, { rule = "RUF015", file = "case.py", start = 22, end = 33 }]
+
+[[cases]]
+name = "multiline-unicode"
+comparison = "full"
+files = { "case.py" = "é=list(\n    \"🙂é\",\n)[\n    0\n]\n" }
+expected = [{ rule = "RUF015", file = "case.py", start = 3, end = 33 }]
+
+[[cases]]
+name = "parenthesized-callee"
+comparison = "full"
+files = { "case.py" = "x=(list)((xs))[0]\ny=((tuple)(xs)).pop((0))\n" }
+expected = [{ rule = "RUF015", file = "case.py", start = 2, end = 17 }, { rule = "RUF015", file = "case.py", start = 20, end = 42 }]
+
+[[cases]]
+name = "inline-suppression"
+comparison = "full"
+files = { "case.py" = "x=list(xs)[0]  # noqa: RUF015\n" }
+expected = []
+
+[[cases]]
+name = "blanket-suppression"
+comparison = "full"
+files = { "case.py" = "x=list(xs)[0]  # noqa\n" }
+expected = []
+
+[[cases]]
+name = "file-suppression"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa: RUF015\nx=list(xs)[0]\n" }
+expected = []
+
+[[cases]]
+name = "wrong-code-unsuppressed"
+comparison = "full"
+files = { "case.py" = "x=list(xs)[0]  # noqa: F401\n" }
+expected = [{ rule = "RUF015", file = "case.py", start = 2, end = 13 }]
+
+[[cases]]
+name = "block-suppression"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[RUF015]\nx=list(xs)[0]\n# ruff: enable[RUF015]\nx=list(xs)[0]\n" }
+expected = [{ rule = "RUF015", file = "case.py", start = 63, end = 74 }]
