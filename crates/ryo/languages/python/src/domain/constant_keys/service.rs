@@ -156,6 +156,128 @@ fn interpolation_fragment(tree: &Tree<'_>, at: Position) -> bool {
     false
 }
 
+fn constant_key(
+    tree: &Tree<'_>,
+    at: Position,
+    symbols: &mut Symbols,
+    index: &mut ConstantKeyIndex,
+) -> Option<Option<NumericState>> {
+    if interpolation_fragment(tree, at) {
+        return None;
+    }
+    if property(tree, at, SCALAR_KIND) == Some(INTEGER_SCALAR)
+        && property(tree, at, SCALAR_VALUE).is_some_and(|value| value.parse::<u64>().is_err())
+    {
+        push_word(index, literal_word(tree, at, symbols)?)?;
+        return Some(Some(NumericState::StructuralInteger));
+    }
+    if let Some(number) = number(tree, at) {
+        push_word(index, KeyWord::Number(number))?;
+        return Some(Some(NumericState::Number(number)));
+    }
+    if literal(tree, at) == Literal::String {
+        let begin = languages::begin_name(symbols);
+        let mut found = false;
+        for token in
+            below(tree, at).filter(|position| kind(tree, *position) == Kind::Token(Token::String))
+        {
+            languages::push_text(symbols, languages::decoded_at(tree.elements, token)?);
+            found = true;
+        }
+        if !found {
+            return None;
+        }
+        push_word(
+            index,
+            KeyWord::Literal(
+                LiteralKind::String,
+                Some(languages::end_name(symbols, tree.source, begin)),
+            ),
+        )?;
+        return Some(None);
+    }
+    push_word(index, literal_word(tree, at, symbols)?)?;
+    Some(None)
+}
+
+fn tuple_key(
+    tree: &Tree<'_>,
+    at: Position,
+    index: &mut ConstantKeyIndex,
+) -> Option<Option<NumericState>> {
+    push_word(index, KeyWord::Tuple)?;
+    for child in
+        languages::children(tree.elements, at).filter(|child| field_of(tree, *child) == Field::Elts)
+    {
+        let Some(Some(class)) = index.classes.get(usize::try_from(child.0).ok()?).copied() else {
+            return None;
+        };
+        push_word(index, KeyWord::Child(class.representative))?;
+    }
+    push_word(index, KeyWord::EndTuple)?;
+    Some(None)
+}
+
+fn unary_key(
+    tree: &Tree<'_>,
+    at: Position,
+    index: &mut ConstantKeyIndex,
+) -> Option<Option<NumericState>> {
+    let operand = child_at(tree, at, Field::Operand)?;
+    let NumericState::Number(mut number) = numeric_class(&index.classes, operand)? else {
+        // Oversized integer signs stay on the ordinary structural-shape fallback path.
+        return None;
+    };
+    let operator =
+        languages::children(tree.elements, at).find_map(|child| match kind(tree, child) {
+            Kind::Token(token @ (Token::Plus | Token::Minus)) => Some(token),
+            _ => None,
+        })?;
+    if operator == Token::Minus {
+        number.real = negate(number.real)?;
+        number.imaginary = negate(number.imaginary)?;
+    }
+    push_word(index, KeyWord::Number(number))?;
+    Some(Some(NumericState::Number(number)))
+}
+
+fn complex_binary_key(
+    tree: &Tree<'_>,
+    at: Position,
+    index: &mut ConstantKeyIndex,
+) -> Option<Option<NumericState>> {
+    let left = child_at(tree, at, Field::Left)?;
+    let right = child_at(tree, at, Field::Right)?;
+    if property(tree, right, SCALAR_KIND) != Some(COMPLEX_SCALAR) {
+        return None;
+    }
+    let operator =
+        languages::children(tree.elements, at).find_map(|child| match kind(tree, child) {
+            Kind::Token(token @ (Token::Plus | Token::Minus)) => Some(token),
+            _ => None,
+        })?;
+    let NumericState::Number(left_number) = numeric_class(&index.classes, left)? else {
+        return None;
+    };
+    let NumericState::Number(right_number) = numeric_class(&index.classes, right)? else {
+        return None;
+    };
+    if left_number.imaginary != RealKey::Integer(0) || right_number.real != RealKey::Integer(0) {
+        return None;
+    }
+    let left_real = to_float(left_number.real);
+    let mut right_imaginary = to_float(right_number.imaginary);
+    if operator == Token::Minus {
+        right_imaginary = -right_imaginary;
+    }
+    let result = NumberKey {
+        real: float_key(left_real),
+        imaginary: float_key(right_imaginary),
+    };
+    push_word(index, KeyWord::Number(result))?;
+    Some(Some(NumericState::Number(result)))
+}
+
 fn build_key(
     tree: &Tree<'_>,
     at: Position,
@@ -164,114 +286,10 @@ fn build_key(
 ) -> Option<Option<NumericState>> {
     index.scratch.clear();
     match kind(tree, at) {
-        Kind::Node(Node::Constant) => {
-            if interpolation_fragment(tree, at) {
-                return None;
-            }
-            if property(tree, at, SCALAR_KIND) == Some(INTEGER_SCALAR)
-                && property(tree, at, SCALAR_VALUE)
-                    .is_some_and(|value| value.parse::<u64>().is_err())
-            {
-                push_word(index, literal_word(tree, at, symbols)?)?;
-                Some(Some(NumericState::StructuralInteger))
-            } else if let Some(number) = number(tree, at) {
-                push_word(index, KeyWord::Number(number))?;
-                Some(Some(NumericState::Number(number)))
-            } else if literal(tree, at) == Literal::String {
-                let begin = languages::begin_name(symbols);
-                let mut found = false;
-                for token in below(tree, at)
-                    .filter(|position| kind(tree, *position) == Kind::Token(Token::String))
-                {
-                    languages::push_text(symbols, languages::decoded_at(tree.elements, token)?);
-                    found = true;
-                }
-                if !found {
-                    return None;
-                }
-                push_word(
-                    index,
-                    KeyWord::Literal(
-                        LiteralKind::String,
-                        Some(languages::end_name(symbols, tree.source, begin)),
-                    ),
-                )?;
-                Some(None)
-            } else {
-                push_word(index, literal_word(tree, at, symbols)?)?;
-                Some(None)
-            }
-        }
-        Kind::Node(Node::Tuple) => {
-            push_word(index, KeyWord::Tuple)?;
-            for child in languages::children(tree.elements, at)
-                .filter(|child| field_of(tree, *child) == Field::Elts)
-            {
-                let Some(Some(class)) = index.classes.get(usize::try_from(child.0).ok()?).copied()
-                else {
-                    return None;
-                };
-                push_word(index, KeyWord::Child(class.representative))?;
-            }
-            push_word(index, KeyWord::EndTuple)?;
-            Some(None)
-        }
-        Kind::Node(Node::UnaryOp) => {
-            let operand = child_at(tree, at, Field::Operand)?;
-            let state = numeric_class(&index.classes, operand)?;
-            let operator = languages::children(tree.elements, at).find_map(|child| {
-                match kind(tree, child) {
-                    Kind::Token(token @ (Token::Plus | Token::Minus)) => Some(token),
-                    _ => None,
-                }
-            })?;
-            match state {
-                NumericState::Number(mut number) => {
-                    if operator == Token::Minus {
-                        number.real = negate(number.real)?;
-                        number.imaginary = negate(number.imaginary)?;
-                    }
-                    push_word(index, KeyWord::Number(number))?;
-                    Some(Some(NumericState::Number(number)))
-                }
-                NumericState::StructuralInteger => None,
-            }
-        }
-        Kind::Node(Node::BinOp) => {
-            let left = child_at(tree, at, Field::Left)?;
-            let right = child_at(tree, at, Field::Right)?;
-            if property(tree, right, SCALAR_KIND) != Some(COMPLEX_SCALAR) {
-                return None;
-            }
-            let operator = languages::children(tree.elements, at).find_map(|child| {
-                match kind(tree, child) {
-                    Kind::Token(token @ (Token::Plus | Token::Minus)) => Some(token),
-                    _ => None,
-                }
-            })?;
-            let NumericState::Number(left_number) = numeric_class(&index.classes, left)? else {
-                return None;
-            };
-            let NumericState::Number(right_number) = numeric_class(&index.classes, right)? else {
-                return None;
-            };
-            if left_number.imaginary != RealKey::Integer(0)
-                || right_number.real != RealKey::Integer(0)
-            {
-                return None;
-            }
-            let left_real = to_float(left_number.real);
-            let mut right_imaginary = to_float(right_number.imaginary);
-            if operator == Token::Minus {
-                right_imaginary = -right_imaginary;
-            }
-            let result = NumberKey {
-                real: float_key(left_real),
-                imaginary: float_key(right_imaginary),
-            };
-            push_word(index, KeyWord::Number(result))?;
-            Some(Some(NumericState::Number(result)))
-        }
+        Kind::Node(Node::Constant) => constant_key(tree, at, symbols, index),
+        Kind::Node(Node::Tuple) => tuple_key(tree, at, index),
+        Kind::Node(Node::UnaryOp) => unary_key(tree, at, index),
+        Kind::Node(Node::BinOp) => complex_binary_key(tree, at, index),
         _ => None,
     }
 }
