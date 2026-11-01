@@ -7,6 +7,7 @@ templates = [
   { alias = "runner-constants", template = "source", file = "composition/constants.rs", count = { min = 0, max = 1 }, description = "Executable command and artifact protocol vocabulary." },
   { alias = "runner-guide", template = "evidence", file = "README.md", count = { min = 0, max = 1 }, description = "Language-local runner commands and the scope of its benchmark claims." },
   { template = "linter", file = "benchmark.toml", description = "Benchmark linter contract." },
+  { template = "source", file = "verify_profiles.py", count = { min = 0, max = 1 }, description = "Portable single-rule acceptance profile materializer." },
   { alias = "bench", template = "source", file = "bench.rs", imports = { default = "deny", allow = ["ryo_benchmark::*", "ryo::*", "std::*", "serde::*", "serde_json::*", "toml::*", "tempfile::*", "crate::*", "self::*", "super::*", "composition::*"] }, description = "The linter bench implementation." },
   { template = "cargo-schema-tests", file = "tests.rs", imports = { default = "deny", allow = ["ryo_benchmark::*", "ryo::*", "std::*", "serde::*", "serde_json::*", "toml::*", "tempfile::*", "crate::*", "self::*", "super::*"] }, description = "The linter tests implementation." },
   { alias = "engine-test", template = "source", file = "engine_test.rs", count = { min = 0 }, imports = { default = "deny", allow = ["ryo_benchmark::*", "ryo::*", "std::*", "serde::*", "serde_json::*", "toml::*", "tempfile::*", "crate::*", "self::*", "super::*"] }, description = "Optional real-SDK integration proof, compiled by the linter test target." },
@@ -20,7 +21,10 @@ templates = [
   { alias = "result-trace", template = "evidence", file = "results/trace.json", count = { min = 0, max = 1 }, description = "Observed cold phase profiling evidence, separate from timed trials." },
   { alias = "result-profile-text", template = "evidence", file = "results/profile.txt", count = { min = 0, max = 1 }, description = "Observed cold phase profiling evidence, separate from timed trials." },
   { alias = "result-identity", template = "evidence", file = "results/identity.json", count = { min = 0, max = 1 }, description = "Pinned inputs and contestant artifact identities." },
+  { alias = "acceptance-profiles", template = "evidence", file = "profiles/prepared.json", count = { min = 0, max = 1 }, description = "Hash-pinned candidate acceptance profile inputs and exact case inventories." },
+  { alias = "acceptance-profile", template = "linter", file = "profiles/{rule}/benchmark.toml", count = { min = 0 }, description = "One-rule tool selection for isolated candidate acceptance." },
   { template = "query", file = "rules/{implemented}/query.ryoql", count = { min = 0 }, description = "Benchmark query contract." },
+  { alias = "candidate-query", template = "query", file = "rules/{rule}/candidate.ryoql", count = { min = 0 }, description = "Unpromoted query candidate, kept outside the shipped-rule audit." },
   { template = "cases", file = "rules/{rule}/cases.toml", description = "Benchmark cases contract." },
 ]
 rules = [
@@ -79,3 +83,20 @@ scenario = "An arbitrary output file is not silently accepted as evidence."
 given.files.'results/scratch.txt' = ''
 then.only = ['idiomatic.arch/benchmark-executable#closed']
 then.findings = [{ rule = 'idiomatic.arch/benchmark-executable#closed', path = 'results/scratch.txt' }]
+
+[[scenarios]]
+id = "acceptance-profile-inputs-are-placed"
+scenario = "Portable profile references and their materializer have explicit owners."
+given.files.'verify_profiles.py' = ''
+given.files.'profiles/prepared.json' = ''
+given.files.'profiles/F401/benchmark.toml' = ''
+given.files.'rules/F401/candidate.ryoql' = ''
+given.files.'rules/F401/cases.toml' = ''
+then.only = ['idiomatic.ryo/benchmark-linter#closed']
+
+[[scenarios]]
+id = "unplaced-candidate-assets-are-refused"
+scenario = "Candidate assets use their explicit path instead of becoming an unowned profile copy."
+given.files.'profiles/F401/query.ryoql' = ''
+then.only = ['idiomatic.arch/benchmark-executable#closed']
+then.findings = [{ rule = 'idiomatic.arch/benchmark-executable#closed', path = 'profiles/F401/query.ryoql' }]

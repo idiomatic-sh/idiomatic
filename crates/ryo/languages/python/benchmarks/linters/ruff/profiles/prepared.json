@@ -1,15 +1,25 @@
 {
   "status": "prepared-not-executed",
-  "source_commit": "550719c6ca70b2f5e2b409a65d062492c9b2260e",
+  "source_commits": [
+    "536c1e3a51fd4221b6ea2ab7fd02241fb822237f",
+    "6b4ae8b47dcd84b28b3f24dae5ec58114cb61e30"
+  ],
   "reference": "Ruff 0.16.5 isolated, no-cache, PY310 single-rule selection; complete full-report comparison",
-  "reference_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
-  "scope": "four independent single-rule candidate acceptance profiles for binding-query CI; exact inputs include all authored cases; no active inventory change or promotion",
+  "reference_version": "0.16.5",
+  "reference_sha256": [
+    "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+    "024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32",
+    "515c8e5e3c8c3cd9785f421e050c98748420aae9a02459b7232c89a46bbadba4",
+    "894431afcb8addcd8e3752e53634fdb0a6f9063153cd62ed730ce59d02878487",
+    "29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e"
+  ],
+  "scope": "six independent single-rule candidate acceptance profiles; exact profile, candidate query, cases, helper and tool pins are hash-bound; no active inventory change or promotion",
   "profiles": {
     "F401": {
       "selected_rules": [
         "F401"
       ],
-      "case_count": 15,
+      "case_count": 17,
       "case_names": [
         "unused-import",
         "used-import",
@@ -25,13 +35,10 @@
         "normalized-redundant-alias-is-reexport",
         "stub-explicit-reexport",
         "noqa-unused-import",
-        "normalized-distinct-unused-alias"
-      ],
-      "files": {
-        "benchmark.toml": "3e60989d508ded22bcfcab988950f962e14bd6d39a38da94b47aa935db80d360",
-        "rules/F401/cases.toml": "b2f6e464e9f36debd816fbb675efbe9c67e7b5eb82f1af1f7e3ae4e6abf15d41",
-        "rules/F401/query.ryoql": "6a0347dd30bfaf32590400faf546a61d936f78f19366a814172ae01f2bd29c65"
-      }
+        "normalized-distinct-unused-alias",
+        "file-ruff-noqa-unused-import",
+        "parent-line-noqa-multiline-import"
+      ]
     },
     "F811": {
       "selected_rules": [
@@ -63,18 +70,59 @@
         "file-flake8-noqa",
         "range-disable-enable",
         "range-file-ignore"
+      ]
+    },
+    "F821": {
+      "selected_rules": [
+        "F821"
       ],
-      "files": {
-        "benchmark.toml": "911cd3c9eb459d177a38a77097153850a55ee3776c49aab4381e94bf6c32b6d8",
-        "rules/F811/cases.toml": "ddb462d30c201f79fabd424251c1d42d89d1408ba9ec1bf7b8968650a0aa473d",
-        "rules/F811/query.ryoql": "a31aaa0d8af8ef0883ded82e79b96ea1a2b46148ea59b0716cb49e6cdc724a9a"
-      }
+      "case_count": 38,
+      "case_names": [
+        "undefined-name",
+        "builtin-name",
+        "assigned-name",
+        "local-is-not-module-binding",
+        "closure-binding",
+        "unicode-byte-offset",
+        "deleted-binding-read",
+        "global-deletion-is-correlated-with-its-execution-phase",
+        "deferred-function-later-module-binding",
+        "eager-default-before-binding",
+        "normalized-name-use",
+        "exception-target-cleanup",
+        "wildcard-uncertainty",
+        "future-builtin-is-not-py310",
+        "quoted-annotation-undefined",
+        "noqa-undefined",
+        "module-nonlocal-parser-error",
+        "module-environment-name-is-not-a-builtin-qualified-name",
+        "versioned-module-globals-available-in-target",
+        "platform-builtin-origin-remains-available-to-the-rule-policy",
+        "module-global-version-gate-follows-py310-target",
+        "initializer-path-is-a-package-namespace-global",
+        "class-namespace-and-method-class-cell-names",
+        "module-name-is-not-inherited-from-class-namespace",
+        "deleting-an-undefined-name-is-undefined",
+        "handled-name-error-suppresses-a-possibly-missing-read",
+        "bare-handler-does-not-claim-to-handle-name-error",
+        "name-error-handler-does-not-catch-a-deferred-function-body",
+        "no-type-check-decorator-does-not-suppress-function-body-f821",
+        "typing-module-alias-no-type-check-does-not-suppress-f821",
+        "unresolved-no-type-check-decorator-does-not-suppress-the-body",
+        "imported-builtins-nameerror-alias-still-suppresses-reference",
+        "shadowed-nameerror-spelling-does-not-suppress-reference",
+        "name-error-handler-does-not-catch-errors-in-handler-body",
+        "name-error-handler-does-not-catch-errors-in-else-body",
+        "name-error-handler-does-not-catch-errors-in-finally-body",
+        "tuple-handler-with-name-error-suppresses-possibly-missing-read",
+        "later-binding-does-not-hide-unbound-module-class-or-local-read"
+      ]
     },
     "F822": {
       "selected_rules": [
         "F822"
       ],
-      "case_count": 24,
+      "case_count": 25,
       "case_names": [
         "undefined-export",
         "defined-export",
@@ -99,19 +147,46 @@
         "nested-right-binop-not-recursively-extracted",
         "named-expression-export-container",
         "aliased-builtin-constructor",
-        "only-first-chained-target-defines-exports"
+        "only-first-chained-target-defines-exports",
+        "file-ruff-noqa-export"
+      ]
+    },
+    "F823": {
+      "selected_rules": [
+        "F823"
       ],
-      "files": {
-        "benchmark.toml": "b03a843c5cf008871c1750e7c8594d6c2ff0fdd8357e18a59913c8c6b6bf2080",
-        "rules/F822/cases.toml": "35650ee0cb7bee67ed4350a40e253c6417322d7abdf361f5a0fadbf603d66113",
-        "rules/F822/query.ryoql": "e9b44e26479882ce77f2a80f5114c5ec5ec4e7e4832b3b9241c9e9c7d3983ba0"
-      }
+      "case_count": 23,
+      "case_names": [
+        "module-shadowed-local-read",
+        "local-before-read",
+        "no-outer-binding",
+        "global-declaration",
+        "closure-shadowed-local-read",
+        "nonlocal-declaration",
+        "normalized-local-shadow",
+        "read-before-delete",
+        "augmented-assignment",
+        "deferred-lambda-before-assignment",
+        "parameter-is-bound",
+        "noqa-local-read",
+        "builtin-before-local-binding",
+        "first-of-two-pre-store-reads",
+        "repeated-local-replacement-has-no-direct-outer-shadow",
+        "local-deletion-is-final-binding",
+        "bare-annotation-directly-shadows-outer-binding",
+        "annotation-after-value-does-not-replace-binding",
+        "future-builtin-not-in-profile-cannot-supply-outer-binding",
+        "deferred-quoted-annotation-is-not-current-function-reference",
+        "conditional-local-deletion-does-not-erase-final-shadow-association",
+        "orelse-local-deletion-does-not-erase-final-shadow-association",
+        "temporary-handler-target-does-not-become-a-local-shadow"
+      ]
     },
     "F841": {
       "selected_rules": [
         "F841"
       ],
-      "case_count": 20,
+      "case_count": 21,
       "case_names": [
         "unused-local",
         "used-local",
@@ -132,14 +207,30 @@
         "with-list-targets-are-not-tuple-unpacking",
         "previous-read-is-inherited-on-replacement",
         "delete-breaks-inherited-reference-chain",
-        "later-annotation-does-not-replace-value"
-      ],
-      "files": {
-        "benchmark.toml": "26eaa6a8f8709563b9e7daba1c323032d196eabcca9fa2550026596c403914c1",
-        "rules/F841/cases.toml": "a3033481c77408a21b4135d166bbeb7dd4f755f99444e9120282fbb1d61b3e67",
-        "rules/F841/query.ryoql": "892229f93af9652b57cb15677c484721aef11ece0225b2b923a0a7689a7fb569"
-      }
+        "later-annotation-does-not-replace-value",
+        "file-flake8-noqa-unused-local"
+      ]
     }
   },
-  "case_total": 83
+  "files": {
+    "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/F401/benchmark.toml": "f61a89ba37acb9529ff673dfd887e210c2d6051bf46267de6c55f36ec6e41704",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/F401/candidate.ryoql": "6a0347dd30bfaf32590400faf546a61d936f78f19366a814172ae01f2bd29c65",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/F401/cases.toml": "f16644548b0a60c523aa24a22e62586168cd39e8bbb4b33c667eb21d75a26f12",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/F811/benchmark.toml": "9921a662ddbaebe091ca73c0f794c3459b998fd65025c25ed008c9a4ba4a18ea",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/F811/candidate.ryoql": "a31aaa0d8af8ef0883ded82e79b96ea1a2b46148ea59b0716cb49e6cdc724a9a",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/F811/cases.toml": "ddb462d30c201f79fabd424251c1d42d89d1408ba9ec1bf7b8968650a0aa473d",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/F821/benchmark.toml": "f4730b0aa92209562d580d8ed8070c927e51f3cb5fbb736e684d79d480ec328b",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/F821/candidate.ryoql": "9867cec1fc3136d2ac2224a756585f174914c35945c3d852a13536411562ece7",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/F821/cases.toml": "90b7d10aefe89f890803a310b07ada2c37d86717da27723bf8cb86cf949b713d",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/F822/benchmark.toml": "03e76ee52c7f9d6457eb1ab8f787e3d1301987aa7e83f57b375a41d501872fb9",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/F822/candidate.ryoql": "e9b44e26479882ce77f2a80f5114c5ec5ec4e7e4832b3b9241c9e9c7d3983ba0",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/F822/cases.toml": "e58a18304988ff7cedc8fe2cbfc8bfdf82f5db617369e01279702049ea00a652",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/F823/benchmark.toml": "be0b5930285280bbcf57082a04b05be48675ddceeeeb6cc60984df7fcd512b2a",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/F823/candidate.ryoql": "5e1faf8eb3136b014bebb232d3a94f23dc08ce8baad7c5b6eb6d0e0f8ffc6547",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/F823/cases.toml": "59c14f08661bfae5b5574e01c43eae828a8377d0dd41289e4f81d4870d8d53cb",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/F841/benchmark.toml": "27d8973057b5e62775e73b8cd817c275cac15bd540114e848f572f4b9bbcf957",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/F841/candidate.ryoql": "892229f93af9652b57cb15677c484721aef11ece0225b2b923a0a7689a7fb569",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/F841/cases.toml": "e1368fd5b911f109a1c2ff21e51292dec31c80bc140f9f32386860af708876fb",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/verify_profiles.py": "e20a5b0efba33f4a2c3db89c43fbb13adae83db3c1cb24367fc557471dfb0ee7"
+  }
 }
