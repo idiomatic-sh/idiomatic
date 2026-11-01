@@ -91,7 +91,11 @@ pub fn verify(
                         result
                             .report
                             .diagnostics
-                            .retain(|finding| finding.rule == case.rule);
+                            .retain(|finding| {
+                                finding.rule == case.rule
+                                    || finding.rule.0.as_ref()
+                                        == crate::domain::diagnostics::constants::FRONTEND_SYNTAX
+                            });
                     }
                     if let Err(difference) = compare(&case.expected, &result.report) {
                         failures.push(format!(

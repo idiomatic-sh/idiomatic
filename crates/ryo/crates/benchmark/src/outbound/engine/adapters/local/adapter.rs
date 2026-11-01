@@ -23,14 +23,27 @@ pub(crate) struct EngineLocalAdapter {
     languages: Languages,
     /// Optional trace destination for a separately labelled profiling invocation.
     trace: Option<std::path::PathBuf>,
+    /// Optional cross-linter identity for frontend diagnostics.
+    frontend_diagnostic: Option<RuleId>,
 }
 impl EngineLocalAdapter {
     /// Bind language support and optional profiling output once at composition.
-    pub(crate) fn new(languages: Languages, trace: Option<std::path::PathBuf>) -> Self {
-        Self { languages, trace }
+    pub(crate) fn new(
+        languages: Languages,
+        trace: Option<std::path::PathBuf>,
+        frontend_diagnostic: Option<RuleId>,
+    ) -> Self {
+        Self {
+            languages,
+            trace,
+            frontend_diagnostic,
+        }
     }
     /// Load all selected query files, refusing duplicate or empty inventories.
-    fn load_rules(directory: &std::path::Path) -> Result<BTreeMap<RuleId, Rule>, Error> {
+    fn load_rules(
+        directory: &std::path::Path,
+        frontend_diagnostic: Option<RuleId>,
+    ) -> Result<BTreeMap<RuleId, Rule>, Error> {
         let mut rules = BTreeMap::new();
         for entry in std::fs::read_dir(directory)? {
             let entry = entry?;
@@ -61,6 +74,24 @@ impl EngineLocalAdapter {
         if rules.is_empty() {
             return Err(Error::Invalid(constants::EMPTY_RULES.into()));
         }
+        if let Some(id) = frontend_diagnostic {
+            let query = RyoQlQuery::try_from(constants::INVALID_SYNTAX_QUERY)
+                .map_err(|error| Error::Invalid(error.to_string()))?;
+            if rules
+                .insert(
+                    id,
+                    Rule {
+                        query,
+                        parameters: BTreeMap::new(),
+                        include: vec![],
+                        exclude: vec![],
+                    },
+                )
+                .is_some()
+            {
+                return Err(Error::Invalid(constants::DUPLICATE_RULE.into()));
+            }
+        }
         Ok(rules)
     }
 }
@@ -79,7 +110,7 @@ impl EnginePort for EngineLocalAdapter {
         } else {
             None
         };
-        let rules = Self::load_rules(&request.rules)?;
+        let rules = Self::load_rules(&request.rules, self.frontend_diagnostic.clone())?;
         let mut sources = Vec::new();
         let mut accepted = std::collections::BTreeSet::new();
         for file in &request.files {

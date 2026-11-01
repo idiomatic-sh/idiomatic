@@ -38,7 +38,7 @@ const CASES: &[Case<Scenario, usize, &'static str>] = &[
         expect: Expect::Error("candidate mismatch"),
     },
     Case {
-        name: CaseName("rule scope explicitly excludes unrelated diagnostics"),
+        name: CaseName("rule scope preserves parser diagnostics and excludes unrelated rules"),
         word: Word::Succeeds,
         input: || Scenario::RuleProjection,
         expect: Expect::Value(1),
@@ -223,7 +223,7 @@ impl ExecutionPort for Empty {
     }
 }
 
-/// Give both contestants explicit frontend findings without changing rule-only expectations.
+/// Give both contestants parser diagnostics, optionally retaining an unrelated lint as a control.
 fn report_scope(
     scenario: Scenario,
     suite: &mut SuiteFake,
@@ -246,11 +246,27 @@ fn report_scope(
         if !matches!(scenario, Scenario::MissingFrontend) {
             candidate.diagnostics.push(frontend.clone());
         }
-        if !matches!(scenario, Scenario::RuleProjection) {
-            let case = suite.prepared.first_mut().expect("authored case");
-            case.comparison = crate::domain::suite::types::CaseComparison::Full;
-            case.expected.diagnostics.push(frontend);
+        if matches!(scenario, Scenario::RuleProjection) {
+            let unrelated = BenchmarkFinding {
+                rule: "F401".try_into().expect("unrelated lint identity"),
+                file: ryo::linter::RelativePath("case.py".into()),
+                start: crate::domain::diagnostics::types::SourceByteOffset(20),
+                end: crate::domain::diagnostics::types::SourceByteOffset(24),
+            };
+            reference.diagnostics.push(unrelated.clone());
+            candidate.diagnostics.push(unrelated);
         }
+        if !matches!(scenario, Scenario::RuleProjection) {
+            suite.prepared.first_mut().expect("authored case").comparison =
+                crate::domain::suite::types::CaseComparison::Full;
+        }
+        suite
+            .prepared
+            .first_mut()
+            .expect("authored case")
+            .expected
+            .diagnostics
+            .push(frontend);
     }
 }
 

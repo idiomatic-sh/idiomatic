@@ -13,6 +13,8 @@ enum EngineScenario {
     Missing,
     Unread,
     Partial,
+    InvalidSyntax,
+    InvalidSyntaxProjectionDisabled,
 }
 type Input = EngineScenario;
 type Value = bool;
@@ -22,6 +24,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("sdk_preserves_checked_file_rule_and_byte_span"),
         word: Word::Succeeds,
         input: || EngineScenario::Finding,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("sdk_projects_every_python_syntax_error_as_invalid_syntax"),
+        word: Word::Succeeds,
+        input: || EngineScenario::InvalidSyntax,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("frontend_projection_is_disabled_without_an_identity"),
+        word: Word::Succeeds,
+        input: || EngineScenario::InvalidSyntaxProjectionDisabled,
         expect: Expect::Value(true),
     },
     Case {
@@ -56,7 +70,10 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
         include_str!("rules/E722/query.ryoql"),
     )?;
     let file = match scenario {
-        EngineScenario::Finding | EngineScenario::Partial => "input.py",
+        EngineScenario::Finding
+        | EngineScenario::Partial
+        | EngineScenario::InvalidSyntax
+        | EngineScenario::InvalidSyntaxProjectionDisabled => "input.py",
         EngineScenario::Missing => "missing.py",
         EngineScenario::Unread => "input.unknown",
     };
@@ -65,6 +82,11 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
             root.path().join(file),
             if matches!(scenario, EngineScenario::Partial) {
                 "try:\n    pass\nexcept:\n    pass\n\ndef broken(\n"
+            } else if matches!(
+                scenario,
+                EngineScenario::InvalidSyntax | EngineScenario::InvalidSyntaxProjectionDisabled
+            ) {
+                "global x\nnonlocal x\n"
             } else {
                 "try:\n    pass\nexcept:\n    pass\n"
             },
@@ -76,8 +98,16 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
         files: vec![ryo::linter::RelativePath(file.into())],
         state: ryo_benchmark::domain::suite::types::WorkerState::Fresh,
     };
-    let result =
-        factory::local(ryo::linter::Languages(vec![ryo_python::linked()]), None).run(request);
+    let request_engine = if matches!(scenario, EngineScenario::InvalidSyntaxProjectionDisabled) {
+        factory::local(ryo::linter::Languages(vec![ryo_python::linked()]), None)
+    } else {
+        factory::local_with_frontend_diagnostic(
+            ryo::linter::Languages(vec![ryo_python::linked()]),
+            None,
+            ryo::linter::RuleId::try_from("invalid-syntax").expect("frontend identity"),
+        )
+    };
+    let result = request_engine.run(request);
     if matches!(scenario, EngineScenario::Unread) {
         assert!(
             matches!(&result, Err(Error::Invalid(message)) if message.starts_with("incomplete candidate:") && message.contains("input.unknown")),
@@ -94,15 +124,26 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
         );
     }
     let report = result?;
+    let expected_diagnostics = if matches!(scenario, EngineScenario::InvalidSyntax) {
+        vec![BenchmarkFinding {
+            rule: ryo::linter::RuleId::try_from("invalid-syntax").expect("syntax rule"),
+            file: ryo::linter::RelativePath("input.py".into()),
+            start: ryo_benchmark::domain::diagnostics::types::SourceByteOffset(9),
+            end: ryo_benchmark::domain::diagnostics::types::SourceByteOffset(19),
+        }]
+    } else if matches!(scenario, EngineScenario::InvalidSyntaxProjectionDisabled) {
+        vec![]
+    } else {
+        vec![BenchmarkFinding {
+            rule: ryo::linter::RuleId::try_from("E722").expect("fixture rule"),
+            file: ryo::linter::RelativePath("input.py".into()),
+            start: ryo_benchmark::domain::diagnostics::types::SourceByteOffset(14),
+            end: ryo_benchmark::domain::diagnostics::types::SourceByteOffset(20),
+        }]
+    };
     Ok(
         report.files == [ryo::linter::RelativePath("input.py".into())]
-            && report.diagnostics
-                == [BenchmarkFinding {
-                    rule: ryo::linter::RuleId::try_from("E722").expect("fixture rule"),
-                    file: ryo::linter::RelativePath("input.py".into()),
-                    start: ryo_benchmark::domain::diagnostics::types::SourceByteOffset(14),
-                    end: ryo_benchmark::domain::diagnostics::types::SourceByteOffset(20),
-                }],
+            && report.diagnostics == expected_diagnostics,
     )
 }
 fn subject(input: Input) -> Result<Value, Failure> {

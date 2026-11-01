@@ -20,6 +20,8 @@ pub(super) fn worker(
         .map(|argument| argument.0)
         .ok_or_else(|| Error::Invalid(constants::MISSING_WORKER_REQUEST.into()))?;
     let languages = ryo::linter::Languages(vec![ryo_python::linked()]);
+    let frontend_diagnostic = ryo::linter::RuleId::try_from("invalid-syntax")
+        .map_err(|error| Error::Invalid(error.to_string()))?;
     let engine: Arc<dyn ryo_benchmark::outbound::engine::interface::EnginePort> =
         match if tracing == WorkerTracing::Enabled {
             Some(
@@ -30,12 +32,15 @@ pub(super) fn worker(
         } else {
             None
         } {
-            Some(path) => Arc::new(ryo_benchmark::outbound::engine::factory::local(
+            Some(path) => Arc::new(ryo_benchmark::outbound::engine::factory::local_with_frontend_diagnostic(
                 languages,
                 Some(path.into()),
+                frontend_diagnostic.clone(),
             )),
-            None => Arc::new(ryo_benchmark::outbound::engine::factory::local(
-                languages, None,
+            None => Arc::new(ryo_benchmark::outbound::engine::factory::local_with_frontend_diagnostic(
+                languages,
+                None,
+                frontend_diagnostic,
             )),
         };
     let transport =
