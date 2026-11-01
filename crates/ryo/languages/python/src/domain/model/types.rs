@@ -3,8 +3,10 @@
 
 use crate::domain::brace_format::types::BraceFormatIndex;
 use crate::domain::constant_keys::types::ConstantKeyIndex;
+use crate::domain::expression_types::types::ExpressionTypeIndex;
 use crate::domain::format_syntax::types::FormatParseIndex;
 use crate::domain::indentation::types::IndentationIndex;
+use crate::domain::terminal_flow::types::TerminalIndex;
 use crate::domain::{labels::types::Field, syntax::types::Kind};
 use ryo::languages::{Position, PropertyId, Symbol};
 use std::cell::RefCell;
@@ -60,6 +62,10 @@ pub(crate) struct Declarations {
     pub format_parsing: RefCell<FormatParseIndex>,
     /// Lazy decoded brace-format parses, invalidated between source revisions.
     pub brace_format: RefCell<BraceFormatIndex>,
+    /// Lazy basic expression types, invalidated between source revisions.
+    pub expression_types: RefCell<ExpressionTypeIndex>,
+    /// Lazy terminal function summaries, invalidated between source revisions.
+    pub terminal_flow: RefCell<TerminalIndex>,
     /// Every declared name.
     pub declared: Vec<ScopeDeclaration>,
     /// Definitions indexed by lexical scope and name, in source order.

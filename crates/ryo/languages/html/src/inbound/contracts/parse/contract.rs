@@ -254,6 +254,16 @@ impl Parse for ParseContract {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
+    fn function_terminal(&self) -> Support<Reader<languages::FunctionTerminal, Self::FileModel>> {
+        // This provider does not yet implement this optional semantic relation.
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn expression_type(&self) -> Support<Reader<languages::ExpressionType, Self::FileModel>> {
+        // This provider does not yet implement this optional semantic relation.
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn interpolated_string_literal(
         &self,
     ) -> Support<Reader<languages::InterpolatedStringLiteral, Self::FileModel>> {

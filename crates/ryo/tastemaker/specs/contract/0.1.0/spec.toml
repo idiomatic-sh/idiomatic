@@ -109,6 +109,14 @@ impl Parse for ParseContract {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
+    fn function_terminal(&self) -> Support<Reader<languages::FunctionTerminal, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn expression_type(&self) -> Support<Reader<languages::ExpressionType, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
 
     fn implicit_symbol(&self) -> Support<Reader<languages::ImplicitSymbol, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
@@ -433,6 +441,14 @@ impl Parse for ParseContract {
     }
 
     fn brace_format_field(&self) -> Support<Reader<languages::BraceFormatField, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn function_terminal(&self) -> Support<Reader<languages::FunctionTerminal, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn expression_type(&self) -> Support<Reader<languages::ExpressionType, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -919,6 +935,14 @@ impl Parse for ParseContract {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
+    fn function_terminal(&self) -> Support<Reader<languages::FunctionTerminal, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn expression_type(&self) -> Support<Reader<languages::ExpressionType, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
 
     fn implicit_symbol(&self) -> Support<Reader<languages::ImplicitSymbol, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
@@ -1252,6 +1276,14 @@ impl Parse for ParseContract {
     }
 
     fn brace_format_field(&self) -> Support<Reader<languages::BraceFormatField, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn function_terminal(&self) -> Support<Reader<languages::FunctionTerminal, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn expression_type(&self) -> Support<Reader<languages::ExpressionType, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 

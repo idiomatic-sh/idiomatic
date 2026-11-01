@@ -57,6 +57,8 @@ pub mod embedded_expression;
 pub mod binding_event;
 /// Structural expression identity.
 pub mod expression_shape;
+pub mod expression_type;
+pub mod function_terminal;
 /// Decoded literal fragments of interpolated strings.
 pub mod interpolated_string_literal;
 pub mod language_target;

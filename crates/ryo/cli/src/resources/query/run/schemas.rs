@@ -6,8 +6,8 @@ use ryo_core::inbound::use_cases::lint::types::{LintRequest, Rule};
 use ryo_language::inbound::use_cases::project::types::RootPath;
 use ryo_values::domain::plan_parts::types::QueryText;
 use ryo_values::domain::records::types::RowTotal;
-use ryo_values::domain::runs::types::AnswerShape;
 use ryo_values::domain::runs::types::RuleId;
+use ryo_values::domain::runs::types::{AnswerShape, RuleApplicability};
 use ryo_values::domain::runs::types::{Budget, MemoryBytes, Session};
 
 /// Why the arguments were refused, or the queries could not be answered.
@@ -90,6 +90,7 @@ impl TryFrom<RunArgumentsSchema> for LintRequest {
                     query: ryo_values::domain::program::types::QueryBundle::from(QueryText(
                         text.into(),
                     )),
+                    applicability: RuleApplicability::Always,
                     parameters: Vec::new(),
                     include: Vec::new(),
                     exclude: Vec::new(),

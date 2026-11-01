@@ -40,6 +40,8 @@ macro_rules! each_relation {
                 Identifier identifier IdentifierRow IdentifierColumn;
                 ExpressionShape expression_shape ExpressionShapeRow ExpressionShapeColumn;
                 LiteralProperties literal_properties LiteralPropertiesRow LiteralPropertiesColumn;
+                FunctionTerminal function_terminal FunctionTerminalRow FunctionTerminalColumn;
+                ExpressionType expression_type ExpressionTypeRow ExpressionTypeColumn;
                 InterpolatedStringLiteral interpolated_string_literal InterpolatedStringLiteralRow InterpolatedStringLiteralColumn;
                 LanguageTarget language_target LanguageTargetRow LanguageTargetColumn;
                 ConstantKey constant_key ConstantKeyRow ConstantKeyColumn;
@@ -418,5 +420,7 @@ pub const fn capability_relation(capability: super::types::OptionalCapability) -
         OptionalCapability::FormatField => Relation::FormatField,
         OptionalCapability::BraceFormatParse => Relation::BraceFormatParse,
         OptionalCapability::BraceFormatField => Relation::BraceFormatField,
+        OptionalCapability::FunctionTerminal => Relation::FunctionTerminal,
+        OptionalCapability::ExpressionType => Relation::ExpressionType,
     }
 }

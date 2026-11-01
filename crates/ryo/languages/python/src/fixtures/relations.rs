@@ -16,6 +16,14 @@ mod expression_shape {
 mod literal_properties {
     include!("../../tests/fixtures/relations/literal_properties/expected.rs");
 }
+/// Basic per-expression type classifications.
+mod expression_type {
+    include!("../../tests/fixtures/relations/expression_type/expected.rs");
+}
+/// Structured terminal outcomes for functions.
+mod function_terminal {
+    include!("../../tests/fixtures/relations/function_terminal/expected.rs");
+}
 /// Decoded text fragments are scoped to their owning f-string.
 mod interpolated_string_literal {
     include!("../../tests/fixtures/relations/interpolated_string_literal/expected.rs");
@@ -146,6 +154,8 @@ pub(super) fn expected() -> Vec<Expected> {
         identifier::expected(),
         expression_shape::expected(),
         literal_properties::expected(),
+        expression_type::expected(),
+        function_terminal::expected(),
         interpolated_string_literal::expected(),
         language_target::expected(),
         constant_key::expected(),

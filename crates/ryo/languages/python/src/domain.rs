@@ -58,7 +58,11 @@ pub(crate) mod binding_analysis;
 pub(crate) mod binding_uncertainty;
 /// Lazy brace-format parsing, separate from percent-format parsing.
 pub(crate) mod brace_format;
+/// Basic types inferred from individual expressions.
+pub(crate) mod expression_types;
 /// Lazy per-source percent-format parse results.
 pub(crate) mod format_parsing;
 /// Application-owned decoded format grammar results and parser port.
 pub(crate) mod format_syntax;
+/// Terminal outcomes of function bodies.
+pub(crate) mod terminal_flow;

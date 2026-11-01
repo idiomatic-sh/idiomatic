@@ -531,4 +531,8 @@ pub enum OptionalCapability {
     BraceFormatParse,
     /// Ordered Python brace-format fields, including nested format-spec fields.
     BraceFormatField,
+    /// Basic structured terminal outcomes of function bodies.
+    FunctionTerminal,
+    /// Basic parser-derived types of individual expressions.
+    ExpressionType,
 }

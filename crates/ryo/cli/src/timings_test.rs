@@ -196,6 +196,7 @@ fn a_query_run_reports_rows_of_ryo_itself() {
                     "let f = select * from \"function\"; emit f subject file key(span);".into(),
                 ),
             ),
+            applicability: ryo_values::domain::runs::types::RuleApplicability::Always,
             parameters: Vec::new(),
             include: Vec::new(),
             exclude: Vec::new(),

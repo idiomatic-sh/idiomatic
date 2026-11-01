@@ -53,6 +53,7 @@ fn the_walk_does_not_enter_the_directories_the_linked_languages_declare() {
             query: ryo_values::domain::program::types::QueryBundle::from(QueryText(
                 "let functions = select * from \"function\"; emit functions subject \"file\" key(\"span\");".into()),
             ),
+            applicability: ryo_values::domain::runs::types::RuleApplicability::Always,
             parameters: Vec::new(),
             include: Vec::new(),
             exclude: Vec::new(),
