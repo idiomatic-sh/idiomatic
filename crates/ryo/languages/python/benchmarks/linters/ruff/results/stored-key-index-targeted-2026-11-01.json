@@ -5560,6 +5560,13 @@
         "path": "docs/USAGE.md",
         "url": "https://github.com/oxc-project/tsrs/blob/e18fb617ee516917342dcda27063ab67acc79e49/docs/USAGE.md",
         "sha256": "396fb061195c422ff786c8002c8dad651ff9b48d57a337bacda86601098c04f6"
+      },
+      {
+        "repository": "oxc",
+        "commit": "d14dbd1e137de15a95d1d66417fbeea5cd2dd14e",
+        "path": "crates/oxc_linter/src/lib.rs",
+        "url": "https://github.com/oxc-project/oxc/blob/d14dbd1e137de15a95d1d66417fbeea5cd2dd14e/crates/oxc_linter/src/lib.rs",
+        "sha256": "4f07b5019df6389c6620ddb5bae6e7b06e2ae480179621ed8f90e7a920b73d28"
       }
     ],
     "related_architecture_observations": [
@@ -5589,6 +5596,11 @@
       "source": "tsrs/docs/USAGE.md",
       "observation": "Lazy type members; declaration parsing only when declaration checking is skipped; eligible noEmit/nonincremental/nonwatch leaf freeing. Fast scheduling/history/instantiation can add/remove diagnostics or change locations/messages/exit status despite unchanged strict options. History/lazy settings reject incompatible build caches. Single-thread mode avoids checker-state duplication; maxMemory replaces the largest checker and trades CPU for memory.",
       "ryo_hypothesis": "Demand-driven phases and context-keyed bounded state need explicit lifetime/eligibility and diagnostic-equivalence tests; fast mode is not guaranteed semantically equivalent."
+    },
+    "oxc_dispatch_source": {
+      "observed": "RuleBuckets reuses per-thread buffers; execute_rules visits semantic nodes once and dispatches registered node-kind rules plus any-type rules; run_once remains distinct. A debug unoptimized every-rule/every-node path checks diagnostics against the optimized path. Comparator includes labels, message, help, note, severity, code, URL, span and fixes.",
+      "ryo_hypothesis": "Generic shared selectors/dispatch can remove repeated row work; retain optimized-vs-reference full diagnostic equivalence tests. This is lint dispatch evidence, not a whole-compiler one-pass claim or measured Ryo improvement.",
+      "size_assert": "RuleEnum size16 bytes is enforced upstream; historical profile percentages are not transferred to Ryo."
     }
   },
   "limitations": [
