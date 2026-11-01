@@ -29,6 +29,8 @@ enum Given {
     Refused(&'static str, &'static str),
     /// The features `from __future__ import` takes, as `CPython`'s `__future__.all_feature_names`, pinned, lists them.
     Features(&'static str),
+    /// The semantic diagnostics the parser adapter preserves, with their byte ranges.
+    Diagnostics(&'static str),
 }
 
 type Input = Given;
@@ -52,6 +54,8 @@ enum Seen {
     Features(bool),
     /// The tokens' bytes joined, the decoded texts in order, and how many diagnostics.
     Read(&'static [u8], &'static [&'static str], usize),
+    /// The parser's diagnostic messages and byte ranges, in report order.
+    Diagnostics(&'static [(&'static str, u32, u32)]),
 }
 
 /// What the adapter reads `bytes` into, as the round trip sees it.
@@ -114,6 +118,54 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Given::Read(b""),
         expect: Expect::Value(Seen::Read(b"", &[], 0)),
+    },
+    Case {
+        name: CaseName("a_module_nonlocal_has_the_pinned_semantic_syntax_error"),
+        word: Word::Succeeds,
+        input: || Given::Diagnostics("nonlocal x\n"),
+        expect: Expect::Value(Seen::Diagnostics(&[(
+            "nonlocal declaration not allowed at module level",
+            0,
+            10,
+        )])),
+    },
+    Case {
+        name: CaseName("a_nonlocal_in_a_module_compound_statement_is_still_module_scoped"),
+        word: Word::Succeeds,
+        input: || Given::Diagnostics("if True:\n    nonlocal x\n"),
+        expect: Expect::Value(Seen::Diagnostics(&[(
+            "nonlocal declaration not allowed at module level",
+            13,
+            23,
+        )])),
+    },
+    Case {
+        name: CaseName("a_nonlocal_in_a_module_loop_is_still_module_scoped"),
+        word: Word::Succeeds,
+        input: || Given::Diagnostics("for x in xs:\n    nonlocal x\n"),
+        expect: Expect::Value(Seen::Diagnostics(&[(
+            "nonlocal declaration not allowed at module level",
+            17,
+            27,
+        )])),
+    },
+    Case {
+        name: CaseName("a_nested_nonlocal_does_not_get_the_module_scope_diagnostic"),
+        word: Word::Succeeds,
+        input: || Given::Diagnostics("def f():\n    nonlocal x\n"),
+        expect: Expect::Value(Seen::Diagnostics(&[])),
+    },
+    Case {
+        name: CaseName("a_top_level_class_nonlocal_gets_no_module_scope_diagnostic"),
+        word: Word::Succeeds,
+        input: || Given::Diagnostics("class C:\n    nonlocal x\n"),
+        expect: Expect::Value(Seen::Diagnostics(&[])),
+    },
+    Case {
+        name: CaseName("a_class_inside_a_function_can_use_an_enclosing_nonlocal"),
+        word: Word::Succeeds,
+        input: || Given::Diagnostics("def outer():\n    x = 1\n    class C:\n        nonlocal x\n"),
+        expect: Expect::Value(Seen::Diagnostics(&[])),
     },
     Case {
         name: CaseName("a_call_is_nodes_with_its_punctuation_as_tokens"),
@@ -324,6 +376,23 @@ fn subject(given: Input) -> Result<Value, Failure> {
                 .lines()
                 .eq(super::constants::FUTURE_FEATURES.iter().copied()),
         )),
+        Given::Diagnostics(text) => {
+            let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
+            let mut builder =
+                languages::table_builder(&mut elements, &mut symbols, ByteSlice(text.as_bytes()));
+            SyntaxRuffPythonParserAdapter.read(SourceText(text.as_bytes()), &mut builder);
+            let diagnostics: Vec<(&'static str, u32, u32)> = languages::diagnostics(&elements)
+                .map(|diagnostic| {
+                    let message = std::str::from_utf8(diagnostic.message.0).unwrap_or_default();
+                    (
+                        &*Box::leak(message.to_owned().into_boxed_str()),
+                        diagnostic.start.0,
+                        diagnostic.end.0,
+                    )
+                })
+                .collect();
+            Ok(Seen::Diagnostics(Box::leak(diagnostics.into_boxed_slice())))
+        }
         Given::Tree(text) => {
             let elements: Vec<(Kind, &'static str)> =
                 elements_of(&SyntaxRuffPythonParserAdapter, text)

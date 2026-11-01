@@ -5,6 +5,8 @@ use super::types::{AnnotationCandidate, AnnotationContext, ByteIndex, Readable, 
 use crate::outbound::syntax::interface::SyntaxPort;
 use crate::outbound::syntax::types::SourceText;
 use ruff_python_ast::PythonVersion;
+use ruff_python_ast::visitor::{Visitor, walk_stmt};
+use ruff_python_ast::{Mod, Stmt};
 use ruff_python_ast::visitor::source_order::SourceOrderVisitor as _;
 use ruff_python_parser::{Mode, ParseOptions, parse_unchecked};
 use ruff_text_size::Ranged as _;
@@ -18,6 +20,32 @@ pub(crate) struct SyntaxRuffPythonParserAdapter;
 /// The options the library parses with: a module, in the latest Python it reads.
 pub(super) fn options() -> ParseOptions {
     ParseOptions::from(Mode::Module).with_target_version(PythonVersion::latest())
+}
+
+/// Module-level `nonlocal` is a semantic syntax error; compound statements do not create scopes.
+fn module_level_nonlocals(module: &Mod) -> Vec<ruff_text_size::TextRange> {
+    let Mod::Module(module) = module else {
+        return Vec::new();
+    };
+
+    #[derive(Default)]
+    struct Nonlocals(Vec<ruff_text_size::TextRange>);
+
+    impl<'a> Visitor<'a> for Nonlocals {
+        fn visit_stmt(&mut self, stmt: &'a Stmt) {
+            match stmt {
+                Stmt::Nonlocal(nonlocal) => self.0.push(nonlocal.range),
+                Stmt::FunctionDef(_) | Stmt::ClassDef(_) => {}
+                _ => walk_stmt(self, stmt),
+            }
+        }
+    }
+
+    let mut visitor = Nonlocals::default();
+    for statement in &module.body {
+        visitor.visit_stmt(statement);
+    }
+    visitor.0
 }
 
 impl SyntaxPort for SyntaxRuffPythonParserAdapter {
@@ -34,6 +62,7 @@ impl SyntaxPort for SyntaxRuffPythonParserAdapter {
             AnnotationContext::Runtime,
         );
         writer.visit_mod(parsed.syntax());
+        let module_nonlocals = module_level_nonlocals(parsed.syntax());
         if source.len() == text.0.len() && matches!(source, Cow::Owned(_)) {
             let mut at = 0_usize;
             for chunk in text.0.utf8_chunks() {
@@ -65,6 +94,14 @@ impl SyntaxPort for SyntaxRuffPythonParserAdapter {
                 languages::ReportText(&error.to_string()),
                 Offset(error.range.start().to_u32()),
                 Offset(error.range.end().to_u32()),
+            );
+        }
+        for range in module_nonlocals {
+            languages::diagnose(
+                writer.tree.builder,
+                languages::ReportText("nonlocal declaration not allowed at module level"),
+                Offset(range.start().to_u32()),
+                Offset(range.end().to_u32()),
             );
         }
         let refused = std::mem::take(&mut writer.refused);
