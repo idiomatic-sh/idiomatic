@@ -2,6 +2,8 @@
 
 ## 0.3.0
 
+Edited in place: `npm-platform-readme` places a README in each platform package, which names the binary it carries and sends a user to the product's package; `npm-smoke-test` stages it, holds the platform tarball to it, and runs the dry-run publish with `--force`, which skips only npm's look at the registry's versions, so a version already published passes.
+
 Edited in place: no file of the distribution lies on a ring of module dependencies (`module-cycles`). `smoke-test` names no registry's module: `REGISTRIES`, its `Install` and `Languages`, and `every_registry_is_declared` are `target-test`'s, which names each registry's `command` and `languages` through `super::`, so the registries' `super::` helpers and the root no longer name each other (the `no-registry-check` scenario moved with them). `target-preparation` holds `table` and `pinned` and names the root's `output` and `run`; its `checkout` binds the dependencies alone, and `target-test`'s `checkout` places the configuration and prepares the policy around it, so preparation names nothing of `target-test`. `bench-main` reads `target_test::REGISTRIES` and calls `target_test::checkout`.
 
 Edited in place: no smoke test runs a target. `smoke-test` no longer has `targets_have_their_findings`, the registries'

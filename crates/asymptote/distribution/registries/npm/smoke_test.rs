@@ -20,7 +20,7 @@ const NPM_CPU: &[&str] = &["x64", "arm64", "arm", "ia32", "riscv64", "ppc64", "s
 struct Installation {
     /// The binary the build made, as the host's archive holds it.
     binary: PathBuf,
-    /// The host's platform package, staged and stamped.
+    /// The host's platform package, staged with its README and stamped.
     platform: PathBuf,
     /// The tarballs `npm pack` made.
     packed: PathBuf,
@@ -118,7 +118,9 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
     let platforms = npm.join("platforms");
 
     let platform = directory.join("platform");
-    stage(&platforms.join(host()?), &platform)?;
+    let source = platforms.join(host()?);
+    stage(&source, &platform)?;
+    let _: u64 = std::fs::copy(source.join("README.md"), platform.join("README.md"))?;
     let binary = host_binary(directory)?;
     let bin = platform.join("bin");
     std::fs::create_dir_all(&bin)?;
@@ -240,7 +242,7 @@ fn installs_and_runs() {
     let installation = install(directory.path()).unwrap();
 
     // No test, target or build file ships: each tarball holds its manifest and its one
-    // payload, the launcher or the binary.
+    // payload, the launcher or the binary, and the platform package its README.
     let mut shipped = Vec::new();
     for tarball in tarballs(&installation.packed).unwrap() {
         shipped.extend(
@@ -250,9 +252,10 @@ fn installs_and_runs() {
                 .map(str::to_owned),
         );
         // The dry-run publish: npm reads the tarball as it would publish it and uploads
-        // nothing.
+        // nothing. `--force` skips only npm's look at the registry's versions, so the
+        // crate's version passes whether or not it is already published.
         run(Command::new(NPM)
-            .args(["publish", "--dry-run", "--access", "public"])
+            .args(["publish", "--dry-run", "--force", "--access", "public"])
             .arg(&tarball))
         .unwrap();
     }
@@ -263,6 +266,7 @@ fn installs_and_runs() {
         [
             "package/LICENSE".to_owned(),
             "package/LICENSE".to_owned(),
+            "package/README.md".to_owned(),
             format!("package/bin/{binary}"),
             "package/launcher.js".to_owned(),
             "package/package.json".to_owned(),
