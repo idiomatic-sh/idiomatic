@@ -12,6 +12,7 @@ use ryo::languages::contract::{Expected, Unfilled, Unshown};
 mod expression_shape {
     include!("../../tests/fixtures/relations/expression_shape/expected.rs");
 }
+/// Independently expected identifier spellings.
 mod identifier {
     include!("../../tests/fixtures/relations/identifier/expected.rs");
 }

@@ -2,6 +2,7 @@
 use ryo::languages::contract::{
     Expected, ExpressionShapeExpectedRow, expected_rows, file, node, span,
 };
+/// Expected shape class and source span for each occurrence.
 const ROWS: &[ExpressionShapeExpectedRow] = &[
     ExpressionShapeExpectedRow {
         id: node(2),

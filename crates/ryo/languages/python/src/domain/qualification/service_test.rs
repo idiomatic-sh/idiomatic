@@ -409,11 +409,11 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value((Some("contextlib.suppress"), "import", 0, 0)),
     },
 ];
-fn subject(input: Input) -> Value {
+fn subject(input: Input) -> Result<Value, String> {
     super::fixtures::replay(input)
 }
 
 #[test]
 fn succeeds() {
-    run(CASES, Word::Succeeds, |input| Ok(subject(input)));
+    run(CASES, Word::Succeeds, subject);
 }

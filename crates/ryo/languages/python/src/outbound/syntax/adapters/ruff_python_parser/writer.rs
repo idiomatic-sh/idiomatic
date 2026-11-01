@@ -89,6 +89,7 @@ impl<'b, 'w, 't> Writer<'b, 'w, 't> {
             parsed_tokens: tokens,
             length,
             source,
+            scalar: String::new(),
         }
     }
 
@@ -232,8 +233,7 @@ impl<'a> SourceOrderVisitor<'a> for Writer<'_, '_, '_> {
                 }),
             );
         }
-        scalar_properties(node, self.tree.builder)
-            .expect("formatting parser scalars into memory is infallible");
+        scalar_properties(node, self.tree.builder, &mut self.scalar);
         let canonical = if let AnyNodeRef::Identifier(identifier) = node {
             Some(identifier.as_str())
         } else if let AnyNodeRef::ExprName(name) = node {
@@ -309,65 +309,72 @@ impl<'a> SourceOrderVisitor<'a> for Writer<'_, '_, '_> {
 fn scalar_properties(
     node: AnyNodeRef<'_>,
     builder: &mut languages::TableBuilder<'_>,
-) -> std::fmt::Result {
+    scratch: &mut String,
+) {
     use crate::domain::syntax::constants::{
         BOOLEAN_SCALAR, BYTES_SCALAR, COMPLEX_SCALAR, ELLIPSIS_SCALAR, FLOAT_SCALAR,
         INTEGER_SCALAR, INTERPOLATION_CONVERSION, INTERPOLATION_DEBUG, NONE_SCALAR,
         SCALAR_IMAGINARY, SCALAR_KIND, SCALAR_VALUE,
     };
     use ruff_python_ast::Number;
-    use ryo::languages::{NameText, node_property, node_property_fmt};
+    use ryo::languages::{NameText, node_property};
     if let AnyNodeRef::ExprNumberLiteral(literal) = node {
         match &literal.value {
             Number::Int(value) => {
                 node_property(builder, SCALAR_KIND, NameText(INTEGER_SCALAR));
-                node_property_fmt(builder, SCALAR_VALUE, format_args!("{value}"))?;
+                scalar_property(builder, scratch, SCALAR_VALUE, value);
             }
             Number::Float(value) => {
                 node_property(builder, SCALAR_KIND, NameText(FLOAT_SCALAR));
-                node_property_fmt(builder, SCALAR_VALUE, format_args!("{}", value.to_bits()))?;
+                scalar_property(builder, scratch, SCALAR_VALUE, value.to_bits());
             }
             Number::Complex { real, imag } => {
                 node_property(builder, SCALAR_KIND, NameText(COMPLEX_SCALAR));
-                node_property_fmt(builder, SCALAR_VALUE, format_args!("{}", real.to_bits()))?;
-                node_property_fmt(
-                    builder,
-                    SCALAR_IMAGINARY,
-                    format_args!("{}", imag.to_bits()),
-                )?;
+                scalar_property(builder, scratch, SCALAR_VALUE, real.to_bits());
+                scalar_property(builder, scratch, SCALAR_IMAGINARY, imag.to_bits());
             }
         }
     } else if let AnyNodeRef::ExprBooleanLiteral(literal) = node {
         node_property(builder, SCALAR_KIND, NameText(BOOLEAN_SCALAR));
-        node_property_fmt(builder, SCALAR_VALUE, format_args!("{}", literal.value))?;
+        scalar_property(builder, scratch, SCALAR_VALUE, literal.value);
     } else if matches!(node, AnyNodeRef::ExprNoneLiteral(_)) {
         node_property(builder, SCALAR_KIND, NameText(NONE_SCALAR));
     } else if matches!(node, AnyNodeRef::ExprEllipsisLiteral(_)) {
         node_property(builder, SCALAR_KIND, NameText(ELLIPSIS_SCALAR));
     } else if let AnyNodeRef::ExprBytesLiteral(literal) = node {
         node_property(builder, SCALAR_KIND, NameText(BYTES_SCALAR));
-        node_property_fmt(
+        scalar_property(
             builder,
+            scratch,
             SCALAR_VALUE,
-            format_args!("{}", super::types::ScalarBytes(&literal.value)),
-        )?;
+            super::types::ScalarBytes(&literal.value),
+        );
     } else if let AnyNodeRef::InterpolatedElement(interpolation) = node {
         if let Some(debug) = &interpolation.debug_text {
-            node_property_fmt(
+            scalar_property(
                 builder,
+                scratch,
                 INTERPOLATION_DEBUG,
-                format_args!("{}", super::types::DebugSpelling(debug.as_str())),
-            )?;
+                super::types::DebugSpelling(debug.as_str()),
+            );
         }
         if let Some(conversion) = interpolation.conversion.to_char() {
-            node_property_fmt(
-                builder,
-                INTERPOLATION_CONVERSION,
-                format_args!("{conversion}"),
-            )?;
+            scalar_property(builder, scratch, INTERPOLATION_CONVERSION, conversion);
         }
     } else {
         // Other syntax nodes carry no scalar parser payload.
     }
-    Ok(())
+}
+
+/// Format into a reusable `String` before adding a scalar property; formatting a `String` is infallible.
+fn scalar_property(
+    builder: &mut languages::TableBuilder<'_>,
+    scratch: &mut String,
+    property: languages::PropertyId,
+    value: impl std::fmt::Display,
+) {
+    use std::fmt::Write as _;
+    scratch.clear();
+    let _ = write!(scratch, "{value}");
+    languages::node_property(builder, property, languages::NameText(scratch));
 }

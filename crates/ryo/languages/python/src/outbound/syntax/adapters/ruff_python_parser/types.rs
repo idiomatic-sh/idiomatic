@@ -95,6 +95,8 @@ pub(super) struct Writer<'b, 'w, 't> {
     pub length: Offset,
     /// Source spelling retained only to distinguish normalized identifiers.
     pub source: languages::NameText<'t>,
+    /// Reused scalar formatting buffer; `String` formatting has no failure path.
+    pub scalar: String,
 }
 
 /// Decoded bytes displayed as an unambiguous scalar payload without allocating a temporary string.

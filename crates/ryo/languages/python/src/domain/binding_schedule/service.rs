@@ -331,7 +331,7 @@ fn walk(
         Kind::Node(Node::Global) => push(plan, at, phase, BindingAction::Global),
         Kind::Node(Node::Nonlocal) => push(plan, at, phase, BindingAction::Nonlocal),
         Kind::Node(Node::Arg) => parameter_values(tree, model, at, phase, plan),
-        _ => {
+        Kind::Node(_) | Kind::Token(_) | Kind::Extra(_) => {
             for child in nodes(tree, at) {
                 walk(tree, model, child, phase, plan);
             }

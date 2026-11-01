@@ -174,7 +174,7 @@ fn segments(
             Kind::Node(Node::FormattedValue | Node::Interpolation) => {
                 child(words, classes, Field::Values, each)
             }
-            _ => {}
+            Kind::Node(_) | Kind::Token(_) | Kind::Extra(_) => {}
         }
     }
 }
@@ -265,7 +265,7 @@ fn key(
             }
             return Some(());
         }
-        _ => {}
+        Kind::Node(_) | Kind::Token(_) | Kind::Extra(_) => {}
     }
     for each in languages::children(tree.elements, at) {
         if is_token(tree, each) == Leaf::Node {

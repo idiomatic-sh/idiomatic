@@ -84,7 +84,7 @@ fn repeats_reference(tree: &Tree<'_>, reference: Position, region: Position) -> 
         Kind::Node(Node::ListComp | Node::SetComp | Node::DictComp | Node::GeneratorExp) => {
             within(tree, enclosing(tree, reference), region)
         }
-        _ => false,
+        Kind::Node(_) | Kind::Token(_) | Kind::Extra(_) => false,
     }
 }
 
