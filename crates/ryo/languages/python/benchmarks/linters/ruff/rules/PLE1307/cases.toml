@@ -1,0 +1,247 @@
+# Exact Ruff 0.16.5 tag 9e4938c4a60bed3e87a11ee1e1db1bd23f4d964a; target py310.
+
+[[cases]]
+name = "upstream-pinned-fixture"
+comparison = "full"
+files = { "case.py" = "# Errors\nprint(\"foo %(foo)d bar %(bar)d\" % {\"foo\": \"1\", \"bar\": \"2\"})\n\n\"foo %e bar %s\" % (\"1\", 2)\n\n\"%d\" % \"1\"\n\"%o\" % \"1\"\n\"%(key)d\" % {\"key\": \"1\"}\n\"%x\" % 1.1\n\"%(key)x\" % {\"key\": 1.1}\n\"%d\" % []\n\"%d\" % ([],)\n\"%(key)d\" % {\"key\": []}\nprint(\"%d\" % (\"%s\" % (\"nested\",),))\n\"%d\" % ((1, 2, 3),)\n\"%d\" % (1 if x > 0 else [])\n\n# False negatives\nWORD = \"abc\"\n\"%d\" % WORD\n\"%d %s\" % (WORD, WORD)\nVALUES_TO_FORMAT = (1, \"2\", 3.0)\n\"%d %d %f\" % VALUES_TO_FORMAT\n\n# OK\n\"%d %s %f\" % VALUES_TO_FORMAT\n\"%s\" % \"1\"\n\"%s %s %s\" % (\"1\", 2, 3.5)\nprint(\"%d %d\"\n      %\n(1, 1.1))\n\"%s\" % 1\n\"%d\" % 1\n\"%f\" % 1\n\"%s\" % 1\n\"%(key)s\" % {\"key\": 1}\n\"%d\" % 1\n\"%(key)d\" % {\"key\": 1}\n\"%f\" % 1\n\"%(key)f\" % {\"key\": 1}\n\"%d\" % 1.1\n\"%(key)d\" % {\"key\": 1.1}\n\"%s\" % []\n\"%(key)s\" % {\"key\": []}\n\"%s\" % None\n\"%(key)s\" % {\"key\": None}\nprint(\"%s\" % (\"%s\" % (\"nested\",),))\nprint(\"%s\" % (\"%d\" % (5,),))\n\"%d %d\" % \"1\"\n\"%d\" \"%d\" % \"1\"\n\"-%f\" % time.time()\n\"%r\" % (object['dn'],)\nr'\\%03o' % (ord(c),)\n('%02X' % int(_) for _ in o)\n\"%s;range=%d-*\" % (attr, upper + 1)\n\"%d\" % (len(foo),)\n'(%r, %r, %r, %r)' % (hostname, address, username, '$PASSWORD')\n'%r' % ({'server_school_roles': server_school_roles, 'is_school_multiserver_domain': is_school_multiserver_domain}, )\n\"%d\" % (1 if x > 0 else 2)\n\n# Special cases for %c allowing single character strings\n# https://github.com/astral-sh/ruff/issues/8406\n\"%c\" % (\"x\",)\n\"%c\" % \"x\"\n\"%c\" % \"œ\"\n\n# No errors here, will be reported separately by bad-string-format-character.\n\"%b\" % b\"xx\"\n\n# bool is acceptable as int/float/character.\n\"%d %c %f\" % (True, True, True)\n" }
+expected = [{ rule = "PLE1307", file = "case.py", start = 15, end = 67 }, { rule = "PLE1307", file = "case.py", start = 70, end = 96 }, { rule = "PLE1307", file = "case.py", start = 98, end = 108 }, { rule = "PLE1307", file = "case.py", start = 109, end = 119 }, { rule = "PLE1307", file = "case.py", start = 120, end = 144 }, { rule = "PLE1307", file = "case.py", start = 145, end = 155 }, { rule = "PLE1307", file = "case.py", start = 156, end = 180 }, { rule = "PLE1307", file = "case.py", start = 181, end = 190 }, { rule = "PLE1307", file = "case.py", start = 191, end = 203 }, { rule = "PLE1307", file = "case.py", start = 204, end = 227 }, { rule = "PLE1307", file = "case.py", start = 234, end = 262 }, { rule = "PLE1307", file = "case.py", start = 264, end = 283 }, { rule = "PLE1307", file = "case.py", start = 284, end = 311 }]
+
+[[cases]]
+name = "numeric-classes"
+comparison = "full"
+files = { "case.py" = "\"%d\" % \"bad\"\n\"%d\" % 1.5\n\"%f\" % 2\n\"%x\" % 1.5\n" }
+expected = [{ rule = "PLE1307", file = "case.py", start = 0, end = 12 }, { rule = "PLE1307", file = "case.py", start = 33, end = 43 }]
+
+[[cases]]
+name = "unknown-format-type-policy"
+comparison = "full"
+files = { "case.py" = "\"%i\" % \"bad\"\n\"%u\" % []\n\"%a\" % None\n\"%r\" % object()\n" }
+expected = []
+
+[[cases]]
+name = "known-nonnumeric"
+comparison = "full"
+files = { "case.py" = "\"%d\" % []\n\"%d\" % {1}\n\"%d\" % None\n\"%d\" % 1j\n" }
+expected = [{ rule = "PLE1307", file = "case.py", start = 0, end = 9 }, { rule = "PLE1307", file = "case.py", start = 10, end = 20 }, { rule = "PLE1307", file = "case.py", start = 21, end = 32 }, { rule = "PLE1307", file = "case.py", start = 33, end = 42 }]
+
+[[cases]]
+name = "char-literal"
+comparison = "full"
+files = { "case.py" = "\"%c\" % \"a\"\n\"%c\" % \"é\"\n\"%c\" % \"\"\n\"%c\" % \"ab\"\n" }
+expected = [{ rule = "PLE1307", file = "case.py", start = 23, end = 32 }, { rule = "PLE1307", file = "case.py", start = 33, end = 44 }]
+
+[[cases]]
+name = "char-literal-concatenation"
+comparison = "full"
+files = { "case.py" = "\"%c\" % (\"\" \"é\")\n\"%c\" % (\"a\" \"b\")\n" }
+expected = [{ rule = "PLE1307", file = "case.py", start = 17, end = 33 }]
+
+[[cases]]
+name = "char-nonliteral"
+comparison = "full"
+files = { "case.py" = "\"%c\" % (\"a\" + \"\")\n\"%c\" % (\"a\" if flag else \"b\")\n\"%c\" % b\"a\"\n" }
+expected = [{ rule = "PLE1307", file = "case.py", start = 0, end = 17 }, { rule = "PLE1307", file = "case.py", start = 18, end = 47 }, { rule = "PLE1307", file = "case.py", start = 48, end = 59 }]
+
+[[cases]]
+name = "boolean-arguments"
+comparison = "full"
+files = { "case.py" = "\"%d %c %f\" % (True,False,True)\n" }
+expected = []
+
+[[cases]]
+name = "tuple-mismatch"
+comparison = "full"
+files = { "case.py" = "\"%d %s\" % (\"bad\",2)\n" }
+expected = [{ rule = "PLE1307", file = "case.py", start = 0, end = 19 }]
+
+[[cases]]
+name = "tuple-too-short"
+comparison = "full"
+files = { "case.py" = "\"%d %d\" % (\"bad\",)\n" }
+expected = []
+
+[[cases]]
+name = "tuple-extra-values"
+comparison = "full"
+files = { "case.py" = "\"%d\" % (\"bad\",2)\n" }
+expected = [{ rule = "PLE1307", file = "case.py", start = 0, end = 16 }]
+
+[[cases]]
+name = "tuple-zero"
+comparison = "full"
+files = { "case.py" = "\"none\" % (\"bad\",)\n" }
+expected = []
+
+[[cases]]
+name = "scalar-multiple-fields"
+comparison = "full"
+files = { "case.py" = "\"%d %d\" % \"bad\"\n" }
+expected = []
+
+[[cases]]
+name = "star-specs-not-consumption"
+comparison = "full"
+files = { "case.py" = "\"%*d\" % (3,\"bad\")\n\"%*d\" % (\"bad\",3)\n" }
+expected = [{ rule = "PLE1307", file = "case.py", start = 18, end = 35 }]
+
+[[cases]]
+name = "mapping-good-bad"
+comparison = "full"
+files = { "case.py" = "\"%(x)d\" % {\"x\":\"bad\"}\n\"%(x)d\" % {\"x\":1}\n" }
+expected = [{ rule = "PLE1307", file = "case.py", start = 0, end = 21 }]
+
+[[cases]]
+name = "mapping-count-guard"
+comparison = "full"
+files = { "case.py" = "\"%(x)d %(y)d\" % {\"x\":\"bad\"}\n" }
+expected = []
+
+[[cases]]
+name = "mapping-last-conversion"
+comparison = "full"
+files = { "case.py" = "\"%(x)d %(x)s\" % {\"x\":\"bad\", \"unused\":0}\n\"%(x)s %(x)d\" % {\"x\":\"bad\", \"unused\":0}\n" }
+expected = [{ rule = "PLE1307", file = "case.py", start = 40, end = 79 }]
+
+[[cases]]
+name = "mapping-dynamic-before"
+comparison = "full"
+files = { "case.py" = "\"%(x)d\" % {unknown:0,\"x\":\"bad\"}\n" }
+expected = []
+
+[[cases]]
+name = "mapping-dynamic-after"
+comparison = "full"
+files = { "case.py" = "\"%(x)d\" % {\"x\":\"bad\",unknown:0}\n" }
+expected = [{ rule = "PLE1307", file = "case.py", start = 0, end = 31 }]
+
+[[cases]]
+name = "mapping-missing-before"
+comparison = "full"
+files = { "case.py" = "\"%(x)d\" % {\"other\":0,\"x\":\"bad\"}\n" }
+expected = []
+
+[[cases]]
+name = "mapping-missing-after"
+comparison = "full"
+files = { "case.py" = "\"%(x)d\" % {\"x\":\"bad\",\"other\":0}\n" }
+expected = [{ rule = "PLE1307", file = "case.py", start = 0, end = 31 }]
+
+[[cases]]
+name = "mapping-splat-before"
+comparison = "full"
+files = { "case.py" = "\"%(x)d\" % {**unknown,\"x\":\"bad\"}\n" }
+expected = []
+
+[[cases]]
+name = "mapping-splat-after"
+comparison = "full"
+files = { "case.py" = "\"%(x)d\" % {\"x\":\"bad\",**unknown}\n" }
+expected = [{ rule = "PLE1307", file = "case.py", start = 0, end = 31 }]
+
+[[cases]]
+name = "mapping-duplicate-key"
+comparison = "full"
+files = { "case.py" = "\"%(x)d\" % {\"x\":\"bad\",\"x\":1}\n" }
+expected = [{ rule = "PLE1307", file = "case.py", start = 0, end = 27 }]
+
+[[cases]]
+name = "mapping-bytes-key"
+comparison = "full"
+files = { "case.py" = "\"%(x)d\" % {b\"x\":0,\"x\":\"bad\"}\n" }
+expected = []
+
+[[cases]]
+name = "scalar-union"
+comparison = "full"
+files = { "case.py" = "\"%d\" % (1 if flag else [])\n\"%x\" % (1 if flag else 1.5)\n" }
+expected = [{ rule = "PLE1307", file = "case.py", start = 0, end = 26 }, { rule = "PLE1307", file = "case.py", start = 27, end = 54 }]
+
+[[cases]]
+name = "unknown-type"
+comparison = "full"
+files = { "case.py" = "\"%d\" % unknown\n\"%d\" % obj.value\n\"%d\" % call()\n" }
+expected = []
+
+[[cases]]
+name = "type-error"
+comparison = "full"
+files = { "case.py" = "\"%d\" % (1 + [])\n" }
+expected = []
+
+[[cases]]
+name = "nested-format-result"
+comparison = "full"
+files = { "case.py" = "\"%d\" % (\"%s\" % unknown)\n" }
+expected = [{ rule = "PLE1307", file = "case.py", start = 0, end = 23 }]
+
+[[cases]]
+name = "bytes-format-excluded"
+comparison = "full"
+files = { "case.py" = "b\"%d\" % b\"bad\"\n" }
+expected = []
+
+[[cases]]
+# Capability control: upstream parses raw individual segments; current format facts expose decoded concatenation.
+name = "raw-escaped-percent"
+comparison = "full"
+files = { "case.py" = "\"\\x25d\" % \"bad\"\n" }
+expected = []
+
+[[cases]]
+# Capability control: upstream parses raw individual segments; current format facts expose decoded concatenation.
+name = "raw-escaped-conversion"
+comparison = "full"
+files = { "case.py" = "\"%\\x64\" % \"bad\"\n" }
+expected = []
+
+[[cases]]
+# Capability control: upstream parses raw individual segments; current format facts expose decoded concatenation.
+name = "raw-invalid-segment-ignored"
+comparison = "full"
+files = { "case.py" = "\"%q\" \"%d\" % \"bad\"\n" }
+expected = [{ rule = "PLE1307", file = "case.py", start = 0, end = 17 }]
+
+[[cases]]
+# Capability control: upstream parses raw individual segments; current format facts expose decoded concatenation.
+name = "raw-segment-boundary"
+comparison = "full"
+files = { "case.py" = "\"%\" \"d\" % \"bad\"\n" }
+expected = []
+
+[[cases]]
+# Capability control: upstream parses raw individual segments; current format facts expose decoded concatenation.
+name = "raw-mapping-key"
+comparison = "full"
+files = { "case.py" = "\"%(\\x78)d\" % {\"x\":\"bad\"}\n" }
+expected = []
+
+[[cases]]
+name = "raw-string-control"
+comparison = "full"
+files = { "case.py" = "r\"%d\" % \"bad\"\n" }
+expected = [{ rule = "PLE1307", file = "case.py", start = 0, end = 13 }]
+
+[[cases]]
+# Capability control: upstream parses raw individual segments; current format facts expose decoded concatenation.
+name = "raw-newline"
+comparison = "full"
+files = { "case.py" = "\"%\\\nd\" % \"bad\"\n" }
+expected = []
+
+[[cases]]
+name = "inline-suppression"
+comparison = "full"
+files = { "case.py" = "\"%d\" % \"bad\"  # noqa: PLE1307\n" }
+expected = []
+
+[[cases]]
+name = "file-suppression"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa: PLE1307\n\"%d\" % \"bad\"\n" }
+expected = []
+
+[[cases]]
+name = "multiline-unicode"
+comparison = "full"
+files = { "case.py" = "(\n \"é%d\"\n % \"bad\"\n)\n" }
+expected = [{ rule = "PLE1307", file = "case.py", start = 3, end = 18 }]
