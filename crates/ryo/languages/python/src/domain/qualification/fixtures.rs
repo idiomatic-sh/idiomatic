@@ -18,8 +18,11 @@ use crate::domain::{
 };
 use crate::fixtures::reading::parsed;
 use ryo::languages::{self, ByteSlice, Tree};
+/// One source example and the name whose qualification is observed.
 type Input = (&'static str, &'static str);
+/// Resolved path, provenance, and first supported Python version.
 type Value = (Option<&'static str>, &'static str, i64, i64);
+/// A fixture failure with its explanation.
 type FixtureResult = Result<Value, String>;
 fn observe(input: Input, model: &mut Declarations) -> FixtureResult {
     clear(model.qualification.get_mut());
@@ -45,7 +48,8 @@ fn observe(input: Input, model: &mut Declarations) -> FixtureResult {
                 languages::text_at(tree.elements, token)
             )
             .map(|value| value.0),
-            Some(written(&tree, token).0)
+            Some(written(&tree, token).0),
+            "interned name text preserves the parser's written spelling"
         );
     }
 
@@ -59,7 +63,10 @@ fn observe(input: Input, model: &mut Declarations) -> FixtureResult {
         .ok_or_else(|| "fixture names a load expression".to_owned())?;
     let events = prepare(&tree, model);
     let repeated = prepare(&tree, model);
-    assert_eq!(events.hazards, repeated.hazards);
+    assert_eq!(
+        events.hazards, repeated.hazards,
+        "preparing twice is stable"
+    );
     let answer = qualify(&tree, model, &events, at, &mut symbols);
     let provenance = languages::text_of(&symbols, tree.source, answer.provenance)
         .ok_or_else(|| "known provenance category".to_owned())?;
@@ -71,6 +78,7 @@ fn observe(input: Input, model: &mut Declarations) -> FixtureResult {
         answer.since.minor.0,
     ))
 }
+/// Reuse one declarations model across builtin, wildcard, and empty-file sources.
 pub(super) fn replay(input: Input) -> FixtureResult {
     assert_eq!(
         BUILTIN_NAMES.iter().map(|name| name.0).collect::<Vec<_>>(),
@@ -90,16 +98,31 @@ pub(super) fn replay(input: Input) -> FixtureResult {
     };
     declare(&tree, &mut model);
     index(&tree, &mut model);
-    assert!(prepare(&tree, &model).hazards.is_empty());
+    assert!(
+        prepare(&tree, &model).hazards.is_empty(),
+        "empty source clears stale qualification hazards"
+    );
     assert_eq!(first, observe(input, &mut model)?);
     // Numeric target guards: a minor version of 10 must follow 9, not sort lexically before it.
     if input.1 == "aiter" || input.1 == "anext" {
-        assert!((first.2, first.3) > (3, 9));
-        assert!((first.2, first.3) <= (3, 10));
+        assert!(
+            (first.2, first.3) > (3, 9),
+            "target version follows Python 3.9"
+        );
+        assert!(
+            (first.2, first.3) <= (3, 10),
+            "target version is no later than Python 3.10"
+        );
     }
     if input.1 == "ExceptionGroup" {
-        assert!((first.2, first.3) > (3, 10));
-        assert!((first.2, first.3) <= (3, 11));
+        assert!(
+            (first.2, first.3) > (3, 10),
+            "ExceptionGroup follows Python 3.10"
+        );
+        assert!(
+            (first.2, first.3) <= (3, 11),
+            "ExceptionGroup is available by Python 3.11"
+        );
     }
     Ok(first)
 }

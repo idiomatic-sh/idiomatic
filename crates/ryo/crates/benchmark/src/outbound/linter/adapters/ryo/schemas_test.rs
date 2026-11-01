@@ -62,3 +62,18 @@ fn succeeds() {
 fn refuses() {
     run(CASES, Word::Refuses, subject);
 }
+
+#[test]
+fn request_transports_the_explicit_module_registry() {
+    let mut request = crate::outbound::worker::fixtures::data::request();
+    request.query_modules.insert(
+        "python/ruff/suppress".into(),
+        "fragments/suppress.ryoql".into(),
+    );
+    let encoded = super::encode_request(request).expect("request JSON");
+    let value: serde_json::Value = serde_json::from_str(&encoded).expect("valid request JSON");
+    assert_eq!(
+        value["query_modules"]["python/ruff/suppress"],
+        "fragments/suppress.ryoql"
+    );
+}

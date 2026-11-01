@@ -36,9 +36,13 @@ ryo::reads! {
 }
 
 #[derive(Clone, Copy)]
+/// A potential Python environment-provided name and its target-version origin.
 struct CatalogName {
+    /// The spelling made available by Python.
     name: languages::NameText<'static>,
+    /// First Python major version providing the name.
     major: languages::Integer,
+    /// First Python minor version providing the name.
     minor: languages::Integer,
 }
 
@@ -74,6 +78,7 @@ const MODULE_GLOBALS: &[CatalogName] = &[
     catalog("__annotate__", 3, 14),
 ];
 
+/// Build a static catalog row from a name and its first supported version.
 const fn catalog(name: &'static str, major: i64, minor: i64) -> CatalogName {
     CatalogName {
         name: languages::NameText(name),

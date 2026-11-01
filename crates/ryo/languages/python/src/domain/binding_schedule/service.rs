@@ -171,6 +171,10 @@ fn comprehension_body(
 
 /// Walk syntax in language evaluation order. Branch environments are joined by the analysis,
 /// not interpreted as one last-visited alternative or a proof of runtime initialization.
+#[expect(
+    clippy::too_many_lines,
+    reason = "the syntax-order schedule must remain one exhaustive AST dispatch over control-flow constructs"
+)]
 fn walk(
     tree: &Tree<'_>,
     model: &Declarations,
@@ -314,7 +318,7 @@ fn walk(
             plan,
         ),
         Kind::Node(Node::ListComp | Node::SetComp | Node::DictComp) => {
-            comprehension(tree, model, at, phase, None, plan)
+            comprehension(tree, model, at, phase, None, plan);
         }
         Kind::Node(Node::Name) => {
             push(

@@ -41,6 +41,8 @@ pub struct Tool {
     pub deferred: BTreeMap<RuleId, CapabilityName>,
     /// Assessed tractable work still pending implementation, never counted as a deferral.
     pub pending: BTreeMap<RuleId, CapabilityName>,
+    /// Explicit logical query-module IDs mapped to safe profile-relative source paths.
+    pub query_modules: BTreeMap<String, PathBuf>,
 }
 
 /// The correctness cases authored beside one candidate query.
@@ -136,6 +138,8 @@ pub struct WorkerRequest {
     pub root: PathBuf,
     /// Directory holding the selected candidate rule directories.
     pub rules: PathBuf,
+    /// Logical query-module IDs mapped to explicit profile-relative source paths.
+    pub query_modules: BTreeMap<String, PathBuf>,
     /// Explicit relative paths the worker must check.
     pub files: Vec<RelativePath>,
     /// Optional persistent SDK cache directory; absence disables disk caching.

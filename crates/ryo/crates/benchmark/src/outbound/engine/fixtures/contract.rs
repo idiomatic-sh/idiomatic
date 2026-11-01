@@ -38,6 +38,7 @@ pub fn check(adapter: &impl EnginePort) {
             .run(WorkerRequest {
                 root: temporary.path().into(),
                 rules: temporary.path().into(),
+                query_modules: std::collections::BTreeMap::default(),
                 files: vec![ryo::linter::RelativePath("input.txt".into())],
                 state: crate::domain::suite::types::WorkerState::Fresh,
             })

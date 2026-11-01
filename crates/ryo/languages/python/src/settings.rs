@@ -29,6 +29,7 @@ pub enum PythonTargetVersion {
 /// Settings that determine version-related parser diagnostics.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub struct PythonParserSettings {
+    /// Version used by the parser's syntax feature gates.
     target_version: PythonTargetVersion,
 }
 

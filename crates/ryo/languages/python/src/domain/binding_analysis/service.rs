@@ -29,6 +29,10 @@ pub(crate) fn clear(index: &mut BindingAnalysisIndex) {
 }
 
 /// Build one current-source index. No source positions are used as evaluation timestamps.
+#[expect(
+    clippy::too_many_lines,
+    reason = "this function executes the single deterministic schedule state machine"
+)]
 pub(crate) fn build(
     tree: &Tree<'_>,
     model: &Declarations,
@@ -73,7 +77,7 @@ pub(crate) fn build(
                     return;
                 }
                 if let Some(completed) = frame.take() {
-                    let _ = index.phases.insert(step.phase, completed);
+                    let _previous_phase = index.phases.insert(step.phase, completed);
                 }
             }
             BindingAction::BeginAlternatives => {
@@ -154,9 +158,5 @@ pub(crate) fn indexed<'a>(
         );
     }
     let index = model.binding_analysis.borrow();
-    if index.state == BindingAnalysisState::Complete {
-        Some(index)
-    } else {
-        None
-    }
+    (index.state == BindingAnalysisState::Complete).then(|| index)
 }

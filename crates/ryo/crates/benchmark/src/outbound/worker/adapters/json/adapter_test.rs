@@ -120,7 +120,11 @@ fn subject(operation: Input) -> Result<Value, Failure> {
         fail_write: matches!(operation, Operation::WriteFailure),
         fail_flush: matches!(operation, Operation::FlushFailure),
     };
-    let parent = factory::ryo("worker".into(), "rules".into());
+    let parent = factory::ryo(
+        "worker".into(),
+        "rules".into(),
+        std::collections::BTreeMap::default(),
+    );
     let request = RunRequest {
         root: "workspace".into(),
         files: vec![ryo::linter::RelativePath("source.txt".into())],

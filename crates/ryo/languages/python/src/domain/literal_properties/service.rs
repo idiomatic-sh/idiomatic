@@ -48,7 +48,7 @@ fn interpolation_fragment(tree: &Tree<'_>, at: Position) -> bool {
             // beneath them remain primitive occurrences even though they are in a string.
             Kind::Node(Node::FormattedValue | Node::Interpolation) => return false,
             Kind::Node(Node::JoinedStr | Node::TemplateStr) => return true,
-            _ => {}
+            Kind::Node(_) | Kind::Token(_) | Kind::Extra(_) => {}
         }
         child = above;
         above = parent(tree, above);
@@ -68,6 +68,7 @@ fn decoded_string_empty(tree: &Tree<'_>, at: Position) -> Option<bool> {
     found.then_some(!nonempty)
 }
 
+/// Read one parser-owned scalar payload without interpreting source spelling.
 fn payload<'a>(
     tree: &'a Tree<'_>,
     at: Position,
@@ -76,6 +77,7 @@ fn payload<'a>(
     languages::property_at(tree.elements, at, property).map(|text| text.0)
 }
 
+/// Build a complete primitive classification from its parsed category and predicates.
 fn flag(kind: &'static str, zero: bool, empty: bool, boolean: bool) -> Classification {
     Classification::Known(Properties {
         kind,
@@ -117,7 +119,7 @@ pub(crate) fn classify(tree: &Tree<'_>, at: Position) -> Classification {
         FLOAT_SCALAR => payload(tree, at, SCALAR_VALUE)
             .and_then(|bits| bits.parse::<u64>().ok())
             .map_or(Classification::MissingPayload, |bits| {
-                flag("float", f64::from_bits(bits) == 0.0, false, false)
+                flag("float", f64::from_bits(bits) == 0.0_f64, false, false)
             }),
         COMPLEX_SCALAR => payload(tree, at, SCALAR_VALUE)
             .and_then(|real| real.parse::<u64>().ok())
@@ -128,7 +130,7 @@ pub(crate) fn classify(tree: &Tree<'_>, at: Position) -> Classification {
             .map_or(Classification::MissingPayload, |(real, imaginary)| {
                 flag(
                     "complex",
-                    f64::from_bits(real) == 0.0 && f64::from_bits(imaginary) == 0.0,
+                    f64::from_bits(real) == 0.0_f64 && f64::from_bits(imaginary) == 0.0_f64,
                     false,
                     false,
                 )

@@ -144,8 +144,11 @@ pub(crate) struct ShapeRecord {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) enum ShapeState {
     #[default]
+    /// No source has requested construction since the last invalidation.
     Fresh,
+    /// The source was fully indexed.
     Complete,
+    /// One or more syntax inputs could not be represented completely.
     Partial,
 }
 /// Storage is kept across source edits; no index is built until requested.

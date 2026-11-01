@@ -47,8 +47,12 @@ pub(crate) struct ParseContract {
     notes: Arc<dyn NotesPort>,
 }
 
+/// Select stubs by the exact lowercase `.pyi` suffix used by the existing parser contract.
 fn source_kind(path: &str) -> PythonSourceKind {
-    if path.ends_with(".pyi") {
+    if std::path::Path::new(path)
+        .extension()
+        .is_some_and(|extension| extension == std::ffi::OsStr::new("pyi"))
+    {
         PythonSourceKind::Stub
     } else {
         PythonSourceKind::Python

@@ -19,6 +19,7 @@ fn subject(_: Input) -> Result<Value, Failure> {
     check(&LinterRyoAdapter {
         executable: "fixture".into(),
         rules: "rules".into(),
+        query_modules: std::collections::BTreeMap::default(),
     });
     Ok(())
 }

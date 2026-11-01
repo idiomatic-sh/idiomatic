@@ -94,3 +94,6 @@ source_ranges = ["EXE004", "W605"]
 statement_structure = ["F404", "F407", "F633", "PIE790", "PLC0105", "PLC0131", "PLC0132", "PLC0206", "PLC0208", "PLE0100", "PLE0101", "PLE0704", "PLR0206", "PLR1708", "PLW0211", "PLW0406", "RET501"]
 typing_rules = ["FA100", "FA102", "PYI002", "PYI003", "PYI004", "PYI005", "PYI006", "PYI007", "PYI008", "PYI015", "PYI016", "PYI018", "PYI019", "PYI020", "PYI026", "PYI029", "PYI030", "PYI032", "PYI034", "PYI036", "PYI041", "PYI042", "PYI043", "PYI045", "PYI046", "PYI047", "PYI049", "PYI050", "PYI052", "PYI055", "PYI057", "PYI058", "PYI059", "PYI061", "PYI062", "PYI063", "PYI064", "PYI066", "RUF013", "RUF020", "RUF041", "RUF053", "TC004", "TC005", "TC007", "TC010"]
 upstream_inactive = ["F621"]
+
+[query-modules]
+"python/ruff/suppress" = "fragments/suppress.ryoql"

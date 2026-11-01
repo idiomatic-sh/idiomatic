@@ -13,6 +13,7 @@ use std::path::Path;
 
 /// Validate default dispositions and require independent sources for every authored query.
 fn audit(directory: &Path, tool: &Tool) -> Result<Audit, Error> {
+    validate_query_modules(directory, &tool.query_modules)?;
     let defaults: BTreeSet<_> = tool.defaults.iter().cloned().collect();
     if defaults.is_empty() || defaults.len() != tool.defaults.len() {
         return Err(Error::Invalid(constants::INVALID_DEFAULTS.into()));
@@ -66,6 +67,39 @@ fn audit(directory: &Path, tool: &Tool) -> Result<Audit, Error> {
         missing: defaults.difference(&implemented).cloned().collect(),
         implemented: implemented.into_iter().collect(),
     })
+}
+
+/// Refuse module paths that escape the profile or traverse symlinks.
+fn validate_query_modules(
+    directory: &Path,
+    modules: &std::collections::BTreeMap<String, std::path::PathBuf>,
+) -> Result<(), Error> {
+    let root = directory.canonicalize()?;
+    for (id, relative) in modules {
+        ryo::query::QueryModuleSource::try_new(id, "module source")
+            .map_err(|error| Error::Invalid(error.to_string()))?;
+        relative_path(relative)?;
+        let mut current = root.clone();
+        for component in relative.components() {
+            current.push(component);
+            let metadata = std::fs::symlink_metadata(&current)?;
+            if metadata.file_type().is_symlink() {
+                return Err(Error::Invalid(format!(
+                    "query module is a symlink: {}",
+                    relative.display()
+                )));
+            }
+        }
+        let canonical = current.canonicalize()?;
+        if !canonical.starts_with(&root) || !canonical.is_file() {
+            return Err(Error::Invalid(format!(
+                "query module is outside profile or not a file: {}",
+                relative.display()
+            )));
+        }
+        std::fs::read_to_string(canonical)?;
+    }
+    Ok(())
 }
 
 /// Hash one regular file without directory framing.
@@ -151,12 +185,24 @@ impl SuitePort for SuiteLocalAdapter {
         ArtifactPath(destination): ArtifactPath<'_>,
         audit: &Audit,
     ) -> Result<(), Error> {
+        let tool = super::schemas::tool(&std::fs::read_to_string(
+            directory.join(constants::MANIFEST),
+        )?)?;
+        validate_query_modules(directory, &tool.query_modules)?;
         std::fs::create_dir(destination)?;
         std::fs::write(
             destination.join(constants::MANIFEST),
             std::fs::read(directory.join(constants::MANIFEST))?,
         )?;
         std::fs::create_dir(destination.join(constants::RULES))?;
+        for relative in tool.query_modules.values() {
+            let target = destination.join(relative);
+            if let Some(parent) = target.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+            let source = directory.join(relative);
+            std::fs::write(target, std::fs::read(source)?)?;
+        }
         for rule in &audit.implemented {
             relative_path(rule.to_string())?;
             let target = destination.join(constants::RULES).join(rule.to_string());

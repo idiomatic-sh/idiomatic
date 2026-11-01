@@ -103,19 +103,40 @@ fn protected_body(tree: &Tree<'_>, mut at: Position, handler: Position) -> bool 
     }
 }
 
+/// Read-site state and mutable candidate destination for one uncertainty refinement.
+pub(crate) struct Refinement<'tree, 'source> {
+    /// Parsed source and native syntax relationships.
+    pub tree: &'tree Tree<'source>,
+    /// File-local indexes used to identify lexical scopes.
+    pub model: &'tree Declarations,
+    /// The reference occurrence being refined.
+    pub reference: Position,
+    /// Evaluation phase containing the read.
+    pub phase: Position,
+    /// Normalized name being read.
+    pub name: Symbol,
+    /// Result of resolving against the scheduled environment.
+    pub state: ReadState,
+    /// Ordered mutations in this file.
+    pub mutations: &'tree [BindingMutation],
+    /// Candidate declarations to extend when control flow may repeat.
+    pub candidates: &'tree mut Vec<Candidate>,
+}
+
 /// Preserve candidates from loop iterations or exceptional prefixes without pretending that
 /// a source-order visit proves runtime initialization. Queries still have exact events and ordinals
 /// to express checker-specific pre-store policy. This is not a general definite-assignment solver.
-pub(crate) fn refine(
-    tree: &Tree<'_>,
-    model: &Declarations,
-    reference: Position,
-    phase: Position,
-    name: Symbol,
-    state: ReadState,
-    mutations: &[BindingMutation],
-    candidates: &mut Vec<Candidate>,
-) -> ReadState {
+pub(crate) fn refine(input: Refinement<'_, '_>) -> ReadState {
+    let Refinement {
+        tree,
+        model,
+        reference,
+        phase,
+        name,
+        state,
+        mutations,
+        mut candidates,
+    } = input;
     let key = BindingKey {
         scope: binding_scope(tree, model, reference, name),
         name,

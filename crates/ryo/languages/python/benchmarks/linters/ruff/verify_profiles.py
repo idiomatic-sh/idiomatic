@@ -76,22 +76,102 @@ def write_cases(path: Path, cases: list[dict[str, object]]) -> None:
 
 def manifest_paths(manifest: dict[str, object], helper_path: str) -> set[str]:
     profiles = manifest["profiles"]
-    paths = {helper_path, (RUFF_DIR / "benchmark.toml").relative_to(REPOSITORY).as_posix()}
+    base_profile = RUFF_DIR / "benchmark.toml"
+    paths = {helper_path, base_profile.relative_to(REPOSITORY).as_posix()}
+    base_data = tomllib.loads(base_profile.read_text(encoding="utf-8"))
+    paths.update(module_path(path) for path in profile_modules(base_data).values())
     for rule in profiles:
-        paths.update(
-            {
-                (PROFILE_DIR / rule / "benchmark.toml").relative_to(REPOSITORY).as_posix(),
+        profile = PROFILE_DIR / rule / "benchmark.toml"
+        paths.update({
+                profile.relative_to(REPOSITORY).as_posix(),
                 (RUFF_DIR / "rules" / rule / "candidate.ryoql").relative_to(REPOSITORY).as_posix(),
                 (RUFF_DIR / "rules" / rule / "cases.toml").relative_to(REPOSITORY).as_posix(),
-            }
-        )
+            })
+        profile_data = tomllib.loads(profile.read_text(encoding="utf-8"))
+        paths.update(module_path(path) for path in profile_modules(profile_data).values())
         if "oracle_file" in profiles[rule]:
             paths.add(profiles[rule]["oracle_file"])
         if "reference_audit_file" in profiles[rule]:
             paths.add(profiles[rule]["reference_audit_file"])
     for descriptor in manifest.get("combined_profiles", {}).values():
         paths.update(descriptor["input_files"])
+        combined_profile = REPOSITORY / descriptor["profile_file"]
+        combined_data = tomllib.loads(combined_profile.read_text(encoding="utf-8"))
+        paths.update(module_path(path) for path in profile_modules(combined_data).values())
     return paths
+
+
+def module_path(value: object) -> str:
+    if not isinstance(value, str):
+        raise ValueError("query module paths must be strings")
+    path = Path(value)
+    if path.is_absolute() or not path.parts or any(part in (".", "..") for part in path.parts):
+        raise ValueError(f"unsafe query module path: {value}")
+    source = RUFF_DIR
+    for part in path.parts:
+        source = source / part
+        if source.is_symlink():
+            raise ValueError(f"query module path traverses a symlink: {value}")
+    resolved = source.resolve(strict=True)
+    if not resolved.is_file() or not resolved.is_relative_to(RUFF_DIR.resolve()):
+        raise ValueError(f"query module is outside the Ruff profile: {value}")
+    return resolved.relative_to(REPOSITORY).as_posix()
+
+
+def profile_modules(profile_data: dict[str, object]) -> dict[str, str]:
+    registry = profile_data.get("query-modules", {})
+    if not isinstance(registry, dict):
+        raise ValueError("query-modules must be a table")
+    result = {}
+    for logical_id, path in registry.items():
+        if not isinstance(logical_id, str) or not logical_id.strip():
+            raise ValueError("query module IDs must be nonblank")
+        module_path(path)
+        result[logical_id] = path
+    return result
+
+
+def write_staged_profile(source: Path, destination: Path, registry: dict[str, str]) -> None:
+    """Serialize the supported profile fields, replacing any existing module table."""
+    parsed = tomllib.loads(source.read_text(encoding="utf-8"))
+    current = profile_modules(parsed)
+    registry = profile_modules({"query-modules": registry})
+    if any(key in registry and registry[key] != value for key, value in current.items()):
+        raise ValueError("staged profile conflicts with its query module registry")
+    merged = {**current, **registry}
+    parsed.pop("query-modules", None)
+    if merged:
+        parsed["query-modules"] = merged
+    rendered = "".join(f"{key} = {toml_value(value)}\n" for key, value in parsed.items())
+    destination.write_text(rendered, encoding="utf-8")
+
+
+def copy_modules(registry: dict[str, str], destination: Path) -> None:
+    for source_path in sorted(set(registry.values())):
+        source = RUFF_DIR / source_path
+        target = destination / source_path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source, target)
+
+
+def combined_modules(
+    profile_data: dict[str, object], selected_rules: list[str], manifest: dict[str, object]
+) -> dict[str, str]:
+    registry = profile_modules(profile_data)
+    sources = [
+        tomllib.loads((RUFF_DIR / "benchmark.toml").read_text(encoding="utf-8")),
+    ]
+    sources.extend(
+        tomllib.loads((PROFILE_DIR / rule / "benchmark.toml").read_text(encoding="utf-8"))
+        for rule in selected_rules
+        if rule in manifest["profiles"]
+    )
+    for source_data in sources:
+        for logical_id, source_path in profile_modules(source_data).items():
+            if logical_id in registry and registry[logical_id] != source_path:
+                raise ValueError(f"combined profile conflicts with module source for {logical_id}")
+            registry[logical_id] = source_path
+    return registry
 
 
 def verify_files(manifest: dict[str, object], helper_path: str) -> None:
@@ -172,7 +252,9 @@ def stage_binding(
         destination = Path(stack.enter_context(tempfile.TemporaryDirectory(prefix=f"ryo-ruff-{rule}-")))
         rule_dir = destination / "rules" / rule
         rule_dir.mkdir(parents=True)
-        shutil.copyfile(profile, destination / "benchmark.toml")
+        registry = profile_modules(profile_data)
+        copy_modules(registry, destination)
+        write_staged_profile(profile, destination / "benchmark.toml", registry)
         shutil.copyfile(candidate_path, rule_dir / "query.ryoql")
         shutil.copyfile(cases_path, rule_dir / "cases.toml")
         staged.append((rule, destination))
@@ -323,7 +405,9 @@ def stage_combined(
         raise ValueError(f"{profile_name} inventory hash mismatch")
 
     destination = Path(stack.enter_context(tempfile.TemporaryDirectory(prefix=f"ryo-ruff-{profile_name}-")))
-    shutil.copyfile(profile_path, destination / "benchmark.toml")
+    registry = combined_modules(profile_data, selected_rules, manifest)
+    copy_modules(registry, destination)
+    write_staged_profile(profile_path, destination / "benchmark.toml", registry)
     for rule in selected_rules:
         rule_dir = destination / "rules" / rule
         rule_dir.mkdir(parents=True)
@@ -348,6 +432,49 @@ def self_test() -> int:
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
     with tempfile.TemporaryDirectory(prefix="ryo-ruff-profile-guards-") as temporary:
         root = Path(temporary)
+        profile_source = root / "profile-source.toml"
+        profile_source.write_text(
+            'tool = "ruff"\nversion = "0"\nsha256 = ["pin"]\ndefaults = ["F401"]\n'
+            '[query-modules] # existing but empty\n',
+            encoding="utf-8",
+        )
+        module_registry = {"python/ruff/suppress": "rules/F401/candidate.ryoql"}
+        copy_modules(module_registry, root)
+        staged_profile = root / "module-profile.toml"
+        write_staged_profile(profile_source, staged_profile, module_registry)
+        parsed_profile = tomllib.loads(staged_profile.read_text(encoding="utf-8"))
+        if parsed_profile.get("query-modules") != module_registry:
+            print("staged query module registry did not remain valid TOML", file=sys.stderr)
+            return 1
+        staged_module = root / "rules/F401/candidate.ryoql"
+        if not staged_module.is_file() or staged_module.read_bytes() != (RUFF_DIR / module_registry["python/ruff/suppress"]).read_bytes():
+            print("staged query module bytes changed", file=sys.stderr)
+            return 1
+        shape_descriptor = manifest["combined_profiles"][SHAPE_PROFILE]
+        shape_profile = tomllib.loads(
+            (REPOSITORY / shape_descriptor["profile_file"]).read_text(encoding="utf-8")
+        )
+        shape_registry = combined_modules(
+            shape_profile, shape_descriptor["selected_rules"], manifest
+        )
+        shape_stage = root / "shape-110-profile"
+        shape_stage.mkdir()
+        copy_modules(shape_registry, shape_stage)
+        write_staged_profile(
+            REPOSITORY / shape_descriptor["profile_file"],
+            shape_stage / "benchmark.toml",
+            shape_registry,
+        )
+        if (
+            shape_registry.get("python/ruff/suppress") != "fragments/suppress.ryoql"
+            or not (shape_stage / "fragments/suppress.ryoql").is_file()
+            or tomllib.loads((shape_stage / "benchmark.toml").read_text(encoding="utf-8"))
+            .get("query-modules", {})
+            .get("python/ruff/suppress")
+            != "fragments/suppress.ryoql"
+        ):
+            print("combined profile omitted an active rule's query module", file=sys.stderr)
+            return 1
         for relative in manifest["files"]:
             source = REPOSITORY / relative
             destination = root / relative
@@ -447,7 +574,7 @@ def self_test() -> int:
             return 1
         temporary_manifest.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
 
-        def later_combined_preflight_failure() -> bool:
+        def later_combined_preflight_failure() -> tuple[bool, str]:
             trial_manifest = json.loads(json.dumps(pristine_manifest))
             later_name = max(trial_manifest["combined_profiles"])
             descriptor = trial_manifest["combined_profiles"][later_name]
@@ -473,14 +600,17 @@ def self_test() -> int:
                 check=False,
                 env={**os.environ, "PATH": f"{fake_bin}:{os.environ['PATH']}"},
             )
-            return (
+            valid = (
                 check.returncode == 2
                 and "overlay case is absent or duplicated" in check.stderr
                 and not marker.exists()
             )
+            return valid, check.stderr
 
-        if not later_combined_preflight_failure():
+        later_combined_refused, later_combined_output = later_combined_preflight_failure()
+        if not later_combined_refused:
             print("later combined profile did not fail before candidate work", file=sys.stderr)
+            print(later_combined_output, file=sys.stderr)
             return 1
         temporary_manifest.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
         overlay_relative = pristine_manifest["combined_profiles"][SHAPE_PROFILE]["expectations_file"]

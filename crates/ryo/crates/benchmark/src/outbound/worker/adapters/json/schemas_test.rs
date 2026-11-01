@@ -18,6 +18,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(true),
     },
     Case {
+        name: CaseName("explicit query module registry is preserved"),
+        word: Word::Succeeds,
+        input: || r#"{"root":"root","rules":"rules","query_modules":{"python/ruff/suppress":"fragments/suppress.ryoql"},"files":["source.py"],"cache":null}"#,
+        expect: Expect::Value(true),
+    },
+    Case {
         name: CaseName("unknown request fields are rejected"),
         word: Word::Refuses,
         input: || r#"{"root":"root","rules":"rules","files":[],"extra":true}"#,
@@ -33,7 +39,17 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn subject(input: Input) -> Result<Value, Failure> {
     request(OsStr::new(input))
         .map(|request| {
-            request.files == [ryo::linter::RelativePath("é.txt".into())]
+            let registry_matches = if input.contains("query_modules") {
+                request
+                    .query_modules
+                    .get("python/ruff/suppress")
+                    .is_some_and(|path| path == std::path::Path::new("fragments/suppress.ryoql"))
+            } else {
+                request.query_modules.is_empty()
+            };
+            registry_matches
+                && (request.files == [ryo::linter::RelativePath("é.txt".into())]
+                    || request.files == [ryo::linter::RelativePath("source.py".into())])
                 && matches!(
                     request.state,
                     crate::domain::suite::types::WorkerState::Fresh

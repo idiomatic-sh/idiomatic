@@ -9,6 +9,7 @@ use crate::domain::{
 };
 use ryo::languages;
 
+/// Missing parser data makes primitive literal classification incomplete.
 const INCOMPLETE: &str = "primitive literal properties require their parser-decoded payload";
 
 /// The optional Python primitive-literal reader.

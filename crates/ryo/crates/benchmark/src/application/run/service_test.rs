@@ -519,6 +519,7 @@ fn prepared(scenario: Scenario) -> (SuiteFake, BenchmarkFinding) {
         defaults: vec!["E722".try_into().unwrap(), "F901".try_into().unwrap()],
         deferred: std::collections::BTreeMap::default(),
         pending: std::collections::BTreeMap::default(),
+        query_modules: std::collections::BTreeMap::default(),
     });
     (suite, expected)
 }

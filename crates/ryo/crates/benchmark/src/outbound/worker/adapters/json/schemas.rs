@@ -23,6 +23,9 @@ struct RequestSchema {
     root: PathBuf,
     /// Directory containing the selected RyoQL rule definitions.
     rules: PathBuf,
+    /// Explicit module registry carried into the isolated query-loading process.
+    #[serde(default)]
+    query_modules: std::collections::BTreeMap<String, PathBuf>,
     /// Exact project-relative file set covered by this request or report.
     files: Vec<String>,
     /// Retained worker state directory, or no retained state for a fresh run.
@@ -33,6 +36,7 @@ impl From<RequestSchema> for WorkerRequest {
         Self {
             root: request.root,
             rules: request.rules,
+            query_modules: request.query_modules,
             files: request
                 .files
                 .into_iter()

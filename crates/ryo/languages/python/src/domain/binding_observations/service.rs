@@ -71,22 +71,25 @@ fn read(
         &mut index.candidates,
     );
     let state = crate::domain::binding_uncertainty::service::refine(
-        tree,
-        model,
-        step.occurrence,
-        step.phase,
-        name,
-        state,
-        &index.mutations,
-        &mut index.candidates,
+        crate::domain::binding_uncertainty::service::Refinement {
+            tree,
+            model,
+            reference: step.occurrence,
+            phase: step.phase,
+            name,
+            state,
+            mutations: &index.mutations,
+            candidates: &mut index.candidates,
+        },
     );
     let certainty = match state {
         ReadState::UniqueDeclaration => UseCertainty::Unique,
         ReadState::AlternativeDeclarations
         | ReadState::PossiblyUnbound
         | ReadState::DeclarationOrBuiltin { .. }
-        | ReadState::Uncertain => UseCertainty::Alternative,
-        ReadState::Unbound | ReadState::Builtin { .. } => UseCertainty::Alternative,
+        | ReadState::Uncertain
+        | ReadState::Unbound
+        | ReadState::Builtin { .. } => UseCertainty::Alternative,
     };
     index.reads.push(Read {
         reference: step.occurrence,

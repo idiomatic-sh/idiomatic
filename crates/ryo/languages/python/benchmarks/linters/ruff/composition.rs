@@ -110,6 +110,7 @@ pub(crate) fn run(
             let default_count = tool.defaults.len();
             let deferred_count = tool.deferred.len();
             let pending_count = tool.pending.len();
+            let query_modules = tool.query_modules.clone();
             tool.defaults = audit.authored().to_vec();
             let reference = Arc::new(commands::reference(executable.clone(), tool));
             let selected_scratch = tempfile::Builder::new()
@@ -137,6 +138,7 @@ pub(crate) fn run(
                 Arc::new(ryo_benchmark::outbound::linter::factory::ryo(
                     candidate_executable.clone(),
                     selected_rules.clone(),
+                    query_modules,
                 ));
             let case_scratch = tempfile::tempdir()?;
             let certificate = CertifyUseCaseImpl::new(

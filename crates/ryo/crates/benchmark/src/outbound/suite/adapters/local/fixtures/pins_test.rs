@@ -83,6 +83,7 @@ fn verify_pin((sha256, version, executable): (&[&str], &str, bool)) -> Result<()
         sha256: sha256.iter().map(|value| (*value).into()).collect(),
         deferred: std::collections::BTreeMap::default(),
         pending: std::collections::BTreeMap::default(),
+        query_modules: std::collections::BTreeMap::default(),
         defaults: vec!["E722".try_into().expect("rule identifier")],
     };
     SuiteLocalAdapter

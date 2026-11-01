@@ -5,6 +5,11 @@ use super::adapters::ryo::adapter::LinterRyoAdapter;
 pub fn ryo(
     executable: std::path::PathBuf,
     rules: std::path::PathBuf,
+    query_modules: std::collections::BTreeMap<String, std::path::PathBuf>,
 ) -> impl super::interface::LinterPort {
-    LinterRyoAdapter { executable, rules }
+    LinterRyoAdapter {
+        executable,
+        rules,
+        query_modules,
+    }
 }

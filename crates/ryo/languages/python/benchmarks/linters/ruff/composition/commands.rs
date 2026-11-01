@@ -77,6 +77,7 @@ pub(super) fn verify_cases(
         .next()
         .map_or_else(directory, |argument| PathBuf::from(argument.0));
     let mut tool = suite_source.profile(ArtifactPath(&source))?;
+    let query_modules = tool.query_modules.clone();
     suite_source.verify_tool(ArtifactPath(&executable), &tool)?;
     let audit = suite_source.audit(ArtifactPath(&source), &tool)?;
     ryo_benchmark::domain::suite::service::require_accounted(&audit, &tool)?;
@@ -89,6 +90,7 @@ pub(super) fn verify_cases(
     let candidate = Arc::new(ryo_benchmark::outbound::linter::factory::ryo(
         std::env::current_exe()?,
         profile.join(constants::RULES_DIRECTORY),
+        query_modules,
     ));
     let count = ryo_benchmark::application::run::service::verify_accounted(
         suite_source.as_ref(),

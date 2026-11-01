@@ -86,7 +86,17 @@ fn empty_cases_are_refused() {
 }
 
 fn selected_snapshot(directory: &std::path::Path, destination: &std::path::Path) {
-    std::fs::write(directory.join("benchmark.toml"), "profile bytes").expect("profile");
+    std::fs::create_dir_all(directory.join("fragments")).expect("fragment directory");
+    std::fs::write(
+        directory.join("fragments/suppress.ryoql"),
+        "fragment source",
+    )
+    .expect("fragment source");
+    std::fs::write(
+        directory.join("benchmark.toml"),
+        "tool='fixture'\nversion='1'\nsha256=['pin']\ndefaults=['E722','F704']\n[query-modules]\n'python/ruff/suppress'='fragments/suppress.ryoql'\n",
+    )
+    .expect("profile");
     for rule in ["E722", "F704"] {
         let root = directory.join("rules").join(rule);
         std::fs::create_dir_all(&root).expect("rule root");
@@ -131,6 +141,32 @@ fn selected_snapshot(directory: &std::path::Path, destination: &std::path::Path)
     let fingerprint = SuiteLocalAdapter
         .fingerprint(ArtifactSet(std::slice::from_ref(&snapshot)))
         .expect("seal");
+    assert_eq!(
+        std::fs::read_to_string(snapshot.join("fragments/suppress.ryoql")).expect("staged module"),
+        "fragment source"
+    );
+    std::fs::write(
+        directory.join("fragments/suppress.ryoql"),
+        "concurrent module edit",
+    )
+    .expect("source module edit");
+    assert_eq!(
+        fingerprint,
+        SuiteLocalAdapter
+            .fingerprint(ArtifactSet(std::slice::from_ref(&snapshot)))
+            .expect("unchanged staged module seal")
+    );
+    std::fs::write(
+        snapshot.join("fragments/suppress.ryoql"),
+        "changed staged module",
+    )
+    .expect("staged module edit");
+    assert_ne!(
+        fingerprint,
+        SuiteLocalAdapter
+            .fingerprint(ArtifactSet(std::slice::from_ref(&snapshot)))
+            .expect("changed staged module seal")
+    );
     std::fs::write(directory.join("rules/F704/query.ryoql"), "concurrent work")
         .expect("unselected edit");
     assert_eq!(
@@ -175,6 +211,7 @@ expected = []
         )]
         .into(),
         pending: std::collections::BTreeMap::default(),
+        query_modules: std::collections::BTreeMap::default(),
     };
     let audited = SuiteLocalAdapter
         .audit(ArtifactPath(&oracle), &tool)

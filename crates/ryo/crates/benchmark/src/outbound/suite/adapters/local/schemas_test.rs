@@ -29,6 +29,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Error("invalid pins"),
     },
     Case {
+        name: CaseName("query modules retain logical IDs and safe relative paths"),
+        word: Word::Succeeds,
+        input: || "tool='ruff'\nversion='1'\nsha256=['abc']\ndefaults=['F401']\n[query-modules]\n'python/ruff/suppress'='fragments/suppress.ryoql'",
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("query module paths cannot leave the profile root"),
+        word: Word::Refuses,
+        input: || "tool='ruff'\nversion='1'\nsha256=['abc']\ndefaults=['F401']\n[query-modules]\n'suppress'='../outside.ryoql'",
+        expect: Expect::Error("unsafe module path"),
+    },
+    Case {
         name: CaseName("full report accepts explicit frontend identity"),
         word: Word::Succeeds,
         input: || "[[cases]]\nname='parser'\ncomparison='full'\nfiles={'case.py'='x'}\nexpected=[{rule='invalid-syntax',file='case.py',start=0,end=1}]",
@@ -56,6 +68,8 @@ fn subject(text: Input) -> Result<Value, Failure> {
             "duplicate capability member"
         } else if error.to_string() == "executable pins must be nonempty and unique" {
             "invalid pins"
+        } else if error.to_string().starts_with("unsafe corpus path") {
+            "unsafe module path"
         } else {
             "unexpected schema failure"
         }
@@ -70,7 +84,14 @@ fn subject(text: Input) -> Result<Value, Failure> {
             .collect::<Vec<_>>()
             == ["F401"]
         && tool.deferred.is_empty()
-        && tool.pending.is_empty())
+        && tool.pending.is_empty()
+        && if text.contains("[query-modules]") {
+            tool.query_modules
+                .get("python/ruff/suppress")
+                .is_some_and(|path| path == std::path::Path::new("fragments/suppress.ryoql"))
+        } else {
+            tool.query_modules.is_empty()
+        })
 }
 #[test]
 fn succeeds() {

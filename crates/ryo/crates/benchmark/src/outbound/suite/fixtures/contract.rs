@@ -126,6 +126,7 @@ pub fn check(adapter: &impl SuitePort) {
             sha256: vec![String::new().into()],
             deferred: std::collections::BTreeMap::default(),
             pending: std::collections::BTreeMap::default(),
+            query_modules: std::collections::BTreeMap::default(),
             defaults: if selected {
                 vec!["fixture".try_into().expect("rule identifier")]
             } else {

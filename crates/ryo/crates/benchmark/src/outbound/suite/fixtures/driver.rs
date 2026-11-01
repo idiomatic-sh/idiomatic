@@ -42,6 +42,7 @@ expected = []
         sha256: vec![String::new().into()],
         deferred: std::collections::BTreeMap::default(),
         pending: std::collections::BTreeMap::default(),
+        query_modules: std::collections::BTreeMap::default(),
         defaults: vec!["fixture".try_into().expect("rule identifier")],
     };
     crate::outbound::suite::factory::local()

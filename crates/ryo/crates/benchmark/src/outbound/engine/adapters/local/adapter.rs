@@ -43,8 +43,42 @@ impl EngineLocalAdapter {
     /// Load all selected query files, refusing duplicate or empty inventories.
     fn load_rules(
         directory: &std::path::Path,
+        registry: &BTreeMap<String, std::path::PathBuf>,
         frontend_diagnostic: Option<FrontendDiagnosticProjection>,
     ) -> Result<BTreeMap<RuleId, Rule>, Error> {
+        let profile = directory
+            .parent()
+            .ok_or_else(|| Error::Invalid("rules directory has no profile root".into()))?;
+        let root = profile.canonicalize()?;
+        let mut modules = Vec::with_capacity(registry.len());
+        for (id, relative) in registry {
+            ryo::query::QueryModuleSource::try_new(id, "module source")
+                .map_err(|error| Error::Invalid(error.to_string()))?;
+            relative_path(relative)?;
+            let mut current = root.clone();
+            for component in relative.components() {
+                current.push(component);
+                let metadata = std::fs::symlink_metadata(&current)?;
+                if metadata.file_type().is_symlink() {
+                    return Err(Error::Invalid(format!(
+                        "query module is a symlink: {}",
+                        relative.display()
+                    )));
+                }
+            }
+            let canonical = current.canonicalize()?;
+            if !canonical.starts_with(&root) || !canonical.is_file() {
+                return Err(Error::Invalid(format!(
+                    "query module is outside profile or not a file: {}",
+                    relative.display()
+                )));
+            }
+            let source = std::fs::read_to_string(canonical)?;
+            modules.push(
+                ryo::query::QueryModuleSource::try_new(id, &source)
+                    .map_err(|error| Error::Invalid(error.to_string()))?,
+            );
+        }
         let mut rules = BTreeMap::new();
         for entry in std::fs::read_dir(directory)? {
             let entry = entry?;
@@ -55,8 +89,13 @@ impl EngineLocalAdapter {
             let query = std::fs::read_to_string(entry.path().join(constants::QUERY_FILE))?;
             let id =
                 RuleId::try_from(id.as_str()).map_err(|error| Error::Invalid(error.to_string()))?;
-            let query = RyoQlQuery::try_from(query.as_str())
-                .map_err(|error| Error::Invalid(error.to_string()))?;
+            let query = if modules.is_empty() {
+                RyoQlQuery::try_from(query.as_str())
+                    .map_err(|error| Error::Invalid(error.to_string()))?
+            } else {
+                RyoQlQuery::with_modules(&format!("rules/{id}"), &query, modules.clone())
+                    .map_err(|error| Error::Invalid(error.to_string()))?
+            };
             if rules
                 .insert(
                     id,
@@ -109,7 +148,11 @@ impl EnginePort for EngineLocalAdapter {
         } else {
             None
         };
-        let rules = Self::load_rules(&request.rules, self.frontend_diagnostic.clone())?;
+        let rules = Self::load_rules(
+            &request.rules,
+            &request.query_modules,
+            self.frontend_diagnostic.clone(),
+        )?;
         let mut sources = Vec::new();
         let mut accepted = std::collections::BTreeSet::new();
         for file in &request.files {
@@ -191,5 +234,73 @@ impl EnginePort for EngineLocalAdapter {
             diagnostics,
             files: accepted.into_iter().collect(),
         })
+    }
+}
+
+#[cfg(test)]
+mod query_module_tests {
+    use super::EngineLocalAdapter;
+    use std::{collections::BTreeMap, path::PathBuf};
+
+    fn profile() -> (tempfile::TempDir, std::path::PathBuf) {
+        let root = tempfile::tempdir().expect("profile root");
+        let rules = root.path().join("rules");
+        std::fs::create_dir_all(rules.join("F401")).expect("rule directory");
+        std::fs::write(
+            rules.join("F401/query.ryoql"),
+            "import shared from \"python/ruff/suppress\";",
+        )
+        .expect("query source");
+        (root, rules)
+    }
+
+    #[test]
+    fn worker_reads_explicit_module_text_from_the_frozen_profile() {
+        let (root, rules) = profile();
+        let module = root.path().join("fragments/suppress.ryoql");
+        std::fs::create_dir_all(module.parent().expect("module parent")).expect("module folder");
+        let text = "input source: relation<id: node>;\n";
+        std::fs::write(&module, text).expect("module source");
+        let registry = BTreeMap::from([(
+            "python/ruff/suppress".to_owned(),
+            PathBuf::from("fragments/suppress.ryoql"),
+        )]);
+        let queries = EngineLocalAdapter::load_rules(&rules, &registry, None)
+            .expect("module bundle is loaded in the worker");
+        assert_eq!(queries.len(), 1);
+        assert_eq!(
+            queries.values().next().expect("rule").query.root_text(),
+            "import shared from \"python/ruff/suppress\";"
+        );
+    }
+
+    #[test]
+    fn worker_refuses_module_paths_outside_the_profile() {
+        let (_root, rules) = profile();
+        let registry = BTreeMap::from([(
+            "python/ruff/suppress".to_owned(),
+            PathBuf::from("../outside.ryoql"),
+        )]);
+        let error = EngineLocalAdapter::load_rules(&rules, &registry, None)
+            .expect_err("traversal is refused");
+        assert!(error.to_string().contains("unsafe corpus path"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn worker_refuses_symlinked_module_paths() {
+        let (root, rules) = profile();
+        std::fs::create_dir_all(root.path().join("fragments")).expect("module folder");
+        let target = root.path().join("outside.ryoql");
+        std::fs::write(&target, "module bytes").expect("module source");
+        std::os::unix::fs::symlink(&target, root.path().join("fragments/suppress.ryoql"))
+            .expect("symlink fixture");
+        let registry = BTreeMap::from([(
+            "python/ruff/suppress".to_owned(),
+            PathBuf::from("fragments/suppress.ryoql"),
+        )]);
+        let error = EngineLocalAdapter::load_rules(&rules, &registry, None)
+            .expect_err("symlink is refused");
+        assert!(error.to_string().contains("query module is a symlink"));
     }
 }

@@ -14,12 +14,15 @@ pub(crate) struct LinterRyoAdapter {
     pub executable: PathBuf,
     /// Frozen directory of selected rule queries.
     pub rules: PathBuf,
+    /// Explicit logical query-module registry under the frozen profile root.
+    pub query_modules: std::collections::BTreeMap<String, PathBuf>,
 }
 impl LinterPort for LinterRyoAdapter {
     fn prepare(&self, request: &RunRequest) -> Result<Invocation, Error> {
         let worker = WorkerRequest {
             root: request.root.clone(),
             rules: self.rules.clone(),
+            query_modules: self.query_modules.clone(),
             files: request.files.clone(),
             state: crate::domain::suite::types::WorkerState::Retained(
                 request.state.join(super::constants::CACHE),

@@ -21,6 +21,9 @@ struct ToolSchema {
     #[serde(default)]
     /// Capability groups whose rules remain implementation work.
     pending: BTreeMap<String, Vec<String>>,
+    /// Explicit logical query-module IDs mapped to profile-relative source paths.
+    #[serde(default, rename = "query-modules")]
+    query_modules: BTreeMap<String, String>,
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -110,6 +113,16 @@ impl TryFrom<ToolSchema> for types::Tool {
                 "executable pins must be nonempty and unique".into(),
             ));
         }
+        let mut query_modules = BTreeMap::new();
+        for (id, path) in wire.query_modules {
+            ryo::query::QueryModuleSource::try_new(&id, "module source")
+                .map_err(|error| Error::Invalid(error.to_string()))?;
+            let path = std::path::PathBuf::from(path);
+            crate::domain::suite::service::relative_path(&path)?;
+            if query_modules.insert(id, path).is_some() {
+                return Err(Error::Invalid("duplicate query module ID".into()));
+            }
+        }
         Ok(Self {
             tool: wire.tool.into(),
             version: wire.version.into(),
@@ -121,6 +134,7 @@ impl TryFrom<ToolSchema> for types::Tool {
                 .collect::<Result<_, _>>()?,
             deferred: dispositions(wire.deferred)?,
             pending: dispositions(wire.pending)?,
+            query_modules,
         })
     }
 }

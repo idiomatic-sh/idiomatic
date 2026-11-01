@@ -91,9 +91,13 @@ pub(crate) const INTERPOLATION_DEBUG: ryo::languages::PropertyId = ryo::language
 pub(crate) const INTERPOLATION_CONVERSION: ryo::languages::PropertyId =
     ryo::languages::PropertyId(6);
 /// Typed numeric payload categories; these are AST identity, not runtime equality.
+/// Parser-derived integer payload category.
 pub(crate) const INTEGER_SCALAR: &str = "integer";
+/// Parser-derived float payload category.
 pub(crate) const FLOAT_SCALAR: &str = "float";
+/// Parser-derived complex payload category.
 pub(crate) const COMPLEX_SCALAR: &str = "complex";
+/// Parser-derived bytes payload category.
 pub(crate) const BYTES_SCALAR: &str = "bytes";
 
 /// A parsed boolean is distinct from an integer of equal runtime value.

@@ -25,6 +25,10 @@ use std::collections::{HashMap, HashSet};
 pub(crate) struct SyntaxRuffPythonParserAdapter;
 
 /// The parser options derived from Python-owned settings and the source path's kind.
+#[expect(
+    clippy::trivially_copy_pass_by_ref,
+    reason = "the shared syntax adapter carries immutable parser settings by reference"
+)]
 pub(super) fn options(
     source_kind: PythonSourceKind,
     settings: &PythonParserSettings,
@@ -45,6 +49,7 @@ pub(super) fn options(
     ParseOptions::from(source_type).with_target_version(target_version)
 }
 
+/// Map the language-owned Python source kind to Ruff's parser source type.
 pub(super) const fn source_type(source_kind: PythonSourceKind) -> PySourceType {
     match source_kind {
         PythonSourceKind::Python => PySourceType::Python,
@@ -52,18 +57,22 @@ pub(super) const fn source_type(source_kind: PythonSourceKind) -> PySourceType {
     }
 }
 
+/// One parser-library syntax diagnostic, before byte-range normalization.
 struct SemanticSyntaxDiagnostic {
+    /// The diagnostic text emitted by the parser.
     message: String,
+    /// The parser-native source range.
     range: ruff_text_size::TextRange,
+    /// Stable provider-owned classification code.
     code: DiagnosticCode,
 }
 
 /// Report local AST semantic errors Ruff classifies as invalid syntax.
+#[expect(
+    clippy::too_many_lines,
+    reason = "one visitor owns nested lexical scopes while checking parser-level declaration constraints"
+)]
 fn semantic_syntax_errors(module: &Mod) -> Vec<SemanticSyntaxDiagnostic> {
-    let Mod::Module(module) = module else {
-        return Vec::new();
-    };
-
     #[derive(Default)]
     struct VisitorState {
         scopes: Vec<ScopeState>,
@@ -98,7 +107,28 @@ fn semantic_syntax_errors(module: &Mod) -> Vec<SemanticSyntaxDiagnostic> {
                     }
                 }
                 Stmt::FunctionDef(_) | Stmt::ClassDef(_) => {}
-                _ => walk_stmt(self, stmt),
+                Stmt::Return(_)
+                | Stmt::Delete(_)
+                | Stmt::TypeAlias(_)
+                | Stmt::Assign(_)
+                | Stmt::AugAssign(_)
+                | Stmt::AnnAssign(_)
+                | Stmt::For(_)
+                | Stmt::While(_)
+                | Stmt::If(_)
+                | Stmt::With(_)
+                | Stmt::Match(_)
+                | Stmt::Raise(_)
+                | Stmt::Try(_)
+                | Stmt::Assert(_)
+                | Stmt::Import(_)
+                | Stmt::ImportFrom(_)
+                | Stmt::Nonlocal(_)
+                | Stmt::Expr(_)
+                | Stmt::Pass(_)
+                | Stmt::Break(_)
+                | Stmt::Continue(_)
+                | Stmt::IpyEscapeCommand(_) => walk_stmt(self, stmt),
             }
         }
     }
@@ -124,8 +154,8 @@ fn semantic_syntax_errors(module: &Mod) -> Vec<SemanticSyntaxDiagnostic> {
     }
 
     impl VisitorState {
-        fn scope(&self) -> &ScopeState {
-            self.scopes.last().expect("every statement is in a scope")
+        fn scope(&self) -> Option<&ScopeState> {
+            self.scopes.last()
         }
 
         fn report(
@@ -146,7 +176,7 @@ fn semantic_syntax_errors(module: &Mod) -> Vec<SemanticSyntaxDiagnostic> {
                 return;
             }
             let mut names = HashSet::new();
-            for parameter in parameters.iter() {
+            for parameter in parameters {
                 let name = parameter.name().as_str();
                 if !names.insert(name) {
                     self.report(
@@ -212,9 +242,16 @@ fn semantic_syntax_errors(module: &Mod) -> Vec<SemanticSyntaxDiagnostic> {
 
     impl<'a> Visitor<'a> for VisitorState {
         fn visit_stmt(&mut self, stmt: &'a Stmt) {
+            debug_assert!(
+                self.scope().is_some(),
+                "the module scope is installed before AST traversal"
+            );
             match stmt {
                 Stmt::Nonlocal(nonlocal) => {
-                    if self.scope().kind == ScopeKind::Module {
+                    if self
+                        .scope()
+                        .is_some_and(|scope| scope.kind == ScopeKind::Module)
+                    {
                         self.report(
                             NONLOCAL_AT_MODULE,
                             "nonlocal declaration not allowed at module level",
@@ -222,7 +259,10 @@ fn semantic_syntax_errors(module: &Mod) -> Vec<SemanticSyntaxDiagnostic> {
                         );
                     } else {
                         for name in &nonlocal.names {
-                            if self.scope().parameters.contains(name.as_str()) {
+                            if self
+                                .scope()
+                                .is_some_and(|scope| scope.parameters.contains(name.as_str()))
+                            {
                                 self.report(
                                     NONLOCAL_PARAMETER,
                                     format!(
@@ -237,7 +277,10 @@ fn semantic_syntax_errors(module: &Mod) -> Vec<SemanticSyntaxDiagnostic> {
                 }
                 Stmt::Global(global) => {
                     for name in &global.names {
-                        if self.scope().parameters.contains(name.as_str()) {
+                        if self
+                            .scope()
+                            .is_some_and(|scope| scope.parameters.contains(name.as_str()))
+                        {
                             self.report(
                                 GLOBAL_PARAMETER,
                                 format!(
@@ -251,9 +294,13 @@ fn semantic_syntax_errors(module: &Mod) -> Vec<SemanticSyntaxDiagnostic> {
                 }
                 Stmt::AnnAssign(assignment) => {
                     if let Expr::Name(name) = assignment.target.as_ref() {
-                        let global = self.scope().globals.get(name.id.as_str()).copied();
+                        let global = self
+                            .scope()
+                            .and_then(|scope| scope.globals.get(name.id.as_str()).copied());
                         if let Some(global) = global {
-                            let is_module = self.scope().kind == ScopeKind::Module;
+                            let is_module = self
+                                .scope()
+                                .is_some_and(|scope| scope.kind == ScopeKind::Module);
                             if !is_module || name.range().start() < global {
                                 self.report(
                                     ANNOTATED_GLOBAL,
@@ -279,7 +326,7 @@ fn semantic_syntax_errors(module: &Mod) -> Vec<SemanticSyntaxDiagnostic> {
                         &function.body,
                     ));
                     walk_stmt(self, stmt);
-                    self.scopes.pop();
+                    let _popped_scope = self.scopes.pop();
                 }
                 Stmt::ClassDef(class) => {
                     if let Some(parameters) = &class.type_params {
@@ -291,7 +338,7 @@ fn semantic_syntax_errors(module: &Mod) -> Vec<SemanticSyntaxDiagnostic> {
                     self.scopes
                         .push(ScopeState::indexed(ScopeKind::Class, None, &class.body));
                     walk_stmt(self, stmt);
-                    self.scopes.pop();
+                    let _popped_scope = self.scopes.pop();
                 }
                 Stmt::TypeAlias(alias) => {
                     if let Some(parameters) = &alias.type_params {
@@ -299,11 +346,33 @@ fn semantic_syntax_errors(module: &Mod) -> Vec<SemanticSyntaxDiagnostic> {
                     }
                     walk_stmt(self, stmt);
                 }
-                _ => walk_stmt(self, stmt),
+                Stmt::Return(_)
+                | Stmt::Delete(_)
+                | Stmt::Assign(_)
+                | Stmt::AugAssign(_)
+                | Stmt::For(_)
+                | Stmt::While(_)
+                | Stmt::If(_)
+                | Stmt::With(_)
+                | Stmt::Match(_)
+                | Stmt::Raise(_)
+                | Stmt::Try(_)
+                | Stmt::Assert(_)
+                | Stmt::Import(_)
+                | Stmt::ImportFrom(_)
+                | Stmt::Expr(_)
+                | Stmt::Pass(_)
+                | Stmt::Break(_)
+                | Stmt::Continue(_)
+                | Stmt::IpyEscapeCommand(_) => walk_stmt(self, stmt),
             }
         }
 
         fn visit_expr(&mut self, expr: &'a Expr) {
+            debug_assert!(
+                self.scope().is_some(),
+                "expression traversal always has an enclosing module or lexical scope"
+            );
             match expr {
                 Expr::Lambda(lambda) => {
                     if let Some(parameters) = &lambda.parameters {
@@ -311,12 +380,45 @@ fn semantic_syntax_errors(module: &Mod) -> Vec<SemanticSyntaxDiagnostic> {
                     }
                 }
                 Expr::Call(call) => self.duplicate_keywords(&call.arguments),
-                _ => {}
+                Expr::BoolOp(_)
+                | Expr::Named(_)
+                | Expr::BinOp(_)
+                | Expr::UnaryOp(_)
+                | Expr::If(_)
+                | Expr::Dict(_)
+                | Expr::Set(_)
+                | Expr::ListComp(_)
+                | Expr::SetComp(_)
+                | Expr::DictComp(_)
+                | Expr::Generator(_)
+                | Expr::Await(_)
+                | Expr::Yield(_)
+                | Expr::YieldFrom(_)
+                | Expr::Compare(_)
+                | Expr::FString(_)
+                | Expr::TString(_)
+                | Expr::StringLiteral(_)
+                | Expr::BytesLiteral(_)
+                | Expr::NumberLiteral(_)
+                | Expr::BooleanLiteral(_)
+                | Expr::NoneLiteral(_)
+                | Expr::EllipsisLiteral(_)
+                | Expr::Attribute(_)
+                | Expr::Subscript(_)
+                | Expr::Starred(_)
+                | Expr::Name(_)
+                | Expr::List(_)
+                | Expr::Tuple(_)
+                | Expr::Slice(_)
+                | Expr::IpyEscapeCommand(_) => {}
             }
             ruff_python_ast::visitor::walk_expr(self, expr);
         }
     }
 
+    let Mod::Module(module) = module else {
+        return Vec::new();
+    };
     let mut visitor = VisitorState {
         scopes: vec![ScopeState::indexed(ScopeKind::Module, None, &module.body)],
         errors: Vec::new(),

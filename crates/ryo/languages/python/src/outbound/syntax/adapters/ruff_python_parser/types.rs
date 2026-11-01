@@ -64,7 +64,7 @@ pub(crate) struct ParserRefusal {
     /// What.
     pub said: Said,
     /// Diagnostic stage and tree impact.
-    pub metadata: ryo::languages::DiagnosticMetadata,
+    pub metadata: languages::DiagnosticMetadata,
 }
 
 /// The writer of the table: it walks the library's tree in the order of the file and writes its tokens between the nodes.
@@ -120,7 +120,7 @@ impl std::fmt::Display for DebugSpelling<'_> {
         while let Some(ch) = chars.next() {
             if ch == '\r' {
                 if chars.peek() == Some(&'\n') {
-                    let _ = chars.next();
+                    let _: Option<char> = chars.next();
                 }
                 f.write_char('\n')?;
             } else {

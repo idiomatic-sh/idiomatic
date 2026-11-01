@@ -19,7 +19,7 @@ use crate::domain::{
 };
 use ryo::languages::{self, NameText, Position, Symbols, Tree};
 use std::cell::Ref;
-use std::hash::{Hash, Hasher};
+use std::hash::{Hash as _, Hasher as _};
 
 /// Concatenate only parser-decoded string token payloads; source spelling is never a fallback.
 fn decoded_string_value(
@@ -79,7 +79,7 @@ pub(super) fn intern(index: &mut ExpressionShapeIndex, at: Position, hash: Shape
     };
     let place = ShapeRecordIndex(index.records.len());
     index.records.push(record);
-    let _ = index.buckets.insert(hash, place);
+    let _previous_bucket_head = index.buckets.insert(hash, place);
     at
 }
 /// Append one normalized child class and its semantic field.
@@ -161,7 +161,7 @@ fn segments(
     for each in languages::children(tree.elements, at) {
         match kind(tree, each) {
             Kind::Extra(Extra::FStringPart | Extra::TStringPart) => {
-                segments(tree, each, symbols, classes, words)
+                segments(tree, each, symbols, classes, words);
             }
             Kind::Extra(Extra::StringPart) => {
                 if let Some(value) = decoded_string_value(tree, symbols, each) {
@@ -169,10 +169,10 @@ fn segments(
                 }
             }
             Kind::Node(Node::Constant) => {
-                let _ = constant(tree, each, symbols, classes, words);
+                let _constant_result = constant(tree, each, symbols, classes, words);
             }
             Kind::Node(Node::FormattedValue | Node::Interpolation) => {
-                child(words, classes, Field::Values, each)
+                child(words, classes, Field::Values, each);
             }
             Kind::Node(_) | Kind::Token(_) | Kind::Extra(_) => {}
         }
