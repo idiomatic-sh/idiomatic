@@ -1,0 +1,220 @@
+{
+  "reference": "Ruff 0.16.5; pinned official linux x86_64 executable",
+  "reference_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "invocation": {
+    "check": true,
+    "isolated": true,
+    "no_cache": true,
+    "target_version": "py310",
+    "output_format": "json",
+    "selected_rules": [
+      "F407"
+    ]
+  },
+  "cases": [
+    {
+      "rule": "F407",
+      "name": "known-feature",
+      "case_source_sha256": "95e6e8a32858a1aedee090d475b8f4e9edfea4108cb6a189d2fb60e5bad50060",
+      "comparison": "full",
+      "expected": []
+    },
+    {
+      "rule": "F407",
+      "name": "unknown-feature",
+      "case_source_sha256": "b81c395167076dc6054e2ebf0e824fe0d18bed342343edf0ef2ec64ca20770ce",
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "F407",
+          "file": "case.py",
+          "start": 23,
+          "end": 38,
+          "ruff_location": {
+            "column": 24,
+            "row": 1
+          },
+          "ruff_end_location": {
+            "column": 39,
+            "row": 1
+          }
+        }
+      ]
+    },
+    {
+      "rule": "F407",
+      "name": "multiple-features",
+      "case_source_sha256": "4f5cf52821f256d4845c875076aa6af50188062a97bc542d23831616ccb6055f",
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "F407",
+          "file": "case.py",
+          "start": 36,
+          "end": 51,
+          "ruff_location": {
+            "column": 37,
+            "row": 1
+          },
+          "ruff_end_location": {
+            "column": 52,
+            "row": 1
+          }
+        }
+      ]
+    },
+    {
+      "rule": "F407",
+      "name": "braces",
+      "case_source_sha256": "c57b39d990c45cf0534bbf08d7df8b1074a18cc878452bccff443a9d8cf4944e",
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "F407",
+          "file": "case.py",
+          "start": 23,
+          "end": 29,
+          "ruff_location": {
+            "column": 24,
+            "row": 1
+          },
+          "ruff_end_location": {
+            "column": 30,
+            "row": 1
+          }
+        }
+      ]
+    },
+    {
+      "rule": "F407",
+      "name": "wildcard",
+      "case_source_sha256": "2e80d83aacf086999f7c5ea12368cbf005e6f3da7b0a196cb950ab6ea9bd28b4",
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "F407",
+          "file": "case.py",
+          "start": 23,
+          "end": 24,
+          "ruff_location": {
+            "column": 24,
+            "row": 1
+          },
+          "ruff_end_location": {
+            "column": 25,
+            "row": 1
+          }
+        }
+      ]
+    },
+    {
+      "rule": "F407",
+      "name": "relative-unknown",
+      "case_source_sha256": "cbdb786c03d0c92d4f4e07ce4e2448bedd4d17adbc585f3fd252561891bffdaa",
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "F407",
+          "file": "case.py",
+          "start": 24,
+          "end": 39,
+          "ruff_location": {
+            "column": 25,
+            "row": 1
+          },
+          "ruff_end_location": {
+            "column": 40,
+            "row": 1
+          }
+        }
+      ]
+    },
+    {
+      "rule": "F407",
+      "name": "unicode-prefix",
+      "case_source_sha256": "e574c3e6f970f8fd0732ec75dbf896f463a18ac0eeb21849e02ab164d341326c",
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "F407",
+          "file": "case.py",
+          "start": 36,
+          "end": 51,
+          "ruff_location": {
+            "column": 24,
+            "row": 2
+          },
+          "ruff_end_location": {
+            "column": 39,
+            "row": 2
+          }
+        }
+      ]
+    },
+    {
+      "rule": "F407",
+      "name": "inline-noqa",
+      "case_source_sha256": "510c0d5fae5fe692cdaa33d0d29975928266c5b94fd0403fc8a40578d5c159c5",
+      "comparison": "full",
+      "expected": []
+    },
+    {
+      "rule": "F407",
+      "name": "file-noqa",
+      "case_source_sha256": "4f1c2708e0a0e3fdf2bc4d56307dc0681621539df32c783ee65186eba0dd3b90",
+      "comparison": "full",
+      "expected": []
+    },
+    {
+      "rule": "F407",
+      "name": "aliased-feature",
+      "case_source_sha256": "dfbff8abe92049cd7a3ec36396d0f024532b55c4a782c4aae121bc2895ef32bc",
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "F407",
+          "file": "case.py",
+          "start": 23,
+          "end": 47,
+          "ruff_location": {
+            "column": 24,
+            "row": 1
+          },
+          "ruff_end_location": {
+            "column": 48,
+            "row": 1
+          }
+        }
+      ]
+    },
+    {
+      "rule": "F407",
+      "name": "nfkc-known-feature",
+      "case_source_sha256": "3277c2cee590925908e33d34cfb6abad7b8c12eca149fdb655ef125573fcf690",
+      "comparison": "full",
+      "expected": []
+    },
+    {
+      "rule": "F407",
+      "name": "nfkc-unknown-feature",
+      "case_source_sha256": "b5abb635b5e4854961029bfd7f578d568864cc35cb48c0035a35d24d06296638",
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "F407",
+          "file": "case.py",
+          "start": 23,
+          "end": 35,
+          "ruff_location": {
+            "column": 24,
+            "row": 1
+          },
+          "ruff_end_location": {
+            "column": 28,
+            "row": 1
+          }
+        }
+      ]
+    }
+  ]
+}

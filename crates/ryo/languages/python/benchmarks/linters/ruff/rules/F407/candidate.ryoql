@@ -1,0 +1,14 @@
+let future_errors = select file, span from "syntax-error" where matches(message, "(?i)^future feature .+ is not defined$") or message = "not a chance";
+let aliases = select id, file, span from "semantic-syntax" where kind = "alias";
+let errors_with_ranges = select l.file as file, r."start-byte" as begin, r."end-byte" as finish from future_errors as l join "source-location" as r on l.file = r.file and l.span = r.span;
+let aliases_with_ranges = select l.id as id, l.file as file, l.span as span, r."start-byte" as begin, r."end-byte" as finish from aliases as l join "source-location" as r on l.id = r.id;
+let erroneous_aliases = select l.id as id, l.file as file, l.span as span from aliases_with_ranges as l join errors_with_ranges as r on l.file = r.file where r.begin >= l.begin and r.finish <= l.finish;
+let located_candidates = select l.id as id, l.file as file, l.span as span, r."start-line" as line from erroneous_aliases as l join "source-location" as r on l.id = r.id and l.file = r.file;
+let comments = select id, file, text from "syntax-tree" where kind = "comment";
+let line_noqa_comments = select id, file from comments where matches(text, "(?i)^\s*#\s*(?:ruff\s*:\s*)?noqa(?:\s*:\s*F407(?:\s|,|#|$)|\s*(?:#.*)?$)");
+let line_noqa_lines = select l.file as file, r."start-line" as line from line_noqa_comments as l join "source-location" as r on l.id = r.id;
+let file_noqa_comments = select id, file from comments where matches(text, "(?i)^\s*#\s*ruff\s*:\s*noqa(?:\s*:\s*F407(?:\s|,|#|$)|\s*(?:#.*)?$)");
+let unsuppressed_lines = antijoin(left=located_candidates,right=line_noqa_lines,left-on=["file","line"],right-on=["file","line"]);
+let unsuppressed_files = antijoin(left=unsuppressed_lines,right=file_noqa_comments,left-on=["file"],right-on=["file"]);
+let violations = select id, file, span from unsuppressed_files;
+emit violations subject file key(id);
