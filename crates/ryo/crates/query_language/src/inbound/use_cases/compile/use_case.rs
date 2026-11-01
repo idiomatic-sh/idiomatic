@@ -11,7 +11,6 @@ use crate::domain::validation::service::validate;
 use crate::outbound::catalog::interface::CatalogPort;
 use crate::outbound::syntax::errors::SyntaxError;
 use crate::outbound::syntax::interface::SyntaxPort;
-use ryo_values::domain::program::types::QueryView;
 
 /// `compile`, over the syntax and the catalog it calls.
 pub struct CompileUseCaseImpl {
@@ -39,12 +38,31 @@ impl CompileUseCaseImpl {
 
 impl CompileUseCase for CompileUseCaseImpl {
     fn compile(&self, request: CompileRequest) -> Result<CompileReport, CompileError> {
-        let program = self
+        let parsed = self
             .syntax
-            .read(QueryView(request.text.root_text()))
+            .read_bundle(&request.text)
             .map_err(|error| match error {
                 SyntaxError::Unreadable { span, message } => CompileError::Syntax { span, message },
+                SyntaxError::Located { origin, message } => CompileError::Located {
+                    error: Box::new(CompileError::Syntax {
+                        span: origin.span,
+                        message,
+                    }),
+                    origin,
+                },
             })?;
+        let program =
+            crate::domain::linking::service::link(&request.text, parsed.root, parsed.fragments)
+                .map_err(|error| {
+                    let span = error.origin.span;
+                    CompileError::Located {
+                        origin: error.origin,
+                        error: Box::new(CompileError::Invalid {
+                            span,
+                            message: error.message,
+                        }),
+                    }
+                })?;
         let relations = self
             .catalog
             .relations()

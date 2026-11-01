@@ -62,6 +62,7 @@ fn only_a_kind_refusal_is_told_to_correct_the_kind() {
                     start: Offset(0),
                     end: Offset(0),
                 },
+                origin: None,
             },
         }
         .next(),

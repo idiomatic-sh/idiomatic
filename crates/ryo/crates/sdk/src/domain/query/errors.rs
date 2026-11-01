@@ -1,11 +1,24 @@
 //! The errors of the `query` concept: why RyoQL text is not correct, which `query validate` answers and a lint's rule carries.
 
 use super::types::QuerySpan;
+use ryo_values::domain::program::types::QueryOrigin;
 
 /// Why `validate` failed.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[non_exhaustive]
 pub enum ValidateError {
+    /// A refusal in an imported module, attributed to its original source and trace.
+    #[error(
+        "{error} in query source `{source}` at byte {offset}",
+        source = origin.source_id.0,
+        offset = origin.span.start.0
+    )]
+    Located {
+        /// The original source and import/call path.
+        origin: QueryOrigin,
+        /// The underlying refusal.
+        error: Box<ValidateError>,
+    },
     /// The text is not RyoQL.
     #[error("{message} at byte {}", span.start.0)]
     Syntax {

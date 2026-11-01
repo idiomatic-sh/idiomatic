@@ -1,16 +1,15 @@
 //! The types of the `program` concept: the shape of RyoQL text once it is read. Plain data, public
 //! fields and derives, with no constructor and no inherent impl.
 
-use crate::domain::plan_parts::types::QueryText;
 use ryo_language::domain::relations::types::Integer;
 use std::collections::BTreeMap;
 
 /// A place in the query text, counted in bytes from its start.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ByteOffset(pub usize);
 
 /// A stretch of the query text, in bytes.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct QuerySpan {
     /// Where it starts.
     pub start: ByteOffset,
@@ -24,164 +23,21 @@ pub struct QueryView<'a>(pub &'a str);
 
 /// Stable logical identity of one source in a query bundle.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct QuerySourceId(Box<str>);
-
-impl QuerySourceId {
-    /// Build an identifier that is not empty or whitespace.
-    pub fn try_from_text(text: &str) -> Result<Self, QueryBundleError> {
-        if text.trim().is_empty() {
-            return Err(QueryBundleError::BlankSourceId);
-        }
-        Ok(Self(text.into()))
-    }
-
-    /// The exact logical identity.
-    #[must_use]
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-}
-
-impl AsRef<str> for QuerySourceId {
-    fn as_ref(&self) -> &str {
-        self.as_str()
-    }
-}
-
-impl std::fmt::Display for QuerySourceId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.as_str())
-    }
-}
+pub struct QuerySourceId(pub Box<str>);
 
 /// One exact source in a query bundle, with its logical identity retained for diagnostics.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct QuerySource {
-    id: QuerySourceId,
-    text: Box<str>,
-}
-
-impl QuerySource {
-    /// Build a named source, retaining text exactly for the parser to validate.
-    #[must_use]
-    pub fn new(id: QuerySourceId, text: impl Into<Box<str>>) -> Self {
-        Self {
-            id,
-            text: text.into(),
-        }
-    }
-
-    /// The source identity.
-    #[must_use]
-    pub const fn id(&self) -> &QuerySourceId {
-        &self.id
-    }
-
-    /// The exact source bytes as UTF-8 text.
-    #[must_use]
-    pub fn text(&self) -> &str {
-        &self.text
-    }
+pub struct QueryDocumentSource {
+    pub id: QuerySourceId,
+    pub text: Box<str>,
 }
 
 /// The in-memory root and immutable named module sources for one query.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct QueryBundle {
-    root: QuerySource,
-    modules: BTreeMap<QuerySourceId, QuerySource>,
+    pub root: QueryDocumentSource,
+    pub modules: BTreeMap<QuerySourceId, QueryDocumentSource>,
 }
-
-impl QueryBundle {
-    /// Build a bundle, rejecting duplicate logical identities and a module that aliases the root.
-    pub fn try_new(
-        root: QuerySource,
-        modules: impl IntoIterator<Item = QuerySource>,
-    ) -> Result<Self, QueryBundleError> {
-        let mut indexed = BTreeMap::new();
-        for module in modules {
-            let id = module.id.clone();
-            if id == root.id || indexed.insert(id.clone(), module).is_some() {
-                return Err(QueryBundleError::DuplicateSourceId { id });
-            }
-        }
-        Ok(Self {
-            root,
-            modules: indexed,
-        })
-    }
-
-    /// A standalone query with the stable anonymous root identity and no modules.
-    pub fn standalone(text: &str) -> Result<Self, QueryBundleError> {
-        let id = QuerySourceId::try_from_text("<query>")?;
-        Self::try_new(QuerySource::new(id, text), [])
-    }
-
-    /// The root query text, retained exactly as supplied.
-    #[must_use]
-    pub fn root_text(&self) -> &str {
-        self.root.text()
-    }
-
-    /// The root source.
-    #[must_use]
-    pub const fn root(&self) -> &QuerySource {
-        &self.root
-    }
-
-    /// The immutable source registry, ordered by logical identity.
-    #[must_use]
-    pub const fn modules(&self) -> &BTreeMap<QuerySourceId, QuerySource> {
-        &self.modules
-    }
-
-    /// Find one named source, including the root.
-    #[must_use]
-    pub fn source(&self, id: &QuerySourceId) -> Option<&QuerySource> {
-        if &self.root.id == id {
-            Some(&self.root)
-        } else {
-            self.modules.get(id)
-        }
-    }
-}
-
-impl From<QueryText> for QueryBundle {
-    fn from(text: QueryText) -> Self {
-        Self {
-            root: QuerySource {
-                id: QuerySourceId("<query>".into()),
-                text: text.0,
-            },
-            modules: BTreeMap::new(),
-        }
-    }
-}
-
-/// A query bundle could not be constructed without ambiguity.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum QueryBundleError {
-    /// A source identity is blank.
-    BlankSourceId,
-    /// The root query text is blank.
-    BlankRootText,
-    /// Two sources use the same identity, or a module duplicates the root identity.
-    DuplicateSourceId {
-        /// The repeated identity.
-        id: QuerySourceId,
-    },
-}
-
-impl std::fmt::Display for QueryBundleError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::BlankSourceId => f.write_str("query source id is blank"),
-            Self::BlankRootText => f.write_str("root query text is blank"),
-            Self::DuplicateSourceId { id } => write!(f, "query source id `{id}` is duplicated"),
-        }
-    }
-}
-
-impl std::error::Error for QueryBundleError {}
 
 /// The name of a parameter, as the query writes it.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -191,9 +47,13 @@ pub struct WrittenParameter(pub Box<str>);
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct TypeName(pub Box<str>);
 
-/// The name a `let` gives a step, or a step is read under.
+/// A stable identity for one step definition within a linked query bundle.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct StepIdentity(pub u64);
+
+/// The name a `let` gives a step, or a step is read under; identity is separate from spelling.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct StepName(pub Box<str>);
+pub struct StepName(pub Box<str>, pub Option<StepIdentity>);
 
 /// The name of a column, as the query writes it or keeps it.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -239,12 +99,155 @@ pub struct QuerySpelling<'a>(pub &'a str);
 /// A whole query: its parameters, its steps and the one `emit`.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Program {
+    /// Whether source-local identities and imports have been linked for a complete query bundle.
+    pub linked: bool,
+    /// The imported modules available to root-level calls.
+    pub imports: Vec<ImportDeclaration>,
+    /// Source attribution for original and linked syntax nodes.
+    pub origins: Vec<QueryOrigin>,
+    /// Typed signatures retained for every linked fragment invocation.
+    pub fragment_contracts: Vec<FragmentContract>,
+    /// Original source and call trace for each linked step definition.
+    pub step_origins: BTreeMap<StepIdentity, QueryOrigin>,
+    /// Original source for the root emit statement.
+    pub emit_origin: Option<QueryOrigin>,
     /// The `param` lines.
     pub parameters: Vec<ParameterDeclaration>,
     /// The `let` lines, in order.
     pub steps: Vec<LetStep>,
     /// The `emit` line.
     pub emit: WrittenEmit,
+}
+
+/// A fragment invocation's typed input/output contract after hygienic linking.
+#[derive(Clone, Debug, PartialEq)]
+pub struct FragmentContract {
+    /// The first expanded definition, before which inputs are available.
+    pub first: StepIdentity,
+    /// The returned definition, whose columns must match the declared output.
+    pub result: StepIdentity,
+    /// Inputs bound at the call site.
+    pub inputs: Vec<FragmentContractInput>,
+    /// Declared output relation shape.
+    pub output: RelationSignature,
+    /// Where the output signature is written.
+    pub output_span: QuerySpan,
+    /// Original fragment identity and import/call trace.
+    pub origin: QueryOrigin,
+}
+
+/// One input relation and the source actual bound at its call site.
+#[derive(Clone, Debug, PartialEq)]
+pub struct FragmentContractInput {
+    /// The fragment's input name.
+    pub name: WrittenName,
+    /// The source actual passed to that input.
+    pub value: ArgumentValue,
+    /// The required relation shape.
+    pub relation: RelationSignature,
+    /// Where the input is declared.
+    pub span: QuerySpan,
+}
+
+/// Where a linked syntax node came from, including the import and call path used to reach it.
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct QueryOrigin {
+    /// The source document that wrote the node.
+    pub source_id: QuerySourceId,
+    /// The original byte span in that document.
+    pub span: QuerySpan,
+    /// Import and call sites from the root to this source.
+    pub trace: Vec<QueryTraceSite>,
+}
+
+/// One source boundary crossed while linking a fragment.
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct QueryTraceSite {
+    /// The source containing this import or call.
+    pub source_id: QuerySourceId,
+    /// The imported or invoked source.
+    pub target_id: QuerySourceId,
+    /// The original byte span of the import or invocation.
+    pub span: QuerySpan,
+}
+
+/// `import suppress from "python/ruff/suppress";`.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ImportDeclaration {
+    /// The local name of the imported module.
+    pub alias: WrittenName,
+    /// Its logical id in the immutable query bundle.
+    pub module: WrittenLiteral,
+    /// Where the import is written.
+    pub span: QuerySpan,
+}
+
+/// A relation shape written in a fragment signature.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RelationSignature {
+    /// Columns in their declared order.
+    pub columns: Vec<SignatureColumn>,
+    /// Where the `relation<...>` type is written.
+    pub span: QuerySpan,
+}
+
+/// One named column and its RyoQL cell type in a relation signature.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SignatureColumn {
+    /// The column name.
+    pub name: ColumnName,
+    /// The cell type name.
+    pub kind: TypeName,
+    /// Where the name and type are written.
+    pub span: QuerySpan,
+}
+
+/// A fragment input relation declaration.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FragmentInput {
+    /// The name the fragment body uses as its relation source.
+    pub name: WrittenName,
+    /// The required relation shape.
+    pub relation: RelationSignature,
+    /// Where the declaration is written.
+    pub span: QuerySpan,
+}
+
+/// A reusable RyoQL fragment module, parsed without treating it as a root query.
+#[derive(Clone, Debug, PartialEq)]
+pub struct FragmentProgram {
+    /// Modules visible to calls from this fragment.
+    pub imports: Vec<ImportDeclaration>,
+    /// Relation-valued inputs.
+    pub inputs: Vec<FragmentInput>,
+    /// Scalar parameters.
+    pub parameters: Vec<ParameterDeclaration>,
+    /// The declared output shape.
+    pub output: RelationSignature,
+    /// Where the output declaration is written.
+    pub output_span: QuerySpan,
+    /// The fragment's local steps.
+    pub steps: Vec<LetStep>,
+    /// The step returned as the fragment result.
+    pub result: FragmentReturn,
+}
+
+/// Parsed root and module syntax before query-language linking runs.
+#[derive(Clone, Debug, PartialEq)]
+pub struct ParsedQueryBundle {
+    /// Parsed root query.
+    pub root: Program,
+    /// Parsed module documents keyed by their bundle ids.
+    pub fragments: BTreeMap<QuerySourceId, FragmentProgram>,
+}
+
+/// The step returned by a fragment and the source location of its declaration.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FragmentReturn {
+    /// The local result step.
+    pub step: StepName,
+    /// Where the return declaration is written.
+    pub span: QuerySpan,
 }
 
 /// `param max-lines: integer;`.
@@ -508,6 +511,8 @@ pub enum ArgumentValue {
     Number(Integer),
     /// A bare word: a column, a step or a keyword such as `descendant`.
     Word(WordText),
+    /// A relation input resolved to one exact step definition by the linker.
+    Step(StepName),
     /// `$name`.
     Parameter(WrittenParameter),
     /// `[a, b]`.

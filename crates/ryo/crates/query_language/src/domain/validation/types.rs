@@ -5,6 +5,8 @@ use ryo_values::domain::program::types::StepName;
 /// What a program's checks need to know about its inputs.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Known<'a> {
+    /// Whether step references must already carry linker-assigned identities.
+    pub linked: bool,
     /// The names of the steps defined so far.
     pub steps: Vec<&'a StepName>,
     /// The names of the relations the host declared.

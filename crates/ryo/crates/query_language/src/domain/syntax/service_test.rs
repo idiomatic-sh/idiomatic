@@ -23,7 +23,7 @@ fn nowhere() -> QuerySpan {
 
 fn program() -> Program {
     let read_function = LetStep {
-        name: StepName("functions".into()),
+        name: StepName("functions".into(), None),
         expression: Expression::Select(Select {
             columns: Columns::Every,
             from: QuerySource {
@@ -37,7 +37,7 @@ fn program() -> Program {
         span: nowhere(),
     };
     let project = LetStep {
-        name: StepName("paths".into()),
+        name: StepName("paths".into(), None),
         expression: Expression::Call(Call {
             name: OperationName("project".into()),
             arguments: Vec::new(),
@@ -46,10 +46,16 @@ fn program() -> Program {
         span: nowhere(),
     };
     Program {
+        linked: false,
+        imports: Vec::new(),
+        origins: Vec::new(),
+        fragment_contracts: Vec::new(),
+        step_origins: std::collections::BTreeMap::new(),
+        emit_origin: None,
         parameters: Vec::new(),
         steps: vec![read_function, project],
         emit: WrittenEmit {
-            step: StepName("paths".into()),
+            step: StepName("paths".into(), None),
             subject: ColumnName("path".into()),
             key: Vec::new(),
             span: nowhere(),

@@ -126,7 +126,10 @@ pub(crate) fn step_named(
     name: &syntax::StepName,
 ) -> Result<parts::StepId, LoweringError> {
     find_step(&builder.lowered, |lowered| {
-        if matches!(&lowered.name, StepLabel::Named(named) if named == name) {
+        if matches!(&lowered.name, StepLabel::Named(named) if match (named.1, name.1) {
+            (Some(left), Some(right)) => left == right,
+            _ => named.0 == name.0,
+        }) {
             SearchMatch::Matches
         } else {
             SearchMatch::Differs
@@ -188,8 +191,9 @@ pub(crate) fn input_argument(
             syntax::SourceReference::Relation(syntax::WrittenRelation(name.0.clone()))
         }
         syntax::ArgumentValue::Word(name) => {
-            syntax::SourceReference::Step(syntax::StepName(name.0.clone()))
+            syntax::SourceReference::Step(syntax::StepName(name.0.clone(), None))
         }
+        syntax::ArgumentValue::Step(step) => syntax::SourceReference::Step(step.clone()),
         syntax::ArgumentValue::Number(_)
         | syntax::ArgumentValue::Parameter(_)
         | syntax::ArgumentValue::List(_)
@@ -247,6 +251,7 @@ pub(crate) fn word_of(
         syntax::ArgumentValue::Word(word) => Ok(syntax::ColumnName(word.0.clone())),
         syntax::ArgumentValue::Number(_)
         | syntax::ArgumentValue::Parameter(_)
+        | syntax::ArgumentValue::Step(_)
         | syntax::ArgumentValue::List(_)
         | syntax::ArgumentValue::Map(_) => {
             Err(bad_argument(call, Some(name), ArgumentFault::ExpectedName))
@@ -269,6 +274,7 @@ pub(crate) fn words_of(
             syntax::ArgumentValue::Word(word) => Ok(syntax::ColumnName(word.0.clone())),
             syntax::ArgumentValue::Number(_)
             | syntax::ArgumentValue::Parameter(_)
+            | syntax::ArgumentValue::Step(_)
             | syntax::ArgumentValue::List(_)
             | syntax::ArgumentValue::Map(_) => {
                 Err(bad_argument(call, Some(name), ArgumentFault::ExpectedNames))

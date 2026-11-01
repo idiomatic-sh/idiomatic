@@ -6,8 +6,8 @@ use ryo_values::domain::descriptions::types::{
     Example, Grammar, Production, ProductionForm, ProductionName,
 };
 use ryo_values::domain::program::types::{
-    ByteOffset, Call, ColumnName, Expression, LetStep, OperationName, Program, QuerySpan,
-    QueryView, StepName, WrittenEmit,
+    ByteOffset, Call, ColumnName, Expression, LetStep, OperationName, ParsedQueryBundle, Program,
+    QueryBundle, QueryOrigin, QuerySpan, QueryView, StepName, WrittenEmit,
 };
 
 /// What the core's tests stand in for `syntax` with: it reads any text that contains `emit` as the
@@ -23,9 +23,15 @@ impl Default for SyntaxFake {
     fn default() -> Self {
         Self {
             program: Program {
+                linked: false,
+                imports: Vec::new(),
+                origins: Vec::new(),
+                fragment_contracts: Vec::new(),
+                step_origins: std::collections::BTreeMap::new(),
+                emit_origin: None,
                 parameters: Vec::new(),
                 steps: vec![LetStep {
-                    name: StepName("functions".into()),
+                    name: StepName("functions".into(), None),
                     expression: Expression::Call(Call {
                         name: OperationName("union".into()),
                         arguments: Vec::new(),
@@ -40,7 +46,7 @@ impl Default for SyntaxFake {
                     },
                 }],
                 emit: WrittenEmit {
-                    step: StepName("".into()),
+                    step: StepName("".into(), None),
                     subject: ColumnName("".into()),
                     key: Vec::new(),
                     span: QuerySpan {
@@ -65,6 +71,27 @@ impl SyntaxPort for SyntaxFake {
             },
             message: "the fake reads only text that contains `emit`".to_owned(),
         })
+    }
+
+    fn read_bundle(&self, bundle: &QueryBundle) -> Result<ParsedQueryBundle, SyntaxError> {
+        if !bundle.modules.is_empty() {
+            return Err(SyntaxError::Located {
+                origin: QueryOrigin {
+                    source_id: bundle.root.id.clone(),
+                    span: QuerySpan {
+                        start: ByteOffset(0),
+                        end: ByteOffset(0),
+                    },
+                    trace: Vec::new(),
+                },
+                message: "the fake syntax port does not parse query modules".to_owned(),
+            });
+        }
+        self.read(QueryView(&bundle.root.text))
+            .map(|root| ParsedQueryBundle {
+                root,
+                fragments: Default::default(),
+            })
     }
 
     /// One production: the text the fake reads.

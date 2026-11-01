@@ -152,6 +152,7 @@ pub(crate) fn call_extend(
                 (parts::Operand::Parameter(id), kind)
             }
             syntax::ArgumentValue::Word(_)
+            | syntax::ArgumentValue::Step(_)
             | syntax::ArgumentValue::List(_)
             | syntax::ArgumentValue::Map(_) => {
                 return Err(bad_argument(
@@ -216,6 +217,7 @@ fn join_output(
             syntax::ArgumentValue::Word(word) => &word.0,
             syntax::ArgumentValue::Number(_)
             | syntax::ArgumentValue::Parameter(_)
+            | syntax::ArgumentValue::Step(_)
             | syntax::ArgumentValue::List(_)
             | syntax::ArgumentValue::Map(_) => {
                 return Err(bad_argument(

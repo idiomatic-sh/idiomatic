@@ -153,7 +153,7 @@ impl QueryLanguagePort for QueryLanguageFake {
         text: &ryo_values::domain::program::types::QueryBundle,
         hosted: &[HostedRelation],
     ) -> Result<ValidateReport, QueryLanguageError> {
-        if text.root_text().contains(REFUSED) {
+        if text.root.text.contains(REFUSED) {
             return Err(refused());
         }
         Ok(ValidateReport {
@@ -172,7 +172,7 @@ impl QueryLanguagePort for QueryLanguageFake {
         _hosted: &[HostedRelation],
     ) -> Result<Plan, QueryLanguageError> {
         let _calls_before = self.calls.fetch_add(1, Ordering::SeqCst);
-        if text.root_text().contains(REFUSED) {
+        if text.root.text.contains(REFUSED) {
             return Err(refused());
         }
         Ok(self.plan.clone())
@@ -189,6 +189,7 @@ fn refused() -> QueryLanguageError {
                 start: Offset(0),
                 end: Offset(0),
             },
+            origin: None,
         },
     }
 }

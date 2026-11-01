@@ -17,7 +17,6 @@ use ryo_language::domain::relations::service::name;
 use ryo_values::domain::descriptions::types::{
     OperatorName, RelationName, StepCount, ValidateReport,
 };
-use ryo_values::domain::program::types::QueryView;
 
 /// `typecheck`, over the syntax and the catalog it calls.
 pub struct TypecheckUseCaseImpl {
@@ -45,14 +44,33 @@ impl TypecheckUseCaseImpl {
 
 impl TypecheckUseCase for TypecheckUseCaseImpl {
     fn typecheck(&self, request: TypecheckRequest) -> Result<ValidateReport, TypecheckError> {
-        let program = self
+        let parsed = self
             .syntax
-            .read(QueryView(request.text.root_text()))
+            .read_bundle(&request.text)
             .map_err(|error| match error {
                 SyntaxError::Unreadable { span, message } => {
                     TypecheckError::Syntax { span, message }
                 }
+                SyntaxError::Located { origin, message } => TypecheckError::Located {
+                    error: Box::new(TypecheckError::Syntax {
+                        span: origin.span,
+                        message,
+                    }),
+                    origin,
+                },
             })?;
+        let program =
+            crate::domain::linking::service::link(&request.text, parsed.root, parsed.fragments)
+                .map_err(|error| {
+                    let span = error.origin.span;
+                    TypecheckError::Located {
+                        origin: error.origin,
+                        error: Box::new(TypecheckError::Invalid {
+                            span,
+                            message: error.message,
+                        }),
+                    }
+                })?;
         let relations = self
             .catalog
             .relations()

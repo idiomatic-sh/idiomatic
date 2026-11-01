@@ -320,9 +320,10 @@ fn refusal_span(span: ryo_language::domain::relations::types::Span) -> QuerySpan
 
 /// A rule's query that does not compile, as the caller's failure of validating.
 fn compile_error(error: RefusedQuery) -> ValidateError {
+    let origin = error.origin;
     let span = refusal_span(error.span);
     let message = error.message.0;
-    match error.kind {
+    let error = match error.kind {
         RefusedKind::Syntax => ValidateError::Syntax { span, message },
         RefusedKind::UnknownRelation => ValidateError::UnknownRelation {
             name: message,
@@ -331,6 +332,13 @@ fn compile_error(error: RefusedQuery) -> ValidateError {
         RefusedKind::Type => ValidateError::Type { span, message },
         RefusedKind::Invalid => ValidateError::Invalid { span, message },
         RefusedKind::Catalog => ValidateError::Catalog { reason: message },
+    };
+    match origin {
+        Some(origin) => ValidateError::Located {
+            origin,
+            error: Box::new(error),
+        },
+        None => error,
     }
 }
 

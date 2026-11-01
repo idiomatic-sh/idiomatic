@@ -1,10 +1,22 @@
 //! The `typecheck` use case's failures.
 
-use ryo_values::domain::program::types::QuerySpan;
+use ryo_values::domain::program::types::{QueryOrigin, QuerySpan};
 
 /// Why `typecheck` failed.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 pub enum TypecheckError {
+    /// A lower-level refusal attributed to an original module source.
+    #[error(
+        "{error} (from `{source}` at byte {offset})",
+        source = origin.source_id.0,
+        offset = origin.span.start.0
+    )]
+    Located {
+        /// The original source and trace.
+        origin: QueryOrigin,
+        /// The underlying refusal.
+        error: Box<TypecheckError>,
+    },
     /// The text is not RyoQL.
     #[error("{message} at byte {}", span.start.0)]
     Syntax {

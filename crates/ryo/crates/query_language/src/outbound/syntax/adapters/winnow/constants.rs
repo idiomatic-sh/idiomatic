@@ -6,6 +6,16 @@
 pub(crate) enum Keyword {
     /// `param`.
     Param,
+    /// `import`.
+    Import,
+    /// `input`.
+    Input,
+    /// `output`.
+    Output,
+    /// `return`.
+    Return,
+    /// `relation`.
+    Relation,
     /// `let`.
     Let,
     /// `emit`.
@@ -72,6 +82,11 @@ pub(crate) enum Mark {
 pub(crate) fn keyword_text(keyword: Keyword) -> &'static str {
     match keyword {
         Keyword::Param => "param",
+        Keyword::Import => "import",
+        Keyword::Input => "input",
+        Keyword::Output => "output",
+        Keyword::Return => "return",
+        Keyword::Relation => "relation",
         Keyword::Let => "let",
         Keyword::Emit => "emit",
         Keyword::Subject => "subject",
@@ -112,7 +127,7 @@ pub(crate) fn mark_text(mark: Mark) -> &'static str {
 /// What the grammar expects when a text stops making sense and winnow said nothing more.
 #[must_use]
 pub(crate) fn expectation() -> &'static str {
-    "expected a `param`, `let` or `emit` line"
+    "expected an `import`, `param`, `let` or `emit` line"
 }
 
 /// One production of the grammar as this adapter reads it: the parser fn that reads it, how it is written, and text it reads whole.
@@ -130,13 +145,48 @@ pub(crate) struct GrammarLine {
 pub(crate) const GRAMMAR: &[GrammarLine] = &[
     GrammarLine {
         name: "program",
-        form: "line { line }, with exactly one emit_line",
+        form: "line { line }, and exactly one emit_line",
         example: "let found = select * from \"function\"; emit found subject \"file\" key(\"span\");",
     },
     GrammarLine {
         name: "line",
-        form: "parameter_line | step_line | emit_line",
+        form: "import_line | parameter_line | step_line | emit_line",
         example: "let found = select * from \"function\";",
+    },
+    GrammarLine {
+        name: "import_line",
+        form: "import word from string \";\"",
+        example: "import suppress from \"python/ruff/suppress\";",
+    },
+    GrammarLine {
+        name: "fragment_program",
+        form: "import_line | fragment_input_line | parameter_line | fragment_output_line | step_line | fragment_return_line; exactly one output and return",
+        example: "input rows: relation<id: node>; output relation<id: node>; let result = select id from rows; return result;",
+    },
+    GrammarLine {
+        name: "fragment_line",
+        form: "import_line | fragment_input_line | parameter_line | fragment_output_line | step_line | fragment_return_line",
+        example: "input rows: relation<id: node>;",
+    },
+    GrammarLine {
+        name: "fragment_input_line",
+        form: "input word \":\" relation_signature \";\"",
+        example: "input rows: relation<id: node>;",
+    },
+    GrammarLine {
+        name: "fragment_output_line",
+        form: "output relation_signature \";\"",
+        example: "output relation<id: node>;",
+    },
+    GrammarLine {
+        name: "relation_signature",
+        form: "relation \"<\" word \":\" word { \",\" word \":\" word } \">\"",
+        example: "relation<id: node, file: file>",
+    },
+    GrammarLine {
+        name: "fragment_return_line",
+        form: "return word \";\"",
+        example: "return result;",
     },
     GrammarLine {
         name: "parameter_line",

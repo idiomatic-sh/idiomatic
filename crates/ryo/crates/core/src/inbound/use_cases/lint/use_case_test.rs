@@ -102,6 +102,8 @@ enum Scenario {
     ManyRuns,
     /// Lints a rule, then the rule of the same id with another query, over plans one session shares.
     ChangedQueryKeepsOnePlan,
+    /// Changes only a nested query module and checks both plan and persisted-result invalidation.
+    ChangedNestedModule,
     /// Lints under new rule ids again and again, over plans one session shares, until more ids were named than the plans it keeps.
     ChangedIdsKeepOnePlan,
     /// Two runs naming different rules, one after the other twice over plans one session shares, as concurrent `tm validate` calls do.
@@ -714,6 +716,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_rule_keeps_one_plan_whatever_queries_it_had"),
         word: Word::Succeeds,
         input: || Scenario::ChangedQueryKeepsOnePlan,
+        expect: Expect::Value((1, 0)),
+    },
+    Case {
+        name: CaseName("editing_a_nested_query_module_invalidates_plan_and_persisted_results"),
+        word: Word::Succeeds,
+        input: || Scenario::ChangedNestedModule,
         expect: Expect::Value((1, 0)),
     },
     Case {
@@ -1333,6 +1341,47 @@ fn compiles_per_session() -> Result<Value, Failure> {
     ))
 }
 
+/// The same root and outer module use a new nested-module body: both caches must observe it.
+fn changed_nested_module() -> Result<Value, Failure> {
+    let bundle = |revision: &str| {
+        use ryo_values::domain::program::service::{document_source, query_bundle, source_id};
+        let projection = if revision == "first" {
+            "id"
+        } else {
+            "id as \"id\""
+        };
+        query_bundle(
+            document_source(
+                source_id("root").unwrap(),
+                "import outer from \"outer\"; let found = outer(); emit found subject id key(id);",
+            ),
+            [
+                document_source(
+                    source_id("outer").unwrap(),
+                    "import nested from \"nested\"; output relation<id: node>; let found = nested(); return found;",
+                ),
+                document_source(
+                    source_id("nested").unwrap(),
+                    format!("output relation<id: node>; let found = select {projection} from \"syntax-tree\"; return found;").into_boxed_str(),
+                ),
+            ],
+        )
+        .unwrap()
+    };
+    let given = violations();
+    let mut first = request(&given);
+    first.rules[0].query = bundle("first");
+    let mut second = request(&given);
+    second.rules[0].query = bundle("second");
+    let world = world(given);
+    world.use_case.lint(first)?;
+    let after_first = world.language.parses.load(Ordering::SeqCst);
+    world.use_case.lint(second)?;
+    let parsed_again = world.language.parses.load(Ordering::SeqCst) > after_first;
+    let compiled_twice = world.query.calls.load(Ordering::SeqCst) == 2;
+    Ok((usize::from(parsed_again && compiled_twice), 0))
+}
+
 /// Lints one query under new ids, a run at a time, until more ids were named than the cap: answers whether the session kept
 /// some plans and no more than the cap.
 fn changed_ids_keep_one_plan() -> Result<Value, Failure> {
@@ -1496,6 +1545,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 .len();
             Ok((kept, 0))
         }
+        Scenario::ChangedNestedModule => changed_nested_module(),
         Scenario::ChangedIdsKeepOnePlan => changed_ids_keep_one_plan(),
         Scenario::InterleavedRuns => interleaved_runs(),
         Scenario::OneRequestOverTheCap => one_request_over_the_cap(),

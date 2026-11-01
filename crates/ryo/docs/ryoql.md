@@ -21,11 +21,37 @@ A query is a list of statements, each ending in `;`, with exactly one `emit`:
 
 | Statement | Written | Does |
 | --- | --- | --- |
+| `import` | `import suppress from "python/ruff/suppress";` | Makes a named module available to calls in this query. |
 | `param` | `param max-lines: integer;` | Takes a value from outside the query: from the entry that places the rule in Tastemaker, or from the SDK caller. Used as `$max-lines`. |
 | `let` | `let found = <expression>;` | Names a step: a `select`, or a call of an operator. A later step reads it by name. |
 | `emit` | `emit found subject "file" key("span");` | Turns each row of a step into a finding: `subject` is the column naming the file, `key` the columns that place the finding in it. |
 
 A `param` has one of these types: `boolean`, `integer`, `string`, `path`, `glob`, `list<…>` and `set<…>` of those (as `set<string>`), and `list<table>`, read by the `rows` operator.
+
+## Reusable query fragments
+
+An SDK query may include named, immutable RyoQL modules. The root imports a module by its logical ID and calls the imported name like an operator:
+
+```text
+import suppress from "python/ruff/suppress";
+let violations = suppress(candidates=locations, inline-pattern="...E722...", range-pattern="...");
+emit violations subject "file" key("span");
+```
+
+A module declares relation inputs, scalar parameters, its output relation shape, and the step it returns:
+
+```text
+input candidates: relation<id: node, file: file, span: span, line: number, code: text>;
+param inline-pattern: string;
+param range-pattern: string;
+output relation<id: node, file: file, span: span>;
+let inline = select id, file, span from candidates where matches(code, $inline-pattern);
+let ranges = select id, file, span from candidates where matches(code, $range-pattern);
+let violations = union(left=inline, right=ranges);
+return violations;
+```
+
+Imports may be nested, but cycles, missing modules, duplicate argument names, and incompatible input or output shapes are rejected. Each call expands with its own step identities; local names in one invocation cannot capture names in another. Module IDs and exact source text are supplied in the SDK query bundle, not loaded by the compiler from disk.
 
 ## Expressions
 

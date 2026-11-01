@@ -348,6 +348,7 @@ impl QueryLanguagePort for CompilesNothing {
                     start: Offset(0),
                     end: Offset(0),
                 },
+                origin: None,
             },
         })
     }

@@ -8,6 +8,7 @@ pub(crate) mod fusing;
 pub(crate) mod idioms;
 pub(crate) mod inlining;
 pub(crate) mod joining;
+pub(crate) mod linking;
 pub(crate) mod lowering;
 pub(crate) mod planning;
 pub(crate) mod pruning;

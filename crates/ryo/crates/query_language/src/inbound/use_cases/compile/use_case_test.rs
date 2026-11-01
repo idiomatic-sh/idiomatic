@@ -38,7 +38,7 @@ struct Given {
 
 fn read_function(filters: Vec<Filter>) -> LetStep {
     LetStep {
-        name: StepName("functions".into()),
+        name: StepName("functions".into(), None),
         expression: Expression::Select(Select {
             columns: Columns::Every,
             from: QuerySource {
@@ -55,10 +55,16 @@ fn read_function(filters: Vec<Filter>) -> LetStep {
 
 fn program_with(filters: Vec<Filter>) -> Program {
     Program {
+        linked: false,
+        imports: Vec::new(),
+        origins: Vec::new(),
+        fragment_contracts: Vec::new(),
+        step_origins: std::collections::BTreeMap::new(),
+        emit_origin: None,
         parameters: Vec::new(),
         steps: vec![read_function(filters)],
         emit: WrittenEmit {
-            step: StepName("functions".into()),
+            step: StepName("functions".into(), None),
             subject: ColumnName("file".into()),
             key: vec![ColumnName("span".into())],
             span: NOWHERE,
@@ -159,7 +165,7 @@ fn a_kind_of_defines_that_exists() -> Given {
 
 fn emitting_a_step_nobody_defined() -> Given {
     let mut program = program_with(Vec::new());
-    program.emit.step = StepName("later".into());
+    program.emit.step = StepName("later".into(), None);
     Given {
         syntax: SyntaxFake { program },
         ..text_the_fake_reads()
@@ -168,6 +174,95 @@ fn emitting_a_step_nobody_defined() -> Given {
 
 fn same_text_twice() -> Given {
     text_the_fake_reads()
+}
+
+#[test]
+fn fragment_contract_compiles_against_real_relation_columns() {
+    use crate::outbound::syntax::adapters::winnow::adapter::SyntaxWinnowAdapter;
+    let root = ryo_values::domain::program::service::query_bundle(
+        ryo_values::domain::program::service::document_source(
+            ryo_values::domain::program::service::source_id("root").unwrap(),
+            "import identity from \"query/identity\";\nlet nodes = select id from \"syntax-tree\";\nlet result = identity(source=nodes);\nemit result subject id key(id);",
+        ),
+        [ryo_values::domain::program::service::document_source(
+            ryo_values::domain::program::service::source_id("query/identity").unwrap(),
+            "input source: relation<id: node>;\noutput relation<id: node>;\nlet selected = select id from source;\nreturn selected;",
+        )],
+    )
+    .unwrap();
+    let use_case = CompileUseCaseImpl::new(
+        Arc::new(SyntaxWinnowAdapter),
+        Arc::new(CatalogFake {
+            relations: vec![Relation::SyntaxTree],
+            fails: false,
+        }),
+    );
+    let report = use_case
+        .compile(CompileRequest {
+            text: root,
+            hosted: Vec::new(),
+        })
+        .expect("the fragment input and output contracts match syntax-tree.id");
+    assert_eq!(report.plan.emit.headings.len(), 1);
+}
+
+#[test]
+fn fragment_relation_contracts_reject_input_and_output_shape_mismatches() {
+    use crate::outbound::syntax::adapters::winnow::adapter::SyntaxWinnowAdapter;
+
+    let use_case = CompileUseCaseImpl::new(
+        Arc::new(SyntaxWinnowAdapter),
+        Arc::new(CatalogFake {
+            relations: vec![Relation::SyntaxTree],
+            fails: false,
+        }),
+    );
+    let root_text = "import identity from \"query/identity\";\nlet nodes = select id from \"syntax-tree\";\nlet result = identity(source=nodes);\nemit result subject id key(id);";
+    for module_text in [
+        "input source: relation<id: file>;\noutput relation<id: node>;\nlet selected = select id from source;\nreturn selected;",
+        "input source: relation<id: node>;\noutput relation<id: file>;\nlet selected = select id from source;\nreturn selected;",
+    ] {
+        let bundle = ryo_values::domain::program::service::query_bundle(
+            ryo_values::domain::program::service::document_source(
+                ryo_values::domain::program::service::source_id("root").unwrap(),
+                root_text,
+            ),
+            [ryo_values::domain::program::service::document_source(
+                ryo_values::domain::program::service::source_id("query/identity").unwrap(),
+                module_text,
+            )],
+        )
+        .unwrap();
+        let error = use_case
+            .compile(CompileRequest {
+                text: bundle,
+                hosted: Vec::new(),
+            })
+            .expect_err("a mismatched relation signature is refused");
+        assert!(
+            matches!(error, CompileError::Located { origin, .. } if origin.source_id.0.as_ref() == "query/identity")
+        );
+    }
+    let invalid_body = ryo_values::domain::program::service::query_bundle(
+        ryo_values::domain::program::service::document_source(
+            ryo_values::domain::program::service::source_id("root").unwrap(),
+            root_text,
+        ),
+        [ryo_values::domain::program::service::document_source(
+            ryo_values::domain::program::service::source_id("query/identity").unwrap(),
+            "input source: relation<id: node>;\noutput relation<id: node>;\nlet selected = select missing from source;\nreturn selected;",
+        )],
+    )
+    .unwrap();
+    let error = use_case
+        .compile(CompileRequest {
+            text: invalid_body,
+            hosted: Vec::new(),
+        })
+        .expect_err("module body name errors retain their source location");
+    assert!(
+        matches!(error, CompileError::Located { origin, .. } if origin.source_id.0.as_ref() == "query/identity" && !origin.trace.is_empty())
+    );
 }
 
 /// The rows of this part's cases.

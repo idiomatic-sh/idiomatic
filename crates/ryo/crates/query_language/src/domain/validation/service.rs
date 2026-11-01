@@ -17,6 +17,7 @@ use ryo_values::domain::program::types::{
     ArgumentValue, Call, Columns, Condition, Expression, Filter, Joining, ParameterDeclaration,
     Program, QuerySource, QuerySpan, QuerySpelling, Select, SourceReference, WrittenOperand,
 };
+use std::collections::BTreeSet;
 
 /// Checks that every relation, step, parameter and operation a program names exists, and that
 /// every call has its required arguments.
@@ -29,29 +30,68 @@ pub(crate) fn validate(
     catalog: &[Relation],
     hosted: &[HostedName],
 ) -> Result<(), ValidationError> {
+    if program.linked {
+        let mut identities = BTreeSet::new();
+        for step in &program.steps {
+            let Some(identity) = step.name.1 else {
+                return Err(ValidationError::UnknownStep {
+                    name: step.name.0.to_string(),
+                    span: step.span,
+                });
+            };
+            if !identities.insert(identity) {
+                return Err(ValidationError::DuplicateStep {
+                    name: step.name.0.to_string(),
+                    span: step.span,
+                });
+            }
+        }
+    }
     let mut known = Known {
+        linked: program.linked,
         steps: Vec::new(),
         hosted,
     };
     for step in &program.steps {
-        if known.steps.contains(&&step.name) {
+        if !program.linked && known.steps.iter().any(|known| known.0 == step.name.0) {
             return Err(ValidationError::DuplicateStep {
                 name: step.name.0.to_string(),
                 span: step.span,
             });
         }
-        match &step.expression {
+        let checked = match &step.expression {
             Expression::Select(select) => {
-                check_select(select, &known, catalog, &program.parameters)?;
+                check_select(select, &known, catalog, &program.parameters)
             }
-            Expression::Call(call) => check_call(call, &known, catalog, &program.parameters)?,
-        }
+            Expression::Call(call) => check_call(call, &known, catalog, &program.parameters),
+        };
+        checked.map_err(|error| {
+            match step
+                .name
+                .1
+                .and_then(|identity| program.step_origins.get(&identity))
+                .cloned()
+            {
+                Some(origin) => ValidationError::Located {
+                    origin,
+                    error: Box::new(error),
+                },
+                None => error,
+            }
+        })?;
         known.steps.push(&step.name);
     }
     if !known.steps.contains(&&program.emit.step) {
-        return Err(ValidationError::UnknownStep {
+        let error = ValidationError::UnknownStep {
             name: program.emit.step.0.to_string(),
             span: program.emit.span,
+        };
+        return Err(match program.emit_origin.clone() {
+            Some(origin) => ValidationError::Located {
+                origin,
+                error: Box::new(error),
+            },
+            None => error,
         });
     }
     Ok(())
@@ -104,7 +144,21 @@ fn check_source(
         SourceReference::Relation(text) => {
             check_relation(QuerySpelling(&text.0), source.span, catalog, known)
         }
-        SourceReference::Step(text) => check_step(QuerySpelling(&text.0), source.span, known),
+        SourceReference::Step(text) => {
+            let exists = match text.1 {
+                Some(identity) => known.steps.iter().any(|step| step.1 == Some(identity)),
+                None if known.linked => false,
+                None => known.steps.iter().any(|step| step.0 == text.0),
+            };
+            if exists {
+                Ok(())
+            } else {
+                Err(ValidationError::UnknownStep {
+                    name: text.0.to_string(),
+                    span: source.span,
+                })
+            }
+        }
     }
 }
 
@@ -179,7 +233,27 @@ fn check_call(
                 ArgumentValue::Text(text) => {
                     check_relation(QuerySpelling(&text.0), call.span, catalog, known)?;
                 }
-                ArgumentValue::Word(text) => check_step(QuerySpelling(&text.0), call.span, known)?,
+                ArgumentValue::Word(text) if !known.linked => {
+                    check_step(QuerySpelling(&text.0), call.span, known)?
+                }
+                ArgumentValue::Word(text) => {
+                    return Err(ValidationError::UnknownStep {
+                        name: text.0.to_string(),
+                        span: call.span,
+                    });
+                }
+                ArgumentValue::Step(step) => {
+                    if !known
+                        .steps
+                        .iter()
+                        .any(|known| known.1 == step.1 && step.1.is_some())
+                    {
+                        return Err(ValidationError::UnknownStep {
+                            name: step.0.to_string(),
+                            span: call.span,
+                        });
+                    }
+                }
                 ArgumentValue::Number(_)
                 | ArgumentValue::Parameter(_)
                 | ArgumentValue::List(_)
@@ -206,7 +280,10 @@ fn check_value(
         ArgumentValue::Map(arguments) => arguments
             .iter()
             .try_for_each(|argument| check_value(&argument.value, parameters, call)),
-        ArgumentValue::Text(_) | ArgumentValue::Number(_) | ArgumentValue::Word(_) => Ok(()),
+        ArgumentValue::Text(_)
+        | ArgumentValue::Number(_)
+        | ArgumentValue::Word(_)
+        | ArgumentValue::Step(_) => Ok(()),
     }
 }
 

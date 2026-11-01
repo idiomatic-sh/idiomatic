@@ -35,7 +35,7 @@ impl TryFrom<&str> for RyoQlQuery {
         if text.trim().is_empty() {
             return Err(RyoQlQuerySchemaError);
         }
-        let bundle = ryo_values::domain::program::types::QueryBundle::standalone(text)
+        let bundle = ryo_values::domain::program::service::standalone(text)
             .map_err(|_| RyoQlQuerySchemaError)?;
         Ok(Self::from_bundle(bundle))
     }
@@ -46,9 +46,9 @@ impl crate::domain::query::types::QueryModuleSource {
     pub fn try_new(
         id: &str,
         text: &str,
-    ) -> Result<Self, ryo_values::domain::program::types::QueryBundleError> {
+    ) -> Result<Self, ryo_values::domain::program::errors::QueryBundleError> {
         Ok(Self {
-            id: ryo_values::domain::program::types::QuerySourceId::try_from_text(id)?,
+            id: ryo_values::domain::program::service::source_id(id)?,
             text: text.into(),
         })
     }
@@ -60,17 +60,18 @@ impl RyoQlQuery {
         root_id: &str,
         root_text: &str,
         modules: impl IntoIterator<Item = crate::domain::query::types::QueryModuleSource>,
-    ) -> Result<Self, ryo_values::domain::program::types::QueryBundleError> {
-        use ryo_values::domain::program::types::{QueryBundle, QuerySource};
+    ) -> Result<Self, ryo_values::domain::program::errors::QueryBundleError> {
+        use ryo_values::domain::program::errors::QueryBundleError;
+        use ryo_values::domain::program::service::{document_source, query_bundle, source_id};
         if root_text.trim().is_empty() {
-            return Err(ryo_values::domain::program::types::QueryBundleError::BlankRootText);
+            return Err(QueryBundleError::BlankRootText);
         }
-        let root_id = ryo_values::domain::program::types::QuerySourceId::try_from_text(root_id)?;
-        let root = QuerySource::new(root_id, root_text);
+        let root_id = source_id(root_id)?;
+        let root = document_source(root_id, root_text);
         let modules = modules
             .into_iter()
-            .map(|module| QuerySource::new(module.id, module.text));
-        QueryBundle::try_new(root, modules).map(Self::from_bundle)
+            .map(|module| document_source(module.id, module.text));
+        query_bundle(root, modules).map(Self::from_bundle)
     }
 }
 
@@ -134,9 +135,10 @@ impl From<SpanSchema> for QuerySpan {
 
 /// A refusal of the text, by the fault it names and where it is.
 fn refused(error: RefusedQuery) -> ValidateError {
+    let origin = error.origin;
     let span = SpanSchema(error.span).into();
     let message = error.message.0;
-    match error.kind {
+    let error = match error.kind {
         RefusedKind::Syntax => ValidateError::Syntax { span, message },
         RefusedKind::UnknownRelation => ValidateError::UnknownRelation {
             name: message,
@@ -145,6 +147,13 @@ fn refused(error: RefusedQuery) -> ValidateError {
         RefusedKind::Type => ValidateError::Type { span, message },
         RefusedKind::Invalid => ValidateError::Invalid { span, message },
         RefusedKind::Catalog => ValidateError::Catalog { reason: message },
+    };
+    match origin {
+        Some(origin) => ValidateError::Located {
+            origin,
+            error: Box::new(error),
+        },
+        None => error,
     }
 }
 

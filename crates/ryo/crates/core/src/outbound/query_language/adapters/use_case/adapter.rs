@@ -78,9 +78,25 @@ impl QueryLanguagePort for QueryLanguageUseCaseAdapter {
 
 /// What the compiler said of a text it refused, as the core says it.
 fn refused(
-    error: ryo_query_language::inbound::use_cases::compile::errors::CompileError,
+    mut error: ryo_query_language::inbound::use_cases::compile::errors::CompileError,
 ) -> parts::RefusedQuery {
     use ryo_query_language::inbound::use_cases::compile::errors::CompileError;
+    let mut origin = None;
+    loop {
+        match error {
+            CompileError::Located {
+                origin: found,
+                error: inner,
+            } => {
+                origin = Some(found);
+                error = *inner;
+            }
+            other => {
+                error = other;
+                break;
+            }
+        }
+    }
     let span = |at: ryo_values::domain::program::types::QuerySpan| Span {
         start: offset(at.start),
         end: offset(at.end),
@@ -101,19 +117,37 @@ fn refused(
             (parts::RefusedKind::Invalid, message, span(at))
         }
         CompileError::Catalog { reason } => (parts::RefusedKind::Catalog, reason, nowhere),
+        CompileError::Located { .. } => unreachable!("located errors were unwrapped"),
     };
     parts::RefusedQuery {
         kind,
         message: parts::RefusalMessage(message),
         span,
+        origin,
     }
 }
 
 /// What the typechecker said of a text it refused, as the core says it.
 fn invalid(
-    error: ryo_query_language::inbound::use_cases::typecheck::errors::TypecheckError,
+    mut error: ryo_query_language::inbound::use_cases::typecheck::errors::TypecheckError,
 ) -> parts::RefusedQuery {
     use ryo_query_language::inbound::use_cases::typecheck::errors::TypecheckError;
+    let mut origin = None;
+    loop {
+        match error {
+            TypecheckError::Located {
+                origin: found,
+                error: inner,
+            } => {
+                origin = Some(found);
+                error = *inner;
+            }
+            other => {
+                error = other;
+                break;
+            }
+        }
+    }
     let span = |at: ryo_values::domain::program::types::QuerySpan| Span {
         start: offset(at.start),
         end: offset(at.end),
@@ -134,11 +168,13 @@ fn invalid(
             (parts::RefusedKind::Invalid, message, span(at))
         }
         TypecheckError::Catalog { reason } => (parts::RefusedKind::Catalog, reason, nowhere),
+        TypecheckError::Located { .. } => unreachable!("located errors were unwrapped"),
     };
     parts::RefusedQuery {
         kind,
         message: parts::RefusalMessage(message),
         span,
+        origin,
     }
 }
 

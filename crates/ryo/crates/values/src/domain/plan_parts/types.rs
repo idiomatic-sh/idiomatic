@@ -234,6 +234,8 @@ pub struct RefusedQuery {
     pub message: RefusalMessage,
     /// Where in the text; empty for a fault that is not in the text.
     pub span: Span,
+    /// The original query-module source and import/call path, when the refusal came from a fragment.
+    pub origin: Option<crate::domain::program::types::QueryOrigin>,
 }
 
 impl std::fmt::Display for RefusedQuery {

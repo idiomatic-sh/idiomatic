@@ -1,11 +1,27 @@
 //! The `lowering` concept's failures.
 
 use super::types::ArgumentFault;
-use ryo_values::domain::program::types::QuerySpan;
+use ryo_values::domain::program::types::{QueryOrigin, QuerySpan};
 
 /// Why a program does not lower to a plan.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 pub(crate) enum LoweringError {
+    /// A failure in a linked step attributed to its original module source.
+    #[error("{error}")]
+    Located {
+        /// The original source and import/call trace.
+        origin: QueryOrigin,
+        /// The lowering refusal.
+        error: Box<LoweringError>,
+    },
+    /// A fragment's declared relation shape does not match an actual input or output.
+    #[error("fragment relation contract is not satisfied: {message}")]
+    FragmentContract {
+        /// Why the actual relation differs.
+        message: String,
+        /// The original declaration and call trace.
+        origin: QueryOrigin,
+    },
     /// An appended output would hide an existing column.
     #[error("output column `{name}` already exists")]
     DuplicateOutput {

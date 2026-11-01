@@ -1,10 +1,18 @@
 //! The `validation` concept's failures.
 
-use ryo_values::domain::program::types::QuerySpan;
+use ryo_values::domain::program::types::{QueryOrigin, QuerySpan};
 
 /// Why a program is not valid.
 #[derive(Debug, PartialEq, Eq, thiserror::Error)]
 pub(crate) enum ValidationError {
+    /// A step validation failure attributed to its original module source.
+    #[error("{error}")]
+    Located {
+        /// The original source and import/call trace.
+        origin: QueryOrigin,
+        /// The validation refusal.
+        error: Box<ValidationError>,
+    },
     /// A query reads a relation ryo does not own.
     #[error("no relation named `{name}`")]
     UnknownRelation {

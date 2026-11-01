@@ -24,7 +24,7 @@ impl QueryModuleSource {
     /// The stable logical module id.
     #[must_use]
     pub fn id(&self) -> &str {
-        self.id.as_str()
+        &self.id.0
     }
 
     /// The exact source text.
@@ -55,7 +55,7 @@ impl RyoQlQuery {
     /// The root query text, preserving the standalone API's view.
     #[must_use]
     pub fn root_text(&self) -> &str {
-        self.0.root_text()
+        ryo_values::domain::program::service::root_text(&self.0)
     }
 }
 

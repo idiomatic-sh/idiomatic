@@ -35,6 +35,7 @@ fn refused(kind: RefusedKind, start: u32, end: u32) -> RefusedQuery {
             start: Offset(start),
             end: Offset(end),
         },
+        origin: None,
     }
 }
 
@@ -107,6 +108,16 @@ fn subject(input: Input) -> Result<Value, Failure> {
         | ValidateError::UnknownRelation { span, .. }
         | ValidateError::Type { span, .. }
         | ValidateError::Invalid { span, .. } => Ok(span.start.0),
+        ValidateError::Located { error, .. } => match *error {
+            ValidateError::Syntax { span, .. }
+            | ValidateError::UnknownRelation { span, .. }
+            | ValidateError::Type { span, .. }
+            | ValidateError::Invalid { span, .. } => Ok(span.start.0),
+            error @ ValidateError::Catalog { .. } => Err(error),
+            ValidateError::Located { .. } => {
+                unreachable!("located errors are flattened by the outer conversion")
+            }
+        },
         error @ ValidateError::Catalog { .. } => Err(error),
     }
 }

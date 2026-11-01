@@ -9,9 +9,12 @@ use crate::outbound::syntax::fixtures::contract::check;
 use crate::outbound::syntax::interface::SyntaxPort as _;
 use ryo_values::domain::program::types::{
     ArgumentValue as Argument, ColumnName, Columns, Condition, Expression, Filter, Joining,
-    Program, QueryView, SourceReference, WordText, WrittenFunction, WrittenLiteral, WrittenOperand,
-    WrittenParameter, WrittenRelation, WrittenTest,
+    Program, QueryBundle, QueryView, SourceReference, WordText, WrittenFunction, WrittenLiteral,
+    WrittenOperand, WrittenParameter, WrittenRelation, WrittenTest,
 };
+use winnow::Parser;
+
+const FRAGMENT_DOCUMENT: &str = "import nested from \"shared/predicate\";\ninput candidates: relation<id: node, file: file, span: span, line: number>;\nparam inline-pattern: string;\nparam range-pattern: string;\noutput relation<id: node, file: file, span: span>;\nlet violations = select id, file, span from candidates;\nreturn violations;";
 
 const LONG_FILES: &str = "param max-lines: integer;\nlet long = select * from \"filesystem.line-count\" where lines > $max-lines;\nemit long subject path key(path);";
 
@@ -37,6 +40,14 @@ const LIST_AFTER_IN: &str = "let found = select * from \"function\" where name i
 const LIST_AT: usize = 51;
 
 const DANGLING_OR: &str = "let a = select * from \"syntax-tree\" where kind = \"a\" or;\nemit a subject \"file\" key(\"span\");";
+
+fn parse_and_link(bundle: &QueryBundle) -> Result<Program, String> {
+    let parsed = SyntaxWinnowAdapter
+        .read_bundle(bundle)
+        .map_err(|error| error.to_string())?;
+    crate::domain::linking::service::link(bundle, parsed.root, parsed.fragments)
+        .map_err(|error| error.message)
+}
 
 /// What a row of the cases asks of the adapter.
 #[derive(Clone, Copy)]
@@ -111,6 +122,233 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         | Scenario::Grammar(_) => {}
     }
     Ok(program.steps.len())
+}
+
+#[test]
+fn fragment_calls_are_hygienic_and_only_relation_slots_are_linked() {
+    use crate::outbound::syntax::interface::SyntaxPort;
+    use ryo_values::domain::program::types::ArgumentValue;
+
+    let root_id = ryo_values::domain::program::service::source_id("root").unwrap();
+    let module_id = ryo_values::domain::program::service::source_id("library/summarize").unwrap();
+    let root = "import summarize from \"library/summarize\";\nlet id = select id from \"syntax-tree\";\nlet first = summarize(id=id, label=\"first\");\nlet second = summarize(id=id, label=\"second\");\nemit second subject id key(id);";
+    let module = "input id: relation<id: node>;\nparam label: string;\noutput relation<id: node>;\nlet grouped = group-count(from=id, keys=[\"id\"], count=\"n\");\nlet linked = closure(edges=grouped, source=id, destination=grouped);\nlet matched = capture(from=linked, path=\"path\", pattern=$label, captures=[\"group\"]);\nreturn matched;";
+    let bundle = ryo_values::domain::program::service::query_bundle(
+        ryo_values::domain::program::service::document_source(root_id, root),
+        [ryo_values::domain::program::service::document_source(
+            module_id, module,
+        )],
+    )
+    .unwrap();
+    let parsed = SyntaxWinnowAdapter.read_bundle(&bundle).unwrap();
+    let program =
+        crate::domain::linking::service::link(&bundle, parsed.root, parsed.fragments).unwrap();
+
+    assert_eq!(program.steps.len(), 7);
+    let grouped = [&program.steps[1], &program.steps[4]];
+    let linked = [&program.steps[2], &program.steps[5]];
+    let matched = [&program.steps[3], &program.steps[6]];
+    let mut group_ids = Vec::new();
+    for step in grouped {
+        let Expression::Call(call) = &step.expression else {
+            panic!("fragment group-count step is a call");
+        };
+        let from = call
+            .arguments
+            .iter()
+            .find(|argument| argument.name.0.as_ref() == "from")
+            .unwrap();
+        assert!(
+            matches!(&from.value, ArgumentValue::Step(name) if name.1 == Some(program.steps[0].name.1.unwrap()))
+        );
+        let keys = call
+            .arguments
+            .iter()
+            .find(|argument| argument.name.0.as_ref() == "keys")
+            .unwrap();
+        assert_eq!(
+            keys.value,
+            ArgumentValue::List(vec![ArgumentValue::Text(WrittenLiteral("id".into()))])
+        );
+        group_ids.push(step.name.1.unwrap());
+    }
+    assert_ne!(group_ids[0], group_ids[1]);
+
+    for (place, step) in linked.iter().enumerate() {
+        let Expression::Call(call) = &step.expression else {
+            panic!("fragment closure step is a call");
+        };
+        let argument = |name: &str| {
+            call.arguments
+                .iter()
+                .find(|argument| argument.name.0.as_ref() == name)
+                .unwrap()
+        };
+        assert_eq!(
+            argument("edges").value,
+            ArgumentValue::Step(ryo_values::domain::program::types::StepName(
+                "grouped".into(),
+                Some(group_ids[place])
+            ))
+        );
+        assert_eq!(
+            argument("source").value,
+            ArgumentValue::Word(WordText("id".into()))
+        );
+        assert_eq!(
+            argument("destination").value,
+            ArgumentValue::Word(WordText("grouped".into()))
+        );
+    }
+
+    let patterns = matched
+        .iter()
+        .map(|step| {
+            let Expression::Call(call) = &step.expression else {
+                panic!("fragment capture step is a call");
+            };
+            call.arguments
+                .iter()
+                .find(|argument| argument.name.0.as_ref() == "pattern")
+                .unwrap()
+                .value
+                .clone()
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        patterns,
+        [
+            ArgumentValue::Text(WrittenLiteral("first".into())),
+            ArgumentValue::Text(WrittenLiteral("second".into())),
+        ]
+    );
+    let sources = matched
+        .iter()
+        .map(|step| {
+            let Expression::Call(call) = &step.expression else {
+                unreachable!()
+            };
+            call.arguments
+                .iter()
+                .find(|argument| argument.name.0.as_ref() == "from")
+                .unwrap()
+                .value
+                .clone()
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        sources,
+        [
+            ArgumentValue::Step(ryo_values::domain::program::types::StepName(
+                "linked".into(),
+                Some(linked[0].name.1.unwrap())
+            )),
+            ArgumentValue::Step(ryo_values::domain::program::types::StepName(
+                "linked".into(),
+                Some(linked[1].name.1.unwrap())
+            )),
+        ]
+    );
+}
+
+#[test]
+fn nested_fragments_forward_relation_and_scalar_inputs() {
+    use crate::outbound::syntax::interface::SyntaxPort;
+    use ryo_values::domain::program::types::{ArgumentValue, ParsedQueryBundle};
+
+    let root_id = ryo_values::domain::program::service::source_id("root").unwrap();
+    let outer_id = ryo_values::domain::program::service::source_id("outer").unwrap();
+    let inner_id = ryo_values::domain::program::service::source_id("inner").unwrap();
+    let root = "import outer from \"outer\";\nlet source = select id from \"syntax-tree\";\nlet first = outer(source=source, label=\"a\");\nlet second = outer(source=source, label=\"b\");\nemit second subject id key(id);";
+    let outer = "import inner from \"inner\";\ninput source: relation<id: node>;\nparam label: string;\noutput relation<id: node>;\nlet found = inner(rows=source, label=$label);\nreturn found;";
+    let inner = "input rows: relation<id: node>;\nparam label: string;\noutput relation<id: node>;\nlet found = capture(from=rows, path=\"id\", pattern=$label, captures=[\"hit\"]);\nreturn found;";
+    let bundle = ryo_values::domain::program::service::query_bundle(
+        ryo_values::domain::program::service::document_source(root_id, root),
+        [
+            ryo_values::domain::program::service::document_source(outer_id, outer),
+            ryo_values::domain::program::service::document_source(inner_id, inner),
+        ],
+    )
+    .unwrap();
+    let ParsedQueryBundle { root, fragments } = SyntaxWinnowAdapter.read_bundle(&bundle).unwrap();
+    let program = crate::domain::linking::service::link(&bundle, root, fragments).unwrap();
+    assert_eq!(program.steps.len(), 3);
+    for (step, pattern) in program.steps[1..].iter().zip(["a", "b"]) {
+        let Expression::Call(call) = &step.expression else {
+            panic!("the nested fragment expands to capture");
+        };
+        let source = call
+            .arguments
+            .iter()
+            .find(|argument| argument.name.0.as_ref() == "from")
+            .unwrap();
+        assert!(
+            matches!(&source.value, ArgumentValue::Step(name) if name.1 == Some(program.steps[0].name.1.unwrap()))
+        );
+        let value = call
+            .arguments
+            .iter()
+            .find(|argument| argument.name.0.as_ref() == "pattern")
+            .unwrap();
+        assert_eq!(
+            value.value,
+            ArgumentValue::Text(WrittenLiteral(pattern.into()))
+        );
+    }
+}
+
+#[test]
+fn imported_module_cycle_is_refused() {
+    let bundle = ryo_values::domain::program::service::query_bundle(
+        ryo_values::domain::program::service::document_source(
+            ryo_values::domain::program::service::source_id("root").unwrap(),
+            "import query from \"query\";\nlet result = query();\nemit result subject id key(id);",
+        ),
+        [ryo_values::domain::program::service::document_source(
+            ryo_values::domain::program::service::source_id("query").unwrap(),
+            "import recursive from \"query\";\noutput relation<id: node>;\nlet rows = select id from \"syntax-tree\";\nreturn rows;",
+        )],
+    )
+    .unwrap();
+    assert!(
+        parse_and_link(&bundle)
+            .unwrap_err()
+            .contains("import cycle")
+    );
+}
+
+#[test]
+fn imported_module_must_be_present_and_arguments_must_be_unique() {
+    let missing = ryo_values::domain::program::service::query_bundle(
+        ryo_values::domain::program::service::document_source(
+            ryo_values::domain::program::service::source_id("root").unwrap(),
+            "import query from \"missing\";\nlet result = query();\nemit result subject id key(id);",
+        ),
+        [],
+    )
+    .unwrap();
+    assert!(
+        parse_and_link(&missing)
+            .unwrap_err()
+            .contains("was not supplied")
+    );
+
+    let repeated = ryo_values::domain::program::service::query_bundle(
+        ryo_values::domain::program::service::document_source(
+            ryo_values::domain::program::service::source_id("root").unwrap(),
+            "import query from \"query\";\nlet result = query(source=\"syntax-tree\", source=\"syntax-tree\");\nemit result subject id key(id);",
+        ),
+        [ryo_values::domain::program::service::document_source(
+            ryo_values::domain::program::service::source_id("query").unwrap(),
+            "input source: relation<id: node>;\noutput relation<id: node>;\nlet rows = select id from source;\nreturn rows;",
+        )],
+    )
+    .unwrap();
+    assert!(
+        parse_and_link(&repeated)
+            .unwrap_err()
+            .contains("given more than once")
+    );
 }
 
 /// The test at `place` of a select's `where`, which the row writes with no `or`.
@@ -351,8 +589,13 @@ fn refuses() {
 }
 
 /// Every keyword, in the order the grammar meets them.
-const KEYWORDS: [Keyword; 25] = [
+const KEYWORDS: [Keyword; 30] = [
     Keyword::Param,
+    Keyword::Import,
+    Keyword::Input,
+    Keyword::Output,
+    Keyword::Return,
+    Keyword::Relation,
     Keyword::Let,
     Keyword::Emit,
     Keyword::Subject,
@@ -413,7 +656,14 @@ fn misread(name: &str, text: &str) -> usize {
     }
     match name {
         "program" => whole(parsers::program, text),
+        "fragment_program" => whole(parsers::fragment_program, text),
+        "fragment_line" => whole(parsers::fragment_line, text),
+        "fragment_input_line" => whole(parsers::fragment_input_line, text),
+        "fragment_output_line" => whole(parsers::fragment_output_line, text),
+        "relation_signature" => whole(parsers::relation_signature, text),
+        "fragment_return_line" => whole(parsers::fragment_return_line, text),
         "line" => whole(parsers::line, text),
+        "import_line" => whole(parsers::import_line, text),
         "parameter_line" => whole(parsers::parameter_line, text),
         "step_line" => whole(parsers::step_line, text),
         "emit_line" => whole(parsers::emit_line, text),
@@ -492,4 +742,52 @@ fn uncovered(coverage: Coverage) -> usize {
             parsers.symmetric_difference(&named).count() + GRAMMAR.len() - named.len()
         }
     }
+}
+
+#[test]
+fn fragment_document_reads_typed_signature_nested_import_and_return() {
+    use winnow::stream::LocatingSlice;
+
+    let parsed = super::adapter::fragment_program
+        .parse(LocatingSlice::new(FRAGMENT_DOCUMENT))
+        .expect("fragment has a signature and result");
+    assert_eq!(parsed.imports.len(), 1);
+    assert_eq!(parsed.imports[0].alias.0.as_ref(), "nested");
+    assert_eq!(parsed.imports[0].module.0.as_ref(), "shared/predicate");
+    assert_eq!(parsed.inputs.len(), 1);
+    assert_eq!(parsed.inputs[0].relation.columns.len(), 4);
+    assert_eq!(parsed.parameters.len(), 2);
+    assert_eq!(parsed.output.columns.len(), 3);
+    assert_eq!(parsed.result.step.0.as_ref(), "violations");
+
+    let root = SyntaxWinnowAdapter
+        .read(QueryView(
+            "import suppress from \"python/ruff/suppress\"; let rows = select id from candidates; emit rows subject file key(id);",
+        ))
+        .expect("root imports parse alongside query statements");
+    assert_eq!(root.imports.len(), 1);
+    assert_eq!(root.imports[0].alias.0.as_ref(), "suppress");
+    assert_eq!(root.imports[0].module.0.as_ref(), "python/ruff/suppress");
+}
+
+#[test]
+fn source_names_keep_written_spelling_separate_from_definition_identity() {
+    let parsed = SyntaxWinnowAdapter
+        .read(QueryView(
+            "let rows = select * from \"function\"; let copy = select * from rows; emit copy subject file key(span);",
+        ))
+        .expect("the query parses");
+    let first = parsed.steps[0].name.1.expect("definition has identity");
+    let second = parsed.steps[1].name.1.expect("definition has identity");
+    assert_ne!(first, second);
+    assert_eq!(parsed.steps[0].name.0.as_ref(), "rows");
+    let Expression::Select(select) = &parsed.steps[1].expression else {
+        panic!("the second step is a select");
+    };
+    let SourceReference::Step(reference) = &select.from.reference else {
+        panic!("the second step reads the first step");
+    };
+    assert_eq!(reference.0.as_ref(), "rows");
+    assert_eq!(reference.1, Some(first));
+    assert_eq!(parsed.emit.step.1, Some(second));
 }

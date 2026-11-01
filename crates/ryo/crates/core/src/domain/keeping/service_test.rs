@@ -182,19 +182,17 @@ fn configuration_follows_the_rules() -> Value {
     let added = [rule("a", "q1"), rule("b", "q2"), rule("c", "q1")];
     let same = configuration(&rules);
     let with_module = |body: &str| {
-        let root = ryo_values::domain::program::types::QuerySource::new(
-            ryo_values::domain::program::types::QuerySourceId::try_from_text("rules/F401")
+        let root = ryo_values::domain::program::service::document_source(
+            ryo_values::domain::program::service::source_id("rules/F401")
                 .expect("root id is nonblank"),
             "root query",
         );
-        let module = ryo_values::domain::program::types::QuerySource::new(
-            ryo_values::domain::program::types::QuerySourceId::try_from_text(
-                "python/ruff/suppress",
-            )
-            .expect("module id is nonblank"),
+        let module = ryo_values::domain::program::service::document_source(
+            ryo_values::domain::program::service::source_id("python/ruff/suppress")
+                .expect("module id is nonblank"),
             body,
         );
-        let bundle = ryo_values::domain::program::types::QueryBundle::try_new(root, [module])
+        let bundle = ryo_values::domain::program::service::query_bundle(root, [module])
             .expect("source ids are unique");
         let mut rule = rule("a", "root query");
         rule.query = bundle;

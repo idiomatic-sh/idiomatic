@@ -37,7 +37,7 @@ struct Given {
 
 fn read_function(filters: Vec<Filter>) -> LetStep {
     LetStep {
-        name: StepName("functions".into()),
+        name: StepName("functions".into(), None),
         expression: Expression::Select(Select {
             columns: Columns::Every,
             from: QuerySource {
@@ -54,10 +54,16 @@ fn read_function(filters: Vec<Filter>) -> LetStep {
 
 fn program_with(filters: Vec<Filter>) -> Program {
     Program {
+        linked: false,
+        imports: Vec::new(),
+        origins: Vec::new(),
+        fragment_contracts: Vec::new(),
+        step_origins: std::collections::BTreeMap::new(),
+        emit_origin: None,
         parameters: Vec::new(),
         steps: vec![read_function(filters)],
         emit: WrittenEmit {
-            step: StepName("functions".into()),
+            step: StepName("functions".into(), None),
             subject: ColumnName("file".into()),
             key: vec![ColumnName("span".into())],
             span: NOWHERE,
@@ -120,7 +126,7 @@ fn comparing_text_with_a_number() -> Given {
 
 fn emitting_a_step_nobody_defined() -> Given {
     let mut program = program_with(Vec::new());
-    program.emit.step = StepName("later".into());
+    program.emit.step = StepName("later".into(), None);
     Given {
         syntax: SyntaxFake { program },
         ..text_the_fake_reads()

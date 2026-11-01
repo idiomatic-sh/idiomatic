@@ -7,6 +7,10 @@ use crate::domain::validation::errors::ValidationError;
 /// Says a refusal of the validation as the use case's error.
 pub(super) fn invalid(error: ValidationError) -> TypecheckError {
     match error {
+        ValidationError::Located { origin, error } => TypecheckError::Located {
+            origin,
+            error: Box::new(invalid(*error)),
+        },
         ValidationError::UnknownRelation { name, span } => {
             TypecheckError::UnknownRelation { name, span }
         }
@@ -25,6 +29,17 @@ pub(super) fn invalid(error: ValidationError) -> TypecheckError {
 /// Says a refusal of the lowering as the use case's error.
 pub(super) fn unresolved(error: LoweringError) -> TypecheckError {
     match error {
+        LoweringError::Located { origin, error } => TypecheckError::Located {
+            origin,
+            error: Box::new(unresolved(*error)),
+        },
+        LoweringError::FragmentContract { origin, message } => {
+            let span = origin.span;
+            TypecheckError::Located {
+                origin,
+                error: Box::new(TypecheckError::Invalid { span, message }),
+            }
+        }
         LoweringError::UnknownRelation { name, span } => {
             TypecheckError::UnknownRelation { name, span }
         }
