@@ -114,19 +114,37 @@ impl PackagesPort for PackagesPathAdapter {
                 });
             }
         };
-        let directory = folded(&Path::new(&*from.0).join(&*path.0));
+        // A held package's directory is a name, not a place: joined by `/` on every platform, as the run holds it, while
+        // a directory on the disk is joined as the machine joins paths.
+        let directory = if path.0.starts_with(HELD) {
+            [
+                SEPARATOR_TEXT,
+                &*lexical(&SourcePath(Box::default()), path).0,
+            ]
+            .concat()
+        } else if from.0.starts_with(HELD) && !Path::new(&*path.0).has_root() {
+            [
+                SEPARATOR_TEXT,
+                &*lexical(&SourcePath(from.0.clone()), path).0,
+            ]
+            .concat()
+        } else {
+            folded(&Path::new(&*from.0).join(&*path.0))
+                .display()
+                .to_string()
+        };
         let held = self
-            .with_held(&PackageRoot(directory.display().to_string().into()), |_| ())
+            .with_held(&PackageRoot(directory.as_str().into()), |_| ())
             .is_some();
-        if !held && !directory.is_dir() {
+        if !held && !Path::new(&directory).is_dir() {
             return Err(PackagesError::Missing {
                 package: dependency.package.0.to_string(),
-                path: directory.display().to_string(),
+                path: directory,
             });
         }
         let written = lexical(base, path).0;
         Ok(Located {
-            directory: PackageRoot(directory.display().to_string().into()),
+            directory: PackageRoot(directory.into()),
             pin: PackageSource::Path(SourcePath(written.clone())),
             base: SourcePath(written),
         })
