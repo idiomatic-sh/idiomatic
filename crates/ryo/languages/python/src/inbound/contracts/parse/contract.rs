@@ -61,6 +61,11 @@ impl Parse for ParseContract {
             languages::OptionalCapability::QualifiedName,
             languages::OptionalCapability::EmbeddedExpression,
             languages::OptionalCapability::ExpressionShape,
+            languages::OptionalCapability::BindingEvent,
+            languages::OptionalCapability::BindingRead,
+            languages::OptionalCapability::BindingUse,
+            languages::OptionalCapability::BindingShadow,
+            languages::OptionalCapability::ImplicitSymbol,
         ]
     }
 
@@ -198,28 +203,33 @@ impl Parse for ParseContract {
     }
 
     fn implicit_symbol(&self) -> Support<Reader<languages::ImplicitSymbol, Self::FileModel>> {
-        // This optional provider catalog is not yet implemented or advertised here.
-        languages::absent(AbsenceCause::NotYetRead)
+        languages::reads::<
+            crate::domain::relations::collections::relations::implicit_symbol::item::ImplicitSymbolItem,
+        >()
     }
 
     fn binding_event(&self) -> Support<Reader<languages::BindingEvent, Self::FileModel>> {
-        // This optional analysis is not yet implemented or advertised by this provider.
-        languages::absent(AbsenceCause::NotYetRead)
+        languages::reads::<
+            crate::domain::relations::collections::relations::binding_event::item::BindingEventItem,
+        >()
     }
 
     fn binding_read(&self) -> Support<Reader<languages::BindingRead, Self::FileModel>> {
-        // This optional analysis is not yet implemented or advertised by this provider.
-        languages::absent(AbsenceCause::NotYetRead)
+        languages::reads::<
+            crate::domain::relations::collections::relations::binding_read::item::BindingReadItem,
+        >()
     }
 
     fn binding_use(&self) -> Support<Reader<languages::BindingUse, Self::FileModel>> {
-        // This optional analysis is not yet implemented or advertised by this provider.
-        languages::absent(AbsenceCause::NotYetRead)
+        languages::reads::<
+            crate::domain::relations::collections::relations::binding_use::item::BindingUseItem,
+        >()
     }
 
     fn binding_shadow(&self) -> Support<Reader<languages::BindingShadow, Self::FileModel>> {
-        // This optional analysis is not yet implemented or advertised by this provider.
-        languages::absent(AbsenceCause::NotYetRead)
+        languages::reads::<
+            crate::domain::relations::collections::relations::binding_shadow::item::BindingShadowItem,
+        >()
     }
 
     fn identifier(&self) -> Support<Reader<languages::Identifier, Declarations>> {
