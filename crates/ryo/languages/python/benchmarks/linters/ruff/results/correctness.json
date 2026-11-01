@@ -2,7 +2,7 @@
   "status": "54-rule corpus comparison passed; configured lint/check/perf gate failed",
   "candidate_acceptance_checkpoint": {
     "status": "unpromoted; current shared-verifier execution pending",
-    "prepared_profiles": 8,
+    "prepared_profiles": 10,
     "combined_profile": {
       "name": "shape-110",
       "selected_rules": 110,
