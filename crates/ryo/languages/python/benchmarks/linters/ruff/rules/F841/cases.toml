@@ -123,3 +123,15 @@ name = "file-flake8-noqa-unused-local"
 comparison = "full"
 files = { "case.py" = "# flake8: noqa\ndef f():\n    value = 1\n" }
 expected = []
+
+[[cases]]
+name = "unused-lambda-vararg-is-not-a-local-assignment"
+comparison = "full"
+files = { "case.py" = "factory = lambda *values: []\n" }
+expected = []
+
+[[cases]]
+name = "deferred-string-annotation-does-not-use-later-local"
+comparison = "full"
+files = { "case.py" = "x = 1\ndef f():\n    y: \"x\"\n    x = 2\n" }
+expected = [{ rule = "F841", file = "case.py", start = 30, end = 31 }]
