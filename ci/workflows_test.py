@@ -137,7 +137,7 @@ def test_check_workflow_saves_installed_tools_before_quality_checks() -> None:
     paths = "~/.cargo/bin\n~/.cargo/.crates.toml\n~/.cargo/.crates2.json\n"
     prefix = "cargo-bin-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml') }}"
     key = f"{prefix}-${{{{ github.sha }}}}"
-    restore_keys = f"{prefix}-\n"
+    restore_keys = f"{prefix}-\ncargo-bin-${{{{ runner.os }}}}-${{{{ runner.arch }}}}-\n"
     for name in ("build", "check", "speed"):
         steps = workflow["jobs"][name]["steps"]
         restore = next(index for index, step in enumerate(steps) if step.get("id") == "cargo_bin_cache")

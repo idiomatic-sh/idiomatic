@@ -72,6 +72,7 @@ jobs:
           key: cargo-bin-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml') }}-${{ github.sha }}
           restore-keys: |
             cargo-bin-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml') }}-
+            cargo-bin-${{ runner.os }}-${{ runner.arch }}-
       - name: The tools the checks run, each at the version declared for it
         run: uv run --script tools/install.py
         env:
@@ -160,6 +161,7 @@ jobs:
           key: cargo-bin-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml') }}-${{ github.sha }}
           restore-keys: |
             cargo-bin-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml') }}-
+            cargo-bin-${{ runner.os }}-${{ runner.arch }}-
       - name: The tools the checks run, each at the version declared for it
         run: uv run --script tools/install.py
         env:
@@ -248,6 +250,7 @@ jobs:
           key: cargo-bin-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml') }}-${{ github.sha }}
           restore-keys: |
             cargo-bin-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml') }}-
+            cargo-bin-${{ runner.os }}-${{ runner.arch }}-
       - name: The tools the checks run, each at the version declared for it
         run: uv run --script tools/install.py
         env:
