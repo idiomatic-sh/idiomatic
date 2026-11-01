@@ -1,9 +1,9 @@
 let statements = select * from "semantic-syntax" where kind = "return";
-let scopes = select id, kind from "semantic-syntax" where kind = "function-def" or kind = "class-def" or kind = "lambda";
+let scopes = select id, kind from "semantic-syntax" where kind = "function-def" or kind = "async-function-def" or kind = "class-def" or kind = "lambda";
 let bodies = select parent, child from "semantic-child" where field = "body";
 let regions = select r.child as id, l.kind as kind from scopes as l join bodies as r on l.id = r.parent;
 let boundaries = select id from regions;
-let functions = select id from regions where kind = "function-def" or kind = "lambda";
+let functions = select id from regions where kind = "function-def" or kind = "async-function-def" or kind = "lambda";
 let ancestors = axis(from=statements, relation="semantic-child", direction=nearest-ancestor, domain=boundaries);
 let nested = select l.id as id from ancestors as l join functions as r on l.related = r.id;
 let direct = select l.id as id from statements as l join functions as r on l.id = r.id;

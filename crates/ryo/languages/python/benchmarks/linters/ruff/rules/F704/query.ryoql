@@ -1,9 +1,9 @@
 let statements = select * from "semantic-syntax" where kind = "yield" or kind = "yield-from" or kind = "await";
-let scopes = select id, kind from "semantic-syntax" where kind = "function-def" or kind = "class-def" or kind = "lambda";
+let scopes = select id, kind from "semantic-syntax" where kind = "function-def" or kind = "async-function-def" or kind = "class-def" or kind = "lambda";
 let bodies = select parent, child from "semantic-child" where field = "body";
 let regions = select r.child as id, l.kind as kind from scopes as l join bodies as r on l.id = r.parent;
 let boundaries = select id from regions;
-let functions = select id from regions where kind = "function-def" or kind = "lambda";
+let functions = select id from regions where kind = "function-def" or kind = "async-function-def" or kind = "lambda";
 let comprehensions = select id from "semantic-syntax" where kind = "list-comp" or kind = "set-comp" or kind = "dict-comp" or kind = "generator-exp";
 let result_edges = select parent, child from "semantic-child" where field = "elt" or field = "key" or field = "value";
 let results = select r.child as id from comprehensions as l join result_edges as r on l.id = r.parent;

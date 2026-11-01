@@ -1,7 +1,7 @@
 let bodies = select parent, child, ordinal from "semantic-child" where field = "body";
 let multiple = select l.parent as id from bodies as l join bodies as r on l.parent = r.parent where l.ordinal != r.ordinal;
 let single = antijoin(left=bodies, right=multiple, left-on=["parent"], right-on=["id"]);
-let scopes = select id from "semantic-syntax" where (kind = "function-def" or kind = "class-def") and glob_any(file, "**/*.pyi");
+let scopes = select id from "semantic-syntax" where (kind = "function-def" or kind = "async-function-def" or kind = "class-def") and glob_any(file, "**/*.pyi");
 let scoped = select r.child as id from scopes as l join single as r on l.id = r.parent;
 let passes = select id, file, span from "semantic-syntax" where kind = "pass";
 let reportable = select r.id as id, r.file as file, r.span as span from scoped as l join passes as r on l.id = r.id;
