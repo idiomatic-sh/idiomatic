@@ -2,7 +2,7 @@
   "status": "54-rule corpus comparison passed; configured lint/check/perf gate failed",
   "candidate_acceptance_checkpoint": {
     "status": "unpromoted; current shared-verifier execution pending",
-    "prepared_profiles": 13,
+    "prepared_profiles": 14,
     "combined_profile": {
       "name": "shape-110",
       "selected_rules": 110,
@@ -56,8 +56,9 @@
       }
     },
     "integrated_python_diagnostic_source": {
-      "commit": "90b560f757",
-      "change": "reports module-level nonlocal and duplicate parameter/type-parameter/keyword syntax errors through the generic frontend diagnostic relation",
+      "commit": "f96db20012",
+      "change": "retains parser and semantic syntax diagnostic phase, tree impact, provider-owned code and spans; Python Ruff projects selected rows through a typed authored RyoQL query",
+      "projection": "parse/incomplete and validation/preserved except future-feature-not-defined, which is consumed by F407",
       "validation": "source integrated; Rust validation pending remote CI"
     },
     "latest_remote_build_failure": {
@@ -85,25 +86,59 @@
       "reference_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
       "scope_limit": "older frozen worker only; not current-engine, combined-profile, corpus-parity, or promotion evidence"
     },
-    "f407_pending": {
-      "case_count": 12,
-      "matched_cases": 11,
-      "known_gap": "relative unknown future feature has no normalized parser syntax-error row",
-      "scope": "not included among the twelve prepared profiles or current validation selection"
-    },
     "f632_reference_expectations": {
       "case_count": 36,
       "source_commits": [
         "d8779e7fd3611408c1dbdb25dc3575be6d461afe",
-        "34ca6f27637e0c29cab0032e5e6d93bc18a24129"
+        "34ca6f27637e0c29cab0032e5e6d93bc18a24129",
+        "896929a196bc56bf826cd07eca485786b467de4f"
       ],
-      "candidate_sha256": "42d1c8a97a52322000b57c14941d84da1a97a80b3715e4102d0b77a555b3f302",
+      "candidate_sha256": "08832f8d91a994220563a2f480cb52c81936358516cb794f65c865b619bcda51",
       "cases_sha256": "5edfccff1ca65fa601218b60ef426fe43c8f6b95455171b53672370db7f2a16c",
       "reference": "pinned Ruff 0.16.5, PY310, full-report identity comparison",
       "artifact": "/tmp/ruff-f632-pinned-oracle.json",
       "artifact_sha256": "d719f54740ea53b8d70c1863f6116d24dc01af3acc3abcca36f4ce6f892beee5",
-      "candidate_runtime": "not executed; requires the newly integrated literal-properties reader",
+      "candidate_runtime": "prepared in the refreshed profile; current-engine execution pending",
       "scope_limit": "reference expectations only; no current-engine or candidate acceptance claim"
+    },
+    "prepared_profile_manifest_sha256": "f51c0609ed36418e828172e0295938ef6f0240d0535576afb377792fa52fe3af",
+    "candidate_source_commits": [
+      "f96db20012",
+      "6d9d0621da",
+      "c266164d8f",
+      "7886ff078f"
+    ],
+    "prepared_candidate_profiles": {
+      "F404": {
+        "case_count": 26,
+        "candidate_sha256": "62156b472a5a80c2dc865c84abf6c8df9fa5e3e396b22f6425af37286ff80438",
+        "cases_sha256": "9b1414aadf275c8d5c8726fef3093ba1de960bb3ac86a3e4c82f67f61daba03b",
+        "oracle_file": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/F404/oracle.json",
+        "oracle_sha256": "68cff54e534c28e60d5a435d5d501f7a4dc4657c35e6df532d9fff8d7a830a75",
+        "older_worker_changed_cases": 7,
+        "older_worker_artifact": "/tmp/f404-changed-frozen-smoke.json",
+        "older_worker_artifact_sha256": "6cb763b94fe220faeafccff583adaec17652aa5a16b9c1b8ef013702be1f909d",
+        "current_engine_validation": "pending; no acceptance claim"
+      },
+      "F407": {
+        "case_count": 23,
+        "candidate_sha256": "9d3b8bd59d3664eac0f6fc930b15be6b78b3f5a3b0bf8c4454b6dee889cacd9f",
+        "cases_sha256": "494d6359bd324fb0d559830f09115d91b38587ea5e946aacf1d9a7721be4997d",
+        "oracle_file": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/F407/oracle.json",
+        "oracle_sha256": "7ff3cc1e803ea0d047c20d303532f834b06a71fd2883e17edffbbb2eef994a74",
+        "older_worker_relative_branch_cases": 11,
+        "older_worker_artifact": "/tmp/f407-relative-oldworker-smoke.json",
+        "older_worker_artifact_sha256": "23eab6df05632f46d5d813d862ed9a8ba1b3a58c894727a19945e075b8da7701",
+        "current_engine_validation": "pending; no full candidate acceptance claim",
+        "superseded_older_worker_result": {
+          "case_count": 12,
+          "matched_cases": 11,
+          "known_gap": "relative unknown future feature was not represented in the earlier syntax-error relation",
+          "artifact": "/tmp/ruff-f404-f407-f633-frozen-worker.json",
+          "artifact_sha256": "030662e227934af3d90d782585a8c5d3425c0e879d064b449c803ab82ac2f77e",
+          "scope": "older candidate and worker only; superseded source, not current-engine evidence"
+        }
+      }
     }
   },
   "cases": 1124,

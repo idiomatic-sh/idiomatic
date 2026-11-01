@@ -6,7 +6,7 @@ use super::adapters::local::adapter::EngineLocalAdapter;
 pub struct FrontendDiagnosticProjection {
     /// The benchmark/reference rule identity emitted for selected rows.
     pub rule: ryo::linter::RuleId,
-    /// The already schema-checked RyoQL query selecting which provider diagnostics become findings.
+    /// Nonblank RyoQL source selecting which provider diagnostics become findings; the linter compiles it at runtime.
     pub query: ryo::query::RyoQlQuery,
 }
 
