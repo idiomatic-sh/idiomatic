@@ -6505,5 +6505,51 @@
     "capability": "optional literal-properties relation; Python reads parser-owned literal type, zero/empty/boolean flags while other providers and the scaffold explicitly remain NotYetRead",
     "status": "integrated source and focused tests; remote compile, provider contracts, SDK API and replay validation pending",
     "measured_rules_changed": false
+  },
+  "current_prepared_profile_checkpoint": {
+    "source_commit": "2bf9a7e2b754d5c3f84aaa34b04b3032087d0300",
+    "prepared_single_profiles": 109,
+    "historical_combined_profiles": 2,
+    "current_canonical_combined_validation": "pending; historical combined snapshots are unchanged and their known failures are retained separately",
+    "new_profile_fixture_evidence": {
+      "worker_sha256": "f2031bff09e99614828375dfe9d53cdda1185bef46165bf96627da67f66a8b88",
+      "status": "separate frozen-worker full-report passes per profile; not current-engine, combined-profile, corpus-parity, or promotion evidence",
+      "cases": {
+        "PLW1501": 12,
+        "PLW1507": 19,
+        "PLW1508": 10,
+        "PLW1509": 17,
+        "PLW1510": 21,
+        "PLE1507": 9,
+        "PLE1519": 9,
+        "PLE1520": 8,
+        "PLW0245": 10,
+        "PLW0133": 12,
+        "PLW0177": 14,
+        "PLE0604": 8,
+        "PLE0605": 11,
+        "F842": 10,
+        "PLE0115": 7,
+        "PLE0117": 7,
+        "PLE0118": 7,
+        "RUF059": 6,
+        "PLR1704": 6,
+        "PLW0642": 6,
+        "B023": 11,
+        "B018": 4,
+        "B030": 4,
+        "B035": 6,
+        "PLW0127": 5
+      },
+      "total_cases": 239,
+      "excluded_known_incomplete": [
+        "PLE0303",
+        "PLE0304",
+        "PLE0305",
+        "PLE0307",
+        "PLE0308",
+        "PLE0309"
+      ]
+    }
   }
 }
