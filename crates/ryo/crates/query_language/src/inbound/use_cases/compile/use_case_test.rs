@@ -552,3 +552,68 @@ fn refuses() {
 fn fails() {
     run(CASES, Word::Fails, subject);
 }
+
+/// A file-key join uses the generic executor, which needs a separate predicate step.
+#[test]
+fn raw_tree_file_joins_keep_single_and_and_or_filters_outside_the_join() {
+    use ryo_values::domain::plan_parts::types::{ColumnIndex, Input};
+    use ryo_values::domain::plans::types::Operation;
+    use ryo_values::domain::program::types::QueryBundle;
+
+    let compiler = CompileUseCaseImpl::new(
+        Arc::new(crate::outbound::syntax::factory::winnow()),
+        Arc::new(crate::outbound::catalog::factory::language()),
+    );
+    for predicate in [
+        "r.text = \":\"",
+        "r.text = \":\" and r.text != \"!\"",
+        "r.text = \"!\" or r.text = \"=\" or r.text = \":\"",
+    ] {
+        for prefiltered in [false, true] {
+            let (prefix, right, after) = if prefiltered {
+                let condition = predicate.replace("r.", "");
+                (
+                    format!("let tokens = select * from \"syntax-tree\" where {condition};"),
+                    "tokens",
+                    String::new(),
+                )
+            } else {
+                (
+                    String::new(),
+                    "\"syntax-tree\"",
+                    format!(" where {predicate}"),
+                )
+            };
+            let text = format!(
+                "{prefix} let inputs = select id, file, span from \"function\"; \
+                 let result = select r.id as id, l.file as file, r.span as span \
+                 from inputs as l join {right} as r on l.file = r.file{after}; \
+                 emit result subject file key(id);"
+            );
+            let report = compiler
+                .compile(CompileRequest {
+                    text: QueryBundle::from(QueryText(text.into())),
+                    hosted: Vec::new(),
+                })
+                .expect("both equivalent predicate spellings compile");
+            let mut joins = 0_usize;
+            for step in &report.plan.steps {
+                if matches!(step.operation, Operation::Join { .. }) {
+                    joins += 1;
+                }
+                if let Operation::Join {
+                    right: Input::Relation(Relation::SyntaxTree),
+                    right_on,
+                    filter,
+                    view,
+                    ..
+                } = &step.operation
+                    && right_on == &[ColumnIndex(3)]
+                {
+                    assert!(filter.is_empty() && view.is_empty(), "{predicate}");
+                }
+            }
+            assert!(joins > 0, "the regression must retain its file-key join");
+        }
+    }
+}

@@ -92,47 +92,10 @@ fn fuse_join(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
     else {
         return None;
     };
-    // The elements are asked for by what finds them in the tree: their id; an edge's parent or child; or the
-    // file and the stretch an element covers.
-    if let [file, stretch] = right_on.as_slice() {
-        let (file, stretch) = (source_column(kept, *file)?, source_column(kept, *stretch)?);
-        let by_stretch = *relation == Relation::SyntaxTree
-            && matches!(
-                (file, stretch),
-                (ColumnIndex(3), ColumnIndex(4)) | (ColumnIndex(4), ColumnIndex(3))
-            );
-        if producer.scope != steps.get(place.0)?.scope
-            || !no_filter.is_empty()
-            || !no_view.is_empty()
-            || !by_stretch
-        {
-            return None;
-        }
-        return Some(Operation::Join {
-            left: *left,
-            right: Input::Relation(*relation),
-            left_on: left_on.clone(),
-            right_on: right_on.clone(),
-            output: output.clone(),
-            filter: comparisons.clone(),
-            view: kept.clone(),
-        });
-    }
-    let [key] = right_on.as_slice() else {
-        return None;
-    };
-    // The elements are asked for by their id; the edges by their parent or by their child.
-    let asked = source_column(kept, *key)?;
-    let found_by_key = if *relation == Relation::SyntaxTree {
-        // By id, or by the stretch they cover, in the file being read.
-        asked == ColumnIndex(0) || asked == ColumnIndex(4)
-    } else {
-        asked == ColumnIndex(0) || asked == ColumnIndex(1)
-    };
     if producer.scope != steps.get(place.0)?.scope
         || !no_filter.is_empty()
         || !no_view.is_empty()
-        || !found_by_key
+        || !tree_lookup_supported(*relation, right_on, kept)
     {
         return None;
     }
@@ -145,6 +108,26 @@ fn fuse_join(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
         filter: comparisons.clone(),
         view: kept.clone(),
     })
+}
+
+/// Whether the resident tree lookup implements these ordered keys through this view.
+/// Other joins must keep their filter as a separate select for the generic executor.
+fn tree_lookup_supported(relation: Relation, keys: &[ColumnIndex], view: &[ColumnIndex]) -> bool {
+    match keys {
+        [key] => source_column(view, *key).is_some_and(|column| {
+            if relation == Relation::SyntaxTree {
+                matches!(column, ColumnIndex(0 | 4))
+            } else {
+                relation == Relation::SyntaxChild && matches!(column, ColumnIndex(0 | 1))
+            }
+        }),
+        [file, stretch] if relation == Relation::SyntaxTree => matches!(
+            (source_column(view, *file), source_column(view, *stretch)),
+            (Some(ColumnIndex(3)), Some(ColumnIndex(4)))
+                | (Some(ColumnIndex(4)), Some(ColumnIndex(3)))
+        ),
+        _ => false,
+    }
 }
 
 /// The axis at `place` answering among the rows of a filter of the elements of the syntax tree, with that
@@ -223,7 +206,12 @@ fn fuse_join_filter(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
     else {
         return None;
     };
-    if producer.scope != steps.get(place.0)?.scope {
+    let Input::Relation(relation) = right else {
+        return None;
+    };
+    if producer.scope != steps.get(place.0)?.scope
+        || !tree_lookup_supported(*relation, right_on, view)
+    {
         return None;
     }
     // A column of the join's answer is a column of the tree when it comes from the right.

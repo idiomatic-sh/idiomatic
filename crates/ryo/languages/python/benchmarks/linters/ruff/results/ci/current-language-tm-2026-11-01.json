@@ -1,0 +1,28 @@
+{
+  "schema": "terminal-source-check/v1",
+  "status": "complete",
+  "passed": true,
+  "command": [
+    "/usr/local/cargo/bin/tm",
+    "--root",
+    "/workspaces/idiomatic-benchmark-guards",
+    "validate",
+    "language",
+    "--format",
+    "json"
+  ],
+  "cwd": "/workspaces/idiomatic-benchmark-guards",
+  "runner_sha256": "6fd6b47bd5ccf056d5a8577ea11a6780e6af19a136bed1fe3f7a05901714e2ae",
+  "started_utc": "2026-11-01T16:32:18.960815+00:00",
+  "completed_utc": "2026-11-01T16:32:19.520653+00:00",
+  "exit_code": 0,
+  "error": null,
+  "source_stable": true,
+  "stdout_sha256": "00be585cc8569444e285f02d04e85adb2d56290897fa878d4179ea275e54c9c0",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "head": "2da4f191a29ea9225478980ee6eae3610eb7f117",
+  "source_tree_sha256": "74b539855d55275fa3c93e7bd86af3ef8a8719bfa83ac8e81fb40911c33c293c",
+  "source_file_count": 16302,
+  "raw_receipt_path": "/tmp/current-language-tm-proof-2-20261101/result.json",
+  "raw_receipt_sha256": "adaff04480da625adc0b6b0d017a926fe6c8d460d4714d273d8b6e5360b432d7"
+}
