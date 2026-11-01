@@ -5,7 +5,8 @@
     "6b4ae8b47dcd84b28b3f24dae5ec58114cb61e30",
     "4d595bdea8e1037eca0ab33abcc0455f91d19f5e",
     "239430e2de4b0dae40b55a52f47a0803d682941a",
-    "3f14eeaf157ede482e34b54794112795822a7df9"
+    "3f14eeaf157ede482e34b54794112795822a7df9",
+    "6e36628e7cc7f6fa1d402098184d06aa036c21f9"
   ],
   "reference": "Ruff 0.16.5 isolated, no-cache, PY310 selection; complete full-report comparison for each prepared candidate profile",
   "reference_version": "0.16.5",
@@ -241,7 +242,7 @@
       "selected_rules": [
         "PLR0124"
       ],
-      "case_count": 14,
+      "case_count": 15,
       "case_names": [
         "same-name-equality",
         "same-name-membership",
@@ -256,10 +257,11 @@
         "same-name-in-conditional-arm",
         "shadowed-pure-builtin",
         "nan-predicate-calls",
-        "same-name-global"
+        "same-name-global",
+        "chain-orders-operands-across-operator-children"
       ],
       "oracle_file": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PLR0124/oracle.json",
-      "oracle_sha256": "2f00d527604a5fe82c3adf1469b52fd19ed405dc38a71babddf9959b4232de64"
+      "oracle_sha256": "bb34782018a22ddec74502e5dcf820b2648fba2d0775b29d2ce7d2a1fb801e3e"
     }
   },
   "files": {
@@ -511,8 +513,8 @@
     "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/F602/oracle.json": "655d3d5ceb4b0f8765dd17f3cb31a82aca9bf3186cc3cea450da4163992f6be8",
     "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PLR0124/benchmark.toml": "b8a8a5efd9310383e22afef036317cc6b5243ad4b7b15742aa50f28b3a90222d",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PLR0124/candidate.ryoql": "935a3a0d878c39110c2be2098c83cf5d8c2d84d6c944b58776ebb0cfbb3e2e51",
-    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PLR0124/cases.toml": "35d40331b4cddf2c7e8a357d0ef0f15758fd65518afd4b95fff84c178376d787",
-    "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PLR0124/oracle.json": "2f00d527604a5fe82c3adf1469b52fd19ed405dc38a71babddf9959b4232de64"
+    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PLR0124/cases.toml": "b52ca31dc08815c3fd0e417480ca87942d98344626858b71c3b4cba971251d41",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PLR0124/oracle.json": "bb34782018a22ddec74502e5dcf820b2648fba2d0775b29d2ce7d2a1fb801e3e"
   },
   "combined_profiles": {
     "shape-110": {
