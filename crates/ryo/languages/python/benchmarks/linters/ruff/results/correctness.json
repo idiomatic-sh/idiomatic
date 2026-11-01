@@ -1,17 +1,23 @@
 {
   "status": "54-rule corpus comparison passed; configured lint/check/perf gate failed",
   "candidate_acceptance_checkpoint": {
-    "status": "unpromoted; current shared-verifier execution pending",
+    "status": "unpromoted; current shared-verifier execution pending, with a known out-of-cohort SIM220 scope miss",
     "prepared_profiles": 10,
     "combined_profile": {
       "name": "shape-110",
       "selected_rules": 110,
       "case_count": 2128,
-      "comparison_counts": { "rule": 2023, "full": 105 },
+      "comparison_counts": {
+        "rule": 2023,
+        "full": 105
+      },
       "full_report_scope": "the 105 shape cases only"
     },
     "isolated_fixture_evidence": {
-      "rules": { "F602": 13, "PLR0124": 15 },
+      "rules": {
+        "F602": 13,
+        "PLR0124": 15
+      },
       "matched_cases": 28,
       "comparison": "complete findings, byte spans and multiplicity",
       "worker_source": "9003086b",
@@ -20,7 +26,43 @@
       "artifact_sha256": "48f33c6a88619c79de3ade24b478ed3fb201d920b1a5908748bf84ac53eea665",
       "scope_limit": "older frozen worker only; not current-engine, combined-profile, corpus-parity, or promotion evidence"
     },
-    "pending_frontend_configuration": "Typed PY310 parser settings and target-version cache identity are integrated at 8862e35034; remote validation is pending before full frontend parity claims"
+    "pending_frontend_configuration": "Typed PY310 parser settings and target-version cache identity are integrated at 8862e35034; remote validation is pending before full frontend parity claims",
+    "sim220_sim221_isolated_fixture_evidence": {
+      "rules": {
+        "SIM220": 18,
+        "SIM221": 18
+      },
+      "matched_cases": 36,
+      "comparison": "complete expected diagnostics, byte spans and multiplicities",
+      "source_commit": "47ea97a97b21551950c68df1409a8245a551b40d",
+      "worker_source": "9003086b",
+      "worker_sha256": "270f5ee96ba67f94c85d27de7cad9a50a27a01a4d0a39173144cf66aa661e3c7",
+      "artifact": "/tmp/ruff-sim220-221-smoke-47ea97a9.json",
+      "artifact_sha256": "9fba50b88df12f6722053ee86772b2ecfaa03e4fd6b5552194e1972718a7a21f",
+      "scope_limit": "isolated 36-case evidence on an older frozen worker; not current-engine, combined-profile, corpus-parity, or promotion evidence",
+      "known_out_of_cohort_miss": {
+        "source": "x and not x and (lambda list: list())",
+        "rule": "SIM220",
+        "reference": "pinned Ruff reports SIM220; its builtin-binding lookup uses the enclosing BoolOp scope despite descending into the lambda body",
+        "candidate": "does not report SIM220",
+        "status": "unresolved; do not promote SIM220/SIM221"
+      }
+    },
+    "integrated_python_diagnostic_source": {
+      "commit": "90b560f757",
+      "change": "reports module-level nonlocal and duplicate parameter/type-parameter/keyword syntax errors through the generic frontend diagnostic relation",
+      "validation": "source integrated; Rust validation pending remote CI"
+    },
+    "latest_remote_build_failure": {
+      "run": "41256341839",
+      "tested_head": "876fe452fd7baf5daad3157ca7d6de523379c130",
+      "result": "Linux and macOS Ryo build checks failed on nine enforced lint errors; current-source fixes are in cc093e6b13 and remain remotely unvalidated",
+      "fixed_categories": [
+        "four expect_used fixture/serialization sites",
+        "four non-exhaustive Kind wildcard matches",
+        "two missing-doc warnings"
+      ]
+    }
   },
   "cases": 1124,
   "rules": 54,
@@ -241,7 +283,7 @@
         "error": {
           "ended": "exited",
           "code": 100,
-          "said": "\n    thread 'resources::operator::list::command_test::succeeds' (1301624) panicked at cli/src/cases.rs:113:9:\n    prints_all_seventeen: expected (17, Terminal), answered Ok((19, Terminal))\n    note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n\n  Cancelling due to test failure: 9 tests still running\n        PASS [   0.006s] ( 42/168) idiomatic-sh-ryo resources::operator::describe::command_test::succeeds\n        PASS [   0.002s] ( 43/168) idiomatic-sh-ryo resources::query::run::schemas::tests::succeeds\n        PASS [   0.005s] ( 44/168) idiomatic-sh-ryo resources::query::run::command_test::refuses\n        PASS [   0.003s] ( 45/168) idiomatic-sh-ryo resources::query::run::schemas::tests::fails\n        PASS [   0.003s] ( 46/168) idiomatic-sh-ryo resources::query::validate::command_test::succeeds\n        PASS [   0.004s] ( 47/168) idiomatic-sh-ryo resources::query::run::schemas::tests::refuses\n        PASS [   0.003s] ( 48/168) idiomatic-sh-ryo resources::query::validate::command_test::refuses\n        PASS [   0.015s] ( 49/168) idiomatic-sh-ryo resources::query::run::command_test::fails\n        PASS [   0.053s] ( 50/168) idiomatic-sh-ryo resources::query::run::command_test::succeeds\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n     Summary [   0.068s] 50/168 tests run: 49 passed, 1 failed, 1 skipped\n        FAIL [   0.004s] ( 41/168) idiomatic-sh-ryo resources::operator::list::command_test::succeeds\nwarning: 118/168 tests were not run due to test failure (run with --no-fail-fast to run all tests, or run with --max-fail)\nerror: test run failed"
+          "said": "\n    thread 'resources::operator::list::command_test::succeeds' (1301624) panicked at cli/src/cases.rs:113:9:\n    prints_all_seventeen: expected (17, Terminal), answered Ok((19, Terminal))\n    note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n\n  Cancelling due to test failure: 9 tests still running\n        PASS [   0.006s] ( 42/168) idiomatic-sh-ryo resources::operator::describe::command_test::succeeds\n        PASS [   0.002s] ( 43/168) idiomatic-sh-ryo resources::query::run::schemas::tests::succeeds\n        PASS [   0.005s] ( 44/168) idiomatic-sh-ryo resources::query::run::command_test::refuses\n        PASS [   0.003s] ( 45/168) idiomatic-sh-ryo resources::query::run::schemas::tests::fails\n        PASS [   0.003s] ( 46/168) idiomatic-sh-ryo resources::query::validate::command_test::succeeds\n        PASS [   0.004s] ( 47/168) idiomatic-sh-ryo resources::query::run::schemas::tests::refuses\n        PASS [   0.003s] ( 48/168) idiomatic-sh-ryo resources::query::validate::command_test::refuses\n        PASS [   0.015s] ( 49/168) idiomatic-sh-ryo resources::query::run::command_test::fails\n        PASS [   0.053s] ( 50/168) idiomatic-sh-ryo resources::query::run::command_test::succeeds\n────────────\n     Summary [   0.068s] 50/168 tests run: 49 passed, 1 failed, 1 skipped\n        FAIL [   0.004s] ( 41/168) idiomatic-sh-ryo resources::operator::list::command_test::succeeds\nwarning: 118/168 tests were not run due to test failure (run with --no-fail-fast to run all tests, or run with --max-fail)\nerror: test run failed"
         }
       },
       {
