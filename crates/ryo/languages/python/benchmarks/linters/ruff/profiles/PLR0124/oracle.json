@@ -1,0 +1,219 @@
+{
+  "reference": "Ruff 0.16.5; pinned official linux x86_64 executable",
+  "reference_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "invocation": {
+    "check": true,
+    "isolated": true,
+    "no_cache": true,
+    "target_version": "py310",
+    "output_format": "json",
+    "selected_rules": [
+      "PLR0124"
+    ]
+  },
+  "cases": [
+    {
+      "rule": "PLR0124",
+      "name": "same-name-equality",
+      "case_source_sha256": "95c76cc5541ebed65b8b9dd7983e6d1bac8613782e99b6e22dd31dc2e2111427",
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "PLR0124",
+          "file": "case.py",
+          "start": 0,
+          "end": 3,
+          "ruff_location": {
+            "column": 1,
+            "row": 1
+          },
+          "ruff_end_location": {
+            "column": 4,
+            "row": 1
+          }
+        }
+      ]
+    },
+    {
+      "rule": "PLR0124",
+      "name": "same-name-membership",
+      "case_source_sha256": "9054971ab67c4e7fbd4c6df1fdd5a7f0ddc78f6d80d1d5a8c0976fb90cb78dd0",
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "PLR0124",
+          "file": "case.py",
+          "start": 0,
+          "end": 5,
+          "ruff_location": {
+            "column": 1,
+            "row": 1
+          },
+          "ruff_end_location": {
+            "column": 6,
+            "row": 1
+          }
+        }
+      ]
+    },
+    {
+      "rule": "PLR0124",
+      "name": "different-names",
+      "case_source_sha256": "addc9176dc03d42d75a9d81ac7101fad569a6f760fdf23236cbe854733f993bb",
+      "comparison": "full",
+      "expected": []
+    },
+    {
+      "rule": "PLR0124",
+      "name": "same-name-chain",
+      "case_source_sha256": "c23bf843a1114de294d0e10aafe453fec5a53edf7aa21517b1bcb19e81f812ea",
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "PLR0124",
+          "file": "case.py",
+          "start": 7,
+          "end": 10,
+          "ruff_location": {
+            "column": 8,
+            "row": 1
+          },
+          "ruff_end_location": {
+            "column": 11,
+            "row": 1
+          }
+        }
+      ]
+    },
+    {
+      "rule": "PLR0124",
+      "name": "same-builtin-id-call",
+      "case_source_sha256": "30dd3cb6169c3b04dbc69e01f8acae833c0f8c93336e98cc444409e6d56e64bc",
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "PLR0124",
+          "file": "case.py",
+          "start": 0,
+          "end": 7,
+          "ruff_location": {
+            "column": 1,
+            "row": 1
+          },
+          "ruff_end_location": {
+            "column": 8,
+            "row": 1
+          }
+        }
+      ]
+    },
+    {
+      "rule": "PLR0124",
+      "name": "different-builtin-call",
+      "case_source_sha256": "999b25d2741a4710d0bcea70fbd9369dcfa0fbdce5eb9aed1e3a69e95b9c03ab",
+      "comparison": "full",
+      "expected": []
+    },
+    {
+      "rule": "PLR0124",
+      "name": "non-pure-call",
+      "case_source_sha256": "5d8d5cb423194c14ca6dc8765f74d582374897c1826280439ab5efb2ef5872b5",
+      "comparison": "full",
+      "expected": []
+    },
+    {
+      "rule": "PLR0124",
+      "name": "keyword-call",
+      "case_source_sha256": "63f90a0a9b8f9db650b521a4344af451784dae139cc0952107b5b2977a6e5da0",
+      "comparison": "full",
+      "expected": []
+    },
+    {
+      "rule": "PLR0124",
+      "name": "shadowed-builtin",
+      "case_source_sha256": "e498ce37af4bca2813c37d4dbfe11b2366cce487c47bc374d7c8ec73f04a3204",
+      "comparison": "full",
+      "expected": []
+    },
+    {
+      "rule": "PLR0124",
+      "name": "same-name-in-function",
+      "case_source_sha256": "0e26486fcfab47dd320fd94cacf9e342ad7caa420f10361ec14a538809d8cce3",
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "PLR0124",
+          "file": "case.py",
+          "start": 25,
+          "end": 30,
+          "ruff_location": {
+            "column": 12,
+            "row": 2
+          },
+          "ruff_end_location": {
+            "column": 17,
+            "row": 2
+          }
+        }
+      ]
+    },
+    {
+      "rule": "PLR0124",
+      "name": "same-name-in-conditional-arm",
+      "case_source_sha256": "ccda86f37e4be2876491f7af448acf2928935b416c9d4cece323bad754a93f86",
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "PLR0124",
+          "file": "case.py",
+          "start": 32,
+          "end": 37,
+          "ruff_location": {
+            "column": 5,
+            "row": 3
+          },
+          "ruff_end_location": {
+            "column": 10,
+            "row": 3
+          }
+        }
+      ]
+    },
+    {
+      "rule": "PLR0124",
+      "name": "shadowed-pure-builtin",
+      "case_source_sha256": "64ce7e4969476ae04ec7f627fa4f1a44a5b86ce06b67f4ea5fea94c4f4d66554",
+      "comparison": "full",
+      "expected": []
+    },
+    {
+      "rule": "PLR0124",
+      "name": "nan-predicate-calls",
+      "case_source_sha256": "403a22ccfc1bf2ea2e78d3f8a2eb15eec88a2651233ac8102c98c1447ccf7dab",
+      "comparison": "full",
+      "expected": []
+    },
+    {
+      "rule": "PLR0124",
+      "name": "same-name-global",
+      "case_source_sha256": "9c9c931a5104bf7c8a9af720e2340f489d7fc4668e0981130fada2eb7bf27a50",
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "PLR0124",
+          "file": "case.py",
+          "start": 0,
+          "end": 12,
+          "ruff_location": {
+            "column": 1,
+            "row": 1
+          },
+          "ruff_end_location": {
+            "column": 13,
+            "row": 1
+          }
+        }
+      ]
+    }
+  ]
+}
