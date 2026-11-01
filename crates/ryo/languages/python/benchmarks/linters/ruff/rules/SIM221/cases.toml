@@ -1,0 +1,90 @@
+[[cases]]
+name = "same-name"
+comparison = "full"
+files = { "case.py" = "x or not x\n" }
+expected = [{ rule = "SIM221", file = "case.py", start = 0, end = 10 }]
+
+[[cases]]
+name = "duplicate-pairs"
+comparison = "full"
+files = { "case.py" = "x or not x or not x\n" }
+expected = [{ rule = "SIM221", file = "case.py", start = 0, end = 19 }, { rule = "SIM221", file = "case.py", start = 0, end = 19 }]
+
+[[cases]]
+name = "builtin-empty-list-is-pure"
+comparison = "full"
+files = { "case.py" = "x or not x or list()\n" }
+expected = [{ rule = "SIM221", file = "case.py", start = 0, end = 20 }]
+
+[[cases]]
+name = "builtin-empty-tuple-is-pure"
+comparison = "full"
+files = { "case.py" = "x or not x or tuple()\n" }
+expected = [{ rule = "SIM221", file = "case.py", start = 0, end = 21 }]
+
+[[cases]]
+name = "shadowed-list-is-effectful"
+comparison = "full"
+files = { "case.py" = "list = []; x or not x or list()\n" }
+expected = []
+
+[[cases]]
+name = "call-is-effectful"
+comparison = "full"
+files = { "case.py" = "x or not x or call()\n" }
+expected = []
+
+[[cases]]
+name = "literal-binop-is-pure"
+comparison = "full"
+files = { "case.py" = "x or not x or (1 + 2)\n" }
+expected = [{ rule = "SIM221", file = "case.py", start = 0, end = 21 }]
+
+[[cases]]
+name = "name-binop-is-effectful"
+comparison = "full"
+files = { "case.py" = "x or not x or (y + 2)\n" }
+expected = []
+
+[[cases]]
+name = "named-expression-is-effectful"
+comparison = "full"
+files = { "case.py" = "x or not x or (y := 1)\n" }
+expected = []
+
+[[cases]]
+name = "subscript-is-effectful"
+comparison = "full"
+files = { "case.py" = "x or not x or obj[0]\n" }
+expected = []
+
+[[cases]]
+name = "f-string-name-is-not-effectful"
+comparison = "full"
+files = { "case.py" = "x or not x or f\"{y}\"\n" }
+expected = [{ rule = "SIM221", file = "case.py", start = 0, end = 20 }]
+
+[[cases]]
+name = "f-string-call-is-effectful"
+comparison = "full"
+files = { "case.py" = "x or not x or f\"{call()}\"\n" }
+expected = []
+
+[[cases]]
+name = "inline-noqa"
+comparison = "full"
+files = { "case.py" = "# noqa: SIM221\nx or not x\n" }
+expected = [{ rule = "SIM221", file = "case.py", start = 15, end = 25 }]
+
+[[cases]]
+name = "file-noqa"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa: SIM221\nx or not x\n" }
+expected = []
+
+[[cases]]
+name = "all-pairs-keep-multiplicity"
+comparison = "full"
+files = { "case.py" = "x or y or not x or not y\n" }
+expected = [{ rule = "SIM221", file = "case.py", start = 0, end = 24 }, { rule = "SIM221", file = "case.py", start = 0, end = 24 }]
+
