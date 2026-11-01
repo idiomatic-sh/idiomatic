@@ -109,7 +109,8 @@ pub(crate) fn samples() -> Vec<Sample> {
     found
 }
 
-/// Copies a tree, leaving out what a run writes and, at the top, the sample's Tastemaker setup.
+/// Copies a tree, leaving out what a run writes and, at the top, the sample's Tastemaker setup, each workspace file pinned to
+/// the built `tm`.
 fn copy(from: &Path, to: &Path, top: bool) -> std::io::Result<()> {
     std::fs::create_dir_all(to)?;
     for entry in std::fs::read_dir(from)? {
@@ -130,6 +131,9 @@ fn copy(from: &Path, to: &Path, top: bool) -> std::io::Result<()> {
             copy(&source, &target, false)?;
         } else {
             let _: u64 = std::fs::copy(&source, &target)?;
+            if name == crate::fixes::WORKSPACE_FILE {
+                crate::fixes::pinned(&target)?;
+            }
         }
     }
     Ok(())

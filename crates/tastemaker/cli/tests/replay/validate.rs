@@ -112,7 +112,11 @@ fn validating_the_repository_s_definitions_stays_within_its_bounds() {
     .expect("the definitions copied");
     std::fs::write(
         scratch.path().join("tastemaker.toml"),
-        "tastemaker = \"0.1.0\"\nworkspace = { name = \"bar\", dependencies = [{ package = \"idiomatic.arch\", path = \"tastemaker\" }] }\n",
+        concat!(
+            "tastemaker = \"",
+            env!("CARGO_PKG_VERSION"),
+            "\"\nworkspace = { name = \"bar\", dependencies = [{ package = \"idiomatic.arch\", path = \"tastemaker\" }] }\n"
+        ),
     )
     .expect("the workspace written");
     let (cold, cold_peak) = validated(scratch.path()).expect("a cold validation");

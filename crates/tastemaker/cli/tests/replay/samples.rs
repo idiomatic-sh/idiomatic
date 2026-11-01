@@ -2,9 +2,9 @@
 //! per row of the README's table and a `fixes.toml` beside its `tastemaker.toml`: the findings `tm check` reports, by rule,
 //! path and line, each row's fix as edits, and the commands that build the fixed program and run its tests. Every
 //! `crates/tastemaker/examples/<language>/api` is a sample, found by listing `crates/tastemaker/examples/`, so a language is added by adding its sample and
-//! nothing here; one without its `fixes.toml` fails. Each sample is run where it is, as a copy at the same place in a
-//! repository of its own, and as a copy that is a repository of its own: its paths are read from the project's directory,
-//! wherever the repository starts.
+//! nothing here; one without its `fixes.toml` fails. Each sample is run as a copy, never where it is: a copy at the same place
+//! in a repository of its own, and a copy that is a repository of its own, each pinned to the built `tm`: its paths are read
+//! from the project's directory, wherever the repository starts.
 
 use std::process::Command;
 
@@ -15,13 +15,10 @@ use crate::fixes::{
 };
 
 /// Holds each sample's documented findings where `placement` places it, collecting a failure per sample.
-fn reports_documented(placement: Option<Placement>) -> Vec<String> {
+fn reports_documented(placement: Placement) -> Vec<String> {
     let mut failures = Vec::new();
     for sample in readable(&mut failures) {
-        let scene = placement.map(|placement| scene(&sample, placement));
-        let project = scene
-            .as_ref()
-            .map_or(sample.directory.clone(), |(_, project)| project.clone());
+        let (_scratch, project) = scene(&sample, placement);
         match reported(&project) {
             Ok(found) if found == documented(&sample, None) => {}
             Ok(found) => failures.push(format!(
@@ -136,14 +133,14 @@ fn each_sample_documents_one_row_for_each_finding() {
 }
 
 #[test]
-fn each_sample_reports_its_documented_findings_where_it_is() {
-    let failures = reports_documented(None);
+fn each_sample_reports_its_documented_findings_inside_a_repository() {
+    let failures = reports_documented(Placement::Nested);
     assert!(failures.is_empty(), "{}", failures.join("\n\n"));
 }
 
 #[test]
 fn each_sample_reports_its_documented_findings_as_a_repository_of_its_own() {
-    let failures = reports_documented(Some(Placement::Alone));
+    let failures = reports_documented(Placement::Alone);
     assert!(failures.is_empty(), "{}", failures.join("\n\n"));
 }
 
