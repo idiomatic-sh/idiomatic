@@ -89,6 +89,7 @@ fn select(test: Test, left: u32, right: Operand, kept: Vec<ColumnIndex>) -> Oper
             test,
             left: Operand::Column(column(left)),
             right,
+            origin: None,
         }],
         kept,
     }
@@ -172,7 +173,12 @@ fn services_held(test: Test, left: Operand, right: Operand) -> Result<Value, Ope
     };
     let operation = Operation::Select {
         from: FROM,
-        comparisons: vec![Comparison { test, left, right }],
+        comparisons: vec![Comparison {
+            test,
+            left,
+            right,
+            origin: None,
+        }],
         kept: Vec::new(),
     };
     SelectItem.compute(

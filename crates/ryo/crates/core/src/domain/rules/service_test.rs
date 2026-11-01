@@ -101,6 +101,7 @@ fn plan_with(parameters: Vec<PlanParameter>) -> Plan {
             headings: Vec::new(),
         },
         frontier: Vec::new(),
+        comparison_origins: Vec::new(),
     }
 }
 

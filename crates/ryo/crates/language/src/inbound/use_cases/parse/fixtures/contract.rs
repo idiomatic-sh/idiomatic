@@ -478,16 +478,18 @@ fn rows(subject: &dyn ParseEngine, samples: &[SourceFile]) {
                     if subject.absence_of(*relation).is_some() {
                         return count == 0;
                     }
-                    match *relation {
-                        Relation::Scope | Relation::IndentRegion => count == 1,
-                        // Versioned implicit-symbol rows describe the environment catalog, not source text.
-                        Relation::ImplicitSymbol => out.rows().iter().all(|(relation, row)| {
-                            *relation != Relation::ImplicitSymbol
+                    if matches!(*relation, Relation::Scope | Relation::IndentRegion) {
+                        return count == 1;
+                    }
+                    // Versioned implicit-symbol rows describe the environment catalog, not source text.
+                    if *relation == Relation::ImplicitSymbol {
+                        return out.rows().iter().all(|(catalog_relation, row)| {
+                            *catalog_relation != Relation::ImplicitSymbol
                                 || (row.len() == columns(Relation::ImplicitSymbol).len()
                                     && row.get(3).is_some_and(|major| *major > 0))
-                        }),
-                        _ => count == 0,
+                        });
                     }
+                    count == 0
                 }))
         }
         Scenario::Broken => {

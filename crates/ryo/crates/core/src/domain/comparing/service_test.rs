@@ -69,6 +69,7 @@ fn tells_a_name_equal_to_a_text_by_its_hash() -> Result<Value, OperatingError> {
             test,
             left: Operand::Column(column(0)),
             right: Operand::Literal(QueryLiteral::Text(LiteralText("main".into()))),
+            origin: None,
         };
         let operation = Operation::Select {
             from: FROM,
@@ -309,6 +310,7 @@ fn a_function_of_an_unknown_name_is_unlocated() -> Result<Value, OperatingError>
                 arguments: vec![Operand::Column(column(0))],
             }),
             right: Operand::Literal(QueryLiteral::Text(LiteralText(String::new().into()))),
+            origin: None,
         };
         if holds_all(
             &[comparison],

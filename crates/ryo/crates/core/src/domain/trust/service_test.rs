@@ -45,6 +45,7 @@ fn subject(scenario: Input) -> Value {
                     test,
                     left: Operand::Column(ColumnIndex(1)),
                     right: Operand::Literal(QueryLiteral::Text(LiteralText(literal.into()))),
+                    origin: None,
                 }],
             };
             usize::from(matters(&read, &partial(Some(missing))) == Bearing::Matters)

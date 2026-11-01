@@ -1395,9 +1395,9 @@ fn changed_nested_module() -> Result<Value, Failure> {
     let mut second = request(&given);
     second.rules[0].query = bundle("second");
     let world = world(given);
-    world.use_case.lint(first)?;
+    let _first_report = world.use_case.lint(first)?;
     let after_first = world.language.parses.load(Ordering::SeqCst);
-    world.use_case.lint(second)?;
+    let _second_report = world.use_case.lint(second)?;
     let parsed_again = world.language.parses.load(Ordering::SeqCst) > after_first;
     let compiled_twice = world.query.calls.load(Ordering::SeqCst) == 2;
     Ok((usize::from(parsed_again && compiled_twice), 0))
@@ -1406,7 +1406,7 @@ fn changed_nested_module() -> Result<Value, Failure> {
 /// A module-only predicate edit changes actual findings through a retained real compiler plan.
 fn changed_fragment_plan() -> Result<Value, Failure> {
     use super::types::CompiledPlans;
-    use crate::outbound::query_language::adapters::use_case::adapter::QueryLanguageUseCaseAdapter;
+    use crate::outbound::query_language::factory;
     use crate::outbound::query_language::interface::QueryLanguagePort;
 
     let make_bundle = |prefix: &str| {
@@ -1448,15 +1448,15 @@ fn changed_fragment_plan() -> Result<Value, Failure> {
         ),
     );
     let query_language: Arc<dyn QueryLanguagePort> =
-        Arc::new(QueryLanguageUseCaseAdapter::new(compile, typecheck));
+        Arc::new(factory::use_case(compile, typecheck));
     let scheduler: Arc<dyn SchedulerPort> = Arc::new(SchedulerFake::default());
     let mut world = scheduled_world_with_query(given, scheduler, WorkerCount(1), query_language);
     let plans = CompiledPlans::default();
     world.use_case = world.use_case.compiling_into(plans.clone());
 
-    world.use_case.lint(first)?;
+    let _first_report = world.use_case.lint(first)?;
     let first_paths = collected_file_paths(&world);
-    world.use_case.lint(second)?;
+    let _second_report = world.use_case.lint(second)?;
     let second_paths = collected_file_paths(&world);
     let retained = plans
         .0

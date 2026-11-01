@@ -25,16 +25,22 @@ pub(crate) fn link(
     let mut imports = BTreeMap::new();
     let previous_root_imports =
         imports.insert(root_id.clone(), imports_for(&root_id, &root.imports)?);
-    debug_assert!(previous_root_imports.is_none());
+    debug_assert!(
+        previous_root_imports.is_none(),
+        "a root source ID is inserted exactly once"
+    );
     for (id, fragment) in fragments {
         validate_step_names(id, &fragment.steps)?;
         validate_fragment_signature(id, fragment)?;
         let previous_fragment_imports =
             imports.insert(id.clone(), imports_for(id, &fragment.imports)?);
-        debug_assert!(previous_fragment_imports.is_none());
+        debug_assert!(
+            previous_fragment_imports.is_none(),
+            "each fragment source ID is inserted exactly once"
+        );
     }
     validate_import_targets(bundle, &imports)?;
-    reject_cycles(&root_id, &imports, &fragments)?;
+    reject_cycles(&root_id, &imports, fragments)?;
 
     let mut next = root
         .steps
@@ -55,7 +61,7 @@ pub(crate) fn link(
             let mut trace = vec![trace_site(&root_id, &target, import.span)];
             trace.push(trace_site(&root_id, &target, call.span));
             let expanded = expand(
-                &fragments,
+                fragments,
                 &imports,
                 &target,
                 call,

@@ -82,21 +82,6 @@ fn refused(
 ) -> parts::RefusedQuery {
     use ryo_query_language::inbound::use_cases::compile::errors::CompileError;
     let mut origin = None;
-    loop {
-        match error {
-            CompileError::Located {
-                origin: found,
-                error: inner,
-            } => {
-                origin = Some(found);
-                error = *inner;
-            }
-            other => {
-                error = other;
-                break;
-            }
-        }
-    }
     let span = |at: ryo_values::domain::program::types::QuerySpan| Span {
         start: offset(at.start),
         end: offset(at.end),
@@ -105,19 +90,31 @@ fn refused(
         start: Offset(0),
         end: Offset(0),
     };
-    let (kind, message, span) = match error {
-        CompileError::Syntax { span: at, message } => {
-            (parts::RefusedKind::Syntax, message, span(at))
+    let (kind, message, span) = loop {
+        match error {
+            CompileError::Located {
+                origin: found,
+                error: inner,
+            } => {
+                origin = Some(found);
+                error = *inner;
+            }
+            CompileError::Syntax { span: at, message } => {
+                break (parts::RefusedKind::Syntax, message, span(at));
+            }
+            CompileError::UnknownRelation { name, span: at } => {
+                break (parts::RefusedKind::UnknownRelation, name, span(at));
+            }
+            CompileError::Type { span: at, message } => {
+                break (parts::RefusedKind::Type, message, span(at));
+            }
+            CompileError::Invalid { span: at, message } => {
+                break (parts::RefusedKind::Invalid, message, span(at));
+            }
+            CompileError::Catalog { reason } => {
+                break (parts::RefusedKind::Catalog, reason, nowhere);
+            }
         }
-        CompileError::UnknownRelation { name, span: at } => {
-            (parts::RefusedKind::UnknownRelation, name, span(at))
-        }
-        CompileError::Type { span: at, message } => (parts::RefusedKind::Type, message, span(at)),
-        CompileError::Invalid { span: at, message } => {
-            (parts::RefusedKind::Invalid, message, span(at))
-        }
-        CompileError::Catalog { reason } => (parts::RefusedKind::Catalog, reason, nowhere),
-        CompileError::Located { .. } => unreachable!("located errors were unwrapped"),
     };
     parts::RefusedQuery {
         kind,
@@ -133,21 +130,6 @@ fn invalid(
 ) -> parts::RefusedQuery {
     use ryo_query_language::inbound::use_cases::typecheck::errors::TypecheckError;
     let mut origin = None;
-    loop {
-        match error {
-            TypecheckError::Located {
-                origin: found,
-                error: inner,
-            } => {
-                origin = Some(found);
-                error = *inner;
-            }
-            other => {
-                error = other;
-                break;
-            }
-        }
-    }
     let span = |at: ryo_values::domain::program::types::QuerySpan| Span {
         start: offset(at.start),
         end: offset(at.end),
@@ -156,19 +138,31 @@ fn invalid(
         start: Offset(0),
         end: Offset(0),
     };
-    let (kind, message, span) = match error {
-        TypecheckError::Syntax { span: at, message } => {
-            (parts::RefusedKind::Syntax, message, span(at))
+    let (kind, message, span) = loop {
+        match error {
+            TypecheckError::Located {
+                origin: found,
+                error: inner,
+            } => {
+                origin = Some(found);
+                error = *inner;
+            }
+            TypecheckError::Syntax { span: at, message } => {
+                break (parts::RefusedKind::Syntax, message, span(at));
+            }
+            TypecheckError::UnknownRelation { name, span: at } => {
+                break (parts::RefusedKind::UnknownRelation, name, span(at));
+            }
+            TypecheckError::Type { span: at, message } => {
+                break (parts::RefusedKind::Type, message, span(at));
+            }
+            TypecheckError::Invalid { span: at, message } => {
+                break (parts::RefusedKind::Invalid, message, span(at));
+            }
+            TypecheckError::Catalog { reason } => {
+                break (parts::RefusedKind::Catalog, reason, nowhere);
+            }
         }
-        TypecheckError::UnknownRelation { name, span: at } => {
-            (parts::RefusedKind::UnknownRelation, name, span(at))
-        }
-        TypecheckError::Type { span: at, message } => (parts::RefusedKind::Type, message, span(at)),
-        TypecheckError::Invalid { span: at, message } => {
-            (parts::RefusedKind::Invalid, message, span(at))
-        }
-        TypecheckError::Catalog { reason } => (parts::RefusedKind::Catalog, reason, nowhere),
-        TypecheckError::Located { .. } => unreachable!("located errors were unwrapped"),
     };
     parts::RefusedQuery {
         kind,

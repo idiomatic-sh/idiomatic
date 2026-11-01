@@ -11,6 +11,7 @@ use crate::outbound::query_language::errors::QueryLanguageError;
 use crate::outbound::query_language::fixtures::contract::CASES as CONTRACT;
 use crate::outbound::query_language::interface::QueryLanguagePort as _;
 use ryo_values::domain::plan_parts::types::QueryText;
+use ryo_values::domain::program::types::QueryBundle;
 
 type Input = QueryText;
 type Value = bool;
@@ -62,11 +63,11 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 /// Calls the adapter on one input, for the contract's rows and for its own.
 fn subject(text: &Input) -> Result<Value, Failure> {
-    compile_query(text).map(|_| true)
+    compile_query(&QueryBundle::from(text.clone())).map(|_| true)
 }
 
 /// Uses the real parser and lowering pipeline, including raw string-literal handling.
-fn compile_query(text: &Input) -> Result<ryo_values::domain::plans::types::Plan, Failure> {
+fn compile_query(bundle: &QueryBundle) -> Result<ryo_values::domain::plans::types::Plan, Failure> {
     let compile = Arc::new(CompileUseCaseImpl::new(
         Arc::new(ryo_query_language::outbound::syntax::factory::winnow()),
         Arc::new(ryo_query_language::outbound::catalog::factory::language()),
@@ -75,10 +76,7 @@ fn compile_query(text: &Input) -> Result<ryo_values::domain::plans::types::Plan,
         Arc::new(ryo_query_language::outbound::syntax::factory::winnow()),
         Arc::new(ryo_query_language::outbound::catalog::factory::language()),
     ));
-    QueryLanguageUseCaseAdapter::new(compile, typecheck).compile(
-        &ryo_values::domain::program::types::QueryBundle::from(text.clone()),
-        &[],
-    )
+    QueryLanguageUseCaseAdapter::new(compile, typecheck).compile(bundle, &[])
 }
 
 /// Raw query backslashes must reach the regex evaluator unchanged.
@@ -107,7 +105,7 @@ fn regex_evaluated(text: &Input) -> Result<Value, Failure> {
     use crate::domain::table_texts::types::{Datum, TextView};
     use ryo_values::domain::plan_parts::types::{Operand, QueryLiteral, Test};
     use ryo_values::domain::plans::types::Operation;
-    let plan = compile_query(text)?;
+    let plan = compile_query(&QueryBundle::from(text.clone()))?;
     let patterns: Vec<_> = plan
         .steps
         .iter()
@@ -164,7 +162,9 @@ fn uncompiled() -> usize {
 
 #[test]
 fn succeeds() {
-    run(CONTRACT, Word::Succeeds, |text| subject(&text));
+    run(CONTRACT, Word::Succeeds, |bundle| {
+        compile_query(&bundle).map(|_| true)
+    });
     run(CASES, Word::Succeeds, |text| subject(&text));
     run(EXAMPLES, Word::Succeeds, |()| Ok(uncompiled()));
     run(REGEX, Word::Succeeds, |text| regex_evaluated(&text));
@@ -172,6 +172,8 @@ fn succeeds() {
 
 #[test]
 fn refuses() {
-    run(CONTRACT, Word::Refuses, |text| subject(&text));
+    run(CONTRACT, Word::Refuses, |bundle| {
+        compile_query(&bundle).map(|_| true)
+    });
     run(CASES, Word::Refuses, |text| subject(&text));
 }

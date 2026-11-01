@@ -41,6 +41,7 @@ fn named(column: u32, test: Test, literal: &str) -> Comparison {
         test,
         left: Operand::Column(ColumnIndex(column)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText(literal.into()))),
+        origin: None,
     }
 }
 

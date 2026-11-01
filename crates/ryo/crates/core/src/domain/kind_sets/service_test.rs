@@ -46,6 +46,7 @@ fn compared(test: Test, place: u32, literal: &str) -> Comparison {
         test,
         left: Operand::Column(column(place)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText(literal.into()))),
+        origin: None,
     }
 }
 

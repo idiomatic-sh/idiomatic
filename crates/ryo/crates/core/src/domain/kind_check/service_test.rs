@@ -105,17 +105,21 @@ fn an_unknown_kind_keeps_the_origin_from_its_own_plan_table() {
         KindSite::Select,
     );
     other_plan.comparison_origins.push(other_origin.clone());
-    let Operation::Select { comparisons, .. } = &mut other_plan.steps[0].operation else {
+    let Operation::Select {
+        comparisons: other_comparisons,
+        ..
+    } = &mut other_plan.steps[0].operation
+    else {
         panic!("the test plan uses a select");
     };
-    comparisons[0].origin = Some(ComparisonOriginId(0));
+    other_comparisons[0].origin = Some(ComparisonOriginId(0));
 
     assert_eq!(
-        refusal(&plan, &KindVocabularies::default()).unwrap().1,
+        refusal(&plan, &KindVocabularies(Vec::new())).unwrap().1,
         Some(origin)
     );
     assert_eq!(
-        refusal(&other_plan, &KindVocabularies::default())
+        refusal(&other_plan, &KindVocabularies(Vec::new()))
             .unwrap()
             .1,
         Some(other_origin)

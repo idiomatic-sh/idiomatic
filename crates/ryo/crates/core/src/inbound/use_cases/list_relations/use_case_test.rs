@@ -31,8 +31,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("lists_every_relation_ryo_owns"),
         word: Word::Succeeds,
         input: || working_catalog,
-        expect: Expect::Value(40),
-        expect: Expect::Value(43),
+        expect: Expect::Value(45),
     },
     Case {
         name: CaseName("fails_when_language_port_fails"),
