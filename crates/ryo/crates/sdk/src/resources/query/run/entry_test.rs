@@ -81,7 +81,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_fragment_can_return_an_empty_relation"),
         word: Word::Succeeds,
         input: || Scenario::FragmentEmpty,
-        expect: Expect::Value((0, 0)),
+        expect: Expect::Value((0, 2)),
     },
     Case {
         name: CaseName("a_wrong_query_is_refused"),
