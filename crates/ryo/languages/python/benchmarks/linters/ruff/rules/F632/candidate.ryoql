@@ -20,7 +20,7 @@ let comparator_operand_ids = select parent as comparison, child as operand from 
 let all_operand_ids = union(left=left_operand_ids, right=comparator_operand_ids);
 let operands = select l.comparison as comparison, l.operand as operand, r.file as file, s."start-byte" as begin, s."end-byte" as finish from all_operand_ids as l join "semantic-syntax" as r on l.operand = r.id join "source-location" as s on l.operand = s.id;
 let operator_fields = select parent, child from "semantic-child" where field = "ops";
-let identity_ops = select id, file from "semantic-syntax" where text = "is" or text = "is not";
+let identity_ops = select id, file from "semantic-syntax" where text = "is" or kind = "is" or kind = "is-not";
 let identity_comparisons = select l.parent as comparison, l.child as operator, r.file as file from operator_fields as l join identity_ops as r on l.child = r.id;
 let identity_positions = select l.comparison as comparison, l.operator as operator, l.file as file, r."start-byte" as begin, r."end-byte" as finish from identity_comparisons as l join "source-location" as r on l.operator = r.id and l.file = r.file;
 let possible_left = select l.comparison as comparison, l.operator as operator, r.operand as operand, r.finish as finish, r.file as file from identity_positions as l join operands as r on l.comparison = r.comparison and l.file = r.file where r.finish <= l.begin;
