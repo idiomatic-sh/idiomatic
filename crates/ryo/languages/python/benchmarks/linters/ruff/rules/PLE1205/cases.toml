@@ -1,0 +1,65 @@
+[[cases]]
+name = "too-many-positional"
+comparison = "full"
+files = { "case.py" = "import logging\nlogging.error(\"%s\", \"value\", 1)\n" }
+expected = [{ rule = "PLE1205", file = "case.py", start = 15, end = 28 }]
+
+[[cases]]
+name = "too-many-after-format"
+comparison = "full"
+files = { "case.py" = "import logging\nlogging.error(\"%s %s\", \"value\", 1, 2)\n" }
+expected = [{ rule = "PLE1205", file = "case.py", start = 15, end = 28 }]
+
+[[cases]]
+name = "percent-no-conversion"
+comparison = "full"
+files = { "case.py" = "import logging\nlogging.error(\"%%\", \"value\")\n" }
+expected = [{ rule = "PLE1205", file = "case.py", start = 15, end = 28 }]
+
+[[cases]]
+name = "mapping-format-count"
+comparison = "full"
+files = { "case.py" = "import logging\nlogging.error(\"%(name)s\", {\"name\": \"x\"}, 1)\n" }
+expected = []
+
+[[cases]]
+name = "direct-import-alias"
+comparison = "full"
+files = { "case.py" = "from logging import error as log_error\nlog_error(\"%s\", \"x\", \"extra\")\n" }
+expected = [{ rule = "PLE1205", file = "case.py", start = 39, end = 48 }]
+
+[[cases]]
+name = "module-alias"
+comparison = "full"
+files = { "case.py" = "import logging as log\nlog.error(\"%s\", \"x\", \"extra\")\n" }
+expected = [{ rule = "PLE1205", file = "case.py", start = 22, end = 31 }]
+
+[[cases]]
+name = "exact-positional-count"
+comparison = "full"
+files = { "case.py" = "import logging\nlogging.error(\"%s\", \"x\")\n" }
+expected = []
+
+[[cases]]
+name = "star-args-abort"
+comparison = "full"
+files = { "case.py" = "import logging\nlogging.error(\"%s\", *args)\n" }
+expected = []
+
+[[cases]]
+name = "star-keyword-abort"
+comparison = "full"
+files = { "case.py" = "import logging\nlogging.error(\"%s\", **kwargs)\n" }
+expected = []
+
+[[cases]]
+name = "not-a-logging-call"
+comparison = "full"
+files = { "case.py" = "def error(*args):\n    pass\nerror(\"%s\", \"x\", 1)\n" }
+expected = []
+
+[[cases]]
+name = "dynamic-format"
+comparison = "full"
+files = { "case.py" = "import logging\nlogging.error(fmt, \"x\", 1)\n" }
+expected = []

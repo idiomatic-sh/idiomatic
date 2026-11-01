@@ -1,0 +1,65 @@
+[[cases]]
+name = "too-few-positional"
+comparison = "full"
+files = { "case.py" = "import logging\nlogging.error(\"%s %s\", \"value\")\n" }
+expected = [{ rule = "PLE1206", file = "case.py", start = 15, end = 28 }]
+
+[[cases]]
+name = "too-few-two-missing"
+comparison = "full"
+files = { "case.py" = "import logging\nlogging.error(\"%s %s %s\", \"value\")\n" }
+expected = [{ rule = "PLE1206", file = "case.py", start = 15, end = 28 }]
+
+[[cases]]
+name = "exact-positional-count"
+comparison = "full"
+files = { "case.py" = "import logging\nlogging.error(\"%s\", \"value\")\n" }
+expected = []
+
+[[cases]]
+name = "too-many-positional"
+comparison = "full"
+files = { "case.py" = "import logging\nlogging.error(\"%s\", \"value\", 1)\n" }
+expected = []
+
+[[cases]]
+name = "zero-message-arguments"
+comparison = "full"
+files = { "case.py" = "import logging\nlogging.error(\"%s\")\n" }
+expected = []
+
+[[cases]]
+name = "keyword-prevents-too-few"
+comparison = "full"
+files = { "case.py" = "import logging\nlogging.error(\"%s %s\", \"value\", extra={})\n" }
+expected = []
+
+[[cases]]
+name = "star-args-abort"
+comparison = "full"
+files = { "case.py" = "import logging\nlogging.error(\"%s %s\", *args)\n" }
+expected = []
+
+[[cases]]
+name = "star-keyword-abort"
+comparison = "full"
+files = { "case.py" = "import logging\nlogging.error(\"%s %s\", **kwargs)\n" }
+expected = []
+
+[[cases]]
+name = "module-alias"
+comparison = "full"
+files = { "case.py" = "import logging as log\nlog.error(\"%s %s\", \"value\")\n" }
+expected = [{ rule = "PLE1206", file = "case.py", start = 22, end = 31 }]
+
+[[cases]]
+name = "nonlogging-function"
+comparison = "full"
+files = { "case.py" = "print(\"%s %s\", \"value\")\n" }
+expected = []
+
+[[cases]]
+name = "dynamic-format"
+comparison = "full"
+files = { "case.py" = "import logging\nlogging.error(fmt, \"value\")\n" }
+expected = []

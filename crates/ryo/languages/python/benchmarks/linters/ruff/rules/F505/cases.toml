@@ -1,0 +1,47 @@
+[[cases]]
+name = "missing-mapping-key"
+comparison = "full"
+files = { "case.py" = "\"%(name)s\" % {\"other\": 1}\n" }
+expected = [{ rule = "F505", file = "case.py", start = 0, end = 25 }]
+
+[[cases]]
+name = "all-mapping-keys-present"
+comparison = "full"
+files = { "case.py" = "\"%(name)s %(other)s\" % {\"name\": 1, \"other\": 2}\n" }
+expected = []
+
+[[cases]]
+name = "repeated-missing-key"
+comparison = "full"
+files = { "case.py" = "\"%(name)s %(name)s\" % {\"other\": 1}\n" }
+expected = [{ rule = "F505", file = "case.py", start = 0, end = 34 }]
+
+[[cases]]
+name = "dynamic-key"
+comparison = "full"
+files = { "case.py" = "\"%(name)s\" % {key: value}\n" }
+expected = []
+
+[[cases]]
+name = "dictionary-spread"
+comparison = "full"
+files = { "case.py" = "\"%(name)s\" % {**values}\n" }
+expected = []
+
+[[cases]]
+name = "extra-mapping-key-only"
+comparison = "full"
+files = { "case.py" = "\"%(name)s\" % {\"name\": 1, \"extra\": 2}\n" }
+expected = []
+
+[[cases]]
+name = "positional-conversion"
+comparison = "full"
+files = { "case.py" = "\"%s\" % {\"name\": 1}\n" }
+expected = []
+
+[[cases]]
+name = "dynamic-format"
+comparison = "full"
+files = { "case.py" = "format_value % {\"other\": 1}\n" }
+expected = []
