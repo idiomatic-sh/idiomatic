@@ -390,6 +390,10 @@ impl Project for ProjectContract {
         languages::reads_manifests::<SourceDependencyItem>()
     }
 
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, Linked>> {
+        languages::absent(languages::AbsenceCause::NotYetRead)
+    }
+
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, Linked>> {
         languages::reads_manifests::<FilePackageItem>()
     }

@@ -36,6 +36,8 @@ pub fn check(adapter: &impl EnginePort) {
     let subject = |()| {
         adapter
             .run(WorkerRequest {
+                project_context_mode: Default::default(),
+                context_manifest: None,
                 root: temporary.path().into(),
                 rules: temporary.path().into(),
                 query_modules: std::collections::BTreeMap::default(),

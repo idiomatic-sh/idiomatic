@@ -157,6 +157,7 @@ pub const UNLOCATED: &str = "unlocated";
 
 /// The closed set of optional semantic promises; every other relation is baseline.
 pub const OPTIONAL_CAPABILITIES: &[super::types::OptionalCapability] = &[
+    super::types::OptionalCapability::ModuleIdentity,
     super::types::OptionalCapability::Identifier,
     super::types::OptionalCapability::QualifiedName,
     super::types::OptionalCapability::EmbeddedExpression,
@@ -178,4 +179,5 @@ pub const OPTIONAL_CAPABILITIES: &[super::types::OptionalCapability] = &[
     super::types::OptionalCapability::ExpressionType,
     super::types::OptionalCapability::RawFormatSegment,
     super::types::OptionalCapability::RawFormatField,
+    super::types::OptionalCapability::LiteralExpressionParse,
 ];

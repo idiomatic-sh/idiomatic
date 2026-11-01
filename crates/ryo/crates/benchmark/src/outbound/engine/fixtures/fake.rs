@@ -14,6 +14,7 @@ impl EnginePort for EngineFake {
             return Err(Error::Invalid("no candidate queries".into()));
         }
         Ok(RunReport {
+            project_context: None,
             files: request.files,
             skipped: Vec::new(),
             coverage: None,

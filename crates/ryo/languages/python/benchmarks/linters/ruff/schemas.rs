@@ -140,6 +140,7 @@ impl TryFrom<RuffReportSchema<'_>> for RunReport {
             });
         }
         Ok(RunReport {
+            project_context: None,
             diagnostics,
             skipped: Vec::new(),
             coverage: None,

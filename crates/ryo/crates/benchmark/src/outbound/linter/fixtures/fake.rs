@@ -27,10 +27,11 @@ impl LinterPort for LinterFake {
         })
     }
     fn decode(&self, request: &RunRequest, output: ProcessOutput) -> Result<RunReport, Error> {
-        if output.status.0 > 1_i32 {
+        if output.signal.is_some() || !(0_i32..=1_i32).contains(&output.status.0) {
             return Err(Error::Invalid("operational failure".into()));
         }
         Ok(RunReport {
+            project_context: None,
             files: request.files.clone(),
             skipped: Vec::new(),
             coverage: None,

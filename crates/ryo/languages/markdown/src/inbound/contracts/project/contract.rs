@@ -55,6 +55,10 @@ impl Project for ProjectContract {
         languages::absent(AbsenceCause::NoManifests)
     }
 
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(languages::AbsenceCause::NotYetRead)
+    }
+
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
         // standard: mdast.md and micromark-util-types.d.ts: neither defines a project manifest; a Markdown file is a document, not a package.
         languages::absent(AbsenceCause::NoManifests)

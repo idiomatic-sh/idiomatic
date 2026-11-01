@@ -206,3 +206,9 @@ name="scope-policy-25"
 comparison="full"
 files={"case.py"="def f():\n    x:int\n    global x\n"}
 expected=[{rule="invalid-syntax", file="case.py", start=13, end=14}, {rule="PLE0118", file="case.py", start=13, end=14}]
+
+[[cases]]
+name="context-class-header-walrus-is-not-body-global"
+comparison="full"
+files={"case.py"="from dataclasses import dataclass\nfrom functools import cache\nfrom enum import Enum\nclass Base(Enum): ...\nclass Middle(Base): ...\n@dataclass\nclass Subject(Middle,metaclass=(Base:=unknown)):\n    global Base\n    @cache\n    def method(self): return 1\n"}
+expected=[]

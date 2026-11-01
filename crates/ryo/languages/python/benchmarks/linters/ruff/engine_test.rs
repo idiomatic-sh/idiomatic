@@ -154,6 +154,8 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
         std::fs::write(root.path().join(file), source_for(scenario))?;
     }
     let request = WorkerRequest {
+        project_context_mode: Default::default(),
+        context_manifest: None,
         root: root.path().to_owned(),
         rules,
         query_modules: suppress_modules(),
@@ -182,6 +184,8 @@ fn rejected_syntax_with_provider_partials_skips_only_accepted_syntax_rules() -> 
     }
     std::fs::write(root.path().join("input.py"), "value = ur\"hello\"\n")?;
     let request = WorkerRequest {
+        project_context_mode: Default::default(),
+        context_manifest: None,
         root: root.path().to_owned(),
         rules,
         query_modules: BTreeMap::default(),
@@ -473,6 +477,8 @@ fn projection_cache_query_change(root: &std::path::Path) -> Result<Value, Error>
         source_for(EngineScenario::ProjectionCacheQueryChange),
     )?;
     let request = WorkerRequest {
+        project_context_mode: Default::default(),
+        context_manifest: None,
         root: root.to_owned(),
         rules,
         query_modules: suppress_modules(),
@@ -528,6 +534,8 @@ fn query_module_inline_equivalence(root: &std::path::Path) -> Result<bool, Error
     std::fs::write(rule_dir.join("query.ryoql"), inline)?;
     let languages = ryo::linter::Languages(vec![ryo_python::linked()]);
     let plain = factory::local(languages.clone(), None).run(WorkerRequest {
+        project_context_mode: Default::default(),
+        context_manifest: None,
         root: root.into(),
         rules: rules.clone(),
         query_modules: BTreeMap::default(),
@@ -555,6 +563,8 @@ fn query_module_inline_equivalence(root: &std::path::Path) -> Result<bool, Error
         std::path::PathBuf::from("fragments/identity.ryoql"),
     );
     let imported = factory::local(languages, None).run(WorkerRequest {
+        project_context_mode: Default::default(),
+        context_manifest: None,
         root: root.into(),
         rules,
         query_modules: modules,
@@ -642,6 +652,8 @@ fn target_configuration_cache_change(root: &std::path::Path) -> Result<bool, Err
         None,
     )
     .run(WorkerRequest {
+        project_context_mode: Default::default(),
+        context_manifest: None,
         root: root.to_owned(),
         rules: rules.clone(),
         query_modules: query_modules.clone(),
@@ -665,6 +677,8 @@ fn target_configuration_cache_change(root: &std::path::Path) -> Result<bool, Err
             None,
         );
         engine.run(WorkerRequest {
+            project_context_mode: Default::default(),
+            context_manifest: None,
             root: root.to_owned(),
             rules: rules.clone(),
             query_modules: query_modules.clone(),
@@ -795,6 +809,8 @@ fn shared_suppression_fragment_matches_the_historical_inline_queries() -> Result
         std::fs::write(&module, include_str!("fragments/suppress.ryoql"))?;
         let state = ryo_benchmark::domain::suite::types::WorkerState::Fresh;
         let inline = inline_engine.run(WorkerRequest {
+            project_context_mode: Default::default(),
+            context_manifest: None,
             root: case.request.root,
             rules: inline_rules.clone(),
             query_modules: BTreeMap::default(),
@@ -804,6 +820,8 @@ fn shared_suppression_fragment_matches_the_historical_inline_queries() -> Result
             state,
         })?;
         let fragmented = imported_engine.run(WorkerRequest {
+            project_context_mode: Default::default(),
+            context_manifest: None,
             root: imported.request.root.clone(),
             rules: imported_rules.clone(),
             query_modules: registry.clone(),
@@ -883,6 +901,8 @@ fn assert_single_rule_fragment_equivalence(
             .get(&key)
             .ok_or_else(|| Error::Invalid(format!("missing imported case for {key:?}")))?;
         let inline = inline_engine.run(WorkerRequest {
+            project_context_mode: Default::default(),
+            context_manifest: None,
             root: case.request.root,
             rules: inline_parent.to_path_buf(),
             query_modules: BTreeMap::default(),
@@ -892,6 +912,8 @@ fn assert_single_rule_fragment_equivalence(
             state: ryo_benchmark::domain::suite::types::WorkerState::Fresh,
         })?;
         let fragmented = imported_engine.run(WorkerRequest {
+            project_context_mode: Default::default(),
+            context_manifest: None,
             root: imported_case.request.root.clone(),
             rules: imported_parent.to_path_buf(),
             query_modules: BTreeMap::from([(
@@ -928,6 +950,8 @@ fn literal_properties_reach_engine_queries_for_true_and_false_boolean_nodes() ->
     std::fs::write(root.path().join("true.py"), "value = True\n")?;
     std::fs::write(root.path().join("false.py"), "value = False\n")?;
     let report = factory::local(python_310(), None).run(WorkerRequest {
+        project_context_mode: Default::default(),
+        context_manifest: None,
         root: root.path().to_owned(),
         rules,
         query_modules: BTreeMap::default(),
@@ -969,3 +993,6 @@ fn refuses() {
 fn fails() {
     run(CASES, Word::Fails, subject);
 }
+
+#[path = "project_context_test.rs"]
+mod project_context;

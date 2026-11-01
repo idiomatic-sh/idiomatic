@@ -31,6 +31,8 @@ pub struct Invocation {
 /// Captured child exit status, byte streams and elapsed wall time.
 #[derive(Clone, Debug)]
 pub struct ProcessOutput {
+    /// Unix terminating signal, absent for numeric exits and non-Unix platforms.
+    pub signal: Option<i32>,
     /// Numeric process exit status.
     pub status: ProcessExitCode,
     /// Raw bytes captured from standard output.

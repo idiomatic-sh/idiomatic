@@ -80,6 +80,7 @@ impl Parse for ParseContract {
 
     fn capabilities(&self) -> &'static [languages::OptionalCapability] {
         &[
+            languages::OptionalCapability::ModuleIdentity,
             languages::OptionalCapability::Identifier,
             languages::OptionalCapability::QualifiedName,
             languages::OptionalCapability::EmbeddedExpression,
@@ -96,6 +97,7 @@ impl Parse for ParseContract {
             languages::OptionalCapability::FormatField,
             languages::OptionalCapability::RawFormatSegment,
             languages::OptionalCapability::RawFormatField,
+            languages::OptionalCapability::LiteralExpressionParse,
             languages::OptionalCapability::BraceFormatParse,
             languages::OptionalCapability::BraceFormatField,
             languages::OptionalCapability::LanguageTarget,
@@ -114,6 +116,9 @@ impl Parse for ParseContract {
         crate::domain::constant_keys::service::clear(model.constant_keys.get_mut());
         crate::domain::format_parsing::service::clear(model.format_parsing.get_mut());
         crate::domain::raw_format::service::clear(model.raw_format.get_mut());
+        crate::domain::literal_expression_parsing::service::clear(
+            model.literal_expression_parsing.get_mut(),
+        );
         crate::domain::brace_format::service::clear(model.brace_format.get_mut());
         crate::domain::expression_types::service::clear(model.expression_types.get_mut());
         crate::domain::terminal_flow::service::clear(model.terminal_flow.get_mut());
@@ -261,6 +266,12 @@ impl Parse for ParseContract {
 
     fn format_parse(&self) -> Support<Reader<languages::FormatParse, Self::FileModel>> {
         languages::reads::<super::format_readers::FormatParseItem>()
+    }
+
+    fn literal_expression_parse(
+        &self,
+    ) -> Support<Reader<languages::LiteralExpressionParse, Self::FileModel>> {
+        languages::reads::<super::literal_expression_readers::LiteralExpressionParseItem>()
     }
 
     fn raw_format_segment(&self) -> Support<Reader<languages::RawFormatSegment, Self::FileModel>> {

@@ -1,3 +1,5 @@
+# Ruff 0.16.5 source acceptance cohort: pinned full-report outputs for the
+# canonical cases. The platform executable list is copied from the shipped profile.
 # Shipped defaults independently matched to tagged upstream DEFAULT_SELECTORS:
 # https://github.com/astral-sh/ruff/blob/0.16.5/crates/ruff_linter/src/settings/mod.rs
 # Native executable pins extracted from official Ruff 0.16.5 wheels after checking
@@ -23,3 +25,8 @@ sha256 = [
   "29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e",
 ]
 defaults = ["PYI016"]
+parser-configuration = "python-target=3.10"
+
+[query-modules]
+"python/ruff/suppress"="fragments/suppress.ryoql"
+"python/ruff/type-definition-context"="fragments/type-definition-context.ryoql"

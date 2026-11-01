@@ -1,6 +1,6 @@
 input ordered_contexts: relation<context: node, initial_scope: node, point: number, header_point: number, stage: number, file: file>;
 input expressions: relation<id: node, file: file>;
-output relation<context: node, expression: node, occurrence: node, kind: symbol, file: file>;
+output relation<context: node, expression: node, occurrence: node, scope: node, kind: symbol, file: file>;
 let nodes = select id, kind, file, span from "semantic-syntax";
 let classes = select id, file from nodes where kind = "class-def";
 let attributes = select id, file from nodes where kind = "attribute";
@@ -108,5 +108,5 @@ let last_bindings = union(left=unchanged_last_bindings, right=restored_bindings)
 let competing_scopes = select l.context as context, l.expression as expression, l.definition as definition, l.lookup_scope as farther, r.lookup_scope as closer, l.file as file from last_bindings as l join last_bindings as r on l.context = r.context and l.expression = r.expression and l.file = r.file where l.lookup_scope != r.lookup_scope;
 let farther_bindings = select l.context as context, l.expression as expression, l.definition as definition, l.file as file from competing_scopes as l join scope_paths as r on l.closer = r.origin and l.farther = r.destination and l.file = r.file;
 let nearest_bindings = antijoin(left=last_bindings,right=farther_bindings,left-on=["context","expression","definition","file"],right-on=["context","expression","definition","file"]);
-let results = select context, expression, definition as occurrence, kind, file from nearest_bindings;
+let results = select context, expression, definition as occurrence, lookup_scope as scope, kind, file from nearest_bindings;
 return results;

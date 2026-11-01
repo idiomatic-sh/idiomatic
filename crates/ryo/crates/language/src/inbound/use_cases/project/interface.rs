@@ -17,9 +17,7 @@ macro_rules! manifest_methods {
     ) => {
         $(
             #[doc = stringify!($module)]
-            fn $module(
-                &self,
-            ) -> Support<ManifestReader<$crate::domain::relations::collections::relations::$module::item::$variant, Self::Derived>>;
+            fn $module(&self) -> Support<ManifestReader<$crate::domain::relations::collections::relations::$module::item::$variant, Self::Derived>>;
         )*
     };
 }

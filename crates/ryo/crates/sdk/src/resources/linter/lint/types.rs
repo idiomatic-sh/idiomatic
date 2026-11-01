@@ -313,6 +313,8 @@ pub enum Port {
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct LintReport {
+    /// Required project lookups, reported also when the project was reused from cache.
+    pub dependencies: Vec<ProjectDependency>,
     /// Every violation found.
     pub findings: Vec<Finding>,
     /// The files no linked language read, with why.
@@ -321,6 +323,28 @@ pub struct LintReport {
     pub unknowns: Vec<Unknown>,
     /// Rules explicitly skipped because a file's syntax was rejected.
     pub skipped: Vec<Skipped>,
+}
+
+/// An opaque project dependency content fingerprint. Use `dependency_fingerprint` to compare bytes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct DependencyFingerprint(pub [u8; 16]);
+
+/// One file the project examined, whether present or absent.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ProjectDependency {
+    /// Path from the run root, possibly containing `../`.
+    pub path: RelativePath,
+    /// The observed bytes' fingerprint, or an explicitly missing file.
+    pub state: ProjectDependencyState,
+}
+
+/// State of a required project lookup.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ProjectDependencyState {
+    /// Content fingerprint supplied by the engine's digest adapter.
+    Present(DependencyFingerprint),
+    /// The path was examined and no file was present.
+    Missing,
 }
 
 /// A rule the engine did not run for a file because its applicability condition was not met.

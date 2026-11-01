@@ -66,6 +66,9 @@ impl From<InvocationSchema> for Invocation {
 #[serde(deny_unknown_fields)]
 /// Completed child observation with exact resource units.
 struct ObservationSchema {
+    /// Unix termination signal, independent of numeric exit status.
+    #[serde(default)]
+    signal: Option<i32>,
     /// Child exit status, including the agreed signal encoding.
     status: i32,
     /// Captured standard output bytes without text decoding.
@@ -82,6 +85,7 @@ struct ObservationSchema {
 impl From<ObservationSchema> for ProcessOutput {
     fn from(output: ObservationSchema) -> Self {
         Self {
+            signal: output.signal,
             status: ProcessExitCode(output.status),
             stdout: CapturedBytes(output.stdout),
             stderr: CapturedBytes(output.stderr),

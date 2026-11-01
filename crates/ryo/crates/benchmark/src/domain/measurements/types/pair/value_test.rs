@@ -17,6 +17,7 @@ fn succeeds() {
             wall: std::time::Duration::from_millis(milliseconds),
             resources: ResourceObservation::WallOnly,
             report: crate::domain::diagnostics::types::RunReport {
+                project_context: None,
                 files: vec![],
                 skipped: Vec::new(),
                 coverage: None,

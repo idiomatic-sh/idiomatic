@@ -1,7 +1,7 @@
 //! The rows the manifest relations must give for the project in `manifests/workspace/`.
 
 use ryo::languages::contract::{
-    AnalyzedSourceExpectedRow, FilePackageExpectedRow, ManifestExpected,
+    AnalyzedSourceExpectedRow, FilePackageExpectedRow, ManifestExpected, ModuleIdentityExpectedRow,
     PackageDependencyExpectedRow, SourceDependencyExpectedRow, WorkspaceMemberExpectedRow, file,
     name, span, unknown,
 };
@@ -13,6 +13,16 @@ use ryo::languages::contract::{
 )]
 pub(super) fn expected() -> ManifestExpected {
     ManifestExpected::of("workspace")
+        .rows(&[
+            ModuleIdentityExpectedRow {
+                file: file("packages/lib_one/src/lib_one/__init__.py"),
+                path: name("lib_one.__init__"),
+            },
+            ModuleIdentityExpectedRow {
+                file: file("packages/lib_one/src/lib_one/workers.py"),
+                path: name("lib_one.workers"),
+            },
+        ])
         .rows(&[
             AnalyzedSourceExpectedRow {
                 path: file("app.py"),

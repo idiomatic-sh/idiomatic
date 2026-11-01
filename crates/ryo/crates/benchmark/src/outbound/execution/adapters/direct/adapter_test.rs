@@ -22,3 +22,27 @@ fn subject(_: Input) -> Result<Value, Failure> {
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
 }
+
+/// A real signaled child still has native observations and streams.
+#[cfg(target_os = "linux")]
+#[test]
+fn signaled_child_retains_native_resources() -> Result<(), Box<dyn std::error::Error>> {
+    use crate::domain::measurements::types::{Invocation, ResourceObservation};
+    use crate::outbound::execution::interface::ExecutionPort as _;
+    let output = crate::outbound::execution::factory::direct().run(Invocation {
+        executable: "/bin/sh".into(),
+        arguments: vec!["-c".into(), "printf partial; kill -TERM $$".into()],
+        environment: Default::default(),
+        directory: ".".into(),
+    })?;
+    assert_eq!(output.signal, Some(15));
+    assert_eq!(output.status.0, -15);
+    assert_eq!(output.stdout.0, b"partial");
+    assert!(!output.wall.is_zero());
+    let ResourceObservation::Collected(resources) = output.resources else {
+        return Err("native resources absent".into());
+    };
+    assert!(resources.peak_rss_bytes.0 > 0);
+    assert!(resources.cpu <= output.wall);
+    Ok(())
+}

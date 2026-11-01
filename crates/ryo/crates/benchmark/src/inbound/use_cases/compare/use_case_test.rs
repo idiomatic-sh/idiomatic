@@ -27,6 +27,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 ];
 fn matching() -> Input {
     let report = RunReport {
+        project_context: None,
         files: vec![ryo::linter::RelativePath("input.txt".into())],
         skipped: Vec::new(),
         coverage: None,

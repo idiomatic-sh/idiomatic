@@ -19,6 +19,10 @@ pub(super) enum WorkerSchemaError {
 #[serde(deny_unknown_fields)]
 /// Explicit candidate invocation at the JSON process boundary.
 struct RequestSchema {
+    #[serde(default)]
+    project_context_mode: crate::outbound::context::adapters::local::schemas::ModeSchema,
+    #[serde(default)]
+    context_manifest: Option<crate::outbound::context::adapters::local::schemas::ManifestSchema>,
     /// Project root against which explicit file paths are resolved.
     root: PathBuf,
     /// Directory containing the selected RyoQL rule definitions.
@@ -40,6 +44,8 @@ struct RequestSchema {
 impl From<RequestSchema> for WorkerRequest {
     fn from(request: RequestSchema) -> Self {
         Self {
+            project_context_mode: request.project_context_mode.into(),
+            context_manifest: request.context_manifest.map(Into::into),
             root: request.root,
             rules: request.rules,
             query_modules: request.query_modules,
@@ -60,6 +66,8 @@ impl From<RequestSchema> for WorkerRequest {
 #[derive(Debug, Serialize)]
 /// Candidate findings and exact covered file set.
 struct ReportSchema<'a> {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    project_context: Option<crate::outbound::context::adapters::local::schemas::ReceiptSchema>,
     /// Reported findings, preserving multiplicity and source offsets.
     diagnostics: Vec<DiagnosticSchema<'a>>,
     /// Typed syntax-applicability skips, kept distinct from empty results.
@@ -113,6 +121,7 @@ pub(super) fn request(payload: &OsStr) -> Result<WorkerRequest, WorkerSchemaErro
 /// Serialize findings and complete input coverage without deduplication.
 pub(super) fn report(report: &RunReport) -> Result<WorkerResponseBytes, WorkerSchemaError> {
     let wire = ReportSchema {
+        project_context: report.project_context.clone().map(Into::into),
         files: report.files.iter().map(|path| path.0.as_ref()).collect(),
         diagnostics: report
             .diagnostics

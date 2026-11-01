@@ -17,7 +17,13 @@ fn classifies_literals_unions_unknowns_and_type_errors() {
         .iter()
         .filter_map(|row| match row[2] {
             Want::Name(name) => Some(name),
-            _ => None,
+            Want::Unlocated
+            | Want::Node(_)
+            | Want::Unknown(_)
+            | Want::File(_)
+            | Want::Span(..)
+            | Want::Number(_)
+            | Want::Flag(_) => None,
         })
         .collect::<Vec<_>>();
     let resolutions = report
@@ -25,7 +31,13 @@ fn classifies_literals_unions_unknowns_and_type_errors() {
         .iter()
         .filter_map(|row| match row[1] {
             Want::Name(name) => Some(name),
-            _ => None,
+            Want::Unlocated
+            | Want::Node(_)
+            | Want::Unknown(_)
+            | Want::File(_)
+            | Want::Span(..)
+            | Want::Number(_)
+            | Want::Flag(_) => None,
         })
         .collect::<Vec<_>>();
     for expected in [
@@ -67,12 +79,7 @@ fn validation_diagnostics_do_not_make_basic_types_partial() {
     check::<ExpressionTypeItem>();
     let report = reading::<ExpressionTypeItem>("nonlocal x\n1 if flag else 'x'\n");
     assert!(report.causes.is_empty(), "{:?}", report.causes);
-    assert!(
-        report
-            .rows
-            .iter()
-            .any(|row| row[1] == Want::Name("union"))
-    );
+    assert!(report.rows.iter().any(|row| row[1] == Want::Name("union")));
 }
 
 #[test]

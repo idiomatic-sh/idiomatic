@@ -75,6 +75,7 @@ impl LinterPort for Contestant {
             })
             .collect();
         Ok(RunReport {
+            project_context: None,
             skipped: Vec::new(),
             coverage: None,
             files: request.files.clone(),
@@ -231,6 +232,7 @@ pub fn exercise(
     )
     .expect(constants::FIXTURE_PRECONDITION);
     let request = RunRequest {
+        context_manifest: None,
         root: measured_root,
         files: vec![ryo::linter::RelativePath(
             constants::FIXTURE_SOURCE_FILE.into(),

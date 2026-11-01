@@ -497,6 +497,8 @@ pub struct Expanded {
 /// Opt-in semantic promises beyond the required language relation baseline.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum OptionalCapability {
+    /// Project-established importable module identity.
+    ModuleIdentity,
     /// Canonical language identifier spellings.
     Identifier,
     /// Static qualified import and builtin provenance.
@@ -539,4 +541,6 @@ pub enum OptionalCapability {
     RawFormatSegment,
     /// Ordered conversion fields from individual successful raw-token parses.
     RawFormatField,
+    /// Syntactic parse outcomes of original string carriers.
+    LiteralExpressionParse,
 }

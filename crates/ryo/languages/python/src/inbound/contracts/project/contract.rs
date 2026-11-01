@@ -28,6 +28,8 @@ use crate::outbound::notes::interface::NotesPort;
 /// `project`, implementing `ryo::languages::Project`: it reads each manifest with the adapters that claim it, and the manifests it
 /// reads are the union of what the adapters claim.
 pub(crate) struct ProjectContract {
+    /// Package context lookup with explicit Disk/Given isolation.
+    module_context: Arc<dyn crate::outbound::module_context::interface::ModuleContextPort>,
     /// Builds the manifest adapters for one run, each reading the files it claims, over every manifest of the run's repository.
     projects: fn(&[ManifestFile]) -> Vec<Arc<dyn ManifestReadingPort>>,
     /// The manifest file names the adapters claim, together.
@@ -43,6 +45,7 @@ impl ProjectContract {
     pub(crate) fn new(
         projects: fn(&[ManifestFile]) -> Vec<Arc<dyn ManifestReadingPort>>,
         notes: Arc<dyn NotesPort>,
+        module_context: Arc<dyn crate::outbound::module_context::interface::ModuleContextPort>,
     ) -> Self {
         let mut names: Vec<ManifestName> = Vec::new();
         for name in projects(&[]).iter().flat_map(|project| project.manifests()) {
@@ -51,6 +54,7 @@ impl ProjectContract {
             }
         }
         Self {
+            module_context,
             projects,
             names: Box::leak(names.into_boxed_slice()),
             notes,
@@ -117,7 +121,7 @@ impl Project for ProjectContract {
                 languages::Relation::SourceDependency | languages::Relation::AnalyzedSource
             )
         });
-        let derived = if links_wanted {
+        let mut derived = if links_wanted {
             let notes: Vec<Option<Note>> = request
                 .notes
                 .iter()
@@ -133,10 +137,17 @@ impl Project for ProjectContract {
                 ..Linked::default()
             }
         };
+        if request
+            .wanted
+            .contains(&languages::Relation::ModuleIdentity)
+        {
+            derived.module_context = self.module_context.resolve(request)?;
+        }
+        let consulted = derived.module_context.consulted.clone();
         Ok(Resolved {
             refused,
             unlisted: Vec::new(),
-            consulted: Vec::new(),
+            consulted,
             derived,
         })
     }
@@ -159,5 +170,9 @@ impl Project for ProjectContract {
 
     fn analyzed_source(&self) -> Support<ManifestReader<languages::AnalyzedSource, Linked>> {
         languages::reads_manifests::<AnalyzedSourceItem>()
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, Linked>> {
+        languages::reads_manifests::<crate::domain::manifests::collections::manifests::module_identity::item::ModuleIdentityItem>()
     }
 }

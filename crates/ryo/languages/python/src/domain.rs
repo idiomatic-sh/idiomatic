@@ -67,3 +67,8 @@ pub(crate) mod format_syntax;
 pub(crate) mod raw_format;
 /// Terminal outcomes of function bodies.
 pub(crate) mod terminal_flow;
+
+/// Lazy syntactic validity of original quoted expression carriers.
+pub(crate) mod literal_expression_parsing;
+/// Project-established importable module context.
+pub(crate) mod module_context;

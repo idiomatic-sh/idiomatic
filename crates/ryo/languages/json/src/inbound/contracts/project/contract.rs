@@ -49,6 +49,10 @@ impl Project for ProjectContract {
         languages::absent(AbsenceCause::NoManifests)
     }
 
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(languages::AbsenceCause::NotYetRead)
+    }
+
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
         // standard: RFC 8259 (STD 90), section 2: a JSON text is one value, and the standard names no project manifest.
         languages::absent(AbsenceCause::NoManifests)

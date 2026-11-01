@@ -8,6 +8,9 @@ use crate::outbound::memory::errors::MemoryError;
 /// Why an analysis could not finish.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 pub(crate) enum FileAnalysisError {
+    /// A required project dependency could not be recorded.
+    #[error(transparent)]
+    Corpus(#[from] crate::outbound::corpus::errors::CorpusError),
     /// The language wrote invalid facts.
     #[error("language `{provider}` wrote output its file cannot hold: {code}")]
     Provider {

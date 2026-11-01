@@ -51,6 +51,7 @@ macro_rules! each_relation {
                 BraceFormatField brace_format_field BraceFormatFieldRow BraceFormatFieldColumn;
                 RawFormatSegment raw_format_segment RawFormatSegmentRow RawFormatSegmentColumn;
                 RawFormatField raw_format_field RawFormatFieldRow RawFormatFieldColumn;
+                LiteralExpressionParse literal_expression_parse LiteralExpressionParseRow LiteralExpressionParseColumn;
                 StaticImport static_import StaticImportRow StaticImportColumn;
                 StringLiteral string_literal StringLiteralRow StringLiteralColumn;
                 SyntaxChild syntax_child SyntaxChildRow SyntaxChildColumn;
@@ -72,6 +73,7 @@ macro_rules! each_relation {
                 SourceDependency source_dependency SourceDependencyRow SourceDependencyColumn;
                 AnalyzedSource analyzed_source AnalyzedSourceRow AnalyzedSourceColumn;
                 FilePackage file_package FilePackageRow FilePackageColumn;
+                ModuleIdentity module_identity ModuleIdentityRow ModuleIdentityColumn;
             }
             engine {
                 FilesystemFile filesystem_file FilesystemFileRow FilesystemFileColumn;
@@ -426,5 +428,7 @@ pub const fn capability_relation(capability: super::types::OptionalCapability) -
         OptionalCapability::ExpressionType => Relation::ExpressionType,
         OptionalCapability::RawFormatSegment => Relation::RawFormatSegment,
         OptionalCapability::RawFormatField => Relation::RawFormatField,
+        OptionalCapability::ModuleIdentity => Relation::ModuleIdentity,
+        OptionalCapability::LiteralExpressionParse => Relation::LiteralExpressionParse,
     }
 }

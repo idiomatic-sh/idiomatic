@@ -98,6 +98,7 @@ fn observe(codec: &impl CollectionPort, operation: Operation) -> Result<bool, Er
                 peak_rss_bytes: ResidentBytes(456_789),
             };
             let response = codec.response(Ok(ProcessOutput {
+                signal: None,
                 status: ProcessExitCode(127),
                 stdout: CapturedBytes(vec![255, 0, 7]),
                 stderr: CapturedBytes(vec![128, 3]),

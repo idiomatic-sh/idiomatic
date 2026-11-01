@@ -291,3 +291,10 @@ pub(crate) fn store_skip(
     }
     Some(std::path::Path::new(std::path::Component::CurDir.as_os_str()).join(beneath))
 }
+
+/// The dependency content identity using the digest adapter composed by the SDK.
+pub(crate) fn dependency_fingerprint(bytes: &[u8]) -> super::types::DependencyFingerprint {
+    use ryo_core::outbound::digest::interface::DigestPort;
+    let digest = digest::factory::blake3().digest(digest::types::DigestBytes(bytes));
+    super::types::DependencyFingerprint(digest.0)
+}

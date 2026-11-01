@@ -14,11 +14,17 @@ pub fn run(
     execution: &dyn ExecutionPort,
     request: &RunRequest,
 ) -> Result<Measurement, Error> {
+    if let Some(context) = &request.context_manifest {
+        crate::outbound::context::adapters::local::adapter::validate(context, &request.root)?;
+    }
     let invocation = linter.prepare(request)?;
     let output = execution.run(invocation)?;
     let wall = output.wall;
     let resources = output.resources;
     let report = linter.decode(request, output)?;
+    if let Some(context) = &request.context_manifest {
+        crate::outbound::context::adapters::local::adapter::validate(context, &request.root)?;
+    }
     let mut expected = request.files.clone();
     expected.sort();
     if expected
@@ -268,6 +274,21 @@ fn write_case_observation(
         source_hasher.update(std::fs::read(case.request.root.join(file.0.as_ref()))?);
     }
     use sha2::Digest as _;
+    let context_identity = case
+        .request
+        .context_manifest
+        .as_ref()
+        .map(|manifest| {
+            crate::outbound::context::adapters::local::adapter::fingerprint(manifest).map(|hash| {
+                serde_json::json!({
+                    "mode": "listed-disk",
+                    "logical_root": manifest.logical_root,
+                    "actual_root": case.request.root,
+                    "manifest_hash": hash.0,
+                })
+            })
+        })
+        .transpose()?;
     let record = serde_json::json!({
         "rule": case.rule.as_ref(),
         "name": case.name.to_string(),
@@ -285,6 +306,8 @@ fn write_case_observation(
                 })
             })
         }),
+        "context_manifest": context_identity,
+        "project_context": report.and_then(|report| report.project_context.clone()).map(crate::outbound::context::adapters::local::schemas::ReceiptSchema::from),
         "expected": expected,
         "source_sha256": format!("{:x}", source_hasher.finalize()),
         "error": error,

@@ -222,6 +222,17 @@ the relation partial and prevents precise flattened fields for the affected expr
 These relations have independent demand and caching from decoded `format-parse`,
 `format-field` and brace-format relations.
 
+Python's optional `literal-expression-parse` relation records syntactic outcomes for
+original plain string expressions: `id`, `dialect`, `outcome`, `file`, and the full
+physical carrier `span`. The initial `python-string-annotation` dialect reports
+`parsed`, `malformed` (including empty strings), or `unavailable`. It follows the
+string-annotation grammar's representation-sensitive modes, retaining prefixes,
+quotes, escapes and implicit-concatenation boundaries. Unavailable logical source
+also makes the read partial. Bytes, f-strings and template strings are excluded.
+The relation is demanded and cached independently; it does not classify typing
+positions or publish new embedded syntax or names. Queries must supply their own
+context policy before using a positive parse outcome.
+
 `span-between(from=rows, start="literal_span", end="expression_span", output="diagnostic_span")`
 appends a typed span while retaining every column and repeated row. It uses the first
 span's start and the second span's end, including when the expression starts before

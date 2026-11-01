@@ -139,3 +139,28 @@ fn report_subject(text: Input) -> Result<Value, Failure> {
         matches!(cases.cases.first(), Some(case) if case.comparison == crate::domain::suite::types::CaseComparison::Full),
     )
 }
+
+#[test]
+fn explicit_context_mode_defaults_and_unknown_modes_are_checked() {
+    let base = "tool='fixture'\nversion='1'\nsha256=['pin']\ndefaults=['RULE']\n";
+    assert_eq!(
+        super::tool(base)
+            .expect("legacy profile")
+            .project_context_mode,
+        crate::domain::suite::types::ProjectContextMode::Isolated
+    );
+    assert_eq!(
+        super::tool(&format!("{base}project-context-mode='listed-disk'\n"))
+            .expect("explicit context")
+            .project_context_mode,
+        crate::domain::suite::types::ProjectContextMode::ListedDisk
+    );
+    assert!(super::tool(&format!("{base}project-context-mode='implicit-disk'\n")).is_err());
+    let case = "[[cases]]\nname='context'\nfiles={'mod.py'='import pkg.mod'}\ncontext={logical-root='pkg',auxiliary-files={'pkg/__init__.py'=[0,1,255]},missing=['__init__.py']}\nexpected=[]\n";
+    let parsed = super::cases(case).expect("binary auxiliary bytes");
+    let context = parsed.cases[0].context.as_ref().expect("context");
+    assert_eq!(
+        context.auxiliary_files[std::path::Path::new("pkg/__init__.py")],
+        [0, 1, 255]
+    );
+}

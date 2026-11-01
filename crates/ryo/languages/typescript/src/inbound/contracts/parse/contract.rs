@@ -328,6 +328,12 @@ impl Parse for ParseContract {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
+    fn literal_expression_parse(
+        &self,
+    ) -> Support<Reader<languages::LiteralExpressionParse, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn raw_format_segment(&self) -> Support<Reader<languages::RawFormatSegment, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }

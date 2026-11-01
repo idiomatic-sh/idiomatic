@@ -115,6 +115,7 @@ pub(crate) fn run(
             let query_modules = tool.query_modules.clone();
             let rule_applicability = tool.rule_applicability.clone();
             let parser_configuration = tool.parser_configuration.clone();
+            let project_context_mode = tool.project_context_mode;
             tool.defaults = audit.authored().to_vec();
             let reference = Arc::new(commands::reference(executable.clone(), tool)?);
             let selected_scratch = tempfile::Builder::new()
@@ -139,12 +140,13 @@ pub(crate) fn run(
             let candidate_executable = selected_scratch.join(constants::CANDIDATE_EXECUTABLE);
             let _bytes = std::fs::copy(std::env::current_exe()?, &candidate_executable)?;
             let candidate: Arc<dyn ryo_benchmark::outbound::linter::interface::LinterPort> =
-                Arc::new(ryo_benchmark::outbound::linter::factory::ryo(
+                Arc::new(ryo_benchmark::outbound::linter::factory::ryo_context(
                     candidate_executable.clone(),
                     selected_rules.clone(),
                     query_modules,
                     rule_applicability,
                     parser_configuration,
+                    project_context_mode,
                 ));
             let case_scratch = tempfile::tempdir()?;
             let certificate = CertifyUseCaseImpl::new(
@@ -230,6 +232,7 @@ pub(crate) fn run(
                         Some(constants::MEASURE_VALID | constants::MEASURE_ACCOUNTED_VALID)
                     ) {
                         let preflight = RunRequest {
+                            context_manifest: None,
                             root: workspace.root().to_owned(),
                             files: files.clone(),
                             state: cache
@@ -294,6 +297,7 @@ pub(crate) fn run(
                             .tempdir_in(&cache)?
                             .keep();
                         let request = RunRequest {
+                            context_manifest: None,
                             root: workspace.root().to_owned(),
                             files: files.clone(),
                             state: trial.join(constants::RETAINED_DIRECTORY),

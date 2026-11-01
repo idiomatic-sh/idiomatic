@@ -58,6 +58,7 @@ fn subject((complete, differs, order): Input) -> Result<Value, Failure> {
         },
     };
     let request = RunRequest {
+        context_manifest: None,
         root: ".".into(),
         state: "cache".into(),
         files: vec![ryo::linter::RelativePath("input.txt".into())],

@@ -108,7 +108,11 @@ fn faked(_available: &[languages::ManifestFile]) -> Vec<Arc<dyn ManifestReadingP
 }
 
 fn subject((files, asked): Input) -> Result<Value, Failure> {
-    let contract = ProjectContract::new(faked, Arc::new(postcard()));
+    let contract = ProjectContract::new(
+        faked,
+        Arc::new(postcard()),
+        Arc::new(crate::outbound::module_context::factory::filesystem()),
+    );
     languages::contract::project(&contract);
     let resolved = contract.resolve(&languages::ProjectRequest {
         repository: languages::Repository::Disk,

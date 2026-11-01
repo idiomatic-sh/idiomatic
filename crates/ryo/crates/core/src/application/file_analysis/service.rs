@@ -834,13 +834,17 @@ impl FileAnalysis {
             unlisted: answer.unlisted,
             ..Projected::default()
         };
-        self.consulted(&answer.consulted, &mut projected);
+        self.consulted(&answer.consulted, &mut projected)?;
         Ok(projected)
     }
 
     /// The files the lookup read beyond the manifests, each stat'ed, read and digested as the files of the run are, in the order of
-    /// `paths`, and apart from them the ones that are not there, into `into`; one that cannot be read now is in neither.
-    fn consulted(&self, paths: &[FilePath], into: &mut Projected) {
+    /// `paths`, and apart from them the ones that are not there, into `into`. An unrecordable dependency fails the run.
+    pub(super) fn consulted(
+        &self,
+        paths: &[FilePath],
+        into: &mut Projected,
+    ) -> Result<(), FileAnalysisError> {
         let mut bytes = FileBytes::default();
         for path in paths {
             let entry = match self.corpus.stat(path) {
@@ -850,11 +854,9 @@ impl FileAnalysis {
                     into.consulted_absent.push(path.clone());
                     continue;
                 }
-                Err(_) => continue,
+                Err(error) => return Err(error.into()),
             };
-            if self.corpus.read(&entry, &mut bytes).is_err() {
-                continue;
-            }
+            self.corpus.read(&entry, &mut bytes)?;
             into.consulted.push(StoredFile {
                 digest: self.digest.digest(DigestBytes(&bytes.0)),
                 interface: Digest([0; 16]),
@@ -864,5 +866,6 @@ impl FileAnalysis {
                 path: entry.path,
             });
         }
+        Ok(())
     }
 }

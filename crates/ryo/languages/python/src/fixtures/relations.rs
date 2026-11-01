@@ -162,6 +162,7 @@ pub(super) fn expected() -> Vec<Expected> {
         identifier::expected(),
         expression_shape::expected(),
         literal_properties::expected(),
+        literal_expression_parse::expected(),
         expression_type::expected(),
         function_terminal::expected(),
         interpolated_string_literal::expected(),
@@ -262,4 +263,9 @@ mod semantic_child {
 /// Independent source mapping and owner identity for a quoted annotation.
 mod embedded_expression {
     include!("../../tests/fixtures/relations/embedded_expression/expected.rs");
+}
+
+/// Syntactic outcomes preserve original carrier identity and span.
+mod literal_expression_parse {
+    include!("../../tests/fixtures/relations/literal_expression_parse/expected.rs");
 }

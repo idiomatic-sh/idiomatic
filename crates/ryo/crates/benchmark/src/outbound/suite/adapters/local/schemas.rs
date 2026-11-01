@@ -7,6 +7,8 @@ use std::collections::BTreeMap;
 #[serde(deny_unknown_fields)]
 /// Pinned reference profile and explicit default-rule accounting.
 struct ToolSchema {
+    #[serde(default, rename = "project-context-mode")]
+    project_context_mode: crate::outbound::context::adapters::local::schemas::ModeSchema,
     /// Reference tool name.
     tool: String,
     /// Exact expected version output.
@@ -64,6 +66,8 @@ struct CasesSchema {
 #[serde(deny_unknown_fields)]
 /// One independent source example.
 struct CaseSchema {
+    #[serde(default)]
+    context: Option<CaseContextSchema>,
     /// Explicit diagnostic scope; existing cases assert their enclosing rule.
     #[serde(default)]
     comparison: ComparisonSchema,
@@ -154,6 +158,7 @@ impl TryFrom<ToolSchema> for types::Tool {
             ));
         }
         Ok(Self {
+            project_context_mode: wire.project_context_mode.into(),
             tool: wire.tool.into(),
             version: wire.version.into(),
             sha256: wire.sha256.into_iter().map(Into::into).collect(),
@@ -234,6 +239,7 @@ impl TryFrom<CasesSchema> for types::Cases {
                 .into_iter()
                 .map(|case| {
                     Ok(types::Case {
+                        context: case.context.map(Into::into),
                         comparison: match case.comparison {
                             ComparisonSchema::Rule => types::CaseComparison::Rule,
                             ComparisonSchema::Full => types::CaseComparison::Full,
@@ -277,3 +283,41 @@ impl TryFrom<CasesSchema> for types::Cases {
 #[cfg(test)]
 #[path = "schemas_test.rs"]
 mod tests;
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CaseContextSchema {
+    #[serde(rename = "logical-root")]
+    logical_root: std::path::PathBuf,
+    #[serde(default, rename = "auxiliary-files")]
+    auxiliary_files: BTreeMap<std::path::PathBuf, ContextBytes>,
+    #[serde(default)]
+    missing: Vec<std::path::PathBuf>,
+}
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum ContextBytes {
+    Text(String),
+    Bytes(Vec<u8>),
+}
+impl From<CaseContextSchema> for types::CaseContext {
+    fn from(value: CaseContextSchema) -> Self {
+        Self {
+            logical_root: value.logical_root,
+            auxiliary_files: value
+                .auxiliary_files
+                .into_iter()
+                .map(|(path, bytes)| {
+                    (
+                        path,
+                        match bytes {
+                            ContextBytes::Text(text) => text.into_bytes(),
+                            ContextBytes::Bytes(bytes) => bytes,
+                        },
+                    )
+                })
+                .collect(),
+            missing: value.missing,
+        }
+    }
+}

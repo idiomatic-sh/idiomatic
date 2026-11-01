@@ -468,20 +468,51 @@ impl LintUseCaseImpl {
 
     /// What the manifests come to, as one digest: each manifest's path and text, so a rule that reads the project is made
     /// again when a manifest changed. Nothing to digest when no rule reads what the project writes.
-    fn resolution(&self, manifests: &[ManifestFile], plans: &[Plan]) -> Digest {
+    fn resolution(
+        &self,
+        manifests: &[ManifestFile],
+        plans: &[Plan],
+        session: &ryo_values::domain::runs::types::Session,
+    ) -> Result<Digest, LintError> {
         if reads_any(plans) == PlanReads::DoesNotRead {
-            return Digest([0; 16]);
+            return Ok(Digest([0; 16]));
         }
-        let parts: Vec<Digest> = manifests
-            .iter()
-            .flat_map(|manifest| {
-                [
-                    self.digest.digest(DigestBytes(manifest.path.0.as_bytes())),
-                    self.digest.digest(DigestBytes(manifest.text.0.as_bytes())),
-                ]
-            })
-            .collect();
-        self.digest.combine(&parts)
+        let absolute = std::path::absolute(std::path::Path::new(session.root.0.as_ref())).map_err(
+            |error| LintError::Corpus {
+                reason: error.to_string(),
+            },
+        )?;
+        let mut normalized = std::path::PathBuf::new();
+        for component in absolute.components() {
+            match component {
+                std::path::Component::CurDir => {}
+                std::path::Component::ParentDir => {
+                    let _removed = normalized.pop();
+                }
+                other => normalized.push(other.as_os_str()),
+            }
+        }
+        let repository = match session.repository {
+            ryo_language::inbound::use_cases::project::types::Repository::Disk => {
+                b"disk".as_slice()
+            }
+            ryo_language::inbound::use_cases::project::types::Repository::Given => {
+                b"given".as_slice()
+            }
+        };
+        let mut parts = vec![
+            self.digest.digest(DigestBytes(b"project-context-v1")),
+            self.digest
+                .digest(DigestBytes(normalized.as_os_str().as_encoded_bytes())),
+            self.digest.digest(DigestBytes(repository)),
+        ];
+        parts.extend(manifests.iter().flat_map(|manifest| {
+            [
+                self.digest.digest(DigestBytes(manifest.path.0.as_bytes())),
+                self.digest.digest(DigestBytes(manifest.text.0.as_bytes())),
+            ]
+        }));
+        Ok(self.digest.combine(&parts))
     }
 
     /// What the run uses again of what the last kept: whether the files as they were and the findings across files stand, the records
@@ -1288,6 +1319,22 @@ impl LintUseCaseImpl {
             },
         )?;
         Ok(LintReport {
+            dependencies: now
+                .consulted
+                .iter()
+                .map(|dependency| super::types::ProjectDependency {
+                    path: dependency.path.clone(),
+                    state: super::types::ProjectDependencyState::Present(dependency.digest),
+                })
+                .chain(
+                    now.consulted_absent
+                        .iter()
+                        .map(|path| super::types::ProjectDependency {
+                            path: path.clone(),
+                            state: super::types::ProjectDependencyState::Missing,
+                        }),
+                )
+                .collect(),
             unread,
             unknowns,
             skipped,
@@ -1326,7 +1373,7 @@ impl LintUseCase for LintUseCaseImpl {
                 *policy != ryo_values::domain::runs::types::RuleApplicability::Always
             });
         let needs: Vec<Needs> = plans.iter().map(scoped_needs).collect();
-        let resolved = self.resolution(&manifests, &plans);
+        let resolved = self.resolution(&manifests, &plans, &request.session)?;
         let stored_rules = self.stored_rules(&rules, &plans, &request.hosted, resolved);
         let (nothing_handed, nothing_wanted) =
             (StoredHanded::default(), BucketsWanted::These(Vec::new()));

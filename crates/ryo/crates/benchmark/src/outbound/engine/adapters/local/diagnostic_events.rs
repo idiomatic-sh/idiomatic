@@ -33,6 +33,7 @@ pub(super) fn subscriber(
     use tracing_subscriber::Layer as _;
     use tracing_subscriber::layer::SubscriberExt as _;
     let writer = DiagnosticEventWriter::create(path)?;
+    let include_steps = std::env::var_os("RYO_DIAGNOSTIC_STEPS").is_none_or(|value| value != "0");
     let layer = tracing_subscriber::fmt::layer()
         .json()
         .with_ansi(false)
@@ -46,7 +47,11 @@ pub(super) fn subscriber(
                 )
                 .with_target(
                     RULE_STEP_TARGET,
-                    tracing_subscriber::filter::LevelFilter::TRACE,
+                    if include_steps {
+                        tracing_subscriber::filter::LevelFilter::TRACE
+                    } else {
+                        tracing_subscriber::filter::LevelFilter::OFF
+                    },
                 ),
         );
     Ok(tracing_subscriber::registry().with(layer))

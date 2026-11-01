@@ -217,6 +217,13 @@ impl TryFrom<LintReportSchema> for LintReport {
             .collect::<Result<Vec<_>, _>>()?;
         Ok(Self {
             findings,
+            dependencies: report.dependencies.into_iter().map(|dependency| super::types::ProjectDependency {
+                path: RelativePath(dependency.path.0),
+                state: match dependency.state {
+                    ryo_core::inbound::use_cases::lint::types::ProjectDependencyState::Present(digest) => super::types::ProjectDependencyState::Present(super::types::DependencyFingerprint(digest.0)),
+                    ryo_core::inbound::use_cases::lint::types::ProjectDependencyState::Missing => super::types::ProjectDependencyState::Missing,
+                },
+            }).collect(),
             unread: report
                 .unread
                 .into_iter()

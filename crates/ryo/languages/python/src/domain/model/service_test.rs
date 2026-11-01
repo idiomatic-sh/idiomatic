@@ -43,6 +43,7 @@ fn subject((scope, name): Input) -> Value {
         constant_keys: RefCell::default(),
         format_parsing: RefCell::default(),
         raw_format: RefCell::default(),
+        literal_expression_parsing: RefCell::default(),
         brace_format: RefCell::default(),
         expression_types: RefCell::default(),
         terminal_flow: RefCell::default(),

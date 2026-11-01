@@ -208,6 +208,7 @@ expected = []
     )
     .expect("oracle cases");
     let tool = crate::domain::suite::types::Tool {
+        project_context_mode: Default::default(),
         tool: "fixture".into(),
         version: "1".into(),
         sha256: vec!["pin".into()],

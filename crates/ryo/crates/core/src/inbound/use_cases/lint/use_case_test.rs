@@ -1814,3 +1814,76 @@ fn refuses() {
 fn fails() {
     run(CASES, Word::Fails, subject);
 }
+
+#[test]
+fn project_reuse_frames_root_and_repository_and_keeps_dependency_evidence() {
+    use ryo_language::inbound::use_cases::project::types::Repository;
+    let store = Arc::new(LintStoreFake::default());
+    let invoke = |root: &'static str, repository, project| {
+        let given = Given {
+            root,
+            store: Arc::clone(&store),
+            files: vec![SOURCES[0], SOURCES[1]],
+            outside: vec![("../context.fake", "content")],
+            query: Arc::new(if project {
+                reading_the_project()
+            } else {
+                QueryLanguageFake::counting_across_files()
+            }),
+            language: LanguageFake {
+                consulted: if project {
+                    vec![
+                        FilePath("../context.fake".into()),
+                        FilePath("../absent.fake".into()),
+                    ]
+                } else {
+                    vec![]
+                },
+                ..LanguageFake::default()
+            },
+            ..violations()
+        };
+        let mut asked = request(&given);
+        asked.session.repository = repository;
+        let made = world(given);
+        let report = made.use_case.counting().lint(asked).expect("complete lint");
+        (made.language.projects.load(Ordering::SeqCst), report)
+    };
+    let (cold, cold_report) = invoke("root-a", Repository::Disk, true);
+    let (warm, warm_report) = invoke("root-a", Repository::Disk, true);
+    assert_eq!(
+        (cold, warm),
+        (1, 0),
+        "an unchanged project really reuses its kept rows"
+    );
+    assert_eq!(cold_report.dependencies, warm_report.dependencies);
+    assert_eq!(
+        warm_report.dependencies.len(),
+        2,
+        "present and missing dependencies survive reuse"
+    );
+    assert_eq!(
+        invoke("root-b", Repository::Disk, true).0,
+        1,
+        "another absolute root cannot reuse package context"
+    );
+    assert_eq!(
+        invoke("root-b", Repository::Given, true).0,
+        1,
+        "repository isolation is part of project resolution identity"
+    );
+    assert_eq!(invoke("root-b", Repository::Given, true).0, 0);
+    let _cold = invoke("root-a", Repository::Disk, false);
+    let (projects, nonproject) = invoke("root-b", Repository::Given, false);
+    assert_eq!(projects, 0);
+    assert_eq!(
+        nonproject
+            .work
+            .iter()
+            .flat_map(|rule| &rule.steps)
+            .map(|step| step.rows.0)
+            .sum::<u64>(),
+        0,
+        "nonproject cache identity is unchanged by root and mode"
+    );
+}

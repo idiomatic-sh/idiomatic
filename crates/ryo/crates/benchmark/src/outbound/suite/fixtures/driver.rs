@@ -37,6 +37,7 @@ expected = []
         .expect("cases");
     }
     let tool = Tool {
+        project_context_mode: Default::default(),
         tool: "fixture".into(),
         version: "1".into(),
         sha256: vec![String::new().into()],

@@ -74,6 +74,10 @@ impl Parse for {{ part | pascal }}Contract {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
+    fn literal_expression_parse(&self) -> Support<Reader<languages::LiteralExpressionParse, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn raw_format_segment(&self) -> Support<Reader<languages::RawFormatSegment, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
@@ -298,6 +302,9 @@ impl Project for {{ part | pascal }}Contract {
             derived: (),
         })
     }
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
 {% for relation in ["package_dependency", "workspace_member", "source_dependency", "file_package", "analyzed_source"] %}
     fn {{ relation }}(&self) -> Support<ManifestReader<languages::{{ relation | pascal }}, ()>> {
         languages::absent(AbsenceCause::NoManifests)
@@ -386,6 +393,10 @@ impl Parse for ParseContract {
     }
 
     fn format_field(&self) -> Support<Reader<languages::FormatField, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn literal_expression_parse(&self) -> Support<Reader<languages::LiteralExpressionParse, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -654,6 +665,10 @@ impl Parse for ParseContract {
     }
 
     fn format_field(&self) -> Support<Reader<languages::FormatField, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn literal_expression_parse(&self) -> Support<Reader<languages::LiteralExpressionParse, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -933,6 +948,10 @@ impl Parse for OtherContract {
     }
 
     fn format_field(&self) -> Support<Reader<languages::FormatField, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn literal_expression_parse(&self) -> Support<Reader<languages::LiteralExpressionParse, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -1255,6 +1274,10 @@ impl Different for ParseContract {
     }
 
     fn format_field(&self) -> Support<Reader<languages::FormatField, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn literal_expression_parse(&self) -> Support<Reader<languages::LiteralExpressionParse, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -1618,6 +1641,10 @@ impl Project for ProjectContract {
         languages::absent(AbsenceCause::NoManifests)
     }
 
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
         languages::absent(AbsenceCause::NoManifests)
     }
@@ -1704,6 +1731,10 @@ impl Parse for ParseContract {
     }
 
     fn format_field(&self) -> Support<Reader<languages::FormatField, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn literal_expression_parse(&self) -> Support<Reader<languages::LiteralExpressionParse, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 

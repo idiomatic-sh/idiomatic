@@ -92,6 +92,7 @@ const CASES: &[Case<Scenario, usize, &'static str>] = &[
 fn subject(scenario: Scenario) -> Result<usize, &'static str> {
     if matches!(scenario, Scenario::OmittedInput) {
         let request = RunRequest {
+            context_manifest: None,
             root: ".".into(),
             state: "cache".into(),
             files: vec![ryo::linter::RelativePath("input.py".into())],
@@ -413,6 +414,7 @@ impl LinterPort for Empty {
     }
     fn decode(&self, _: &RunRequest, _: ProcessOutput) -> Result<RunReport, Error> {
         Ok(RunReport {
+            project_context: None,
             skipped: Vec::new(),
             coverage: None,
             diagnostics: vec![],
@@ -426,6 +428,7 @@ impl ExecutionPort for Empty {
     }
     fn run(&self, _: Invocation) -> Result<ProcessOutput, Error> {
         Ok(ProcessOutput {
+            signal: None,
             status: crate::domain::measurements::types::ProcessExitCode(0),
             stdout: crate::domain::measurements::types::CapturedBytes(vec![]),
             stderr: crate::domain::measurements::types::CapturedBytes(vec![]),
@@ -500,11 +503,13 @@ fn prepared(scenario: Scenario) -> (SuiteFake, BenchmarkFinding) {
             rule: ryo::linter::RuleId::try_from("E722").unwrap(),
             name: "positive".into(),
             request: RunRequest {
+                context_manifest: None,
                 root: ".".into(),
                 files: vec![ryo::linter::RelativePath("case.py".into())],
                 state: "cache".into(),
             },
             expected: RunReport {
+                project_context: None,
                 files: vec![ryo::linter::RelativePath("case.py".into())],
                 skipped: Vec::new(),
                 coverage: None,
@@ -513,6 +518,7 @@ fn prepared(scenario: Scenario) -> (SuiteFake, BenchmarkFinding) {
         });
     }
     suite.profile = Some(crate::domain::suite::types::Tool {
+        project_context_mode: Default::default(),
         tool: "fixture".into(),
         version: "1".into(),
         sha256: vec!["pin".into()],

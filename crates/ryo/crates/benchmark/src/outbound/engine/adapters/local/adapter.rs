@@ -209,6 +209,30 @@ impl EngineLocalAdapter {
 }
 impl EnginePort for EngineLocalAdapter {
     fn run(&self, request: WorkerRequest) -> Result<RunReport, Error> {
+        match (request.project_context_mode, &request.context_manifest) {
+            (crate::domain::suite::types::ProjectContextMode::Isolated, None) => {}
+            (crate::domain::suite::types::ProjectContextMode::ListedDisk, Some(manifest)) => {
+                crate::outbound::context::adapters::local::adapter::validate(
+                    manifest,
+                    &request.root,
+                )?;
+                let requested: std::collections::BTreeSet<_> = request
+                    .files
+                    .iter()
+                    .map(|file| manifest.logical_root.join(file.0.as_ref()))
+                    .collect();
+                if requested != manifest.source_files.keys().cloned().collect() {
+                    return Err(Error::Invalid(
+                        "context source seal differs from requested inventory".into(),
+                    ));
+                }
+            }
+            _ => {
+                return Err(Error::Invalid(
+                    "worker context mode requires a matching explicit manifest".into(),
+                ));
+            }
+        }
         use tracing_subscriber::prelude::*;
         let _trace = if let Some(path) = &self.trace {
             let (layer, guard) = tracing_chrome::ChromeLayerBuilder::new().file(path).build();
@@ -260,18 +284,26 @@ impl EnginePort for EngineLocalAdapter {
             crate::domain::suite::types::WorkerState::Fresh => Cache::None,
             crate::domain::suite::types::WorkerState::Retained(path) => Cache::At(path),
         };
+        let (corpus, beside) = match request.project_context_mode {
+            crate::domain::suite::types::ProjectContextMode::Isolated => {
+                (Corpus::Given(sources), vec![])
+            }
+            crate::domain::suite::types::ProjectContextMode::ListedDisk => {
+                (Corpus::Listed(request.files.clone()), sources)
+            }
+        };
         let report = linter::lint(
             self.languages.clone(),
             &pool,
             MemoryBudget::Machine,
             cache,
             LintRequest {
-                root: request.root,
+                root: request.root.clone(),
                 rules,
                 files: vec![],
                 hosted: vec![],
-                corpus: Corpus::Given(sources),
-                beside: vec![],
+                corpus,
+                beside,
             },
         )
         .map_err(|error| Error::Invalid(error.to_string()))?;
@@ -293,6 +325,17 @@ impl EnginePort for EngineLocalAdapter {
             self.frontend_diagnostic.is_some(),
         )?;
         let skips_count = report.skipped.len();
+        let project_context = request
+            .context_manifest
+            .as_ref()
+            .map(|manifest| {
+                crate::outbound::context::adapters::local::adapter::receipt(
+                    manifest,
+                    &request.root,
+                    report.dependencies,
+                )
+            })
+            .transpose()?;
         let mut diagnostics = Vec::new();
         for finding in report.findings {
             let Slot::Is(Cell::File(file)) = finding.subject else {
@@ -327,6 +370,7 @@ impl EnginePort for EngineLocalAdapter {
             });
         }
         Ok(RunReport {
+            project_context,
             diagnostics,
             skipped: report.skipped,
             coverage: Some(crate::domain::diagnostics::types::RuleCoverage {

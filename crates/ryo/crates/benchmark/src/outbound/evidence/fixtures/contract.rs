@@ -30,6 +30,7 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
                         },
                     ),
                     report: RunReport {
+                        project_context: None,
                         skipped: Vec::new(),
                         coverage: None,
                         diagnostics: vec![],
@@ -58,6 +59,7 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
                     wall: Duration::from_millis(5),
                     resources: crate::domain::measurements::types::ResourceObservation::WallOnly,
                     report: RunReport {
+                        project_context: None,
                         skipped: Vec::new(),
                         coverage: None,
                         diagnostics: vec![],

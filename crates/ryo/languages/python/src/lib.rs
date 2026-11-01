@@ -59,7 +59,7 @@ pub fn linked_with_settings(settings: settings::PythonParserSettings) -> ryo::la
             Arc::new(ruff_python_parser()),
             Arc::new(postcard()),
         )),
-        project: Arc::new(ProjectContract::new(adapters, Arc::new(postcard()))),
+        project: Arc::new(ProjectContract::new(adapters, Arc::new(postcard()), Arc::new(outbound::module_context::factory::filesystem()))),
     )
 }
 

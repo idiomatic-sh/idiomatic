@@ -85,12 +85,14 @@ fn full_report_case_polarity_is_relative_to_the_enclosing_rule() {
     let cases = Cases {
         cases: vec![
             SuiteCase {
+                context: None,
                 comparison: CaseComparison::Full,
                 name: BenchmarkCaseName("positive".into()),
                 files: source(),
                 expected: vec![expected(rule.clone()), expected(rule.clone())],
             },
             SuiteCase {
+                context: None,
                 comparison: CaseComparison::Full,
                 name: BenchmarkCaseName("other-rule-only".into()),
                 files: source(),

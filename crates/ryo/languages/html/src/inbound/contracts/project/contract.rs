@@ -49,6 +49,10 @@ impl Project for ProjectContract {
         languages::absent(AbsenceCause::NoManifests)
     }
 
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(languages::AbsenceCause::NotYetRead)
+    }
+
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
         // standard: WHATWG HTML, Parsing HTML documents: https://html.spec.whatwg.org/multipage/parsing.html defines document trees and no package manifest or dependency graph.
         languages::absent(AbsenceCause::NoManifests)

@@ -300,6 +300,17 @@ fn prepare_cases(
         suite::types::{PreparedCase, RunRequest},
     };
     let mut prepared = Vec::new();
+    let profile = rules
+        .parent()
+        .ok_or_else(|| Error::Invalid("case rules have no profile parent".into()))?
+        .join(constants::MANIFEST);
+    let context_mode = match std::fs::read_to_string(profile) {
+        Ok(text) => super::schemas::tool(&text)?.project_context_mode,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            crate::domain::suite::types::ProjectContextMode::Isolated
+        }
+        Err(error) => return Err(error.into()),
+    };
     for entry in std::fs::read_dir(rules)? {
         let entry = entry?;
         let rule = entry
@@ -319,7 +330,27 @@ fn prepare_cases(
         }
         validate_cases(&rule, &cases)?;
         for (index, case) in cases.cases.into_iter().enumerate() {
-            let root = scratch.join(rule.to_string()).join(index.to_string());
+            let boundary = scratch.join(rule.to_string()).join(index.to_string());
+            let context_manifest = match (context_mode, &case.context) {
+                (crate::domain::suite::types::ProjectContextMode::Isolated, None) => None,
+                (crate::domain::suite::types::ProjectContextMode::ListedDisk, Some(context)) => {
+                    Some(
+                        crate::outbound::context::adapters::local::adapter::materialize(
+                            &boundary,
+                            context,
+                            &case.files,
+                        )?,
+                    )
+                }
+                _ => {
+                    return Err(Error::Invalid(
+                        "case context must agree with explicit profile context mode".into(),
+                    ));
+                }
+            };
+            let root = context_manifest.as_ref().map_or(boundary, |manifest| {
+                manifest.boundary.join(&manifest.logical_root)
+            });
             std::fs::create_dir_all(&root)?;
             for (file, source) in &case.files {
                 relative_path(file.0.as_ref())?;
@@ -331,6 +362,7 @@ fn prepare_cases(
                 std::fs::write(path, source.0.as_bytes())?;
             }
             let request = RunRequest {
+                context_manifest,
                 root,
                 files: case.files.keys().cloned().collect(),
                 state: scratch
@@ -339,6 +371,7 @@ fn prepare_cases(
                     .join(index.to_string()),
             };
             let mut expected = RunReport {
+                project_context: None,
                 files: request.files.clone(),
                 skipped: Vec::new(),
                 coverage: None,

@@ -2983,6 +2983,40 @@ def self_test() -> int:
                 return 1
         (root / overlay_relative).write_bytes(baseline_overlay)
 
+        active_name = next(
+            name for name, item in pristine_manifest["combined_profiles"].items()
+            if item.get("validation_status") == "active-current"
+        )
+        ready_descriptor = pristine_manifest["combined_profiles"][active_name]
+        ready_file = ready_descriptor.get("ready_assets_file")
+        if ready_file is not None:
+            ready_path = root / ready_file
+            pristine_ready = ready_path.read_bytes()
+            for kind in ("query", "module"):
+                trial_manifest = json.loads(json.dumps(pristine_manifest))
+                receipt = json.loads(pristine_ready)
+                query_paths = set(ready_descriptor["query_files"].values())
+                asset = next(
+                    item for item in receipt["assets"]
+                    if (item["path"] in query_paths) == (kind == "query")
+                )
+                asset["sha256"] = "0" * 64
+                ready_path.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
+                # Re-sealing the general manifest must not hide disagreement with
+                # the independent source-commit query/module receipt.
+                trial_manifest["files"][ready_file] = sha256(ready_path)
+                temporary_manifest.write_text(json.dumps(trial_manifest, indent=2) + "\n", encoding="utf-8")
+                marker.unlink(missing_ok=True)
+                check = subprocess.run(
+                    [sys.executable, str(helper), ruff, "--output-dir", str(root / f"ready-{kind}-output"), "--profile", active_name],
+                    capture_output=True, text=True, check=False,
+                    env={**os.environ, "PATH": f"{fake_bin}:{os.environ['PATH']}"},
+                )
+                if check.returncode != 2 or "READY query/module bytes differ from receipt" not in check.stderr or marker.exists():
+                    print(f"READY {kind} receipt disagreement did not fail before candidate work: {check.stderr!r}", file=sys.stderr)
+                    return 1
+            ready_path.write_bytes(pristine_ready)
+
         def expanded_preflight_failure(kind: str, expected_error: str) -> bool:
             trial_manifest = json.loads(json.dumps(pristine_manifest))
             active_name = next(

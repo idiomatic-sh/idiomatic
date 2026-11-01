@@ -55,6 +55,10 @@ impl Project for ProjectContract {
         languages::absent(AbsenceCause::NoManifests)
     }
 
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(languages::AbsenceCause::NotYetRead)
+    }
+
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
         // standard: the CSS Syntax Module Level 3, §3 Tokenizing and Parsing CSS: a stylesheet is parsed from its text alone and the standard defines no manifest; it has no package a file belongs to.
         languages::absent(AbsenceCause::NoManifests)

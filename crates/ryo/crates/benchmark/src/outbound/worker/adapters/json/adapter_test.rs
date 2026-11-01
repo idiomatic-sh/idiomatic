@@ -127,10 +127,12 @@ fn subject(operation: Input) -> Result<Value, Failure> {
         std::collections::BTreeMap::default(),
         None,
     );
+    let temporary = tempfile::tempdir().map_err(|_| Refusal::Unexpected)?;
     let request = RunRequest {
+        context_manifest: None,
         root: "workspace".into(),
         files: vec![ryo::linter::RelativePath("source.txt".into())],
-        state: "cache".into(),
+        state: temporary.path().join("cache"),
     };
     let payload = match operation {
         Operation::Malformed => "{".into(),
@@ -188,6 +190,7 @@ fn subject(operation: Input) -> Result<Value, Failure> {
                 .decode(
                     &request,
                     ProcessOutput {
+                        signal: None,
                         status: crate::domain::measurements::types::ProcessExitCode(0),
                         stdout: crate::domain::measurements::types::CapturedBytes(
                             capture.bytes.clone(),

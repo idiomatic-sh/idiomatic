@@ -121,6 +121,7 @@ pub fn check(adapter: &impl SuitePort) {
     let subject = |operation| {
         let selected = !matches!(operation, Operation::Empty);
         let tool = Tool {
+            project_context_mode: Default::default(),
             tool: "fixture".into(),
             version: "1".into(),
             sha256: vec![String::new().into()],

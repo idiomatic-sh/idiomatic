@@ -140,6 +140,8 @@ impl From<ParameterValue> for ParameterBinding {
 /// What a lint answers once its findings have all been written: the files nothing read, and what the rules could not decide.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct LintReport {
+    /// Project dependencies observed in this run, including dependencies retained from a reused project.
+    pub dependencies: Vec<ProjectDependency>,
     /// The files no linked language read, with why.
     pub unread: Vec<Unread>,
     /// What the rules could not decide, because a relation they trust the absence of rows of was read only in part.
@@ -151,6 +153,24 @@ pub struct LintReport {
     /// The work of each rule, in the order of the rules: the rows each of its steps was fed. A count, the same on any machine at any
     /// load, so a test can hold a rule to it. Empty unless the run counts.
     pub work: Vec<RuleWork>,
+}
+
+/// One required project lookup, whether the file was present or absent.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ProjectDependency {
+    /// Repository-relative path; `../` may refer to a dependency above the run root.
+    pub path: FilePath,
+    /// The observed content identity, or the fact that no file was present.
+    pub state: ProjectDependencyState,
+}
+
+/// Content state of an observed project dependency.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ProjectDependencyState {
+    /// Opaque identity of the bytes read by the project.
+    Present(ryo_values::domain::stored_facts::types::Digest),
+    /// The project looked for the path and found no file.
+    Missing,
 }
 
 /// The work of one rule: the rows each of its steps was fed, over the files and the cross-file finish.

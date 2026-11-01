@@ -36,13 +36,6 @@ impl ExecutionPort for ExecutionFake {
         {
             return Err(std::io::Error::from_raw_os_error(8).into());
         }
-        if invocation
-            .arguments
-            .iter()
-            .any(|argument| argument == "kill -TERM $$")
-        {
-            return Err(Error::Invalid("fixture child terminated by signal".into()));
-        }
         let large = invocation
             .arguments
             .iter()
@@ -58,7 +51,14 @@ impl ExecutionPort for ExecutionFake {
         {
             return Err(std::io::Error::from(std::io::ErrorKind::NotFound).into());
         }
-        let status = if large {
+        let signal = invocation
+            .arguments
+            .iter()
+            .any(|argument| argument == "kill -TERM $$")
+            .then_some(15_i32);
+        let status = if let Some(signal) = signal {
+            -signal
+        } else if large {
             0_i32
         } else if invocation
             .arguments
@@ -80,13 +80,18 @@ impl ExecutionPort for ExecutionFake {
             .expect("fixture history")
             .push(invocation);
         Ok(ProcessOutput {
+            signal,
             status: ProcessExitCode(status),
-            stdout: CapturedBytes(if large {
+            stdout: CapturedBytes(if signal.is_some() {
+                Vec::new()
+            } else if large {
                 vec![0; 131_072]
             } else {
                 b"payload".to_vec()
             }),
-            stderr: CapturedBytes(if large {
+            stderr: CapturedBytes(if signal.is_some() {
+                Vec::new()
+            } else if large {
                 vec![0; 131_072]
             } else {
                 b"issue".to_vec()

@@ -95,3 +95,9 @@ impl From<Workers> for WorkerPool {
         )
     }
 }
+
+/// Fingerprint dependency bytes using the same opaque content identity as lint reports.
+#[must_use]
+pub fn dependency_fingerprint(bytes: &[u8]) -> super::types::DependencyFingerprint {
+    super::composition::dependency_fingerprint(bytes)
+}

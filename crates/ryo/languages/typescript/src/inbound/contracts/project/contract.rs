@@ -145,6 +145,10 @@ impl Project for ProjectContract {
     fn workspace_member(&self) -> Support<ManifestReader<languages::WorkspaceMember, Linked>> {
         languages::reads_manifests::<WorkspaceMemberItem>()
     }
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, Linked>> {
+        languages::absent(languages::AbsenceCause::NotYetRead)
+    }
+
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, Linked>> {
         languages::reads_manifests::<FilePackageItem>()
     }

@@ -237,7 +237,11 @@ where
             languages::Relation::AnalyzedSource,
         ],
     };
-    let contract = ProjectContract::new(adapters, Arc::new(postcard()));
+    let contract = ProjectContract::new(
+        adapters,
+        Arc::new(postcard()),
+        Arc::new(crate::outbound::module_context::factory::filesystem()),
+    );
     let resolved = contract
         .resolve(&request)
         .expect("the manifests are resolved");

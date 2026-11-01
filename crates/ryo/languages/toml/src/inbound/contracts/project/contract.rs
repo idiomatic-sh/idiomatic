@@ -56,6 +56,10 @@ impl Project for ProjectContract {
         languages::absent(AbsenceCause::NoManifests)
     }
 
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(languages::AbsenceCause::NotYetRead)
+    }
+
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
         // standard: toml.abnf (TOML 1.1.0), the rule `toml`: a document is expressions of keys, tables and comments, and the standard names no project manifest.
         languages::absent(AbsenceCause::NoManifests)

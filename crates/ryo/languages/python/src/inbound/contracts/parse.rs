@@ -7,3 +7,5 @@ pub(crate) mod raw_format_readers;
 
 #[cfg(test)]
 mod contract_test;
+
+pub(crate) mod literal_expression_readers;

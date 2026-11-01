@@ -1469,6 +1469,7 @@ dependencies = [
  "ruff_text_size",
  "serde",
  "serde_json",
+ "sha2",
  "strum",
  "tempfile",
  "thiserror",

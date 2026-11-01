@@ -63,6 +63,7 @@ fn subject(bytes: Input) -> Result<Value, Failure> {
             }
             report
                 == RunReport {
+                    project_context: None,
                     diagnostics: vec![BenchmarkFinding {
                         rule: ryo::linter::RuleId::try_from("R1").expect("fixture rule"),
                         file: ryo::linter::RelativePath("input".into()),

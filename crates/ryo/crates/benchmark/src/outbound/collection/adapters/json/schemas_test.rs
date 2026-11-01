@@ -37,3 +37,23 @@ fn succeeds() {
 fn refuses() {
     run(CASES, Word::Refuses, subject);
 }
+
+#[test]
+fn signal_resources_survive_incomplete_report() -> Result<(), Box<dyn std::error::Error>> {
+    let wire = CollectorMessage(br#"{"result":"Observed","output":{"status":-15,"signal":15,"stdout":[123],"stderr":[],"wall":{"secs":2,"nanos":0},"cpu":{"secs":1,"nanos":0},"rss":12345}}"#.to_vec());
+    let output = observation(&wire)??;
+    assert_eq!(output.signal, Some(15));
+    assert_eq!(output.status.0, -15);
+    assert_eq!(output.wall, Duration::from_secs(2));
+    assert_eq!(output.stdout.0, b"{");
+    assert!(matches!(
+        output.resources,
+        ResourceObservation::Collected(Resources {
+            peak_rss_bytes: ResidentBytes(12345),
+            ..
+        })
+    ));
+    let encoded = response(Ok(output))?;
+    assert_eq!(observation(&encoded)??.signal, Some(15));
+    Ok(())
+}

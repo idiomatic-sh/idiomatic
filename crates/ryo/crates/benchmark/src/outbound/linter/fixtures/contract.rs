@@ -40,10 +40,13 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
 /// # Panics
 ///
 /// Panics when fixture setup fails or the implementation violates a contract observation.
+#[expect(clippy::expect_used, reason = "isolated fixture setup must fail the contract test")]
 pub fn check(adapter: &impl LinterPort) {
+    let temporary = tempfile::tempdir().expect("isolated linter fixture");
     let request = RunRequest {
+        context_manifest: None,
         root: PathBuf::new(),
-        state: PathBuf::new(),
+        state: temporary.path().join("state"),
         files: vec![ryo::linter::RelativePath("input.txt".into())],
     };
     let subject = |input| match input {
@@ -54,6 +57,7 @@ pub fn check(adapter: &impl LinterPort) {
         Input::OperationalFailure => match adapter.decode(
             &request,
             ProcessOutput {
+                signal: None,
                 status: crate::domain::measurements::types::ProcessExitCode(2),
                 stdout: crate::domain::measurements::types::CapturedBytes(Vec::new()),
                 stderr: crate::domain::measurements::types::CapturedBytes(Vec::new()),

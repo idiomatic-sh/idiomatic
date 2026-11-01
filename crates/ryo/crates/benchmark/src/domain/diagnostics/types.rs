@@ -17,6 +17,8 @@ pub struct BenchmarkFinding {
 /// Decoded findings and the exact files submitted to the tool.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RunReport {
+    /// Actual project lookups and their sealed snapshot identity, when explicitly enabled.
+    pub project_context: Option<ProjectContextReceipt>,
     /// Finding multiset, preserving duplicate occurrences.
     pub diagnostics: Vec<BenchmarkFinding>,
     /// Rules explicitly skipped for syntax applicability, kept separate from empty findings.
@@ -38,6 +40,22 @@ pub struct RuleCoverage {
     pub skipped: usize,
     /// Pairs unavailable because the engine returned unknown or unread state.
     pub unknown_or_unread: usize,
+}
+
+/// The context actually used by one candidate invocation.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ProjectContextReceipt {
+    /// Explicit candidate isolation mode.
+    pub mode: crate::domain::suite::types::ProjectContextMode,
+    /// Run root's stable position within the materialized snapshot.
+    pub logical_root: std::path::PathBuf,
+    /// Actual physical run directory supplied to both tools.
+    pub actual_root: std::path::PathBuf,
+    /// Hash of declared files, missing paths and logical root.
+    pub manifest_hash: crate::domain::suite::types::ArtifactDigest,
+    /// Every observed dependency, including those retained by warm reuse.
+    pub dependencies:
+        std::collections::BTreeMap<std::path::PathBuf, Option<ryo::linter::DependencyFingerprint>>,
 }
 
 /// Sorted finding multisets retained when comparison does not agree.

@@ -167,6 +167,7 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
         return Ok(true);
     }
     let mut request = RunRequest {
+        context_manifest: None,
         root: root.path().to_owned(),
         files: vec![ryo::linter::RelativePath("case.py".into())],
         state: root.path().join("cache"),
@@ -235,6 +236,7 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
     let report = ruff.decode(
         &request,
         ProcessOutput {
+            signal: None,
             status: ryo_benchmark::domain::measurements::types::ProcessExitCode(status),
             stdout: ryo_benchmark::domain::measurements::types::CapturedBytes(stdout),
             stderr: ryo_benchmark::domain::measurements::types::CapturedBytes(

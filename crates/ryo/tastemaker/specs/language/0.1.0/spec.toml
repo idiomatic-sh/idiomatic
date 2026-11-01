@@ -2396,6 +2396,10 @@ impl Project for ProjectContract {
         languages::absent(AbsenceCause::NoManifests)
     }
 
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
         languages::absent(AbsenceCause::NoManifests)
     }
@@ -2637,6 +2641,10 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
         languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
@@ -2937,6 +2945,10 @@ impl Project for ProjectContract {
         languages::absent(AbsenceCause::NoManifests)
     }
 
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
         languages::absent(AbsenceCause::NoManifests)
     }
@@ -3222,6 +3234,10 @@ impl Project for ProjectContract {
         languages::absent(AbsenceCause::NoManifests)
     }
 
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
         languages::absent(AbsenceCause::NoManifests)
     }
@@ -3480,6 +3496,10 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
         languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
@@ -3754,6 +3774,10 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
         languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
@@ -4115,6 +4139,10 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
         languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
@@ -5048,6 +5076,10 @@ impl Project for ProjectContract {
         languages::absent(AbsenceCause::NoManifests)
     }
 
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
         languages::absent(AbsenceCause::NoManifests)
     }
@@ -5327,6 +5359,10 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
         languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
@@ -5687,6 +5723,10 @@ impl Project for ProjectContract {
         languages::absent(AbsenceCause::NoManifests)
     }
 
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
         languages::absent(AbsenceCause::NoManifests)
     }
@@ -6040,6 +6080,10 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
         languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
@@ -6397,6 +6441,10 @@ impl Project for ProjectContract {
         languages::absent(AbsenceCause::NoManifests)
     }
 
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
         languages::absent(AbsenceCause::NoManifests)
     }
@@ -6706,6 +6754,10 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
         languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
@@ -7050,6 +7102,10 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
         languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
@@ -7450,6 +7506,10 @@ impl Project for ProjectContract {
         languages::absent(AbsenceCause::NoManifests)
     }
 
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
         languages::absent(AbsenceCause::NoManifests)
     }
@@ -7810,6 +7870,10 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
         languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
@@ -8259,6 +8323,10 @@ impl Project for ProjectContract {
         languages::absent(AbsenceCause::NoManifests)
     }
 
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
         languages::absent(AbsenceCause::NoManifests)
     }
@@ -8660,6 +8728,10 @@ impl Project for ProjectContract {
         languages::absent(AbsenceCause::NoManifests)
     }
 
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
         languages::absent(AbsenceCause::NoManifests)
     }
@@ -9004,6 +9076,10 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
         languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
@@ -9360,6 +9436,10 @@ impl Project for ProjectContract {
         languages::absent(AbsenceCause::NoManifests)
     }
 
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
         languages::absent(AbsenceCause::NoManifests)
     }
@@ -9706,6 +9786,10 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
         languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
@@ -10138,6 +10222,10 @@ impl Project for ProjectContract {
         languages::absent(AbsenceCause::NoManifests)
     }
 
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
         languages::absent(AbsenceCause::NoManifests)
     }
@@ -10494,6 +10582,10 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
         languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
@@ -10976,6 +11068,10 @@ impl Project for ProjectContract {
         languages::absent(AbsenceCause::NoManifests)
     }
 
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
         languages::absent(AbsenceCause::NoManifests)
     }
@@ -11426,6 +11522,10 @@ impl Project for ProjectContract {
         languages::absent(AbsenceCause::NoManifests)
     }
 
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
         languages::absent(AbsenceCause::NoManifests)
     }
@@ -11783,6 +11883,10 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
         languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
@@ -12184,6 +12288,10 @@ impl Project for ProjectContract {
         languages::absent(AbsenceCause::NoManifests)
     }
 
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
         languages::absent(AbsenceCause::NoManifests)
     }
@@ -12557,6 +12665,10 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
         languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
@@ -12958,6 +13070,10 @@ impl Project for ProjectContract {
         languages::absent(AbsenceCause::NoManifests)
     }
 
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
         languages::absent(AbsenceCause::NoManifests)
     }
@@ -13355,6 +13471,10 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
         languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
@@ -14096,6 +14216,10 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
         languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
@@ -15100,6 +15224,10 @@ impl Project for ProjectContract {
         languages::absent(AbsenceCause::NoManifests)
     }
 
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
         languages::absent(AbsenceCause::NoManifests)
     }
@@ -16094,6 +16222,10 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
         languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
@@ -17097,6 +17229,10 @@ impl Project for ProjectContract {
         languages::absent(AbsenceCause::NoManifests)
     }
 
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
         languages::absent(AbsenceCause::NoManifests)
     }
@@ -18096,6 +18232,10 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
         languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {

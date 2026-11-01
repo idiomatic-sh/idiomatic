@@ -95,6 +95,7 @@ impl EnginePort for Engine {
             return Err(Error::Invalid("fixture engine failure".into()));
         }
         Ok(RunReport {
+            project_context: None,
             files: request.files,
             skipped: Vec::new(),
             coverage: None,
@@ -122,6 +123,7 @@ fn subject(stage: Input) -> Result<Value, Failure> {
         responded: transport.respond_calls(),
         published: transport.reports()
             == [RunReport {
+                project_context: None,
                 files: request().files,
                 skipped: Vec::new(),
                 coverage: None,

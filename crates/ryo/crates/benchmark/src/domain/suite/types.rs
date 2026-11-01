@@ -29,6 +29,8 @@ pub struct Project {
 /// The independently pinned reference executable and its shipped defaults.
 #[derive(Clone, Debug)]
 pub struct Tool {
+    /// Whether the candidate receives an isolated input or an explicitly sealed disk context.
+    pub project_context_mode: ProjectContextMode,
     /// Reference executable identity reported by its version command.
     pub tool: ToolName,
     /// Exact reference version required by this suite.
@@ -78,6 +80,8 @@ pub enum ExpectedRule {
 /// An isolated set of source files and its exact expected findings.
 #[derive(Clone, Debug)]
 pub struct Case {
+    /// Explicit logical root and auxiliary context, excluded from the lint file inventory.
+    pub context: Option<CaseContext>,
     /// Whether all diagnostics or only the enclosing rule are asserted.
     pub comparison: CaseComparison,
     /// Human-readable identity of this correctness case.
@@ -119,6 +123,8 @@ pub struct Expected {
 /// Both contestants receive exactly this list, never independently walk the tree.
 #[derive(Clone, Debug)]
 pub struct RunRequest {
+    /// Sealed disk context shared by both contestants, when explicitly selected.
+    pub context_manifest: Option<ContextManifest>,
     /// Root of the exact source snapshot supplied to both contestants.
     pub root: PathBuf,
     /// Shared explicit list of relative source paths.
@@ -138,6 +144,10 @@ pub enum BenchmarkCoverage {
 /// Inputs supplied to the SDK worker inside the measured child.
 #[derive(Clone, Debug)]
 pub struct WorkerRequest {
+    /// Whether this invocation may consult the explicitly sealed disk context.
+    pub project_context_mode: ProjectContextMode,
+    /// Context dependencies sealed before this invocation.
+    pub context_manifest: Option<ContextManifest>,
     /// Root of the source snapshot read by the candidate.
     pub root: PathBuf,
     /// Directory holding the selected candidate rule directories.
@@ -152,6 +162,53 @@ pub struct WorkerRequest {
     pub files: Vec<RelativePath>,
     /// Optional persistent SDK cache directory; absence disables disk caching.
     pub state: WorkerState,
+}
+
+/// Source isolation contract at the benchmark boundary.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum ProjectContextMode {
+    /// Given text only; the root supplies no disk context.
+    #[default]
+    Isolated,
+    /// Listed files and exact preloaded bytes, with a sealed disk dependency context.
+    ListedDisk,
+}
+
+impl ProjectContextMode {
+    /// Stable wire spelling included in invocation and certificate identity.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Isolated => "isolated",
+            Self::ListedDisk => "listed-disk",
+        }
+    }
+}
+
+/// Authored auxiliary files and missing paths, all relative to an isolated snapshot boundary.
+#[derive(Clone, Debug, Default)]
+pub struct CaseContext {
+    /// Run root within the snapshot; its directory components retain their spelling.
+    pub logical_root: PathBuf,
+    /// Auxiliary bytes supplied to both tools but never linted as requested sources.
+    pub auxiliary_files: BTreeMap<PathBuf, Vec<u8>>,
+    /// Paths explicitly sealed as absent.
+    pub missing: Vec<PathBuf>,
+}
+
+/// Immutable expected state of a materialized context, independent of project lookup output.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ContextManifest {
+    /// Absolute snapshot boundary; dependencies must resolve inside it.
+    pub boundary: PathBuf,
+    /// Run root relative to the boundary, including its directory name.
+    pub logical_root: PathBuf,
+    /// Auxiliary paths and their content artifact hashes, relative to the boundary.
+    pub auxiliary_files: BTreeMap<PathBuf, ArtifactDigest>,
+    /// Explicit lint input bytes, relative to the same boundary, sealed independently of auxiliary files.
+    pub source_files: BTreeMap<PathBuf, ArtifactDigest>,
+    /// Paths explicitly sealed as missing, relative to the boundary.
+    pub missing: Vec<PathBuf>,
 }
 
 /// Audited implementation inventory.

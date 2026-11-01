@@ -7,6 +7,8 @@ use crate::domain::{
 #[must_use]
 pub fn request() -> WorkerRequest {
     WorkerRequest {
+        project_context_mode: Default::default(),
+        context_manifest: None,
         root: "workspace".into(),
         rules: "rules".into(),
         query_modules: std::collections::BTreeMap::default(),
@@ -34,6 +36,7 @@ pub fn report() -> RunReport {
         end: crate::domain::diagnostics::types::SourceByteOffset(4),
     };
     RunReport {
+        project_context: None,
         files: vec![ryo::linter::RelativePath("source.txt".into())],
         skipped: Vec::new(),
         coverage: None,

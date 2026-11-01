@@ -53,10 +53,10 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Error(Failure::Kind(std::io::ErrorKind::NotFound)),
     },
     Case {
-        name: CaseName("signal termination is not a successful observation"),
-        word: Word::Refuses,
+        name: CaseName("signal termination retains a process observation"),
+        word: Word::Succeeds,
         input: || Operation::Signaled,
-        expect: Expect::Error(Failure::Kind(std::io::ErrorKind::Other)),
+        expect: Expect::Value((-15_i32, false, false)),
     },
     Case {
         name: CaseName("both output pipes drain beyond pipe capacity"),
@@ -264,6 +264,10 @@ fn observe(
                 )
         ),
         "resource observations must match the declared execution mode"
+    );
+    assert_eq!(
+        output.signal,
+        (output.status.0 < 0).then_some(-output.status.0)
     );
     (
         output.status.0,

@@ -136,6 +136,9 @@ const OPTIONAL_POSITIVE: &str =
 const OPTIONAL_ABSENCE: &str = "let names = select * from \"identifier\" where name = \"missing\"; let absent = antijoin(left=\"syntax-tree\",right=names,left-on=[\"file\"],right-on=[\"file\"]); emit absent subject file key(span);";
 const RAW_FORMAT_POSITIVE: &str = "let segments = select * from \"raw-format-segment\" where outcome = \"parsed\"; emit segments subject file key(span);";
 
+/// A syntactic literal outcome requires its advertised optional capability.
+const LITERAL_PARSE_POSITIVE: &str = "let parsed = select * from \"literal-expression-parse\" where outcome = \"parsed\"; emit parsed subject file key(span);";
+
 const LINTED: Given = Given {
     query: FUNCTIONS,
     kept: false,
@@ -148,6 +151,16 @@ const LINTED: Given = Given {
 
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("literal_parse_contract_changes_cannot_replay_cached_absence"),
+        word: Word::Succeeds,
+        input: || Given {
+            linter: Linting::Capabilities,
+            query: LITERAL_PARSE_POSITIVE,
+            ..LINTED
+        },
+        expect: Expect::Value((1, 0, true, 0)),
+    },
     Case {
         name: CaseName("raw_format_contract_changes_cannot_replay_cached_absence"),
         word: Word::Succeeds,
@@ -720,6 +733,15 @@ impl ryo_language::inbound::use_cases::parse::types::ParseEngine for CapabilityP
                 <dyn ryo_language::domain::relations::types::RowWriter as Rows<IdentifierRow>>::partial_at(out,file,ReportText("unadvertised fixture capability"),Missing::Any);
             }
         }
+        if wanted.contains(&Relation::LiteralExpressionParse) {
+            literal_parse_capability_row(
+                self.0.contains(&OptionalCapability::LiteralExpressionParse),
+                source,
+                file,
+                symbols,
+                out,
+            );
+        }
         if wanted.contains(&Relation::RawFormatSegment) {
             use ryo_language::domain::relations::collections::relations::raw_format_segment::item::RawFormatSegmentRow;
             if self.0.contains(&OptionalCapability::RawFormatSegment) {
@@ -773,8 +795,58 @@ impl ryo_language::inbound::use_cases::parse::types::ParseEngine for CapabilityP
         };
         ((relation == Relation::Identifier && !self.0.contains(&OptionalCapability::Identifier))
             || (relation == Relation::RawFormatSegment
-                && !self.0.contains(&OptionalCapability::RawFormatSegment)))
+                && !self.0.contains(&OptionalCapability::RawFormatSegment))
+            || (relation == Relation::LiteralExpressionParse
+                && !self.0.contains(&OptionalCapability::LiteralExpressionParse)))
         .then_some(AbsenceCause::NotYetRead)
+    }
+}
+
+/// Emit or explicitly refuse the optional literal fact in the persistent-identity fixture.
+fn literal_parse_capability_row(
+    available: bool,
+    source: ryo_language::domain::symbols::types::ByteSlice<'_>,
+    file: ryo_language::domain::relations::types::FileId,
+    symbols: &mut ryo_language::domain::symbols::types::Symbols,
+    out: &mut dyn ryo_language::domain::relations::types::RowWriter,
+) {
+    use ryo_language::domain::{
+        relations::{
+            collections::relations::literal_expression_parse::item::LiteralExpressionParseRow,
+            types::{Missing, Offset, Position, ReportText, Rows, Span},
+        },
+        terms::types::NameText,
+    };
+    if available {
+        let dialect = ryo_language::domain::symbols::service::intern_derived(
+            symbols,
+            source,
+            NameText("python-string-annotation"),
+        );
+        let outcome = ryo_language::domain::symbols::service::intern_derived(
+            symbols,
+            source,
+            NameText("parsed"),
+        );
+        out.write(LiteralExpressionParseRow {
+            id: ryo_language::domain::relations::service::node_id(file, Position(0)),
+            dialect,
+            outcome,
+            file,
+            span: Span {
+                start: Offset(0),
+                end: Offset(1),
+            },
+        });
+    } else {
+        <dyn ryo_language::domain::relations::types::RowWriter as Rows<
+            LiteralExpressionParseRow,
+        >>::partial_at(
+            out,
+            file,
+            ReportText("unadvertised literal parse capability"),
+            Missing::Any,
+        );
     }
 }
 
@@ -790,6 +862,8 @@ fn capability_cache(query: &str) -> Value {
             OptionalCapability::RawFormatSegment,
             OptionalCapability::RawFormatField,
         ]
+    } else if query == LITERAL_PARSE_POSITIVE {
+        &[OptionalCapability::LiteralExpressionParse]
     } else {
         &[OptionalCapability::Identifier]
     };

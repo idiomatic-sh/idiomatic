@@ -10,6 +10,8 @@ use std::path::PathBuf;
 #[derive(Debug)]
 /// Constructs explicit candidate invocations and validates their reports.
 pub(crate) struct LinterRyoAdapter {
+    /// Explicit isolation contract selected by the frozen profile.
+    pub project_context_mode: crate::domain::suite::types::ProjectContextMode,
     /// Pinned candidate executable.
     pub executable: PathBuf,
     /// Frozen directory of selected rule queries.
@@ -24,6 +26,8 @@ pub(crate) struct LinterRyoAdapter {
 impl LinterPort for LinterRyoAdapter {
     fn prepare(&self, request: &RunRequest) -> Result<Invocation, Error> {
         let worker = WorkerRequest {
+            project_context_mode: self.project_context_mode,
+            context_manifest: request.context_manifest.clone(),
             root: request.root.clone(),
             rules: self.rules.clone(),
             query_modules: self.query_modules.clone(),
@@ -53,7 +57,7 @@ impl LinterPort for LinterRyoAdapter {
             directory: request.root.clone(),
         })
     }
-    fn decode(&self, _: &RunRequest, output: ProcessOutput) -> Result<RunReport, Error> {
+    fn decode(&self, request: &RunRequest, output: ProcessOutput) -> Result<RunReport, Error> {
         if output.status.0 != 0_i32 || !output.stderr.0.is_empty() {
             return Err(Error::Invalid(format!(
                 "candidate failed ({}): {}",
@@ -61,6 +65,28 @@ impl LinterPort for LinterRyoAdapter {
                 String::from_utf8_lossy(&output.stderr.0)
             )));
         }
-        super::schemas::decode_report(&output.stdout.0)
+        let report = super::schemas::decode_report(&output.stdout.0)?;
+        match (
+            self.project_context_mode,
+            &request.context_manifest,
+            &report.project_context,
+        ) {
+            (crate::domain::suite::types::ProjectContextMode::Isolated, None, None) => {}
+            (
+                crate::domain::suite::types::ProjectContextMode::ListedDisk,
+                Some(manifest),
+                Some(receipt),
+            ) => crate::outbound::context::adapters::local::adapter::verify_receipt(
+                manifest,
+                &request.root,
+                receipt,
+            )?,
+            _ => {
+                return Err(Error::Invalid(
+                    "candidate context mode, manifest and receipt disagree".into(),
+                ));
+            }
+        }
+        Ok(report)
     }
 }

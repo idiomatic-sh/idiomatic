@@ -24,6 +24,7 @@ fn reports() -> (RunReport, RunReport) {
         ..first.clone()
     };
     let reference = RunReport {
+        project_context: None,
         files: fixture.files,
         skipped: Vec::new(),
         coverage: None,

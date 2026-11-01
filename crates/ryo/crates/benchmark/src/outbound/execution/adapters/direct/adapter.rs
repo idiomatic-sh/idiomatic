@@ -1,7 +1,7 @@
 //! Direct Linux `wait4` observes the exact child started by `std::process::Command`.
 #[cfg(target_os = "linux")]
 use super::{constants, schemas};
-use crate::domain::measurements::types::{CapturedBytes, ProcessExitCode, ResourceObservation};
+use crate::domain::measurements::types::{CapturedBytes, ResourceObservation};
 use crate::domain::{
     diagnostics::errors::DiagnosticsError as Error,
     measurements::types::{Invocation, ProcessOutput},
@@ -60,12 +60,10 @@ impl ExecutionPort for ExecutionDirectAdapter {
             Ok((usage, stdout, stderr))
         })?;
         let wall = start.elapsed();
-        let status = usage
-            .status
-            .code()
-            .ok_or_else(|| Error::Invalid(constants::SIGNAL.into()))?;
+        let (status, signal) = crate::outbound::execution::status::decode(usage.status)?;
         Ok(ProcessOutput {
-            status: ProcessExitCode(status),
+            signal,
+            status,
             stdout: CapturedBytes(stdout),
             stderr: CapturedBytes(stderr),
             wall,

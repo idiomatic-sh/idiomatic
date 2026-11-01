@@ -67,6 +67,7 @@ fn subject(scenario: Input) -> Result<serde_json::Value, Failure> {
                     })
                 },
                 report: RunReport {
+                    project_context: None,
                     skipped: Vec::new(),
                     coverage: None,
                     diagnostics: Vec::new(),

@@ -81,3 +81,69 @@ name = "nonlogger-object-method"
 comparison = "full"
 files = { "case.py" = "class Printer:\n    def error(self, *args):\n        pass\nprinter = Printer()\nprinter.error(\"%s %s\", \"x\")\n" }
 expected = []
+
+[[cases]]
+name = "retained-try401-local-logger-object-name"
+comparison = "full"
+files = { "case.py" = "logger = object()\ntry:\n    pass\nexcept Exception as error:\n    logger.exception(\"failure\", error)\n" }
+expected = []
+
+[[cases]]
+name = "logger-parameter"
+comparison = "full"
+files = { "case.py" = "def f(logger):\n    logger.error(\"%s %s\", 1)\n" }
+expected = [{ "rule" = "PLE1206", "file" = "case.py", "start" = 19, "end" = 31 }]
+
+[[cases]]
+name = "suffix-logger-local"
+comparison = "full"
+files = { "case.py" = "my_logger = object()\nmy_logger.info(\"%s %s\", 1)\n" }
+expected = [{ "rule" = "PLE1206", "file" = "case.py", "start" = 21, "end" = 35 }]
+
+[[cases]]
+name = "nonheuristic-constructor-assignment"
+comparison = "full"
+files = { "case.py" = "import logging\nother = logging.getLogger(\"x\")\nother.error(\"%s %s\", 1)\n" }
+expected = []
+
+[[cases]]
+name = "inline-getlogger-constructor"
+comparison = "full"
+files = { "case.py" = "import logging\nlogging.getLogger(\"x\").error(\"%s %s\", 1)\n" }
+expected = [{ "rule" = "PLE1206", "file" = "case.py", "start" = 15, "end" = 43 }]
+
+[[cases]]
+name = "imported-module-named-logger-control"
+comparison = "full"
+files = { "case.py" = "import other as logger\nlogger.error(\"%s %s\", 1)\n" }
+expected = []
+
+[[cases]]
+name = "local-attribute-named-logger"
+comparison = "full"
+files = { "case.py" = "holder = object()\nholder.logger.error(\"%s %s\", 1)\n" }
+expected = [{ "rule" = "PLE1206", "file" = "case.py", "start" = 18, "end" = 37 }]
+
+[[cases]]
+name = "uppercase-local-name"
+comparison = "full"
+files = { "case.py" = "LOG = object()\nLOG.error(\"%s %s\", 1)\n" }
+expected = [{ "rule" = "PLE1206", "file" = "case.py", "start" = 15, "end" = 24 }]
+
+[[cases]]
+name = "logger-prefix-name"
+comparison = "full"
+files = { "case.py" = "logarithm = object()\nlogarithm.debug(\"%s %s\", 1)\n" }
+expected = [{ "rule" = "PLE1206", "file" = "case.py", "start" = 21, "end" = 36 }]
+
+[[cases]]
+name = "imported-attribute-named-logger-control"
+comparison = "full"
+files = { "case.py" = "import other\nother.logger.error(\"%s %s\", 1)\n" }
+expected = []
+
+[[cases]]
+name = "local-logger-exact-argument-count-control"
+comparison = "full"
+files = { "case.py" = "logger = object()\nlogger.error(\"%s\", 1)\n" }
+expected = []

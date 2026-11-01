@@ -66,3 +66,6 @@ pub(crate) mod language_target;
 pub(crate) mod literal_properties;
 pub(crate) mod raw_format_field;
 pub(crate) mod raw_format_segment;
+
+/// Optional syntactic validity is statically bound in the inbound parser contract.
+pub(crate) mod literal_expression_parse;

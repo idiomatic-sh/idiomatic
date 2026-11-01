@@ -81,3 +81,7 @@ pub mod binding_shadow;
 
 /// Optional occurrence-independent language builtin catalog.
 pub mod implicit_symbol;
+
+/// Syntactic outcomes for original literal carriers.
+pub mod literal_expression_parse;
+pub mod module_identity;
