@@ -24,6 +24,8 @@ pub mod mention;
 pub mod package_dependency;
 pub mod parameter;
 pub mod prose;
+pub mod raw_format_field;
+pub mod raw_format_segment;
 pub mod reference;
 pub mod resolves;
 pub mod scope;

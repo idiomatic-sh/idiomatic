@@ -44,6 +44,14 @@ mod format_parse {
 mod format_field {
     include!("../../tests/fixtures/relations/format_field/expected.rs");
 }
+/// Raw format token outcomes preserve source identity.
+mod raw_format_segment {
+    include!("../../tests/fixtures/relations/raw_format_segment/expected.rs");
+}
+/// Successful raw fields retain both local and global order.
+mod raw_format_field {
+    include!("../../tests/fixtures/relations/raw_format_field/expected.rs");
+}
 /// Independently expected identifier spellings.
 mod identifier {
     include!("../../tests/fixtures/relations/identifier/expected.rs");
@@ -161,6 +169,8 @@ pub(super) fn expected() -> Vec<Expected> {
         constant_key::expected(),
         format_parse::expected(),
         format_field::expected(),
+        raw_format_segment::expected(),
+        raw_format_field::expected(),
         call_argument::expected(),
         static_import::expected(),
         string_literal::expected(),

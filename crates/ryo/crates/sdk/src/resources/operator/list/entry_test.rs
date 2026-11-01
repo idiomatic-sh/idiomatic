@@ -11,10 +11,10 @@ type Failure = ListError;
 
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[Case {
-    name: CaseName("lists_all_nineteen"),
+    name: CaseName("lists_all_operators"),
     word: Word::Succeeds,
     input: || (),
-    expect: Expect::Value(19),
+    expect: Expect::Value(20),
 }];
 
 fn subject((): Input) -> Result<Value, Failure> {

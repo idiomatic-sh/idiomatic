@@ -64,3 +64,5 @@ pub(crate) mod implicit_symbol;
 pub(crate) mod interpolated_string_literal;
 pub(crate) mod language_target;
 pub(crate) mod literal_properties;
+pub(crate) mod raw_format_field;
+pub(crate) mod raw_format_segment;

@@ -210,6 +210,17 @@ emit crowded subject "file" key("file");
 
 ## Literal replacement and ordered matching
 
+Python's optional `raw-format-segment` relation records one parser outcome per
+ordinary string token, retaining the enclosing expression, token identity and source
+order. Prefixes and quotes are excluded from the parser input; escapes and line
+endings remain unchanged. Each segment is parsed independently, including malformed
+and empty bodies. `raw-format-field` records conversions from successful segments
+with both segment-local and expression-wide order. A malformed segment contributes
+no fields, including any otherwise valid prefix. Unavailable source knowledge makes
+the relation partial and prevents precise flattened fields for the affected expression.
+These relations have independent demand and caching from decoded `format-parse`,
+`format-field` and brace-format relations.
+
 `span-between(from=rows, start="literal_span", end="expression_span", output="diagnostic_span")`
 appends a typed span while retaining every column and repeated row. It uses the first
 span's start and the second span's end, including when the expression starts before

@@ -134,6 +134,7 @@ const MISSPELLED: &str =
 const OPTIONAL_POSITIVE: &str =
     "let names = select * from \"identifier\"; emit names subject file key(span);";
 const OPTIONAL_ABSENCE: &str = "let names = select * from \"identifier\" where name = \"missing\"; let absent = antijoin(left=\"syntax-tree\",right=names,left-on=[\"file\"],right-on=[\"file\"]); emit absent subject file key(span);";
+const RAW_FORMAT_POSITIVE: &str = "let segments = select * from \"raw-format-segment\" where outcome = \"parsed\"; emit segments subject file key(span);";
 
 const LINTED: Given = Given {
     query: FUNCTIONS,
@@ -147,6 +148,16 @@ const LINTED: Given = Given {
 
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("raw_format_contract_changes_cannot_replay_cached_absence"),
+        word: Word::Succeeds,
+        input: || Given {
+            linter: Linting::Capabilities,
+            query: RAW_FORMAT_POSITIVE,
+            ..LINTED
+        },
+        expect: Expect::Value((1, 0, true, 0)),
+    },
     Case {
         name: CaseName("optional_contract_changes_cannot_replay_cached_absence"),
         word: Word::Succeeds,
@@ -709,6 +720,48 @@ impl ryo_language::inbound::use_cases::parse::types::ParseEngine for CapabilityP
                 <dyn ryo_language::domain::relations::types::RowWriter as Rows<IdentifierRow>>::partial_at(out,file,ReportText("unadvertised fixture capability"),Missing::Any);
             }
         }
+        if wanted.contains(&Relation::RawFormatSegment) {
+            use ryo_language::domain::relations::collections::relations::raw_format_segment::item::RawFormatSegmentRow;
+            if self.0.contains(&OptionalCapability::RawFormatSegment) {
+                let intern = |symbols: &mut ryo_language::domain::symbols::types::Symbols,
+                              text: &str| {
+                    ryo_language::domain::symbols::service::intern_derived(
+                        symbols,
+                        source,
+                        NameText(text),
+                    )
+                };
+                let id = ryo_language::domain::relations::service::node_id(file, Position(0));
+                out.write(RawFormatSegmentRow {
+                    id,
+                    segment: id,
+                    segment_ordinal: ryo_language::domain::relations::types::Integer(0),
+                    dialect: intern(symbols, "percent-string"),
+                    outcome: intern(symbols, "parsed"),
+                    error_category: intern(symbols, "none"),
+                    error_character: intern(symbols, ""),
+                    error_index: ryo_language::domain::relations::types::Integer(0),
+                    positional_consumption: ryo_language::domain::relations::types::Integer(0),
+                    mapping_present: ryo_language::domain::relations::types::Flag::Lowered,
+                    dynamic_width: ryo_language::domain::relations::types::Flag::Lowered,
+                    dynamic_precision: ryo_language::domain::relations::types::Flag::Lowered,
+                    file,
+                    span: Span {
+                        start: Offset(0),
+                        end: Offset(1),
+                    },
+                });
+            } else {
+                <dyn ryo_language::domain::relations::types::RowWriter as Rows<
+                    RawFormatSegmentRow,
+                >>::partial_at(
+                    out,
+                    file,
+                    ReportText("unadvertised raw format capability"),
+                    Missing::Any,
+                );
+            }
+        }
     }
     fn absence_of(
         &self,
@@ -718,8 +771,10 @@ impl ryo_language::inbound::use_cases::parse::types::ParseEngine for CapabilityP
             answers::types::AbsenceCause,
             relations::types::{OptionalCapability, Relation},
         };
-        (relation == Relation::Identifier && !self.0.contains(&OptionalCapability::Identifier))
-            .then_some(AbsenceCause::NotYetRead)
+        ((relation == Relation::Identifier && !self.0.contains(&OptionalCapability::Identifier))
+            || (relation == Relation::RawFormatSegment
+                && !self.0.contains(&OptionalCapability::RawFormatSegment)))
+        .then_some(AbsenceCause::NotYetRead)
     }
 }
 
@@ -730,6 +785,14 @@ impl ryo_language::inbound::use_cases::parse::types::ParseEngine for CapabilityP
 )]
 fn capability_cache(query: &str) -> Value {
     use ryo_language::domain::relations::types::OptionalCapability;
+    let advertised_capabilities: &'static [OptionalCapability] = if query == RAW_FORMAT_POSITIVE {
+        &[
+            OptionalCapability::RawFormatSegment,
+            OptionalCapability::RawFormatField,
+        ]
+    } else {
+        &[OptionalCapability::Identifier]
+    };
     let root = tempfile::tempdir().expect("corpus");
     let store = tempfile::tempdir().expect("store");
     std::fs::write(root.path().join("case.txt"), "x").expect("source");
@@ -790,7 +853,7 @@ fn capability_cache(query: &str) -> Value {
     );
 
     let advertised = engine(
-        &[OptionalCapability::Identifier],
+        advertised_capabilities,
         "",
         "x",
         Cache::At(store.path().to_path_buf()),
@@ -818,7 +881,7 @@ fn capability_cache(query: &str) -> Value {
         "unavailability remains observable"
     );
     let restored = engine(
-        &[OptionalCapability::Identifier],
+        advertised_capabilities,
         "",
         "x",
         Cache::At(store.path().to_path_buf()),

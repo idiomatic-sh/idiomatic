@@ -15,7 +15,7 @@ use ryo::languages;
 pub(super) struct FormatParseItem;
 pub(super) struct FormatFieldItem;
 
-fn intern(
+pub(super) fn intern(
     symbols: &mut languages::Symbols,
     source: languages::ByteSlice<'_>,
     value: &str,
@@ -23,7 +23,10 @@ fn intern(
     languages::intern_derived(symbols, source, languages::NameText(value))
 }
 
-fn summary_of(result: Option<&FormatParseResult>, unknown: bool) -> (FormatSummary, &'static str) {
+pub(super) fn summary_of(
+    result: Option<&FormatParseResult>,
+    unknown: bool,
+) -> (FormatSummary, &'static str) {
     match result {
         Some(FormatParseResult::Parsed(parsed)) => (parsed.summary, "parsed"),
         Some(FormatParseResult::Malformed(_)) => (FormatSummary::default(), "malformed"),
@@ -33,7 +36,7 @@ fn summary_of(result: Option<&FormatParseResult>, unknown: bool) -> (FormatSumma
     }
 }
 
-fn error_parts(result: Option<&FormatParseResult>) -> (&'static str, String, i64) {
+pub(super) fn error_parts(result: Option<&FormatParseResult>) -> (&'static str, String, i64) {
     let Some(FormatParseResult::Malformed(error)) = result else {
         return ("none", String::new(), 0);
     };
@@ -50,7 +53,7 @@ fn error_parts(result: Option<&FormatParseResult>) -> (&'static str, String, i64
     (category, character, index)
 }
 
-fn flag(value: bool) -> languages::Flag {
+pub(super) fn flag(value: bool) -> languages::Flag {
     if value {
         languages::Flag::Raised
     } else {
@@ -58,7 +61,7 @@ fn flag(value: bool) -> languages::Flag {
     }
 }
 
-fn width_mode(value: FormatQuantityMode) -> &'static str {
+pub(super) fn width_mode(value: FormatQuantityMode) -> &'static str {
     match value {
         FormatQuantityMode::None => "none",
         FormatQuantityMode::Fixed => "fixed",

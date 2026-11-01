@@ -60,6 +60,8 @@ pub(crate) struct Declarations {
     pub constant_keys: RefCell<ConstantKeyIndex>,
     /// Lazy decoded percent-format parses, invalidated between source revisions.
     pub format_parsing: RefCell<FormatParseIndex>,
+    /// Lazy individual raw-token percent-format parses, independently demanded.
+    pub raw_format: RefCell<crate::domain::raw_format::types::RawFormatIndex>,
     /// Lazy decoded brace-format parses, invalidated between source revisions.
     pub brace_format: RefCell<BraceFormatIndex>,
     /// Lazy basic expression types, invalidated between source revisions.

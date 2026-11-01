@@ -176,4 +176,6 @@ pub const OPTIONAL_CAPABILITIES: &[super::types::OptionalCapability] = &[
     super::types::OptionalCapability::BraceFormatField,
     super::types::OptionalCapability::FunctionTerminal,
     super::types::OptionalCapability::ExpressionType,
+    super::types::OptionalCapability::RawFormatSegment,
+    super::types::OptionalCapability::RawFormatField,
 ];

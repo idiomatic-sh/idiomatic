@@ -330,6 +330,14 @@ impl Parse for ParseContract {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
+    fn raw_format_segment(&self) -> Support<Reader<languages::RawFormatSegment, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn raw_format_field(&self) -> Support<Reader<languages::RawFormatField, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn brace_format_parse(&self) -> Support<Reader<languages::BraceFormatParse, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }

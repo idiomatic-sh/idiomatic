@@ -535,4 +535,8 @@ pub enum OptionalCapability {
     FunctionTerminal,
     /// Basic parser-derived types of individual expressions.
     ExpressionType,
+    /// Per-token raw percent-format parser outcomes.
+    RawFormatSegment,
+    /// Ordered conversion fields from individual successful raw-token parses.
+    RawFormatField,
 }

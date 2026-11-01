@@ -181,35 +181,35 @@ files = { "case.py" = "b\"%d\" % b\"bad\"\n" }
 expected = []
 
 [[cases]]
-# Capability control: upstream parses raw individual segments; current format facts expose decoded concatenation.
+# Regression: raw individual segments remain independent of decoded concatenation.
 name = "raw-escaped-percent"
 comparison = "full"
 files = { "case.py" = "\"\\x25d\" % \"bad\"\n" }
 expected = []
 
 [[cases]]
-# Capability control: upstream parses raw individual segments; current format facts expose decoded concatenation.
+# Regression: raw individual segments remain independent of decoded concatenation.
 name = "raw-escaped-conversion"
 comparison = "full"
 files = { "case.py" = "\"%\\x64\" % \"bad\"\n" }
 expected = []
 
 [[cases]]
-# Capability control: upstream parses raw individual segments; current format facts expose decoded concatenation.
+# Regression: raw individual segments remain independent of decoded concatenation.
 name = "raw-invalid-segment-ignored"
 comparison = "full"
 files = { "case.py" = "\"%q\" \"%d\" % \"bad\"\n" }
 expected = [{ rule = "PLE1307", file = "case.py", start = 0, end = 17 }]
 
 [[cases]]
-# Capability control: upstream parses raw individual segments; current format facts expose decoded concatenation.
+# Regression: raw individual segments remain independent of decoded concatenation.
 name = "raw-segment-boundary"
 comparison = "full"
 files = { "case.py" = "\"%\" \"d\" % \"bad\"\n" }
 expected = []
 
 [[cases]]
-# Capability control: upstream parses raw individual segments; current format facts expose decoded concatenation.
+# Regression: raw individual segments remain independent of decoded concatenation.
 name = "raw-mapping-key"
 comparison = "full"
 files = { "case.py" = "\"%(\\x78)d\" % {\"x\":\"bad\"}\n" }
@@ -222,7 +222,7 @@ files = { "case.py" = "r\"%d\" % \"bad\"\n" }
 expected = [{ rule = "PLE1307", file = "case.py", start = 0, end = 13 }]
 
 [[cases]]
-# Capability control: upstream parses raw individual segments; current format facts expose decoded concatenation.
+# Regression: raw individual segments remain independent of decoded concatenation.
 name = "raw-newline"
 comparison = "full"
 files = { "case.py" = "\"%\\\nd\" % \"bad\"\n" }

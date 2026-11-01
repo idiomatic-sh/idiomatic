@@ -12,7 +12,7 @@ type Failure = ListOperatorsError;
 
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[Case {
-    name: CaseName("lists_the_nineteen_operators_in_documentation_order"),
+    name: CaseName("lists_every_operator_in_documentation_order"),
     word: Word::Succeeds,
     input: || (),
     expect: Expect::Value((20, true)),
@@ -26,6 +26,7 @@ fn subject((): Input) -> Result<Value, Failure> {
         .map(|operator| &*operator.name.0)
         .collect();
     let documented = [
+        "span-between",
         "replace",
         "ordered-match",
         "select",

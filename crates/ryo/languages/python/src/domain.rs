@@ -64,5 +64,6 @@ pub(crate) mod expression_types;
 pub(crate) mod format_parsing;
 /// Application-owned decoded format grammar results and parser port.
 pub(crate) mod format_syntax;
+pub(crate) mod raw_format;
 /// Terminal outcomes of function bodies.
 pub(crate) mod terminal_flow;

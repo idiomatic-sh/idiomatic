@@ -42,6 +42,7 @@ pub use ryo_language::inbound::use_cases::parse::fixtures::expected_rows::{
     mapping::MappingExpectedRow, mention::MentionExpectedRow,
     package_dependency::PackageDependencyExpectedRow, parameter::ParameterExpectedRow,
     prose::ProseExpectedRow, qualified_name::QualifiedNameExpectedRow,
+    raw_format_field::RawFormatFieldExpectedRow, raw_format_segment::RawFormatSegmentExpectedRow,
     reference::ReferenceExpectedRow, resolves::ResolvesExpectedRow, scope::ScopeExpectedRow,
     semantic_child::SemanticChildExpectedRow, semantic_syntax::SemanticSyntaxExpectedRow,
     sequence_element::SequenceElementExpectedRow, source_dependency::SourceDependencyExpectedRow,

@@ -94,6 +94,8 @@ impl Parse for ParseContract {
             languages::OptionalCapability::ConstantKey,
             languages::OptionalCapability::FormatParse,
             languages::OptionalCapability::FormatField,
+            languages::OptionalCapability::RawFormatSegment,
+            languages::OptionalCapability::RawFormatField,
             languages::OptionalCapability::BraceFormatParse,
             languages::OptionalCapability::BraceFormatField,
             languages::OptionalCapability::LanguageTarget,
@@ -111,6 +113,7 @@ impl Parse for ParseContract {
         crate::domain::expression_shapes::service::clear(model.expression_shapes.get_mut());
         crate::domain::constant_keys::service::clear(model.constant_keys.get_mut());
         crate::domain::format_parsing::service::clear(model.format_parsing.get_mut());
+        crate::domain::raw_format::service::clear(model.raw_format.get_mut());
         crate::domain::brace_format::service::clear(model.brace_format.get_mut());
         crate::domain::expression_types::service::clear(model.expression_types.get_mut());
         crate::domain::terminal_flow::service::clear(model.terminal_flow.get_mut());
@@ -258,6 +261,14 @@ impl Parse for ParseContract {
 
     fn format_parse(&self) -> Support<Reader<languages::FormatParse, Self::FileModel>> {
         languages::reads::<super::format_readers::FormatParseItem>()
+    }
+
+    fn raw_format_segment(&self) -> Support<Reader<languages::RawFormatSegment, Self::FileModel>> {
+        languages::reads::<super::raw_format_readers::RawFormatSegmentItem>()
+    }
+
+    fn raw_format_field(&self) -> Support<Reader<languages::RawFormatField, Self::FileModel>> {
+        languages::reads::<super::raw_format_readers::RawFormatFieldItem>()
     }
 
     fn format_field(&self) -> Support<Reader<languages::FormatField, Self::FileModel>> {

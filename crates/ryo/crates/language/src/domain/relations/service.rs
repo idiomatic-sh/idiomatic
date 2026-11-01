@@ -49,6 +49,8 @@ macro_rules! each_relation {
                 FormatField format_field FormatFieldRow FormatFieldColumn;
                 BraceFormatParse brace_format_parse BraceFormatParseRow BraceFormatParseColumn;
                 BraceFormatField brace_format_field BraceFormatFieldRow BraceFormatFieldColumn;
+                RawFormatSegment raw_format_segment RawFormatSegmentRow RawFormatSegmentColumn;
+                RawFormatField raw_format_field RawFormatFieldRow RawFormatFieldColumn;
                 StaticImport static_import StaticImportRow StaticImportColumn;
                 StringLiteral string_literal StringLiteralRow StringLiteralColumn;
                 SyntaxChild syntax_child SyntaxChildRow SyntaxChildColumn;
@@ -422,5 +424,7 @@ pub const fn capability_relation(capability: super::types::OptionalCapability) -
         OptionalCapability::BraceFormatField => Relation::BraceFormatField,
         OptionalCapability::FunctionTerminal => Relation::FunctionTerminal,
         OptionalCapability::ExpressionType => Relation::ExpressionType,
+        OptionalCapability::RawFormatSegment => Relation::RawFormatSegment,
+        OptionalCapability::RawFormatField => Relation::RawFormatField,
     }
 }

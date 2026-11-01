@@ -1,13 +1,13 @@
 //! Plain application-owned format parser values.
 
-/// The grammar used to parse a decoded string.
+/// The grammar used to parse a caller-selected format input.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum FormatDialect {
     /// Python printf-style string formatting with a `str` left operand.
     PercentString,
 }
 
-/// Why a decoded format could not be parsed.
+/// Why a format input could not be parsed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum FormatErrorKind {
     /// A mapping key opened with `(` but did not close.
@@ -36,7 +36,7 @@ pub(crate) struct FormatParseError {
 pub(crate) enum FormatArgument {
     /// A positional argument.
     Positional,
-    /// A mapping item named by the decoded key.
+    /// A mapping item named by its spelling within the parser input.
     Mapping(String),
 }
 
@@ -81,7 +81,7 @@ pub(crate) struct FormatSummary {
     pub dynamic_precision: bool,
 }
 
-/// A successfully parsed decoded string.
+/// A successfully parsed format input.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct ParsedFormat {
     /// Conversion fields in their source order.
@@ -90,7 +90,7 @@ pub(crate) struct ParsedFormat {
     pub summary: FormatSummary,
 }
 
-/// The owned result of parsing one decoded string.
+/// The owned result of parsing one format input.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum FormatParseResult {
     /// Parsing completed successfully.
