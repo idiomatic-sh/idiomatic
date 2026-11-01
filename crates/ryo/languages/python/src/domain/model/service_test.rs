@@ -41,6 +41,7 @@ fn subject((scope, name): Input) -> Value {
         bindings: Vec::default(),
         expression_shapes: RefCell::default(),
         constant_keys: RefCell::default(),
+        format_parsing: RefCell::default(),
         indentation: RefCell::default(),
         qualification: RefCell::default(),
         semantic: RefCell::default(),

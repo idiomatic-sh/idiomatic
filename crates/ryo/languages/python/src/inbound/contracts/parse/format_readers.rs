@@ -100,7 +100,7 @@ ryo::reads! {
 #[cfg(test)]
 mod tests {
     use super::{FormatFieldItem, FormatParseItem};
-    use crate::domain::relations::collections::fixtures::contract::check;
+    use crate::domain::relations::collections::relations::fixtures::contract::check;
     use crate::fixtures::reading::reading;
     use ryo::languages::contract::Want;
 
