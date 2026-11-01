@@ -10,7 +10,6 @@
   "oracle_file": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/shape-110/oracle.json",
   "oracle_sha256": "13d0e1ff6f3fe7ac6e1cdf41323e352a92a9eebf407b286744bac15a9f8ce2c7",
   "changed_case_count": 8,
-  "added_diagnostic_count": 14,
   "cases": [
     {
       "rule": "FURB136",

@@ -26,7 +26,7 @@ expected = [{ file = "case.py", start = 7, end = 20 }]
 [[cases]]
 name = "generic"
 files = { "case.py" = "class C[T]():\n    pass\n" }
-expected = [{ file = "case.py", start = 10, end = 12 }]
+expected = [{ file = "case.py", start = 10, end = 12 }, { rule = "invalid-syntax", file = "case.py", start = 7, end = 10 }]
 
 [[cases]]
 name = "function"

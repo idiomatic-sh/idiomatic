@@ -46,7 +46,7 @@ expected = [{ file = "case.py", start = 16, end = 44 }, { file = "case.py", star
 [[cases]]
 name = "group"
 files = { "case.py" = "try:\n    work()\nexcept* ValueError:\n    raise\n" }
-expected = [{ file = "case.py", start = 16, end = 45 }]
+expected = [{ file = "case.py", start = 16, end = 45 }, { rule = "invalid-syntax", file = "case.py", start = 22, end = 23 }]
 
 [[cases]]
 name = "finally"
