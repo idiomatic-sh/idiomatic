@@ -157,12 +157,12 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
 
     let packed = directory.join("packed");
     std::fs::create_dir_all(&packed)?;
-    for source in [&platform, &staged] {
+    for package in [&platform, &staged] {
         run(Command::new(NPM)
             .arg("pack")
             .arg("--pack-destination")
             .arg(&packed)
-            .current_dir(source))?;
+            .current_dir(package))?;
     }
     let prefix = directory.join("prefix");
     run(Command::new(NPM)

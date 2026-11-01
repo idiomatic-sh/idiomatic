@@ -1,8 +1,8 @@
 # The release workflow on GitHub Actions, its thin edge, as ruff's is. A push to main releases each product whose version it
 # changes: the `tag` job runs `ci/tag/command.py --push`, which names each product whose workspace version in crates/<product>/Cargo.toml
 # differs from the parent commit's and whose tag (`idiomatic-sh-<product>-v<version>`) does not exist yet, and creates that tag at
-# the commit; the build and publish jobs then run for those products alone, each product's beside the others', its publish in a
-# concurrency group of its own. A push runs no check: every commit to main comes through a pull request, whose `gate` (check.yml)
+# the commit; the build and publish jobs then run for those products alone, each product's builds beside the others', its publish
+# in a concurrency group of its own, one product's publish at a time, ryo's first. A push runs no check: every commit to main comes through a pull request, whose `gate` (check.yml)
 # ran the same check fan-out over the same tree. A maintainer's hand run releases ONE product, the `product` input, and checks
 # it first: `asymptote check --root crates/<product> --groups <group>` runs each of that product's groups (its tests and packaging
 # tests, one job per group and machine, lint from the repository's root). Tastemaker depends on ryo's crates, so a ryo version
@@ -111,11 +111,12 @@ jobs:
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
       - name: Rust toolchain (rust-toolchain.toml)
         run: rustup toolchain install
-      # A cache per machine and group, since each group builds with its own toolchain, features or flags.
+      # A cache per machine, group and product, since each group builds with its own toolchain, features or flags, and each
+      # product its own crates: the same caches as check.yml's.
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           cache-bin: false
-          shared-key: ${{ matrix.runner }}-${{ matrix.group }}
+          shared-key: ${{ matrix.runner }}-${{ matrix.group }}-${{ inputs.product }}
           save-if: true
           workspaces: |
             crates/asymptote -> ../../target
@@ -201,6 +202,9 @@ jobs:
     if: ${{ !cancelled() && needs.build.result == 'success' }}
     strategy:
       fail-fast: false
+      # One product's publish at a time, in the `tag` job's order (ryo, tastemaker, asymptote): tastemaker depends on ryo's crates,
+      # so when a push releases both, ryo's are on crates.io before tastemaker's publish starts.
+      max-parallel: 1
       matrix:
         product: ${{ fromJSON(github.event_name == 'push' && needs.tag.outputs.products || format('["{0}"]', inputs.product)) }}
     # Each product's publish in a group of its own: one product's publishes never overlap, and products publish side by side.
