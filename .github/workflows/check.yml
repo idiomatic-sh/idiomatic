@@ -92,12 +92,13 @@ jobs:
     needs: build
     strategy:
       fail-fast: false
-      # The tests (check) on every machine; lint and clippy once, on Linux x64, and the SDK's API once, on macOS, where cargo-public-api
-      # ships a prebuilt: none of their verdicts depends on the platform.
+      # The tests (check) on every machine; lint, clippy and Ruff's candidate profiles once on Linux x64, and the SDK's API once, on
+      # macOS, where cargo-public-api ships a prebuilt: none of their verdicts depends on the platform.
       matrix:
         include:
           - { os: ubuntu-26.04, group: lint }
           - { os: ubuntu-26.04, group: check }
+          - { os: ubuntu-26.04, group: ruff-candidates }
           - { os: macos-26, group: check }
           - { os: windows-2025, group: check }
           - { os: ubuntu-26.04, group: clippy }
