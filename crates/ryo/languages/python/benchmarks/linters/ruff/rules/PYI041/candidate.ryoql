@@ -1,4 +1,5 @@
 import suppress from "python/ruff/suppress";
+import lookup_attribute from "python/ruff/lookup-attribute";
 import union_members from "python/ruff/union-members";
 let members = union_members();
 let functions = select id, file from "semantic-syntax" where kind = "function-def" or kind = "async-function-def";
@@ -15,7 +16,12 @@ let attribute_labels = select l.id as attribute, r.child as label, l.file as fil
 let register_attributes = select l.attribute as attribute, l.file as file from attribute_labels as l join "identifier" as r on l.label = r.id and l.file = r.file where r.name = "register";
 let dispatch_register_decorators = select l.function as function, l.expression as attribute, l.file as file from decorator_roots as l join register_attributes as r on l.expression = r.attribute and l.file = r.file;
 let register_receivers = select l.function as function, r.child as receiver, l.file as file from dispatch_register_decorators as l join "semantic-child" as r on l.attribute = r.parent and l.file = r.file where r.field = "value";
-let resolved_registers = select l.function as function, r.definition as interface, l.file as file from register_receivers as l join "resolves" as r on l.receiver = r.occurrence and l.file = r.file;
+let register_context_scopes = select l.function as context, r.parent as initial_scope, l.file as file from register_receivers as l join "scope" as r on l.function = r.child and l.file = r.file;
+let bind_events = select occurrence, ordinal, file from "binding-event" where kind = "bind";
+let register_contexts = select l.context as context, l.initial_scope as initial_scope, r.ordinal as point, l.file as file from register_context_scopes as l join bind_events as r on l.context = r.occurrence and l.file = r.file;
+let receiver_expressions = select receiver as id, file from register_receivers;
+let receiver_definitions = lookup_attribute(ordered_contexts=register_contexts, expressions=receiver_expressions);
+let resolved_registers = select l.function as function, r.definition as interface, l.file as file from register_receivers as l join receiver_definitions as r on l.function = r.context and l.receiver = r.expression and l.file = r.file;
 let dispatch_implementations = select l.function as function, l.file as file from resolved_registers as l join dispatch_interfaces as r on l.interface = r.function and l.file = r.file;
 let annotation_locations = select l.function as function, l.annotation as annotation, r."start-byte" as position, l.file as file from function_annotations as l join "source-location" as r on l.annotation = r.id and l.file = r.file;
 let nonfirst_annotations = select r.function as function, r.annotation as annotation, r.file as file from annotation_locations as l join annotation_locations as r on l.function = r.function and l.file = r.file where l.position < r.position;

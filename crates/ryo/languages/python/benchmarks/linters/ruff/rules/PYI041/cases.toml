@@ -154,3 +154,81 @@ name = "file-suppression"
 comparison = "full"
 files = { "case.py" = "# ruff: noqa: PYI041\nimport builtins\nfrom typing import Union,Optional\ndef f(a:int|float) -> None: ...\n" }
 expected = []
+
+[[cases]]
+name = "singledispatchmethod"
+comparison = "full"
+files = { "case.py" = "from functools import singledispatchmethod\nclass C:\n @singledispatchmethod\n def f(self,a): ...\n @f.register\n def g(self,a:int|float,b:int|float): ...\n" }
+expected = [{ rule = "PYI041", file = "case.py", start = 134, end = 143 }]
+
+[[cases]]
+name = "qualified-dispatchmethod-register"
+comparison = "full"
+files = { "case.py" = "from functools import singledispatchmethod\nclass C:\n @singledispatchmethod\n def f(self,a): ...\n@C.f.register\ndef g(a:int|float,b:int|float): ...\n" }
+expected = [{ rule = "PYI041", file = "case.py", start = 129, end = 138 }]
+
+[[cases]]
+name = "dispatch-alias"
+comparison = "full"
+files = { "case.py" = "from functools import singledispatch as s\n@s\ndef f(a): ...\n@f.register\ndef g(a:int|float): ...\n" }
+expected = []
+
+[[cases]]
+name = "dispatch-unannotated-first"
+comparison = "full"
+files = { "case.py" = "from functools import singledispatch\n@singledispatch\ndef f(a): ...\n@f.register\ndef g(a,b:int|float,c:int|float): ...\n" }
+expected = [{ rule = "PYI041", file = "case.py", start = 101, end = 110 }]
+
+[[cases]]
+name = "dispatch-no-annotations"
+comparison = "full"
+files = { "case.py" = "from functools import singledispatch\n@singledispatch\ndef f(a): ...\n@f.register\ndef g(a,b): ...\n" }
+expected = []
+
+[[cases]]
+name = "dispatch-unknown-attribute"
+comparison = "full"
+files = { "case.py" = "from functools import singledispatch\nclass C:\n @singledispatch\n def f(a): ...\n@Other.f.register\ndef g(a:int|float): ...\n" }
+expected = [{ rule = "PYI041", file = "case.py", start = 104, end = 113 }]
+
+[[cases]]
+name = "dispatch-rebound"
+comparison = "full"
+files = { "case.py" = "from functools import singledispatch\n@singledispatch\ndef f(a): ...\nf=unknown\n@f.register\ndef g(a:int|float): ...\n" }
+expected = [{ rule = "PYI041", file = "case.py", start = 97, end = 106 }]
+
+[[cases]]
+name = "inline-suppression"
+comparison = "full"
+files = { "case.py" = "def f(a:int|float): ... # noqa: PYI041\n" }
+expected = []
+
+[[cases]]
+name = "deep-qualified-dispatch"
+comparison = "full"
+files = { "case.py" = "from functools import singledispatchmethod\nclass Outer:\n class Inner:\n  @singledispatchmethod\n  def f(a): ...\n@Outer.Inner.f.register\ndef g(a:int|float): ...\n" }
+expected = []
+
+[[cases]]
+name = "qualified-dispatch-shadow"
+comparison = "full"
+files = { "case.py" = "from functools import singledispatchmethod\nclass C:\n @singledispatchmethod\n def f(a): ...\n f=unknown\n@C.f.register\ndef g(a:int|float): ...\n" }
+expected = [{ rule = "PYI041", file = "case.py", start = 123, end = 132 }]
+
+[[cases]]
+name = "qualified-dispatch-inherited"
+comparison = "full"
+files = { "case.py" = "from functools import singledispatchmethod\nclass A:\n @singledispatchmethod\n def f(a): ...\nclass C(A): ...\n@C.f.register\ndef g(a:int|float): ...\n" }
+expected = [{ rule = "PYI041", file = "case.py", start = 128, end = 137 }]
+
+[[cases]]
+name = "qualified-dispatch-wrong-name"
+comparison = "full"
+files = { "case.py" = "from functools import singledispatchmethod\nclass C:\n @singledispatchmethod\n def f(a): ...\n def other(a): ...\n@C.other.register\ndef g(a:int|float): ...\n" }
+expected = [{ rule = "PYI041", file = "case.py", start = 135, end = 144 }]
+
+[[cases]]
+name = "qualified-dispatch-argument-subscript"
+comparison = "full"
+files = { "case.py" = "from functools import singledispatchmethod\nclass C:\n @singledispatchmethod\n def f(a): ...\n@C[int].f.register\ndef g(a:int|float): ...\n" }
+expected = [{ rule = "PYI041", file = "case.py", start = 117, end = 126 }]
