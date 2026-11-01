@@ -66,6 +66,26 @@ impl Parse for {{ part | pascal }}Contract {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
+    fn implicit_symbol(&self) -> Support<Reader<languages::ImplicitSymbol, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_event(&self) -> Support<Reader<languages::BindingEvent, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_read(&self) -> Support<Reader<languages::BindingRead, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_use(&self) -> Support<Reader<languages::BindingUse, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_shadow(&self) -> Support<Reader<languages::BindingShadow, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn indent_region(&self) -> Support<Reader<languages::IndentRegion, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
@@ -328,6 +348,26 @@ impl Parse for ParseContract {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
+    fn implicit_symbol(&self) -> Support<Reader<languages::ImplicitSymbol, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_event(&self) -> Support<Reader<languages::BindingEvent, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_read(&self) -> Support<Reader<languages::BindingRead, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_use(&self) -> Support<Reader<languages::BindingUse, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_shadow(&self) -> Support<Reader<languages::BindingShadow, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn indent_region(&self) -> Support<Reader<languages::IndentRegion, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
@@ -540,6 +580,26 @@ impl Parse for ParseContract {
     }
 
     fn expression_shape(&self) -> Support<Reader<languages::ExpressionShape, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn implicit_symbol(&self) -> Support<Reader<languages::ImplicitSymbol, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_event(&self) -> Support<Reader<languages::BindingEvent, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_read(&self) -> Support<Reader<languages::BindingRead, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_use(&self) -> Support<Reader<languages::BindingUse, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_shadow(&self) -> Support<Reader<languages::BindingShadow, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -769,6 +829,26 @@ impl Parse for OtherContract {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
+    fn implicit_symbol(&self) -> Support<Reader<languages::ImplicitSymbol, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_event(&self) -> Support<Reader<languages::BindingEvent, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_read(&self) -> Support<Reader<languages::BindingRead, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_use(&self) -> Support<Reader<languages::BindingUse, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_shadow(&self) -> Support<Reader<languages::BindingShadow, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn indent_region(&self) -> Support<Reader<languages::IndentRegion, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
@@ -914,6 +994,11 @@ impl Parse for OtherContract {
 }
 '''
 then.findings = [
+  { rule = 'contract#template', path = 'contract.rs' },
+  { rule = 'contract#template', path = 'contract.rs' },
+  { rule = 'contract#template', path = 'contract.rs' },
+  { rule = 'contract#template', path = 'contract.rs' },
+  { rule = 'contract#template', path = 'contract.rs' },
   { rule = 'contract#template', path = 'contract.rs' },
   { rule = 'contract#template', path = 'contract.rs' },
   { rule = 'contract#template', path = 'contract.rs' },
@@ -1222,6 +1307,11 @@ then.findings = [
   { rule = 'contract#template', path = 'contract.rs' },
   { rule = 'contract#template', path = 'contract.rs' },
   { rule = 'contract#template', path = 'contract.rs' },
+  { rule = 'contract#template', path = 'contract.rs' },
+  { rule = 'contract#template', path = 'contract.rs' },
+  { rule = 'contract#template', path = 'contract.rs' },
+  { rule = 'contract#template', path = 'contract.rs' },
+  { rule = 'contract#template', path = 'contract.rs' },
 ]
 
 [[scenarios]]
@@ -1258,6 +1348,11 @@ impl ParseContract {
 }
 '''
 then.findings = [
+  { rule = 'contract#template', path = 'contract.rs' },
+  { rule = 'contract#template', path = 'contract.rs' },
+  { rule = 'contract#template', path = 'contract.rs' },
+  { rule = 'contract#template', path = 'contract.rs' },
+  { rule = 'contract#template', path = 'contract.rs' },
   { rule = 'contract#template', path = 'contract.rs' },
   { rule = 'contract#template', path = 'contract.rs' },
   { rule = 'contract#template', path = 'contract.rs' },
@@ -1436,6 +1531,26 @@ impl Parse for ParseContract {
     }
 
     fn expression_shape(&self) -> Support<Reader<languages::ExpressionShape, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn implicit_symbol(&self) -> Support<Reader<languages::ImplicitSymbol, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_event(&self) -> Support<Reader<languages::BindingEvent, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_read(&self) -> Support<Reader<languages::BindingRead, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_use(&self) -> Support<Reader<languages::BindingUse, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_shadow(&self) -> Support<Reader<languages::BindingShadow, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 

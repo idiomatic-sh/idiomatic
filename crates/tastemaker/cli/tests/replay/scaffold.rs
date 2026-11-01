@@ -203,6 +203,11 @@ fn a_fresh_language_compiles_and_lacks_no_part() {
         ("qualified_name", "QualifiedName"),
         ("embedded_expression", "EmbeddedExpression"),
         ("expression_shape", "ExpressionShape"),
+        ("implicit_symbol", "ImplicitSymbol"),
+        ("binding_event", "BindingEvent"),
+        ("binding_read", "BindingRead"),
+        ("binding_use", "BindingUse"),
+        ("binding_shadow", "BindingShadow"),
         ("indent_region", "IndentRegion"),
     ] {
         let answer = format!(
