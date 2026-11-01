@@ -186,6 +186,7 @@ fn optional_promises_are_closed() -> usize {
         OptionalCapability::BindingUse,
         OptionalCapability::BindingShadow,
         OptionalCapability::ImplicitSymbol,
+        OptionalCapability::LiteralProperties,
     ];
     capabilities
         .into_iter()
@@ -198,7 +199,7 @@ fn optional_promises_are_closed() -> usize {
                 .iter()
                 .filter(|relation| optional_capability(**relation).is_some())
                 .count()
-                == 9
+                == 10
                 && optional_capability(Relation::SemanticSyntax).is_none()
                 && optional_capability(Relation::SemanticChild).is_none(),
         )

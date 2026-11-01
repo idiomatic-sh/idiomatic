@@ -513,4 +513,6 @@ pub enum OptionalCapability {
     BindingShadow,
     /// Canonical builtin catalog without requiring a matching source occurrence.
     ImplicitSymbol,
+    /// Parsed primitive category and narrowly defined zero/empty/true predicates.
+    LiteralProperties,
 }

@@ -85,6 +85,7 @@ impl Parse for ParseContract {
             languages::OptionalCapability::BindingUse,
             languages::OptionalCapability::BindingShadow,
             languages::OptionalCapability::ImplicitSymbol,
+            languages::OptionalCapability::LiteralProperties,
         ]
     }
 
@@ -228,6 +229,12 @@ impl Parse for ParseContract {
 
     fn expression_shape(&self) -> Support<Reader<languages::ExpressionShape, Declarations>> {
         languages::reads::<crate::domain::relations::collections::relations::expression_shape::item::ExpressionShapeItem>()
+    }
+
+    fn literal_properties(&self) -> Support<Reader<languages::LiteralProperties, Self::FileModel>> {
+        languages::reads::<
+            crate::domain::relations::collections::relations::literal_properties::item::LiteralPropertiesItem,
+        >()
     }
 
     fn implicit_symbol(&self) -> Support<Reader<languages::ImplicitSymbol, Self::FileModel>> {

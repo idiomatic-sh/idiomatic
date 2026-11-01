@@ -53,6 +53,8 @@ pub mod embedded_expression;
 pub mod binding_event;
 /// Structural expression identity.
 pub mod expression_shape;
+/// Typed primitive literal properties.
+pub mod literal_properties;
 
 /// Optional static binding analysis.
 pub mod binding_read;

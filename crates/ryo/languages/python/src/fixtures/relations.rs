@@ -12,6 +12,10 @@ use ryo::languages::contract::{Expected, Unfilled, Unshown};
 mod expression_shape {
     include!("../../tests/fixtures/relations/expression_shape/expected.rs");
 }
+/// Primitive parsed-literal properties retain their source identity.
+mod literal_properties {
+    include!("../../tests/fixtures/relations/literal_properties/expected.rs");
+}
 /// Independently expected identifier spellings.
 mod identifier {
     include!("../../tests/fixtures/relations/identifier/expected.rs");
@@ -121,6 +125,7 @@ pub(super) fn expected() -> Vec<Expected> {
         qualified_name::expected(),
         identifier::expected(),
         expression_shape::expected(),
+        literal_properties::expected(),
         call_argument::expected(),
         static_import::expected(),
         string_literal::expected(),

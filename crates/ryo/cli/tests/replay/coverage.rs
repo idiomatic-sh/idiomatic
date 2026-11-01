@@ -288,6 +288,14 @@ const OPTIONAL_CAPABILITY_RULES: [(&str, &str); 18] = [
         "implicit-symbol-negative",
         "let variables = select * from \"defines\" where kind = \"variable\"; let absent = antijoin(left=variables, right=\"implicit-symbol\", left-on=[\"file\"], right-on=[\"file\"]); emit absent subject file key(span);",
     ),
+    (
+        "literal-properties-positive",
+        "let literals = select id, file, span from \"literal-properties\" where kind = \"integer\" and zero = true; emit literals subject file key(span);",
+    ),
+    (
+        "literal-properties-negative",
+        "let variables = select * from \"defines\" where kind = \"variable\"; let absent = antijoin(left=variables, right=\"literal-properties\", left-on=[\"file\"], right-on=[\"file\"]); emit absent subject file key(span);",
+    ),
 ];
 
 #[test]

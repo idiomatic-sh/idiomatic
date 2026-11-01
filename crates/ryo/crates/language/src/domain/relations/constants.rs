@@ -166,4 +166,5 @@ pub const OPTIONAL_CAPABILITIES: &[super::types::OptionalCapability] = &[
     super::types::OptionalCapability::BindingUse,
     super::types::OptionalCapability::BindingShadow,
     super::types::OptionalCapability::ImplicitSymbol,
+    super::types::OptionalCapability::LiteralProperties,
 ];

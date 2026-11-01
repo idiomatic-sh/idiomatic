@@ -34,6 +34,8 @@ pub(crate) mod semantic_syntax;
 pub(crate) mod binding_states;
 /// Structural expression identity.
 pub(crate) mod expression_shapes;
+/// Parsed primitive categories and narrow value predicates.
+pub(crate) mod literal_properties;
 
 /// Ordered language events and explicitly deferred evaluation phases.
 pub(crate) mod binding_schedule;
