@@ -11832,7 +11832,7 @@
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/YTT302/cases.toml": "8573e2020b0ed1c8a2cf80d6a21470ec5bcb8de23291a1228788a59d2a140db0",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/YTT303/candidate.ryoql": "53771e39aadaa4f99d94d3059e6d9c995efc942eaee52d8c57fec6a20d7923d2",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/YTT303/cases.toml": "bc6d57fe3b7d11670f4ee826da0219a5da64b917fa8cb6e87a15a110767509a9",
-    "crates/ryo/languages/python/benchmarks/linters/ruff/verify_profiles.py": "c84bbff4e7df78b6dc73fdad2c1cfa93769b716228b5027161081c969d3359ca",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/verify_profiles.py": "be4c5e2ee6ca8a28b207672c7fa291e45f39c6acbaa397cbff3f8dcfaf43d7b9",
     "crates/ryo/languages/python/tests/fixtures/ryoql-fragments/pie794-rooted/README.md": "a2de58607dbcee0fe068c98960ac33f5774e2674f2812576ffaba0aa381c0757",
     "crates/ryo/languages/python/tests/fixtures/ryoql-fragments/pie794-rooted/baseline-cases.toml": "1d90d40cef01f05910fb2890cd52b09cc8fef94a3280106d6689eed91fcc255b",
     "crates/ryo/languages/python/tests/fixtures/ryoql-fragments/pie794-rooted/baseline.ryoql": "16cd200253533a208e9cb43debf2821e5f6d82ac258cd43a8f35bbeec6243e22",

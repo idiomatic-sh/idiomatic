@@ -2216,9 +2216,14 @@ def reuse_frozen_worker(output_directory: Path) -> tuple[Path, dict[str, object]
         raise ValueError(
             f"cannot resume: saved Cargo artifact record is invalid: {error}"
         ) from error
+    command = record.get("command")
+    expected = cargo_worker_build_command()
+    # The coordinated build owner may pin six jobs explicitly; this changes no
+    # target, profile, lock policy or artifact identity.
+    six_jobs = expected[:4] + ["-j6"] + expected[4:]
     if (
         record.get("cargo_artifact") != str(artifact)
-        or record.get("command") != cargo_worker_build_command()
+        or command not in (expected, six_jobs)
     ):
         raise ValueError(
             "cannot resume: saved Cargo artifact is not the Ruff benchmark target"
@@ -5073,6 +5078,41 @@ def self_test() -> int:
                 file=sys.stderr,
             )
             return 1
+        build_record_path = build_root / "build" / "result.json"
+        original_build_record = build_record_path.read_text(encoding="utf-8")
+        scheduled = json.loads(original_build_record)
+        scheduled["command"].insert(4, "-j6")
+        try:
+            build_record_path.write_text(json.dumps(scheduled), encoding="utf-8")
+            reuse_frozen_worker(build_root)
+            bad_commands = [
+                ["other" if value == "ruff" else value for value in scheduled["command"]],
+                scheduled["command"] + ["--features", "other"],
+                scheduled["command"] + ["--profile", "dev"],
+                [value for value in scheduled["command"] if value != "--locked"],
+                scheduled["command"] + ["--manifest-path", "other.toml"],
+            ]
+            for command in bad_commands:
+                changed = json.loads(json.dumps(scheduled))
+                changed["command"] = command
+                build_record_path.write_text(json.dumps(changed), encoding="utf-8")
+                try:
+                    reuse_frozen_worker(build_root)
+                except ValueError:
+                    pass
+                else:
+                    raise AssertionError("changed worker build target/policy was accepted")
+            changed = json.loads(json.dumps(scheduled))
+            changed["source_after_build"]["source_tree_sha256"] = "changed"
+            build_record_path.write_text(json.dumps(changed), encoding="utf-8")
+            try:
+                reuse_frozen_worker(build_root)
+            except ValueError:
+                pass
+            else:
+                raise AssertionError("unstable worker build source was accepted")
+        finally:
+            build_record_path.write_text(original_build_record, encoding="utf-8")
         original_worker_bytes = frozen_worker.read_bytes()
         frozen_worker.write_bytes(b"changed worker")
         try:
