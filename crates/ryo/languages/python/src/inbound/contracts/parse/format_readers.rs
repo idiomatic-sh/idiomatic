@@ -195,8 +195,7 @@ ryo::reads! {
         given index = prepare::<RuffLiteralCFormat>(tree, model, symbols);
         each (occurrences(&index)) as occurrence {
             require crate::domain::semantic_syntax::service::visibility(tree, model, occurrence.node, symbols) == Visibility::Visible;
-            given parsed = result(&index, occurrence);
-            when parsed {
+            when result(&index, occurrence) {
                 Some(FormatParseResult::Parsed(parsed)) => {
                     each (parsed.fields) as field {
                         given argument_kind = intern(symbols, tree.source, match &field.argument { FormatArgument::Positional => "positional", FormatArgument::Mapping(_) => "mapping" });

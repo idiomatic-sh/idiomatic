@@ -1,4 +1,4 @@
-//! One parsed conversion is reported with its original literal occurrence.
+// One parsed conversion is reported with its original literal occurrence.
 
 use ryo::languages::contract::{
     Expected, FormatParseExpectedRow, expected_rows, file, name, node, number, span,

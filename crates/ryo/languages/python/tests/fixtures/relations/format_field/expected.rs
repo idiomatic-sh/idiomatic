@@ -1,4 +1,4 @@
-//! One format field points back to the literal and preserves its ordinal.
+// One format field points back to the literal and preserves its ordinal.
 
 use ryo::languages::contract::{
     Expected, FormatFieldExpectedRow, expected_rows, file, name, node, number, span,
