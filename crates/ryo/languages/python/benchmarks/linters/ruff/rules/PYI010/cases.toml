@@ -5,6 +5,18 @@ files = { "case.pyi" = "def f(): return 1\n" }
 expected = [{ "file" = "case.pyi", "start" = 9, "end" = 17 }]
 
 [[cases]]
+name = "async-function-body"
+comparison = "full"
+files = { "case.pyi" = "async def f(): return 1\n" }
+expected = [{ rule = "PYI010", file = "case.pyi", start = 15, end = 23 }]
+
+[[cases]]
+name = "sync-function-body-control"
+comparison = "full"
+files = { "case.pyi" = "def f(): return 1\n" }
+expected = [{ rule = "PYI010", file = "case.pyi", start = 9, end = 17 }]
+
+[[cases]]
 name = "call"
 files = { "case.pyi" = "def f(): work()\n" }
 expected = [{ "file" = "case.pyi", "start" = 9, "end" = 15 }]

@@ -14,6 +14,18 @@ files = { "case.py" = "import logging\ntry:\n    work()\nexcept Exception:\n    
 expected = []
 
 [[cases]]
+name = "async-function-inside-handler-is-outside-handler-context"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    work()\nexcept Exception:\n    async def inner():\n        logging.error(\"x\", exc_info=True)\n" }
+expected = []
+
+[[cases]]
+name = "sync-function-inside-handler-control"
+comparison = "full"
+files = { "case.py" = "import logging\ntry:\n    work()\nexcept Exception:\n    def inner():\n        logging.error(\"x\", exc_info=True)\n" }
+expected = []
+
+[[cases]]
 name = "error-outside"
 files = { "case.py" = "import logging\nlogging.error(\"x\", exc_info=True)\n" }
 expected = []

@@ -5,6 +5,18 @@ files = { "case.py" = "def f():\n    x: int\n" }
 expected = [{ rule = "F842", file = "case.py", start = 13, end = 14 }]
 
 [[cases]]
+name = "async-function-unused-annotation"
+comparison = "full"
+files = { "case.py" = "async def f():\n    x: int\n" }
+expected = [{ rule = "F842", file = "case.py", start = 19, end = 20 }]
+
+[[cases]]
+name = "sync-function-unused-annotation-control"
+comparison = "full"
+files = { "case.py" = "def f():\n    x: int\n" }
+expected = [{ rule = "F842", file = "case.py", start = 13, end = 14 }]
+
+[[cases]]
 name = "annotation-use"
 comparison = "full"
 files = { "case.py" = "def f():\n    x: int\n    return x\n" }

@@ -19,6 +19,18 @@ files = { "case.pyi" = "from typing import TypeVar\n_T = TypeVar(\"T\")\n" }
 expected = []
 
 [[cases]]
+name = "typevar-inside-async-method-is-not-module-level"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nclass C:\n    async def f(self):\n        T = TypeVar(\"T\")\n" }
+expected = []
+
+[[cases]]
+name = "typevar-inside-sync-method-control"
+comparison = "full"
+files = { "case.pyi" = "from typing import TypeVar\nclass C:\n    def f(self):\n        T = TypeVar(\"T\")\n" }
+expected = []
+
+[[cases]]
 name = "function"
 files = { "case.pyi" = "from typing import TypeVar\ndef f():\n    T = TypeVar(\"T\")\n" }
 expected = []

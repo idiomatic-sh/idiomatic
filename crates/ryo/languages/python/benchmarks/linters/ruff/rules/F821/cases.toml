@@ -5,6 +5,18 @@ files = { "case.py" = "print(missing)\n" }
 expected = [{ file = "case.py", start = 6, end = 13, rule = "F821" }]
 
 [[cases]]
+name = "async-function-undefined-name"
+comparison = "full"
+files = { "case.py" = "async def f():\n    return missing\n" }
+expected = [{ rule = "F821", file = "case.py", start = 26, end = 33 }]
+
+[[cases]]
+name = "sync-function-undefined-name-control"
+comparison = "full"
+files = { "case.py" = "def f():\n    return missing\n" }
+expected = [{ rule = "F821", file = "case.py", start = 20, end = 27 }]
+
+[[cases]]
 name = "builtin-name"
 comparison = "full"
 files = { "case.py" = "print(len([]))\n" }
@@ -87,6 +99,36 @@ name = "quoted-annotation-undefined"
 comparison = "full"
 files = { "case.py" = "x: \"Missing\"\n" }
 expected = [{ rule = "F821", file = "case.py", start = 4, end = 11 }]
+
+[[cases]]
+name = "deleting-outer-binding-without-global-is-undefined"
+comparison = "full"
+files = { "case.py" = "x = 1\ndef f():\n    print(x)\n    del x\n" }
+expected = [{ rule = "F821", file = "case.py", start = 36, end = 37 }]
+
+[[cases]]
+name = "deleting-outer-binding-in-async-function-is-undefined"
+comparison = "full"
+files = { "case.py" = "x = 1\nasync def f():\n    print(x)\n    del x\n" }
+expected = [{ rule = "F821", file = "case.py", start = 42, end = 43 }]
+
+[[cases]]
+name = "global-deletion-in-async-function-is-defined"
+comparison = "full"
+files = { "case.py" = "x = 1\nasync def f():\n    global x\n    del x\n" }
+expected = []
+
+[[cases]]
+name = "nonlocal-deletion-is-defined"
+comparison = "full"
+files = { "case.py" = "def outer():\n    x = 1\n    def inner():\n        nonlocal x\n        del x\n" }
+expected = []
+
+[[cases]]
+name = "repeated-deletion-remains-undefined"
+comparison = "full"
+files = { "case.py" = "def f():\n    del x\n    del x\n" }
+expected = [{ rule = "F821", file = "case.py", start = 17, end = 18 }, { rule = "F821", file = "case.py", start = 27, end = 28 }]
 
 [[cases]]
 name = "noqa-undefined"

@@ -5,6 +5,18 @@ files = { "case.py" = "def f(value):\n    if isinstance(value, int):\n        ra
 expected = [{ rule = "TRY004", file = "case.py", start = 53, end = 71 }]
 
 [[cases]]
+name = "nested-async-function-raise-is-outside-guard"
+comparison = "full"
+files = { "case.py" = "def f(value):\n    if isinstance(value, int):\n        async def inner():\n            raise ValueError()\n" }
+expected = []
+
+[[cases]]
+name = "nested-sync-function-raise-control"
+comparison = "full"
+files = { "case.py" = "def f(value):\n    if isinstance(value, int):\n        def inner():\n            raise ValueError()\n" }
+expected = []
+
+[[cases]]
 name = "direct-issubclass"
 comparison = "full"
 files = { "case.py" = "def f(value):\n    if issubclass(value, int):\n        raise ValueError()\n" }

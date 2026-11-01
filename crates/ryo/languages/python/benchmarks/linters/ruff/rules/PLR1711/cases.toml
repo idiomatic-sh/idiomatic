@@ -4,6 +4,18 @@ files = { "case.py" = "def f():\n    work()\n    return\n" }
 expected = [{ file = "case.py", start = 24, end = 30 }]
 
 [[cases]]
+name = "async-function-bare-return"
+comparison = "full"
+files = { "case.py" = "async def f():\n    work()\n    return\n" }
+expected = [{ rule = "PLR1711", file = "case.py", start = 30, end = 36 }]
+
+[[cases]]
+name = "sync-function-bare-return-control"
+comparison = "full"
+files = { "case.py" = "def f():\n    work()\n    return\n" }
+expected = [{ rule = "PLR1711", file = "case.py", start = 24, end = 30 }]
+
+[[cases]]
 name = "none"
 files = { "case.py" = "def f():\n    work()\n    return None\n" }
 expected = [{ file = "case.py", start = 24, end = 35 }]

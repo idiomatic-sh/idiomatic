@@ -19,6 +19,18 @@ files = { "case.pyi" = "__all__: list[str] = []\n" }
 expected = []
 
 [[cases]]
+name = "slots-inside-async-method-is-not-class-attribute"
+comparison = "full"
+files = { "case.pyi" = "class C:\n    async def f(self):\n        __slots__: tuple[str]\n" }
+expected = []
+
+[[cases]]
+name = "slots-inside-sync-method-control"
+comparison = "full"
+files = { "case.pyi" = "class C:\n    def f(self):\n        __slots__: tuple[str]\n" }
+expected = []
+
+[[cases]]
 name = "python"
 files = { "case.py" = "__all__: list[str]\n" }
 expected = []

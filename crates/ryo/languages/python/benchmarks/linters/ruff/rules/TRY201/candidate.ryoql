@@ -1,4 +1,4 @@
-let statements = select id from "semantic-syntax" where glob_any(kind, "{function-def,class-def,return,delete,assign,type-alias,aug-assign,ann-assign,for,while,if,with,match,raise,try,assert,import,import-from,global,nonlocal,expr,pass,break,continue}");
+let statements = select id from "semantic-syntax" where glob_any(kind, "{function-def,async-function-def,class-def,return,delete,assign,type-alias,aug-assign,ann-assign,for,async-for,while,if,with,async-with,match,raise,try,assert,import,import-from,global,nonlocal,expr,pass,break,continue}");
 let statement_ancestors = axis(from=statements, relation="semantic-child", direction=nearest-ancestor, domain=statements);
 let statement_edges = select related as parent, id as child from statement_ancestors;
 let tries = select id from "semantic-syntax" where kind = "try";

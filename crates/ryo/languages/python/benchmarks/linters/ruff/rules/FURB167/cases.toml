@@ -1,0 +1,41 @@
+[[cases]]
+name = "module-alias"
+comparison = "full"
+files = { "case.py" = "import re\nre.I\n" }
+expected = [{ rule = "FURB167", file = "case.py", start = 10, end = 14 }]
+
+[[cases]]
+name = "import-alias"
+comparison = "full"
+files = { "case.py" = "import re as regex\nregex.I\n" }
+expected = [{ rule = "FURB167", file = "case.py", start = 19, end = 26 }]
+
+[[cases]]
+name = "from-import-alias"
+comparison = "full"
+files = { "case.py" = "from re import I as FLAG\nFLAG\n" }
+expected = [{ rule = "FURB167", file = "case.py", start = 25, end = 29 }]
+
+[[cases]]
+name = "other-flags"
+comparison = "full"
+files = { "case.py" = "import re\nre.A\nre.M\nre.S\nre.X\n" }
+expected = [{ rule = "FURB167", file = "case.py", start = 10, end = 14 }, { rule = "FURB167", file = "case.py", start = 15, end = 19 }, { rule = "FURB167", file = "case.py", start = 20, end = 24 }, { rule = "FURB167", file = "case.py", start = 25, end = 29 }]
+
+[[cases]]
+name = "full-constant"
+comparison = "full"
+files = { "case.py" = "import re\nre.IGNORECASE\n" }
+expected = []
+
+[[cases]]
+name = "shadowed-module"
+comparison = "full"
+files = { "case.py" = "import re\nre = custom\nre.I\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "import re\nre.I  # noqa: FURB167\n" }
+expected = []

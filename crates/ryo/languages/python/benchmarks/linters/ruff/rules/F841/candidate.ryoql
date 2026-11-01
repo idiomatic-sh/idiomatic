@@ -1,7 +1,7 @@
 let nodes = select id, kind, file, span from "semantic-syntax";
-let statements = select id from nodes where glob_any(kind, "{function-def,class-def,return,delete,assign,type-alias,aug-assign,ann-assign,for,while,if,with,match,raise,try,assert,import,import-from,global,nonlocal,expr,pass,break,continue}");
-let lexical_scopes = select id from nodes where kind = "module" or kind = "function-def" or kind = "class-def" or kind = "lambda";
-let functions = select id from nodes where kind = "function-def" or kind = "lambda";
+let statements = select id from nodes where glob_any(kind, "{function-def,async-function-def,class-def,return,delete,assign,type-alias,aug-assign,ann-assign,for,async-for,while,if,with,async-with,match,raise,try,assert,import,import-from,global,nonlocal,expr,pass,break,continue}");
+let lexical_scopes = select id from nodes where kind = "module" or kind = "function-def" or kind = "async-function-def" or kind = "class-def" or kind = "lambda";
+let functions = select id from nodes where kind = "function-def" or kind = "async-function-def" or kind = "lambda";
 let named_definitions = select l.id as binding, r.id as id, l.name as name, l.file as file, l.span as span from "defines" as l join "identifier" as r on l.file = r.file and l.span = r.span and l.name = r.name;
 let bindings = select occurrence as binding, name, scope, phase, ordinal from "binding-event" where kind = "bind";
 let named_bindings = select l.binding as binding, l.scope as scope, l.phase as phase, l.ordinal as ordinal, r.id as id, r.name as name, r.file as file, r.span as span from bindings as l join named_definitions as r on l.binding = r.binding;
@@ -16,7 +16,7 @@ let local_bindings = select l.binding as binding, l.scope as scope, l.phase as p
 let declaration_nodes = select binding as id from local_bindings;
 let enclosing_statements = axis(from=declaration_nodes,relation="semantic-child",direction=nearest-ancestor,domain=statements);
 let source_statements = select l.id as binding, r.id as statement, r.kind as kind from enclosing_statements as l join nodes as r on l.related = r.id;
-let plain_assignments = select binding from source_statements where kind = "assign" or kind = "aug-assign" or kind = "ann-assign" or kind = "with";
+let plain_assignments = select binding from source_statements where kind = "assign" or kind = "aug-assign" or kind = "ann-assign" or kind = "with" or kind = "async-with";
 let named_expressions = select id from nodes where kind = "named-expr";
 let targets = select parent, child from "semantic-child" where field = "target";
 let named_targets = select r.child as binding from named_expressions as l join targets as r on l.id = r.parent;
@@ -58,7 +58,7 @@ let callees = select r.child as id from calls as l join callable_fields as r on 
 let locals_names = select id from "identifier" where name = "locals";
 let locals_calls = select l.id as id from callees as l join locals_names as r on l.id = r.id;
 let locals_scopes = select r.scope as scope from locals_calls as l join "binding-read" as r on l.id = r.reference;
-let real_functions = select id from nodes where kind = "function-def";
+let real_functions = select id from nodes where kind = "function-def" or kind = "async-function-def";
 let inspecting_scopes = select l.scope as scope from locals_scopes as l join real_functions as r on l.scope = r.id;
 let uninspected = antijoin(left=unused_locals,right=inspecting_scopes,left-on=["scope"],right-on=["scope"]);
 let regular_names = select * from uninspected where name != "__tracebackhide__" and name != "__traceback_info__" and name != "__traceback_supplement__" and name != "__debuggerskip__";

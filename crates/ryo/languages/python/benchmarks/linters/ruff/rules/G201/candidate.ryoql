@@ -53,7 +53,7 @@ let eligible_calls = select l.call as id, l.function as function, r.keyword as k
 let handlers = select id, file from "semantic-syntax" where kind = "except-handler";
 let handler_ancestors = axis(from=eligible_calls, relation="semantic-child", direction=ancestor, domain=handlers);
 let call_handler_pairs = select l.id as call, l.function as function, l.keyword as keyword, r.related as handler from eligible_calls as l join handler_ancestors as r on l.id = r.id;
-let reset_nodes = select id, file from "semantic-syntax" where kind = "function-def" or kind = "class-def";
+let reset_nodes = select id, file from "semantic-syntax" where kind = "function-def" or kind = "async-function-def" or kind = "class-def";
 let handler_reset_roots = axis(from=handlers, relation="semantic-child", direction=descendant, domain=reset_nodes);
 let handler_resets = select l.id as handler, r.related as reset from handlers as l join handler_reset_roots as r on l.id = r.id;
 let call_reset_ancestors = axis(from=eligible_calls, relation="semantic-child", direction=ancestor, domain=reset_nodes);

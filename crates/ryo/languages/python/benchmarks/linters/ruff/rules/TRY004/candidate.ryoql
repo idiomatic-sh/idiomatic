@@ -74,7 +74,7 @@ let branch_flow_axes = axis(from=branch_statement_roots, relation="semantic-chil
 let branch_flow_descendants = select l.owner as owner, l.id as statement, r.related as flow, l.file as file from branch_statement_roots as l join branch_flow_axes as r on l.id = r.id and l.file = r.file;
 let branch_flow_roots = select l.owner as owner, l.id as statement, r.id as flow, l.file as file from branch_statement_roots as l join flow_nodes as r on l.id = r.id and l.file = r.file;
 let branch_flow_rows = union(left=branch_flow_descendants,right=branch_flow_roots);
-let nested_scope_nodes = select id, file from "semantic-syntax" where kind = "function-def" or kind = "class-def";
+let nested_scope_nodes = select id, file from "semantic-syntax" where kind = "function-def" or kind = "async-function-def" or kind = "class-def";
 let branch_nested_scope_axes = axis(from=branch_statement_roots, relation="semantic-child", direction=descendant, domain=nested_scope_nodes);
 let branch_descendant_scopes = select l.owner as owner, l.id as statement, r.related as scope, l.file as file from branch_statement_roots as l join branch_nested_scope_axes as r on l.id = r.id and l.file = r.file;
 let root_scope_rows = select l.owner as owner, l.id as statement, r.id as scope, l.file as file from branch_statement_roots as l join nested_scope_nodes as r on l.id = r.id and l.file = r.file;

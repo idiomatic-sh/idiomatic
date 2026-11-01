@@ -5,6 +5,18 @@ files = { "case.py" = "__all__ = [\"missing\"]\n" }
 expected = [{ rule = "F822", file = "case.py", start = 11, end = 20 }]
 
 [[cases]]
+name = "async-method-all-is-not-module-export"
+comparison = "full"
+files = { "case.py" = "class C:\n    async def f(self):\n        __all__ = [\"missing\"]\n" }
+expected = []
+
+[[cases]]
+name = "sync-method-all-is-not-module-export-control"
+comparison = "full"
+files = { "case.py" = "class C:\n    def f(self):\n        __all__ = [\"missing\"]\n" }
+expected = []
+
+[[cases]]
 name = "defined-export"
 comparison = "full"
 files = { "case.py" = "x = 1\n__all__ = [\"x\"]\n" }

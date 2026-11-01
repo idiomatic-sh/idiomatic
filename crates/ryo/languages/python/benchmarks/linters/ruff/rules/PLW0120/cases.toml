@@ -24,6 +24,42 @@ files = { "case.py" = "for x in values:\n    for y in values:\n        break\nel
 expected = [{ file = "case.py", start = 52, end = 56 }]
 
 [[cases]]
+name = "break-in-nested-async-function-does-not-break-outer-loop"
+comparison = "full"
+files = { "case.py" = "for x in values:\n    async def f():\n        for y in values:\n            break\nelse:\n    pass\n" }
+expected = [{ rule = "PLW0120", file = "case.py", start = 79, end = 83 }]
+
+[[cases]]
+name = "break-in-nested-sync-function-control"
+comparison = "full"
+files = { "case.py" = "for x in values:\n    def f():\n        for y in values:\n            break\nelse:\n    pass\n" }
+expected = [{ rule = "PLW0120", file = "case.py", start = 73, end = 77 }]
+
+[[cases]]
+name = "async-for-without-break-has-useless-else"
+comparison = "full"
+files = { "case.py" = "async def f(items):\n    async for item in items:\n        work(item)\n    else:\n        pass\n" }
+expected = [{ rule = "PLW0120", file = "case.py", start = 72, end = 76 }]
+
+[[cases]]
+name = "async-for-with-break-has-useful-else"
+comparison = "full"
+files = { "case.py" = "async def f(items):\n    async for item in items:\n        break\n    else:\n        pass\n" }
+expected = []
+
+[[cases]]
+name = "sync-for-without-break-control"
+comparison = "full"
+files = { "case.py" = "def f(items):\n    for item in items:\n        work(item)\n    else:\n        pass\n" }
+expected = [{ rule = "PLW0120", file = "case.py", start = 60, end = 64 }]
+
+[[cases]]
+name = "sync-for-with-break-control"
+comparison = "full"
+files = { "case.py" = "def f(items):\n    for item in items:\n        break\n    else:\n        pass\n" }
+expected = []
+
+[[cases]]
 name = "inner-loop-else"
 files = { "case.py" = "for x in values:\n    for y in values:\n        pass\n    else:\n        break\nelse:\n    pass\n" }
 expected = [{ file = "case.py", start = 55, end = 59 }]

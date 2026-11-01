@@ -11,6 +11,18 @@ files = { "case.py" = "import os\nprint(os.name)\n" }
 expected = []
 
 [[cases]]
+name = "async-function-local-import"
+comparison = "full"
+files = { "case.py" = "async def f():\n    import os\n" }
+expected = [{ rule = "F401", file = "case.py", start = 26, end = 28 }]
+
+[[cases]]
+name = "sync-function-local-import-control"
+comparison = "full"
+files = { "case.py" = "def f():\n    import os\n" }
+expected = [{ rule = "F401", file = "case.py", start = 20, end = 22 }]
+
+[[cases]]
 name = "parameter-shadow-does-not-use-import"
 comparison = "full"
 files = { "case.py" = "import os\ndef f(os):\n    return os.name\n" }

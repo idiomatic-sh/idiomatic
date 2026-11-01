@@ -11,6 +11,18 @@ files = { "case.py" = "def f():\n    x = 1\n    return x\n" }
 expected = []
 
 [[cases]]
+name = "unused-async-with-target"
+comparison = "full"
+files = { "case.py" = "async def f(cm):\n    async with cm as unused:\n        pass\n" }
+expected = [{ rule = "F841", file = "case.py", start = 38, end = 44 }]
+
+[[cases]]
+name = "unused-sync-with-target-control"
+comparison = "full"
+files = { "case.py" = "def f(cm):\n    with cm as unused:\n        pass\n" }
+expected = [{ rule = "F841", file = "case.py", start = 26, end = 32 }]
+
+[[cases]]
 name = "module-assignment"
 comparison = "full"
 files = { "case.py" = "x = 1\n" }
@@ -135,3 +147,33 @@ name = "deferred-string-annotation-does-not-use-later-local"
 comparison = "full"
 files = { "case.py" = "x = 1\ndef f():\n    y: \"x\"\n    x = 2\n" }
 expected = [{ rule = "F841", file = "case.py", start = 30, end = 31 }]
+
+[[cases]]
+name = "unused-async-local"
+comparison = "full"
+files = { "case.py" = "async def f():\n    x = 1\n" }
+expected = [{ rule = "F841", file = "case.py", start = 19, end = 20 }]
+
+[[cases]]
+name = "unused-callback-in-async-function"
+comparison = "full"
+files = { "case.py" = "import os\nasync def f():\n    callback = lambda: os.wait()\n" }
+expected = [{ rule = "F841", file = "case.py", start = 29, end = 37 }]
+
+[[cases]]
+name = "unused-callback-in-sync-function"
+comparison = "full"
+files = { "case.py" = "import os\ndef f():\n    callback = lambda: os.wait()\n" }
+expected = [{ rule = "F841", file = "case.py", start = 23, end = 31 }]
+
+[[cases]]
+name = "locals-call-suppresses-async-local"
+comparison = "full"
+files = { "case.py" = "async def f():\n    x = 1\n    locals()\n" }
+expected = []
+
+[[cases]]
+name = "locals-call-suppresses-sync-local"
+comparison = "full"
+files = { "case.py" = "def f():\n    x = 1\n    locals()\n" }
+expected = []

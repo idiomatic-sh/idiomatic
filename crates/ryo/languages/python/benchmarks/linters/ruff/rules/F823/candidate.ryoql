@@ -1,4 +1,4 @@
-let function_scopes = select id, file from "semantic-syntax" where kind = "function-def";
+let function_scopes = select id, file from "semantic-syntax" where kind = "function-def" or kind = "async-function-def";
 let local_events = select occurrence, name, scope, phase, kind, ordinal, file from "binding-event" where scope = phase and (kind = "bind" or kind = "annotation" or kind = "delete" or kind = "cleanup");
 let deletion_nodes = select occurrence as id from local_events where kind = "delete";
 let conditional_statements = select id from "semantic-syntax" where kind = "if" or kind = "while" or kind = "match";
@@ -7,7 +7,7 @@ let conditional_delete_ids = select l.id as id from conditional_deletions as l j
 let else_roots = select child as id from "semantic-child" where field = "orelse";
 let else_deletions = axis(from=deletion_nodes, relation="semantic-child", direction=nearest-ancestor, domain=else_roots);
 let else_delete_ids = select l.id as id from else_deletions as l join else_roots as r on l.related = r.id;
-let handler_boundaries = select id, kind from "semantic-syntax" where kind = "function-def" or kind = "class-def" or kind = "except-handler";
+let handler_boundaries = select id, kind from "semantic-syntax" where kind = "function-def" or kind = "async-function-def" or kind = "class-def" or kind = "except-handler";
 let nearest_handler_boundary = axis(from=deletion_nodes, relation="semantic-child", direction=nearest-ancestor, domain=handler_boundaries);
 let handler_delete_ids = select l.id as id from nearest_handler_boundary as l join handler_boundaries as r on l.related = r.id where r.kind = "except-handler";
 let conditional_or_else_deletes = union(left=conditional_delete_ids, right=else_delete_ids);

@@ -5,6 +5,18 @@ files = { "case.py" = "try:\n    work()\nexcept Exception as error:\n    raise e
 expected = [{ rule = "TRY201", file = "case.py", start = 53, end = 58 }]
 
 [[cases]]
+name = "async-nested-raise-of-caught-name"
+comparison = "full"
+files = { "case.py" = "try:\n    work()\nexcept Exception as error:\n    async def inner():\n        raise error\n" }
+expected = [{ rule = "TRY201", file = "case.py", start = 80, end = 85 }]
+
+[[cases]]
+name = "sync-nested-raise-control"
+comparison = "full"
+files = { "case.py" = "try:\n    work()\nexcept Exception as error:\n    def inner():\n        raise error\n" }
+expected = [{ rule = "TRY201", file = "case.py", start = 74, end = 79 }]
+
+[[cases]]
 name = "bare-raise"
 comparison = "full"
 files = { "case.py" = "try:\n    work()\nexcept Exception as error:\n    raise\n" }
