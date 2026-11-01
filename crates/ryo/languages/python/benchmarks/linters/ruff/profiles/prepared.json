@@ -177,7 +177,8 @@
     "3b4291d5657306c24d95ebca1594603b445ce702",
     "aa8c6ba65e0b2549459700b24819d50e94b7c559",
     "1cc780c5aa9e23b36aa7d16f6852be1e7ec7bdab",
-    "a1398de87cfd39973c1fa0708c4d56e58915408e"
+    "a1398de87cfd39973c1fa0708c4d56e58915408e",
+    "2a9617647ff2ad4ce4a914c101e88a76dece13be"
   ],
   "reference": "Ruff 0.16.5 isolated, no-cache, PY310 selection; complete full-report comparison for each prepared candidate profile",
   "reference_version": "0.16.5",
@@ -2833,7 +2834,7 @@
       "selected_rules": [
         "PLE0117"
       ],
-      "case_count": 19,
+      "case_count": 26,
       "case_names": [
         "nonlocal-missing",
         "nonlocal-module-only",
@@ -2853,8 +2854,17 @@
         "noqa-suppresses-missing-binding",
         "top-level-class-method-has-no-nonlocal-function-binding",
         "class-cell-name-is-an-implicit-nonlocal-binding",
-        "outer-global-prevents-nonlocal-without-binding"
-      ]
+        "outer-global-prevents-nonlocal-without-binding",
+        "own-local-is-not-an-outer-nonlocal-binding",
+        "class-nonlocal-sees-enclosing-function-parameter",
+        "async-outer-global-still-prevents-missing-binding",
+        "own-global-conflict-with-real-outer-binding",
+        "crossrule-PLE0115-global-then-nonlocal",
+        "crossrule-PLE0115-noqa-suppresses-conflicting-declaration",
+        "crossrule-PLE0115-each-nonlocal-declaration-retains-diagnostic-multiplicity"
+      ],
+      "candidate_file": "rules/PLE0117/candidate.ryoql",
+      "cases_file": "profiles/PLE0117/cases-expanded.toml"
     },
     "PLE0118": {
       "selected_rules": [
@@ -5558,6 +5568,122 @@
       "profile_file": "profiles/F821-stub-annotation-context/benchmark.toml",
       "cases_file": "profiles/F821-stub-annotation-context/cases.toml",
       "candidate_file": "rules/F821/candidate.ryoql"
+    },
+    "PYI001": {
+      "selected_rules": [
+        "PYI001"
+      ],
+      "case_count": 20,
+      "case_names": [
+        "typevar",
+        "paramspec",
+        "extensions",
+        "private",
+        "typevar-inside-async-method-is-not-module-level",
+        "typevar-inside-sync-method-control",
+        "function",
+        "nested-class-in-function",
+        "class",
+        "chained",
+        "annotated",
+        "attribute",
+        "tuple-target",
+        "unimported",
+        "noqa",
+        "python-source-excluded",
+        "function-scope-barrier-py-False",
+        "function-scope-barrier-py-True",
+        "function-scope-barrier-pyi-False",
+        "function-scope-barrier-pyi-True"
+      ],
+      "candidate_file": "rules/PYI001/query.ryoql",
+      "cases_file": "profiles/PYI001/cases-expanded.toml"
+    },
+    "PYI010": {
+      "selected_rules": [
+        "PYI010"
+      ],
+      "case_count": 31,
+      "case_names": [
+        "return",
+        "async-function-body",
+        "sync-function-body-control",
+        "call",
+        "number",
+        "bytes",
+        "fstring",
+        "docstring",
+        "ellipsis",
+        "pass",
+        "multiple",
+        "nested-block",
+        "class",
+        "runtime",
+        "noqa",
+        "code-noqa",
+        "other-code",
+        "file-noqa",
+        "return-string",
+        "return-ellipsis",
+        "assignment-ellipsis",
+        "parenthesized-string",
+        "concatenated-string",
+        "multiline-return",
+        "shared-block-suppressed",
+        "shared-block-reenabled",
+        "shared-block-unmatched-disable",
+        "shared-block-wrong-code",
+        "shared-file-ignore",
+        "crossrule-PYI001-typevar-inside-async-method-is-not-module-level",
+        "crossrule-PYI035-slots-inside-async-method-is-not-class-attribute"
+      ],
+      "candidate_file": "rules/PYI010/query.ryoql",
+      "cases_file": "profiles/PYI010/cases-expanded.toml"
+    },
+    "PYI035": {
+      "selected_rules": [
+        "PYI035"
+      ],
+      "case_count": 35,
+      "case_names": [
+        "all",
+        "slots",
+        "match",
+        "assigned",
+        "slots-inside-async-method-is-not-class-attribute",
+        "slots-inside-sync-method-control",
+        "python",
+        "module-slots",
+        "class-all",
+        "function-all",
+        "class-conditional",
+        "attribute",
+        "noqa",
+        "code-noqa",
+        "other-code",
+        "file-noqa",
+        "shared-block-suppressed",
+        "shared-block-reenabled",
+        "shared-block-unmatched-disable",
+        "shared-block-wrong-code",
+        "shared-file-ignore",
+        "nfkc-all-target",
+        "nfkc-assigned-all",
+        "function-scope-special-0-py-False",
+        "function-scope-special-1-py-False",
+        "function-scope-special-2-py-False",
+        "function-scope-special-0-py-True",
+        "function-scope-special-1-py-True",
+        "function-scope-special-2-py-True",
+        "function-scope-special-0-pyi-False",
+        "function-scope-special-1-pyi-False",
+        "function-scope-special-2-pyi-False",
+        "function-scope-special-0-pyi-True",
+        "function-scope-special-1-pyi-True",
+        "function-scope-special-2-pyi-True"
+      ],
+      "candidate_file": "rules/PYI035/query.ryoql",
+      "cases_file": "profiles/PYI035/cases-expanded.toml"
     }
   },
   "files": {
@@ -5638,7 +5764,7 @@
     "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PIE808/benchmark.toml": "cec48a7a1bbb9a4c817ee5aa7cc9f40603638dc8c635b6ebe7ab1ffa58406efe",
     "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PIE808/oracle.json": "01610bb7121e158d06835bedae46a7c3cf02b9b22ebb7ad426234fa64cda5934",
     "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PLE0115/benchmark.toml": "1b296ea839aa5c6909daa0e63960c0aac620f21104978992d878c3385e4f7980",
-    "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PLE0117/benchmark.toml": "b64b8762dbb0acdad843b2c43255c4d630b0c353f7c701083e49ebb6453b6322",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PLE0117/benchmark.toml": "6f0d4e79e87470e8ba9f2dc01d638b3ccfd44d4f40d07e568e65ad14ea9fba72",
     "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PLE0118/benchmark.toml": "34fe68a65cbe4c9da48134e4ddbac10195ea21b4e896210075115668c3e9c5ff",
     "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PLE0303/benchmark.toml": "70b8230a188489d85023697d044865dbe3217218c42cf2108cbf873f633cbf56",
     "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PLE0304/benchmark.toml": "d52018695f785c8a8dd90fe4e434f3a63480ff9374f8b64a0a19e2e507334d07",
@@ -6551,7 +6677,7 @@
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PLC3002/query.ryoql": "2590a2d6a0a361fe5b436b8335b6be6f7088de755f40536edf2b359b7d9fe947",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PLE0115/candidate.ryoql": "f26782b23c54afca0a11bf68078d0cb734644667e4db727f7b03afe38fae2fb7",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PLE0115/cases.toml": "742b78d721b89b74d4f72cd618e191ca72730b36b8e3aa680815ecb9751c85db",
-    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PLE0117/candidate.ryoql": "2070d7b0453e4ac8efc2391742bb3bfb69bc3b6c1fe3d063d18b0c9d82a7c55a",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PLE0117/candidate.ryoql": "7e0bd6f51c4bb69b3189f791772ac2d16008c11a80ba1079646104cd892920fa",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PLE0117/cases.toml": "ad323a91c866de76d8ef9680f401ebbde92137c0bfc8d1a7256152bf8debfb4e",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PLE0118/candidate.ryoql": "ae89480682d99fa32f85c23f580802fa2f253ac62506f94410adf2489575cc6d",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PLE0118/cases.toml": "7c034a15b6883dcb0511fdd3cd73ff3187ce842855678f14f1636bc8be673347",
@@ -6916,7 +7042,14 @@
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PYI066/cases.toml": "02fb0f6acfd903ff43c87a3851f4b75254ffa431a0329daa9ce3306ec873d36f",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PYI066/candidate.ryoql": "4e51b83862c83c74e6a1adcee890375fb99a61f1257367e08a5833ed9c912690",
     "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/F821-stub-annotation-context/benchmark.toml": "f4730b0aa92209562d580d8ed8070c927e51f3cb5fbb736e684d79d480ec328b",
-    "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/F821-stub-annotation-context/cases.toml": "d8c8c3760cbe9e5d1cb3f3698ca37c70df5efdbdb34706542c74f978d7c47657"
+    "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/F821-stub-annotation-context/cases.toml": "d8c8c3760cbe9e5d1cb3f3698ca37c70df5efdbdb34706542c74f978d7c47657",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PYI001/benchmark.toml": "754b7769172b5ce72425ba7c94640d089b16a1b3d2d162ed828d2cb54e6d8785",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PYI010/benchmark.toml": "b53accfa4c69d46f86900c4355a596fc2cb9d296597cfa1968748d514bddec5e",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PYI035/benchmark.toml": "152c511281bc440c76c85f69ddd1a2b03289c3a7fcd6fd9fa76d565d156cbbf4",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PLE0117/cases-expanded.toml": "312f1ee622f9f3b96349ca6f12a4805524ad9fb2ec8c41a39173ece944a3023b",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PYI001/cases-expanded.toml": "764d6fb4a4fe4857ce406150faa5b2a7656833ff247c542510c6fa72e9147bbf",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PYI010/cases-expanded.toml": "2bc86b529b5b530e2db6cf8614e460482398f20e77c45bd612dbd9faeb4ed82d",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PYI035/cases-expanded.toml": "5048fc32e70d943aeeed01f46ac82535852f369aa892d715a045bcfd895e04d7"
   },
   "combined_profiles": {
     "shape-110": {
