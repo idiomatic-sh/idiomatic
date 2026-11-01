@@ -64,3 +64,127 @@ pub(super) fn handed_of(
     };
     Ok(HandedAgain { wanted, handed })
 }
+
+/// One explicit opt-in gate; no capacity traversal or diagnostic span construction when disabled.
+pub(super) fn memory_enabled() -> bool {
+    tracing::enabled!(target: "ryo::diagnostic::lifecycle_memory", tracing::Level::TRACE)
+}
+
+/// Component capacities are distinct from RSS, allocator retention and unmeasured provider storage.
+pub(super) fn observed_memory(
+    phase: &'static str,
+    owner: &'static str,
+    bytes: crate::domain::recording::types::retention::value::RetainedBytes,
+) {
+    tracing::trace!(target: "ryo::diagnostic::lifecycle_memory", phase, owner,
+        objects = bytes.objects, metadata_capacity_bytes = bytes.metadata,
+        packed_live_bytes = bytes.packed_live, packed_capacity_bytes = bytes.packed_capacity,
+        text_live_bytes = bytes.text_live, text_capacity_bytes = bytes.text_capacity,
+        notes_live_bytes = bytes.notes_live, notes_capacity_bytes = bytes.notes_capacity,
+        findings_capacity_bytes = bytes.findings_capacity,
+        decoded_live_bytes = bytes.cells_live, decoded_capacity_bytes = bytes.cells_capacity, decoded_rows = bytes.rows,
+        places_live_bytes = bytes.places_live, places_capacity_bytes = bytes.places_capacity);
+}
+
+/// Record capacity traversal is disabled on the normal lint path.
+pub(super) fn observed_records(phase: &'static str, records: &Vec<Record>) {
+    if memory_enabled() {
+        observed_memory(
+            phase,
+            "fresh_records",
+            crate::domain::recording::types::retention::value::RetainedBytes::records(records),
+        );
+    }
+}
+
+/// The arena owner survives independently of the normalized text in fresh records.
+pub(super) fn observed_arenas(
+    phase: &'static str,
+    arenas: &Vec<ryo_values::domain::stored_facts::types::ArenaBytes>,
+) {
+    if memory_enabled() {
+        observed_memory(
+            phase,
+            "worker_arenas",
+            crate::domain::recording::types::retention::value::RetainedBytes::arenas(arenas),
+        );
+    }
+}
+
+/// Cross-rule inputs and their name-place storage are observed without decoding/scanning any cells.
+pub(super) fn observed_inputs(
+    phase: &'static str,
+    inputs: &Vec<crate::domain::table_model::types::Frontier>,
+    symbols: &mut ryo_language::domain::symbols::types::Symbols,
+) {
+    if memory_enabled() {
+        let mut bytes =
+            crate::domain::recording::types::retention::value::RetainedBytes::inputs(inputs);
+        let places = ryo_language::domain::symbols::service::places_mut(symbols);
+        bytes.places_live =
+            places.len() * size_of::<ryo_language::domain::relations::types::NamePlace>();
+        bytes.places_capacity =
+            places.capacity() * size_of::<ryo_language::domain::relations::types::NamePlace>();
+        let text = ryo_language::domain::symbols::service::derived_of(symbols);
+        bytes.text_live = text.0.len();
+        bytes.text_capacity = text.0.capacity();
+        observed_memory(phase, "decoded_inputs", bytes);
+    }
+}
+
+/// Worker notes are a separate owner from their normalized record copy.
+pub(super) fn observed_notes(
+    phase: &'static str,
+    notes: &crate::domain::workers::types::FreshNotes,
+) {
+    if memory_enabled() {
+        observed_memory(
+            phase,
+            "worker_notes",
+            crate::domain::recording::types::retention::value::RetainedBytes::worker_notes(notes),
+        );
+    }
+}
+
+/// Keep rule identity on decoder events without changing its domain API.
+pub(super) fn memory_rule(
+    id: &ryo_values::domain::runs::types::RuleId,
+    index: usize,
+) -> Option<tracing::span::EnteredSpan> {
+    memory_enabled().then(|| tracing::trace_span!(target: "ryo::diagnostic::lifecycle_memory", "cross_rule_memory", rule = %id.0, rule_index = index).entered())
+}
+
+/// Correlate a bounded input-prepare interval with the compiled frontier identity.
+pub(super) fn memory_input(
+    input: ryo_values::domain::plan_parts::types::Input,
+    index: usize,
+) -> Option<tracing::span::EnteredSpan> {
+    memory_enabled().then(|| tracing::trace_span!(target: "ryo::diagnostic::lifecycle_memory", "cross_input_memory", input_index = index, input = ?input).entered())
+}
+
+/// Keep provider bucket identity on temporary packed and decoded buffers.
+pub(super) fn memory_bucket(bucket: Bucket) -> Option<tracing::span::EnteredSpan> {
+    memory_enabled().then(|| tracing::trace_span!(target: "ryo::diagnostic::lifecycle_memory", "cross_bucket_memory", bucket = bucket.0).entered())
+}
+
+/// Do not walk stored payload metadata on ordinary lints.
+pub(super) fn observed_stored(phase: &'static str, handed: &StoredHanded) {
+    if memory_enabled() {
+        observed_memory(
+            phase,
+            "store_handed",
+            crate::domain::recording::types::retention::value::RetainedBytes::stored(handed),
+        );
+    }
+}
+
+/// Report the packed buffer only after the original provider read succeeded.
+pub(super) fn observed_packed(words: &ryo_values::domain::stored_facts::types::KeptWords) {
+    if memory_enabled() {
+        observed_memory(
+            "cross_input_packed",
+            "packed_input",
+            crate::domain::recording::types::retention::value::RetainedBytes::packed(words),
+        );
+    }
+}

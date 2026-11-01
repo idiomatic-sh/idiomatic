@@ -6,7 +6,11 @@
 //! files and the rows is the domain's; this calls it between the calls of the ports.
 use super::errors::LintError;
 use super::interface::LintUseCase;
-use super::service::{answered, handed_of, records_of};
+use super::service::{
+    answered, handed_of, memory_bucket, memory_enabled, memory_input, memory_rule, observed_arenas,
+    observed_inputs, observed_notes, observed_packed, observed_records, observed_stored,
+    records_of,
+};
 use super::types::{
     Course, FeatureFed, LintReport, LintRequest, LintRun, Listed, RepositoryListing, RuleWork,
     StepFed, Streaming, TaskIndex, Wanting,
@@ -966,30 +970,47 @@ impl LintUseCaseImpl {
             todo,
             |_, each| -> Result<Crossed, LintError> {
                 self.within_budget(listing.budget, || vec![each.id.clone()])?;
-                let mut cross = Symbols::default();
-                #[expect(
-                    clippy::indexing_slicing,
-                    reason = "a rule to cross is one of the run's rules, and each has its plan and its first bucket; another is a bug that must crash, not a rule that crosses nothing"
-                )]
-                let (first, plan) = (run.first_bucket[each.rule.0], &run.plans[each.rule.0]);
-                let mut inputs = Vec::new();
-                for (place, input) in plan.frontier.iter().enumerate() {
-                    // What the project wrote waits in its own handle, not in the buckets of the files.
-                    inputs.push(if let Some(relation) = project_relation(*input) {
-                        let rows = handle.facts.rows(relation)?;
-                        project_input(rows, *input, &handle.symbols, &mut cross)
-                    } else {
-                        let bucket = frontier_bucket(first, InputNumber(place));
-                        let table = decode_input(&kept_facts.kept(bucket)?, &mut cross);
-                        Frontier {
-                            input: *input,
-                            table,
-                        }
-                    });
+                let _memory_rule = memory_rule(&each.id, each.rule.0);
+                // This scope has the same input/symbol lifetime as the original rule closure.
+                let result = (|| -> Result<Crossed, LintError> {
+                    let mut cross = Symbols::default();
+                    #[expect(
+                        clippy::indexing_slicing,
+                        reason = "a rule to cross is one of the run's rules, and each has its plan and its first bucket; another is a bug that must crash, not a rule that crosses nothing"
+                    )]
+                    let (first, plan) = (run.first_bucket[each.rule.0], &run.plans[each.rule.0]);
+                    let mut inputs = Vec::new();
+                    observed_inputs("before_cross_prepare", &inputs, &mut cross);
+                    for (place, input) in plan.frontier.iter().enumerate() {
+                        let _memory_input = memory_input(*input, place);
+                        observed_inputs("before_cross_input", &inputs, &mut cross);
+                        // What the project wrote waits in its own handle, not in the buckets of the files.
+                        inputs.push(if let Some(relation) = project_relation(*input) {
+                            let rows = handle.facts.rows(relation)?;
+                            project_input(rows, *input, &handle.symbols, &mut cross)
+                        } else {
+                            let bucket = frontier_bucket(first, InputNumber(place));
+                            let _memory_bucket = memory_bucket(bucket);
+                            // Read through the original fallible boundary before observing or decoding.
+                            let packed = kept_facts.kept(bucket)?;
+                            observed_packed(&packed);
+                            let table = decode_input(&packed, &mut cross);
+                            Frontier {
+                                input: *input,
+                                table,
+                            }
+                        });
+                        observed_inputs("after_cross_input", &inputs, &mut cross);
+                    }
+                    observed_inputs("after_cross_prepare", &inputs, &mut cross);
+                    let result = self.cross_file.evaluate(&crossing, each, &inputs, &mut cross);
+                    observed_inputs("before_cross_cleanup", &inputs, &mut cross);
+                    Ok(result?)
+                })();
+                if memory_enabled() {
+                    tracing::trace!(target: "ryo::diagnostic::lifecycle_memory", phase = "after_cross_cleanup", owner = "decoded_inputs", caller_inputs_owned = false, success = result.is_ok(), decoded_capacity_bytes = 0_usize);
                 }
-                Ok(self
-                    .cross_file
-                    .evaluate(&crossing, each, &inputs, &mut cross)?)
+                result
             },
         )?;
         for (each, crossed) in todo.iter().zip(made) {
@@ -1035,9 +1056,17 @@ impl LintUseCaseImpl {
                 .filter(|bucket| rebuilt.binary_search(bucket).is_err())
                 .collect(),
         };
+        observed_records("before_store_build", &keeping.records);
         let to_store = stored_of(keeping, &listing.stored, last_handed, &rebuilt, unchanged);
+        observed_stored("after_store_build", &to_store.stored.handed);
         if let Some(read) = &listing.read {
-            read.keep(to_store.stored, &to_store.kept)?;
+            observed_stored("before_store_write", &to_store.stored.handed);
+            let written = read.keep(to_store.stored, &to_store.kept);
+            if memory_enabled() {
+                // Ownership moved into the outbound call; this does not claim it freed allocator pages.
+                tracing::trace!(target: "ryo::diagnostic::lifecycle_memory", phase = "after_store_write", owner = "store_handed", caller_payload_owned = false, success = written.is_ok());
+            }
+            written?;
         }
         Ok(())
     }
@@ -1161,6 +1190,9 @@ impl LintUseCaseImpl {
             total,
         } = self.visited(run, visit)?;
         let fresh = order(&mut met);
+        observed_records("after_files", &fresh.records);
+        observed_arenas("after_files", &met.arenas);
+        observed_notes("after_files", &met.notes);
         let WorkersMet {
             mut arenas,
             mut unread,

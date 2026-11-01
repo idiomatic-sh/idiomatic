@@ -23,6 +23,8 @@ const WORKING_SET_TARGET: &str = "ryo::diagnostic::working_set";
 const LAYOUT_TARGET: &str = "ryo::diagnostic::layout";
 /// Demand-reach and shared graph work in explicit diagnostic runs.
 const GRAPH_TARGET: &str = "ryo::diagnostic::graph";
+/// Coarse retention/decoding/store phases for an explicit lifecycle diagnostic.
+const LIFECYCLE_TARGET: &str = "ryo::diagnostic::lifecycle_memory";
 
 /// Shared append-only file writer; each event holds the lock until its JSON line is complete.
 #[derive(Clone)]
@@ -50,21 +52,37 @@ pub(super) fn subscriber(
         } else {
             tracing_subscriber::filter::LevelFilter::OFF
         };
-    subscriber_with_aggregates(path, aggregate_level)
+    let lifecycle_only =
+        std::env::var_os("RYO_DIAGNOSTIC_LIFECYCLE_MEMORY").is_some_and(|value| value == "1");
+    subscriber_with_aggregates(path, aggregate_level, lifecycle_only)
 }
 
 /// Admit aggregate targets only for an explicitly selected diagnostic profile.
 fn subscriber_with_aggregates(
     path: &Path,
     aggregate_level: tracing_subscriber::filter::LevelFilter,
+    lifecycle_only: bool,
 ) -> io::Result<impl tracing::Subscriber + Send + Sync + 'static> {
     use tracing_subscriber::Layer as _;
     use tracing_subscriber::layer::SubscriberExt as _;
+    let aggregate_level = if lifecycle_only {
+        tracing_subscriber::filter::LevelFilter::OFF
+    } else {
+        aggregate_level
+    };
+    let lifecycle_level = if lifecycle_only {
+        tracing_subscriber::filter::LevelFilter::TRACE
+    } else {
+        aggregate_level
+    };
     let writer = DiagnosticEventWriter::create(path)?;
-    let include_steps = std::env::var_os("RYO_DIAGNOSTIC_STEPS").is_none_or(|value| value != "0");
-    let include_joins = std::env::var_os("RYO_DIAGNOSTIC_JOINS").is_some_and(|value| value == "1");
-    let include_prefixes =
-        std::env::var_os("RYO_DIAGNOSTIC_PREFIXES").is_some_and(|value| value == "1");
+    let include_steps = std::env::var_os("RYO_DIAGNOSTIC_STEPS").is_none_or(|value| value != "0")
+        && !lifecycle_only;
+    let include_joins = std::env::var_os("RYO_DIAGNOSTIC_JOINS").is_some_and(|value| value == "1")
+        && !lifecycle_only;
+    let include_prefixes = std::env::var_os("RYO_DIAGNOSTIC_PREFIXES")
+        .is_some_and(|value| value == "1")
+        && !lifecycle_only;
     let layer = tracing_subscriber::fmt::layer()
         .json()
         .with_ansi(false)
@@ -77,9 +95,14 @@ fn subscriber_with_aggregates(
                 .with_target(WORKING_SET_TARGET, aggregate_level)
                 .with_target(LAYOUT_TARGET, aggregate_level)
                 .with_target(GRAPH_TARGET, aggregate_level)
+                .with_target(LIFECYCLE_TARGET, lifecycle_level)
                 .with_target(
                     RULE_FILE_TARGET,
-                    tracing_subscriber::filter::LevelFilter::TRACE,
+                    if lifecycle_only {
+                        tracing_subscriber::filter::LevelFilter::OFF
+                    } else {
+                        tracing_subscriber::filter::LevelFilter::TRACE
+                    },
                 )
                 .with_target(
                     COMPILED_PREFIX_TARGET,

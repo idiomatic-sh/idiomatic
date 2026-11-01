@@ -35,7 +35,9 @@ pub(crate) fn encode_table(table: &Table, places: &[NamePlace], out: &mut Words)
 pub(crate) fn decode_combined(packed: &PackedWords, places: &mut Vec<NamePlace>) -> Table {
     let mut combined = Table::default();
     // A value takes two words at least, and a packed word a byte at least.
+    observed_decode("decode_before_reserve", packed, &combined, places);
     combined.cells.reserve(packed.0.len() / 2);
+    observed_decode("decode_after_reserve", packed, &combined, places);
     let mut words = unpacked(packed);
     while let Some(Bits(columns)) = words.next() {
         let Some(Bits(rows)) = words.next() else {
@@ -78,8 +80,28 @@ pub(crate) fn decode_combined(packed: &PackedWords, places: &mut Vec<NamePlace>)
             break;
         }
     }
+    observed_decode("decode_before_shrink", packed, &combined, places);
     combined.cells.shrink_to_fit();
+    observed_decode("decode_after_shrink", packed, &combined, places);
     combined
+}
+
+/// Report only this decoder's caller-owned buffers, never process/allocator residency.
+fn observed_decode(
+    phase: &'static str,
+    packed: &PackedWords,
+    table: &Table,
+    places: &Vec<NamePlace>,
+) {
+    if tracing::enabled!(target: "ryo::diagnostic::lifecycle_memory", tracing::Level::TRACE) {
+        let bytes = crate::domain::recording::types::retention::value::RetainedBytes::table(table);
+        let place_width = size_of::<NamePlace>();
+        tracing::trace!(target: "ryo::diagnostic::lifecycle_memory", phase, owner = "decoding_input",
+            packed_live_bytes = packed.0.len(), packed_capacity_bytes = packed.0.capacity(),
+            decoded_live_bytes = bytes.cells_live, decoded_capacity_bytes = bytes.cells_capacity,
+            decoded_rows = bytes.rows, metadata_capacity_bytes = bytes.metadata,
+            places_live_bytes = places.len() * place_width, places_capacity_bytes = places.capacity() * place_width);
+    }
 }
 
 /// A value with the number of its place moved up by `base`, when it is a name of a table whose places start there.

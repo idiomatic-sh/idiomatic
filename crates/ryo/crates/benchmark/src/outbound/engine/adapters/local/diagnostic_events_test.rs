@@ -108,13 +108,15 @@ fn aggregate_profile_is_explicit_and_keeps_counter_fields() -> Result<(), Box<dy
         tracing_subscriber::filter::LevelFilter::TRACE,
     ] {
         let path = directory.path().join(format!("{level}.jsonl"));
-        let dispatch = tracing::Dispatch::new(super::subscriber_with_aggregates(&path, level)?);
+        let dispatch =
+            tracing::Dispatch::new(super::subscriber_with_aggregates(&path, level, false)?);
         tracing::dispatcher::with_default(&dispatch, || {
             tracing::trace!(target: super::EXECUTION_TARGET, phase = "provider_parse", elapsed_ns = 3_u64);
             tracing::trace!(target: super::SELECTION_TARGET, event = "file_selections", scanned_rows = 7_u64);
             tracing::trace!(target: super::WORKING_SET_TARGET, event = "rule_released", retained_bytes = 11_usize);
             tracing::trace!(target: super::LAYOUT_TARGET, event = "layout_schema", payload_rows = 0_usize);
             tracing::trace!(target: super::GRAPH_TARGET, event = "graph_work", graph_edges = 13_usize);
+            tracing::trace!(target: super::LIFECYCLE_TARGET, phase = "after_files", retained_bytes = 17_usize);
         });
         let output = std::fs::read_to_string(path)?;
         if level == tracing_subscriber::filter::LevelFilter::OFF {
@@ -124,7 +126,7 @@ fn aggregate_profile_is_explicit_and_keeps_counter_fields() -> Result<(), Box<dy
                 .lines()
                 .map(serde_json::from_str::<serde_json::Value>)
                 .collect::<Result<Vec<_>, _>>()?;
-            assert_eq!(events.len(), 5);
+            assert_eq!(events.len(), 6);
             assert!(
                 events
                     .iter()
@@ -142,5 +144,33 @@ fn aggregate_profile_is_explicit_and_keeps_counter_fields() -> Result<(), Box<dy
             );
         }
     }
+    Ok(())
+}
+
+#[test]
+fn lifecycle_profile_excludes_per_file_steps_and_other_aggregates()
+-> Result<(), Box<dyn std::error::Error>> {
+    let directory = tempfile::tempdir()?;
+    let path = directory.path().join("lifecycle.jsonl");
+    let dispatch = tracing::Dispatch::new(super::subscriber_with_aggregates(
+        &path,
+        tracing_subscriber::filter::LevelFilter::TRACE,
+        true,
+    )?);
+    tracing::dispatcher::with_default(&dispatch, || {
+        tracing::trace!(target: RULE_FILE_TARGET, event = "rule_file_start");
+        tracing::trace!(target: RULE_STEP_TARGET, event = "rule_step_start");
+        tracing::trace!(target: super::GRAPH_TARGET, event = "graph_work");
+        tracing::trace!(target: super::EXECUTION_TARGET, phase = "provider_parse");
+        tracing::trace!(target: super::LIFECYCLE_TARGET, phase = "after_files", retained_bytes = 17_usize);
+    });
+    let text = std::fs::read_to_string(path)?;
+    let events = text
+        .lines()
+        .map(serde_json::from_str::<serde_json::Value>)
+        .collect::<Result<Vec<_>, _>>()?;
+    assert_eq!(events.len(), 1);
+    assert_eq!(events[0]["target"], super::LIFECYCLE_TARGET);
+    assert_eq!(events[0]["fields"]["retained_bytes"], 17);
     Ok(())
 }

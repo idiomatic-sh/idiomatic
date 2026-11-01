@@ -19,3 +19,6 @@ pub(crate) struct Flat(pub Vec<u64>);
 /// What a file hands the project, as bytes: what its interface is the digest of.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct InterfaceBytes(pub Vec<u8>);
+
+/// Optional diagnostic accounting over the record and frontier representations.
+pub(crate) mod retention;
