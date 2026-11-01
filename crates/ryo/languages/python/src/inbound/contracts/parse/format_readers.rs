@@ -197,7 +197,7 @@ ryo::reads! {
             require crate::domain::semantic_syntax::service::visibility(tree, model, occurrence.node, symbols) == Visibility::Visible;
             when result(&index, occurrence) {
                 Some(FormatParseResult::Parsed(parsed)) => {
-                    each (parsed.fields) as field {
+                    each (parsed.fields.iter()) as field {
                         given argument_kind = intern(symbols, tree.source, match &field.argument { FormatArgument::Positional => "positional", FormatArgument::Mapping(_) => "mapping" });
                         given mapping_key = intern(symbols, tree.source, match &field.argument { FormatArgument::Positional => "", FormatArgument::Mapping(key) => key });
                         given conversion = intern(symbols, tree.source, &field.conversion.to_string());

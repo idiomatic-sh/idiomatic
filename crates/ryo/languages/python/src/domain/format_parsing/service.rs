@@ -9,10 +9,9 @@ use super::super::format_syntax::types::{
     FormatParseState, ParsedFormat,
 };
 use super::super::model::types::Declarations;
-use super::super::names::service::interpolation;
 use super::super::nodes::types::Node;
 use super::super::semantic_syntax::types::Visibility;
-use super::super::syntax::service::{below, kind, literal, standing};
+use super::super::syntax::service::{below, interpolation, kind, literal, standing};
 use super::super::syntax::types::{Interpolation, Kind, Literal, Standing};
 use super::super::tokens::types::Token;
 

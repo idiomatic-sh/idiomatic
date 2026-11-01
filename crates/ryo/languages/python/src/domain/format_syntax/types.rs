@@ -7,8 +7,6 @@ pub(crate) enum FormatDialect {
     PercentString,
 }
 
-/// The state of one source format occurrence.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 /// Why a decoded format could not be parsed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum FormatErrorKind {
