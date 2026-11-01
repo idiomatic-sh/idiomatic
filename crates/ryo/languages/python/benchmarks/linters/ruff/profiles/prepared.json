@@ -5542,6 +5542,22 @@
         "aliases",
         "file-suppression"
       ]
+    },
+    "F821-stub-annotation-context": {
+      "rule_id": "F821",
+      "selected_rules": [
+        "F821"
+      ],
+      "case_count": 4,
+      "case_names": [
+        "stub-named-expression-preserves-undefined-read",
+        "runtime-named-expression-without-future-is-valid",
+        "future-annotations-named-expression-preserves-undefined-read",
+        "bound-runtime-named-expression-is-not-undefined"
+      ],
+      "profile_file": "profiles/F821-stub-annotation-context/benchmark.toml",
+      "cases_file": "profiles/F821-stub-annotation-context/cases.toml",
+      "candidate_file": "rules/F821/candidate.ryoql"
     }
   },
   "files": {
@@ -6898,7 +6914,9 @@
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PYI064/candidate.ryoql": "47c0490facfad4ba1b300016dbab1a4f7e26f338ad5a8c869d2f88b074f60782",
     "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PYI066/benchmark.toml": "2a3241759211030ebaad82479efcac0d380ed3dce6b1b1b55debb1604b37fa07",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PYI066/cases.toml": "02fb0f6acfd903ff43c87a3851f4b75254ffa431a0329daa9ce3306ec873d36f",
-    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PYI066/candidate.ryoql": "4e51b83862c83c74e6a1adcee890375fb99a61f1257367e08a5833ed9c912690"
+    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PYI066/candidate.ryoql": "4e51b83862c83c74e6a1adcee890375fb99a61f1257367e08a5833ed9c912690",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/F821-stub-annotation-context/benchmark.toml": "f4730b0aa92209562d580d8ed8070c927e51f3cb5fbb736e684d79d480ec328b",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/F821-stub-annotation-context/cases.toml": "d8c8c3760cbe9e5d1cb3f3698ca37c70df5efdbdb34706542c74f978d7c47657"
   },
   "combined_profiles": {
     "shape-110": {

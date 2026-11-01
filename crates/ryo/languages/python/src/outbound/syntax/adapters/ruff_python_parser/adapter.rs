@@ -438,19 +438,35 @@ fn semantic_syntax_errors(
         visitor.visit_stmt(statement);
     }
     let mut errors = visitor.errors;
-    if source_kind == PythonSourceKind::Stub {
-        errors.extend(stub_named_expression_annotation_errors(module));
+    if source_kind == PythonSourceKind::Stub || has_future_annotations(module) {
+        errors.extend(annotation_named_expression_syntax_errors(module));
     }
     errors
 }
 
-/// Ruff rejects assignment expressions inside type annotations in stub files while retaining
-/// the same syntax in runtime Python annotations.
+fn has_future_annotations(module: &ruff_python_ast::ModModule) -> bool {
+    module.body.iter().any(|statement| {
+        let Stmt::ImportFrom(import) = statement else {
+            return false;
+        };
+        import.level == 0
+            && import
+                .module
+                .as_ref()
+                .is_some_and(|name| name.as_str() == "__future__")
+            && import
+                .names
+                .iter()
+                .any(|alias| alias.name.as_str() == "annotations")
+    })
+}
+
+/// Ruff rejects assignment expressions inside stub annotations and postponed runtime annotations.
 #[expect(
     clippy::too_many_lines,
-    reason = "one visitor checks annotation contexts while walking nested stub declarations"
+    reason = "one visitor checks annotation contexts while walking nested declarations"
 )]
-fn stub_named_expression_annotation_errors(
+fn annotation_named_expression_syntax_errors(
     module: &ruff_python_ast::ModModule,
 ) -> Vec<SemanticSyntaxDiagnostic> {
     #[derive(Default)]
@@ -588,15 +604,6 @@ impl SyntaxPort for SyntaxRuffPythonParserAdapter {
         } else {
             Vec::new()
         };
-        if semantic_errors
-            .iter()
-            .any(|error| error.phase == DiagnosticPhase::Parse)
-        {
-            languages::set_syntax_acceptance(
-                writer.tree.builder,
-                languages::SyntaxAcceptance::Rejected,
-            );
-        }
         if source.len() == text.0.len() && matches!(source, Cow::Owned(_)) {
             let mut at = 0_usize;
             for chunk in text.0.utf8_chunks() {

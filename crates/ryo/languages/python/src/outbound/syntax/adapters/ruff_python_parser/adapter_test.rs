@@ -144,7 +144,7 @@ fn named_expression_in_stub_annotation_is_a_parse_diagnostic_only_for_stubs() {
 
     let source = "def f(x: (a := b)): ...\n";
     let (stub_acceptance, stub_diagnostics) = diagnostics_for(source, PythonSourceKind::Stub);
-    assert_eq!(stub_acceptance, languages::SyntaxAcceptance::Rejected);
+    assert_eq!(stub_acceptance, languages::SyntaxAcceptance::Accepted);
     assert_eq!(
         stub_diagnostics,
         [(
@@ -164,7 +164,16 @@ fn named_expression_in_stub_annotation_is_a_parse_diagnostic_only_for_stubs() {
     let (future_acceptance, future_diagnostics) =
         diagnostics_for(future_source, PythonSourceKind::Python);
     assert_eq!(future_acceptance, languages::SyntaxAcceptance::Accepted);
-    assert!(future_diagnostics.is_empty());
+    assert_eq!(
+        future_diagnostics,
+        [(
+            "parse".to_owned(),
+            "lexically-complete".to_owned(),
+            "parser-error".to_owned(),
+            45,
+            51
+        )]
+    );
 }
 
 #[test]
