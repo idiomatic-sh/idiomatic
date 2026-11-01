@@ -114,7 +114,7 @@ fn syntax_applicability_skips_only_gated_rules_and_names_the_reason() {
         assert_eq!(skipped, [true, false]);
         assert_eq!(tables.mask.0, [0b10]);
         assert_eq!(
-            FileAnalysis::active_wanted(&tables, &setting, acceptance),
+            FileAnalysis::active_wanted(&tables, &setting, acceptance).as_ref(),
             [Relation::Identifier]
         );
         if acceptance == SyntaxAcceptance::Rejected {
@@ -154,9 +154,20 @@ fn syntax_applicability_skips_only_gated_rules_and_names_the_reason() {
     );
     assert_eq!(tables.mask.0, [0b11]);
     assert_eq!(
-        FileAnalysis::active_wanted(&tables, &setting, SyntaxAcceptance::Accepted),
+        FileAnalysis::active_wanted(&tables, &setting, SyntaxAcceptance::Accepted).as_ref(),
         [Relation::Function, Relation::Identifier]
     );
+    let always_setting = VisitSetting {
+        plans: &plans[1..],
+        ids: &ids[1..],
+        applicability: &applicability[1..],
+        needs: &setting.needs[1..],
+        ..setting
+    };
+    assert!(matches!(
+        FileAnalysis::active_wanted(&tables, &always_setting, SyntaxAcceptance::Rejected),
+        std::borrow::Cow::Borrowed(_)
+    ));
     assert!(tables.unknowns.is_empty());
 
     let missing_policy = VisitSetting {

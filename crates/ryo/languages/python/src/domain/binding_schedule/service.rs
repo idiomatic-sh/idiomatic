@@ -245,7 +245,13 @@ fn walk(
                 for target in
                     nodes(tree, at).filter(|child| field_of(tree, *child) == Field::Target)
                 {
-                    push(plan, target, phase, BindingAction::Annotation);
+                    if kind(tree, target) == Kind::Node(Node::Name) {
+                        push(plan, target, phase, BindingAction::Annotation);
+                    } else {
+                        // Annotation-only attribute and subscript targets still evaluate their
+                        // bases and indices. They do not declare the attribute/subscript itself.
+                        walk(tree, model, target, phase, plan);
+                    }
                 }
             }
         }

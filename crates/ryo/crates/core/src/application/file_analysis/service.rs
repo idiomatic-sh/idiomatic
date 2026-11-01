@@ -88,6 +88,7 @@ use ryo_values::domain::runs::types::ManifestRefused;
 use ryo_values::domain::runs::types::RuleApplicability;
 
 use ryo_values::domain::stored_facts::types::{ArenaBase, Digest, LanguageNumber, ReadFailure};
+use std::borrow::Cow;
 use std::sync::Arc;
 
 /// Whether the language read a complete tree or a recovery from missing syntax.
@@ -126,34 +127,57 @@ impl std::fmt::Debug for FileAnalysis {
 
 impl FileAnalysis {
     /// The parsed relations needed by rules that govern this path and whose applicability is met.
-    pub(super) fn active_wanted(
+    pub(super) fn active_wanted<'a>(
         tables: &Tables,
-        setting: &VisitSetting<'_>,
+        setting: &'a VisitSetting<'_>,
         acceptance: SyntaxAcceptance,
-    ) -> Vec<Relation> {
+    ) -> Cow<'a, [Relation]> {
         if setting.plans.is_empty() {
-            return setting.wanted.to_vec();
+            return Cow::Borrowed(setting.wanted);
         }
-        setting
-            .wanted
+        // The common legacy case keeps using the caller's relation slice directly. Besides
+        // avoiding an allocation, this avoids rescanning rule needs for every parsed file.
+        if setting
+            .applicability
             .iter()
-            .copied()
-            .filter(|relation| {
-                setting.plans.iter().enumerate().any(|(place, _)| {
-                    governs_rule(tables, RuleIndex(place)) == Governing::Governs
-                        && match setting.applicability.get(place).copied() {
-                            Some(RuleApplicability::Always) => true,
-                            Some(RuleApplicability::AcceptedSyntax) => {
-                                acceptance == SyntaxAcceptance::Accepted
+            .take(setting.plans.len())
+            .all(|policy| *policy == RuleApplicability::Always)
+            && setting.applicability.len() >= setting.plans.len()
+        {
+            return Cow::Borrowed(setting.wanted);
+        }
+        Cow::Owned(
+            setting
+                .wanted
+                .iter()
+                .copied()
+                .filter(|relation| {
+                    setting.plans.iter().enumerate().any(|(place, _)| {
+                        governs_rule(tables, RuleIndex(place)) == Governing::Governs
+                            && match setting.applicability.get(place).copied() {
+                                Some(RuleApplicability::Always) => true,
+                                Some(RuleApplicability::AcceptedSyntax) => {
+                                    acceptance == SyntaxAcceptance::Accepted
+                                }
+                                None => false,
                             }
-                            None => false,
-                        }
-                        && setting.needs.get(place).is_some_and(|needs| {
-                            needs.reads.iter().any(|read| read.relation == *relation)
-                        })
+                            && setting.needs.get(place).is_some_and(|needs| {
+                                needs.reads.iter().any(|read| read.relation == *relation)
+                            })
+                    })
                 })
-            })
-            .collect()
+                .collect(),
+        )
+    }
+
+    /// Whether this setting contains a policy that can change a file's active rules.
+    fn may_gate_rules(setting: &VisitSetting<'_>) -> bool {
+        setting
+            .applicability
+            .iter()
+            .take(setting.plans.len())
+            .any(|policy| *policy != RuleApplicability::Always)
+            || setting.applicability.len() < setting.plans.len()
     }
 
     /// Bind the resources used by every analysis invocation.
@@ -280,12 +304,14 @@ impl FileAnalysis {
     ) -> Result<(), FileAnalysisError> {
         let (tables, facts) = (&mut worker.tables, &mut worker.facts);
         // Preserve path scope, but keep syntax-gated rules out of the shared element walk when this provider did not accept the file.
-        let scoped_mask = tables.mask.clone();
+        let scoped_mask = Self::may_gate_rules(&visit.setting).then(|| tables.mask.clone());
         let acceptance = syntax_acceptance(&tables.elements);
-        let skipped = Self::gate_rules(tables, &visit.setting, file, acceptance);
+        let skipped = scoped_mask
+            .as_ref()
+            .map(|_| Self::gate_rules(tables, &visit.setting, file, acceptance));
         let active_wanted = Self::active_wanted(tables, &visit.setting, acceptance);
         // Only relation views needed by active rules are demanded after acceptance is known.
-        for relation in &active_wanted {
+        for relation in active_wanted.iter() {
             if let Err(error) = facts.rows(*relation) {
                 return Err(error.into());
             }
@@ -319,12 +345,19 @@ impl FileAnalysis {
                 },
             );
         }
-        tables.mask = scoped_mask;
+        if let Some(scoped_mask) = scoped_mask {
+            tables.mask = scoped_mask;
+        }
         for rule in (0..visit.setting.plans.len()).map(RuleIndex) {
             if governs_rule(tables, rule) == Governing::DoesNotGovern {
                 continue;
             }
-            if skipped.get(rule.0).copied().unwrap_or(true) {
+            if skipped
+                .as_ref()
+                .and_then(|skipped| skipped.get(rule.0))
+                .copied()
+                .unwrap_or(false)
+            {
                 continue;
             }
             // The worker already owns these columns. This callback only borrows resident views;
@@ -601,13 +634,18 @@ impl FileAnalysis {
         }
         // What the language wrote is admitted before the store keeps anything or a rule reads it.
         if let FileReading::Read(provider) = &reading {
-            self.admit(worker, &active_wanted, number, *provider)?;
+            self.admit(worker, active_wanted.as_ref(), number, *provider)?;
         }
-        let asked = engine_asked(&active_wanted);
+        let asked = engine_asked(active_wanted.as_ref());
         Self::write_engine_rows(worker, asked, number)?;
         // The relations this file is read in part: those a reader said so of, and all of code if what was read is a recovery.
         let everything = recovery_of(&reading, &worker.tables.elements);
-        start_partials(&mut worker.tables, &said, everything, &active_wanted);
+        start_partials(
+            &mut worker.tables,
+            &said,
+            everything,
+            active_wanted.as_ref(),
+        );
         // Findings are not decided over a relation read in part; rows of the queries' own columns are the rows of what was read.
         if matches!(setting.answering, Answering::Rows(_)) {
             worker.tables.pool.partial.clear();
@@ -637,12 +675,14 @@ impl FileAnalysis {
                     Self::read_file(worker, visit, number)?;
                 } else {
                     let acceptance = syntax_acceptance(&worker.tables.elements);
-                    drop(Self::gate_rules(
-                        &mut worker.tables,
-                        setting,
-                        number,
-                        acceptance,
-                    ));
+                    if Self::may_gate_rules(setting) {
+                        drop(Self::gate_rules(
+                            &mut worker.tables,
+                            setting,
+                            number,
+                            acceptance,
+                        ));
+                    }
                 }
                 match (setting.answering, asked.any) {
                     (Answering::Rows(_), _) => None,

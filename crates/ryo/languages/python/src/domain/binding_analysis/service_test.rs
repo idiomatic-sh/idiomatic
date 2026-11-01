@@ -178,6 +178,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value("unbound:0"),
     },
     Case {
+        name: CaseName("annotation-only subscript target reads its base expression"),
+        word: Word::Succeeds,
+        input: || ("values[0]: 1\n", "values"),
+        expect: Expect::Value("unbound:0"),
+    },
+    Case {
+        name: CaseName("annotation-only attribute target reads its base expression"),
+        word: Word::Succeeds,
+        input: || ("container.value: int\n", "container"),
+        expect: Expect::Value("unbound:0"),
+    },
+    Case {
         name: CaseName("assignment initializes a previously annotation-only local"),
         word: Word::Succeeds,
         input: || ("x = 0\ndef f():\n    x: int\n    x = 1\n    use(x)\n", "x"),
