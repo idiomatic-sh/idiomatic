@@ -67,6 +67,9 @@ pub(crate) mod visit;
 pub(crate) mod walks;
 pub(crate) mod workers;
 
+pub(crate) mod demand_join;
+pub(crate) mod graph_cache;
+pub(crate) mod stored_graph;
 /// Complete stored indexes owned by a single physical file generation.
 pub(crate) mod stored_indexes;
 pub(crate) mod stored_selection;

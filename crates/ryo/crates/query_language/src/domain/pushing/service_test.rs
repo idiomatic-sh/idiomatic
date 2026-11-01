@@ -65,6 +65,8 @@ fn lookup(asked: u32) -> Vec<PlanStep> {
             ],
             filter: Vec::new(),
             view: Vec::new(),
+
+            reach: None,
         }),
         step(Operation::Join {
             left: Reads::Step(StepId(0)),
@@ -83,6 +85,8 @@ fn lookup(asked: u32) -> Vec<PlanStep> {
             ],
             filter: Vec::new(),
             view: Vec::new(),
+
+            reach: None,
         }),
     ]
 }

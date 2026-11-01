@@ -71,6 +71,8 @@ fn the_tree_joined_to_a_stored_relation() -> Plan {
             }],
             filter: Vec::new(),
             view: Vec::new(),
+
+            reach: None,
         },
     ])
 }
@@ -95,6 +97,8 @@ fn the_tree_with_its_children_counted() -> Plan {
             ],
             filter: Vec::new(),
             view: Vec::new(),
+
+            reach: None,
         },
         Operation::GroupCount {
             from: PlanInput::Step(StepId(1)),

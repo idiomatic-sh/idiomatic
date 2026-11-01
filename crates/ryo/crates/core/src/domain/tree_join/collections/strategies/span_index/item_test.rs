@@ -161,6 +161,8 @@ fn joins_on_the_stretch(stretch_first: bool) -> Result<Table, OperatingError> {
         }],
         filter: Vec::new(),
         view: Vec::new(),
+
+        reach: None,
     };
     let rows = TreeRows {
         elements: &elements,

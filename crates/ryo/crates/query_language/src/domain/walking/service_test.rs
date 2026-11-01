@@ -100,6 +100,8 @@ fn a_descent_and_the_joins_after_it_are_one_walk(scenario: Scenario) -> usize {
             output: vec![right(1), left(0), left(2), left(3)],
             filter: Vec::new(),
             view: Vec::new(),
+
+            reach: None,
         }),
         per_file(Operation::Join {
             left: Reads::Step(StepId(2)),
@@ -109,6 +111,8 @@ fn a_descent_and_the_joins_after_it_are_one_walk(scenario: Scenario) -> usize {
             output: vec![left(1), left(2), left(3), right(0)],
             filter: vec![tokens.clone()],
             view: Vec::new(),
+
+            reach: None,
         }),
     ];
     let fused = fuse_descents(steps);

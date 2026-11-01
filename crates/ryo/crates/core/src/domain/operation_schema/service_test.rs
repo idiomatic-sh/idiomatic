@@ -266,6 +266,8 @@ fn binary() -> Vec<Operation> {
             output: output(),
             filter: Vec::new(),
             view: Vec::new(),
+
+            reach: None,
         },
         Operation::Union {
             left: FROM,
@@ -383,4 +385,51 @@ pub(crate) fn tables(operation: &Operation, symbol: Symbol, populated: bool) -> 
         }
     }
     values
+}
+
+#[test]
+fn demand_join_schema_uses_virtual_partition_source_destination_projection() {
+    use ryo_values::domain::plan_parts::types::ReachLookup;
+    let operation = Operation::Join {
+        left: FROM,
+        right: FROM,
+        left_on: vec![ColumnIndex(0)],
+        right_on: vec![ColumnIndex(2)],
+        output: vec![
+            JoinColumn {
+                side: Side::Right,
+                column: ColumnIndex(0),
+            },
+            JoinColumn {
+                side: Side::Right,
+                column: ColumnIndex(1),
+            },
+            JoinColumn {
+                side: Side::Right,
+                column: ColumnIndex(0),
+            },
+        ],
+        filter: vec![],
+        view: vec![],
+        reach: Some(ReachLookup {
+            source: ColumnIndex(1),
+            destination: ColumnIndex(0),
+            keys: vec![ColumnIndex(2)],
+            columns: vec![ColumnIndex(2), ColumnIndex(0), ColumnIndex(1)],
+        }),
+    };
+    let inputs = [
+        InputSchema {
+            kinds: &[CellKind::Node],
+            tree: None,
+        },
+        InputSchema {
+            kinds: &[CellKind::Symbol, CellKind::Node, CellKind::File],
+            tree: None,
+        },
+    ];
+    assert_eq!(
+        schema_of(&operation, &inputs, &[]).expect("virtual kinds"),
+        [CellKind::Symbol, CellKind::File, CellKind::Symbol]
+    );
 }

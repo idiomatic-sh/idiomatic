@@ -12,6 +12,14 @@ use ryo_values::domain::plan_parts::types::Side;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::plans::types::PlanStep;
 
+/// Physical demand propagation runs after ordinary column/pruning rewrites, then use counts are recomputed.
+pub(crate) fn fuse_keyed_reaches(
+    steps: Vec<PlanStep>,
+    protected: &[ryo_values::domain::plan_parts::types::StepId],
+) -> Vec<PlanStep> {
+    super::types::demand::value::DemandClosure::new(&steps, protected).rewrite()
+}
+
 /// The column of a step's input that the column `column` of its output is: the same one when the
 /// step keeps every column, else the one it keeps there.
 #[must_use]
@@ -79,6 +87,8 @@ fn fuse_join(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
         output,
         filter: no_filter,
         view: no_view,
+
+        reach: None,
     } = &steps.get(place.0)?.operation
     else {
         return None;
@@ -107,6 +117,8 @@ fn fuse_join(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
         output: output.clone(),
         filter: comparisons.clone(),
         view: kept.clone(),
+
+        reach: None,
     })
 }
 
@@ -202,6 +214,8 @@ fn fuse_join_filter(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
         output,
         filter,
         view,
+
+        reach: None,
     } = &producer.operation
     else {
         return None;
@@ -250,6 +264,8 @@ fn fuse_join_filter(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
         output: answer,
         filter: merged,
         view: view.clone(),
+
+        reach: None,
     })
 }
 

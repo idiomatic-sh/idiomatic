@@ -163,6 +163,8 @@ fn native_operation(scenario: Scenario) -> Operation {
             ],
             filter: Vec::new(),
             view: vec![column(1), column(0)],
+
+            reach: None,
         }
     }
 }

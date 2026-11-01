@@ -106,6 +106,8 @@ fn reading_columns(operation: &Operation, read: Input) -> Option<Vec<ColumnIndex
             output,
             filter,
             view,
+
+            reach: None,
         } => {
             if is(right) && (!filter.is_empty() || !view.is_empty()) {
                 return None;
@@ -162,6 +164,9 @@ fn reading_columns(operation: &Operation, read: Input) -> Option<Vec<ColumnIndex
         Operation::Select { .. }
         | Operation::Project { .. }
         | Operation::Extend { .. }
+        // Demand RHS keys address a virtual closure schema, not the physical edge columns.
+        // This earlier column-remapping pass must leave that physical descriptor intact.
+        | Operation::Join { reach: Some(_), .. }
         | Operation::Union { .. }
         | Operation::Intersection { .. }
         | Operation::Difference { .. }

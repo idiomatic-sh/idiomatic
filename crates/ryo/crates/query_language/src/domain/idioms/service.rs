@@ -45,6 +45,8 @@ pub(crate) fn push_same_sets(builder: &mut Builder<'_>, name: &syntax::StepName,
             output,
             filter: Vec::new(),
             view: Vec::new(),
+
+            reach: None,
         },
         first_fields.clone(),
     );
@@ -69,6 +71,8 @@ pub(crate) fn push_same_sets(builder: &mut Builder<'_>, name: &syntax::StepName,
             output: both_output,
             filter: Vec::new(),
             view: Vec::new(),
+
+            reach: None,
         },
         both_fields.clone(),
     );
@@ -151,6 +155,8 @@ pub(crate) fn push_same_sets_joined(
             output: columns,
             filter: Vec::new(),
             view: Vec::new(),
+
+            reach: None,
         },
         widened,
     );
@@ -168,6 +174,8 @@ pub(crate) fn push_same_sets_joined(
             output,
             filter: Vec::new(),
             view: Vec::new(),
+
+            reach: None,
         },
         met_fields,
     );
@@ -276,6 +284,8 @@ pub(crate) fn recognize_same_sets(builder: &Builder<'_>, idiom: SameSets) -> Opt
         output,
         filter,
         view,
+
+        reach: None,
     }) = builder
         .steps
         .get(index(met))

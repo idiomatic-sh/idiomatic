@@ -82,6 +82,8 @@ fn plan(
             .collect(),
         filter,
         view: columns(view),
+
+        reach: None,
     }
 }
 
@@ -837,6 +839,7 @@ fn compact_right_joins_preserve_duplicate_positions_reordered_keys_and_typed_fla
             rows: Arc::new(vec![4, 1, 0, 4]),
             columns: vec![ColumnIndex(2), ColumnIndex(0), ColumnIndex(1)],
             kinds: vec![CellKind::Number, CellKind::Number, CellKind::Flag],
+            identity: Arc::new(Default::default()),
         }),
     });
     let left = table_of(
@@ -1391,4 +1394,107 @@ fn malformed_views_and_failed_upstream_still_use_original_paths_with_a_file_cach
         cache.builds, 0,
         "upstream error arrives before the lazy index build"
     );
+}
+
+#[test]
+fn demand_reach_stream_preserves_lazy_holds_refusals_and_room_reuse() {
+    use crate::domain::stored_indexes::service::{LIMIT, new};
+    use ryo_values::domain::plan_parts::types::ReachLookup;
+    let columns = [fact_column(&[1, 1, 9, 2]), fact_column(&[9, 2, 1, 3])];
+    let right = Rows::Stored(ColumnsView {
+        kinds: NUMBER_PAIR_KINDS,
+        columns: &columns,
+    });
+    let left = table_of(
+        &[CellKind::Number],
+        &[&[Cell::Number(Integer(1))], &[Cell::Number(Integer(1))]],
+    );
+    let empty = table_of(&[CellKind::Number], &[]);
+    let mut operation = plan(&[0], &[0], &[(Side::Right, 1)], Vec::new(), &[]);
+    if let Operation::Join { reach, .. } = &mut operation {
+        *reach = Some(ReachLookup {
+            source: ColumnIndex(0),
+            destination: ColumnIndex(1),
+            keys: vec![],
+            columns: vec![ColumnIndex(0), ColumnIndex(1)],
+        });
+    }
+    let mut cache = new(&[Relation::Function], &[], LIMIT).expect("cache");
+    cache.graph_enabled = true;
+    let mut room = Room::default();
+    let (nothing, holds) = stream_with_indexes(
+        &operation,
+        &mut room,
+        &empty,
+        right.clone(),
+        (false, false, false),
+        Some(&mut cache),
+    )
+    .expect("empty left");
+    assert!(nothing.is_empty());
+    assert_eq!(holds, 1);
+    assert_eq!(cache.graph_counts.builds, 0);
+    assert!(matches!(
+        stream_with_indexes(
+            &operation,
+            &mut room,
+            &empty,
+            right.clone(),
+            (false, true, false),
+            Some(&mut cache)
+        ),
+        Err(OperatingError::NotRead)
+    ));
+    assert!(matches!(
+        stream_with_indexes(
+            &operation,
+            &mut room,
+            &left,
+            right.clone(),
+            (true, false, false),
+            Some(&mut cache)
+        ),
+        Err(OperatingError::NotRun)
+    ));
+    assert_eq!(cache.graph_counts.builds, 0);
+    assert!(matches!(
+        stream_with_indexes(
+            &operation,
+            &mut room,
+            &left,
+            right.clone(),
+            (false, false, true),
+            Some(&mut cache)
+        ),
+        Err(OperatingError::NotRun)
+    ));
+    assert_eq!(cache.graph_counts.builds, 1);
+    let (actual, holds) = stream_with_indexes(
+        &operation,
+        &mut room,
+        &left,
+        right.clone(),
+        (false, false, false),
+        Some(&mut cache),
+    )
+    .expect("reused after emit failure");
+    assert_eq!(holds, 1);
+    let once = [1, 2, 3, 9].map(|value| vec![Cell::Number(Integer(value))]);
+    let expected: Vec<_> = once.iter().chain(once.iter()).cloned().collect();
+    assert_eq!(actual, expected);
+    assert_eq!(cache.graph_counts.builds, 1);
+    assert!(cache.graph_counts.reuses > 0);
+    // A previous cache hit never suppresses a subsequent provider refusal.
+    assert!(matches!(
+        stream_with_indexes(
+            &operation,
+            &mut room,
+            &left,
+            right,
+            (false, true, false),
+            Some(&mut cache)
+        ),
+        Err(OperatingError::NotRead)
+    ));
+    assert!(room.scratch.graph_walk.queue.is_empty());
 }

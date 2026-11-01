@@ -57,13 +57,15 @@ type Failure = OperatingError;
 fn program(value: i64) -> Arc<Selector> {
     Arc::new(Selector {
         relation: Relation::Function,
-        comparisons: vec![Comparison {
-            test: Test::Equal,
-            left: Operand::Column(ColumnIndex(0)),
-            right: Operand::Parameter(ParameterId(0)),
-            origin: None,
-        }],
-        bindings: vec![ParameterBinding::Number(WholeNumber(value))],
+        identity: Arc::new(crate::domain::table_model::types::SelectionIdentity {
+            comparisons: vec![Comparison {
+                test: Test::Equal,
+                left: Operand::Column(ColumnIndex(0)),
+                right: Operand::Parameter(ParameterId(0)),
+                origin: None,
+            }],
+            bindings: vec![ParameterBinding::Number(WholeNumber(value))],
+        }),
         columns: vec![ColumnIndex(1), ColumnIndex(0), ColumnIndex(1)],
     })
 }
@@ -73,7 +75,7 @@ fn baseline(source: ColumnsView<'_>, program: &Selector) -> Result<Table, Failur
     let mut symbols = Symbols::default();
     let mut context = OperatorContext {
         stored_indexes: None,
-        bindings: &program.bindings,
+        bindings: &program.identity.bindings,
         symbols: &mut symbols,
         source: SourceView(b""),
         paths: &[],
@@ -83,7 +85,7 @@ fn baseline(source: ColumnsView<'_>, program: &Selector) -> Result<Table, Failur
     };
     let operation = Operation::Select {
         from: Source::Relation(Relation::Function),
-        comparisons: program.comparisons.clone(),
+        comparisons: program.identity.comparisons.clone(),
         kept: program.columns.clone(),
     };
     let mut out = Table::default();
@@ -154,6 +156,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 rows: Arc::new(vec![3, 1, 3]),
                 columns: Vec::new(),
                 kinds: Vec::new(),
+                identity: Arc::new(Default::default()),
             }),
         });
         let mut out = Table::default();
@@ -163,7 +166,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     }
     if matches!(scenario, Scenario::Error) {
         let mut bad = (*first).clone();
-        bad.bindings = vec![ParameterBinding::Tables(Vec::new())];
+        Arc::make_mut(&mut bad.identity).bindings = vec![ParameterBinding::Tables(Vec::new())];
         assert!(matches!(
             select(&Arc::new(bad), source, &mut context),
             Err(OperatingError::WrongBinding)

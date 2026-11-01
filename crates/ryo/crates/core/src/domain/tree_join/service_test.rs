@@ -134,6 +134,8 @@ fn either_side() {
             output,
             filter,
             view,
+
+            reach: None,
         }
     };
     let output = |side: Side, place: u32| JoinColumn {

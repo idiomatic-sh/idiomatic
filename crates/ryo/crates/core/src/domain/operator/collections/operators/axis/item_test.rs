@@ -478,3 +478,114 @@ fn succeeds() {
 fn refuses() {
     run(CASES, Word::Refuses, subject);
 }
+
+#[test]
+fn compact_axes_equal_ordinary_bfs_and_direct_bags_across_rules() {
+    use crate::domain::stored_indexes::service::{LIMIT, new};
+    use ryo_language::domain::relations::types::{ColumnsView, FactColumn};
+    let columns = [
+        FactColumn(vec![1, 1, 1, 9, 2, 4, 90]),
+        FactColumn(vec![9, 2, 9, 4, 4, 1, 91]),
+    ];
+    let stored = Rows::Stored(ColumnsView {
+        kinds: &[CellKind::Number; 2],
+        columns: &columns,
+    });
+    let edges = numbers(&[
+        &[1, 9],
+        &[1, 2],
+        &[1, 9],
+        &[9, 4],
+        &[2, 4],
+        &[4, 1],
+        &[90, 91],
+    ]);
+    let from = numbers(&[&[1], &[1], &[4], &[999]]);
+    let domain = numbers(&[&[1], &[2], &[9], &[9], &[4], &[91]]);
+    let mut symbols = Symbols::default();
+    let mut scratch = OperatorScratch::default();
+    let mut memo = Vec::new();
+    let mut cache = new(&[Relation::Function], &[], LIMIT).expect("cache");
+    cache.graph_enabled = true;
+    for direction in [
+        Direction::Parent,
+        Direction::Child,
+        Direction::Ancestor,
+        Direction::Descendant,
+        Direction::NearestAncestor,
+    ] {
+        let operation = Operation::Axis {
+            from: FROM,
+            edges: FROM,
+            domain: FROM,
+            direction,
+            id: column(0),
+            parent: column(0),
+            child: column(1),
+            domain_id: column(0),
+            domain_filter: vec![],
+            domain_view: vec![],
+            output: vec![],
+        };
+        let mut expected = Table::default();
+        let mut actual = Table::default();
+        {
+            let mut context = OperatorContext {
+                stored_indexes: None,
+                bindings: &[],
+                symbols: &mut symbols,
+                source: SourceView(b""),
+                paths: &[],
+                arenas: &[],
+                memo: &mut memo,
+                scratch: &mut scratch,
+            };
+            AxisItem
+                .compute(
+                    &operation,
+                    &[
+                        Rows::Computed(&from),
+                        Rows::Computed(&edges),
+                        Rows::Computed(&domain),
+                    ],
+                    &mut context,
+                    &mut expected,
+                )
+                .expect("ordinary axis");
+        }
+        {
+            let mut context = OperatorContext {
+                stored_indexes: Some(&mut cache),
+                bindings: &[],
+                symbols: &mut symbols,
+                source: SourceView(b""),
+                paths: &[],
+                arenas: &[],
+                memo: &mut memo,
+                scratch: &mut scratch,
+            };
+            AxisItem
+                .compute(
+                    &operation,
+                    &[
+                        Rows::Computed(&from),
+                        stored.clone(),
+                        Rows::Computed(&domain),
+                    ],
+                    &mut context,
+                    &mut actual,
+                )
+                .expect("compact axis");
+        }
+        assert_eq!(
+            actual, expected,
+            "{direction:?} preserves BFS/direct order and duplicates"
+        );
+    }
+    assert_eq!(cache.graph_counts.builds, 1);
+    assert_eq!(cache.graph_counts.reuses, 4);
+    assert!(
+        cache.graph_counts.early_stops > 0,
+        "cyclic nearest uses qualifying BFS early stop"
+    );
+}

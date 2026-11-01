@@ -22,6 +22,20 @@ pub(crate) struct Entry {
 /// A file-local owner: dropping it releases all admitted allocations without eviction.
 #[derive(Debug)]
 pub(crate) struct FileIndexes {
+    /// An active eligible graph consumer may request bounded adjacency admission.
+    pub graph_enabled: bool,
+    /// Charged graph/domain/memo bytes within `bytes`.
+    pub graph_bytes: usize,
+    /// Successful root and nearest memo payload admitted within its smaller sub-budget.
+    pub memo_bytes: usize,
+    /// Complete immutable graph populations.
+    pub graphs: Vec<crate::domain::stored_graph::types::GraphEntry>,
+    /// Exact stable domain memberships.
+    pub graph_domains: Vec<crate::domain::stored_graph::types::DomainEntry>,
+    /// Mutable nearest answers remain owned by this generation.
+    pub nearest: Vec<crate::domain::stored_graph::types::NearestMemo>,
+    /// Aggregate requested/traversed work and graph admission accounting.
+    pub graph_counts: crate::domain::stored_graph::types::GraphCounts,
     /// Active pure stored descriptors; prepared metadata is owned by the worker's plans.
     pub selectors: Vec<Arc<crate::domain::stored_selection::types::Selector>>,
     /// Successful exact selections admitted under this same byte allowance.

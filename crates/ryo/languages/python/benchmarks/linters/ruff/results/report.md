@@ -2,7 +2,19 @@
 
 **In progress.** The goal remains all 413 Ruff 0.16.5 defaults as RyoQL, faithful full reports, and subsecond full-Django execution. Neither full parity nor the performance target has passed.
 
-## Completed full-Django observation (2026-11-01)
+## Current demand-graph full-Django observation (2026-11-01)
+
+The [corrected shared-graph batch](demand-graph-measurements-2026-11-01.json), worker `3ee24fc0`, completed all **2,875 files / 310 rules on one worker** in **366.6799 s wall, 366.4765 s CPU**, with **4,080,787,456 bytes peak RSS**, status 0, no signal and no cap. [Coverage](demand-graph-full-comparison-2026-11-01.json) remains 891,250 selected pairs, 890,943 evaluated, 307 syntax-rejected skips and zero unknown/unread. The complete [report](demand-graph-full-report-2026-11-01.json) has exactly the same SHA256 as the prior candidate report: diagnostics, files, coverage and skips all match. Against the prior pinned Ruff report, the same 158 extra and one missing diagnostic remain.
+
+This is a separate full-corpus observation, not an alternating full-corpus timing pair. Prior worker `5364a1a1` preceded the compiler-feature producer update; matching-provider isolation is supplied by the forms/startup pairs against `8eabb206`, not by assigning a pure engine speed ratio to the older 446.398-second full run. Peak corpus memory is effectively flat versus that prior 4.089 GB observation. The subsecond target remains unmet.
+
+Three alternating matched forms pairs were all faster: median wall **5.1843 → 4.2723 s (17.59% lower)**, CPU **5.1816 → 4.2721 s (17.55% lower)**, peak RSS **766.2 → 667.0 MB (12.94% lower)**. All twelve forms/startup reports are exact. Startup median wall increased 0.41%, CPU 0.39%, while RSS fell 2.63%; every sample is retained. The initial `530b4dd2` variant is retained separately: its modest/mixed 1.86% median wall change exposed missed projected closure inputs and an unused reserved cache slice. The corrected candidate has a distinct immutable identity.
+
+[Corrected diagnostic counters](demand-graph-aggregate-2026-11-01.json) record 20 demand-join invocations, including B008/B020/B030, three graph builds/110 reuses, 3,522 memo hits and zero graph refusals. B020's three observed lookups preserve 42 probes/157 output rows while avoiding its full closure. The unchanged 16 MiB file-cache cap is charged for actual allocations; one dormant index reclaimed 1,380,495 bytes, with zero pinned-handle refusals. There are still 25 index and 205 selector admission refusals. These are diagnostic work counts, not component-specific timing attribution or an RSS bound. Corpus memory now needs lifecycle evidence separating retained packed frontier data, cross-file decoding and store writing.
+
+Essential checks passed: 286 core, 69 query-language, nine values, 19 SDK context, 15 harness run tests and the explicit five-target diagnostic subscriber test. Release linking took about 54.1 seconds. Broad current-source quality/API/Rust performance remain pending. The older CI also exposes a real Tastemaker memory-guard failure, Python fixture-facet gaps and a macOS executable-format representation mismatch; none is waived or given a higher threshold. New BDD/root-CI capture retains exact child argv, stdout, stderr and status (12 focused tests passed) so future failures remain diagnosable.
+
+## Prior compact-execution full-Django observation (2026-11-01)
 
 The [sealed compact-execution batch](corpus-execution-measurements-2026-11-01.json), worker `5364a1a1`, completed the pinned **2,875-file / 310-rule** workload in **446.398 s wall, 446.246 s CPU**, with **4,088,983,552 bytes peak RSS**, status 0 and no cap/signal. The [complete report](corpus-execution-full-report-2026-11-01.json) accounts for 891,250 selected pairs: 890,943 evaluated, 307 explicitly skipped for syntax rejection, zero unknown/unread. All 307 skips concern `tests/test_runner_apps/tagged/tests_syntax_error.py`; the three always-phase rules still run there. This is one completed cold observation, not a median or subsecond success.
 

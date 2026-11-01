@@ -118,6 +118,8 @@ fn join_shape(operation: &Operation, shapes: &[Option<LoweredShape>]) -> Option<
         output,
         filter,
         view,
+
+        reach: None,
     } = operation
     else {
         return None;

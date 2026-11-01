@@ -114,6 +114,7 @@ fn aggregate_profile_is_explicit_and_keeps_counter_fields() -> Result<(), Box<dy
             tracing::trace!(target: super::SELECTION_TARGET, event = "file_selections", scanned_rows = 7_u64);
             tracing::trace!(target: super::WORKING_SET_TARGET, event = "rule_released", retained_bytes = 11_usize);
             tracing::trace!(target: super::LAYOUT_TARGET, event = "layout_schema", payload_rows = 0_usize);
+            tracing::trace!(target: super::GRAPH_TARGET, event = "graph_work", graph_edges = 13_usize);
         });
         let output = std::fs::read_to_string(path)?;
         if level == tracing_subscriber::filter::LevelFilter::OFF {
@@ -123,7 +124,7 @@ fn aggregate_profile_is_explicit_and_keeps_counter_fields() -> Result<(), Box<dy
                 .lines()
                 .map(serde_json::from_str::<serde_json::Value>)
                 .collect::<Result<Vec<_>, _>>()?;
-            assert_eq!(events.len(), 4);
+            assert_eq!(events.len(), 5);
             assert!(
                 events
                     .iter()
@@ -133,6 +134,11 @@ fn aggregate_profile_is_explicit_and_keeps_counter_fields() -> Result<(), Box<dy
                 events
                     .iter()
                     .any(|event| event["fields"]["retained_bytes"] == 11)
+            );
+            assert!(
+                events
+                    .iter()
+                    .any(|event| event["fields"]["graph_edges"] == 13)
             );
         }
     }

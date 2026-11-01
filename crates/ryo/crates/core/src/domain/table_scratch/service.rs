@@ -56,6 +56,15 @@ pub(crate) fn scratch_bytes(scratch: &OperatorScratch) -> usize {
     let vectors = [
         vector_bytes(&scratch.row),
         vector_bytes(&scratch.other),
+        vector_bytes(&scratch.graph_walk.marks),
+        vector_bytes(&scratch.graph_walk.reached),
+        vector_bytes(&scratch.graph_walk.path),
+        vector_bytes(&scratch.graph_walk.answers),
+        scratch
+            .graph_walk
+            .queue
+            .capacity()
+            .saturating_mul(size_of::<u32>()),
         vector_bytes(&scratch.key),
         table_bytes(&scratch.right),
         table_bytes(&scratch.domain),
@@ -141,6 +150,11 @@ pub(crate) fn scratch_bytes(scratch: &OperatorScratch) -> usize {
 /// Clear file/rule population state only after all recursive operators/emitters have returned.
 /// Compiled matchers and immutable kind sets may be retained within the aggregate allowance.
 pub(crate) fn clear_scratch(scratch: &mut OperatorScratch) {
+    // Marks retain only generation-neutral epochs, not rows/values; the next traversal advances the epoch.
+    scratch.graph_walk.queue.clear();
+    scratch.graph_walk.reached.clear();
+    scratch.graph_walk.path.clear();
+    scratch.graph_walk.answers.clear();
     scratch.row.clear();
     scratch.other.clear();
     scratch.key.clear();

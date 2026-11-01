@@ -111,6 +111,8 @@ fn subject(_input: Input) -> Result<Value, Failure> {
                     column: ColumnIndex(1),
                 },
             ],
+
+            reach: None,
         },
     };
     let first = Plan {

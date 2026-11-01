@@ -224,6 +224,8 @@ fn walk_table(
     out: &mut Table,
 ) -> Result<(), OperatingError> {
     let Operation::Axis {
+        edges: edge_input,
+        domain: domain_input,
         direction,
         id,
         parent,
@@ -247,6 +249,24 @@ fn walk_table(
     {
         // Below the children and the siblings are walks of the tree, whose order no table of edges keeps.
         return Err(OperatingError::WrongOperation);
+    }
+    check_columns(kinds_of(edges), &[*parent, *child])?;
+    check_columns(kinds_of(domain), &[*domain_id])?;
+    if let Some(access) = crate::domain::graph_cache::service::acquire(
+        *edge_input,
+        edges,
+        [*parent, *child],
+        &[],
+        context.stored_indexes.as_deref_mut(),
+    )? {
+        let membership = crate::domain::graph_cache::service::domain(
+            &access,
+            *domain_input,
+            domain,
+            *domain_id,
+            context.stored_indexes.as_deref_mut(),
+        )?;
+        return walk_compact(operation, from, &access, &membership, context, out);
     }
     let OperatorScratch {
         row,
@@ -319,6 +339,97 @@ fn walk_table(
         }
     }
     Ok(())
+}
+
+/// Walk a complete immutable adjacency without copying whole provider rows or enumerating other roots.
+fn walk_compact(
+    operation: &Operation,
+    from: &Rows<'_>,
+    access: &crate::domain::stored_graph::types::GraphAccess,
+    domain: &std::sync::Arc<crate::domain::stored_graph::types::GraphDomain>,
+    context: &mut OperatorContext<'_>,
+    out: &mut Table,
+) -> Result<(), OperatingError> {
+    use crate::domain::graph_cache::types::roots::value::DemandAnswers;
+    use crate::domain::stored_graph::types::Orientation;
+    use crate::domain::stored_graph::types::traversal::value::GraphTraversal;
+    let Operation::Axis { direction, id, .. } = operation else {
+        return Err(OperatingError::WrongOperation);
+    };
+    let orientation = match direction {
+        Direction::Child
+        | Direction::Descendant
+        | Direction::Deep
+        | Direction::PreviousSibling
+        | Direction::NextSibling => access.orientation,
+        Direction::Parent | Direction::Ancestor | Direction::NearestAncestor => {
+            match access.orientation {
+                Orientation::Forward => Orientation::Reverse,
+                Orientation::Reverse => Orientation::Forward,
+            }
+        }
+    };
+    reset(out, kinds_of(from));
+    out.kinds.push(CellKind::Node);
+    let mut row = std::mem::take(&mut context.scratch.row);
+    let mut walk = std::mem::take(&mut context.scratch.graph_walk);
+    let mut answers = std::mem::take(&mut walk.answers);
+    answers.clear();
+    let outcome = (|| {
+        for position in positions(count_of(from)) {
+            let Some(each) = read_row(from, position, &mut row) else {
+                continue;
+            };
+            let start = cell(each, *id)?;
+            let Some(root) = access.graph.vertex_ids.get(&(0, start)).copied() else {
+                continue;
+            };
+            if *direction == Direction::NearestAncestor {
+                let found = DemandAnswers::new(context.stored_indexes.as_deref_mut()).nearest(
+                    access,
+                    domain,
+                    root,
+                    orientation,
+                    &mut answers,
+                    &mut walk,
+                );
+                if let Some(found) = found {
+                    out.cells.extend_from_slice(each);
+                    out.cells.push(access.graph.vertices[found as usize]);
+                    out.count.0 += 1;
+                }
+            } else {
+                let mut traversal = GraphTraversal::new(&access.graph, &mut walk);
+                match direction {
+                    Direction::Parent | Direction::Child => traversal.direct(root, orientation),
+                    Direction::Ancestor
+                    | Direction::Descendant
+                    | Direction::Deep
+                    | Direction::PreviousSibling
+                    | Direction::NextSibling => {
+                        let _ = traversal.breadth(root, orientation, None);
+                    }
+                    Direction::NearestAncestor => unreachable!("nearest handled above"),
+                }
+                if let Some(cache) = context.stored_indexes.as_deref_mut() {
+                    cache.graph_counts.expanded += walk.expanded;
+                    cache.graph_counts.examined += walk.examined;
+                }
+                for vertex in &walk.reached {
+                    if domain.members[*vertex as usize] {
+                        out.cells.extend_from_slice(each);
+                        out.cells.push(access.graph.vertices[*vertex as usize]);
+                        out.count.0 += 1;
+                    }
+                }
+            }
+        }
+        Ok(())
+    })();
+    walk.answers = answers;
+    context.scratch.graph_walk = walk;
+    context.scratch.row = row;
+    outcome
 }
 
 /// An axis whose starts come as they are made and whose edges are not a tree to walk: the starts are held whole, then computed.

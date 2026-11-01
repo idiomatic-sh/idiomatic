@@ -106,6 +106,17 @@ pub(crate) struct StoredSelection {
     pub columns: Vec<ColumnIndex>,
     /// Types of the projected output columns, including zero-column projections.
     pub kinds: Vec<CellKind>,
+    /// Exact ordered physical predicates and referenced bindings that selected these positions.
+    pub identity: std::sync::Arc<SelectionIdentity>,
+}
+
+/// Immutable semantic identity shared by prepared selectors and compact graph populations.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub(crate) struct SelectionIdentity {
+    /// Ordered predicates over physical provider columns.
+    pub comparisons: Vec<ryo_values::domain::plan_parts::types::Comparison>,
+    /// Only the binding values referenced by these predicates.
+    pub bindings: Vec<ParameterBinding>,
 }
 
 /// What a parameter is bound to when a query runs: text that came from the host.

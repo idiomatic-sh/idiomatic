@@ -56,3 +56,25 @@ def test_rust_memory_guard_retains_actual_output_and_exit(tmp_path, status):
     assert (output / "ryo-rust-peak.status").read_text() == f"{status}\n"
     workflow = (ROOT / ".github/workflows/check.yml").read_text()
     assert "if: always() && steps.speed_check.outcome != 'skipped'" in workflow
+
+
+@pytest.mark.parametrize("status", [0, 101])
+@pytest.mark.parametrize("identity", ["ci-tests", "test-bdd"])
+def test_failed_tool_stdout_is_retained_without_changing_the_command(tmp_path, identity, status):
+    if identity == "ci-tests":
+        data = tomllib.loads((ROOT / "asymptote.toml").read_text())
+        expected = ["pytest", "--quiet", "-p", "no:cacheprovider", "--import-mode=importlib", "-o", "pythonpath=.",
+                    "-o", "python_files=*_test.py", "-o", "python_classes=", "-o", "norecursedirs=.* __pycache__", "ci"]
+        output = tmp_path / "target/checks/ci-tests"
+    else:
+        data = tomllib.loads((ROOT / "crates/ryo/asymptote.toml").read_text())
+        expected = ["cargo", "test", "--workspace", "--locked", "--all-features", "--test", "bdd"]
+        output = tmp_path / "target/checks/bdd"
+    command = next(item for item in data["tools"] if item["id"] == identity)["run"]
+    fake = f'{expected[0]}() {{ printf "%s\\0" "$@" > child-arguments; printf "underlying failed scenario\\n"; printf "child stderr\\n" >&2; return {status}; }}; '
+    result = subprocess.run([*command[:2], fake + command[2]], cwd=tmp_path, capture_output=True, text=True)
+    assert result.returncode == status
+    assert (tmp_path / "child-arguments").read_bytes().split(b"\0")[:-1] == [arg.encode() for arg in expected[1:]]
+    assert (output / "stdout.log").read_text() == result.stdout == "underlying failed scenario\n"
+    assert (output / "stderr.log").read_text() == result.stderr == "child stderr\n"
+    assert (output / "status").read_text() == f"{status}\n"

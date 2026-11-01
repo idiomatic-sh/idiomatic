@@ -108,6 +108,19 @@ pub struct JoinColumn {
     pub column: ColumnIndex,
 }
 
+/// Physical source-keyed lookup of a positive transitive closure, internal to a compiled join.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ReachLookup {
+    /// Physical edge column holding the closure source.
+    pub source: ColumnIndex,
+    /// Physical edge column holding the closure destination.
+    pub destination: ColumnIndex,
+    /// Physical partition columns, in the original closure's argument order.
+    pub keys: Vec<ColumnIndex>,
+    /// Logical RHS output map over partition keys followed by source and destination.
+    pub columns: Vec<ColumnIndex>,
+}
+
 /// A relation the host declared, by its place among the ones declared with the request.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct HostedNumber(pub u32);

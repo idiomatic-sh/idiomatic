@@ -52,6 +52,8 @@ fn plan_comparing_kind(test: Test, right: Operand, relation: Relation, site: Kin
             output: Vec::new(),
             filter: comparisons,
             view: Vec::new(),
+
+            reach: None,
         },
     };
     Plan {

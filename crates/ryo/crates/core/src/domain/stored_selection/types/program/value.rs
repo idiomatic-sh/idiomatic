@@ -51,8 +51,7 @@ impl<'a> SelectionProgram<'a> {
             ) => None,
             Input::Relation(relation) => Some(Selector {
                 relation,
-                comparisons: Vec::new(),
-                bindings: Vec::new(),
+                identity: Arc::new(Default::default()),
                 columns: (0..kinds(relation).len())
                     .map(|index| ColumnIndex(u32::try_from(index).unwrap_or(u32::MAX)))
                     .collect(),
@@ -91,7 +90,9 @@ impl<'a> SelectionProgram<'a> {
                     normalized.left = self.operand(&comparison.left, &mut selector)?;
                     normalized.right = self.operand(&comparison.right, &mut selector)?;
                     normalized.origin = None;
-                    selector.comparisons.push(normalized);
+                    Arc::make_mut(&mut selector.identity)
+                        .comparisons
+                        .push(normalized);
                 }
                 if !kept.is_empty() {
                     selector.columns = kept
@@ -163,12 +164,14 @@ impl<'a> SelectionProgram<'a> {
                     return None;
                 }
                 let index = selector
+                    .identity
                     .bindings
                     .iter()
                     .position(|bound| bound == value)
                     .unwrap_or_else(|| {
-                        selector.bindings.push(value.clone());
-                        selector.bindings.len() - 1
+                        let identity = Arc::make_mut(&mut selector.identity);
+                        identity.bindings.push(value.clone());
+                        identity.bindings.len() - 1
                     });
                 Operand::Parameter(ParameterId(u32::try_from(index).ok()?))
             }

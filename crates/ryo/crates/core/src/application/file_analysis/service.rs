@@ -352,6 +352,19 @@ impl FileAnalysis {
             &physical_partials,
         );
         if let Some(indexes) = stored_indexes.as_mut() {
+            crate::domain::graph_cache::service::reserve(
+                indexes,
+                visit.setting.plans,
+                &tables.pool,
+                |index| {
+                    governs_rule(tables, RuleIndex(index)) == Governing::Governs
+                        && !skipped
+                            .as_ref()
+                            .and_then(|skipped| skipped.get(index))
+                            .copied()
+                            .unwrap_or(false)
+                },
+            );
             crate::domain::stored_selection::service::activate(
                 indexes,
                 &tables.pool,
@@ -417,6 +430,16 @@ impl FileAnalysis {
             tracing::trace!(target: "ryo::diagnostic::execution", phase = "rules_and_frontiers", file = file.0, elapsed_ns = started.elapsed().as_nanos() as u64, success = evaluated.is_ok());
         }
         if let Some(indexes) = stored_indexes.as_ref() {
+            tracing::trace!(target: "ryo::diagnostic::graph", event = "file_graphs", file = file.0,
+                builds = indexes.graph_counts.builds, reuses = indexes.graph_counts.reuses, refusals = indexes.graph_counts.refusals,
+                roots = indexes.graph_counts.roots, traversals = indexes.graph_counts.traversals, memo_hits = indexes.graph_counts.memo_hits,
+                vertices_expanded = indexes.graph_counts.expanded, edges_examined = indexes.graph_counts.examined,
+                nearest_early_stops = indexes.graph_counts.early_stops, forest_hits = indexes.graph_counts.forest_hits,
+                graph_bytes = indexes.graph_bytes, memo_bytes = indexes.memo_bytes, graph_enabled = indexes.graph_enabled,
+                cache_bytes = indexes.bytes, cache_limit = indexes.limit, cache_peak_bytes = indexes.graph_counts.peak_bytes,
+                reclaimed_indexes = indexes.graph_counts.reclaimed_indexes, reclaimed_selections = indexes.graph_counts.reclaimed_selections,
+                reclaimed_bytes = indexes.graph_counts.reclaimed_bytes, pinned_refusals = indexes.graph_counts.pinned_refusals, index_refusals = indexes.refusals,
+                selector_refusals = indexes.selection_counts.refusals);
             tracing::trace!(target: "ryo::diagnostic::selection", event = "file_selections", file = file.0,
                 source_rows_scanned = indexes.selection_counts.scanned, indexed_candidates = indexes.selection_counts.candidates,
                 predicate_cells_decoded = indexes.selection_counts.predicate_cells, output_cells_decoded = indexes.selection_counts.output_cells,

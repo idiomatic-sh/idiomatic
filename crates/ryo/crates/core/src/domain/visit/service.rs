@@ -136,6 +136,8 @@ fn reads_role(operation: &Operation) -> RoleRead {
             output,
             filter,
             view,
+
+            reach: _,
         } => {
             (edges(*right) == EdgeInput::Edges
                 && (view.contains(&role_column())

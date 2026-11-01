@@ -197,6 +197,8 @@ fn pushed(steps: &[PlanStep], place: StepIndex) -> Option<Pushed> {
         output,
         filter,
         view,
+
+        reach: None,
     } = &steps.get(place.0)?.operation
     else {
         return None;
@@ -234,6 +236,8 @@ fn pushed(steps: &[PlanStep], place: StepIndex) -> Option<Pushed> {
         output: made_output,
         filter: element_filter,
         view: element_view,
+
+        reach: None,
     } = made
     else {
         return None;
@@ -286,6 +290,8 @@ fn pushed(steps: &[PlanStep], place: StepIndex) -> Option<Pushed> {
         output: answer,
         filter: filters,
         view: element_view.clone(),
+
+        reach: None,
     };
     Some(Pushed { below, above })
 }
@@ -316,6 +322,8 @@ fn edge_lookup(
             .collect(),
         filter: Vec::new(),
         view: Vec::new(),
+
+        reach: None,
     }
 }
 

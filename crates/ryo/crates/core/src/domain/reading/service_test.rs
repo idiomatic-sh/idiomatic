@@ -420,6 +420,8 @@ fn duplicate_resident_join_plan() -> Plan {
                 ],
                 filter: Vec::new(),
                 view: Vec::new(),
+
+                reach: None,
             },
             scope: StepScope::PerFile,
         }],

@@ -40,6 +40,16 @@ pub(crate) fn projected(
         .collect()
 }
 
+/// A fused join's logical RHS remains the original closure projection, without executing edges.
+pub(crate) fn reach_kinds(
+    kinds: &[CellKind],
+    reach: &ryo_values::domain::plan_parts::types::ReachLookup,
+) -> Result<Vec<CellKind>, OperatingError> {
+    let mut columns = reach.keys.clone();
+    columns.extend([reach.source, reach.destination]);
+    projected(&projected(kinds, &columns)?, &reach.columns)
+}
+
 /// Output kinds of a two-input projection, optionally through a native tree view.
 pub(crate) fn joined(
     left: &[CellKind],
@@ -186,6 +196,7 @@ fn join_schema(
         output,
         filter,
         view,
+        reach,
         ..
     } = operation
     else {
@@ -195,18 +206,27 @@ fn join_schema(
         schema_input(inputs, InputPlace(0))?,
         schema_input(inputs, InputPlace(1))?,
     );
-    let view = right.tree.map(|_| view.as_slice());
-    let answer = joined(left.kinds, right.kinds, view, output)?;
+    let virtual_right = reach
+        .as_ref()
+        .map(|reach| reach_kinds(right.kinds, reach))
+        .transpose()?;
+    let right_kinds = virtual_right.as_deref().unwrap_or(right.kinds);
+    let view = if reach.is_some() {
+        None
+    } else {
+        right.tree.map(|_| view.as_slice())
+    };
+    let answer = joined(left.kinds, right_kinds, view, output)?;
     for column in right_on {
         check_columns(
-            right.kinds,
+            right_kinds,
             &[view.map_or(*column, |view| {
                 crate::domain::tree_join::service::source_column(view, *column)
             })],
         )?;
     }
     check_columns(left.kinds, left_on)?;
-    BindingSchema::new(bindings).predicates(filter, right.kinds)?;
+    BindingSchema::new(bindings).predicates(filter, right_kinds)?;
     Ok(answer)
 }
 

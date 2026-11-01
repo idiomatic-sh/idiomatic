@@ -1,0 +1,384 @@
+{
+  "initial": {
+    "benchmark_measurement": false,
+    "result": {
+      "benchmark_measurement": false,
+      "censored": false,
+      "status": 0,
+      "signal": null,
+      "observation_sha256": "65a0d32503a4fd4c53e0c5a2d02e7da6ddd7007e87daf0039ac3f2196b18d9e2",
+      "events_sha256": "28fee8eb07c7ce051ddbcd9f6e8919feadee69fde30dc496e6793838b3135ff9",
+      "events_bytes": 2843869,
+      "completed_report": true,
+      "exact_paired_report": true,
+      "coverage": {
+        "selected": 310,
+        "evaluated": 310,
+        "skipped": 0,
+        "unknown_or_unread": 0
+      }
+    },
+    "events_path": "/tmp/demand-graph-aggregate-20261101/events.jsonl",
+    "events_sha256": "28fee8eb07c7ce051ddbcd9f6e8919feadee69fde30dc496e6793838b3135ff9",
+    "event_count": 7165,
+    "file_counters": [
+      {
+        "event": "file_graphs",
+        "file": 0,
+        "builds": 2,
+        "reuses": 94,
+        "refusals": 0,
+        "roots": 326,
+        "traversals": 326,
+        "memo_hits": 0,
+        "vertices_expanded": 279926,
+        "edges_examined": 251908,
+        "nearest_early_stops": 0,
+        "forest_hits": 145,
+        "graph_bytes": 4665870,
+        "memo_bytes": 39174,
+        "graph_reserve": 8388608,
+        "cache_bytes": 13054460,
+        "cache_limit": 16777216,
+        "index_refusals": 268,
+        "selector_refusals": 425
+      },
+      {
+        "event": "file_selections",
+        "file": 0,
+        "source_rows_scanned": 2958100,
+        "indexed_candidates": 159188,
+        "predicate_cells_decoded": 3030647,
+        "output_cells_decoded": 13683610,
+        "selections_built": 969,
+        "selections_reused": 1614,
+        "selections_refused": 425,
+        "cache_bytes": 13054460,
+        "collected_cell_bytes": 872474528,
+        "compact_id_bytes": 509696
+      }
+    ],
+    "phase_events": [
+      {
+        "phase": "provider_parse",
+        "file": 0,
+        "elapsed_ns": 190819676
+      },
+      {
+        "phase": "stored_program_setup",
+        "elapsed_ns": 2310849,
+        "plans": 311,
+        "selectors": 3533
+      },
+      {
+        "phase": "native_shared_walk",
+        "file": 0,
+        "elapsed_ns": 5704747
+      },
+      {
+        "phase": "rules_and_frontiers",
+        "file": 0,
+        "elapsed_ns": 2981033363,
+        "success": true
+      },
+      {
+        "phase": "settle_and_release",
+        "file": 0,
+        "elapsed_ns": 50501
+      }
+    ],
+    "demand_joins": [
+      {
+        "owner_inferred_from_sequential_one_worker_rule_events": "PIE794",
+        "event": "reach_join",
+        "operator": "join",
+        "compact": true,
+        "probes": 326,
+        "emitted": 4659,
+        "avoided_full_closure": true
+      }
+    ],
+    "materializations": 20,
+    "summed_materialized_cell_bytes": 121127056,
+    "limits": "One forms diagnostic per variant; counters are observed work, not CPU attribution. Materialized bytes are cumulative, not simultaneous RSS. Rule ownership is reconstructed from sequential one-worker rule boundaries, not globally comparable step IDs."
+  },
+  "corrected": {
+    "benchmark_measurement": false,
+    "result": {
+      "benchmark_measurement": false,
+      "censored": false,
+      "status": 0,
+      "signal": null,
+      "observation_sha256": "874a1fe174ddc6ae9cc8b1b8dac0255be417496d0b926fb1fc9201e0571f0780",
+      "events_sha256": "2b626576d9213e320cda660f579f1349fbecc01f3da0519729c29bd39d0b2b9a",
+      "events_bytes": 2840871,
+      "completed_report": true,
+      "exact_paired_report": true,
+      "coverage": {
+        "selected": 310,
+        "evaluated": 310,
+        "skipped": 0,
+        "unknown_or_unread": 0
+      }
+    },
+    "events_path": "/tmp/demand-graph-corrected-aggregate-20261101/events.jsonl",
+    "events_sha256": "2b626576d9213e320cda660f579f1349fbecc01f3da0519729c29bd39d0b2b9a",
+    "event_count": 7167,
+    "file_counters": [
+      {
+        "event": "file_graphs",
+        "file": 0,
+        "builds": 3,
+        "reuses": 110,
+        "refusals": 0,
+        "roots": 16545,
+        "traversals": 13023,
+        "memo_hits": 3522,
+        "vertices_expanded": 369126,
+        "edges_examined": 328944,
+        "nearest_early_stops": 0,
+        "forest_hits": 145,
+        "graph_bytes": 4817624,
+        "memo_bytes": 156502,
+        "graph_enabled": true,
+        "cache_bytes": 16777200,
+        "cache_limit": 16777216,
+        "cache_peak_bytes": 16777200,
+        "reclaimed_indexes": 1,
+        "reclaimed_selections": 0,
+        "reclaimed_bytes": 1380495,
+        "pinned_refusals": 0,
+        "index_refusals": 25,
+        "selector_refusals": 205
+      },
+      {
+        "event": "file_selections",
+        "file": 0,
+        "source_rows_scanned": 3597175,
+        "indexed_candidates": 125232,
+        "predicate_cells_decoded": 3588169,
+        "output_cells_decoded": 13683610,
+        "selections_built": 809,
+        "selections_reused": 1774,
+        "selections_refused": 205,
+        "cache_bytes": 16777200,
+        "collected_cell_bytes": 755287456,
+        "compact_id_bytes": 580576
+      }
+    ],
+    "phase_events": [
+      {
+        "phase": "provider_parse",
+        "file": 0,
+        "elapsed_ns": 224311057
+      },
+      {
+        "phase": "stored_program_setup",
+        "elapsed_ns": 5063149,
+        "plans": 311,
+        "selectors": 3533
+      },
+      {
+        "phase": "native_shared_walk",
+        "file": 0,
+        "elapsed_ns": 8943544
+      },
+      {
+        "phase": "rules_and_frontiers",
+        "file": 0,
+        "elapsed_ns": 2722257299,
+        "success": true
+      },
+      {
+        "phase": "settle_and_release",
+        "file": 0,
+        "elapsed_ns": 61125
+      }
+    ],
+    "demand_joins": [
+      {
+        "owner_inferred_from_sequential_one_worker_rule_events": "B008",
+        "event": "reach_join",
+        "operator": "join",
+        "compact": true,
+        "probes": 29,
+        "emitted": 34,
+        "avoided_full_closure": true
+      },
+      {
+        "owner_inferred_from_sequential_one_worker_rule_events": "B020",
+        "event": "reach_join",
+        "operator": "join",
+        "compact": true,
+        "probes": 13,
+        "emitted": 46,
+        "avoided_full_closure": true
+      },
+      {
+        "owner_inferred_from_sequential_one_worker_rule_events": "B020",
+        "event": "reach_join",
+        "operator": "join",
+        "compact": true,
+        "probes": 13,
+        "emitted": 37,
+        "avoided_full_closure": true
+      },
+      {
+        "owner_inferred_from_sequential_one_worker_rule_events": "B020",
+        "event": "reach_join",
+        "operator": "join",
+        "compact": true,
+        "probes": 16,
+        "emitted": 74,
+        "avoided_full_closure": true
+      },
+      {
+        "owner_inferred_from_sequential_one_worker_rule_events": "B030",
+        "event": "reach_join",
+        "operator": "join",
+        "compact": true,
+        "probes": 6,
+        "emitted": 6,
+        "avoided_full_closure": true
+      },
+      {
+        "owner_inferred_from_sequential_one_worker_rule_events": "F401",
+        "event": "reach_join",
+        "operator": "join",
+        "compact": true,
+        "probes": 4307,
+        "emitted": 25334,
+        "avoided_full_closure": true
+      },
+      {
+        "owner_inferred_from_sequential_one_worker_rule_events": "F402",
+        "event": "reach_join",
+        "operator": "join",
+        "compact": true,
+        "probes": 13,
+        "emitted": 37,
+        "avoided_full_closure": true
+      },
+      {
+        "owner_inferred_from_sequential_one_worker_rule_events": "F811",
+        "event": "reach_join",
+        "operator": "join",
+        "compact": true,
+        "probes": 4307,
+        "emitted": 25334,
+        "avoided_full_closure": true
+      },
+      {
+        "owner_inferred_from_sequential_one_worker_rule_events": "F811",
+        "event": "reach_join",
+        "operator": "join",
+        "compact": true,
+        "probes": 3008,
+        "emitted": 264,
+        "avoided_full_closure": true
+      },
+      {
+        "owner_inferred_from_sequential_one_worker_rule_events": "F842",
+        "event": "reach_join",
+        "operator": "join",
+        "compact": true,
+        "probes": 2832,
+        "emitted": 6480,
+        "avoided_full_closure": true
+      },
+      {
+        "owner_inferred_from_sequential_one_worker_rule_events": "PIE794",
+        "event": "reach_join",
+        "operator": "join",
+        "compact": true,
+        "probes": 326,
+        "emitted": 4659,
+        "avoided_full_closure": true
+      },
+      {
+        "owner_inferred_from_sequential_one_worker_rule_events": "PLC0206",
+        "event": "reach_join",
+        "operator": "join",
+        "compact": true,
+        "probes": 13,
+        "emitted": 32,
+        "avoided_full_closure": true
+      },
+      {
+        "owner_inferred_from_sequential_one_worker_rule_events": "PLC0206",
+        "event": "reach_join",
+        "operator": "join",
+        "compact": true,
+        "probes": 232,
+        "emitted": 116,
+        "avoided_full_closure": true
+      },
+      {
+        "owner_inferred_from_sequential_one_worker_rule_events": "PLR1704",
+        "event": "reach_join",
+        "operator": "join",
+        "compact": true,
+        "probes": 13,
+        "emitted": 37,
+        "avoided_full_closure": true
+      },
+      {
+        "owner_inferred_from_sequential_one_worker_rule_events": "PLR1708",
+        "event": "reach_join",
+        "operator": "join",
+        "compact": true,
+        "probes": 392,
+        "emitted": 658,
+        "avoided_full_closure": true
+      },
+      {
+        "owner_inferred_from_sequential_one_worker_rule_events": "PLW0642",
+        "event": "reach_join",
+        "operator": "join",
+        "compact": true,
+        "probes": 758,
+        "emitted": 1053,
+        "avoided_full_closure": true
+      },
+      {
+        "owner_inferred_from_sequential_one_worker_rule_events": "PYI034",
+        "event": "reach_join",
+        "operator": "join",
+        "compact": true,
+        "probes": 197,
+        "emitted": 285,
+        "avoided_full_closure": true
+      },
+      {
+        "owner_inferred_from_sequential_one_worker_rule_events": "PYI034",
+        "event": "reach_join",
+        "operator": "join",
+        "compact": true,
+        "probes": 70,
+        "emitted": 35,
+        "avoided_full_closure": true
+      },
+      {
+        "owner_inferred_from_sequential_one_worker_rule_events": "PYI034",
+        "event": "reach_join",
+        "operator": "join",
+        "compact": false,
+        "probes": 0,
+        "emitted": 0,
+        "avoided_full_closure": false
+      },
+      {
+        "owner_inferred_from_sequential_one_worker_rule_events": "RUF059",
+        "event": "reach_join",
+        "operator": "join",
+        "compact": false,
+        "probes": 0,
+        "emitted": 0,
+        "avoided_full_closure": false
+      }
+    ],
+    "materializations": 20,
+    "summed_materialized_cell_bytes": 121127056,
+    "limits": "One forms diagnostic per variant; counters are observed work, not CPU attribution. Materialized bytes are cumulative, not simultaneous RSS. Rule ownership is reconstructed from sequential one-worker rule boundaries, not globally comparable step IDs."
+  }
+}

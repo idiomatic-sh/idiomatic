@@ -124,6 +124,8 @@ pub enum Operation {
         filter: Vec<Comparison>,
         /// The columns of the right input the keys and the answer name, in order; none named means all of them.
         view: Vec<ColumnIndex>,
+        /// Source-keyed closure demand; the right input is physical edges when present.
+        reach: Option<crate::domain::plan_parts::types::ReachLookup>,
     },
     /// Rows in either input.
     Union {

@@ -7,7 +7,7 @@ use ryo_language::domain::relations::types::{CellKind, Relation};
 use ryo_language::domain::terms::types::Vocabulary;
 
 use crate::domain::calling::service::lower_call;
-use crate::domain::fusing::service::fuse_selects;
+use crate::domain::fusing::service::{fuse_keyed_reaches, fuse_selects};
 use crate::domain::inlining::service::{cut_relations, inline_views, reduced_frontier};
 use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::{Builder, HostedStep, PlannedColumn, StepLabel, Uniqueness};
@@ -126,6 +126,8 @@ pub(crate) fn lower(
     let Planned { steps, emitted } = push_below_captures(steps, emitted);
     let Planned { steps, emitted } = reduced_frontier(steps, emitted);
     let Planned { steps, emitted } = cut_relations(steps, emitted);
+    // Full-scan/exported consumers remain ordinary; pruning removes only fully replaced closure chains.
+    let Planned { steps, emitted } = without_unused(fuse_keyed_reaches(steps, &[emitted]), emitted);
     let subject = position(
         &fields,
         QuerySpelling(&program.emit.subject.0),

@@ -1,7 +1,7 @@
 //! Plain selector program and cache data, independent of borrowed provider storage.
 
 use ryo_language::domain::relations::types::{CellKind, Relation};
-use ryo_values::domain::plan_parts::types::{ColumnIndex, Comparison};
+use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::sync::Arc;
 
 pub(crate) mod program;
@@ -11,10 +11,8 @@ pub(crate) mod program;
 pub(crate) struct Selector {
     /// Original stored population.
     pub relation: Relation,
-    /// Ordered predicates on physical columns, with referenced scalar bindings substituted.
-    pub comparisons: Vec<Comparison>,
-    /// Only referenced request bindings, in canonical first-reference order.
-    pub bindings: Vec<crate::domain::table_model::types::ParameterBinding>,
+    /// Ordered physical predicates and their referenced request values.
+    pub identity: Arc<crate::domain::table_model::types::SelectionIdentity>,
     /// Physical columns corresponding to the step's output.
     pub columns: Vec<ColumnIndex>,
 }

@@ -39,6 +39,16 @@ pub(crate) fn new(wanted: &[Relation], partials: &[Partial], limit: usize) -> Op
     let bytes = size_of::<FileIndexes>()
         .checked_add(eligible.capacity().checked_mul(size_of::<Relation>())?)?;
     (bytes <= limit).then_some(FileIndexes {
+        graph_enabled: false,
+        graph_bytes: 0,
+        memo_bytes: 0,
+        graphs: Vec::new(),
+        graph_domains: Vec::new(),
+        nearest: Vec::new(),
+        graph_counts: crate::domain::stored_graph::types::GraphCounts {
+            peak_bytes: bytes,
+            ..Default::default()
+        },
         selectors: Vec::new(),
         selections: Vec::new(),
         discriminator_columns: Vec::new(),
@@ -53,13 +63,18 @@ pub(crate) fn new(wanted: &[Relation], partials: &[Partial], limit: usize) -> Op
     })
 }
 
+/// Every admitted payload competes under the same actual-use per-file cap; no allowance is stranded.
+pub(crate) fn non_graph_limit(cache: &FileIndexes) -> usize {
+    cache.limit
+}
+
 /// Prepare bounded equality demand; duplicate projections alone cannot justify a new index.
 pub(crate) fn candidate_columns(cache: &mut FileIndexes) {
     use crate::domain::stored_selection::types::CandidateColumn;
     use ryo_values::domain::plan_parts::types::{Operand, Test};
     let mut columns = std::collections::BTreeMap::new();
     for selector in &cache.selectors {
-        for comparison in &selector.comparisons {
+        for comparison in &selector.identity.comparisons {
             let ((Test::Equal, Operand::Column(column), _)
             | (Test::Equal, _, Operand::Column(column))) =
                 (&comparison.test, &comparison.left, &comparison.right)
@@ -74,8 +89,8 @@ pub(crate) fn candidate_columns(cache: &mut FileIndexes) {
                     first: Arc::clone(selector),
                     repeated: false,
                 });
-            entry.repeated |= entry.first.comparisons != selector.comparisons
-                || entry.first.bindings != selector.bindings;
+            entry.repeated |= entry.first.identity.comparisons != selector.identity.comparisons
+                || entry.first.identity.bindings != selector.identity.bindings;
         }
     }
     let columns: Vec<_> = columns.into_values().collect();
@@ -83,9 +98,10 @@ pub(crate) fn candidate_columns(cache: &mut FileIndexes) {
         .capacity()
         .checked_mul(size_of::<CandidateColumn>())
         .and_then(|bytes| cache.bytes.checked_add(bytes))
-        .filter(|bytes| *bytes <= cache.limit)
+        .filter(|bytes| *bytes <= non_graph_limit(cache))
     {
         cache.bytes = bytes;
+        cache.graph_counts.peak_bytes = cache.graph_counts.peak_bytes.max(bytes);
         cache.discriminator_columns = columns;
     }
 }
@@ -138,7 +154,7 @@ pub(crate) fn can_retain(
             && entry.rows == rows
     }) || minimum_bytes(rows, columns.len())
         .and_then(|bytes| cache.bytes.checked_add(bytes))
-        .is_some_and(|bytes| bytes <= cache.limit)
+        .is_some_and(|bytes| bytes <= non_graph_limit(cache))
 }
 
 /// Build the existing invocation-local path when sharing is unavailable or refused.
@@ -195,7 +211,7 @@ pub(crate) fn acquire(
     }
     if minimum_bytes(rows, columns.len())
         .and_then(|more| cache.bytes.checked_add(more))
-        .is_none_or(|bytes| bytes > cache.limit)
+        .is_none_or(|bytes| bytes > non_graph_limit(cache))
     {
         return local(cache, view, columns, into, true);
     }
@@ -246,7 +262,7 @@ fn build(
             )
         })
         .and_then(|bytes| bytes.checked_add(index_bytes(&index)?));
-    let Some(bytes) = retained.filter(|bytes| *bytes <= cache.limit) else {
+    let Some(bytes) = retained.filter(|bytes| *bytes <= non_graph_limit(cache)) else {
         // The completed fresh index is still usable locally; never build it twice on refusal.
         *into = index;
         cache.refusals = cache.refusals.saturating_add(1);
@@ -269,6 +285,7 @@ fn build(
         index: Arc::clone(&index),
     });
     cache.bytes = bytes;
+    cache.graph_counts.peak_bytes = cache.graph_counts.peak_bytes.max(bytes);
     Ok(Acquired {
         shared: Some(index),
         built: true,

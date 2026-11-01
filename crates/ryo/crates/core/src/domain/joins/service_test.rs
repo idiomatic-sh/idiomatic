@@ -54,6 +54,8 @@ fn join_on(right: PlanInput) -> Operation {
         }],
         filter: Vec::new(),
         view: Vec::new(),
+
+        reach: None,
     }
 }
 

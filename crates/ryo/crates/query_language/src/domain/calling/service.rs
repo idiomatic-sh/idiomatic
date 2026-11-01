@@ -345,6 +345,8 @@ pub(crate) fn call_join(
             output,
             filter: Vec::new(),
             view: Vec::new(),
+
+            reach: None,
         }
     };
     push(builder, Some(name), operation, kept);

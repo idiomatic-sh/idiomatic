@@ -68,7 +68,9 @@ pub(crate) fn activate(
             let required = (selectors.len() + 1).checked_mul(size_of::<Arc<Selector>>());
             if required
                 .and_then(|bytes| cache.bytes.checked_add(bytes))
-                .is_none_or(|bytes| bytes > cache.limit)
+                .is_none_or(|bytes| {
+                    bytes > crate::domain::stored_indexes::service::non_graph_limit(cache)
+                })
             {
                 break;
             }
@@ -78,9 +80,10 @@ pub(crate) fn activate(
     let bytes = selectors.capacity().checked_mul(size_of::<Arc<Selector>>());
     if let Some(bytes) = bytes
         .and_then(|bytes| cache.bytes.checked_add(bytes))
-        .filter(|bytes| *bytes <= cache.limit)
+        .filter(|bytes| *bytes <= crate::domain::stored_indexes::service::non_graph_limit(cache))
     {
         cache.bytes = bytes;
+        cache.graph_counts.peak_bytes = cache.graph_counts.peak_bytes.max(bytes);
         cache.selectors = selectors;
         crate::domain::stored_indexes::service::candidate_columns(cache);
     }
@@ -89,8 +92,8 @@ pub(crate) fn activate(
 /// Exact ordered predicates and referenced binding values; origins/projections are not result identity.
 fn same(left: &Selector, right: &Selector) -> bool {
     left.relation == right.relation
-        && left.comparisons == right.comparisons
-        && left.bindings == right.bindings
+        && left.identity.comparisons == right.identity.comparisons
+        && left.identity.bindings == right.identity.bindings
 }
 
 /// Produce a compact handle only after the provider has been read successfully by the caller.
@@ -153,6 +156,7 @@ fn make<'a>(
             rows,
             columns: program.columns.clone(),
             kinds,
+            identity: Arc::clone(&program.identity),
         }),
     })
 }
@@ -197,7 +201,9 @@ fn admit(
                 size_of::<Vec<u32>>() + 2 * size_of::<usize>() + align_of::<Vec<u32>>() - 1,
             )
         });
-    let Some(bytes) = retained.filter(|bytes| *bytes <= cache.limit) else {
+    let Some(bytes) = retained
+        .filter(|bytes| *bytes <= crate::domain::stored_indexes::service::non_graph_limit(cache))
+    else {
         cache.selection_counts.refusals += 1;
         return;
     };
@@ -210,6 +216,7 @@ fn admit(
     });
     cache.selections = entries;
     cache.bytes = bytes;
+    cache.graph_counts.peak_bytes = cache.graph_counts.peak_bytes.max(bytes);
 }
 
 /// Decode only predicate cells; candidate indexes preserve original source order and exact typed equality.
@@ -220,7 +227,7 @@ fn matches(
     context: &mut OperatorContext<'_>,
 ) -> Result<Vec<u32>, OperatingError> {
     let mut needed = ColumnPlaces::default();
-    crate::domain::text_gate::service::needed_of(&program.comparisons, &mut needed);
+    crate::domain::text_gate::service::needed_of(&program.identity.comparisons, &mut needed);
     let columns: Vec<_> = needed
         .0
         .iter()
@@ -234,7 +241,7 @@ fn matches(
     let names = NameCount(name_count(context.symbols).0);
     let mut own = OperatorContext {
         stored_indexes: None,
-        bindings: &program.bindings,
+        bindings: &program.identity.bindings,
         symbols: context.symbols,
         source: context.source,
         paths: context.paths,
@@ -244,7 +251,7 @@ fn matches(
     };
     own.memo.clear();
     own.memo.resize(
-        program.comparisons.len().saturating_mul(names.0),
+        program.identity.comparisons.len().saturating_mul(names.0),
         crate::domain::operating::types::Memo::Unknown,
     );
     let population = source.columns.first().map_or(0, |column| column.0.len());
@@ -263,8 +270,13 @@ fn matches(
         }
         cache.selection_counts.predicate_cells += needed.0.len() as u64;
         if read_cells(&source, RowIndex(position as usize), &mut buffer, &needed) == CellsRead::Read
-            && holds_all(&program.comparisons, &buffer, source.kinds, names, &mut own)?
-                == Verdict::Holds
+            && holds_all(
+                &program.identity.comparisons,
+                &buffer,
+                source.kinds,
+                names,
+                &mut own,
+            )? == Verdict::Holds
         {
             selected.push(position);
         }
@@ -280,7 +292,7 @@ fn candidates(
     context: &OperatorContext<'_>,
 ) -> Result<Option<Vec<u32>>, OperatingError> {
     let population = source.columns.first().map_or(0, |column| column.0.len());
-    for comparison in &program.comparisons {
+    for comparison in &program.identity.comparisons {
         let Some((column, value)) = discriminator(comparison, program, source, context) else {
             continue;
         };
@@ -365,7 +377,7 @@ fn discriminator(
     };
     let literal = match operand {
         Operand::Literal(value) => value.clone(),
-        Operand::Parameter(id) => match program.bindings.get(id.0 as usize)? {
+        Operand::Parameter(id) => match program.identity.bindings.get(id.0 as usize)? {
             ParameterBinding::Text(text) => QueryLiteral::Text(text.clone()),
             ParameterBinding::Number(number) => QueryLiteral::Number(Integer(number.0)),
             ParameterBinding::Flag(_)

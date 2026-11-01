@@ -107,6 +107,8 @@ pub(crate) fn select_join(
         output,
         filter: Vec::new(),
         view: Vec::new(),
+
+        reach: None,
     };
     let id = pushed(
         builder,

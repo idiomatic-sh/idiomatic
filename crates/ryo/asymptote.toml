@@ -93,7 +93,7 @@ inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
 id = "test-bdd"
 group = "check"
 # The cucumber runners (`tests/bdd.rs`, `harness = false`), which nextest's default filter leaves out.
-run = ["cargo", "test", "--workspace", "--locked", "--all-features", "--test", "bdd"]
+run = ["bash", "-c", "mkdir -p target/checks/bdd; set +e; cargo test --workspace --locked --all-features --test bdd > target/checks/bdd/stdout.log 2> target/checks/bdd/stderr.log; tool_status=$?; cat target/checks/bdd/stdout.log; cat target/checks/bdd/stderr.log >&2; printf '%s\\n' \"$tool_status\" > target/checks/bdd/status; exit \"$tool_status\""]
 timeout-seconds = 3600
 inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
 

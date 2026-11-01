@@ -392,6 +392,9 @@ pub(crate) fn join_rows(
     context: &mut OperatorContext<'_>,
     emit: &mut dyn Emit,
 ) -> Result<(), OperatingError> {
+    if matches!(operation, Operation::Join { reach: Some(_), .. }) {
+        return crate::domain::demand_join::service::emit(operation, left, right, context, emit);
+    }
     let Operation::Join {
         right: right_input,
         left_on,
@@ -496,15 +499,27 @@ impl OperatorsItem for JoinItem {
         context: &mut OperatorContext<'_>,
         out: &mut Table,
     ) -> Result<(), OperatingError> {
-        let Operation::Join { output, view, .. } = operation else {
+        let Operation::Join {
+            output,
+            view,
+            reach,
+            ..
+        } = operation
+        else {
             return Err(OperatingError::WrongOperation);
         };
         let (left, right) = (first(inputs)?, second(inputs)?);
         let tree = matches!(right, Rows::Tree(_));
+        let virtual_right = reach
+            .as_ref()
+            .map(|reach| {
+                crate::domain::operation_schema::service::reach_kinds(kinds_of(right), reach)
+            })
+            .transpose()?;
         answer_kinds(
             kinds_of(left),
-            kinds_of(right),
-            tree.then_some(view.as_slice()),
+            virtual_right.as_deref().unwrap_or_else(|| kinds_of(right)),
+            (tree && reach.is_none()).then_some(view.as_slice()),
             output,
             out,
         )?;
@@ -525,6 +540,7 @@ impl OperatorsItem for JoinItem {
             output,
             filter,
             view,
+            reach,
             ..
         } = operation
         else {
@@ -552,6 +568,11 @@ impl OperatorsItem for JoinItem {
         }
         // Rows as they are made on the left, the right at hand: each finds its rows on the right as it comes.
         let right = ins.hold(InputPlace(1), context, right_held)?;
+        if reach.is_some() {
+            return crate::domain::demand_join::service::stream(
+                operation, ins, &right, context, scratch, emit,
+            );
+        }
         if let Rows::Tree(tree) = &right
             && let Some(finding) = tree_finding(tree, left_on, right_on, view)
         {

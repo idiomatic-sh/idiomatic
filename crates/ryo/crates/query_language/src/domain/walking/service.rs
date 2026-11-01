@@ -131,6 +131,8 @@ fn fuse_descent(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
         output,
         filter,
         view,
+
+        reach: None,
     } = &steps.get(place.0)?.operation
     else {
         return None;
@@ -150,6 +152,8 @@ fn fuse_descent(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
         output: edges_output,
         filter: no_filter,
         view: no_view,
+
+        reach: None,
     } = &middle.operation
     else {
         return None;
@@ -283,6 +287,8 @@ fn fuse_neighbour(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
         output,
         filter,
         view,
+
+        reach: None,
     } = &steps.get(place.0)?.operation
     else {
         return None;
@@ -302,6 +308,8 @@ fn fuse_neighbour(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
         output: edges_output,
         filter: no_filter,
         view: no_view,
+
+        reach: None,
     } = &middle.operation
     else {
         return None;

@@ -183,3 +183,82 @@ fn succeeds() {
 fn refuses() {
     run(CASES, Word::Refuses, subject);
 }
+
+#[test]
+fn actual_compilation_removes_global_closure_for_partition_and_source_keyed_lookups() {
+    let text = r#"
+        let roots = select id, file from "function";
+        let reach = closure(edges="semantic-child", source="parent", destination="child", keys=["file"]);
+        let found = select l.id as "id", l.file as "file", r.child as "child"
+            from roots as l join reach as r on l.id = r.parent and l.file = r.file;
+        emit found subject file key(id, child);
+    "#;
+    let program = winnow().read(QueryView(text)).expect("query syntax");
+    let plan = lower(
+        &program,
+        &[Relation::Function, Relation::SemanticChild],
+        &[],
+    )
+    .expect("typed plan");
+    assert!(
+        plan.steps.iter().any(|step| matches!(
+            &step.operation,
+            Operation::Join {
+                right: ryo_values::domain::plan_parts::types::Input::Relation(
+                    Relation::SemanticChild
+                ),
+                reach: Some(_),
+                ..
+            }
+        )),
+        "demand must survive the real optimization pipeline: {:?}",
+        plan.steps
+    );
+    assert!(
+        !plan
+            .steps
+            .iter()
+            .any(|step| matches!(step.operation, Operation::Closure { .. })),
+        "unused all-source closure must not remain kept"
+    );
+}
+
+#[test]
+fn authored_projected_edge_and_shared_consumers_lower_to_demand_in_the_real_pipeline() {
+    // The hot-rule shape projects semantic-child before closure. Its columns are Shared, so the
+    // actual compiler inserts a distinct Project; a raw-relation-only test does not exercise this.
+    let text = r#"
+        let roots = select id, file from "function";
+        let edges = select parent as origin, child as destination from "semantic-child";
+        let descendants = closure(edges=edges, source="origin", destination="destination");
+        let first = select l.id as id, l.file as file, r.destination as child from roots as l join descendants as r on l.id = r.origin;
+        let second = select l.id as id, l.file as file, r.destination as child from roots as l join descendants as r on l.id = r.origin;
+        let all = union(left=first, right=second);
+        emit all subject file key(id,child);
+    "#;
+    let program = winnow()
+        .read(QueryView(text))
+        .expect("authored edge syntax");
+    let plan = lower(
+        &program,
+        &[Relation::Function, Relation::SemanticChild],
+        &[],
+    )
+    .expect("typed plan");
+    assert!(
+        !plan
+            .steps
+            .iter()
+            .any(|step| matches!(step.operation, Operation::Closure { .. })),
+        "projected hot-rule shape must not retain global closure: {:?}",
+        plan.steps
+    );
+    assert!(
+        plan.steps
+            .iter()
+            .filter(|step| matches!(step.operation, Operation::Join { reach: Some(_), .. }))
+            .count()
+            >= 2,
+        "all shared keyed consumers must be rewritten together"
+    );
+}

@@ -360,6 +360,34 @@ fn selected_cell(
     )
 }
 
+/// Read one typed cell without decoding unused stored payload or allocating a row buffer.
+pub(crate) fn cell_at(rows: &Rows<'_>, row: RowIndex, column: ColumnIndex) -> Option<Value> {
+    match rows {
+        Rows::Stored(view) => stored_cell(*view, row, column),
+        Rows::Selected(view) => selected_cell(view, row, column),
+        Rows::Computed(table) => row_in(table, row)
+            .and_then(|row| column_in(row, column))
+            .copied(),
+        Rows::Tree(tree) => {
+            let position = Position(
+                u32::try_from(
+                    row.0
+                        .checked_add(usize::from(tree.form == TreeForm::Edges))?,
+                )
+                .ok()?,
+            );
+            if position.0 as usize >= tree.elements.kind.len() {
+                return None;
+            }
+            let values = match tree.form {
+                TreeForm::Elements => element_of(tree, position),
+                TreeForm::Edges => edge_of(tree, position),
+            };
+            column_in(&values, column).copied()
+        }
+    }
+}
+
 /// Index only projected keys of a compact population, preserving logical duplicate row positions.
 pub(crate) fn index_selected(
     view: &super::types::SelectedRows<'_>,

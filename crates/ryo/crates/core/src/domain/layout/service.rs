@@ -144,7 +144,64 @@ pub(crate) fn shaped(
             tree: match relation {
                 Relation::SyntaxTree => Some(TreeForm::Elements),
                 Relation::SyntaxChild => Some(TreeForm::Edges),
-                _ => None,
+                Relation::Function
+                | Relation::Annotates
+                | Relation::Assigns
+                | Relation::Comment
+                | Relation::Directive
+                | Relation::Decorates
+                | Relation::Defines
+                | Relation::Visibility
+                | Relation::Inherits
+                | Relation::Parameter
+                | Relation::Reference
+                | Relation::Mention
+                | Relation::Scope
+                | Relation::StaticCall
+                | Relation::CallArgument
+                | Relation::Resolves
+                | Relation::BindingEvent
+                | Relation::BindingRead
+                | Relation::BindingUse
+                | Relation::BindingShadow
+                | Relation::ImplicitSymbol
+                | Relation::QualifiedName
+                | Relation::Identifier
+                | Relation::ExpressionShape
+                | Relation::LiteralProperties
+                | Relation::FunctionTerminal
+                | Relation::ExpressionType
+                | Relation::InterpolatedStringLiteral
+                | Relation::LanguageTarget
+                | Relation::CompilerFeature
+                | Relation::ConstantKey
+                | Relation::FormatParse
+                | Relation::FormatField
+                | Relation::BraceFormatParse
+                | Relation::BraceFormatField
+                | Relation::RawFormatSegment
+                | Relation::RawFormatField
+                | Relation::LiteralExpressionParse
+                | Relation::StaticImport
+                | Relation::StringLiteral
+                | Relation::SyntaxError
+                | Relation::SemanticSyntax
+                | Relation::SemanticChild
+                | Relation::EmbeddedExpression
+                | Relation::SourceLocation
+                | Relation::IndentRegion
+                | Relation::Mapping
+                | Relation::Entry
+                | Relation::SequenceElement
+                | Relation::Prose
+                | Relation::PackageDependency
+                | Relation::WorkspaceMember
+                | Relation::SourceDependency
+                | Relation::AnalyzedSource
+                | Relation::FilePackage
+                | Relation::ModuleIdentity
+                | Relation::FilesystemFile
+                | Relation::FilesystemLineCount => None,
             },
         })
     };

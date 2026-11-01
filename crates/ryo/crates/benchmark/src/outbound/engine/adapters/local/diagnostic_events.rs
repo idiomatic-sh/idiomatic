@@ -21,6 +21,8 @@ const SELECTION_TARGET: &str = "ryo::diagnostic::selection";
 const WORKING_SET_TARGET: &str = "ryo::diagnostic::working_set";
 /// Metadata-only layout accounting.
 const LAYOUT_TARGET: &str = "ryo::diagnostic::layout";
+/// Demand-reach and shared graph work in explicit diagnostic runs.
+const GRAPH_TARGET: &str = "ryo::diagnostic::graph";
 
 /// Shared append-only file writer; each event holds the lock until its JSON line is complete.
 #[derive(Clone)]
@@ -74,6 +76,7 @@ fn subscriber_with_aggregates(
                 .with_target(SELECTION_TARGET, aggregate_level)
                 .with_target(WORKING_SET_TARGET, aggregate_level)
                 .with_target(LAYOUT_TARGET, aggregate_level)
+                .with_target(GRAPH_TARGET, aggregate_level)
                 .with_target(
                     RULE_FILE_TARGET,
                     tracing_subscriber::filter::LevelFilter::TRACE,

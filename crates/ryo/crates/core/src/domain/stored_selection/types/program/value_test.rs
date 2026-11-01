@@ -93,13 +93,16 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             assert!(derived.columns.is_empty());
         } else {
             assert_eq!(derived.columns, [ColumnIndex(1), ColumnIndex(1)]);
-            assert_eq!(derived.comparisons[1].left, Operand::Column(ColumnIndex(1)));
             assert_eq!(
-                derived.comparisons[1].right,
+                derived.identity.comparisons[1].left,
+                Operand::Column(ColumnIndex(1))
+            );
+            assert_eq!(
+                derived.identity.comparisons[1].right,
                 Operand::Parameter(ParameterId(0))
             );
             assert_eq!(
-                derived.bindings,
+                derived.identity.bindings,
                 [ParameterBinding::Number(WholeNumber(17))]
             );
         }

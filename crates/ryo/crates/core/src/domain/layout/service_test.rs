@@ -262,6 +262,8 @@ fn probe_order() -> Result<Value, Failure> {
         }],
         filter: Vec::new(),
         view: Vec::new(),
+
+        reach: None,
     };
     let probes = std::cell::RefCell::new(Vec::new());
     let provided = |relation| {
