@@ -399,7 +399,7 @@
       "selected_rules": [
         "DTZ007"
       ],
-      "case_count": 24,
+      "case_count": 26,
       "case_names": [
         "missing-zone",
         "timezone-directive",
@@ -424,7 +424,9 @@
         "no-format",
         "wrapped-astimezone",
         "noqa",
-        "file-noqa"
+        "file-noqa",
+        "starred-before-positional-format",
+        "starred-positional-format"
       ]
     },
     "DTZ901": {
@@ -1633,30 +1635,6 @@
       "oracle_file": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/UP033/oracle.json",
       "oracle_sha256": "8b5d660df725c11b11e54cb4eb4209b51f09d457526762a4373d03b457c56976"
     },
-    "UP017": {
-      "selected_rules": [
-        "UP017"
-      ],
-      "case_count": 14,
-      "case_names": [
-        "direct-module",
-        "module-alias",
-        "from-timezone",
-        "from-alias",
-        "qualified-import",
-        "wrong-module",
-        "local-shadow",
-        "not-utc",
-        "utc-other",
-        "multiple",
-        "noqa",
-        "other-noqa",
-        "file-noqa",
-        "unicode-prefix"
-      ],
-      "oracle_file": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/UP017/oracle.json",
-      "oracle_sha256": "6a573b0b3b8847e90d471b6f33075e4f59c82d1d373309803d52685c8cf99a7f"
-    },
     "RUF016": {
       "selected_rules": [
         "RUF016"
@@ -2487,8 +2465,6 @@
     "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/UP017-py311/benchmark.toml": "7ddd5ce2e6d1a63b80122f0ae3262cd3a0188bfad43c31e097f2dff400f47853",
     "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/UP017-py311/inputs/rules/UP017/cases.toml": "c1d7705b1d7572ee1eb112645b1cd18d72b161255f2973d2986adf1202d636cb",
     "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/UP017-py311/oracle.json": "e3dc31834896b4dd6626ed4c7a5878d5a28b544083213f6c3fb7fa5845744d51",
-    "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/UP017/benchmark.toml": "f504bd1a7796e2160e5c6e0c0e40c0947aaa661b865fd1a2133d139ccdffa917",
-    "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/UP017/oracle.json": "6a573b0b3b8847e90d471b6f33075e4f59c82d1d373309803d52685c8cf99a7f",
     "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/UP018/benchmark.toml": "cf8be078b5899ed51a3bf2e4207794814e3788b303cb92523874d316eaea859d",
     "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/UP018/oracle.json": "6e1133b431d01c972497ab88a79990405db5172009736d61ace63b8e3565ea85",
     "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/UP019/benchmark.toml": "04ed89041290812cd18392de19d3c10d728f91f717f3c62324191c207fcbf265",
@@ -2640,8 +2616,8 @@
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/DTZ005/query.ryoql": "facbd75bccf1033d3f4dc067514c670b53b0e5e68100e4bec1989ee113b76c9a",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/DTZ006/cases.toml": "2d2bed4ee343f7f1136c07bd12e34329ae27bda1bb0be510aafc981508ba71e5",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/DTZ006/query.ryoql": "4e20283d0602ef48a8c9838541f6a4551b947528b709cec8786a51ee64efa4f1",
-    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/DTZ007/candidate.ryoql": "d3f12ae8c4fc9706ff454fe5cde742f38a4608b0b197da8eab53144c3cfe83f3",
-    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/DTZ007/cases.toml": "350b5031292b2ea6cc1fdf31b0294913906bd29abde01a6c5dc504578792c095",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/DTZ007/candidate.ryoql": "097545e0ffe76c20c475043fe7fd1790b60d24ea5a0f87ab6c23d2eb09238174",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/DTZ007/cases.toml": "36380273f7adcbaeb86d88218d91296ee4318c6909ed1f357faece2e5cd9cdca",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/DTZ011/cases.toml": "0c4b3b8656c298c9820365f92c70fe4b18373da5697ecefc9f37bc2507871eeb",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/DTZ011/query.ryoql": "63c6e70a6399fa24d1d5d56f10e9c3b07fa9db101932442e0a3680c8e65cc172",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/DTZ012/cases.toml": "f8ef8122d176008fed16f5a7fc040a931e2656e32068d0786aa3e3ad965368f2",
@@ -2877,7 +2853,6 @@
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/UP011/candidate.ryoql": "8381a374dc7f38c3cc44bfd762a89a77c87f87032cf1df07f0ca171df20eb60b",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/UP011/cases.toml": "cb08b64d34f5a70415cad7d77c76d3c78c6d59d0e32340e4514aacad7a63d2d3",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/UP017/candidate.ryoql": "9a8cae118f7d5ebd95beb0c7d8c82a86c92c30e4495557c9a88c09edc3d81345",
-    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/UP017/cases.toml": "e0b9812aef87b5e6c65bdf4dc5806b22a0b13ef6135e67aeca58e834b4a2ae60",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/UP018/candidate.ryoql": "63bc4dad3b3b72101329cf5fc199b7f15f8e4bdfc73cee3ee54424d17397995b",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/UP018/cases.toml": "7beff5038e251409a659b839189c239f4b8ae67a9f351969f7c6defa94402635",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/UP019/candidate.ryoql": "6e08566a49b875ec97a32ef31c2c9e7eadf79ad519a02a4dc582bbb589d607e4",

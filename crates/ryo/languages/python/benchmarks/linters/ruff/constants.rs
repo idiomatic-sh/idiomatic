@@ -37,6 +37,6 @@ pub(crate) const SELECT: &str = "--select";
 /// Pin syntax and target-gated diagnostics to the prepared Python 3.10 oracle.
 pub(crate) const TARGET_VERSION: &str = "--target-version";
 /// Visible query mapping preserved parser errors into Ruff's generic syntax diagnostic identity.
-pub(crate) const FRONTEND_DIAGNOSTIC_QUERY: &str = "let diagnostics = select id, file, span from \"syntax-error\" where (phase = \"parse\" and impact = \"incomplete\") or (phase = \"validation\" and impact = \"preserved\" and code != \"future-feature-not-defined\");\nemit diagnostics subject file key(id);\n";
+pub(crate) const FRONTEND_DIAGNOSTIC_QUERY: &str = "let diagnostics = select id, file, span from \"syntax-error\" where (phase = \"parse\" and (impact = \"incomplete\" or impact = \"lexically-complete\")) or (phase = \"validation\" and impact = \"preserved\" and code != \"future-feature-not-defined\");\nemit diagnostics subject file key(id);\n";
 /// Separator in the reference rule-selection argument.
 pub(crate) const RULE_SEPARATOR: &str = ",";

@@ -15,6 +15,7 @@ enum EngineScenario {
     Unread,
     Partial,
     InvalidSyntax,
+    LexicallyCompleteSyntaxError,
     InvalidSyntaxProjectionDisabled,
     CustomFrontendProjection,
     FutureFeatureProjection,
@@ -38,6 +39,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("sdk_projects_module_nonlocal_as_invalid_syntax"),
         word: Word::Succeeds,
         input: || EngineScenario::InvalidSyntax,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("frontend_projection_keeps_parse_diagnostics_with_complete_tokens"),
+        word: Word::Succeeds,
+        input: || EngineScenario::LexicallyCompleteSyntaxError,
         expect: Expect::Value(true),
     },
     Case {
@@ -148,6 +155,7 @@ fn input_file(scenario: EngineScenario) -> &'static str {
         EngineScenario::Finding
         | EngineScenario::Partial
         | EngineScenario::InvalidSyntax
+        | EngineScenario::LexicallyCompleteSyntaxError
         | EngineScenario::InvalidSyntaxProjectionDisabled
         | EngineScenario::CustomFrontendProjection
         | EngineScenario::FutureFeatureProjection
@@ -166,6 +174,7 @@ fn source_for(scenario: EngineScenario) -> &'static str {
         | EngineScenario::InvalidSyntaxProjectionDisabled
         | EngineScenario::CustomFrontendProjection
         | EngineScenario::FrontendRuleCollision => "global x\nnonlocal x\n",
+        EngineScenario::LexicallyCompleteSyntaxError => "value = ur\"hello\"\n",
         EngineScenario::FutureFeatureProjection | EngineScenario::UnknownFutureWithoutConsumer => {
             "from __future__ import no_such_feature\n"
         }
@@ -293,6 +302,7 @@ fn expected_diagnostics(scenario: EngineScenario) -> Result<Vec<BenchmarkFinding
     use ryo_benchmark::domain::diagnostics::types::SourceByteOffset as At;
     let (rule, start, end) = match scenario {
         EngineScenario::InvalidSyntax => ("invalid-syntax", 9, 19),
+        EngineScenario::LexicallyCompleteSyntaxError => ("invalid-syntax", 10, 17),
         EngineScenario::InvalidSyntaxProjectionDisabled
         | EngineScenario::UnknownFutureWithoutConsumer => {
             return Ok(Vec::new());
@@ -419,6 +429,19 @@ fn query_module_inline_equivalence(root: &std::path::Path) -> Result<bool, Error
 fn target_configuration_cache_change(root: &std::path::Path) -> Result<bool, Error> {
     use ryo_benchmark::domain::diagnostics::types::SourceByteOffset;
     use ryo_benchmark::domain::suite::types::WorkerState;
+    use std::collections::BTreeMap;
+
+    #[derive(serde::Deserialize)]
+    struct Cases {
+        cases: Vec<Case>,
+    }
+
+    #[derive(serde::Deserialize)]
+    struct Case {
+        name: String,
+        files: BTreeMap<String, String>,
+        expected: Vec<serde::de::IgnoredAny>,
+    }
 
     let rules = root.join("rules");
     let rule_directory = rules.join("UP017");
@@ -438,10 +461,54 @@ fn target_configuration_cache_change(root: &std::path::Path) -> Result<bool, Err
     std::fs::write(root.join("input.py"), source)?;
     let files = vec![ryo::linter::RelativePath("input.py".into())];
     let cache = root.join("retained-target-cache");
-    let query_modules = std::collections::BTreeMap::from([(
+    let query_modules = BTreeMap::from([(
         "python/ruff/suppress".to_owned(),
         std::path::PathBuf::from("fragments/suppress.ryoql"),
     )]);
+    let cases: Cases = toml::from_str(include_str!("rules/UP017/cases.toml"))
+        .map_err(|error| Error::Invalid(error.to_string()))?;
+    let mut negative_files = Vec::new();
+    for case in cases.cases {
+        if !case.expected.is_empty() {
+            return Err(Error::Invalid(format!(
+                "UP017 PY310 guard case {} is not an expected negative",
+                case.name
+            )));
+        }
+        for (relative, text) in case.files {
+            let path = format!("up017-py310/{}/{}", case.name, relative);
+            let destination = root.join(&path);
+            if let Some(parent) = destination.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+            std::fs::write(destination, text)?;
+            negative_files.push(ryo::linter::RelativePath(path.into()));
+        }
+    }
+    negative_files.sort();
+    let negative = factory::local(
+        ryo::linter::Languages(vec![ryo_python::linked_with_settings(
+            ryo_python::settings::PythonParserSettings::new(
+                ryo_python::settings::PythonTargetVersion::Py310,
+            ),
+        )]),
+        None,
+    )
+    .run(WorkerRequest {
+        root: root.to_owned(),
+        rules: rules.clone(),
+        query_modules: query_modules.clone(),
+        parser_configuration: Some("python-target=3.10".to_owned()),
+        files: negative_files.clone(),
+        state: WorkerState::Fresh,
+    })?;
+    if negative.files != negative_files || !negative.diagnostics.is_empty() {
+        let message = format!(
+            "UP017 PY310 target guard differs: requested={negative_files:?}, observed={:?}, diagnostics={:?}",
+            negative.files, negative.diagnostics
+        );
+        return Err(Error::Invalid(message));
+    }
     let run = |target, identity: &'static str| {
         let engine = factory::local(
             ryo::linter::Languages(vec![ryo_python::linked_with_settings(
@@ -473,7 +540,14 @@ fn target_configuration_cache_change(root: &std::path::Path) -> Result<bool, Err
         start: SourceByteOffset(16),
         end: SourceByteOffset(37),
     }];
-    Ok(py310.diagnostics.is_empty() && py311.diagnostics == expected)
+    if !py310.diagnostics.is_empty() || py311.diagnostics != expected {
+        let message = format!(
+            "UP017 target cache transition differs: py310={:?}, py311={:?}",
+            py310.diagnostics, py311.diagnostics
+        );
+        return Err(Error::Invalid(message));
+    }
+    Ok(true)
 }
 
 fn case_identities(

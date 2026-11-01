@@ -39,15 +39,28 @@ class CargoBench(Bench):
 
     def measure(self, tree: Path, product: str, bench: str, label: str) -> dict[str, float]:
         channel = tomllib.loads((self.root / "rust-toolchain.toml").read_text())["toolchain"]["channel"]
-        document = subprocess.run(
-            cargo_bench(bench),
+        command = cargo_bench(bench)
+        result = subprocess.run(
+            command,
             cwd=tree / "crates" / product,
             env={**os.environ, "RUSTUP_TOOLCHAIN": channel},
-            check=True,
+            check=False,
             stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             text=True, encoding="utf-8",
-        ).stdout
+        )
         if self.output is not None:
             self.output.mkdir(parents=True, exist_ok=True)
-            (self.output / f"{label}-{product}-{bench}.json").write_text(document)
-        return measures(document)
+            stem = f"{label}-{product}-{bench}"
+            (self.output / f"{stem}.stdout.txt").write_text(result.stdout)
+            (self.output / f"{stem}.stderr.txt").write_text(result.stderr)
+            (self.output / f"{stem}.command.json").write_text(
+                json.dumps({"command": command, "status": result.returncode}, indent=2) + "\n"
+            )
+        if result.returncode:
+            raise subprocess.CalledProcessError(
+                result.returncode, command, output=result.stdout, stderr=result.stderr
+            )
+        if self.output is not None:
+            (self.output / f"{label}-{product}-{bench}.json").write_text(result.stdout)
+        return measures(result.stdout)

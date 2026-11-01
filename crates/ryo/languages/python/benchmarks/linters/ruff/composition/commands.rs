@@ -41,11 +41,8 @@ pub(super) fn worker(
         None => (None, None),
     };
     if let Some(configuration) = parser_configuration.as_deref() {
-        let input_text = input
-            .to_str()
-            .ok_or_else(|| Error::Invalid("worker request is not UTF-8".into()))?;
         let request: serde_json::Value =
-            serde_json::from_str(input_text).map_err(|error| Error::Invalid(error.to_string()))?;
+            serde_json::from_str(&input).map_err(|error| Error::Invalid(error.to_string()))?;
         if request
             .get("parser_configuration")
             .and_then(serde_json::Value::as_str)
