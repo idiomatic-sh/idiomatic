@@ -25,8 +25,17 @@ let tuple_target_names = select l.assignment as assignment, l.target as id, l.fi
 let tuple_rhs_names = select l.assignment as assignment, r.name as name, l.file as file from tuple_value_names as l join identifiers as r on l.value = r.id and l.file = r.file;
 let tuple_self_assignments = select l.id as id, l.file as file, l.span as span from tuple_target_names as l join tuple_rhs_names as r on l.assignment = r.assignment and l.name = r.name and l.file = r.file;
 let direct_and_tuple_assignments = union(left=self_assignments, right=tuple_self_assignments);
+let target_name_rows = select l.assignment as assignment, l.name as id, l.file as file, l.span as span, r.name as name from target_expressions as l join identifiers as r on l.name = r.id and l.file = r.file;
+let target_location_rows = select l.assignment as assignment, l.id as id, l.file as file, l.span as span, l.name as name, r."start-byte" as start_byte from target_name_rows as l join "source-location" as r on l.id = r.id and l.file = r.file;
+let earlier_same_target_names = select l.assignment as assignment, l.id as later, r.id as earlier from target_location_rows as l join target_location_rows as r on l.assignment = r.assignment and l.name = r.name and l.file = r.file where r.start_byte < l.start_byte;
+let later_duplicate_targets = select later as id from earlier_same_target_names;
+let first_same_target_rows = antijoin(left=target_location_rows, right=later_duplicate_targets, left-on=["id"], right-on=["id"]);
+let target_names_with_later_duplicate = select l.id as id from target_location_rows as l join target_location_rows as r on l.assignment = r.assignment and l.name = r.name and l.file = r.file where l.start_byte < r.start_byte;
+let first_repeated_target_names = select l.id as id, l.file as file, l.span as span from first_same_target_rows as l join target_names_with_later_duplicate as r on l.id = r.id;
+let repeated_target_assignments = select id, file, span from first_repeated_target_names;
+let direct_tuple_and_chain_assignments = union(left=direct_and_tuple_assignments, right=repeated_target_assignments);
 let target_bindings = select occurrence as id, scope, file from "binding-event" where kind = "bind";
-let self_binding_scopes = select l.id as id, l.file as file, r.scope as scope, l.span as span from direct_and_tuple_assignments as l join target_bindings as r on l.id = r.id and l.file = r.file;
+let self_binding_scopes = select l.id as id, l.file as file, r.scope as scope, l.span as span from direct_tuple_and_chain_assignments as l join target_bindings as r on l.id = r.id and l.file = r.file;
 let scope_nodes = select id, kind, file from nodes;
 let outside_class = select l.id as id, l.file as file, l.span as span from self_binding_scopes as l join scope_nodes as r on l.scope = r.id and l.file = r.file where r.kind != "class-def";
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from outside_class as l join "source-location" as r on l.id = r.id and l.file = r.file;

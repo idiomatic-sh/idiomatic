@@ -32,7 +32,11 @@ let reads = select reference, name, scope, phase, state, since_major, since_mino
 let outer_reads = select l.binding as binding, l.id as id, l.store_order as store_order, l.file as file, r.span as span from outer_uses as l join reads as r on l.id = r.reference and l.scope = r.scope and l.file = r.file;
 let available_builtins = select reference, name, scope, phase, file, span from reads where state = "builtin" and (since_major < 3 or (since_major = 3 and since_minor <= 10));
 let builtin_reads = select l.occurrence as binding, r.reference as id, l.ordinal as store_order, l.file as file, r.span as span from final_declarations as l join available_builtins as r on l.name = r.name and l.scope = r.scope and l.phase = r.phase and l.file = r.file;
-let associated_reads = union(left=outer_reads, right=builtin_reads);
+let implicit_names = select name, file from "implicit-symbol" where kind = "module-global" or kind = "builtin" or kind = "platform-builtin";
+let unbound_local_read_candidates = select l.occurrence as binding, r.reference as id, l.name as name, l.ordinal as store_order, l.file as file, r.span as span from final_declarations as l join reads as r on l.name = r.name and l.scope = r.scope and l.phase = r.phase and l.file = r.file where r.state = "unbound";
+let unbound_local_reads = select l.binding as binding, l.id as id, l.store_order as store_order, l.file as file, l.span as span from unbound_local_read_candidates as l join implicit_names as r on l.name = r.name and l.file = r.file;
+let associated_reads_before_local = union(left=outer_reads, right=builtin_reads);
+let associated_reads = union(left=associated_reads_before_local, right=unbound_local_reads);
 let read_events = select occurrence, ordinal, file from "binding-event" where kind = "read";
 let earlier_reads = select l.binding as binding, l.id as id, l.file as file, l.span as span, r.ordinal as read_order from associated_reads as l join read_events as r on l.id = r.occurrence and l.file = r.file where r.ordinal < l.store_order;
 let later_reads = select l.binding as binding, l.id as id from earlier_reads as l join earlier_reads as r on l.binding = r.binding where r.read_order < l.read_order;

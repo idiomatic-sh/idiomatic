@@ -139,3 +139,9 @@ name = "temporary-handler-target-does-not-become-a-local-shadow"
 comparison = "full"
 files = { "case.py" = "x = 1\ndef f():\n    print(x)\n    try:\n        pass\n    except Exception as x:\n        pass\n" }
 expected = []
+
+[[cases]]
+name = "unbound-read-before-later-local-binding"
+comparison = "full"
+files = { "case.py" = "import logging\ndef f():\n    logging.getLogger(__file__)\n    __file__ = \"other\"\n" }
+expected = [{ rule = "F823", file = "case.py", start = 46, end = 54 }]
