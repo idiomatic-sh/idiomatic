@@ -5,9 +5,9 @@ use super::types::{AnnotationCandidate, AnnotationContext, ByteIndex, Readable, 
 use crate::outbound::syntax::interface::SyntaxPort;
 use crate::outbound::syntax::types::SourceText;
 use ruff_python_ast::PythonVersion;
+use ruff_python_ast::visitor::source_order::SourceOrderVisitor as _;
 use ruff_python_ast::visitor::{Visitor, walk_stmt};
 use ruff_python_ast::{Arguments, Expr, Mod, Parameters, Stmt, TypeParams};
-use ruff_python_ast::visitor::source_order::SourceOrderVisitor as _;
 use ruff_python_parser::{Mode, ParseOptions, parse_unchecked};
 use ruff_text_size::Ranged as _;
 use ryo::languages::{self, Offset};
@@ -42,22 +42,32 @@ fn semantic_syntax_errors(module: &Mod) -> Vec<SemanticSyntaxDiagnostic> {
 
     impl VisitorState {
         fn report(&mut self, message: impl Into<String>, range: ruff_text_size::TextRange) {
-            self.errors.push(SemanticSyntaxDiagnostic { message: message.into(), range });
+            self.errors.push(SemanticSyntaxDiagnostic {
+                message: message.into(),
+                range,
+            });
         }
 
         fn duplicate_parameters(&mut self, parameters: &Parameters) {
-            if parameters.len() < 2 { return; }
+            if parameters.len() < 2 {
+                return;
+            }
             let mut names = HashSet::new();
             for parameter in parameters.iter() {
                 let name = parameter.name().as_str();
                 if !names.insert(name) {
-                    self.report(format!(r#"Duplicate parameter "{name}""#), parameter.name().range());
+                    self.report(
+                        format!(r#"Duplicate parameter "{name}""#),
+                        parameter.name().range(),
+                    );
                 }
             }
         }
 
         fn type_parameters(&mut self, parameters: &TypeParams) {
-            if parameters.len() < 2 { return; }
+            if parameters.len() < 2 {
+                return;
+            }
             let mut names = HashSet::new();
             for parameter in parameters {
                 let name = parameter.name().id.as_str();
@@ -68,18 +78,33 @@ fn semantic_syntax_errors(module: &Mod) -> Vec<SemanticSyntaxDiagnostic> {
             let mut saw_default = false;
             for parameter in parameters {
                 if saw_default && parameter.default().is_none() {
-                    self.report(format!("non default type parameter `{}` follows default type parameter", parameter.name().id.as_str()), parameter.range());
+                    self.report(
+                        format!(
+                            "non default type parameter `{}` follows default type parameter",
+                            parameter.name().id.as_str()
+                        ),
+                        parameter.range(),
+                    );
                 }
                 saw_default |= parameter.default().is_some();
             }
         }
 
         fn duplicate_keywords(&mut self, arguments: &Arguments) {
-            if arguments.keywords.len() < 2 { return; }
+            if arguments.keywords.len() < 2 {
+                return;
+            }
             let mut names = HashSet::new();
-            for (name, range) in arguments.keywords.iter().filter_map(|keyword| keyword.arg.as_ref().map(|name| (name, keyword.range))) {
+            for (name, range) in arguments
+                .keywords
+                .iter()
+                .filter_map(|keyword| keyword.arg.as_ref().map(|name| (name, keyword.range)))
+            {
                 if !names.insert(name.as_str()) {
-                    self.report(format!("Duplicate keyword argument `{}`", name.as_str()), range);
+                    self.report(
+                        format!("Duplicate keyword argument `{}`", name.as_str()),
+                        range,
+                    );
                 }
             }
         }
@@ -88,23 +113,34 @@ fn semantic_syntax_errors(module: &Mod) -> Vec<SemanticSyntaxDiagnostic> {
     impl<'a> Visitor<'a> for VisitorState {
         fn visit_stmt(&mut self, stmt: &'a Stmt) {
             match stmt {
-                Stmt::Nonlocal(nonlocal) if self.lexical_scope_depth == 0 => self.report("nonlocal declaration not allowed at module level", nonlocal.range),
+                Stmt::Nonlocal(nonlocal) if self.lexical_scope_depth == 0 => self.report(
+                    "nonlocal declaration not allowed at module level",
+                    nonlocal.range,
+                ),
                 Stmt::FunctionDef(function) => {
-                    if let Some(parameters) = &function.type_params { self.type_parameters(parameters); }
+                    if let Some(parameters) = &function.type_params {
+                        self.type_parameters(parameters);
+                    }
                     self.duplicate_parameters(&function.parameters);
                     self.lexical_scope_depth += 1;
                     walk_stmt(self, stmt);
                     self.lexical_scope_depth -= 1;
                 }
                 Stmt::ClassDef(class) => {
-                    if let Some(parameters) = &class.type_params { self.type_parameters(parameters); }
-                    if let Some(arguments) = &class.arguments { self.duplicate_keywords(arguments); }
+                    if let Some(parameters) = &class.type_params {
+                        self.type_parameters(parameters);
+                    }
+                    if let Some(arguments) = &class.arguments {
+                        self.duplicate_keywords(arguments);
+                    }
                     self.lexical_scope_depth += 1;
                     walk_stmt(self, stmt);
                     self.lexical_scope_depth -= 1;
                 }
                 Stmt::TypeAlias(alias) => {
-                    if let Some(parameters) = &alias.type_params { self.type_parameters(parameters); }
+                    if let Some(parameters) = &alias.type_params {
+                        self.type_parameters(parameters);
+                    }
                     walk_stmt(self, stmt);
                 }
                 _ => walk_stmt(self, stmt),
@@ -114,7 +150,9 @@ fn semantic_syntax_errors(module: &Mod) -> Vec<SemanticSyntaxDiagnostic> {
         fn visit_expr(&mut self, expr: &'a Expr) {
             match expr {
                 Expr::Lambda(lambda) => {
-                    if let Some(parameters) = &lambda.parameters { self.duplicate_parameters(parameters); }
+                    if let Some(parameters) = &lambda.parameters {
+                        self.duplicate_parameters(parameters);
+                    }
                 }
                 Expr::Call(call) => self.duplicate_keywords(&call.arguments),
                 _ => {}

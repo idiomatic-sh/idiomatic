@@ -257,8 +257,11 @@ fn report_scope(
             candidate.diagnostics.push(unrelated);
         }
         if !matches!(scenario, Scenario::RuleProjection) {
-            suite.prepared.first_mut().expect("authored case").comparison =
-                crate::domain::suite::types::CaseComparison::Full;
+            suite
+                .prepared
+                .first_mut()
+                .expect("authored case")
+                .comparison = crate::domain::suite::types::CaseComparison::Full;
         }
         suite
             .prepared

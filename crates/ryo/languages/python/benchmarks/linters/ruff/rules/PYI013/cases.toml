@@ -2,7 +2,7 @@
 [[cases]]
 name = "nonempty"
 files = { "case.pyi" = "class C:\n    x: int\n    ...\n" }
-expected = [{ "file" = "case.pyi", "start" = 24, "end" = 27 }]
+expected = [{"file" = "case.pyi", "start" = 24, "end" = 27}]
 
 [[cases]]
 name = "empty"
@@ -12,7 +12,7 @@ expected = []
 [[cases]]
 name = "docstring"
 files = { "case.pyi" = "class C:\n    \"doc\"\n    ...\n" }
-expected = [{ "file" = "case.pyi", "start" = 23, "end" = 26 }]
+expected = [{"file" = "case.pyi", "start" = 23, "end" = 26}]
 
 [[cases]]
 name = "function"
@@ -27,12 +27,12 @@ expected = []
 [[cases]]
 name = "parentheses"
 files = { "case.pyi" = "class C:\n    x: int\n    (...)\n" }
-expected = [{ "file" = "case.pyi", "start" = 24, "end" = 29 }]
+expected = [{"file" = "case.pyi", "start" = 24, "end" = 29}]
 
 [[cases]]
 name = "runtime"
 files = { "case.py" = "class C:\n    x: int\n    ...\n" }
-expected = [{ "file" = "case.py", "start" = 24, "end" = 27 }]
+expected = [{"file" = "case.py", "start" = 24, "end" = 27}]
 
 [[cases]]
 name = "noqa"
@@ -47,7 +47,7 @@ expected = []
 [[cases]]
 name = "other-code"
 files = { "case.pyi" = "class C:\n    x: int\n    ... # noqa: F401\n" }
-expected = [{ "file" = "case.pyi", "start" = 24, "end" = 27 }]
+expected = [{"file" = "case.pyi", "start" = 24, "end" = 27}]
 
 [[cases]]
 name = "file-noqa"
@@ -62,7 +62,7 @@ expected = []
 [[cases]]
 name = "two-ellipses"
 files = { "case.pyi" = "class C:\n    ...\n    ...\n" }
-expected = [{ "file" = "case.pyi", "start" = 13, "end" = 16 }, { "file" = "case.pyi", "start" = 21, "end" = 24 }]
+expected = [{"file" = "case.pyi", "start" = 13, "end" = 16}, {"file" = "case.pyi", "start" = 21, "end" = 24}]
 
 [[cases]]
 name = "runtime-subscript"

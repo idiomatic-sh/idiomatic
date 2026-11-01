@@ -32,16 +32,20 @@ pub(super) fn worker(
         } else {
             None
         } {
-            Some(path) => Arc::new(ryo_benchmark::outbound::engine::factory::local_with_frontend_diagnostic(
-                languages,
-                Some(path.into()),
-                frontend_diagnostic.clone(),
-            )),
-            None => Arc::new(ryo_benchmark::outbound::engine::factory::local_with_frontend_diagnostic(
-                languages,
-                None,
-                frontend_diagnostic,
-            )),
+            Some(path) => Arc::new(
+                ryo_benchmark::outbound::engine::factory::local_with_frontend_diagnostic(
+                    languages,
+                    Some(path.into()),
+                    frontend_diagnostic.clone(),
+                ),
+            ),
+            None => Arc::new(
+                ryo_benchmark::outbound::engine::factory::local_with_frontend_diagnostic(
+                    languages,
+                    None,
+                    frontend_diagnostic,
+                ),
+            ),
         };
     let transport =
         ryo_benchmark::outbound::worker::factory::json(input.into(), Box::new(std::io::stdout()));

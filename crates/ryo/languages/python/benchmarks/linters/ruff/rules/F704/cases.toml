@@ -2,22 +2,22 @@
 [[cases]]
 name = "module-yield"
 files = { "case.py" = "yield 1\n" }
-expected = [{ "file" = "case.py", "start" = 0, "end" = 7 }]
+expected = [{"file" = "case.py", "start" = 0, "end" = 7}]
 
 [[cases]]
 name = "module-yield-from"
 files = { "case.py" = "yield from items\n" }
-expected = [{ "file" = "case.py", "start" = 0, "end" = 16 }]
+expected = [{"file" = "case.py", "start" = 0, "end" = 16}]
 
 [[cases]]
 name = "module-await"
 files = { "case.py" = "await task\n" }
-expected = [{ "file" = "case.py", "start" = 0, "end" = 10 }]
+expected = [{"file" = "case.py", "start" = 0, "end" = 10}]
 
 [[cases]]
 name = "class"
 files = { "case.py" = "class C:\n    yield 1\n" }
-expected = [{ "file" = "case.py", "start" = 13, "end" = 20 }]
+expected = [{"file" = "case.py", "start" = 13, "end" = 20}]
 
 [[cases]]
 name = "function"
@@ -42,7 +42,7 @@ expected = []
 [[cases]]
 name = "nested-class"
 files = { "case.py" = "def f():\n    class C:\n        yield 1\n" }
-expected = [{ "file" = "case.py", "start" = 30, "end" = 37 }]
+expected = [{"file" = "case.py", "start" = 30, "end" = 37}]
 
 [[cases]]
 name = "noqa"
@@ -57,7 +57,7 @@ expected = []
 [[cases]]
 name = "other-code"
 files = { "case.py" = "yield 1 # noqa: F401\n" }
-expected = [{ "file" = "case.py", "start" = 0, "end" = 7 }]
+expected = [{"file" = "case.py", "start" = 0, "end" = 7}]
 
 [[cases]]
 name = "file-noqa"
@@ -67,7 +67,7 @@ expected = []
 [[cases]]
 name = "function-default"
 files = { "case.py" = "def f(x=(yield 1)): pass\n" }
-expected = [{ "file" = "case.py", "start" = 9, "end" = 16 }]
+expected = [{"file" = "case.py", "start" = 9, "end" = 16}]
 
 [[cases]]
 name = "nested-function-default"
@@ -77,12 +77,12 @@ expected = []
 [[cases]]
 name = "lambda-default"
 files = { "case.py" = "f = lambda x=(yield 1): x\n" }
-expected = [{ "file" = "case.py", "start" = 14, "end" = 21 }]
+expected = [{"file" = "case.py", "start" = 14, "end" = 21}]
 
 [[cases]]
 name = "class-base"
 files = { "case.py" = "class C((yield 1)):\n    pass\n" }
-expected = [{ "file" = "case.py", "start" = 9, "end" = 16 }]
+expected = [{"file" = "case.py", "start" = 9, "end" = 16}]
 
 [[cases]]
 name = "nested-class-base"
@@ -92,22 +92,22 @@ expected = []
 [[cases]]
 name = "class-method-default"
 files = { "case.py" = "class C:\n    def f(x=(yield 1)): pass\n" }
-expected = [{ "file" = "case.py", "start" = 22, "end" = 29 }]
+expected = [{"file" = "case.py", "start" = 22, "end" = 29}]
 
 [[cases]]
 name = "comprehension"
 files = { "case.py" = "[(yield x) for x in items]\n" }
-expected = [{ "file" = "case.py", "start" = 2, "end" = 9 }]
+expected = [{"file" = "case.py", "start" = 2, "end" = 9}]
 
 [[cases]]
 name = "function-comprehension"
 files = { "case.py" = "def f():\n    return [(yield x) for x in items]\n" }
-expected = [{ "file" = "case.py", "start" = 22, "end" = 29 }]
+expected = [{"file" = "case.py", "start" = 22, "end" = 29}]
 
 [[cases]]
 name = "unicode-offset"
 files = { "case.py" = "label = \"\u96ea\"\nyield 1\n" }
-expected = [{ "file" = "case.py", "start" = 14, "end" = 21 }]
+expected = [{"file" = "case.py", "start" = 14, "end" = 21}]
 
 [[cases]]
 name = "comprehension-first-iter"
@@ -117,27 +117,27 @@ expected = []
 [[cases]]
 name = "comprehension-later-iter"
 files = { "case.py" = "def f():\n    return [x for x in items for y in (yield more)]\n" }
-expected = [{ "file" = "case.py", "start" = 48, "end" = 58 }]
+expected = [{"file" = "case.py", "start" = 48, "end" = 58}]
 
 [[cases]]
 name = "comprehension-filter"
 files = { "case.py" = "def f():\n    return [x for x in items if (yield ready)]\n" }
-expected = [{ "file" = "case.py", "start" = 42, "end" = 53 }]
+expected = [{"file" = "case.py", "start" = 42, "end" = 53}]
 
 [[cases]]
 name = "generator-result"
 files = { "case.py" = "def f():\n    return ((yield x) for x in items)\n" }
-expected = [{ "file" = "case.py", "start" = 22, "end" = 29 }]
+expected = [{"file" = "case.py", "start" = 22, "end" = 29}]
 
 [[cases]]
 name = "dict-key"
 files = { "case.py" = "def f():\n    return {(yield x): 1 for x in items}\n" }
-expected = [{ "file" = "case.py", "start" = 22, "end" = 29 }]
+expected = [{"file" = "case.py", "start" = 22, "end" = 29}]
 
 [[cases]]
 name = "dict-value"
 files = { "case.py" = "def f():\n    return {x: (yield 1) for x in items}\n" }
-expected = [{ "file" = "case.py", "start" = 25, "end" = 32 }]
+expected = [{"file" = "case.py", "start" = 25, "end" = 32}]
 
 [[cases]]
 name = "lambda-in-comprehension"
@@ -152,7 +152,7 @@ expected = []
 [[cases]]
 name = "await-in-module-comprehension"
 files = { "case.py" = "[await x for x in items]\n" }
-expected = [{ "file" = "case.py", "start" = 1, "end" = 8 }]
+expected = [{"file" = "case.py", "start" = 1, "end" = 8}]
 
 [[cases]]
 name = "await-in-module-generator"

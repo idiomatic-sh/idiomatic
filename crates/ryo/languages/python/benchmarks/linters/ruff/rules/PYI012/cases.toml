@@ -2,7 +2,7 @@
 [[cases]]
 name = "nonempty"
 files = { "case.pyi" = "class C:\n    x: int\n    pass\n" }
-expected = [{ "file" = "case.pyi", "start" = 24, "end" = 28 }]
+expected = [{"file" = "case.pyi", "start" = 24, "end" = 28}]
 
 [[cases]]
 name = "empty"
@@ -12,7 +12,7 @@ expected = []
 [[cases]]
 name = "docstring"
 files = { "case.pyi" = "class C:\n    \"doc\"\n    pass\n" }
-expected = [{ "file" = "case.pyi", "start" = 23, "end" = 27 }]
+expected = [{"file" = "case.pyi", "start" = 23, "end" = 27}]
 
 [[cases]]
 name = "function"
@@ -42,7 +42,7 @@ expected = []
 [[cases]]
 name = "other-code"
 files = { "case.pyi" = "class C:\n    x: int\n    pass # noqa: F401\n" }
-expected = [{ "file" = "case.pyi", "start" = 24, "end" = 28 }]
+expected = [{"file" = "case.pyi", "start" = 24, "end" = 28}]
 
 [[cases]]
 name = "file-noqa"
@@ -52,12 +52,12 @@ expected = []
 [[cases]]
 name = "two-passes"
 files = { "case.pyi" = "class C:\n    pass\n    pass\n" }
-expected = [{ "file" = "case.pyi", "start" = 13, "end" = 17 }, { "file" = "case.pyi", "start" = 22, "end" = 26 }]
+expected = [{"file" = "case.pyi", "start" = 13, "end" = 17}, {"file" = "case.pyi", "start" = 22, "end" = 26}]
 
 [[cases]]
 name = "nested-class"
 files = { "case.pyi" = "class C:\n    class D: pass\n    pass\n" }
-expected = [{ "file" = "case.pyi", "start" = 31, "end" = 35 }]
+expected = [{"file" = "case.pyi", "start" = 31, "end" = 35}]
 
 [[cases]]
 name = "shared-block-suppressed"

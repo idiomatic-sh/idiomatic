@@ -2,27 +2,27 @@
 [[cases]]
 name = "return"
 files = { "case.pyi" = "def f(): return 1\n" }
-expected = [{ "file" = "case.pyi", "start" = 9, "end" = 17 }]
+expected = [{"file" = "case.pyi", "start" = 9, "end" = 17}]
 
 [[cases]]
 name = "call"
 files = { "case.pyi" = "def f(): work()\n" }
-expected = [{ "file" = "case.pyi", "start" = 9, "end" = 15 }]
+expected = [{"file" = "case.pyi", "start" = 9, "end" = 15}]
 
 [[cases]]
 name = "number"
 files = { "case.pyi" = "def f(): 42\n" }
-expected = [{ "file" = "case.pyi", "start" = 9, "end" = 11 }]
+expected = [{"file" = "case.pyi", "start" = 9, "end" = 11}]
 
 [[cases]]
 name = "bytes"
 files = { "case.pyi" = "def f(): b\"doc\"\n" }
-expected = [{ "file" = "case.pyi", "start" = 9, "end" = 15 }]
+expected = [{"file" = "case.pyi", "start" = 9, "end" = 15}]
 
 [[cases]]
 name = "fstring"
 files = { "case.pyi" = "def f(): f\"doc\"\n" }
-expected = [{ "file" = "case.pyi", "start" = 9, "end" = 15 }]
+expected = [{"file" = "case.pyi", "start" = 9, "end" = 15}]
 
 [[cases]]
 name = "docstring"
@@ -47,7 +47,7 @@ expected = []
 [[cases]]
 name = "nested-block"
 files = { "case.pyi" = "def f():\n    if ready:\n        return 1\n" }
-expected = [{ "file" = "case.pyi", "start" = 13, "end" = 39 }]
+expected = [{"file" = "case.pyi", "start" = 13, "end" = 39}]
 
 [[cases]]
 name = "class"
@@ -72,7 +72,7 @@ expected = []
 [[cases]]
 name = "other-code"
 files = { "case.pyi" = "def f(): return 1 # noqa: F401\n" }
-expected = [{ "file" = "case.pyi", "start" = 9, "end" = 17 }]
+expected = [{"file" = "case.pyi", "start" = 9, "end" = 17}]
 
 [[cases]]
 name = "file-noqa"
@@ -82,17 +82,17 @@ expected = []
 [[cases]]
 name = "return-string"
 files = { "case.pyi" = "def f(): return \"doc\"\n" }
-expected = [{ "file" = "case.pyi", "start" = 9, "end" = 21 }]
+expected = [{"file" = "case.pyi", "start" = 9, "end" = 21}]
 
 [[cases]]
 name = "return-ellipsis"
 files = { "case.pyi" = "def f(): return ...\n" }
-expected = [{ "file" = "case.pyi", "start" = 9, "end" = 19 }]
+expected = [{"file" = "case.pyi", "start" = 9, "end" = 19}]
 
 [[cases]]
 name = "assignment-ellipsis"
 files = { "case.pyi" = "def f(): x = ...\n" }
-expected = [{ "file" = "case.pyi", "start" = 9, "end" = 16 }]
+expected = [{"file" = "case.pyi", "start" = 9, "end" = 16}]
 
 [[cases]]
 name = "parenthesized-string"
@@ -107,7 +107,7 @@ expected = []
 [[cases]]
 name = "multiline-return"
 files = { "case.pyi" = "def f():\n    return (\n        1\n    )\n" }
-expected = [{ "file" = "case.pyi", "start" = 13, "end" = 37 }]
+expected = [{"file" = "case.pyi", "start" = 13, "end" = 37}]
 
 [[cases]]
 name = "shared-block-suppressed"
