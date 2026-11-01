@@ -3426,7 +3426,7 @@
       "selected_rules": [
         "PLE1205"
       ],
-      "case_count": 14,
+      "case_count": 25,
       "case_names": [
         "too-many-positional",
         "too-many-after-format",
@@ -3441,7 +3441,18 @@
         "dynamic-format",
         "local-getlogger-instance",
         "self-logger-attribute",
-        "nonlogger-object-method"
+        "nonlogger-object-method",
+        "retained-try401-local-logger-object-name",
+        "logger-parameter",
+        "suffix-logger-local",
+        "nonheuristic-constructor-assignment",
+        "inline-getlogger-constructor",
+        "imported-module-named-logger-control",
+        "local-attribute-named-logger",
+        "uppercase-local-name",
+        "logger-prefix-name",
+        "imported-attribute-named-logger-control",
+        "local-logger-exact-argument-count-control"
       ],
       "cases_file": "rules/PLE1205/cases.toml"
     },
@@ -10014,8 +10025,8 @@
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PLE0605/cases.toml": "d20ed68af588b25a4a3ea6a64cec3e4bec7b2203ba7049cf96fc2af04b1e858f",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PLE0704/candidate.ryoql": "8084d3439bef033dd6a4c19ef742337775e9a3978c40677db747d6a27f5e351a",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PLE0704/cases.toml": "8d3e6dd88515f511ec327c2199eb90447ebbe08320cc5d735ec72e636c187da8",
-    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PLE1205/candidate.ryoql": "28a8ec9dd80981df2b5f056ff8c06099a08e339441088e253d7cdd249c50b3a7",
-    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PLE1205/cases.toml": "c63e4bd9cb950089b63a9af21ee3991a9a02e49f0ad559b4da6d7c4d041bd7b7",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PLE1205/candidate.ryoql": "980100b8f9af748c925aff16e5695a1764a1a800bf06feeb11b42c620a284bc8",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PLE1205/cases.toml": "2a9feba0b99130cd733fe5c78548d8a9760097a49f2fbd266ac727f13983272c",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PLE1206/candidate.ryoql": "3033928d55a5c9ae4e78e802830b6e266d38629ae40f869d1ffb5071f27982fe",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PLE1206/cases.toml": "c8861e04ea629e77c5dc407340ef771610e6b66a0dfede8205d2a95b20c84f50",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PLE1307/candidate.ryoql": "51739ade1ba10dd37c54bbc7887f7dc4aad3c1d1a664c2a473c1c400467de951",
@@ -20503,5 +20514,5 @@
   },
   "target_version": "py310",
   "rule_phases_file": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/pinned-rule-phases.json",
-  "manifest_sha256": "185475b5247883fd490e2b3d60058961976b7d50ef5ca97541174b645bc52f4d"
+  "manifest_sha256": "f69900f11c72f57b60d61b69394c546d8f53dec1e4b7abcfd4fb5fe41f06ad83"
 }
