@@ -3,8 +3,8 @@
 use super::errors::QueryLanguageError;
 use ryo_values::domain::descriptions::types::ValidateReport;
 use ryo_values::domain::hosted::types::HostedRelation;
-use ryo_values::domain::plan_parts::types::QueryText;
 use ryo_values::domain::plans::types::Plan;
+use ryo_values::domain::program::types::QueryBundle;
 
 /// What every `query_language` adapter implements.
 pub trait QueryLanguagePort: Send + Sync {
@@ -16,7 +16,7 @@ pub trait QueryLanguagePort: Send + Sync {
     /// `Refused` with the reason and the place when the text is not a correct query.
     fn validate(
         &self,
-        text: &QueryText,
+        bundle: &QueryBundle,
         hosted: &[HostedRelation],
     ) -> Result<ValidateReport, QueryLanguageError>;
 
@@ -27,7 +27,7 @@ pub trait QueryLanguagePort: Send + Sync {
     /// `Refused` with the reason when the text is not a correct query.
     fn compile(
         &self,
-        text: &QueryText,
+        bundle: &QueryBundle,
         hosted: &[HostedRelation],
     ) -> Result<Plan, QueryLanguageError>;
 }

@@ -75,7 +75,10 @@ fn compile_query(text: &Input) -> Result<ryo_values::domain::plans::types::Plan,
         Arc::new(ryo_query_language::outbound::syntax::factory::winnow()),
         Arc::new(ryo_query_language::outbound::catalog::factory::language()),
     ));
-    QueryLanguageUseCaseAdapter::new(compile, typecheck).compile(text, &[])
+    QueryLanguageUseCaseAdapter::new(compile, typecheck).compile(
+        &ryo_values::domain::program::types::QueryBundle::from(text.clone()),
+        &[],
+    )
 }
 
 /// Raw query backslashes must reach the regex evaluator unchanged.

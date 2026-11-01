@@ -18,10 +18,9 @@ use ryo_language::domain::files::types::FilePath;
 use ryo_language::inbound::use_cases::project::types::ManifestFile;
 use ryo_values::domain::files::types::{CorpusEntry, Glob};
 use ryo_values::domain::hosted::types::HostRelation;
-use ryo_values::domain::plan_parts::types::{
-    FlagState, LiteralText, ParameterName, QueryText, WholeNumber,
-};
+use ryo_values::domain::plan_parts::types::{FlagState, LiteralText, ParameterName, WholeNumber};
 use ryo_values::domain::plans::types::Plan;
+use ryo_values::domain::program::types::QueryBundle;
 use ryo_values::domain::records::types::{RowTotal, Unread};
 use ryo_values::domain::runs::types::{AnswerShape, MemoryBytes, RuleId, Session};
 use ryo_values::domain::stored_facts::types::Bucket;
@@ -54,7 +53,7 @@ pub struct Rule {
     /// The rule's id, named in every finding.
     pub id: RuleId,
     /// The RyoQL text.
-    pub query: QueryText,
+    pub query: QueryBundle,
     /// What the query's parameters are bound to.
     pub parameters: Vec<RuleParameter>,
     /// The globs of the files the rule governs; none means every file.
@@ -195,7 +194,7 @@ pub struct PlanCache {
 #[derive(Clone, Debug)]
 pub struct CachedPlan {
     /// The RyoQL text the plan was compiled from.
-    pub query: QueryText,
+    pub query: QueryBundle,
     /// The relations the host declared when it was: a plan that names one is another plan when they are others.
     pub hosted: Vec<ryo_values::domain::hosted::types::HostedRelation>,
     /// The plan.

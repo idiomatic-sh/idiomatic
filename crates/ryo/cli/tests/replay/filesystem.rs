@@ -24,10 +24,10 @@ fn every_inventoried_file_is_a_row_whatever_it_holds() {
     std::fs::write(root.path().join("notes.md"), "# notes\n").expect("a file");
     let rule = Rule {
         id: RuleId("all-files".into()),
-        query: QueryText(
+        query: ryo_values::domain::program::types::QueryBundle::from(QueryText(
             "let files = select * from \"filesystem.file\"; emit files subject path key(path);"
                 .into(),
-        ),
+        )),
         parameters: Vec::new(),
         include: vec![Glob("**".into())],
         exclude: Vec::new(),

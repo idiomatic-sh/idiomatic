@@ -11,7 +11,7 @@ use ryo_values::domain::plan_parts::types::RefusalMessage;
 use ryo_values::domain::plan_parts::types::RefusedKind;
 use ryo_values::domain::plan_parts::types::RefusedQuery;
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, Comparison, Input, LiteralText, Operand, QueryLiteral, QueryText, StepId, Test,
+    ColumnIndex, Comparison, Input, LiteralText, Operand, QueryLiteral, StepId, Test,
 };
 use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep, StepScope};
 
@@ -150,10 +150,10 @@ impl QueryLanguageFake {
 impl QueryLanguagePort for QueryLanguageFake {
     fn validate(
         &self,
-        text: &QueryText,
+        text: &ryo_values::domain::program::types::QueryBundle,
         hosted: &[HostedRelation],
     ) -> Result<ValidateReport, QueryLanguageError> {
-        if text.0.contains(REFUSED) {
+        if text.root_text().contains(REFUSED) {
             return Err(refused());
         }
         Ok(ValidateReport {
@@ -168,11 +168,11 @@ impl QueryLanguagePort for QueryLanguageFake {
 
     fn compile(
         &self,
-        text: &QueryText,
+        text: &ryo_values::domain::program::types::QueryBundle,
         _hosted: &[HostedRelation],
     ) -> Result<Plan, QueryLanguageError> {
         let _calls_before = self.calls.fetch_add(1, Ordering::SeqCst);
-        if text.0.contains(REFUSED) {
+        if text.root_text().contains(REFUSED) {
             return Err(refused());
         }
         Ok(self.plan.clone())

@@ -61,7 +61,7 @@ fn globs(texts: &[&str]) -> Vec<Glob> {
 fn spec(id: &str, include: &[&str], exclude: &[&str]) -> RuleSpec {
     RuleSpec {
         id: RuleId(id.into()),
-        query: QueryText("select".into()),
+        query: ryo_values::domain::program::types::QueryBundle::from(QueryText("select".into())),
         given: Vec::new(),
         spelled: RuleParameters("limit=3".into()),
         include: globs(include),

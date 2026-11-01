@@ -191,8 +191,10 @@ fn a_query_run_reports_rows_of_ryo_itself() {
         files: Vec::new(),
         rules: vec![Rule {
             id: RuleId("1".into()),
-            query: ryo_values::domain::plan_parts::types::QueryText(
-                "let f = select * from \"function\"; emit f subject file key(span);".into(),
+            query: ryo_values::domain::program::types::QueryBundle::from(
+                ryo_values::domain::plan_parts::types::QueryText(
+                    "let f = select * from \"function\"; emit f subject file key(span);".into(),
+                ),
             ),
             parameters: Vec::new(),
             include: Vec::new(),

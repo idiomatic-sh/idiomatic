@@ -97,7 +97,7 @@ fn fixture_parameters(query: &str) -> Vec<RuleParameter> {
 fn rule(id: &str, query: &str, include: Vec<Glob>) -> Rule {
     Rule {
         id: ryo_values::domain::runs::types::RuleId(id.into()),
-        query: QueryText(query.into()),
+        query: ryo_values::domain::program::types::QueryBundle::from(QueryText(query.into())),
         parameters: fixture_parameters(query),
         include,
         exclude: Vec::new(),

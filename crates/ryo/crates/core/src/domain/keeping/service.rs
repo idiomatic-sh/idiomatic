@@ -179,7 +179,17 @@ pub(crate) fn configuration_bytes(configuration: &Configuration<'_>) -> DigestIn
     );
     for rule in configuration.rules {
         put(&mut out, DigestPart(&rule.id.0));
-        put(&mut out, DigestPart(&rule.query.0));
+        put(&mut out, DigestPart(rule.query.root().id().as_str()));
+        put(&mut out, DigestPart(rule.query.root_text()));
+        out.0.extend_from_slice(
+            &u64::try_from(rule.query.modules().len())
+                .unwrap_or(u64::MAX)
+                .to_le_bytes(),
+        );
+        for (id, source) in rule.query.modules() {
+            put(&mut out, DigestPart(id.as_str()));
+            put(&mut out, DigestPart(source.text()));
+        }
         put(&mut out, DigestPart(&rule.spelled.0));
         for globs in [&rule.include, &rule.exclude] {
             out.0

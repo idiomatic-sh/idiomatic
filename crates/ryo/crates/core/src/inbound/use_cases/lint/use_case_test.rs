@@ -281,7 +281,9 @@ fn request(given: &Given) -> LintRequest {
                         .get(place)
                         .map_or_else(|| place.to_string().into(), |id| (*id).into()),
                 ),
-                query: QueryText((*query).into()),
+                query: ryo_values::domain::program::types::QueryBundle::from(QueryText(
+                    (*query).into(),
+                )),
                 parameters: Vec::new(),
                 include: globs(&given.include),
                 exclude: globs(&given.exclude),

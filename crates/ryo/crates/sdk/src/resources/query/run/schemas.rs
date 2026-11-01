@@ -6,7 +6,6 @@ use ryo_core::inbound::use_cases::lint::types::{
 };
 
 use ryo_language::inbound::use_cases::project::types::RootPath;
-use ryo_values::domain::plan_parts::types::QueryText;
 use ryo_values::domain::records::types::Cell as RowCell;
 use ryo_values::domain::records::types::RowTotal;
 use ryo_values::domain::records::types::Unreadable as CoreUnreadable;
@@ -63,7 +62,7 @@ impl TryFrom<RunRequestSchema> for CoreRequest {
             files: Vec::new(),
             rules: vec![Rule {
                 id: ryo_values::domain::runs::types::RuleId(QUERY_ID.into()),
-                query: QueryText(request.query.to_string().into()),
+                query: request.query.into_bundle(),
                 parameters: Vec::new(),
                 include: Vec::new(),
                 exclude: Vec::new(),

@@ -20,8 +20,8 @@ use ryo_values::domain::hosted::types::{
     HostName as CoreHostName, HostRelation as CoreHost, HostRow as CoreHostRow,
 };
 use ryo_values::domain::plan_parts::types::{
-    FlagState as CoreFlag, LiteralText as CoreText, ParameterName, QueryText, RefusedKind,
-    RefusedQuery, WholeNumber,
+    FlagState as CoreFlag, LiteralText as CoreText, ParameterName, RefusedKind, RefusedQuery,
+    WholeNumber,
 };
 use ryo_values::domain::records::types::Cell as RowCell;
 use ryo_values::domain::records::types::Unreadable as CoreUnreadable;
@@ -181,7 +181,7 @@ impl TryFrom<LintRequestSchema> for CoreRequest {
                 .into_iter()
                 .map(|(id, rule)| CoreRule {
                     id: ryo_values::domain::runs::types::RuleId(id.as_ref().into()),
-                    query: QueryText(rule.query.to_string().into()),
+                    query: rule.query.into_bundle(),
                     parameters: rule
                         .parameters
                         .into_iter()

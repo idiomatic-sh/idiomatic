@@ -180,7 +180,9 @@ fn subject(given: fn() -> Given) -> Result<Value, Failure> {
     let use_case = TypecheckUseCaseImpl::new(Arc::new(given.syntax), Arc::new(given.catalog));
     use_case
         .typecheck(TypecheckRequest {
-            text: QueryText(given.text.into()),
+            text: ryo_values::domain::program::types::QueryBundle::from(QueryText(
+                given.text.into(),
+            )),
             hosted: Vec::new(),
         })
         .map(|report| report.relations.len())

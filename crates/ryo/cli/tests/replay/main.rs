@@ -92,7 +92,7 @@ use ryo_values::domain::runs::types::RuleId;
 pub fn rule_from_query(id: &str, query: &str, include: &[String]) -> Rule {
     Rule {
         id: RuleId(id.into()),
-        query: QueryText(query.into()),
+        query: ryo_values::domain::program::types::QueryBundle::from(QueryText(query.into())),
         parameters: Vec::new(),
         include: include
             .iter()

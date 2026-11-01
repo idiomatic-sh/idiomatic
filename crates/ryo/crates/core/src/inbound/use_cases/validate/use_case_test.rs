@@ -312,7 +312,7 @@ fn subject((text, declared, linked, compiler): Input) -> Result<Value, Failure> 
     };
     ValidateUseCaseImpl::new(compiling, language)
         .validate(ValidateRequest {
-            text: QueryText(text),
+            text: ryo_values::domain::program::types::QueryBundle::from(QueryText(text)),
             hosted,
         })
         .map(|report| report.relations.len())
@@ -325,7 +325,7 @@ struct CompilesNothing;
 impl QueryLanguagePort for CompilesNothing {
     fn validate(
         &self,
-        _text: &QueryText,
+        _text: &ryo_values::domain::program::types::QueryBundle,
         _hosted: &[HostedRelation],
     ) -> Result<ValidateReport, QueryLanguageError> {
         Ok(ValidateReport {
@@ -337,7 +337,7 @@ impl QueryLanguagePort for CompilesNothing {
 
     fn compile(
         &self,
-        _text: &QueryText,
+        _text: &ryo_values::domain::program::types::QueryBundle,
         _hosted: &[HostedRelation],
     ) -> Result<Plan, QueryLanguageError> {
         Err(QueryLanguageError::Refused {

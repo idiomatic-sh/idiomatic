@@ -43,13 +43,13 @@ impl QueryLanguageUseCaseAdapter {
 impl QueryLanguagePort for QueryLanguageUseCaseAdapter {
     fn validate(
         &self,
-        text: &parts::QueryText,
+        bundle: &ryo_values::domain::program::types::QueryBundle,
         hosted: &[hosted::HostedRelation],
     ) -> Result<ValidateReport, QueryLanguageError> {
         self.typecheck
             .0
             .typecheck(TypecheckRequest {
-                text: text.clone(),
+                text: bundle.clone(),
                 hosted: hosted.to_vec(),
             })
             .map_err(|error| QueryLanguageError::Refused {
@@ -59,14 +59,14 @@ impl QueryLanguagePort for QueryLanguageUseCaseAdapter {
 
     fn compile(
         &self,
-        text: &parts::QueryText,
+        bundle: &ryo_values::domain::program::types::QueryBundle,
         hosted: &[hosted::HostedRelation],
     ) -> Result<plans::Plan, QueryLanguageError> {
         let report = self
             .compile
             .0
             .compile(CompileRequest {
-                text: text.clone(),
+                text: bundle.clone(),
                 hosted: hosted.to_vec(),
             })
             .map_err(|error| QueryLanguageError::Refused {

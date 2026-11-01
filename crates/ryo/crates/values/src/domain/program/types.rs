@@ -1,7 +1,9 @@
 //! The types of the `program` concept: the shape of RyoQL text once it is read. Plain data, public
 //! fields and derives, with no constructor and no inherent impl.
 
+use crate::domain::plan_parts::types::QueryText;
 use ryo_language::domain::relations::types::Integer;
+use std::collections::BTreeMap;
 
 /// A place in the query text, counted in bytes from its start.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -19,6 +21,167 @@ pub struct QuerySpan {
 /// RyoQL text as the port reads it: borrowed from the host's query.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct QueryView<'a>(pub &'a str);
+
+/// Stable logical identity of one source in a query bundle.
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct QuerySourceId(Box<str>);
+
+impl QuerySourceId {
+    /// Build an identifier that is not empty or whitespace.
+    pub fn try_from_text(text: &str) -> Result<Self, QueryBundleError> {
+        if text.trim().is_empty() {
+            return Err(QueryBundleError::BlankSourceId);
+        }
+        Ok(Self(text.into()))
+    }
+
+    /// The exact logical identity.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl AsRef<str> for QuerySourceId {
+    fn as_ref(&self) -> &str {
+        self.as_str()
+    }
+}
+
+impl std::fmt::Display for QuerySourceId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+/// One exact source in a query bundle, with its logical identity retained for diagnostics.
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct QuerySource {
+    id: QuerySourceId,
+    text: Box<str>,
+}
+
+impl QuerySource {
+    /// Build a named source, retaining text exactly for the parser to validate.
+    #[must_use]
+    pub fn new(id: QuerySourceId, text: impl Into<Box<str>>) -> Self {
+        Self {
+            id,
+            text: text.into(),
+        }
+    }
+
+    /// The source identity.
+    #[must_use]
+    pub const fn id(&self) -> &QuerySourceId {
+        &self.id
+    }
+
+    /// The exact source bytes as UTF-8 text.
+    #[must_use]
+    pub fn text(&self) -> &str {
+        &self.text
+    }
+}
+
+/// The in-memory root and immutable named module sources for one query.
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct QueryBundle {
+    root: QuerySource,
+    modules: BTreeMap<QuerySourceId, QuerySource>,
+}
+
+impl QueryBundle {
+    /// Build a bundle, rejecting duplicate logical identities and a module that aliases the root.
+    pub fn try_new(
+        root: QuerySource,
+        modules: impl IntoIterator<Item = QuerySource>,
+    ) -> Result<Self, QueryBundleError> {
+        let mut indexed = BTreeMap::new();
+        for module in modules {
+            let id = module.id.clone();
+            if id == root.id || indexed.insert(id.clone(), module).is_some() {
+                return Err(QueryBundleError::DuplicateSourceId { id });
+            }
+        }
+        Ok(Self {
+            root,
+            modules: indexed,
+        })
+    }
+
+    /// A standalone query with the stable anonymous root identity and no modules.
+    pub fn standalone(text: &str) -> Result<Self, QueryBundleError> {
+        let id = QuerySourceId::try_from_text("<query>")?;
+        Self::try_new(QuerySource::new(id, text), [])
+    }
+
+    /// The root query text, retained exactly as supplied.
+    #[must_use]
+    pub fn root_text(&self) -> &str {
+        self.root.text()
+    }
+
+    /// The root source.
+    #[must_use]
+    pub const fn root(&self) -> &QuerySource {
+        &self.root
+    }
+
+    /// The immutable source registry, ordered by logical identity.
+    #[must_use]
+    pub const fn modules(&self) -> &BTreeMap<QuerySourceId, QuerySource> {
+        &self.modules
+    }
+
+    /// Find one named source, including the root.
+    #[must_use]
+    pub fn source(&self, id: &QuerySourceId) -> Option<&QuerySource> {
+        if &self.root.id == id {
+            Some(&self.root)
+        } else {
+            self.modules.get(id)
+        }
+    }
+}
+
+impl From<QueryText> for QueryBundle {
+    fn from(text: QueryText) -> Self {
+        Self {
+            root: QuerySource {
+                id: QuerySourceId("<query>".into()),
+                text: text.0,
+            },
+            modules: BTreeMap::new(),
+        }
+    }
+}
+
+/// A query bundle could not be constructed without ambiguity.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum QueryBundleError {
+    /// A source identity is blank.
+    BlankSourceId,
+    /// The root query text is blank.
+    BlankRootText,
+    /// Two sources use the same identity, or a module duplicates the root identity.
+    DuplicateSourceId {
+        /// The repeated identity.
+        id: QuerySourceId,
+    },
+}
+
+impl std::fmt::Display for QueryBundleError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::BlankSourceId => f.write_str("query source id is blank"),
+            Self::BlankRootText => f.write_str("root query text is blank"),
+            Self::DuplicateSourceId { id } => write!(f, "query source id `{id}` is duplicated"),
+        }
+    }
+}
+
+impl std::error::Error for QueryBundleError {}
 
 /// The name of a parameter, as the query writes it.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]

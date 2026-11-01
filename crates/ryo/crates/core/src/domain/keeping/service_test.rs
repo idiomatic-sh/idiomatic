@@ -127,7 +127,7 @@ fn hosting(rules: &[RuleSpec], hosted: &[HostedText]) -> DigestInput {
 fn rule(id: &str, query: &str) -> RuleSpec {
     RuleSpec {
         id: RuleId(id.into()),
-        query: QueryText(query.into()),
+        query: ryo_values::domain::program::types::QueryBundle::from(QueryText(query.into())),
         given: Vec::new(),
         spelled: RuleParameters(Box::default()),
         include: vec![Glob("**".into())],
@@ -181,12 +181,33 @@ fn configuration_follows_the_rules() -> Value {
     let reordered = [rule("b", "q2"), rule("a", "q1")];
     let added = [rule("a", "q1"), rule("b", "q2"), rule("c", "q1")];
     let same = configuration(&rules);
+    let with_module = |body: &str| {
+        let root = ryo_values::domain::program::types::QuerySource::new(
+            ryo_values::domain::program::types::QuerySourceId::try_from_text("rules/F401")
+                .expect("root id is nonblank"),
+            "root query",
+        );
+        let module = ryo_values::domain::program::types::QuerySource::new(
+            ryo_values::domain::program::types::QuerySourceId::try_from_text(
+                "python/ruff/suppress",
+            )
+            .expect("module id is nonblank"),
+            body,
+        );
+        let bundle = ryo_values::domain::program::types::QueryBundle::try_new(root, [module])
+            .expect("source ids are unique");
+        let mut rule = rule("a", "root query");
+        rule.query = bundle;
+        configuration(&[rule])
+    };
     usize::from(
         same == configuration(&rules)
             && same != configuration(&edited)
             && same != configuration(&reordered)
             && same != configuration(&added)
-            && same != hosting(&rules, &[HostedText("a.rs\tspec\tentry\ttemplate".into())]),
+            && same != hosting(&rules, &[HostedText("a.rs\tspec\tentry\ttemplate".into())])
+            && with_module("one") != with_module("two")
+            && with_module("one") != configuration(&[rule("a", "root query")]),
     )
 }
 

@@ -240,7 +240,7 @@ fn subject(given: fn() -> Given) -> Result<Value, Failure> {
     let given = given();
     let use_case = CompileUseCaseImpl::new(Arc::new(given.syntax), Arc::new(given.catalog));
     let request = CompileRequest {
-        text: QueryText(given.text.into()),
+        text: ryo_values::domain::program::types::QueryBundle::from(QueryText(given.text.into())),
         hosted: Vec::new(),
     };
     let first = use_case.compile(request.clone())?;

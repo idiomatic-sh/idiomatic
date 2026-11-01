@@ -2,7 +2,8 @@
 
 use crate::domain::table_model::types::ParameterBinding;
 use ryo_values::domain::files::types::Glob;
-use ryo_values::domain::plan_parts::types::{ParameterName, QueryText};
+use ryo_values::domain::plan_parts::types::ParameterName;
+use ryo_values::domain::program::types::QueryBundle;
 use ryo_values::domain::runs::types::RuleId;
 
 /// A rule's parameters as they are written, for the digest of the configuration.
@@ -15,7 +16,7 @@ pub(crate) struct RuleSpec {
     /// The rule's id, named in every finding.
     pub id: RuleId,
     /// The RyoQL text.
-    pub query: QueryText,
+    pub query: QueryBundle,
     /// What the rule binds its parameters to, by name.
     pub given: Vec<Given>,
     /// The parameters as they are written, for the digest of the configuration.

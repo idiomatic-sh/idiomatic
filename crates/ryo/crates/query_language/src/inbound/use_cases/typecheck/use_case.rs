@@ -45,14 +45,14 @@ impl TypecheckUseCaseImpl {
 
 impl TypecheckUseCase for TypecheckUseCaseImpl {
     fn typecheck(&self, request: TypecheckRequest) -> Result<ValidateReport, TypecheckError> {
-        let program =
-            self.syntax
-                .read(QueryView(&request.text.0))
-                .map_err(|error| match error {
-                    SyntaxError::Unreadable { span, message } => {
-                        TypecheckError::Syntax { span, message }
-                    }
-                })?;
+        let program = self
+            .syntax
+            .read(QueryView(request.text.root_text()))
+            .map_err(|error| match error {
+                SyntaxError::Unreadable { span, message } => {
+                    TypecheckError::Syntax { span, message }
+                }
+            })?;
         let relations = self
             .catalog
             .relations()

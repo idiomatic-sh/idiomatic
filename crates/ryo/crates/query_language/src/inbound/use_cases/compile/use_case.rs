@@ -39,14 +39,12 @@ impl CompileUseCaseImpl {
 
 impl CompileUseCase for CompileUseCaseImpl {
     fn compile(&self, request: CompileRequest) -> Result<CompileReport, CompileError> {
-        let program =
-            self.syntax
-                .read(QueryView(&request.text.0))
-                .map_err(|error| match error {
-                    SyntaxError::Unreadable { span, message } => {
-                        CompileError::Syntax { span, message }
-                    }
-                })?;
+        let program = self
+            .syntax
+            .read(QueryView(request.text.root_text()))
+            .map_err(|error| match error {
+                SyntaxError::Unreadable { span, message } => CompileError::Syntax { span, message },
+            })?;
         let relations = self
             .catalog
             .relations()

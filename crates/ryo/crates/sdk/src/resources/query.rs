@@ -41,6 +41,12 @@ pub use validate::schemas::RyoQlQuerySchemaError;
 
 pub use crate::domain::query::types::RyoQlQuery;
 
+pub use crate::domain::query::types::QueryModuleSource;
+
+pub use ryo_values::domain::program::types::QuerySourceId;
+
+pub use ryo_values::domain::program::types::QueryBundleError;
+
 pub use validate::types::ValidateRequest;
 
 pub use validate::types::ValidateReport;

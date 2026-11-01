@@ -168,7 +168,7 @@ fn requested((declared, expected): Declared) -> bool {
         query,
         hosted: declared,
     }) == CoreRequest {
-        text: QueryText(TEXT.into()),
+        text: ryo_values::domain::program::types::QueryBundle::from(QueryText(TEXT.into())),
         hosted: expected,
     }
 }
@@ -184,4 +184,38 @@ fn succeeds() {
 #[test]
 fn fails() {
     run(CASES, Word::Fails, subject);
+}
+
+#[test]
+fn query_bundle_retains_module_identity_and_exact_source() {
+    use crate::domain::query::types::{QueryModuleSource, RyoQlQuery};
+
+    let module = QueryModuleSource::try_new("python/ruff/suppress", "fragment body\n")
+        .expect("module identity is nonblank");
+    let first = RyoQlQuery::with_modules("rules/F401", "root query\n", [module.clone()])
+        .expect("bundle identities are unique");
+    let same = RyoQlQuery::with_modules("rules/F401", "root query\n", [module])
+        .expect("bundle identities are unique");
+    let changed_source = RyoQlQuery::with_modules(
+        "rules/F401",
+        "root query\n",
+        [
+            QueryModuleSource::try_new("python/ruff/suppress", "fragment body")
+                .expect("module identity is nonblank"),
+        ],
+    )
+    .expect("bundle identities are unique");
+
+    assert_eq!(first, same);
+    assert_ne!(first, changed_source);
+    assert_eq!(first.root_text(), "root query\n");
+    assert!(QueryModuleSource::try_new(" \t", "body").is_err());
+    assert!(
+        RyoQlQuery::with_modules(
+            "rules/F401",
+            "root query",
+            [QueryModuleSource::try_new("rules/F401", "body").expect("module id is nonblank")],
+        )
+        .is_err()
+    );
 }

@@ -125,7 +125,9 @@ pub(crate) fn compile(query: &str) -> Result<Vec<PlanParameter>, String> {
     ryo_query_language::inbound::use_cases::compile::interface::CompileUseCase::compile(
         &compiler,
         ryo_query_language::inbound::use_cases::compile::types::CompileRequest {
-            text: CoreQueryText(query.into()),
+            text: ryo_values::domain::program::types::QueryBundle::from(CoreQueryText(
+                query.into(),
+            )),
             hosted: Vec::new(),
         },
     )
@@ -417,7 +419,9 @@ pub(crate) fn lint_report_with_languages(
 pub(crate) fn rule_of(each: &Recording) -> Rule {
     Rule {
         id: ryo_values::domain::runs::types::RuleId(each.name.as_str().into()),
-        query: CoreQueryText(each.query.as_str().into()),
+        query: ryo_values::domain::program::types::QueryBundle::from(CoreQueryText(
+            each.query.as_str().into(),
+        )),
         parameters: each.parameters.clone(),
         include: each
             .include

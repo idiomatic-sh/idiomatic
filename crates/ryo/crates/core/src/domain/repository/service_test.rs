@@ -41,7 +41,7 @@ fn files() -> Vec<CorpusEntry> {
 fn rule(id: &str, query: &str) -> RuleSpec {
     RuleSpec {
         id: RuleId(id.into()),
-        query: QueryText(query.into()),
+        query: ryo_values::domain::program::types::QueryBundle::from(QueryText(query.into())),
         given: Vec::new(),
         spelled: RuleParameters("".into()),
         include: Vec::new(),

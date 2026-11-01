@@ -4,7 +4,7 @@ use ryo_core::inbound::use_cases::validate::errors::ValidateError as CoreError;
 use ryo_core::inbound::use_cases::validate::types::ValidateRequest as CoreRequest;
 use ryo_language::domain::relations::types::Span as CoreSpan;
 use ryo_values::domain::descriptions::types::ValidateReport as CoreReport;
-use ryo_values::domain::plan_parts::types::{QueryText, RefusedKind, RefusedQuery};
+use ryo_values::domain::plan_parts::types::{RefusedKind, RefusedQuery};
 
 use ryo_language::domain::relations::types::CellKind;
 use ryo_values::domain::hosted::types::{
@@ -35,7 +35,42 @@ impl TryFrom<&str> for RyoQlQuery {
         if text.trim().is_empty() {
             return Err(RyoQlQuerySchemaError);
         }
-        Ok(Self::from_text(text.into()))
+        let bundle = ryo_values::domain::program::types::QueryBundle::standalone(text)
+            .map_err(|_| RyoQlQuerySchemaError)?;
+        Ok(Self::from_bundle(bundle))
+    }
+}
+
+impl crate::domain::query::types::QueryModuleSource {
+    /// Build a module source under its stable logical id.
+    pub fn try_new(
+        id: &str,
+        text: &str,
+    ) -> Result<Self, ryo_values::domain::program::types::QueryBundleError> {
+        Ok(Self {
+            id: ryo_values::domain::program::types::QuerySourceId::try_from_text(id)?,
+            text: text.into(),
+        })
+    }
+}
+
+impl RyoQlQuery {
+    /// Construct a checked root query and its immutable named module registry.
+    pub fn with_modules(
+        root_id: &str,
+        root_text: &str,
+        modules: impl IntoIterator<Item = crate::domain::query::types::QueryModuleSource>,
+    ) -> Result<Self, ryo_values::domain::program::types::QueryBundleError> {
+        use ryo_values::domain::program::types::{QueryBundle, QuerySource};
+        if root_text.trim().is_empty() {
+            return Err(ryo_values::domain::program::types::QueryBundleError::BlankRootText);
+        }
+        let root_id = ryo_values::domain::program::types::QuerySourceId::try_from_text(root_id)?;
+        let root = QuerySource::new(root_id, root_text);
+        let modules = modules
+            .into_iter()
+            .map(|module| QuerySource::new(module.id, module.text));
+        QueryBundle::try_new(root, modules).map(Self::from_bundle)
     }
 }
 
@@ -146,7 +181,7 @@ impl From<ValidateReportSchema> for ValidateReport {
 pub(super) fn request(request: ValidateRequest) -> CoreRequest {
     CoreRequest {
         hosted: hosted(&request.hosted),
-        text: QueryText(request.query.into_text()),
+        text: request.query.into_bundle(),
     }
 }
 
