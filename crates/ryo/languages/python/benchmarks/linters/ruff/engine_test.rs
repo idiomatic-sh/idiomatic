@@ -635,7 +635,7 @@ fn literal_properties_reach_engine_queries_for_true_and_false_boolean_nodes() ->
         .first()
         .ok_or_else(|| Error::Invalid("the true literal should produce a finding".to_owned()))?;
     assert_eq!(finding.rule.as_ref(), "LIT");
-    assert_eq!(finding.file.as_ref(), "true.py");
+    assert_eq!(finding.file.0.as_ref(), "true.py");
     assert_eq!(finding.start.0, 8);
     assert_eq!(finding.end.0, 12);
     Ok(())
