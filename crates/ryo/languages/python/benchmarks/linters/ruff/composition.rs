@@ -50,6 +50,14 @@ pub(crate) fn run(
             writeln!(output, "{count} cases passed against both contestants")?;
             Ok(())
         }
+        Some(constants::VERIFY_REFERENCE_CASES) => {
+            let count = commands::verify_reference_cases(args.map(commands::BenchmarkArgument))?;
+            writeln!(
+                output,
+                "{count} cases matched the reference; no candidate was executed"
+            )?;
+            Ok(())
+        }
         Some(
             constants::MEASURE
             | constants::MEASURE_ACCOUNTED_VALID

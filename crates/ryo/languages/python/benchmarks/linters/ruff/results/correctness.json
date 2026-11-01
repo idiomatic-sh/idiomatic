@@ -2,7 +2,7 @@
   "status": "54-rule corpus comparison passed; configured lint/check/perf gate failed",
   "candidate_acceptance_checkpoint": {
     "status": "unpromoted; current shared-verifier execution pending",
-    "prepared_profiles": 20,
+    "prepared_profiles": 24,
     "combined_profile": {
       "name": "shape-110",
       "selected_rules": 110,
@@ -242,6 +242,46 @@
         "worker_sha256": "270f5ee96ba67f94c85d27de7cad9a50a27a01a4d0a39173144cf66aa661e3c7",
         "artifact": "/tmp/pt010-full-evidence.json",
         "artifact_sha256": "3412142a6aa89d6a939bc1f7da3a0bc44ce20ab77e3be9db8f3e64066fd514e6",
+        "scope_limit": "older-worker isolated evidence only; no current-engine validation or promotion"
+      },
+      {
+        "rule": "PT020",
+        "case_count": 13,
+        "matched_cases": 13,
+        "worker_source": "9003086b",
+        "worker_sha256": "270f5ee96ba67f94c85d27de7cad9a50a27a01a4d0a39173144cf66aa661e3c7",
+        "artifact": "/tmp/pt020-full-evidence.json",
+        "artifact_sha256": "8ff0a52a7b6ad3a58dcda4fda08e8a0529584161888d8e59a0af53f9b455f37c",
+        "scope_limit": "older-worker isolated evidence only; no current-engine validation or promotion"
+      },
+      {
+        "rule": "PT026",
+        "case_count": 16,
+        "matched_cases": 16,
+        "worker_source": "9003086b",
+        "worker_sha256": "270f5ee96ba67f94c85d27de7cad9a50a27a01a4d0a39173144cf66aa661e3c7",
+        "artifact": "/tmp/pt026-full-evidence.json",
+        "artifact_sha256": "06b9053eed5ef69e2aca34812daa260245e77ad53b45c5c5e9282052cc858fca",
+        "scope_limit": "older-worker isolated evidence only; no current-engine validation or promotion"
+      },
+      {
+        "rule": "PT025",
+        "case_count": 15,
+        "matched_cases": 15,
+        "worker_source": "9003086b",
+        "worker_sha256": "270f5ee96ba67f94c85d27de7cad9a50a27a01a4d0a39173144cf66aa661e3c7",
+        "artifact": "/tmp/pt025-full-evidence.json",
+        "artifact_sha256": "c34620b86560b71b99c267e377d5d1fbb15ca53bcf33f391846281bc06645a32",
+        "scope_limit": "older-worker isolated evidence only; no current-engine validation or promotion"
+      },
+      {
+        "rule": "PT031",
+        "case_count": 19,
+        "matched_cases": 19,
+        "worker_source": "9003086b",
+        "worker_sha256": "270f5ee96ba67f94c85d27de7cad9a50a27a01a4d0a39173144cf66aa661e3c7",
+        "artifact": "/tmp/pt031-full-evidence.json",
+        "artifact_sha256": "83eb58033ed0a4986561f2295770b2dbaea0863c007380229be92e4ab1c5cac0",
         "scope_limit": "older-worker isolated evidence only; no current-engine validation or promotion"
       }
     ]

@@ -22,6 +22,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             rows: &[&[
                 want_node(2_147_483_648),
                 want_name("unexpected end of input"),
+                want_name("parse"),
+                want_name("incomplete"),
+                want_name("unspecified"),
                 want_file(SHOWN),
                 want_span((1, 12), (1, 13)),
             ]],
@@ -36,6 +39,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             rows: &[&[
                 want_node(2_147_483_648),
                 want_name("a string a line end breaks before its closing quote"),
+                want_name("parse"),
+                want_name("incomplete"),
+                want_name("unspecified"),
                 want_file(SHOWN),
                 want_span((1, 8), (1, 10)),
             ]],

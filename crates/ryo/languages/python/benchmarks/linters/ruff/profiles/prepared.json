@@ -21,7 +21,11 @@
     "f34ed8288378d2f8f6ba968263e8c6680143b307",
     "33b8fb34708a8b440d04630dbe9b45245204f779",
     "f2e139069ce7168918728c88a1db1b7f2fa22768",
-    "cd60dc4b5fb3ac2153bba7100ab28a1eefb08bde"
+    "cd60dc4b5fb3ac2153bba7100ab28a1eefb08bde",
+    "f0e61a4495bc150abba61ba328896da2b75da022",
+    "5a6fa0c3276c39ef7a4c6cafd6628022832e4320",
+    "1725b85731eec9ca9c90492c090a6904350d775f",
+    "812ffe761265fe35a135dd85fd5a2bbce4a89403"
   ],
   "reference": "Ruff 0.16.5 isolated, no-cache, PY310 selection; complete full-report comparison for each prepared candidate profile",
   "reference_version": "0.16.5",
@@ -32,7 +36,7 @@
     "894431afcb8addcd8e3752e53634fdb0a6f9063153cd62ed730ce59d02878487",
     "29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e"
   ],
-  "scope": "Nineteen independent single-rule candidate profiles and two exact combined snapshots: expanded-defaults seals the 104 active rules and 24 candidates in its original cohort; newer candidates stay outside until a new full-report oracle is prepared.",
+  "scope": "Twenty-four independent single-rule candidate profiles and two exact combined snapshots: expanded-defaults seals the 104 active rules and 24 candidates in its original cohort; newer candidates stay outside until a new full-report oracle is prepared.",
   "profiles": {
     "B009": {
       "selected_rules": [
@@ -705,6 +709,101 @@
         "file-noqa",
         "unicode-prefix"
       ]
+    },
+    "PT020": {
+      "selected_rules": [
+        "PT020"
+      ],
+      "case_count": 13,
+      "case_names": [
+        "basic",
+        "call",
+        "module-alias",
+        "from-import",
+        "from-import-alias",
+        "whitespace-and-parentheses",
+        "wrong-fixture",
+        "shadowed-receiver",
+        "nested-decoy",
+        "inline-noqa",
+        "file-noqa",
+        "unicode-prefix",
+        "nfkc-module-alias"
+      ]
+    },
+    "PT026": {
+      "selected_rules": [
+        "PT026"
+      ],
+      "case_count": 16,
+      "case_names": [
+        "bare",
+        "empty-call",
+        "empty-multiline-call",
+        "module-alias",
+        "from-import-alias",
+        "parenthesized",
+        "with-positional",
+        "with-keyword",
+        "nested-decoy",
+        "wrong-marker",
+        "shadowed-pytest",
+        "inline-noqa",
+        "file-noqa",
+        "unicode-prefix",
+        "nfkc-module-alias",
+        "multiple"
+      ]
+    },
+    "PT025": {
+      "selected_rules": [
+        "PT025"
+      ],
+      "case_count": 15,
+      "case_names": [
+        "fixture-mark",
+        "yield-fixture-mark",
+        "module-aliases",
+        "fixture-only",
+        "mark-on-test-function",
+        "other-mark-on-fixture",
+        "nested-decoy",
+        "wrong-fixture-name",
+        "shadowed-pytest",
+        "from-import-fixture",
+        "from-import-mark-alias",
+        "noqa",
+        "file-noqa",
+        "unicode-prefix",
+        "multiple-marks"
+      ]
+    },
+    "PT031": {
+      "selected_rules": [
+        "PT031"
+      ],
+      "case_count": 19,
+      "case_names": [
+        "single-simple",
+        "multiple-simple",
+        "if-body",
+        "while-body",
+        "for-pass-allowed",
+        "for-ellipsis-allowed",
+        "for-work",
+        "for-multiple",
+        "nested-with-simple",
+        "nested-with-if",
+        "nested-with-multiple",
+        "function-body-allowed",
+        "class-body-allowed",
+        "wrong-context",
+        "module-alias",
+        "shadowed-pytest",
+        "inline-noqa",
+        "file-noqa",
+        "unicode-prefix"
+      ]
     }
   },
   "files": {
@@ -732,6 +831,10 @@
     "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PLR0124/benchmark.toml": "b8a8a5efd9310383e22afef036317cc6b5243ad4b7b15742aa50f28b3a90222d",
     "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PLR0124/oracle.json": "bb34782018a22ddec74502e5dcf820b2648fba2d0775b29d2ce7d2a1fb801e3e",
     "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PT010/benchmark.toml": "316ff06bebc2acdf8900f71f2e43722b9f0a0fdc537fa089692504ad88710374",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PT020/benchmark.toml": "7acb6f22ec6470ffbf8524725f391017af53a6803b83e64fb84342cdbd423d8e",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PT025/benchmark.toml": "9b7792835d2cfcbc84d2953e0ffe2237d2f284b1c8b978dfc55c7e3a28f34e2e",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PT026/benchmark.toml": "506d164908d2709453fbbf4fa14c0bf541f8218db046ba9b2e9b5d7e0e94dd0e",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PT031/benchmark.toml": "bdd0086384ebc35cf5cb1488df4475dc396af06d3ac13c8ae1ba481fdf067f74",
     "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PTH124/benchmark.toml": "d75075f2c552882d0975f065f7f4b02bff93f506358f4c42fe6d4d3a1a2fc4a1",
     "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PTH124/oracle.json": "624d8d63959e4c0b2f7b85578b0514ccfa34fa946055048df88c498fc62f34db",
     "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/SIM220/benchmark.toml": "1ddb79bbc553edc80f81e16c12dd35f4615a918309117167ba09e9b3049db6bc",
@@ -939,6 +1042,14 @@
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PLW1510/query.ryoql": "6576ba6add3eab70462f46f88a7a9ccb8d1fdf740db50b0f34d36d815a8629f8",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PT010/candidate.ryoql": "bfdbf9fdc3bd5d60d8448de109c5e697aba0c4047054a04c7d905899b4fe0b82",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PT010/cases.toml": "5308e22d337892a14bd1c7b67729587a28feb6d40bc66daeb41e36abf9def540",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PT020/candidate.ryoql": "5782f185c6171739c8704e255ae073d3ea8eef07937c7e6ecbbd5d940eb75d0a",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PT020/cases.toml": "839662452768e4a337456286e04f988a380816f525ec90ac29e48f2ecb39bf9a",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PT025/candidate.ryoql": "1b957f53c631f84ccd807575f9e8ce9545ba43b9d075e905bc2984d0da45e154",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PT025/cases.toml": "e978a0388f69d3da59bd0b21616e67e76f1985b5e9dee0d6d9b418f3b7eb5b08",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PT026/candidate.ryoql": "d912dfe812766994cefd2c9530c3ebb9027c037e963872d2824c8f089b51a5ae",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PT026/cases.toml": "f9183291a2ed147e2f6a479e1e803c47d420772c45a782687dc308aa16eb53cf",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PT031/candidate.ryoql": "caed3980b0a20fbedcb9f672fc2e08fe3695d0b333ce6247b597f2cb78a7ad60",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PT031/cases.toml": "aa8dfc059c01636a2e846dcd761f769a640d676bced1c6de6d69c6ce29fbe33f",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PTH124/candidate.ryoql": "5a0be7ffb3c6b9ac2d7e9cab9ec96357a02fc0a0b1162d38659d5a965e05cc06",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PTH124/cases.toml": "ea525d7571a78028450a6063a9cada2c0074641b4f78c8f1386ca5f13fa6e0d9",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PYI001/cases.toml": "de514a2b539eac6a2c9769c36193d62239158baacd21170524eefed1e9fad590",
@@ -1007,7 +1118,7 @@
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/UP025/query.ryoql": "c0df4086e04e879f7221e1289a53e9ff0c1de989f66b9e3d165b04ffae2d8552",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/UP039/cases.toml": "5c585ad82dc2948a2a603957572300b53625d2939f56f9a654fdfa76a1757580",
     "crates/ryo/languages/python/benchmarks/linters/ruff/rules/UP039/query.ryoql": "844388bad03c4653c9d36cfb18816533a4099194427877e7a7209acf42506bee",
-    "crates/ryo/languages/python/benchmarks/linters/ruff/verify_profiles.py": "fafd7b94417483511ae5c3633380c88f41e32e7535e6f765d45e4cb694779b59"
+    "crates/ryo/languages/python/benchmarks/linters/ruff/verify_profiles.py": "b4a0b6379dadc4f155b76b20f47bd1abd129756ac8cbf7326c1c8f44559cecf6"
   },
   "combined_profiles": {
     "shape-110": {

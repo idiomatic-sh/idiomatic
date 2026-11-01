@@ -11,6 +11,8 @@ pub(crate) const PROFILE_RYO: &str = "profile-ryo";
 pub(crate) const MISSING_WORKER_REQUEST: &str = "missing worker request";
 /// Complete profile fixture-verification command.
 pub(crate) const VERIFY_CASES: &str = "verify-cases";
+/// Check authored fixtures with the pinned reference only; never runs a candidate.
+pub(crate) const VERIFY_REFERENCE_CASES: &str = "verify-reference-cases";
 /// Required argument or refusal for expected ruff.
 pub(crate) const EXPECTED_RUFF: &str = "expected Ruff executable";
 /// Stable command, artifact or observation identity for profile directory.
@@ -87,7 +89,7 @@ pub(crate) const VERIFY_TOOL: &str = "verify-tool";
 /// Required argument or refusal for expected executable.
 pub(crate) const EXPECTED_EXECUTABLE: &str = "expected executable path";
 /// CLI usage shown when command dispatch fails.
-pub(crate) const USAGE: &str = "usage: ruff benchmark: audit | verify-tool <executable> | measure <ruff> <fresh-cache> | run-ryo <json>";
+pub(crate) const USAGE: &str = "usage: ruff benchmark: audit | verify-tool <executable> | verify-cases <ruff> [profile] | verify-reference-cases <ruff> [profile] | measure <ruff> <fresh-cache> | run-ryo <json>";
 /// Stable command, artifact or observation identity for ruff directory.
 pub(crate) const RUFF_DIRECTORY: &str = "benchmarks/linters/ruff";
 

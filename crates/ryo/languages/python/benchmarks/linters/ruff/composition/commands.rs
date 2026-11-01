@@ -101,6 +101,34 @@ pub(super) fn verify_cases(
     Ok(count)
 }
 
+/// Validate authored fixture expectations against Ruff without loading a Ryo candidate.
+pub(super) fn verify_reference_cases(
+    mut args: impl Iterator<Item = BenchmarkArgument>,
+) -> Result<ryo_benchmark::domain::suite::types::ReferenceCaseCount, Error> {
+    let suite_source = ryo_benchmark::outbound::suite::factory::local();
+    let execution = ryo_benchmark::outbound::execution::factory::process();
+    let executable = PathBuf::from(
+        args.next()
+            .map(|argument| argument.0)
+            .ok_or_else(|| Error::Invalid(constants::EXPECTED_RUFF.into()))?,
+    )
+    .canonicalize()?;
+    let source = args
+        .next()
+        .map_or_else(directory, |argument| PathBuf::from(argument.0));
+    let tool = suite_source.profile(ArtifactPath(&source))?;
+    suite_source.verify_tool(ArtifactPath(&executable), &tool)?;
+    let reference = reference(executable, tool);
+    let scratch = tempfile::tempdir()?;
+    ryo_benchmark::application::run::service::verify_reference_cases(
+        &suite_source,
+        &reference,
+        &execution,
+        &source.join(constants::RULES_DIRECTORY),
+        scratch.path(),
+    )
+}
+
 /// Compose the selected reference rule subset with its verified executable.
 pub(super) fn reference(executable: PathBuf, tool: Tool) -> LinterRuffAdapter {
     LinterRuffAdapter::new(LinterRuffSettings {

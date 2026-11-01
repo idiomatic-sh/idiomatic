@@ -115,6 +115,60 @@ pub fn verify(
     }
 }
 
+/// Check independently authored cases against only the reference executable.
+///
+/// This is useful while preparing or auditing expected fixtures, when a candidate
+/// query may not yet compile. It does not compare a candidate and cannot produce a
+/// correctness certificate.
+///
+/// # Errors
+/// Refuses missing cases, reference launch failures, or differences from authored findings.
+pub fn verify_reference_cases(
+    suite: &dyn SuitePort,
+    reference: &dyn LinterPort,
+    execution: &dyn ExecutionPort,
+    rules: &Path,
+    scratch: &Path,
+) -> Result<crate::domain::suite::types::ReferenceCaseCount, Error> {
+    let cases = suite.cases(
+        crate::outbound::suite::types::ArtifactPath(rules),
+        crate::outbound::suite::types::ArtifactPath(scratch),
+    )?;
+    let count = cases.len();
+    if cases.is_empty() {
+        return Err(Error::Invalid(super::constants::NO_CASES.into()));
+    }
+    let mut failures = Vec::new();
+    for case in cases {
+        match run(reference, execution, &case.request) {
+            Ok(mut result) => {
+                if case.comparison == crate::domain::suite::types::CaseComparison::Rule {
+                    result.report.diagnostics.retain(|finding| {
+                        finding.rule == case.rule
+                            || finding.rule.0.as_ref()
+                                == crate::domain::diagnostics::constants::FRONTEND_SYNTAX
+                    });
+                }
+                if let Err(difference) = compare(&case.expected, &result.report) {
+                    failures.push(format!(
+                        "{}/{} expected-vs-reference: expected={:?}; actual={:?}",
+                        case.rule, case.name, difference.reference, difference.candidate
+                    ));
+                }
+            }
+            Err(error) => failures.push(format!("{}/{} reference: {error}", case.rule, case.name)),
+        }
+    }
+    if failures.is_empty() {
+        Ok(crate::domain::suite::types::ReferenceCaseCount(count))
+    } else {
+        Err(Error::Invalid(format!(
+            "{count} reference-only cases checked; failures:\n{}",
+            failures.join(super::constants::LINE_SEPARATOR)
+        )))
+    }
+}
+
 /// Verify a complete accounted profile before either contestant can execute a case.
 ///
 /// # Errors

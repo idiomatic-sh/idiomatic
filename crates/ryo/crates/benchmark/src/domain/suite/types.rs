@@ -373,6 +373,16 @@ pub struct CaseCount(
     pub usize,
 );
 
+/// Number of cases checked against a reference tool without running a candidate.
+///
+/// This result is intentionally distinct from `CaseCount`: reference-only checking
+/// validates fixture expectations but cannot certify candidate behavior.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ReferenceCaseCount(
+    /// Number of independently authored cases checked against the reference.
+    pub usize,
+);
+
 /// Number of rules in a pinned coverage inventory.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RuleCount(
@@ -385,6 +395,11 @@ impl std::fmt::Display for RuleCount {
     }
 }
 impl std::fmt::Display for CaseCount {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+impl std::fmt::Display for ReferenceCaseCount {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.0.fmt(f)
     }

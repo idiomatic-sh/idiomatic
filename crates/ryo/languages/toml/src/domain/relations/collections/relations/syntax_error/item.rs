@@ -16,10 +16,13 @@ ryo::reads! {
         kinds: [Kind::Node(Node::Toml)] as kind_bits,
         require (is_root(tree, at) == Rootness::Root);
         each (languages::diagnostics(tree.elements)) as (number, diagnostic) {
+            given phase = languages::intern_derived(symbols, tree.source, languages::NameText("parse"));
+            given impact = languages::intern_derived(symbols, tree.source, languages::NameText("incomplete"));
+            given code = languages::intern_derived(symbols, tree.source, languages::NameText("unspecified"));
             row {
                 id: value(diagnostic_id(tree, number)),
                 message: value(diagnostic_message(tree, symbols, &diagnostic)),
-                file: file,
+                phase: value(phase), impact: value(impact), code: value(code), file: file,
                 span: value(diagnostic_span(&diagnostic)),
             }
         }

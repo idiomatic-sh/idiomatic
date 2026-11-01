@@ -121,7 +121,7 @@ def profile_tool_matches(profile_data: dict[str, object], manifest: dict[str, ob
     )
 
 
-def command_for(ruff: Path, profile_root: Path) -> list[str]:
+def command_for(ruff: Path, profile_root: Path, reference_only: bool = False) -> list[str]:
     return [
         "cargo",
         "bench",
@@ -131,7 +131,7 @@ def command_for(ruff: Path, profile_root: Path) -> list[str]:
         "--bench",
         "ruff",
         "--",
-        "verify-cases",
+        "verify-reference-cases" if reference_only else "verify-cases",
         str(ruff),
         str(profile_root),
     ]
@@ -405,8 +405,24 @@ def self_test() -> int:
         fake_bin.mkdir()
         marker = root / "cargo-was-started"
         fake_cargo = fake_bin / "cargo"
-        fake_cargo.write_text(f"#!/bin/sh\nprintf started > {marker}\n", encoding="utf-8")
+        fake_cargo.write_text(f"#!/bin/sh\nprintf '%s\\n' \"$*\" >> {marker}\n", encoding="utf-8")
         fake_cargo.chmod(0o755)
+        reference_only = subprocess.run(
+            [sys.executable, str(helper), ruff, "--reference-only", "F401"],
+            capture_output=True,
+            text=True,
+            check=False,
+            env={**os.environ, "PATH": f"{fake_bin}:{os.environ['PATH']}"},
+        )
+        invocations = marker.read_text().splitlines() if marker.exists() else []
+        if (
+            reference_only.returncode != 0
+            or len(invocations) != 1
+            or "verify-reference-cases" not in invocations[0]
+        ):
+            print("reference-only mode did not dispatch the reference verifier", file=sys.stderr)
+            return 1
+        marker.unlink()
         invalid_rule_manifest = json.loads(json.dumps(pristine_manifest))
         invalid_rule_manifest["combined_profiles"]["expanded-defaults"]["selected_rules"].append(
             "NOT-SHIPPED"
@@ -623,6 +639,7 @@ def main() -> int:
     parser.add_argument("ruff", type=Path, nargs="?", help="pinned Ruff executable")
     parser.add_argument("rules", nargs="*", help="optional rule IDs; default: every prepared profile")
     parser.add_argument("--profile", help="run one named combined prepared profile")
+    parser.add_argument("--reference-only", action="store_true", help="check sealed expected findings with Ruff only")
     parser.add_argument("--self-test", action="store_true", help="exercise fail-closed profile guards without running Cargo")
     arguments = parser.parse_args()
     if arguments.self_test:
@@ -654,13 +671,14 @@ def main() -> int:
                 staged.append(stage_combined(arguments.profile, descriptor, manifest, stack))
             else:
                 staged.extend(stage_binding(manifest, selections, stack))
-                for name, descriptor in sorted(manifest.get("combined_profiles", {}).items()):
-                    staged.append(stage_combined(name, descriptor, manifest, stack))
+                if not arguments.rules:
+                    for name, descriptor in sorted(manifest.get("combined_profiles", {}).items()):
+                        staged.append(stage_combined(name, descriptor, manifest, stack))
             statuses = []
             for name, profile_root in staged:
                 try:
                     result = subprocess.run(
-                        command_for(ruff, profile_root),
+                        command_for(ruff, profile_root, arguments.reference_only),
                         cwd=REPOSITORY / "crates" / "ryo",
                         check=False,
                     )
