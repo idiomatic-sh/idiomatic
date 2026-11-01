@@ -121,6 +121,7 @@ pub(crate) fn delete(state: &mut BindingEnvironments, frame: BindingFrameId, key
 }
 
 /// Preserve a known uncertainty without inventing a binding candidate.
+#[cfg(test)]
 pub(crate) fn uncertain(state: &mut BindingEnvironments, frame: BindingFrameId, key: BindingKey) {
     let value = lookup(state, frame, key)
         .cloned()
