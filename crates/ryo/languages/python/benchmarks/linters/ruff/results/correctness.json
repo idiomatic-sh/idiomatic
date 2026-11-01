@@ -6284,5 +6284,11 @@
     "measurement_method": "Pinned isolated helper reports actual child wall (spawn through wait and pipe collection), user+system CPU and peak RSS. Helper startup/IPC, hashing and normalization excluded. Roughly2MiB inherited pre-exec floor remains. Each accepted trial passed edited-vs-independent-fresh comparison before publication.",
     "baseline_seeded": false,
     "gate_status": "Configured full lint/check/performance gate not passed; source corrections remain under validation. No failed or unknown tool was accepted or rebaselined."
+  },
+  "pending_engine_batch": {
+    "source_commit": "1b4bf59863",
+    "capability": "optional literal-properties relation; Python reads parser-owned literal type, zero/empty/boolean flags while other providers and the scaffold explicitly remain NotYetRead",
+    "status": "integrated source and focused tests; remote compile, provider contracts, SDK API and replay validation pending",
+    "measured_rules_changed": false
   }
 }
