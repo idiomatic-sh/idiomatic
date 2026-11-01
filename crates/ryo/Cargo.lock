@@ -1250,7 +1250,7 @@ checksum = "ae293c039020f9ec10710af98d29ce6aa2051486638b49c9a6409f3b4a9e98ad"
 
 [[package]]
 name = "idiomatic-sh-ryo"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "anstream 1.0.0",
  "clap",
@@ -1293,7 +1293,7 @@ dependencies = [
 
 [[package]]
 name = "idiomatic-sh-ryo-core"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "blake3",
  "cargo_metadata",
@@ -1323,7 +1323,7 @@ dependencies = [
 
 [[package]]
 name = "idiomatic-sh-ryo-css"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "cssparser",
  "dhat",
@@ -1335,7 +1335,7 @@ dependencies = [
 
 [[package]]
 name = "idiomatic-sh-ryo-go"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "dhat",
  "divan",
@@ -1351,7 +1351,7 @@ dependencies = [
 
 [[package]]
 name = "idiomatic-sh-ryo-html"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "dhat",
  "divan",
@@ -1367,7 +1367,7 @@ dependencies = [
 
 [[package]]
 name = "idiomatic-sh-ryo-javascript"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "dhat",
  "divan",
@@ -1390,7 +1390,7 @@ dependencies = [
 
 [[package]]
 name = "idiomatic-sh-ryo-json"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "dhat",
  "divan",
@@ -1404,7 +1404,7 @@ dependencies = [
 
 [[package]]
 name = "idiomatic-sh-ryo-language"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "cargo_metadata",
  "cucumber",
@@ -1421,7 +1421,7 @@ dependencies = [
 
 [[package]]
 name = "idiomatic-sh-ryo-markdown"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "dhat",
  "divan",
@@ -1433,7 +1433,7 @@ dependencies = [
 
 [[package]]
 name = "idiomatic-sh-ryo-python"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "dhat",
  "divan",
@@ -1451,7 +1451,7 @@ dependencies = [
 
 [[package]]
 name = "idiomatic-sh-ryo-query_language"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "cargo_metadata",
  "cucumber",
@@ -1465,7 +1465,7 @@ dependencies = [
 
 [[package]]
 name = "idiomatic-sh-ryo-rust"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "cargo-platform",
  "dhat",
@@ -1489,7 +1489,7 @@ dependencies = [
 
 [[package]]
 name = "idiomatic-sh-ryo-sdk"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "divan",
  "idiomatic-sh-ryo-core",
@@ -1504,7 +1504,7 @@ dependencies = [
 
 [[package]]
 name = "idiomatic-sh-ryo-toml"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "dhat",
  "divan",
@@ -1517,7 +1517,7 @@ dependencies = [
 
 [[package]]
 name = "idiomatic-sh-ryo-typescript"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "dhat",
  "divan",
@@ -1541,7 +1541,7 @@ dependencies = [
 
 [[package]]
 name = "idiomatic-sh-ryo-values"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "idiomatic-sh-ryo-language",
  "idiomatic-sh-ryo-values",
