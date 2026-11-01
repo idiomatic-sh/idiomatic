@@ -92,8 +92,7 @@ pub(crate) fn classify(tree: &Tree<'_>, at: Position) -> Classification {
         return Classification::NotPrimitive;
     }
 
-    // Bytes and text share the parser's string-literal AST shape; scalar kind wins so bytes
-    // use their decoded byte payload rather than the text-token decoder.
+    // Keep typed bytes separate from decoded text, even though both are constant expressions.
     let scalar_kind = payload(tree, at, SCALAR_KIND);
     if scalar_kind == Some(BYTES_SCALAR) {
         return payload(tree, at, SCALAR_VALUE).map_or(Classification::MissingPayload, |value| {
@@ -138,10 +137,6 @@ pub(crate) fn classify(tree: &Tree<'_>, at: Position) -> Classification {
             .and_then(|value| value.parse::<bool>().ok())
             .map_or(Classification::MissingPayload, |boolean| {
                 flag("boolean", false, false, boolean)
-            }),
-        BYTES_SCALAR => payload(tree, at, SCALAR_VALUE)
-            .map_or(Classification::MissingPayload, |value| {
-                flag("bytes", false, value.is_empty(), false)
             }),
         NONE_SCALAR => flag("null", false, false, false),
         ELLIPSIS_SCALAR => flag("ellipsis", false, false, false),
