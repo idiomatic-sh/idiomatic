@@ -16,7 +16,12 @@ let imported_mock_modules = select l.alias as alias, r.file as file from aliases
 let imported_mock_files = group-count(from=imported_mock_modules, keys=["file"], count="count", distinct="alias");
 let qualified_mock_mock = select id, file from "qualified-name" where path = "mock.mock";
 let mock_mock_values = select l.id as id, l.file as file from qualified_mock_mock as l join imported_mock_files as r on l.file = r.file;
-let attribute_reports = select l.id as id, l.file as file, r.span as span from mock_mock_values as l join "semantic-syntax" as r on l.id = r.id and l.file = r.file;
+let name_nodes = select id, file from "semantic-syntax" where kind = "name";
+let attribute_value_fields = select parent as attribute, child as base from "semantic-child" where field = "value";
+let attribute_base_names = select l.attribute as attribute, r.id as name, r.file as file from attribute_value_fields as l join name_nodes as r on l.base = r.id;
+let named_base_attributes = select l.attribute as attribute, l.file as file from attribute_base_names as l join "identifier" as r on l.name = r.id and l.file = r.file where r.name = "mock";
+let reportable_mock_attributes = select l.id as id, l.file as file from mock_mock_values as l join named_base_attributes as r on l.id = r.attribute and l.file = r.file;
+let attribute_reports = select l.id as id, l.file as file, r.span as span from reportable_mock_attributes as l join "semantic-syntax" as r on l.id = r.id and l.file = r.file;
 let import_reports = union(left=direct_imports,right=absolute_from_imports);
 let reportable = union(left=import_reports,right=attribute_reports);
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id and l.file = r.file;
