@@ -30,7 +30,7 @@ let cataloged_names = select l.reference as reference, l.file as file from funct
 let cataloged_calls = select l.call as call, l.reference as reference, l.file as file from direct_typed_calls as l join cataloged_names as r on l.reference = r.reference and l.file = r.file;
 let candidates = select l.call as call, l.reference as reference, l.file as file, r.span as span from cataloged_calls as l join calls as r on l.call = r.id and l.file = r.file;
 let read_events = select occurrence as id, name, scope, phase, ordinal, file from "binding-event" where kind = "read";
-let anchored = select l.call as call, l.reference as reference, l.file as file, l.span as span, r.scope as scope, r.phase as phase, r.ordinal as ordinal from candidates as l join read_events as r on l.reference = r.id and l.file = r.file where r.name = "type";
+let anchored = select l.reference as id, l.call as call, l.reference as reference, l.file as file, l.span as span, r.scope as scope, r.phase as phase, r.ordinal as ordinal from candidates as l join read_events as r on l.reference = r.id and l.file = r.file where r.name = "type";
 let scopes = select id, file from "scope";
 let scope_ancestors = axis(from=anchored, relation="semantic-child", direction=ancestor, domain=scopes);
 let visible_scopes = select l.call as call, l.reference as reference, l.file as file, l.span as span, r.related as lookup_scope, l.phase as phase, l.ordinal as ordinal from anchored as l join scope_ancestors as r on l.reference = r.id and l.file = r.file;
