@@ -103,8 +103,10 @@ fn subject(question: Input) -> Result<Value, Failure> {
     #[cfg(unix)]
     std::os::unix::fs::symlink(directory.path().join("secret"), product.join("out"))
         .expect("a link");
-    #[cfg(not(unix))]
-    std::fs::write(product.join("out"), "").expect("a stand-in where links need privileges");
+    // The Windows runner holds the privilege a symbolic link needs.
+    #[cfg(windows)]
+    std::os::windows::fs::symlink_file(directory.path().join("secret"), product.join("out"))
+        .expect("a link");
     let root = ProductRoot(product.display().to_string().into());
     let source = RepoPath("src/a.rs".into());
     Ok(match question {

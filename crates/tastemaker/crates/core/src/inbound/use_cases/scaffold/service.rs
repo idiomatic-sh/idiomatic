@@ -29,7 +29,8 @@ pub(super) fn instance_at(
     workspace: &Workspace,
     request: &ScaffoldRequest,
 ) -> Result<RepoPath, ScaffoldError> {
-    if std::path::Path::new(&*request.at.0).is_absolute() {
+    // Rooted, not only absolute: Windows calls `/outside` neither absolute nor relative.
+    if std::path::Path::new(&*request.at.0).has_root() {
         return Err(ScaffoldError::InvalidPath {
             path: request.at.0.to_string(),
         });

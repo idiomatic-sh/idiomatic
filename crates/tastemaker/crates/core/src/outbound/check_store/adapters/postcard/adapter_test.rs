@@ -78,7 +78,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Fails,
         input: || Scenario::UnderAFile,
         expect: Expect::Refusal(|error| {
-            if matches!(error, CheckStoreError::Unwritable { file, reason } if file.contains("/file/") && !reason.is_empty())
+            if matches!(error, CheckStoreError::Unwritable { file, reason } if std::path::Path::new(file).components().any(|part| part.as_os_str() == "file") && !reason.is_empty())
             {
                 crate::cases::Selection::Matches
             } else {

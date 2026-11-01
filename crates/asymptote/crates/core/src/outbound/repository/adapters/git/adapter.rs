@@ -64,8 +64,15 @@ fn from_top(root: &ProductRoot, top: &Path) -> Result<RepoPath, RepositoryError>
             .map_err(|error| RepositoryError::Failed {
                 reason: error.to_string(),
             })?;
+    // Both sides canonical: git prints its top in its own form (on Windows `C:/Users/...`), never a short name or a
+    // link, which the product's root may be written in.
+    let top = top
+        .canonicalize()
+        .map_err(|error| RepositoryError::Failed {
+            reason: error.to_string(),
+        })?;
     let beneath = canonical
-        .strip_prefix(top)
+        .strip_prefix(&top)
         .map_err(|error| RepositoryError::Failed {
             reason: format!("`{}` is not beneath `{}`: {error}", root.0, top.display()),
         })?;

@@ -191,18 +191,25 @@ fn subject(question: Input) -> Result<Value, Failure> {
             let stored = checked();
             adapter.keep(&stored)?;
             let before = std::fs::read(cache.join(FILE)).expect("the store");
-            let mut permissions = std::fs::metadata(&cache)
-                .expect("the directory")
+            // What cannot be written: the directory on unix, where a file is replaced through it; the store itself on
+            // Windows, where a read-only file cannot be replaced and a directory's read-only flag holds nothing back.
+            let locked = if cfg!(windows) {
+                cache.join(FILE)
+            } else {
+                cache.clone()
+            };
+            let mut permissions = std::fs::metadata(&locked)
+                .expect("the store's place")
                 .permissions();
             permissions.set_readonly(true);
-            std::fs::set_permissions(&cache, permissions.clone()).expect("a read-only directory");
+            std::fs::set_permissions(&locked, permissions.clone()).expect("a read-only place");
             let refused = adapter.keep(&Stored::default());
             #[expect(
                 clippy::permissions_set_readonly_false,
                 reason = "the temporary directory is made writable again so it can be removed"
             )]
             permissions.set_readonly(false);
-            std::fs::set_permissions(&cache, permissions).expect("a writable directory");
+            std::fs::set_permissions(&locked, permissions).expect("a writable place");
             assert!(
                 matches!(refused, Err(CheckStoreError::Unwritable { .. })),
                 "a store that cannot be written fails the write"

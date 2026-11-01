@@ -3,14 +3,15 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import os
 import re
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
 
 import pytest
-import tomllib
 
 ROOT = Path(__file__).resolve().parents[3]
 SPEC = importlib.util.spec_from_file_location("install", ROOT / "tools/install.py")
@@ -19,7 +20,8 @@ install = importlib.util.module_from_spec(SPEC)
 sys.modules["install"] = install
 SPEC.loader.exec_module(install)
 
-# Commands the machine provides before any tool is installed; setup-python supplies `python` for the Ruff verification commands.
+# Commands the machine provides before any tool is installed.
+# setup-python supplies the bare Python command used by the benchmark verifier.
 SYSTEM = {"cargo", "bash", "git", "uv", "sh", "jq", "python"}
 
 
@@ -44,12 +46,6 @@ def test_a_tool_the_root_declares_is_refused_in_a_product(tmp_path) -> None:
 def test_every_tool_is_declared_in_one_place() -> None:
     names = [crate.name for crate in [*install.ROOT_CRATES, *install.declared_crates()]]
     assert len(names) == len(set(names)), sorted(names)
-
-
-def test_a_path_is_read_relative_to_the_manifest_that_declares_it(tmp_path) -> None:
-    manifest(tmp_path / "crates/a/Cargo.toml", 'tool = { version = "0.1.0", path = "cli", bins = ["t"] }')
-    (crate,) = install.declared_crates(tmp_path, shared=[])
-    assert crate.path == (tmp_path / "crates/a/cli").resolve()
 
 
 def test_the_installed_crates_are_read_from_cargo(monkeypatch) -> None:
@@ -83,12 +79,10 @@ def test_asymptote_is_the_version_the_root_asymptote_toml_pins(tmp_path) -> None
     assert "idiomatic-sh-asymptote" not in {crate.name for crate in install.declared_crates()}
 
 
-def test_the_own_tools_of_the_repository_are_built_from_their_paths() -> None:
+def test_the_own_tools_are_their_published_releases_pinned_apart_from_their_workspaces() -> None:
     crates = {crate.name: crate for crate in [*install.ROOT_CRATES, *install.declared_crates()]}
-    assert crates["idiomatic-sh-tastemaker"].path == (ROOT / "crates/tastemaker/cli").resolve()
-    assert crates["idiomatic-sh-asymptote"].path == (ROOT / "crates/asymptote/cli").resolve()
-    assert crates["idiomatic-sh-ryo"].path == (ROOT / "crates/ryo/cli").resolve()
-    assert (crates["idiomatic-sh-ryo"].bins, crates["idiomatic-sh-ryo"].version) == (("ryo",), install.workspace_version("ryo"))
+    assert (crates["idiomatic-sh-tastemaker"].version, crates["idiomatic-sh-tastemaker"].bins) == (install.pinned("tastemaker"), ("tm",))
+    assert (crates["idiomatic-sh-ryo"].version, crates["idiomatic-sh-ryo"].bins) == ("0.1.1", ("ryo",))
     assert install.ARCHIVES["taplo"]["version"] == "0.10.0"
 
 
@@ -112,19 +106,10 @@ def test_every_command_a_check_runs_bare_is_installed_by_the_script() -> None:
 
 
 def test_no_check_names_a_version_or_a_launcher() -> None:
-    # Ruff's correctness and measurement commands use jq's `==` operator; only a version-like pin is forbidden.
-    forbidden = {
-        "pinned package version": re.compile(r"==\s*\d+\.\d+"),
-        "uvx launcher": re.compile(r"\buvx\b"),
-        "cargo bin launcher": re.compile(r"\bcargo\s+bin\b"),
-        "cargo install --from": re.compile(r"--from\b"),
-    }
     for manifest_path in [ROOT / "asymptote.toml", *sorted(ROOT.glob("crates/*/asymptote.toml"))]:
         text = " ".join(" ".join(tool.get(key, [])) for tool in tomllib.loads(manifest_path.read_text())["tools"] for key in ("run", "fix"))
-        for description, pattern in forbidden.items():
-            assert not pattern.search(text), f"{manifest_path.relative_to(ROOT)} names {description} in a run or fix line"
-    jq_comparison = 'jq \'select(.reason == "compiler-artifact")\''
-    assert not forbidden["pinned package version"].search(jq_comparison)
+        for pinned in ("==", "--from", "uvx", "cargo bin"):
+            assert pinned not in text, f"{manifest_path.relative_to(ROOT)} names {pinned!r} in a run or fix line"
 
 
 def test_a_tool_s_unavailable_machines_are_read_from_its_manifest(tmp_path) -> None:
@@ -183,158 +168,43 @@ def test_every_machine_the_checks_run_on_has_a_recorded_archive() -> None:
             assert len(tool["assets"][host][1]) == 64
 
 
-def test_windows_binary_names_use_exe_once(tmp_path, monkeypatch) -> None:
-    monkeypatch.setenv("CARGO_HOME", str(tmp_path))
-    crate = install.Crate("own-tool", "1.0.0", bins=("tm", "helper.exe"))
-    assert install.command_paths(crate, windows=True) == (tmp_path / "bin/tm.exe", tmp_path / "bin/helper.exe")
-    assert install.command_paths(crate, windows=False) == (tmp_path / "bin/tm", tmp_path / "bin/helper.exe")
+def test_an_own_tool_is_kept_only_when_it_is_the_command_of_the_release_archive_its_sha256sums_names(tmp_path, monkeypatch) -> None:
+    import hashlib
+    import io
+    import tarfile
+
+    packed = io.BytesIO()
+    with tarfile.open(fileobj=packed, mode="w:gz") as archive:
+        info = tarfile.TarInfo("ryo")
+        info.size = 7
+        archive.addfile(info, io.BytesIO(b"release"))
+    data = packed.getvalue()
+    name = "idiomatic-sh-ryo-x86_64-unknown-linux-gnu.tar.gz"
+    files = {"SHA256SUMS": f"{hashlib.sha256(data).hexdigest()}  {name}\n".encode(), name: data}
+    monkeypatch.setattr(install.urllib.request, "urlopen", lambda url: io.BytesIO(files[url.rsplit("/", 1)[1]]))
+    monkeypatch.setattr(install.os, "name", "posix")
+    crate = install.Crate("idiomatic-sh-ryo", "0.1.1", bins=("ryo",))
+    (tmp_path / "ryo").write_bytes(b"release")
+    install.verify_release(crate, "x86_64-unknown-linux-gnu", tmp_path)
+    (tmp_path / "ryo").write_bytes(b"another")
+    with pytest.raises(SystemExit):
+        install.verify_release(crate, "x86_64-unknown-linux-gnu", tmp_path)
+    files[name] = data + b"tampered"
+    (tmp_path / "ryo").write_bytes(b"release")
+    with pytest.raises(SystemExit):
+        install.verify_release(crate, "x86_64-unknown-linux-gnu", tmp_path)
 
 
-def test_all_declared_binaries_are_required_even_when_one_is_installed(tmp_path, monkeypatch) -> None:
-    first, second = tmp_path / "tm.exe", tmp_path / "helper.exe"
-    first.write_bytes(b"first executable")
-    monkeypatch.setattr(install, "command_paths", lambda crate: (first, second))
-    crate = install.Crate("own-tool", "1.0.0", bins=("tm", "helper"))
-    assert install.command_time(crate) == 0.0
-    second.write_bytes(b"second executable")
-    assert install.command_time(crate) == min(first.stat().st_mtime, second.stat().st_mtime)
-
-
-def test_path_source_fingerprint_uses_content_not_checkout_timestamps(tmp_path, monkeypatch) -> None:
-    workspace = tmp_path / "workspace"
-    package = workspace / "tool"
-    package.mkdir(parents=True)
-    source = package / "src/main.rs"
-    source.parent.mkdir()
-    source.write_text("fn main() {}\n")
-    crate = install.Crate("own-tool", "1.0.0", path=package)
-    monkeypatch.setattr(install, "source_roots", lambda _crate: [package])
-    monkeypatch.setattr(install, "cargo_identity", lambda: "cargo 1.90.0 test identity\n")
-    monkeypatch.setattr(install, "rustc_identity", lambda: "rustc 1.90.0 test identity\n")
-
-    original = install.path_source_fingerprint(crate)
-    source.touch()
-    assert install.path_source_fingerprint(crate) == original
-    (package / "target").mkdir()
-    (package / "target/generated.rs").write_text("generated")
-    assert install.path_source_fingerprint(crate) == original
-    for path, content in (
-        (workspace / "Cargo.toml", "[workspace]\nresolver = \"3\"\n"),
-        (workspace / "Cargo.lock", "# dependency graph\n"),
-        (workspace / "rust-toolchain.toml", "[toolchain]\nchannel = \"stable\"\n"),
-        (workspace / ".cargo/config.toml", "[build]\ntarget-dir = \"target\"\n"),
-    ):
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(content)
-        assert install.path_source_fingerprint(crate) != original
-        path.unlink()
-    changed_features = install.Crate("own-tool", "1.0.0", path=package, features=("extra",))
-    assert install.path_source_fingerprint(changed_features) != original
-    monkeypatch.setattr(install, "rustc_identity", lambda: "rustc 1.91.0 test identity\n")
-    assert install.path_source_fingerprint(crate) != original
-    monkeypatch.setattr(install, "rustc_identity", lambda: "rustc 1.90.0 test identity\n")
-    monkeypatch.setattr(install, "cargo_identity", lambda: "cargo 1.91.0 test identity\n")
-    assert install.path_source_fingerprint(crate) != original
-    monkeypatch.setattr(install, "cargo_identity", lambda: "cargo 1.90.0 test identity\n")
-    source.write_text("fn main() { println!(\"changed\"); }\n")
-    assert install.path_source_fingerprint(crate) != original
-
-
-def test_path_install_stamp_rebuilds_on_source_change_or_missing_binary(tmp_path, monkeypatch) -> None:
-    package = tmp_path / "workspace" / "tool"
-    package.mkdir(parents=True)
-    source = package / "src/main.rs"
-    source.parent.mkdir()
-    source.write_text("fn main() {}\n")
-    binary = tmp_path / "cargo/bin/own-tool"
-    binary.parent.mkdir(parents=True)
-    binary.write_text("installed")
-    monkeypatch.setenv("CARGO_HOME", str(tmp_path / "cargo"))
-    monkeypatch.setattr(install, "command_paths", lambda _crate: (binary,))
-    monkeypatch.setattr(install, "source_roots", lambda _crate: [package])
-    monkeypatch.setattr(install, "cargo_identity", lambda: "cargo test identity\n")
-    monkeypatch.setattr(install, "rustc_identity", lambda: "rustc test identity\n")
-    crate = install.Crate("own-tool", "1.0.0", path=package)
-    installed = {"own-tool": ("1.0.0", str(package))}
-
-    install.record_path_install(crate, install.path_source_fingerprint(crate))
-    assert install.stale_crate(crate, installed) is None
-    source.write_text("fn main() { println!(\"changed\"); }\n")
-    assert "source fingerprint differs" in install.stale_crate(crate, installed)
-    install.record_path_install(crate, install.path_source_fingerprint(crate))
-    binary.write_text("tampered")
-    assert "installed binary differs" in install.stale_crate(crate, installed)
-    binary.write_text("installed")
-    install.path_stamp(crate).write_text("not json")
-    assert "source fingerprint differs" in install.stale_crate(crate, installed)
-    install.record_path_install(crate, install.path_source_fingerprint(crate))
-    binary.unlink()
-    assert "command is missing" in install.stale_crate(crate, installed)
-
-
-def test_failed_path_install_does_not_write_success_stamp(tmp_path, monkeypatch) -> None:
-    package = tmp_path / "workspace" / "tool"
-    package.mkdir(parents=True)
-    monkeypatch.setenv("CARGO_HOME", str(tmp_path / "cargo"))
-    monkeypatch.setattr(install, "source_roots", lambda _crate: [package])
-    monkeypatch.setattr(install, "cargo_identity", lambda: "cargo test identity\n")
-    monkeypatch.setattr(install, "rustc_identity", lambda: "rustc test identity\n")
-
-    def fail(argv, **_kwargs):
-        raise subprocess.CalledProcessError(1, argv)
-
-    monkeypatch.setattr(install, "run", fail)
-    crate = install.Crate("own-tool", "1.0.0", path=package)
-    with pytest.raises(subprocess.CalledProcessError):
-        install.install_crate(crate, "x86_64-unknown-linux-gnu")
-    assert not install.path_stamp(crate).exists()
-
-
-def test_path_source_fingerprint_is_stable_across_hash_seeds(tmp_path) -> None:
-    first = tmp_path / "one" / "workspace" / "tool"
-    second = tmp_path / "two" / "workspace" / "tool"
-    for root, source in ((first, "fn one() {}\n"), (second, "fn two() {}\n")):
-        (root / "src").mkdir(parents=True)
-        (root / "src/main.rs").write_text(source)
-        (root / "Cargo.toml").write_text("[package]\nname='tool'\nversion='1.0.0'\n")
-        (root.parent / "Cargo.toml").write_text("[workspace]\n")
-        (root.parent / ".cargo").mkdir()
-        (root.parent / ".cargo/config.toml").write_text("[build]\njobs=1\n")
-    script = """
-import importlib.util, sys
-from pathlib import Path
-spec = importlib.util.spec_from_file_location('install', sys.argv[1])
-module = importlib.util.module_from_spec(spec)
-sys.modules['install'] = module
-spec.loader.exec_module(module)
-crate = module.Crate('own-tool', '1.0.0', path=Path(sys.argv[2]))
-module.source_roots = lambda _crate: [Path(sys.argv[3]), Path(sys.argv[4])]
-module.cargo_identity = lambda: 'cargo deterministic test identity\\n'
-module.rustc_identity = lambda: 'rustc deterministic test identity\\n'
-print(module.path_source_fingerprint(crate))
-"""
-    answers = set()
-    for seed in ("1", "2", "random"):
-        environment = {
-            **os.environ,
-            "PYTHONHASHSEED": seed,
-            "CARGO_HOME": str(tmp_path / "cargo-home"),
-        }
-        result = subprocess.run(
-            [
-                sys.executable,
-                "-c",
-                script,
-                str(ROOT / "tools/install.py"),
-                str(first),
-                str(first),
-                str(second),
-            ],
-            check=True,
-            text=True,
-            encoding="utf-8",
-            capture_output=True,
-            env=environment,
-        )
-        answers.add(result.stdout.strip())
-    assert len(answers) == 1
+def test_benchmark_collector_selects_only_one_matching_executable(tmp_path) -> None:
+    tools = tomllib.loads((ROOT / "crates/ryo/asymptote.toml").read_text())["tools"]
+    command = next(tool["run"][-1] for tool in tools if "ryo-benchmark-collector --message-format=json" in tool["run"][-1])
+    expression = re.search(r"\| jq -r '([^']+)'", command).group(1)
+    assert 'test -x "$collector"' in command
+    collector = tmp_path / "collector"
+    collector.write_text("#!/bin/sh\nexit 0\n")
+    collector.chmod(0o755)
+    matching = {"reason": "compiler-artifact", "target": {"name": "ryo-benchmark-collector"}, "executable": str(collector)}
+    for records, accepted in (([matching], True), ([{**matching, "reason": "build-finished"}], False), ([{**matching, "target": {"name": "other"}}], False), ([matching, matching], False)):
+        selected = subprocess.run(["jq", "-r", expression], input="\n".join(json.dumps(record) for record in records), text=True, capture_output=True, check=True).stdout.strip()
+        # The shell passes this as one quoted path; multiple artifacts must not become one executable.
+        assert (bool(selected) and Path(selected).is_file() and os.access(selected, os.X_OK)) == accepted

@@ -158,8 +158,9 @@ fn lay_out(root: &std::path::Path, input: &str) -> Result<(), Failure> {
         .nth(4)
         .ok_or("repository root is unavailable")?
         .join("tastemaker");
+    // The package's path as a TOML literal string: a Windows path's backslashes are no escapes there.
     let mut workspace = format!(
-        "workspace={{name=\"scene\",dependencies=[{{package=\"idiomatic.arch\",path=\"{}\"}},{{package=\"p\",path=\"p\"}}]}}\nclosed=false\n",
+        "workspace={{name=\"scene\",dependencies=[{{package=\"idiomatic.arch\",path='{}'}},{{package=\"p\",path=\"p\"}}]}}\nclosed=false\n",
         package.display()
     );
     let local = root.join("p");

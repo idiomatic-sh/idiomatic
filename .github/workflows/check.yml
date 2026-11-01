@@ -1,6 +1,6 @@
 # The check workflow on GitHub Actions, its thin edge: a machine of each platform, the toolchains (every sample's among them: a
 # sample whose toolchain is missing fails its test), `tools/install.py`, which installs every tool the
-# checks run at the version declared for it (the command-line tools built from this checkout among them), and one call of
+# checks run at the version declared for it (our own command-line tools among them, as their published releases), and one call of
 # `asymptote check --groups <group>` per job: first the `build` group on each platform, which compiles what the checks compile and
 # alone saves the build cache, then, from that cache, a job for each of the `lint`, `check`, `clippy` and `api` groups of the `asymptote.toml` files (the
 # release workflow runs the `release-*` groups; the benches of `perf` run only when asked for with `--groups perf`).
@@ -57,9 +57,9 @@ jobs:
           # Keep valid intermediate Cargo artifacts when a later quality check fails.
           cache-on-failure: true
           workspaces: |
-            crates/asymptote -> target
-            crates/tastemaker -> target
-            crates/ryo -> target
+            crates/asymptote -> ../../target
+            crates/tastemaker -> ../../target
+            crates/ryo -> ../../target
       # The installed tools, restored whole while the tool table is unchanged: install.py then leaves every tool at its declared
       # version as it is.
       - id: cargo_bin_cache
@@ -146,9 +146,9 @@ jobs:
           shared-key: ${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
           save-if: false
           workspaces: |
-            crates/asymptote -> target
-            crates/tastemaker -> target
-            crates/ryo -> target
+            crates/asymptote -> ../../target
+            crates/tastemaker -> ../../target
+            crates/ryo -> ../../target
       # The installed tools, restored whole while the tool table is unchanged: install.py then leaves every tool at its declared
       # version as it is.
       - id: cargo_bin_cache
@@ -235,9 +235,9 @@ jobs:
           shared-key: ${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
           save-if: false
           workspaces: |
-            crates/asymptote -> target
-            crates/tastemaker -> target
-            crates/ryo -> target
+            crates/asymptote -> ../../target
+            crates/tastemaker -> ../../target
+            crates/ryo -> ../../target
       # The installed tools, restored whole while the tool table is unchanged: install.py then leaves every tool at its declared
       # version as it is.
       - id: cargo_bin_cache

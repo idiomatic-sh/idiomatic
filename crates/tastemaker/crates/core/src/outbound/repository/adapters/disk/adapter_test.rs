@@ -285,7 +285,7 @@ fn failure(error: impl std::fmt::Display) -> RepositoryError {
 }
 
 /// Writes `bad\xff.txt`, a name that is not UTF-8, into `directory`.
-#[cfg(unix)]
+#[cfg(all(unix, not(target_os = "macos")))]
 fn not_utf8(directory: &std::path::Path) -> Result<(), RepositoryError> {
     use std::os::unix::ffi::OsStrExt as _;
     std::fs::write(
@@ -295,8 +295,9 @@ fn not_utf8(directory: &std::path::Path) -> Result<(), RepositoryError> {
     .map_err(failure)
 }
 
-/// A system whose names are UTF-16 cannot write a name that is not UTF-8: the walk's refusal is the one it would give.
-#[cfg(not(unix))]
+/// A system whose names are UTF-16, or macOS, whose file system takes only UTF-8 names, cannot write a name that is not UTF-8:
+/// the walk's refusal is the one it would give.
+#[cfg(any(not(unix), target_os = "macos"))]
 fn not_utf8(directory: &std::path::Path) -> Result<(), RepositoryError> {
     Err(RepositoryError::Read {
         path: directory.join("bad").display().to_string(),
@@ -373,11 +374,14 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             std::fs::create_dir_all(&below).map_err(failure)?;
             let found = disk().repository(&MachinePath(below.display().to_string().into()))?;
             let expected = std::fs::canonicalize(directory.path()).map_err(failure)?;
-            return Ok(if std::path::Path::new(&*found.0) == expected {
-                String::new()
-            } else {
-                format!("found {}", found.0)
-            });
+            // The same place, however each spells it (Windows' canonical form is verbatim, the adapter's is not).
+            return Ok(
+                if std::fs::canonicalize(&*found.0).ok() == Some(expected.clone()) {
+                    String::new()
+                } else {
+                    format!("found {}", found.0)
+                },
+            );
         }
         Scenario::AboveRepository => {
             std::fs::write(directory.path().join("tastemaker.toml"), "version = 2\n")

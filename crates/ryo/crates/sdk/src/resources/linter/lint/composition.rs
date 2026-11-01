@@ -289,7 +289,16 @@ pub(crate) fn store_skip(
     if beneath.as_os_str().is_empty() {
         return None;
     }
-    Some(std::path::Path::new(std::path::Component::CurDir.as_os_str()).join(beneath))
+    // Joined by `/` on every platform, as the walk reads every path it skips.
+    let mut skip = std::path::Component::CurDir
+        .as_os_str()
+        .to_string_lossy()
+        .into_owned();
+    for part in beneath.components() {
+        skip.push(SKIP_SEPARATOR);
+        skip.push_str(&part.as_os_str().to_string_lossy());
+    }
+    Some(std::path::PathBuf::from(skip))
 }
 
 /// The dependency content identity using the digest adapter composed by the SDK.
@@ -298,3 +307,5 @@ pub(crate) fn dependency_fingerprint(bytes: &[u8]) -> super::types::DependencyFi
     let digest = digest::factory::blake3().digest(digest::types::DigestBytes(bytes));
     super::types::DependencyFingerprint(digest.0)
 }
+/// What joins the parts of a path the walk skips, on every platform.
+const SKIP_SEPARATOR: char = '/';

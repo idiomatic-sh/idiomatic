@@ -4,7 +4,6 @@
 
 use crate::{base, tables};
 use std::path::{Path, PathBuf};
-
 use std::sync::Arc;
 
 use ryo_core::inbound::use_cases::lint::types::{ParameterValue, RuleParameter};
@@ -292,8 +291,12 @@ fn placed_manifests(root: &Path) -> HostRelation {
             .map(|(path, template)| {
                 let relative = path.strip_prefix(root).expect("a path under the root");
                 HostRow(vec![
+                    // `/` on every platform, as Tastemaker names a placed file.
                     ryo_values::domain::records::types::Cell::File(
-                        relative.to_string_lossy().as_ref().into(),
+                        relative
+                            .to_string_lossy()
+                            .replace(std::path::MAIN_SEPARATOR, "/")
+                            .into(),
                     ),
                     text(""),
                     text(""),

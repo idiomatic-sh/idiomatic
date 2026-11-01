@@ -18,8 +18,8 @@ name = "ryo_query_language"
 thiserror.workspace = true
 winnow.workspace = true
 regex-automata.workspace = true
-ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.1.0" }
-ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.1.0" }
+ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.1.1" }
+ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.1.1" }
 
 [dev-dependencies]
 cargo_metadata.workspace = true

@@ -4,7 +4,9 @@
 use crate::outbound::repository::types::{Entries, Looks};
 use std::path::{Path, PathBuf};
 
+use super::constants::VERBATIM;
 use super::schemas::{entry_of, text_of_file};
+use crate::domain::paths::constants::SEPARATOR;
 use crate::domain::paths::types::EntryName;
 use crate::domain::paths::types::FileText;
 use crate::domain::paths::types::Height;
@@ -37,14 +39,26 @@ impl RepositoryNativeAdapter {
 
     /// The root as the file system names it from the top, or as the run names it when it cannot say.
     fn absolute(&self) -> PathBuf {
-        std::fs::canonicalize(&*self.root.0).unwrap_or_else(|_| PathBuf::from(&*self.root.0))
+        std::fs::canonicalize(&*self.root.0).map_or_else(|_| PathBuf::from(&*self.root.0), plain)
     }
 
     /// `directory` as the file system names it from the top, or placed under the root when it cannot say.
     fn start(&self, directory: &RepoPath) -> PathBuf {
         std::fs::canonicalize(self.placed_under(directory))
-            .unwrap_or_else(|_| self.placed_under(directory))
+            .map_or_else(|_| self.placed_under(directory), plain)
     }
+}
+
+/// `path` without Windows' verbatim prefix (`\\?\C:\...` to `C:\...`), which `canonicalize` gives there: beneath a verbatim
+/// prefix `/` is no separator, so a written path joined to it would name no file. As it is on every other platform.
+fn plain(path: PathBuf) -> PathBuf {
+    if cfg!(windows)
+        && let Some(rest) = path.to_str().and_then(|text| text.strip_prefix(VERBATIM))
+        && rest.as_bytes().get(1) == Some(&b':')
+    {
+        return PathBuf::from(rest);
+    }
+    path
 }
 
 /// The text of the file at `path`, when it is there and is text.
@@ -105,7 +119,15 @@ impl RepositoryPort for RepositoryNativeAdapter {
         base.join(&*written.0)
             .strip_prefix(self.absolute())
             .map_or(Placement::Outside, |inside| {
-                Placement::Inside(RepoPath(inside.to_string_lossy().into()))
+                // Joined by `/` on every platform: a repository path is the same record everywhere.
+                Placement::Inside(RepoPath(
+                    inside
+                        .components()
+                        .map(|part| part.as_os_str().to_string_lossy())
+                        .collect::<Vec<_>>()
+                        .join(SEPARATOR)
+                        .into(),
+                ))
             })
     }
 }

@@ -222,9 +222,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Scenario::ReadMissing,
         expect: Expect::Refusal(|error| {
-            let on_disk = std::fs::read_to_string("/tastemaker-memory-adapter-test/never.txt")
-                .err()
-                .map(|failure| failure.to_string());
+            // A missing file in a directory that is there: Windows says otherwise of a path whose directory is missing.
+            let on_disk = std::fs::read_to_string(
+                std::env::temp_dir().join("tastemaker-memory-adapter-never.txt"),
+            )
+            .err()
+            .map(|failure| failure.to_string());
             if matches!(error, RepositoryError::Read { path, reason } if path == "never.txt" && Some(reason) == on_disk.as_ref())
             {
                 crate::cases::Selection::Matches

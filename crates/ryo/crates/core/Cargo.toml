@@ -28,9 +28,9 @@ heck.workspace = true
 rustc-hash.workspace = true
 sysinfo.workspace = true
 tracing.workspace = true
-ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.1.0" }
-ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.1.0" }
-ryo_query_language = { package = "idiomatic-sh-ryo-query_language", path = "../query_language", version = "0.1.0" }
+ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.1.1" }
+ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.1.1" }
+ryo_query_language = { package = "idiomatic-sh-ryo-query_language", path = "../query_language", version = "0.1.1" }
 dhat = { workspace = true, optional = true }
 postcard.workspace = true
 

@@ -1,5 +1,5 @@
 # The asymptote this repository needs: every run of another stops, and `tools/install.py` installs this one.
-asymptote = "0.1.0"
+asymptote = "0.1.1"
 
 # The repository root is the asymptote workspace: its members are the products, each with an asymptote.toml and a lock of its own,
 # and its own tools are the checks no product owns: the files, their text and the workflows. A product runs from its own directory.

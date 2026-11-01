@@ -3,7 +3,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use super::constants::{GIT, NOT_UTF8, TASTEMAKER, WORKSPACE_FILE};
+use super::constants::{GIT, NOT_UTF8, TASTEMAKER, VERBATIM, WORKSPACE_FILE};
 use super::types::{Kept, RepositoryDiskProject, RepositoryDiskRepository};
 use crate::domain::files::types::{
     Declarer, DirectoryName, FileText, MachinePath, SkippedDirectories, SkippedDirectory, Stamp,
@@ -57,6 +57,18 @@ fn presence(path: &Path) -> Presence {
     }
 }
 
+/// `path` without Windows' verbatim prefix (`\\?\C:\...` to `C:\...`), which `canonicalize` gives there: beneath a verbatim
+/// prefix `/` is no separator, so a repository path joined to it would name no file. As it is on every other platform.
+fn plain(path: PathBuf) -> PathBuf {
+    if cfg!(windows)
+        && let Some(rest) = path.to_str().and_then(|text| text.strip_prefix(VERBATIM))
+        && rest.as_bytes().get(1) == Some(&b':')
+    {
+        return PathBuf::from(rest);
+    }
+    path
+}
+
 /// The nearest directory at or above `start` that holds `name`.
 fn nearest(start: &Path, name: Marker<'_>) -> Option<PathBuf> {
     start
@@ -67,10 +79,12 @@ fn nearest(start: &Path, name: Marker<'_>) -> Option<PathBuf> {
 
 impl RepositoryPort for RepositoryDiskAdapter {
     fn repository(&self, start: &MachinePath) -> Result<MachinePath, RepositoryError> {
-        let resolved = std::fs::canonicalize(&*start.0).map_err(|error| RepositoryError::Read {
-            path: start.0.to_string(),
-            reason: error.to_string(),
-        })?;
+        let resolved = std::fs::canonicalize(&*start.0)
+            .map(plain)
+            .map_err(|error| RepositoryError::Read {
+                path: start.0.to_string(),
+                reason: error.to_string(),
+            })?;
         nearest(&resolved, Marker(GIT))
             .map(|repository| MachinePath(repository.display().to_string().into()))
             .ok_or_else(|| RepositoryError::NoRepository {
@@ -79,10 +93,12 @@ impl RepositoryPort for RepositoryDiskAdapter {
     }
 
     fn find(&self, start: &MachinePath) -> Result<Arc<dyn FoundRepository>, RepositoryError> {
-        let start = std::fs::canonicalize(&*start.0).map_err(|error| RepositoryError::Read {
-            path: start.0.to_string(),
-            reason: error.to_string(),
-        })?;
+        let start = std::fs::canonicalize(&*start.0)
+            .map(plain)
+            .map_err(|error| RepositoryError::Read {
+                path: start.0.to_string(),
+                reason: error.to_string(),
+            })?;
         let no_workspace = || RepositoryError::NoWorkspace {
             start: start.display().to_string(),
         };

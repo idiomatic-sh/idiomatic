@@ -51,11 +51,32 @@ pub(crate) fn snapshot(target: &Path) -> std::io::Result<PathBuf> {
                     .current_dir(env!("CARGO_MANIFEST_DIR")),
             )?;
             run(Command::new("git")
-                .args(["clone", "--quiet", "--no-checkout"])
+                // Byte for byte and links as links, whatever the platform's git would convert.
+                .args([
+                    "clone",
+                    "--quiet",
+                    "--no-checkout",
+                    "--config",
+                    "core.autocrlf=false",
+                    "--config",
+                    "core.symlinks=true",
+                    "--config",
+                    "core.longpaths=true",
+                ])
                 .arg(checkout.trim_end())
                 .arg(&partial))?;
         } else {
             run(Command::new("git").args(["init", "--quiet"]).arg(&partial))?;
+            for setting in [
+                ["core.autocrlf", "false"],
+                ["core.symlinks", "true"],
+                ["core.longpaths", "true"],
+            ] {
+                run(Command::new("git")
+                    .arg("config")
+                    .args(setting)
+                    .current_dir(&partial))?;
+            }
             let repository = pinned(target, "repository")?;
             // Never wait on a prompt for credentials: a repository or revision that cannot be fetched fails at once.
             run(Command::new("git")
@@ -239,8 +260,18 @@ fn bind(isolated: &Path, destination: &Path) -> std::io::Result<()> {
     std::os::unix::fs::symlink(isolated, destination)
 }
 
+/// Binds `destination` to the isolated copy of an external dependency, as a symbolic link to a directory or a file.
+#[cfg(windows)]
+fn bind(isolated: &Path, destination: &Path) -> std::io::Result<()> {
+    if isolated.is_dir() {
+        std::os::windows::fs::symlink_dir(isolated, destination)
+    } else {
+        std::os::windows::fs::symlink_file(isolated, destination)
+    }
+}
+
 /// A file system without symbolic links cannot bind an external dependency.
-#[cfg(not(unix))]
+#[cfg(not(any(unix, windows)))]
 fn bind(_isolated: &Path, _destination: &Path) -> std::io::Result<()> {
     Err(std::io::Error::other(
         "external directory bindings require symlink support",
@@ -272,7 +303,18 @@ pub(crate) fn checkout(
 ) -> std::io::Result<(PathBuf, PathBuf)> {
     let tree = scratch.join("tree");
     run(Command::new("git")
-        .args(["clone", "--quiet", "--local"])
+        // Byte for byte and links as links, whatever the platform's git would convert.
+        .args([
+            "clone",
+            "--quiet",
+            "--local",
+            "--config",
+            "core.autocrlf=false",
+            "--config",
+            "core.symlinks=true",
+            "--config",
+            "core.longpaths=true",
+        ])
         .arg(snapshot)
         .arg(&tree))?;
     let directory = pinned(target, "directory")?;

@@ -301,11 +301,25 @@ fn workspace(question: Question, base: &std::path::Path) -> Result<Value, Failur
             }
             product(base, "crates/not-a-file", TOOL);
             let found = ManifestTomlAdapter.members(&self::root(base))?.0;
-            let shown: Vec<String> = found
+            // Each member's directory beneath the root, read component by component: the platform's separator is its own.
+            let shown: Vec<Vec<String>> = found
                 .iter()
-                .map(|member| member.0.replace(&*base.display().to_string(), ""))
+                .map(|member| {
+                    std::path::Path::new(&*member.0)
+                        .strip_prefix(base)
+                        .expect("a member beneath the root")
+                        .components()
+                        .map(|part| part.as_os_str().to_string_lossy().into_owned())
+                        .collect()
+                })
                 .collect();
-            Ok(shown == ["/crates/a", "/crates/b", "/crates/not-a-file", "/tools/one"])
+            Ok(shown
+                == [
+                    ["crates", "a"],
+                    ["crates", "b"],
+                    ["crates", "not-a-file"],
+                    ["tools", "one"],
+                ])
         }
         Question::MemberWithoutManifest => {
             root(&manifest("[\"crates/*\"]"));

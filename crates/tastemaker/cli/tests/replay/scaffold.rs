@@ -221,6 +221,9 @@ fn a_fresh_language_compiles_and_lacks_no_part() {
         );
     }
 
+    // The packages the copied workspace's lock names, fetched first: a machine that built only Tastemaker has not downloaded
+    // every one of ryo's (`addr2line`, a dependency for another target, among them), and the check itself runs offline.
+    run(Command::new("cargo").arg("fetch"), &workspace);
     run(
         Command::new("cargo")
             .args([
@@ -252,7 +255,8 @@ fn a_captured_nested_item_is_written_and_held() {
     let scratch = tempfile::tempdir().expect("the scene directory");
     let directory = scratch.path();
     run(Command::new("git").args(["init", "-q"]), directory);
-    std::fs::write(directory.join("tastemaker.toml"), format!(r#"workspace = {{ name = "nested", dependencies = [{{ package = "idiomatic.arch", path = "{}" }}] }}
+    // The package path is a TOML literal string: a Windows path's backslashes are no escapes there.
+    std::fs::write(directory.join("tastemaker.toml"), format!(r#"workspace = {{ name = "nested", dependencies = [{{ package = "idiomatic.arch", path = '{}' }}] }}
 closed = false
 specs = [{{ alias = "subject", spec = "idiomatic.arch/collection", include = ["collections/{{collection}}"], count = 1, params = {{ item-trait = [] }} }}]
 "#, root().join("tastemaker").display())).expect("the collection placement");
@@ -316,7 +320,7 @@ fn a_conditional_use_case_interface_is_scaffolded() {
         } else {
             "[]"
         };
-        std::fs::write(directory.join("tastemaker.toml"), format!(r#"workspace = {{ name = "conditional", dependencies = [{{ package = "idiomatic.arch", path = "{}" }}] }}
+        std::fs::write(directory.join("tastemaker.toml"), format!(r#"workspace = {{ name = "conditional", dependencies = [{{ package = "idiomatic.arch", path = '{}' }}] }}
 closed = false
 specs = [{{ alias = "subject", spec = "idiomatic.arch/use-case", include = ["src/inbound/use_cases/{{use_case}}"], count = 1, params = {{ implements = {implements} }} }}]
 "#, root().join("tastemaker").display())).expect("placement");
@@ -366,7 +370,7 @@ fn a_composed_crate_reads_its_placed_context() {
     let scratch = tempfile::tempdir().expect("scene directory");
     let directory = scratch.path();
     run(Command::new("git").args(["init", "-q"]), directory);
-    std::fs::write(directory.join("tastemaker.toml"), format!(r#"workspace = {{ name = "composed", dependencies = [{{ package = "idiomatic.arch", path = "{}" }}] }}
+    std::fs::write(directory.join("tastemaker.toml"), format!(r#"workspace = {{ name = "composed", dependencies = [{{ package = "idiomatic.arch", path = '{}' }}] }}
 closed = false
 specs = [
 {{ alias = "edge", spec = "idiomatic.arch/cli", include = ["app"], params = {{ product = "demo", library = "demo", markdown = "absent", writes = [] }} }},

@@ -214,8 +214,18 @@ pub(crate) fn link(source: &Path, target: &Path) -> std::io::Result<()> {
     {
         std::os::unix::fs::symlink(std::fs::read_link(source)?, target)
     }
+    // Windows makes a link to a directory and one to a file apart.
+    #[cfg(windows)]
+    {
+        let pointed = std::fs::read_link(source)?;
+        if source.is_dir() {
+            std::os::windows::fs::symlink_dir(pointed, target)
+        } else {
+            std::os::windows::fs::symlink_file(pointed, target)
+        }
+    }
     // A file system without symbolic links cannot make the link again.
-    #[cfg(not(unix))]
+    #[cfg(not(any(unix, windows)))]
     {
         Err(std::io::Error::new(
             std::io::ErrorKind::Unsupported,
@@ -416,4 +426,21 @@ pub(crate) fn readable(failures: &mut Vec<String>) -> Vec<Sample> {
         .into_iter()
         .filter_map(|read| read.map_err(|why| failures.push(why)).ok())
         .collect()
+}
+
+/// The program `program` names on `PATH`: on Windows the first of its `.exe`, `.cmd` and `.bat` (npm is a batch file there, which a
+/// bare name does not find); the name as it is elsewhere.
+pub(crate) fn found(program: &str) -> PathBuf {
+    if cfg!(windows) {
+        let directories = std::env::var_os("PATH").unwrap_or_default();
+        for directory in std::env::split_paths(&directories) {
+            for extension in ["exe", "cmd", "bat"] {
+                let candidate = directory.join(program).with_extension(extension);
+                if candidate.is_file() {
+                    return candidate;
+                }
+            }
+        }
+    }
+    PathBuf::from(program)
 }

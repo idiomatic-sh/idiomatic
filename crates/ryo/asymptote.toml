@@ -9,11 +9,11 @@ inputs = [".", "../../rustfmt.toml", "../../rust-toolchain.toml"]
 [[tools]]
 id = "tastemaker"
 group = "lint"
-# ryo's gate is Tastemaker, built from this checkout's crates/tastemaker and the crates/ryo it links.
+# ryo's gate is Tastemaker, the release the root's tastemaker.toml pins.
 run = ["tm", "check", "--format", "sarif"]
 output = "sarif"
 timeout-seconds = 1800
-inputs = [".", "../tastemaker", "../../tastemaker"]
+inputs = [".", "../../tastemaker"]
 
 [[tools]]
 id = "cargo-machete"
@@ -238,7 +238,7 @@ group = "perf"
 # Complete default disposition accounting and case certification precede every run.
 # Both contestants select the same implemented shipped-default subset. Missing
 # tools, mismatched pins and unassessed defaults are failures, never skipped work.
-run = ["bash", "-o", "pipefail", "-c", "collector=\"$(cargo build --locked --release -p idiomatic-sh-ryo-benchmark --bin ryo-benchmark-collector --message-format=json | jq -r 'select(.reason == \"compiler-artifact\" and .target.name == \"ryo-benchmark-collector\") | .executable // empty')\" && test -n \"$collector\" && mkdir -p target/benchmark/python && { cargo bench --locked -p idiomatic-sh-ryo-python --bench ruff -- measure-valid \"$(command -v ruff)\" target/benchmark/python \"$collector\" 2>&1 1>&3 | tee target/benchmark/python/observations.log >&2; } 3>&1 | tee target/benchmark/python/measurements.json"]
+run = ["bash", "-o", "pipefail", "-c", "collector=\"$(cargo build --locked --release -p idiomatic-sh-ryo-benchmark --bin ryo-benchmark-collector --message-format=json | jq -r 'select(.reason | IN(\"compiler-artifact\")) | select(.target.name | IN(\"ryo-benchmark-collector\")) | .executable // empty')\" && test -n \"$collector\" && test -x \"$collector\" && mkdir -p target/benchmark/python && { cargo bench --locked -p idiomatic-sh-ryo-python --bench ruff -- measure-valid \"$(command -v ruff)\" target/benchmark/python \"$collector\" 2>&1 1>&3 | tee target/benchmark/python/observations.log >&2; } 3>&1 | tee target/benchmark/python/measurements.json"]
 output = "bmf"
 timeout-seconds = 14400
 inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]

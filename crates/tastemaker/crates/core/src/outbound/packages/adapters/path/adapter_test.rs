@@ -93,7 +93,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Scenario::Locate(PackageSource::Path(SourcePath("absent".into())), ""),
         expect: Expect::Refusal(|error| {
-            if matches!(error, PackagesError::Missing {package,path} if package == "p" && path.ends_with("/absent"))
+            if matches!(error, PackagesError::Missing {package,path} if package == "p" && std::path::Path::new(path).ends_with("absent"))
             {
                 crate::cases::Selection::Matches
             } else {
@@ -106,7 +106,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Scenario::ReadMissing,
         expect: Expect::Refusal(|error| {
-            if matches!(error, PackagesError::Read {path,reason} if path.ends_with("/absent.toml") && !reason.is_empty())
+            if matches!(error, PackagesError::Read {path,reason} if std::path::Path::new(path).ends_with("absent.toml") && !reason.is_empty())
             {
                 crate::cases::Selection::Matches
             } else {

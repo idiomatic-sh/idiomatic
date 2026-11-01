@@ -1024,8 +1024,18 @@ fn bind(isolated: &Path, destination: &Path) -> std::io::Result<()> {
     std::os::unix::fs::symlink(isolated, destination)
 }
 
+/// Binds `destination` to the isolated copy of an external dependency, as a symbolic link to a directory or a file.
+#[cfg(windows)]
+fn bind(isolated: &Path, destination: &Path) -> std::io::Result<()> {
+    if isolated.is_dir() {
+        std::os::windows::fs::symlink_dir(isolated, destination)
+    } else {
+        std::os::windows::fs::symlink_file(isolated, destination)
+    }
+}
+
 /// A file system without symbolic links cannot bind an external dependency.
-#[cfg(not(unix))]
+#[cfg(not(any(unix, windows)))]
 fn bind(_isolated: &Path, _destination: &Path) -> std::io::Result<()> {
     Err(std::io::Error::other(
         "external directory bindings require symlink support",
@@ -2076,7 +2086,7 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
     let environment = directory.join("environment");
     run(Command::new(PYTHON).args(["-m", "venv"]).arg(&environment))?;
     let scripts = environment.join(if cfg!(windows) { "Scripts" } else { "bin" });
-    let python = scripts.join("python");
+    let python = scripts.join(["python", std::env::consts::EXE_SUFFIX].concat());
     run(Command::new(&python)
         .args(["-m", "pip", "install", "--no-index", "--no-deps"])
         .arg(&wheel))?;
@@ -3708,8 +3718,18 @@ fn bind(isolated: &Path, destination: &Path) -> std::io::Result<()> {
     std::os::unix::fs::symlink(isolated, destination)
 }
 
+/// Binds `destination` to the isolated copy of an external dependency, as a symbolic link to a directory or a file.
+#[cfg(windows)]
+fn bind(isolated: &Path, destination: &Path) -> std::io::Result<()> {
+    if isolated.is_dir() {
+        std::os::windows::fs::symlink_dir(isolated, destination)
+    } else {
+        std::os::windows::fs::symlink_file(isolated, destination)
+    }
+}
+
 /// A file system without symbolic links cannot bind an external dependency.
-#[cfg(not(unix))]
+#[cfg(not(any(unix, windows)))]
 fn bind(_isolated: &Path, _destination: &Path) -> std::io::Result<()> {
     Err(std::io::Error::other(
         "external directory bindings require symlink support",
@@ -4745,7 +4765,7 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
     let environment = directory.join("environment");
     run(Command::new(PYTHON).args(["-m", "venv"]).arg(&environment))?;
     let scripts = environment.join(if cfg!(windows) { "Scripts" } else { "bin" });
-    let python = scripts.join("python");
+    let python = scripts.join(["python", std::env::consts::EXE_SUFFIX].concat());
     run(Command::new(&python)
         .args(["-m", "pip", "install", "--no-index", "--no-deps"])
         .arg(&wheel))?;
@@ -6380,8 +6400,18 @@ fn bind(isolated: &Path, destination: &Path) -> std::io::Result<()> {
     std::os::unix::fs::symlink(isolated, destination)
 }
 
+/// Binds `destination` to the isolated copy of an external dependency, as a symbolic link to a directory or a file.
+#[cfg(windows)]
+fn bind(isolated: &Path, destination: &Path) -> std::io::Result<()> {
+    if isolated.is_dir() {
+        std::os::windows::fs::symlink_dir(isolated, destination)
+    } else {
+        std::os::windows::fs::symlink_file(isolated, destination)
+    }
+}
+
 /// A file system without symbolic links cannot bind an external dependency.
-#[cfg(not(unix))]
+#[cfg(not(any(unix, windows)))]
 fn bind(_isolated: &Path, _destination: &Path) -> std::io::Result<()> {
     Err(std::io::Error::other(
         "external directory bindings require symlink support",
@@ -7433,7 +7463,7 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
     let environment = directory.join("environment");
     run(Command::new(PYTHON).args(["-m", "venv"]).arg(&environment))?;
     let scripts = environment.join(if cfg!(windows) { "Scripts" } else { "bin" });
-    let python = scripts.join("python");
+    let python = scripts.join(["python", std::env::consts::EXE_SUFFIX].concat());
     run(Command::new(&python)
         .args(["-m", "pip", "install", "--no-index", "--no-deps"])
         .arg(&wheel))?;
@@ -9069,8 +9099,18 @@ fn bind(isolated: &Path, destination: &Path) -> std::io::Result<()> {
     std::os::unix::fs::symlink(isolated, destination)
 }
 
+/// Binds `destination` to the isolated copy of an external dependency, as a symbolic link to a directory or a file.
+#[cfg(windows)]
+fn bind(isolated: &Path, destination: &Path) -> std::io::Result<()> {
+    if isolated.is_dir() {
+        std::os::windows::fs::symlink_dir(isolated, destination)
+    } else {
+        std::os::windows::fs::symlink_file(isolated, destination)
+    }
+}
+
 /// A file system without symbolic links cannot bind an external dependency.
-#[cfg(not(unix))]
+#[cfg(not(any(unix, windows)))]
 fn bind(_isolated: &Path, _destination: &Path) -> std::io::Result<()> {
     Err(std::io::Error::other(
         "external directory bindings require symlink support",
@@ -10121,7 +10161,7 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
     let environment = directory.join("environment");
     run(Command::new(PYTHON).args(["-m", "venv"]).arg(&environment))?;
     let scripts = environment.join(if cfg!(windows) { "Scripts" } else { "bin" });
-    let python = scripts.join("python");
+    let python = scripts.join(["python", std::env::consts::EXE_SUFFIX].concat());
     run(Command::new(&python)
         .args(["-m", "pip", "install", "--no-index", "--no-deps"])
         .arg(&wheel))?;
@@ -11754,8 +11794,18 @@ fn bind(isolated: &Path, destination: &Path) -> std::io::Result<()> {
     std::os::unix::fs::symlink(isolated, destination)
 }
 
+/// Binds `destination` to the isolated copy of an external dependency, as a symbolic link to a directory or a file.
+#[cfg(windows)]
+fn bind(isolated: &Path, destination: &Path) -> std::io::Result<()> {
+    if isolated.is_dir() {
+        std::os::windows::fs::symlink_dir(isolated, destination)
+    } else {
+        std::os::windows::fs::symlink_file(isolated, destination)
+    }
+}
+
 /// A file system without symbolic links cannot bind an external dependency.
-#[cfg(not(unix))]
+#[cfg(not(any(unix, windows)))]
 fn bind(_isolated: &Path, _destination: &Path) -> std::io::Result<()> {
     Err(std::io::Error::other(
         "external directory bindings require symlink support",
@@ -12483,7 +12533,7 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
     let environment = directory.join("environment");
     run(Command::new(PYTHON).args(["-m", "venv"]).arg(&environment))?;
     let scripts = environment.join(if cfg!(windows) { "Scripts" } else { "bin" });
-    let python = scripts.join("python");
+    let python = scripts.join(["python", std::env::consts::EXE_SUFFIX].concat());
     run(Command::new(&python)
         .args(["-m", "pip", "install", "--no-index", "--no-deps"])
         .arg(&wheel))?;
@@ -14118,8 +14168,18 @@ fn bind(isolated: &Path, destination: &Path) -> std::io::Result<()> {
     std::os::unix::fs::symlink(isolated, destination)
 }
 
+/// Binds `destination` to the isolated copy of an external dependency, as a symbolic link to a directory or a file.
+#[cfg(windows)]
+fn bind(isolated: &Path, destination: &Path) -> std::io::Result<()> {
+    if isolated.is_dir() {
+        std::os::windows::fs::symlink_dir(isolated, destination)
+    } else {
+        std::os::windows::fs::symlink_file(isolated, destination)
+    }
+}
+
 /// A file system without symbolic links cannot bind an external dependency.
-#[cfg(not(unix))]
+#[cfg(not(any(unix, windows)))]
 fn bind(_isolated: &Path, _destination: &Path) -> std::io::Result<()> {
     Err(std::io::Error::other(
         "external directory bindings require symlink support",
@@ -15173,7 +15233,7 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
     let environment = directory.join("environment");
     run(Command::new(PYTHON).args(["-m", "venv"]).arg(&environment))?;
     let scripts = environment.join(if cfg!(windows) { "Scripts" } else { "bin" });
-    let python = scripts.join("python");
+    let python = scripts.join(["python", std::env::consts::EXE_SUFFIX].concat());
     run(Command::new(&python)
         .args(["-m", "pip", "install", "--no-index", "--no-deps"])
         .arg(&wheel))?;
@@ -16811,8 +16871,18 @@ fn bind(isolated: &Path, destination: &Path) -> std::io::Result<()> {
     std::os::unix::fs::symlink(isolated, destination)
 }
 
+/// Binds `destination` to the isolated copy of an external dependency, as a symbolic link to a directory or a file.
+#[cfg(windows)]
+fn bind(isolated: &Path, destination: &Path) -> std::io::Result<()> {
+    if isolated.is_dir() {
+        std::os::windows::fs::symlink_dir(isolated, destination)
+    } else {
+        std::os::windows::fs::symlink_file(isolated, destination)
+    }
+}
+
 /// A file system without symbolic links cannot bind an external dependency.
-#[cfg(not(unix))]
+#[cfg(not(any(unix, windows)))]
 fn bind(_isolated: &Path, _destination: &Path) -> std::io::Result<()> {
     Err(std::io::Error::other(
         "external directory bindings require symlink support",
@@ -17863,7 +17933,7 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
     let environment = directory.join("environment");
     run(Command::new(PYTHON).args(["-m", "venv"]).arg(&environment))?;
     let scripts = environment.join(if cfg!(windows) { "Scripts" } else { "bin" });
-    let python = scripts.join("python");
+    let python = scripts.join(["python", std::env::consts::EXE_SUFFIX].concat());
     run(Command::new(&python)
         .args(["-m", "pip", "install", "--no-index", "--no-deps"])
         .arg(&wheel))?;
@@ -19498,8 +19568,18 @@ fn bind(isolated: &Path, destination: &Path) -> std::io::Result<()> {
     std::os::unix::fs::symlink(isolated, destination)
 }
 
+/// Binds `destination` to the isolated copy of an external dependency, as a symbolic link to a directory or a file.
+#[cfg(windows)]
+fn bind(isolated: &Path, destination: &Path) -> std::io::Result<()> {
+    if isolated.is_dir() {
+        std::os::windows::fs::symlink_dir(isolated, destination)
+    } else {
+        std::os::windows::fs::symlink_file(isolated, destination)
+    }
+}
+
 /// A file system without symbolic links cannot bind an external dependency.
-#[cfg(not(unix))]
+#[cfg(not(any(unix, windows)))]
 fn bind(_isolated: &Path, _destination: &Path) -> std::io::Result<()> {
     Err(std::io::Error::other(
         "external directory bindings require symlink support",
@@ -20481,7 +20561,7 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
     let environment = directory.join("environment");
     run(Command::new(PYTHON).args(["-m", "venv"]).arg(&environment))?;
     let scripts = environment.join(if cfg!(windows) { "Scripts" } else { "bin" });
-    let python = scripts.join("python");
+    let python = scripts.join(["python", std::env::consts::EXE_SUFFIX].concat());
     run(Command::new(&python)
         .args(["-m", "pip", "install", "--no-index", "--no-deps"])
         .arg(&wheel))?;
@@ -22116,8 +22196,18 @@ fn bind(isolated: &Path, destination: &Path) -> std::io::Result<()> {
     std::os::unix::fs::symlink(isolated, destination)
 }
 
+/// Binds `destination` to the isolated copy of an external dependency, as a symbolic link to a directory or a file.
+#[cfg(windows)]
+fn bind(isolated: &Path, destination: &Path) -> std::io::Result<()> {
+    if isolated.is_dir() {
+        std::os::windows::fs::symlink_dir(isolated, destination)
+    } else {
+        std::os::windows::fs::symlink_file(isolated, destination)
+    }
+}
+
 /// A file system without symbolic links cannot bind an external dependency.
-#[cfg(not(unix))]
+#[cfg(not(any(unix, windows)))]
 fn bind(_isolated: &Path, _destination: &Path) -> std::io::Result<()> {
     Err(std::io::Error::other(
         "external directory bindings require symlink support",
@@ -23122,7 +23212,7 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
     let environment = directory.join("environment");
     run(Command::new(PYTHON).args(["-m", "venv"]).arg(&environment))?;
     let scripts = environment.join(if cfg!(windows) { "Scripts" } else { "bin" });
-    let python = scripts.join("python");
+    let python = scripts.join(["python", std::env::consts::EXE_SUFFIX].concat());
     run(Command::new(&python)
         .args(["-m", "pip", "install", "--no-index", "--no-deps"])
         .arg(&wheel))?;
@@ -24757,8 +24847,18 @@ fn bind(isolated: &Path, destination: &Path) -> std::io::Result<()> {
     std::os::unix::fs::symlink(isolated, destination)
 }
 
+/// Binds `destination` to the isolated copy of an external dependency, as a symbolic link to a directory or a file.
+#[cfg(windows)]
+fn bind(isolated: &Path, destination: &Path) -> std::io::Result<()> {
+    if isolated.is_dir() {
+        std::os::windows::fs::symlink_dir(isolated, destination)
+    } else {
+        std::os::windows::fs::symlink_file(isolated, destination)
+    }
+}
+
 /// A file system without symbolic links cannot bind an external dependency.
-#[cfg(not(unix))]
+#[cfg(not(any(unix, windows)))]
 fn bind(_isolated: &Path, _destination: &Path) -> std::io::Result<()> {
     Err(std::io::Error::other(
         "external directory bindings require symlink support",
@@ -25669,7 +25769,7 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
     let environment = directory.join("environment");
     run(Command::new(PYTHON).args(["-m", "venv"]).arg(&environment))?;
     let scripts = environment.join(if cfg!(windows) { "Scripts" } else { "bin" });
-    let python = scripts.join("python");
+    let python = scripts.join(["python", std::env::consts::EXE_SUFFIX].concat());
     run(Command::new(&python)
         .args(["-m", "pip", "install", "--no-index", "--no-deps"])
         .arg(&wheel))?;
@@ -27304,8 +27404,18 @@ fn bind(isolated: &Path, destination: &Path) -> std::io::Result<()> {
     std::os::unix::fs::symlink(isolated, destination)
 }
 
+/// Binds `destination` to the isolated copy of an external dependency, as a symbolic link to a directory or a file.
+#[cfg(windows)]
+fn bind(isolated: &Path, destination: &Path) -> std::io::Result<()> {
+    if isolated.is_dir() {
+        std::os::windows::fs::symlink_dir(isolated, destination)
+    } else {
+        std::os::windows::fs::symlink_file(isolated, destination)
+    }
+}
+
 /// A file system without symbolic links cannot bind an external dependency.
-#[cfg(not(unix))]
+#[cfg(not(any(unix, windows)))]
 fn bind(_isolated: &Path, _destination: &Path) -> std::io::Result<()> {
     Err(std::io::Error::other(
         "external directory bindings require symlink support",
@@ -28359,7 +28469,7 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
     let environment = directory.join("environment");
     run(Command::new(PYTHON).args(["-m", "venv"]).arg(&environment))?;
     let scripts = environment.join(if cfg!(windows) { "Scripts" } else { "bin" });
-    let python = scripts.join("python");
+    let python = scripts.join(["python", std::env::consts::EXE_SUFFIX].concat());
     run(Command::new(&python)
         .args(["-m", "pip", "install", "--no-index", "--no-deps"])
         .arg(&wheel))?;
@@ -29994,8 +30104,18 @@ fn bind(isolated: &Path, destination: &Path) -> std::io::Result<()> {
     std::os::unix::fs::symlink(isolated, destination)
 }
 
+/// Binds `destination` to the isolated copy of an external dependency, as a symbolic link to a directory or a file.
+#[cfg(windows)]
+fn bind(isolated: &Path, destination: &Path) -> std::io::Result<()> {
+    if isolated.is_dir() {
+        std::os::windows::fs::symlink_dir(isolated, destination)
+    } else {
+        std::os::windows::fs::symlink_file(isolated, destination)
+    }
+}
+
 /// A file system without symbolic links cannot bind an external dependency.
-#[cfg(not(unix))]
+#[cfg(not(any(unix, windows)))]
 fn bind(_isolated: &Path, _destination: &Path) -> std::io::Result<()> {
     Err(std::io::Error::other(
         "external directory bindings require symlink support",
@@ -31049,7 +31169,7 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
     let environment = directory.join("environment");
     run(Command::new(PYTHON).args(["-m", "venv"]).arg(&environment))?;
     let scripts = environment.join(if cfg!(windows) { "Scripts" } else { "bin" });
-    let python = scripts.join("python");
+    let python = scripts.join(["python", std::env::consts::EXE_SUFFIX].concat());
     run(Command::new(&python)
         .args(["-m", "pip", "install", "--no-index", "--no-deps"])
         .arg(&wheel))?;
@@ -32684,8 +32804,18 @@ fn bind(isolated: &Path, destination: &Path) -> std::io::Result<()> {
     std::os::unix::fs::symlink(isolated, destination)
 }
 
+/// Binds `destination` to the isolated copy of an external dependency, as a symbolic link to a directory or a file.
+#[cfg(windows)]
+fn bind(isolated: &Path, destination: &Path) -> std::io::Result<()> {
+    if isolated.is_dir() {
+        std::os::windows::fs::symlink_dir(isolated, destination)
+    } else {
+        std::os::windows::fs::symlink_file(isolated, destination)
+    }
+}
+
 /// A file system without symbolic links cannot bind an external dependency.
-#[cfg(not(unix))]
+#[cfg(not(any(unix, windows)))]
 fn bind(_isolated: &Path, _destination: &Path) -> std::io::Result<()> {
     Err(std::io::Error::other(
         "external directory bindings require symlink support",
@@ -33736,7 +33866,7 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
     let environment = directory.join("environment");
     run(Command::new(PYTHON).args(["-m", "venv"]).arg(&environment))?;
     let scripts = environment.join(if cfg!(windows) { "Scripts" } else { "bin" });
-    let python = scripts.join("python");
+    let python = scripts.join(["python", std::env::consts::EXE_SUFFIX].concat());
     run(Command::new(&python)
         .args(["-m", "pip", "install", "--no-index", "--no-deps"])
         .arg(&wheel))?;
@@ -35372,8 +35502,18 @@ fn bind(isolated: &Path, destination: &Path) -> std::io::Result<()> {
     std::os::unix::fs::symlink(isolated, destination)
 }
 
+/// Binds `destination` to the isolated copy of an external dependency, as a symbolic link to a directory or a file.
+#[cfg(windows)]
+fn bind(isolated: &Path, destination: &Path) -> std::io::Result<()> {
+    if isolated.is_dir() {
+        std::os::windows::fs::symlink_dir(isolated, destination)
+    } else {
+        std::os::windows::fs::symlink_file(isolated, destination)
+    }
+}
+
 /// A file system without symbolic links cannot bind an external dependency.
-#[cfg(not(unix))]
+#[cfg(not(any(unix, windows)))]
 fn bind(_isolated: &Path, _destination: &Path) -> std::io::Result<()> {
     Err(std::io::Error::other(
         "external directory bindings require symlink support",
@@ -36403,7 +36543,7 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
     let environment = directory.join("environment");
     run(Command::new(PYTHON).args(["-m", "venv"]).arg(&environment))?;
     let scripts = environment.join(if cfg!(windows) { "Scripts" } else { "bin" });
-    let python = scripts.join("python");
+    let python = scripts.join(["python", std::env::consts::EXE_SUFFIX].concat());
     run(Command::new(&python)
         .args(["-m", "pip", "install", "--no-index", "--no-deps"])
         .arg(&wheel))?;
@@ -38038,8 +38178,18 @@ fn bind(isolated: &Path, destination: &Path) -> std::io::Result<()> {
     std::os::unix::fs::symlink(isolated, destination)
 }
 
+/// Binds `destination` to the isolated copy of an external dependency, as a symbolic link to a directory or a file.
+#[cfg(windows)]
+fn bind(isolated: &Path, destination: &Path) -> std::io::Result<()> {
+    if isolated.is_dir() {
+        std::os::windows::fs::symlink_dir(isolated, destination)
+    } else {
+        std::os::windows::fs::symlink_file(isolated, destination)
+    }
+}
+
 /// A file system without symbolic links cannot bind an external dependency.
-#[cfg(not(unix))]
+#[cfg(not(any(unix, windows)))]
 fn bind(_isolated: &Path, _destination: &Path) -> std::io::Result<()> {
     Err(std::io::Error::other(
         "external directory bindings require symlink support",
@@ -39089,7 +39239,7 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
     let environment = directory.join("environment");
     run(Command::new(PYTHON).args(["-m", "venv"]).arg(&environment))?;
     let scripts = environment.join(if cfg!(windows) { "Scripts" } else { "bin" });
-    let python = scripts.join("python");
+    let python = scripts.join(["python", std::env::consts::EXE_SUFFIX].concat());
     run(Command::new(&python)
         .args(["-m", "pip", "install", "--no-index", "--no-deps"])
         .arg(&wheel))?;
@@ -40724,8 +40874,18 @@ fn bind(isolated: &Path, destination: &Path) -> std::io::Result<()> {
     std::os::unix::fs::symlink(isolated, destination)
 }
 
+/// Binds `destination` to the isolated copy of an external dependency, as a symbolic link to a directory or a file.
+#[cfg(windows)]
+fn bind(isolated: &Path, destination: &Path) -> std::io::Result<()> {
+    if isolated.is_dir() {
+        std::os::windows::fs::symlink_dir(isolated, destination)
+    } else {
+        std::os::windows::fs::symlink_file(isolated, destination)
+    }
+}
+
 /// A file system without symbolic links cannot bind an external dependency.
-#[cfg(not(unix))]
+#[cfg(not(any(unix, windows)))]
 fn bind(_isolated: &Path, _destination: &Path) -> std::io::Result<()> {
     Err(std::io::Error::other(
         "external directory bindings require symlink support",
@@ -41780,7 +41940,7 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
     let environment = directory.join("environment");
     run(Command::new(PYTHON).args(["-m", "venv"]).arg(&environment))?;
     let scripts = environment.join(if cfg!(windows) { "Scripts" } else { "bin" });
-    let python = scripts.join("python");
+    let python = scripts.join(["python", std::env::consts::EXE_SUFFIX].concat());
     run(Command::new(&python)
         .args(["-m", "pip", "install", "--no-index", "--no-deps"])
         .arg(&wheel))?;
@@ -43415,8 +43575,18 @@ fn bind(isolated: &Path, destination: &Path) -> std::io::Result<()> {
     std::os::unix::fs::symlink(isolated, destination)
 }
 
+/// Binds `destination` to the isolated copy of an external dependency, as a symbolic link to a directory or a file.
+#[cfg(windows)]
+fn bind(isolated: &Path, destination: &Path) -> std::io::Result<()> {
+    if isolated.is_dir() {
+        std::os::windows::fs::symlink_dir(isolated, destination)
+    } else {
+        std::os::windows::fs::symlink_file(isolated, destination)
+    }
+}
+
 /// A file system without symbolic links cannot bind an external dependency.
-#[cfg(not(unix))]
+#[cfg(not(any(unix, windows)))]
 fn bind(_isolated: &Path, _destination: &Path) -> std::io::Result<()> {
     Err(std::io::Error::other(
         "external directory bindings require symlink support",
@@ -44470,7 +44640,7 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
     let environment = directory.join("environment");
     run(Command::new(PYTHON).args(["-m", "venv"]).arg(&environment))?;
     let scripts = environment.join(if cfg!(windows) { "Scripts" } else { "bin" });
-    let python = scripts.join("python");
+    let python = scripts.join(["python", std::env::consts::EXE_SUFFIX].concat());
     run(Command::new(&python)
         .args(["-m", "pip", "install", "--no-index", "--no-deps"])
         .arg(&wheel))?;
@@ -46105,8 +46275,18 @@ fn bind(isolated: &Path, destination: &Path) -> std::io::Result<()> {
     std::os::unix::fs::symlink(isolated, destination)
 }
 
+/// Binds `destination` to the isolated copy of an external dependency, as a symbolic link to a directory or a file.
+#[cfg(windows)]
+fn bind(isolated: &Path, destination: &Path) -> std::io::Result<()> {
+    if isolated.is_dir() {
+        std::os::windows::fs::symlink_dir(isolated, destination)
+    } else {
+        std::os::windows::fs::symlink_file(isolated, destination)
+    }
+}
+
 /// A file system without symbolic links cannot bind an external dependency.
-#[cfg(not(unix))]
+#[cfg(not(any(unix, windows)))]
 fn bind(_isolated: &Path, _destination: &Path) -> std::io::Result<()> {
     Err(std::io::Error::other(
         "external directory bindings require symlink support",
@@ -47152,7 +47332,7 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
     let environment = directory.join("environment");
     run(Command::new(PYTHON).args(["-m", "venv"]).arg(&environment))?;
     let scripts = environment.join(if cfg!(windows) { "Scripts" } else { "bin" });
-    let python = scripts.join("python");
+    let python = scripts.join(["python", std::env::consts::EXE_SUFFIX].concat());
     run(Command::new(&python)
         .args(["-m", "pip", "install", "--no-index", "--no-deps"])
         .arg(&wheel))?;
@@ -48849,8 +49029,18 @@ fn bind(isolated: &Path, destination: &Path) -> std::io::Result<()> {
     std::os::unix::fs::symlink(isolated, destination)
 }
 
+/// Binds `destination` to the isolated copy of an external dependency, as a symbolic link to a directory or a file.
+#[cfg(windows)]
+fn bind(isolated: &Path, destination: &Path) -> std::io::Result<()> {
+    if isolated.is_dir() {
+        std::os::windows::fs::symlink_dir(isolated, destination)
+    } else {
+        std::os::windows::fs::symlink_file(isolated, destination)
+    }
+}
+
 /// A file system without symbolic links cannot bind an external dependency.
-#[cfg(not(unix))]
+#[cfg(not(any(unix, windows)))]
 fn bind(_isolated: &Path, _destination: &Path) -> std::io::Result<()> {
     Err(std::io::Error::other(
         "external directory bindings require symlink support",

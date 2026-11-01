@@ -1,3 +1,11 @@
+# One target directory for the repository: each product's own Cargo workspace builds into the root's `target/`, so a
+# dependency the products resolve alike is compiled once. A cold `cargo build --workspace --all-targets --all-features`
+# of ryo, Tastemaker and asymptote in turn fell from 306 s and 6.6 GB to 251 s and 5.5 GB: the second and third
+# products compiled 57 and 100 crates instead of 367 and 212. Ryo's own crates are compiled again for Tastemaker and
+# asymptote, their dependencies' features unified differently in each workspace; no product rebuilds another's.
+[build]
+target-dir = "target"
+
 # Statically link the C runtime so the shipped executable does not depend on a
 # separately installed MSVC redistributable.
 [target.'cfg(all(target_env = "msvc", target_os = "windows"))']

@@ -156,11 +156,17 @@ impl std::fmt::Display for AnswerSchema {
 /// beneath it, so no machine path is printed for a file of the project.
 pub(super) fn answer(report: &CreateReport, dry_run: bool, start: &MachinePath) -> AnswerSchema {
     let written = std::path::Path::new(&*report.package.0).join(&*report.file.0);
-    let file = written
-        .strip_prefix(&*start.0)
-        .unwrap_or(&written)
-        .display()
-        .to_string();
+    // Beneath `start`, joined by `/` on every platform, as every path of the project is printed.
+    let file = written.strip_prefix(&*start.0).map_or_else(
+        |_| written.display().to_string(),
+        |beneath| {
+            beneath
+                .components()
+                .map(|part| part.as_os_str().to_string_lossy())
+                .collect::<Vec<_>>()
+                .join(tastemaker_core::domain::applications::constants::PATH_SEPARATOR)
+        },
+    );
     let word = kind_word(report.kind).0;
     let write = match report.kind {
         DefinitionKind::Rule => "a failing and a passing [[scenarios]], then the query",

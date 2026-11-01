@@ -29,8 +29,11 @@ ra_ap_parser = "=0.0.347"
 # Not named by any source: the pin a consumer's own resolution inherits. ra-ap-rustc_lexer 0.166.0 refuses to compile when
 # unicode-ident and unicode-properties 0.1.4 carry different Unicode versions, which unicode-ident 1.0.27 does.
 unicode-ident = "=1.0.24"
+# The same pin for unicode-properties: 0.1.5 (2026-10-31) carries a Unicode version unicode-ident 1.0.24 does not, so a fresh
+# resolution fails ra-ap-rustc_lexer's check. It comes out once upstream agrees again.
+unicode-properties = "=0.1.4"
 rustc-literal-escaper = "=0.0.7"
-ryo = { package = "idiomatic-sh-ryo-sdk", path = "../../crates/sdk", version = "0.1.0" }
+ryo = { package = "idiomatic-sh-ryo-sdk", path = "../../crates/sdk", version = "0.1.1" }
 
 [dev-dependencies]
 ryo = { package = "idiomatic-sh-ryo-sdk", path = "../../crates/sdk", features = ["fixtures"] }
@@ -60,6 +63,6 @@ fixtures = ["ryo/fixtures"]
 [lints]
 workspace = true
 
-# The crate names itself as a dev-dependency to switch its own `fixtures` feature on for its tests: no source names it. Its `harness = false` test targets use dhat, which machete does not see. unicode-ident is a version pin no source names.
+# The crate names itself as a dev-dependency to switch its own `fixtures` feature on for its tests: no source names it. Its `harness = false` test targets use dhat, which machete does not see. unicode-ident and unicode-properties are version pins no source names.
 [package.metadata.cargo-machete]
-ignored = ["idiomatic-sh-ryo-rust", "dhat", "unicode-ident"]
+ignored = ["idiomatic-sh-ryo-rust", "dhat", "unicode-ident", "unicode-properties"]

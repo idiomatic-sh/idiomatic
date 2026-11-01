@@ -96,6 +96,11 @@ pub(crate) fn fetched(cache: &Path, name: &str, repository: &str, revision: &str
             );
         };
         git(&["init", "--quiet"]);
+        // The checkout is the revision byte for byte, links as links, whatever the platform's git would convert.
+        git(&["config", "core.autocrlf", "false"]);
+        git(&["config", "core.symlinks", "true"]);
+        // Windows' paths are short of the longest of ruff's files unless git asks for long ones.
+        git(&["config", "core.longpaths", "true"]);
         git(&["fetch", "--quiet", "--depth", "1", repository, revision]);
         git(&["checkout", "--quiet", "--detach", revision]);
         std::fs::rename(&partial, &directory).expect("the snapshot is kept");

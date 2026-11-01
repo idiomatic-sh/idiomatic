@@ -87,7 +87,13 @@ fn stopped() -> bool {
     }
     connection.stop();
     let ended = ran.join().expect("the run ends");
-    ended.ending == Ending::Signalled && started.elapsed().as_secs() < 30
+    // Windows has no signals: a job the run ended exits with a failing code.
+    let killed = if cfg!(unix) {
+        ended.ending == Ending::Signalled
+    } else {
+        matches!(ended.ending, Ending::Exited(code) if code.0 != 0_i32)
+    };
+    killed && started.elapsed().as_secs() < 30
 }
 
 fn here() -> ProductRoot {

@@ -9,11 +9,11 @@ inputs = [".", "../../rustfmt.toml", "../../rust-toolchain.toml"]
 [[tools]]
 id = "tastemaker"
 group = "lint"
-# asymptote is checked by Tastemaker, built from this checkout, over the package it is placed by.
+# asymptote is checked by Tastemaker, the release the root's tastemaker.toml pins, over the package it is placed by.
 run = ["tm", "check", "--format", "sarif"]
 output = "sarif"
 timeout-seconds = 1800
-inputs = [".", "../../tastemaker", "../tastemaker", "../ryo"]
+inputs = [".", "../../tastemaker"]
 
 [[tools]]
 id = "cargo-machete"

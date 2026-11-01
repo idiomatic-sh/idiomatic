@@ -39,6 +39,36 @@ pub(crate) fn ryo_lines(
         .collect()
 }
 
+/// What Windows itself needs of the environment to start a program, passed down beside `PATH`; none on other platforms.
+const SYSTEM: &[&str] = if cfg!(windows) {
+    &[
+        "SystemRoot",
+        "SystemDrive",
+        "ComSpec",
+        "PATHEXT",
+        "TEMP",
+        "TMP",
+    ]
+} else {
+    &[]
+};
+
+/// The program `program` names on the build's `PATH`: on Windows the first of its `.exe`, `.cmd` and `.bat` (npm and pnpm are
+/// batch files there, which a bare name does not find); the name as it is elsewhere.
+fn found(program: &str) -> std::path::PathBuf {
+    if cfg!(windows) {
+        for directory in std::env::split_paths(env!("PATH")) {
+            for extension in ["exe", "cmd", "bat"] {
+                let candidate = directory.join(program).with_extension(extension);
+                if candidate.is_file() {
+                    return candidate;
+                }
+            }
+        }
+    }
+    std::path::PathBuf::from(program)
+}
+
 /// What `program` prints when it runs `arguments` in `directory`, given the `PATH` the build that made this test had and `variables`:
 /// nothing else is passed down. What it says on stderr when it fails.
 pub(crate) fn tool_result(
@@ -47,11 +77,16 @@ pub(crate) fn tool_result(
     directory: &Path,
     variables: &[(&str, &str)],
 ) -> Result<String, String> {
-    let output = std::process::Command::new(program)
+    let output = std::process::Command::new(found(program))
         .args(arguments)
         .current_dir(directory)
         .env_clear()
         .env("PATH", env!("PATH"))
+        .envs(
+            SYSTEM
+                .iter()
+                .filter_map(|name| Some((*name, std::env::var_os(name)?))),
+        )
         .envs(variables.iter().copied())
         .output()
         .unwrap_or_else(|error| panic!("`{program}` runs: {error}"));
@@ -90,11 +125,16 @@ pub(crate) fn tool_output(
 
 /// The path of `path` relative to `root`, none when it lies outside.
 pub(crate) fn relative(root: &Path, path: &Path) -> Option<String> {
-    path.starts_with(root).then(|| {
-        path.strip_prefix(root)
-            .expect("a path that starts with the root")
-            .to_string_lossy()
-            .into_owned()
+    // Both canonical, as a tool prints its own spelling of a place (Windows' long names where the root has a short one),
+    // and joined by `/`, as ryo keys every path.
+    let canonical = |place: &Path| place.canonicalize().unwrap_or_else(|_| place.to_path_buf());
+    let (root, path) = (canonical(root), canonical(path));
+    path.strip_prefix(&root).ok().map(|inside| {
+        inside
+            .components()
+            .map(|part| part.as_os_str().to_string_lossy())
+            .collect::<Vec<_>>()
+            .join("/")
     })
 }
 

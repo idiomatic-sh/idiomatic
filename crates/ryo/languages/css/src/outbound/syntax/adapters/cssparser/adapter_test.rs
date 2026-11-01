@@ -503,7 +503,12 @@ fn subject(given: Input) -> Result<Value, Failure> {
                 };
                 if !agrees(&text, &printed) {
                     differing.push(&*Box::leak(
-                        input.to_string_lossy().into_owned().into_boxed_str(),
+                        input
+                            .components()
+                            .map(|part| part.as_os_str().to_string_lossy())
+                            .collect::<Vec<_>>()
+                            .join("/")
+                            .into_boxed_str(),
                     ));
                 }
             }
