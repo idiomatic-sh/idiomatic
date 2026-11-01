@@ -74,8 +74,10 @@ pub use ryo_language::domain::relations::types::Relation;
 pub use ryo_language::domain::relations::types::Column;
 
 pub use ryo_language::domain::elements::types::{
-    DiagnosticCode, DiagnosticMetadata, DiagnosticPhase, Elements, TreeImpact,
+    DiagnosticCode, DiagnosticMetadata, DiagnosticPhase, Elements, SyntaxAcceptance, TreeImpact,
 };
+
+pub use ryo_language::domain::elements::service::{set_syntax_acceptance, syntax_acceptance};
 
 pub use ryo_language::domain::elements::types::Children;
 

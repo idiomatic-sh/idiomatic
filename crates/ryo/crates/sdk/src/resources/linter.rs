@@ -53,6 +53,7 @@ pub use lint::types::Finding;
 pub use lint::types::Glob;
 
 pub use lint::types::LintReport;
+pub use lint::types::Skipped;
 
 pub use lint::types::LintRequest;
 
@@ -67,6 +68,9 @@ pub use lint::types::ProviderName;
 pub use lint::types::Rule;
 
 pub use lint::types::RuleId;
+
+pub use ryo_values::domain::runs::types::RuleApplicability;
+pub use ryo_values::domain::runs::types::SkipReason;
 
 pub use lint::types::Unknown;
 

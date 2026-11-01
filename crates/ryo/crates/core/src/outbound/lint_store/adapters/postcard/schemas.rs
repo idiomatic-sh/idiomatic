@@ -18,7 +18,7 @@ use ryo_values::domain::program::types::ColumnName;
 use ryo_values::domain::records::types::Cell;
 use ryo_values::domain::records::types::{GoverningRules, PlacedRule};
 use ryo_values::domain::records::types::{PlacedColumn, PlacedLine, Unreadable};
-use ryo_values::domain::runs::types::{ManifestRefused, RuleId};
+use ryo_values::domain::runs::types::{ManifestRefused, RuleId, SkipReason, Skipped};
 use ryo_values::domain::stored_facts::types::PackedWords;
 use ryo_values::domain::stored_facts::types::{
     ArenaBytes, Bucket, Digest, FileNotes, LanguageNumber, NoteBytes, PartialAt, PartialCause,
@@ -168,6 +168,9 @@ pub(super) struct TablesSchema<'a> {
     consulted: Vec<FileSchema>,
     /// The files the lookup asked for and found none of, as texts.
     consulted_absent: Vec<TextSchema>,
+    /// Rules explicitly skipped because their required syntax was rejected.
+    #[serde(default)]
+    skipped: Vec<TripleSchema>,
 }
 
 /// Bytes of a file only the core reads, its names' text: one row for each file that has some.
@@ -465,6 +468,20 @@ impl<'a> From<&'a Stored> for TablesSchema<'a> {
                 said: text(&mut strings, &each.message.0),
             })
             .collect();
+        let skipped = stored
+            .skipped
+            .iter()
+            .map(|each| TripleSchema {
+                first: text(&mut strings, &each.rule.0),
+                path: text(&mut strings, &each.path.0),
+                said: text(
+                    &mut strings,
+                    match each.reason {
+                        SkipReason::SyntaxRejected => "syntax-rejected",
+                    },
+                ),
+            })
+            .collect();
         Self {
             frontiers: stored
                 .frontiers
@@ -486,6 +503,7 @@ impl<'a> From<&'a Stored> for TablesSchema<'a> {
             unknowns,
             consulted,
             consulted_absent,
+            skipped,
         }
     }
 }
@@ -627,6 +645,22 @@ impl TryFrom<TablesSchema<'_>> for Stored {
                 })
             })
             .collect::<Result<_, postcard::Error>>()?;
+        let skipped = tables
+            .skipped
+            .iter()
+            .map(|each| {
+                let said = named(strings, each.said)?;
+                let reason = match said.as_ref() {
+                    "syntax-rejected" => SkipReason::SyntaxRejected,
+                    _ => return Err(postcard::Error::DeserializeBadEncoding),
+                };
+                Ok(Skipped {
+                    rule: RuleId(named(strings, each.first)?),
+                    path: FilePath(named(strings, each.path)?),
+                    reason,
+                })
+            })
+            .collect::<Result<_, postcard::Error>>()?;
         let findings = findings_from(&tables, files.len())?;
         Ok(Self {
             rules,
@@ -636,6 +670,7 @@ impl TryFrom<TablesSchema<'_>> for Stored {
             unread,
             refused,
             unknowns,
+            skipped,
             consulted,
             consulted_absent,
             handed: StoredHanded::default(),

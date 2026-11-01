@@ -62,6 +62,7 @@ pub(crate) fn tables_for(
         partials: Vec::new(),
         covered: Vec::new(),
         unknowns: Vec::new(),
+        skipped: Vec::new(),
         shared: crate::domain::shared_walk::types::MergedWalk::default(),
     }
 }
@@ -136,6 +137,7 @@ pub(crate) fn absorb(met: &mut WorkersMet, tables: Tables, plans: &[Plan]) {
     met.read.0 += tables.reads.0;
     met.covered.extend(tables.covered);
     met.unknowns.extend(tables.unknowns);
+    met.skipped.extend(tables.skipped);
     met.unread.extend(tables.unread);
     met.unrecorded.extend(tables.unrecorded);
     met.arenas.push(tables.arena);

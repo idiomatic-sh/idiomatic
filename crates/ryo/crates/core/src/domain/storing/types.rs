@@ -5,6 +5,7 @@ use crate::domain::workers::types::FileOrder;
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::records::types::{FindingRows, PlacedRule, Record};
 use ryo_values::domain::runs::types::ManifestRefused;
+use ryo_values::domain::runs::types::Skipped;
 use ryo_values::domain::stores::types::{
     BucketsWanted, KeptRows, Stored, StoredFile, StoredHanded, StoredRule,
 };
@@ -56,6 +57,8 @@ pub(crate) struct ToKeep<'a> {
     pub refused: &'a [ManifestRefused],
     /// What the rules could not decide.
     pub unknowns: &'a [Unknown],
+    /// Rules skipped for files whose syntax they require was rejected.
+    pub skipped: &'a [Skipped],
     /// The files the project's lookup read beyond the manifests, with their stamps and digests, in the order of their paths.
     pub consulted: &'a [StoredFile],
     /// The files the lookup asked for and found none of, in the order of their paths.
@@ -84,6 +87,8 @@ pub(crate) struct Reused {
     pub records: Vec<Record>,
     /// What the rules could not decide in the changed files read before the run.
     pub unknowns: Vec<Unknown>,
+    /// Rules skipped for files whose syntax they require was rejected.
+    pub skipped: Vec<Skipped>,
     /// The files whose stored rows are theirs no more, in the order of their paths.
     pub read_again: Vec<FilePath>,
 }
@@ -96,6 +101,8 @@ pub(crate) struct ReadAlone {
     pub records: Vec<Record>,
     /// What the rules could not decide in them.
     pub unknowns: Vec<Unknown>,
+    /// Rules skipped for files whose syntax they require was rejected.
+    pub skipped: Vec<Skipped>,
 }
 
 /// What a run reads again of what the files handed the cross-file steps: the buckets it reads, and what the store kept of them.

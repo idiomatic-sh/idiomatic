@@ -167,6 +167,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 paths: &[],
                 first_bucket: &[],
                 ids: &[],
+                applicability: &[],
                 placed: &placed,
                 records: &[],
                 replaying: super::types::Replaying::Findings,

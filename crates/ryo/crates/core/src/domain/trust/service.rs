@@ -336,6 +336,7 @@ pub(crate) fn files_for(partials: &Partials, needs: &[RelationRead]) -> Vec<Opti
                 .any(|read| matters(read, &each.partial) == Bearing::Matters)
         })
         .map(|each| each.file)
+        .chain(partials.unavailable_files.iter().copied().map(Some))
         .collect();
     files.sort();
     files.dedup();

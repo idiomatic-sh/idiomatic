@@ -49,8 +49,8 @@ use crate::domain::repository::service::{by_path, configuration, paths_of};
 use crate::domain::rules::service::{bind, check_ids, ids_of, owner_of, scopes_of};
 use crate::domain::rules::types::RuleSpec;
 use crate::domain::storing::service::{
-    as_kept, decide as reuse_of, later_from, made_again, records_from, stored_of, unknowns_from,
-    with_fresh,
+    as_kept, decide as reuse_of, later_from, made_again, records_from, skipped_from, stored_of,
+    unknowns_from, with_fresh,
 };
 use crate::domain::storing::types::{
     Decision, HandedAgain, MadeAgain, ReadAlone, Reuse, Reused, ToKeep,
@@ -550,7 +550,7 @@ impl LintUseCaseImpl {
             Some(stored) => (reuse, with_fresh(stored, alone.records), alone.unknowns),
             None => (Reuse::Whole, Vec::new(), Vec::new()),
         };
-        let read_again = listing
+        let read_again: Vec<FilePath> = listing
             .files
             .iter()
             .filter(|file| {
@@ -574,6 +574,10 @@ impl LintUseCaseImpl {
             again,
             records,
             unknowns,
+            skipped: skipped_from(&listing.stored, &read_again)
+                .into_iter()
+                .chain(alone.skipped.iter().cloned())
+                .collect(),
             read_again,
         })
     }
@@ -650,6 +654,7 @@ impl LintUseCaseImpl {
                 .map(|each| each.record)
                 .collect(),
             unknowns: worker.tables.unknowns,
+            skipped: worker.tables.skipped,
         })
     }
 
@@ -978,6 +983,7 @@ impl LintUseCaseImpl {
             arenas: &*handed.arenas,
             files: &listing.files,
             covered: handed.covered,
+            skipped: handed.skipped,
             project: &now.partials,
             hosted: &run.request.hosted,
             answering: run.answering,
@@ -1189,6 +1195,7 @@ impl LintUseCaseImpl {
             unrecorded,
             covered,
             mut unknowns,
+            mut skipped,
             mut notes,
             fed,
             ..
@@ -1202,9 +1209,13 @@ impl LintUseCaseImpl {
             unknowns.extend(unknowns_from(&run.listing.stored, run.read_again));
             unknowns.extend(run.alone.iter().cloned());
         }
+        if matches!(run.again, Reuse::Cross(_) | Reuse::Again) {
+            skipped.extend(run.skipped.iter().cloned());
+        }
         let handed = CrossReading {
             arenas: &mut arenas,
             covered: &covered,
+            skipped: &skipped,
             workers,
         };
         let now = if let Reuse::Cross(MadeAgain::These(rules)) = &run.again {
@@ -1254,6 +1265,8 @@ impl LintUseCaseImpl {
         report_refused(&mut unread, &now.refused);
         unknowns.sort();
         unknowns.dedup();
+        skipped.sort();
+        skipped.dedup();
         let files = RowCounts {
             total,
             shown: counted,
@@ -1269,6 +1282,7 @@ impl LintUseCaseImpl {
                 later: &rows_of(&later),
                 refused: &now.refused,
                 unknowns: &unknowns,
+                skipped: &skipped,
                 consulted: &now.consulted,
                 consulted_absent: &now.consulted_absent,
             },
@@ -1276,6 +1290,7 @@ impl LintUseCaseImpl {
         Ok(LintReport {
             unread,
             unknowns,
+            skipped,
             features: self.features_of(run, &all_fed),
             work: self.work_of(run, &all_fed),
         })
@@ -1305,6 +1320,7 @@ impl LintUseCase for LintUseCaseImpl {
             facts: self.facts.worker()?,
         };
         let first_bucket = first_buckets(&plans);
+        let applicability: Vec<_> = rules.iter().map(|rule| rule.applicability).collect();
         let needs: Vec<Needs> = plans.iter().map(scoped_needs).collect();
         let resolved = self.resolution(&manifests, &plans);
         let stored_rules = self.stored_rules(&rules, &plans, &request.hosted, resolved);
@@ -1318,6 +1334,7 @@ impl LintUseCase for LintUseCaseImpl {
             paths: &paths,
             first_bucket: &first_bucket,
             ids: &ids,
+            applicability: &applicability,
             placed: &placed,
             records: &[],
             replaying: Replaying::Findings,
@@ -1339,6 +1356,7 @@ impl LintUseCase for LintUseCaseImpl {
             again,
             records: kept_records,
             unknowns: alone_unknowns,
+            skipped: alone_skipped,
             read_again,
         } = self.reused(&setting, &listing, &manifests, &stored_rules, &ids)?;
         setting.replaying = match again {
@@ -1369,6 +1387,7 @@ impl LintUseCase for LintUseCaseImpl {
             again,
             read_again: &read_again,
             alone: &alone_unknowns,
+            skipped: &alone_skipped,
             handed: &handed,
             wanted: &wanted,
         };

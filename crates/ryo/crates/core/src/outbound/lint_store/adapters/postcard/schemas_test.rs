@@ -9,6 +9,7 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::lint_store::fixtures::fake::stored;
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::records::types::Cell;
+use ryo_values::domain::runs::types::{RuleId, SkipReason, Skipped};
 use ryo_values::domain::stored_facts::types::Bucket;
 use ryo_values::domain::stores::types::{Stored, StoredFinding, StoredHanded, StoredWords};
 
@@ -107,7 +108,13 @@ fn handed_reads_back(stored: &Stored) -> bool {
 fn subject(offered: Input) -> Value {
     match offered {
         Offered::TheSameBuild => {
-            tables_of(&written(&stored(1))) == tables(stored(1)) && handed_reads_back(&stored(1))
+            let mut stored = stored(1);
+            stored.skipped = vec![Skipped {
+                rule: RuleId("syntax-only".into()),
+                path: FilePath("src/1/rejected.py".into()),
+                reason: SkipReason::SyntaxRejected,
+            }];
+            tables_of(&written(&stored)) == tables(stored.clone()) && handed_reads_back(&stored)
         }
         Offered::AnotherBuild => {
             let bytes = contents_bytes("b", &TableOfContents::default()).expect("written");

@@ -11,7 +11,7 @@ use ryo_values::domain::records::types::{
     FileOutcome, FindingRows, Handing, PlacedColumn, PlacedLine, PlacedRule, Ran, Record,
     RuleFrontier, Unreadable,
 };
-use ryo_values::domain::runs::types::{ManifestRefused, RuleId};
+use ryo_values::domain::runs::types::{ManifestRefused, RuleId, SkipReason, Skipped};
 use ryo_values::domain::stored_facts::types::{Digest, ReadFailure};
 use ryo_values::domain::stores::types::{
     BucketsWanted, Crossing, FileAgain, FindingMade, FindingPlace, Stored, StoredFile,
@@ -20,7 +20,8 @@ use ryo_values::domain::stores::types::{
 };
 
 use super::service::{
-    decide, later_from, made_again, records_from, stored_of, unknowns_from, with_fresh,
+    decide, later_from, made_again, records_from, skipped_from, stored_of, unknowns_from,
+    with_fresh,
 };
 use super::types::{Decision, MadeAgain, ToKeep};
 use crate::cases::{Case, CaseName, Expect, Word, run};
@@ -50,6 +51,8 @@ enum Scenario {
     WithFresh,
     /// `unknowns_from` with one of the two files it holds unknowns of read again.
     UnknownsFrom,
+    /// Explicit skip outcomes are retained only for files not read again.
+    SkippedFrom,
 }
 
 /// What a row of the cases does.
@@ -152,6 +155,7 @@ fn stored() -> Stored {
 fn plain() -> Stored {
     Stored {
         unknowns: Vec::new(),
+        skipped: Vec::new(),
         ..stored()
     }
 }
@@ -302,6 +306,7 @@ fn subject(scenario: Input) -> Value {
                     later: &later,
                     refused: &kept.refused,
                     unknowns: &unknowns,
+                    skipped: &kept.skipped,
                     consulted: &kept.consulted,
                     consulted_absent: &kept.consulted_absent,
                 },
@@ -344,6 +349,17 @@ fn subject(scenario: Input) -> Value {
             });
             let left = unknowns_from(&kept, &[FilePath("a.rs".into())]);
             left.len() * 10 + usize::from(left.first().is_some_and(|each| &*each.path.0 == "b.rs"))
+        }
+        Scenario::SkippedFrom => {
+            let mut kept = stored();
+            kept.skipped.push(Skipped {
+                rule: RuleId("syntax-only".into()),
+                path: FilePath("a.rs".into()),
+                reason: SkipReason::SyntaxRejected,
+            });
+            let reused = skipped_from(&kept, &[]);
+            let refreshed = skipped_from(&kept, &[FilePath("a.rs".into())]);
+            usize::from(reused == kept.skipped) * 10 + refreshed.len()
         }
     }
 }
@@ -412,6 +428,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Scenario::UnknownsFrom,
         expect: Expect::Value(11),
+    },
+    Case {
+        name: CaseName("syntax_rejection_skips_are_replayed_until_their_file_is_read_again"),
+        word: Word::Succeeds,
+        input: || Scenario::SkippedFrom,
+        expect: Expect::Value(10),
     },
 ];
 

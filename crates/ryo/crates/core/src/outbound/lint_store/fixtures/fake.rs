@@ -286,6 +286,7 @@ pub fn stored(tag: u8) -> Stored {
             path: path("a.rs"),
             message: UnknownText(format!("partial {tag}").into()),
         }],
+        skipped: Vec::new(),
         frontiers: vec![StoredFrontier {
             file: StoredFileNumber(0),
             rule: PlacedRule(1),

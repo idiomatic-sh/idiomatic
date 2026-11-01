@@ -53,10 +53,12 @@ fn target_version_syntax_warning_preserves_the_tree() {
                 )
             })
             .collect();
-        (elements, diagnostics)
+        let acceptance = languages::syntax_acceptance(&elements);
+        (elements, diagnostics, acceptance)
     };
 
-    let (py310, unsupported) = diagnostics_for(PythonTargetVersion::Py310);
+    let (py310, unsupported, py310_acceptance) = diagnostics_for(PythonTargetVersion::Py310);
+    assert_eq!(py310_acceptance, languages::SyntaxAcceptance::Accepted);
     assert!(!languages::has_incomplete_syntax(&py310));
     assert_eq!(unsupported.len(), 1);
     assert_eq!(unsupported[0].0, "validation");
@@ -64,8 +66,9 @@ fn target_version_syntax_warning_preserves_the_tree() {
     assert_eq!(unsupported[0].2, "unsupported-syntax");
     assert_eq!((unsupported[0].3, unsupported[0].4), (20, 21));
 
-    let (_py311, supported) = diagnostics_for(PythonTargetVersion::Py311);
+    let (_py311, supported, py311_acceptance) = diagnostics_for(PythonTargetVersion::Py311);
     assert!(supported.is_empty());
+    assert_eq!(py311_acceptance, languages::SyntaxAcceptance::Accepted);
 }
 
 #[test]
@@ -87,12 +90,13 @@ fn parser_errors_distinguish_complete_tokens_from_lexical_failure() {
             impacts,
             languages::has_incomplete_syntax(&elements),
             languages::has_incomplete_lexical_stream(&elements),
+            languages::syntax_acceptance(&elements),
         )
     };
 
     for prefix in ["ur", "ru", "UR", "bu"] {
         let source = format!("value = {prefix}\"text\" # retained comment\n");
-        let (impacts, incomplete_syntax, incomplete_lexical) = impacts(&source);
+        let (impacts, incomplete_syntax, incomplete_lexical, acceptance) = impacts(&source);
         assert!(!impacts.is_empty(), "{prefix} must be rejected for PY310");
         assert!(
             impacts
@@ -102,19 +106,21 @@ fn parser_errors_distinguish_complete_tokens_from_lexical_failure() {
         );
         assert!(incomplete_syntax);
         assert!(!incomplete_lexical);
+        assert_eq!(acceptance, languages::SyntaxAcceptance::Rejected);
     }
 
     for source in [
         "value = 'unterminated\n",
         "if ready:\n    work(\"unfinished\n",
     ] {
-        let (impacts, incomplete_syntax, incomplete_lexical) = impacts(source);
+        let (impacts, incomplete_syntax, incomplete_lexical, acceptance) = impacts(source);
         assert!(!impacts.is_empty(), "source must report a parse error");
         assert!(incomplete_syntax);
         assert!(
             incomplete_lexical,
             "{source:?} must not certify lexical facts"
         );
+        assert_eq!(acceptance, languages::SyntaxAcceptance::Rejected);
     }
 }
 

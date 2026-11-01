@@ -9,6 +9,7 @@ use ryo_values::domain::files::types::CorpusEntry;
 use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::runs::types::RuleId;
+use ryo_values::domain::runs::types::Skipped;
 use ryo_values::domain::stored_facts::types::ArenaBytes;
 
 /// What the cross-file steps of every rule read besides the rows the files handed over.
@@ -30,6 +31,8 @@ pub(crate) struct CrossingInput<'a> {
     pub files: &'a [CorpusEntry],
     /// The files that have a relation read in part.
     pub covered: &'a [Covered],
+    /// Files explicitly skipped because their syntax was rejected.
+    pub skipped: &'a [Skipped],
     /// The relations the project wrote that are read in part.
     pub project: &'a [Partial],
     /// The relations the host declares, with their rows.

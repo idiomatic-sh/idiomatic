@@ -11,7 +11,7 @@ use ryo_values::domain::files::types::{CorpusEntry, FileNumber, Nanoseconds};
 use ryo_values::domain::records::types::{
     Cell, FileOutcome, FindingRows, Freshness, Handing, PlacedRule, Ran, Record, RuleFrontier,
 };
-use ryo_values::domain::runs::types::RuleId;
+use ryo_values::domain::runs::types::{RuleId, Skipped};
 use ryo_values::domain::stored_facts::types::{Bucket, Digest};
 use ryo_values::domain::stores::types::{
     BucketsWanted, Crossing, FileAgain, FindingMade, KeptRows, Stored, StoredCell, StoredFile,
@@ -114,6 +114,12 @@ pub(crate) fn made_again(
         .chain(
             stored
                 .unknowns
+                .iter()
+                .map(|each| (each.path.clone(), place_of(&each.rule))),
+        )
+        .chain(
+            stored
+                .skipped
                 .iter()
                 .map(|each| (each.path.clone(), place_of(&each.rule))),
         )
@@ -276,6 +282,17 @@ pub(crate) fn unknowns_from(stored: &Stored, read_again: &[FilePath]) -> Vec<Unk
         .collect()
 }
 
+/// What the rules explicitly skipped, as the store kept it, but not for files read again.
+#[must_use]
+pub(crate) fn skipped_from(stored: &Stored, read_again: &[FilePath]) -> Vec<Skipped> {
+    stored
+        .skipped
+        .iter()
+        .filter(|each| read_again.binary_search(&each.path).is_err())
+        .cloned()
+        .collect()
+}
+
 /// The records the store kept, with those of `fresh` in place of the ones of the same path and among them by path: both in the order
 /// of their paths.
 #[must_use]
@@ -311,6 +328,7 @@ pub(crate) fn stored_of(
         later,
         refused,
         unknowns,
+        skipped,
         consulted,
         consulted_absent,
     } = keeping;
@@ -327,6 +345,7 @@ pub(crate) fn stored_of(
                 message: UnknownText(each.message.0.clone()),
             })
             .collect(),
+        skipped: skipped.to_vec(),
         ..Stored::default()
     };
     let mut kept = KeptRows {

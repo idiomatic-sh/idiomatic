@@ -63,6 +63,7 @@ impl TryFrom<RunRequestSchema> for CoreRequest {
             rules: vec![Rule {
                 id: ryo_values::domain::runs::types::RuleId(QUERY_ID.into()),
                 query: request.query.into_bundle(),
+                applicability: ryo_values::domain::runs::types::RuleApplicability::Always,
                 parameters: Vec::new(),
                 include: Vec::new(),
                 exclude: Vec::new(),

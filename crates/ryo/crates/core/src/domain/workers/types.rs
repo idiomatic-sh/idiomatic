@@ -19,7 +19,9 @@ use ryo_values::domain::files::types::{FileBytes, Hits};
 use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::records::types::{Kept, Record, RowTotal, Unread};
 use ryo_values::domain::runs::types::MemoryBytes;
+use ryo_values::domain::runs::types::RuleApplicability;
 use ryo_values::domain::runs::types::RuleId;
+use ryo_values::domain::runs::types::Skipped;
 use ryo_values::domain::stored_facts::types::PackedWords;
 use ryo_values::domain::stored_facts::types::{ArenaBytes, Bucket, FileNotes, LanguageNumber};
 use ryo_values::domain::stores::types::{BucketsWanted, Stored, StoredHanded};
@@ -129,6 +131,8 @@ pub(crate) struct Tables {
     pub covered: Vec<Covered>,
     /// What the rules could not decide in the files this worker visited.
     pub unknowns: Vec<Unknown>,
+    /// Rules explicitly skipped for files whose syntax they require was rejected.
+    pub skipped: Vec<Skipped>,
     /// The steps of the rules that select from the elements of a file, merged to be decided in one pass over them.
     pub shared: crate::domain::shared_walk::types::MergedWalk,
 }
@@ -148,6 +152,8 @@ pub(crate) struct VisitSetting<'a> {
     pub first_bucket: &'a [Bucket],
     /// The ids of the rules.
     pub ids: &'a [RuleId],
+    /// Whether each rule runs on every file or only after syntax acceptance.
+    pub applicability: &'a [RuleApplicability],
     /// Which rule governs which file.
     pub placed: &'a PlacedScopes,
     /// What the store kept of each file, by the file's place among the files.
@@ -189,6 +195,8 @@ pub(crate) struct WorkersMet {
     pub covered: Vec<Covered>,
     /// What the rules could not decide.
     pub unknowns: Vec<Unknown>,
+    /// Rules explicitly skipped for files whose syntax they require was rejected.
+    pub skipped: Vec<Skipped>,
     /// What the workers made of the files they read, in no order.
     pub fresh: Vec<FreshRecord>,
     /// What the languages wrote of the files read now.
@@ -235,6 +243,8 @@ pub(crate) struct CrossReading<'a, W> {
     pub arenas: &'a mut Vec<ArenaBytes>,
     /// What each rule covered.
     pub covered: &'a [Covered],
+    /// Files explicitly skipped because syntax was rejected.
+    pub skipped: &'a [Skipped],
     /// The store's handle of each worker.
     pub workers: Vec<W>,
 }

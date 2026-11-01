@@ -179,6 +179,15 @@ pub(crate) fn configuration_bytes(configuration: &Configuration<'_>) -> DigestIn
     );
     for rule in configuration.rules {
         put(&mut out, DigestPart(&rule.id.0));
+        put(
+            &mut out,
+            DigestPart(match rule.applicability {
+                ryo_values::domain::runs::types::RuleApplicability::Always => "always",
+                ryo_values::domain::runs::types::RuleApplicability::AcceptedSyntax => {
+                    "accepted-syntax"
+                }
+            }),
+        );
         put(&mut out, DigestPart(&rule.query.root.id.0));
         put(&mut out, DigestPart(&rule.query.root.text));
         out.0.extend_from_slice(

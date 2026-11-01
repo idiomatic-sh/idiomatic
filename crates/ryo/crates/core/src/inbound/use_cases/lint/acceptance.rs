@@ -137,6 +137,7 @@ fn runs(world: &mut Behavior) {
         rules: vec![Rule {
             id: RuleId("rule".into()),
             query: ryo_values::domain::program::types::QueryBundle::from(QueryText(query.into())),
+            applicability: ryo_values::domain::runs::types::RuleApplicability::Always,
             parameters: Vec::new(),
             include: Vec::new(),
             exclude: Vec::new(),

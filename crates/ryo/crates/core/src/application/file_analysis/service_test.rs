@@ -17,6 +17,181 @@ use ryo_language::inbound::use_cases::project::types::{ManifestFile, ManifestTex
 use std::sync::{Arc, atomic::Ordering};
 
 #[test]
+fn syntax_applicability_skips_only_gated_rules_and_names_the_reason() {
+    use super::service::FileAnalysis;
+    use crate::domain::lowering::types::Counting;
+    use crate::domain::operator::types::TreeSteps;
+    use crate::domain::placement::types::{Mask, PlacedScopes, ScopePlacement};
+    use crate::domain::trust::types::{Needs, RelationRead};
+    use crate::domain::workers::service::tables_for;
+    use crate::domain::workers::types::VisitSetting;
+    use crate::outbound::matching::interface::MatchingPort as _;
+    use ryo_language::domain::elements::types::SyntaxAcceptance;
+    use ryo_language::domain::relations::types::{Relation, WorkerNumber};
+    use ryo_values::domain::plan_parts::types::{ColumnIndex, StepId};
+    use ryo_values::domain::plans::types::{Emit, Plan};
+    use ryo_values::domain::runs::types::{RuleApplicability, RuleId};
+
+    let plan = Plan {
+        parameters: Vec::new(),
+        steps: Vec::new(),
+        comparison_origins: Vec::new(),
+        emit: Emit {
+            step: StepId(0),
+            subject: ColumnIndex(0),
+            key: Vec::new(),
+            headings: Vec::new(),
+        },
+        frontier: Vec::new(),
+    };
+    let plans = [plan.clone(), plan];
+    let ids = [RuleId("gated".into()), RuleId("always".into())];
+    let paths = [FilePath("source.py".into())];
+    let applicability = [RuleApplicability::AcceptedSyntax, RuleApplicability::Always];
+    let placed = PlacedScopes {
+        placement: ScopePlacement::default(),
+        matcher: crate::outbound::matching::fixtures::fake::MatchingFake
+            .compile(&[])
+            .expect("empty matcher"),
+    };
+    let setting = VisitSetting {
+        plans: &plans,
+        bindings: &[],
+        wanted: &[Relation::Function, Relation::Identifier],
+        paths: &paths,
+        first_bucket: &[],
+        ids: &ids,
+        applicability: &applicability,
+        placed: &placed,
+        records: &[],
+        replaying: crate::domain::workers::types::Replaying::Findings,
+        stored: &NOTHING_STORED,
+        handed: &NOTHING_HANDED,
+        wanted_buckets: &NOTHING_WANTED,
+        budget: ryo_values::domain::runs::types::MemoryBytes(u64::MAX),
+        noted: crate::domain::visit::types::Noting::Unwanted,
+        roled: crate::domain::visit::types::RoleRead::Skips,
+        needs: &[
+            Needs {
+                reads: vec![RelationRead {
+                    relation: Relation::Function,
+                    kinds: Vec::new(),
+                }],
+                ..Needs::default()
+            },
+            Needs {
+                reads: vec![RelationRead {
+                    relation: Relation::Identifier,
+                    kinds: Vec::new(),
+                }],
+                ..Needs::default()
+            },
+        ],
+        answering: &crate::domain::render::types::Answering::Findings,
+        keeping: crate::domain::visit::types::Keeping::Discards,
+        unknown: &[],
+    };
+    for (acceptance, expected_reason) in [
+        (SyntaxAcceptance::Rejected, "rule skipped: syntax rejected"),
+        (
+            SyntaxAcceptance::Undetermined,
+            "rule skipped: syntax acceptance undetermined",
+        ),
+    ] {
+        let mut tables = tables_for(
+            WorkerNumber(0),
+            &plans,
+            TreeSteps::Lowered,
+            Counting::DoesNotCount,
+        );
+        tables.mask = Mask(vec![0b11]);
+        let skipped = FileAnalysis::gate_rules(
+            &mut tables,
+            &setting,
+            ryo_language::domain::relations::types::FileId(0),
+            acceptance,
+        );
+        assert_eq!(skipped, [true, false]);
+        assert_eq!(tables.mask.0, [0b10]);
+        assert_eq!(
+            FileAnalysis::active_wanted(&tables, &setting, acceptance),
+            [Relation::Identifier]
+        );
+        if acceptance == SyntaxAcceptance::Rejected {
+            assert!(tables.unknowns.is_empty());
+            assert_eq!(tables.skipped.len(), 1);
+            assert_eq!(tables.skipped[0].rule, ids[0]);
+            assert_eq!(tables.skipped[0].path, paths[0]);
+            assert_eq!(
+                tables.skipped[0].reason,
+                ryo_values::domain::runs::types::SkipReason::SyntaxRejected
+            );
+            assert!(expected_reason.contains("rejected"));
+        } else {
+            assert_eq!(tables.unknowns.len(), 1);
+            assert_eq!(tables.unknowns[0].rule, ids[0]);
+            assert_eq!(tables.unknowns[0].path, paths[0]);
+            assert_eq!(&*tables.unknowns[0].message.0, expected_reason);
+            assert!(tables.skipped.is_empty());
+        }
+    }
+
+    let mut tables = tables_for(
+        WorkerNumber(0),
+        &plans,
+        TreeSteps::Lowered,
+        Counting::DoesNotCount,
+    );
+    tables.mask = Mask(vec![0b11]);
+    assert_eq!(
+        FileAnalysis::gate_rules(
+            &mut tables,
+            &setting,
+            ryo_language::domain::relations::types::FileId(0),
+            SyntaxAcceptance::Accepted,
+        ),
+        [false, false]
+    );
+    assert_eq!(tables.mask.0, [0b11]);
+    assert_eq!(
+        FileAnalysis::active_wanted(&tables, &setting, SyntaxAcceptance::Accepted),
+        [Relation::Function, Relation::Identifier]
+    );
+    assert!(tables.unknowns.is_empty());
+
+    let missing_policy = VisitSetting {
+        applicability: &[],
+        ..setting
+    };
+    let mut tables = tables_for(
+        WorkerNumber(0),
+        &plans,
+        TreeSteps::Lowered,
+        Counting::DoesNotCount,
+    );
+    tables.mask = Mask(vec![0b11]);
+    assert_eq!(
+        FileAnalysis::gate_rules(
+            &mut tables,
+            &missing_policy,
+            ryo_language::domain::relations::types::FileId(0),
+            SyntaxAcceptance::Accepted,
+        ),
+        [true, true]
+    );
+    assert_eq!(tables.mask.0, [0]);
+    assert!(
+        FileAnalysis::active_wanted(&tables, &missing_policy, SyntaxAcceptance::Accepted)
+            .is_empty()
+    );
+    assert_eq!(tables.unknowns.len(), 2);
+    assert!(tables.skipped.is_empty());
+    assert!(tables.unknowns.iter().all(|unknown| {
+        &*unknown.message.0 == "rule skipped: applicability metadata unavailable"
+    }));
+}
+
+#[test]
 fn only_incomplete_diagnostics_mark_code_relations_as_recovery() {
     use crate::domain::coverage::service::partial_of;
     use crate::domain::coverage::types::Recovery;
@@ -246,6 +421,7 @@ fn visited_as(
             paths: &[],
             first_bucket: &[],
             ids: &[],
+            applicability: &[],
             placed: &placed,
             records: &[],
             replaying: crate::domain::workers::types::Replaying::Findings,

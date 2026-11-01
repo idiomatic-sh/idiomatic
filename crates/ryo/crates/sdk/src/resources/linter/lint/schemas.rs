@@ -182,6 +182,7 @@ impl TryFrom<LintRequestSchema> for CoreRequest {
                 .map(|(id, rule)| CoreRule {
                     id: ryo_values::domain::runs::types::RuleId(id.as_ref().into()),
                     query: rule.query.into_bundle(),
+                    applicability: rule.applicability,
                     parameters: rule
                         .parameters
                         .into_iter()
@@ -234,6 +235,15 @@ impl TryFrom<LintReportSchema> for LintReport {
                     rule: RuleId::from_text(each.rule.0),
                     path: RelativePath(each.path.0),
                     message: Message(each.message.0),
+                })
+                .collect(),
+            skipped: report
+                .skipped
+                .into_iter()
+                .map(|each| crate::resources::linter::lint::types::Skipped {
+                    rule: RuleId::from_text(each.rule.0),
+                    path: RelativePath(each.path.0),
+                    reason: each.reason,
                 })
                 .collect(),
         })

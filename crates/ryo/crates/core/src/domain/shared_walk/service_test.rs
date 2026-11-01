@@ -111,6 +111,7 @@ fn setting<'a>(
         paths: &[],
         first_bucket: &[],
         ids: &[],
+        applicability: &[],
         placed,
         records: &[],
         replaying: Replaying::Findings,

@@ -125,6 +125,7 @@ fn crossing(world: &World) -> CrossingInput<'_> {
         arenas: &world.arenas,
         files: &[],
         covered: &world.covered,
+        skipped: &[],
         project: &world.project,
         hosted: &[],
         answering: &crate::domain::render::types::Answering::Findings,

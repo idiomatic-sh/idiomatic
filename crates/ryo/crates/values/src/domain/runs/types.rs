@@ -35,6 +35,34 @@ pub struct Session {
 #[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct RuleId(pub Box<str>);
 
+/// Whether a rule runs regardless of parser acceptance or only on accepted syntax trees.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub enum RuleApplicability {
+    /// Run the rule on every admitted file, as legacy rules do.
+    #[default]
+    Always,
+    /// Run only when the language provider explicitly accepted the file's syntax.
+    AcceptedSyntax,
+}
+
+/// Why a rule was explicitly skipped for one file.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum SkipReason {
+    /// The language provider explicitly rejected the file's syntax.
+    SyntaxRejected,
+}
+
+/// A rule that did not run for a file because its applicability condition was not met.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Skipped {
+    /// The rule.
+    pub rule: RuleId,
+    /// The file.
+    pub path: FilePath,
+    /// Why it was skipped.
+    pub reason: SkipReason,
+}
+
 /// A manifest a language's tools refused.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ManifestRefused {

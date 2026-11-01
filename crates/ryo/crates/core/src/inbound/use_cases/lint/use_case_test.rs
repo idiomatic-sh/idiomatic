@@ -289,12 +289,107 @@ fn request(given: &Given) -> LintRequest {
                 query: ryo_values::domain::program::types::QueryBundle::from(QueryText(
                     (*query).into(),
                 )),
+                applicability: ryo_values::domain::runs::types::RuleApplicability::Always,
                 parameters: Vec::new(),
                 include: globs(&given.include),
                 exclude: globs(&given.exclude),
             })
             .collect(),
     }
+}
+
+#[test]
+fn accepted_syntax_applicability_replays_skips_and_invalidates_on_policy_change() {
+    use ryo_values::domain::runs::types::{RuleApplicability, SkipReason};
+
+    let files = vec![("a.rs", "fn a() {}"), ("b.rs", "fn b() {}")];
+    let store = Arc::new(LintStoreFake::default());
+    let mut given = Given {
+        files: files.clone(),
+        store: Arc::clone(&store),
+        ..violations()
+    };
+    given.language.rejected_syntax = vec![FilePath("b.rs".into())];
+    let mut asked = request(&given);
+    asked.rules[0].applicability = RuleApplicability::AcceptedSyntax;
+    let first_world = world(given);
+
+    let first = first_world
+        .use_case
+        .lint(asked.clone())
+        .expect("first lint");
+    assert_eq!(first.unknowns, []);
+    assert_eq!(first.skipped.len(), 1);
+    assert_eq!(first.skipped[0].path, FilePath("b.rs".into()));
+    assert_eq!(first.skipped[0].reason, SkipReason::SyntaxRejected);
+    assert_eq!(first_world.language.parses.load(Ordering::SeqCst), 2);
+    let first_rows = first_world
+        .collected
+        .0
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .rows
+        .clone();
+    assert_eq!(
+        first_rows.len(),
+        1,
+        "the rejected file does not run the rule"
+    );
+
+    let warm = first_world.use_case.lint(asked.clone()).expect("warm lint");
+    assert_eq!(warm.skipped, first.skipped, "the stored skip is replayed");
+    assert_eq!(first_world.language.parses.load(Ordering::SeqCst), 2);
+
+    let edited = vec![("a.rs", "fn changed() {}"), files[1]];
+    let mut edited_given = Given {
+        files: edited,
+        store: Arc::clone(&store),
+        ..violations()
+    };
+    edited_given.language.rejected_syntax = vec![FilePath("b.rs".into())];
+    let edited_world = world(edited_given);
+    let edited_report = edited_world
+        .use_case
+        .lint(asked.clone())
+        .expect("edited lint");
+    assert_eq!(edited_report.skipped, first.skipped);
+    assert_eq!(edited_world.language.parses.load(Ordering::SeqCst), 1);
+    assert_eq!(
+        edited_world
+            .collected
+            .0
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .rows
+            .len(),
+        1,
+        "the edited accepted file is evaluated and the rejected file stays skipped"
+    );
+
+    asked.rules[0].applicability = RuleApplicability::Always;
+    let mut policy_given = Given {
+        files,
+        store,
+        ..violations()
+    };
+    policy_given.language.rejected_syntax = vec![FilePath("b.rs".into())];
+    let policy_world = world(policy_given);
+    let policy_report = policy_world
+        .use_case
+        .lint(asked)
+        .expect("always-applicable lint");
+    assert!(policy_report.skipped.is_empty());
+    assert_eq!(
+        policy_world
+            .collected
+            .0
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .rows
+            .len(),
+        2,
+        "changing the rule policy invalidates the retained skip"
+    );
 }
 
 /// The use case over the fakes `given` stands for.

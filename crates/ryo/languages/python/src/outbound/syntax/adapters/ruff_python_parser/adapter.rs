@@ -441,6 +441,14 @@ impl SyntaxPort for SyntaxRuffPythonParserAdapter {
     ) {
         let Readable(source) = readable(text);
         let parsed = parse_unchecked(&source, options(source_kind, settings));
+        languages::set_syntax_acceptance(
+            builder,
+            if parsed.errors().is_empty() {
+                languages::SyntaxAcceptance::Accepted
+            } else {
+                languages::SyntaxAcceptance::Rejected
+            },
+        );
         let lexical_complete = matches!(&source, Cow::Borrowed(_))
             && token_stream_is_complete(parsed.tokens(), text.0)
             && !parsed.errors().iter().any(|error| {

@@ -22,7 +22,9 @@ use ryo_values::domain::plan_parts::types::{FlagState, LiteralText, ParameterNam
 use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::program::types::QueryBundle;
 use ryo_values::domain::records::types::{RowTotal, Unread};
-use ryo_values::domain::runs::types::{AnswerShape, MemoryBytes, RuleId, Session};
+use ryo_values::domain::runs::types::{
+    AnswerShape, MemoryBytes, RuleApplicability, RuleId, Session, Skipped,
+};
 use ryo_values::domain::stored_facts::types::Bucket;
 use ryo_values::domain::stores::types::{BucketsWanted, Stored, StoredHanded, StoredRule};
 use std::sync::atomic::AtomicU64;
@@ -54,6 +56,8 @@ pub struct Rule {
     pub id: RuleId,
     /// The RyoQL text.
     pub query: QueryBundle,
+    /// Whether the rule runs on every parse or only files whose syntax the provider accepted.
+    pub applicability: RuleApplicability,
     /// What the query's parameters are bound to.
     pub parameters: Vec<RuleParameter>,
     /// The globs of the files the rule governs; none means every file.
@@ -140,6 +144,8 @@ pub struct LintReport {
     pub unread: Vec<Unread>,
     /// What the rules could not decide, because a relation they trust the absence of rows of was read only in part.
     pub unknowns: Vec<Unknown>,
+    /// Rules explicitly skipped because a file's syntax was rejected.
+    pub skipped: Vec<Skipped>,
     /// How many rows each feature of the language was fed over the run, in the catalog's order: what says every feature is exercised.
     pub features: Vec<FeatureFed>,
     /// The work of each rule, in the order of the rules: the rows each of its steps was fed. A count, the same on any machine at any
@@ -282,6 +288,7 @@ impl From<&Rule> for RuleSpec {
         Self {
             id: RuleId(rule.id.0.clone()),
             query: rule.query.clone(),
+            applicability: rule.applicability,
             given: rule
                 .parameters
                 .iter()
@@ -290,7 +297,9 @@ impl From<&Rule> for RuleSpec {
                     value: parameter.value.clone().into(),
                 })
                 .collect(),
-            spelled: RuleParameters(format!("{:?}", rule.parameters).into()),
+            spelled: RuleParameters(
+                format!("{:?}|{:?}", rule.parameters, rule.applicability).into(),
+            ),
             include: rule.include.clone(),
             exclude: rule.exclude.clone(),
         }
@@ -352,6 +361,8 @@ pub(super) struct LintRun<'a> {
     pub read_again: &'a [FilePath],
     /// What the rules could not decide in the changed files, read before the run to see whether what they show other files changed.
     pub alone: &'a [Unknown],
+    /// Rules skipped for unchanged or separately reread files.
+    pub skipped: &'a [Skipped],
     /// What the files handed the last run, as far as the run read it.
     pub handed: &'a StoredHanded,
     /// The buckets of what the files handed that the run read.

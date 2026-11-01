@@ -86,6 +86,20 @@ pub(crate) fn partials_for(crossing: &CrossingInput<'_>, rule: RuleIndex) -> Par
                     }),
             )
             .collect(),
+        unavailable_files: crossing
+            .ids
+            .get(rule.0)
+            .into_iter()
+            .flat_map(|id| crossing.skipped.iter().filter(move |skip| skip.rule == *id))
+            .filter_map(|skip| {
+                crossing
+                    .paths
+                    .iter()
+                    .position(|path| *path == skip.path)
+                    .and_then(|place| u32::try_from(place).ok())
+                    .map(ryo_language::domain::relations::types::FileId)
+            })
+            .collect(),
     }
 }
 

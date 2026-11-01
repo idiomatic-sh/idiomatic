@@ -213,6 +213,21 @@ pub struct OpenNode {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub struct KindSum(pub u64);
 
+/// Whether the provider's parser accepted the source under its selected syntax policy.
+///
+/// This is separate from whether a parser produced a recoverable tree or reported validation
+/// diagnostics. Providers that cannot make this distinction should leave the value undetermined.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum SyntaxAcceptance {
+    /// The parser accepted the source.
+    Accepted,
+    /// The parser rejected the source, even if it retained a recovery tree.
+    Rejected,
+    /// The provider did not determine whether the source was accepted.
+    #[default]
+    Undetermined,
+}
+
 /// The element table of one file: its syntax tree in pre-order, column by column, 28 bytes for
 /// each element. An element's descendants are the `size` elements after it; the root is its own
 /// parent. The columns are cleared between files and never reallocated.
@@ -247,6 +262,8 @@ pub struct TableState(ElementsEngine);
 /// What the engine keeps of a file's table beside its columns: names, kind index, decoded texts, expansions, open nodes, notes.
 #[derive(Debug, Default)]
 pub(crate) struct ElementsEngine {
+    /// Parser acceptance for this source; legacy providers remain conservative by default.
+    pub syntax_acceptance: SyntaxAcceptance,
     /// Source line starts, populated only when source-location is requested; storage is reused.
     pub line_starts: crate::domain::location::types::SourceLineIndex,
     /// Whether native preorder also follows increasing source starts.

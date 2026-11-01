@@ -7,7 +7,7 @@ use crate::domain::program::types::ColumnName;
 use crate::domain::records::types::{
     Cell, GoverningRules, PlacedColumn, PlacedLine, PlacedRule, Unreadable,
 };
-use crate::domain::runs::types::{ManifestRefused, RuleId};
+use crate::domain::runs::types::{ManifestRefused, RuleId, Skipped};
 use crate::domain::stored_facts::types::PackedWords;
 use crate::domain::stored_facts::types::{ArenaBytes, Bucket, Digest, FileNotes, StoredPartial};
 use ryo_language::domain::files::types::FilePath;
@@ -27,6 +27,8 @@ pub struct Stored {
     pub refused: Vec<ManifestRefused>,
     /// What the rules could not decide, because a relation they trust the absence of rows of was read only in part.
     pub unknowns: Vec<StoredUnknown>,
+    /// Rules explicitly skipped because a file's syntax was rejected.
+    pub skipped: Vec<Skipped>,
     /// What each file hands each rule that reads across files, one row for each file and rule it hands something.
     pub frontiers: Vec<StoredFrontier>,
     /// The files the project's lookup read beyond the manifests the run handed it, in the order of their paths: configurations above

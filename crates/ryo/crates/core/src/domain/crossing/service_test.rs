@@ -11,6 +11,7 @@ use crate::domain::table_model::service::push_row;
 use crate::domain::table_model::types::{Frontier, ParameterBinding, Table};
 use crate::domain::table_words::service::{encode_table, pack};
 use crate::domain::table_words::types::WordSlice;
+use crate::domain::trust::service::files_for;
 use crate::domain::trust::types::{Needs, RelationRead};
 use ryo_language::domain::relations::types::{
     CellKind, FileId, Name, NamePlace, Offset, Origin, PlaceNumber, Relation, TextHash,
@@ -18,7 +19,7 @@ use ryo_language::domain::relations::types::{
 };
 use ryo_language::domain::symbols::service::places_mut;
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_values::domain::runs::types::RuleId;
+use ryo_values::domain::runs::types::{RuleId, SkipReason, Skipped};
 use ryo_values::domain::stored_facts::types::PartialCause;
 
 use ryo_values::domain::plan_parts::types::{
@@ -59,6 +60,8 @@ struct World {
     arenas: Vec<ArenaBytes>,
     covered: Vec<Covered>,
     project: Vec<Partial>,
+    skipped: Vec<Skipped>,
+    paths: Vec<ryo_language::domain::files::types::FilePath>,
 }
 
 /// A plan that counts across files the names a per-file step handed over, and emits the column `subject` of the counts.
@@ -103,6 +106,8 @@ fn world(plan: Plan) -> World {
         arenas: Vec::new(),
         covered: Vec::new(),
         project: Vec::new(),
+        skipped: Vec::new(),
+        paths: Vec::new(),
     }
 }
 
@@ -113,14 +118,43 @@ fn crossing(world: &World) -> CrossingInput<'_> {
         bindings: &world.bindings,
         ids: &world.ids,
         needs: &world.needs,
-        paths: &[],
+        paths: &world.paths,
         arenas: &world.arenas,
         files: &[],
         covered: &world.covered,
+        skipped: &world.skipped,
         project: &world.project,
         hosted: &[],
         answering: &crate::domain::render::types::Answering::Findings,
     }
+}
+
+#[test]
+fn rejected_syntax_blocks_cross_file_complements_without_becoming_a_partial_diagnostic() {
+    let mut world = world(counting_plan(0, Vec::new()));
+    let path = ryo_language::domain::files::types::FilePath("rejected.py".into());
+    world.paths.push(path.clone());
+    world.needs[0].cross.push(RelationRead {
+        relation: Relation::Function,
+        kinds: Vec::new(),
+    });
+    world.skipped.push(Skipped {
+        rule: world.ids[0].clone(),
+        path,
+        reason: SkipReason::SyntaxRejected,
+    });
+
+    let input = crossing(&world);
+    let partials = partials_for(&input, RuleIndex(0));
+    assert!(
+        partials.entries.is_empty(),
+        "no provider partial was invented"
+    );
+    assert_eq!(
+        files_for(&partials, &world.needs[0].cross),
+        [Some(FileId(0))],
+        "the skipped file remains unavailable to aggregate absence checks"
+    );
 }
 
 fn todo(rule: usize) -> Todo {

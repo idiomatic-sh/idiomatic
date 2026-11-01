@@ -38,6 +38,8 @@ pub(crate) struct Partial {
 pub(crate) struct Partials {
     /// Each partly read relation of each file, in no particular order.
     pub entries: Vec<FilePartial>,
+    /// Files explicitly skipped for a rule before its cross-file steps; these must not look like clean empty inputs.
+    pub unavailable_files: Vec<FileId>,
 }
 
 /// A relation read in part, and the file it is read in part in.

@@ -69,6 +69,25 @@ pub fn clear_elements(elements: &mut Elements) {
     engine.diagnostics.phase.clear();
     engine.diagnostics.impact.clear();
     engine.expanded_from = None;
+    engine.syntax_acceptance = super::types::SyntaxAcceptance::Undetermined;
+}
+
+/// Record whether the language parser accepted the current source.
+pub fn set_syntax_acceptance(
+    builder: &mut TableBuilder<'_>,
+    acceptance: super::types::SyntaxAcceptance,
+) {
+    builder_engine(builder)
+        .elements
+        .state
+        .as_mut()
+        .syntax_acceptance = acceptance;
+}
+
+/// The parser's acceptance decision, conservative for providers that did not supply one.
+#[must_use]
+pub fn syntax_acceptance(elements: &Elements) -> super::types::SyntaxAcceptance {
+    engine(elements).syntax_acceptance
 }
 
 /// What the engine keeps of `elements` beside its columns, to read.

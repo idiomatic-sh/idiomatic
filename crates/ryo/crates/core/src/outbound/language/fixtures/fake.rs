@@ -50,6 +50,8 @@ pub struct LanguageFake {
     pub projects: AtomicUsize,
     /// The files it says it read beyond the manifests whenever it reads them, by path from the root.
     pub consulted: Vec<FilePath>,
+    /// Paths for which this fake reports rejected syntax; other parsed files are accepted when this is nonempty.
+    pub rejected_syntax: Vec<FilePath>,
 }
 
 /// What the fake's catalog answers.
@@ -157,6 +159,17 @@ impl LanguagePort for LanguageFake {
             leave_node(&mut builder, Offset(end));
         }
         // A language names every kind its table holds, as the engine reads a kind by its name.
+        if !self.rejected_syntax.is_empty() {
+            let acceptance = if self.rejected_syntax.contains(&file.path) {
+                ryo_language::domain::elements::types::SyntaxAcceptance::Rejected
+            } else {
+                ryo_language::domain::elements::types::SyntaxAcceptance::Accepted
+            };
+            ryo_language::domain::elements::service::set_syntax_acceptance(
+                &mut builder,
+                acceptance,
+            );
+        }
         name_kind(
             &mut completion(table, symbols, ByteSlice(&file.bytes.0), file.file),
             KindBits(0),

@@ -12,6 +12,7 @@ use crate::domain::coverage::types::{Recovery, RuleIndex};
 use crate::domain::handing::service::rows_of_file;
 use crate::domain::keeping::service::{remap_packed, rows_of};
 use crate::domain::keeping::types::Remap;
+use crate::domain::placement::service::unplace;
 use crate::domain::placement::types::Governing;
 use crate::domain::project::types::Projected;
 use crate::domain::reading::service::{
@@ -45,6 +46,7 @@ use crate::domain::rules::service::governing;
 use crate::domain::visit::service::lines_in;
 use crate::domain::visit::types::{BorrowedBytes, Keeping};
 
+use crate::domain::finish::types::RuleNumber;
 use crate::domain::workers::service::{checking, file_at, govern, governs_rule};
 
 use crate::domain::workers::types::{Checking, FileOrder};
@@ -64,9 +66,9 @@ use crate::outbound::memory::interface::MemoryPort;
 
 use crate::outbound::scheduler::types::JobNumber;
 use ryo_language::domain::elements::service::{
-    has_incomplete_lexical_stream, has_incomplete_syntax,
+    has_incomplete_lexical_stream, has_incomplete_syntax, syntax_acceptance,
 };
-use ryo_language::domain::elements::types::Elements;
+use ryo_language::domain::elements::types::{Elements, SyntaxAcceptance};
 use ryo_language::domain::kind_index::service::index_kinds;
 use ryo_language::domain::relations::collections::relations::filesystem_file::item::FilesystemFileRow;
 use ryo_language::domain::relations::collections::relations::filesystem_line_count::item::FilesystemLineCountRow;
@@ -83,6 +85,7 @@ use ryo_values::domain::records::service::is_as_it_was;
 use ryo_values::domain::records::types::{FileOutcome, Freshness, Handed, Ran, Unreadable};
 
 use ryo_values::domain::runs::types::ManifestRefused;
+use ryo_values::domain::runs::types::RuleApplicability;
 
 use ryo_values::domain::stored_facts::types::{ArenaBase, Digest, LanguageNumber, ReadFailure};
 use std::sync::Arc;
@@ -122,6 +125,37 @@ impl std::fmt::Debug for FileAnalysis {
 }
 
 impl FileAnalysis {
+    /// The parsed relations needed by rules that govern this path and whose applicability is met.
+    pub(super) fn active_wanted(
+        tables: &Tables,
+        setting: &VisitSetting<'_>,
+        acceptance: SyntaxAcceptance,
+    ) -> Vec<Relation> {
+        if setting.plans.is_empty() {
+            return setting.wanted.to_vec();
+        }
+        setting
+            .wanted
+            .iter()
+            .copied()
+            .filter(|relation| {
+                setting.plans.iter().enumerate().any(|(place, _)| {
+                    governs_rule(tables, RuleIndex(place)) == Governing::Governs
+                        && match setting.applicability.get(place).copied() {
+                            Some(RuleApplicability::Always) => true,
+                            Some(RuleApplicability::AcceptedSyntax) => {
+                                acceptance == SyntaxAcceptance::Accepted
+                            }
+                            None => false,
+                        }
+                        && setting.needs.get(place).is_some_and(|needs| {
+                            needs.reads.iter().any(|read| read.relation == *relation)
+                        })
+                })
+            })
+            .collect()
+    }
+
     /// Bind the resources used by every analysis invocation.
     #[must_use]
     pub fn new(
@@ -164,6 +198,79 @@ impl FileAnalysis {
         Ok(())
     }
 
+    /// Removes rules whose declared syntax applicability is not met and records why each one was
+    /// skipped for this file. The skip is separate from relation partiality: it says the rule was
+    /// not applicable, not that its input was read incompletely.
+    pub(super) fn gate_rules(
+        tables: &mut Tables,
+        setting: &VisitSetting<'_>,
+        file: FileId,
+        acceptance: SyntaxAcceptance,
+    ) -> Vec<bool> {
+        let mut skipped = vec![false; setting.plans.len()];
+        for (place, blocked) in skipped.iter_mut().enumerate() {
+            if governs_rule(tables, RuleIndex(place)) != Governing::Governs {
+                continue;
+            }
+            let applicability = setting.applicability.get(place).copied();
+            *blocked = match applicability {
+                Some(RuleApplicability::Always) => false,
+                Some(RuleApplicability::AcceptedSyntax) => acceptance != SyntaxAcceptance::Accepted,
+                None => true,
+            };
+            if !*blocked {
+                continue;
+            }
+            unplace(
+                &mut tables.mask,
+                RuleNumber(u32::try_from(place).unwrap_or(u32::MAX)),
+            );
+            let reason = match (applicability, acceptance) {
+                (Some(RuleApplicability::AcceptedSyntax), SyntaxAcceptance::Rejected) => {
+                    let (Some(rule), Some(path)) = (
+                        setting.ids.get(place),
+                        setting
+                            .paths
+                            .get(usize::try_from(file.0).unwrap_or(usize::MAX)),
+                    ) else {
+                        continue;
+                    };
+                    tables
+                        .skipped
+                        .push(ryo_values::domain::runs::types::Skipped {
+                            rule: rule.clone(),
+                            path: path.clone(),
+                            reason: ryo_values::domain::runs::types::SkipReason::SyntaxRejected,
+                        });
+                    continue;
+                }
+                (Some(RuleApplicability::AcceptedSyntax), SyntaxAcceptance::Undetermined) => {
+                    "rule skipped: syntax acceptance undetermined"
+                }
+                (Some(RuleApplicability::AcceptedSyntax), SyntaxAcceptance::Accepted)
+                | (Some(RuleApplicability::Always), _) => continue,
+                (None, _) => "rule skipped: applicability metadata unavailable",
+            };
+            let Some(rule) = setting.ids.get(place) else {
+                continue;
+            };
+            let Some(path) = setting
+                .paths
+                .get(usize::try_from(file.0).unwrap_or(usize::MAX))
+            else {
+                continue;
+            };
+            tables
+                .unknowns
+                .push(crate::domain::coverage::types::Unknown {
+                    rule: rule.clone(),
+                    path: path.clone(),
+                    message: crate::domain::coverage::types::Message(reason.into()),
+                });
+        }
+        skipped
+    }
+
     /// The rest of a visit of a file the language read: the per-file steps of the rules that govern it run on its rows, the words of
     /// what leaves it wait in the buckets, and the rows are released.
     fn read_file(
@@ -172,8 +279,13 @@ impl FileAnalysis {
         file: FileId,
     ) -> Result<(), FileAnalysisError> {
         let (tables, facts) = (&mut worker.tables, &mut worker.facts);
-        // Every relation the rules read must be readable before their steps run, which read the rows again.
-        for relation in visit.setting.wanted {
+        // Preserve path scope, but keep syntax-gated rules out of the shared element walk when this provider did not accept the file.
+        let scoped_mask = tables.mask.clone();
+        let acceptance = syntax_acceptance(&tables.elements);
+        let skipped = Self::gate_rules(tables, &visit.setting, file, acceptance);
+        let active_wanted = Self::active_wanted(tables, &visit.setting, acceptance);
+        // Only relation views needed by active rules are demanded after acceptance is known.
+        for relation in &active_wanted {
             if let Err(error) = facts.rows(*relation) {
                 return Err(error.into());
             }
@@ -207,8 +319,12 @@ impl FileAnalysis {
                 },
             );
         }
+        tables.mask = scoped_mask;
         for rule in (0..visit.setting.plans.len()).map(RuleIndex) {
             if governs_rule(tables, rule) == Governing::DoesNotGovern {
+                continue;
+            }
+            if skipped.get(rule.0).copied().unwrap_or(true) {
                 continue;
             }
             // The worker already owns these columns. This callback only borrows resident views;
@@ -472,6 +588,8 @@ impl FileAnalysis {
             &mut writer,
         );
         let said: Vec<ReadInPart> = std::mem::take(&mut writer.partials);
+        let acceptance = syntax_acceptance(&worker.tables.elements);
+        let active_wanted = Self::active_wanted(&worker.tables, setting, acceptance);
         // The language that read the file is kept with what it noted of it.
         worker.tables.language = match &reading {
             FileReading::Read(language) => Some(*language),
@@ -483,13 +601,13 @@ impl FileAnalysis {
         }
         // What the language wrote is admitted before the store keeps anything or a rule reads it.
         if let FileReading::Read(provider) = &reading {
-            self.admit(worker, setting.wanted, number, *provider)?;
+            self.admit(worker, &active_wanted, number, *provider)?;
         }
-        let asked = engine_asked(setting.wanted);
+        let asked = engine_asked(&active_wanted);
         Self::write_engine_rows(worker, asked, number)?;
         // The relations this file is read in part: those a reader said so of, and all of code if what was read is a recovery.
         let everything = recovery_of(&reading, &worker.tables.elements);
-        start_partials(&mut worker.tables, &said, everything, setting.wanted);
+        start_partials(&mut worker.tables, &said, everything, &active_wanted);
         // Findings are not decided over a relation read in part; rows of the queries' own columns are the rows of what was read.
         if matches!(setting.answering, Answering::Rows(_)) {
             worker.tables.pool.partial.clear();
@@ -517,6 +635,14 @@ impl FileAnalysis {
                     clear_symbols(&mut worker.tables.symbols);
                     index_kinds(&mut worker.tables.elements);
                     Self::read_file(worker, visit, number)?;
+                } else {
+                    let acceptance = syntax_acceptance(&worker.tables.elements);
+                    drop(Self::gate_rules(
+                        &mut worker.tables,
+                        setting,
+                        number,
+                        acceptance,
+                    ));
                 }
                 match (setting.answering, asked.any) {
                     (Answering::Rows(_), _) => None,

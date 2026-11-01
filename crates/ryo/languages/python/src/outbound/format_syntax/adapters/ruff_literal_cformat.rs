@@ -154,7 +154,9 @@ fn parse_field(cursor: &mut Cursor<'_>, ordinal: usize) -> Result<ParsedField, F
         let _dot = cursor.next();
         match quantity(cursor)? {
             FormatQuantityMode::None => FormatQuantityMode::Dot,
-            mode => mode,
+            mode @ (FormatQuantityMode::Fixed
+            | FormatQuantityMode::Star
+            | FormatQuantityMode::Dot) => mode,
         }
     } else {
         FormatQuantityMode::None

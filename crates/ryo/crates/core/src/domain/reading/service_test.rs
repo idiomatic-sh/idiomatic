@@ -170,6 +170,7 @@ fn setting<'a>(
         paths: &[],
         first_bucket: first,
         ids,
+        applicability: &[],
         placed,
         records: &[],
         replaying: crate::domain::workers::types::Replaying::Findings,

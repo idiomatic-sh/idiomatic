@@ -14,6 +14,22 @@ use crate::domain::terms::types::NameText;
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
 
+#[test]
+fn syntax_acceptance_is_separate_and_resets_conservatively() {
+    use super::service::{clear_elements, set_syntax_acceptance, syntax_acceptance};
+    use super::types::SyntaxAcceptance;
+
+    let mut elements = Elements::default();
+    assert_eq!(syntax_acceptance(&elements), SyntaxAcceptance::Undetermined);
+    let mut symbols = Symbols::default();
+    let mut builder = table_builder(&mut elements, &mut symbols, ByteSlice(b"x"));
+    set_syntax_acceptance(&mut builder, SyntaxAcceptance::Rejected);
+    drop(builder);
+    assert_eq!(syntax_acceptance(&elements), SyntaxAcceptance::Rejected);
+    clear_elements(&mut elements);
+    assert_eq!(syntax_acceptance(&elements), SyntaxAcceptance::Undetermined);
+}
+
 /// A scenario: what a row asks of the service.
 type Input = fn() -> usize;
 /// What a scenario answers: a count.

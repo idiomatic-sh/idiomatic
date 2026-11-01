@@ -17,6 +17,7 @@ use crate::domain::host::types::{HostColumn, HostRelationName};
 use crate::domain::query::types::RyoQlQuery;
 use crate::domain::relation::types::ColumnName;
 use ryo_values::domain::files::types::{CorpusFile, CorpusListing};
+use ryo_values::domain::runs::types::RuleApplicability;
 
 /// The name a rule's findings carry: text that is not blank. Made through `RuleId::try_from`.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -113,6 +114,8 @@ pub enum Cache {
 pub struct Rule {
     /// The RyoQL text.
     pub query: RyoQlQuery,
+    /// Whether the rule runs on every parse or only files whose syntax the provider accepted.
+    pub applicability: RuleApplicability,
     /// What the query's parameters are bound to, by name.
     pub parameters: BTreeMap<ParameterName, ParameterValue>,
     /// The files the rule governs; none means every file.
@@ -316,6 +319,19 @@ pub struct LintReport {
     pub unread: Vec<Unread>,
     /// What the rules could not decide.
     pub unknowns: Vec<Unknown>,
+    /// Rules explicitly skipped because a file's syntax was rejected.
+    pub skipped: Vec<Skipped>,
+}
+
+/// A rule the engine did not run for a file because its applicability condition was not met.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Skipped {
+    /// The rule.
+    pub rule: RuleId,
+    /// The file.
+    pub path: RelativePath,
+    /// Why the rule was skipped.
+    pub reason: ryo_values::domain::runs::types::SkipReason,
 }
 
 /// A relation the host declares beside ryo's own: the name a rule writes, the columns its rows have, and the rows.

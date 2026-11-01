@@ -37,6 +37,11 @@ fn clear(mask: &mut Mask, rule: RuleNumber) {
     }
 }
 
+/// Clears one rule from a file's temporary applicability mask without changing its path scope.
+pub(crate) fn unplace(mask: &mut Mask, rule: RuleNumber) {
+    clear(mask, rule);
+}
+
 /// Decides the scopes of the rules, the first scope being rule zero: the globs in one list, whose
 /// each is whose, and the rules that include nothing.
 #[must_use]
