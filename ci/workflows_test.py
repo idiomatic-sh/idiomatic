@@ -9,6 +9,8 @@ from pathlib import Path
 import pytest
 import yaml
 
+from ci.tag.use_case import PRODUCTS
+
 ROOT = Path(__file__).resolve().parents[1]
 DIRECTORY = ROOT / ".github/workflows"
 WORKFLOWS = sorted(DIRECTORY.glob("*.yml"))
@@ -381,6 +383,9 @@ def test_a_push_to_main_releases_the_products_whose_version_it_changes_without_c
     publish = jobs["publish"]
     assert publish["if"] == "${{ !cancelled() && needs.build.result == 'success' }}"
     assert publish["concurrency"] == {"group": "release-${{ matrix.product }}", "cancel-in-progress": False}
+    # One publish at a time, in the `tag` job's order: ryo's crates are on crates.io before tastemaker's publish starts.
+    assert publish["strategy"]["max-parallel"] == 1
+    assert PRODUCTS.index("ryo") < PRODUCTS.index("tastemaker")
     # Each build row's artifact is named for its product, and a publish downloads its product's alone, a directory per target.
     (upload,) = [step for step in jobs["build"]["steps"] if step["uses"].startswith("actions/upload-artifact@")]
     assert upload["with"]["name"] == "${{ matrix.product }}-${{ matrix.platform.target }}"
@@ -390,14 +395,14 @@ def test_a_push_to_main_releases_the_products_whose_version_it_changes_without_c
 
 def test_a_pull_request_runs_each_changed_product_s_check_fan_out_behind_one_gate() -> None:
     """For each product a pull request to main changes, its whole check fan-out, the rows release.yml checks a hand run with; a
-    change outside the products is every product's and the root's lint too. One `gate` job, which branch protection requires,
+    change outside the products is every product's and the root's lint and check groups (the ci/ tests) too. One `gate` job, which branch protection requires,
     fails when a job failed or was cancelled and passes when each succeeded or was skipped."""
     workflow = yaml.safe_load((DIRECTORY / "check.yml").read_text())
     on = workflow["on" if "on" in workflow else True]
     assert set(on) == {"pull_request", "workflow_dispatch"} and on["pull_request"] == {"branches": ["main"]}
     assert workflow["concurrency"] == {"group": "check-${{ github.event.pull_request.number || github.ref }}", "cancel-in-progress": True}
     jobs = workflow["jobs"]
-    assert set(jobs) == {"changes", "lint", "check", "gate"}
+    assert set(jobs) == {"changes", "root", "check", "gate"}
     (filter,) = jobs["changes"]["steps"]
     assert filter["uses"].startswith("dorny/paths-filter@") and filter["with"]["predicate-quantifier"] == "some-with-excludes"
     filters = yaml.safe_load(filter["with"]["filters"])
@@ -405,9 +410,9 @@ def test_a_pull_request_runs_each_changed_product_s_check_fan_out_behind_one_gat
     assert {name: filters[name] for name in products} == {name: f"crates/{name}/**" for name in products}
     assert filters["repository"] == ["**"] + [f"!crates/{name}/**" for name in products]
     assert sorted(path.parent.name for path in ROOT.glob("crates/*/Cargo.toml")) == sorted(products)
-    assert jobs["lint"]["if"] == "needs.changes.outputs.repository == 'true'"
-    (linting,) = [step["run"] for step in jobs["lint"]["steps"] if "asymptote check" in step.get("run", "")]
-    assert linting == "asymptote check --root . --groups lint"
+    assert jobs["root"]["if"] == "needs.changes.outputs.repository == 'true'"
+    (rooted,) = [step["run"] for step in jobs["root"]["steps"] if "asymptote check" in step.get("run", "")]
+    assert rooted == "asymptote check --root . --groups lint,check"
     check = jobs["check"]
     assert check["needs"] == "changes" and check["if"] == "needs.changes.outputs.products != '[]'"
     assert check["strategy"]["matrix"]["product"] == "${{ fromJSON(needs.changes.outputs.products) }}"
@@ -415,8 +420,12 @@ def test_a_pull_request_runs_each_changed_product_s_check_fan_out_behind_one_gat
     assert checking == "asymptote check --root crates/${{ matrix.product }} --groups ${{ matrix.check.group }}"
     release = yaml.safe_load((DIRECTORY / "release.yml").read_text())["jobs"]["check"]["strategy"]["matrix"]["include"]
     assert check["strategy"]["matrix"]["check"] == [{"runner": row["runner"], "group": row["group"]} for row in release]
-    # The same caches as the release's check: per machine and group, and the installed tools.
-    for name in ("lint", "check"):
+    # The same caches as the release's check: per machine, group and product, and the installed tools.
+    (cache,) = [step for step in check["steps"] if step.get("uses", "").startswith("Swatinem/rust-cache@")]
+    assert cache["with"]["shared-key"] == "${{ matrix.check.runner }}-${{ matrix.check.group }}-${{ matrix.product }}"
+    (released,) = [step for step in release_check()["steps"] if step.get("uses", "").startswith("Swatinem/rust-cache@")]
+    assert released["with"]["shared-key"] == "${{ matrix.runner }}-${{ matrix.group }}-${{ inputs.product }}"
+    for name in ("root", "check"):
         defined = jobs[name]
         assert [step["uses"].split("@")[0] for step in defined["steps"] if "uses" in step] == [
             step["uses"].split("@")[0] for step in release_check()["steps"] if "uses" in step
@@ -425,7 +434,7 @@ def test_a_pull_request_runs_each_changed_product_s_check_fan_out_behind_one_gat
     assert gate["if"] == "always()" and gate["needs"] == [name for name in jobs if name != "gate"]
     (deciding,) = gate["steps"]
     assert deciding["uses"].startswith("re-actors/")
-    assert deciding["with"] == {"jobs": "${{ toJSON(needs) }}", "allowed-skips": "lint, check"}
+    assert deciding["with"] == {"jobs": "${{ toJSON(needs) }}", "allowed-skips": "root, check"}
 
 
 def release_check() -> dict:
