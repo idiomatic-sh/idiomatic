@@ -214,6 +214,28 @@
           }
         }
       ]
+    },
+    {
+      "rule": "PLR0124",
+      "name": "chain-orders-operands-across-operator-children",
+      "case_source_sha256": "522db5314511f9682e8919f5fb61570784005d6b2575b03bc9c9df18d7a2e2cf",
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "PLR0124",
+          "file": "case.py",
+          "start": 18,
+          "end": 23,
+          "ruff_location": {
+            "column": 19,
+            "row": 1
+          },
+          "ruff_end_location": {
+            "column": 24,
+            "row": 1
+          }
+        }
+      ]
     }
   ]
 }

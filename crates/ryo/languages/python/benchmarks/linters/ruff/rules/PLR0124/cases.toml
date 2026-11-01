@@ -82,3 +82,9 @@ comparison = "full"
 files = { "case.py" = "global_value == global_value\n" }
 expected = [{ rule = "PLR0124", file = "case.py", start = 0, end = 12 }]
 
+[[cases]]
+name = "chain-orders-operands-across-operator-children"
+comparison = "full"
+files = { "case.py" = "first != second < third == third\n" }
+expected = [{ rule = "PLR0124", file = "case.py", start = 18, end = 23 }]
+
