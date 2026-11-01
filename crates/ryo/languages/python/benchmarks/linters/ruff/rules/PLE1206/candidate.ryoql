@@ -10,7 +10,14 @@ let attribute_receivers = select l.id as attribute, l.file as file, r.child as r
 let receiver_names = select r.id as id, r.name as name, r.file as file from "identifier" as r;
 let receiver_name_tokens = select r.child as id, l.name as name, r.file as file from receiver_names as l join "semantic-child" as r on l.id = r.parent;
 let receiver_name_nodes = select l.id as id, l.file as file, r.name as name from "semantic-syntax" as l join receiver_name_tokens as r on l.id = r.id and l.file = r.file where l.kind = "name-token";
-let common_logger_receivers = select l.attribute as attribute, l.file as file from attribute_receivers as l join receiver_name_nodes as r on l.receiver = r.id and l.file = r.file where matches(r.name, "(?:^log|logger$|logging$|^LOG|LOGGER$|LOGGING$)");
+let name_receiver_rows = select l.receiver as id, r.name as name, l.file as file from attribute_receivers as l join receiver_name_nodes as r on l.receiver = r.id and l.file = r.file;
+let receiver_attributes = select l.receiver as receiver, l.file as file from attribute_receivers as l join attribute_functions as r on l.receiver = r.id and l.file = r.file;
+let receiver_attr_fields = select parent, child from "semantic-child" where field = "attr";
+let receiver_attr_identifiers = select l.receiver as receiver, l.file as file, r.child as identifier from receiver_attributes as l join receiver_attr_fields as r on l.receiver = r.parent;
+let receiver_attr_tokens = select l.receiver as receiver, l.file as file, r.child as token from receiver_attr_identifiers as l join "semantic-child" as r on l.identifier = r.parent;
+let attr_receiver_names = select l.receiver as id, l.file as file, r.name as name from receiver_attr_tokens as l join receiver_name_nodes as r on l.token = r.id and l.file = r.file;
+let all_receiver_names = union(left=name_receiver_rows, right=attr_receiver_names);
+let common_logger_receivers = select l.attribute as attribute, l.file as file from attribute_receivers as l join all_receiver_names as r on l.receiver = r.id and l.file = r.file where matches(r.name, "(?:^log|logger$|logging$|^LOG|LOGGER$|LOGGING$)");
 let qualified_receivers = select id, file from "qualified-name";
 let unresolved_common_receivers = antijoin(left=common_logger_receivers, right=qualified_receivers, left-on=["attribute", "file"], right-on=["id", "file"]);
 let receiver_calls = select l.attribute as attribute, l.file as file, r.id as receiver_call from attribute_receivers as l join calls as r on l.receiver = r.id and l.file = r.file;

@@ -63,3 +63,21 @@ name = "dynamic-format"
 comparison = "full"
 files = { "case.py" = "import logging\nlogging.error(fmt, \"value\")\n" }
 expected = []
+
+[[cases]]
+name = "local-getlogger-instance"
+comparison = "full"
+files = { "case.py" = "import logging\nlogger = logging.getLogger(__name__)\nlogger.error(\"%s %s\", \"x\")\n" }
+expected = [{ rule = "PLE1206", file = "case.py", start = 52, end = 64 }]
+
+[[cases]]
+name = "self-logger-attribute"
+comparison = "full"
+files = { "case.py" = "import logging\nclass Worker:\n    def __init__(self):\n        self.logger = logging.getLogger(__name__)\n    def run(self):\n        self.logger.error(\"%s %s\", \"x\")\n" }
+expected = [{ rule = "PLE1206", file = "case.py", start = 130, end = 147 }]
+
+[[cases]]
+name = "nonlogger-object-method"
+comparison = "full"
+files = { "case.py" = "class Printer:\n    def error(self, *args):\n        pass\nprinter = Printer()\nprinter.error(\"%s %s\", \"x\")\n" }
+expected = []
