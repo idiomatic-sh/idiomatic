@@ -109,9 +109,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("optional capability identities round trip without weakening baseline"),
         word: Word::Succeeds,
         input: || optional_promises_are_closed,
-        expect: Expect::Value(5),
-        expect: Expect::Value(8),
-        expect: Expect::Value(9),
+        expect: Expect::Value(10),
     },
     Case {
         name: CaseName("every_relation_is_found_by_its_name"),
@@ -200,8 +198,7 @@ fn optional_promises_are_closed() -> usize {
                 .iter()
                 .filter(|relation| optional_capability(**relation).is_some())
                 .count()
-                == 4
-                == 7
+                == 9
                 && optional_capability(Relation::SemanticSyntax).is_none()
                 && optional_capability(Relation::SemanticChild).is_none(),
         )

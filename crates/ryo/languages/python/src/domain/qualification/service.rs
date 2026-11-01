@@ -138,7 +138,9 @@ fn uncertain(
 }
 /// The version introducing a builtin, independent of the consumer's target version.
 pub(crate) fn builtin(tree: &Tree<'_>, at: Position) -> Option<Version> {
-    builtin_named(NameText(identifier_text(tree, parent(tree, name_token(tree, at)?)).0))
+    builtin_named(NameText(
+        identifier_text(tree, parent(tree, name_token(tree, at)?)).0,
+    ))
 }
 
 /// Availability from the same canonical inventory for source reads and occurrence-free catalogs.

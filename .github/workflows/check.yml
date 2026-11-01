@@ -177,7 +177,7 @@ jobs:
           retention-days: 7
   speed:
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
-    needs: check
+    needs: build
     runs-on: ubuntu-26.04
     defaults:
       run:

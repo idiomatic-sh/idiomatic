@@ -163,6 +163,7 @@ pub(crate) struct ExpressionShapeIndex {
     pub scratch: Vec<ShapeWord>,
     /// Current parse validity.
     pub state: ShapeState,
+}
 /// A sparse environment frame; branches inherit their entry state without copying it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct BindingFrameId(pub usize);

@@ -30,10 +30,10 @@ pub(crate) mod qualification;
 
 pub(crate) mod semantic_syntax;
 
-/// Structural expression identity.
-pub(crate) mod expression_shapes;
 /// Sparse environments used by optional static binding analysis.
 pub(crate) mod binding_states;
+/// Structural expression identity.
+pub(crate) mod expression_shapes;
 
 /// Ordered language events and explicitly deferred evaluation phases.
 pub(crate) mod binding_schedule;

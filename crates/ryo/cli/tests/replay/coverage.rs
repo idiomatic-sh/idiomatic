@@ -215,7 +215,7 @@ fn the_unknown_reasons_of_the_linked_languages_are_numbered_apart() {
 }
 
 /// Optional semantic facts are unavailable from Rust, rather than a known empty set.
-const OPTIONAL_CAPABILITY_RULES: [(&str, &str); 8] = [
+const OPTIONAL_CAPABILITY_RULES: [(&str, &str); 18] = [
     (
         "shape-positive",
         "let rows = select * from \"expression-shape\"; emit rows subject file key(span);",
@@ -224,7 +224,6 @@ const OPTIONAL_CAPABILITY_RULES: [(&str, &str); 8] = [
         "shape-negative",
         "let variables = select * from \"defines\" where kind = \"variable\"; let absent = antijoin(left=variables, right=\"expression-shape\", left-on=[\"file\"], right-on=[\"file\"]); emit absent subject file key(span);",
     ),
-const OPTIONAL_CAPABILITY_RULES: [(&str, &str); 16] = [
     (
         "identifier-positive",
         "let rows = select * from \"identifier\"; emit rows subject file key(span);",

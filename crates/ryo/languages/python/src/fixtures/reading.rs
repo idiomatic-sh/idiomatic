@@ -78,6 +78,8 @@ pub(crate) fn initialize_model(
     use languages::Parse as _;
     ParseContract::new(Arc::new(ruff_python_parser()), Arc::new(postcard()))
         .file_model(tree, model);
+}
+
 /// Exercise an authored reader directly before its optional capability is advertised.
 /// Uses the same typed reader and shared row collector; production capability gating is unchanged.
 #[must_use]
