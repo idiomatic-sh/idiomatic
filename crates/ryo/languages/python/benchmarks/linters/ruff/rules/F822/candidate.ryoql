@@ -64,7 +64,7 @@ let constants = select id from nodes where kind = "constant";
 let literal_exports = select l.statement as statement, l.id as id from export_elements as l join constants as r on l.id = r.id;
 let exports = select l.statement as statement, l.id as id, r.value as name, r.file as file, r.span as span from literal_exports as l join "string-literal" as r on l.id = r.occurrence;
 let module_definitions = select l.name as name, l.file as file from "defines" as l join modules as r on l.owner = r.id;
-let implicit_names = select name, file from "implicit-symbol" where "since-major" < 3 or "since-major" = 3 and "since-minor" <= 10;
+let implicit_names = select catalog.name as name, catalog.file as file from "implicit-symbol" as catalog where catalog."since-major" < 3 or catalog."since-major" = 3 and catalog."since-minor" <= 10;
 let available_names = union(left=module_definitions,right=implicit_names);
 let missing_exports = antijoin(left=exports,right=available_names,left-on=["name","file"],right-on=["name","file"]);
 let aliases = select id from nodes where kind = "alias";

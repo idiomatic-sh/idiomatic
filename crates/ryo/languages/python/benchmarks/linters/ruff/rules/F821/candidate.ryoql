@@ -13,7 +13,7 @@ let prior_declarations = select l.id as id from missing_delete_events as l join 
 let unresolved_deletions = antijoin(left=missing_delete_reads, right=prior_declarations, left-on=["id"], right-on=["id"]);
 let unavailable_builtins = select reference as id, name, scope, phase, file, span from read_rows where state = "builtin" and context != "deletion" and (since_major > 3 or since_major = 3 and since_minor > 10);
 let pre_environment_candidates = union(left=ordinary_missing, right=unavailable_builtins);
-let module_environment = select name, scope, file from "implicit-symbol" where kind = "module-global" and ("since-major" < 3 or "since-major" = 3 and "since-minor" <= 10);
+let module_environment = select catalog.name as name, catalog.scope as scope, catalog.file as file from "implicit-symbol" as catalog where catalog.kind = "module-global" and (catalog."since-major" < 3 or catalog."since-major" = 3 and catalog."since-minor" <= 10);
 let ordinary_candidates = antijoin(left=pre_environment_candidates, right=prior_removals, left-on=["id"], right-on=["id"]);
 let module_environment_reads = select l.id as id from ordinary_candidates as l join module_environment as r on l.name = r.name and l.file = r.file;
 let without_module_environment = antijoin(left=ordinary_candidates, right=module_environment_reads, left-on=["id"], right-on=["id"]);
