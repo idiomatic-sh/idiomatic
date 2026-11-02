@@ -2,7 +2,7 @@
 
 Generated from canonical source and the existing full-inventory runner's results. Every pinned default is preloaded; missing, unrun, invalid and failed implementations remain FAIL.
 
-**380 PASS / 33 FAIL / 413 pinned defaults**; run state `complete`. Base worker `d43a5760d6c9388d7ba307416417268fbf1cacb92ae6fbe9bf70dffdf0d686b8`. PASS means executed intended expectations, including only independently validated explicit reference discrepancies. Raw parity and documented differences remain explicit in result receipts. This table is not an admission subset. Counts combine separately linked receipts; no combined replay is claimed.
+**381 PASS / 32 FAIL / 413 pinned defaults**; run state `complete`. Base worker `d43a5760d6c9388d7ba307416417268fbf1cacb92ae6fbe9bf70dffdf0d686b8`. PASS means executed intended expectations, including only independently validated explicit reference discrepancies. Raw parity and documented differences remain explicit in result receipts. This table is not an admission subset. Counts combine separately linked receipts; no combined replay is claimed.
 
 | Rule | Result | Reason / evidence |
 |---|---|---|
@@ -153,7 +153,7 @@ Generated from canonical source and the existing full-inventory runner's results
 | LOG009 | PASS | verified intended expectations |
 | LOG014 | PASS | verified intended expectations |
 | LOG015 | PASS | verified intended expectations |
-| N999 | FAIL | [Fixture mismatch](results/full-inventory-current/ruf101-target-supplement/provenance.json) |
+| N999 | FAIL | [Fixture mismatch](results/full-inventory-current/latest-failed-observations/provenance.json) |
 | PERF101 | PASS | verified intended expectations |
 | PERF102 | PASS | verified intended expectations |
 | PERF402 | PASS | [separate source-bound fixture proof](results/full-inventory-current/match-or-supplement/summary.json) |
@@ -341,7 +341,7 @@ Generated from canonical source and the existing full-inventory runner's results
 | SIM107 | PASS | verified intended expectations |
 | SIM113 | PASS | verified intended expectations |
 | SIM114 | PASS | verified intended expectations |
-| SIM115 | FAIL | [Missing implementation](results/full-inventory-current/summary.json) |
+| SIM115 | PASS | [separate raw-exact fixture proof](results/full-inventory-current/sim115-target-supplement/summary.json) |
 | SIM117 | PASS | verified intended expectations |
 | SIM118 | PASS | verified intended expectations |
 | SIM201 | PASS | verified intended expectations |

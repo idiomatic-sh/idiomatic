@@ -256,12 +256,16 @@ def render_full_inventory(path: Path) -> str:
             ("ruf009-target-supplement", "raw-exact fixture proof"),
             ("ruf101-target-supplement", "raw-exact fixture proof"),
             ("ple0116-target-supplement", "py37 fixture and py310 control proof"),
+            ("sim115-target-supplement", "raw-exact fixture proof"),
         ):
             for row in verified_rows(RUFF, current, by_rule, current / directory_name):
                 by_rule[row["rule_id"]] = {**row, "reason": f"[separate {label}](results/full-inventory-current/{directory_name}/summary.json)"}
                 supplement_label = " Counts combine separately linked receipts; no combined replay is claimed."
         from authoring.target_supplement import verified_failed_rows
-        for row in verified_failed_rows(RUFF, by_rule, current / "ruf101-target-supplement"):
+        failed_observations = current / "latest-failed-observations"
+        if not failed_observations.is_dir():
+            failed_observations = current / "ruf101-target-supplement"
+        for row in verified_failed_rows(RUFF, by_rule, failed_observations):
             by_rule[row["rule_id"]] = row
     rendered = []
     passed = 0

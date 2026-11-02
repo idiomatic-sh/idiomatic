@@ -1,0 +1,46 @@
+{
+  "identity": {
+    "worker_sha256": "4c3825271775cabd1f72a71ac8d4af6353c3619ec4e9aff0f07d46ab72f9e9e1",
+    "reference_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8"
+  },
+  "controls": [
+    {
+      "rule": "SIM115",
+      "target": "py310",
+      "case_count": 26,
+      "raw_exact": 26,
+      "documented_discrepancies": 0,
+      "cases_file": "rules/SIM115/cases.toml",
+      "cases_sha256": "898097d2f78aa6d9b60be67bc8c21d0b7f70c5a85e1fed9d0041b9d531b266ab",
+      "settings_source": "profiles/SIM115/benchmark.toml",
+      "settings_source_sha256": "d967c7cdb1fe97fdce4580d86f613959cef604b897a295ee421538ce2d8ee6c3",
+      "query_sha256": "1562cd0684bda3bdc0ce794724ae2b8caef37cb0908e3a4ff862c1bb34a38e03",
+      "profile_sha256": "d967c7cdb1fe97fdce4580d86f613959cef604b897a295ee421538ce2d8ee6c3",
+      "registration_path": "derived/registration.json",
+      "registration_sha256": "5cf40d755d7d3b1f510208e38abd0304c7b0c78f045bdf4c6cf4f2cb2303e8b0",
+      "summary_path": "derived/summary.json",
+      "summary_sha256": "7b60b959c880504064647eb69365ce0b7557353673b9b2f94461c7c812a14fd5",
+      "case_results_path": "actual/SIM115/cases.jsonl",
+      "case_results_sha256": "0ea4115e1ac8dfd10ff92268dd364da750ea57ae807d7f0f0b58d313b3534ed2",
+      "query_path": "inputs/rules/SIM115/query.ryoql",
+      "profile_path": "inputs/benchmark.toml",
+      "native_counts": {
+        "complete_case_pairs": 26,
+        "incomplete_cases": 0,
+        "raw_parity_matches": 26,
+        "raw_parity_mismatches": 0,
+        "documented_reference_discrepancies": 0,
+        "unexplained_mismatches": 0,
+        "intended_behavior_passes": 26,
+        "intended_behavior_failures": 0,
+        "diagnostic_parity_matches": 26,
+        "diagnostic_parity_mismatches": 0,
+        "execution_metadata_exact": 0,
+        "execution_metadata_different": 0,
+        "execution_metadata_incomparable": 26,
+        "typed_candidate_execution_complete": 26,
+        "legacy_or_unknown_candidate_execution": 0
+      }
+    }
+  ]
+}
