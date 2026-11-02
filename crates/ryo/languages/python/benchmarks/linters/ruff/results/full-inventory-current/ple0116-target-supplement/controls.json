@@ -45,6 +45,7 @@
       "canonical_cases_sha256": "db28cecfd461a9cd42780f183f4b29987fa3f4cfdd9aaa371fe2e92d26fa3b18",
       "cases_path": "py310/stage/rules/PLE0116/cases.toml",
       "cases_sha256": "21eec184e690a0ee166202869b0509974873fbd2f24f2f9a91b6d5104ba22ef6",
+      "executed_stage_path": "/tmp/ple0116-py310-counterstage-20261102",
       "parser_configuration": "python-target=3.10",
       "profile_path": "py310/stage/benchmark.toml",
       "profile_sha256": "6d41ebc955fa1cd672331830fc1cb684e588b7f8a4ee2ade5552351f704af81c",

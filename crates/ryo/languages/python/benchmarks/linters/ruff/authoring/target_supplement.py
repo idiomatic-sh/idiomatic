@@ -133,6 +133,7 @@ def verified_rows(ruff: Path, current: Path, previous: dict[str, object], direct
             if any(profile.get(key) != source_settings.get(key) for key in ("tool", "version", "sha256")):
                 raise ValueError("direct negative target changes the pinned reference")
             profile_prefix = PurePosixPath(item["profile_path"]).parent
+            executed_rules = str(Path(item["executed_stage_path"]) / "rules")
             for relative in profile.get("query-modules", {}).values():
                 if read(str(profile_prefix / relative)) != (ruff / relative).read_bytes():
                     raise ValueError("direct negative target has stale helper bytes")
@@ -151,6 +152,7 @@ def verified_rows(ruff: Path, current: Path, previous: dict[str, object], direct
                 coverage = candidate.get("coverage", {})
                 if (read(f"{prefix}/{file}") != source.encode()
                     or request.get("parser_configuration") != item["parser_configuration"]
+                    or request.get("rules") != executed_rules
                     or request.get("files") != [file]
                     or request.get("query_modules") != profile.get("query-modules", {})
                     or request.get("rule_applicability") != profile.get("rule-applicability", {})

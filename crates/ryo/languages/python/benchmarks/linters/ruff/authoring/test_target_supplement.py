@@ -91,6 +91,23 @@ class TargetEvidenceTests(unittest.TestCase):
 
 
 class OptionalModuleAndFailureEvidenceTests(unittest.TestCase):
+    def direct_fixture(self, directory):
+        root = Path(directory) / "ruff"
+        current = root / CURRENT
+        target = current / "ple0116-target-supplement"
+        shutil.copytree(RUFF / CURRENT / "ple0116-target-supplement", target)
+        proof = json.loads((target / "proof.json").read_text())
+        controls = json.loads((target / "controls.json").read_text())
+        needed = {"rules/PLE0116/query.ryoql", "rules/PLE0116/cases.toml",
+                  "profiles/PLE0116/benchmark.toml", "fragments/suppress.ryoql",
+                  "fragments/suppress-directives.ryoql"}
+        needed.update(CURRENT + "/" + name for name in proof["prior_summaries_sha256"])
+        for relative in needed:
+            path = root / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(RUFF / relative, path)
+        return root, current, target, proof, controls
+
     def test_actual_direct_negative_target_validates(self):
         target = RUFF / CURRENT / "ple0116-target-supplement"
         rows = verified_rows(RUFF, RUFF / CURRENT, {"PLE0116": {"status": "FAIL"}}, target)
@@ -99,20 +116,7 @@ class OptionalModuleAndFailureEvidenceTests(unittest.TestCase):
 
     def test_rehashed_forged_direct_negative_finding_is_refused(self):
         with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory) / "ruff"
-            current = root / CURRENT
-            target = current / "ple0116-target-supplement"
-            shutil.copytree(RUFF / CURRENT / "ple0116-target-supplement", target)
-            proof = json.loads((target / "proof.json").read_text())
-            controls = json.loads((target / "controls.json").read_text())
-            needed = {"rules/PLE0116/query.ryoql", "rules/PLE0116/cases.toml",
-                      "profiles/PLE0116/benchmark.toml", "fragments/suppress.ryoql",
-                      "fragments/suppress-directives.ryoql"}
-            needed.update(CURRENT + "/" + name for name in proof["prior_summaries_sha256"])
-            for relative in needed:
-                path = root / relative
-                path.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copyfile(RUFF / relative, path)
+            root, current, target, proof, controls = self.direct_fixture(directory)
             archive = target / "raw-receipts.tar.gz"
             negative = controls["direct_negative"][0]
             prefix = negative["archive_prefix"] + "/00"
@@ -137,6 +141,28 @@ class OptionalModuleAndFailureEvidenceTests(unittest.TestCase):
             replacement.replace(archive)
             (target / "controls.json").write_text(json.dumps(controls))
             proof["controls_sha256"] = sha(target / "controls.json")
+            proof["raw_receipts_sha256"] = sha(archive)
+            (target / "proof.json").write_text(json.dumps(proof))
+            with self.assertRaisesRegex(ValueError, "direct negative target has findings"):
+                verified_rows(root, current, {"PLE0116": {"status": "FAIL"}}, target)
+
+    def test_rehashed_direct_request_cannot_switch_to_noop_rules(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root, current, target, proof, _ = self.direct_fixture(directory)
+            archive = target / "raw-receipts.tar.gz"
+            name = "py310/direct/00/request.json"
+            replacement = target / "replacement.tar.gz"
+            with tarfile.open(archive, "r:gz") as source:
+                request = json.loads(source.extractfile(name).read())
+                request["rules"] = "/tmp/noop-rules"
+                forged = json.dumps(request).encode()
+                with tarfile.open(replacement, "w:gz") as output:
+                    for member in source.getmembers():
+                        metadata = copy.copy(member)
+                        data = forged if member.name == name else source.extractfile(member).read()
+                        metadata.size = len(data)
+                        output.addfile(metadata, io.BytesIO(data))
+            replacement.replace(archive)
             proof["raw_receipts_sha256"] = sha(archive)
             (target / "proof.json").write_text(json.dumps(proof))
             with self.assertRaisesRegex(ValueError, "direct negative target has findings"):
