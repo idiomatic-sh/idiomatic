@@ -12,4 +12,6 @@ In the complete base run, the 51 failures comprised 30 missing implementations, 
 | Summary JSON | `a3eae09e90dcb4a2d7a88bb7e76fddc9888b31648133838fcb1edee3b11e6f91` |
 | Raw receipts archive | `3f36a818e9addd6be75462f011656ddb3193c4c0b0f5b749bee84d74383b0bdc` |
 
+The later [6bff CI inventory and speed receipts](../ci-6bff-full-inventory-2026-11-02/README.md) are a separate complete run at an older source head: 361 PASS / 52 FAIL, including 22 timeouts. They do not replace this source-bound combined proof.
+
 The runner initialized all 413 rows as FAIL, checked each registration in pinned order, recorded each result atomically, and reached `run_state=complete`. Its summary binds the inventory and phase registry hashes; each passing row binds its query, cases, settings, imported modules, and native receipt digest. The worker used the default execution strategy. This single run establishes fixture results for this source and environment; it does not establish performance or cross-platform parity.
