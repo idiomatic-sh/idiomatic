@@ -112,3 +112,44 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn succeeds() {
     run(CASES, Word::Succeeds, |input| Ok(subject(input)));
 }
+
+#[test]
+fn lexical_recovery_keeps_explicit_reader_refusals_and_code_uncertainty() {
+    use ryo_language::domain::relations::types::Missing;
+    use ryo_values::domain::stored_facts::types::{PartialCause, PartialScope, ReadInPart};
+
+    let wanted = [
+        Relation::Comment,
+        Relation::IndentRegion,
+        Relation::Function,
+    ];
+    let lexical = partial_of(&[], Recovery::LexicallyCompleteSyntaxErrors, &wanted);
+    assert_eq!(lexical.len(), 1);
+    assert_eq!(lexical[0].relation, Relation::Function);
+
+    let refused = ReadInPart {
+        relation: Relation::Comment,
+        cause: PartialCause("reader stopped before EOF".into()),
+        lacking: Missing::Any,
+        at: PartialScope::Repository,
+    };
+    let explicit = partial_of(&[refused], Recovery::LexicallyCompleteSyntaxErrors, &wanted);
+    assert_eq!(explicit.len(), 2);
+    assert!(
+        explicit
+            .iter()
+            .any(|part| part.relation == Relation::Comment)
+    );
+    assert!(
+        explicit
+            .iter()
+            .any(|part| part.relation == Relation::Function)
+    );
+
+    for recovery in [Recovery::SyntaxErrors, Recovery::Unparsed] {
+        let incomplete = partial_of(&[], recovery, &wanted);
+        for relation in wanted {
+            assert!(incomplete.iter().any(|part| part.relation == relation));
+        }
+    }
+}

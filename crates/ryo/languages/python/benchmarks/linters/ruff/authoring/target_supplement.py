@@ -79,7 +79,7 @@ def verified_rows(ruff: Path, current: Path, previous: dict[str, object], direct
             profile = tomllib.loads(read(item["profile_path"], item["profile_sha256"]).decode())
             read(item["query_path"], item["query_sha256"])
             prefix = PurePosixPath(item["profile_path"]).parent
-            for logical, relative in profile["query-modules"].items():
+            for logical, relative in profile.get("query-modules", {}).items():
                 digest = instance["module_sha256"][logical]
                 read(str(prefix / relative), digest)
                 if sha(ruff / relative) != digest:
@@ -116,4 +116,49 @@ def verified_rows(ruff: Path, current: Path, previous: dict[str, object], direct
             or row.get("case_results_sha256") != canonical["case_results_sha256"]
             or row.get("instance", {}).get("profile_sha256") != canonical["profile_sha256"]):
             raise ValueError("default target summary is not its executed fixture evidence")
+    return rows
+
+
+def verified_failed_rows(ruff: Path, previous: dict[str, object], directory: Path) -> list[dict[str, object]]:
+    """Refresh FAIL reasons from source-bound attempts; this path cannot promote a rule."""
+    if not directory.is_dir():
+        return []
+    proof = json.loads((directory / "proof.json").read_text())
+    failed = proof.get("failed_controls", [])
+    if len({item["rule"] for item in failed}) != len(failed):
+        raise ValueError("duplicate failed fixture observation")
+    if proof["raw_receipts_sha256"] != sha(directory / "raw-receipts.tar.gz"):
+        raise ValueError("changed failed fixture archive")
+    rows = []
+    with tarfile.open(directory / "raw-receipts.tar.gz", "r:gz") as archive:
+        for item in failed:
+            rule = item["rule"]
+            instance = item["instance"]
+            if (rule not in previous or previous[rule]["status"] != "FAIL"
+                or sha(ruff / instance["query_file"]) != instance["query_sha256"]
+                or sha(ruff / instance["cases_file"]) != instance["cases_sha256"]
+                or sha(ruff / item["settings_source"]) != instance["settings_source_sha256"]):
+                raise ValueError("changed failed fixture source/settings")
+            cases = tomllib.loads((ruff / instance["cases_file"]).read_text())["cases"]
+            registration = archive.extractfile(item["registration_path"])
+            if registration is None:
+                raise ValueError("missing failed fixture registration")
+            declared = json.loads(registration.read())["rules"][0]["cases"]
+            hashes = {case["name"]: hashlib.sha256(json.dumps(case, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()).hexdigest() for case in cases}
+            if len(hashes) != len(cases) or {case["name"]: case["case_sha256"] for case in declared} != hashes:
+                raise ValueError("changed failed fixture cases")
+            stream = archive.extractfile(item["case_results_path"])
+            if stream is None:
+                raise ValueError("missing failed fixture receipt")
+            raw = stream.read()
+            if hashlib.sha256(raw).hexdigest() != item["case_results_sha256"]:
+                raise ValueError("changed failed fixture receipt")
+            records = [json.loads(line) for line in raw.splitlines()]
+            counts = case_records.case_expectation_summary(declared, records)
+            if (len(records) != 2 * len(cases) or counts != item["native_counts"]
+                or counts["intended_behavior_passes"] == len(cases)):
+                raise ValueError("invalid failed fixture observation")
+            rows.append({"rule_id": rule, "status": "FAIL", "instance": instance,
+                         "reason": "fixture mismatch or incomplete candidate",
+                         "failure_receipt": str((directory / "provenance.json").relative_to(ruff))})
     return rows

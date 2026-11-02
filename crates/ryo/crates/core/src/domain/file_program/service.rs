@@ -203,7 +203,7 @@ pub(crate) fn compile_prepared(
                 .collect()
         })
         .collect();
-    let boundaries = plans
+    let boundaries: Vec<Vec<(usize, NodeId)>> = plans
         .iter()
         .zip(&cuts)
         .map(|(plan, owned)| {
@@ -225,7 +225,34 @@ pub(crate) fn compile_prepared(
                 .collect()
         })
         .collect();
+    let rule_liveness = boundaries
+        .iter()
+        .map(|roots| {
+            let mut counts = HashMap::<NodeId, usize>::new();
+            let mut expanded = HashSet::new();
+            let mut pending = Vec::new();
+            for (_, root) in roots {
+                *counts.entry(*root).or_default() += 1;
+                pending.push(*root);
+            }
+            while let Some(node) = pending.pop() {
+                if !expanded.insert(node) {
+                    continue;
+                }
+                for input in &nodes[node.0].inputs {
+                    if let NodeInput::Node(child) = input {
+                        *counts.entry(*child).or_default() += 1;
+                        pending.push(*child);
+                    }
+                }
+            }
+            let mut counts = counts.into_iter().collect::<Vec<_>>();
+            counts.sort_unstable_by_key(|(node, _)| std::cmp::Reverse(node.0));
+            counts
+        })
+        .collect();
     RequestGraph {
+        rule_liveness,
         boundaries,
         consumers,
         plans: plans

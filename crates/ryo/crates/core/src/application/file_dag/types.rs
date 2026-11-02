@@ -9,7 +9,21 @@ pub(crate) struct FileDagExecution {
     pub active: Vec<bool>,
     /// Root and dependency consumers, not occurrences in individual rule plans.
     pub remaining: Vec<usize>,
+    /// Optional cross-rule retained results, subject to the existing cache allowance.
     pub ready: Vec<Option<Arc<Table>>>,
+    /// Required live results for the current rule, independent of that allowance.
+    pub required: Vec<Option<Arc<Table>>>,
+    pub required_remaining: Vec<usize>,
+    pub required_executed: Vec<bool>,
+    pub required_inputs: Vec<bool>,
+    pub required_nodes: Vec<crate::domain::file_program::types::NodeId>,
+    pub current_rule: Option<usize>,
+    pub required_bytes: usize,
+    pub peak_required_bytes: usize,
+    /// Shared Arc payload held by both owners; subtract it for unique owned bytes.
+    pub overlap_bytes: usize,
+    pub peak_owned_bytes: usize,
+    pub required_releases: u64,
     pub visiting: Vec<bool>,
     pub executions: Vec<u64>,
     pub demands: u64,

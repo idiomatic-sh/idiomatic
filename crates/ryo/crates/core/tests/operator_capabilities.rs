@@ -22,6 +22,12 @@ fn check_failure(directory: &Path, name: &str, source: &str, code: &str) {
     );
     assert!(errors.contains(code), "wrong refusal for {name}: {errors}");
 }
+fn rust_path_literal(path: &Path) -> String {
+    format!(
+        "{:?}",
+        path.to_str().expect("Rust source path must be UTF-8")
+    )
+}
 fn production_paths() -> (String, String, String, String) {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
     let contract = root.join("src/domain/operator/contract");
@@ -32,8 +38,8 @@ fn production_paths() -> (String, String, String, String) {
         .collect::<String>();
     let kinds = format!("pub enum OperationKind {{\n{variants}}}");
     (
-        contract.join("types.rs").display().to_string(),
-        interface.display().to_string(),
+        rust_path_literal(&contract.join("types.rs")),
+        rust_path_literal(&interface),
         contract.join("registration.rs").display().to_string(),
         kinds,
     )
@@ -65,7 +71,7 @@ pub mod domain {
  pub mod operator {
   pub mod collections {pub mod operators {
    pub mod source_matches {pub mod source {pub struct ValidatedSource<'a>(pub &'a str);}}
-   #[path="__INTERFACE__"]pub mod interface;
+   #[path=__INTERFACE__]pub mod interface;
   }}
   pub mod contract {
    pub mod views {#[derive(Clone,Copy)]pub struct BorrowedRows<'a>(pub &'a());pub struct IndexedRows<'a>(pub &'a());}
@@ -74,7 +80,7 @@ pub mod domain {
    pub mod join {pub struct NativeJoin<'a>(pub &'a());}
    pub mod graph_view {pub struct ReachResult<'a>(pub &'a());pub struct AxisResult<'a>(pub &'a());}
    pub mod resources {#[derive(Clone,Debug)]pub struct ResourceProgram;}
-   #[path="__TYPES__"]pub mod types;
+   #[path=__TYPES__]pub mod types;
   }
  }
 }
@@ -82,6 +88,22 @@ pub mod domain {
     base.replace("__TYPES__", types)
         .replace("__INTERFACE__", interface)
         .replace("__KINDS__", kinds)
+}
+#[test]
+fn generated_path_literal_escapes_windows_separators_and_quotes() {
+    let literal = rust_path_literal(Path::new("C:\\source\\quoted\"module.rs"));
+    assert_eq!(literal, "\"C:\\\\source\\\\quoted\\\"module.rs\"");
+    let temp = tempfile::tempdir().unwrap();
+    let control = compile(
+        temp.path(),
+        "path_literal_control",
+        &format!("const PATH: &str = {literal};"),
+    );
+    assert!(
+        control.status.success(),
+        "invalid generated Rust literal: {}",
+        String::from_utf8_lossy(&control.stderr)
+    );
 }
 #[test]
 fn primitive_cannot_acquire_scheduler_cache_or_persistent_lifetime_capabilities() {

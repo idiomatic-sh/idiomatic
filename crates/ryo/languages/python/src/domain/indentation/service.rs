@@ -73,7 +73,15 @@ fn build(tree: &Tree<'_>, index: &mut IndentationIndex) {
                 region.span.end = end;
                 index.rows.push(region);
             }
-            Kind::Token(Token::Errortoken) => return,
+            Kind::Token(Token::Errortoken) => {
+                // Lexical completeness above certifies this synthetic EOF marker;
+                // an error token consuming source bytes is still never accepted.
+                let start = languages::start_at(tree.elements, at);
+                let end = languages::end_at(tree.elements, at);
+                if start != end || end.0 != length {
+                    return;
+                }
+            }
             Kind::Node(_) | Kind::Extra(_) | Kind::Token(_) => {}
         }
     }

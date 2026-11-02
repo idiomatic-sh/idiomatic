@@ -546,6 +546,9 @@ pub(crate) fn evaluate_file_with_executor<'f>(
     executor: &dyn crate::domain::operator::contract::executor::PrimitiveExecutor,
     operators: &[std::sync::Arc<crate::domain::operator::contract::types::OperatorContract>],
 ) -> Result<(), OperatingError> {
+    if let Some(dag) = file_dag {
+        dag.begin_rule(rule);
+    }
     let read = |relation: Relation| -> Result<Rows<'f>, OperatingError> {
         match (relation, tree) {
             (Relation::SyntaxChild, Some(tree)) => Ok(Rows::Tree(TreeRows {

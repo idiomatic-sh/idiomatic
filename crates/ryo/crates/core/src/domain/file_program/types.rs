@@ -38,6 +38,8 @@ pub(crate) struct RequestGraph {
     pub consumers: Vec<Vec<NodeId>>,
     /// Graph outputs consumed by residual operations, in original step order.
     pub boundaries: Vec<Vec<(usize, NodeId)>>,
+    /// Parent-before-child rule-local live-edge counts, compiled once per request.
+    pub rule_liveness: Vec<Vec<(NodeId, usize)>>,
 }
 
 /// One physical file generation; no table escapes this value or enters a global cache.
@@ -53,6 +55,8 @@ pub(crate) struct FileProgram {
 /// The domain executor asks its application owner for an already scheduled DAG
 /// output. Implementations own generation state; primitives never schedule it.
 pub(crate) trait DagExecution {
+    /// Establish required rule-local liveness before any operator demand.
+    fn begin_rule(&self, rule: usize);
     fn owned(&self, rule: usize, step: usize) -> Option<NodeId>;
     fn demand<'f>(
         &self,

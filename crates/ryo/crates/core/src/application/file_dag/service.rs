@@ -13,7 +13,7 @@ use std::sync::Arc;
 
 /// Retained result buffers only; injected typed indexes keep their existing allowance.
 const RESULT_LIMIT: usize = 6 * 1024 * 1024;
-fn bytes(table: &Table) -> usize {
+pub(super) fn bytes(table: &Table) -> usize {
     table
         .cells
         .capacity()
@@ -72,6 +72,17 @@ impl FileDagExecution {
             active,
             remaining,
             ready: vec![None; count],
+            required: vec![None; count],
+            required_remaining: vec![0; count],
+            required_executed: vec![false; count],
+            required_inputs: vec![false; count],
+            required_nodes: Vec::new(),
+            current_rule: None,
+            required_bytes: 0,
+            peak_required_bytes: 0,
+            overlap_bytes: 0,
+            peak_owned_bytes: 0,
+            required_releases: 0,
             visiting: vec![false; count],
             executions: vec![0; count],
             demands: 0,
@@ -92,7 +103,11 @@ impl FileDagExecution {
             return;
         }
         if let Some(table) = self.ready[node.0].take() {
-            self.retained_bytes = self.retained_bytes.saturating_sub(bytes(&table));
+            let size = bytes(&table);
+            self.retained_bytes = self.retained_bytes.saturating_sub(size);
+            if self.required[node.0].is_some() {
+                self.overlap_bytes = self.overlap_bytes.saturating_sub(size);
+            }
             self.releases += 1;
         }
         // A lazy primitive may never request one branch. Cancel that branch's
@@ -113,7 +128,9 @@ impl FileDagExecution {
         let graph = Arc::clone(&self.graph);
         for (_, root) in &graph.boundaries[rule] {
             self.consumed(*root);
+            self.consume_required(*root);
         }
+        self.clear_required();
     }
 }
 impl FileDagExecution {
@@ -132,19 +149,29 @@ impl FileDagExecution {
         context: &mut OperatorContext<'_>,
     ) -> Result<Arc<Table>, OperatingError> {
         self.demands += 1;
-        if let Some(table) = self.ready.get(id.0).and_then(Option::as_ref) {
+        if let Some(table) = self.required.get(id.0).and_then(Option::as_ref) {
             self.hits += 1;
             return Ok(Arc::clone(table));
+        }
+        if let Some(table) = self
+            .ready
+            .get(id.0)
+            .and_then(Option::as_ref)
+            .map(Arc::clone)
+        {
+            self.hits += 1;
+            self.pin_required(id, Arc::clone(&table));
+            return Ok(table);
         }
         if self.visiting.get(id.0).copied().unwrap_or(true) {
             return Err(OperatingError::NotRun);
         }
-        self.visiting[id.0] = true;
         let graph = Arc::clone(&self.graph);
         let node = &graph.nodes[id.0];
         if crate::domain::features::service::kind_of(&node.operation) != node.contract.kind {
             return Err(OperatingError::WrongOperation);
         }
+        self.visiting[id.0] = true;
         let held = (0..node.inputs.len())
             .map(|_| OnceCell::new())
             .collect::<Vec<_>>();
@@ -169,27 +196,44 @@ impl FileDagExecution {
         drop(held);
         self.visiting[id.0] = false;
         outcome?;
+        let first_global_execution = self.executions[id.0] == 0;
         self.executions[id.0] += 1;
-        // Dependency edges are consumed only after a successful primitive result.
-        // Failure unwinds this generation without publishing a partial result.
+        // A global edge is consumed once, not once per optional-cache refusal.
+        // Local edges represent the actual required rule lifetime independently.
+        let first_required_execution = !self.required_executed[id.0];
+        self.required_executed[id.0] = true;
         for input in &node.inputs {
             if let NodeInput::Node(child) = input {
-                self.consumed(*child);
+                if first_global_execution {
+                    self.consumed(*child);
+                }
+                if first_required_execution && self.required_inputs[id.0] {
+                    self.consume_required(*child);
+                }
             }
         }
         let table = Arc::new(table);
+        self.pin_required(id, Arc::clone(&table));
         let size = bytes(&table);
         if self.remaining[id.0] > 0 && self.retained_bytes.saturating_add(size) <= self.limit {
             self.retained_bytes += size;
             self.peak_bytes = self.peak_bytes.max(self.retained_bytes);
             self.ready[id.0] = Some(Arc::clone(&table));
+            if self.required[id.0].is_some() {
+                self.overlap_bytes = self.overlap_bytes.saturating_add(size);
+            }
+            self.observe_required();
         } else {
             // Explicit budget fallback: later demand may recompute total pure work.
             self.unretained += 1;
         }
         tracing::trace!(target: "ryo::diagnostic::file_program", event = "dag_node",
             node = id.0, executions = self.executions[id.0], cells = table.cells.len(),
-            retained_bytes = self.retained_bytes, peak_bytes = self.peak_bytes);
+            retained_bytes = self.retained_bytes, peak_bytes = self.peak_bytes,
+            required_bytes=self.required_bytes, peak_required_bytes=self.peak_required_bytes,
+            overlap_bytes=self.overlap_bytes, peak_owned_bytes=self.peak_owned_bytes,
+            required_releases=self.required_releases,
+            required_metadata_bytes=self.required_metadata_bytes());
         Ok(table)
     }
 }
@@ -266,7 +310,13 @@ impl<'a> Feed<'a> for GraphInputs<'a, '_> {
         match input {
             NodeInput::Relation(relation) => scan(&(self.read)(relation)?, &mut row, context, emit),
             NodeInput::Node(node) => {
-                let table = self.execution.demand(node, self.read, context)?;
+                let held = self.held;
+                let slot = &held[which.0];
+                if slot.get().is_none() {
+                    let table = self.execution.demand(node, self.read, context)?;
+                    let _installed = slot.set(table);
+                }
+                let table = slot.get().ok_or(OperatingError::NotRun)?;
                 scan(&Rows::Computed(table.as_ref()), &mut row, context, emit)
             }
         }
@@ -277,6 +327,9 @@ impl<'a> Feed<'a> for GraphInputs<'a, '_> {
 // A graph demand finishes before the opaque consumer resumes, so callbacks do
 // not retain a mutable borrow across arbitrary rule code.
 impl DagExecution for std::cell::RefCell<FileDagExecution> {
+    fn begin_rule(&self, rule: usize) {
+        self.borrow_mut().begin_rule(rule);
+    }
     fn owned(&self, rule: usize, step: usize) -> Option<NodeId> {
         self.borrow().owned(rule, step)
     }
@@ -291,6 +344,9 @@ impl DagExecution for std::cell::RefCell<FileDagExecution> {
 }
 #[cfg(test)]
 impl DagExecution for std::cell::RefCell<&mut FileDagExecution> {
+    fn begin_rule(&self, rule: usize) {
+        self.borrow_mut().begin_rule(rule);
+    }
     fn owned(&self, rule: usize, step: usize) -> Option<NodeId> {
         self.borrow().owned(rule, step)
     }
@@ -303,3 +359,7 @@ impl DagExecution for std::cell::RefCell<&mut FileDagExecution> {
         self.borrow_mut().demand(node, read, context)
     }
 }
+
+#[cfg(test)]
+#[path = "service/required_test.rs"]
+mod required_test;

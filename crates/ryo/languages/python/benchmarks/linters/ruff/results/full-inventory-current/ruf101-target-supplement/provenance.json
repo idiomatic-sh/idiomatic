@@ -1,0 +1,57 @@
+{
+  "source_base": "6bff0aa50e7fd208af3092dfc2c4a8e549ccbc44",
+  "original_draft_patch_sha256": "b476d7c6e7291b0346914eef80cdf98c8dc2f5499e56515be603e96a4de06b18",
+  "corrected_source_patch_sha256": "ae6d04162b25e58227667bfce7bb8002e73de441964c3ae9a0e5e9e728f318c2",
+  "lexical_readiness_patch_sha256": "3992245b4798546a2c48a7803b095e0441b81fb8814c53a5c67ea368ec6461f4",
+  "worker_seal_sha256": "6435c06fe989709178c1537cf55090510d8d5c93ac637666072bdbd72a11f83e",
+  "actual_direct_script_sha256": "40c71a93d0e9f04e3df5ada3201bbf4117f912cd995a9ecf32b0f5c916833aba",
+  "native_cases_sha256": "517d728f3ace4100fd2e692bc45a74f70c8d01870f4005031496ff4bf69ced3d",
+  "collector_executed": false,
+  "raw_records_unchanged": true,
+  "RUF101": {
+    "complete_case_pairs": 40,
+    "incomplete_cases": 0,
+    "raw_parity_matches": 40,
+    "raw_parity_mismatches": 0,
+    "documented_reference_discrepancies": 0,
+    "unexplained_mismatches": 0,
+    "intended_behavior_passes": 40,
+    "intended_behavior_failures": 0,
+    "diagnostic_parity_matches": 40,
+    "diagnostic_parity_mismatches": 0,
+    "execution_metadata_exact": 0,
+    "execution_metadata_different": 0,
+    "execution_metadata_incomparable": 40,
+    "typed_candidate_execution_complete": 40,
+    "legacy_or_unknown_candidate_execution": 0
+  },
+  "N999": {
+    "status": "FAIL",
+    "registered_cases": 47,
+    "intended_passed": 44,
+    "incomplete": 2,
+    "complete_mismatches": 1,
+    "native_counts": {
+      "complete_case_pairs": 45,
+      "incomplete_cases": 2,
+      "raw_parity_matches": 44,
+      "raw_parity_mismatches": 1,
+      "documented_reference_discrepancies": 0,
+      "unexplained_mismatches": 1,
+      "intended_behavior_passes": 44,
+      "intended_behavior_failures": 1,
+      "diagnostic_parity_matches": 44,
+      "diagnostic_parity_mismatches": 1,
+      "execution_metadata_exact": 0,
+      "execution_metadata_different": 0,
+      "execution_metadata_incomparable": 45,
+      "typed_candidate_execution_complete": 45,
+      "legacy_or_unknown_candidate_execution": 0
+    },
+    "case_results_sha256": "3df3adde7caf7ba7f6673338dbb739225810a0d97c868d72df798126063f7815",
+    "blockers": [
+      "nested package root naming policy",
+      "explicit .txt and extensionless provider dispatch"
+    ]
+  }
+}

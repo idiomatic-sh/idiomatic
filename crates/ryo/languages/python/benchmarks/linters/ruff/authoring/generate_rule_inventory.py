@@ -254,6 +254,12 @@ def render_full_inventory(path: Path) -> str:
         for row in verified_rows(RUFF, current, by_rule, current / "up035-up036-target-supplement"):
             by_rule[row["rule_id"]] = {**row, "reason": "[separate full target-version fixture proof](results/full-inventory-current/up035-up036-target-supplement/summary.json)"}
             supplement_label = " Counts combine separately linked receipts; no combined replay is claimed."
+        for row in verified_rows(RUFF, current, by_rule, current / "ruf101-target-supplement"):
+            by_rule[row["rule_id"]] = {**row, "reason": f"[separate {row['raw_exact']}/{row['case_count']} raw-exact fixture proof](results/full-inventory-current/ruf101-target-supplement/summary.json)"}
+            supplement_label = " Counts combine separately linked receipts; no combined replay is claimed."
+        from authoring.target_supplement import verified_failed_rows
+        for row in verified_failed_rows(RUFF, by_rule, current / "ruf101-target-supplement"):
+            by_rule[row["rule_id"]] = row
     rendered = []
     passed = 0
     for rule in defaults:
@@ -273,7 +279,7 @@ def render_full_inventory(path: Path) -> str:
                 raise ValueError("PASS lacks worker identity or executed case receipts")
         passed += status == "PASS"
         if status == "FAIL":
-            receipt = path.resolve().relative_to(RUFF) if path.resolve().is_relative_to(RUFF) else path.resolve()
+            receipt = Path(row["failure_receipt"]) if row.get("failure_receipt") else (path.resolve().relative_to(RUFF) if path.resolve().is_relative_to(RUFF) else path.resolve())
             reason = f"[{failure_category(reason)}]({receipt.as_posix()})"
         reason = str(reason).replace("|", "\\|").replace("\n", " ")
         rendered.append(f"| {rule} | {status} | {reason} |")

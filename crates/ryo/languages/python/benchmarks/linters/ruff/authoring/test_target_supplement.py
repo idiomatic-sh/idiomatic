@@ -9,7 +9,7 @@ import tarfile
 import tempfile
 import unittest
 
-from authoring.target_supplement import verified_rows
+from authoring.target_supplement import verified_rows, verified_failed_rows
 
 RUFF = Path(__file__).resolve().parents[1]
 CURRENT = "results/full-inventory-current"
@@ -88,3 +88,17 @@ class TargetEvidenceTests(unittest.TestCase):
             (target / "proof.json").write_text(json.dumps(proof))
             with self.assertRaisesRegex(ValueError, "execution is incomplete or failed"):
                 verified_rows(root, current, PREVIOUS, target)
+
+
+class OptionalModuleAndFailureEvidenceTests(unittest.TestCase):
+    def test_helper_free_actual_fixture_proof_validates(self):
+        target = RUFF / CURRENT / "ruf101-target-supplement"
+        rows = verified_rows(RUFF, RUFF / CURRENT, {"RUF101": {"status": "FAIL"}}, target)
+        self.assertEqual([(row["status"], row["case_count"]) for row in rows], [("PASS", 40)])
+
+    def test_actual_failed_fixture_evidence_cannot_promote(self):
+        target = RUFF / CURRENT / "ruf101-target-supplement"
+        rows = verified_failed_rows(RUFF, {"N999": {"status": "FAIL"}}, target)
+        self.assertEqual([(row["rule_id"], row["status"]) for row in rows], [("N999", "FAIL")])
+        with self.assertRaisesRegex(ValueError, "changed failed fixture source/settings"):
+            verified_failed_rows(RUFF, {"N999": {"status": "PASS"}}, target)

@@ -100,6 +100,9 @@ pub enum TreeImpact {
     /// This diagnostic does not indicate missing or recovered syntax.
     Preserved,
     /// The syntax tree may be incomplete, but the provider certified tokenization through EOF.
+    /// This includes preserved lexer state: byte coverage alone does not certify
+    /// comments or delimiters after a lost string, interpolation or continuation.
+    /// Readers may still declare individual lexical relations partial.
     LexicallyComplete,
     /// The tree may be recovered or incomplete.
     Incomplete,

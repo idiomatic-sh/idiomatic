@@ -1,0 +1,84 @@
+{
+  "schema": "benchmark-inventory-target-supplement/v1",
+  "rule_ids": [
+    "RUF101"
+  ],
+  "requirements": {
+    "RUF101": [
+      "py310"
+    ]
+  },
+  "prior_summaries_sha256": {
+    "summary.json": "a3eae09e90dcb4a2d7a88bb7e76fddc9888b31648133838fcb1edee3b11e6f91",
+    "fa-target-supplement/summary.json": "ef0606f0fe2f2fdbb26b3558cb062d593b0f67aab499f9645f640dd4ba924649",
+    "future-directive-supplement/summary.json": "7c05def4023a1668cea4cbbf29053a5b51073b6b562215e5c7740897b0f7cd1d",
+    "match-or-supplement/summary.json": "f77a70aea29aa913eadca96514afa302deb8063c92c8900e5059b95eab568a44",
+    "sim222-sim223-supplement/summary.json": "8c7aa29c7fee81a57ac27f330a1d030745347aa8806d58c9bd36c0cf4af9d3da",
+    "up017-target-supplement/summary.json": "7399c7e2fbb91ff6da56a242adb7a33f288d94e7e30c02f5409848d9dab04060",
+    "up035-up036-target-supplement/summary.json": "03a80d7e2f95c0ecda5924970f95374986b7d1ef1263bcddec7dd07e6ed0f0ed"
+  },
+  "identity": {
+    "worker_sha256": "92b623314c19b12e0678f77b2248287a329e41254a1340b9ec1245b04641390f",
+    "reference_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8"
+  },
+  "default_case_results_sha256": {
+    "RUF101": "517d728f3ace4100fd2e692bc45a74f70c8d01870f4005031496ff4bf69ced3d"
+  },
+  "summary_sha256": "74205ee9a78f444fe9e55892a8296f5a67d8c78223ba9c96fd217f5249c135d5",
+  "controls_sha256": "be9415410d9d5e089c1c90a82a5cb2d19a4699b41b718b4b3b8a279bf1ab4bd6",
+  "provenance_sha256": "2b0b46d2537d534bd33fb1b9f368564699bae38e27f715ba6a15f5e46299a700",
+  "raw_receipts_sha256": "773f6afd69f810c75d51b9153bd1ff42a0466ec70fea873035971f66fcbb22e0",
+  "failed_controls": [
+    {
+      "rule": "N999",
+      "instance": {
+        "case_count": 47,
+        "cases_file": "rules/N999/cases.toml",
+        "cases_sha256": "1173afefcd8622b517167a813671fc4f53bf617f479c795661e4f977fc841e7e",
+        "effective_settings": {
+          "defaults": [
+            "N999"
+          ],
+          "flags": {},
+          "parser_configuration": "python-target=3.10",
+          "project_context_mode": "listed-disk",
+          "rule_applicability": {
+            "N999": "always"
+          }
+        },
+        "module_sha256": {
+          "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
+          "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d"
+        },
+        "parser_configuration": "python-target=3.10",
+        "profile_sha256": "1f2b5d9f7b8ab9c215474a5b3e2e8fa7214a45e56cb4f40b8d83de188cf529af",
+        "query_file": "rules/N999/query.ryoql",
+        "query_sha256": "cd4dd9324f520a4ee2c5d22be5dadb6366bf5e8bdf9c0ee774f9e3b741728bff",
+        "settings_scope": "dedicated singleton profile (existing parser default contract)",
+        "settings_source": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/N999/benchmark.toml",
+        "settings_source_sha256": "de2b53c585e1cf564d8198921bfca540cc610b3e63cb0d12f85ce4401c04b4bc"
+      },
+      "settings_source": "profiles/N999/benchmark.toml",
+      "case_results_path": "actual/N999/cases.jsonl",
+      "case_results_sha256": "3df3adde7caf7ba7f6673338dbb739225810a0d97c868d72df798126063f7815",
+      "registration_path": "derived/N999-registration.json",
+      "native_counts": {
+        "complete_case_pairs": 45,
+        "incomplete_cases": 2,
+        "raw_parity_matches": 44,
+        "raw_parity_mismatches": 1,
+        "documented_reference_discrepancies": 0,
+        "unexplained_mismatches": 1,
+        "intended_behavior_passes": 44,
+        "intended_behavior_failures": 1,
+        "diagnostic_parity_matches": 44,
+        "diagnostic_parity_mismatches": 1,
+        "execution_metadata_exact": 0,
+        "execution_metadata_different": 0,
+        "execution_metadata_incomparable": 45,
+        "typed_candidate_execution_complete": 45,
+        "legacy_or_unknown_candidate_execution": 0
+      }
+    }
+  ]
+}

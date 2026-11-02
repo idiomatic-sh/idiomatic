@@ -35,7 +35,9 @@ class InventoryRendererTests(unittest.TestCase):
         for _, status, reason in rows:
             if status == "FAIL":
                 self.assertLess(len(reason), 140)
-                self.assertIn("results/full-inventory-current/summary.json", reason)
+                target = re.fullmatch(r"\[[^]]+\]\((results/full-inventory-current/[^)]+)\)", reason)
+                self.assertIsNotNone(target)
+                self.assertTrue((renderer.RUFF / target.group(1)).is_file())
                 self.assertNotIn("BenchmarkFinding", reason)
                 self.assertNotIn("expected-vs-candidate", reason)
         self.assertEqual(hashlib.sha256(receipt.read_bytes()).hexdigest(), before)

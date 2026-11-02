@@ -23,7 +23,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 want_node(2_147_483_648),
                 want_name("unexpected EOF while parsing"),
                 want_name("parse"),
-                want_name("incomplete"),
+                want_name("lexically-complete"),
                 want_name("parser-error"),
                 want_file(SHOWN),
                 want_span((2, 1), (2, 1)),

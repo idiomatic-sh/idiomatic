@@ -24,3 +24,5 @@ pub(crate) mod closure_partitions;
 mod contract_timing_test;
 pub(crate) mod optimized;
 pub(crate) mod selected;
+
+mod required;

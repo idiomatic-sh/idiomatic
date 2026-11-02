@@ -577,7 +577,11 @@ impl FileAnalysis {
                 file = file.0, demands = dag.demands, hits = dag.hits,
                 executions = dag.executions.iter().sum::<u64>(),
                 releases = dag.releases, retained_bytes = dag.retained_bytes,
-                peak_bytes = dag.peak_bytes, unretained = dag.unretained);
+                peak_bytes = dag.peak_bytes, unretained = dag.unretained,
+                required_bytes=dag.required_bytes, peak_required_bytes=dag.peak_required_bytes,
+                overlap_bytes=dag.overlap_bytes, peak_owned_bytes=dag.peak_owned_bytes,
+                required_releases=dag.required_releases,
+                required_metadata_bytes=dag.required_metadata_bytes());
         }
         if let Some(program) = &file_program {
             tracing::trace!(target: "ryo::diagnostic::file_program", file = file.0,

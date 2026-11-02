@@ -69,6 +69,36 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         ])),
     },
     Case {
+        name: CaseName("unclosed_delimiter_does_not_erase_complete_root_region"),
+        word: Word::Succeeds,
+        input: || Input::Source("x= (\n"),
+        expect: Expect::Value(Some(&[Shown {
+            start: 0,
+            end: 5,
+            parent_start: 0,
+            indentation: "",
+        }])),
+    },
+    Case {
+        name: CaseName("unclosed_delimiter_retains_indentation_and_comment"),
+        word: Word::Succeeds,
+        input: || Input::Source("if ready:\n    call( # retained\n"),
+        expect: Expect::Value(Some(&[
+            Shown {
+                start: 0,
+                end: 31,
+                parent_start: 0,
+                indentation: "",
+            },
+            Shown {
+                start: 10,
+                end: 31,
+                parent_start: 0,
+                indentation: "    ",
+            },
+        ])),
+    },
+    Case {
         name: CaseName("eof_without_newline"),
         word: Word::Succeeds,
         input: || Input::Source("if yes:\n    pass"),

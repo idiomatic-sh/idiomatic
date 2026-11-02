@@ -270,6 +270,18 @@ fn parser_errors_distinguish_complete_tokens_from_lexical_failure() {
         assert_eq!(acceptance, languages::SyntaxAcceptance::Rejected);
     }
 
+    for source in ["x= (\n", "if ( # retained comment\n"] {
+        let (seen, syntax, lexical, acceptance) = impacts(source);
+        assert!(!seen.is_empty());
+        assert!(
+            seen.iter()
+                .all(|impact| *impact == TreeImpact::LexicallyComplete)
+        );
+        assert!(syntax);
+        assert!(!lexical);
+        assert_eq!(acceptance, languages::SyntaxAcceptance::Rejected);
+    }
+
     for source in [
         "value = 'unterminated\n",
         "if ready:\n    work(\"unfinished\n",
@@ -1378,4 +1390,28 @@ fn starred_targets_require_unpacking_containers_without_affecting_expression_sta
             }
         }
     }
+}
+
+#[test]
+fn invalid_utf8_never_certifies_a_complete_lexical_stream() {
+    let source = b"x = ( # before invalid byte\n\xff\n";
+    let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
+    let mut builder = languages::table_builder(&mut elements, &mut symbols, ByteSlice(source));
+    SyntaxRuffPythonParserAdapter.read(
+        SourceText(source),
+        PythonSourceKind::Python,
+        &PythonParserSettings::default(),
+        &mut builder,
+    );
+    assert!(languages::has_incomplete_syntax(&elements));
+    assert!(languages::has_incomplete_lexical_stream(&elements));
+}
+
+#[test]
+fn invalid_syntax_keeps_actual_comment_tokens() {
+    let source = "if ( # retained comment\n";
+    let elements = elements_of(&SyntaxRuffPythonParserAdapter, source);
+    assert!(elements.iter().any(|(kind, text)| {
+        *kind == Kind::Token(Token::Comment) && text == "# retained comment"
+    }));
 }
