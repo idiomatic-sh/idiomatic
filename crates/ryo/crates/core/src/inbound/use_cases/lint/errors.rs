@@ -237,6 +237,7 @@ impl From<crate::application::file_analysis::errors::FileAnalysisError> for Lint
     fn from(error: crate::application::file_analysis::errors::FileAnalysisError) -> Self {
         use crate::application::file_analysis::errors::FileAnalysisError;
         match error {
+            FileAnalysisError::Store(error) => error.into(),
             FileAnalysisError::Corpus(error) => error.into(),
             FileAnalysisError::Provider { provider, code } => Self::Provider {
                 provider,

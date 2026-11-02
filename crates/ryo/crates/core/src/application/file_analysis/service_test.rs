@@ -449,6 +449,7 @@ fn visited_as(
         matcher: MatchingFake.compile(&[]).expect("empty glob set"),
     };
     let visit = FileVisit {
+        store: None,
         setting: VisitSetting {
             unknown: &[],
             plans: &[],
@@ -745,7 +746,7 @@ fn physical_missing_kinds_remain_ineligible_when_rows_mode_clears_evaluation_cov
         lacking: Lacking::Kind(LackingKind("async".into())),
         at: None,
     });
-    tables.pool.partial = tables.partials.clone();
+
     let facts = FactsFake::default().worker().expect("facts");
     let findings = FileAnalysis::indexes_for(
         &tables,
@@ -754,7 +755,6 @@ fn physical_missing_kinds_remain_ineligible_when_rows_mode_clears_evaluation_cov
         &tables.partials,
     )
     .expect("stable generation");
-    tables.pool.partial.clear();
     let rows = FileAnalysis::indexes_for(
         &tables,
         facts.as_ref(),
@@ -860,6 +860,7 @@ fn a_bad_last_captured_bucket_calls_no_digest_even_after_a_valid_rule_bucket() {
             .expect("matcher"),
     };
     let visit = FileVisit {
+        store: None,
         setting: VisitSetting {
             plans: &plans,
             bindings: &[],
@@ -980,5 +981,237 @@ fn a_bad_last_captured_bucket_calls_no_digest_even_after_a_valid_rule_bucket() {
         digest.digests.load(Ordering::Relaxed),
         2,
         "nonvacuous rule-flat then noted digest control"
+    );
+}
+
+/// Only post-normalization outcomes can reach the staging boundary; IO failures remain failures.
+#[test]
+fn successful_outcomes_stage_once_and_keep_digests_without_retaining_payloads() {
+    use crate::outbound::lint_store::errors::LintStoreError;
+    use crate::outbound::lint_store::interface::ReadStore;
+    use ryo_values::domain::files::types::FileNumber;
+    use ryo_values::domain::records::types::{
+        FileOutcome, FindingRows, Handed, HandedWords, Handing, Ran, RecordWords, StagedWords,
+        StagingSession,
+    };
+    use ryo_values::domain::stored_facts::types::{Bucket, Digest, PackedWords};
+    use ryo_values::domain::stores::types::{BucketsWanted, KeptRows, Stored, StoredHanded};
+    use std::sync::atomic::AtomicUsize;
+
+    #[derive(Debug, Default)]
+    struct StagingRead {
+        calls: AtomicUsize,
+        fail: bool,
+    }
+    impl ReadStore for StagingRead {
+        fn tables(&self) -> Stored {
+            Stored::default()
+        }
+        fn handed(&self, _: &BucketsWanted) -> Result<StoredHanded, LintStoreError> {
+            Ok(StoredHanded::default())
+        }
+        fn keep(&self, _: Stored, _: &KeptRows) -> Result<(), LintStoreError> {
+            Ok(())
+        }
+        fn stage_words(&self, words: PackedWords) -> Result<RecordWords, LintStoreError> {
+            let offset = self.calls.fetch_add(1, Ordering::Relaxed);
+            if self.fail {
+                return Err(LintStoreError::NothingRead);
+            }
+            Ok(RecordWords::Staged(StagedWords {
+                session: StagingSession(1),
+                offset: u64::try_from(offset).expect("small count"),
+                length: u64::try_from(words.0.len()).expect("size"),
+            }))
+        }
+    }
+    let outcome = FileOutcome::Read(Ran {
+        rows: FindingRows::default(),
+        number: FileNumber(0),
+        interface: Digest([1; 16]),
+        noted: Digest([2; 16]),
+        frontier: vec![],
+        handed: Handing::Made(Handed {
+            buckets: (0..64)
+                .map(|bucket| HandedWords {
+                    bucket: Bucket(bucket),
+                    words: PackedWords(vec![7; 4096]).into(),
+                })
+                .collect(),
+            ..Handed::default()
+        }),
+    });
+    let read = StagingRead::default();
+    assert!(
+        FileAnalysis::stage_outcome(Some(&read), None)
+            .expect("no outcome")
+            .is_none()
+    );
+    assert_eq!(read.calls.load(Ordering::Relaxed), 0);
+    assert_eq!(
+        FileAnalysis::stage_outcome(None, Some(outcome.clone())).expect("no store"),
+        Some(outcome.clone())
+    );
+    let Some(FileOutcome::Read(ran)) =
+        FileAnalysis::stage_outcome(Some(&read), Some(outcome.clone())).expect("stage")
+    else {
+        panic!("read")
+    };
+    assert_eq!(ran.interface, Digest([1; 16]));
+    assert_eq!(ran.noted, Digest([2; 16]));
+    let Handing::Made(handed) = ran.handed else {
+        panic!("fresh outcome")
+    };
+    assert_eq!(read.calls.load(Ordering::Relaxed), 64);
+    assert!(handed.buckets.iter().all(|row| matches!(
+        row.words,
+        RecordWords::Staged(StagedWords { length: 4096, .. })
+    )));
+    let failing = StagingRead {
+        fail: true,
+        ..StagingRead::default()
+    };
+    assert!(matches!(
+        FileAnalysis::stage_outcome(Some(&failing), Some(outcome)),
+        Err(FileAnalysisError::Store(LintStoreError::NothingRead))
+    ));
+    assert_eq!(failing.calls.load(Ordering::Relaxed), 1);
+}
+
+#[test]
+fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() {
+    use super::types::{FileVisit, Worker};
+    use crate::domain::table_model::types::{RowCount, Table};
+    use crate::domain::table_words::service::{encode_table, pack};
+    use crate::domain::table_words::types::WordSlice;
+    use crate::domain::visit::types::{Keeping, Noting, RoleRead};
+    use crate::domain::workers::types::FileOrder;
+    use crate::outbound::lint_store::interface::LintStorePort as _;
+    use crate::outbound::lint_store::types::{BuildIdentity, CacheDirectory, Store};
+    use ryo_language::domain::relations::types::{CellKind, FileId, Integer, Value, Words};
+    use ryo_values::domain::files::types::{FileNumber, FileSize, Nanoseconds};
+    use ryo_values::domain::records::types::{
+        FileOutcome, FindingRows, Handed, HandedWords, Handing, Ran, Record, RecordWords,
+        StagedWords, StagingSession,
+    };
+    use ryo_values::domain::stored_facts::types::{ArenaBytes, Bucket, Digest};
+    use ryo_values::domain::stores::types::BucketsWanted;
+
+    let directory = tempfile::tempdir().expect("snapshot directory");
+    let store = crate::outbound::lint_store::factory::postcard(Store {
+        directory: CacheDirectory(directory.path().to_string_lossy().into()),
+        build: BuildIdentity("replay-staging".into()),
+    });
+    let snapshot = store.stored().expect("read snapshot");
+    let new_worker = || Worker {
+        tables: tables_for(
+            WorkerNumber(0),
+            &[],
+            TreeSteps::Lowered,
+            Counting::DoesNotCount,
+        ),
+        facts: FactsFake::default().worker().expect("worker"),
+        failure: None,
+    };
+    let producer = new_worker();
+    let mut words = Words::default();
+    encode_table(
+        &Table {
+            kinds: vec![CellKind::Number],
+            cells: vec![Value::Number(Integer(7))],
+            count: RowCount(1),
+        },
+        &[],
+        &mut words,
+    );
+    let packed = pack(WordSlice(&words.0));
+    let ran = Ran {
+        rows: FindingRows::default(),
+        number: FileNumber(0),
+        interface: Digest([1; 16]),
+        noted: Digest([2; 16]),
+        frontier: vec![],
+        handed: Handing::Made(Handed {
+            buckets: vec![HandedWords {
+                bucket: Bucket(0),
+                words: packed.into(),
+            }],
+            text: ArenaBytes::default(),
+            ..Handed::default()
+        }),
+    };
+    let outcome =
+        FileAnalysis::stage_outcome(Some(snapshot.as_ref()), Some(FileOutcome::Read(ran)))
+            .expect("normalized outcome staged")
+            .expect("outcome");
+    drop(producer);
+    let mut record = Record {
+        path: FilePath("case.py".into()),
+        size: FileSize(0),
+        modified: Nanoseconds(0),
+        digest: Digest([3; 16]),
+        number: FileNumber(0),
+        outcome,
+    };
+    let FileOutcome::Read(ran) = &mut record.outcome else {
+        panic!("read")
+    };
+    let Handing::Made(handed) = &mut ran.handed else {
+        panic!("fresh")
+    };
+    handed.buckets.push(HandedWords {
+        bucket: Bucket(1),
+        words: RecordWords::Staged(StagedWords {
+            session: StagingSession(u64::MAX),
+            offset: u64::MAX,
+            length: 9,
+        }),
+    });
+    let placed = PlacedScopes {
+        placement: ScopePlacement::default(),
+        matcher: crate::outbound::matching::fixtures::fake::MatchingFake
+            .compile(&[])
+            .expect("matcher"),
+    };
+    let wanted = BucketsWanted::These(vec![Bucket(0)]);
+    let visit = FileVisit {
+        store: Some(snapshot.as_ref()),
+        setting: VisitSetting {
+            plans: &[],
+            bindings: &[],
+            wanted: &[],
+            paths: &[],
+            first_bucket: &[],
+            ids: &[],
+            applicability: &[],
+            applicability_can_gate: true,
+            placed: &placed,
+            records: &[],
+            replaying: crate::domain::workers::types::Replaying::FindingsAndHanded,
+            stored: &NOTHING_STORED,
+            handed: &NOTHING_HANDED,
+            wanted_buckets: &wanted,
+            budget: ryo_values::domain::runs::types::MemoryBytes(u64::MAX),
+            noted: Noting::Unwanted,
+            roled: RoleRead::Skips,
+            needs: &[],
+            answering: &crate::domain::render::types::Answering::Findings,
+            keeping: Keeping::Keeps,
+            unknown: &[],
+        },
+    };
+    let mut replay = new_worker();
+    FileAnalysis::hand_again(&mut replay, &visit, FileOrder(0), FileId(0), &record)
+        .expect("invalid unrequested span is not read");
+    let all_visit = FileVisit {
+        setting: VisitSetting {
+            wanted_buckets: &BucketsWanted::All,
+            ..visit.setting
+        },
+        store: visit.store,
+    };
+    assert!(
+        FileAnalysis::hand_again(&mut replay, &all_visit, FileOrder(0), FileId(0), &record)
+            .is_err()
     );
 }

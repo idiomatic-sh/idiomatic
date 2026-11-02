@@ -110,6 +110,9 @@ impl ReadStore for FakeRead {
     }
 
     fn keep(&self, mut stored: Stored, kept: &KeptRows) -> Result<(), LintStoreError> {
+        if !kept.staged.is_empty() {
+            return Err(LintStoreError::NothingRead);
+        }
         let _keeps_before = self.fake.keeps.fetch_add(1, Ordering::Relaxed);
         if self.fake.unwritable {
             return Err(LintStoreError::Unwritable {
@@ -201,6 +204,7 @@ pub fn over_a_b_d_and_e() -> (Stored, KeptRows) {
     (
         second,
         KeptRows {
+            staged: Vec::new(),
             unchanged: Vec::new(),
             file_again: vec![again(0, 1), again(1, 2)],
         },

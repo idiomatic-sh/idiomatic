@@ -166,6 +166,7 @@ fn answer(
             kept(
                 again.clone(),
                 &KeptRows {
+                    staged: Vec::new(),
                     unchanged: Vec::new(),
                     file_again: vec![FileAgain {
                         was: StoredFileNumber(0),
@@ -215,6 +216,7 @@ fn keeps_against_the_store_it_read(store: &dyn LintStorePort) -> Result<Value, F
     first.keep(
         mine,
         &KeptRows {
+            staged: Vec::new(),
             unchanged: Vec::new(),
             file_again: vec![again(0, 0), again(1, 1)],
         },

@@ -228,6 +228,7 @@ fn another_process_kept_between_the_read_and_the_keep(
     read_by_first.keep(
         mine,
         &KeptRows {
+            staged: Vec::new(),
             unchanged: Vec::new(),
             file_again: vec![again(0, 0), again(1, 1)],
         },
@@ -370,4 +371,160 @@ fn succeeds() {
 #[test]
 fn refuses() {
     run(CASES, Word::Refuses, subject);
+}
+
+#[test]
+fn normalized_staging_preserves_store_bytes_and_snapshot_lifetime() {
+    use ryo_values::domain::records::types::RecordWords;
+    use ryo_values::domain::stores::types::StagedRow;
+    let root = tempfile::tempdir().expect("directories");
+    let inline_path = root.path().join("inline");
+    let staged_path = root.path().join("staged");
+    let inline_store = store_in(&inline_path, "staging");
+    let staged_store = store_in(&staged_path, "staging");
+    let original = stored(3);
+    inline_store
+        .stored()
+        .expect("snapshot")
+        .keep(original.clone(), &KeptRows::default())
+        .expect("inline keep");
+    let read = staged_store.stored().expect("snapshot");
+    let mut staged = original.clone();
+    let mut kept = KeptRows::default();
+    for (ordinal, row) in staged.handed.frontier.drain(..).enumerate() {
+        let RecordWords::Staged(words) = read.stage_words(row.words).expect("stage") else {
+            panic!("postcard stages fresh payload")
+        };
+        kept.staged.push(StagedRow {
+            file: row.file,
+            bucket: row.bucket,
+            ordinal: u64::try_from(ordinal).expect("ordinal"),
+            words,
+        });
+    }
+    // There is no worker-owned packed payload left in the retained records.
+    assert!(staged.handed.frontier.is_empty());
+    assert_eq!(kept.staged.len(), original.handed.frontier.len());
+    let span = kept.staged.first().expect("staged row").words;
+    let mut loaded = ryo_values::domain::stored_facts::types::PackedWords::default();
+    read.read_staged(&span, &mut loaded)
+        .expect("read after producing worker is gone");
+    assert_eq!(loaded, original.handed.frontier[0].words);
+    read.keep(staged, &kept).expect("stream staged keep");
+    assert_eq!(
+        std::fs::read(inline_path.join("lint.store")).expect("inline bytes"),
+        std::fs::read(staged_path.join("lint.store")).expect("staged bytes")
+    );
+    let warm = staged_store.stored().expect("warm");
+    assert_eq!(
+        warm.handed(&BucketsWanted::All).expect("warm frontiers"),
+        original.handed
+    );
+    // A later snapshot cannot resolve a descriptor, even while its owning snapshot remains alive.
+    assert!(warm.read_staged(&span, &mut loaded).is_err());
+    let before = std::fs::read(staged_path.join("lint.store")).expect("published bytes");
+    assert!(warm.keep(original.clone(), &kept).is_err());
+    assert_eq!(
+        std::fs::read(staged_path.join("lint.store")).expect("old cache"),
+        before
+    );
+    let mut malformed = kept.clone();
+    malformed.staged[0].words.offset = u64::MAX;
+    assert!(read.keep(original, &malformed).is_err());
+    assert_eq!(
+        std::fs::read(staged_path.join("lint.store")).expect("old cache"),
+        before
+    );
+}
+
+#[test]
+fn staged_fresh_and_selected_old_rows_match_inline_edit_add_remove_and_reorder() {
+    use ryo_values::domain::records::types::RecordWords;
+    use ryo_values::domain::stores::types::StagedRow;
+    let root = tempfile::tempdir().expect("directories");
+    let inline = store_in(&root.path().join("inline"), "edits");
+    let staged = store_in(&root.path().join("staged"), "edits");
+    for store in [&inline, &staged] {
+        store
+            .stored()
+            .expect("cold")
+            .keep(over_b_and_d(), &KeptRows::default())
+            .expect("initial");
+    }
+    for _ in 0..2 {
+        let (next, reused) = over_a_b_d_and_e();
+        inline
+            .stored()
+            .expect("old inline")
+            .keep(next.clone(), &reused)
+            .expect("inline edit");
+        let read = staged.stored().expect("old staged");
+        let mut next = next;
+        let mut reused = reused;
+        // Interleave representations so ordinal reconstruction is exercised by the real adapter.
+        let rows = std::mem::take(&mut next.handed.frontier);
+        for (ordinal, row) in rows.into_iter().enumerate() {
+            if ordinal % 2 == 0 {
+                let RecordWords::Staged(words) = read.stage_words(row.words).expect("stage") else {
+                    panic!("staged")
+                };
+                reused.staged.push(StagedRow {
+                    file: row.file,
+                    bucket: row.bucket,
+                    ordinal: u64::try_from(ordinal).expect("ordinal"),
+                    words,
+                });
+            } else {
+                next.handed.frontier.push(row);
+            }
+        }
+        read.keep(next, &reused).expect("stream edit");
+        assert_eq!(
+            std::fs::read(root.path().join("inline/lint.store")).expect("inline bytes"),
+            std::fs::read(root.path().join("staged/lint.store")).expect("staged bytes")
+        );
+        assert_eq!(
+            inline
+                .stored()
+                .expect("warm")
+                .handed(&BucketsWanted::All)
+                .expect("inline"),
+            staged
+                .stored()
+                .expect("warm")
+                .handed(&BucketsWanted::All)
+                .expect("staged")
+        );
+    }
+}
+
+#[test]
+fn failed_write_flush_or_rename_never_publishes_or_removes_previous_cache() {
+    use super::adapter::published;
+    let root = tempfile::tempdir().expect("directory");
+    let target = root.path().join("lint.store");
+    let temporary = root.path().join("new.tmp");
+    let previous = b"the complete previous cache";
+    std::fs::write(&target, previous).expect("old cache");
+    for failure in ["write failure", "flush failure"] {
+        std::fs::write(&temporary, b"partial cache").expect("partial new file");
+        let renamed = std::cell::Cell::new(false);
+        let result = published(&temporary, Err(std::io::Error::other(failure)), || {
+            renamed.set(true);
+            std::fs::rename(&temporary, &target)
+        });
+        assert!(result.is_err());
+        assert!(!renamed.get());
+        assert!(!temporary.exists());
+        assert_eq!(std::fs::read(&target).expect("old cache"), previous);
+    }
+    std::fs::write(&temporary, b"fully flushed new file").expect("new file");
+    assert!(
+        published(&temporary, Ok(()), || Err(std::io::Error::other(
+            "rename failure"
+        )))
+        .is_err()
+    );
+    assert!(!temporary.exists());
+    assert_eq!(std::fs::read(&target).expect("old cache"), previous);
 }

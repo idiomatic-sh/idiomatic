@@ -23,14 +23,15 @@ use super::super::service::{absence as parse_absence, build, kinds_read};
 use super::super::types::ParseEngine;
 use super::super::types::Sample;
 use super::super::types::{ParseRequest, Recognition};
+use super::configuration::{Configuration, Selection};
 use super::contract::{check, flow};
 use super::expected::{Cell, Expected, Fixtures, expected_source, shown as row_shown};
-use super::findings::{Findings, folders_in, input_in, read_as};
+use super::findings::{Findings, folders_in, input_in, inputs_in};
 use super::judgments::{judge_classes, judge_columns, judge_reasons, judge_unknowns};
 use super::manifests::manifest_rows;
 use super::not_yet_read::report_not_yet_read;
 use super::rails::judge_rails;
-use super::rows::{compare, rows_of, rows_of_relation};
+use super::rows::{compare, rows_of_inputs_with};
 use super::samples::samples_in;
 use super::unread;
 use crate::domain::elements::service::{kind_at, positions};
@@ -55,13 +56,14 @@ enum Blessing {
 
 /// Judges the answer of the language for one relation read from trees.
 fn judge_syntax(
-    parse: &dyn ParseEngine,
+    selection: &Selection<'_>,
     fixtures: &Path,
     relation: Relation,
     expected: &[Expected],
     bless: Blessing,
     findings: &mut Findings,
 ) {
+    let parse = selection.default;
     let folder = folder_of(relation);
     let positive = fixtures.join("relations").join(folder);
     if parse_absence(parse, relation).is_some() {
@@ -72,25 +74,25 @@ fn judge_syntax(
         }
         return;
     }
-    let Some(input) = input_in(&positive) else {
+    let inputs = inputs_in(&positive);
+    if inputs.is_empty() {
         findings.0.push(format!(
             "{folder}: answers Reads but tests/fixtures/relations/{folder}/ has no input"
         ));
         return;
-    };
-    let name = input
-        .file_name()
-        .map(|name| name.to_string_lossy().into_owned())
-        .unwrap_or_default();
-    let shown = read_as(&format!("{folder}/{name}"));
-    let Some(read) = rows_of(parse, &input, &shown, findings) else {
+    }
+    let Some(written) = rows_of_inputs_with(selection, &inputs, relation, &folder, findings) else {
         return;
     };
     if bless == Blessing::Writes {
-        let mut written = rows_of_relation(&read, relation, &shown);
-        written.sort();
         let target = positive.join(super::findings::EXPECTED_FILE);
-        let source = expected_source(relation, &name, &written);
+        let names = inputs
+            .iter()
+            .filter_map(|path| path.file_name())
+            .map(|name| name.to_string_lossy())
+            .collect::<Vec<_>>()
+            .join(", ");
+        let source = expected_source(relation, &names, &written);
         if let Err(error) = std::fs::write(&target, source) {
             findings.0.push(format!(
                 "{folder}: cannot write {}: {error}",
@@ -112,7 +114,7 @@ fn judge_syntax(
     }
     compare(
         &format!("{folder}: tests/fixtures/relations/{folder}/"),
-        &rows_of_relation(&read, relation, &shown),
+        &written,
         &wanted,
         &|row| row_shown(relation, row),
         findings,
@@ -286,6 +288,25 @@ pub fn conformance(
     fixtures: &Path,
     expected: &Fixtures,
 ) {
+    conformance_with(name, parse, language, fixtures, expected, &|_| Ok(None));
+}
+
+/// Run conformance with language-owned, per-input fixture configuration.
+///
+/// # Panics
+/// When any fixture or its declared configuration fails the conformance contract.
+pub fn conformance_with(
+    name: &str,
+    parse: &dyn ParseEngine,
+    language: &dyn ProjectEngine,
+    fixtures: &Path,
+    expected: &Fixtures,
+    configure: &Configuration<'_>,
+) {
+    let selection = Selection {
+        default: parse,
+        configure,
+    };
     let mut findings = Findings(Vec::new());
     let bless = if std::env::args().any(|each| each == "--bless") {
         Blessing::Writes
@@ -326,7 +347,7 @@ pub fn conformance(
     }
     for relation in &syntax {
         judge_syntax(
-            parse,
+            &selection,
             fixtures,
             *relation,
             &expected.relations,
@@ -346,7 +367,7 @@ pub fn conformance(
             }
         }
     }
-    judge_rails(parse, fixtures, expected, &mut findings);
+    judge_rails(&selection, fixtures, expected, &mut findings);
     if bless == Blessing::Writes {
         // The run wrote the expected rows of the relations; what the manifests give is held in a run that does not.
         report(&findings);

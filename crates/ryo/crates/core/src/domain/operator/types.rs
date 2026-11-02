@@ -8,37 +8,49 @@ use crate::domain::table_model::types::Table;
 
 use crate::domain::operating::types::Room;
 
-/// The tables one rule computes in, for one worker: one for each step and one for each input
-/// handed to the cross-file steps. They are emptied and filled again for each file, so computing
-/// allocates nothing once they have grown to the largest file.
+/// Mutable tables and operator rooms of one rule invocation, dropped after rendering.
 #[derive(Debug, Default)]
 pub(crate) struct Pool {
-    /// Pure stored selector programs, compiled once under this worker's request bindings.
-    pub selection_plans: Vec<crate::domain::stored_selection::types::PreparedPlan>,
     /// Compact kept outputs for the current rule only; cleared before its generation ends.
     pub selected: Vec<Option<std::sync::Arc<crate::domain::table_model::types::StoredSelection>>>,
     /// The rows of each step that keeps them.
     pub steps: Vec<Table>,
     /// The rows of each input handed to the cross-file steps.
     pub frontier: Vec<Table>,
-    /// Whether each frontier still awaits successful packed-word retention, even with zero rows.
-    pub frontier_pending: Vec<bool>,
     /// What each step keeps for itself.
     pub rooms: Vec<Option<Box<Room>>>,
-    /// How each plan this pool has run is laid out.
-    pub layouts: Vec<PlanLayout>,
     /// Rows being read one at a time from a relation, one buffer for each scan at once.
     pub spare: Vec<Vec<Value>>,
     /// The rows of the lowered steps of the plan being run, by step, for the file being run.
     pub made: crate::domain::positions::types::LoweredRoom,
+    /// The relations the file being run is read in part: a step that answers from the absence of their rows makes none.
+    pub partial: Vec<crate::domain::coverage::types::Partial>,
+}
+
+/// Request-owned immutable schemas/programs and cumulative counters; no execution payload.
+#[derive(Debug, Default)]
+pub(crate) struct PreparedPool {
+    /// Pure stored selector programs, compiled once under this worker's request bindings.
+    pub selection_plans: Vec<crate::domain::stored_selection::types::PreparedPlan>,
+    /// How each plan this pool has run is laid out.
+    pub layouts: Vec<PlanLayout>,
     /// Whether the steps that read only the tree run lowered, or as operators, as they did before they were lowered.
     pub unlowered: TreeSteps,
     /// Whether the rows each step is fed are counted.
     pub counting: Counting,
-    /// The relations the file being run is read in part: a step that answers from the absence of their rows makes none.
-    pub partial: Vec<crate::domain::coverage::types::Partial>,
     /// For each plan this pool has run, in the order of `layouts`, how many rows each of its steps was fed over all the files.
     pub fed: Vec<Vec<RowsFed>>,
+}
+
+/// One rule invocation's mutable workspace. Rust drops it after rendering, on success or error.
+#[derive(Debug, Default)]
+pub(crate) struct RuleWorkspace {
+    /// Tables, rooms, and lowered temporary positions for this rule only.
+    pub pool: Pool,
+    /// Row-dependent scratch and lazy matcher caches have this exact invocation lifetime.
+    pub scratch: crate::domain::table_scratch::types::OperatorScratch,
+    /// Comparisons remembered only within this invocation.
+    pub memo: Vec<crate::domain::operating::types::Memo>,
 }
 
 /// How many rows a step was fed: the rows of each of its inputs, by the input's place.

@@ -59,10 +59,10 @@ jobs:
           save-if: true
           # Keep valid intermediate Cargo artifacts when a later quality check fails.
           cache-on-failure: true
-          workspaces: |
-            crates/asymptote -> ../../target
-            crates/tastemaker -> ../../target
-            crates/ryo -> ../../target
+          # One owner cleans the shared target: sequential workspace cleanups
+          # otherwise discard one another's libraries. Prioritize Ryo artifacts;
+          # the shared key above still binds every Cargo.lock.
+          workspaces: crates/ryo -> ../../target
       # The installed tools, restored whole while the tool table is unchanged: install.py then leaves every tool at its declared
       # version as it is.
       - id: cargo_bin_cache
@@ -165,10 +165,10 @@ jobs:
           cache-workspace-crates: true
           shared-key: ${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
           save-if: false
-          workspaces: |
-            crates/asymptote -> ../../target
-            crates/tastemaker -> ../../target
-            crates/ryo -> ../../target
+          # One owner cleans the shared target: sequential workspace cleanups
+          # otherwise discard one another's libraries. Prioritize Ryo artifacts;
+          # the shared key above still binds every Cargo.lock.
+          workspaces: crates/ryo -> ../../target
       # The installed tools, restored whole while the tool table is unchanged: install.py then leaves every tool at its declared
       # version as it is.
       - id: cargo_bin_cache
@@ -271,10 +271,10 @@ jobs:
           cache-workspace-crates: true
           shared-key: ${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
           save-if: false
-          workspaces: |
-            crates/asymptote -> ../../target
-            crates/tastemaker -> ../../target
-            crates/ryo -> ../../target
+          # One owner cleans the shared target: sequential workspace cleanups
+          # otherwise discard one another's libraries. Prioritize Ryo artifacts;
+          # the shared key above still binds every Cargo.lock.
+          workspaces: crates/ryo -> ../../target
       # The installed tools, restored whole while the tool table is unchanged: install.py then leaves every tool at its declared
       # version as it is.
       - id: cargo_bin_cache

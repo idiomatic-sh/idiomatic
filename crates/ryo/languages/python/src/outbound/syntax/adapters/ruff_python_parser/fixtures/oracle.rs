@@ -128,7 +128,12 @@ fn compare(what: &str, mut library: Vec<String>, mut rows: Vec<String>, found: &
 /// Compares the library's function definitions, imports and class bases of `text` with the rows; what differs, one sentence for each
 /// kind of fact; nothing when they agree.
 pub(crate) fn oracle(text: &str, rows: &OracleRows) -> Vec<String> {
-    let options = ParseOptions::from(Mode::Module).with_target_version(PythonVersion::latest());
+    oracle_with(text, rows, PythonVersion::latest())
+}
+
+/// Reference callback configured to the same target as the fixture parser.
+pub(crate) fn oracle_with(text: &str, rows: &OracleRows, version: PythonVersion) -> Vec<String> {
+    let options = ParseOptions::from(Mode::Module).with_target_version(version);
     let parsed = parse_unchecked(text, options);
     let mut facts = Facts::default();
     facts.visit_mod(parsed.syntax());

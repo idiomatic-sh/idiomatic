@@ -160,10 +160,19 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         memo: &mut memo,
         scratch: &mut scratch,
     };
+    let mut prepared = crate::domain::operator::types::PreparedPool::default();
     match scenario {
         Scenario::PerFile | Scenario::NotRead => {
             let (plan, mut pool) = (plan(), pool_for(std::slice::from_ref(&plan())));
-            evaluate_file(&plan, &relations, None, &mut context, &mut pool)?;
+            evaluate_file(
+                &plan,
+                &relations,
+                None,
+                &mut context,
+                &mut pool,
+                &mut prepared,
+                &[],
+            )?;
             Ok(emitted(&plan, &mut pool).map_or(0, |table| table.count.0))
         }
         Scenario::OnePoolForSeveralPlans => {
@@ -171,7 +180,15 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             let mut pool = pool_for(&[counting.clone(), per_file.clone()]);
             let mut answers = Vec::new();
             for each in [&per_file, &counting, &per_file] {
-                evaluate_file(each, &relations, None, &mut context, &mut pool)?;
+                evaluate_file(
+                    each,
+                    &relations,
+                    None,
+                    &mut context,
+                    &mut pool,
+                    &mut prepared,
+                    &[],
+                )?;
                 answers.push(emitted(each, &mut pool).map_or(0, |table| table.count.0));
             }
             Ok(usize::from(
@@ -183,7 +200,15 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::CrossFile => {
             let counting = counting_plan();
             let mut pool = pool_for(std::slice::from_ref(&counting));
-            evaluate_file(&counting, &relations, None, &mut context, &mut pool)?;
+            evaluate_file(
+                &counting,
+                &relations,
+                None,
+                &mut context,
+                &mut pool,
+                &mut prepared,
+                &[],
+            )?;
             let kept = pool.frontier.first().map_or(0, |table| table.count.0);
             // Two files hand over the name `main`, and a third another name.
             let mut table = Table {

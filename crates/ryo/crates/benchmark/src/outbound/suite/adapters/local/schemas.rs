@@ -212,7 +212,23 @@ pub(super) fn rule(value: &str) -> Result<ryo::linter::RuleId, Error> {
 }
 /// Decode the shared language corpus manifest.
 pub(super) fn suite(text: &str) -> Result<types::Suite, Error> {
-    Ok(toml::from_str::<SuiteSchema>(text)?.into())
+    let wire: SuiteSchema = toml::from_str(text)?;
+    if wire.language.trim().is_empty() || wire.projects.is_empty() {
+        return Err(Error::Invalid(
+            "corpus must name a language and at least one project".into(),
+        ));
+    }
+    {
+        let mut names = std::collections::BTreeSet::new();
+        for project in &wire.projects {
+            if project.name.trim().is_empty() || !names.insert(project.name.as_str()) {
+                return Err(Error::Invalid(
+                    "corpus project names must be nonempty and unique".into(),
+                ));
+            }
+        }
+    }
+    Ok(wire.into())
 }
 impl From<SuiteSchema> for types::Suite {
     fn from(wire: SuiteSchema) -> Self {

@@ -122,8 +122,7 @@ pub(crate) fn compute(
     }
 }
 
-/// A pool big enough for any of the plans, which run one after another on it: each plan's steps and
-/// inputs are emptied and filled again, so what one leaves is not read by the next.
+/// Mutable buffers sized for the supplied plans. Production uses one plan in a local rule workspace.
 #[must_use]
 pub(crate) fn pool_for(plans: &[Plan]) -> Pool {
     let steps = plans.iter().map(|plan| plan.steps.len()).max().unwrap_or(0);
@@ -135,14 +134,8 @@ pub(crate) fn pool_for(plans: &[Plan]) -> Pool {
     Pool {
         steps: vec![Table::default(); steps],
         frontier: vec![Table::default(); frontier],
-        frontier_pending: vec![false; frontier],
         ..Pool::default()
     }
-}
-
-/// Gives back what a huge file made the pool's tables grow past the room a worker keeps.
-pub(crate) fn trim_pool(pool: &mut Pool) {
-    crate::domain::working_set::service::clear_rule(pool);
 }
 
 /// What a step that reads nothing reads.

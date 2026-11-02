@@ -1,7 +1,7 @@
 //! Complete compact graph/domain acquisition under one unchanged per-file byte allowance.
 
 use crate::domain::operating::errors::OperatingError;
-use crate::domain::operator::types::Pool;
+use crate::domain::operator::types::PreparedPool;
 use crate::domain::stored_graph::service::{build, domain_identity, source};
 use crate::domain::stored_graph::types::footprint::value::GraphFootprint;
 use crate::domain::stored_graph::types::{DomainEntry, GraphAccess, GraphDomain, GraphEntry};
@@ -20,7 +20,7 @@ pub(crate) const MEMO_LIMIT: usize = 2 * 1024 * 1024;
 pub(crate) fn reserve(
     cache: &mut FileIndexes,
     plans: &[Plan],
-    pool: &Pool,
+    pool: &PreparedPool,
     active: impl Fn(usize) -> bool,
 ) {
     let requested = plans

@@ -158,13 +158,14 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     tables.bytes.0 = SMALL_SOURCE.to_vec();
     tables.mask.0 = vec![u64::MAX];
     let setting = setting(&placed, &plans, &bindings);
+    let mut classes = super::types::SharedClasses::default();
     {
+        let mut scratch = OperatorScratch::default();
         let Tables {
             mask,
             elements,
             symbols,
             bytes,
-            scratch,
             shared,
             pool,
             ..
@@ -180,16 +181,14 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 elements,
                 symbols,
                 source: SourceView(&bytes.0),
-                scratch,
-                room: &mut pool.made,
+                scratch: &mut scratch,
+                room: &mut classes,
                 steps: pool.unlowered,
             },
         );
     }
     let shown = match scenario {
-        Scenario::Selected | Scenario::Unlowered => tables
-            .pool
-            .made
+        Scenario::Selected | Scenario::Unlowered => classes
             .classes
             .iter()
             .map(|each| describe(&each.0))
@@ -198,9 +197,10 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::Alike => {
             let mut shown = Vec::new();
             for (rule, each) in plans.iter().enumerate() {
-                install(&tables.shared, &mut tables.pool.made, RuleIndex(rule));
+                let mut made = crate::domain::positions::types::LoweredRoom::default();
+                install(&tables.shared, &classes, &mut made, RuleIndex(rule));
                 let taken =
-                    selected(&tables.pool.made, StepId(0)).map(|chosen| describe(&chosen.0));
+                    selected(&made, &classes.classes, StepId(0)).map(|chosen| describe(&chosen.0));
                 let Operation::Select { comparisons, .. } = &each.steps[0].operation else {
                     return Err(());
                 };
@@ -259,4 +259,38 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn native_file_outputs_drop_before_an_empty_next_generation() {
+    use crate::domain::positions::types::Slots;
+    use crate::domain::shared_walk::types::{MergedWalk, SharedClasses};
+    let mut shared = MergedWalk::default();
+    let mut classes = SharedClasses {
+        classes: vec![Slots(vec![0; 4096])],
+        merged: vec![super::types::Merged::Together],
+    };
+    let mut symbols = ryo_language::domain::symbols::types::Symbols::default();
+    let elements = ryo_language::domain::elements::types::Elements::default();
+    let mask = crate::domain::placement::types::Mask::default();
+    let mut scratch = OperatorScratch::default();
+    walk(
+        &mut shared,
+        Walking {
+            plans: &[],
+            bindings: &[],
+            paths: &[],
+            mask: &mask,
+            file: FileId(1),
+            elements: &elements,
+            symbols: &mut symbols,
+            source: SourceView(&[]),
+            scratch: &mut scratch,
+            room: &mut classes,
+            steps: TreeSteps::Lowered,
+        },
+    );
+    assert!(classes.classes.is_empty());
+    assert_eq!(classes.classes.capacity(), 0);
+    assert!(classes.merged.is_empty());
 }

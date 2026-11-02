@@ -364,7 +364,9 @@ pub(crate) fn stored_of(
             FileOutcome::Unread { ran: None, .. } => None,
         };
         match handing {
-            Some(Handing::Made(handed)) => hand_into(&mut stored.handed, file, handed, rebuilt),
+            Some(Handing::Made(handed)) => {
+                hand_into(&mut stored.handed, file, handed, rebuilt, &mut kept.staged)
+            }
             Some(Handing::Kept) => {
                 // Its words stay where the store keeps them, moved to its number now.
                 if let Ok(was) = last
@@ -381,6 +383,7 @@ pub(crate) fn stored_of(
                     file,
                     handed_in(last, last_handed, &record.path),
                     rebuilt,
+                    &mut kept.staged,
                 );
             }
             None => {}

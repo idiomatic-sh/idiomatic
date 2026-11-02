@@ -101,7 +101,7 @@ pub fn samples_in(fixtures: &Path) -> Vec<SourceFile> {
             .collect();
         folders.sort();
         for folder in folders {
-            if let Some(input) = super::findings::input_in(&folder) {
+            for input in super::findings::inputs_in(&folder) {
                 push_sample(&mut samples, fixtures, &input);
             }
         }

@@ -43,12 +43,13 @@ class FakeBench(Bench):
     """Every measure is 100 in the base; in the head, `slower` scales the named measures, round by round."""
 
     def __init__(self, journal: Journal, slower: dict[str, list[float]] | None = None, fails: bool = False,
-                 measurements: dict[str, dict[str, float]] | None = None) -> None:
+                 measurements: dict[str, dict[str, float]] | None = None, required_metrics: set[str] | None = None) -> None:
         self.journal = journal
         self.slower = slower or {}
         self.fails = fails
         self.measurements = measurements or {}
         self.rounds: dict[str, int] = {}
+        self.required_metrics = required_metrics
 
     def measure(self, tree: Path, product: str, bench: str, label: str) -> dict[str, float]:
         self.journal.calls.append(("measure", tree, product, bench, label))
@@ -61,6 +62,10 @@ class FakeBench(Bench):
             return measured
         index = int(label.split("-")[1]) - 1 if "-" in label else 0
         return {name: value * self.slower.get(f"{product}/{bench}/{name}", [1.0] * ROUNDS)[index] for name, value in measured.items()}
+
+
+    def required(self, tree: Path, product: str, bench: str) -> set[str] | None:
+        return self.required_metrics
 
 
 class FakeReport(Report):
@@ -207,3 +212,32 @@ def test_finite_metrics_cannot_overflow_into_an_infinite_ratio() -> None:
     with pytest.raises(Refused, match="ratio must be finite"):
         job(journal, measurements=measurements).run(against("lint"))
     assert journal.calls[-1] == ("remove", BASE)
+
+
+@pytest.mark.parametrize("values", [{}, {"metric": float("nan")}, {"metric": float("inf")}, {"metric": -1.0}])
+def test_head_only_records_still_require_present_valid_results(values) -> None:
+    with pytest.raises(Refused):
+        job(Journal(), measurements={"head": values}).run(Request(("lint",), None, Path("/scratch")))
+
+
+def test_symmetric_omission_of_declared_metrics_is_not_a_passing_comparison() -> None:
+    journal = Journal()
+    actual = {"present": 1.0}
+    with pytest.raises(Refused):
+        job(journal, measurements={"base-1": actual, "head-1": actual}, required_metrics={"present", "missing"}).run(against("languages"))
+    assert not any(call[0] == "ratio" for call in journal.calls)
+    assert journal.calls[-1] == ("remove", BASE)
+
+
+def test_recording_cannot_omit_declared_workloads() -> None:
+    with pytest.raises(Refused):
+        job(Journal(), measurements={"head": {"present": 1.0}}, required_metrics={"present", "missing"}).run(Request(("languages",), None, Path("/scratch")))
+
+
+def test_a_faster_language_never_offsets_another_language_regression() -> None:
+    before = {"python/median-ns": 100.0, "rust/median-ns": 100.0}
+    after = {"python/median-ns": 1.0, "rust/median-ns": 120.0}
+    measurements = {f"{side}-{index}": values for side, values in [("base", before), ("head", after)] for index in range(1, ROUNDS + 1)}
+    journal = Journal()
+    assert job(journal, measurements=measurements, required_metrics=set(before)).run(against("languages")) == 1
+    assert ("ratio", "ryo/languages/rust/median-ns", 1.2, "fail") in journal.calls

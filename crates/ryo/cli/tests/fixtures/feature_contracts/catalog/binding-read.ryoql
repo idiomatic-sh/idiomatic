@@ -1,0 +1,2 @@
+let witness = select * from "binding-read";
+emit witness subject file key(reference, scope, phase, context);

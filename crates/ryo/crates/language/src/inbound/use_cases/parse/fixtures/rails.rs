@@ -12,11 +12,11 @@
 use std::path::{Path, PathBuf};
 
 use super::super::service::build;
-use super::super::types::ParseEngine;
 use super::super::types::{FieldRequest, NoteRequest, ParseRequest, Recognition};
+use super::configuration::Selection;
 use super::expected::{Fixtures, Leafness, OracleRows, RelationRows, Shape, Walked};
-use super::findings::{Findings, input_in};
-use super::rows::{rows_of, rows_of_relation};
+use super::findings::{Findings, inputs_in as relation_inputs};
+use super::rows::{rows_of_bytes, rows_of_relation};
 use crate::domain::elements::service::{
     children, diagnostic_count, end_at, kind_at, positions, start_at,
 };
@@ -116,7 +116,7 @@ fn inputs_in(fixtures: &Path, findings: &mut Findings) -> Vec<Input> {
     for relation in relations {
         if relation.path().is_dir() {
             let label = format!("relations/{}", relation.file_name().to_string_lossy());
-            if let Some(input) = input_in(&relation.path()) {
+            for input in relation_inputs(&relation.path()) {
                 found.push(Input {
                     shown: super::findings::read_as(&format!(
                         "{label}/{}",
@@ -283,7 +283,7 @@ fn syntax_errors_finding(input: &Input, table: &Elements) -> Option<String> {
 
 /// Holds one input to the rails.
 fn judge_input(
-    parse: &dyn ParseEngine,
+    selection: &Selection<'_>,
     input: &Input,
     expected: &Fixtures,
     findings: &mut Findings,
@@ -292,6 +292,23 @@ fn judge_input(
         findings.0.push(format!("{}: cannot be read", input.shown));
         return;
     };
+    let text = std::str::from_utf8(&bytes).ok();
+    let configured = match text {
+        Some(text) => match selection.select(text, &input.shown, findings) {
+            Ok(configured) => configured,
+            Err(()) => return,
+        },
+        None => None, // Keep binary-source syntax and losslessness checks unchanged.
+    };
+    let parse = configured
+        .as_ref()
+        .map_or(selection.default, |context| context.parse.as_ref());
+    let shape = configured
+        .as_ref()
+        .map_or(expected.shape, |context| context.shape);
+    let oracle = configured
+        .as_ref()
+        .map_or(expected.oracle, |context| context.oracle);
     let request = ParseRequest {
         path: SourcePath(&input.shown),
         file: FileId(0),
@@ -317,17 +334,11 @@ fn judge_input(
     if let Some(difference) = lossless(&table, &bytes) {
         findings.0.push(format!("{}: {difference}", input.shown));
     }
-    let Ok(text) = std::str::from_utf8(&bytes) else {
+    let Some(text) = text else {
         return;
     };
     let mut differences = Vec::new();
-    reference_differences(
-        &table,
-        expected.shape,
-        text,
-        input.category,
-        &mut differences,
-    );
+    reference_differences(&table, shape, text, input.category, &mut differences);
     findings.0.extend(differences.into_iter().map(|each| {
         format!(
             "{}: not the shape of the library's tree: {each}",
@@ -340,7 +351,7 @@ fn judge_input(
     if input.category == Category::Invalid {
         return;
     }
-    let Some(read) = rows_of(parse, &input.path, &input.shown, findings) else {
+    let Some(read) = rows_of_bytes(parse, bytes.clone(), &input.shown, findings) else {
         return;
     };
     let rows = OracleRows(
@@ -357,7 +368,7 @@ fn judge_input(
     );
     findings
         .0
-        .extend((expected.oracle)(text, &rows).into_iter().map(|each| {
+        .extend(oracle(text, &rows).into_iter().map(|each| {
             format!(
                 "{}: the rows disagree with the library: {each}",
                 input.shown
@@ -367,13 +378,13 @@ fn judge_input(
 
 /// Holds every input of the language's fixtures, its suite and its corpus to the rails.
 pub(super) fn judge_rails(
-    parse: &dyn ParseEngine,
+    selection: &Selection<'_>,
     fixtures: &Path,
     expected: &Fixtures,
     findings: &mut Findings,
 ) {
     for input in inputs_in(fixtures, findings) {
-        judge_input(parse, &input, expected, findings);
+        judge_input(selection, &input, expected, findings);
     }
 }
 

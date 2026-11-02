@@ -132,9 +132,11 @@ fn subject(_input: Input) -> Result<Value, Failure> {
     let read = |relation| (relation == Relation::Function && readable.get()).then_some(source);
     let mut baseline = pool_for(&plans);
     let mut compact = pool_for(&plans);
-    prepare(&mut compact, &plans, &[Vec::new(), Vec::new()]);
+    let mut baseline_prepared = crate::domain::operator::types::PreparedPool::default();
+    let mut prepared = crate::domain::operator::types::PreparedPool::default();
+    prepare(&mut prepared, &plans, &[Vec::new(), Vec::new()]);
     let mut cache = new(&[Relation::Function], &[], LIMIT).unwrap();
-    activate(&mut cache, &compact, &[Relation::Function], |_| true);
+    activate(&mut cache, &prepared, &[Relation::Function], |_| true);
     let mut memo = Vec::new();
     let mut scratch = OperatorScratch::default();
     let mut context = OperatorContext {
@@ -148,7 +150,15 @@ fn subject(_input: Input) -> Result<Value, Failure> {
         scratch: &mut scratch,
     };
     for plan in &plans {
-        evaluate_file(plan, &read, None, &mut context, &mut baseline)?;
+        evaluate_file(
+            plan,
+            &read,
+            None,
+            &mut context,
+            &mut baseline,
+            &mut baseline_prepared,
+            &[],
+        )?;
         {
             let mut actual = OperatorContext {
                 stored_indexes: Some(&mut cache),
@@ -160,7 +170,15 @@ fn subject(_input: Input) -> Result<Value, Failure> {
                 memo: &mut *context.memo,
                 scratch: &mut *context.scratch,
             };
-            evaluate_file(plan, &read, None, &mut actual, &mut compact)?;
+            evaluate_file(
+                plan,
+                &read,
+                None,
+                &mut actual,
+                &mut compact,
+                &mut prepared,
+                &[],
+            )?;
         }
         assert_eq!(compact.steps[2], baseline.steps[2]);
         assert_eq!(compact.frontier, baseline.frontier);
@@ -174,9 +192,14 @@ fn subject(_input: Input) -> Result<Value, Failure> {
                 .flatten()
                 .all(|room| room.held.iter().all(|table| table.cells.is_empty()))
         );
-        crate::domain::working_set::service::clear_rule(&mut compact);
-        assert!(compact.selected.iter().all(Option::is_none));
-        assert_eq!(compact.frontier[0].count.0, 8);
+        let frontier = std::mem::take(&mut compact.frontier);
+        drop(compact);
+        compact = pool_for(&plans);
+        assert!(compact.selected.is_empty());
+        assert_eq!(
+            frontier[0].count.0, 8,
+            "application-owned output outlives its rule workspace"
+        );
     }
     assert_eq!(cache.selection_counts.builds, 1);
     assert!(cache.selection_counts.reuses >= 3);
@@ -192,7 +215,15 @@ fn subject(_input: Input) -> Result<Value, Failure> {
             memo: &mut *context.memo,
             scratch: &mut *context.scratch,
         };
-        evaluate_file(&plans[0], &read, None, &mut actual, &mut compact)
+        evaluate_file(
+            &plans[0],
+            &read,
+            None,
+            &mut actual,
+            &mut compact,
+            &mut prepared,
+            &[],
+        )
     };
     assert!(matches!(
         refused,
@@ -200,7 +231,15 @@ fn subject(_input: Input) -> Result<Value, Failure> {
     ));
     assert!(compact.selected.iter().all(Option::is_none));
     assert!(matches!(
-        evaluate_file(&plans[0], &read, None, &mut context, &mut baseline),
+        evaluate_file(
+            &plans[0],
+            &read,
+            None,
+            &mut context,
+            &mut baseline,
+            &mut baseline_prepared,
+            &[]
+        ),
         Err(crate::domain::operating::errors::OperatingError::NotRead)
     ));
     Ok(())

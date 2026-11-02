@@ -95,8 +95,8 @@ id = "speed"
 group = "speed"
 # A pull request or manual validation's speed against main: main checked out beside the checkout, the `commands` bench of every
 # product and ryo's `lint` bench (only when crates/ryo changed) run over both in turn for 5 rounds, and each measure's median
-# head/main ratio judged: above 1.15 it fails, above 1.05 it warns. Absolute times are never compared.
-run = ["uv", "run", "ci/perf/command.py", "--against", "origin/main", "--bench", "commands", "--bench", "lint", "--output", "target/benchmarks/speed"]
+# head/main ratio judged: above 1.15 it fails, above 1.05 it warns. Every declared language parser timing is checked separately. Absolute times are never compared.
+run = ["uv", "run", "ci/perf/command.py", "--against", "origin/main", "--bench", "commands", "--bench", "lint", "--bench", "languages", "--output", "target/benchmarks/speed"]
 timeout-seconds = 14400
 
 [[tools]]

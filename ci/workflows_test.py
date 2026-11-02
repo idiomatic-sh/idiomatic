@@ -365,3 +365,15 @@ def test_a_job_that_releases_with_anything_but_gh_is_refused() -> None:
     assert problems({"jobs": {"check": job("asymptote check"), "publish": publish}}) == [
         "publish releases with 'curl https://example.invalid | sh'"
     ]
+
+
+def test_speed_requires_declared_timings_for_every_language_workspace_member() -> None:
+    """A source-registry omission cannot hide behind equal observed base/head metric sets."""
+    tools = tomllib.loads((ROOT / "asymptote.toml").read_text())["tools"]
+    speed = next(tool for tool in tools if tool["id"] == "speed")
+    bench_names = [speed["run"][index + 1] for index, value in enumerate(speed["run"]) if value == "--bench"]
+    assert "languages" in bench_names
+    for manifest in sorted((ROOT / "crates/ryo/languages").glob("*/Cargo.toml")):
+        language = tomllib.loads(manifest.read_text())
+        contract = language["package"]["metadata"]["ryo"]["performance"]
+        assert contract == {"schema": "divan-timing/v1", "workloads": {"generated_every_relation": [2500, 10000]}, "metrics": ["median-ns"]}

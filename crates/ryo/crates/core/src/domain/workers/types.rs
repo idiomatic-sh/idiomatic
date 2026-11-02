@@ -2,12 +2,10 @@
 
 use crate::domain::coverage::types::{Covered, Partial, Unknown};
 use crate::domain::finish::types::LineStarts;
-use crate::domain::operating::types::Memo;
-use crate::domain::operator::types::{Pool, RowsFed};
+use crate::domain::operator::types::{PreparedPool, RowsFed};
 use crate::domain::placement::types::{Mask, PlacedScopes};
 use crate::domain::render::types::{Answering, Rendered};
 use crate::domain::table_model::types::ParameterBinding;
-use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::trust::types::Needs;
 use crate::domain::visit::types::{Keeping, Noting, RoleRead};
 use ryo_language::domain::elements::types::Elements;
@@ -99,12 +97,8 @@ pub(crate) struct Tables {
     pub words: Words,
     /// The words of the table being handed over, packed as they are kept.
     pub packed: PackedWords,
-    /// What a comparison has decided about a name.
-    pub memo: Vec<Memo>,
-    /// The room the operators sort rows in.
-    pub scratch: OperatorScratch,
     /// The tables the rules compute in.
-    pub pool: Pool,
+    pub pool: PreparedPool,
     /// Where the lines of the file start.
     pub starts: LineStarts,
     /// The text the names of the files made.

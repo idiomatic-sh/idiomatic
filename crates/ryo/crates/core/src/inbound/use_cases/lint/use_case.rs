@@ -8,8 +8,8 @@ use super::errors::LintError;
 use super::interface::LintUseCase;
 use super::service::{
     answered, handed_of, memory_bucket, memory_enabled, memory_input, memory_rule, observed_arenas,
-    observed_inputs, observed_notes, observed_packed, observed_records, observed_stored,
-    records_of,
+    observed_inputs, observed_notes, observed_packed, observed_records, observed_staged,
+    observed_stored, records_of,
 };
 use super::types::{
     Course, FeatureFed, LintReport, LintRequest, LintRun, Listed, RepositoryListing, RuleWork,
@@ -503,7 +503,7 @@ impl LintUseCaseImpl {
             },
             Decision::Cross => (Reuse::Cross(MadeAgain::All), ReadAlone::default()),
             Decision::Check(_) => {
-                let alone = self.read_alone(setting, &changed)?;
+                let alone = self.read_alone(setting, &changed, listing.read.as_deref())?;
                 let manifests: Vec<FilePath> =
                     manifests.iter().map(|each| each.path.clone()).collect();
                 match with_consulted(
@@ -592,6 +592,7 @@ impl LintUseCaseImpl {
         &self,
         setting: &VisitSetting<'_>,
         files: &[CorpusEntry],
+        store: Option<&dyn crate::outbound::lint_store::interface::ReadStore>,
     ) -> Result<ReadAlone, LintError> {
         let paths = paths_of(files);
         let setting = VisitSetting {
@@ -599,7 +600,7 @@ impl LintUseCaseImpl {
             records: &[],
             ..*setting
         };
-        let visit = FileVisit { setting };
+        let visit = FileVisit { store, setting };
         let mut worker = Worker {
             tables: tables_for(
                 WorkerNumber(0),
@@ -1059,8 +1060,10 @@ impl LintUseCaseImpl {
         observed_records("before_store_build", &keeping.records);
         let to_store = stored_of(keeping, &listing.stored, last_handed, &rebuilt, unchanged);
         observed_stored("after_store_build", &to_store.stored.handed);
+        observed_staged("after_store_build", &to_store.kept);
         if let Some(read) = &listing.read {
             observed_stored("before_store_write", &to_store.stored.handed);
+            observed_staged("before_store_write", &to_store.kept);
             let written = read.keep(to_store.stored, &to_store.kept);
             if memory_enabled() {
                 // Ownership moved into the outbound call; this does not claim it freed allocator pages.
@@ -1392,7 +1395,10 @@ impl LintUseCase for LintUseCaseImpl {
             handed: &handed,
             wanted: &wanted,
         };
-        let visit = FileVisit { setting };
+        let visit = FileVisit {
+            store: listing.read.as_deref(),
+            setting,
+        };
         self.answer(&run, &visit, &mut project)
     }
 }

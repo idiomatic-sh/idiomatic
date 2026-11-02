@@ -1,6 +1,7 @@
 //! Direct Linux `wait4` observes the exact child started by `std::process::Command`.
 #[cfg(target_os = "linux")]
 use super::{constants, schemas};
+#[cfg(target_os = "linux")]
 use crate::domain::measurements::types::{CapturedBytes, ResourceObservation};
 use crate::domain::{
     diagnostics::errors::DiagnosticsError as Error,

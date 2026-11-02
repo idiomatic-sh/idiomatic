@@ -1,0 +1,9 @@
+let uses = select reference, binding, file, span from "binding-use";
+let reads = select reference, file from "binding-read";
+let declarations = select id, file from "defines";
+let absent_reads = antijoin(left=uses, right=reads, left-on=["reference", "file"], right-on=["reference", "file"]);
+let absent_declarations = antijoin(left=uses, right=declarations, left-on=["binding", "file"], right-on=["id", "file"]);
+let a = select reference as id, file, span from absent_reads;
+let b = select reference as id, file, span from absent_declarations;
+let violations = union(left=a, right=b);
+emit violations subject file key(id, span);

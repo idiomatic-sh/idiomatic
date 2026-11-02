@@ -142,7 +142,17 @@ fn tables(plans: &[Plan]) -> Tables {
 fn subject(scenario: Input) -> Result<Value, Failure> {
     let files = [entry("a.rs", 10), entry("b.rs", 20)];
     Ok(match scenario {
-        Scenario::TablesFor => count(tables(&[plan(2), plan(3)]).pool.steps.len()),
+        Scenario::TablesFor => {
+            let worker = tables(&[plan(2), plan(3)]);
+            assert!(worker.pool.layouts.capacity() >= 2);
+            assert!(worker.pool.fed.capacity() >= 2);
+            u64::from(
+                worker.pool.layouts.is_empty()
+                    && worker.pool.fed.is_empty()
+                    && worker.pool.selection_plans.is_empty()
+                    && worker.partials.is_empty(),
+            )
+        }
         Scenario::FileAt => {
             count(file_at(&files, FileOrder(1)).map_or(0, |each| each.path.0.len()))
         }
@@ -238,10 +248,10 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
 
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("a_worker_starts_with_room_for_the_biggest_of_the_plans"),
+        name: CaseName("a_worker_prepares_metadata_without_retaining_rule_execution_rows"),
         word: Word::Succeeds,
         input: || Scenario::TablesFor,
-        expect: Expect::Value(3),
+        expect: Expect::Value(1),
     },
     Case {
         name: CaseName("the_file_at_a_place_is_the_one_among_the_files_in_that_place"),

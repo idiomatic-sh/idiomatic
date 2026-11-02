@@ -7,7 +7,8 @@ use crate::domain::coverage::types::RuleIndex;
 use crate::domain::finish::service::escape;
 use crate::domain::finish::types::{Arena, Leaves, Leaving, Retained, RuleNumber};
 use crate::domain::operating::types::OperatorContext;
-use crate::domain::operator::service::{emitted, trim_pool};
+use crate::domain::operator::service::{emitted, pool_for};
+use crate::domain::operator::types::RuleWorkspace;
 use crate::domain::ordering::service::sort_findings;
 use crate::domain::pipeline::service::evaluate_file;
 use crate::domain::render::service::{render_rows, rendered_limit, shown_by};
@@ -16,6 +17,7 @@ use crate::domain::rules::errors::RulesError;
 use crate::domain::rules::service::{failed, id_at};
 use crate::domain::shared_walk::service::install;
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
+use crate::domain::table_model::types::Table;
 use crate::domain::table_texts::types::SourceView;
 use crate::domain::table_words::service::{encode_table, pack_onto};
 use crate::domain::table_words::types::WordSlice;
@@ -77,7 +79,6 @@ pub(crate) fn start_partials(
     wanted: &[Relation],
 ) {
     tables.partials = partial_of(said, everything, wanted);
-    tables.pool.partial.clone_from(&tables.partials);
 }
 
 /// Runs the per-file steps of a rule on the rows of the file the store holds, and renders what the rule emits.
@@ -92,15 +93,25 @@ pub(crate) fn evaluate_rule<'f>(
     file: FileId,
     stored_indexes: Option<&mut crate::domain::stored_indexes::types::FileIndexes>,
     relations: &dyn Fn(Relation) -> Option<ColumnsView<'f>>,
-) -> Result<(), RulesError> {
+    classes: &crate::domain::shared_walk::types::SharedClasses,
+) -> Result<Vec<Table>, RulesError> {
     let (Some(plan), Some(bound)) = (setting.plans.get(rule.0), setting.bindings.get(rule.0))
     else {
-        return Ok(());
+        return Ok(Vec::new());
     };
-    install(&tables.shared, &mut tables.pool.made, rule);
+    let mut workspace = RuleWorkspace {
+        pool: pool_for(std::slice::from_ref(plan)),
+        ..RuleWorkspace::default()
+    };
+    workspace.pool.partial = if matches!(setting.answering, Answering::Rows(_)) {
+        Vec::new()
+    } else {
+        tables.partials.clone()
+    };
+    install(&tables.shared, classes, &mut workspace.pool.made, rule);
     let refuse = |reason: &dyn std::fmt::Display| failed(&id_at(setting.ids, rule), reason);
     let number = RuleNumber(u32::try_from(rule.0).unwrap_or(u32::MAX));
-    let pool = &mut tables.pool;
+    let pool = &mut workspace.pool;
     let diagnostic = tracing::enabled!(
         target: "ryo::diagnostic::rule_step",
         tracing::Level::TRACE
@@ -132,8 +143,8 @@ pub(crate) fn evaluate_rule<'f>(
             source: SourceView(&tables.bytes.0),
             paths: setting.paths,
             arenas: &[],
-            memo: &mut tables.memo,
-            scratch: &mut tables.scratch,
+            memo: &mut workspace.memo,
+            scratch: &mut workspace.scratch,
         };
         let evaluated = evaluate_file(
             plan,
@@ -145,11 +156,10 @@ pub(crate) fn evaluate_rule<'f>(
             }),
             &mut context,
             pool,
+            &mut tables.pool,
+            &classes.classes,
         )
         .map_err(|error| refuse(&error));
-        if evaluated.is_err() {
-            crate::domain::working_set::service::clear_rule(pool);
-        }
         evaluated?;
     }
     if let Some(table) = emitted(plan, pool) {
@@ -175,24 +185,10 @@ pub(crate) fn evaluate_rule<'f>(
             &mut tables.rendered,
         )
         .map_err(|error| refuse(&error));
-        if rendered.is_err() {
-            crate::domain::working_set::service::clear_rule(pool);
-        }
         rendered?;
     }
-    crate::domain::working_set::service::retire(pool, &mut tables.scratch);
-    Ok(())
-}
-
-/// A frontier is dead only after its packed words were successfully retained/captured.
-pub(crate) fn consumed_frontier(tables: &mut Tables, place: InputNumber) {
-    if let Some(table) = tables.pool.frontier.get_mut(place.0) {
-        table.cells.clear();
-        table.count = crate::domain::table_model::types::RowCount(0);
-    }
-    if let Some(pending) = tables.pool.frontier_pending.get_mut(place.0) {
-        *pending = false;
-    }
+    // All other workspace payloads drop here, including every error exit above.
+    Ok(std::mem::take(&mut pool.frontier))
 }
 
 /// Hands what the rule's per-file steps leave for the cross-file steps to `keep`, input by input, and keeps a copy when the run
@@ -207,13 +203,14 @@ pub(crate) fn prepare_frontier(
     rule: RuleIndex,
     file: FileId,
     place: InputNumber,
+    frontier: &mut [Table],
 ) -> Option<Bucket> {
     let plan = setting.plans.get(rule.0)?;
     if place.0 >= plan.frontier.len() {
         return None;
     }
     let first = setting.first_bucket.get(rule.0).copied()?;
-    let table = tables.pool.frontier.get_mut(place.0)?;
+    let table = frontier.get_mut(place.0)?;
     escape(
         table,
         Leaving {
@@ -249,12 +246,6 @@ pub(crate) fn capture_frontier(tables: &mut Tables, answering: &Answering, bucke
 /// Gives back what a huge file made the tables grow past, and puts the file's findings in their order: rows of the rules' own
 /// columns stay in the order of the rules and, for a rule, of their places.
 pub(crate) fn settle(tables: &mut Tables, answering: &Answering) {
-    // Shared native selections are live until the final rule; they must not be cleared per rule.
-    for class in &mut tables.pool.made.classes {
-        class.0.clear();
-    }
-    trim_pool(&mut tables.pool);
-    crate::domain::working_set::service::retire(&mut tables.pool, &mut tables.scratch);
     if *answering == Answering::Findings {
         sort_findings(&mut tables.rendered);
     }

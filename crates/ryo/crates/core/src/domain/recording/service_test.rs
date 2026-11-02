@@ -311,7 +311,6 @@ fn finish_scenario() -> Result<Value, Failure> {
         ..setting(&placed)
     };
     let mut worker = tables();
-    worker.pool.partial = vec![partial()];
     notes_mut(&mut worker.elements).0.push(9);
     worker.language = Some(LanguageNumber(0));
     finish_file(
@@ -325,7 +324,7 @@ fn finish_scenario() -> Result<Value, Failure> {
     );
     Ok(count(worker.fresh.len()) * 100
         + count(worker.notes.len()) * 10
-        + count(worker.pool.partial.len()))
+        + count(worker.partials.len()))
 }
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
@@ -588,12 +587,15 @@ fn prepared_packed_buckets_preserve_legacy_flat_digests_store_bytes_and_move_own
         panic!("fresh handover");
     };
     for (index, bucket) in handed.buckets.iter().enumerate() {
+        let ryo_values::domain::records::types::RecordWords::Inline(words) = &bucket.words else {
+            panic!("pure normalization stays inline");
+        };
         assert_eq!(
-            bucket.words.0.as_ptr(),
+            words.0.as_ptr(),
             pointers[index],
             "no second packing/copy in made_ran"
         );
-        assert_eq!(bucket.words, pack(WordSlice(&legacy[index].1.0)));
+        assert_eq!(*words, pack(WordSlice(&legacy[index].1.0)));
     }
     assert_eq!(handed.text.0, b"derived text");
 }

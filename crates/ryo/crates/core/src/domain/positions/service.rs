@@ -217,11 +217,15 @@ pub(crate) fn in_tree(tree: &TreeRows<'_>, at: Position) -> Position {
 
 /// The elements the class decided for the step `step` of the rule being run selected, when the pass over the file decided its class.
 #[must_use]
-pub(crate) fn selected(room: &LoweredRoom, step: StepId) -> Option<&Slots> {
+pub(crate) fn selected<'a>(
+    room: &LoweredRoom,
+    classes: &'a [Slots],
+    step: StepId,
+) -> Option<&'a Slots> {
     let class = room
         .picked
         .get(usize::try_from(step.0).unwrap_or(usize::MAX))
         .copied()
         .flatten()?;
-    room.classes.get(class.0)
+    classes.get(class.0)
 }

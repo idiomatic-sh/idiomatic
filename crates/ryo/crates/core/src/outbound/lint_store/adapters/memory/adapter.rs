@@ -51,6 +51,9 @@ impl ReadStore for MemoryRead {
     }
 
     fn keep(&self, mut stored: Stored, kept: &KeptRows) -> Result<(), LintStoreError> {
+        if !kept.staged.is_empty() {
+            return Err(LintStoreError::NothingRead);
+        }
         if *self.was == Stored::default()
             && !(kept.unchanged.is_empty() && kept.file_again.is_empty())
         {

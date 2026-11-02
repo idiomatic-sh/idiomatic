@@ -146,6 +146,13 @@ mod indent_region {
 /// The expected rows of every relation the language reads from trees, one entry for each.
 pub(super) fn expected() -> Vec<Expected> {
     vec![
+        binding_event::expected(),
+        binding_read::expected(),
+        binding_use::expected(),
+        binding_shadow::expected(),
+        implicit_symbol::expected(),
+        brace_format_parse::expected(),
+        brace_format_field::expected(),
         annotates::expected(),
         assigns::expected(),
         comment::expected(),
@@ -274,4 +281,39 @@ mod literal_expression_parse {
 /// A valid Python module future mode comes from the frontend-owned compiler flag.
 mod compiler_feature {
     include!("../../tests/fixtures/relations/compiler_feature/expected.rs");
+}
+
+/// Canonical positive fixture for `binding_event`.
+mod binding_event {
+    include!("../../tests/fixtures/relations/binding_event/expected.rs");
+}
+
+/// Canonical positive fixture for `binding_read`.
+mod binding_read {
+    include!("../../tests/fixtures/relations/binding_read/expected.rs");
+}
+
+/// Canonical positive fixture for `binding_use`.
+mod binding_use {
+    include!("../../tests/fixtures/relations/binding_use/expected.rs");
+}
+
+/// Canonical positive fixture for `binding_shadow`.
+mod binding_shadow {
+    include!("../../tests/fixtures/relations/binding_shadow/expected.rs");
+}
+
+/// Canonical positive fixture for `implicit_symbol`.
+mod implicit_symbol {
+    include!("../../tests/fixtures/relations/implicit_symbol/expected.rs");
+}
+
+/// Canonical positive fixture for `brace_format_parse`.
+mod brace_format_parse {
+    include!("../../tests/fixtures/relations/brace_format_parse/expected.rs");
+}
+
+/// Canonical positive fixture for `brace_format_field`.
+mod brace_format_field {
+    include!("../../tests/fixtures/relations/brace_format_field/expected.rs");
 }

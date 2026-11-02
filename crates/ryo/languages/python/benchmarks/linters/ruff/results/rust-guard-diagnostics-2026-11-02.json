@@ -1,0 +1,2749 @@
+{
+  "schema": "failed-shared-engine-rust-guard-diagnostics/v1",
+  "status": "failed",
+  "all_established_language_gates_passed": false,
+  "performance_target_met": false,
+  "scope": "One local matched original Rust benchmark pair, not five-pair CI certification. OriginalcoldDiscard10workers/pre_read5internalrounds+spike3; ancillarycachedphasesoneonly. Profiling/syscalldiagnosticsnotbenchmarks. NoDjangoexecutionforthiscandidate.",
+  "paired_manifest": {
+    "schema": "matched-original-rust-cold-benchmark/v1",
+    "measurement": true,
+    "scope": "Original shipped --bench path: cold::cost_of Discard,10workers,pre_read before timer,5cold and3spike internal rounds. --rounds1 changes only cache-phase samples; those are not complete performance admission. Two alternating outer pairs planned; stop after first pair if cold/spike ratio exceeds unchanged1.15 threshold. Existing CLI also runs individual rows/store; no alternate proxy.",
+    "base_commit": "a44054c38a2eedb23c2dc4879c3bd7592f78e8b3",
+    "binaries": {
+      "base": "77b2104c79e46087c8a7901edf9e872ff2c016b864d8858deddaa8c663611c6f",
+      "candidate": "76f89b6fbf57a3372b1a358e2682dbd75009985a68be7b7c5914cfa43b003737"
+    },
+    "recording_inputs_receipt": "/tmp/rust-original-input-identities-20261102.json",
+    "recording_inputs_receipt_sha256": "5fe89988fbf1fabeb5829aa5528b4a9dfc3109ba9e7e94b8d8cee400305703cf",
+    "command_arguments": [
+      "--bench",
+      "--rounds",
+      "1"
+    ],
+    "threshold": 1.15,
+    "cap_seconds_per_invocation": 600,
+    "started_utc": "2026-11-02T01:35:32.234056+00:00"
+  },
+  "paired_summary": {
+    "manifest_sha256": "c41d2e4373faf1f3ff4c994276ec2e6710f9b06408bb130b68af54fc9b0959e2",
+    "samples": [
+      {
+        "pair": 0,
+        "variant": "base",
+        "exit_code": 0,
+        "wall_seconds": 41.30022684298456,
+        "load_before": [
+          4.0166015625,
+          5.7255859375,
+          4.34130859375
+        ],
+        "stdout_sha256": "e344feda7f46c850c2c2e5c6e82a7287647616a9a7db2a1faf5034cbfc0e8c79",
+        "stderr_sha256": "8a6c1e502c086df5fd41d419733c5d128d17ae3f3f8f911b41b577a6d66504b0",
+        "bmf": {
+          "ruff": {
+            "cold-cpu-milliseconds": {
+              "lower_value": 4524,
+              "upper_value": 4703,
+              "value": 4664
+            },
+            "cold-milliseconds": {
+              "lower_value": 730,
+              "upper_value": 796,
+              "value": 751
+            },
+            "edit-milliseconds": {
+              "lower_value": 338,
+              "upper_value": 338,
+              "value": 338
+            },
+            "peak-megabytes": {
+              "lower_value": 654,
+              "upper_value": 654,
+              "value": 654
+            },
+            "spike-cpu-milliseconds": {
+              "lower_value": 1425,
+              "upper_value": 1458,
+              "value": 1451
+            },
+            "store-files": {
+              "lower_value": 1,
+              "upper_value": 1,
+              "value": 1
+            },
+            "store-megabytes": {
+              "lower_value": 67,
+              "upper_value": 67,
+              "value": 67
+            },
+            "warm-milliseconds": {
+              "lower_value": 69,
+              "upper_value": 69,
+              "value": 69
+            }
+          }
+        },
+        "internal_rounds": {
+          "cold-milliseconds": [
+            779,
+            796,
+            730,
+            751,
+            738
+          ],
+          "cold-cpu-milliseconds": [
+            4703,
+            4688,
+            4524,
+            4664,
+            4655
+          ],
+          "spike-cpu-milliseconds": [
+            1451,
+            1425,
+            1458
+          ]
+        }
+      },
+      {
+        "pair": 0,
+        "variant": "candidate",
+        "exit_code": 0,
+        "wall_seconds": 99.73667425196618,
+        "load_before": [
+          5.6826171875,
+          5.97216796875,
+          4.484375
+        ],
+        "stdout_sha256": "7e64d34fcc3f13e4435979d5a3989fb4a66886b971181e43c9fa151eb4258d74",
+        "stderr_sha256": "fbd9e6bb6c72613c2a7efe951cce9b7f979dff64a8cfdb4b60d2fe0cb242c3dd",
+        "bmf": {
+          "ruff": {
+            "cold-cpu-milliseconds": {
+              "lower_value": 8622,
+              "upper_value": 9122,
+              "value": 8684
+            },
+            "cold-milliseconds": {
+              "lower_value": 1202,
+              "upper_value": 1605,
+              "value": 1422
+            },
+            "edit-milliseconds": {
+              "lower_value": 9820,
+              "upper_value": 9820,
+              "value": 9820
+            },
+            "peak-megabytes": {
+              "lower_value": 575,
+              "upper_value": 575,
+              "value": 575
+            },
+            "spike-cpu-milliseconds": {
+              "lower_value": 2046,
+              "upper_value": 2151,
+              "value": 2064
+            },
+            "store-files": {
+              "lower_value": 1,
+              "upper_value": 1,
+              "value": 1
+            },
+            "store-megabytes": {
+              "lower_value": 67,
+              "upper_value": 67,
+              "value": 67
+            },
+            "warm-milliseconds": {
+              "lower_value": 72,
+              "upper_value": 72,
+              "value": 72
+            }
+          }
+        },
+        "internal_rounds": {
+          "cold-milliseconds": [
+            1422,
+            1605,
+            1482,
+            1317,
+            1202
+          ],
+          "cold-cpu-milliseconds": [
+            8660,
+            8622,
+            8684,
+            8773,
+            9122
+          ],
+          "spike-cpu-milliseconds": [
+            2064,
+            2151,
+            2046
+          ]
+        }
+      }
+    ],
+    "latest_pair_ratios": {
+      "cold-milliseconds": 1.8934753661784287,
+      "cold-cpu-milliseconds": 1.8619210977701544,
+      "spike-cpu-milliseconds": 1.4224672639558924
+    },
+    "cold_spike_within_threshold": false,
+    "all_established_language_gates_passed": false,
+    "scope_limit": "Only Rust cold/spike compared here; full cached phase CI and other language gates remain separate."
+  },
+  "raw_pair_outputs": {
+    "base": {
+      "stdout": "{\"ruff\":{\"cold-cpu-milliseconds\":{\"lower_value\":4524,\"upper_value\":4703,\"value\":4664},\"cold-milliseconds\":{\"lower_value\":730,\"upper_value\":796,\"value\":751},\"edit-milliseconds\":{\"lower_value\":338,\"upper_value\":338,\"value\":338},\"peak-megabytes\":{\"lower_value\":654,\"upper_value\":654,\"value\":654},\"spike-cpu-milliseconds\":{\"lower_value\":1425,\"upper_value\":1458,\"value\":1451},\"store-files\":{\"lower_value\":1,\"upper_value\":1,\"value\":1},\"store-megabytes\":{\"lower_value\":67,\"upper_value\":67,\"value\":67},\"warm-milliseconds\":{\"lower_value\":69,\"upper_value\":69,\"value\":69}}}\n",
+      "stderr": "ruff, release, cold; load average at start: 4.02 5.73 4.34\nset      rules     rows   wall ms    CPU ms  peak MB  rules that ran\nspike        8     2673       333      1800      245  allow-attributes-per-file,deep-function-nesting,deep-nesting,duplicate-function-bodies,empty-else,file-length,glob-imports,match-on-bool\nall         47    16373       948      5364      616  adapter-at-root,allow-attributes-per-file,boxed-dyn-error-annotations,case-vocabulary,constant-assertions,deep-function-nesting,deep-nesting,duplicate-function-bodies,empty-else,error-variant-never-constructed,field-written-never-read,file-length,function-called-from-one-file,glob-imports,import-fan-in,io-at-boundary,let-single-arm-match,long-function,lossy-float-literals,match-on-bool,module-cycles,nested-function-count,no-env-reads,no-ignored-tests,no-public-options,no-reexports,orphan-rust-files,parallel-members,parse-errors,print-in-library,pub-item-unreferenced-elsewhere,repeated-bound-strings,repeated-string-literals,same-name-in-sibling-crates,scattered-dispatch,shadowed-prelude,test-names-nothing-beside,threads-at-adapter,todo-comments,too-many-parameters,trait-with-one-impl,type-used-only-elsewhere,unfinished-macros,unsafe-without-safety,unseparated-literals,unwrap-outside-tests,workspace-completeness\nadapter-at-root     1        0       183       999      160  adapter-at-root\nallow-attributes-per-file     1        2       173       906      160  allow-attributes-per-file\nboxed-dyn-error-annotations     1        0       169       888      160  boxed-dyn-error-annotations\ncase-vocabulary     1        2        40       151       52  case-vocabulary\nconstant-assertions     1        3       189       994      171  constant-assertions\ndeep-function-nesting     1        6       233      1045      157  deep-function-nesting\ndeep-nesting     1      203       170       924      157  deep-nesting\nduplicate-function-bodies     1      648       238      1288      234  duplicate-function-bodies\nempty-else     1        0       179       894      164  empty-else\nerror-variant-never-constructed     1       22       202      1120      186  error-variant-never-constructed\nfield-written-never-read     1       24       209      1105      177  field-written-never-read\nfile-length     1     1040       173       936      155  file-length\nfunction-called-from-one-file     1     2148       219      1000      203  function-called-from-one-file\nglob-imports     1      774       228       931      150  glob-imports\nimport-fan-in     1       32       230      1075      182  import-fan-in\nio-at-boundary     1      235       190      1016      185  io-at-boundary\nlet-single-arm-match     1        5       171       908      161  let-single-arm-match\nlong-function     1      574       195       997      167  long-function\nlossy-float-literals     1        0       194       918      160  lossy-float-literals\nmatch-on-bool     1        0       188       925      158  match-on-bool\nmodule-cycles     1     1066       237      1069      176  module-cycles\nnested-function-count     1       24       233      1081      206  nested-function-count\nno-env-reads     1       28       265      1166      179  no-env-reads\nno-ignored-tests     1       16       206       922      160  no-ignored-tests\nno-public-options     1      353       185       906      161  no-public-options\nno-reexports     1     1201       211      1227      174  no-reexports\norphan-rust-files     1        1       211      1092      181  orphan-rust-files\nparallel-members     1        0       195       976      161  parallel-members\nparse-errors     1        0       174       910      157  parse-errors\nprint-in-library     1       56       181       956      165  print-in-library\npub-item-unreferenced-elsewhere     1      596       271      1103      246  pub-item-unreferenced-elsewhere\nrepeated-bound-strings     1        7       178       834      156  repeated-bound-strings\nrepeated-string-literals     1     4735       172       767      140  repeated-string-literals\nsame-name-in-sibling-crates     1      177       178       888      160  same-name-in-sibling-crates\nscattered-dispatch     1      737       243      1070      172  scattered-dispatch\nshadowed-prelude     1        1       178       907      153  shadowed-prelude\ntest-names-nothing-beside     1        0       243      1234      226  test-names-nothing-beside\nthreads-at-adapter     1       15       187      1033      169  threads-at-adapter\ntodo-comments     1      565       181       947      159  todo-comments\ntoo-many-parameters     1       50       170       913      166  too-many-parameters\ntrait-with-one-impl     1       32       178       927      158  trait-with-one-impl\ntype-used-only-elsewhere     1        2       254      1084      258  type-used-only-elsewhere\nunfinished-macros     1       12       195       977      165  unfinished-macros\nunsafe-without-safety     1       16       191       934      158  unsafe-without-safety\nunseparated-literals     1        0       185       914      161  unseparated-literals\nunwrap-outside-tests     1      965       181       925      165  unwrap-outside-tests\nworkspace-completeness     1        0       185       920      161  workspace-completeness\nspike's eight rules: wall 370 ms (310 to 580), CPU about 700 ms, peak 145 to 157 MB\ntoday's ryo under Tastemaker, all 52 rules: wall 41.1 s\n47 rules on 10 workers, 5 rounds\ncache, all rules that run, ruff copied, store kept in the copy, 1 rounds:        wall ms    CPU ms files read     rows  peak MB\n  round 1: no store (cold, nothing kept)                                812      4671      11169    16373      561\n  round 1: cold, the store built and kept                               997      5644      11169    16373      654\n  round 1: warm                                                          69       132          0    16373       96\n  round 1: after a function is added to one file                        338       611          1    16373      403\n  round 1: after a function body is edited                              268       361          1    16373      268\n  round 1: after an exported function is renamed                        330       601          1    16373      332\n1 rounds: peak [654] MB, warm [69] ms, edit [338] ms\nruff: store after a cold run 1 files 67 MB, after a warm run 1 files 67 MB\nruff/cold-milliseconds: median 751 of [779, 796, 730, 751, 738]\nruff/cold-cpu-milliseconds: median 4664 of [4703, 4688, 4524, 4664, 4655]\nruff/spike-cpu-milliseconds: median 1451 of [1451, 1425, 1458]\nruff/peak-megabytes: median 654 of [654]\nruff/warm-milliseconds: median 69 of [69]\nruff/edit-milliseconds: median 338 of [338]\nruff/store-megabytes: median 67 of [67]\nruff/store-files: median 1 of [1]\n"
+    },
+    "candidate": {
+      "stdout": "{\"ruff\":{\"cold-cpu-milliseconds\":{\"lower_value\":8622,\"upper_value\":9122,\"value\":8684},\"cold-milliseconds\":{\"lower_value\":1202,\"upper_value\":1605,\"value\":1422},\"edit-milliseconds\":{\"lower_value\":9820,\"upper_value\":9820,\"value\":9820},\"peak-megabytes\":{\"lower_value\":575,\"upper_value\":575,\"value\":575},\"spike-cpu-milliseconds\":{\"lower_value\":2046,\"upper_value\":2151,\"value\":2064},\"store-files\":{\"lower_value\":1,\"upper_value\":1,\"value\":1},\"store-megabytes\":{\"lower_value\":67,\"upper_value\":67,\"value\":67},\"warm-milliseconds\":{\"lower_value\":72,\"upper_value\":72,\"value\":72}}}\n",
+      "stderr": "ruff, release, cold; load average at start: 5.68 5.97 4.48\nset      rules     rows   wall ms    CPU ms  peak MB  rules that ran\nspike        8     2673       468      2264      239  allow-attributes-per-file,deep-function-nesting,deep-nesting,duplicate-function-bodies,empty-else,file-length,glob-imports,match-on-bool\nall         47    16373      1436      9343      585  adapter-at-root,allow-attributes-per-file,boxed-dyn-error-annotations,case-vocabulary,constant-assertions,deep-function-nesting,deep-nesting,duplicate-function-bodies,empty-else,error-variant-never-constructed,field-written-never-read,file-length,function-called-from-one-file,glob-imports,import-fan-in,io-at-boundary,let-single-arm-match,long-function,lossy-float-literals,match-on-bool,module-cycles,nested-function-count,no-env-reads,no-ignored-tests,no-public-options,no-reexports,orphan-rust-files,parallel-members,parse-errors,print-in-library,pub-item-unreferenced-elsewhere,repeated-bound-strings,repeated-string-literals,same-name-in-sibling-crates,scattered-dispatch,shadowed-prelude,test-names-nothing-beside,threads-at-adapter,todo-comments,too-many-parameters,trait-with-one-impl,type-used-only-elsewhere,unfinished-macros,unsafe-without-safety,unseparated-literals,unwrap-outside-tests,workspace-completeness\nadapter-at-root     1        0       191       978      167  adapter-at-root\nallow-attributes-per-file     1        2       183       946      160  allow-attributes-per-file\nboxed-dyn-error-annotations     1        0       181       878      159  boxed-dyn-error-annotations\ncase-vocabulary     1        2        50       150       55  case-vocabulary\nconstant-assertions     1        3       187       998      170  constant-assertions\ndeep-function-nesting     1        6       198       928      159  deep-function-nesting\ndeep-nesting     1      203       194       934      160  deep-nesting\nduplicate-function-bodies     1      648       257      1339      239  duplicate-function-bodies\nempty-else     1        0       193       926      161  empty-else\nerror-variant-never-constructed     1       22       228      1142      184  error-variant-never-constructed\nfield-written-never-read     1       24       238      1240      175  field-written-never-read\nfile-length     1     1040       229      1099      158  file-length\nfunction-called-from-one-file     1     2148       247      1055      197  function-called-from-one-file\nglob-imports     1      774       168       921      152  glob-imports\nimport-fan-in     1       32       222      1120      184  import-fan-in\nio-at-boundary     1      235       202      1048      189  io-at-boundary\nlet-single-arm-match     1        5       179       912      159  let-single-arm-match\nlong-function     1      574       192      1037      173  long-function\nlossy-float-literals     1        0       167       906      157  lossy-float-literals\nmatch-on-bool     1        0       182       919      159  match-on-bool\nmodule-cycles     1     1066       241      1088      184  module-cycles\nnested-function-count     1       24       181      1006      162  nested-function-count\nno-env-reads     1       28       204      1129      184  no-env-reads\nno-ignored-tests     1       16       173       930      157  no-ignored-tests\nno-public-options     1      353       179       966      164  no-public-options\nno-reexports     1     1201       234      1349      180  no-reexports\norphan-rust-files     1        1       210      1099      174  orphan-rust-files\nparallel-members     1        0       181      1035      162  parallel-members\nparse-errors     1        0       175       903      158  parse-errors\nprint-in-library     1       56       173       922      165  print-in-library\npub-item-unreferenced-elsewhere     1      596       269      1096      251  pub-item-unreferenced-elsewhere\nrepeated-bound-strings     1        7       156       879      160  repeated-bound-strings\nrepeated-string-literals     1     4735       159       818      139  repeated-string-literals\nsame-name-in-sibling-crates     1      177       167       934      162  same-name-in-sibling-crates\nscattered-dispatch     1      737       191       883      173  scattered-dispatch\nshadowed-prelude     1        1       179       962      162  shadowed-prelude\ntest-names-nothing-beside     1        0       254      1277      220  test-names-nothing-beside\nthreads-at-adapter     1       15       195      1014      169  threads-at-adapter\ntodo-comments     1      565       184       937      158  todo-comments\ntoo-many-parameters     1       50       181       970      155  too-many-parameters\ntrait-with-one-impl     1       32       237      1251      158  trait-with-one-impl\ntype-used-only-elsewhere     1        2       260      1131      251  type-used-only-elsewhere\nunfinished-macros     1       12       182       996      172  unfinished-macros\nunsafe-without-safety     1       16       179       947      159  unsafe-without-safety\nunseparated-literals     1        0       169       887      155  unseparated-literals\nunwrap-outside-tests     1      965       235       929      171  unwrap-outside-tests\nworkspace-completeness     1        0       194       971      156  workspace-completeness\nspike's eight rules: wall 370 ms (310 to 580), CPU about 700 ms, peak 145 to 157 MB\ntoday's ryo under Tastemaker, all 52 rules: wall 41.1 s\n47 rules on 10 workers, 5 rounds\ncache, all rules that run, ruff copied, store kept in the copy, 1 rounds:        wall ms    CPU ms files read     rows  peak MB\n  round 1: no store (cold, nothing kept)                               1518      8816      11169    16373      525\n  round 1: cold, the store built and kept                             17408     19673      11169    16373      575\n  round 1: warm                                                          72       121          0    16373       94\n  round 1: after a function is added to one file                       9820      6827          1    16373      380\n  round 1: after a function body is edited                             1324      1271          1    16373      251\n  round 1: after an exported function is renamed                       5535      4070          1    16373      322\n1 rounds: peak [575] MB, warm [72] ms, edit [9820] ms\nruff: store after a cold run 1 files 67 MB, after a warm run 1 files 67 MB\nruff/cold-milliseconds: median 1422 of [1422, 1605, 1482, 1317, 1202]\nruff/cold-cpu-milliseconds: median 8684 of [8660, 8622, 8684, 8773, 9122]\nruff/spike-cpu-milliseconds: median 2064 of [2064, 2151, 2046]\nruff/peak-megabytes: median 575 of [575]\nruff/warm-milliseconds: median 72 of [72]\nruff/edit-milliseconds: median 9820 of [9820]\nruff/store-megabytes: median 67 of [67]\nruff/store-files: median 1 of [1]\n"
+    }
+  },
+  "cpu_profiles": {
+    "base": {
+      "receipt": {
+        "schema": "existing-sealed-cold-cpu-profile/v1",
+        "measurement": false,
+        "variant": "base",
+        "executable": "/tmp/normalized-staging-artifacts-5-20261102/rust-base-release",
+        "binary_sha256": "77b2104c79e46087c8a7901edf9e872ff2c016b864d8858deddaa8c663611c6f",
+        "command": [
+          "/tmp/normalized-staging-artifacts-5-20261102/rust-base-release",
+          "--bench",
+          "--rounds",
+          "1"
+        ],
+        "bench_status": 0,
+        "perf_status": -2,
+        "profiled_scope": "47-rule cold5 and8-rule spike3 only; attached after47rules marker, stopped at cache marker; no individual-rule-prefix or cache phases sampled",
+        "start_seconds_after_invocation": 26.455682734958827,
+        "stop_seconds_after_invocation": 31.851161245955154,
+        "whole_invocation_seconds": 42.317761302925646,
+        "perf_data_sha256": "2003ae71784846575f687942c9aca1a54f7081f6842cd542d645e79efbb645a8"
+      },
+      "top_symbols": {
+        "self": [
+          {
+            "percentages": [
+              6.2
+            ],
+            "symbol": "<ryo_core::domain::replay::types::Pipe<<ryo_core::domain::operator::collections::operators::group_count::item::GroupCountItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream::{closure#1}> as ryo_core::domain::operating::types::Emit>::row"
+          },
+          {
+            "percentages": [
+              4.76
+            ],
+            "symbol": "ryo_core::domain::walks::service::admits"
+          },
+          {
+            "percentages": [
+              3.93
+            ],
+            "symbol": "ryo_core::domain::table_dedup::service::find_or_add"
+          },
+          {
+            "percentages": [
+              3.85
+            ],
+            "symbol": "ryo_core::domain::comparing::service::holds_one"
+          },
+          {
+            "percentages": [
+              2.94
+            ],
+            "symbol": "ryo_core::domain::operator::collections::operators::select::item::tree_each"
+          },
+          {
+            "percentages": [
+              2.81
+            ],
+            "symbol": "ryo_core::domain::fragment::service::make_rows"
+          },
+          {
+            "percentages": [
+              2.19
+            ],
+            "symbol": "<ryo_core::application::file_analysis::service::FileAnalysis>::read_file"
+          },
+          {
+            "percentages": [
+              2.19
+            ],
+            "symbol": "ryo_language::domain::elements::service::push"
+          },
+          {
+            "percentages": [
+              2.07
+            ],
+            "symbol": "<alloc::vec::Vec<u32>>::extend_desugared::<core::iter::adapters::map::Map<core::iter::sources::successors::Successors<ryo_language::domain::relations::types::Position, ryo_core::domain::walks::service::axis::{closure#3}>, ryo_core::domain::walks::service::axis::{closure#4}>>"
+          },
+          {
+            "percentages": [
+              2.07
+            ],
+            "symbol": "core::str::converts::from_utf8"
+          },
+          {
+            "percentages": [
+              1.86
+            ],
+            "symbol": "ryo_core::domain::operator::collections::operators::capture::item::matches"
+          },
+          {
+            "percentages": [
+              1.74
+            ],
+            "symbol": "<ryo_rust::outbound::syntax::adapters::ra_ap_syntax::adapter::SyntaxRaApSyntaxAdapter as ryo_rust::outbound::syntax::interface::SyntaxPort>::read::{closure#0}"
+          },
+          {
+            "percentages": [
+              1.65
+            ],
+            "symbol": "ryo_core::domain::table_model::service::read_row"
+          },
+          {
+            "percentages": [
+              1.61
+            ],
+            "symbol": "ryo_rust::outbound::syntax::adapters::ra_ap_syntax::adapter::emit"
+          },
+          {
+            "percentages": [
+              1.57
+            ],
+            "symbol": "<ra_ap_parser::lexed_str::LexedStr>::intersperse_trivia"
+          },
+          {
+            "percentages": [
+              1.57
+            ],
+            "symbol": "ryo_core::domain::tree_join::service::probe"
+          },
+          {
+            "percentages": [
+              1.49
+            ],
+            "symbol": "ryo_core::domain::globbing::service::matches"
+          },
+          {
+            "percentages": [
+              1.49
+            ],
+            "symbol": "ryo_core::domain::comparing::service::holds"
+          },
+          {
+            "percentages": [
+              1.45
+            ],
+            "symbol": "<ra_ap_rustc_lexer::Cursor>::advance_token"
+          },
+          {
+            "percentages": [
+              1.45
+            ],
+            "symbol": "ryo_language::domain::symbols::service::intern"
+          },
+          {
+            "percentages": [
+              1.32
+            ],
+            "symbol": "ryo_core::domain::tree_walk::service::walk_row"
+          },
+          {
+            "percentages": [
+              1.24
+            ],
+            "symbol": "core::slice::sort::shared::smallsort::small_sort_network::<usize, <[usize]>::sort_unstable_by<ryo_core::domain::positions::service::sorted::{closure#1}>::{closure#0}>"
+          },
+          {
+            "percentages": [
+              1.2
+            ],
+            "symbol": "ryo_core::domain::positions::service::hits"
+          },
+          {
+            "percentages": [
+              1.2
+            ],
+            "symbol": "<ryo_core::domain::replay::types::Pipe<<ryo_core::domain::operator::collections::operators::project::item::ProjectItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream::{closure#0}> as ryo_core::domain::operating::types::Emit>::row"
+          },
+          {
+            "percentages": [
+              1.16
+            ],
+            "symbol": "<ra_ap_parser::TopEntryPoint>::parse"
+          },
+          {
+            "percentages": [
+              1.12
+            ],
+            "symbol": "memcmp"
+          },
+          {
+            "percentages": [
+              1.03
+            ],
+            "symbol": "ryo_core::domain::shared_walk::service::consider"
+          },
+          {
+            "percentages": [
+              0.99
+            ],
+            "symbol": "<ra_ap_parser::lexed_str::LexedStr>::to_input"
+          },
+          {
+            "percentages": [
+              0.91
+            ],
+            "symbol": "ryo_core::domain::globbing::service::matches::{closure#1}"
+          },
+          {
+            "percentages": [
+              0.91
+            ],
+            "symbol": "regex_automata::hybrid::search::find_fwd"
+          },
+          {
+            "percentages": [
+              0.87
+            ],
+            "symbol": "core::slice::sort::unstable::quicksort::quicksort::<usize, <[usize]>::sort_unstable_by<ryo_core::domain::positions::service::sorted::{closure#1}>::{closure#0}>"
+          },
+          {
+            "percentages": [
+              0.83
+            ],
+            "symbol": "0x00000000000a3180"
+          },
+          {
+            "percentages": [
+              0.74
+            ],
+            "symbol": "<ra_ap_parser::lexed_str::LexedStr>::new"
+          },
+          {
+            "percentages": [
+              0.74
+            ],
+            "symbol": "<ryo_language::domain::relations::types::Value as core::slice::cmp::SlicePartialEq<ryo_language::domain::relations::types::Value>>::equal_same_length"
+          },
+          {
+            "percentages": [
+              0.7
+            ],
+            "symbol": "<ryo_core::application::file_analysis::service::FileAnalysis>::visit_file"
+          },
+          {
+            "percentages": [
+              0.7
+            ],
+            "symbol": "ryo_core::domain::table_reach::service::follow"
+          },
+          {
+            "percentages": [
+              0.7
+            ],
+            "symbol": "<core::str::pattern::CharSearcher as core::str::pattern::Searcher>::next_match"
+          },
+          {
+            "percentages": [
+              0.66
+            ],
+            "symbol": "ryo_core::domain::operands::service::resolve"
+          },
+          {
+            "percentages": [
+              0.62
+            ],
+            "symbol": "<alloc::vec::Vec<u32>>::extend_desugared::<core::iter::adapters::map::Map<ryo_language::domain::elements::types::Children, ryo_core::domain::joins::service::join::{closure#2}>>"
+          },
+          {
+            "percentages": [
+              0.62
+            ],
+            "symbol": "<alloc::vec::Vec<u32>>::extend_desugared::<core::iter::adapters::filter::Filter<core::ops::range::RangeInclusive<u32>, ryo_core::domain::walks::service::axis::{closure#5}>>"
+          },
+          {
+            "percentages": [
+              0.62
+            ],
+            "symbol": "<ra_ap_parser::lexed_str::LexedStr>::range_text"
+          },
+          {
+            "percentages": [
+              0.62
+            ],
+            "symbol": "ryo_core::domain::operator::collections::operators::capture::item::capture_row"
+          },
+          {
+            "percentages": [
+              0.58
+            ],
+            "symbol": "ryo_core::domain::pipeline::service::deliver"
+          },
+          {
+            "percentages": [
+              0.58
+            ],
+            "symbol": "ryo_core::domain::pipeline::service::pass_on"
+          },
+          {
+            "percentages": [
+              0.58
+            ],
+            "symbol": "ryo_core::domain::operator::collections::operators::join::item::join_rows"
+          },
+          {
+            "percentages": [
+              0.58
+            ],
+            "symbol": "<ryo_rust::domain::relations::collections::relations::reference::item::ReferenceItem as ryo_language::domain::answers::types::Visiting<ryo_language::domain::relations::collections::relations::reference::item::Reference, ()>>::visit"
+          },
+          {
+            "percentages": [
+              0.54
+            ],
+            "symbol": "<ryo_language::domain::relations::types::Value as core::hash::Hash>::hash::<hashbrown::hasher::DefaultHasher>"
+          },
+          {
+            "percentages": [
+              0.54
+            ],
+            "symbol": "ryo_core::domain::finish::service::fill_line_starts"
+          },
+          {
+            "percentages": [
+              0.54
+            ],
+            "symbol": "ryo_core::domain::fragment::service::make"
+          },
+          {
+            "percentages": [
+              0.54
+            ],
+            "symbol": "ryo_core::domain::positions::service::value"
+          }
+        ],
+        "inclusive": [
+          {
+            "percentages": [
+              91.52,
+              0.7
+            ],
+            "symbol": "<ryo_core::application::file_analysis::service::FileAnalysis>::visit_file"
+          },
+          {
+            "percentages": [
+              84.74,
+              0.0
+            ],
+            "symbol": "<rayon_core::registry::WorkerThread>::wait_until_cold"
+          },
+          {
+            "percentages": [
+              84.62,
+              0.0
+            ],
+            "symbol": "std::sys::backtrace::__rust_begin_short_backtrace::<<rayon_core::registry::DefaultSpawn as rayon_core::registry::ThreadSpawn>::spawn::{closure#0}, ()>"
+          },
+          {
+            "percentages": [
+              84.53,
+              0.0
+            ],
+            "symbol": "<rayon_core::job::HeapJob<<rayon_core::scope::Scope>::spawn<<ryo_core::outbound::scheduler::adapters::rayon::adapter::SchedulerRayonAdapter as ryo_core::outbound::scheduler::interface::SchedulerPort>::run::{closure#0}::{closure#0}>::{closure#0}> as rayon_core::job::Job>::execute"
+          },
+          {
+            "percentages": [
+              84.12,
+              0.04
+            ],
+            "symbol": "<ryo_core::inbound::use_cases::lint::use_case::LintUseCaseImpl>::visited::{closure#0}"
+          },
+          {
+            "percentages": [
+              84.08,
+              0.0
+            ],
+            "symbol": "<std::thread::lifecycle::spawn_unchecked<<rayon_core::registry::DefaultSpawn as rayon_core::registry::ThreadSpawn>::spawn::{closure#0}, ()>::{closure#1} as core::ops::function::FnOnce<()>>::call_once::{shim:vtable#0}"
+          },
+          {
+            "percentages": [
+              82.05,
+              0.0
+            ],
+            "symbol": "<std::sys::thread::unix::Thread>::new::thread_start"
+          },
+          {
+            "percentages": [
+              79.65,
+              0.0
+            ],
+            "symbol": "0x0000ffffa8115f37"
+          },
+          {
+            "percentages": [
+              67.0,
+              2.19
+            ],
+            "symbol": "<ryo_core::application::file_analysis::service::FileAnalysis>::read_file"
+          },
+          {
+            "percentages": [
+              63.61,
+              0.58
+            ],
+            "symbol": "ryo_core::domain::pipeline::service::pass_on"
+          },
+          {
+            "percentages": [
+              44.54,
+              0.58
+            ],
+            "symbol": "ryo_core::domain::pipeline::service::deliver"
+          },
+          {
+            "percentages": [
+              24.48,
+              0.54
+            ],
+            "symbol": "ryo_core::domain::fragment::service::make"
+          },
+          {
+            "percentages": [
+              24.36,
+              0.12
+            ],
+            "symbol": "<ryo_core::domain::operator::collections::operators::join::item::JoinItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream"
+          },
+          {
+            "percentages": [
+              23.95,
+              2.81
+            ],
+            "symbol": "ryo_core::domain::fragment::service::make_rows"
+          },
+          {
+            "percentages": [
+              22.75,
+              0.0
+            ],
+            "symbol": "<ryo_core::outbound::language::adapters::use_case::adapter::LanguageUseCaseAdapter as ryo_core::outbound::language::interface::LanguagePort>::parse"
+          },
+          {
+            "percentages": [
+              22.75,
+              0.0
+            ],
+            "symbol": "<ryo_rust::inbound::contracts::parse::contract::ParseContract as ryo_language::inbound::use_cases::parse::types::ParseEngine>::read_file"
+          },
+          {
+            "percentages": [
+              22.37,
+              0.04
+            ],
+            "symbol": "<ryo_core::domain::operator::collections::operators::select::item::SelectItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream"
+          },
+          {
+            "percentages": [
+              19.81,
+              0.0
+            ],
+            "symbol": "ryo_language::inbound::use_cases::parse::service::build_in::<ryo_rust::inbound::contracts::parse::contract::ParseContract>"
+          },
+          {
+            "percentages": [
+              17.95,
+              0.04
+            ],
+            "symbol": "<ryo_rust::outbound::syntax::adapters::ra_ap_syntax::adapter::SyntaxRaApSyntaxAdapter as ryo_rust::outbound::syntax::interface::SyntaxPort>::read"
+          },
+          {
+            "percentages": [
+              17.45,
+              0.29
+            ],
+            "symbol": "ryo_core::domain::pipeline::service::keep"
+          },
+          {
+            "percentages": [
+              16.09,
+              0.12
+            ],
+            "symbol": "<ryo_core::domain::operator::collections::operators::project::item::ProjectItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream"
+          },
+          {
+            "percentages": [
+              13.65,
+              0.21
+            ],
+            "symbol": "<ryo_core::domain::operator::collections::operators::union::item::UnionItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream"
+          },
+          {
+            "percentages": [
+              12.28,
+              3.85
+            ],
+            "symbol": "ryo_core::domain::comparing::service::holds_one"
+          },
+          {
+            "percentages": [
+              11.12,
+              0.04
+            ],
+            "symbol": "<ryo_core::domain::operator::collections::operators::group_count::item::GroupCountItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream"
+          },
+          {
+            "percentages": [
+              9.88,
+              1.57
+            ],
+            "symbol": "<ra_ap_parser::lexed_str::LexedStr>::intersperse_trivia"
+          },
+          {
+            "percentages": [
+              8.77,
+              2.94
+            ],
+            "symbol": "ryo_core::domain::operator::collections::operators::select::item::tree_each"
+          },
+          {
+            "percentages": [
+              8.4,
+              0.0
+            ],
+            "symbol": "<rayon_core::job::StackJob<rayon_core::latch::LatchRef<rayon_core::latch::LockLatch>, <rayon_core::registry::Registry>::in_worker_cold<<rayon_core::thread_pool::ThreadPool>::install<<rayon_core::thread_pool::ThreadPool>::scope<<ryo_core::outbound::scheduler::adapters::rayon::adapter::SchedulerRayonAdapter as ryo_core::outbound::scheduler::interface::SchedulerPort>::run::{closure#0}, ()>::{closure#0}, ()>::{closure#0}, ()>::{closure#0}::{closure#0}, ()> as rayon_core::job::Job>::execute"
+          },
+          {
+            "percentages": [
+              8.4,
+              0.0
+            ],
+            "symbol": "rayon_core::scope::scope::<<ryo_core::outbound::scheduler::adapters::rayon::adapter::SchedulerRayonAdapter as ryo_core::outbound::scheduler::interface::SchedulerPort>::run::{closure#0}, ()>::{closure#0}"
+          },
+          {
+            "percentages": [
+              8.06,
+              0.58
+            ],
+            "symbol": "ryo_core::domain::operator::collections::operators::join::item::join_rows"
+          },
+          {
+            "percentages": [
+              7.86,
+              6.2
+            ],
+            "symbol": "<ryo_core::domain::replay::types::Pipe<<ryo_core::domain::operator::collections::operators::group_count::item::GroupCountItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream::{closure#1}> as ryo_core::domain::operating::types::Emit>::row"
+          },
+          {
+            "percentages": [
+              7.69,
+              1.74
+            ],
+            "symbol": "<ryo_rust::outbound::syntax::adapters::ra_ap_syntax::adapter::SyntaxRaApSyntaxAdapter as ryo_rust::outbound::syntax::interface::SyntaxPort>::read::{closure#0}"
+          },
+          {
+            "percentages": [
+              7.57,
+              0.08
+            ],
+            "symbol": "<ryo_core::domain::operator::collections::operators::axis::item::AxisItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream"
+          },
+          {
+            "percentages": [
+              7.53,
+              1.49
+            ],
+            "symbol": "ryo_core::domain::comparing::service::holds"
+          },
+          {
+            "percentages": [
+              7.11,
+              1.57
+            ],
+            "symbol": "ryo_core::domain::tree_join::service::probe"
+          },
+          {
+            "percentages": [
+              5.79,
+              4.76
+            ],
+            "symbol": "ryo_core::domain::walks::service::admits"
+          },
+          {
+            "percentages": [
+              5.62,
+              1.61
+            ],
+            "symbol": "ryo_rust::outbound::syntax::adapters::ra_ap_syntax::adapter::emit"
+          },
+          {
+            "percentages": [
+              5.58,
+              0.04
+            ],
+            "symbol": "<ryo_core::domain::operator::collections::operators::capture::item::CaptureItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream"
+          },
+          {
+            "percentages": [
+              5.25,
+              1.32
+            ],
+            "symbol": "ryo_core::domain::tree_walk::service::walk_row"
+          },
+          {
+            "percentages": [
+              5.25,
+              0.04
+            ],
+            "symbol": "<ryo_core::domain::replay::types::Pipe<<ryo_core::domain::operator::collections::operators::axis::item::AxisItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream::{closure#0}> as ryo_core::domain::operating::types::Emit>::row"
+          },
+          {
+            "percentages": [
+              4.92,
+              0.62
+            ],
+            "symbol": "ryo_core::domain::operator::collections::operators::capture::item::capture_row"
+          },
+          {
+            "percentages": [
+              4.88,
+              0.0
+            ],
+            "symbol": "<ryo_core::domain::replay::types::Pipe<<ryo_core::domain::operator::collections::operators::capture::item::CaptureItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream::{closure#0}> as ryo_core::domain::operating::types::Emit>::row"
+          },
+          {
+            "percentages": [
+              4.76,
+              3.93
+            ],
+            "symbol": "ryo_core::domain::table_dedup::service::find_or_add"
+          },
+          {
+            "percentages": [
+              4.26,
+              0.45
+            ],
+            "symbol": "<ryo_core::inbound::use_cases::lint::use_case::LintUseCaseImpl>::drain::<ryo_core::domain::answering::types::Todo, core::result::Result<ryo_core::domain::answering::types::Crossed, ryo_core::inbound::use_cases::lint::errors::LintError>, <ryo_core::inbound::use_cases::lint::use_case::LintUseCaseImpl>::crossed::{closure#1}>::{closure#1}"
+          },
+          {
+            "percentages": [
+              4.14,
+              0.45
+            ],
+            "symbol": "ryo_core::domain::operator::collections::operators::select::item::select_rows"
+          },
+          {
+            "percentages": [
+              4.05,
+              0.08
+            ],
+            "symbol": "<ryo_core::domain::operator::collections::operators::group_digest::item::GroupDigestItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream"
+          },
+          {
+            "percentages": [
+              3.6,
+              1.2
+            ],
+            "symbol": "<ryo_core::domain::replay::types::Pipe<<ryo_core::domain::operator::collections::operators::project::item::ProjectItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream::{closure#0}> as ryo_core::domain::operating::types::Emit>::row"
+          },
+          {
+            "percentages": [
+              3.56,
+              1.16
+            ],
+            "symbol": "<ra_ap_parser::TopEntryPoint>::parse"
+          },
+          {
+            "percentages": [
+              3.47,
+              0.74
+            ],
+            "symbol": "<ra_ap_parser::lexed_str::LexedStr>::new"
+          },
+          {
+            "percentages": [
+              3.27,
+              1.86
+            ],
+            "symbol": "ryo_core::domain::operator::collections::operators::capture::item::matches"
+          },
+          {
+            "percentages": [
+              3.02,
+              0.08
+            ],
+            "symbol": "<ryo_core::domain::replay::types::Pipe<<ryo_core::domain::operator::collections::operators::select::item::SelectItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream::{closure#0}> as ryo_core::domain::operating::types::Emit>::row"
+          },
+          {
+            "percentages": [
+              3.02,
+              0.0
+            ],
+            "symbol": "ryo_core::domain::operator::collections::operators::join::item::stream_lookup"
+          },
+          {
+            "percentages": [
+              2.94,
+              0.37
+            ],
+            "symbol": "ryo_language::inbound::use_cases::parse::service::walk_in::<ryo_rust::inbound::contracts::parse::contract::ParseContract>"
+          },
+          {
+            "percentages": [
+              2.69,
+              0.21
+            ],
+            "symbol": "ryo_core::domain::positions::service::firsts"
+          },
+          {
+            "percentages": [
+              2.65,
+              1.49
+            ],
+            "symbol": "ryo_core::domain::globbing::service::matches"
+          },
+          {
+            "percentages": [
+              2.65,
+              0.08
+            ],
+            "symbol": "ryo_core::domain::positions::service::sorted"
+          },
+          {
+            "percentages": [
+              2.61,
+              0.08
+            ],
+            "symbol": "ryo_core::domain::fragment::service::emit_counts"
+          },
+          {
+            "percentages": [
+              2.52,
+              0.29
+            ],
+            "symbol": "ryo_core::domain::fragment::service::emit"
+          },
+          {
+            "percentages": [
+              2.36,
+              1.45
+            ],
+            "symbol": "<ra_ap_rustc_lexer::Cursor>::advance_token"
+          },
+          {
+            "percentages": [
+              2.27,
+              0.87
+            ],
+            "symbol": "core::slice::sort::unstable::quicksort::quicksort::<usize, <[usize]>::sort_unstable_by<ryo_core::domain::positions::service::sorted::{closure#1}>::{closure#0}>"
+          },
+          {
+            "percentages": [
+              2.27,
+              0.21
+            ],
+            "symbol": "ryo_core::domain::crossing::service::cross_rule"
+          },
+          {
+            "percentages": [
+              2.19,
+              2.19
+            ],
+            "symbol": "ryo_language::domain::elements::service::push"
+          },
+          {
+            "percentages": [
+              2.19,
+              0.0
+            ],
+            "symbol": "ra_ap_parser::grammar::entry::top::source_file"
+          },
+          {
+            "percentages": [
+              2.19,
+              0.0
+            ],
+            "symbol": "ra_ap_parser::grammar::items::mod_contents"
+          },
+          {
+            "percentages": [
+              2.19,
+              0.04
+            ],
+            "symbol": "ra_ap_parser::grammar::items::item_or_macro"
+          },
+          {
+            "percentages": [
+              2.11,
+              0.08
+            ],
+            "symbol": "ra_ap_parser::grammar::items::opt_item"
+          },
+          {
+            "percentages": [
+              2.07,
+              2.07
+            ],
+            "symbol": "<alloc::vec::Vec<u32>>::extend_desugared::<core::iter::adapters::map::Map<core::iter::sources::successors::Successors<ryo_language::domain::relations::types::Position, ryo_core::domain::walks::service::axis::{closure#3}>, ryo_core::domain::walks::service::axis::{closure#4}>>"
+          },
+          {
+            "percentages": [
+              2.07,
+              2.07
+            ],
+            "symbol": "core::str::converts::from_utf8"
+          },
+          {
+            "percentages": [
+              1.99,
+              0.66
+            ],
+            "symbol": "ryo_core::domain::operands::service::resolve"
+          },
+          {
+            "percentages": [
+              1.99,
+              0.5
+            ],
+            "symbol": "ryo_core::domain::table_texts::service::datum"
+          },
+          {
+            "percentages": [
+              1.94,
+              0.37
+            ],
+            "symbol": "<ryo_core::domain::operator::collections::operators::closure::item::ClosureItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::compute"
+          },
+          {
+            "percentages": [
+              1.86,
+              0.08
+            ],
+            "symbol": "<ryo_core::domain::operator::collections::operators::antijoin::item::AntijoinItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream"
+          },
+          {
+            "percentages": [
+              1.82,
+              0.0
+            ],
+            "symbol": "<ryo_core::domain::operator::collections::operators::intersection::item::IntersectionItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream"
+          },
+          {
+            "percentages": [
+              1.78,
+              0.5
+            ],
+            "symbol": "<ryo_rust::inbound::contracts::parse::contract::ParseContract as ryo_language::inbound::use_cases::parse::interface::ParseUseCase>::complete"
+          },
+          {
+            "percentages": [
+              1.78,
+              0.04
+            ],
+            "symbol": "ryo_core::domain::operator::service::compute"
+          },
+          {
+            "percentages": [
+              1.78,
+              0.0
+            ],
+            "symbol": "ra_ap_parser::grammar::expressions::atom::block_expr"
+          },
+          {
+            "percentages": [
+              1.78,
+              0.08
+            ],
+            "symbol": "ra_ap_parser::grammar::expressions::atom::stmt_list"
+          },
+          {
+            "percentages": [
+              1.78,
+              0.0
+            ],
+            "symbol": "ra_ap_parser::grammar::expressions::stmt"
+          },
+          {
+            "percentages": [
+              1.74,
+              0.17
+            ],
+            "symbol": "<ryo_core::domain::replay::types::Pipe<<ryo_core::domain::operator::collections::operators::join::item::JoinItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream::{closure#0}> as ryo_core::domain::operating::types::Emit>::row"
+          },
+          {
+            "percentages": [
+              1.7,
+              0.45
+            ],
+            "symbol": "ra_ap_parser::grammar::expressions::expr_bp"
+          },
+          {
+            "percentages": [
+              1.65,
+              1.65
+            ],
+            "symbol": "ryo_core::domain::table_model::service::read_row"
+          },
+          {
+            "percentages": [
+              1.61,
+              1.45
+            ],
+            "symbol": "ryo_language::domain::symbols::service::intern"
+          },
+          {
+            "percentages": [
+              1.45,
+              1.2
+            ],
+            "symbol": "ryo_core::domain::positions::service::hits"
+          },
+          {
+            "percentages": [
+              1.36,
+              0.0
+            ],
+            "symbol": "ra_ap_parser::grammar::expressions::atom::atom_expr"
+          },
+          {
+            "percentages": [
+              1.32,
+              1.24
+            ],
+            "symbol": "core::slice::sort::shared::smallsort::small_sort_network::<usize, <[usize]>::sort_unstable_by<ryo_core::domain::positions::service::sorted::{closure#1}>::{closure#0}>"
+          },
+          {
+            "percentages": [
+              1.32,
+              0.21
+            ],
+            "symbol": "<ryo_core::domain::replay::types::Pipe<<ryo_core::domain::operator::collections::operators::group_digest::item::GroupDigestItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream::{closure#1}> as ryo_core::domain::operating::types::Emit>::row"
+          },
+          {
+            "percentages": [
+              1.28,
+              1.03
+            ],
+            "symbol": "ryo_core::domain::shared_walk::service::consider"
+          },
+          {
+            "percentages": [
+              1.2,
+              0.17
+            ],
+            "symbol": "<ra_ap_parser::shortcuts::Builder>::eat_n_trivias"
+          },
+          {
+            "percentages": [
+              1.2,
+              0.04
+            ],
+            "symbol": "do_rallocx"
+          },
+          {
+            "percentages": [
+              1.12,
+              1.12
+            ],
+            "symbol": "memcmp"
+          },
+          {
+            "percentages": [
+              1.12,
+              0.99
+            ],
+            "symbol": "<ra_ap_parser::lexed_str::LexedStr>::to_input"
+          },
+          {
+            "percentages": [
+              1.12,
+              0.12
+            ],
+            "symbol": "<regex_automata::meta::strategy::Core as regex_automata::meta::strategy::Strategy>::is_match"
+          },
+          {
+            "percentages": [
+              1.08,
+              0.91
+            ],
+            "symbol": "ryo_core::domain::globbing::service::matches::{closure#1}"
+          },
+          {
+            "percentages": [
+              1.08,
+              0.21
+            ],
+            "symbol": "<ryo_core::domain::replay::types::Pipe<<ryo_core::domain::operator::collections::operators::union::item::UnionItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream::{closure#0}> as ryo_core::domain::operating::types::Emit>::row"
+          },
+          {
+            "percentages": [
+              1.03,
+              0.58
+            ],
+            "symbol": "<ryo_rust::domain::relations::collections::relations::reference::item::ReferenceItem as ryo_language::domain::answers::types::Visiting<ryo_language::domain::relations::collections::relations::reference::item::Reference, ()>>::visit"
+          },
+          {
+            "percentages": [
+              1.03,
+              0.0
+            ],
+            "symbol": "ra_ap_parser::grammar::items::traits::assoc_item_list"
+          }
+        ]
+      },
+      "report_header": "# To display the perf.data header info, please use --header/--header-only options.\n#\n#\n# Total Lost Samples: 0\n#\n# Samples: 2K of event 'cpu-clock:u'\n# Event count (approx.): 24424242180\n#\n",
+      "attach_limit": "Samplerstartsafteraggregatephasesmarker;initialmilliseconds maybemissed. PerfSIGINTstopsrecorderonly,originalbenchmarkcompletes."
+    },
+    "candidate": {
+      "receipt": {
+        "schema": "existing-sealed-cold-cpu-profile/v1",
+        "measurement": false,
+        "variant": "candidate",
+        "executable": "/tmp/normalized-staging-artifacts-5-20261102/rust-candidate-release",
+        "binary_sha256": "76f89b6fbf57a3372b1a358e2682dbd75009985a68be7b7c5914cfa43b003737",
+        "command": [
+          "/tmp/normalized-staging-artifacts-5-20261102/rust-candidate-release",
+          "--bench",
+          "--rounds",
+          "1"
+        ],
+        "bench_status": 0,
+        "perf_status": -2,
+        "profiled_scope": "47-rule cold5 and8-rule spike3 only; attached after47rules marker, stopped at cache marker; no individual-rule-prefix or cache phases sampled",
+        "start_seconds_after_invocation": 28.415321222972125,
+        "stop_seconds_after_invocation": 36.212370912893675,
+        "whole_invocation_seconds": 95.90625565696973,
+        "perf_data_sha256": "75bb930e36a482c687e0048955d148f52a566927425819da07343b4a6a795e21"
+      },
+      "top_symbols": {
+        "self": [
+          {
+            "percentages": [
+              22.84
+            ],
+            "symbol": "ryo_core::domain::table_scratch::service::scratch_bytes"
+          },
+          {
+            "percentages": [
+              10.01
+            ],
+            "symbol": "ryo_core::domain::table_scratch::service::clear_scratch"
+          },
+          {
+            "percentages": [
+              5.44
+            ],
+            "symbol": "ryo_core::domain::working_set::service::retain_pool"
+          },
+          {
+            "percentages": [
+              2.95
+            ],
+            "symbol": "ryo_core::domain::working_set::service::release_rule"
+          },
+          {
+            "percentages": [
+              2.72
+            ],
+            "symbol": "ryo_core::domain::operator::collections::operators::select::item::tree_each"
+          },
+          {
+            "percentages": [
+              2.68
+            ],
+            "symbol": "<regex_automata::meta::strategy::Core as regex_automata::meta::strategy::Strategy>::memory_usage"
+          },
+          {
+            "percentages": [
+              2.38
+            ],
+            "symbol": "<ryo_core::domain::replay::types::Pipe<<ryo_core::domain::operator::collections::operators::group_count::item::GroupCountItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream::{closure#1}> as ryo_core::domain::operating::types::Emit>::row"
+          },
+          {
+            "percentages": [
+              2.27
+            ],
+            "symbol": "ryo_core::domain::comparing::service::holds_one"
+          },
+          {
+            "percentages": [
+              2.23
+            ],
+            "symbol": "ryo_core::domain::walks::service::admits"
+          },
+          {
+            "percentages": [
+              1.91
+            ],
+            "symbol": "ryo_core::domain::table_dedup::service::find_or_add"
+          },
+          {
+            "percentages": [
+              1.66
+            ],
+            "symbol": "ryo_core::domain::fragment::service::make_rows"
+          },
+          {
+            "percentages": [
+              1.49
+            ],
+            "symbol": "core::str::converts::from_utf8"
+          },
+          {
+            "percentages": [
+              1.32
+            ],
+            "symbol": "<ra_ap_parser::lexed_str::LexedStr>::intersperse_trivia"
+          },
+          {
+            "percentages": [
+              1.3
+            ],
+            "symbol": "ryo_core::domain::reading::service::evaluate_rule"
+          },
+          {
+            "percentages": [
+              1.1
+            ],
+            "symbol": "ryo_core::domain::comparing::service::holds"
+          },
+          {
+            "percentages": [
+              1.04
+            ],
+            "symbol": "ryo_core::domain::tree_walk::service::walk_row"
+          },
+          {
+            "percentages": [
+              1.02
+            ],
+            "symbol": "<ryo_core::application::file_analysis::service::FileAnalysis>::read_file"
+          },
+          {
+            "percentages": [
+              1.0
+            ],
+            "symbol": "ryo_core::domain::table_model::service::read_row"
+          },
+          {
+            "percentages": [
+              0.98
+            ],
+            "symbol": "<ra_ap_parser::TopEntryPoint>::parse"
+          },
+          {
+            "percentages": [
+              0.98
+            ],
+            "symbol": "ryo_language::domain::symbols::service::intern"
+          },
+          {
+            "percentages": [
+              0.98
+            ],
+            "symbol": "ryo_rust::outbound::syntax::adapters::ra_ap_syntax::adapter::emit"
+          },
+          {
+            "percentages": [
+              0.96
+            ],
+            "symbol": "ryo_core::domain::operator::collections::operators::capture::item::matches"
+          },
+          {
+            "percentages": [
+              0.91
+            ],
+            "symbol": "<ra_ap_rustc_lexer::Cursor>::advance_token"
+          },
+          {
+            "percentages": [
+              0.89
+            ],
+            "symbol": "ryo_language::domain::elements::service::push"
+          },
+          {
+            "percentages": [
+              0.87
+            ],
+            "symbol": "<alloc::vec::Vec<u32>>::extend_desugared::<core::iter::adapters::map::Map<core::iter::sources::successors::Successors<ryo_language::domain::relations::types::Position, ryo_core::domain::walks::service::axis::{closure#3}>, ryo_core::domain::walks::service::axis::{closure#4}>>"
+          },
+          {
+            "percentages": [
+              0.85
+            ],
+            "symbol": "core::slice::sort::shared::smallsort::small_sort_network::<usize, <[usize]>::sort_unstable_by<ryo_core::domain::positions::service::sorted::{closure#1}>::{closure#0}>"
+          },
+          {
+            "percentages": [
+              0.83
+            ],
+            "symbol": "ryo_core::domain::globbing::service::matches"
+          },
+          {
+            "percentages": [
+              0.7
+            ],
+            "symbol": "<ryo_rust::outbound::syntax::adapters::ra_ap_syntax::adapter::SyntaxRaApSyntaxAdapter as ryo_rust::outbound::syntax::interface::SyntaxPort>::read::{closure#0}"
+          },
+          {
+            "percentages": [
+              0.7
+            ],
+            "symbol": "ryo_core::domain::tree_join::service::probe"
+          },
+          {
+            "percentages": [
+              0.62
+            ],
+            "symbol": "memcmp"
+          },
+          {
+            "percentages": [
+              0.57
+            ],
+            "symbol": "core::slice::sort::unstable::quicksort::quicksort::<usize, <[usize]>::sort_unstable_by<ryo_core::domain::positions::service::sorted::{closure#1}>::{closure#0}>"
+          },
+          {
+            "percentages": [
+              0.57
+            ],
+            "symbol": "regex_automata::hybrid::search::find_fwd"
+          },
+          {
+            "percentages": [
+              0.51
+            ],
+            "symbol": "<ryo_core::domain::replay::types::Pipe<<ryo_core::domain::operator::collections::operators::project::item::ProjectItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream::{closure#0}> as ryo_core::domain::operating::types::Emit>::row"
+          }
+        ],
+        "inclusive": [
+          {
+            "percentages": [
+              89.61,
+              0.36
+            ],
+            "symbol": "<ryo_core::application::file_analysis::service::FileAnalysis>::visit_file"
+          },
+          {
+            "percentages": [
+              77.48,
+              0.08
+            ],
+            "symbol": "<ryo_core::inbound::use_cases::lint::use_case::LintUseCaseImpl>::visited::{closure#0}"
+          },
+          {
+            "percentages": [
+              76.48,
+              1.02
+            ],
+            "symbol": "<ryo_core::application::file_analysis::service::FileAnalysis>::read_file"
+          },
+          {
+            "percentages": [
+              76.29,
+              0.0
+            ],
+            "symbol": "<rayon_core::job::HeapJob<<rayon_core::scope::Scope>::spawn<<ryo_core::outbound::scheduler::adapters::rayon::adapter::SchedulerRayonAdapter as ryo_core::outbound::scheduler::interface::SchedulerPort>::run::{closure#0}::{closure#0}>::{closure#0}> as rayon_core::job::Job>::execute"
+          },
+          {
+            "percentages": [
+              75.76,
+              1.3
+            ],
+            "symbol": "ryo_core::domain::reading::service::evaluate_rule"
+          },
+          {
+            "percentages": [
+              75.33,
+              0.0
+            ],
+            "symbol": "<rayon_core::registry::WorkerThread>::wait_until_cold"
+          },
+          {
+            "percentages": [
+              75.04,
+              0.0
+            ],
+            "symbol": "std::sys::backtrace::__rust_begin_short_backtrace::<<rayon_core::registry::DefaultSpawn as rayon_core::registry::ThreadSpawn>::spawn::{closure#0}, ()>"
+          },
+          {
+            "percentages": [
+              74.08,
+              0.0
+            ],
+            "symbol": "<std::thread::lifecycle::spawn_unchecked<<rayon_core::registry::DefaultSpawn as rayon_core::registry::ThreadSpawn>::spawn::{closure#0}, ()>::{closure#1} as core::ops::function::FnOnce<()>>::call_once::{shim:vtable#0}"
+          },
+          {
+            "percentages": [
+              73.74,
+              0.0
+            ],
+            "symbol": "<std::sys::thread::unix::Thread>::new::thread_start"
+          },
+          {
+            "percentages": [
+              73.57,
+              0.0
+            ],
+            "symbol": "0x0000ffff96895f37"
+          },
+          {
+            "percentages": [
+              34.31,
+              0.38
+            ],
+            "symbol": "ryo_core::domain::pipeline::service::pass_on_inner"
+          },
+          {
+            "percentages": [
+              27.55,
+              5.44
+            ],
+            "symbol": "ryo_core::domain::working_set::service::retain_pool"
+          },
+          {
+            "percentages": [
+              25.52,
+              22.84
+            ],
+            "symbol": "ryo_core::domain::table_scratch::service::scratch_bytes"
+          },
+          {
+            "percentages": [
+              23.07,
+              0.06
+            ],
+            "symbol": "ryo_core::domain::pipeline::service::deliver"
+          },
+          {
+            "percentages": [
+              16.42,
+              0.0
+            ],
+            "symbol": "ryo_core::domain::working_set::service::retire"
+          },
+          {
+            "percentages": [
+              14.17,
+              0.32
+            ],
+            "symbol": "ryo_core::domain::fragment::service::make"
+          },
+          {
+            "percentages": [
+              13.85,
+              1.66
+            ],
+            "symbol": "ryo_core::domain::fragment::service::make_rows"
+          },
+          {
+            "percentages": [
+              13.21,
+              0.0
+            ],
+            "symbol": "<ryo_core::outbound::language::adapters::use_case::adapter::LanguageUseCaseAdapter as ryo_core::outbound::language::interface::LanguagePort>::parse"
+          },
+          {
+            "percentages": [
+              13.21,
+              0.0
+            ],
+            "symbol": "<ryo_rust::inbound::contracts::parse::contract::ParseContract as ryo_language::inbound::use_cases::parse::types::ParseEngine>::read_file"
+          },
+          {
+            "percentages": [
+              12.9,
+              2.95
+            ],
+            "symbol": "ryo_core::domain::working_set::service::release_rule"
+          },
+          {
+            "percentages": [
+              11.73,
+              0.02
+            ],
+            "symbol": "ryo_language::inbound::use_cases::parse::service::build_in::<ryo_rust::inbound::contracts::parse::contract::ParseContract>"
+          },
+          {
+            "percentages": [
+              11.51,
+              0.04
+            ],
+            "symbol": "<ryo_core::domain::operator::collections::operators::join::item::JoinItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream"
+          },
+          {
+            "percentages": [
+              10.62,
+              0.23
+            ],
+            "symbol": "ryo_core::domain::replay::service::scan"
+          },
+          {
+            "percentages": [
+              10.54,
+              0.0
+            ],
+            "symbol": "<ryo_rust::outbound::syntax::adapters::ra_ap_syntax::adapter::SyntaxRaApSyntaxAdapter as ryo_rust::outbound::syntax::interface::SyntaxPort>::read"
+          },
+          {
+            "percentages": [
+              10.22,
+              0.04
+            ],
+            "symbol": "<ryo_core::domain::operator::collections::operators::select::item::SelectItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream"
+          },
+          {
+            "percentages": [
+              10.05,
+              10.01
+            ],
+            "symbol": "ryo_core::domain::table_scratch::service::clear_scratch"
+          },
+          {
+            "percentages": [
+              8.8,
+              0.08
+            ],
+            "symbol": "ryo_core::domain::pipeline::service::keep"
+          },
+          {
+            "percentages": [
+              8.24,
+              0.06
+            ],
+            "symbol": "<ryo_core::domain::operator::collections::operators::union::item::UnionItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream"
+          },
+          {
+            "percentages": [
+              7.54,
+              0.0
+            ],
+            "symbol": "rayon_core::scope::scope::<<ryo_core::outbound::scheduler::adapters::rayon::adapter::SchedulerRayonAdapter as ryo_core::outbound::scheduler::interface::SchedulerPort>::run::{closure#0}, ()>::{closure#0}"
+          },
+          {
+            "percentages": [
+              7.46,
+              0.0
+            ],
+            "symbol": "<rayon_core::job::StackJob<rayon_core::latch::LatchRef<rayon_core::latch::LockLatch>, <rayon_core::registry::Registry>::in_worker_cold<<rayon_core::thread_pool::ThreadPool>::install<<rayon_core::thread_pool::ThreadPool>::scope<<ryo_core::outbound::scheduler::adapters::rayon::adapter::SchedulerRayonAdapter as ryo_core::outbound::scheduler::interface::SchedulerPort>::run::{closure#0}, ()>::{closure#0}, ()>::{closure#0}, ()>::{closure#0}::{closure#0}, ()> as rayon_core::job::Job>::execute"
+          },
+          {
+            "percentages": [
+              7.39,
+              0.02
+            ],
+            "symbol": "<ryo_core::domain::operator::collections::operators::project::item::ProjectItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream"
+          },
+          {
+            "percentages": [
+              6.97,
+              2.27
+            ],
+            "symbol": "ryo_core::domain::comparing::service::holds_one"
+          },
+          {
+            "percentages": [
+              6.05,
+              2.72
+            ],
+            "symbol": "ryo_core::domain::operator::collections::operators::select::item::tree_each"
+          },
+          {
+            "percentages": [
+              5.63,
+              1.32
+            ],
+            "symbol": "<ra_ap_parser::lexed_str::LexedStr>::intersperse_trivia"
+          },
+          {
+            "percentages": [
+              4.76,
+              0.02
+            ],
+            "symbol": "ryo_core::domain::operator::collections::operators::join::item::join_rows"
+          },
+          {
+            "percentages": [
+              4.33,
+              1.1
+            ],
+            "symbol": "ryo_core::domain::comparing::service::holds"
+          },
+          {
+            "percentages": [
+              4.29,
+              0.7
+            ],
+            "symbol": "ryo_core::domain::tree_join::service::probe"
+          },
+          {
+            "percentages": [
+              4.27,
+              0.04
+            ],
+            "symbol": "<ryo_core::domain::operator::collections::operators::axis::item::AxisItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream"
+          },
+          {
+            "percentages": [
+              4.08,
+              0.04
+            ],
+            "symbol": "<ryo_core::domain::operator::collections::operators::group_count::item::GroupCountItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream"
+          },
+          {
+            "percentages": [
+              4.06,
+              0.7
+            ],
+            "symbol": "<ryo_rust::outbound::syntax::adapters::ra_ap_syntax::adapter::SyntaxRaApSyntaxAdapter as ryo_rust::outbound::syntax::interface::SyntaxPort>::read::{closure#0}"
+          },
+          {
+            "percentages": [
+              3.17,
+              2.38
+            ],
+            "symbol": "<ryo_core::domain::replay::types::Pipe<<ryo_core::domain::operator::collections::operators::group_count::item::GroupCountItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream::{closure#1}> as ryo_core::domain::operating::types::Emit>::row"
+          },
+          {
+            "percentages": [
+              3.14,
+              0.02
+            ],
+            "symbol": "<ryo_core::domain::replay::types::Pipe<<ryo_core::domain::operator::collections::operators::axis::item::AxisItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream::{closure#0}> as ryo_core::domain::operating::types::Emit>::row"
+          },
+          {
+            "percentages": [
+              3.1,
+              1.04
+            ],
+            "symbol": "ryo_core::domain::tree_walk::service::walk_row"
+          },
+          {
+            "percentages": [
+              3.08,
+              0.98
+            ],
+            "symbol": "ryo_rust::outbound::syntax::adapters::ra_ap_syntax::adapter::emit"
+          },
+          {
+            "percentages": [
+              2.72,
+              2.23
+            ],
+            "symbol": "ryo_core::domain::walks::service::admits"
+          },
+          {
+            "percentages": [
+              2.68,
+              2.68
+            ],
+            "symbol": "<regex_automata::meta::strategy::Core as regex_automata::meta::strategy::Strategy>::memory_usage"
+          },
+          {
+            "percentages": [
+              2.57,
+              1.91
+            ],
+            "symbol": "ryo_core::domain::table_dedup::service::find_or_add"
+          },
+          {
+            "percentages": [
+              2.57,
+              0.0
+            ],
+            "symbol": "<ryo_core::domain::operator::collections::operators::extend::item::ExtendItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream"
+          },
+          {
+            "percentages": [
+              2.51,
+              0.02
+            ],
+            "symbol": "<ryo_core::domain::operator::collections::operators::capture::item::CaptureItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream"
+          },
+          {
+            "percentages": [
+              2.49,
+              0.98
+            ],
+            "symbol": "<ra_ap_parser::TopEntryPoint>::parse"
+          },
+          {
+            "percentages": [
+              2.29,
+              0.06
+            ],
+            "symbol": "<ryo_core::domain::operator::collections::operators::group_digest::item::GroupDigestItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream"
+          },
+          {
+            "percentages": [
+              2.17,
+              0.25
+            ],
+            "symbol": "ryo_core::domain::operator::collections::operators::capture::item::capture_row"
+          },
+          {
+            "percentages": [
+              2.15,
+              0.0
+            ],
+            "symbol": "<ryo_core::domain::replay::types::Pipe<<ryo_core::domain::operator::collections::operators::capture::item::CaptureItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream::{closure#0}> as ryo_core::domain::operating::types::Emit>::row"
+          },
+          {
+            "percentages": [
+              2.04,
+              0.0
+            ],
+            "symbol": "<ryo_core::inbound::use_cases::lint::use_case::LintUseCaseImpl>::drain::<ryo_core::domain::answering::types::Todo, core::result::Result<ryo_core::domain::answering::types::Crossed, ryo_core::inbound::use_cases::lint::errors::LintError>, <ryo_core::inbound::use_cases::lint::use_case::LintUseCaseImpl>::crossed::{closure#1}>::{closure#1}"
+          },
+          {
+            "percentages": [
+              2.04,
+              0.25
+            ],
+            "symbol": "<ryo_core::inbound::use_cases::lint::use_case::LintUseCaseImpl>::crossed::{closure#1}"
+          },
+          {
+            "percentages": [
+              2.02,
+              0.28
+            ],
+            "symbol": "<ra_ap_parser::lexed_str::LexedStr>::new"
+          },
+          {
+            "percentages": [
+              2.0,
+              0.19
+            ],
+            "symbol": "<ryo_core::domain::replay::types::Pipe<<ryo_core::domain::operator::collections::operators::select::item::SelectItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream::{closure#0}> as ryo_core::domain::operating::types::Emit>::row"
+          },
+          {
+            "percentages": [
+              1.93,
+              0.15
+            ],
+            "symbol": "ryo_core::domain::operator::collections::operators::select::item::select_rows"
+          },
+          {
+            "percentages": [
+              1.89,
+              0.51
+            ],
+            "symbol": "<ryo_core::domain::replay::types::Pipe<<ryo_core::domain::operator::collections::operators::project::item::ProjectItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream::{closure#0}> as ryo_core::domain::operating::types::Emit>::row"
+          },
+          {
+            "percentages": [
+              1.68,
+              0.04
+            ],
+            "symbol": "ryo_core::domain::positions::service::firsts"
+          },
+          {
+            "percentages": [
+              1.68,
+              0.0
+            ],
+            "symbol": "ryo_core::domain::positions::service::sorted"
+          },
+          {
+            "percentages": [
+              1.64,
+              0.96
+            ],
+            "symbol": "ryo_core::domain::operator::collections::operators::capture::item::matches"
+          },
+          {
+            "percentages": [
+              1.55,
+              0.57
+            ],
+            "symbol": "core::slice::sort::unstable::quicksort::quicksort::<usize, <[usize]>::sort_unstable_by<ryo_core::domain::positions::service::sorted::{closure#1}>::{closure#0}>"
+          },
+          {
+            "percentages": [
+              1.49,
+              1.49
+            ],
+            "symbol": "core::str::converts::from_utf8"
+          },
+          {
+            "percentages": [
+              1.49,
+              0.28
+            ],
+            "symbol": "ryo_language::inbound::use_cases::parse::service::walk_in::<ryo_rust::inbound::contracts::parse::contract::ParseContract>"
+          },
+          {
+            "percentages": [
+              1.47,
+              0.0
+            ],
+            "symbol": "ra_ap_parser::grammar::entry::top::source_file"
+          },
+          {
+            "percentages": [
+              1.44,
+              0.02
+            ],
+            "symbol": "ra_ap_parser::grammar::items::mod_contents"
+          },
+          {
+            "percentages": [
+              1.42,
+              0.08
+            ],
+            "symbol": "ryo_core::domain::fragment::service::emit_counts"
+          },
+          {
+            "percentages": [
+              1.42,
+              0.0
+            ],
+            "symbol": "ra_ap_parser::grammar::items::item_or_macro"
+          },
+          {
+            "percentages": [
+              1.4,
+              0.02
+            ],
+            "symbol": "ra_ap_parser::grammar::items::opt_item"
+          },
+          {
+            "percentages": [
+              1.34,
+              0.91
+            ],
+            "symbol": "<ra_ap_rustc_lexer::Cursor>::advance_token"
+          },
+          {
+            "percentages": [
+              1.23,
+              0.83
+            ],
+            "symbol": "ryo_core::domain::globbing::service::matches"
+          },
+          {
+            "percentages": [
+              1.17,
+              0.17
+            ],
+            "symbol": "<ryo_core::domain::replay::types::Pipe<<ryo_core::domain::operator::collections::operators::join::item::JoinItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream::{closure#0}> as ryo_core::domain::operating::types::Emit>::row"
+          },
+          {
+            "percentages": [
+              1.15,
+              0.98
+            ],
+            "symbol": "ryo_language::domain::symbols::service::intern"
+          },
+          {
+            "percentages": [
+              1.13,
+              0.21
+            ],
+            "symbol": "<ryo_rust::inbound::contracts::parse::contract::ParseContract as ryo_language::inbound::use_cases::parse::interface::ParseUseCase>::complete"
+          },
+          {
+            "percentages": [
+              1.13,
+              0.11
+            ],
+            "symbol": "ryo_core::domain::crossing::service::cross_rule"
+          },
+          {
+            "percentages": [
+              1.1,
+              0.45
+            ],
+            "symbol": "ryo_core::domain::operands::service::resolve"
+          },
+          {
+            "percentages": [
+              1.08,
+              0.11
+            ],
+            "symbol": "ryo_core::domain::table_texts::service::datum"
+          },
+          {
+            "percentages": [
+              1.02,
+              0.02
+            ],
+            "symbol": "<ryo_core::domain::operator::collections::operators::antijoin::item::AntijoinItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream"
+          },
+          {
+            "percentages": [
+              1.02,
+              0.0
+            ],
+            "symbol": "<ryo_core::domain::operator::collections::operators::intersection::item::IntersectionItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream"
+          }
+        ]
+      },
+      "report_header": "# To display the perf.data header info, please use --header/--header-only options.\n#\n#\n# Total Lost Samples: 0\n#\n# Samples: 4K of event 'cpu-clock:u'\n# Event count (approx.): 47545454070\n#\n",
+      "attach_limit": "Samplerstartsafteraggregatephasesmarker;initialmilliseconds maybemissed. PerfSIGINTstopsrecorderonly,originalbenchmarkcompletes."
+    }
+  },
+  "syscall_profiles": {
+    "base": {
+      "receipt": {
+        "schema": "existing-sealed-cached-cold-syscalls/v1",
+        "measurement": false,
+        "variant": "base",
+        "command": [
+          "strace",
+          "-f",
+          "-c",
+          "-e",
+          "trace=read,write,lseek,futex,openat,close,fsync,fdatasync,pread64,pwrite64,newfstatat,copy_file_range,sendfile",
+          "-o",
+          "/tmp/rust-staging-io-profiles-20261102/base/syscalls.txt",
+          "/tmp/normalized-staging-artifacts-5-20261102/rust-base-release",
+          "--measure-cache-phase",
+          "cold",
+          "/tmp/rust-staging-io-profiles-20261102/corpus"
+        ],
+        "binary_sha256": "77b2104c79e46087c8a7901edf9e872ff2c016b864d8858deddaa8c663611c6f",
+        "exit_code": 0,
+        "diagnostic_elapsed_seconds": 4.069405353977345,
+        "source_pin": {
+          "repository": "https://github.com/astral-sh/ruff",
+          "revision": "0be08a206f9c3180afd3e93bcc792ed5cb1f4db1",
+          "directory": "."
+        },
+        "input_manifest_sha256": "0f43cd20fc16ca8d62fb6b00c2ba197f23c694e36943a23ff130a6e95281067a",
+        "syscall_summary_sha256": "4c8315d99d182b502dbec6a24b5aa448046cb1ded023d5cd27664911e42201a6",
+        "stdout_sha256": "0c4546f5a682955a1eb9cf9b9757769f8d5e009d37a4902e41cbdfb9937b3816",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "limits": "strace intrusive; syscall counts and operational/output evidence only, not benchmark timings; existing supported cold cachephase uses its configured workers, distinct from coldDiscard10worker."
+      },
+      "summary": "% time     seconds  usecs/call     calls    errors syscall\n------ ----------- ----------- --------- --------- ----------------\n 77.13    9.647748         309     31187      1401 futex\n 10.67    1.334636          38     34934           read\n  6.08    0.760010          44     17002       297 openat\n  5.30    0.663329          39     16705           close\n  0.71    0.089056          35      2476           lseek\n  0.11    0.014189         150        94           write\n------ ----------- ----------- --------- --------- ----------------\n100.00   12.508968         122    102398      1698 total\n",
+      "stdout": "evidence\ta698a221c6a3177a538333079fabffcdf8857f4f986aa881774c54101f7afd82\ncache\tcold\t2642\t6875\t11169\t16373\t659\n",
+      "cache_file_sha256": "6b4b6fe72d7666d500614dd869c5d8b36a6928f1791f3899e7de27fba60f1a3e"
+    },
+    "candidate": {
+      "receipt": {
+        "schema": "existing-sealed-cached-cold-syscalls/v1",
+        "measurement": false,
+        "variant": "candidate",
+        "command": [
+          "strace",
+          "-f",
+          "-c",
+          "-e",
+          "trace=read,write,lseek,futex,openat,close,fsync,fdatasync,pread64,pwrite64,newfstatat,copy_file_range,sendfile",
+          "-o",
+          "/tmp/rust-staging-io-profiles-20261102/candidate/syscalls.txt",
+          "/tmp/normalized-staging-artifacts-5-20261102/rust-candidate-release",
+          "--measure-cache-phase",
+          "cold",
+          "/tmp/rust-staging-io-profiles-20261102/corpus"
+        ],
+        "binary_sha256": "76f89b6fbf57a3372b1a358e2682dbd75009985a68be7b7c5914cfa43b003737",
+        "exit_code": 0,
+        "diagnostic_elapsed_seconds": 146.23353072698228,
+        "source_pin": {
+          "repository": "https://github.com/astral-sh/ruff",
+          "revision": "0be08a206f9c3180afd3e93bcc792ed5cb1f4db1",
+          "directory": "."
+        },
+        "input_manifest_sha256": "0f43cd20fc16ca8d62fb6b00c2ba197f23c694e36943a23ff130a6e95281067a",
+        "syscall_summary_sha256": "dfbfccae99a9f1182d229d40cc9cf679d1a27ca1ff5209757ee82d69c0d4792d",
+        "stdout_sha256": "a806ad045c488fc7dc6d4ddadd2e4a3b80079f640bfdccc859edbcbfebb3875a",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "limits": "strace intrusive; syscall counts and operational/output evidence only, not benchmark timings; existing supported cold cachephase uses its configured workers, distinct from coldDiscard10worker."
+      },
+      "summary": "% time     seconds  usecs/call     calls    errors syscall\n------ ----------- ----------- --------- --------- ----------------\n 94.66  432.112863         611    706240     48728 futex\n  3.38   15.430410          34    444892           copy_file_range\n  1.05    4.790636           5    889836           write\n  0.74    3.360467           3    892260           lseek\n  0.07    0.313320           8     34928           read\n  0.06    0.275360          16     17002       297 openat\n  0.04    0.190368          11     16705           close\n------ ----------- ----------- --------- --------- ----------------\n100.00  456.473424         152   3001863     49025 total\n",
+      "stdout": "evidence\t2cbb102ae10e64c3f4245c7a807a5206428fb1462c29df2e796f4d6a1ccb718d\ncache\tcold\t144857\t56659\t11169\t16373\t517\n",
+      "cache_file_sha256": "ead944d9835febe94b650a30c2f80fa9edc30999d2097874e0985a6f02bf0fdf"
+    }
+  },
+  "canonical_cache_comparison": {
+    "schema": "readonly-cache-content-comparison/v1",
+    "limits": "Existing stored canonical diagnostics/coverage and cache metadata compared; phase output_digest includes additional reportfeatures/work not recoverable from this cache. Equal stored findings do not imply messages/fix/rawstdout parity. No new executions.",
+    "sections": {
+      "build": {
+        "base_count": null,
+        "candidate_count": null,
+        "exact_ordered_equal": true,
+        "base_sha256": "2aa310588c26f507b89c938ebd02d51af164bb3dede5b25c1a1c3264b31d9f07",
+        "candidate_sha256": "2aa310588c26f507b89c938ebd02d51af164bb3dede5b25c1a1c3264b31d9f07"
+      },
+      "rules": {
+        "base_count": 47,
+        "candidate_count": 47,
+        "exact_ordered_equal": false,
+        "base_sha256": "da3158f47e646c0ad6a1f12bf25fc8e97679b799166ee5d5ec25c2b3a35bc36e",
+        "candidate_sha256": "423b592cf3254ff58ae05fbdb8fa07012caa53b2cb2557be0be5dc4f953bddd1",
+        "multiset_equal": false,
+        "extra_count": 47,
+        "missing_count": 47,
+        "first_extra": "{\"across\": 0, \"digest\": \"c66cce52e77f58c84246068d082a8299\", \"rule\": \"adapter-at-root\"}",
+        "first_missing": "{\"across\": 0, \"digest\": \"6bebbe97114ce294cdad13c6608e905b\", \"rule\": \"adapter-at-root\"}"
+      },
+      "files": {
+        "base_count": 11169,
+        "candidate_count": 11169,
+        "exact_ordered_equal": true,
+        "base_sha256": "fad0e624c82f54ff235252ee003dda9c4fae7e49ffb35cd2430cb4f7b2b8e4cd",
+        "candidate_sha256": "fad0e624c82f54ff235252ee003dda9c4fae7e49ffb35cd2430cb4f7b2b8e4cd",
+        "multiset_equal": true,
+        "extra_count": 0,
+        "missing_count": 0,
+        "first_extra": null,
+        "first_missing": null
+      },
+      "frontiers": {
+        "base_count": 171916,
+        "candidate_count": 171916,
+        "exact_ordered_equal": true,
+        "base_sha256": "8f3932687568916580723b66f8f15dcd5e0c84796db6b3a59db924808d2dfe96",
+        "candidate_sha256": "8f3932687568916580723b66f8f15dcd5e0c84796db6b3a59db924808d2dfe96",
+        "multiset_equal": true,
+        "extra_count": 0,
+        "missing_count": 0,
+        "first_extra": null,
+        "first_missing": null
+      },
+      "findings": {
+        "base_count": 16373,
+        "candidate_count": 16373,
+        "exact_ordered_equal": true,
+        "base_sha256": "2ce48273c513e5d6adc4fdd50b24279fb8d0a01516b0ec3cabc4ddbdb79718df",
+        "candidate_sha256": "2ce48273c513e5d6adc4fdd50b24279fb8d0a01516b0ec3cabc4ddbdb79718df",
+        "multiset_equal": true,
+        "extra_count": 0,
+        "missing_count": 0,
+        "first_extra": null,
+        "first_missing": null
+      },
+      "unread": {
+        "base_count": 9108,
+        "candidate_count": 9108,
+        "exact_ordered_equal": true,
+        "base_sha256": "10579cb6fce5b02e504a2e72ca5d90fbac7edd19616bf07a6ffeaaccd4074d7f",
+        "candidate_sha256": "10579cb6fce5b02e504a2e72ca5d90fbac7edd19616bf07a6ffeaaccd4074d7f",
+        "multiset_equal": true,
+        "extra_count": 0,
+        "missing_count": 0,
+        "first_extra": null,
+        "first_missing": null
+      },
+      "refused": {
+        "base_count": 0,
+        "candidate_count": 0,
+        "exact_ordered_equal": true,
+        "base_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "candidate_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "multiset_equal": true,
+        "extra_count": 0,
+        "missing_count": 0,
+        "first_extra": null,
+        "first_missing": null
+      },
+      "unknowns": {
+        "base_count": 0,
+        "candidate_count": 0,
+        "exact_ordered_equal": true,
+        "base_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "candidate_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "multiset_equal": true,
+        "extra_count": 0,
+        "missing_count": 0,
+        "first_extra": null,
+        "first_missing": null
+      },
+      "consulted": {
+        "base_count": 1,
+        "candidate_count": 1,
+        "exact_ordered_equal": true,
+        "base_sha256": "bf4e25c7d0cb977b54770626192c3d565adb6c23069488e778a1ba662fe2601c",
+        "candidate_sha256": "bf4e25c7d0cb977b54770626192c3d565adb6c23069488e778a1ba662fe2601c",
+        "multiset_equal": true,
+        "extra_count": 0,
+        "missing_count": 0,
+        "first_extra": null,
+        "first_missing": null
+      },
+      "consulted_absent": {
+        "base_count": 8,
+        "candidate_count": 8,
+        "exact_ordered_equal": true,
+        "base_sha256": "8459c0d6da9fa218eca7307a7e98480b7ab738bc0915e6bdf7cd89dc4cd7e907",
+        "candidate_sha256": "8459c0d6da9fa218eca7307a7e98480b7ab738bc0915e6bdf7cd89dc4cd7e907",
+        "multiset_equal": true,
+        "extra_count": 0,
+        "missing_count": 0,
+        "first_extra": null,
+        "first_missing": null
+      },
+      "skipped": {
+        "base_count": 0,
+        "candidate_count": 0,
+        "exact_ordered_equal": true,
+        "base_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "candidate_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "multiset_equal": true,
+        "extra_count": 0,
+        "missing_count": 0,
+        "first_extra": null,
+        "first_missing": null
+      },
+      "sections": {
+        "base_count": null,
+        "candidate_count": null,
+        "exact_ordered_equal": false,
+        "base_sha256": "0147fbc1b3ee5a7788596d68e9152131757953edbed52dedd37c71f5e2a3f911",
+        "candidate_sha256": "d442cf612e8eace98027cacb6b4dcb62a21065fb59dd99f5d0ca07f13aa09ed9"
+      }
+    }
+  },
+  "cache_section_byte_comparison": {
+    "sections": [
+      {
+        "category": "tables",
+        "base_length": 6029969,
+        "candidate_length": 6029970,
+        "equal": false,
+        "different_byte_positions": 750
+      },
+      {
+        "category": "rest",
+        "base_length": 25593857,
+        "candidate_length": 25593857,
+        "equal": true,
+        "different_byte_positions": 0
+      },
+      {
+        "bucket": 1,
+        "base_length": 1025426,
+        "candidate_length": 1025426,
+        "equal": true
+      },
+      {
+        "bucket": 2,
+        "base_length": 125484,
+        "candidate_length": 125484,
+        "equal": true
+      },
+      {
+        "bucket": 3,
+        "base_length": 1161242,
+        "candidate_length": 1161242,
+        "equal": true
+      },
+      {
+        "bucket": 4,
+        "base_length": 112047,
+        "candidate_length": 112047,
+        "equal": true
+      },
+      {
+        "bucket": 5,
+        "base_length": 371969,
+        "candidate_length": 371969,
+        "equal": true
+      },
+      {
+        "bucket": 6,
+        "base_length": 89226,
+        "candidate_length": 89226,
+        "equal": true
+      },
+      {
+        "bucket": 7,
+        "base_length": 282315,
+        "candidate_length": 282315,
+        "equal": true
+      },
+      {
+        "bucket": 8,
+        "base_length": 1681971,
+        "candidate_length": 1681971,
+        "equal": true
+      },
+      {
+        "bucket": 9,
+        "base_length": 89226,
+        "candidate_length": 89226,
+        "equal": true
+      },
+      {
+        "bucket": 10,
+        "base_length": 969093,
+        "candidate_length": 969093,
+        "equal": true
+      },
+      {
+        "bucket": 11,
+        "base_length": 3981568,
+        "candidate_length": 3981568,
+        "equal": true
+      },
+      {
+        "bucket": 12,
+        "base_length": 111564,
+        "candidate_length": 111564,
+        "equal": true
+      },
+      {
+        "bucket": 13,
+        "base_length": 111564,
+        "candidate_length": 111564,
+        "equal": true
+      },
+      {
+        "bucket": 14,
+        "base_length": 114779,
+        "candidate_length": 114779,
+        "equal": true
+      },
+      {
+        "bucket": 15,
+        "base_length": 82069,
+        "candidate_length": 82069,
+        "equal": true
+      },
+      {
+        "bucket": 16,
+        "base_length": 78057,
+        "candidate_length": 78057,
+        "equal": true
+      },
+      {
+        "bucket": 17,
+        "base_length": 452787,
+        "candidate_length": 452787,
+        "equal": true
+      },
+      {
+        "bucket": 18,
+        "base_length": 178992,
+        "candidate_length": 178992,
+        "equal": true
+      },
+      {
+        "bucket": 19,
+        "base_length": 79238,
+        "candidate_length": 79238,
+        "equal": true
+      },
+      {
+        "bucket": 20,
+        "base_length": 88999,
+        "candidate_length": 88999,
+        "equal": true
+      },
+      {
+        "bucket": 21,
+        "base_length": 388393,
+        "candidate_length": 388393,
+        "equal": true
+      },
+      {
+        "bucket": 22,
+        "base_length": 4639420,
+        "candidate_length": 4639420,
+        "equal": true
+      },
+      {
+        "bucket": 23,
+        "base_length": 111939,
+        "candidate_length": 111939,
+        "equal": true
+      },
+      {
+        "bucket": 24,
+        "base_length": 756313,
+        "candidate_length": 756313,
+        "equal": true
+      },
+      {
+        "bucket": 25,
+        "base_length": 261452,
+        "candidate_length": 261452,
+        "equal": true
+      },
+      {
+        "bucket": 26,
+        "base_length": 128704,
+        "candidate_length": 128704,
+        "equal": true
+      },
+      {
+        "bucket": 27,
+        "base_length": 689580,
+        "candidate_length": 689580,
+        "equal": true
+      },
+      {
+        "bucket": 28,
+        "base_length": 100512,
+        "candidate_length": 100512,
+        "equal": true
+      },
+      {
+        "bucket": 29,
+        "base_length": 181475,
+        "candidate_length": 181475,
+        "equal": true
+      },
+      {
+        "bucket": 30,
+        "base_length": 100558,
+        "candidate_length": 100558,
+        "equal": true
+      },
+      {
+        "bucket": 31,
+        "base_length": 181566,
+        "candidate_length": 181566,
+        "equal": true
+      },
+      {
+        "bucket": 32,
+        "base_length": 89312,
+        "candidate_length": 89312,
+        "equal": true
+      },
+      {
+        "bucket": 33,
+        "base_length": 92454,
+        "candidate_length": 92454,
+        "equal": true
+      },
+      {
+        "bucket": 34,
+        "base_length": 1146473,
+        "candidate_length": 1146473,
+        "equal": true
+      },
+      {
+        "bucket": 35,
+        "base_length": 5096723,
+        "candidate_length": 5096723,
+        "equal": true
+      },
+      {
+        "bucket": 36,
+        "base_length": 116664,
+        "candidate_length": 116664,
+        "equal": true
+      },
+      {
+        "bucket": 37,
+        "base_length": 204211,
+        "candidate_length": 204211,
+        "equal": true
+      },
+      {
+        "bucket": 38,
+        "base_length": 513782,
+        "candidate_length": 513782,
+        "equal": true
+      },
+      {
+        "bucket": 39,
+        "base_length": 708610,
+        "candidate_length": 708610,
+        "equal": true
+      },
+      {
+        "bucket": 40,
+        "base_length": 11795596,
+        "candidate_length": 11795596,
+        "equal": true
+      },
+      {
+        "bucket": 41,
+        "base_length": 89226,
+        "candidate_length": 89226,
+        "equal": true
+      },
+      {
+        "bucket": 42,
+        "base_length": 100395,
+        "candidate_length": 100395,
+        "equal": true
+      }
+    ],
+    "only_small_table_rules_metadata_differ": true,
+    "same_ordered_rule_ids_and_crossing": true,
+    "rule_digest_serialization_change": "configuration_bytes now binds applicability,moduleidentity,modulecount/modulebytes; a440onlyrootquerybytes. This changesall47digests beforestaging; source diff retained separately."
+  },
+  "cache_difference_provenance": {
+    "rules": "Current configuration digest binds applicability/rootmoduleid/modulecount/modulebytes; publica440hashedrootqueryonly. All47ruleids/crossingsunchanged.",
+    "small_table_one_byte": "CurrentTablesSchema appends empty skipped-vector, absenta440schema.",
+    "report_debug_digest": "ExistinghashincludeswholeLintReportDebug, currentnewskippedfieldandcatalogfeatures; doesnotsolelyhashdiagnostics.",
+    "immediate_prestage_comparison": "No matchinglocalRustprestageartifactavailable; notclaimed.",
+    "decoder_source_sha256": "d9cf5b268f1bf81c72980491929574819492ec418925cb3cdf2e848c5bcfab3b"
+  },
+  "retained_failures": {
+    "native_warm_rust_peak_bytes": 105648128,
+    "native_warm_rust_peak_bound_bytes": 100000000,
+    "python_conformance_findings": 7,
+    "catalog_unfed_features": 22,
+    "fixture_repairs_runtime_validation": "queuednextcoherentgate;notpassed"
+  },
+  "scoped_workspace_followup": {
+    "status": "failed",
+    "all_checks_passed": false,
+    "baseline_commit": "a44054c38a2eedb23c2dc4879c3bd7592f78e8b3",
+    "baseline_binary_sha256": "77b2104c79e46087c8a7901edf9e872ff2c016b864d8858deddaa8c663611c6f",
+    "candidate_binary_sha256": "50bf4ae1938c74c7e935a9b6a7309abfdb383fcb7b37f34ef82b17e349ae7c9c",
+    "command": [
+      "--bench",
+      "--rounds",
+      "1"
+    ],
+    "scope": "Original Rust cold Discard, 47 rules, 10 workers, five internal cold rounds; eight-rule spike, three internal rounds; one outer pair stopped on unchanged 1.15 gate failure. Ancillary cache samples are not cache-performance certification.",
+    "comparison": {
+      "manifest_sha256": "7c7b278ab7937e3ff100b3bc38b6ac04d1029c40a54e3a37f711548f10a3a700",
+      "samples": [
+        {
+          "pair": 0,
+          "variant": "base",
+          "exit_code": 0,
+          "wall_seconds": 47.01738559699152,
+          "load_before": [
+            1.1982421875,
+            1.66015625,
+            1.80029296875
+          ],
+          "stdout_sha256": "82202b94ad8d33a353ab5c0ace8895fa21f5b796d3d12d2901dbc8b8d1dcc253",
+          "stderr_sha256": "99a8cea119a1b90eab0f90acc86a20c4c6cbfe9e1209929a4f03cb3493739561",
+          "bmf": {
+            "ruff": {
+              "cold-cpu-milliseconds": {
+                "lower_value": 4569,
+                "upper_value": 4761,
+                "value": 4601
+              },
+              "cold-milliseconds": {
+                "lower_value": 726,
+                "upper_value": 778,
+                "value": 751
+              },
+              "edit-milliseconds": {
+                "lower_value": 387,
+                "upper_value": 387,
+                "value": 387
+              },
+              "peak-megabytes": {
+                "lower_value": 636,
+                "upper_value": 636,
+                "value": 636
+              },
+              "spike-cpu-milliseconds": {
+                "lower_value": 1401,
+                "upper_value": 1408,
+                "value": 1406
+              },
+              "store-files": {
+                "lower_value": 1,
+                "upper_value": 1,
+                "value": 1
+              },
+              "store-megabytes": {
+                "lower_value": 67,
+                "upper_value": 67,
+                "value": 67
+              },
+              "warm-milliseconds": {
+                "lower_value": 71,
+                "upper_value": 71,
+                "value": 71
+              }
+            }
+          },
+          "internal_rounds": {
+            "cold-milliseconds": [
+              778,
+              727,
+              751,
+              726,
+              775
+            ],
+            "cold-cpu-milliseconds": [
+              4601,
+              4586,
+              4569,
+              4609,
+              4761
+            ],
+            "spike-cpu-milliseconds": [
+              1401,
+              1408,
+              1406
+            ]
+          }
+        },
+        {
+          "pair": 0,
+          "variant": "candidate",
+          "exit_code": 0,
+          "wall_seconds": 51.362725395010784,
+          "load_before": [
+            3.65576171875,
+            2.23974609375,
+            1.99072265625
+          ],
+          "stdout_sha256": "4100ab0939fa2ae4fb54774412cf8c96a396513a38bbbb0ddeb2a73c40d5db06",
+          "stderr_sha256": "1217f19aeb6c0d40abdb0a3a5cb37d4399deeb8119f889e0dd3dc9f038ebd1c4",
+          "bmf": {
+            "ruff": {
+              "cold-cpu-milliseconds": {
+                "lower_value": 9713,
+                "upper_value": 9782,
+                "value": 9766
+              },
+              "cold-milliseconds": {
+                "lower_value": 1227,
+                "upper_value": 1327,
+                "value": 1249
+              },
+              "edit-milliseconds": {
+                "lower_value": 363,
+                "upper_value": 363,
+                "value": 363
+              },
+              "peak-megabytes": {
+                "lower_value": 503,
+                "upper_value": 503,
+                "value": 503
+              },
+              "spike-cpu-milliseconds": {
+                "lower_value": 2227,
+                "upper_value": 2248,
+                "value": 2246
+              },
+              "store-files": {
+                "lower_value": 1,
+                "upper_value": 1,
+                "value": 1
+              },
+              "store-megabytes": {
+                "lower_value": 67,
+                "upper_value": 67,
+                "value": 67
+              },
+              "warm-milliseconds": {
+                "lower_value": 66,
+                "upper_value": 66,
+                "value": 66
+              }
+            }
+          },
+          "internal_rounds": {
+            "cold-milliseconds": [
+              1308,
+              1327,
+              1249,
+              1227,
+              1237
+            ],
+            "cold-cpu-milliseconds": [
+              9766,
+              9772,
+              9782,
+              9713,
+              9745
+            ],
+            "spike-cpu-milliseconds": [
+              2248,
+              2246,
+              2227
+            ]
+          }
+        }
+      ],
+      "latest_pair_ratios": {
+        "cold-milliseconds": 1.663115845539281,
+        "cold-cpu-milliseconds": 2.122582047381004,
+        "spike-cpu-milliseconds": 1.597439544807966
+      },
+      "cold_spike_within_threshold": false,
+      "all_established_language_gates_passed": false,
+      "scope_limit": "Only Rust cold/spike compared here; full cached phase CI and other language gates remain separate."
+    },
+    "profile": {
+      "schema": "existing-sealed-cold-cpu-profile/v1",
+      "measurement": false,
+      "variant": "candidate",
+      "executable": "/tmp/scoped-workspace-artifacts-7-20261102/rust-candidate-release",
+      "binary_sha256": "50bf4ae1938c74c7e935a9b6a7309abfdb383fcb7b37f34ef82b17e349ae7c9c",
+      "command": [
+        "/tmp/scoped-workspace-artifacts-7-20261102/rust-candidate-release",
+        "--bench",
+        "--rounds",
+        "1"
+      ],
+      "bench_status": 0,
+      "perf_status": -2,
+      "profiled_scope": "47-rule cold5 and8-rule spike3 only; attached after47rules marker, stopped at cache marker; no individual-rule-prefix or cache phases sampled",
+      "start_seconds_after_invocation": 28.898289431934245,
+      "stop_seconds_after_invocation": 37.358538816915825,
+      "whole_invocation_seconds": 52.33188882097602,
+      "perf_data_sha256": "3a34b110fbc2b86981ec5353a4e5fa2b3ab764b2fbdf70780737c42f900e1a8c"
+    },
+    "sampled_cpu_weights": {
+      "base": {
+        "sampled_period_ns": 24424242180,
+        "inclusive_sampled_period_ns": {
+          "globbing::service::": 707070700,
+          "kind_sets::service::": 101010100,
+          "str::converts::from_utf8": 505050500
+        },
+        "samples_containing_frame": {
+          "globbing::service::": 70,
+          "kind_sets::service::": 10,
+          "str::converts::from_utf8": 50
+        },
+        "default_immediate_callers_sampled_period_ns": {},
+        "limit": "sampled CPU weights, not invocation counts; cold5+spike3 attach interval; separate diagnostic observations"
+      },
+      "candidate": {
+        "sampled_period_ns": 50919191410,
+        "inclusive_sampled_period_ns": {
+          "str::converts::from_utf8": 3515151480,
+          "kind_sets::service::": 8181818100,
+          "globbing::service::": 7141414070,
+          "OperatorScratch": 6969696900
+        },
+        "samples_containing_frame": {
+          "str::converts::from_utf8": 348,
+          "kind_sets::service::": 810,
+          "globbing::service::": 707,
+          "OperatorScratch": 690
+        },
+        "default_immediate_callers_sampled_period_ns": {
+          "ryo_core[d12dc31adcf47618]::domain::pipeline::service::pass_on_inner": 4898989850,
+          "ryo_core[d12dc31adcf47618]::domain::reading::service::evaluate_rule": 1353535340,
+          "<ryo_core[d12dc31adcf47618]::application::file_analysis::service::FileAnalysis>::read_file": 60606060
+        },
+        "limit": "sampled CPU weights, not invocation counts; cold5+spike3 attach interval; separate diagnostic observations"
+      }
+    },
+    "essential_checks": {
+      "core_tests": 314,
+      "python_conformance": "passed all current fixtures, including 67 target-declared suite sources",
+      "python_allocation": "passed unchanged zero-extra guard",
+      "cli_replay": "76 passed, two failed before query-comment fix; catalog stress runtime remains pending",
+      "native_warm_peak_bytes": 109039616,
+      "native_warm_limit_bytes": 100000000,
+      "catalog_query_validation": "28/28 generic compile/typecheck passed after removal of unsupported comment headers",
+      "architecture": "24 matrix and 13 no-heap-accounting scenarios pass; current audit retains 19 heap findings and existing wider debt; no changed production matrix findings"
+    },
+    "limits": [
+      "No new full-Django run on this candidate because required Rust gate failed.",
+      "Profile sampled CPU weights are separate diagnostic observations, not invocation counts or benchmark timings.",
+      "OperatorScratch default includes empty-state and hasher initialization; payload allocation dominance is not established.",
+      "Current full quality/API/platform checks remain pending; native warm memory still fails.",
+      "New no-heap guard detects documented source-connected patterns, not all custom memory management."
+    ]
+  }
+}

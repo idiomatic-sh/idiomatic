@@ -17,4 +17,6 @@ pub(crate) struct FragmentRun<'a, 'f> {
     pub tree: TreeRows<'f>,
     /// What the steps keep from file to file.
     pub room: &'a mut LoweredRoom,
+    /// Immutable native selections owned by this physical file.
+    pub classes: &'a [crate::domain::positions::types::Slots],
 }

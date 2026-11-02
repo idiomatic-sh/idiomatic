@@ -8,6 +8,9 @@ use crate::outbound::memory::errors::MemoryError;
 /// Why an analysis could not finish.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 pub(crate) enum FileAnalysisError {
+    /// Required normalized-frontier staging or replay failed.
+    #[error(transparent)]
+    Store(#[from] crate::outbound::lint_store::errors::LintStoreError),
     /// A required project dependency could not be recorded.
     #[error(transparent)]
     Corpus(#[from] crate::outbound::corpus::errors::CorpusError),

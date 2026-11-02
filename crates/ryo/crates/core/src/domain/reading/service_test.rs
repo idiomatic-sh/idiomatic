@@ -219,6 +219,7 @@ fn evaluate(plan: Plan) -> Result<Value, Failure> {
         FileId(10),
         None,
         &relations,
+        &Default::default(),
     )?;
     Ok(count(tables.rendered.order.len()) * 10
         + u64::from(tables.rendered.text.starts_with("rule")))
@@ -247,7 +248,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             let mut tables = worker(&[]);
             let wanted = [Relation::Defines, Relation::FilesystemFile];
             start_partials(&mut tables, &[], Recovery::SyntaxErrors, &wanted);
-            Ok(count(tables.partials.len()) * 10 + count(tables.pool.partial.len()))
+            Ok(count(tables.partials.len()) * 10 + count(tables.partials.len()))
         }
         Scenario::EvaluateRule => evaluate(plan(0, 0)),
         Scenario::EvaluateRefused => evaluate(plan(9, 0)),
@@ -264,7 +265,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             for number in [1, 2] {
                 push_row(&mut rows, &[Cell::Number(Integer(number))]);
             }
-            tables.pool.frontier[0] = rows;
+            let mut frontier = vec![rows];
             let mut seen = Vec::new();
             if let Some(bucket) = prepare_frontier(
                 &mut tables,
@@ -272,6 +273,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 RuleIndex(0),
                 FileId(0),
                 InputNumber(0),
+                &mut frontier,
             ) {
                 seen.push((bucket, tables.packed.clone()));
                 capture_frontier(&mut tables, setting.answering, bucket);
@@ -461,7 +463,7 @@ fn two_real_rule_evaluations_share_only_the_index_and_keep_ordered_duplicate_row
     let bindings = [Vec::new(), Vec::new()];
     let setting = setting(&placed, &plans, &[], &ids, &bindings);
     let mut cache = new(&[Relation::Function], &[], LIMIT).expect("audited physical generation");
-    evaluate_rule(
+    let first_frontier = evaluate_rule(
         &mut tables,
         &setting,
         RuleIndex(0),
@@ -474,6 +476,7 @@ fn two_real_rule_evaluations_share_only_the_index_and_keep_ordered_duplicate_row
                 columns: &columns,
             })
         },
+        &Default::default(),
     )
     .expect("first rule");
     // Pure metadata layout acquires no index; only the actual rule execution does.
@@ -482,14 +485,17 @@ fn two_real_rule_evaluations_share_only_the_index_and_keep_ordered_duplicate_row
         (1, 0),
         "one real execution, no schema-stage acquisition"
     );
-    let first = tables
-        .pool
-        .frontier
-        .first()
-        .expect("owned emitted frontier")
-        .clone();
+    let first = first_frontier.first().expect("owned emitted frontier");
+    let first_pointer = first.cells.as_ptr();
+    assert!(
+        cache
+            .entries
+            .iter()
+            .all(|entry| std::sync::Arc::strong_count(&entry.index) == 1),
+        "local room handles are dropped before frontier retention"
+    );
     let reads_after_first = reads.get();
-    evaluate_rule(
+    let second_frontier = evaluate_rule(
         &mut tables,
         &setting,
         RuleIndex(1),
@@ -502,15 +508,20 @@ fn two_real_rule_evaluations_share_only_the_index_and_keep_ordered_duplicate_row
                 columns: &columns,
             })
         },
+        &Default::default(),
     )
     .expect("second rule");
-    assert_eq!(tables.pool.frontier.first(), Some(&first));
+    assert_eq!(second_frontier.first(), Some(first));
+    assert_eq!(
+        first.cells.as_ptr(),
+        first_pointer,
+        "application-owned frontier survives the next rule without cloning"
+    );
     assert!(
-        tables
-            .pool
-            .steps
+        cache
+            .entries
             .iter()
-            .all(|table| table.cells.is_empty() && table.count.0 == 0)
+            .all(|entry| std::sync::Arc::strong_count(&entry.index) == 1)
     );
     assert_eq!(tables.rendered.total.0, 10);
     let displayed = |row| {
@@ -541,5 +552,298 @@ fn two_real_rule_evaluations_share_only_the_index_and_keep_ordered_duplicate_row
     assert!(
         reads.get() > reads_after_first,
         "normal provider reads remain observable on a hit"
+    );
+}
+
+#[test]
+fn large_tiny_and_empty_rule_outputs_are_owned_beyond_workspace_drop() {
+    let plans = [plan(0, 1)];
+    let placed = placed();
+    let ids = [RuleId("local".into())];
+    let bindings = [Vec::new()];
+    let setting = setting(&placed, &plans, &[Bucket(0)], &ids, &bindings);
+    let mut tables = worker(&plans);
+    tables.bytes = FileBytes(SOURCE.to_vec());
+    let main = to_bits(Cell::Symbol(intern(
+        &mut tables.symbols,
+        ByteSlice(SOURCE),
+        Offset(0),
+        Offset(4),
+    )))
+    .0;
+    for rows in [4096, 1, 0, 3] {
+        let columns = [
+            FactColumn(vec![main; rows]),
+            FactColumn(vec![to_bits(Cell::File(FileId(10))).0; rows]),
+        ];
+        let mut frontier = evaluate_rule(
+            &mut tables,
+            &setting,
+            RuleIndex(0),
+            FileId(10),
+            None,
+            &|relation| {
+                (relation == Relation::Function).then_some(ColumnsView {
+                    kinds: KINDS,
+                    columns: &columns,
+                })
+            },
+            &Default::default(),
+        )
+        .expect("local execution");
+        assert_eq!(frontier.len(), 1);
+        assert_eq!(
+            frontier[0].kinds, KINDS,
+            "empty frontiers retain their schema"
+        );
+        assert_eq!(frontier[0].count.0, rows);
+        let pointer = frontier[0].cells.as_ptr();
+        assert_eq!(
+            prepare_frontier(
+                &mut tables,
+                &setting,
+                RuleIndex(0),
+                FileId(10),
+                InputNumber(0),
+                &mut frontier
+            ),
+            Some(Bucket(0))
+        );
+        assert_eq!(
+            frontier[0].cells.as_ptr(),
+            pointer,
+            "retention borrows rather than cloning the returned table"
+        );
+        assert_eq!(frontier[0].count.0, rows);
+        assert_eq!(
+            tables.pool.layouts.len(),
+            1,
+            "only immutable plan metadata survives generations"
+        );
+    }
+}
+
+#[test]
+fn evaluation_and_render_errors_do_not_leave_mutable_state_in_the_next_rule() {
+    let good = plan(0, 1);
+    let mut invalid_render = good.clone();
+    invalid_render.emit.subject = ColumnIndex(99);
+    let plans = [plan(99, 1), invalid_render, good];
+    let placed = placed();
+    let ids = [
+        RuleId("bad-input".into()),
+        RuleId("bad-output".into()),
+        RuleId("good".into()),
+    ];
+    let bindings = [Vec::new(), Vec::new(), Vec::new()];
+    let setting = setting(&placed, &plans, &[], &ids, &bindings);
+    let mut tables = worker(&plans);
+    tables.bytes = FileBytes(SOURCE.to_vec());
+    let main = to_bits(Cell::Symbol(intern(
+        &mut tables.symbols,
+        ByteSlice(SOURCE),
+        Offset(0),
+        Offset(4),
+    )))
+    .0;
+    let columns = [
+        FactColumn(vec![main, main]),
+        FactColumn(vec![to_bits(Cell::File(FileId(10))).0; 2]),
+    ];
+    assert!(
+        evaluate_rule(
+            &mut tables,
+            &setting,
+            RuleIndex(0),
+            FileId(10),
+            None,
+            &|relation| {
+                (relation == Relation::Function).then_some(ColumnsView {
+                    kinds: KINDS,
+                    columns: &columns,
+                })
+            },
+            &Default::default()
+        )
+        .is_err()
+    );
+    assert!(
+        evaluate_rule(
+            &mut tables,
+            &setting,
+            RuleIndex(1),
+            FileId(10),
+            None,
+            &|relation| {
+                (relation == Relation::Function).then_some(ColumnsView {
+                    kinds: KINDS,
+                    columns: &columns,
+                })
+            },
+            &Default::default()
+        )
+        .is_err()
+    );
+    let output = evaluate_rule(
+        &mut tables,
+        &setting,
+        RuleIndex(2),
+        FileId(10),
+        None,
+        &|relation| {
+            (relation == Relation::Function).then_some(ColumnsView {
+                kinds: KINDS,
+                columns: &columns,
+            })
+        },
+        &Default::default(),
+    )
+    .expect("later rule owns fresh state");
+    assert_eq!(output[0].count.0, 2);
+    assert_eq!(output[0].kinds, KINDS);
+    assert_eq!(
+        tables.rendered.order.len(),
+        1,
+        "failed rendering publishes no preceding rule row"
+    );
+}
+
+#[test]
+fn local_matcher_caches_preserve_empty_and_executed_bound_pattern_errors() {
+    use ryo_values::domain::plan_parts::types::ParameterId;
+    let mut selected = plan(0, 1);
+    let Operation::Select { comparisons, .. } = &mut selected.steps[0].operation else {
+        panic!("select")
+    };
+    comparisons[0].test = Test::Matches;
+    comparisons[0].right = Operand::Parameter(ParameterId(0));
+    let plans = [selected];
+    let placed = placed();
+    let ids = [RuleId("dynamic".into())];
+    let bindings = [vec![ParameterBinding::Text(LiteralText("[".into()))]];
+    let setting = setting(&placed, &plans, &[], &ids, &bindings);
+    let mut tables = worker(&plans);
+    tables.bytes = FileBytes(SOURCE.to_vec());
+    let main = to_bits(Cell::Symbol(intern(
+        &mut tables.symbols,
+        ByteSlice(SOURCE),
+        Offset(0),
+        Offset(4),
+    )))
+    .0;
+    for rows in [0, 1, 0] {
+        let columns = [
+            FactColumn(vec![main; rows]),
+            FactColumn(vec![to_bits(Cell::File(FileId(10))).0; rows]),
+        ];
+        let result = evaluate_rule(
+            &mut tables,
+            &setting,
+            RuleIndex(0),
+            FileId(10),
+            None,
+            &|relation| {
+                (relation == Relation::Function).then_some(ColumnsView {
+                    kinds: KINDS,
+                    columns: &columns,
+                })
+            },
+            &Default::default(),
+        );
+        if rows == 0 {
+            assert_eq!(
+                result.expect("unused invalid bound pattern is not executed")[0]
+                    .count
+                    .0,
+                0
+            );
+        } else {
+            assert!(result.is_err(), "executed invalid pattern remains an error");
+        }
+    }
+    assert!(
+        evaluate_rule(
+            &mut tables,
+            &setting,
+            RuleIndex(0),
+            FileId(10),
+            None,
+            &|_| None,
+            &Default::default()
+        )
+        .is_err(),
+        "provider availability is still checked before empty execution"
+    );
+}
+
+#[test]
+fn render_failure_releases_live_index_handles_before_a_fresh_rule_invocation() {
+    use crate::domain::stored_indexes::service::{LIMIT, new};
+    let mut good = duplicate_resident_join_plan();
+    good.frontier = vec![PlanInput::Step(StepId(0))];
+    let mut bad = good.clone();
+    bad.emit.subject = ColumnIndex(99);
+    let plans = [bad, good];
+    let placed = placed();
+    let ids = [RuleId("bad".into()), RuleId("good".into())];
+    let bindings = [Vec::new(), Vec::new()];
+    let setting = setting(&placed, &plans, &[], &ids, &bindings);
+    let mut tables = worker(&plans);
+    tables.bytes = FileBytes(SOURCE.to_vec());
+    let main = to_bits(Cell::Symbol(intern(
+        &mut tables.symbols,
+        ByteSlice(SOURCE),
+        Offset(0),
+        Offset(4),
+    )))
+    .0;
+    let columns = [FactColumn(vec![main; 2]), FactColumn(vec![10, 11])];
+    let mut cache = new(&[Relation::Function], &[], LIMIT).expect("file-owned cache");
+    assert!(
+        evaluate_rule(
+            &mut tables,
+            &setting,
+            RuleIndex(0),
+            FileId(10),
+            Some(&mut cache),
+            &|relation| {
+                (relation == Relation::Function).then_some(ColumnsView {
+                    kinds: KINDS,
+                    columns: &columns,
+                })
+            },
+            &Default::default()
+        )
+        .is_err()
+    );
+    assert!(!cache.entries.is_empty());
+    assert!(
+        cache
+            .entries
+            .iter()
+            .all(|entry| std::sync::Arc::strong_count(&entry.index) == 1),
+        "error drops every invocation-owned index handle"
+    );
+    let frontier = evaluate_rule(
+        &mut tables,
+        &setting,
+        RuleIndex(1),
+        FileId(10),
+        Some(&mut cache),
+        &|relation| {
+            (relation == Relation::Function).then_some(ColumnsView {
+                kinds: KINDS,
+                columns: &columns,
+            })
+        },
+        &Default::default(),
+    )
+    .expect("fresh invocation");
+    assert_eq!(frontier[0].count.0, 4);
+    assert!(
+        cache
+            .entries
+            .iter()
+            .all(|entry| std::sync::Arc::strong_count(&entry.index) == 1)
     );
 }

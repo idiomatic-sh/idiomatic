@@ -165,3 +165,52 @@ fn explicit_context_mode_defaults_and_unknown_modes_are_checked() {
         [0, 1, 255]
     );
 }
+
+/// Corpus identity cannot disappear or collapse two workloads onto one output/cache name.
+#[test]
+fn corpus_requires_distinct_nonempty_project_identities() {
+    let project = "[[projects]]\nname='one'\nrepository='https://example.invalid/source.git'\nrevision='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'\npatch='patches/one.patch'\n";
+    let valid = format!("language='python'\n{project}");
+    let decoded = super::suite(&valid).expect("one complete project is a valid corpus");
+    assert_eq!(decoded.projects.len(), 1);
+    assert_eq!(
+        decoded.projects.first().map(|entry| entry.name.0.as_str()),
+        Some("one")
+    );
+    for (source, expected) in [
+        (
+            "language='python'\nprojects=[]\n".to_owned(),
+            "corpus must name a language and at least one project",
+        ),
+        (
+            format!("language=' '\n{project}"),
+            "corpus must name a language and at least one project",
+        ),
+        (
+            format!("language='python'\n{project}{project}"),
+            "corpus project names must be nonempty and unique",
+        ),
+        (
+            valid.replace("name='one'", "name=' '"),
+            "corpus project names must be nonempty and unique",
+        ),
+    ] {
+        let error = super::suite(&source).expect_err("invalid corpus must not decode to success");
+        assert_eq!(error.to_string(), expected);
+    }
+    assert!(
+        super::suite("language='python'\n[[projects]]\nname='one'\n").is_err(),
+        "missing required project fields must remain a schema error"
+    );
+    let two = format!(
+        "language='python'\n{project}{}",
+        project.replace("name='one'", "name='two'")
+    );
+    assert_eq!(
+        super::suite(&two)
+            .expect("two distinct identities are valid")
+            .projects
+            .len(),
+        2
+    );
+}

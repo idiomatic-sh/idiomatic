@@ -35,6 +35,34 @@ pub trait ReadStore: Send + Sync + std::fmt::Debug {
     /// `Unreadable` when the place cannot be read.
     fn handed(&self, wanted: &BucketsWanted) -> Result<StoredHanded, LintStoreError>;
 
+    /// Retain successfully normalized fresh words until this run keeps or drops its snapshot.
+    /// Custom in-memory stores may keep inline representation; no IO is required by default.
+    ///
+    /// # Errors
+    ///
+    /// Staging creation/write failures are propagated, never replaced with an empty row.
+    fn stage_words(
+        &self,
+        words: ryo_values::domain::stored_facts::types::PackedWords,
+    ) -> Result<ryo_values::domain::records::types::RecordWords, LintStoreError> {
+        Ok(ryo_values::domain::records::types::RecordWords::Inline(
+            words,
+        ))
+    }
+
+    /// Resolve only this snapshot's descriptor into reusable caller-owned storage.
+    ///
+    /// # Errors
+    ///
+    /// Foreign/stale descriptors and span/read/flush failures are refused.
+    fn read_staged(
+        &self,
+        _words: &ryo_values::domain::records::types::StagedWords,
+        _into: &mut ryo_values::domain::stored_facts::types::PackedWords,
+    ) -> Result<(), LintStoreError> {
+        Err(LintStoreError::NothingRead)
+    }
+
     /// Keeps `stored` in place of what was kept: its words are those of the files the run read; the words of the buckets
     /// `kept.unchanged` are kept as they were, and in every other bucket the words of each file of `kept.file_again` are kept as they
     /// were, under its number now. The numbers of `kept` are those of the store this read, and the words are copied from that store

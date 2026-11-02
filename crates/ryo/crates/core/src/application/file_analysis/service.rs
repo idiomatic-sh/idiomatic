@@ -383,13 +383,15 @@ impl FileAnalysis {
         let execution_diagnostics =
             tracing::enabled!(target: "ryo::diagnostic::execution", tracing::Level::TRACE);
         let shared_started = execution_diagnostics.then(Instant::now);
+        let mut classes = crate::domain::shared_walk::types::SharedClasses::default();
         {
+            let mut native_scratch =
+                crate::domain::table_scratch::types::OperatorScratch::default();
             let Tables {
                 mask,
                 elements,
                 symbols,
                 bytes,
-                scratch,
                 shared,
                 pool,
                 ..
@@ -405,8 +407,8 @@ impl FileAnalysis {
                     elements,
                     symbols,
                     source: SourceView(&bytes.0),
-                    scratch,
-                    room: &mut pool.made,
+                    scratch: &mut native_scratch,
+                    room: &mut classes,
                     steps: pool.unlowered,
                 },
             );
@@ -425,6 +427,7 @@ impl FileAnalysis {
             file,
             skipped.as_deref(),
             stored_indexes.as_mut(),
+            &classes,
         );
         if let Some(started) = rules_started {
             tracing::trace!(target: "ryo::diagnostic::execution", phase = "rules_and_frontiers", file = file.0, elapsed_ns = started.elapsed().as_nanos() as u64, success = evaluated.is_ok());
@@ -455,11 +458,6 @@ impl FileAnalysis {
         // No index handle or allocation survives release or the next visit, even for the same FileId.
         drop(stored_indexes);
         let settle_started = execution_diagnostics.then(Instant::now);
-        crate::domain::working_set::service::retire(&mut tables.pool, &mut tables.scratch);
-        for frontier in &mut tables.pool.frontier {
-            crate::domain::table_model::service::reset(frontier, &[]);
-        }
-        tables.pool.frontier_pending.fill(false);
         evaluated?;
         settle_file(tables, visit.setting.answering);
         facts.release()?;
@@ -477,6 +475,7 @@ impl FileAnalysis {
         file: FileId,
         skipped: Option<&[bool]>,
         mut stored_indexes: Option<&mut crate::domain::stored_indexes::types::FileIndexes>,
+        classes: &crate::domain::shared_walk::types::SharedClasses,
     ) -> Result<(), FileAnalysisError> {
         for rule in (0..visit.setting.plans.len()).map(RuleIndex) {
             if governs_rule(tables, rule) == Governing::DoesNotGovern {
@@ -532,6 +531,7 @@ impl FileAnalysis {
                         None
                     }
                 },
+                classes,
             );
             let outcome = match refused.take() {
                 Some(error) => Err(FileAnalysisError::from(error)),
@@ -547,7 +547,7 @@ impl FileAnalysis {
                     outcome = if outcome.is_ok() { "ok" } else { "error" },
                 );
             }
-            outcome?;
+            let mut frontier = outcome?;
             let inputs = visit
                 .setting
                 .plans
@@ -560,6 +560,7 @@ impl FileAnalysis {
                     rule,
                     file,
                     ryo_values::domain::plan_parts::types::InputNumber(place),
+                    &mut frontier,
                 ) else {
                     continue;
                 };
@@ -567,10 +568,6 @@ impl FileAnalysis {
                 if visit.setting.keeping == Keeping::Keeps {
                     capture_frontier(tables, visit.setting.answering, bucket);
                 }
-                crate::domain::reading::service::consumed_frontier(
-                    tables,
-                    ryo_values::domain::plan_parts::types::InputNumber(place),
-                );
             }
         }
         Ok(())
@@ -621,7 +618,7 @@ impl FileAnalysis {
         if let Some(record) = kept.filter(|record| is_as_it_was(record, file) == Freshness::AsItWas)
         {
             replay(&mut worker.tables, number, at, record, file, record.digest);
-            return Self::hand_again(worker, setting, at, number, record);
+            return Self::hand_again(worker, visit, at, number, record);
         }
         if let Err(error) = self.corpus.read(file, &mut worker.tables.bytes) {
             worker.tables.unread.push(Unread {
@@ -640,9 +637,10 @@ impl FileAnalysis {
         // A file written again with the same bytes is as it was too.
         if let Some(record) = kept.filter(|record| record.digest == digest) {
             replay(&mut worker.tables, number, at, record, file, digest);
-            return Self::hand_again(worker, setting, at, number, record);
+            return Self::hand_again(worker, visit, at, number, record);
         }
         let outcome = self.parse_file(worker, visit, file, number)?;
+        let outcome = Self::stage_outcome(visit.store, outcome)?;
         let acceptance = syntax_acceptance(&worker.tables.elements);
         cover(&mut worker.tables, setting, number, &file.path, acceptance);
         finish_file(
@@ -657,14 +655,46 @@ impl FileAnalysis {
         Ok(())
     }
 
+    /// Only successfully validated and digested fresh outcomes cross this IO boundary.
+    pub(super) fn stage_outcome(
+        read: Option<&dyn crate::outbound::lint_store::interface::ReadStore>,
+        mut outcome: Option<FileOutcome>,
+    ) -> Result<Option<FileOutcome>, FileAnalysisError> {
+        let Some(read) = read else {
+            return Ok(outcome);
+        };
+        let ran = match outcome.as_mut() {
+            Some(FileOutcome::Read(ran) | FileOutcome::Unread { ran: Some(ran), .. }) => Some(ran),
+            None | Some(FileOutcome::Unread { ran: None, .. }) => None,
+        };
+        if let Some(ran) = ran
+            && let Handing::Made(handed) = &mut ran.handed
+        {
+            for bucket in &mut handed.buckets {
+                let words = std::mem::replace(
+                    &mut bucket.words,
+                    ryo_values::domain::records::types::RecordWords::Inline(PackedWords::default()),
+                );
+                bucket.words = match words {
+                    ryo_values::domain::records::types::RecordWords::Inline(words) => {
+                        read.stage_words(words)?
+                    }
+                    staged @ ryo_values::domain::records::types::RecordWords::Staged(_) => staged,
+                };
+            }
+        }
+        Ok(outcome)
+    }
+
     /// Hands what the store kept of a file the run uses again to the steps that read across files, when they are made again.
-    fn hand_again(
+    pub(super) fn hand_again(
         worker: &mut Worker,
-        setting: &VisitSetting<'_>,
+        visit: &FileVisit<'_>,
         at: FileOrder,
         number: FileId,
         record: &Record,
     ) -> Result<(), FileAnalysisError> {
+        let setting = &visit.setting;
         if setting.replaying != Replaying::FindingsAndHanded {
             return Ok(());
         }
@@ -689,15 +719,25 @@ impl FileAnalysis {
                     &handed.governing,
                     &handed.partials,
                 );
+                let mut loaded = PackedWords::default();
                 for each in &handed.buckets {
-                    Self::hand_words_again(
-                        worker,
-                        setting,
-                        each.bucket,
-                        &each.words,
-                        &map,
-                        &mut out,
-                    )?;
+                    // Filtering must precede any staged read, including an invalid unrequested descriptor.
+                    if let BucketsWanted::These(buckets) = setting.wanted_buckets
+                        && buckets.binary_search(&each.bucket).is_err()
+                    {
+                        continue;
+                    }
+                    let words = match &each.words {
+                        ryo_values::domain::records::types::RecordWords::Inline(words) => words,
+                        ryo_values::domain::records::types::RecordWords::Staged(span) => {
+                            let read = visit.store.ok_or(
+                                crate::outbound::lint_store::errors::LintStoreError::NothingRead,
+                            )?;
+                            read.read_staged(span, &mut loaded)?;
+                            &loaded
+                        }
+                    };
+                    Self::hand_words_again(worker, setting, each.bucket, words, &map, &mut out)?;
                 }
             }
             // What the store kept of the file is handed as it is read, its words moved as they are unpacked: none is copied first.
@@ -825,10 +865,6 @@ impl FileAnalysis {
             everything,
             active_wanted.as_ref(),
         );
-        // Findings are not decided over a relation read in part; rows of the queries' own columns are the rows of what was read.
-        if matches!(setting.answering, Answering::Rows(_)) {
-            worker.tables.pool.partial.clear();
-        }
         Ok(match reading {
             FileReading::Read(_) | FileReading::Manifest => {
                 index_kinds(&mut worker.tables.elements);

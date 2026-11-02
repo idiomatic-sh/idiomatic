@@ -51,6 +51,8 @@ pub(crate) struct Stepper<'a, 'f> {
     pub lowered: LoweredTree<'f>,
     /// The rows the lowered steps made.
     pub made: &'a mut LoweredRoom,
+    /// Immutable selected positions retained only for this physical file.
+    pub classes: &'a [crate::domain::positions::types::Slots],
     /// The step whose inputs are being asked for.
     pub current: StepPlace,
     /// The relations the file is read in part.

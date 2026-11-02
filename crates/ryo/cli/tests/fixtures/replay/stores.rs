@@ -136,13 +136,28 @@ impl ReadStore for CountingRead {
     fn handed(&self, wanted: &BucketsWanted) -> Result<StoredHanded, LintStoreError> {
         self.read.handed(wanted)
     }
+    fn stage_words(
+        &self,
+        words: ryo_values::domain::stored_facts::types::PackedWords,
+    ) -> Result<ryo_values::domain::records::types::RecordWords, LintStoreError> {
+        self.read.stage_words(words)
+    }
+    fn read_staged(
+        &self,
+        words: &ryo_values::domain::records::types::StagedWords,
+        into: &mut ryo_values::domain::stored_facts::types::PackedWords,
+    ) -> Result<(), LintStoreError> {
+        self.read.read_staged(words, into)
+    }
     fn keep(&self, stored: Stored, kept: &KeptRows) -> Result<(), LintStoreError> {
         let mut files: Vec<u32> = stored
             .handed
             .frontier
             .iter()
             .map(|each| each.file.0)
+            .chain(kept.staged.iter().map(|each| each.file.0))
             .collect();
+        files.sort_unstable();
         files.dedup();
         self.handed_files.store(files.len(), Ordering::Relaxed);
         self.files_again

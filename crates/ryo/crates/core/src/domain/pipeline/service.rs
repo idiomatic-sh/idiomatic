@@ -11,7 +11,9 @@ use crate::domain::lowering::types::Counting;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::{Emit, InputPlace, OperatorContext};
 use crate::domain::operator::service::operate;
-use crate::domain::operator::types::{PlanIdentity, Pool, RowsFed, StepPlace, TreeSteps};
+use crate::domain::operator::types::{
+    PlanIdentity, Pool, PreparedPool, RowsFed, StepPlace, TreeSteps,
+};
 use crate::domain::pipeline::types::compact::value::CompactInput;
 use crate::domain::pipeline::types::{LoweredTree, Stepper};
 use crate::domain::positions::types::Readiness;
@@ -177,6 +179,7 @@ where
             lowering: &stepper.layout.lowering,
             tree,
             room: &mut *stepper.made,
+            classes: stepper.classes,
         };
         let step = StepId(u32::try_from(id).unwrap_or(u32::MAX));
         if stepper.counting == Counting::DoesNotCount {
@@ -362,6 +365,8 @@ pub(crate) fn evaluate_file<'f>(
     tree: Option<TreeRows<'f>>,
     context: &mut OperatorContext<'_>,
     pool: &mut Pool,
+    prepared: &mut PreparedPool,
+    classes: &[crate::domain::positions::types::Slots],
 ) -> Result<(), OperatingError> {
     let read = |relation: Relation| -> Result<Rows<'f>, OperatingError> {
         match (relation, tree) {
@@ -379,15 +384,19 @@ pub(crate) fn evaluate_file<'f>(
         }
     };
     let identity = PlanIdentity(std::ptr::from_ref(plan).addr());
-    let place = if let Some(place) = pool.layouts.iter().position(|each| each.plan == identity) {
+    let place = if let Some(place) = prepared
+        .layouts
+        .iter()
+        .position(|each| each.plan == identity)
+    {
         place
     } else {
         let layout = layout_of(plan, identity, &read, context)?;
-        pool.layouts.push(layout);
-        pool.layouts.len() - 1
+        prepared.layouts.push(layout);
+        prepared.layouts.len() - 1
     };
-    if pool.fed.len() <= place {
-        pool.fed.resize_with(place + 1, Vec::new);
+    if prepared.fed.len() <= place {
+        prepared.fed.resize_with(place + 1, Vec::new);
     }
     if pool.rooms.len() < plan.steps.len() {
         pool.rooms.resize_with(plan.steps.len(), || None);
@@ -396,13 +405,15 @@ pub(crate) fn evaluate_file<'f>(
         pool.selected.resize_with(plan.steps.len(), || None);
     }
     pool.selected.iter_mut().for_each(|slot| *slot = None);
-    pool.frontier_pending.clear();
-    pool.frontier_pending.resize(pool.frontier.len(), false);
-    for pending in pool.frontier_pending.iter_mut().take(plan.frontier.len()) {
-        *pending = true;
-    }
-    let selectors = pool
-        .selection_plans
+    let PreparedPool {
+        selection_plans,
+        layouts,
+        fed,
+        unlowered,
+        counting,
+        ..
+    } = prepared;
+    let selectors = selection_plans
         .iter()
         .find(|prepared| prepared.identity.0 == identity.0)
         .map_or(&[][..], |prepared| prepared.steps.as_slice());
@@ -411,13 +422,9 @@ pub(crate) fn evaluate_file<'f>(
         selected,
         frontier,
         rooms,
-        layouts,
         spare,
         made,
-        unlowered,
-        counting,
         partial,
-        fed,
         ..
     } = pool;
     made.ready.clear();
@@ -458,6 +465,7 @@ pub(crate) fn evaluate_file<'f>(
             layout,
             lowered,
             made,
+            classes,
             current: StepPlace(index),
             partial,
             fed: &mut *plan_fed,

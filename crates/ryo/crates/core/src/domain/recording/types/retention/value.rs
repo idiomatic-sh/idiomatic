@@ -1,7 +1,7 @@
 //! Exact capacities of the owned handover components at a lifecycle boundary.
 
 use crate::domain::table_model::types::{Frontier, Table};
-use ryo_values::domain::records::types::{FileOutcome, HandedNotes, Handing, Record};
+use ryo_values::domain::records::types::{FileOutcome, HandedNotes, Handing, Record, RecordWords};
 use ryo_values::domain::stored_facts::types::{ArenaBytes, KeptWords};
 use ryo_values::domain::stores::types::StoredHanded;
 
@@ -16,6 +16,10 @@ pub(crate) struct RetainedBytes {
     pub packed_live: usize,
     /// Packed frontier vector capacity bytes.
     pub packed_capacity: usize,
+    /// Plain staged descriptors retained in memory, without their file-backed payload.
+    pub staged_objects: usize,
+    /// Logical bytes in the temporary spool, NOT resident memory.
+    pub staged_payload_bytes: u64,
     /// Owned handover/arena text bytes currently used.
     pub text_live: usize,
     /// Owned handover/arena text vector capacity bytes.
@@ -66,8 +70,17 @@ impl RetainedBytes {
                 + capacity(&handed.governing.0)
                 + capacity(&handed.partials);
             for bucket in &handed.buckets {
-                bytes.packed_live += bucket.words.0.len();
-                bytes.packed_capacity += bucket.words.0.capacity();
+                match &bucket.words {
+                    RecordWords::Inline(words) => {
+                        bytes.packed_live += words.0.len();
+                        bytes.packed_capacity += words.0.capacity();
+                    }
+                    RecordWords::Staged(span) => {
+                        bytes.staged_objects += 1;
+                        bytes.staged_payload_bytes =
+                            bytes.staged_payload_bytes.saturating_add(span.length);
+                    }
+                }
             }
             bytes.text_live += handed.text.0.len();
             bytes.text_capacity += handed.text.0.capacity();
@@ -105,6 +118,21 @@ impl RetainedBytes {
             bytes.metadata += capacity(&covered.governing.0) + capacity(&covered.partials);
         }
         bytes
+    }
+
+    /// Store publication retains only descriptor metadata for fresh staged rows.
+    pub(crate) fn staged(kept: &ryo_values::domain::stores::types::KeptRows) -> Self {
+        Self {
+            objects: kept.staged.len(),
+            metadata: capacity(&kept.staged),
+            staged_objects: kept.staged.len(),
+            staged_payload_bytes: kept
+                .staged
+                .iter()
+                .map(|row| row.words.length)
+                .fold(0_u64, u64::saturating_add),
+            ..Self::default()
+        }
     }
 
     /// Worker arenas are separate owners from normalized record handover text.

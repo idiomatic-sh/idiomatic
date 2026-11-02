@@ -1,11 +1,16 @@
-// The fixture sample intentionally contains no interpolated strings.
+// An adjacent decoded literal belongs to its f-string; the separate plain string has no owner.
 
-use ryo::languages::contract::{Expected, InterpolatedStringLiteralExpectedRow, expected_rows};
+use ryo::languages::contract::{
+    Expected, InterpolatedStringLiteralExpectedRow, expected_rows, file, name, node, span,
+};
 
-/// The expected rows for the canonical relation sample.
-const ROWS: &[InterpolatedStringLiteralExpectedRow] = &[];
-
-/// Return the sample’s typed reader expectation.
+/// Independently specified complete rows for this input.
 pub(super) fn expected() -> Expected {
-    expected_rows(ROWS)
+    expected_rows(&[InterpolatedStringLiteralExpectedRow {
+        id: node(3),
+        owner: node(2),
+        value: name("text"),
+        file: file("interpolated_string_literal/input.py"),
+        span: span((1, 1), (1, 7)),
+    }])
 }

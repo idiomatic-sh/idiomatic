@@ -1,5 +1,5 @@
 description = "A language: the crate that fulfils ryo's concepts for one language, applied beside its `crate` and `nu-hex` entries. It names what a language must have and holds each part to it: its two contracts, `parse` and `project` (the only place its answers live), its one file of kinds, a syntax adapter for each parser library, an adapter for each manifest tool of its manifest reading port and for each host framework of its embedded port (where it has them), its fixtures, and the two tests every language runs."
-why = "Ryo owns the concepts, the language fulfils them. The compiler holds that `Parse` and `Project` answer every relation of the catalog; the conformance holds each answer to the language's fixtures; this spec holds the rest, so that a language added by the directory is complete or says what it lacks: no part is optional, none is left for an author to remember, and no list of languages, of parsers or of rules is kept anywhere else."
+why = "Ryo owns the concepts, the language fulfils them. The compiler holds that `Parse` and `Project` answer every relation of the catalog; the conformance holds each answer to the language's fixtures; this spec holds the rest, so that a language added by the directory is complete or says what it lacks: no part is optional, none is left for an author to remember, and no list of languages, of parsers or of rules is kept anywhere else. Shared-engine changes must pass every established language's declared correctness, allocation, and performance gates. Discover language benchmarks from their declarations; absent, skipped, incomplete, or failed evidence is not a pass. Preserve pinned workloads, settings, source and executable identities and enforce each supported CPU, wall, and memory bound independently, including cold, retained-cache warm, and edit conditions where established. A gain in one language or metric cannot offset a regression in another; existing thresholds must not be weakened to admit an engine change."
 closed = false
 specs = [
   { alias = "benchmark", spec = "idiomatic.ryo/benchmark@0.1.0", include = ["benchmarks"], count = { min = 0 }, description = "Comparative lint benchmarks, when this language has begun its rollout; the shared harness audits completeness." },
@@ -283,6 +283,11 @@ workspace = true
 # Its `allocation` test target (`harness = false`) sets `dhat` as the global allocator, which machete does not see.
 [package.metadata.cargo-machete]
 ignored = ["dhat"]
+
+[package.metadata.ryo.performance]
+schema = "divan-timing/v1"
+workloads = { generated_every_relation = [2500, 10000] }
+metrics = ["median-ns"]
 '''
 files.'demo/README.md' = '''
 # idiomatic-sh-ryo-demo
@@ -7320,6 +7325,11 @@ workspace = true
 # Its `allocation` test target (`harness = false`) sets `dhat` as the global allocator, which machete does not see.
 [package.metadata.cargo-machete]
 ignored = ["dhat"]
+
+[package.metadata.ryo.performance]
+schema = "divan-timing/v1"
+workloads = { generated_every_relation = [2500, 10000] }
+metrics = ["median-ns"]
 '''
 given.files.'demo/benches/performance.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
@@ -8106,6 +8116,11 @@ workspace = true
 # Its `allocation` test target sets `dhat` as the global allocator, which machete does not see.
 [package.metadata.cargo-machete]
 ignored = ["dhat"]
+
+[package.metadata.ryo.performance]
+schema = "divan-timing/v1"
+workloads = { generated_every_relation = [2500, 10000] }
+metrics = ["median-ns"]
 '''
 given.files.'demo/README.md' = '''
 # idiomatic-sh-ryo-demo

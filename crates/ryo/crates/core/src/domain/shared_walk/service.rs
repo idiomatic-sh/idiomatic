@@ -2,7 +2,7 @@
 //! no IO and no ports. The classes of the steps it decides are the `step_classes` concept's.
 
 use super::types::{
-    ClassWork, ElementReading, KindCount, Merged, MergedWalk, Merging, Pass, Walking,
+    ClassWork, ElementReading, Merged, MergedWalk, Merging, Pass, SharedClasses, WalkWork, Walking,
 };
 use crate::domain::comparing::service::holds_some;
 use crate::domain::coverage::types::RuleIndex;
@@ -32,15 +32,20 @@ use ryo_language::domain::relations::types::{Flag, KindBits, Position, Value};
 use ryo_language::domain::symbols::service::name_count;
 
 /// Readies the room for the steps of the rule `rule`: which of them the walk has decided.
-pub(crate) fn install(shared: &MergedWalk, room: &mut LoweredRoom, rule: RuleIndex) {
+pub(crate) fn install(
+    shared: &MergedWalk,
+    classes: &SharedClasses,
+    room: &mut LoweredRoom,
+    rule: RuleIndex,
+) {
     room.picked.clear();
     if let Some(of_rule) = shared.merge.class_of.get(rule.0) {
         room.picked.extend(of_rule.iter().map(|class| {
             class.filter(|place| {
-                shared
-                    .work
+                classes
+                    .merged
                     .get(place.0)
-                    .is_some_and(|work| work.merged == Merged::Together)
+                    .is_some_and(|merged| *merged == Merged::Together)
             })
         }));
     }
@@ -107,7 +112,7 @@ fn consider(
     })();
     match decided {
         Ok(Verdict::Holds) => {
-            if let Some(done) = pass.room.classes.get_mut(place.0) {
+            if let Some(done) = pass.room.get_mut(place.0) {
                 done.0.push(position.0);
             }
         }
@@ -155,37 +160,26 @@ pub(crate) fn walk(shared: &mut MergedWalk, walking: Walking<'_>) {
     } = walking;
     if shared.made == Merging::NotYet {
         shared.merge = merge(plans, bindings);
-        shared.work.clear();
-        shared
-            .work
-            .resize_with(shared.merge.classes.len(), ClassWork::default);
         shared.made = Merging::Done;
     }
-    for work in &mut shared.work {
-        work.merged = Merged::Apart;
-        work.kinds = KindCount(0);
-    }
-    room.picked.clear();
+    *room = SharedClasses::default();
     let kinds_in_file = kind_names(elements).len();
     if steps != TreeSteps::Lowered || kinds_in_file == 0 || shared.merge.classes.is_empty() {
         return;
     }
+    let mut file_work = WalkWork::default();
+    file_work
+        .work
+        .resize_with(shared.merge.classes.len(), ClassWork::default);
     room.classes
         .resize_with(shared.merge.classes.len(), Default::default);
-    for each in &mut room.classes {
-        each.0.clear();
-    }
-    let MergedWalk {
-        merge,
+    let merge = &shared.merge;
+    let WalkWork {
         work,
         by_kind,
         every,
         union,
-        ..
-    } = shared;
-    for each in by_kind.iter_mut() {
-        each.clear();
-    }
+    } = &mut file_work;
     by_kind.resize_with(kinds_in_file, Vec::new);
     every.clear();
     let tree = TreeRows {
@@ -284,7 +278,7 @@ pub(crate) fn walk(shared: &mut MergedWalk, walking: Walking<'_>) {
         source,
         symbols,
         scratch,
-        room,
+        room: &mut room.classes,
         cells: [Value::Flag(Flag::Lowered); ELEMENT_COLUMNS],
         read: ElementReading::NotYet,
     };
@@ -323,9 +317,10 @@ pub(crate) fn walk(shared: &mut MergedWalk, walking: Walking<'_>) {
     for (place, each) in work.iter().enumerate() {
         if each.merged == Merged::Together
             && each.kinds.0 > 1
-            && let Some(done) = pass.room.classes.get_mut(place)
+            && let Some(done) = pass.room.get_mut(place)
         {
             done.0.sort_unstable();
         }
     }
+    room.merged = work.iter().map(|work| work.merged).collect();
 }

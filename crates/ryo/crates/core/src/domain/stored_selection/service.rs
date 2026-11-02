@@ -5,7 +5,7 @@ use super::types::{Matches, Selector};
 use crate::domain::comparing::service::holds_all;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::{NameCount, OperatorContext};
-use crate::domain::operator::types::Pool;
+use crate::domain::operator::types::PreparedPool;
 use crate::domain::stored_indexes::types::FileIndexes;
 use crate::domain::table_cells::service::read_cells;
 use crate::domain::table_cells::types::{CellsRead, ColumnPlaces, RowIndex};
@@ -22,7 +22,7 @@ use ryo_values::domain::plans::types::Plan;
 use std::sync::Arc;
 
 /// Prepare request-specific metadata once per worker, without evaluating any relation.
-pub(crate) fn prepare(pool: &mut Pool, plans: &[Plan], bindings: &[Vec<ParameterBinding>]) {
+pub(crate) fn prepare(pool: &mut PreparedPool, plans: &[Plan], bindings: &[Vec<ParameterBinding>]) {
     if pool.selection_plans.len() == plans.len()
         && plans
             .iter()
@@ -50,7 +50,7 @@ pub(crate) fn prepare(pool: &mut Pool, plans: &[Plan], bindings: &[Vec<Parameter
 /// Install only active descriptors, bounded with all other generation-local retained cache data.
 pub(crate) fn activate(
     cache: &mut FileIndexes,
-    pool: &Pool,
+    pool: &PreparedPool,
     selectable: &[ryo_language::domain::relations::types::Relation],
     active: impl Fn(usize) -> bool,
 ) {

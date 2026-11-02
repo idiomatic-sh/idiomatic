@@ -9,12 +9,10 @@ use super::types::{
 use crate::domain::coverage::types::RuleIndex;
 use crate::domain::finish::types::{LineStarts, RuleNumber};
 use crate::domain::lowering::types::Counting;
-use crate::domain::operator::service::pool_for;
-use crate::domain::operator::types::{PlanIdentity, Pool, RowsFed, TreeSteps};
+use crate::domain::operator::types::{PlanIdentity, PreparedPool, RowsFed, TreeSteps};
 use crate::domain::placement::service::{governed, governs, place};
 use crate::domain::placement::types::{Governing, Mask};
 use crate::domain::render::types::Rendered;
-use crate::domain::table_scratch::types::OperatorScratch;
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::relations::types::{Words, WorkerNumber};
@@ -42,12 +40,12 @@ pub(crate) fn tables_for(
         hits: Hits::default(),
         words: Words::default(),
         packed: PackedWords::default(),
-        memo: Vec::new(),
-        scratch: OperatorScratch::default(),
-        pool: Pool {
+        pool: PreparedPool {
+            layouts: Vec::with_capacity(plans.len()),
+            fed: Vec::with_capacity(plans.len()),
             unlowered,
             counting,
-            ..pool_for(plans)
+            ..PreparedPool::default()
         },
         starts: LineStarts(Vec::new()),
         arena: ArenaBytes::default(),

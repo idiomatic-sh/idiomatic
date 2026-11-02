@@ -52,3 +52,9 @@ pub(super) struct OpenedStore {
     /// The bytes of its table of contents.
     pub contents: SectionBytes,
 }
+
+/// Private IO behavior over the run's temporary spool.
+pub(super) mod spool;
+
+/// Compact framing and bounded payload copying for rebuilt buckets.
+pub(super) mod frames;

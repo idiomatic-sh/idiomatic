@@ -68,10 +68,25 @@ pub enum BucketsWanted {
 /// keeps as they were, and the files used again, whose rows of the other buckets it moves to their new number.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct KeptRows {
+    /// Fresh staged payloads, resolved only by the same run's store snapshot during writing.
+    pub staged: Vec<StagedRow>,
     /// The buckets whose words are kept as they were, in order.
     pub unchanged: Vec<Bucket>,
     /// Each file the run used again, in the order of both its numbers.
     pub file_again: Vec<FileAgain>,
+}
+
+/// Fresh normalized words that will be streamed into the unchanged persistent bucket format.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct StagedRow {
+    /// The file's final number in this run's store.
+    pub file: StoredFileNumber,
+    /// Its destination bucket.
+    pub bucket: Bucket,
+    /// Original fresh-row position among both inline and staged rows, preserving tie order.
+    pub ordinal: u64,
+    /// Plain descriptor; no path or IO resource crosses into domain data.
+    pub words: crate::domain::records::types::StagedWords,
 }
 
 /// A file a run used again: its number in the store kept before, and its number now.

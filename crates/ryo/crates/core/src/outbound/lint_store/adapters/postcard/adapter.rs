@@ -11,8 +11,7 @@ use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
 use super::constants::{FILE, LENGTH, NOT_A_FILE, OUTSIDE, TEMPORARY, UNDECODED};
 use super::schemas::{
-    bucket_bytes, bucket_from, contents, contents_bytes, rebuilt_bucket_bytes, rest_bytes,
-    rest_from, tables_bytes, tables_of,
+    bucket_from, contents, contents_bytes, rest_bytes, rest_from, tables_bytes, tables_of,
 };
 use super::types::{
     BucketSpan, FileOffset, OpenedStore, SectionBytes, SectionLength, SectionSpan, TableOfContents,
@@ -21,9 +20,7 @@ use crate::outbound::lint_store::errors::LintStoreError;
 use crate::outbound::lint_store::interface::{LintStorePort, ReadStore};
 use crate::outbound::lint_store::types::{Store, StoreKeeping};
 use ryo_values::domain::stored_facts::types::Bucket;
-use ryo_values::domain::stores::types::{
-    BucketsWanted, KeptRows, Stored, StoredHanded, StoredWords,
-};
+use ryo_values::domain::stores::types::{BucketsWanted, KeptRows, Stored, StoredHanded};
 
 /// The postcard store adapter: the store of one cache directory, for one build.
 #[derive(Clone, Debug)]
@@ -41,6 +38,10 @@ struct PostcardRead {
     opened: Option<Mutex<OpenedStore>>,
     /// Where the small tables are in the file.
     tables: SectionSpan,
+    /// One snapshot identity, even before it creates a temporary file.
+    session: ryo_values::domain::records::types::StagingSession,
+    /// Fresh normalized data is staged lazily, outside domain record ownership.
+    spool: Mutex<Option<super::types::spool::value::StagingSpool>>,
 }
 
 impl LintStorePostcardAdapter {
@@ -200,38 +201,51 @@ fn copied(
 fn put_made(
     out: &mut std::io::BufWriter<std::fs::File>,
     at: &mut FileOffset,
-    by_bucket: &BTreeMap<Bucket, Vec<&StoredWords>>,
+    mut by_bucket: BTreeMap<Bucket, Vec<super::types::frames::value::Frame<'_>>>,
     mut old: Option<&mut OpenedStore>,
     old_contents: Option<&[BucketSpan]>,
     kept: &KeptRows,
+    mut spool: Option<&mut super::types::spool::value::StagingSpool>,
 ) -> std::io::Result<Vec<BucketSpan>> {
     let mut made: BTreeMap<Bucket, Option<SectionSpan>> =
         by_bucket.keys().map(|bucket| (*bucket, None)).collect();
     if !kept.file_again.is_empty() {
         for each in old_contents.unwrap_or_default() {
             if kept.unchanged.binary_search(&each.bucket).is_err() {
-                let _was = made.insert(each.bucket, Some(each.span));
+                let _ = made.insert(each.bucket, Some(each.span));
             }
         }
     }
     let mut buckets = Vec::new();
     for (bucket, was) in made {
-        let fresh = by_bucket.get(&bucket).map_or(&[][..], Vec::as_slice);
-        let bytes = match (was, old.as_deref_mut()) {
-            (Some(span), Some(opened)) => {
-                let old_bytes = section(&mut opened.file, span)?;
-                rebuilt_bucket_bytes(fresh, Some(&old_bytes.0), &kept.file_again)
+        let mut rows = by_bucket.remove(&bucket).unwrap_or_default();
+        if let (Some(span), Some(opened)) = (was, old.as_deref_mut()) {
+            for row in super::types::frames::value::old_rows(&mut opened.file, span)? {
+                if let Ok(place) = kept
+                    .file_again
+                    .binary_search_by_key(&row.file.0, |again| again.was.0)
+                    && let Some(again) = kept.file_again.get(place)
+                {
+                    rows.push(super::types::frames::value::Frame {
+                        file: again.now,
+                        payload: row.payload,
+                    });
+                }
             }
-            (None | Some(_), _) => bucket_bytes(fresh).map(Some),
+            // Stable sorting matches rebuilt_bucket_bytes: fresh ties precede old ties.
+            rows.sort_by_key(|row| row.file);
         }
-        .map_err(std::io::Error::other)?;
-        let Some(bytes) = bytes else {
+        if rows.is_empty() {
             continue;
-        };
-        buckets.push(BucketSpan {
-            bucket,
-            span: put(out, at, &SectionBytes(bytes))?,
-        });
+        }
+        let span = super::types::frames::value::write_bucket(
+            out,
+            at,
+            &rows,
+            old.as_deref_mut().map(|opened| &mut opened.file),
+            spool.as_deref_mut(),
+        )?;
+        buckets.push(BucketSpan { bucket, span });
     }
     Ok(buckets)
 }
@@ -241,8 +255,15 @@ fn locked(opened: &Mutex<OpenedStore>) -> MutexGuard<'_, OpenedStore> {
     opened.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
-/// Gives each writer a name of its own, so two runs never write the same file.
+/// Writer names and staging sessions share one checked process-unique sequence.
 static WRITERS: AtomicU64 = AtomicU64::new(0);
+
+/// Never wrap a live snapshot identity or reuse a writer name.
+fn unique() -> std::io::Result<u64> {
+    WRITERS
+        .try_update(Ordering::Relaxed, Ordering::Relaxed, |id| id.checked_add(1))
+        .map_err(|_| std::io::Error::other("store snapshot identities exhausted"))
+}
 
 impl LintStorePort for LintStorePostcardAdapter {
     fn keeps(&self) -> StoreKeeping {
@@ -250,11 +271,16 @@ impl LintStorePort for LintStorePostcardAdapter {
     }
 
     fn stored(&self) -> Result<Arc<dyn ReadStore>, LintStoreError> {
+        let session = ryo_values::domain::records::types::StagingSession(
+            unique().map_err(|error| self.unreadable(&error))?,
+        );
         let nothing = || {
             Arc::new(PostcardRead {
                 adapter: self.clone(),
                 opened: None,
                 tables: SectionSpan::default(),
+                session,
+                spool: Mutex::new(None),
             })
         };
         let Some(opened) = self.opened()? else {
@@ -274,6 +300,8 @@ impl LintStorePort for LintStorePostcardAdapter {
             adapter: self.clone(),
             opened: Some(Mutex::new(opened)),
             tables: contents.tables,
+            session,
+            spool: Mutex::new(None),
         }))
     }
 }
@@ -294,6 +322,42 @@ impl ReadStore for PostcardRead {
         }
     }
 
+    fn stage_words(
+        &self,
+        words: ryo_values::domain::stored_facts::types::PackedWords,
+    ) -> Result<ryo_values::domain::records::types::RecordWords, LintStoreError> {
+        let failed = |error: std::io::Error| LintStoreError::Unwritable {
+            directory: self.adapter.store.directory.0.to_string(),
+            reason: error.to_string(),
+        };
+        let mut spool = self.spool.lock().unwrap_or_else(PoisonError::into_inner);
+        if spool.is_none() {
+            *spool =
+                Some(super::types::spool::value::StagingSpool::new(self.session).map_err(failed)?);
+        }
+        let Some(spool) = spool.as_mut() else {
+            return Err(LintStoreError::NothingRead);
+        };
+        spool
+            .append(words)
+            .map(ryo_values::domain::records::types::RecordWords::Staged)
+            .map_err(failed)
+    }
+
+    fn read_staged(
+        &self,
+        words: &ryo_values::domain::records::types::StagedWords,
+        into: &mut ryo_values::domain::stored_facts::types::PackedWords,
+    ) -> Result<(), LintStoreError> {
+        let mut spool = self.spool.lock().unwrap_or_else(PoisonError::into_inner);
+        let Some(spool) = spool.as_mut() else {
+            return Err(LintStoreError::NothingRead);
+        };
+        spool
+            .read(words, into)
+            .map_err(|error| self.adapter.unreadable(&error))
+    }
+
     fn keep(&self, stored: Stored, kept: &KeptRows) -> Result<(), LintStoreError> {
         let store = &self.adapter.store;
         let unchanged = &kept.unchanged;
@@ -308,6 +372,19 @@ impl ReadStore for PostcardRead {
             return Err(LintStoreError::NothingRead);
         }
         let mut old = read.map(locked);
+        let mut spool = self.spool.lock().unwrap_or_else(PoisonError::into_inner);
+        if let Some(spool) = spool.as_mut() {
+            spool.flush().map_err(|error| unwritable(&error))?;
+        }
+        for row in &kept.staged {
+            let held = spool
+                .as_ref()
+                .ok_or_else(|| unwritable(&"no staging session was read"))?;
+            super::types::spool::value::validate(held.session, held.length, &row.words)
+                .map_err(|error| unwritable(&error))?;
+        }
+        let by_bucket = super::types::frames::value::fresh(&stored.handed.frontier, &kept.staged)
+            .map_err(|error| unwritable(&error))?;
         let old_contents = old
             .as_ref()
             .and_then(|opened| contents(&store.build.0, &opened.contents.0))
@@ -317,12 +394,15 @@ impl ReadStore for PostcardRead {
         let temporary = Path::new(&*store.directory.0).join(format!(
             "{TEMPORARY}.{}.{}",
             std::process::id(),
-            WRITERS.fetch_add(1, Ordering::Relaxed)
+            unique().map_err(|error| unwritable(&error))?
         ));
         let written = std::fs::File::create(&temporary)
             .map_err(|error| unwritable(&error))
             .and_then(|file| {
-                let mut out = std::io::BufWriter::new(file);
+                let mut out = std::io::BufWriter::with_capacity(
+                    super::types::spool::value::BUFFER_BYTES,
+                    file,
+                );
                 let mut at = FileOffset(0);
                 let tables = put(
                     &mut out,
@@ -336,17 +416,14 @@ impl ReadStore for PostcardRead {
                     &SectionBytes(rest_bytes(&stored.handed).map_err(|error| unwritable(&error))?),
                 )
                 .map_err(|error| unwritable(&error))?;
-                let mut by_bucket: BTreeMap<Bucket, Vec<&StoredWords>> = BTreeMap::new();
-                for each in &stored.handed.frontier {
-                    by_bucket.entry(each.bucket).or_default().push(each);
-                }
                 let mut buckets = put_made(
                     &mut out,
                     &mut at,
-                    &by_bucket,
+                    by_bucket,
                     old.as_deref_mut(),
                     old_contents.as_deref(),
                     kept,
+                    spool.as_mut(),
                 )
                 .map_err(|error| unwritable(&error))?;
                 // The buckets as they were are copied as they are, byte for byte: none is decoded or encoded again.
@@ -381,14 +458,23 @@ impl ReadStore for PostcardRead {
                 out.write_all(&length.to_le_bytes())
                     .map_err(|error| unwritable(&error))?;
                 out.flush().map_err(|error| unwritable(&error))
-            })
-            .and_then(|()| {
-                std::fs::rename(&temporary, self.adapter.file()).map_err(|error| unwritable(&error))
             });
-        if written.is_err() {
-            // The write's failure is the one to answer; a temporary file left behind is never read.
-            drop(std::fs::remove_file(&temporary));
-        }
-        written
+        published(&temporary, written, || {
+            std::fs::rename(&temporary, self.adapter.file()).map_err(|error| unwritable(&error))
+        })
     }
+}
+
+/// Publication follows a fully flushed write. Failure never removes the previous cache target.
+pub(super) fn published<E>(
+    temporary: &Path,
+    written: Result<(), E>,
+    rename: impl FnOnce() -> Result<(), E>,
+) -> Result<(), E> {
+    let result = written.and_then(|()| rename());
+    if result.is_err() {
+        // Preserve the original failure; an uncommitted temporary file is never read as a store.
+        drop(std::fs::remove_file(temporary));
+    }
+    result
 }

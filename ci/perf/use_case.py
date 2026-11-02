@@ -25,9 +25,9 @@ ROUNDS = 5
 FAIL = 1.15
 WARN = 1.05
 # The products each bench is of: `commands` and `distribution` every product's, `lint` (ryo's cost over ruff) ryo's.
-PRODUCTS = {"commands": ("asymptote", "tastemaker", "ryo"), "distribution": ("asymptote", "tastemaker", "ryo"), "lint": ("ryo",)}
+PRODUCTS = {"commands": ("asymptote", "tastemaker", "ryo"), "distribution": ("asymptote", "tastemaker", "ryo"), "lint": ("ryo",), "languages": ("ryo",)}
 # What a change must touch for a bench to run against a base: any crate or the lock, and for `lint`, ryo.
-REACHES = {"commands": ("crates/", "Cargo.lock"), "distribution": ("crates/", "Cargo.lock"), "lint": ("crates/ryo/",)}
+REACHES = {"commands": ("crates/", "Cargo.lock"), "distribution": ("crates/", "Cargo.lock"), "lint": ("crates/ryo/",), "languages": ("crates/ryo/", "ci/perf/", "rust-toolchain.toml", ".cargo/", "Cargo.lock")}
 
 
 class Refused(Exception):
@@ -69,6 +69,14 @@ def comparison(before: dict[str, float], after: dict[str, float], expected: set[
     return ratios
 
 
+def record(measured: dict[str, float], expected: set[str] | None, label: str) -> None:
+    """A head-only record must still contain complete, finite, nonnegative observations."""
+    if not measured or (expected is not None and measured.keys() != expected):
+        raise Refused(f"{label}: missing or unexpected declared metrics")
+    if any(not math.isfinite(value) or value < 0 for value in measured.values()):
+        raise Refused(f"{label}: recorded values must be finite and nonnegative")
+
+
 class UseCase:
     """The job, over the ports its composition supplies, for the checkout at `head`."""
 
@@ -88,7 +96,8 @@ class UseCase:
         if request.base is None:
             for name in request.benches:
                 for product in PRODUCTS[name]:
-                    self.bench.measure(self.head, product, name, "head")
+                    measured = self.bench.measure(self.head, product, name, "head")
+                    record(measured, self.bench.required(self.head, product, name), f"{product}/{name}/head")
             return 0
         changed = self.tree.changed(request.base)
         benches = [name for name in request.benches if reaches(name, changed)]
@@ -105,7 +114,8 @@ class UseCase:
                         before = self.bench.measure(base, product, name, f"base-{index}")
                         after = self.bench.measure(self.head, product, name, f"head-{index}")
                         group = f"{product}/{name}"
-                        compared = comparison(before, after, metrics.get(group), f"{group}/round-{index}")
+                        expected = metrics.get(group, self.bench.required(self.head, product, name))
+                        compared = comparison(before, after, expected, f"{group}/round-{index}")
                         metrics[group] = set(compared)
                         for measure, ratio in compared.items():
                             ratios.setdefault(f"{group}/{measure}", []).append(ratio)

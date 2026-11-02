@@ -194,13 +194,43 @@ pub enum HandedNotes {
     Nothing,
 }
 
+/// The per-run store snapshot that owns a temporary normalized-word span.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct StagingSession(pub u64);
+
+/// A checked byte range in a temporary spool owned by one live ReadStore snapshot.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct StagedWords {
+    /// Foreign or stale sessions are never resolved by another snapshot.
+    pub session: StagingSession,
+    /// Byte offset from the start of this session's spool.
+    pub offset: u64,
+    /// Exact packed payload length, with no framing bytes.
+    pub length: u64,
+}
+
+/// Normalized fresh words are either inline or a descriptor, never a domain-owned file handle.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum RecordWords {
+    /// Memory/discard/custom stores may retain an owned inline payload.
+    Inline(PackedWords),
+    /// The same run's store snapshot owns these bytes until final publication or drop.
+    Staged(StagedWords),
+}
+
+impl From<PackedWords> for RecordWords {
+    fn from(words: PackedWords) -> Self {
+        Self::Inline(words)
+    }
+}
+
 /// The words a file handed the steps that read across files in one bucket, packed.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct HandedWords {
     /// The bucket.
     pub bucket: Bucket,
     /// The words.
-    pub words: PackedWords,
+    pub words: RecordWords,
 }
 
 /// The rules that govern a file, by their place among the rules.

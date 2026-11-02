@@ -290,7 +290,7 @@ const OPTIONAL_CAPABILITY_RULES: [(&str, &str); 20] = [
     ),
     (
         "literal-properties-positive",
-        "let literals = select id, file, span from \"literal-properties\" where kind = \"integer\" and zero = true; emit literals subject file key(span);",
+        "let literals = select id, file, span from \"literal-properties\" where kind = \"integer\" and zero = \"true\"; emit literals subject file key(span);",
     ),
     (
         "literal-properties-negative",

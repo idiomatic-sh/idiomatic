@@ -3,6 +3,7 @@
 //! workers, `allocations` is the allocation count, `project` is the manifests, `conformance` holds every answer to the fixtures.
 
 use ryo_language::inbound::use_cases::parse::constants::FIXTURES;
+use ryo_language::inbound::use_cases::parse::fixtures::configuration::ConfiguredFixture as EngineFixture;
 use ryo_language::inbound::use_cases::parse::fixtures::contract as parse_contract;
 use ryo_language::inbound::use_cases::parse::fixtures::samples as parse_samples;
 use ryo_language::inbound::use_cases::project::fixtures::contract as project_contract;
@@ -124,18 +125,58 @@ pub struct ManifestDir(pub &'static str);
 ///
 /// When the name of the language is not its directory's, or an answer of the language is not held by its fixtures, listing every one.
 pub fn conformance(linked: &super::Language, manifest_dir: ManifestDir, expected: &Fixtures) {
+    conformance_with(linked, manifest_dir, expected, &|_| Ok(None));
+}
+
+/// A fixture-only language selection and matching independent references.
+pub struct ConfiguredFixture {
+    /// Immutable configured language constructed through its existing public setup.
+    pub language: super::Language,
+    /// Independent shape reference using the same declared configuration.
+    pub shape: Shape,
+    /// Independent row reference using the same declared configuration.
+    pub oracle: Oracle,
+}
+
+impl std::fmt::Debug for ConfiguredFixture {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ConfiguredFixture")
+            .finish_non_exhaustive()
+    }
+}
+
+/// Run fixture conformance with language-owned metadata and immutable parser selection.
+///
+/// # Panics
+/// When the language directory, declared fixture settings, or conformance expectations fail.
+pub fn conformance_with(
+    linked: &super::Language,
+    manifest_dir: ManifestDir,
+    expected: &Fixtures,
+    configure: &dyn Fn(&str) -> Result<Option<ConfiguredFixture>, String>,
+) {
     let directory = Path::new(manifest_dir.0);
     assert_eq!(
         Some(&*linked.name().0),
         directory.file_name().and_then(|name| name.to_str()),
         "the name of a language is the name of its directory"
     );
-    ryo_language::inbound::use_cases::parse::fixtures::conformance::conformance(
+    ryo_language::inbound::use_cases::parse::fixtures::conformance::conformance_with(
         &linked.name().0,
         linked.parse_engine().as_ref(),
         linked.project().as_ref(),
         &directory.join(FIXTURES),
         expected,
+        &|text| {
+            configure(text).map(|configured| {
+                configured.map(|context| EngineFixture {
+                    parse: context.language.parse_engine(),
+                    shape: context.shape,
+                    oracle: context.oracle,
+                })
+            })
+        },
     );
 }
 

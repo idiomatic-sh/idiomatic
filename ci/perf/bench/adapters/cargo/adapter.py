@@ -13,6 +13,7 @@ from pathlib import Path
 
 from ci.perf.bench.interface import Bench
 from ci.perf.use_case import Refused
+from ci.perf.bench.adapters.cargo.language import declared_metrics, measure_languages
 
 # The flags a bench is built with beside `--locked --workspace`, as the products' `asymptote.toml` run it.
 FEATURES = {"distribution": ("--all-features",)}
@@ -99,6 +100,10 @@ class CargoBench(Bench):
 
     def measure(self, tree: Path, product: str, bench: str, label: str) -> dict[str, float]:
         channel = tomllib.loads((self.root / "rust-toolchain.toml").read_text())["toolchain"]["channel"]
+        if bench == "languages":
+            if product != "ryo":
+                raise Refused("language timings belong to the ryo workspace")
+            return measure_languages(self.root, tree, self.output, label, channel)
         command = cargo_bench(bench)
         compatible = product == "tastemaker" and bench == "commands"
         output = self.output or (self.root / "target/benchmarks/speed" if compatible else None)
@@ -131,3 +136,7 @@ class CargoBench(Bench):
         if self.output is not None:
             (self.output / f"{label}-{product}-{bench}.json").write_text(result.stdout)
         return measures(result.stdout)
+
+    def required(self, tree: Path, product: str, bench: str) -> set[str] | None:
+        """Declared language/workload/argument metrics never come from the measured table."""
+        return declared_metrics(tree) if product == "ryo" and bench == "languages" else None

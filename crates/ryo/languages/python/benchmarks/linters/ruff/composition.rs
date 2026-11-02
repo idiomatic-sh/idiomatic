@@ -391,9 +391,8 @@ pub(crate) fn run(
                     }
                 }
             }
-            if !samples.is_empty() {
-                evidence.publish(&samples)?;
-            }
+            // The evidence boundary refuses an empty observation set; never bypass that guard.
+            evidence.publish(&samples)?;
             if failures.is_empty() {
                 Ok(())
             } else {

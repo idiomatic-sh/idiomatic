@@ -79,6 +79,7 @@ pub(super) fn observed_memory(
     tracing::trace!(target: "ryo::diagnostic::lifecycle_memory", phase, owner,
         objects = bytes.objects, metadata_capacity_bytes = bytes.metadata,
         packed_live_bytes = bytes.packed_live, packed_capacity_bytes = bytes.packed_capacity,
+        staged_objects = bytes.staged_objects, staged_payload_bytes = bytes.staged_payload_bytes,
         text_live_bytes = bytes.text_live, text_capacity_bytes = bytes.text_capacity,
         notes_live_bytes = bytes.notes_live, notes_capacity_bytes = bytes.notes_capacity,
         findings_capacity_bytes = bytes.findings_capacity,
@@ -185,6 +186,20 @@ pub(super) fn observed_packed(words: &ryo_values::domain::stored_facts::types::K
             "cross_input_packed",
             "packed_input",
             crate::domain::recording::types::retention::value::RetainedBytes::packed(words),
+        );
+    }
+}
+
+/// Publication observes staged descriptor capacity without reading spool contents.
+pub(super) fn observed_staged(
+    phase: &'static str,
+    kept: &ryo_values::domain::stores::types::KeptRows,
+) {
+    if memory_enabled() {
+        observed_memory(
+            phase,
+            "store_staged_descriptors",
+            crate::domain::recording::types::retention::value::RetainedBytes::staged(kept),
         );
     }
 }

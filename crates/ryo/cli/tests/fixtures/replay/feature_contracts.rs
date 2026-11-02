@@ -50,6 +50,148 @@ const EMBEDDED_QUERIES: &[(&str, &str)] = &[
     ),
 ];
 
+/// Actual optional facts and generic operators; positive rows retain source identities.
+const CATALOG_QUERIES: &[(&str, &str)] = &[
+    (
+        "metadata-fact-invariants",
+        include_str!("../feature_contracts/catalog/metadata-invariants.ryoql"),
+    ),
+    (
+        "function-fact-invariants",
+        include_str!("../feature_contracts/catalog/function-invariants.ryoql"),
+    ),
+    (
+        "binding-event-witness",
+        include_str!("../feature_contracts/catalog/binding-event.ryoql"),
+    ),
+    (
+        "binding-read-witness",
+        include_str!("../feature_contracts/catalog/binding-read.ryoql"),
+    ),
+    (
+        "binding-shadow-witness",
+        include_str!("../feature_contracts/catalog/binding-shadow.ryoql"),
+    ),
+    (
+        "binding-use-witness",
+        include_str!("../feature_contracts/catalog/binding-use.ryoql"),
+    ),
+    (
+        "brace-format-field-witness",
+        include_str!("../feature_contracts/catalog/brace-format-field.ryoql"),
+    ),
+    (
+        "brace-format-parse-witness",
+        include_str!("../feature_contracts/catalog/brace-format-parse.ryoql"),
+    ),
+    (
+        "compiler-feature-witness",
+        include_str!("../feature_contracts/catalog/compiler-feature.ryoql"),
+    ),
+    (
+        "constant-key-witness",
+        include_str!("../feature_contracts/catalog/constant-key.ryoql"),
+    ),
+    (
+        "expression-type-witness",
+        include_str!("../feature_contracts/catalog/expression-type.ryoql"),
+    ),
+    (
+        "format-field-witness",
+        include_str!("../feature_contracts/catalog/format-field.ryoql"),
+    ),
+    (
+        "format-parse-witness",
+        include_str!("../feature_contracts/catalog/format-parse.ryoql"),
+    ),
+    (
+        "function-terminal-witness",
+        include_str!("../feature_contracts/catalog/function-terminal.ryoql"),
+    ),
+    (
+        "implicit-symbol-witness",
+        include_str!("../feature_contracts/catalog/implicit-symbol.ryoql"),
+    ),
+    (
+        "interpolated-string-literal-witness",
+        include_str!("../feature_contracts/catalog/interpolated-string-literal.ryoql"),
+    ),
+    (
+        "language-target-witness",
+        include_str!("../feature_contracts/catalog/language-target.ryoql"),
+    ),
+    (
+        "literal-expression-parse-witness",
+        include_str!("../feature_contracts/catalog/literal-expression-parse.ryoql"),
+    ),
+    (
+        "literal-properties-witness",
+        include_str!("../feature_contracts/catalog/literal-properties.ryoql"),
+    ),
+    (
+        "module-identity-witness",
+        include_str!("../feature_contracts/catalog/module-identity.ryoql"),
+    ),
+    (
+        "raw-format-field-witness",
+        include_str!("../feature_contracts/catalog/raw-format-field.ryoql"),
+    ),
+    (
+        "raw-format-segment-witness",
+        include_str!("../feature_contracts/catalog/raw-format-segment.ryoql"),
+    ),
+    (
+        "binding-fact-invariants",
+        include_str!("../feature_contracts/catalog/binding-invariants.ryoql"),
+    ),
+    (
+        "literal-fact-invariants",
+        include_str!("../feature_contracts/catalog/literal-invariants.ryoql"),
+    ),
+    (
+        "format-fact-invariants",
+        include_str!("../feature_contracts/catalog/format-invariants.ryoql"),
+    ),
+    (
+        "ordered-dfs-witness",
+        include_str!("../feature_contracts/operators/ordered-dfs-witness.ryoql"),
+    ),
+    (
+        "ordered-dfs-invariants",
+        include_str!("../feature_contracts/operators/ordered-dfs-invariants.ryoql"),
+    ),
+    (
+        "span-between-witness",
+        include_str!("../feature_contracts/operators/span-between-witness.ryoql"),
+    ),
+];
+
+/// Every newly exercised relation must have a nonvacuous source witness.
+const CATALOG_WITNESSES: &[&str] = &[
+    "binding-event-witness",
+    "binding-read-witness",
+    "binding-shadow-witness",
+    "binding-use-witness",
+    "brace-format-field-witness",
+    "brace-format-parse-witness",
+    "compiler-feature-witness",
+    "constant-key-witness",
+    "expression-type-witness",
+    "format-field-witness",
+    "format-parse-witness",
+    "function-terminal-witness",
+    "implicit-symbol-witness",
+    "interpolated-string-literal-witness",
+    "language-target-witness",
+    "literal-expression-parse-witness",
+    "literal-properties-witness",
+    "module-identity-witness",
+    "raw-format-field-witness",
+    "raw-format-segment-witness",
+    "ordered-dfs-witness",
+    "span-between-witness",
+];
+
 /// Check invariants and require positive known-origin witnesses before returning measured feature feeds.
 fn measure() -> Result<BTreeMap<String, u64>, String> {
     // COUNTING is shared with the other replay helpers, whose writers also run alone.
@@ -61,6 +203,7 @@ fn measure() -> Result<BTreeMap<String, u64>, String> {
             QUERIES,
             &["scripts/**/*.py", "python/**/*.py"],
             &["known-origin-witness", "expression-shape-witness"],
+            1_000,
         )?;
         // One upstream generated visitor API, not repeated or synthesized locally.
         // CPython's AST independently counts 1,712 quoted annotation occurrences.
@@ -69,6 +212,7 @@ fn measure() -> Result<BTreeMap<String, u64>, String> {
             EMBEDDED_QUERIES,
             &["libcst/_typed_visitor.py"],
             &["embedded-root-witness"],
+            1_000,
         )?;
         if roots != 1_712 {
             return Err(format!("LibCST has {roots} embedded roots, expected 1712"));
@@ -79,6 +223,44 @@ fn measure() -> Result<BTreeMap<String, u64>, String> {
                 .checked_add(count)
                 .ok_or("feature row count overflow")?;
         }
+        let (catalog, _) = measure_corpus(
+            &super::base::snapshot::ruff(),
+            CATALOG_QUERIES,
+            &["scripts/**/*.py", "python/**/*.py"],
+            &[],
+            1,
+        )?;
+        merge(&mut feeds, catalog)?;
+        let fixtures = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../languages/python/tests/fixtures/relations");
+        let (fixture_feeds, _) = measure_corpus(
+            &fixtures,
+            CATALOG_QUERIES,
+            &[
+                "binding_event/input*.py",
+                "binding_read/input*.py",
+                "binding_shadow/input*.py",
+                "binding_use/input*.py",
+                "brace_format_field/input*.py",
+                "brace_format_parse/input*.py",
+                "compiler_feature/input*.py",
+                "constant_key/input*.py",
+                "expression_type/input*.py",
+                "format_field/input*.py",
+                "format_parse/input*.py",
+                "function_terminal/input*.py",
+                "implicit_symbol/input*.py",
+                "interpolated_string_literal/input*.py",
+                "language_target/input*.py",
+                "literal_expression_parse/input*.py",
+                "literal_properties/input*.py",
+                "raw_format_field/input*.py",
+                "raw_format_segment/input*.py",
+            ],
+            CATALOG_WITNESSES,
+            1,
+        )?;
+        merge(&mut feeds, fixture_feeds)?;
         Ok(feeds)
     })();
     super::base::COUNTING.store(false, std::sync::atomic::Ordering::Relaxed);
@@ -91,6 +273,7 @@ fn measure_corpus(
     queries: &[(&str, &str)],
     include: &[&str],
     witnesses: &[&str],
+    minimum_witnesses: usize,
 ) -> Result<(BTreeMap<String, u64>, usize), String> {
     let rules = queries
         .iter()
@@ -119,19 +302,22 @@ fn measure_corpus(
     let (rows, report) = ran?;
     if !report.unread.is_empty() {
         return Err(format!(
-            "Python feature contracts have {} unread selected files",
-            report.unread.len()
+            "Python feature contracts have {} unread selected files; first: {:?}",
+            report.unread.len(),
+            report.unread.first()
         ));
     }
     if !report.unknowns.is_empty() {
         return Err(format!(
-            "Python feature contracts have {} undecided inputs",
-            report.unknowns.len()
+            "Python feature contracts have {} undecided inputs; first: {:?}",
+            report.unknowns.len(),
+            report.unknowns.first()
         ));
     }
     if rows.iter().any(|row| {
-        row.first()
-            .is_none_or(|rule| !witnesses.contains(&rule.as_str()))
+        row.first().is_none_or(|rule| {
+            !witnesses.contains(&rule.as_str()) && !CATALOG_WITNESSES.contains(&rule.as_str())
+        })
     }) {
         return Err(format!(
             "Python feature invariants failed beside {witnesses:?}: {rows:?}"
@@ -142,12 +328,13 @@ fn measure_corpus(
             .iter()
             .filter(|row| row.first().is_some_and(|rule| rule.as_str() == *witness))
             .count();
-        if count < 1_000 {
+        if count < minimum_witnesses {
             return Err(format!(
                 "Python feature contracts have only {count} {witness} rows"
             ));
         }
     }
+    verify_composed_spans(&rows)?;
     if rows.iter().collect::<BTreeSet<_>>().len() != rows.len() {
         return Err(format!("{witnesses:?} contains duplicate identities"));
     }
@@ -163,4 +350,78 @@ fn measure_corpus(
 pub(crate) fn measured() -> &'static Result<BTreeMap<String, u64>, String> {
     static MEASURED: OnceLock<Result<BTreeMap<String, u64>, String>> = OnceLock::new();
     MEASURED.get_or_init(measure)
+}
+
+/// Merge observed engine feed counts; never multiply sparse source rows to meet the stress threshold.
+fn merge(into: &mut BTreeMap<String, u64>, measured: BTreeMap<String, u64>) -> Result<(), String> {
+    for (feature, count) in measured {
+        let total = into.entry(feature).or_default();
+        *total = total
+            .checked_add(count)
+            .ok_or("feature row count overflow")?;
+    }
+    Ok(())
+}
+
+/// The replay renders span cells as byte_start..byte_end; compare every actual composed span
+/// with independently selected child-start and parent-end source locations, including delimiters.
+fn verify_composed_spans(rows: &[Vec<String>]) -> Result<(), String> {
+    for row in rows {
+        if row
+            .first()
+            .is_none_or(|rule| rule != "span-between-witness")
+        {
+            continue;
+        }
+        let [_, _, key, _, _] = row.as_slice() else {
+            return Err("malformed span witness row".into());
+        };
+        let mut parts = key.split(',');
+        let Some(((_id, begin), (finish, span))) = parts
+            .next()
+            .zip(parts.next())
+            .zip(parts.next().zip(parts.next()))
+        else {
+            return Err("malformed span witness key".into());
+        };
+        if parts.next().is_some() {
+            return Err("malformed span witness key".into());
+        }
+        let begin: u32 = begin.parse().map_err(|_| "invalid span start")?;
+        let finish: u32 = finish.parse().map_err(|_| "invalid span end")?;
+        let Some((actual_begin, actual_finish)) = span.split_once("..") else {
+            return Err("malformed composed span".into());
+        };
+        let actual_begin: u32 = actual_begin.parse().map_err(|_| "invalid composed start")?;
+        let actual_finish: u32 = actual_finish.parse().map_err(|_| "invalid composed end")?;
+        if begin >= finish || actual_begin != begin || actual_finish != finish {
+            return Err(format!("span-between endpoints differ: {key}"));
+        }
+    }
+    Ok(())
+}
+
+/// These are rendered-cell unit examples, not source rows added to the measured feed counts.
+#[test]
+fn composed_span_witness_checks_both_boundaries_and_nonempty_extent() {
+    let row = |key: &str| {
+        vec![
+            "span-between-witness".to_owned(),
+            "input.py".to_owned(),
+            key.to_owned(),
+            "1".to_owned(),
+            "1".to_owned(),
+        ]
+    };
+    assert!(verify_composed_spans(&[row("id,2,9,2..9")]).is_ok());
+    for key in [
+        "id,2,9,1..9",
+        "id,2,9,2..8",
+        "id,9,2,9..2",
+        "id,2,2,2..2",
+        "id,2,9,missing",
+        "id,2,9,2..9,extra",
+    ] {
+        assert!(verify_composed_spans(&[row(key)]).is_err(), "{key}");
+    }
 }

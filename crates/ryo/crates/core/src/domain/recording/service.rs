@@ -163,7 +163,7 @@ pub(crate) fn made_ran(
                 .into_iter()
                 .map(|each| HandedWords {
                     bucket: each.bucket,
-                    words: each.words,
+                    words: each.words.into(),
                 })
                 .collect(),
             text: ArenaBytes(
@@ -330,7 +330,6 @@ pub(crate) fn finish_file(
     number: FileNumber,
     outcome: Option<FileOutcome>,
 ) {
-    tables.pool.partial.clear();
     if setting.noted == Noting::Wanted
         && !notes_of(&tables.elements).0.is_empty()
         && let Some(language) = tables.language

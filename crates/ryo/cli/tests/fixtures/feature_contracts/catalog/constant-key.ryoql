@@ -1,0 +1,2 @@
+let witness = select * from "constant-key";
+emit witness subject file key(id);

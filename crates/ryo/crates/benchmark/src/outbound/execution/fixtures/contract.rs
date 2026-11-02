@@ -13,7 +13,7 @@ pub enum Operation {
     NonExecutable,
     /// A directory supplied as an executable.
     Directory,
-    /// A nonexecutable first PATH match followed by a real shell.
+    /// A nonexecutable first PATH match followed by the native interpreter on Unix.
     PathShadow,
     /// Executable bytes with no recognized image or script header.
     InvalidFormat,
@@ -35,28 +35,58 @@ type Failure = LaunchFailure;
 pub enum LaunchFailure {
     /// A portable operating-system failure category.
     Kind(std::io::ErrorKind),
-    /// Linux ENOEXEC from an unrecognized executable image.
+    /// An invalid image is rejected by the OS or by its documented shell fallback.
     ExecutableFormat,
 }
 /// Named observations every implementation must satisfy.
 pub const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("invalid executable image is a launch failure"),
+        name: CaseName("fixture interpreter is native to this operating system"),
+        word: Word::Succeeds,
+        input: || {
+            let mut call = invocation();
+            call.arguments = super::driver::native();
+            Operation::Call(call)
+        },
+        expect: Expect::Value((0_i32, true, true)),
+    },
+    Case {
+        name: CaseName("invalid executable image is operationally refused"),
         word: Word::Refuses,
         input: || Operation::InvalidFormat,
         expect: Expect::Error(Failure::ExecutableFormat),
     },
+    #[cfg(unix)]
     Case {
         name: CaseName("missing script interpreter is a launch failure"),
         word: Word::Refuses,
         input: || Operation::MissingInterpreter,
         expect: Expect::Error(Failure::Kind(std::io::ErrorKind::NotFound)),
     },
+    #[cfg(windows)]
+    Case {
+        name: CaseName("POSIX shebang bytes are refused as a Windows executable image"),
+        word: Word::Refuses,
+        input: || Operation::MissingInterpreter,
+        expect: Expect::Error(Failure::ExecutableFormat),
+    },
+    #[cfg(unix)]
     Case {
         name: CaseName("signal termination retains a process observation"),
         word: Word::Succeeds,
         input: || Operation::Signaled,
         expect: Expect::Value((-15_i32, false, false)),
+    },
+    #[cfg(windows)]
+    Case {
+        name: CaseName("native numeric child exit3840 does not invent a Unix signal"),
+        word: Word::Succeeds,
+        input: || {
+            let mut call = invocation();
+            call.arguments = super::driver::exiting(3840);
+            Operation::Call(call)
+        },
+        expect: Expect::Value((3840_i32, true, true)),
     },
     Case {
         name: CaseName("both output pipes drain beyond pipe capacity"),
@@ -69,14 +99,22 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || {
             let mut call = invocation();
-            call.arguments = vec![
-                "-c".into(),
-                "printf %s \"$RYO_BENCH_FIXTURE\"; printf issue >&2; exit 126".into(),
-            ];
+            call.arguments = super::driver::exiting(126);
             Operation::Call(call)
         },
         expect: Expect::Value((126_i32, true, true)),
     },
+    Case {
+        name: CaseName("valid child127 remains a normal exit observation"),
+        word: Word::Succeeds,
+        input: || {
+            let mut call = invocation();
+            call.arguments = super::driver::exiting(127);
+            Operation::Call(call)
+        },
+        expect: Expect::Value((127_i32, true, true)),
+    },
+    #[cfg(unix)]
     Case {
         name: CaseName("a regular file without execute permission is a launch error"),
         word: Word::Refuses,
@@ -89,6 +127,7 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Operation::Directory,
         expect: Expect::Error(Failure::Kind(std::io::ErrorKind::PermissionDenied)),
     },
+    #[cfg(unix)]
     Case {
         name: CaseName("PATH search continues past a nonexecutable shadow"),
         word: Word::Succeeds,
@@ -100,10 +139,7 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || {
             let mut call = invocation();
-            call.arguments = vec![
-                "-c".into(),
-                "printf %s \"$RYO_BENCH_FIXTURE\"; printf issue >&2; exit 127".into(),
-            ];
+            call.arguments = super::driver::exiting(127);
             Operation::Call(call)
         },
         expect: Expect::Value((127_i32, true, true)),
@@ -131,14 +167,11 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Error(Failure::Kind(std::io::ErrorKind::NotFound)),
     },
 ];
-/// Build the canonical shell invocation with independent stdout and stderr.
+/// Build the native interpreter invocation with independent stdout and stderr.
 fn invocation() -> Invocation {
     Invocation {
-        executable: "sh".into(),
-        arguments: vec![
-            "-c".into(),
-            "printf %s \"$RYO_BENCH_FIXTURE\"; printf issue >&2; exit 7".into(),
-        ],
+        executable: super::driver::python().into(),
+        arguments: super::driver::exiting(7),
         environment: [("RYO_BENCH_FIXTURE".into(), "payload".into())]
             .into_iter()
             .collect(),
@@ -169,6 +202,8 @@ pub fn check(adapter: &impl ExecutionPort) {
         let temporary = tempfile::tempdir().expect("isolated permission fixture");
         let mut call = invocation();
         let large = matches!(input, Operation::LargeStreams);
+        let invalid_image = matches!(input, Operation::InvalidFormat)
+            || cfg!(windows) && matches!(input, Operation::MissingInterpreter);
         match input {
             Operation::Call(ready) => call = ready,
             Operation::NonExecutable => {
@@ -177,17 +212,21 @@ pub fn check(adapter: &impl ExecutionPort) {
                 call.executable = path;
             }
             Operation::Directory => {
-                let path = temporary.path().join("directory");
+                let path = temporary
+                    .path()
+                    .join(super::driver::executable_name("directory"));
                 std::fs::create_dir_all(&path).expect("fixture directory");
                 call.executable = path;
             }
             Operation::InvalidFormat | Operation::MissingInterpreter => {
                 let format = matches!(input, Operation::InvalidFormat);
-                let path = temporary.path().join(if format {
-                    "invalid-format"
-                } else {
-                    "missing-interpreter"
-                });
+                let path = temporary
+                    .path()
+                    .join(super::driver::executable_name(if format {
+                        "invalid-format"
+                    } else {
+                        "missing-interpreter"
+                    }));
                 std::fs::write(
                     &path,
                     if format {
@@ -201,41 +240,49 @@ pub fn check(adapter: &impl ExecutionPort) {
                 call.executable = path;
             }
             Operation::Signaled => {
-                call.arguments = vec!["-c".into(), "kill -TERM $$".into()];
+                call.arguments = super::driver::snippet(super::driver::SIGNAL);
             }
             Operation::LargeStreams => {
-                call.arguments = vec![
-                    "-c".into(),
-                    "head -c 131072 /dev/zero; head -c 131072 /dev/zero >&2".into(),
-                ];
+                call.arguments = super::driver::snippet(super::driver::LARGE_STREAMS);
             }
             Operation::PathShadow => {
-                let path = temporary.path().join("sh");
+                let path = temporary.path().join(super::driver::python());
                 std::fs::write(&path, "not an executable").expect("shadow file");
+                let existing = std::env::var_os("PATH").expect("native interpreter PATH");
                 let _previous = call.environment.insert(
                     "PATH".into(),
-                    std::env::join_paths([
-                        temporary.path(),
-                        std::path::Path::new("/usr/bin"),
-                        std::path::Path::new("/bin"),
-                    ])
+                    std::env::join_paths(
+                        std::iter::once(temporary.path().to_path_buf())
+                            .chain(std::env::split_paths(&existing)),
+                    )
                     .expect("fixture PATH"),
                 );
             }
         }
 
-        adapter
-            .run(call)
-            .map(|output| observe(adapter, &profile, &output, large))
-            .map_err(|error| match error {
-                Error::Io(error) if error.raw_os_error() == Some(8_i32) => {
-                    Failure::ExecutableFormat
-                }
-                Error::Io(error) => Failure::Kind(error.kind()),
-                Error::Invalid(_) | Error::Json(_) | Error::Toml(_) => {
-                    Failure::Kind(std::io::ErrorKind::Other)
-                }
-            })
+        let output = adapter.run(call).map_err(|error| match error {
+            Error::Io(error)
+                if invalid_image && error.raw_os_error() == Some(super::driver::image_error()) =>
+            {
+                Failure::ExecutableFormat
+            }
+            Error::Io(error) => Failure::Kind(error.kind()),
+            Error::Invalid(_) | Error::Json(_) | Error::Toml(_) => {
+                Failure::Kind(std::io::ErrorKind::Other)
+            }
+        })?;
+        // Darwin may execute its shell fallback after ENOEXEC. This classifies
+        // only these independently created invalid bytes, never an arbitrary
+        // child's 127 exit code (the separate valid-child case preserves it).
+        if cfg!(target_os = "macos") && invalid_image {
+            assert_eq!(output.status.0, 127_i32);
+            assert_eq!(output.signal, None);
+            assert!(output.stdout.0.is_empty());
+            assert!(!output.stderr.0.is_empty());
+            let _observation = observe(adapter, &profile, &output, large);
+            return Err(Failure::ExecutableFormat);
+        }
+        Ok(observe(adapter, &profile, &output, large))
     };
     run(CASES, Word::Succeeds, subject);
     run(CASES, Word::Refuses, subject);
@@ -265,10 +312,16 @@ fn observe(
         ),
         "resource observations must match the declared execution mode"
     );
+    #[cfg(unix)]
     assert_eq!(
         output.signal,
         (output.status.0 < 0_i32).then_some(-output.status.0),
         "a signaled child must preserve its signal independently of measured resources"
+    );
+    #[cfg(not(unix))]
+    assert_eq!(
+        output.signal, None,
+        "native numeric exit codes never invent a Unix signal"
     );
     (
         output.status.0,

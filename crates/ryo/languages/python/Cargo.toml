@@ -19,6 +19,7 @@ name = "ryo_python"
 indexmap.workspace = true
 strum.workspace = true
 serde.workspace = true
+serde_json = { workspace = true, optional = true }
 toml.workspace = true
 thiserror.workspace = true
 postcard.workspace = true
@@ -55,7 +56,7 @@ path = "benches/performance.rs"
 harness = false
 
 [features]
-fixtures = ["ryo/fixtures"]
+fixtures = ["ryo/fixtures", "dep:serde_json"]
 
 [lints]
 workspace = true
@@ -72,3 +73,9 @@ harness = false
 [[test]]
 name = "ruff"
 path = "benchmarks/linters/ruff/tests.rs"
+
+# Established generated parser timing identities; native CPU/RSS are not inferred from Divan.
+[package.metadata.ryo.performance]
+schema = "divan-timing/v1"
+workloads = { generated_every_relation = [2500, 10000] }
+metrics = ["median-ns"]

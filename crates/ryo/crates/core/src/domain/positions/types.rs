@@ -57,7 +57,7 @@ pub(crate) struct Keeps(pub Vec<bool>);
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct OrderRun(pub std::ops::Range<usize>);
 
-/// What the lowered steps keep from file to file, so that they allocate once: the rows of each step and the room the steps work in.
+/// Mutable positions and keys owned only by the current rule invocation.
 #[derive(Debug, Default)]
 pub(crate) struct LoweredRoom {
     /// The rows of each step, for the file being run.
@@ -76,9 +76,6 @@ pub(crate) struct LoweredRoom {
     pub order: KeyOrder,
     /// Which rows a step keeps.
     pub keep: Keeps,
-    /// The elements each class of the steps that select from the tree selected, for the file being run: decided by one pass over
-    /// the elements for the rules of the call.
-    pub classes: Vec<Slots>,
     /// For each step of the rule being run, the class that decided it, when the pass did.
     pub picked: Vec<Option<ClassPlace>>,
 }

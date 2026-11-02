@@ -101,6 +101,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         lowering: &lowering,
         tree: rows_over(&elements),
         room: &mut room,
+        classes: &[],
     };
     let mut scratch = OperatorScratch::default();
     let mut memo = Vec::new();

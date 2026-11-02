@@ -49,11 +49,11 @@ fn handed() -> Handed {
         buckets: vec![
             HandedWords {
                 bucket: Bucket(1),
-                words: PackedWords(vec![1]),
+                words: PackedWords(vec![1]).into(),
             },
             HandedWords {
                 bucket: Bucket(2),
-                words: PackedWords(vec![2]),
+                words: PackedWords(vec![2]).into(),
             },
         ],
         text: ArenaBytes(b"name".to_vec()),
@@ -73,6 +73,7 @@ fn gives_back_what_the_file_handed() -> Value {
         StoredFileNumber(1),
         handed(),
         &BucketsWanted::All,
+        &mut Vec::new(),
     );
     // Its words stay where the store keeps them.
     usize::from(
@@ -91,6 +92,7 @@ fn gives_nothing_for_a_file_the_store_has_no_row_of() -> Value {
         StoredFileNumber(1),
         handed(),
         &BucketsWanted::All,
+        &mut Vec::new(),
     );
     usize::from(handed_in(&stored(), &tables, &FilePath("c.rs".into())) == Handed::default())
 }
@@ -102,6 +104,7 @@ fn keeps_only_the_buckets_rebuilt() -> Value {
         StoredFileNumber(0),
         handed(),
         &BucketsWanted::These(vec![Bucket(2)]),
+        &mut Vec::new(),
     );
     tables.frontier.len()
 }
@@ -146,4 +149,56 @@ fn subject(scenario: Input) -> Value {
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, |scenario| Ok(subject(scenario)));
+}
+
+#[test]
+fn staged_descriptors_move_without_reading_unwanted_payloads_and_keep_fresh_order() {
+    use ryo_values::domain::records::types::{RecordWords, StagedWords, StagingSession};
+    let span = StagedWords {
+        session: StagingSession(7),
+        offset: 0,
+        length: 1024 * 1024,
+    };
+    let handed = Handed {
+        buckets: vec![
+            HandedWords {
+                bucket: Bucket(0),
+                words: PackedWords(vec![1]).into(),
+            },
+            HandedWords {
+                bucket: Bucket(1),
+                words: RecordWords::Staged(span),
+            },
+            HandedWords {
+                bucket: Bucket(0),
+                words: RecordWords::Staged(span),
+            },
+            HandedWords {
+                bucket: Bucket(0),
+                words: PackedWords(vec![2]).into(),
+            },
+        ],
+        ..Handed::default()
+    };
+    let mut stored = StoredHanded::default();
+    let mut staged = Vec::new();
+    hand_into(
+        &mut stored,
+        StoredFileNumber(2),
+        handed,
+        &BucketsWanted::These(vec![Bucket(0)]),
+        &mut staged,
+    );
+    assert_eq!(
+        stored
+            .frontier
+            .iter()
+            .map(|row| row.words.0.clone())
+            .collect::<Vec<_>>(),
+        [vec![1], vec![2]]
+    );
+    assert_eq!(staged.len(), 1);
+    assert_eq!(staged[0].ordinal, 1);
+    assert_eq!(staged[0].file, StoredFileNumber(2));
+    assert_eq!(staged[0].words, span);
 }

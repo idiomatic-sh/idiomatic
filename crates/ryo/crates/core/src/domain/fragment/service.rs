@@ -84,7 +84,7 @@ pub(crate) fn make(
     let width = shape_at(lowering, id)?.width;
     let place = usize::try_from(id.0).unwrap_or(usize::MAX);
     // A step the pass over the file's elements decided for the rules of the call is its elements, and what it reads is not made.
-    if selected(run.room, id).is_some() {
+    if selected(run.room, run.classes, id).is_some() {
         let mut slots = run
             .room
             .made
@@ -92,7 +92,7 @@ pub(crate) fn make(
             .map(|made| std::mem::take(&mut made.slots))
             .ok_or(OperatingError::NotRun)?;
         slots.0.clear();
-        if let Some(chosen) = selected(run.room, id) {
+        if let Some(chosen) = selected(run.room, run.classes, id) {
             slots.0.extend_from_slice(&chosen.0);
         }
         if let Some(done) = run.room.made.get_mut(place) {

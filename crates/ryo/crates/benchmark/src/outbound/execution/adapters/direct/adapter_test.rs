@@ -1,11 +1,12 @@
 //! Resource instrumentation preserves the execution port's process observations.
 use crate::cases::{Case, CaseName, Expect, Word, run};
+#[cfg(target_os = "linux")]
 use crate::outbound::execution::fixtures::contract::check;
 type Input = ();
 type Value = ();
 type Failure = crate::outbound::execution::fixtures::contract::LaunchFailure;
 const CASES: &[Case<Input, Value, Failure>] = &[Case {
-    name: CaseName("timed execution honors process contract"),
+    name: CaseName("resource mode honors its declared platform contract"),
     word: Word::Succeeds,
     input: || (),
     expect: Expect::Value(()),
@@ -15,7 +16,22 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
     reason = "the shared case runner requires a Result-returning subject for every outcome word"
 )]
 fn subject(_: Input) -> Result<Value, Failure> {
+    #[cfg(target_os = "linux")]
     check(&crate::outbound::execution::factory::direct());
+    #[cfg(not(target_os = "linux"))]
+    {
+        use crate::domain::diagnostics::errors::DiagnosticsError;
+        use crate::domain::measurements::types::Invocation;
+        use crate::outbound::execution::interface::ExecutionPort as _;
+        let outcome = crate::outbound::execution::factory::direct().run(Invocation {
+            executable: "sh".into(),
+            arguments: Vec::new(),
+            environment: std::collections::BTreeMap::default(),
+            directory: ".".into(),
+        });
+        assert!(matches!(outcome, Err(DiagnosticsError::Io(error))
+            if error.kind() == std::io::ErrorKind::Unsupported));
+    }
     Ok(())
 }
 #[test]

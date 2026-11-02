@@ -32,7 +32,10 @@ impl ReadStore for DiscardRead {
         Ok(StoredHanded::default())
     }
 
-    fn keep(&self, _stored: Stored, _kept: &KeptRows) -> Result<(), LintStoreError> {
+    fn keep(&self, _stored: Stored, kept: &KeptRows) -> Result<(), LintStoreError> {
+        if !kept.staged.is_empty() {
+            return Err(LintStoreError::NothingRead);
+        }
         Ok(())
     }
 }

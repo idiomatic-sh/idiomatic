@@ -47,7 +47,7 @@ fn record_and_store_snapshots_follow_the_same_moved_payload_capacities() {
             handed: Handing::Made(Handed {
                 buckets: vec![HandedWords {
                     bucket: Bucket(0),
-                    words: PackedWords(packed),
+                    words: PackedWords(packed).into(),
                 }],
                 text: ArenaBytes(text),
                 notes: HandedNotes::Noted(FileNotes {
@@ -162,5 +162,71 @@ fn decoded_and_arena_snapshots_count_capacity_without_touching_cells() {
             RetainedBytes::packed(&packed).packed_capacity
         ),
         (2, packed.0.0.capacity())
+    );
+}
+
+#[test]
+fn staged_records_and_final_store_retain_only_descriptors_for_large_logical_payloads() {
+    use ryo_values::domain::records::types::{RecordWords, StagedWords, StagingSession};
+    let mut records: Vec<_> = (0..128)
+        .map(|number| Record {
+            path: FilePath(format!("{number}.py").into()),
+            size: FileSize(0),
+            modified: Nanoseconds(0),
+            digest: Digest([0; 16]),
+            number: FileNumber(number),
+            outcome: FileOutcome::Read(Ran {
+                rows: FindingRows::default(),
+                number: FileNumber(number),
+                interface: Digest([0; 16]),
+                frontier: vec![],
+                noted: Digest([0; 16]),
+                handed: Handing::Made(Handed {
+                    buckets: vec![HandedWords {
+                        bucket: Bucket(0),
+                        words: RecordWords::Staged(StagedWords {
+                            session: StagingSession(1),
+                            offset: u64::from(number) * 1024 * 1024,
+                            length: 1024 * 1024,
+                        }),
+                    }],
+                    ..Handed::default()
+                }),
+            }),
+        })
+        .collect();
+    let before = RetainedBytes::records(&records);
+    assert_eq!(before.packed_capacity, 0);
+    assert_eq!(before.staged_objects, 128);
+    assert_eq!(before.staged_payload_bytes, 128 * 1024 * 1024);
+    let mut store = ryo_values::domain::stores::types::StoredHanded::default();
+    let mut staged = Vec::new();
+    for record in records.drain(..) {
+        let FileOutcome::Read(ran) = record.outcome else {
+            panic!("read")
+        };
+        let Handing::Made(handed) = ran.handed else {
+            panic!("made")
+        };
+        crate::domain::handing::service::hand_into(
+            &mut store,
+            ryo_values::domain::stores::types::StoredFileNumber(record.number.0),
+            handed,
+            &BucketsWanted::All,
+            &mut staged,
+        );
+    }
+    assert!(store.frontier.is_empty());
+    let kept = ryo_values::domain::stores::types::KeptRows {
+        staged,
+        ..Default::default()
+    };
+    let after = RetainedBytes::staged(&kept);
+    assert_eq!(after.packed_capacity, 0);
+    assert_eq!(after.staged_objects, 128);
+    assert_eq!(after.staged_payload_bytes, before.staged_payload_bytes);
+    assert!(
+        after.metadata < 128 * 1024,
+        "metadata stays proportional to bucket count, not payload size"
     );
 }

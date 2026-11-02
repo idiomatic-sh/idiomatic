@@ -1,4 +1,4 @@
-//! The types of the `table_scratch` concept: the rooms the operators keep from file to file, plain
+//! The types of the `table_scratch` concept: the invocation-owned rooms operators work in, plain
 //! data with public fields and derives, and no constructor or inherent impl.
 
 use crate::domain::table_cells::types::{ColumnPlaces, RowIndex};
@@ -341,8 +341,6 @@ pub(crate) struct OperatorScratch {
     pub dfs_graph: crate::domain::table_reach::types::OrderedGraph,
     /// Iterative ordered DFS frames and exact visited values.
     pub dfs_walk: crate::domain::table_reach::types::OrderedWalk,
-    /// The room a second walk works in, while the first is read.
-    pub inner: Walk,
     /// Where each group begins and ends in `members`, or where each captured text is in `text`.
     pub places: Stretches,
     /// Text being made: a path read for a capture, the name of a group.

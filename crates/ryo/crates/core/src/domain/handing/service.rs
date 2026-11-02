@@ -2,7 +2,7 @@
 //! store keeps of it, with no IO and no ports.
 
 use ryo_language::domain::files::types::FilePath;
-use ryo_values::domain::records::types::{Handed, HandedNotes};
+use ryo_values::domain::records::types::{Handed, HandedNotes, RecordWords};
 use ryo_values::domain::stored_facts::types::Bucket;
 use ryo_values::domain::stores::types::{
     BucketsWanted, Stored, StoredCovered, StoredFileNumber, StoredHanded, StoredNotes, StoredText,
@@ -55,22 +55,41 @@ pub(crate) fn hand_into(
     file: StoredFileNumber,
     handed: Handed,
     rebuilt: &BucketsWanted,
+    staged: &mut Vec<ryo_values::domain::stores::types::StagedRow>,
 ) {
     let wanted = |bucket: Bucket| match rebuilt {
         BucketsWanted::All => true,
         BucketsWanted::These(buckets) => buckets.binary_search(&bucket).is_ok(),
     };
-    stored.frontier.extend(
-        handed
-            .buckets
-            .into_iter()
-            .filter(|each| wanted(each.bucket))
-            .map(|each| StoredWords {
+    for each in handed
+        .buckets
+        .into_iter()
+        .filter(|each| wanted(each.bucket))
+    {
+        let ordinal = u64::try_from(stored.frontier.len())
+            .ok()
+            .and_then(|inline| {
+                u64::try_from(staged.len())
+                    .ok()
+                    .and_then(|count| inline.checked_add(count))
+            })
+            .unwrap_or(u64::MAX);
+        match each.words {
+            RecordWords::Inline(words) => stored.frontier.push(StoredWords {
                 file,
                 bucket: each.bucket,
-                words: each.words,
+                words,
             }),
-    );
+            RecordWords::Staged(words) => {
+                staged.push(ryo_values::domain::stores::types::StagedRow {
+                    file,
+                    bucket: each.bucket,
+                    ordinal,
+                    words,
+                })
+            }
+        }
+    }
     if !handed.text.0.is_empty() {
         stored.texts.push(StoredText {
             file,

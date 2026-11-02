@@ -20,6 +20,24 @@ impl Default for ExecutionFake {
         }
     }
 }
+
+/// Explicit native-child control exits; the ordinary fixture still uses its configured status.
+fn requested_exit(arguments: &[std::ffi::OsString]) -> Option<i32> {
+    [
+        ("sys.exit(0)", 0),
+        ("sys.exit(126)", 126),
+        ("sys.exit(127)", 127),
+        ("sys.exit(3840)", 3840),
+    ]
+    .into_iter()
+    .find_map(|(ending, status)| {
+        arguments
+            .iter()
+            .any(|argument| argument.to_string_lossy().ends_with(ending))
+            .then_some(status)
+    })
+}
+
 impl ExecutionPort for ExecutionFake {
     fn profile(&self) -> crate::domain::measurements::types::ExecutionProfile {
         crate::domain::measurements::types::ExecutionProfile::Wall
@@ -29,51 +47,38 @@ impl ExecutionPort for ExecutionFake {
         reason = "a poisoned fixture history lock must fail the test"
     )]
     fn run(&self, invocation: Invocation) -> Result<ProcessOutput, Error> {
-        if invocation
-            .executable
-            .file_name()
-            .is_some_and(|name| name == "invalid-format")
-        {
-            return Err(std::io::Error::from_raw_os_error(8).into());
+        if invocation.executable.file_stem().is_some_and(|name| {
+            name == "invalid-format" || cfg!(windows) && name == "missing-interpreter"
+        }) {
+            return Err(std::io::Error::from_raw_os_error(super::driver::image_error()).into());
         }
         let large = invocation
             .arguments
             .iter()
-            .any(|argument| argument.to_string_lossy().contains("/dev/zero"));
+            .any(|argument| argument == super::driver::LARGE_STREAMS);
         if invocation
             .executable
-            .file_name()
+            .file_stem()
             .is_some_and(|name| name == "nonexecutable" || name == "directory")
         {
             return Err(std::io::Error::from(std::io::ErrorKind::PermissionDenied).into());
         }
-        if invocation.executable != Path::new("sh") && invocation.executable != Path::new("fixture")
+        if invocation.executable != Path::new(super::driver::python())
+            && invocation.executable != Path::new("fixture")
         {
             return Err(std::io::Error::from(std::io::ErrorKind::NotFound).into());
         }
         let signal = invocation
             .arguments
             .iter()
-            .any(|argument| argument == "kill -TERM $$")
+            .any(|argument| cfg!(unix) && argument == super::driver::SIGNAL)
             .then_some(15_i32);
         let status = if let Some(signal) = signal {
             -signal
         } else if large {
             0_i32
-        } else if invocation
-            .arguments
-            .iter()
-            .any(|argument| argument.to_string_lossy().ends_with("exit 127"))
-        {
-            127_i32
-        } else if invocation
-            .arguments
-            .iter()
-            .any(|argument| argument.to_string_lossy().ends_with("exit 126"))
-        {
-            126_i32
         } else {
-            self.status
+            requested_exit(&invocation.arguments).unwrap_or(self.status)
         };
         self.history
             .lock()

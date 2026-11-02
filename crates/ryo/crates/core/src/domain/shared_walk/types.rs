@@ -5,7 +5,7 @@ use crate::domain::operating::types::Memo;
 use crate::domain::operating::types::NameCount;
 use crate::domain::operator::types::TreeSteps;
 use crate::domain::placement::types::Mask;
-use crate::domain::positions::types::{ClassPlace, LoweredRoom};
+use crate::domain::positions::types::{ClassPlace, Slots};
 use crate::domain::step_classes::constants::ELEMENT_COLUMNS;
 use crate::domain::step_classes::types::Merge;
 use crate::domain::table_cells::types::{ColumnPlaces, TreeRows};
@@ -68,6 +68,11 @@ pub(crate) struct MergedWalk {
     pub made: Merging,
     /// The classes of steps and the class of each step.
     pub merge: Merge,
+}
+
+/// Temporary dispatch and comparison work, dropped when the native pass returns.
+#[derive(Debug, Default)]
+pub(crate) struct WalkWork {
     /// For each class, what deciding it works with.
     pub work: Vec<ClassWork>,
     /// For each kind of the file, the classes that name it.
@@ -76,6 +81,15 @@ pub(crate) struct MergedWalk {
     pub every: Vec<ClassPlace>,
     /// The columns the classes of one kind read, together.
     pub union: ColumnPlaces,
+}
+
+/// File-live outputs of the native pass, borrowed by each independent rule invocation.
+#[derive(Debug, Default)]
+pub(crate) struct SharedClasses {
+    /// Positions selected for each class, preserving their existing order and multiplicity.
+    pub classes: Vec<Slots>,
+    /// Which classes the pass successfully decided.
+    pub merged: Vec<Merged>,
 }
 
 /// What one walk of a file reads and writes: the call's plans and what binds their parameters, the file's elements, names and bytes,
@@ -100,7 +114,7 @@ pub(crate) struct Walking<'a> {
     /// The room the operators work in.
     pub scratch: &'a mut OperatorScratch,
     /// The room the lowered steps work in, which the walk leaves the elements each class selected in.
-    pub room: &'a mut LoweredRoom,
+    pub room: &'a mut SharedClasses,
     /// Whether the steps that read only the tree run over its positions.
     pub steps: TreeSteps,
 }
@@ -133,7 +147,7 @@ pub(crate) struct Pass<'a> {
     /// The room the operators work in.
     pub scratch: &'a mut OperatorScratch,
     /// The room the lowered steps work in.
-    pub room: &'a mut LoweredRoom,
+    pub room: &'a mut Vec<Slots>,
     /// The cells of the element being decided.
     pub cells: [Value; ELEMENT_COLUMNS],
     /// Whether they have been read for it.

@@ -25,7 +25,7 @@ use ryo_values::domain::stored_facts::types::{
     PartialKind, PartialScope, ReadFailure, StoredPartial,
 };
 use ryo_values::domain::stores::types::{
-    Crossing, FileAgain, FindingMade, FindingPlace, Stored, StoredCell, StoredCovered, StoredFile,
+    Crossing, FindingMade, FindingPlace, Stored, StoredCell, StoredCovered, StoredFile,
     StoredFileNumber, StoredFinding, StoredFrontier, StoredHanded, StoredNotes, StoredPlace,
     StoredRule, StoredText, StoredUnknown, StoredUnread, StoredValue, StoredWords, UnknownText,
 };
@@ -810,6 +810,7 @@ pub(super) fn rest_bytes(stored: &StoredHanded) -> Result<Vec<u8>, postcard::Err
 }
 
 /// The words the files of `stored` handed `bucket`, as its section's bytes; `rows` are the rows of that bucket.
+#[cfg(test)]
 pub(super) fn bucket_bytes(rows: &[&StoredWords]) -> Result<Vec<u8>, postcard::Error> {
     let words: Vec<WordsSchema<'_>> = rows
         .iter()
@@ -830,10 +831,11 @@ pub(super) fn bucket_bytes(rows: &[&StoredWords]) -> Result<Vec<u8>, postcard::E
 /// The words of a bucket made again, as its section's bytes: those of the files read now, `fresh`, and, of the section `old` the
 /// store kept of the bucket, those of each file used again, under its number now (`file_again`, old number to new, in the order of
 /// both); in the order of the files. The words of `old` are copied as they are, never decoded. None when no file hands it any.
+#[cfg(test)]
 pub(super) fn rebuilt_bucket_bytes(
     fresh: &[&StoredWords],
     old: Option<&[u8]>,
-    file_again: &[FileAgain],
+    file_again: &[ryo_values::domain::stores::types::FileAgain],
 ) -> Result<Option<Vec<u8>>, postcard::Error> {
     let mut words: Vec<WordsSchema<'_>> = fresh
         .iter()

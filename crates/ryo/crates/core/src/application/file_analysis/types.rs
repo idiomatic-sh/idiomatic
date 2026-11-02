@@ -14,6 +14,8 @@ pub(crate) struct Worker {
 
 /// What a visit of a file reads that is the same for every file, and the ports a visit reaches besides.
 pub(crate) struct FileVisit<'a> {
+    /// One run's snapshot owns temporary normalized spans beyond any pre-read worker lifetime.
+    pub store: Option<&'a dyn crate::outbound::lint_store::interface::ReadStore>,
     /// What the domain reads.
     pub setting: VisitSetting<'a>,
 }
