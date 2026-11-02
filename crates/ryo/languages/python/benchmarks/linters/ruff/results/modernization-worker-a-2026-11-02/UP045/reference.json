@@ -1,0 +1,2956 @@
+{
+  "ruff_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "target": "python-target=3.10",
+  "rows": [
+    {
+      "rule": "UP045",
+      "name": "annotation",
+      "files": {
+        "case.py": "from typing import Optional\nx: Optional[int]\n"
+      },
+      "source_sha256": "36ed91742900704a66a719baa6494f7da6685ed8a5e87d5983a3ae3d4d1b66f2",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP045",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP045",
+          "end_location": {
+            "column": 17,
+            "row": 2
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "int | None",
+                "end_location": {
+                  "column": 17,
+                  "row": 2
+                },
+                "location": {
+                  "column": 4,
+                  "row": 2
+                }
+              }
+            ],
+            "message": "Convert to `X | None`"
+          },
+          "location": {
+            "column": 4,
+            "row": 2
+          },
+          "message": "Use `X | None` for type annotations",
+          "name": "non-pep604-annotation-optional",
+          "noqa_row": 2,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-optional"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP045",
+          "file": "case.py",
+          "start": 31,
+          "end": 44
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP045",
+      "name": "alias",
+      "files": {
+        "case.py": "from typing import Optional as T\nx: T[int]\n"
+      },
+      "source_sha256": "ed9e26edcf15700901b828055fb003f5a02f7315830bbc0f9e6b1c97f6683ca6",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP045",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP045",
+          "end_location": {
+            "column": 10,
+            "row": 2
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "int | None",
+                "end_location": {
+                  "column": 10,
+                  "row": 2
+                },
+                "location": {
+                  "column": 4,
+                  "row": 2
+                }
+              }
+            ],
+            "message": "Convert to `X | None`"
+          },
+          "location": {
+            "column": 4,
+            "row": 2
+          },
+          "message": "Use `X | None` for type annotations",
+          "name": "non-pep604-annotation-optional",
+          "noqa_row": 2,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-optional"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP045",
+          "file": "case.py",
+          "start": 36,
+          "end": 42
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP045",
+      "name": "module",
+      "files": {
+        "case.py": "import typing\nx: typing.Optional[int]\n"
+      },
+      "source_sha256": "07a59ef664522cf7b1dde2d1b7f0d0fafb80f780df6b6905716307e4b95a6a0d",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP045",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP045",
+          "end_location": {
+            "column": 24,
+            "row": 2
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "int | None",
+                "end_location": {
+                  "column": 24,
+                  "row": 2
+                },
+                "location": {
+                  "column": 4,
+                  "row": 2
+                }
+              }
+            ],
+            "message": "Convert to `X | None`"
+          },
+          "location": {
+            "column": 4,
+            "row": 2
+          },
+          "message": "Use `X | None` for type annotations",
+          "name": "non-pep604-annotation-optional",
+          "noqa_row": 2,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-optional"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP045",
+          "file": "case.py",
+          "start": 17,
+          "end": 37
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP045",
+      "name": "module-alias",
+      "files": {
+        "case.py": "import typing as t\nx: t.Optional[int]\n"
+      },
+      "source_sha256": "441f241b3b03a00046d6995ce3cd43a6c9d5ea04465d9c9b0ecc9b9ed0680ce2",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP045",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP045",
+          "end_location": {
+            "column": 19,
+            "row": 2
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "int | None",
+                "end_location": {
+                  "column": 19,
+                  "row": 2
+                },
+                "location": {
+                  "column": 4,
+                  "row": 2
+                }
+              }
+            ],
+            "message": "Convert to `X | None`"
+          },
+          "location": {
+            "column": 4,
+            "row": 2
+          },
+          "message": "Use `X | None` for type annotations",
+          "name": "non-pep604-annotation-optional",
+          "noqa_row": 2,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-optional"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP045",
+          "file": "case.py",
+          "start": 22,
+          "end": 37
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP045",
+      "name": "extensions",
+      "files": {
+        "case.py": "from typing_extensions import Optional\nx: Optional[int]\n"
+      },
+      "source_sha256": "7d57fb5dad50b8756b1a9912c346246313dc9652fe9d126eb9e7ef94033dec59",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP045",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP045",
+          "end_location": {
+            "column": 17,
+            "row": 2
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "int | None",
+                "end_location": {
+                  "column": 17,
+                  "row": 2
+                },
+                "location": {
+                  "column": 4,
+                  "row": 2
+                }
+              }
+            ],
+            "message": "Convert to `X | None`"
+          },
+          "location": {
+            "column": 4,
+            "row": 2
+          },
+          "message": "Use `X | None` for type annotations",
+          "name": "non-pep604-annotation-optional",
+          "noqa_row": 2,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-optional"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP045",
+          "file": "case.py",
+          "start": 42,
+          "end": 55
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP045",
+      "name": "runtime-alias",
+      "files": {
+        "case.py": "from typing import Optional\nAlias = Optional[int]\n"
+      },
+      "source_sha256": "2fe3ea81bb685814667d76beea69841771d28c6b159cad02343214ccb106c04d",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP045",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP045",
+          "end_location": {
+            "column": 22,
+            "row": 2
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 9,
+            "row": 2
+          },
+          "message": "Use `X | None` for type annotations",
+          "name": "non-pep604-annotation-optional",
+          "noqa_row": 2,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-optional"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP045",
+          "file": "case.py",
+          "start": 36,
+          "end": 49
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP045",
+      "name": "signature",
+      "files": {
+        "case.py": "from typing import Optional\ndef f(x: Optional[int]) -> Optional[int]: pass\n"
+      },
+      "source_sha256": "d8d881efb822ae8e082448fd341dd7914058ea15e902159906a92a18acff3ba3",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP045",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP045",
+          "end_location": {
+            "column": 23,
+            "row": 2
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "int | None",
+                "end_location": {
+                  "column": 23,
+                  "row": 2
+                },
+                "location": {
+                  "column": 10,
+                  "row": 2
+                }
+              }
+            ],
+            "message": "Convert to `X | None`"
+          },
+          "location": {
+            "column": 10,
+            "row": 2
+          },
+          "message": "Use `X | None` for type annotations",
+          "name": "non-pep604-annotation-optional",
+          "noqa_row": 2,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-optional"
+        },
+        {
+          "cell": null,
+          "code": "UP045",
+          "end_location": {
+            "column": 41,
+            "row": 2
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "int | None",
+                "end_location": {
+                  "column": 41,
+                  "row": 2
+                },
+                "location": {
+                  "column": 28,
+                  "row": 2
+                }
+              }
+            ],
+            "message": "Convert to `X | None`"
+          },
+          "location": {
+            "column": 28,
+            "row": 2
+          },
+          "message": "Use `X | None` for type annotations",
+          "name": "non-pep604-annotation-optional",
+          "noqa_row": 2,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-optional"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP045",
+          "file": "case.py",
+          "start": 37,
+          "end": 50
+        },
+        {
+          "rule": "UP045",
+          "file": "case.py",
+          "start": 55,
+          "end": 68
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP045",
+      "name": "async-signature",
+      "files": {
+        "case.py": "from typing import Optional\nasync def f(x: Optional[int]): pass\n"
+      },
+      "source_sha256": "2e1f05e8e239cd47d307384fc46ab225a0edb19a1e53aec91db8e5286f77ad88",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP045",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP045",
+          "end_location": {
+            "column": 29,
+            "row": 2
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "int | None",
+                "end_location": {
+                  "column": 29,
+                  "row": 2
+                },
+                "location": {
+                  "column": 16,
+                  "row": 2
+                }
+              }
+            ],
+            "message": "Convert to `X | None`"
+          },
+          "location": {
+            "column": 16,
+            "row": 2
+          },
+          "message": "Use `X | None` for type annotations",
+          "name": "non-pep604-annotation-optional",
+          "noqa_row": 2,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-optional"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP045",
+          "file": "case.py",
+          "start": 43,
+          "end": 56
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP045",
+      "name": "local-annotation",
+      "files": {
+        "case.py": "from typing import Optional\ndef f():\n    x: Optional[int]\n"
+      },
+      "source_sha256": "c3d6a76b17df0dbf71a8c765d98f56ea946d14e236d72bf59bd6323f0cb9e431",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP045",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP045",
+          "end_location": {
+            "column": 21,
+            "row": 3
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "int | None",
+                "end_location": {
+                  "column": 21,
+                  "row": 3
+                },
+                "location": {
+                  "column": 8,
+                  "row": 3
+                }
+              }
+            ],
+            "message": "Convert to `X | None`"
+          },
+          "location": {
+            "column": 8,
+            "row": 3
+          },
+          "message": "Use `X | None` for type annotations",
+          "name": "non-pep604-annotation-optional",
+          "noqa_row": 3,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-optional"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP045",
+          "file": "case.py",
+          "start": 44,
+          "end": 57
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP045",
+      "name": "shadowed",
+      "files": {
+        "case.py": "from typing import Optional\nOptional = other\nx: Optional[int]\n"
+      },
+      "source_sha256": "858d038a99fc30b49f4bfd99f84b9802d42be137e6e08556d934fb71912d4742",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP045",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "raw": [],
+      "expected": [],
+      "status": 0
+    },
+    {
+      "rule": "UP045",
+      "name": "argument-shadow",
+      "files": {
+        "case.py": "from typing import Optional\ndef f(Optional):\n    x = Optional[int]\n"
+      },
+      "source_sha256": "af0f70230c0cbe865de4c21a9fa9119f1498fa4dbff30455712efe5c77a0ec59",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP045",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "raw": [],
+      "expected": [],
+      "status": 0
+    },
+    {
+      "rule": "UP045",
+      "name": "undefined",
+      "files": {
+        "case.py": "x: Optional[int]\n"
+      },
+      "source_sha256": "10e22c46140de6e99966bf9a56e3c4ae057fbd6bed0ac1fb3d62a0aee3471e53",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP045",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "raw": [],
+      "expected": [],
+      "status": 0
+    },
+    {
+      "rule": "UP045",
+      "name": "other-operator",
+      "files": {
+        "case.py": "from typing import Union\nx: Union[int]\n"
+      },
+      "source_sha256": "857bd1c14008221fb5c094ca0754d633d4ef707648e45d07c3fcfd0570761069",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP045",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "raw": [],
+      "expected": [],
+      "status": 0
+    },
+    {
+      "rule": "UP045",
+      "name": "quoted-runtime",
+      "files": {
+        "case.py": "from typing import Optional\nx = Optional[\"Later\"]\n"
+      },
+      "source_sha256": "bf79c75b0afc345ee48d13106fb24a7fe047ca1a047f25db2e1bfe04200bbda7",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP045",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "raw": [],
+      "expected": [],
+      "status": 0
+    },
+    {
+      "rule": "UP045",
+      "name": "quoted-future",
+      "files": {
+        "case.py": "from __future__ import annotations\nfrom typing import Optional\nx: Optional[\"Later\"]\n"
+      },
+      "source_sha256": "5a2eec36b4b09236dd67eb9b9204283bffdd69981132c427ed3e4f458ba74227",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP045",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP045",
+          "end_location": {
+            "column": 21,
+            "row": 3
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "\"Later\" | None",
+                "end_location": {
+                  "column": 21,
+                  "row": 3
+                },
+                "location": {
+                  "column": 4,
+                  "row": 3
+                }
+              }
+            ],
+            "message": "Convert to `X | None`"
+          },
+          "location": {
+            "column": 4,
+            "row": 3
+          },
+          "message": "Use `X | None` for type annotations",
+          "name": "non-pep604-annotation-optional",
+          "noqa_row": 3,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-optional"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP045",
+          "file": "case.py",
+          "start": 66,
+          "end": 83
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP045",
+      "name": "nested-quoted-runtime",
+      "files": {
+        "case.py": "from typing import Optional\nx = Optional[list[\"Later\"]]\n"
+      },
+      "source_sha256": "3830b7fd8e1f36b8558418c3904080ddb843818c82f7a343c768b5bec93135dd",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP045",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP045",
+          "end_location": {
+            "column": 28,
+            "row": 2
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 5,
+            "row": 2
+          },
+          "message": "Use `X | None` for type annotations",
+          "name": "non-pep604-annotation-optional",
+          "noqa_row": 2,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-optional"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP045",
+          "file": "case.py",
+          "start": 32,
+          "end": 55
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP045",
+      "name": "starred",
+      "files": {
+        "case.py": "from typing import Optional\nx = Optional[*types]\n"
+      },
+      "source_sha256": "75645fe8ddc65b5aa236293e35c037da92c61a8bffa28aba889e92e50fa013f0",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP045",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "raw": [
+        {
+          "cell": null,
+          "code": "invalid-syntax",
+          "end_location": {
+            "column": 20,
+            "row": 2
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 14,
+            "row": 2
+          },
+          "message": "Cannot use star expression in index on Python 3.10 (syntax was added in Python 3.11)",
+          "name": "invalid-syntax",
+          "noqa_row": null,
+          "severity": "error",
+          "url": null
+        }
+      ],
+      "expected": [
+        {
+          "rule": "invalid-syntax",
+          "file": "case.py",
+          "start": 41,
+          "end": 47
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP045",
+      "name": "named-tuple",
+      "files": {
+        "case.py": "from typing import Optional, NamedTuple\nx: Optional[NamedTuple]\n"
+      },
+      "source_sha256": "e9e2456026fa4dc42af50c6c4a225a83aafe20122cf90bc577285362f66ee6cd",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP045",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "raw": [],
+      "expected": [],
+      "status": 0
+    },
+    {
+      "rule": "UP045",
+      "name": "guard",
+      "files": {
+        "case.py": "from typing import Optional, TYPE_CHECKING\nif TYPE_CHECKING:\n    x = Optional[\"Later\"]\n"
+      },
+      "source_sha256": "9c43b7643652cf3bdb457e7dd589aa64233211aaabcac870025c6425c4e3581a",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP045",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP045",
+          "end_location": {
+            "column": 26,
+            "row": 3
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 9,
+            "row": 3
+          },
+          "message": "Use `X | None` for type annotations",
+          "name": "non-pep604-annotation-optional",
+          "noqa_row": 3,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-optional"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP045",
+          "file": "case.py",
+          "start": 69,
+          "end": 86
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP045",
+      "name": "stub",
+      "files": {
+        "case.pyi": "from typing import Optional\nx: Optional[\"Later\"]\n"
+      },
+      "source_sha256": "24ab15de59a66e2abdb9d9205bfb884a84842a1e3085900f691d9f87f10f4ac1",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP045",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.pyi",
+        "-"
+      ],
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP045",
+          "end_location": {
+            "column": 21,
+            "row": 2
+          },
+          "filename": "/workspaces/idiomatic/case.pyi",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "\"Later\" | None",
+                "end_location": {
+                  "column": 21,
+                  "row": 2
+                },
+                "location": {
+                  "column": 4,
+                  "row": 2
+                }
+              }
+            ],
+            "message": "Convert to `X | None`"
+          },
+          "location": {
+            "column": 4,
+            "row": 2
+          },
+          "message": "Use `X | None` for type annotations",
+          "name": "non-pep604-annotation-optional",
+          "noqa_row": 2,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-optional"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP045",
+          "file": "case.pyi",
+          "start": 31,
+          "end": 48
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP045",
+      "name": "noqa",
+      "files": {
+        "case.py": "from typing import Optional\nx: Optional[int]  # noqa: UP045\n"
+      },
+      "source_sha256": "a91a501d25a0e9fa58af0410ffb40931b1d3aa3709041bb3f9404047b359d9f1",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP045",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "raw": [],
+      "expected": [],
+      "status": 0
+    },
+    {
+      "rule": "UP045",
+      "name": "unicode",
+      "files": {
+        "case.py": "from typing import Optional\nπ: Optional[int]\n"
+      },
+      "source_sha256": "ba458e9ac7e23f4986f9bca9bc0b4645dc1a5ba14cecd4d5618dcd6898298aa6",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP045",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP045",
+          "end_location": {
+            "column": 17,
+            "row": 2
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "int | None",
+                "end_location": {
+                  "column": 17,
+                  "row": 2
+                },
+                "location": {
+                  "column": 4,
+                  "row": 2
+                }
+              }
+            ],
+            "message": "Convert to `X | None`"
+          },
+          "location": {
+            "column": 4,
+            "row": 2
+          },
+          "message": "Use `X | None` for type annotations",
+          "name": "non-pep604-annotation-optional",
+          "noqa_row": 2,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-optional"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP045",
+          "file": "case.py",
+          "start": 32,
+          "end": 45
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP045",
+      "name": "tagged-UP045_1.py",
+      "files": {
+        "case.py": "import typing\nfrom typing import Optional\n\n\ndef f(x: Optional[str]) -> None:\n    ...\n\n\ndef f(x: typing.Optional[str]) -> None:\n    ...\n\n\ndef f() -> None:\n    x: Optional[str]\n    x = Optional[str]\n\n\ndef f(x: list[Optional[int]]) -> None:\n    ...\n\n\ndef f(x: Optional[int : float]) -> None:\n    ...\n\n\ndef f(x: Optional[str, int : float]) -> None:\n    ...\n\n\ndef f(x: Optional[int, float]) -> None:\n    ...\n\n\n# Regression test for: https://github.com/astral-sh/ruff/issues/7131\nclass ServiceRefOrValue:\n    service_specification: Optional[\n        list[ServiceSpecificationRef]\n        | list[ServiceSpecification]\n    ] = None\n\n\n# Regression test for: https://github.com/astral-sh/ruff/issues/7201\nclass ServiceRefOrValue:\n    service_specification: Optional[str]is not True = None\n\n\n# Test for: https://github.com/astral-sh/ruff/issues/18508\n# Optional[None] should not be offered a fix\nfoo: Optional[None] = None\n\n\nfrom typing import NamedTuple, Optional\n\nimport typing_extensions\nfrom typing_extensions import (\n    NamedTuple as NamedTupleTE,\n    Optional as OptionalTE,\n)\n\n# Regression test for https://github.com/astral-sh/ruff/issues/18619\n# Don't emit lint for `NamedTuple`\na1: Optional[NamedTuple] = None\na2: typing.Optional[NamedTuple] = None\na3: OptionalTE[NamedTuple] = None\na4: typing_extensions.Optional[NamedTuple] = None\na5: Optional[typing.NamedTuple] = None\na6: typing.Optional[typing.NamedTuple] = None\na7: OptionalTE[typing.NamedTuple] = None\na8: typing_extensions.Optional[typing.NamedTuple] = None\na9: \"Optional[NamedTuple]\" = None\na10: Optional[NamedTupleTE] = None\n\n\n# Test for: https://github.com/astral-sh/ruff/issues/19746\n# Nested Optional types should be flattened\nnested_optional: Optional[Optional[str]] = None\nnested_optional_typing: typing.Optional[Optional[int]] = None\ntriple_nested_optional: Optional[Optional[Optional[str]]] = None\n\n\nfoo: Optional[\n    int\n    # text\n] = None\n\n\n# Regression test for: https://github.com/astral-sh/ruff/issues/23429\n# Optional[None | X] should not produce None | None\nbar: None | Optional[None | int] = None\nbar: Optional[None | int] = None\nbar: Optional[int | None] = None\nbar: Optional[None | int | str] = None\nbar: Optional[None | None] = None\n"
+      },
+      "source_sha256": "1c87a185616fe45fdb99ad8420c09cfc651ed95808b8c9c2ed3df522f3fd503c",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP045",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "target": "py310",
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP045",
+          "end_location": {
+            "column": 23,
+            "row": 5
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "str | None",
+                "end_location": {
+                  "column": 23,
+                  "row": 5
+                },
+                "location": {
+                  "column": 10,
+                  "row": 5
+                }
+              }
+            ],
+            "message": "Convert to `X | None`"
+          },
+          "location": {
+            "column": 10,
+            "row": 5
+          },
+          "message": "Use `X | None` for type annotations",
+          "name": "non-pep604-annotation-optional",
+          "noqa_row": 5,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-optional"
+        },
+        {
+          "cell": null,
+          "code": "UP045",
+          "end_location": {
+            "column": 30,
+            "row": 9
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "str | None",
+                "end_location": {
+                  "column": 30,
+                  "row": 9
+                },
+                "location": {
+                  "column": 10,
+                  "row": 9
+                }
+              }
+            ],
+            "message": "Convert to `X | None`"
+          },
+          "location": {
+            "column": 10,
+            "row": 9
+          },
+          "message": "Use `X | None` for type annotations",
+          "name": "non-pep604-annotation-optional",
+          "noqa_row": 9,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-optional"
+        },
+        {
+          "cell": null,
+          "code": "UP045",
+          "end_location": {
+            "column": 21,
+            "row": 14
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "str | None",
+                "end_location": {
+                  "column": 21,
+                  "row": 14
+                },
+                "location": {
+                  "column": 8,
+                  "row": 14
+                }
+              }
+            ],
+            "message": "Convert to `X | None`"
+          },
+          "location": {
+            "column": 8,
+            "row": 14
+          },
+          "message": "Use `X | None` for type annotations",
+          "name": "non-pep604-annotation-optional",
+          "noqa_row": 14,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-optional"
+        },
+        {
+          "cell": null,
+          "code": "UP045",
+          "end_location": {
+            "column": 22,
+            "row": 15
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 9,
+            "row": 15
+          },
+          "message": "Use `X | None` for type annotations",
+          "name": "non-pep604-annotation-optional",
+          "noqa_row": 15,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-optional"
+        },
+        {
+          "cell": null,
+          "code": "UP045",
+          "end_location": {
+            "column": 28,
+            "row": 18
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "int | None",
+                "end_location": {
+                  "column": 28,
+                  "row": 18
+                },
+                "location": {
+                  "column": 15,
+                  "row": 18
+                }
+              }
+            ],
+            "message": "Convert to `X | None`"
+          },
+          "location": {
+            "column": 15,
+            "row": 18
+          },
+          "message": "Use `X | None` for type annotations",
+          "name": "non-pep604-annotation-optional",
+          "noqa_row": 18,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-optional"
+        },
+        {
+          "cell": null,
+          "code": "UP045",
+          "end_location": {
+            "column": 31,
+            "row": 22
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 10,
+            "row": 22
+          },
+          "message": "Use `X | None` for type annotations",
+          "name": "non-pep604-annotation-optional",
+          "noqa_row": 22,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-optional"
+        },
+        {
+          "cell": null,
+          "code": "UP045",
+          "end_location": {
+            "column": 36,
+            "row": 26
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 10,
+            "row": 26
+          },
+          "message": "Use `X | None` for type annotations",
+          "name": "non-pep604-annotation-optional",
+          "noqa_row": 26,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-optional"
+        },
+        {
+          "cell": null,
+          "code": "UP045",
+          "end_location": {
+            "column": 30,
+            "row": 30
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 10,
+            "row": 30
+          },
+          "message": "Use `X | None` for type annotations",
+          "name": "non-pep604-annotation-optional",
+          "noqa_row": 30,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-optional"
+        },
+        {
+          "cell": null,
+          "code": "UP045",
+          "end_location": {
+            "column": 6,
+            "row": 39
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "list[ServiceSpecificationRef] | list[ServiceSpecification] | None",
+                "end_location": {
+                  "column": 6,
+                  "row": 39
+                },
+                "location": {
+                  "column": 28,
+                  "row": 36
+                }
+              }
+            ],
+            "message": "Convert to `X | None`"
+          },
+          "location": {
+            "column": 28,
+            "row": 36
+          },
+          "message": "Use `X | None` for type annotations",
+          "name": "non-pep604-annotation-optional",
+          "noqa_row": 36,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-optional"
+        },
+        {
+          "cell": null,
+          "code": "UP045",
+          "end_location": {
+            "column": 41,
+            "row": 44
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "str | None ",
+                "end_location": {
+                  "column": 41,
+                  "row": 44
+                },
+                "location": {
+                  "column": 28,
+                  "row": 44
+                }
+              }
+            ],
+            "message": "Convert to `X | None`"
+          },
+          "location": {
+            "column": 28,
+            "row": 44
+          },
+          "message": "Use `X | None` for type annotations",
+          "name": "non-pep604-annotation-optional",
+          "noqa_row": 44,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-optional"
+        },
+        {
+          "cell": null,
+          "code": "UP045",
+          "end_location": {
+            "column": 20,
+            "row": 49
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 6,
+            "row": 49
+          },
+          "message": "Use `X | None` for type annotations",
+          "name": "non-pep604-annotation-optional",
+          "noqa_row": 49,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-optional"
+        },
+        {
+          "cell": null,
+          "code": "UP045",
+          "end_location": {
+            "column": 41,
+            "row": 76
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "str | None",
+                "end_location": {
+                  "column": 41,
+                  "row": 76
+                },
+                "location": {
+                  "column": 18,
+                  "row": 76
+                }
+              }
+            ],
+            "message": "Convert to `X | None`"
+          },
+          "location": {
+            "column": 18,
+            "row": 76
+          },
+          "message": "Use `X | None` for type annotations",
+          "name": "non-pep604-annotation-optional",
+          "noqa_row": 76,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-optional"
+        },
+        {
+          "cell": null,
+          "code": "UP045",
+          "end_location": {
+            "column": 40,
+            "row": 76
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "str | None",
+                "end_location": {
+                  "column": 40,
+                  "row": 76
+                },
+                "location": {
+                  "column": 27,
+                  "row": 76
+                }
+              }
+            ],
+            "message": "Convert to `X | None`"
+          },
+          "location": {
+            "column": 27,
+            "row": 76
+          },
+          "message": "Use `X | None` for type annotations",
+          "name": "non-pep604-annotation-optional",
+          "noqa_row": 76,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-optional"
+        },
+        {
+          "cell": null,
+          "code": "UP045",
+          "end_location": {
+            "column": 55,
+            "row": 77
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "int | None",
+                "end_location": {
+                  "column": 55,
+                  "row": 77
+                },
+                "location": {
+                  "column": 25,
+                  "row": 77
+                }
+              }
+            ],
+            "message": "Convert to `X | None`"
+          },
+          "location": {
+            "column": 25,
+            "row": 77
+          },
+          "message": "Use `X | None` for type annotations",
+          "name": "non-pep604-annotation-optional",
+          "noqa_row": 77,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-optional"
+        },
+        {
+          "cell": null,
+          "code": "UP045",
+          "end_location": {
+            "column": 54,
+            "row": 77
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "int | None",
+                "end_location": {
+                  "column": 54,
+                  "row": 77
+                },
+                "location": {
+                  "column": 41,
+                  "row": 77
+                }
+              }
+            ],
+            "message": "Convert to `X | None`"
+          },
+          "location": {
+            "column": 41,
+            "row": 77
+          },
+          "message": "Use `X | None` for type annotations",
+          "name": "non-pep604-annotation-optional",
+          "noqa_row": 77,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-optional"
+        },
+        {
+          "cell": null,
+          "code": "UP045",
+          "end_location": {
+            "column": 58,
+            "row": 78
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "str | None",
+                "end_location": {
+                  "column": 58,
+                  "row": 78
+                },
+                "location": {
+                  "column": 25,
+                  "row": 78
+                }
+              }
+            ],
+            "message": "Convert to `X | None`"
+          },
+          "location": {
+            "column": 25,
+            "row": 78
+          },
+          "message": "Use `X | None` for type annotations",
+          "name": "non-pep604-annotation-optional",
+          "noqa_row": 78,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-optional"
+        },
+        {
+          "cell": null,
+          "code": "UP045",
+          "end_location": {
+            "column": 57,
+            "row": 78
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "str | None",
+                "end_location": {
+                  "column": 57,
+                  "row": 78
+                },
+                "location": {
+                  "column": 34,
+                  "row": 78
+                }
+              }
+            ],
+            "message": "Convert to `X | None`"
+          },
+          "location": {
+            "column": 34,
+            "row": 78
+          },
+          "message": "Use `X | None` for type annotations",
+          "name": "non-pep604-annotation-optional",
+          "noqa_row": 78,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-optional"
+        },
+        {
+          "cell": null,
+          "code": "UP045",
+          "end_location": {
+            "column": 56,
+            "row": 78
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "str | None",
+                "end_location": {
+                  "column": 56,
+                  "row": 78
+                },
+                "location": {
+                  "column": 43,
+                  "row": 78
+                }
+              }
+            ],
+            "message": "Convert to `X | None`"
+          },
+          "location": {
+            "column": 43,
+            "row": 78
+          },
+          "message": "Use `X | None` for type annotations",
+          "name": "non-pep604-annotation-optional",
+          "noqa_row": 78,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-optional"
+        },
+        {
+          "cell": null,
+          "code": "UP045",
+          "end_location": {
+            "column": 2,
+            "row": 84
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "unsafe",
+            "edits": [
+              {
+                "content": "int | None",
+                "end_location": {
+                  "column": 2,
+                  "row": 84
+                },
+                "location": {
+                  "column": 6,
+                  "row": 81
+                }
+              }
+            ],
+            "message": "Convert to `X | None`"
+          },
+          "location": {
+            "column": 6,
+            "row": 81
+          },
+          "message": "Use `X | None` for type annotations",
+          "name": "non-pep604-annotation-optional",
+          "noqa_row": 81,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-optional"
+        },
+        {
+          "cell": null,
+          "code": "UP045",
+          "end_location": {
+            "column": 33,
+            "row": 89
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "int | None",
+                "end_location": {
+                  "column": 33,
+                  "row": 89
+                },
+                "location": {
+                  "column": 13,
+                  "row": 89
+                }
+              }
+            ],
+            "message": "Convert to `X | None`"
+          },
+          "location": {
+            "column": 13,
+            "row": 89
+          },
+          "message": "Use `X | None` for type annotations",
+          "name": "non-pep604-annotation-optional",
+          "noqa_row": 89,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-optional"
+        },
+        {
+          "cell": null,
+          "code": "UP045",
+          "end_location": {
+            "column": 26,
+            "row": 90
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "int | None",
+                "end_location": {
+                  "column": 26,
+                  "row": 90
+                },
+                "location": {
+                  "column": 6,
+                  "row": 90
+                }
+              }
+            ],
+            "message": "Convert to `X | None`"
+          },
+          "location": {
+            "column": 6,
+            "row": 90
+          },
+          "message": "Use `X | None` for type annotations",
+          "name": "non-pep604-annotation-optional",
+          "noqa_row": 90,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-optional"
+        },
+        {
+          "cell": null,
+          "code": "UP045",
+          "end_location": {
+            "column": 26,
+            "row": 91
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "int | None",
+                "end_location": {
+                  "column": 26,
+                  "row": 91
+                },
+                "location": {
+                  "column": 6,
+                  "row": 91
+                }
+              }
+            ],
+            "message": "Convert to `X | None`"
+          },
+          "location": {
+            "column": 6,
+            "row": 91
+          },
+          "message": "Use `X | None` for type annotations",
+          "name": "non-pep604-annotation-optional",
+          "noqa_row": 91,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-optional"
+        },
+        {
+          "cell": null,
+          "code": "UP045",
+          "end_location": {
+            "column": 32,
+            "row": 92
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "int | str | None",
+                "end_location": {
+                  "column": 32,
+                  "row": 92
+                },
+                "location": {
+                  "column": 6,
+                  "row": 92
+                }
+              }
+            ],
+            "message": "Convert to `X | None`"
+          },
+          "location": {
+            "column": 6,
+            "row": 92
+          },
+          "message": "Use `X | None` for type annotations",
+          "name": "non-pep604-annotation-optional",
+          "noqa_row": 92,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-optional"
+        },
+        {
+          "cell": null,
+          "code": "UP045",
+          "end_location": {
+            "column": 27,
+            "row": 93
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 6,
+            "row": 93
+          },
+          "message": "Use `X | None` for type annotations",
+          "name": "non-pep604-annotation-optional",
+          "noqa_row": 93,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-optional"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP045",
+          "file": "case.py",
+          "start": 53,
+          "end": 66
+        },
+        {
+          "rule": "UP045",
+          "file": "case.py",
+          "start": 96,
+          "end": 116
+        },
+        {
+          "rule": "UP045",
+          "file": "case.py",
+          "start": 161,
+          "end": 174
+        },
+        {
+          "rule": "UP045",
+          "file": "case.py",
+          "start": 183,
+          "end": 196
+        },
+        {
+          "rule": "UP045",
+          "file": "case.py",
+          "start": 213,
+          "end": 226
+        },
+        {
+          "rule": "UP045",
+          "file": "case.py",
+          "start": 257,
+          "end": 278
+        },
+        {
+          "rule": "UP045",
+          "file": "case.py",
+          "start": 308,
+          "end": 334
+        },
+        {
+          "rule": "UP045",
+          "file": "case.py",
+          "start": 364,
+          "end": 384
+        },
+        {
+          "rule": "UP045",
+          "file": "case.py",
+          "start": 526,
+          "end": 616
+        },
+        {
+          "rule": "UP045",
+          "file": "case.py",
+          "start": 747,
+          "end": 760
+        },
+        {
+          "rule": "UP045",
+          "file": "case.py",
+          "start": 890,
+          "end": 904
+        },
+        {
+          "rule": "UP045",
+          "file": "case.py",
+          "start": 1708,
+          "end": 1731
+        },
+        {
+          "rule": "UP045",
+          "file": "case.py",
+          "start": 1717,
+          "end": 1730
+        },
+        {
+          "rule": "UP045",
+          "file": "case.py",
+          "start": 1763,
+          "end": 1793
+        },
+        {
+          "rule": "UP045",
+          "file": "case.py",
+          "start": 1779,
+          "end": 1792
+        },
+        {
+          "rule": "UP045",
+          "file": "case.py",
+          "start": 1825,
+          "end": 1858
+        },
+        {
+          "rule": "UP045",
+          "file": "case.py",
+          "start": 1834,
+          "end": 1857
+        },
+        {
+          "rule": "UP045",
+          "file": "case.py",
+          "start": 1843,
+          "end": 1856
+        },
+        {
+          "rule": "UP045",
+          "file": "case.py",
+          "start": 1873,
+          "end": 1903
+        },
+        {
+          "rule": "UP045",
+          "file": "case.py",
+          "start": 2047,
+          "end": 2067
+        },
+        {
+          "rule": "UP045",
+          "file": "case.py",
+          "start": 2080,
+          "end": 2100
+        },
+        {
+          "rule": "UP045",
+          "file": "case.py",
+          "start": 2113,
+          "end": 2133
+        },
+        {
+          "rule": "UP045",
+          "file": "case.py",
+          "start": 2146,
+          "end": 2172
+        },
+        {
+          "rule": "UP045",
+          "file": "case.py",
+          "start": 2185,
+          "end": 2206
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP045",
+      "name": "tagged-UP045_2.py",
+      "files": {
+        "case.py": "import typing\nfrom typing import Optional\n\n\ndef f(x: Optional[str]) -> None:\n    ...\n\n\ndef f(x: typing.Optional[str]) -> None:\n    ...\n"
+      },
+      "source_sha256": "c2d72f5b127232039866b4f62d22b420d2af0c857db25c3938111969d0d6b525",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP045",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "target": "py310",
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP045",
+          "end_location": {
+            "column": 23,
+            "row": 5
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "str | None",
+                "end_location": {
+                  "column": 23,
+                  "row": 5
+                },
+                "location": {
+                  "column": 10,
+                  "row": 5
+                }
+              }
+            ],
+            "message": "Convert to `X | None`"
+          },
+          "location": {
+            "column": 10,
+            "row": 5
+          },
+          "message": "Use `X | None` for type annotations",
+          "name": "non-pep604-annotation-optional",
+          "noqa_row": 5,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-optional"
+        },
+        {
+          "cell": null,
+          "code": "UP045",
+          "end_location": {
+            "column": 30,
+            "row": 9
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "str | None",
+                "end_location": {
+                  "column": 30,
+                  "row": 9
+                },
+                "location": {
+                  "column": 10,
+                  "row": 9
+                }
+              }
+            ],
+            "message": "Convert to `X | None`"
+          },
+          "location": {
+            "column": 10,
+            "row": 9
+          },
+          "message": "Use `X | None` for type annotations",
+          "name": "non-pep604-annotation-optional",
+          "noqa_row": 9,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-optional"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP045",
+          "file": "case.py",
+          "start": 53,
+          "end": 66
+        },
+        {
+          "rule": "UP045",
+          "file": "case.py",
+          "start": 96,
+          "end": 116
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP045",
+      "name": "future-forward-import",
+      "files": {
+        "case.py": "from __future__ import annotations\nx: Optional[int]\nfrom typing import Optional\n"
+      },
+      "source_sha256": "e59a5aa2f487671c46083e47c080db7562a06d81bc8941e0acf8a1b12b5c5b97",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP045",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "target": "py310",
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP045",
+          "end_location": {
+            "column": 17,
+            "row": 2
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "int | None",
+                "end_location": {
+                  "column": 17,
+                  "row": 2
+                },
+                "location": {
+                  "column": 4,
+                  "row": 2
+                }
+              }
+            ],
+            "message": "Convert to `X | None`"
+          },
+          "location": {
+            "column": 4,
+            "row": 2
+          },
+          "message": "Use `X | None` for type annotations",
+          "name": "non-pep604-annotation-optional",
+          "noqa_row": 2,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-optional"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP045",
+          "file": "case.py",
+          "start": 38,
+          "end": 51
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP045",
+      "name": "function-later-import",
+      "files": {
+        "case.py": "def f():\n    x = Optional[int]\nfrom typing import Optional\n"
+      },
+      "source_sha256": "e9474ee65f3e1d70e7ec8426350c03984d31bed263b592fe6f4efb5431330a03",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP045",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "target": "py310",
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP045",
+          "end_location": {
+            "column": 22,
+            "row": 2
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 9,
+            "row": 2
+          },
+          "message": "Use `X | None` for type annotations",
+          "name": "non-pep604-annotation-optional",
+          "noqa_row": 2,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-optional"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP045",
+          "file": "case.py",
+          "start": 17,
+          "end": 30
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP045",
+      "name": "direct-quoted-annotation",
+      "files": {
+        "case.py": "from typing import Optional\nx: Optional[\"Later\"]\n"
+      },
+      "source_sha256": "24ab15de59a66e2abdb9d9205bfb884a84842a1e3085900f691d9f87f10f4ac1",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP045",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "target": "py310",
+      "raw": [],
+      "expected": [],
+      "status": 0
+    },
+    {
+      "rule": "UP045",
+      "name": "guard-else",
+      "files": {
+        "case.py": "from typing import Optional, TYPE_CHECKING\nif TYPE_CHECKING:\n    pass\nelse:\n    x = Optional[\"Later\"]\n"
+      },
+      "source_sha256": "ce6d8df0db147349f74275506e7adf07728bad269d1a58f5c825897ed2a1d689",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP045",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "target": "py310",
+      "raw": [],
+      "expected": [],
+      "status": 0
+    },
+    {
+      "rule": "UP045",
+      "name": "nested-direct-guard",
+      "files": {
+        "case.py": "from typing import Optional, TYPE_CHECKING\nif TYPE_CHECKING:\n    if condition:\n        x = Optional[\"Later\"]\n"
+      },
+      "source_sha256": "7470dbe24fa6945c0e432f6e87244261d26c6751b4b665c80a047c231128f78c",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP045",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "target": "py310",
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP045",
+          "end_location": {
+            "column": 30,
+            "row": 4
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 13,
+            "row": 4
+          },
+          "message": "Use `X | None` for type annotations",
+          "name": "non-pep604-annotation-optional",
+          "noqa_row": 4,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-optional"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP045",
+          "file": "case.py",
+          "start": 91,
+          "end": 108
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP045",
+      "name": "union-nested-tuples",
+      "files": {
+        "case.py": "from typing import Optional\nx: Optional[(int, str)]\n"
+      },
+      "source_sha256": "82b9ceb67c65fd5dfb4fc8d9f7d042b455973a83454d86c175352b33ad53a138",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP045",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "target": "py310",
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP045",
+          "end_location": {
+            "column": 24,
+            "row": 2
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 4,
+            "row": 2
+          },
+          "message": "Use `X | None` for type annotations",
+          "name": "non-pep604-annotation-optional",
+          "noqa_row": 2,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-optional"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP045",
+          "file": "case.py",
+          "start": 31,
+          "end": 51
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP045",
+      "name": "module-rebound",
+      "files": {
+        "case.py": "import typing\ntyping = other\nx: typing.Optional[int]\n"
+      },
+      "source_sha256": "48bd90ded80e3ea8c75d950c69c7d1d0d6f24339a59c5b2606444530cfb59800",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP045",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "target": "py310",
+      "raw": [],
+      "expected": [],
+      "status": 0
+    },
+    {
+      "rule": "UP045",
+      "name": "py39-annotation",
+      "files": {
+        "case.py": "from typing import Optional\nx: Optional[int]\n"
+      },
+      "source_sha256": "36ed91742900704a66a719baa6494f7da6685ed8a5e87d5983a3ae3d4d1b66f2",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py39",
+        "--select",
+        "UP045",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "target": "py39",
+      "raw": [],
+      "expected": [],
+      "status": 0
+    },
+    {
+      "rule": "UP045",
+      "name": "py39-future-annotation",
+      "files": {
+        "case.py": "from __future__ import annotations\nfrom typing import Optional\nx: Optional[int]\n"
+      },
+      "source_sha256": "33b43a6e8c511334adcd9d8b575c5c4278ec0cdadff53dd3bdd2a53d8c9d4854",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py39",
+        "--select",
+        "UP045",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "target": "py39",
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP045",
+          "end_location": {
+            "column": 17,
+            "row": 3
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "unsafe",
+            "edits": [
+              {
+                "content": "int | None",
+                "end_location": {
+                  "column": 17,
+                  "row": 3
+                },
+                "location": {
+                  "column": 4,
+                  "row": 3
+                }
+              }
+            ],
+            "message": "Convert to `X | None`"
+          },
+          "location": {
+            "column": 4,
+            "row": 3
+          },
+          "message": "Use `X | None` for type annotations",
+          "name": "non-pep604-annotation-optional",
+          "noqa_row": 3,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-optional"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP045",
+          "file": "case.py",
+          "start": 66,
+          "end": 79
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP045",
+      "name": "py39-future-runtime",
+      "files": {
+        "case.py": "from __future__ import annotations\nfrom typing import Optional\nx = Optional[int]\n"
+      },
+      "source_sha256": "e24fc3db4f1c4e61fc9182a105ec42ae0e313980759c8e2a17077afbf87cb87c",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py39",
+        "--select",
+        "UP045",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "target": "py39",
+      "raw": [],
+      "expected": [],
+      "status": 0
+    },
+    {
+      "rule": "UP045",
+      "name": "py39-quoted-annotation",
+      "files": {
+        "case.py": "from typing import Optional\nx: Optional[\"Later\"]\n"
+      },
+      "source_sha256": "24ab15de59a66e2abdb9d9205bfb884a84842a1e3085900f691d9f87f10f4ac1",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py39",
+        "--select",
+        "UP045",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "target": "py39",
+      "raw": [],
+      "expected": [],
+      "status": 0
+    },
+    {
+      "rule": "UP045",
+      "name": "py314-annotation",
+      "files": {
+        "case.py": "from typing import Optional\nx: Optional[int]\n"
+      },
+      "source_sha256": "36ed91742900704a66a719baa6494f7da6685ed8a5e87d5983a3ae3d4d1b66f2",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py314",
+        "--select",
+        "UP045",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "target": "py314",
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP045",
+          "end_location": {
+            "column": 17,
+            "row": 2
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "int | None",
+                "end_location": {
+                  "column": 17,
+                  "row": 2
+                },
+                "location": {
+                  "column": 4,
+                  "row": 2
+                }
+              }
+            ],
+            "message": "Convert to `X | None`"
+          },
+          "location": {
+            "column": 4,
+            "row": 2
+          },
+          "message": "Use `X | None` for type annotations",
+          "name": "non-pep604-annotation-optional",
+          "noqa_row": 2,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-optional"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP045",
+          "file": "case.py",
+          "start": 31,
+          "end": 44
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP045",
+      "name": "py314-future-annotation",
+      "files": {
+        "case.py": "from __future__ import annotations\nfrom typing import Optional\nx: Optional[int]\n"
+      },
+      "source_sha256": "33b43a6e8c511334adcd9d8b575c5c4278ec0cdadff53dd3bdd2a53d8c9d4854",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py314",
+        "--select",
+        "UP045",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "target": "py314",
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP045",
+          "end_location": {
+            "column": 17,
+            "row": 3
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "int | None",
+                "end_location": {
+                  "column": 17,
+                  "row": 3
+                },
+                "location": {
+                  "column": 4,
+                  "row": 3
+                }
+              }
+            ],
+            "message": "Convert to `X | None`"
+          },
+          "location": {
+            "column": 4,
+            "row": 3
+          },
+          "message": "Use `X | None` for type annotations",
+          "name": "non-pep604-annotation-optional",
+          "noqa_row": 3,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-optional"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP045",
+          "file": "case.py",
+          "start": 66,
+          "end": 79
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP045",
+      "name": "py314-future-runtime",
+      "files": {
+        "case.py": "from __future__ import annotations\nfrom typing import Optional\nx = Optional[int]\n"
+      },
+      "source_sha256": "e24fc3db4f1c4e61fc9182a105ec42ae0e313980759c8e2a17077afbf87cb87c",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py314",
+        "--select",
+        "UP045",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "target": "py314",
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP045",
+          "end_location": {
+            "column": 18,
+            "row": 3
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 5,
+            "row": 3
+          },
+          "message": "Use `X | None` for type annotations",
+          "name": "non-pep604-annotation-optional",
+          "noqa_row": 3,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-optional"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP045",
+          "file": "case.py",
+          "start": 67,
+          "end": 80
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP045",
+      "name": "py314-quoted-annotation",
+      "files": {
+        "case.py": "from typing import Optional\nx: Optional[\"Later\"]\n"
+      },
+      "source_sha256": "24ab15de59a66e2abdb9d9205bfb884a84842a1e3085900f691d9f87f10f4ac1",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py314",
+        "--select",
+        "UP045",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "target": "py314",
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP045",
+          "end_location": {
+            "column": 21,
+            "row": 2
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "\"Later\" | None",
+                "end_location": {
+                  "column": 21,
+                  "row": 2
+                },
+                "location": {
+                  "column": 4,
+                  "row": 2
+                }
+              }
+            ],
+            "message": "Convert to `X | None`"
+          },
+          "location": {
+            "column": 4,
+            "row": 2
+          },
+          "message": "Use `X | None` for type annotations",
+          "name": "non-pep604-annotation-optional",
+          "noqa_row": 2,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-optional"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP045",
+          "file": "case.py",
+          "start": 31,
+          "end": 48
+        }
+      ],
+      "status": 1
+    }
+  ]
+}

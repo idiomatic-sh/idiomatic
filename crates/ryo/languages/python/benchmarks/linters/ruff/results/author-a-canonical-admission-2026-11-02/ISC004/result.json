@@ -1,0 +1,53 @@
+{
+  "profile": "ISC004",
+  "command": [
+    "/tmp/lazy-workspace-artifacts-3-20261102/python-release",
+    "verify-cases",
+    "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+    "/tmp/authored11-canonical-6540-20261102/profiles/ISC004/repro"
+  ],
+  "cwd": "/tmp/authored11-canonical-6540-20261102/repository/crates/ryo",
+  "status": 0,
+  "process_status": 0,
+  "error": null,
+  "identities": {
+    "worker_sha256": "6540ecd69e387437f7e2a7a03eebaeb24544ec97bd0dcfba9520ca7e46e4f83c",
+    "reference_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+    "helper_sha256": "be4c5e2ee6ca8a28b207672c7fa291e45f39c6acbaa397cbff3f8dcfaf43d7b9",
+    "stage_seal_sha256": "9dac9d52b3336e16d56bf50cdeb76996619eea2fdb634bb5a09ecc393b86b153",
+    "source_profile": "profiles/ISC004/benchmark.toml",
+    "settings": {
+      "defaults": [
+        "ISC004"
+      ],
+      "parser_configuration": "python-target=3.10",
+      "project_context_mode": "isolated",
+      "rule_applicability": {
+        "ISC004": "accepted-syntax"
+      },
+      "flags": {}
+    }
+  },
+  "staged_inputs": {
+    "benchmark.toml": "54da222d58837b07693720198a3aa4566c70f4e97a4acb91e15357026cfdd2ff",
+    "fragments/suppress-directives.ryoql": "29efaa45457a591ccd20d340327095ef9f6d9644feec94929f245cc420fc3382",
+    "fragments/suppress.ryoql": "b3f9278dec26f739d1ee68a53b834629bc51b26fa868ec250e0eaaf5854d9c26",
+    "rules/ISC004/cases.toml": "9b635f0534da1c97660d3e85c706af93525f2788aa8c6df836e26e6658ddd9c5",
+    "rules/ISC004/query.ryoql": "1f3bb16f98b0a31d1d139030b8f0e2940671d5fe3c9e500f2ff2756f88f7f1b2"
+  },
+  "stdout_file": "profiles/ISC004/stdout.bin",
+  "stderr_file": "profiles/ISC004/stderr.bin",
+  "reproduction_directory": "profiles/ISC004/repro",
+  "case_results_file": "profiles/ISC004/cases.jsonl",
+  "case_results_sha256": "d283bee66ac8d0afb4ad82511394bdd79e14cb8244bdb73777c18a98ce35a4c5",
+  "case_expectation_summary": {
+    "complete_case_pairs": 26,
+    "incomplete_cases": 0,
+    "raw_parity_matches": 26,
+    "raw_parity_mismatches": 0,
+    "documented_reference_discrepancies": 0,
+    "unexplained_mismatches": 0,
+    "intended_behavior_passes": 26,
+    "intended_behavior_failures": 0
+  }
+}

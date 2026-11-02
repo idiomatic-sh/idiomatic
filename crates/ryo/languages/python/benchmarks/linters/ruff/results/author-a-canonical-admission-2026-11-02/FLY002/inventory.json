@@ -1,0 +1,686 @@
+[
+  {
+    "rule": "FLY002",
+    "name": "attribute",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "c23f4e724a31705d5c9d48806f0acae4cac23af1001731983c7a7f4c499101af",
+    "source_sha256": "11a69e3086e83fab7760ae7664134bffe121d77d32ddd9bb1d498a76aada9fc7",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [
+      {
+        "rule": "FLY002",
+        "file": "case.py",
+        "start": 0,
+        "end": 18
+      }
+    ],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "FLY002",
+    "name": "attribute-call",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "9b002ac9a0f9052961e3a39dd90b206f807cd569d758b5c806af6b05267c860f",
+    "source_sha256": "dd8b00c95c7b26bdf2e05d8cf7c37732301dfa5043d074c0ce579cf3a29cedf5",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [
+      {
+        "rule": "FLY002",
+        "file": "case.py",
+        "start": 0,
+        "end": 24
+      }
+    ],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "FLY002",
+    "name": "binary",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "decc24293855962c4f27f4f85a2ac67ff78588df232a066f49899b9b2073f736",
+    "source_sha256": "dcdafffab0b350f229a924f719e058a4e263be29b7dc5f7c3ea3d014b32fe2a5",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "FLY002",
+    "name": "both-quotes-mixed",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "792cb077dc8bde4046fc9137433fb50d3d5a52d19a8c892b0d49158ad4a732f7",
+    "source_sha256": "31eaf772f1afbeed0691926ea084e101a0440cac2ae27baf3b1e600bf0a01018",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "FLY002",
+    "name": "both-quotes-static",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "f6e3642478e7c7f1f7de01f6c1458e89e18a2f5069182c92c23e8510b4729f60",
+    "source_sha256": "a8d9170ce29cb95c8d36f10e6042480e70cce3274d57b15b3414eb2ff4ca97b5",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [
+      {
+        "rule": "FLY002",
+        "file": "case.py",
+        "start": 0,
+        "end": 25
+      }
+    ],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "FLY002",
+    "name": "bytes-element",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "7a3f902b19ae1860ae641a31ef6e0885a5a005d3a3728721201eae07dc5f7852",
+    "source_sha256": "5cf8d87200585238ea1afedca371d2aef9bcdcac1ed6fbf0067a1402dfba8a34",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "FLY002",
+    "name": "bytes-receiver",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "35ac54704d87232da6bb634a90d3c7a3d52e98e9379a23174ba9d67b16582022",
+    "source_sha256": "9f7f4d1cc52ce95a6ce3c57a2c29a8d76b37f9977228555d49d6ac74150c09f6",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "FLY002",
+    "name": "call-callee",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "5585c690e21c95747647b2bcaf39093ca192ff09706ad0b453ac450161509be7",
+    "source_sha256": "1726677ac6ed6c4975214219e691947e440144f58e63b761e7cf4af7b3c35845",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "FLY002",
+    "name": "call-keyword",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "ebe3d8f56cab110b4187f92b15d35680443b256855d9aa1f11682e41de627f28",
+    "source_sha256": "0d05d9b5ab9639fdb4b9748aef6c68f0c5e0fa3aec3ee778e6a99fbfd01169f8",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "FLY002",
+    "name": "complex-call",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "335717c68ea78263388f10501bf7a6a0c744682cde2a085510ed743c462b5230",
+    "source_sha256": "1b1f8b44c82d87a4ec4ce6fdad6daa1c50ab2d5d89a9c3ddb2b0b93a25ecc29e",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "FLY002",
+    "name": "empty",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "131690ed545504345558c78667c6b57ed13b81f52d486e8c199bd0285490d109",
+    "source_sha256": "305af77f2b8efb1c8e27a236a1bf0ddcd61e871a12e29685ac9324c653717c1d",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "FLY002",
+    "name": "fstring-element",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "f6612586321c8998ba598aea76cd114bb7faf144afeff9abbf593e903cf3057e",
+    "source_sha256": "d53b7731066c3e95d3bddc9a39151a72e6395e7ae29748f28ad4eaa0ffb7ff25",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "FLY002",
+    "name": "generator",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "f8a248a2797b6210d533213df1a0212ff7a47c01d04879ab1543dab2cf3bfcff",
+    "source_sha256": "aab8274d85cbe85433dd6f1526545ee16ab00ba4aadd9727b2150738f1f1c946",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "FLY002",
+    "name": "keyword",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "e79ff71c9345c467aaaa5bf29460eee49d0fef457f21e7fab99772ba39b611af",
+    "source_sha256": "6c9bb106b0932fdcb7d0fdf167b9c91c64577afccca73065ec621758a13b5943",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "FLY002",
+    "name": "multiple-args",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "297ae5c0249adca2fc64807003df8f833c9c5f75979e13b0ca7cec4a45864935",
+    "source_sha256": "b951f99af9095f5999fe9d179803a962530ba5bbad5d23051d0370ebeeea39b6",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "FLY002",
+    "name": "names",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "d68ae2c6bb21f439eb9f5f3d69dd5dd80b59a7b43f0acdafb5d4de92e9e119f1",
+    "source_sha256": "0c2fb16630188d4a0994443f85c6baf0367ac63c6ad17e1458fe8ea678120115",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [
+      {
+        "rule": "FLY002",
+        "file": "case.py",
+        "start": 0,
+        "end": 16
+      }
+    ],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "FLY002",
+    "name": "none",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "a71e319b12ee3f4f4bbf43a293276ee30f7fad85008c71a990fe8fc52ce57624",
+    "source_sha256": "6191dd447561397dd887d9975ae486b4b7960aa682bf476b55f447409232c2dc",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "FLY002",
+    "name": "noqa",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "c52ee65f007ddca74847042b010c3bb25947e5d968e9a0441ea56b3ad1f0e1a5",
+    "source_sha256": "5548f103bc972509b0fd51626364eaf0c85731d412398580f41b1ffa7237a443",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "FLY002",
+    "name": "numbers",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "5bf4f431bce4bc30afe44be6e1ad93ee6a9216c1711bc2f7d5f57172239ca986",
+    "source_sha256": "19c840c663994975be1f43a105ea91677aef2009241b3f1dd81088245450a68f",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [
+      {
+        "rule": "FLY002",
+        "file": "case.py",
+        "start": 0,
+        "end": 24
+      }
+    ],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "FLY002",
+    "name": "raw-asymmetric-separator-empty",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "eaa645959b001f61cba67130777a05f01ed89c8a930cdf7533651d18b233dd32",
+    "source_sha256": "7ed380098d64d3fde52684d77665fd41d55a00696524f8cd1f08350b9b5bb1f1",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "FLY002",
+    "name": "raw-literal-no-newline",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "eb0ba20fc93d9068aae6f3008d0c18e534b09c0a3e9c5340e999d5eb2c09bd28",
+    "source_sha256": "b3f040e98cd1476445df723d0bcc1678be8bd30e93e255837bff11ca559e5326",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [
+      {
+        "rule": "FLY002",
+        "file": "case.py",
+        "start": 0,
+        "end": 33
+      }
+    ],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "FLY002",
+    "name": "raw-one-quote-separator-three",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "91da0824558f6cd9a148a07de0f3a5d0fdd9d0ade526eb950790cde848386356",
+    "source_sha256": "ec3d585a24df6710d0a871b9f89bf08ec26fbf2b3025ed8f6b9c49e1efe09e23",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "FLY002",
+    "name": "raw-one-quote-separator-two",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "08f4825fd70048f759754ace57e03f77c9ff6901a8cb2b4b50735b95bd78021f",
+    "source_sha256": "7b49f25591ff200ce2ee9b9284d7f075505a14cc23bf105e214613394f5bbb83",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [
+      {
+        "rule": "FLY002",
+        "file": "case.py",
+        "start": 0,
+        "end": 36
+      }
+    ],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "FLY002",
+    "name": "raw-separated-empty-middle",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "f607adf7d6ed3c4a27fd775e2462fe05e5b395cb3afe90b4bcf2eaa542e6fb60",
+    "source_sha256": "0d8a2e9f16ccb17696b40b667ab6b010b8cc43534ef6a2889bbb6357c4e413ac",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [
+      {
+        "rule": "FLY002",
+        "file": "case.py",
+        "start": 0,
+        "end": 38
+      }
+    ],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "FLY002",
+    "name": "raw-separated-quoted-middle",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "0db3f568ab14895c8350f6025fca91ced4513b466bc6e8c6c4427e20283b3688",
+    "source_sha256": "8a438e90b1c4ce5b85c6349161926f6014defe7f2192a3dc0f454e440b500679",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "FLY002",
+    "name": "raw-split-double-two",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "cedb5d1f966fdf590539e7ab5aed381c64733a38a2ed9319c0514a8787091b24",
+    "source_sha256": "0ff1f77f93f1e390a1eac9c8379bc352c6ddf0e651a194b60beb450e38e28391",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "FLY002",
+    "name": "raw-split-single-three-empty",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "a438d303e7bcaaec520378217ce2b1db97fc01c1627ac86b9e6853bfa7a28de3",
+    "source_sha256": "7a89354936b7ef904af18037e46ff20ea60399453ed55d8939f491441a707bcb",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "FLY002",
+    "name": "raw-split-single-two",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "40bf8a041be154e4516059b0a63e34c5064e49cca91414eed7689ef61e4b9255",
+    "source_sha256": "3eff32d110d0c77d2322dbfabb4e49e5f20a112ffad1cef4f6726b22bfc35f90",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "FLY002",
+    "name": "raw-two-quote-separator-empty",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "ff2da28ba01d35adca84dfe8fdffd2eab066be82ec054445ad16dfbdb842e222",
+    "source_sha256": "1939397499b6734f71d1053903ec20dc4f040759d5b340c6f4b90e9720304633",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "FLY002",
+    "name": "set",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "9de8da3ca183d912111c974af9692586ccb61c50536a276febd6d98ab7cab61d",
+    "source_sha256": "63151bfa010d1887c1efa88649a4ee6af0f03abdd71ef50d1bc0dc00e973c38a",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "FLY002",
+    "name": "simple-call",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "b8b26e41a84855bbc3d49d98f3965b824dce18c9c5d4ee919131a096121b7994",
+    "source_sha256": "f8a01af882884595399d36ba8aa60484c8883f6466eac919597de21be3a22264",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [
+      {
+        "rule": "FLY002",
+        "file": "case.py",
+        "start": 0,
+        "end": 20
+      }
+    ],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "FLY002",
+    "name": "single",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "5d4780e5dee06d0adb04953c8172348148cadddf917773e88f108e8f81a4b960",
+    "source_sha256": "a7643ffdde472f3b6247c330a66c6f0ca60598269eda01a2d8d546e5a25e1479",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [
+      {
+        "rule": "FLY002",
+        "file": "case.py",
+        "start": 0,
+        "end": 13
+      }
+    ],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "FLY002",
+    "name": "starred",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "703e0eecba619f461dd0fd7ba632d0e7e4ff88f5e76736fce7c0fa703e0e3e58",
+    "source_sha256": "44ac9430959bc95d1cc9d6efb22d1b1d9c83b573c2cb9737935980e8f24da265",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "FLY002",
+    "name": "strings",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "59138b84bd8d99e3b382de8e0c075f83b7ef04ac22f4f3867730443bcd6a550a",
+    "source_sha256": "a902c07220bdba1acb49d421c5cd217081fb609314f4f9e8cb879a5ff4939585",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [
+      {
+        "rule": "FLY002",
+        "file": "case.py",
+        "start": 0,
+        "end": 20
+      }
+    ],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "FLY002",
+    "name": "subscript",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "46ea30ce8bd94d2fd0f405197447833a7e79606cae8b218fe16436d9283e8298",
+    "source_sha256": "dbe796781b0f590062fc0cde5ccf6925e4d49b153b5ee0ce13888332e0ebd4b2",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "FLY002",
+    "name": "tagged-flynt-FLY002.py",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "674888e1feb2095a165ab1cf95a8bcca598f469f2750478fac7f75e0e6c93120",
+    "source_sha256": "7a8d17b13f1467a1b736e29de1ec645f6b6de1633959323705db327eca1cbda5",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [
+      {
+        "rule": "FLY002",
+        "file": "case.py",
+        "start": 68,
+        "end": 91
+      },
+      {
+        "rule": "FLY002",
+        "file": "case.py",
+        "start": 104,
+        "end": 139
+      },
+      {
+        "rule": "FLY002",
+        "file": "case.py",
+        "start": 152,
+        "end": 177
+      },
+      {
+        "rule": "FLY002",
+        "file": "case.py",
+        "start": 190,
+        "end": 209
+      },
+      {
+        "rule": "FLY002",
+        "file": "case.py",
+        "start": 276,
+        "end": 306
+      },
+      {
+        "rule": "FLY002",
+        "file": "case.py",
+        "start": 334,
+        "end": 390
+      },
+      {
+        "rule": "FLY002",
+        "file": "case.py",
+        "start": 888,
+        "end": 917
+      },
+      {
+        "rule": "FLY002",
+        "file": "case.py",
+        "start": 1154,
+        "end": 1178
+      },
+      {
+        "rule": "FLY002",
+        "file": "case.py",
+        "start": 1258,
+        "end": 1277
+      },
+      {
+        "rule": "FLY002",
+        "file": "case.py",
+        "start": 1286,
+        "end": 1305
+      }
+    ],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "FLY002",
+    "name": "tuple",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "b250a4353bc34bd71ffdea1893732f8cc87b29e0b947d41e688e0a642520f982",
+    "source_sha256": "2c6815fc624cf25c9023f6e3e00236b446e11e5ccba6d82b0dd4115c804e8016",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [
+      {
+        "rule": "FLY002",
+        "file": "case.py",
+        "start": 0,
+        "end": 16
+      }
+    ],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "FLY002",
+    "name": "unicode",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "12ebe59247d2a10f2d0f3a94fb63098e1209215695fc2f6e30dec9001a5041cc",
+    "source_sha256": "5ee9fb5bf4fc4463b55cc98fb28bdf60727cf1cca14eaab73df6bd73b8e4e47b",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [
+      {
+        "rule": "FLY002",
+        "file": "case.py",
+        "start": 5,
+        "end": 21
+      }
+    ],
+    "reference_discrepancy": null
+  }
+]

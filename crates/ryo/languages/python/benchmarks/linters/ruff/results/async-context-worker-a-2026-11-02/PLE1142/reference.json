@@ -1,0 +1,1763 @@
+{
+  "ruff_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "rows": [
+    {
+      "rule": "PLE1142",
+      "name": "module-await",
+      "files": {
+        "case.py": "await f()\n"
+      },
+      "target": "py310",
+      "source_sha256": "bfff4be87365e3dc94581b48d0cfa5c4a77e5e92fe061b033178a9998a3d900f",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "PLE1142",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 1,
+      "raw": [
+        {
+          "cell": null,
+          "code": "PLE1142",
+          "end_location": {
+            "column": 10,
+            "row": 1
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 1,
+            "row": 1
+          },
+          "message": "`await` should be used within an async function",
+          "name": "await-outside-async",
+          "noqa_row": 1,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/await-outside-async"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "PLE1142",
+          "file": "case.py",
+          "start": 0,
+          "end": 9
+        }
+      ]
+    },
+    {
+      "rule": "PLE1142",
+      "name": "sync-await",
+      "files": {
+        "case.py": "def f():\n    await g()\n"
+      },
+      "target": "py310",
+      "source_sha256": "8e7fe8d5fffe5f334268543d3f34d52c69673c40b720e5be2614905387145673",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "PLE1142",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 1,
+      "raw": [
+        {
+          "cell": null,
+          "code": "PLE1142",
+          "end_location": {
+            "column": 14,
+            "row": 2
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 5,
+            "row": 2
+          },
+          "message": "`await` should be used within an async function",
+          "name": "await-outside-async",
+          "noqa_row": 2,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/await-outside-async"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "PLE1142",
+          "file": "case.py",
+          "start": 13,
+          "end": 22
+        }
+      ]
+    },
+    {
+      "rule": "PLE1142",
+      "name": "async-await",
+      "files": {
+        "case.py": "async def f():\n    await g()\n"
+      },
+      "target": "py310",
+      "source_sha256": "f70b15ce71894f95b54eece303ab2f499495b430eaaaddfb55cf33e300bb558a",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "PLE1142",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "PLE1142",
+      "name": "nested-sync",
+      "files": {
+        "case.py": "async def outer():\n    def inner():\n        await g()\n"
+      },
+      "target": "py310",
+      "source_sha256": "c0f02fefbab11d13731646686dc2422a1735b84bb1ba001efa6feb0cd6d32917",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "PLE1142",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 1,
+      "raw": [
+        {
+          "cell": null,
+          "code": "PLE1142",
+          "end_location": {
+            "column": 18,
+            "row": 3
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 9,
+            "row": 3
+          },
+          "message": "`await` should be used within an async function",
+          "name": "await-outside-async",
+          "noqa_row": 3,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/await-outside-async"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "PLE1142",
+          "file": "case.py",
+          "start": 44,
+          "end": 53
+        }
+      ]
+    },
+    {
+      "rule": "PLE1142",
+      "name": "nested-async",
+      "files": {
+        "case.py": "def outer():\n    async def inner():\n        await g()\n"
+      },
+      "target": "py310",
+      "source_sha256": "abb0c29c46a13e7e078e56f69ac13305d6ef93d40b025c9e23c246b3e04ecbff",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "PLE1142",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "PLE1142",
+      "name": "class-barrier",
+      "files": {
+        "case.py": "async def f():\n    class C:\n        await g()\n"
+      },
+      "target": "py310",
+      "source_sha256": "80dc0465fee946475d3920862e957a973efccc0a174d5f6b2307854555538b7b",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "PLE1142",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 1,
+      "raw": [
+        {
+          "cell": null,
+          "code": "PLE1142",
+          "end_location": {
+            "column": 18,
+            "row": 3
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 9,
+            "row": 3
+          },
+          "message": "`await` should be used within an async function",
+          "name": "await-outside-async",
+          "noqa_row": 3,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/await-outside-async"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "PLE1142",
+          "file": "case.py",
+          "start": 36,
+          "end": 45
+        }
+      ]
+    },
+    {
+      "rule": "PLE1142",
+      "name": "lambda-barrier",
+      "files": {
+        "case.py": "async def f():\n    return lambda: await g()\n"
+      },
+      "target": "py310",
+      "source_sha256": "f90227fb5f151131371cabed91ac7b4b064de9f69a22238449d1102f25b7102f",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "PLE1142",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 1,
+      "raw": [
+        {
+          "cell": null,
+          "code": "PLE1142",
+          "end_location": {
+            "column": 29,
+            "row": 2
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 20,
+            "row": 2
+          },
+          "message": "`await` should be used within an async function",
+          "name": "await-outside-async",
+          "noqa_row": 2,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/await-outside-async"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "PLE1142",
+          "file": "case.py",
+          "start": 34,
+          "end": 43
+        }
+      ]
+    },
+    {
+      "rule": "PLE1142",
+      "name": "function-default-outer-async",
+      "files": {
+        "case.py": "async def outer():\n    def inner(x=await g()): pass\n"
+      },
+      "target": "py310",
+      "source_sha256": "55a20f57bd41298616d2864c0b669cce49bfedbe0039d67ab11261fdfd177e91",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "PLE1142",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "PLE1142",
+      "name": "function-default-module",
+      "files": {
+        "case.py": "def f(x=await g()): pass\n"
+      },
+      "target": "py310",
+      "source_sha256": "712c5dd7e466a5a708b4601d7673fe9d4ed239d67db55d17829bd8a48bb3ef2c",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "PLE1142",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 1,
+      "raw": [
+        {
+          "cell": null,
+          "code": "PLE1142",
+          "end_location": {
+            "column": 18,
+            "row": 1
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 9,
+            "row": 1
+          },
+          "message": "`await` should be used within an async function",
+          "name": "await-outside-async",
+          "noqa_row": 1,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/await-outside-async"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "PLE1142",
+          "file": "case.py",
+          "start": 8,
+          "end": 17
+        }
+      ]
+    },
+    {
+      "rule": "PLE1142",
+      "name": "class-base-outer-async",
+      "files": {
+        "case.py": "async def f():\n    class C(await g()): pass\n"
+      },
+      "target": "py310",
+      "source_sha256": "26ae8f456344b3278e8d134c321126c720506e4fc2a344f70bbb30d2662f7a4b",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "PLE1142",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "PLE1142",
+      "name": "decorator-outer-async",
+      "files": {
+        "case.py": "async def f():\n    @decorate(await g())\n    def inner(): pass\n"
+      },
+      "target": "py310",
+      "source_sha256": "6e889f15d6d7ee56addf37e687291d362f0ed8c9952abc85fce3df35c928776e",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "PLE1142",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "PLE1142",
+      "name": "module-async-for",
+      "files": {
+        "case.py": "async for x in xs:\n    pass\n"
+      },
+      "target": "py310",
+      "source_sha256": "8fdfc6db43d6f61db1d5fb71f4f59f9feb3cc153db73747f6d0d0dfe9c19f904",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "PLE1142",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 1,
+      "raw": [
+        {
+          "cell": null,
+          "code": "PLE1142",
+          "end_location": {
+            "column": 9,
+            "row": 2
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 1,
+            "row": 1
+          },
+          "message": "`await` should be used within an async function",
+          "name": "await-outside-async",
+          "noqa_row": 1,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/await-outside-async"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "PLE1142",
+          "file": "case.py",
+          "start": 0,
+          "end": 27
+        }
+      ]
+    },
+    {
+      "rule": "PLE1142",
+      "name": "module-async-with",
+      "files": {
+        "case.py": "async with cm:\n    pass\n"
+      },
+      "target": "py310",
+      "source_sha256": "8662f9074450b950e3371b79b54d5a79761c9fa75324a1684da12c31a2af986d",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "PLE1142",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 1,
+      "raw": [
+        {
+          "cell": null,
+          "code": "PLE1142",
+          "end_location": {
+            "column": 9,
+            "row": 2
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 1,
+            "row": 1
+          },
+          "message": "`await` should be used within an async function",
+          "name": "await-outside-async",
+          "noqa_row": 1,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/await-outside-async"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "PLE1142",
+          "file": "case.py",
+          "start": 0,
+          "end": 23
+        }
+      ]
+    },
+    {
+      "rule": "PLE1142",
+      "name": "sync-async-for",
+      "files": {
+        "case.py": "def f():\n    async for x in xs:\n        pass\n"
+      },
+      "target": "py310",
+      "source_sha256": "f72d684bcc073639c8a35fece5478bad6c9bd9759a97194856c76f5b5a435eca",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "PLE1142",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 1,
+      "raw": [
+        {
+          "cell": null,
+          "code": "PLE1142",
+          "end_location": {
+            "column": 13,
+            "row": 3
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 5,
+            "row": 2
+          },
+          "message": "`await` should be used within an async function",
+          "name": "await-outside-async",
+          "noqa_row": 2,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/await-outside-async"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "PLE1142",
+          "file": "case.py",
+          "start": 13,
+          "end": 44
+        }
+      ]
+    },
+    {
+      "rule": "PLE1142",
+      "name": "sync-async-with",
+      "files": {
+        "case.py": "def f():\n    async with cm:\n        pass\n"
+      },
+      "target": "py310",
+      "source_sha256": "564c3b7dd6e41d406902a37d3c0eff7cef02711218ce9c6957779b6f9760c80e",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "PLE1142",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 1,
+      "raw": [
+        {
+          "cell": null,
+          "code": "PLE1142",
+          "end_location": {
+            "column": 13,
+            "row": 3
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 5,
+            "row": 2
+          },
+          "message": "`await` should be used within an async function",
+          "name": "await-outside-async",
+          "noqa_row": 2,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/await-outside-async"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "PLE1142",
+          "file": "case.py",
+          "start": 13,
+          "end": 40
+        }
+      ]
+    },
+    {
+      "rule": "PLE1142",
+      "name": "async-loop",
+      "files": {
+        "case.py": "async def f():\n    async for x in xs:\n        async with cm:\n            await g()\n"
+      },
+      "target": "py310",
+      "source_sha256": "d9cd636947f51b947d935bcecf5550119a3db1d70e4f935a58bd3526e29c7af8",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "PLE1142",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "PLE1142",
+      "name": "sync-list-await",
+      "files": {
+        "case.py": "def f():\n    return [await g(x) for x in xs]\n"
+      },
+      "target": "py310",
+      "source_sha256": "8c9d1f45d637922111f7c83a7e789d509378fbed698a1c5b40d3b4a05bd6c2b7",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "PLE1142",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 1,
+      "raw": [
+        {
+          "cell": null,
+          "code": "PLE1142",
+          "end_location": {
+            "column": 23,
+            "row": 2
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 13,
+            "row": 2
+          },
+          "message": "`await` should be used within an async function",
+          "name": "await-outside-async",
+          "noqa_row": 2,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/await-outside-async"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "PLE1142",
+          "file": "case.py",
+          "start": 21,
+          "end": 31
+        }
+      ]
+    },
+    {
+      "rule": "PLE1142",
+      "name": "async-list-await",
+      "files": {
+        "case.py": "async def f():\n    return [await g(x) for x in xs]\n"
+      },
+      "target": "py310",
+      "source_sha256": "c09985ae56983064b705244f61c18ad93a17ef1571f0933567b41130e3b06ec5",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "PLE1142",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "PLE1142",
+      "name": "sync-async-comprehension",
+      "files": {
+        "case.py": "def f():\n    return [x async for x in xs]\n"
+      },
+      "target": "py310",
+      "source_sha256": "4e4a9d590adc7402771ae2c21cfd75b01cc86b849d0af2798ef3695e76896b1b",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "PLE1142",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 1,
+      "raw": [
+        {
+          "cell": null,
+          "code": "PLE1142",
+          "end_location": {
+            "column": 32,
+            "row": 2
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 15,
+            "row": 2
+          },
+          "message": "`await` should be used within an async function",
+          "name": "await-outside-async",
+          "noqa_row": 2,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/await-outside-async"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "PLE1142",
+          "file": "case.py",
+          "start": 23,
+          "end": 40
+        }
+      ]
+    },
+    {
+      "rule": "PLE1142",
+      "name": "module-async-comprehension",
+      "files": {
+        "case.py": "x = [y async for y in ys]\n"
+      },
+      "target": "py310",
+      "source_sha256": "f4d1d72e6c40ab774c06473abd934977b00e03326db1138b96d2c815b80409c3",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "PLE1142",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 1,
+      "raw": [
+        {
+          "cell": null,
+          "code": "PLE1142",
+          "end_location": {
+            "column": 25,
+            "row": 1
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 8,
+            "row": 1
+          },
+          "message": "`await` should be used within an async function",
+          "name": "await-outside-async",
+          "noqa_row": 1,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/await-outside-async"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "PLE1142",
+          "file": "case.py",
+          "start": 7,
+          "end": 24
+        }
+      ]
+    },
+    {
+      "rule": "PLE1142",
+      "name": "sync-lazy-generator",
+      "files": {
+        "case.py": "def f():\n    return (await g(x) for x in xs)\n"
+      },
+      "target": "py310",
+      "source_sha256": "7052aa2a31e98cc42050949f1a47f7829b51ca3c8553eee9fe6f43459fb1f2ce",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "PLE1142",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "PLE1142",
+      "name": "sync-lazy-async-generator",
+      "files": {
+        "case.py": "def f():\n    return (x async for x in xs)\n"
+      },
+      "target": "py310",
+      "source_sha256": "455926ecf0ca93a318bb3bd4878692a2d7aa5c196f360225d624706bde9e0e2c",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "PLE1142",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "PLE1142",
+      "name": "generator-first-iterable",
+      "files": {
+        "case.py": "def f():\n    return (x for x in await xs)\n"
+      },
+      "target": "py310",
+      "source_sha256": "ae1f30567b266488d9bbe498a14b2fde1056eb6198e42ac54520fff434dd414d",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "PLE1142",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 1,
+      "raw": [
+        {
+          "cell": null,
+          "code": "PLE1142",
+          "end_location": {
+            "column": 32,
+            "row": 2
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 24,
+            "row": 2
+          },
+          "message": "`await` should be used within an async function",
+          "name": "await-outside-async",
+          "noqa_row": 2,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/await-outside-async"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "PLE1142",
+          "file": "case.py",
+          "start": 32,
+          "end": 40
+        }
+      ]
+    },
+    {
+      "rule": "PLE1142",
+      "name": "generator-later-iterable",
+      "files": {
+        "case.py": "def f():\n    return (x for y in ys for x in await xs)\n"
+      },
+      "target": "py310",
+      "source_sha256": "a85e5eedcaf315f9bcad011f11cfd91982b231c4bd561c93a3df9c0ad5dd5581",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "PLE1142",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "PLE1142",
+      "name": "generator-filter",
+      "files": {
+        "case.py": "def f():\n    return (x for x in xs if await p(x))\n"
+      },
+      "target": "py310",
+      "source_sha256": "e8c90d286f21245aa99ef3f73ea01998b61f415956b849ff2cf90160bacaa353",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "PLE1142",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "PLE1142",
+      "name": "nested-lambda-in-generator",
+      "files": {
+        "case.py": "def f():\n    return ((lambda: await g()) for x in xs)\n"
+      },
+      "target": "py310",
+      "source_sha256": "782f2f0540c867b8924398f029dd5681611c4c0b0705320a9e1522aa9c6bb615",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "PLE1142",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "PLE1142",
+      "name": "string-text",
+      "files": {
+        "case.py": "x = \"await f()\"\n"
+      },
+      "target": "py310",
+      "source_sha256": "8ed896dbe365dae8ac4a6b3239095713046a9a0612e52085ba05fd2de242f200",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "PLE1142",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "PLE1142",
+      "name": "quoted-annotation",
+      "files": {
+        "case.py": "def f(x: \"await g()\"): pass\n"
+      },
+      "target": "py310",
+      "source_sha256": "97924aa39bae10b985b4881b4ef98f6c0655efdf6c7e5c3ea364e8e616e80572",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "PLE1142",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "PLE1142",
+      "name": "unicode",
+      "files": {
+        "case.py": "π = 1\ndef f():\n    await g()\n"
+      },
+      "target": "py310",
+      "source_sha256": "d81e1911e0a955861ef65f3a08814ca6a527c60f411243c5149d6a1d217ee805",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "PLE1142",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 1,
+      "raw": [
+        {
+          "cell": null,
+          "code": "PLE1142",
+          "end_location": {
+            "column": 14,
+            "row": 3
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 5,
+            "row": 3
+          },
+          "message": "`await` should be used within an async function",
+          "name": "await-outside-async",
+          "noqa_row": 3,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/await-outside-async"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "PLE1142",
+          "file": "case.py",
+          "start": 20,
+          "end": 29
+        }
+      ]
+    },
+    {
+      "rule": "PLE1142",
+      "name": "noqa",
+      "files": {
+        "case.py": "def f():\n    await g()  # noqa: PLE1142\n"
+      },
+      "target": "py310",
+      "source_sha256": "8bd6e9d1f064fd567e74bd95cecdd2e6de895c380725748be4e36c24c136ed1c",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "PLE1142",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    },
+    {
+      "rule": "PLE1142",
+      "name": "tagged-await_outside_async.py",
+      "files": {
+        "case.py": "# pylint: disable=missing-docstring,unused-variable\nimport asyncio\n\n\nasync def nested():\n    return 42\n\n\nasync def main():\n    nested()\n    print(await nested())  # This is okay\n\n\ndef not_async():\n    print(await nested())  # [await-outside-async]\n\n\nasync def func(i):\n    return i**2\n\n\nasync def okay_function():\n    var = [await func(i) for i in range(5)]  # This should be okay\n\n\n# Test nested functions\nasync def func2():\n    def inner_func():\n        await asyncio.sleep(1)  # [await-outside-async]\n\n\ndef outer_func():\n    async def inner_func():\n        await asyncio.sleep(1)\n\n\ndef async_for_loop():\n    async for x in foo():\n        pass\n\n\ndef async_with():\n    async with foo():\n        pass\n\n\n# See: https://github.com/astral-sh/ruff/issues/14167\ndef async_for_generator_elt():\n    (await x for x in foo())\n\n\n# See: https://github.com/astral-sh/ruff/issues/14167\ndef async_for_list_comprehension_elt():\n    [await x for x in foo()]\n\n\n# See: https://github.com/astral-sh/ruff/issues/14167\ndef async_for_list_comprehension():\n    [x async for x in foo()]\n\n\n# See: https://github.com/astral-sh/ruff/issues/14167\ndef await_generator_iter():\n    (x for x in await foo())\n\n\n# See: https://github.com/astral-sh/ruff/issues/14167\ndef await_generator_target():\n    (x async for x in foo())\n\n\n# See: https://github.com/astral-sh/ruff/issues/14167\ndef async_for_list_comprehension_target():\n    [x for x in await foo()]\n\n\ndef async_for_dictionary_comprehension_key():\n    {await x: y for x, y in foo()}\n\n\ndef async_for_dictionary_comprehension_value():\n    {y: await x for x, y in foo()}\n\n\ndef async_for_dict_comprehension():\n    {x: y async for x, y in foo()}\n"
+      },
+      "target": "py310",
+      "source_sha256": "4cd988c527de785605276f6bb732f5a6e99d185f9c1b89b4853fd1f15029e598",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "PLE1142",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 1,
+      "raw": [
+        {
+          "cell": null,
+          "code": "PLE1142",
+          "end_location": {
+            "column": 25,
+            "row": 15
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 11,
+            "row": 15
+          },
+          "message": "`await` should be used within an async function",
+          "name": "await-outside-async",
+          "noqa_row": 15,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/await-outside-async"
+        },
+        {
+          "cell": null,
+          "code": "PLE1142",
+          "end_location": {
+            "column": 31,
+            "row": 29
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 9,
+            "row": 29
+          },
+          "message": "`await` should be used within an async function",
+          "name": "await-outside-async",
+          "noqa_row": 29,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/await-outside-async"
+        },
+        {
+          "cell": null,
+          "code": "PLE1142",
+          "end_location": {
+            "column": 13,
+            "row": 39
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 5,
+            "row": 38
+          },
+          "message": "`await` should be used within an async function",
+          "name": "await-outside-async",
+          "noqa_row": 38,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/await-outside-async"
+        },
+        {
+          "cell": null,
+          "code": "PLE1142",
+          "end_location": {
+            "column": 13,
+            "row": 44
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 5,
+            "row": 43
+          },
+          "message": "`await` should be used within an async function",
+          "name": "await-outside-async",
+          "noqa_row": 43,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/await-outside-async"
+        },
+        {
+          "cell": null,
+          "code": "PLE1142",
+          "end_location": {
+            "column": 13,
+            "row": 54
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 6,
+            "row": 54
+          },
+          "message": "`await` should be used within an async function",
+          "name": "await-outside-async",
+          "noqa_row": 54,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/await-outside-async"
+        },
+        {
+          "cell": null,
+          "code": "PLE1142",
+          "end_location": {
+            "column": 28,
+            "row": 59
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 8,
+            "row": 59
+          },
+          "message": "`await` should be used within an async function",
+          "name": "await-outside-async",
+          "noqa_row": 59,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/await-outside-async"
+        },
+        {
+          "cell": null,
+          "code": "PLE1142",
+          "end_location": {
+            "column": 28,
+            "row": 64
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 17,
+            "row": 64
+          },
+          "message": "`await` should be used within an async function",
+          "name": "await-outside-async",
+          "noqa_row": 64,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/await-outside-async"
+        },
+        {
+          "cell": null,
+          "code": "PLE1142",
+          "end_location": {
+            "column": 28,
+            "row": 74
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 17,
+            "row": 74
+          },
+          "message": "`await` should be used within an async function",
+          "name": "await-outside-async",
+          "noqa_row": 74,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/await-outside-async"
+        },
+        {
+          "cell": null,
+          "code": "PLE1142",
+          "end_location": {
+            "column": 13,
+            "row": 78
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 6,
+            "row": 78
+          },
+          "message": "`await` should be used within an async function",
+          "name": "await-outside-async",
+          "noqa_row": 78,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/await-outside-async"
+        },
+        {
+          "cell": null,
+          "code": "PLE1142",
+          "end_location": {
+            "column": 16,
+            "row": 82
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 9,
+            "row": 82
+          },
+          "message": "`await` should be used within an async function",
+          "name": "await-outside-async",
+          "noqa_row": 82,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/await-outside-async"
+        },
+        {
+          "cell": null,
+          "code": "PLE1142",
+          "end_location": {
+            "column": 34,
+            "row": 86
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 11,
+            "row": 86
+          },
+          "message": "`await` should be used within an async function",
+          "name": "await-outside-async",
+          "noqa_row": 86,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/await-outside-async"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "PLE1142",
+          "file": "case.py",
+          "start": 207,
+          "end": 221
+        },
+        {
+          "rule": "PLE1142",
+          "file": "case.py",
+          "start": 456,
+          "end": 478
+        },
+        {
+          "rule": "PLE1142",
+          "file": "case.py",
+          "start": 611,
+          "end": 645
+        },
+        {
+          "rule": "PLE1142",
+          "file": "case.py",
+          "start": 670,
+          "end": 700
+        },
+        {
+          "rule": "PLE1142",
+          "file": "case.py",
+          "start": 918,
+          "end": 925
+        },
+        {
+          "rule": "PLE1142",
+          "file": "case.py",
+          "start": 1041,
+          "end": 1061
+        },
+        {
+          "rule": "PLE1142",
+          "file": "case.py",
+          "start": 1163,
+          "end": 1174
+        },
+        {
+          "rule": "PLE1142",
+          "file": "case.py",
+          "start": 1406,
+          "end": 1417
+        },
+        {
+          "rule": "PLE1142",
+          "file": "case.py",
+          "start": 1472,
+          "end": 1479
+        },
+        {
+          "rule": "PLE1142",
+          "file": "case.py",
+          "start": 1560,
+          "end": 1567
+        },
+        {
+          "rule": "PLE1142",
+          "file": "case.py",
+          "start": 1635,
+          "end": 1658
+        }
+      ]
+    },
+    {
+      "rule": "PLE1142",
+      "name": "tagged-await_outside_async_function.py",
+      "files": {
+        "case.py": "def func():\n    await 1\n\n# Top-level await\nawait 1\n\n([await c for c in cor] async for cor in func())  # ok\n"
+      },
+      "target": "py310",
+      "source_sha256": "4ed1f4325af01741c030ad7c1585346475a93479a601abfbdb60b1000f860e26",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "PLE1142",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "status": 1,
+      "raw": [
+        {
+          "cell": null,
+          "code": "PLE1142",
+          "end_location": {
+            "column": 12,
+            "row": 2
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 5,
+            "row": 2
+          },
+          "message": "`await` should be used within an async function",
+          "name": "await-outside-async",
+          "noqa_row": 2,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/await-outside-async"
+        },
+        {
+          "cell": null,
+          "code": "PLE1142",
+          "end_location": {
+            "column": 8,
+            "row": 5
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 1,
+            "row": 5
+          },
+          "message": "`await` should be used within an async function",
+          "name": "await-outside-async",
+          "noqa_row": 5,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/await-outside-async"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "PLE1142",
+          "file": "case.py",
+          "start": 16,
+          "end": 23
+        },
+        {
+          "rule": "PLE1142",
+          "file": "case.py",
+          "start": 43,
+          "end": 50
+        }
+      ]
+    },
+    {
+      "rule": "PLE1142",
+      "name": "two-file-scope-isolation",
+      "files": {
+        "a.py": "def f():\n    await g()\n",
+        "b.py": "async def f():\n    await g()\n"
+      },
+      "target": "py310",
+      "source_sha256": "9ddb239f1f3c3c312d8ae84c8969038a4100ad2b1b11bfb70772fb1199b3017d",
+      "source_hash_framing": "sorted filename UTF8 + NUL + source UTF8",
+      "argv": [
+        [
+          "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+          "check",
+          "--isolated",
+          "--no-cache",
+          "--target-version",
+          "py310",
+          "--select",
+          "PLE1142",
+          "--output-format",
+          "json",
+          "--stdin-filename",
+          "a.py",
+          "-"
+        ],
+        [
+          "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+          "check",
+          "--isolated",
+          "--no-cache",
+          "--target-version",
+          "py310",
+          "--select",
+          "PLE1142",
+          "--output-format",
+          "json",
+          "--stdin-filename",
+          "b.py",
+          "-"
+        ]
+      ],
+      "status": 1,
+      "raw": [
+        {
+          "cell": null,
+          "code": "PLE1142",
+          "end_location": {
+            "column": 14,
+            "row": 2
+          },
+          "filename": "/workspaces/idiomatic/a.py",
+          "fix": null,
+          "location": {
+            "column": 5,
+            "row": 2
+          },
+          "message": "`await` should be used within an async function",
+          "name": "await-outside-async",
+          "noqa_row": 2,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/await-outside-async"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "PLE1142",
+          "file": "a.py",
+          "start": 13,
+          "end": 22
+        }
+      ]
+    },
+    {
+      "rule": "PLE1142",
+      "name": "stub-sync-await",
+      "files": {
+        "case.pyi": "def f():\n    await g()\n"
+      },
+      "target": "py310",
+      "source_sha256": "2cf251361d976069450e170fc1edca1e71cb3e4e64156de46b876485a826caa9",
+      "source_hash_framing": "sorted filename UTF8 + NUL + source UTF8",
+      "argv": [
+        [
+          "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+          "check",
+          "--isolated",
+          "--no-cache",
+          "--target-version",
+          "py310",
+          "--select",
+          "PLE1142",
+          "--output-format",
+          "json",
+          "--stdin-filename",
+          "case.pyi",
+          "-"
+        ]
+      ],
+      "status": 1,
+      "raw": [
+        {
+          "cell": null,
+          "code": "PLE1142",
+          "end_location": {
+            "column": 14,
+            "row": 2
+          },
+          "filename": "/workspaces/idiomatic/case.pyi",
+          "fix": null,
+          "location": {
+            "column": 5,
+            "row": 2
+          },
+          "message": "`await` should be used within an async function",
+          "name": "await-outside-async",
+          "noqa_row": 2,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/await-outside-async"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "PLE1142",
+          "file": "case.pyi",
+          "start": 13,
+          "end": 22
+        }
+      ]
+    },
+    {
+      "rule": "PLE1142",
+      "name": "stub-async-await",
+      "files": {
+        "case.pyi": "async def f():\n    await g()\n"
+      },
+      "target": "py310",
+      "source_sha256": "eb6ef4bf7bf0f45fd09a2848babed996de75a63c7e695da5c3dbb3c87395b7a3",
+      "source_hash_framing": "sorted filename UTF8 + NUL + source UTF8",
+      "argv": [
+        [
+          "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+          "check",
+          "--isolated",
+          "--no-cache",
+          "--target-version",
+          "py310",
+          "--select",
+          "PLE1142",
+          "--output-format",
+          "json",
+          "--stdin-filename",
+          "case.pyi",
+          "-"
+        ]
+      ],
+      "status": 0,
+      "raw": [],
+      "expected": []
+    }
+  ]
+}

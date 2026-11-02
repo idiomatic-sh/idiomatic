@@ -1,0 +1,2965 @@
+{
+  "ruff_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "target": "python-target=3.10",
+  "rows": [
+    {
+      "rule": "UP007",
+      "name": "annotation",
+      "files": {
+        "case.py": "from typing import Union\nx: Union[int, str]\n"
+      },
+      "source_sha256": "4139d707c57342d57b151924fb3a64d3b07c79c45d60231ae9f5500f973bb553",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP007",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP007",
+          "end_location": {
+            "column": 19,
+            "row": 2
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "int | str",
+                "end_location": {
+                  "column": 19,
+                  "row": 2
+                },
+                "location": {
+                  "column": 4,
+                  "row": 2
+                }
+              }
+            ],
+            "message": "Convert to `X | Y`"
+          },
+          "location": {
+            "column": 4,
+            "row": 2
+          },
+          "message": "Use `X | Y` for type annotations",
+          "name": "non-pep604-annotation-union",
+          "noqa_row": 2,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-union"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP007",
+          "file": "case.py",
+          "start": 28,
+          "end": 43
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP007",
+      "name": "alias",
+      "files": {
+        "case.py": "from typing import Union as T\nx: T[int]\n"
+      },
+      "source_sha256": "979fac2e884f23d8ac9446c3202c852bb6156f3931804aff3d7f7664e908fb19",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP007",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP007",
+          "end_location": {
+            "column": 10,
+            "row": 2
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "int",
+                "end_location": {
+                  "column": 10,
+                  "row": 2
+                },
+                "location": {
+                  "column": 4,
+                  "row": 2
+                }
+              }
+            ],
+            "message": "Convert to `X | Y`"
+          },
+          "location": {
+            "column": 4,
+            "row": 2
+          },
+          "message": "Use `X | Y` for type annotations",
+          "name": "non-pep604-annotation-union",
+          "noqa_row": 2,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-union"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP007",
+          "file": "case.py",
+          "start": 33,
+          "end": 39
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP007",
+      "name": "module",
+      "files": {
+        "case.py": "import typing\nx: typing.Union[int]\n"
+      },
+      "source_sha256": "b92fb52f9cb38d9ce129be55825ee52a83b97b648cb9094631449def3496e268",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP007",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP007",
+          "end_location": {
+            "column": 21,
+            "row": 2
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "int",
+                "end_location": {
+                  "column": 21,
+                  "row": 2
+                },
+                "location": {
+                  "column": 4,
+                  "row": 2
+                }
+              }
+            ],
+            "message": "Convert to `X | Y`"
+          },
+          "location": {
+            "column": 4,
+            "row": 2
+          },
+          "message": "Use `X | Y` for type annotations",
+          "name": "non-pep604-annotation-union",
+          "noqa_row": 2,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-union"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP007",
+          "file": "case.py",
+          "start": 17,
+          "end": 34
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP007",
+      "name": "module-alias",
+      "files": {
+        "case.py": "import typing as t\nx: t.Union[int]\n"
+      },
+      "source_sha256": "01ccd069726be4b3c40636bf5dcb86d811e09c3c68771a7c29e9c9d286b45e94",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP007",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP007",
+          "end_location": {
+            "column": 16,
+            "row": 2
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "int",
+                "end_location": {
+                  "column": 16,
+                  "row": 2
+                },
+                "location": {
+                  "column": 4,
+                  "row": 2
+                }
+              }
+            ],
+            "message": "Convert to `X | Y`"
+          },
+          "location": {
+            "column": 4,
+            "row": 2
+          },
+          "message": "Use `X | Y` for type annotations",
+          "name": "non-pep604-annotation-union",
+          "noqa_row": 2,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-union"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP007",
+          "file": "case.py",
+          "start": 22,
+          "end": 34
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP007",
+      "name": "extensions",
+      "files": {
+        "case.py": "from typing_extensions import Union\nx: Union[int, str]\n"
+      },
+      "source_sha256": "722913f7269466b5917c209c7442f6b68e377bf2a1a617a05f1bd49e578fd772",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP007",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP007",
+          "end_location": {
+            "column": 19,
+            "row": 2
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "int | str",
+                "end_location": {
+                  "column": 19,
+                  "row": 2
+                },
+                "location": {
+                  "column": 4,
+                  "row": 2
+                }
+              }
+            ],
+            "message": "Convert to `X | Y`"
+          },
+          "location": {
+            "column": 4,
+            "row": 2
+          },
+          "message": "Use `X | Y` for type annotations",
+          "name": "non-pep604-annotation-union",
+          "noqa_row": 2,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-union"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP007",
+          "file": "case.py",
+          "start": 39,
+          "end": 54
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP007",
+      "name": "runtime-alias",
+      "files": {
+        "case.py": "from typing import Union\nAlias = Union[int, str]\n"
+      },
+      "source_sha256": "018f96c8b55ebde2f60970ae28857eb089fe19276e2afe19b5ce6cafcdb930ca",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP007",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP007",
+          "end_location": {
+            "column": 24,
+            "row": 2
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 9,
+            "row": 2
+          },
+          "message": "Use `X | Y` for type annotations",
+          "name": "non-pep604-annotation-union",
+          "noqa_row": 2,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-union"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP007",
+          "file": "case.py",
+          "start": 33,
+          "end": 48
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP007",
+      "name": "signature",
+      "files": {
+        "case.py": "from typing import Union\ndef f(x: Union[int, str]) -> Union[int, str]: pass\n"
+      },
+      "source_sha256": "69ecc713cd4abf01ab93adffc61e490d7456443db6bf2b41ae8ebcfa0f9ecc18",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP007",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP007",
+          "end_location": {
+            "column": 25,
+            "row": 2
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "int | str",
+                "end_location": {
+                  "column": 25,
+                  "row": 2
+                },
+                "location": {
+                  "column": 10,
+                  "row": 2
+                }
+              }
+            ],
+            "message": "Convert to `X | Y`"
+          },
+          "location": {
+            "column": 10,
+            "row": 2
+          },
+          "message": "Use `X | Y` for type annotations",
+          "name": "non-pep604-annotation-union",
+          "noqa_row": 2,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-union"
+        },
+        {
+          "cell": null,
+          "code": "UP007",
+          "end_location": {
+            "column": 45,
+            "row": 2
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "int | str",
+                "end_location": {
+                  "column": 45,
+                  "row": 2
+                },
+                "location": {
+                  "column": 30,
+                  "row": 2
+                }
+              }
+            ],
+            "message": "Convert to `X | Y`"
+          },
+          "location": {
+            "column": 30,
+            "row": 2
+          },
+          "message": "Use `X | Y` for type annotations",
+          "name": "non-pep604-annotation-union",
+          "noqa_row": 2,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-union"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP007",
+          "file": "case.py",
+          "start": 34,
+          "end": 49
+        },
+        {
+          "rule": "UP007",
+          "file": "case.py",
+          "start": 54,
+          "end": 69
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP007",
+      "name": "async-signature",
+      "files": {
+        "case.py": "from typing import Union\nasync def f(x: Union[int, str]): pass\n"
+      },
+      "source_sha256": "060c85bf7ffaa3e7cca58bfadb814b4ae3e7b4cb457c526017e1c40f8ae23afb",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP007",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP007",
+          "end_location": {
+            "column": 31,
+            "row": 2
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "int | str",
+                "end_location": {
+                  "column": 31,
+                  "row": 2
+                },
+                "location": {
+                  "column": 16,
+                  "row": 2
+                }
+              }
+            ],
+            "message": "Convert to `X | Y`"
+          },
+          "location": {
+            "column": 16,
+            "row": 2
+          },
+          "message": "Use `X | Y` for type annotations",
+          "name": "non-pep604-annotation-union",
+          "noqa_row": 2,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-union"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP007",
+          "file": "case.py",
+          "start": 40,
+          "end": 55
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP007",
+      "name": "local-annotation",
+      "files": {
+        "case.py": "from typing import Union\ndef f():\n    x: Union[int, str]\n"
+      },
+      "source_sha256": "10e63153ce728f4b1143dbc75cf3c5daf9bda09b7f89cb4bf6672a8b4e23b624",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP007",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP007",
+          "end_location": {
+            "column": 23,
+            "row": 3
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "int | str",
+                "end_location": {
+                  "column": 23,
+                  "row": 3
+                },
+                "location": {
+                  "column": 8,
+                  "row": 3
+                }
+              }
+            ],
+            "message": "Convert to `X | Y`"
+          },
+          "location": {
+            "column": 8,
+            "row": 3
+          },
+          "message": "Use `X | Y` for type annotations",
+          "name": "non-pep604-annotation-union",
+          "noqa_row": 3,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-union"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP007",
+          "file": "case.py",
+          "start": 41,
+          "end": 56
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP007",
+      "name": "shadowed",
+      "files": {
+        "case.py": "from typing import Union\nUnion = other\nx: Union[int, str]\n"
+      },
+      "source_sha256": "7d38279d765feb620e76b777fffa82c3aac74816c187162333ad2e67c135ec5e",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP007",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "raw": [],
+      "expected": [],
+      "status": 0
+    },
+    {
+      "rule": "UP007",
+      "name": "argument-shadow",
+      "files": {
+        "case.py": "from typing import Union\ndef f(Union):\n    x = Union[int, str]\n"
+      },
+      "source_sha256": "7726dc4c4872a4d98d677c75f8cd89e0c95c782e00affa3469e4c6cdb7c7b7b7",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP007",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "raw": [],
+      "expected": [],
+      "status": 0
+    },
+    {
+      "rule": "UP007",
+      "name": "undefined",
+      "files": {
+        "case.py": "x: Union[int, str]\n"
+      },
+      "source_sha256": "7c2709408669be5a2687e44e3d6d601a67dd4c3874ed50aecad4208173bc5186",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP007",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "raw": [],
+      "expected": [],
+      "status": 0
+    },
+    {
+      "rule": "UP007",
+      "name": "other-operator",
+      "files": {
+        "case.py": "from typing import Optional\nx: Optional[int]\n"
+      },
+      "source_sha256": "36ed91742900704a66a719baa6494f7da6685ed8a5e87d5983a3ae3d4d1b66f2",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP007",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "raw": [],
+      "expected": [],
+      "status": 0
+    },
+    {
+      "rule": "UP007",
+      "name": "quoted-runtime",
+      "files": {
+        "case.py": "from typing import Union\nx = Union[\"Later\"]\n"
+      },
+      "source_sha256": "076c8904aa5808bef4a6e60a6ad860f620554d00fd7ae6cedc856da2e3aca6c1",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP007",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "raw": [],
+      "expected": [],
+      "status": 0
+    },
+    {
+      "rule": "UP007",
+      "name": "quoted-future",
+      "files": {
+        "case.py": "from __future__ import annotations\nfrom typing import Union\nx: Union[\"Later\"]\n"
+      },
+      "source_sha256": "8f85077338fe8a4e2a408bff476abc1310b8c23e34e5a1d2eb92aef42c6ee495",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP007",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP007",
+          "end_location": {
+            "column": 18,
+            "row": 3
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "\"Later\"",
+                "end_location": {
+                  "column": 18,
+                  "row": 3
+                },
+                "location": {
+                  "column": 4,
+                  "row": 3
+                }
+              }
+            ],
+            "message": "Convert to `X | Y`"
+          },
+          "location": {
+            "column": 4,
+            "row": 3
+          },
+          "message": "Use `X | Y` for type annotations",
+          "name": "non-pep604-annotation-union",
+          "noqa_row": 3,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-union"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP007",
+          "file": "case.py",
+          "start": 63,
+          "end": 77
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP007",
+      "name": "nested-quoted-runtime",
+      "files": {
+        "case.py": "from typing import Union\nx = Union[list[\"Later\"]]\n"
+      },
+      "source_sha256": "6c5a6392dccf82296baa1e1d8d1d136d217d3eed228e47af485a5f53badf0fb8",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP007",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP007",
+          "end_location": {
+            "column": 25,
+            "row": 2
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 5,
+            "row": 2
+          },
+          "message": "Use `X | Y` for type annotations",
+          "name": "non-pep604-annotation-union",
+          "noqa_row": 2,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-union"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP007",
+          "file": "case.py",
+          "start": 29,
+          "end": 49
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP007",
+      "name": "starred",
+      "files": {
+        "case.py": "from typing import Union\nx = Union[*types]\n"
+      },
+      "source_sha256": "46e7000c62a1216b5fb162c5683f0252cef74052cac8b2aa7afd5c69c36bb4d9",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP007",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "raw": [
+        {
+          "cell": null,
+          "code": "invalid-syntax",
+          "end_location": {
+            "column": 17,
+            "row": 2
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 11,
+            "row": 2
+          },
+          "message": "Cannot use star expression in index on Python 3.10 (syntax was added in Python 3.11)",
+          "name": "invalid-syntax",
+          "noqa_row": null,
+          "severity": "error",
+          "url": null
+        }
+      ],
+      "expected": [
+        {
+          "rule": "invalid-syntax",
+          "file": "case.py",
+          "start": 35,
+          "end": 41
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP007",
+      "name": "named-tuple",
+      "files": {
+        "case.py": "from typing import Union, NamedTuple\nx: Union[NamedTuple]\n"
+      },
+      "source_sha256": "6b937fcbc157e592880d6e8858b76d58876ed4f9c5f2efe2c48cc2d60094f1a9",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP007",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "raw": [],
+      "expected": [],
+      "status": 0
+    },
+    {
+      "rule": "UP007",
+      "name": "guard",
+      "files": {
+        "case.py": "from typing import Union, TYPE_CHECKING\nif TYPE_CHECKING:\n    x = Union[\"Later\"]\n"
+      },
+      "source_sha256": "c6600717db1733ec399fa1ed1a66721cb91c2a85d6390e28ff04134b1d082748",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP007",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP007",
+          "end_location": {
+            "column": 23,
+            "row": 3
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 9,
+            "row": 3
+          },
+          "message": "Use `X | Y` for type annotations",
+          "name": "non-pep604-annotation-union",
+          "noqa_row": 3,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-union"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP007",
+          "file": "case.py",
+          "start": 66,
+          "end": 80
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP007",
+      "name": "stub",
+      "files": {
+        "case.pyi": "from typing import Union\nx: Union[\"Later\"]\n"
+      },
+      "source_sha256": "466504a3f43daf0ca4bb17492f8b60e96155a164c4604c894e4bf984e6d90dbb",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP007",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.pyi",
+        "-"
+      ],
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP007",
+          "end_location": {
+            "column": 18,
+            "row": 2
+          },
+          "filename": "/workspaces/idiomatic/case.pyi",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "\"Later\"",
+                "end_location": {
+                  "column": 18,
+                  "row": 2
+                },
+                "location": {
+                  "column": 4,
+                  "row": 2
+                }
+              }
+            ],
+            "message": "Convert to `X | Y`"
+          },
+          "location": {
+            "column": 4,
+            "row": 2
+          },
+          "message": "Use `X | Y` for type annotations",
+          "name": "non-pep604-annotation-union",
+          "noqa_row": 2,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-union"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP007",
+          "file": "case.pyi",
+          "start": 28,
+          "end": 42
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP007",
+      "name": "noqa",
+      "files": {
+        "case.py": "from typing import Union\nx: Union[int, str]  # noqa: UP007\n"
+      },
+      "source_sha256": "5094c2409d7411fb4cb782581dbb930179a823d4029584749b9ddd1ec791d3cb",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP007",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "raw": [],
+      "expected": [],
+      "status": 0
+    },
+    {
+      "rule": "UP007",
+      "name": "unicode",
+      "files": {
+        "case.py": "from typing import Union\nπ: Union[int, str]\n"
+      },
+      "source_sha256": "7f5f535092b676fbbe5bfda56771d603d2d0d401d2ef25adf75686d97744d740",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP007",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP007",
+          "end_location": {
+            "column": 19,
+            "row": 2
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "int | str",
+                "end_location": {
+                  "column": 19,
+                  "row": 2
+                },
+                "location": {
+                  "column": 4,
+                  "row": 2
+                }
+              }
+            ],
+            "message": "Convert to `X | Y`"
+          },
+          "location": {
+            "column": 4,
+            "row": 2
+          },
+          "message": "Use `X | Y` for type annotations",
+          "name": "non-pep604-annotation-union",
+          "noqa_row": 2,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-union"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP007",
+          "file": "case.py",
+          "start": 29,
+          "end": 44
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP007",
+      "name": "tagged-UP007_1.py",
+      "files": {
+        "case.py": "import typing\nfrom typing import Union\n\n\ndef f(x: Union[str, int, Union[float, bytes]]) -> None:\n    ...\n\n\ndef f(x: typing.Union[str, int]) -> None:\n    ...\n\n\ndef f(x: typing.Union[(str, int)]) -> None:\n    ...\n\n\ndef f(x: typing.Union[(str, int), float]) -> None:\n    ...\n\n\ndef f(x: typing.Union[(int,)]) -> None:\n    ...\n\n\ndef f(x: typing.Union[()]) -> None:\n    ...\n\n\ndef f(x: \"Union[str, int, Union[float, bytes]]\") -> None:\n    ...\n\n\ndef f(x: \"typing.Union[str, int]\") -> None:\n    ...\n\n\ndef f(x: Union[\"str\", int]) -> None:\n    ...\n\n\ndef f(x: Union[(\"str\", \"int\"), float]) -> None:\n    ...\n\n\ndef f() -> None:\n    x = Union[str, int]\n    x = Union[\"str\", \"int\"]\n    x: Union[str, int]\n    x: Union[\"str\", \"int\"]\n\n\ndef f(x: Union[int : float]) -> None:\n    ...\n\n\ndef f(x: Union[str, int : float]) -> None:\n    ...\n\n\ndef f(x: Union[x := int]) -> None:\n    ...\n\n\ndef f(x: Union[str, x := int]) -> None:\n    ...\n\n\ndef f(x: Union[lambda: int]) -> None:\n    ...\n\n\ndef f(x: Union[str, lambda: int]) -> None:\n    ...\n\n\n# Regression test for: https://github.com/astral-sh/ruff/issues/7452\nclass Collection(Protocol[*_B0]):\n    def __iter__(self) -> Iterator[Union[*_B0]]:\n        ...\n\n\n# Regression test for: https://github.com/astral-sh/ruff/issues/8609\ndef f(x: Union[int, str, bytes]) -> None:\n    ...\n\n\n# Regression test for https://github.com/astral-sh/ruff/issues/14132\nclass AClass:\n    ...\n\ndef myfunc(param: \"tuple[Union[int, 'AClass', None], str]\"):\n    print(param)\n\n\nfrom typing import NamedTuple, Union\n\nimport typing_extensions\nfrom typing_extensions import (\n    NamedTuple as NamedTupleTE,\n    Union as UnionTE,\n)\n\n# Regression test for https://github.com/astral-sh/ruff/issues/18619\n# Don't emit lint for `NamedTuple`\na_plain_1: Union[NamedTuple, int] = None\na_plain_2: Union[int, NamedTuple] = None\na_plain_3: Union[NamedTuple, None] = None\na_plain_4: Union[None, NamedTuple] = None\na_plain_te_1: UnionTE[NamedTupleTE, int] = None\na_plain_te_2: UnionTE[int, NamedTupleTE] = None\na_plain_te_3: UnionTE[NamedTupleTE, None] = None\na_plain_te_4: UnionTE[None, NamedTupleTE] = None\na_plain_typing_1: UnionTE[typing.NamedTuple, int] = None\na_plain_typing_2: UnionTE[int, typing.NamedTuple] = None\na_plain_typing_3: UnionTE[typing.NamedTuple, None] = None\na_plain_typing_4: UnionTE[None, typing.NamedTuple] = None\na_string_1: \"Union[NamedTuple, int]\" = None\na_string_2: \"Union[int, NamedTuple]\" = None\na_string_3: \"Union[NamedTuple, None]\" = None\na_string_4: \"Union[None, NamedTuple]\" = None\na_string_te_1: \"UnionTE[NamedTupleTE, int]\" = None\na_string_te_2: \"UnionTE[int, NamedTupleTE]\" = None\na_string_te_3: \"UnionTE[NamedTupleTE, None]\" = None\na_string_te_4: \"UnionTE[None, NamedTupleTE]\" = None\na_string_typing_1: \"typing.Union[typing.NamedTuple, int]\" = None\na_string_typing_2: \"typing.Union[int, typing.NamedTuple]\" = None\na_string_typing_3: \"typing.Union[typing.NamedTuple, None]\" = None\na_string_typing_4: \"typing.Union[None, typing.NamedTuple]\" = None\n\nb_plain_1: Union[NamedTuple] = None\nb_plain_2: Union[NamedTuple, None] = None\nb_plain_te_1: UnionTE[NamedTupleTE] = None\nb_plain_te_2: UnionTE[NamedTupleTE, None] = None\nb_plain_typing_1: UnionTE[typing.NamedTuple] = None\nb_plain_typing_2: UnionTE[typing.NamedTuple, None] = None\nb_string_1: \"Union[NamedTuple]\" = None\nb_string_2: \"Union[NamedTuple, None]\" = None\nb_string_te_1: \"UnionTE[NamedTupleTE]\" = None\nb_string_te_2: \"UnionTE[NamedTupleTE, None]\" = None\nb_string_typing_1: \"typing.Union[typing.NamedTuple]\" = None\nb_string_typing_2: \"typing.Union[typing.NamedTuple, None]\" = None\n\n\n# Regression test for https://github.com/astral-sh/ruff/issues/23207\n# Multi-line single-argument Union should be wrapped in parentheses\nfrom __future__ import annotations\n\nif TYPE_CHECKING:\n    from typing import Literal, TypeAlias\n\n    LongLiterals: TypeAlias = Union[\n        Literal[\"LongLiteralNumberOne\"]\n        | Literal[\"LongLiteralNumberTwo\"]\n        | Literal[\"LongLiteralNumberThree\"]\n    ]\n"
+      },
+      "source_sha256": "850f8b830416cc50fbb302a394a0e39076cf93737b4b87e0d11e9ebb4eb249a9",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP007",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "target": "py310",
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP007",
+          "end_location": {
+            "column": 46,
+            "row": 5
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "str | int | Union[float, bytes]",
+                "end_location": {
+                  "column": 46,
+                  "row": 5
+                },
+                "location": {
+                  "column": 10,
+                  "row": 5
+                }
+              }
+            ],
+            "message": "Convert to `X | Y`"
+          },
+          "location": {
+            "column": 10,
+            "row": 5
+          },
+          "message": "Use `X | Y` for type annotations",
+          "name": "non-pep604-annotation-union",
+          "noqa_row": 5,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-union"
+        },
+        {
+          "cell": null,
+          "code": "UP007",
+          "end_location": {
+            "column": 45,
+            "row": 5
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "float | bytes",
+                "end_location": {
+                  "column": 45,
+                  "row": 5
+                },
+                "location": {
+                  "column": 26,
+                  "row": 5
+                }
+              }
+            ],
+            "message": "Convert to `X | Y`"
+          },
+          "location": {
+            "column": 26,
+            "row": 5
+          },
+          "message": "Use `X | Y` for type annotations",
+          "name": "non-pep604-annotation-union",
+          "noqa_row": 5,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-union"
+        },
+        {
+          "cell": null,
+          "code": "UP007",
+          "end_location": {
+            "column": 32,
+            "row": 9
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "str | int",
+                "end_location": {
+                  "column": 32,
+                  "row": 9
+                },
+                "location": {
+                  "column": 10,
+                  "row": 9
+                }
+              }
+            ],
+            "message": "Convert to `X | Y`"
+          },
+          "location": {
+            "column": 10,
+            "row": 9
+          },
+          "message": "Use `X | Y` for type annotations",
+          "name": "non-pep604-annotation-union",
+          "noqa_row": 9,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-union"
+        },
+        {
+          "cell": null,
+          "code": "UP007",
+          "end_location": {
+            "column": 34,
+            "row": 13
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "str | int",
+                "end_location": {
+                  "column": 34,
+                  "row": 13
+                },
+                "location": {
+                  "column": 10,
+                  "row": 13
+                }
+              }
+            ],
+            "message": "Convert to `X | Y`"
+          },
+          "location": {
+            "column": 10,
+            "row": 13
+          },
+          "message": "Use `X | Y` for type annotations",
+          "name": "non-pep604-annotation-union",
+          "noqa_row": 13,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-union"
+        },
+        {
+          "cell": null,
+          "code": "UP007",
+          "end_location": {
+            "column": 41,
+            "row": 17
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "str | int | float",
+                "end_location": {
+                  "column": 41,
+                  "row": 17
+                },
+                "location": {
+                  "column": 10,
+                  "row": 17
+                }
+              }
+            ],
+            "message": "Convert to `X | Y`"
+          },
+          "location": {
+            "column": 10,
+            "row": 17
+          },
+          "message": "Use `X | Y` for type annotations",
+          "name": "non-pep604-annotation-union",
+          "noqa_row": 17,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-union"
+        },
+        {
+          "cell": null,
+          "code": "UP007",
+          "end_location": {
+            "column": 30,
+            "row": 21
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "int",
+                "end_location": {
+                  "column": 30,
+                  "row": 21
+                },
+                "location": {
+                  "column": 10,
+                  "row": 21
+                }
+              }
+            ],
+            "message": "Convert to `X | Y`"
+          },
+          "location": {
+            "column": 10,
+            "row": 21
+          },
+          "message": "Use `X | Y` for type annotations",
+          "name": "non-pep604-annotation-union",
+          "noqa_row": 21,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-union"
+        },
+        {
+          "cell": null,
+          "code": "UP007",
+          "end_location": {
+            "column": 26,
+            "row": 25
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "()",
+                "end_location": {
+                  "column": 26,
+                  "row": 25
+                },
+                "location": {
+                  "column": 10,
+                  "row": 25
+                }
+              }
+            ],
+            "message": "Convert to `X | Y`"
+          },
+          "location": {
+            "column": 10,
+            "row": 25
+          },
+          "message": "Use `X | Y` for type annotations",
+          "name": "non-pep604-annotation-union",
+          "noqa_row": 25,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-union"
+        },
+        {
+          "cell": null,
+          "code": "UP007",
+          "end_location": {
+            "column": 47,
+            "row": 29
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "str | int | Union[float, bytes]",
+                "end_location": {
+                  "column": 47,
+                  "row": 29
+                },
+                "location": {
+                  "column": 11,
+                  "row": 29
+                }
+              }
+            ],
+            "message": "Convert to `X | Y`"
+          },
+          "location": {
+            "column": 11,
+            "row": 29
+          },
+          "message": "Use `X | Y` for type annotations",
+          "name": "non-pep604-annotation-union",
+          "noqa_row": 29,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-union"
+        },
+        {
+          "cell": null,
+          "code": "UP007",
+          "end_location": {
+            "column": 46,
+            "row": 29
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "float | bytes",
+                "end_location": {
+                  "column": 46,
+                  "row": 29
+                },
+                "location": {
+                  "column": 27,
+                  "row": 29
+                }
+              }
+            ],
+            "message": "Convert to `X | Y`"
+          },
+          "location": {
+            "column": 27,
+            "row": 29
+          },
+          "message": "Use `X | Y` for type annotations",
+          "name": "non-pep604-annotation-union",
+          "noqa_row": 29,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-union"
+        },
+        {
+          "cell": null,
+          "code": "UP007",
+          "end_location": {
+            "column": 33,
+            "row": 33
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "str | int",
+                "end_location": {
+                  "column": 33,
+                  "row": 33
+                },
+                "location": {
+                  "column": 11,
+                  "row": 33
+                }
+              }
+            ],
+            "message": "Convert to `X | Y`"
+          },
+          "location": {
+            "column": 11,
+            "row": 33
+          },
+          "message": "Use `X | Y` for type annotations",
+          "name": "non-pep604-annotation-union",
+          "noqa_row": 33,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-union"
+        },
+        {
+          "cell": null,
+          "code": "UP007",
+          "end_location": {
+            "column": 24,
+            "row": 46
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 9,
+            "row": 46
+          },
+          "message": "Use `X | Y` for type annotations",
+          "name": "non-pep604-annotation-union",
+          "noqa_row": 46,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-union"
+        },
+        {
+          "cell": null,
+          "code": "UP007",
+          "end_location": {
+            "column": 23,
+            "row": 48
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "str | int",
+                "end_location": {
+                  "column": 23,
+                  "row": 48
+                },
+                "location": {
+                  "column": 8,
+                  "row": 48
+                }
+              }
+            ],
+            "message": "Convert to `X | Y`"
+          },
+          "location": {
+            "column": 8,
+            "row": 48
+          },
+          "message": "Use `X | Y` for type annotations",
+          "name": "non-pep604-annotation-union",
+          "noqa_row": 48,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-union"
+        },
+        {
+          "cell": null,
+          "code": "UP007",
+          "end_location": {
+            "column": 27,
+            "row": 49
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "\"str\" | \"int\"",
+                "end_location": {
+                  "column": 27,
+                  "row": 49
+                },
+                "location": {
+                  "column": 8,
+                  "row": 49
+                }
+              }
+            ],
+            "message": "Convert to `X | Y`"
+          },
+          "location": {
+            "column": 8,
+            "row": 49
+          },
+          "message": "Use `X | Y` for type annotations",
+          "name": "non-pep604-annotation-union",
+          "noqa_row": 49,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-union"
+        },
+        {
+          "cell": null,
+          "code": "UP007",
+          "end_location": {
+            "column": 28,
+            "row": 52
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 10,
+            "row": 52
+          },
+          "message": "Use `X | Y` for type annotations",
+          "name": "non-pep604-annotation-union",
+          "noqa_row": 52,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-union"
+        },
+        {
+          "cell": null,
+          "code": "UP007",
+          "end_location": {
+            "column": 33,
+            "row": 56
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 10,
+            "row": 56
+          },
+          "message": "Use `X | Y` for type annotations",
+          "name": "non-pep604-annotation-union",
+          "noqa_row": 56,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-union"
+        },
+        {
+          "cell": null,
+          "code": "UP007",
+          "end_location": {
+            "column": 25,
+            "row": 60
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 10,
+            "row": 60
+          },
+          "message": "Use `X | Y` for type annotations",
+          "name": "non-pep604-annotation-union",
+          "noqa_row": 60,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-union"
+        },
+        {
+          "cell": null,
+          "code": "UP007",
+          "end_location": {
+            "column": 30,
+            "row": 64
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 10,
+            "row": 64
+          },
+          "message": "Use `X | Y` for type annotations",
+          "name": "non-pep604-annotation-union",
+          "noqa_row": 64,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-union"
+        },
+        {
+          "cell": null,
+          "code": "UP007",
+          "end_location": {
+            "column": 28,
+            "row": 68
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 10,
+            "row": 68
+          },
+          "message": "Use `X | Y` for type annotations",
+          "name": "non-pep604-annotation-union",
+          "noqa_row": 68,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-union"
+        },
+        {
+          "cell": null,
+          "code": "UP007",
+          "end_location": {
+            "column": 33,
+            "row": 72
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 10,
+            "row": 72
+          },
+          "message": "Use `X | Y` for type annotations",
+          "name": "non-pep604-annotation-union",
+          "noqa_row": 72,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-union"
+        },
+        {
+          "cell": null,
+          "code": "invalid-syntax",
+          "end_location": {
+            "column": 31,
+            "row": 77
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 27,
+            "row": 77
+          },
+          "message": "Cannot use star expression in index on Python 3.10 (syntax was added in Python 3.11)",
+          "name": "invalid-syntax",
+          "noqa_row": null,
+          "severity": "error",
+          "url": null
+        },
+        {
+          "cell": null,
+          "code": "invalid-syntax",
+          "end_location": {
+            "column": 46,
+            "row": 78
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 42,
+            "row": 78
+          },
+          "message": "Cannot use star expression in index on Python 3.10 (syntax was added in Python 3.11)",
+          "name": "invalid-syntax",
+          "noqa_row": null,
+          "severity": "error",
+          "url": null
+        },
+        {
+          "cell": null,
+          "code": "UP007",
+          "end_location": {
+            "column": 32,
+            "row": 83
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "int | str | bytes",
+                "end_location": {
+                  "column": 32,
+                  "row": 83
+                },
+                "location": {
+                  "column": 10,
+                  "row": 83
+                }
+              }
+            ],
+            "message": "Convert to `X | Y`"
+          },
+          "location": {
+            "column": 10,
+            "row": 83
+          },
+          "message": "Use `X | Y` for type annotations",
+          "name": "non-pep604-annotation-union",
+          "noqa_row": 83,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-union"
+        },
+        {
+          "cell": null,
+          "code": "UP007",
+          "end_location": {
+            "column": 52,
+            "row": 91
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "int | 'AClass' | None",
+                "end_location": {
+                  "column": 52,
+                  "row": 91
+                },
+                "location": {
+                  "column": 26,
+                  "row": 91
+                }
+              }
+            ],
+            "message": "Convert to `X | Y`"
+          },
+          "location": {
+            "column": 26,
+            "row": 91
+          },
+          "message": "Use `X | Y` for type annotations",
+          "name": "non-pep604-annotation-union",
+          "noqa_row": 91,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-union"
+        },
+        {
+          "cell": null,
+          "code": "UP007",
+          "end_location": {
+            "column": 6,
+            "row": 155
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "(Literal[\"LongLiteralNumberOne\"]\n        | Literal[\"LongLiteralNumberTwo\"]\n        | Literal[\"LongLiteralNumberThree\"])",
+                "end_location": {
+                  "column": 6,
+                  "row": 155
+                },
+                "location": {
+                  "column": 31,
+                  "row": 151
+                }
+              }
+            ],
+            "message": "Convert to `X | Y`"
+          },
+          "location": {
+            "column": 31,
+            "row": 151
+          },
+          "message": "Use `X | Y` for type annotations",
+          "name": "non-pep604-annotation-union",
+          "noqa_row": 151,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-union"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP007",
+          "file": "case.py",
+          "start": 50,
+          "end": 86
+        },
+        {
+          "rule": "UP007",
+          "file": "case.py",
+          "start": 66,
+          "end": 85
+        },
+        {
+          "rule": "UP007",
+          "file": "case.py",
+          "start": 116,
+          "end": 138
+        },
+        {
+          "rule": "UP007",
+          "file": "case.py",
+          "start": 168,
+          "end": 192
+        },
+        {
+          "rule": "UP007",
+          "file": "case.py",
+          "start": 222,
+          "end": 253
+        },
+        {
+          "rule": "UP007",
+          "file": "case.py",
+          "start": 283,
+          "end": 303
+        },
+        {
+          "rule": "UP007",
+          "file": "case.py",
+          "start": 333,
+          "end": 349
+        },
+        {
+          "rule": "UP007",
+          "file": "case.py",
+          "start": 380,
+          "end": 416
+        },
+        {
+          "rule": "UP007",
+          "file": "case.py",
+          "start": 396,
+          "end": 415
+        },
+        {
+          "rule": "UP007",
+          "file": "case.py",
+          "start": 448,
+          "end": 470
+        },
+        {
+          "rule": "UP007",
+          "file": "case.py",
+          "start": 622,
+          "end": 637
+        },
+        {
+          "rule": "UP007",
+          "file": "case.py",
+          "start": 673,
+          "end": 688
+        },
+        {
+          "rule": "UP007",
+          "file": "case.py",
+          "start": 696,
+          "end": 715
+        },
+        {
+          "rule": "UP007",
+          "file": "case.py",
+          "start": 727,
+          "end": 745
+        },
+        {
+          "rule": "UP007",
+          "file": "case.py",
+          "start": 775,
+          "end": 798
+        },
+        {
+          "rule": "UP007",
+          "file": "case.py",
+          "start": 828,
+          "end": 843
+        },
+        {
+          "rule": "UP007",
+          "file": "case.py",
+          "start": 873,
+          "end": 893
+        },
+        {
+          "rule": "UP007",
+          "file": "case.py",
+          "start": 923,
+          "end": 941
+        },
+        {
+          "rule": "UP007",
+          "file": "case.py",
+          "start": 971,
+          "end": 994
+        },
+        {
+          "rule": "invalid-syntax",
+          "file": "case.py",
+          "start": 1110,
+          "end": 1114
+        },
+        {
+          "rule": "invalid-syntax",
+          "file": "case.py",
+          "start": 1159,
+          "end": 1163
+        },
+        {
+          "rule": "UP007",
+          "file": "case.py",
+          "start": 1259,
+          "end": 1281
+        },
+        {
+          "rule": "UP007",
+          "file": "case.py",
+          "start": 1419,
+          "end": 1445
+        },
+        {
+          "rule": "UP007",
+          "file": "case.py",
+          "start": 3821,
+          "end": 3959
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP007",
+      "name": "tagged-UP007_2.py",
+      "files": {
+        "case.py": "import typing\nfrom typing import Union\n\n\ndef f(x: Union[str, int, Union[float, bytes]]) -> None:\n    ...\n\n\ndef f(x: typing.Union[str, int]) -> None:\n    ...\n"
+      },
+      "source_sha256": "4a9fa09c688ece856773e399d2931535cc50bdc027230bf7157a2a36efd28037",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP007",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "target": "py310",
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP007",
+          "end_location": {
+            "column": 46,
+            "row": 5
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "str | int | Union[float, bytes]",
+                "end_location": {
+                  "column": 46,
+                  "row": 5
+                },
+                "location": {
+                  "column": 10,
+                  "row": 5
+                }
+              }
+            ],
+            "message": "Convert to `X | Y`"
+          },
+          "location": {
+            "column": 10,
+            "row": 5
+          },
+          "message": "Use `X | Y` for type annotations",
+          "name": "non-pep604-annotation-union",
+          "noqa_row": 5,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-union"
+        },
+        {
+          "cell": null,
+          "code": "UP007",
+          "end_location": {
+            "column": 45,
+            "row": 5
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "float | bytes",
+                "end_location": {
+                  "column": 45,
+                  "row": 5
+                },
+                "location": {
+                  "column": 26,
+                  "row": 5
+                }
+              }
+            ],
+            "message": "Convert to `X | Y`"
+          },
+          "location": {
+            "column": 26,
+            "row": 5
+          },
+          "message": "Use `X | Y` for type annotations",
+          "name": "non-pep604-annotation-union",
+          "noqa_row": 5,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-union"
+        },
+        {
+          "cell": null,
+          "code": "UP007",
+          "end_location": {
+            "column": 32,
+            "row": 9
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "str | int",
+                "end_location": {
+                  "column": 32,
+                  "row": 9
+                },
+                "location": {
+                  "column": 10,
+                  "row": 9
+                }
+              }
+            ],
+            "message": "Convert to `X | Y`"
+          },
+          "location": {
+            "column": 10,
+            "row": 9
+          },
+          "message": "Use `X | Y` for type annotations",
+          "name": "non-pep604-annotation-union",
+          "noqa_row": 9,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-union"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP007",
+          "file": "case.py",
+          "start": 50,
+          "end": 86
+        },
+        {
+          "rule": "UP007",
+          "file": "case.py",
+          "start": 66,
+          "end": 85
+        },
+        {
+          "rule": "UP007",
+          "file": "case.py",
+          "start": 116,
+          "end": 138
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP007",
+      "name": "future-forward-import",
+      "files": {
+        "case.py": "from __future__ import annotations\nx: Union[int]\nfrom typing import Union\n"
+      },
+      "source_sha256": "fdc2ccf4b1cfd6cbf8b7ac83a99f2fd9e83af6101de57f18afed3a11bea578fe",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP007",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "target": "py310",
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP007",
+          "end_location": {
+            "column": 14,
+            "row": 2
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "int",
+                "end_location": {
+                  "column": 14,
+                  "row": 2
+                },
+                "location": {
+                  "column": 4,
+                  "row": 2
+                }
+              }
+            ],
+            "message": "Convert to `X | Y`"
+          },
+          "location": {
+            "column": 4,
+            "row": 2
+          },
+          "message": "Use `X | Y` for type annotations",
+          "name": "non-pep604-annotation-union",
+          "noqa_row": 2,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-union"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP007",
+          "file": "case.py",
+          "start": 38,
+          "end": 48
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP007",
+      "name": "function-later-import",
+      "files": {
+        "case.py": "def f():\n    x = Union[int]\nfrom typing import Union\n"
+      },
+      "source_sha256": "eb145e99b8dd3ef0edebbaf799fdd4fbea9c7d417a6326a794c645e2bce4e0e5",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP007",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "target": "py310",
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP007",
+          "end_location": {
+            "column": 19,
+            "row": 2
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 9,
+            "row": 2
+          },
+          "message": "Use `X | Y` for type annotations",
+          "name": "non-pep604-annotation-union",
+          "noqa_row": 2,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-union"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP007",
+          "file": "case.py",
+          "start": 17,
+          "end": 27
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP007",
+      "name": "direct-quoted-annotation",
+      "files": {
+        "case.py": "from typing import Union\nx: Union[\"Later\"]\n"
+      },
+      "source_sha256": "466504a3f43daf0ca4bb17492f8b60e96155a164c4604c894e4bf984e6d90dbb",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP007",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "target": "py310",
+      "raw": [],
+      "expected": [],
+      "status": 0
+    },
+    {
+      "rule": "UP007",
+      "name": "guard-else",
+      "files": {
+        "case.py": "from typing import Union, TYPE_CHECKING\nif TYPE_CHECKING:\n    pass\nelse:\n    x = Union[\"Later\"]\n"
+      },
+      "source_sha256": "631ad03cc95d718e662207dae73c6cbd5cf475cb4ce382c1db74d81da9bdf84b",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP007",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "target": "py310",
+      "raw": [],
+      "expected": [],
+      "status": 0
+    },
+    {
+      "rule": "UP007",
+      "name": "nested-direct-guard",
+      "files": {
+        "case.py": "from typing import Union, TYPE_CHECKING\nif TYPE_CHECKING:\n    if condition:\n        x = Union[\"Later\"]\n"
+      },
+      "source_sha256": "28f74d3f416026779792d7ed0d8e10cda1fb6ac1351dfa56874406a1492be9e9",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP007",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "target": "py310",
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP007",
+          "end_location": {
+            "column": 27,
+            "row": 4
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 13,
+            "row": 4
+          },
+          "message": "Use `X | Y` for type annotations",
+          "name": "non-pep604-annotation-union",
+          "noqa_row": 4,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-union"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP007",
+          "file": "case.py",
+          "start": 88,
+          "end": 102
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP007",
+      "name": "union-nested-tuples",
+      "files": {
+        "case.py": "from typing import Union\nx: Union[(int, str)]\n"
+      },
+      "source_sha256": "388b9de68925cc430cecb73b6e37fb4ceb9b12ebeea7e32f18ac3082f663c168",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP007",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "target": "py310",
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP007",
+          "end_location": {
+            "column": 21,
+            "row": 2
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "int | str",
+                "end_location": {
+                  "column": 21,
+                  "row": 2
+                },
+                "location": {
+                  "column": 4,
+                  "row": 2
+                }
+              }
+            ],
+            "message": "Convert to `X | Y`"
+          },
+          "location": {
+            "column": 4,
+            "row": 2
+          },
+          "message": "Use `X | Y` for type annotations",
+          "name": "non-pep604-annotation-union",
+          "noqa_row": 2,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-union"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP007",
+          "file": "case.py",
+          "start": 28,
+          "end": 45
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP007",
+      "name": "module-rebound",
+      "files": {
+        "case.py": "import typing\ntyping = other\nx: typing.Union[int]\n"
+      },
+      "source_sha256": "5a433a5e17949a866aacb3363152014db69d4fcba511979225d06e801824b58f",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP007",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "target": "py310",
+      "raw": [],
+      "expected": [],
+      "status": 0
+    },
+    {
+      "rule": "UP007",
+      "name": "py39-annotation",
+      "files": {
+        "case.py": "from typing import Union\nx: Union[int]\n"
+      },
+      "source_sha256": "857bd1c14008221fb5c094ca0754d633d4ef707648e45d07c3fcfd0570761069",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py39",
+        "--select",
+        "UP007",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "target": "py39",
+      "raw": [],
+      "expected": [],
+      "status": 0
+    },
+    {
+      "rule": "UP007",
+      "name": "py39-future-annotation",
+      "files": {
+        "case.py": "from __future__ import annotations\nfrom typing import Union\nx: Union[int]\n"
+      },
+      "source_sha256": "d337ccf441b3e5b61e7911f33c5426463d1289b5ee87210ad01037d49022f18c",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py39",
+        "--select",
+        "UP007",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "target": "py39",
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP007",
+          "end_location": {
+            "column": 14,
+            "row": 3
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "unsafe",
+            "edits": [
+              {
+                "content": "int",
+                "end_location": {
+                  "column": 14,
+                  "row": 3
+                },
+                "location": {
+                  "column": 4,
+                  "row": 3
+                }
+              }
+            ],
+            "message": "Convert to `X | Y`"
+          },
+          "location": {
+            "column": 4,
+            "row": 3
+          },
+          "message": "Use `X | Y` for type annotations",
+          "name": "non-pep604-annotation-union",
+          "noqa_row": 3,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-union"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP007",
+          "file": "case.py",
+          "start": 63,
+          "end": 73
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP007",
+      "name": "py39-future-runtime",
+      "files": {
+        "case.py": "from __future__ import annotations\nfrom typing import Union\nx = Union[int]\n"
+      },
+      "source_sha256": "2096552dd50bd71e18109402a745698d0e711355224dde3d19a5045b648cb850",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py39",
+        "--select",
+        "UP007",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "target": "py39",
+      "raw": [],
+      "expected": [],
+      "status": 0
+    },
+    {
+      "rule": "UP007",
+      "name": "py39-quoted-annotation",
+      "files": {
+        "case.py": "from typing import Union\nx: Union[\"Later\"]\n"
+      },
+      "source_sha256": "466504a3f43daf0ca4bb17492f8b60e96155a164c4604c894e4bf984e6d90dbb",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py39",
+        "--select",
+        "UP007",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "target": "py39",
+      "raw": [],
+      "expected": [],
+      "status": 0
+    },
+    {
+      "rule": "UP007",
+      "name": "py314-annotation",
+      "files": {
+        "case.py": "from typing import Union\nx: Union[int]\n"
+      },
+      "source_sha256": "857bd1c14008221fb5c094ca0754d633d4ef707648e45d07c3fcfd0570761069",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py314",
+        "--select",
+        "UP007",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "target": "py314",
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP007",
+          "end_location": {
+            "column": 14,
+            "row": 2
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "int",
+                "end_location": {
+                  "column": 14,
+                  "row": 2
+                },
+                "location": {
+                  "column": 4,
+                  "row": 2
+                }
+              }
+            ],
+            "message": "Convert to `X | Y`"
+          },
+          "location": {
+            "column": 4,
+            "row": 2
+          },
+          "message": "Use `X | Y` for type annotations",
+          "name": "non-pep604-annotation-union",
+          "noqa_row": 2,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-union"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP007",
+          "file": "case.py",
+          "start": 28,
+          "end": 38
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP007",
+      "name": "py314-future-annotation",
+      "files": {
+        "case.py": "from __future__ import annotations\nfrom typing import Union\nx: Union[int]\n"
+      },
+      "source_sha256": "d337ccf441b3e5b61e7911f33c5426463d1289b5ee87210ad01037d49022f18c",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py314",
+        "--select",
+        "UP007",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "target": "py314",
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP007",
+          "end_location": {
+            "column": 14,
+            "row": 3
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "int",
+                "end_location": {
+                  "column": 14,
+                  "row": 3
+                },
+                "location": {
+                  "column": 4,
+                  "row": 3
+                }
+              }
+            ],
+            "message": "Convert to `X | Y`"
+          },
+          "location": {
+            "column": 4,
+            "row": 3
+          },
+          "message": "Use `X | Y` for type annotations",
+          "name": "non-pep604-annotation-union",
+          "noqa_row": 3,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-union"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP007",
+          "file": "case.py",
+          "start": 63,
+          "end": 73
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP007",
+      "name": "py314-future-runtime",
+      "files": {
+        "case.py": "from __future__ import annotations\nfrom typing import Union\nx = Union[int]\n"
+      },
+      "source_sha256": "2096552dd50bd71e18109402a745698d0e711355224dde3d19a5045b648cb850",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py314",
+        "--select",
+        "UP007",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "target": "py314",
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP007",
+          "end_location": {
+            "column": 15,
+            "row": 3
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": null,
+          "location": {
+            "column": 5,
+            "row": 3
+          },
+          "message": "Use `X | Y` for type annotations",
+          "name": "non-pep604-annotation-union",
+          "noqa_row": 3,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-union"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP007",
+          "file": "case.py",
+          "start": 64,
+          "end": 74
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP007",
+      "name": "py314-quoted-annotation",
+      "files": {
+        "case.py": "from typing import Union\nx: Union[\"Later\"]\n"
+      },
+      "source_sha256": "466504a3f43daf0ca4bb17492f8b60e96155a164c4604c894e4bf984e6d90dbb",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py314",
+        "--select",
+        "UP007",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "target": "py314",
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP007",
+          "end_location": {
+            "column": 18,
+            "row": 2
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "\"Later\"",
+                "end_location": {
+                  "column": 18,
+                  "row": 2
+                },
+                "location": {
+                  "column": 4,
+                  "row": 2
+                }
+              }
+            ],
+            "message": "Convert to `X | Y`"
+          },
+          "location": {
+            "column": 4,
+            "row": 2
+          },
+          "message": "Use `X | Y` for type annotations",
+          "name": "non-pep604-annotation-union",
+          "noqa_row": 2,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/non-pep604-annotation-union"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP007",
+          "file": "case.py",
+          "start": 28,
+          "end": 42
+        }
+      ],
+      "status": 1
+    }
+  ]
+}

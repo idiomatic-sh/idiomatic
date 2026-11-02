@@ -1,0 +1,7 @@
+{
+  "status": "pending canonical validation",
+  "reason": "Counter lifetime includes both real initializer and carried increment bindings. Current-lifetime ordinary reads before the loop must block the hint; earlier-lifetime reads remain separate identities.",
+  "prior_source_smoke": "Historical45case source-smoke remains bound to8324before-source; canonical descriptor must use all46current cases.",
+  "raw_expected_arrays_preserved": true,
+  "added_case": "current-lifetime-use-before-loop"
+}

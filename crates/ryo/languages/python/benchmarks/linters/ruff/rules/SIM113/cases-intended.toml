@@ -1,0 +1,12 @@
+# Intended behavior for independently evidenced native disagreements; not substituted for raw cases.toml.
+[[cases]]
+name = "closure-before-initializer"
+comparison = "full"
+files = { "case.py" = "def f():\n    callback = lambda: i\n    i = 0\n    for value in values:\n        i += 1\n    return callback()\n" }
+expected = []
+
+[[cases]]
+name = "closure-inside-loop"
+comparison = "full"
+files = { "case.py" = "def f():\n    i = 0\n    for value in values:\n        callback = lambda: i\n        i += 1\n    return callback()\n" }
+expected = []

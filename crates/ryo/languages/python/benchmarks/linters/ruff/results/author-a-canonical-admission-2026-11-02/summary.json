@@ -1,0 +1,185 @@
+{
+  "profile_count": 10,
+  "case_count": 327,
+  "raw_exact": 323,
+  "documented_reference_discrepancies": 4,
+  "unexplained": 0,
+  "native_query_inventory_changed": false,
+  "base_profile_changed": false,
+  "pending": {
+    "UP007-py39": {
+      "status": "pending unsupported parser configuration",
+      "profile_file": "profiles/UP007-py39/benchmark.toml",
+      "profile_sha256": "e9858597869609f023ac0f5047a6fb9d5946b803a9f6bae53107056f2e624828",
+      "cases_file": "rules/UP007/cases-py39.toml",
+      "cases_sha256": "8333c67d083c1aa20fbdf59a3d2346d3b42ec15dd9ba3f58905af472131e5881",
+      "case_count": 4,
+      "case_names": [
+        "py39-annotation",
+        "py39-future-annotation",
+        "py39-future-runtime",
+        "py39-quoted-annotation"
+      ],
+      "selected_rules": [
+        "UP007"
+      ],
+      "parser_configuration": "python-target=3.9"
+    },
+    "UP007-py314": {
+      "status": "pending unsupported parser configuration",
+      "profile_file": "profiles/UP007-py314/benchmark.toml",
+      "profile_sha256": "f51b6d17807e981b6b6825bddeb7d5bf25eeedb0dee5f22d3f9d9d9ff856dd04",
+      "cases_file": "rules/UP007/cases-py314.toml",
+      "cases_sha256": "b5e96c0eb69e8abc5b37f21cbcb3594f87de1a12866fabbf39169b09c2b1cb88",
+      "case_count": 4,
+      "case_names": [
+        "py314-annotation",
+        "py314-future-annotation",
+        "py314-future-runtime",
+        "py314-quoted-annotation"
+      ],
+      "selected_rules": [
+        "UP007"
+      ],
+      "parser_configuration": "python-target=3.14"
+    },
+    "UP045-py39": {
+      "status": "pending unsupported parser configuration",
+      "profile_file": "profiles/UP045-py39/benchmark.toml",
+      "profile_sha256": "b55e278acf45af00bb1fae4f9a11082d1ee6e71a3ca0ad3afe11e8a13a7673a5",
+      "cases_file": "rules/UP045/cases-py39.toml",
+      "cases_sha256": "a95dfca2ea5e607a5e5ec2efb82750ca7669baabeb36e31b47e16d66d48ded4a",
+      "case_count": 4,
+      "case_names": [
+        "py39-annotation",
+        "py39-future-annotation",
+        "py39-future-runtime",
+        "py39-quoted-annotation"
+      ],
+      "selected_rules": [
+        "UP045"
+      ],
+      "parser_configuration": "python-target=3.9"
+    },
+    "UP045-py314": {
+      "status": "pending unsupported parser configuration",
+      "profile_file": "profiles/UP045-py314/benchmark.toml",
+      "profile_sha256": "1c83e6d45905157945f96e3c19b25528f31cfaa5aab29e3276dd0a3605c03819",
+      "cases_file": "rules/UP045/cases-py314.toml",
+      "cases_sha256": "305d0c7f98764bab8ba3be8c759c736d83dc780721a5b8887dd6af08d9c2c3e9",
+      "case_count": 4,
+      "case_names": [
+        "py314-annotation",
+        "py314-future-annotation",
+        "py314-future-runtime",
+        "py314-quoted-annotation"
+      ],
+      "selected_rules": [
+        "UP045"
+      ],
+      "parser_configuration": "python-target=3.14"
+    }
+  },
+  "profiles": {
+    "UP045": {
+      "complete_case_pairs": 31,
+      "incomplete_cases": 0,
+      "raw_parity_matches": 31,
+      "raw_parity_mismatches": 0,
+      "documented_reference_discrepancies": 0,
+      "unexplained_mismatches": 0,
+      "intended_behavior_passes": 31,
+      "intended_behavior_failures": 0
+    },
+    "UP050": {
+      "complete_case_pairs": 16,
+      "incomplete_cases": 0,
+      "raw_parity_matches": 16,
+      "raw_parity_mismatches": 0,
+      "documented_reference_discrepancies": 0,
+      "unexplained_mismatches": 0,
+      "intended_behavior_passes": 16,
+      "intended_behavior_failures": 0
+    },
+    "UP030": {
+      "complete_case_pairs": 36,
+      "incomplete_cases": 0,
+      "raw_parity_matches": 36,
+      "raw_parity_mismatches": 0,
+      "documented_reference_discrepancies": 0,
+      "unexplained_mismatches": 0,
+      "intended_behavior_passes": 36,
+      "intended_behavior_failures": 0
+    },
+    "UP044": {
+      "complete_case_pairs": 29,
+      "incomplete_cases": 0,
+      "raw_parity_matches": 29,
+      "raw_parity_mismatches": 0,
+      "documented_reference_discrepancies": 0,
+      "unexplained_mismatches": 0,
+      "intended_behavior_passes": 29,
+      "intended_behavior_failures": 0
+    },
+    "EXE004": {
+      "complete_case_pairs": 21,
+      "incomplete_cases": 0,
+      "raw_parity_matches": 21,
+      "raw_parity_mismatches": 0,
+      "documented_reference_discrepancies": 0,
+      "unexplained_mismatches": 0,
+      "intended_behavior_passes": 21,
+      "intended_behavior_failures": 0
+    },
+    "ISC004": {
+      "complete_case_pairs": 26,
+      "incomplete_cases": 0,
+      "raw_parity_matches": 26,
+      "raw_parity_mismatches": 0,
+      "documented_reference_discrepancies": 0,
+      "unexplained_mismatches": 0,
+      "intended_behavior_passes": 26,
+      "intended_behavior_failures": 0
+    },
+    "FLY002": {
+      "complete_case_pairs": 38,
+      "incomplete_cases": 0,
+      "raw_parity_matches": 38,
+      "raw_parity_mismatches": 0,
+      "documented_reference_discrepancies": 0,
+      "unexplained_mismatches": 0,
+      "intended_behavior_passes": 38,
+      "intended_behavior_failures": 0
+    },
+    "PLE1142": {
+      "complete_case_pairs": 49,
+      "incomplete_cases": 0,
+      "raw_parity_matches": 48,
+      "raw_parity_mismatches": 1,
+      "documented_reference_discrepancies": 1,
+      "unexplained_mismatches": 0,
+      "intended_behavior_passes": 49,
+      "intended_behavior_failures": 0
+    },
+    "PLE1700": {
+      "complete_case_pairs": 35,
+      "incomplete_cases": 0,
+      "raw_parity_matches": 34,
+      "raw_parity_mismatches": 1,
+      "documented_reference_discrepancies": 1,
+      "unexplained_mismatches": 0,
+      "intended_behavior_passes": 35,
+      "intended_behavior_failures": 0
+    },
+    "SIM113": {
+      "complete_case_pairs": 46,
+      "incomplete_cases": 0,
+      "raw_parity_matches": 44,
+      "raw_parity_mismatches": 2,
+      "documented_reference_discrepancies": 2,
+      "unexplained_mismatches": 0,
+      "intended_behavior_passes": 46,
+      "intended_behavior_failures": 0
+    }
+  }
+}

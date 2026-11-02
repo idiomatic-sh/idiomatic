@@ -1,0 +1,1221 @@
+{
+  "ruff_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "target": "python-target=3.10",
+  "rows": [
+    {
+      "rule": "UP050",
+      "name": "bare",
+      "files": {
+        "case.py": "class C(metaclass=type): pass\n"
+      },
+      "source_sha256": "5821d7f6d0653ab06691e77fd15eb85dcc5ce1873f58f7d083e8729fcf2929e5",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP050",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP050",
+          "end_location": {
+            "column": 23,
+            "row": 1
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "",
+                "end_location": {
+                  "column": 24,
+                  "row": 1
+                },
+                "location": {
+                  "column": 8,
+                  "row": 1
+                }
+              }
+            ],
+            "message": "Remove `metaclass=type`"
+          },
+          "location": {
+            "column": 9,
+            "row": 1
+          },
+          "message": "Class `C` uses `metaclass=type`, which is redundant",
+          "name": "useless-class-metaclass-type",
+          "noqa_row": 1,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/useless-class-metaclass-type"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP050",
+          "file": "case.py",
+          "start": 8,
+          "end": 22
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP050",
+      "name": "imported",
+      "files": {
+        "case.py": "from builtins import type as Meta\nclass C(metaclass=Meta): pass\n"
+      },
+      "source_sha256": "f509288b3b31a97e3ce4d9f8ae8ce95205290e39c614abd3a6094be2f8b89549",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP050",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP050",
+          "end_location": {
+            "column": 23,
+            "row": 2
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "",
+                "end_location": {
+                  "column": 24,
+                  "row": 2
+                },
+                "location": {
+                  "column": 8,
+                  "row": 2
+                }
+              }
+            ],
+            "message": "Remove `metaclass=type`"
+          },
+          "location": {
+            "column": 9,
+            "row": 2
+          },
+          "message": "Class `C` uses `metaclass=type`, which is redundant",
+          "name": "useless-class-metaclass-type",
+          "noqa_row": 2,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/useless-class-metaclass-type"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP050",
+          "file": "case.py",
+          "start": 42,
+          "end": 56
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP050",
+      "name": "qualified",
+      "files": {
+        "case.py": "import builtins\nclass C(metaclass=builtins.type): pass\n"
+      },
+      "source_sha256": "c014d0be0c63daa570495c5bfb262c1e28485622196c36617274453a1539ea44",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP050",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP050",
+          "end_location": {
+            "column": 32,
+            "row": 2
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "",
+                "end_location": {
+                  "column": 33,
+                  "row": 2
+                },
+                "location": {
+                  "column": 8,
+                  "row": 2
+                }
+              }
+            ],
+            "message": "Remove `metaclass=type`"
+          },
+          "location": {
+            "column": 9,
+            "row": 2
+          },
+          "message": "Class `C` uses `metaclass=type`, which is redundant",
+          "name": "useless-class-metaclass-type",
+          "noqa_row": 2,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/useless-class-metaclass-type"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP050",
+          "file": "case.py",
+          "start": 24,
+          "end": 47
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP050",
+      "name": "aliased-module",
+      "files": {
+        "case.py": "import builtins as b\nclass C(metaclass=b.type): pass\n"
+      },
+      "source_sha256": "17ddefb2d22075f236c795a06bc7ab40472b952661d7094e0841dd28d31520cd",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP050",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP050",
+          "end_location": {
+            "column": 25,
+            "row": 2
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "",
+                "end_location": {
+                  "column": 26,
+                  "row": 2
+                },
+                "location": {
+                  "column": 8,
+                  "row": 2
+                }
+              }
+            ],
+            "message": "Remove `metaclass=type`"
+          },
+          "location": {
+            "column": 9,
+            "row": 2
+          },
+          "message": "Class `C` uses `metaclass=type`, which is redundant",
+          "name": "useless-class-metaclass-type",
+          "noqa_row": 2,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/useless-class-metaclass-type"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP050",
+          "file": "case.py",
+          "start": 29,
+          "end": 45
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP050",
+      "name": "shadowed",
+      "files": {
+        "case.py": "type = custom\nclass C(metaclass=type): pass\n"
+      },
+      "source_sha256": "bf0dbb35e322a074188cd293e59576c8c188ac24e30872f3f4386b7f4d3403e3",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP050",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "raw": [],
+      "expected": [],
+      "status": 0
+    },
+    {
+      "rule": "UP050",
+      "name": "local-shadow",
+      "files": {
+        "case.py": "def f(type):\n    class C(metaclass=type): pass\n"
+      },
+      "source_sha256": "fd9176c3854c4f2daea06cdc91ae3923ffd75e8a34cc9a2c069907455c9cc304",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP050",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "raw": [],
+      "expected": [],
+      "status": 0
+    },
+    {
+      "rule": "UP050",
+      "name": "custom",
+      "files": {
+        "case.py": "class Meta(type): pass\nclass C(metaclass=Meta): pass\n"
+      },
+      "source_sha256": "ef38aa8bed00079c023192981d703ba9b2152aac662b11a633a5a5dbc5363b1c",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP050",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "raw": [],
+      "expected": [],
+      "status": 0
+    },
+    {
+      "rule": "UP050",
+      "name": "no-keyword",
+      "files": {
+        "case.py": "class C(type): pass\n"
+      },
+      "source_sha256": "9a91aa0af293e8bdad76a7abf2a9a0009ff5afce28dc647f35b70a10742b969b",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP050",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "raw": [],
+      "expected": [],
+      "status": 0
+    },
+    {
+      "rule": "UP050",
+      "name": "other-keyword",
+      "files": {
+        "case.py": "class C(factory=type): pass\n"
+      },
+      "source_sha256": "a1f9a5811da55ab2eb1f96c03d448ab69fa1290906eb30184dc675559ebfc08d",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP050",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "raw": [],
+      "expected": [],
+      "status": 0
+    },
+    {
+      "rule": "UP050",
+      "name": "other-module",
+      "files": {
+        "case.py": "import other\nclass C(metaclass=other.type): pass\n"
+      },
+      "source_sha256": "88bbc778f7dc1d41f013a51d35ed8561b4fface05b78eeb5e78a27acf3ac549c",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP050",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "raw": [],
+      "expected": [],
+      "status": 0
+    },
+    {
+      "rule": "UP050",
+      "name": "noqa",
+      "files": {
+        "case.py": "class C(metaclass=type): pass  # noqa: UP050\n"
+      },
+      "source_sha256": "0ef11fafac1a0dc5e91a1630aa130fb045823feb8499de83a71d3dd648172f54",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP050",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "raw": [],
+      "expected": [],
+      "status": 0
+    },
+    {
+      "rule": "UP050",
+      "name": "multiline",
+      "files": {
+        "case.py": "class C(\n    object,\n    metaclass=type,\n): pass\n"
+      },
+      "source_sha256": "3bde68583c9d1fc73f722b85c1a2e36418e3cdfb7d8e7d94ae500553cd3bd269",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP050",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP050",
+          "end_location": {
+            "column": 19,
+            "row": 3
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "",
+                "end_location": {
+                  "column": 19,
+                  "row": 3
+                },
+                "location": {
+                  "column": 11,
+                  "row": 2
+                }
+              }
+            ],
+            "message": "Remove `metaclass=type`"
+          },
+          "location": {
+            "column": 5,
+            "row": 3
+          },
+          "message": "Class `C` uses `metaclass=type`, which is redundant",
+          "name": "useless-class-metaclass-type",
+          "noqa_row": 3,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/useless-class-metaclass-type"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP050",
+          "file": "case.py",
+          "start": 25,
+          "end": 39
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP050",
+      "name": "unicode",
+      "files": {
+        "case.py": "π = 1\nclass C(metaclass=type): pass\n"
+      },
+      "source_sha256": "d118d3d11af401b4aa4fad7cfbd00f3d8f5f6890e5891c6718de48dd0d5fb5df",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP050",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP050",
+          "end_location": {
+            "column": 23,
+            "row": 2
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "",
+                "end_location": {
+                  "column": 24,
+                  "row": 2
+                },
+                "location": {
+                  "column": 8,
+                  "row": 2
+                }
+              }
+            ],
+            "message": "Remove `metaclass=type`"
+          },
+          "location": {
+            "column": 9,
+            "row": 2
+          },
+          "message": "Class `C` uses `metaclass=type`, which is redundant",
+          "name": "useless-class-metaclass-type",
+          "noqa_row": 2,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/useless-class-metaclass-type"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP050",
+          "file": "case.py",
+          "start": 15,
+          "end": 29
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP050",
+      "name": "nested",
+      "files": {
+        "case.py": "class Outer:\n    class Inner(metaclass=type): pass\n"
+      },
+      "source_sha256": "3d502f0d510d4f8290702d7a0a85c62720f5f27cce6f5b4f08ef65ad71b9d9fb",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP050",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP050",
+          "end_location": {
+            "column": 31,
+            "row": 2
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "",
+                "end_location": {
+                  "column": 32,
+                  "row": 2
+                },
+                "location": {
+                  "column": 16,
+                  "row": 2
+                }
+              }
+            ],
+            "message": "Remove `metaclass=type`"
+          },
+          "location": {
+            "column": 17,
+            "row": 2
+          },
+          "message": "Class `Inner` uses `metaclass=type`, which is redundant",
+          "name": "useless-class-metaclass-type",
+          "noqa_row": 2,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/useless-class-metaclass-type"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP050",
+          "file": "case.py",
+          "start": 29,
+          "end": 43
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP050",
+      "name": "tagged-UP050.py",
+      "files": {
+        "case.py": "class A:\n    ...\n\n\nclass A(metaclass=type):\n    ...\n\n\nclass A(\n    metaclass=type\n):\n    ...\n\n\nclass A(\n    metaclass=type\n    #\n):\n    ...\n\n\nclass A(\n    #\n    metaclass=type\n):\n    ...\n\n\nclass A(\n    metaclass=type,\n    #\n):\n    ...\n\n\nclass A(\n    #\n    metaclass=type,\n    #\n):\n    ...\n\n\nclass B(A, metaclass=type):\n    ...\n\n\nclass B(\n    A,\n    metaclass=type,\n):\n    ...\n\n\nclass B(\n    A,\n    # comment\n    metaclass=type,\n):\n    ...\n\n\ndef foo():\n    class A(metaclass=type):\n        ...\n\n\nclass A(\n    metaclass=type  # comment\n    ,\n):\n    ...\n\n\ntype = str\n\nclass Foo(metaclass=type):\n    ...\n\n\nimport builtins\n\nclass A(metaclass=builtins.type):\n    ..."
+      },
+      "source_sha256": "47dee0acf2d3c4202d1042b7ee9c7c5e2d755db91dafe5d23dc77f60a08a9815",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP050",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "target": "py310",
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP050",
+          "end_location": {
+            "column": 23,
+            "row": 5
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "",
+                "end_location": {
+                  "column": 24,
+                  "row": 5
+                },
+                "location": {
+                  "column": 8,
+                  "row": 5
+                }
+              }
+            ],
+            "message": "Remove `metaclass=type`"
+          },
+          "location": {
+            "column": 9,
+            "row": 5
+          },
+          "message": "Class `A` uses `metaclass=type`, which is redundant",
+          "name": "useless-class-metaclass-type",
+          "noqa_row": 5,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/useless-class-metaclass-type"
+        },
+        {
+          "cell": null,
+          "code": "UP050",
+          "end_location": {
+            "column": 19,
+            "row": 10
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "",
+                "end_location": {
+                  "column": 2,
+                  "row": 11
+                },
+                "location": {
+                  "column": 8,
+                  "row": 9
+                }
+              }
+            ],
+            "message": "Remove `metaclass=type`"
+          },
+          "location": {
+            "column": 5,
+            "row": 10
+          },
+          "message": "Class `A` uses `metaclass=type`, which is redundant",
+          "name": "useless-class-metaclass-type",
+          "noqa_row": 10,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/useless-class-metaclass-type"
+        },
+        {
+          "cell": null,
+          "code": "UP050",
+          "end_location": {
+            "column": 19,
+            "row": 16
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "unsafe",
+            "edits": [
+              {
+                "content": "",
+                "end_location": {
+                  "column": 2,
+                  "row": 18
+                },
+                "location": {
+                  "column": 8,
+                  "row": 15
+                }
+              }
+            ],
+            "message": "Remove `metaclass=type`"
+          },
+          "location": {
+            "column": 5,
+            "row": 16
+          },
+          "message": "Class `A` uses `metaclass=type`, which is redundant",
+          "name": "useless-class-metaclass-type",
+          "noqa_row": 16,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/useless-class-metaclass-type"
+        },
+        {
+          "cell": null,
+          "code": "UP050",
+          "end_location": {
+            "column": 19,
+            "row": 24
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "unsafe",
+            "edits": [
+              {
+                "content": "",
+                "end_location": {
+                  "column": 2,
+                  "row": 25
+                },
+                "location": {
+                  "column": 8,
+                  "row": 22
+                }
+              }
+            ],
+            "message": "Remove `metaclass=type`"
+          },
+          "location": {
+            "column": 5,
+            "row": 24
+          },
+          "message": "Class `A` uses `metaclass=type`, which is redundant",
+          "name": "useless-class-metaclass-type",
+          "noqa_row": 24,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/useless-class-metaclass-type"
+        },
+        {
+          "cell": null,
+          "code": "UP050",
+          "end_location": {
+            "column": 19,
+            "row": 30
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "unsafe",
+            "edits": [
+              {
+                "content": "",
+                "end_location": {
+                  "column": 2,
+                  "row": 32
+                },
+                "location": {
+                  "column": 8,
+                  "row": 29
+                }
+              }
+            ],
+            "message": "Remove `metaclass=type`"
+          },
+          "location": {
+            "column": 5,
+            "row": 30
+          },
+          "message": "Class `A` uses `metaclass=type`, which is redundant",
+          "name": "useless-class-metaclass-type",
+          "noqa_row": 30,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/useless-class-metaclass-type"
+        },
+        {
+          "cell": null,
+          "code": "UP050",
+          "end_location": {
+            "column": 19,
+            "row": 38
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "unsafe",
+            "edits": [
+              {
+                "content": "",
+                "end_location": {
+                  "column": 2,
+                  "row": 40
+                },
+                "location": {
+                  "column": 8,
+                  "row": 36
+                }
+              }
+            ],
+            "message": "Remove `metaclass=type`"
+          },
+          "location": {
+            "column": 5,
+            "row": 38
+          },
+          "message": "Class `A` uses `metaclass=type`, which is redundant",
+          "name": "useless-class-metaclass-type",
+          "noqa_row": 38,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/useless-class-metaclass-type"
+        },
+        {
+          "cell": null,
+          "code": "UP050",
+          "end_location": {
+            "column": 26,
+            "row": 44
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "",
+                "end_location": {
+                  "column": 26,
+                  "row": 44
+                },
+                "location": {
+                  "column": 10,
+                  "row": 44
+                }
+              }
+            ],
+            "message": "Remove `metaclass=type`"
+          },
+          "location": {
+            "column": 12,
+            "row": 44
+          },
+          "message": "Class `B` uses `metaclass=type`, which is redundant",
+          "name": "useless-class-metaclass-type",
+          "noqa_row": 44,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/useless-class-metaclass-type"
+        },
+        {
+          "cell": null,
+          "code": "UP050",
+          "end_location": {
+            "column": 19,
+            "row": 50
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "",
+                "end_location": {
+                  "column": 19,
+                  "row": 50
+                },
+                "location": {
+                  "column": 6,
+                  "row": 49
+                }
+              }
+            ],
+            "message": "Remove `metaclass=type`"
+          },
+          "location": {
+            "column": 5,
+            "row": 50
+          },
+          "message": "Class `B` uses `metaclass=type`, which is redundant",
+          "name": "useless-class-metaclass-type",
+          "noqa_row": 50,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/useless-class-metaclass-type"
+        },
+        {
+          "cell": null,
+          "code": "UP050",
+          "end_location": {
+            "column": 19,
+            "row": 58
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "unsafe",
+            "edits": [
+              {
+                "content": "",
+                "end_location": {
+                  "column": 19,
+                  "row": 58
+                },
+                "location": {
+                  "column": 6,
+                  "row": 56
+                }
+              }
+            ],
+            "message": "Remove `metaclass=type`"
+          },
+          "location": {
+            "column": 5,
+            "row": 58
+          },
+          "message": "Class `B` uses `metaclass=type`, which is redundant",
+          "name": "useless-class-metaclass-type",
+          "noqa_row": 58,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/useless-class-metaclass-type"
+        },
+        {
+          "cell": null,
+          "code": "UP050",
+          "end_location": {
+            "column": 19,
+            "row": 69
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "unsafe",
+            "edits": [
+              {
+                "content": "",
+                "end_location": {
+                  "column": 2,
+                  "row": 71
+                },
+                "location": {
+                  "column": 8,
+                  "row": 68
+                }
+              }
+            ],
+            "message": "Remove `metaclass=type`"
+          },
+          "location": {
+            "column": 5,
+            "row": 69
+          },
+          "message": "Class `A` uses `metaclass=type`, which is redundant",
+          "name": "useless-class-metaclass-type",
+          "noqa_row": 69,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/useless-class-metaclass-type"
+        },
+        {
+          "cell": null,
+          "code": "UP050",
+          "end_location": {
+            "column": 32,
+            "row": 83
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "",
+                "end_location": {
+                  "column": 33,
+                  "row": 83
+                },
+                "location": {
+                  "column": 8,
+                  "row": 83
+                }
+              }
+            ],
+            "message": "Remove `metaclass=type`"
+          },
+          "location": {
+            "column": 9,
+            "row": 83
+          },
+          "message": "Class `A` uses `metaclass=type`, which is redundant",
+          "name": "useless-class-metaclass-type",
+          "noqa_row": 83,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/useless-class-metaclass-type"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP050",
+          "file": "case.py",
+          "start": 27,
+          "end": 41
+        },
+        {
+          "rule": "UP050",
+          "file": "case.py",
+          "start": 67,
+          "end": 81
+        },
+        {
+          "rule": "UP050",
+          "file": "case.py",
+          "start": 108,
+          "end": 122
+        },
+        {
+          "rule": "UP050",
+          "file": "case.py",
+          "start": 161,
+          "end": 175
+        },
+        {
+          "rule": "UP050",
+          "file": "case.py",
+          "start": 202,
+          "end": 216
+        },
+        {
+          "rule": "UP050",
+          "file": "case.py",
+          "start": 256,
+          "end": 270
+        },
+        {
+          "rule": "UP050",
+          "file": "case.py",
+          "start": 302,
+          "end": 316
+        },
+        {
+          "rule": "UP050",
+          "file": "case.py",
+          "start": 349,
+          "end": 363
+        },
+        {
+          "rule": "UP050",
+          "file": "case.py",
+          "start": 412,
+          "end": 426
+        },
+        {
+          "rule": "UP050",
+          "file": "case.py",
+          "start": 508,
+          "end": 522
+        },
+        {
+          "rule": "UP050",
+          "file": "case.py",
+          "start": 627,
+          "end": 650
+        }
+      ],
+      "status": 1
+    },
+    {
+      "rule": "UP050",
+      "name": "same-name-later-binding",
+      "files": {
+        "case.py": "class C(metaclass=type): pass\ntype = other\n"
+      },
+      "source_sha256": "58f174eeeac19dcb117a691ee6e10547f528f8f76e57f75c8c98960c6f3498a1",
+      "argv": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP050",
+        "--output-format",
+        "json",
+        "--stdin-filename",
+        "case.py",
+        "-"
+      ],
+      "target": "py310",
+      "raw": [
+        {
+          "cell": null,
+          "code": "UP050",
+          "end_location": {
+            "column": 23,
+            "row": 1
+          },
+          "filename": "/workspaces/idiomatic/case.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "",
+                "end_location": {
+                  "column": 24,
+                  "row": 1
+                },
+                "location": {
+                  "column": 8,
+                  "row": 1
+                }
+              }
+            ],
+            "message": "Remove `metaclass=type`"
+          },
+          "location": {
+            "column": 9,
+            "row": 1
+          },
+          "message": "Class `C` uses `metaclass=type`, which is redundant",
+          "name": "useless-class-metaclass-type",
+          "noqa_row": 1,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/useless-class-metaclass-type"
+        }
+      ],
+      "expected": [
+        {
+          "rule": "UP050",
+          "file": "case.py",
+          "start": 8,
+          "end": 22
+        }
+      ],
+      "status": 1
+    }
+  ]
+}

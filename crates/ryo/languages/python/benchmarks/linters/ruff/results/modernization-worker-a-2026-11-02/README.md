@@ -1,0 +1,9 @@
+AUTHORITATIVE STATUS: source-smoke only; admission pending canonical profile staging. Initial direct runs omitted phase policy and used always. Later direct phase requests do not replace the strict canonical staging guard. Historical raw results remain evidence of those specific invocations, not canonical parity.
+
+This batch uses independent language binding-read/use edges to identify imported typing symbols and builtin type. It does not reconstruct Ruff visit caches or recognize arbitrary lookalike TYPE_CHECKING names. Annotation evaluation comes from the existing compiler-feature-backed helper; native Python 3.14 deferral remains distinct from the future flag. Runtime aliases on Python <3.10 are not modernized merely because a future flag exists.
+
+UP050: 16/16 complete exact singleton py310 reports. UP045: 31/31. UP007: 30/31 exact reports; every UP007 diagnostic matches, but the tagged UP007_1.py source includes a late future statement and the Python frontend additionally reports invalid-syntax at3694..3728. This is a retained diagnostic-taxonomy difference, not a query exception or an accepted discrepancy waiver. All original native arrays remain intact.
+
+Target3.9 and3.14 source-hashed native outputs and explicit profiles/case files are retained. The sealed755 worker rejects these parser configurations. Their candidate checks are pending and must not be inferred from py310 passes. The py314 rule path uses annotation-evaluation-context deferred rows for string-bearing annotations; these rows are not added to the actual future flag. Files with unsupported/ambiguous import origin remain conservative rather than inventing a binding.
+
+Proof JSON binds the singleton selection, parser setting, query, cases, profile, complete module registry and exact staged dependency bytes. Historical evidence is immutable. The source inventory in the handoff is presence-only, not verified coverage of413 rules.

@@ -1,0 +1,733 @@
+[
+  {
+    "rule": "UP045",
+    "name": "alias",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "8b4ba93b5365be44d6b5651332a01eac6a9f2cbd0ff6288b9fd2c7b88f3e0722",
+    "source_sha256": "534c286f1b42bdf311fcb9f05301cf8255b64bf7d3e6ce5eb3e3e38f0f4b06de",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [
+      {
+        "rule": "UP045",
+        "file": "case.py",
+        "start": 36,
+        "end": 42
+      }
+    ],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "UP045",
+    "name": "annotation",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "966f5aee962764d1f17a9e2972a21a4e3f47c17c94392bddec201f62d0520432",
+    "source_sha256": "e09f8fba6c7633f871d78d1b5de2dea50b51fcbf35529272b04aa2abebeba463",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [
+      {
+        "rule": "UP045",
+        "file": "case.py",
+        "start": 31,
+        "end": 44
+      }
+    ],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "UP045",
+    "name": "argument-shadow",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "50347b0f20ba29f7dd2133ab7184095c8bc1dd95b327609f3f0ac3fec6f4c724",
+    "source_sha256": "419fccc31cde171393b4044b3fd4821c4b0e583ce3f6e5f09f9e6c9aa5d4b49e",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "UP045",
+    "name": "async-signature",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "ae05ab778fae7617decfdaff8641f9c93ed7ee46b1490a2e8e46c36946111e46",
+    "source_sha256": "62a8e23bb8c2b88741bc35d0d8978a009b8d7198e3e71595e7a92cafb6624287",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [
+      {
+        "rule": "UP045",
+        "file": "case.py",
+        "start": 43,
+        "end": 56
+      }
+    ],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "UP045",
+    "name": "direct-quoted-annotation",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "16b5f95ac4473427c99dd4e8ae1f489a4701dc9ddd861d6bc6c4b81865e08c96",
+    "source_sha256": "f0971c9e7548146bd3bcb08e2eb1c1336d511b0400afa5d77756040d68d719a9",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "UP045",
+    "name": "extensions",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "5191f749af73a49637366f9c4c66841a7a9416cd5e3479558d0d9f1dffee318d",
+    "source_sha256": "04601dadb102c149f203f07984abf8a018f3531ed9f4af6f25c2b44e86d5ec9f",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [
+      {
+        "rule": "UP045",
+        "file": "case.py",
+        "start": 42,
+        "end": 55
+      }
+    ],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "UP045",
+    "name": "function-later-import",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "81aef72f9be14bbe58e85e35866227986138b1a64641ac5eb85e5ed5246ce697",
+    "source_sha256": "2620854052163caab49fd798b45014f1941329f0a550f4bd5d0c986a360aa1b7",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [
+      {
+        "rule": "UP045",
+        "file": "case.py",
+        "start": 17,
+        "end": 30
+      }
+    ],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "UP045",
+    "name": "future-forward-import",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "571599488d4b1b52c971b3398b588aed3a45bcc742fcc1ea85cdd4d31e2ca30e",
+    "source_sha256": "e9819b8b7746064fca37f4ac07a9cfb69849d9b20abacd6c296aab630d0128ed",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [
+      {
+        "rule": "UP045",
+        "file": "case.py",
+        "start": 38,
+        "end": 51
+      }
+    ],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "UP045",
+    "name": "guard",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "7296d6590dfe0ff40d7bdda80b7cda221ffda95e83ab766a144126834b59af58",
+    "source_sha256": "34267fc46e97493f059811b281f12e033e8004b022aa11368d0b5dd6f765abef",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [
+      {
+        "rule": "UP045",
+        "file": "case.py",
+        "start": 69,
+        "end": 86
+      }
+    ],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "UP045",
+    "name": "guard-else",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "0d97af5ebea42f79e33e43cca2191c625d0a273388720fa6aae1e6a4a9a7dfd7",
+    "source_sha256": "e4d6bb68fa6241deb9c0fadb2da93ac4f33c38954540684b477eeb953acb88f7",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "UP045",
+    "name": "local-annotation",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "08dd10641b1beae7e36c8010f8275112a3139d072da415decf9c77036e78b357",
+    "source_sha256": "be1e5a70e2ce92b77efad20394f0758be746b826aedc6f939563cfecd2979297",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [
+      {
+        "rule": "UP045",
+        "file": "case.py",
+        "start": 44,
+        "end": 57
+      }
+    ],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "UP045",
+    "name": "module",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "d5e543d4a0fe171842c070edd9900f10be8430abe435029229553e9fd12ead1d",
+    "source_sha256": "51c0c3a2e44b38839bf9d9c8e30604e73cc53b529ff483777158e639afbfdcf2",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [
+      {
+        "rule": "UP045",
+        "file": "case.py",
+        "start": 17,
+        "end": 37
+      }
+    ],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "UP045",
+    "name": "module-alias",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "82ffbabe42eb9f43e763f6f6dedd5404a0571804df9833d44debe04a95a05d97",
+    "source_sha256": "69a4fec38bd58577a181ad9381cb6add63045375f30ae3a4d7a60914ad8cfe92",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [
+      {
+        "rule": "UP045",
+        "file": "case.py",
+        "start": 22,
+        "end": 37
+      }
+    ],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "UP045",
+    "name": "module-rebound",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "d63429e20515ce62cdbaf4471cf9a1eb57e3f435b3b2a0f6f9abc6bc649f1dfd",
+    "source_sha256": "c7dd6667fde59c580c6bdafb8d8380c2e4a20090674b16c1152cc36a0f3bd485",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "UP045",
+    "name": "named-tuple",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "67c456c18b2a7fbddefa4581540874a8ead4e45ce86cf601f5dcbb1dcd62bf72",
+    "source_sha256": "783fa5f84bb6c5fe42dce518d9d305a70c433f118309d7c97a21252d6eb88337",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "UP045",
+    "name": "nested-direct-guard",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "7cf8c08562d156b24758d65048154b314664921f4f5232e0df99494cfd9c3a02",
+    "source_sha256": "0050ebda944f6183c9b5fbd3cf1665b75af0fa4a1f0d57baee024db40b989523",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [
+      {
+        "rule": "UP045",
+        "file": "case.py",
+        "start": 91,
+        "end": 108
+      }
+    ],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "UP045",
+    "name": "nested-quoted-runtime",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "43ee7b5f6babe7bbcfa9143e4cddd6bec863923561dd7787e99bb4b4b75ba7c4",
+    "source_sha256": "42ef3b04743c6bee0d185aa6570df11dd9c0ff72daec08d8490fba4b673dac95",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [
+      {
+        "rule": "UP045",
+        "file": "case.py",
+        "start": 32,
+        "end": 55
+      }
+    ],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "UP045",
+    "name": "noqa",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "93ccb77b6681371e397a5b0707286f0b5db32aa3147bd3e211ee33155ea22fb5",
+    "source_sha256": "cf5efc86addaf579d4a17b97e6f73481be78f1367da1536a17c8418e61883d21",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "UP045",
+    "name": "other-operator",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "6895312b5a3534eb022919a91957f22b4c48c137b485f112e764cbd5b056d44e",
+    "source_sha256": "cd0fe402b35675580c54215644a7a1ea687ca47e7ab4c1849baad28c641ce0f1",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "UP045",
+    "name": "quoted-future",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "275bae2a8963a4467018c2596b4b2bc106547878668851a2e1ca84398e014922",
+    "source_sha256": "42731f2e301573e6773a71b9ea6d146aa92cc4c0cb7bff27df4071dfc19de5dc",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [
+      {
+        "rule": "UP045",
+        "file": "case.py",
+        "start": 66,
+        "end": 83
+      }
+    ],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "UP045",
+    "name": "quoted-runtime",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "484d9179f26ea78485062ad8d29a2acffeba13423029f115a55fce8d23ee96a5",
+    "source_sha256": "510282bc90f893c906a49a2cc99a9ec03da5fe83a8896079e124def3a2f4ff0f",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "UP045",
+    "name": "runtime-alias",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "d4e9b0fb7b4b6ffa1fbbc0c33f95a79700fed74412eb0f85b4cb08fd0612e914",
+    "source_sha256": "937c7e910e860a98943c2c7c58c337551c82cfd9a515f9517b598849fc1a136c",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [
+      {
+        "rule": "UP045",
+        "file": "case.py",
+        "start": 36,
+        "end": 49
+      }
+    ],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "UP045",
+    "name": "shadowed",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "3f14497e48ae67f29657ddf05051b8fda1c0f37d41f92a49b3a9ec9c84a69eb6",
+    "source_sha256": "131bbb78037f0d73f7000544f6332151b69c94cc60bc730c6669d9044719ad9c",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "UP045",
+    "name": "signature",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "cd1f43b383e0ed1efa23040e890f4c17f478e265da30346a3ce9876e0aa1cb2c",
+    "source_sha256": "df80cefbea8ab3e0dbdcae3a87fc5331a3d3abe7163551a09b16d8f5420f724e",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [
+      {
+        "rule": "UP045",
+        "file": "case.py",
+        "start": 37,
+        "end": 50
+      },
+      {
+        "rule": "UP045",
+        "file": "case.py",
+        "start": 55,
+        "end": 68
+      }
+    ],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "UP045",
+    "name": "starred",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "f0215a20ce29258b56c659fe19751add422f2a2fa2ab9bfd8d7d80cc679b6962",
+    "source_sha256": "7fdf4a7a7a42b07d65bbc1b9966fbb42dc558a92bdd8f829371d0a012735a90d",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 41,
+        "end": 47
+      }
+    ],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "UP045",
+    "name": "stub",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "e0197f4e2deb24e7b88f4e095f83e08ad4db65355395868fe8d8eb6e57a4d9a7",
+    "source_sha256": "e96fdfd70c775a59c4a197aaa4fda81060d30897191ee6062bddc25417a78435",
+    "files": [
+      "case.pyi"
+    ],
+    "comparison": "full",
+    "expected": [
+      {
+        "rule": "UP045",
+        "file": "case.pyi",
+        "start": 31,
+        "end": 48
+      }
+    ],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "UP045",
+    "name": "tagged-UP045_1.py",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "5d7469f7e104124b6acc2a55fa6464425edca0d4c555d41d8d113b14be4ac25b",
+    "source_sha256": "de1cffb45d04afe9c79f6019b65304c9ab4ee3dcb0bde69acb6d9e30314fac9e",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [
+      {
+        "rule": "UP045",
+        "file": "case.py",
+        "start": 53,
+        "end": 66
+      },
+      {
+        "rule": "UP045",
+        "file": "case.py",
+        "start": 96,
+        "end": 116
+      },
+      {
+        "rule": "UP045",
+        "file": "case.py",
+        "start": 161,
+        "end": 174
+      },
+      {
+        "rule": "UP045",
+        "file": "case.py",
+        "start": 183,
+        "end": 196
+      },
+      {
+        "rule": "UP045",
+        "file": "case.py",
+        "start": 213,
+        "end": 226
+      },
+      {
+        "rule": "UP045",
+        "file": "case.py",
+        "start": 257,
+        "end": 278
+      },
+      {
+        "rule": "UP045",
+        "file": "case.py",
+        "start": 308,
+        "end": 334
+      },
+      {
+        "rule": "UP045",
+        "file": "case.py",
+        "start": 364,
+        "end": 384
+      },
+      {
+        "rule": "UP045",
+        "file": "case.py",
+        "start": 526,
+        "end": 616
+      },
+      {
+        "rule": "UP045",
+        "file": "case.py",
+        "start": 747,
+        "end": 760
+      },
+      {
+        "rule": "UP045",
+        "file": "case.py",
+        "start": 890,
+        "end": 904
+      },
+      {
+        "rule": "UP045",
+        "file": "case.py",
+        "start": 1708,
+        "end": 1731
+      },
+      {
+        "rule": "UP045",
+        "file": "case.py",
+        "start": 1717,
+        "end": 1730
+      },
+      {
+        "rule": "UP045",
+        "file": "case.py",
+        "start": 1763,
+        "end": 1793
+      },
+      {
+        "rule": "UP045",
+        "file": "case.py",
+        "start": 1779,
+        "end": 1792
+      },
+      {
+        "rule": "UP045",
+        "file": "case.py",
+        "start": 1825,
+        "end": 1858
+      },
+      {
+        "rule": "UP045",
+        "file": "case.py",
+        "start": 1834,
+        "end": 1857
+      },
+      {
+        "rule": "UP045",
+        "file": "case.py",
+        "start": 1843,
+        "end": 1856
+      },
+      {
+        "rule": "UP045",
+        "file": "case.py",
+        "start": 1873,
+        "end": 1903
+      },
+      {
+        "rule": "UP045",
+        "file": "case.py",
+        "start": 2047,
+        "end": 2067
+      },
+      {
+        "rule": "UP045",
+        "file": "case.py",
+        "start": 2080,
+        "end": 2100
+      },
+      {
+        "rule": "UP045",
+        "file": "case.py",
+        "start": 2113,
+        "end": 2133
+      },
+      {
+        "rule": "UP045",
+        "file": "case.py",
+        "start": 2146,
+        "end": 2172
+      },
+      {
+        "rule": "UP045",
+        "file": "case.py",
+        "start": 2185,
+        "end": 2206
+      }
+    ],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "UP045",
+    "name": "tagged-UP045_2.py",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "0d81234a1dd82a0435dfd31e82c3a6ae88d735e330ae00b04dc7f65bfea8753e",
+    "source_sha256": "7789126b394b5d907df9f964b611d173a0c7285924c695b4162698a67373a6bb",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [
+      {
+        "rule": "UP045",
+        "file": "case.py",
+        "start": 53,
+        "end": 66
+      },
+      {
+        "rule": "UP045",
+        "file": "case.py",
+        "start": 96,
+        "end": 116
+      }
+    ],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "UP045",
+    "name": "undefined",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "3df4cb85b77f2bb59779f7fc674dfc528b8c4ffa9c7dbb1406a877684e4585c1",
+    "source_sha256": "c29b10964ab8676afde06c819c0b2fe750a9dfdab974ecf3407a7cb1ddd409f5",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "UP045",
+    "name": "unicode",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "951b8712f701b7b83ed0245ef94416ec4fdedaf01f6017bc59faa4b7e53f8a74",
+    "source_sha256": "724d3266f7540ae2027f7bd70561732c73a10b81989c8a5c3883593abb6c48b5",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [
+      {
+        "rule": "UP045",
+        "file": "case.py",
+        "start": 32,
+        "end": 45
+      }
+    ],
+    "reference_discrepancy": null
+  },
+  {
+    "rule": "UP045",
+    "name": "union-nested-tuples",
+    "project_context_mode": "isolated",
+    "context_identity": null,
+    "case_sha256": "a2298ef91e695405d13c60646cb191c59ea1d6d9a5864e0d7c95b7a0a99cc8d7",
+    "source_sha256": "2045770bb62634b6c5ce2c9db2a1074014c42fb5c4ab5a80551e4a659eb492ac",
+    "files": [
+      "case.py"
+    ],
+    "comparison": "full",
+    "expected": [
+      {
+        "rule": "UP045",
+        "file": "case.py",
+        "start": 31,
+        "end": 51
+      }
+    ],
+    "reference_discrepancy": null
+  }
+]
