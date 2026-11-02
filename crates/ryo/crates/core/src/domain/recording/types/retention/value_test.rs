@@ -14,7 +14,7 @@ use ryo_values::domain::records::types::{
 use ryo_values::domain::stored_facts::types::{
     ArenaBytes, Bucket, Digest, FileNotes, KeptWords, LanguageNumber, NoteBytes, PackedWords,
 };
-use ryo_values::domain::stores::types::{BucketsWanted, Stored};
+use ryo_values::domain::stores::types::{BucketsWanted, ReadHanded, Stored};
 
 fn bytes(capacity: usize, count: usize) -> Vec<u8> {
     let mut bytes = Vec::with_capacity(capacity);
@@ -83,7 +83,7 @@ fn record_and_store_snapshots_follow_the_same_moved_payload_capacities() {
             consulted_absent: &[],
         },
         &Stored::default(),
-        &Default::default(),
+        &ReadHanded::default(),
         &BucketsWanted::All,
         vec![],
     );

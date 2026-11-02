@@ -8,10 +8,12 @@ use crate::outbound::lint_store::adapters::postcard::types::{
     FileOffset, SectionLength, SectionSpan,
 };
 use ryo_values::domain::records::types::StagedWords;
-use ryo_values::domain::stored_facts::types::Bucket;
-use ryo_values::domain::stores::types::{StagedRow, StoredFileNumber, StoredWords};
+use ryo_values::domain::stored_facts::types::{Bucket, PackedWords};
+use ryo_values::domain::stores::types::{
+    OldWords, StagedRow, StoreSnapshot, StoredFileNumber, StoredWords,
+};
 use std::collections::BTreeMap;
-use std::io::{BufReader, Seek as _, SeekFrom, Write};
+use std::io::{BufReader, Read, Seek, SeekFrom, Write};
 
 /// One borrowed or file-backed payload, never an eagerly allocated rebuilt bucket.
 #[derive(Clone, Copy, Debug)]
@@ -31,6 +33,52 @@ pub(in crate::outbound::lint_store::adapters::postcard) struct Frame<'a> {
     pub file: StoredFileNumber,
     /// Original packed bytes or an exact byte span.
     pub payload: Payload<'a>,
+}
+
+/// One validated old row, including the framing offset needed by lazy snapshot reads.
+#[derive(Clone, Copy, Debug)]
+pub(in crate::outbound::lint_store::adapters::postcard) struct OldFrame {
+    /// Original file number, unchanged until application remapping.
+    pub file: StoredFileNumber,
+    /// Header start, before its two postcard integers.
+    pub header: u64,
+    /// Original packed bytes, left in the immutable open snapshot.
+    pub span: SectionSpan,
+}
+
+/// Cap header read-ahead at the requested section; neighboring buckets remain unread.
+struct BucketReader<'a, R> {
+    file: &'a mut R,
+    start: u64,
+    end: u64,
+    at: u64,
+}
+
+impl<R: Read> Read for BucketReader<'_, R> {
+    fn read(&mut self, into: &mut [u8]) -> std::io::Result<usize> {
+        let count = into
+            .len()
+            .min(usize::try_from(self.end - self.at).unwrap_or(usize::MAX));
+        let read = self.file.read(&mut into[..count])?;
+        self.at += u64::try_from(read).map_err(std::io::Error::other)?;
+        Ok(read)
+    }
+}
+
+impl<R: Seek> Seek for BucketReader<'_, R> {
+    fn seek(&mut self, from: SeekFrom) -> std::io::Result<u64> {
+        let at = match from {
+            SeekFrom::Start(at) => i128::from(at),
+            SeekFrom::Current(by) => i128::from(self.at) + i128::from(by),
+            SeekFrom::End(by) => i128::from(self.end) + i128::from(by),
+        };
+        let at = u64::try_from(at).map_err(|_| invalid("old bucket seek underflows"))?;
+        if at < self.start || at > self.end {
+            return Err(invalid("old bucket seek exceeds its section"));
+        }
+        self.at = self.file.seek(SeekFrom::Start(at))?;
+        Ok(self.at)
+    }
 }
 
 /// Restore one fresh sequence from inline entries and staged ordinal slots; no payload is copied.
@@ -79,7 +127,7 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn fresh<'a>(
     Ok(buckets)
 }
 
-/// Parse only row headers and byte spans, bounded by the original section; never read its packed payload.
+/// Parse original rows for the unchanged persistent bucket-copy path.
 pub(in crate::outbound::lint_store::adapters::postcard) fn old_rows(
     file: &mut std::fs::File,
     span: SectionSpan,
@@ -88,12 +136,35 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn old_rows(
     old_rows_in(file, span, held)
 }
 
-/// The exact header scanner is generic so tests count physical IO independent of filesystem caching.
+/// The prior frame view remains byte-compatible for writers and their work tests.
 pub(in crate::outbound::lint_store::adapters::postcard) fn old_rows_in(
-    file: &mut (impl std::io::Read + std::io::Seek),
+    file: &mut (impl Read + Seek),
     span: SectionSpan,
     held: u64,
 ) -> std::io::Result<Vec<Frame<'static>>> {
+    Ok(old_word_rows_in(file, span, held)?
+        .into_iter()
+        .map(|row| Frame {
+            file: row.file,
+            payload: Payload::Old(row.span),
+        })
+        .collect())
+}
+
+/// Enumerate header descriptors using bounded read-ahead, never a whole bucket allocation.
+pub(in crate::outbound::lint_store::adapters::postcard) fn old_word_rows(
+    file: &mut std::fs::File,
+    span: SectionSpan,
+) -> std::io::Result<Vec<OldFrame>> {
+    let held = file.metadata()?.len();
+    old_word_rows_in(file, span, held)
+}
+
+pub(in crate::outbound::lint_store::adapters::postcard) fn old_word_rows_in(
+    file: &mut (impl Read + Seek),
+    span: SectionSpan,
+    held: u64,
+) -> std::io::Result<Vec<OldFrame>> {
     let end = span
         .start
         .0
@@ -101,7 +172,13 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn old_rows_in(
         .filter(|end| *end <= held)
         .ok_or_else(|| invalid("old bucket span is truncated or overflows"))?;
     let _position = file.seek(SeekFrom::Start(span.start.0))?;
-    let mut file = BufReader::with_capacity(BUFFER_BYTES, file);
+    let bounded = BucketReader {
+        file,
+        start: span.start.0,
+        end,
+        at: span.start.0,
+    };
+    let mut file = BufReader::with_capacity(BUFFER_BYTES, bounded);
     let mut cursor = span.start.0;
     let count = integer(
         &mut file,
@@ -114,6 +191,7 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn old_rows_in(
     }
     let mut rows = Vec::new();
     for _ in 0..count {
+        let header = cursor;
         let number = integer(&mut file, &mut cursor, end, u64::from(u32::MAX))?;
         let length = integer(
             &mut file,
@@ -126,14 +204,15 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn old_rows_in(
             .filter(|after| *after <= end)
             .ok_or_else(|| invalid("old row payload exceeds its section"))?;
         rows.try_reserve(1).map_err(std::io::Error::other)?;
-        rows.push(Frame {
+        rows.push(OldFrame {
             file: StoredFileNumber(
                 u32::try_from(number).map_err(|_| invalid("old file number overflows"))?,
             ),
-            payload: Payload::Old(SectionSpan {
+            header,
+            span: SectionSpan {
                 start: FileOffset(cursor),
                 length: SectionLength(length),
-            }),
+            },
         });
         seek_buffered(&mut file, cursor, after)?;
         cursor = after;
@@ -144,13 +223,62 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn old_rows_in(
     Ok(rows)
 }
 
+/// Resolve one row from an already-open immutable snapshot after validating its exact framing.
+/// No buffering here can pull another row's payload into the caller's read.
+pub(in crate::outbound::lint_store::adapters::postcard) fn read_old_in(
+    file: &mut (impl Read + Seek),
+    held: u64,
+    snapshot: StoreSnapshot,
+    bucket: SectionSpan,
+    words: &OldWords,
+    into: &mut PackedWords,
+) -> std::io::Result<()> {
+    if words.snapshot != snapshot {
+        return Err(invalid("old row belongs to another store snapshot"));
+    }
+    let end = bucket
+        .start
+        .0
+        .checked_add(bucket.length.0)
+        .filter(|end| *end <= held)
+        .ok_or_else(|| invalid("old bucket span is truncated or overflows"))?;
+    let after = words
+        .offset
+        .checked_add(words.length)
+        .filter(|after| *after <= end)
+        .ok_or_else(|| invalid("old row payload is truncated or overflows"))?;
+    if words.header <= bucket.start.0 || words.header >= words.offset || words.offset > after {
+        return Err(invalid("old row header is outside its bucket"));
+    }
+    let length = usize::try_from(words.length)
+        .map_err(|_| invalid("old row payload exceeds addressable memory"))?;
+    let _position = file.seek(SeekFrom::Start(words.header))?;
+    let mut cursor = words.header;
+    let number = integer(file, &mut cursor, end, u64::from(u32::MAX))?;
+    let framed_length = integer(
+        file,
+        &mut cursor,
+        end,
+        u64::try_from(usize::MAX).unwrap_or(u64::MAX),
+    )?;
+    if number != u64::from(words.file.0) || framed_length != words.length || cursor != words.offset
+    {
+        return Err(invalid("old row descriptor does not match its framing"));
+    }
+    into.0.clear();
+    into.0
+        .try_reserve_exact(length)
+        .map_err(std::io::Error::other)?;
+    into.0.resize(length, 0);
+    if let Err(error) = file.read_exact(&mut into.0) {
+        into.0.clear();
+        return Err(error);
+    }
+    Ok(())
+}
+
 /// Postcard unsigned varints are bounded by the encoded type's width, including a checked last digit.
-fn integer(
-    file: &mut impl std::io::Read,
-    cursor: &mut u64,
-    end: u64,
-    maximum: u64,
-) -> std::io::Result<u64> {
+fn integer(file: &mut impl Read, cursor: &mut u64, end: u64, maximum: u64) -> std::io::Result<u64> {
     let digits = ((64 - maximum.leading_zeros()).max(1)).div_ceil(7);
     let mut value = 0_u64;
     for digit in 0..digits {

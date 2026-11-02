@@ -1,7 +1,7 @@
 //! What every `lint_store` adapter must pass.
 
 use super::super::errors::LintStoreError;
-use super::super::interface::LintStorePort;
+use super::super::interface::{LintStorePort, ReadStore};
 use super::super::types::StoreKeeping;
 use super::fake::{again, failed, over_a_b_d_and_e, over_b_and_d, stored, words_of};
 use crate::cases::{Case, CaseName, Expect, Word, run};
@@ -10,6 +10,37 @@ use ryo_values::domain::stored_facts::types::PackedWords;
 use ryo_values::domain::stores::types::{
     BucketsWanted, FileAgain, KeptRows, Stored, StoredFileNumber, StoredHanded, StoredWords,
 };
+
+/// Explicitly resolve the read representation only in contract result oracles.
+/// Production handover resolves a filtered row at a time instead of materializing this table.
+pub fn materialized_handed(
+    read: &dyn ReadStore,
+    wanted: &BucketsWanted,
+) -> Result<StoredHanded, LintStoreError> {
+    let handed = read.handed(wanted)?;
+    let mut rows = Vec::with_capacity(handed.frontier.len());
+    for row in handed.frontier {
+        let words = match row.words {
+            ryo_values::domain::stores::types::ReadWordPayload::Inline(words) => words,
+            ryo_values::domain::stores::types::ReadWordPayload::Old(span) => {
+                let mut loaded = PackedWords::default();
+                read.read_old(&span, &mut loaded)?;
+                loaded
+            }
+        };
+        rows.push(StoredWords {
+            file: row.file,
+            bucket: row.bucket,
+            words,
+        });
+    }
+    Ok(StoredHanded {
+        frontier: rows,
+        texts: handed.texts,
+        notes: handed.notes,
+        covered: handed.covered,
+    })
+}
 
 /// What a row of the contract asks of a store.
 #[derive(Clone, Copy, Debug)]
@@ -108,13 +139,13 @@ fn answer(
         kept(stored(1), &KeptRows::default())?;
         let read = store.stored()?;
         return Ok(read.tables() == Stored::default()
-            && read.handed(&BucketsWanted::All)? == StoredHanded::default());
+            && materialized_handed(&*read, &BucketsWanted::All)? == StoredHanded::default());
     }
     // The whole store: the small tables, and what the files handed, every bucket of it.
     let whole = |port: &dyn LintStorePort| -> Result<Stored, LintStoreError> {
         let read = port.stored()?;
         let mut tables = read.tables();
-        tables.handed = read.handed(&BucketsWanted::All)?;
+        tables.handed = materialized_handed(&*read, &BucketsWanted::All)?;
         Ok(tables)
     };
     Ok(match question {
@@ -145,7 +176,7 @@ fn answer(
                 },
             )?;
             let read = store.stored()?;
-            let handed = read.handed(&BucketsWanted::These(vec![Bucket(2)]))?;
+            let handed = materialized_handed(&*read, &BucketsWanted::These(vec![Bucket(2)]))?;
             handed.frontier == stored(1).handed.frontier
                 && read
                     .handed(&BucketsWanted::These(Vec::new()))?
@@ -174,9 +205,9 @@ fn answer(
                     }],
                 },
             )?;
-            let moved = store.stored()?.handed(&BucketsWanted::All)?.frontier;
+            let moved = materialized_handed(&*store.stored()?, &BucketsWanted::All)?.frontier;
             kept(again, &KeptRows::default())?;
-            let gone = store.stored()?.handed(&BucketsWanted::All)?.frontier;
+            let gone = materialized_handed(&*store.stored()?, &BucketsWanted::All)?.frontier;
             moved
                 == [read_now.clone()]
                     .into_iter()
@@ -205,7 +236,7 @@ fn keeps_against_the_store_it_read(store: &dyn LintStorePort) -> Result<Value, F
     let (over, rows) = over_a_b_d_and_e();
     second.keep(over, &rows)?;
     // What the first run is handed is of the store it read, not of the one just kept.
-    let handed = first.handed(&BucketsWanted::All)?;
+    let handed = materialized_handed(&*first, &BucketsWanted::All)?;
     // The first run lists `b, d, e` and used `b` and `d` again, under the same numbers.
     let mut mine = stored(3);
     mine.files.truncate(2);
@@ -221,7 +252,7 @@ fn keeps_against_the_store_it_read(store: &dyn LintStorePort) -> Result<Value, F
             file_again: vec![again(0, 0), again(1, 1)],
         },
     )?;
-    let all = store.stored()?.handed(&BucketsWanted::All)?;
+    let all = materialized_handed(&*store.stored()?, &BucketsWanted::All)?;
     Ok(handed.frontier == over_b_and_d().handed.frontier
         && all.frontier == [words_of(0, 10), words_of(1, 11), words_of(2, 13)])
 }

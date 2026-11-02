@@ -1,0 +1,371 @@
+{
+  "staged_inputs": {
+    "benchmark.toml": "87a6f545530a76b39211d39aa54890c97e72ba56afaa08f768910e49b6f43ddd",
+    "fragments/annotation-evaluation-context.ryoql": "b176d58a1687fe99f5b41d85fc781c0b33d2dcd58b49c6a16670216b78361ef5",
+    "fragments/annotation-origins.ryoql": "d4cd6d1e89c162be2d98e2a7ca427bb010fc866ffc6c0a62247cac4c9af886fd",
+    "fragments/assigned-values.ryoql": "c78ef906aa7e8b31cc6a4935eed21b9da2034ed392cb56da712889d5168ffb86",
+    "fragments/binding-type.ryoql": "24acc8ec7efcd738bf2379d02ed355932c87aa0dfa8e92c9254b2784635a8141",
+    "fragments/boolean-test-context.ryoql": "83551ea264ff2b900d5ef45be4034ed5d73e264a02ebaedaadfae6a8273d2fa1",
+    "fragments/builtin-match-at-visit.ryoql": "16924880fa94dcdc46be1610ecd520565f4a88496152da125f2a051105f8508d",
+    "fragments/checker-namespace-events.ryoql": "7a268dd1ef24bd6589889cd46c15b35ae2b2f90f31fa678452b08cd01fc10ce3",
+    "fragments/checker-type-scope-events.ryoql": "73e0c247d934179dbf5ac9a80c1a1d051384245fa141b3734b94ebf48b7fca43",
+    "fragments/class-bases.ryoql": "fc1631c5cff467313bf8355b76a416475ccf17597cea2fc9a762746e1ee51424",
+    "fragments/conditional-guards.ryoql": "fd83fa7007ae3ee3c1bb069e18064b06e95eac0c011ede7828c543f5ed7e6ebe",
+    "fragments/dataclass-decorators.ryoql": "6fcb046de35d673b2d06ec669896762ca13a826e39d971663c6ed9a93a14bd1b",
+    "fragments/deferred-class-origins.ryoql": "4667ad8e34a470d5252fde9ea4822a41ec675ae49bd3a7b0c11b654c2e2a3d7c",
+    "fragments/deferred-read-events.ryoql": "c14a2ae37ebe042492956e83931cd13ab742b6bbcba1d0b1e67b752cbe382f24",
+    "fragments/deferred-read-resolutions.ryoql": "3c29d708f1763cebaa4e17b3803af2bc4eec614514978820abd2773fc561e9ca",
+    "fragments/deferred-type-reads.ryoql": "dc3906fdde5e7278fa69ae0b365f414d3e77add6b7c2c59b336660cb7ab019f6",
+    "fragments/eager-before-future.ryoql": "c6aeb8a561e1957e2341000601156edb529cfcb00491a28fb9c405ea9085aec1",
+    "fragments/enum-bases.ryoql": "2435c26a20c51b1ccdf03835c5fcdff56f60d9672274c560371aa2f616d5b5c7",
+    "fragments/future-annotation-context.ryoql": "976b10f474f5e82e4976f85c14d73ed3b3c6f864b1de183699784f00e5e8269b",
+    "fragments/immutable-annotation.ryoql": "238eb0e2bc017481d0d78ea74724cd851fa72446ef86badd43b301878598cd76",
+    "fragments/immutable-annotations.ryoql": "acc17b77923b62bd9e5e4ae1df308b73a8a08179a880895e73f6ea2148934a5c",
+    "fragments/in-comparison.ryoql": "4c555f7ff2c3190b54133ace818d2367948e41ae4b165d8624849ee9f471c5ac",
+    "fragments/literal-members.ryoql": "2b2efda02620a07bbcd470b960e6bd628f486d284add38b73a4fa7e8faefc237",
+    "fragments/lookup-attribute.ryoql": "ed4c627599e82cdd9055e81db2b5bdbae8fdbbd253ca4b66e908ea7adc4f4ee1",
+    "fragments/lookup-read-events.ryoql": "7e2c8011f7c7810db6033a8bf74c9650c20b342aa4399ae33060bfc233c48412",
+    "fragments/lookup-symbol-events.ryoql": "b0fb09349eb9b0acde95944add1760c9ce104fc66df1bd218261b40b4f895dfb",
+    "fragments/metaclass.ryoql": "9524812dd4d131f2f5308732d2539ee83f7a8616312ffebfd9e502c635d9819a",
+    "fragments/modernization-symbols.ryoql": "177eeaefcf2ef7b6a37936e8f018bb724532af6b4712264f8f75b7e9386313ff",
+    "fragments/nonlocal-bindings.ryoql": "b9daa7c34cd274c2018dc621f4d141eab6548fb8dadde25ab053d5132041a609",
+    "fragments/pep604-candidates.ryoql": "43f2f3b710aa286bfcf76937171731295562dd0112e1c512d5a0648aad182ee0",
+    "fragments/python-evaluation-regions.ryoql": "3ef1c23b80e5070940ed367d6a269372f0f9486edbafa36e0332f5751a882104",
+    "fragments/qualified-origins.ryoql": "102cd490a9d15e3f4a95600d5644ce18418e1d4059ae8344019edb8d79699ab5",
+    "fragments/repeated-characters.ryoql": "fd01cdabb855e30c993e92864f21790e8221ca6af74d8cfd3e100ee4e9aaddd2",
+    "fragments/simple-stub-defaults.ryoql": "230a35648a917693061cd3c651f834b66e0bc4170ac39921248a0f07a23a050a",
+    "fragments/statement-equal.ryoql": "06f10897d474fd16124ad8fa77d65e366a5a2e3073918fa31acc35f8a7117659",
+    "fragments/suppress-directives.ryoql": "29efaa45457a591ccd20d340327095ef9f6d9644feec94929f245cc420fc3382",
+    "fragments/suppress-unmapped.ryoql": "d45584ef7d81bc8eff40e64c30d1d841acf679a79e5c1c0fd42fb32e4ed65417",
+    "fragments/suppress-with-additional-lines.ryoql": "94fe4dc58c65a666377e9e969f7d1e328c0121376b90d821bddad506cdda53d5",
+    "fragments/suppress.ryoql": "b3f9278dec26f739d1ee68a53b834629bc51b26fa868ec250e0eaaf5854d9c26",
+    "fragments/type-definition-context.ryoql": "a0451b6cf5bebeea9a8cae4fe8c66555d66bca72fdfa1c64c1f159e2d9d957ce",
+    "fragments/type-match-at-check.ryoql": "f6ab40cc1f8c909331adc33de3caa5a2333a4dab04b1b765c339dff97a83f26b",
+    "fragments/typing-match-at-visit.ryoql": "385018e3c0553ab31e8bd3a82332afb30b078073b1fc9c6983ed9c993d3ab2aa",
+    "fragments/union-members.ryoql": "4300be9432454ce1c1deaa3a25dee58808198d96edc9d3bb95097bcd18273bd6",
+    "fragments/unpack-symbols.ryoql": "4594f5c52183ceed86a6a641a575b79322f3a0c2c1f0065b7695b6a97a1218d4",
+    "fragments/version-checks.ryoql": "4c4890ac0f3b49b047c5b679082254cc2fc2f35de7dab440e88843ef414d0771",
+    "fragments/without-effect.ryoql": "ebf2050f8e9314a4964318cc5b0965c8fabd5d237185573e95569d46c550f4a7",
+    "rules/PLC3002/cases.toml": "9dfcd01626947d4e1e9fb0ad6a686f869ab6dd954c4d8a9aeb254c31b9a033fc",
+    "rules/PLC3002/query.ryoql": "a46eb7867592fe7acd445c760fcdca3f42f2b7d8bf357f5614936ced09d8297d"
+  },
+  "declared": {
+    "profile_name": "native-PLC3002",
+    "rule_id": "PLC3002",
+    "selected_rules": [
+      "PLC3002"
+    ],
+    "profile_file": "benchmark.toml",
+    "candidate_file": "rules/PLC3002/query.ryoql",
+    "query_sha256": "a46eb7867592fe7acd445c760fcdca3f42f2b7d8bf357f5614936ced09d8297d",
+    "cases_file": "rules/PLC3002/cases.toml",
+    "cases_sha256": "9dfcd01626947d4e1e9fb0ad6a686f869ab6dd954c4d8a9aeb254c31b9a033fc",
+    "case_count": 16,
+    "case_names": [
+      "direct",
+      "arguments",
+      "lambda-value",
+      "named-call",
+      "nested",
+      "parentheses",
+      "attribute",
+      "noqa",
+      "code-noqa",
+      "other-code",
+      "file-noqa",
+      "shared-block-suppressed",
+      "shared-block-reenabled",
+      "shared-block-unmatched-disable",
+      "shared-block-wrong-code",
+      "shared-file-ignore"
+    ],
+    "effective_settings": {
+      "defaults": [
+        "PLC3002"
+      ],
+      "parser_configuration": "python-target=3.10",
+      "project_context_mode": "isolated",
+      "rule_applicability": {
+        "PLC3002": "accepted-syntax"
+      },
+      "flags": {}
+    },
+    "target_version": "py310",
+    "selection_contract": "explicit-native-standalone"
+  },
+  "case_inventory": [
+    {
+      "rule": "PLC3002",
+      "name": "arguments",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "eefb337c136a50359338f64bac974b7ffd1b1b41e708ff96a739caeb67c7fb07",
+      "source_sha256": "b5b27ae90908f10177cc31b2b2bdf3c9066a1ef7ccdb8b67d012ac416d46c63d",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [
+        {
+          "rule": "PLC3002",
+          "file": "case.py",
+          "start": 8,
+          "end": 28
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "PLC3002",
+      "name": "attribute",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "e6e46421b964c3342f87ad4934bd370c19856a2cdc0d610cabe3095b8a66cee9",
+      "source_sha256": "9a2ce0a29fd4f5ea87b1f7b588ba20a4f88d2ef93c96804943670bc20eb5d680",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "PLC3002",
+      "name": "code-noqa",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "b617721aec69d90b98325d48294e93b6502d3450a87956c39b4a7ec1bd1cc34b",
+      "source_sha256": "55a2c8eb487ac9d017d7e75e3b2b857d1d9e0e2a0e52e83e4f4db16af3f65a1d",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "PLC3002",
+      "name": "direct",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "a7e9d99b444758a07d6aaaa76b390b756db883a347bcd2923402b0b421508e93",
+      "source_sha256": "162b22949856a5d4bf4cf96551de29b1f2ea1796352058ff0ada59c1edf6133d",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [
+        {
+          "rule": "PLC3002",
+          "file": "case.py",
+          "start": 8,
+          "end": 21
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "PLC3002",
+      "name": "file-noqa",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "f8d6bcd7fa503d1b410bea59e0bb8c0135dc71c1e939c798f55f617473a1bdd0",
+      "source_sha256": "12333b971220f23d29a7ea7b7a7b49cebbc8a37d44246cbb0a50e55568db46c8",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "PLC3002",
+      "name": "lambda-value",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "8a5fe4be8c407c9911a8dc2ffc7a008f89c2fad12cceb368da0e631ce522554b",
+      "source_sha256": "1373fb19163142e4e06e832539d292e487c32918e62b1a878a6fe378b7d3a8af",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "PLC3002",
+      "name": "named-call",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "eb4e89348d86d8a3bdf18ec1f0f31172d847965f6f8c407fdae16c41fb790f0f",
+      "source_sha256": "ce912222a0fad8a8e6790731fd5eff58bb40478134b8b16fba99062ccc773778",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "PLC3002",
+      "name": "nested",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "caaedd11f3d36872fca6a46b3dc8667481b165eb05ac1434985467a17689b7e0",
+      "source_sha256": "8c4332499fae5c84a2ae30097bb94a442ba66b3ba57319ee37ecc28ce1115129",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [
+        {
+          "rule": "PLC3002",
+          "file": "case.py",
+          "start": 20,
+          "end": 33
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "PLC3002",
+      "name": "noqa",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "78242af4d052647ae580b04d96a5aa843563de587c41409cde017e79bd9bbf92",
+      "source_sha256": "a972d07bd6e5f8e43165fdee5f602317af0ea61015ffe5c99fab7da0d3b7a19a",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "PLC3002",
+      "name": "other-code",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "64a1c0451830f59bb95dcc2dd66038af19a734ced469f09b740d2c107f22d1e4",
+      "source_sha256": "23f8d3bca487332c4ff489ee14f0b12b613ec8c5a5b1236f50ac9bde6be33ace",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [
+        {
+          "rule": "PLC3002",
+          "file": "case.py",
+          "start": 8,
+          "end": 21
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "PLC3002",
+      "name": "parentheses",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "1157ec64729e0fa8612b12543f59377586a6d5dc7beeb73f249eda349e842d9c",
+      "source_sha256": "aa84ca660957682a6399a8b6b8d9e2fe77f7e14dd420ec09c5c2f5464336ffee",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [
+        {
+          "rule": "PLC3002",
+          "file": "case.py",
+          "start": 8,
+          "end": 23
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "PLC3002",
+      "name": "shared-block-reenabled",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "8fbe6f5912bec9db19eedf89cc9840a2a7a370a45297805b1f845b92f6601e45",
+      "source_sha256": "badb22e3c71f3a84755c807eff6efb26d2181bb696437f36fb6976dcd007eb51",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [
+        {
+          "rule": "PLC3002",
+          "file": "case.py",
+          "start": 57,
+          "end": 70
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "PLC3002",
+      "name": "shared-block-suppressed",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "760f7a6dd789639325124e5f1966d05565c0418c511119ccfbe3f86a1866966a",
+      "source_sha256": "3fc263dbcef1eeddf650ac129d80fd9b683b925642ced498790eed747184e005",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "PLC3002",
+      "name": "shared-block-unmatched-disable",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "b74d6e412a0b1f98e356aafe89a9ce8105781f0983dd1f7e74d9342909397ea9",
+      "source_sha256": "b485c1c2d41daa00e5e4ad5b5a2f92ed3d8c45b720e14886453775af46cb20cc",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "PLC3002",
+      "name": "shared-block-wrong-code",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "7287bf5f70e632b98a685c7d66573b8168223615163072e98021890f0dc8cbff",
+      "source_sha256": "9c457355e6be25721fb8b1208b95954a82c8dcc11d36777b3a687cbf3bbbd07b",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [
+        {
+          "rule": "PLC3002",
+          "file": "case.py",
+          "start": 30,
+          "end": 43
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "PLC3002",
+      "name": "shared-file-ignore",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "ca0b0e78dcff42648293288cf29d30df892a9df1effc4992f3a2de832c84e526",
+      "source_sha256": "1c958fd63eb8f81b1768a95372c7e64eb8ce53153cbe591eaaadcb1de5180d8d",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    }
+  ]
+}

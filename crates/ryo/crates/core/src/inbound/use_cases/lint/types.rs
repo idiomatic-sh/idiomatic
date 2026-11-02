@@ -26,7 +26,7 @@ use ryo_values::domain::runs::types::{
     AnswerShape, MemoryBytes, RuleApplicability, RuleId, Session, Skipped,
 };
 use ryo_values::domain::stored_facts::types::Bucket;
-use ryo_values::domain::stores::types::{BucketsWanted, Stored, StoredHanded, StoredRule};
+use ryo_values::domain::stores::types::{BucketsWanted, ReadHanded, Stored, StoredRule};
 use std::sync::atomic::AtomicU64;
 use std::sync::{Arc, Condvar, Mutex};
 
@@ -348,7 +348,7 @@ pub(super) struct LintRun<'a> {
     /// Rules skipped for unchanged or separately reread files.
     pub skipped: &'a [Skipped],
     /// What the files handed the last run, as far as the run read it.
-    pub handed: &'a StoredHanded,
+    pub handed: &'a ReadHanded,
     /// The buckets of what the files handed that the run read.
     pub wanted: &'a BucketsWanted,
 }

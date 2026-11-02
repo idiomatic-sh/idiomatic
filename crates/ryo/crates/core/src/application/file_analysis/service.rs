@@ -774,15 +774,24 @@ impl FileAnalysis {
                     covered.map_or(&GoverningRules::default(), |each| &each.governing),
                     covered.map_or(&[][..], |each| &each.partials),
                 );
+                let mut loaded = PackedWords::default();
                 for each in rows_of_file(&kept.frontier, file, |each| each.file) {
-                    Self::hand_words_again(
-                        worker,
-                        setting,
-                        each.bucket,
-                        &each.words,
-                        &map,
-                        &mut out,
-                    )?;
+                    if let BucketsWanted::These(buckets) = setting.wanted_buckets
+                        && buckets.binary_search(&each.bucket).is_err()
+                    {
+                        continue;
+                    }
+                    let words = match &each.words {
+                        ryo_values::domain::stores::types::ReadWordPayload::Inline(words) => words,
+                        ryo_values::domain::stores::types::ReadWordPayload::Old(span) => {
+                            let read = visit.store.ok_or(
+                                crate::outbound::lint_store::errors::LintStoreError::NothingRead,
+                            )?;
+                            read.read_old(span, &mut loaded)?;
+                            &loaded
+                        }
+                    };
+                    Self::hand_words_again(worker, setting, each.bucket, words, &map, &mut out)?;
                 }
             }
         }

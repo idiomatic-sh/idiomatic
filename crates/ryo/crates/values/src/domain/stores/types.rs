@@ -99,16 +99,74 @@ pub struct FileAgain {
 }
 
 /// What each file handed the steps that read across files and the project, in tables of their own.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct StoredHanded {
+pub type StoredHanded = HandedRows<StoredWords>;
+
+/// One snapshot's read representation; old words need not be retained as payload bytes.
+pub type ReadHanded = HandedRows<ReadWords>;
+
+/// Rest tables share their unchanged representation across persistent writes and snapshot reads.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct HandedRows<W> {
     /// What each file handed the steps that read across files, one row for each file and bucket.
-    pub frontier: Vec<StoredWords>,
+    pub frontier: Vec<W>,
     /// The text the names of each file made that is in no file, one row for each file that made some.
     pub texts: Vec<StoredText>,
     /// What the language of each file noted of it for the project, one row for each file it noted something of.
     pub notes: Vec<StoredNotes>,
     /// The relations of each file read in part, with the rules that govern it, one row for each file read in part.
     pub covered: Vec<StoredCovered>,
+}
+
+impl<W> Default for HandedRows<W> {
+    fn default() -> Self {
+        Self {
+            frontier: Vec::new(),
+            texts: Vec::new(),
+            notes: Vec::new(),
+            covered: Vec::new(),
+        }
+    }
+}
+
+/// Read-only row metadata, retaining physical row order and duplicates.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ReadWords {
+    /// File number in the immutable old snapshot.
+    pub file: StoredFileNumber,
+    /// Original bucket identity.
+    pub bucket: Bucket,
+    /// Inline custom-store bytes or a lazy old-file descriptor.
+    pub words: ReadWordPayload,
+}
+
+/// Read payload ownership is separate from the unchanged persistent write contract.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ReadWordPayload {
+    /// In-memory/custom adapters may retain their existing representation.
+    Inline(PackedWords),
+    /// This descriptor is resolved only by the ReadStore that issued it.
+    Old(OldWords),
+}
+
+/// Process-local identity of one immutable opened store; never a pathname or file handle.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct StoreSnapshot(pub u64);
+
+/// Validated old row framing metadata. No resource, bytes, or IO behavior belongs here.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct OldWords {
+    /// Reader identity, checked before touching its file.
+    pub snapshot: StoreSnapshot,
+    /// Bucket and file encoded by this row.
+    pub bucket: Bucket,
+    /// File number encoded by this row.
+    pub file: StoredFileNumber,
+    /// Start of the row's file-number and payload-length header.
+    pub header: u64,
+    /// Start of its packed bytes in the opened snapshot.
+    pub offset: u64,
+    /// Exact packed byte count.
+    pub length: u64,
 }
 
 /// The words a file handed the steps that read across files in one bucket.

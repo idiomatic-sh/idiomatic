@@ -1,0 +1,646 @@
+{
+  "staged_inputs": {
+    "benchmark.toml": "f4967a264dea387491526252eb02e50055fe487110534d9069d4677259b5d122",
+    "fragments/annotation-evaluation-context.ryoql": "b176d58a1687fe99f5b41d85fc781c0b33d2dcd58b49c6a16670216b78361ef5",
+    "fragments/annotation-origins.ryoql": "d4cd6d1e89c162be2d98e2a7ca427bb010fc866ffc6c0a62247cac4c9af886fd",
+    "fragments/assigned-values.ryoql": "c78ef906aa7e8b31cc6a4935eed21b9da2034ed392cb56da712889d5168ffb86",
+    "fragments/binding-type.ryoql": "24acc8ec7efcd738bf2379d02ed355932c87aa0dfa8e92c9254b2784635a8141",
+    "fragments/boolean-test-context.ryoql": "83551ea264ff2b900d5ef45be4034ed5d73e264a02ebaedaadfae6a8273d2fa1",
+    "fragments/builtin-match-at-visit.ryoql": "16924880fa94dcdc46be1610ecd520565f4a88496152da125f2a051105f8508d",
+    "fragments/checker-namespace-events.ryoql": "7a268dd1ef24bd6589889cd46c15b35ae2b2f90f31fa678452b08cd01fc10ce3",
+    "fragments/checker-type-scope-events.ryoql": "73e0c247d934179dbf5ac9a80c1a1d051384245fa141b3734b94ebf48b7fca43",
+    "fragments/class-bases.ryoql": "fc1631c5cff467313bf8355b76a416475ccf17597cea2fc9a762746e1ee51424",
+    "fragments/conditional-guards.ryoql": "fd83fa7007ae3ee3c1bb069e18064b06e95eac0c011ede7828c543f5ed7e6ebe",
+    "fragments/dataclass-decorators.ryoql": "6fcb046de35d673b2d06ec669896762ca13a826e39d971663c6ed9a93a14bd1b",
+    "fragments/deferred-class-origins.ryoql": "4667ad8e34a470d5252fde9ea4822a41ec675ae49bd3a7b0c11b654c2e2a3d7c",
+    "fragments/deferred-read-events.ryoql": "c14a2ae37ebe042492956e83931cd13ab742b6bbcba1d0b1e67b752cbe382f24",
+    "fragments/deferred-read-resolutions.ryoql": "3c29d708f1763cebaa4e17b3803af2bc4eec614514978820abd2773fc561e9ca",
+    "fragments/deferred-type-reads.ryoql": "dc3906fdde5e7278fa69ae0b365f414d3e77add6b7c2c59b336660cb7ab019f6",
+    "fragments/eager-before-future.ryoql": "c6aeb8a561e1957e2341000601156edb529cfcb00491a28fb9c405ea9085aec1",
+    "fragments/enum-bases.ryoql": "2435c26a20c51b1ccdf03835c5fcdff56f60d9672274c560371aa2f616d5b5c7",
+    "fragments/future-annotation-context.ryoql": "976b10f474f5e82e4976f85c14d73ed3b3c6f864b1de183699784f00e5e8269b",
+    "fragments/immutable-annotation.ryoql": "238eb0e2bc017481d0d78ea74724cd851fa72446ef86badd43b301878598cd76",
+    "fragments/immutable-annotations.ryoql": "acc17b77923b62bd9e5e4ae1df308b73a8a08179a880895e73f6ea2148934a5c",
+    "fragments/in-comparison.ryoql": "4c555f7ff2c3190b54133ace818d2367948e41ae4b165d8624849ee9f471c5ac",
+    "fragments/literal-members.ryoql": "2b2efda02620a07bbcd470b960e6bd628f486d284add38b73a4fa7e8faefc237",
+    "fragments/lookup-attribute.ryoql": "ed4c627599e82cdd9055e81db2b5bdbae8fdbbd253ca4b66e908ea7adc4f4ee1",
+    "fragments/lookup-read-events.ryoql": "7e2c8011f7c7810db6033a8bf74c9650c20b342aa4399ae33060bfc233c48412",
+    "fragments/lookup-symbol-events.ryoql": "b0fb09349eb9b0acde95944add1760c9ce104fc66df1bd218261b40b4f895dfb",
+    "fragments/metaclass.ryoql": "9524812dd4d131f2f5308732d2539ee83f7a8616312ffebfd9e502c635d9819a",
+    "fragments/modernization-symbols.ryoql": "177eeaefcf2ef7b6a37936e8f018bb724532af6b4712264f8f75b7e9386313ff",
+    "fragments/nonlocal-bindings.ryoql": "b9daa7c34cd274c2018dc621f4d141eab6548fb8dadde25ab053d5132041a609",
+    "fragments/pep604-candidates.ryoql": "43f2f3b710aa286bfcf76937171731295562dd0112e1c512d5a0648aad182ee0",
+    "fragments/python-evaluation-regions.ryoql": "3ef1c23b80e5070940ed367d6a269372f0f9486edbafa36e0332f5751a882104",
+    "fragments/qualified-origins.ryoql": "102cd490a9d15e3f4a95600d5644ce18418e1d4059ae8344019edb8d79699ab5",
+    "fragments/repeated-characters.ryoql": "fd01cdabb855e30c993e92864f21790e8221ca6af74d8cfd3e100ee4e9aaddd2",
+    "fragments/simple-stub-defaults.ryoql": "230a35648a917693061cd3c651f834b66e0bc4170ac39921248a0f07a23a050a",
+    "fragments/statement-equal.ryoql": "06f10897d474fd16124ad8fa77d65e366a5a2e3073918fa31acc35f8a7117659",
+    "fragments/suppress-directives.ryoql": "29efaa45457a591ccd20d340327095ef9f6d9644feec94929f245cc420fc3382",
+    "fragments/suppress-unmapped.ryoql": "d45584ef7d81bc8eff40e64c30d1d841acf679a79e5c1c0fd42fb32e4ed65417",
+    "fragments/suppress-with-additional-lines.ryoql": "94fe4dc58c65a666377e9e969f7d1e328c0121376b90d821bddad506cdda53d5",
+    "fragments/suppress.ryoql": "b3f9278dec26f739d1ee68a53b834629bc51b26fa868ec250e0eaaf5854d9c26",
+    "fragments/type-definition-context.ryoql": "a0451b6cf5bebeea9a8cae4fe8c66555d66bca72fdfa1c64c1f159e2d9d957ce",
+    "fragments/type-match-at-check.ryoql": "f6ab40cc1f8c909331adc33de3caa5a2333a4dab04b1b765c339dff97a83f26b",
+    "fragments/typing-match-at-visit.ryoql": "385018e3c0553ab31e8bd3a82332afb30b078073b1fc9c6983ed9c993d3ab2aa",
+    "fragments/union-members.ryoql": "4300be9432454ce1c1deaa3a25dee58808198d96edc9d3bb95097bcd18273bd6",
+    "fragments/unpack-symbols.ryoql": "4594f5c52183ceed86a6a641a575b79322f3a0c2c1f0065b7695b6a97a1218d4",
+    "fragments/version-checks.ryoql": "4c4890ac0f3b49b047c5b679082254cc2fc2f35de7dab440e88843ef414d0771",
+    "fragments/without-effect.ryoql": "ebf2050f8e9314a4964318cc5b0965c8fabd5d237185573e95569d46c550f4a7",
+    "rules/D419/cases.toml": "2a491b80ccbbf7cbbe1c8d1d2b156374e11a13bd26ca5ff2600b58108217bc3d",
+    "rules/D419/query.ryoql": "5860ba137b6ee47f43c662f780d0c4a02643d0ef9ac942892783ff9957335217"
+  },
+  "declared": {
+    "profile_name": "native-D419",
+    "rule_id": "D419",
+    "selected_rules": [
+      "D419"
+    ],
+    "profile_file": "benchmark.toml",
+    "candidate_file": "rules/D419/query.ryoql",
+    "query_sha256": "5860ba137b6ee47f43c662f780d0c4a02643d0ef9ac942892783ff9957335217",
+    "cases_file": "rules/D419/cases.toml",
+    "cases_sha256": "2a491b80ccbbf7cbbe1c8d1d2b156374e11a13bd26ca5ff2600b58108217bc3d",
+    "case_count": 32,
+    "case_names": [
+      "module",
+      "function",
+      "class",
+      "nonempty",
+      "second",
+      "fstring",
+      "bytes",
+      "conditional",
+      "paren",
+      "concat",
+      "async",
+      "noqa",
+      "code-noqa",
+      "other-code",
+      "file-noqa",
+      "raw-body-escape-0",
+      "raw-body-escape-1",
+      "raw-body-escape-2",
+      "raw-body-escape-3",
+      "raw-body-escape-4",
+      "raw-body-escape-5",
+      "raw-body-escape-6",
+      "raw-body-whitespace-0",
+      "raw-body-whitespace-1",
+      "raw-body-whitespace-2",
+      "triple-string-followed-by-continuation",
+      "shared-block-suppressed",
+      "shared-block-reenabled",
+      "shared-block-unmatched-disable",
+      "shared-block-wrong-code",
+      "shared-file-ignore",
+      "file-noqa-on-closing-string-line-is-not-standalone"
+    ],
+    "effective_settings": {
+      "defaults": [
+        "D419"
+      ],
+      "parser_configuration": "python-target=3.10",
+      "project_context_mode": "isolated",
+      "rule_applicability": {
+        "D419": "accepted-syntax"
+      },
+      "flags": {}
+    },
+    "target_version": "py310",
+    "selection_contract": "explicit-native-standalone"
+  },
+  "case_inventory": [
+    {
+      "rule": "D419",
+      "name": "async",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "d1307c6fc4518d47c156016f515c7e2018d433ceb76831e0ddc11b8c4a740866",
+      "source_sha256": "127128c333ba8dc2c26517c949f236e4f287977200441975bd70d0cec6c823a0",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [
+        {
+          "rule": "D419",
+          "file": "case.py",
+          "start": 19,
+          "end": 21
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "D419",
+      "name": "bytes",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "6dd404f1befcd4c5ff2d3077fde548a56e2b7beb8806d6c4cad3fd37226418b7",
+      "source_sha256": "0768a061afabc4495129d31bc89d1728a4ab71322c157d4550ed11addaf2f7ea",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "D419",
+      "name": "class",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "db223c5c16620a6d441b59fd6adc7180b95e5c0ae1c6db7a12d79737211c50e4",
+      "source_sha256": "ac2536acfe24e80970dbf33308700621cccba24e60353399d361e58afd8f469d",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [
+        {
+          "rule": "D419",
+          "file": "case.py",
+          "start": 13,
+          "end": 23
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "D419",
+      "name": "code-noqa",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "8eb0daf4970ec2b643dcc034d545655887bbb3e49a55f878da43a5eff837362d",
+      "source_sha256": "219cb3b8dd4640267ff7e1065de7a11bc16606354c101754d9742a67d951e5f5",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "D419",
+      "name": "concat",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "eb194899bc45fa8b5461b79d5df4e74398a943e19f4ca2c26528cea9b1ca1d89",
+      "source_sha256": "6eaba7dbcbc2f130fdb4aafac280c9e045ce7a6c58e786a1e878ee81b8bf1b64",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "D419",
+      "name": "conditional",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "fa5334f436700f4ed80ac156100fd8aa73193db814153ecfd9f9eabd57f5bf7d",
+      "source_sha256": "8de83594fc62cb41a00a4e4ce9884c1bc257d8479325b560b1851e6901ef90e7",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "D419",
+      "name": "file-noqa",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "eca58edc103468ba72b9e106fc6ad7ddabc005ee61f527435d03fab31e9dbcf4",
+      "source_sha256": "cbb5a0bdf64705c13db889a012b300166343e745f646613797f1b249d68e6952",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "D419",
+      "name": "file-noqa-on-closing-string-line-is-not-standalone",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "a3bc00021ffaf1e0a0054e0d6b408700e1fcc9461a64d5a01e9570611bd535c3",
+      "source_sha256": "1adfaaa0283c2e1409ac9ae50a0b3e7eaee367a64eb1de45322e7566a646e1c0",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [
+        {
+          "rule": "D419",
+          "file": "case.py",
+          "start": 0,
+          "end": 9
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "D419",
+      "name": "fstring",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "5cb21b2353b3ef15e27d00fb8ec4602e9e8142b01c1d4d0b5ef79b71231472c1",
+      "source_sha256": "a2a45358ed85fd0919d40a5080ada7aa9ed81dd42ecb61c3a1065fa349cb0898",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "D419",
+      "name": "function",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "dd329814a795bdd43dca60dc566a9a2bc00b80095cb68bd2aa048610bbb05e1c",
+      "source_sha256": "5a4e893c94bda389e9502c477e2eed4d8a191b7948d2d4db1aa9430e9778b51c",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [
+        {
+          "rule": "D419",
+          "file": "case.py",
+          "start": 13,
+          "end": 18
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "D419",
+      "name": "module",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "b3d28a8aa8bc1484e7b53f111b035b31787605c731134438886cc733fa8f099d",
+      "source_sha256": "b023b5bcd053124e70b434c9f25e335a634d6b75d978f65f718d2830e9674d5b",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [
+        {
+          "rule": "D419",
+          "file": "case.py",
+          "start": 0,
+          "end": 2
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "D419",
+      "name": "nonempty",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "56acc47b17dfa217ee49480c5181ac0bd764cfcea16679de568c7ef56aa74f4d",
+      "source_sha256": "de9cbe9619a6e92f0817542e0e07cecd927374a049670014b2db4b8842c99bc2",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "D419",
+      "name": "noqa",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "a4a375c5487ba07518771a728558db95b98f5209027bcfcfbe212df4b6ce3047",
+      "source_sha256": "0cd709d1de597af927f0cdc3ffaaf627012ec1cbba04c1025f059dc7f48262d2",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "D419",
+      "name": "other-code",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "5b8406d9ed475f368c42d3b072e0ddbe4e4456c189d41f0ae8f655d9a123a36e",
+      "source_sha256": "7c2f034819817436db07969c1e596542cecb781dcf5a713a4eed14887f6a062c",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [
+        {
+          "rule": "D419",
+          "file": "case.py",
+          "start": 0,
+          "end": 2
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "D419",
+      "name": "paren",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "5303dea079a8fa6a1149196ee439fe1057a607798afed58e973ee96e4c3eaa49",
+      "source_sha256": "5c7dc9c1969310ba5b569b6f14210266a1ed3f11c39334bee74582d928356722",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [
+        {
+          "rule": "D419",
+          "file": "case.py",
+          "start": 1,
+          "end": 3
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "D419",
+      "name": "raw-body-escape-0",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "745a56c4c38ede6d971a48a9501832d946784c54b345b72455b7553125b69a6e",
+      "source_sha256": "98b13bef1b558c529cfd55e092ee78b7821698b8a77d1c01208c78957e6c12c9",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "D419",
+      "name": "raw-body-escape-1",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "c255f3cec4d2a1b9a5bec4981126e160049fab0ef758d99a46941ff62f143af0",
+      "source_sha256": "c27dc0aa43bd0d2d08dc2601f79b2f5839e7ca7f1c05d50f958f52393a864799",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "D419",
+      "name": "raw-body-escape-2",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "e950faaac07a01cd9230ea6f5492a4e7691f674032655f5acbbfe5ba07bf276e",
+      "source_sha256": "928efdbf960374ca636685d4e1510a24085fd3ebb327beec6eb8cd17c2fa75c8",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "D419",
+      "name": "raw-body-escape-3",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "dec9933e4898baf2bb271f19228f65f000f4849fc0e5f94a935151d9e6776fc5",
+      "source_sha256": "da428a401bc41fc8d1bf4fa213a38e599c64e6db30eb676b8297ac69f69838a2",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "D419",
+      "name": "raw-body-escape-4",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "a8ad7b7fd8e24ec45fa583eeedceb03633f141a2a664b85151c4da2cda100f2b",
+      "source_sha256": "771a10b2cb0c4608375a9dc1d6f0e55fd28644f9873c0a4522fc79df82df9d27",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "D419",
+      "name": "raw-body-escape-5",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "aa2df5f78d14f2aa53fc1fafd3c85af836b55730c312e69648c24187b03deb5b",
+      "source_sha256": "a0c18d35156395988f2efc8b3f23ac43d09fea671984488ef2993a4e500fb81a",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "D419",
+      "name": "raw-body-escape-6",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "3ebc9ce4602a7771bfb5d7091e2bb47554d966b6ed29067e6d0c597f2e2a20d6",
+      "source_sha256": "ec7c77ec278d58beed2cd8704c76b817d19d7114cb38af600c096c372926f13a",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "D419",
+      "name": "raw-body-whitespace-0",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "9827890b0f376a29279561c9d02bfd6c3498eb76e3d6e7cbf238233460f11395",
+      "source_sha256": "2714834b8996e6f7b6987f504f9ede21bacbaad71cc2eb262fd35830187fdac6",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [
+        {
+          "rule": "D419",
+          "file": "case.py",
+          "start": 0,
+          "end": 4
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "D419",
+      "name": "raw-body-whitespace-1",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "f1bcd1c5da7b432dd0813a329e523132ab25415405cbb18e90179c7b962182e9",
+      "source_sha256": "4d2855922b8cd6bbd7475f0af6db8836d1bc32bff4880bf4ae6086e4fbe10b32",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [
+        {
+          "rule": "D419",
+          "file": "case.py",
+          "start": 0,
+          "end": 10
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "D419",
+      "name": "raw-body-whitespace-2",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "c46f0cf2688ff5e9b735eb064b84fa28ce51defd65358298746e5db710fa7a92",
+      "source_sha256": "6fa363c2d889c5df1ec92078043af68118fad8565ab04a9a31dc5ce5c54a0ab6",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [
+        {
+          "rule": "D419",
+          "file": "case.py",
+          "start": 0,
+          "end": 7
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "D419",
+      "name": "second",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "2d1bd9b31e37dece25623e13c91835b38829b24320abb469223babf47d40dcff",
+      "source_sha256": "d3fd419d188dcc75a966a6a4b34f40e5d74dbf032d2ce092ee97b9c603ba2272",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "D419",
+      "name": "shared-block-reenabled",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "2b04d4715ff737ea0f8fe66a8794fa00bfcd1431bbf65c4146325fa8b036902e",
+      "source_sha256": "246ff6317d381555266094a6c6940cf344db6461a0c961389f31ac7c132550d4",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [
+        {
+          "rule": "D419",
+          "file": "case.py",
+          "start": 43,
+          "end": 45
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "D419",
+      "name": "shared-block-suppressed",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "2af5995ac167af3095720232e590fd40ed755d26316f2eab2785c6f66f4806c7",
+      "source_sha256": "7d09b8450f05a8642b68c64c786f0a43f22c2e85816d6612e11c15a19f2c4a11",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "D419",
+      "name": "shared-block-unmatched-disable",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "d65878f90768fcf8282feb9a313820c69fbe508dca8edbf5d7498f18998846e7",
+      "source_sha256": "b77ac4642a91aa21663c9f2eb91319a034fadd44b3fbcb79d42bda14ec465dc9",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "D419",
+      "name": "shared-block-wrong-code",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "70a3680fe8b4adeaf05bc985decf97c143536452368fded2503d65777c063529",
+      "source_sha256": "83eeb4d0619ffb1f6ed2010960be445d9ffcac713d1410e05f2fa15082215d37",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [
+        {
+          "rule": "D419",
+          "file": "case.py",
+          "start": 22,
+          "end": 24
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "D419",
+      "name": "shared-file-ignore",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "d1239d248c4e072ba2e34601985cd3d0eeefa1f184253b9ee11b3d3c6f11a947",
+      "source_sha256": "074a7721c0376f5a85d27eaeaf16d563f375279cb19b6a7ad9df588d0b97de27",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "D419",
+      "name": "triple-string-followed-by-continuation",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "57f69d82563944596e2a1e9c7a44a1a87c91ff1b3094d5b85123e92500e63e27",
+      "source_sha256": "5a9669ee2bf61cc545010d384ec45892a5b4aae1d8d4f64c4cc7ad1dbbb79dbd",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    }
+  ]
+}

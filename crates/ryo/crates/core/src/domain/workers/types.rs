@@ -22,7 +22,7 @@ use ryo_values::domain::runs::types::RuleId;
 use ryo_values::domain::runs::types::Skipped;
 use ryo_values::domain::stored_facts::types::PackedWords;
 use ryo_values::domain::stored_facts::types::{ArenaBytes, Bucket, FileNotes, LanguageNumber};
-use ryo_values::domain::stores::types::{BucketsWanted, Stored, StoredHanded};
+use ryo_values::domain::stores::types::{BucketsWanted, ReadHanded, Stored};
 
 /// A file, by its place among the files in the order of their paths.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -159,7 +159,7 @@ pub(crate) struct VisitSetting<'a> {
     /// What the last run kept, which what a file it does not read handed is taken from.
     pub stored: &'a Stored,
     /// What the files of the last run handed, read when the run makes the cross-file steps again.
-    pub handed: &'a StoredHanded,
+    pub handed: &'a ReadHanded,
     /// The buckets the cross-file steps made again read.
     pub wanted_buckets: &'a BucketsWanted,
     /// The most memory the process may hold while it runs.

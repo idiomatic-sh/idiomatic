@@ -266,3 +266,159 @@ fn scanning_tiny_old_rows_reads_and_seeks_by_chunks() {
         "small payload skips stay inside the buffer"
     );
 }
+
+/// A virtual huge bucket exposes actual read volume without allocating its payload set.
+#[test]
+fn old_descriptor_enumeration_skips_huge_payloads_and_resolution_reads_one() {
+    use super::value::{old_word_rows_in, read_old_in};
+    use crate::outbound::lint_store::adapters::postcard::types::spool::value::BUFFER_BYTES;
+    use ryo_values::domain::stores::types::{OldWords, StoreSnapshot};
+    use std::io::{Read, Seek, SeekFrom};
+    struct Sparse {
+        headers: Vec<(u64, Vec<u8>)>,
+        length: u64,
+        at: u64,
+        bytes: usize,
+    }
+    impl Read for Sparse {
+        fn read(&mut self, into: &mut [u8]) -> std::io::Result<usize> {
+            let length = into
+                .len()
+                .min(usize::try_from(self.length - self.at).unwrap());
+            into[..length].fill(0x5a);
+            for (start, header) in &self.headers {
+                let begin = self.at.max(*start);
+                let end = (self.at + length as u64).min(*start + header.len() as u64);
+                if begin < end {
+                    into[(begin - self.at) as usize..(end - self.at) as usize]
+                        .copy_from_slice(&header[(begin - start) as usize..(end - start) as usize]);
+                }
+            }
+            self.at += length as u64;
+            self.bytes += length;
+            Ok(length)
+        }
+    }
+    impl Seek for Sparse {
+        fn seek(&mut self, seek: SeekFrom) -> std::io::Result<u64> {
+            let at = match seek {
+                SeekFrom::Start(at) => i128::from(at),
+                SeekFrom::Current(by) => i128::from(self.at) + i128::from(by),
+                SeekFrom::End(by) => i128::from(self.length) + i128::from(by),
+            };
+            self.at = u64::try_from(at).map_err(std::io::Error::other)?;
+            Ok(self.at)
+        }
+    }
+    let count = postcard::to_allocvec(&3_usize).unwrap();
+    let mut at = count.len() as u64;
+    let mut headers = vec![(0, count)];
+    let payload = 2 * 1024 * 1024_usize;
+    for file in [2_u32, 0, 2] {
+        let mut header = postcard::to_allocvec(&file).unwrap();
+        header.extend(postcard::to_allocvec(&payload).unwrap());
+        let header_length = header.len() as u64;
+        headers.push((at, header));
+        at += header_length + payload as u64;
+    }
+    let mut file = Sparse {
+        headers,
+        length: at,
+        at: 0,
+        bytes: 0,
+    };
+    let bucket = SectionSpan {
+        start: FileOffset(0),
+        length: SectionLength(at),
+    };
+    let rows = old_word_rows_in(&mut file, bucket, at).expect("header scan");
+    assert_eq!(
+        rows.iter().map(|row| row.file.0).collect::<Vec<_>>(),
+        [2, 0, 2]
+    );
+    assert!(
+        file.bytes <= 3 * BUFFER_BYTES,
+        "only bounded header read-ahead, never six MiB payload ownership"
+    );
+    let descriptor = OldWords {
+        snapshot: StoreSnapshot(91),
+        bucket: Bucket(3),
+        file: rows[1].file,
+        header: rows[1].header,
+        offset: rows[1].span.start.0,
+        length: rows[1].span.length.0,
+    };
+    file.bytes = 0;
+    let mut loaded = PackedWords::default();
+    read_old_in(
+        &mut file,
+        at,
+        StoreSnapshot(91),
+        bucket,
+        &descriptor,
+        &mut loaded,
+    )
+    .expect("one payload");
+    assert_eq!(loaded.0.len(), payload);
+    assert!(loaded.0.iter().all(|byte| *byte == 0x5a));
+    assert_eq!(
+        file.bytes as u64,
+        descriptor.length + descriptor.offset - descriptor.header
+    );
+    // A tiny requested bucket must not read ahead into an adjacent unrequested section.
+    let mut tiny = Sparse {
+        headers: vec![(0, vec![1, 0, 0])],
+        length: 1024 * 1024,
+        at: 0,
+        bytes: 0,
+    };
+    let tiny_rows = old_word_rows_in(
+        &mut tiny,
+        SectionSpan {
+            start: FileOffset(0),
+            length: SectionLength(3),
+        },
+        1024 * 1024,
+    )
+    .expect("one empty row");
+    assert_eq!(tiny_rows.len(), 1);
+    assert_eq!(
+        tiny.bytes, 3,
+        "no bytes from the unrequested neighboring bucket"
+    );
+    assert!(
+        read_old_in(
+            &mut file,
+            at - 1,
+            StoreSnapshot(91),
+            bucket,
+            &descriptor,
+            &mut loaded
+        )
+        .is_err()
+    );
+    for bad in [
+        OldWords {
+            snapshot: StoreSnapshot(92),
+            ..descriptor
+        },
+        OldWords {
+            length: u64::MAX,
+            ..descriptor
+        },
+        OldWords {
+            header: u64::MAX,
+            ..descriptor
+        },
+        OldWords {
+            offset: descriptor.offset + 1,
+            ..descriptor
+        },
+        OldWords {
+            file: StoredFileNumber(99),
+            ..descriptor
+        },
+    ] {
+        assert!(read_old_in(&mut file, at, StoreSnapshot(91), bucket, &bad, &mut loaded).is_err());
+    }
+}

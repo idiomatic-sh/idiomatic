@@ -6,9 +6,7 @@ use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::records::types::{FindingRows, PlacedRule, Record};
 use ryo_values::domain::runs::types::ManifestRefused;
 use ryo_values::domain::runs::types::Skipped;
-use ryo_values::domain::stores::types::{
-    BucketsWanted, KeptRows, Stored, StoredFile, StoredHanded, StoredRule,
-};
+use ryo_values::domain::stores::types::{BucketsWanted, KeptRows, Stored, StoredFile, StoredRule};
 
 /// What a run gives its store: the tables it keeps, and what the store keeps of the words as they were.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -111,5 +109,5 @@ pub(crate) struct HandedAgain {
     /// The buckets read.
     pub wanted: BucketsWanted,
     /// What the store kept of them.
-    pub handed: StoredHanded,
+    pub handed: ryo_values::domain::stores::types::ReadHanded,
 }

@@ -9,7 +9,7 @@ use ryo_values::domain::files::types::CorpusEntry;
 use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::records::types::Record;
 use ryo_values::domain::stored_facts::types::Bucket;
-use ryo_values::domain::stores::types::{BucketsWanted, StoredHanded};
+use ryo_values::domain::stores::types::{BucketsWanted, ReadHanded, StoredHanded};
 use std::sync::Arc;
 
 /// What a task's slot holds once the workers are done: its answer.
@@ -60,7 +60,7 @@ pub(super) fn handed_of(
             .map(|read| read.handed(&wanted))
             .transpose()?
             .unwrap_or_default(),
-        Reuse::Whole | Reuse::Again => StoredHanded::default(),
+        Reuse::Whole | Reuse::Again => ReadHanded::default(),
     };
     Ok(HandedAgain { wanted, handed })
 }

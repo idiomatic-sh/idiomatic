@@ -48,8 +48,8 @@ type Failure = ();
 
 static NOTHING_STORED: std::sync::LazyLock<ryo_values::domain::stores::types::Stored> =
     std::sync::LazyLock::new(ryo_values::domain::stores::types::Stored::default);
-static NOTHING_HANDED: std::sync::LazyLock<ryo_values::domain::stores::types::StoredHanded> =
-    std::sync::LazyLock::new(ryo_values::domain::stores::types::StoredHanded::default);
+static NOTHING_HANDED: std::sync::LazyLock<ryo_values::domain::stores::types::ReadHanded> =
+    std::sync::LazyLock::new(ryo_values::domain::stores::types::ReadHanded::default);
 static NOTHING_WANTED: ryo_values::domain::stores::types::BucketsWanted =
     ryo_values::domain::stores::types::BucketsWanted::These(Vec::new());
 

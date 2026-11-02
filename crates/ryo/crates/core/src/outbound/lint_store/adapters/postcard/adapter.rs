@@ -10,9 +10,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
 use super::constants::{FILE, LENGTH, NOT_A_FILE, OUTSIDE, TEMPORARY, UNDECODED};
-use super::schemas::{
-    bucket_from, contents, contents_bytes, rest_bytes, rest_from, tables_bytes, tables_of,
-};
+use super::schemas::{contents, contents_bytes, rest_bytes, rest_from, tables_bytes, tables_of};
 use super::types::{
     BucketSpan, FileOffset, OpenedStore, SectionBytes, SectionLength, SectionSpan, TableOfContents,
 };
@@ -20,7 +18,10 @@ use crate::outbound::lint_store::errors::LintStoreError;
 use crate::outbound::lint_store::interface::{LintStorePort, ReadStore};
 use crate::outbound::lint_store::types::{Store, StoreKeeping};
 use ryo_values::domain::stored_facts::types::Bucket;
-use ryo_values::domain::stores::types::{BucketsWanted, KeptRows, Stored, StoredHanded};
+use ryo_values::domain::stores::types::{
+    BucketsWanted, KeptRows, OldWords, ReadHanded, ReadWordPayload, ReadWords, StoreSnapshot,
+    Stored,
+};
 
 /// The postcard store adapter: the store of one cache directory, for one build.
 #[derive(Clone, Debug)]
@@ -38,6 +39,8 @@ struct PostcardRead {
     opened: Option<Mutex<OpenedStore>>,
     /// Where the small tables are in the file.
     tables: SectionSpan,
+    /// Immutable bucket framing metadata retained when this reader opens its snapshot.
+    buckets: Vec<BucketSpan>,
     /// One snapshot identity, even before it creates a temporary file.
     session: ryo_values::domain::records::types::StagingSession,
     /// Fresh normalized data is staged lazily, outside domain record ownership.
@@ -56,23 +59,38 @@ impl LintStorePostcardAdapter {
         &self,
         opened: &mut OpenedStore,
         wanted: &BucketsWanted,
-    ) -> Result<StoredHanded, LintStoreError> {
+        snapshot: StoreSnapshot,
+    ) -> Result<ReadHanded, LintStoreError> {
         let Some(contents) = contents(&self.store.build.0, &opened.contents.0) else {
-            return Ok(StoredHanded::default());
+            return Ok(ReadHanded::default());
         };
         let file = &mut opened.file;
         let rest = section(file, contents.rest).map_err(|error| self.unreadable(&error))?;
-        let mut handed = rest_from(&rest.0).ok_or_else(|| self.unreadable(&UNDECODED))?;
+        let mut handed = ryo_values::domain::stores::service::read_handed(
+            rest_from(&rest.0).ok_or_else(|| self.unreadable(&UNDECODED))?,
+        );
         for each in &contents.buckets {
             if let BucketsWanted::These(buckets) = wanted
                 && buckets.binary_search(&each.bucket).is_err()
             {
                 continue;
             }
-            let bytes = section(file, each.span).map_err(|error| self.unreadable(&error))?;
-            handed.frontier.extend(
-                bucket_from(each.bucket, &bytes.0).ok_or_else(|| self.unreadable(&UNDECODED))?,
-            );
+            for row in super::types::frames::value::old_word_rows(file, each.span)
+                .map_err(|error| self.unreadable(&error))?
+            {
+                handed.frontier.push(ReadWords {
+                    file: row.file,
+                    bucket: each.bucket,
+                    words: ReadWordPayload::Old(OldWords {
+                        snapshot,
+                        bucket: each.bucket,
+                        file: row.file,
+                        header: row.header,
+                        offset: row.span.start.0,
+                        length: row.span.length.0,
+                    }),
+                });
+            }
         }
         handed.frontier.sort_by_key(|each| (each.file, each.bucket));
         Ok(handed)
@@ -279,6 +297,7 @@ impl LintStorePort for LintStorePostcardAdapter {
                 adapter: self.clone(),
                 opened: None,
                 tables: SectionSpan::default(),
+                buckets: Vec::new(),
                 session,
                 spool: Mutex::new(None),
             })
@@ -300,6 +319,7 @@ impl LintStorePort for LintStorePostcardAdapter {
             adapter: self.clone(),
             opened: Some(Mutex::new(opened)),
             tables: contents.tables,
+            buckets: contents.buckets,
             session,
             spool: Mutex::new(None),
         }))
@@ -315,11 +335,61 @@ impl ReadStore for PostcardRead {
         })
     }
 
-    fn handed(&self, wanted: &BucketsWanted) -> Result<StoredHanded, LintStoreError> {
+    fn handed(&self, wanted: &BucketsWanted) -> Result<ReadHanded, LintStoreError> {
         match &self.opened {
-            Some(opened) => self.adapter.handed_from(&mut locked(opened), wanted),
-            None => Ok(StoredHanded::default()),
+            Some(opened) => {
+                self.adapter
+                    .handed_from(&mut locked(opened), wanted, StoreSnapshot(self.session.0))
+            }
+            None => Ok(ReadHanded::default()),
         }
+    }
+
+    fn read_old(
+        &self,
+        words: &OldWords,
+        into: &mut ryo_values::domain::stored_facts::types::PackedWords,
+    ) -> Result<(), LintStoreError> {
+        if words.snapshot != StoreSnapshot(self.session.0) {
+            return Err(self
+                .adapter
+                .unreadable(&"old row belongs to another store snapshot"));
+        }
+        let opened = self.opened.as_ref().ok_or(LintStoreError::NothingRead)?;
+        let mut opened = locked(opened);
+        let bucket = self
+            .buckets
+            .iter()
+            .find(|row| {
+                row.bucket == words.bucket
+                    && row.span.start.0 < words.header
+                    && row
+                        .span
+                        .start
+                        .0
+                        .checked_add(row.span.length.0)
+                        .is_some_and(|end| {
+                            words
+                                .offset
+                                .checked_add(words.length)
+                                .is_some_and(|after| after <= end)
+                        })
+            })
+            .ok_or_else(|| self.adapter.unreadable(&"old row bucket or span is absent"))?;
+        let held = opened
+            .file
+            .metadata()
+            .map_err(|error| self.adapter.unreadable(&error))?
+            .len();
+        super::types::frames::value::read_old_in(
+            &mut opened.file,
+            held,
+            StoreSnapshot(self.session.0),
+            bucket.span,
+            words,
+            into,
+        )
+        .map_err(|error| self.adapter.unreadable(&error))
     }
 
     fn stage_words(

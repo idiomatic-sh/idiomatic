@@ -92,7 +92,10 @@ impl ReadStore for FakeRead {
         }
     }
 
-    fn handed(&self, wanted: &BucketsWanted) -> Result<StoredHanded, LintStoreError> {
+    fn handed(
+        &self,
+        wanted: &BucketsWanted,
+    ) -> Result<ryo_values::domain::stores::types::ReadHanded, LintStoreError> {
         let _reads_before = self.fake.reads.fetch_add(1, Ordering::Relaxed);
         if self.fake.unreadable {
             return Err(LintStoreError::Unreadable {
@@ -106,7 +109,7 @@ impl ReadStore for FakeRead {
                 .frontier
                 .retain(|each| buckets.binary_search(&each.bucket).is_ok());
         }
-        Ok(handed)
+        Ok(ryo_values::domain::stores::service::read_handed(handed))
     }
 
     fn keep(&self, mut stored: Stored, kept: &KeptRows) -> Result<(), LintStoreError> {

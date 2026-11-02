@@ -2,6 +2,27 @@
 
 **In progress.** The goal remains all 413 Ruff 0.16.5 defaults as RyoQL, faithful full reports, and subsecond full-Django execution. Neither full parity nor the performance target has passed.
 
+## Old-store payload descriptors and native promotion (2026-11-02)
+
+The [memory candidate](old-word-memory-measurements-2026-11-02.json) passes **330 core, nine values, seven real CLI cache-lifecycle and 20 Python context tests**. Existing old-store payloads now remain descriptors against the immutable open snapshot until their file/bucket is selected. Persistent wire bytes and all normalized reports remain unchanged; no heap-accounting framework was introduced.
+
+The [full Django lifecycle](old-word-memory-lifecycle-2026-11-02.json) uses the same frozen310 policies, pinned2,875 files, one worker/RAYON1 and600-second caps:
+
+| Mode | Wall | Peak RSS |
+|---|---:|---:|
+| Cold | 246.531 s | 2.181 GB |
+| Retained CLI cache | 1.879 s | 238 MB |
+| Edited, retained cache | 11.453 s | 1.955 GB |
+| Edited, fresh cache | 245.745 s | 2.176 GB |
+
+All reports equal prior canonical outputs, including cached edit versus fresh recomputation. Each mode retains891,250 selected pairs,890,943 evaluated,307 explicit syntax skips and zero unknowns. Relative to the earlier separate f125 observation, forward-edit peak RSS is32.79% lower while wall is22.37% higher; cold is essentially unchanged. These separate observations establish no component timing attribution.
+
+A distinct three-pair **reverse-edit** control uses each executable's own already-existing edited cache, independent copies outside timing, identical logical inputs, exact inverse patch and canonical02b output. Pooled medians are15.911→17.210 seconds (+8.16%) and2.908→1.955 GB RSS (−32.79%). Pair times vary widely:21.385→17.210,15.911→21.051 and14.953→10.311 seconds. All six reports/coverage are exact; both source snapshots and seeds were restored/preserved. The initial common-seed attempt capped at60seconds because the SDK's executable-size/mtime BuildIdentity rejects another binary's cache; it is retained as an invalid control, never a completed performance sample. No cache validation or timestamps were altered.
+
+Original Rust cold CPU still **fails** the unchanged1.15 limit at1.1505448×; wall1.03763× and spike1.05446× pass that local pair. This checkpoint improves memory and remains an incomplete performance/quality result.
+
+The [new native contract and raw proof](native-promotion-2026-11-02/interpretation.json) promotes the ten prepared candidates to native query assets and validates **114 rules / 2,538 cases** using exact per-rule profile, target, module and phase declarations. UP044 retains py311. Historical104-query/2,211-case descriptor and base-profile bytes are archived unchanged. Diagnostics are **2,534 raw exact plus four documented discrepancies**, with no incomplete cases or candidate coverage unknowns. Historical stored-field comparison remains2,530 exact/eight differences: four additional UP025 differences are known candidate syntax skips versus synthesized reference empty arrays, with identical diagnostics. Ruff does not expose comparable execution metadata for any of these2,538 legacy records; none is auto-upgraded to the new typed Complete contract. All original arrays, counts and seals are retained.
+
 ## Compact DISTINCT and literal matcher checkpoint (2026-11-02)
 
 The [source-bound selected gate](literal-matcher-measurements-2026-11-02.json) passes **328 core tests, 20 Python SDK/worker-identity tests, the strict discrepancy staging self-test and the actual catalog stress test**. Every catalog feature retains its existing 1,000-occurrence requirement; real pinned pandas and Django inputs close the sparse witnesses without fabricated rows or exemptions. The workflow capture guards separately pass 44 tests. These checks do not establish broad QA acceptance.

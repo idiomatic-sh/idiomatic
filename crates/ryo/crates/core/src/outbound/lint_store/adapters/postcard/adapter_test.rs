@@ -7,7 +7,7 @@ use super::schemas::{contents, contents_bytes};
 use super::types::{SectionLength, TableOfContents};
 use crate::cases::{Case, CaseName, Expect, Word, run, selects};
 use crate::outbound::lint_store::errors::LintStoreError;
-use crate::outbound::lint_store::fixtures::contract::check;
+use crate::outbound::lint_store::fixtures::contract::{check, materialized_handed};
 use crate::outbound::lint_store::fixtures::fake::{
     again, over_a_b_d_and_e, over_b_and_d, stored, words_of,
 };
@@ -234,7 +234,7 @@ fn another_process_kept_between_the_read_and_the_keep(
         },
     )?;
     let last = store_in(directory, "build-1");
-    let all = last.stored()?.handed(&BucketsWanted::All)?;
+    let all = materialized_handed(&*last.stored()?, &BucketsWanted::All)?;
     Ok(all.frontier == [words_of(0, 10), words_of(1, 11), words_of(2, 13)])
 }
 
@@ -254,8 +254,10 @@ fn only_the_buckets_asked_are_decoded(
     let reader = store_in(directory, "build-1");
     let read = reader.stored()?;
     let tables_read = read.tables() == tables(two);
-    let asked = read.handed(&BucketsWanted::These(vec![Bucket(2)]))?;
-    Ok(tables_read && asked.frontier == stored(1).handed.frontier)
+    let asked = materialized_handed(&*read, &BucketsWanted::These(vec![Bucket(2)]))?;
+    Ok(tables_read
+        && asked.frontier == stored(1).handed.frontier
+        && read.handed(&BucketsWanted::These(vec![Bucket(5)])).is_err())
 }
 
 fn subject(question: Input) -> Result<Value, Failure> {
@@ -330,10 +332,10 @@ fn subject(question: Input) -> Result<Value, Failure> {
             store.stored()?.keep(stored(1), &KeptRows::default())?;
             let wanted = BucketsWanted::All;
             let reader = store_in(&directory, "build-1");
-            let alone = reader.stored()?.handed(&wanted)?;
+            let alone = materialized_handed(&*reader.stored()?, &wanted)?;
             let read = store.stored()?;
-            let after = read.handed(&wanted)?;
-            let again = read.handed(&wanted)?;
+            let after = materialized_handed(&*read, &wanted)?;
+            let again = materialized_handed(&*read, &wanted)?;
             after == alone && again == alone
         }
         Question::OnlyTheBucketsAskedAreDecoded => {
@@ -417,7 +419,7 @@ fn normalized_staging_preserves_store_bytes_and_snapshot_lifetime() {
     );
     let warm = staged_store.stored().expect("warm");
     assert_eq!(
-        warm.handed(&BucketsWanted::All).expect("warm frontiers"),
+        materialized_handed(&*warm, &BucketsWanted::All).expect("warm frontiers"),
         original.handed
     );
     // A later snapshot cannot resolve a descriptor, even while its owning snapshot remains alive.
@@ -484,15 +486,9 @@ fn staged_fresh_and_selected_old_rows_match_inline_edit_add_remove_and_reorder()
             std::fs::read(root.path().join("staged/lint.store")).expect("staged bytes")
         );
         assert_eq!(
-            inline
-                .stored()
-                .expect("warm")
-                .handed(&BucketsWanted::All)
+            materialized_handed(&*inline.stored().expect("warm"), &BucketsWanted::All)
                 .expect("inline"),
-            staged
-                .stored()
-                .expect("warm")
-                .handed(&BucketsWanted::All)
+            materialized_handed(&*staged.stored().expect("warm"), &BucketsWanted::All)
                 .expect("staged")
         );
     }
@@ -527,4 +523,75 @@ fn failed_write_flush_or_rename_never_publishes_or_removes_previous_cache() {
     );
     assert!(!temporary.exists());
     assert_eq!(std::fs::read(&target).expect("old cache"), previous);
+}
+
+/// Descriptors remain tied to the open old file through atomic replacement and concurrent consumers.
+#[test]
+fn old_read_descriptors_survive_replacement_and_reject_other_snapshots() {
+    use ryo_values::domain::stored_facts::types::PackedWords;
+    use ryo_values::domain::stores::types::ReadWordPayload;
+    let root = tempfile::tempdir().expect("directory");
+    let store = store_in(root.path(), "old-descriptors");
+    let mut original = stored(1);
+    original
+        .handed
+        .frontier
+        .push(original.handed.frontier[0].clone());
+    store
+        .stored()
+        .unwrap()
+        .keep(original.clone(), &KeptRows::default())
+        .unwrap();
+    let old = store.stored().unwrap();
+    let handed = old.handed(&BucketsWanted::All).unwrap();
+    assert_eq!(handed.frontier.len(), 2);
+    assert!(
+        handed
+            .frontier
+            .iter()
+            .all(|row| matches!(row.words, ReadWordPayload::Old(_)))
+    );
+    let descriptors: Vec<_> = handed
+        .frontier
+        .iter()
+        .map(|row| match row.words {
+            ReadWordPayload::Old(words) => words,
+            ReadWordPayload::Inline(_) => panic!("postcard retains no old payload"),
+        })
+        .collect();
+    old.keep(stored(2), &KeptRows::default())
+        .expect("replace current pathname");
+    let current = store.stored().unwrap();
+    let mut loaded = PackedWords::default();
+    for descriptor in &descriptors {
+        old.read_old(descriptor, &mut loaded)
+            .expect("original open file");
+        assert_eq!(loaded, original.handed.frontier[0].words);
+        assert!(current.read_old(descriptor, &mut loaded).is_err());
+    }
+    let mut bad_bucket = descriptors[0];
+    bad_bucket.bucket = Bucket(u32::MAX);
+    assert!(old.read_old(&bad_bucket, &mut loaded).is_err());
+    std::thread::scope(|scope| {
+        let threads: Vec<_> = (0..4)
+            .map(|_| {
+                let old = &old;
+                let descriptor = descriptors[0];
+                let expected = &original.handed.frontier[0].words;
+                scope.spawn(move || {
+                    let mut loaded = PackedWords::default();
+                    old.read_old(&descriptor, &mut loaded)
+                        .expect("same pinned snapshot");
+                    assert_eq!(&loaded, expected);
+                })
+            })
+            .collect();
+        for thread in threads {
+            thread.join().unwrap();
+        }
+    });
+    assert_eq!(
+        materialized_handed(&*current, &BucketsWanted::All).unwrap(),
+        stored(2).handed
+    );
 }

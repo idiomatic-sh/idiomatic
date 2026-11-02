@@ -13,7 +13,7 @@ use ryo_core::outbound::lint_store::interface::{LintStorePort, ReadStore};
 use ryo_language::domain::relations::types::ColumnsView;
 use ryo_language::domain::relations::types::Relation;
 use ryo_values::domain::stored_facts::types::Bucket;
-use ryo_values::domain::stores::types::{BucketsWanted, KeptRows, Stored, StoredHanded};
+use ryo_values::domain::stores::types::{BucketsWanted, KeptRows, Stored};
 
 /// The adapter, counting the words the files leave for the finish.
 pub(crate) struct Counting {
@@ -133,7 +133,10 @@ impl ReadStore for CountingRead {
     fn tables(&self) -> Stored {
         self.read.tables()
     }
-    fn handed(&self, wanted: &BucketsWanted) -> Result<StoredHanded, LintStoreError> {
+    fn handed(
+        &self,
+        wanted: &BucketsWanted,
+    ) -> Result<ryo_values::domain::stores::types::ReadHanded, LintStoreError> {
         self.read.handed(wanted)
     }
     fn stage_words(
@@ -141,6 +144,13 @@ impl ReadStore for CountingRead {
         words: ryo_values::domain::stored_facts::types::PackedWords,
     ) -> Result<ryo_values::domain::records::types::RecordWords, LintStoreError> {
         self.read.stage_words(words)
+    }
+    fn read_old(
+        &self,
+        words: &ryo_values::domain::stores::types::OldWords,
+        into: &mut ryo_values::domain::stored_facts::types::PackedWords,
+    ) -> Result<(), LintStoreError> {
+        self.read.read_old(words, into)
     }
     fn read_staged(
         &self,

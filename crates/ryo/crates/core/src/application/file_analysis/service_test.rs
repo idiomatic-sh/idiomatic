@@ -337,8 +337,8 @@ static NOTHING_STORED: std::sync::LazyLock<ryo_values::domain::stores::types::St
     std::sync::LazyLock::new(ryo_values::domain::stores::types::Stored::default);
 
 /// What the files of the last run handed, for a run that uses nothing of it.
-static NOTHING_HANDED: std::sync::LazyLock<ryo_values::domain::stores::types::StoredHanded> =
-    std::sync::LazyLock::new(ryo_values::domain::stores::types::StoredHanded::default);
+static NOTHING_HANDED: std::sync::LazyLock<ryo_values::domain::stores::types::ReadHanded> =
+    std::sync::LazyLock::new(ryo_values::domain::stores::types::ReadHanded::default);
 
 /// No bucket of what the files handed, for a run that reads none.
 static NOTHING_WANTED: ryo_values::domain::stores::types::BucketsWanted =
@@ -995,7 +995,7 @@ fn successful_outcomes_stage_once_and_keep_digests_without_retaining_payloads() 
         StagingSession,
     };
     use ryo_values::domain::stored_facts::types::{Bucket, Digest, PackedWords};
-    use ryo_values::domain::stores::types::{BucketsWanted, KeptRows, Stored, StoredHanded};
+    use ryo_values::domain::stores::types::{BucketsWanted, KeptRows, Stored};
     use std::sync::atomic::AtomicUsize;
 
     #[derive(Debug, Default)]
@@ -1007,8 +1007,11 @@ fn successful_outcomes_stage_once_and_keep_digests_without_retaining_payloads() 
         fn tables(&self) -> Stored {
             Stored::default()
         }
-        fn handed(&self, _: &BucketsWanted) -> Result<StoredHanded, LintStoreError> {
-            Ok(StoredHanded::default())
+        fn handed(
+            &self,
+            _: &BucketsWanted,
+        ) -> Result<ryo_values::domain::stores::types::ReadHanded, LintStoreError> {
+            Ok(ryo_values::domain::stores::types::ReadHanded::default())
         }
         fn keep(&self, _: Stored, _: &KeptRows) -> Result<(), LintStoreError> {
             Ok(())
@@ -1212,6 +1215,83 @@ fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() 
     };
     assert!(
         FileAnalysis::hand_again(&mut replay, &all_visit, FileOrder(0), FileId(0), &record)
+            .is_err()
+    );
+
+    // The persistent old-row path uses the same filter-before-resolution contract.
+    use ryo_values::domain::stores::types::{
+        KeptRows, OldWords, ReadWordPayload, ReadWords, StoreSnapshot, StoredFileNumber,
+    };
+    let mut valid = ryo_values::domain::stored_facts::types::PackedWords::default();
+    let FileOutcome::Read(ran) = &record.outcome else {
+        panic!("read")
+    };
+    let Handing::Made(handed) = &ran.handed else {
+        panic!("made")
+    };
+    let RecordWords::Staged(descriptor) = &handed.buckets[0].words else {
+        panic!("staged")
+    };
+    snapshot
+        .read_staged(descriptor, &mut valid)
+        .expect("valid packed words");
+    let mut persisted = crate::outbound::lint_store::fixtures::fake::stored(1);
+    persisted.files[0].path = record.path.clone();
+    persisted.handed.frontier[0].bucket = Bucket(0);
+    persisted.handed.frontier[0].words = valid;
+    snapshot
+        .keep(persisted.clone(), &KeptRows::default())
+        .expect("persist old fixture");
+    let old = store.stored().expect("old snapshot");
+    let mut old_handed = old.handed(&BucketsWanted::All).expect("headers only");
+    let invalid = OldWords {
+        snapshot: StoreSnapshot(u64::MAX),
+        bucket: Bucket(1),
+        file: StoredFileNumber(0),
+        header: u64::MAX,
+        offset: u64::MAX,
+        length: 9,
+    };
+    old_handed.frontier.push(ReadWords {
+        file: StoredFileNumber(0),
+        bucket: Bucket(1),
+        words: ReadWordPayload::Old(invalid),
+    });
+    old_handed.frontier.push(ReadWords {
+        file: StoredFileNumber(1),
+        bucket: Bucket(0),
+        words: ReadWordPayload::Old(invalid),
+    });
+    let mut old_record = record.clone();
+    let FileOutcome::Read(ran) = &mut old_record.outcome else {
+        panic!("read")
+    };
+    ran.handed = Handing::Kept;
+    let old_visit = FileVisit {
+        store: Some(old.as_ref()),
+        setting: VisitSetting {
+            stored: &persisted,
+            handed: &old_handed,
+            ..visit.setting
+        },
+    };
+    FileAnalysis::hand_again(
+        &mut replay,
+        &old_visit,
+        FileOrder(0),
+        FileId(0),
+        &old_record,
+    )
+    .expect("unrequested bucket and other file never resolve their invalid descriptors");
+    let old_all = FileVisit {
+        store: old_visit.store,
+        setting: VisitSetting {
+            wanted_buckets: &BucketsWanted::All,
+            ..old_visit.setting
+        },
+    };
+    assert!(
+        FileAnalysis::hand_again(&mut replay, &old_all, FileOrder(0), FileId(0), &old_record)
             .is_err()
     );
 }

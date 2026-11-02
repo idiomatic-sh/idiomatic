@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use super::errors::LintStoreError;
 use super::types::StoreKeeping;
-use ryo_values::domain::stores::types::{BucketsWanted, KeptRows, Stored, StoredHanded};
+use ryo_values::domain::stores::types::{BucketsWanted, KeptRows, ReadHanded, Stored};
 
 /// What every `lint_store` adapter implements.
 pub trait LintStorePort: Send + Sync {
@@ -33,7 +33,20 @@ pub trait ReadStore: Send + Sync + std::fmt::Debug {
     /// # Errors
     ///
     /// `Unreadable` when the place cannot be read.
-    fn handed(&self, wanted: &BucketsWanted) -> Result<StoredHanded, LintStoreError>;
+    fn handed(&self, wanted: &BucketsWanted) -> Result<ReadHanded, LintStoreError>;
+
+    /// Resolve one old row from this exact snapshot into reusable caller-owned storage.
+    ///
+    /// # Errors
+    ///
+    /// Foreign identities, overflow, invalid row framing and requested read failures are refused.
+    fn read_old(
+        &self,
+        _words: &ryo_values::domain::stores::types::OldWords,
+        _into: &mut ryo_values::domain::stored_facts::types::PackedWords,
+    ) -> Result<(), LintStoreError> {
+        Err(LintStoreError::NothingRead)
+    }
 
     /// Retain successfully normalized fresh words until this run keeps or drops its snapshot.
     /// Custom in-memory stores may keep inline representation; no IO is required by default.

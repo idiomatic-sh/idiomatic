@@ -23,7 +23,11 @@ pub(crate) fn rows_of_file<T>(
 /// What the file at `path` handed the steps that read across files when the store was kept but its words, which the store keeps
 /// where they are; nothing when the store has no row of it.
 #[must_use]
-pub(crate) fn handed_in(stored: &Stored, handed: &StoredHanded, path: &FilePath) -> Handed {
+pub(crate) fn handed_in<W>(
+    stored: &Stored,
+    handed: &ryo_values::domain::stores::types::HandedRows<W>,
+    path: &FilePath,
+) -> Handed {
     let Ok(place) = stored.files.binary_search_by(|file| file.path.cmp(path)) else {
         return Handed::default();
     };

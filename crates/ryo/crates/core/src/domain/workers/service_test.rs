@@ -31,8 +31,8 @@ static NOTHING_STORED: std::sync::LazyLock<ryo_values::domain::stores::types::St
     std::sync::LazyLock::new(ryo_values::domain::stores::types::Stored::default);
 
 /// What the files of the last run handed, for a run that uses nothing of it.
-static NOTHING_HANDED: std::sync::LazyLock<ryo_values::domain::stores::types::StoredHanded> =
-    std::sync::LazyLock::new(ryo_values::domain::stores::types::StoredHanded::default);
+static NOTHING_HANDED: std::sync::LazyLock<ryo_values::domain::stores::types::ReadHanded> =
+    std::sync::LazyLock::new(ryo_values::domain::stores::types::ReadHanded::default);
 
 /// No bucket of what the files handed, for a run that reads none.
 static NOTHING_WANTED: ryo_values::domain::stores::types::BucketsWanted =

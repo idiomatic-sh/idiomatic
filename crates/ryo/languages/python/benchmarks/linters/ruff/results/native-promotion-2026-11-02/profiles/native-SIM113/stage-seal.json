@@ -1,0 +1,950 @@
+{
+  "staged_inputs": {
+    "benchmark.toml": "872466a780757e3aa70395159a0c10a93e1d106cf8036c91743f6288e5c6172e",
+    "evidence/counter-exact-cpython-3.10.19.json": "5a8562b4693936b6cff59d624416ac8f0bbee150858e94cc1818831db4291fa9",
+    "evidence/counter-exact-cpython-3.13.5.json": "d27096776e36d375370731950a0b3fb2dbb462facb118ba2d273641d7d65226e",
+    "fragments/assigned-values.ryoql": "c78ef906aa7e8b31cc6a4935eed21b9da2034ed392cb56da712889d5168ffb86",
+    "fragments/suppress-directives.ryoql": "29efaa45457a591ccd20d340327095ef9f6d9644feec94929f245cc420fc3382",
+    "fragments/suppress.ryoql": "b3f9278dec26f739d1ee68a53b834629bc51b26fa868ec250e0eaaf5854d9c26",
+    "rules/SIM113/cases.toml": "f5b6412159fd6ab6aef8322295805e772f34ca514deae12d02ba6a37559dc223",
+    "rules/SIM113/query.ryoql": "7f449d8440051969d0106aecd605930191a6054f1b3723f18f97f13c5ccfb033"
+  },
+  "declared": {
+    "profile_name": "native-SIM113",
+    "rule_id": "SIM113",
+    "selected_rules": [
+      "SIM113"
+    ],
+    "profile_file": "profiles/SIM113/benchmark.toml",
+    "candidate_file": "rules/SIM113/query.ryoql",
+    "query_sha256": "7f449d8440051969d0106aecd605930191a6054f1b3723f18f97f13c5ccfb033",
+    "cases_file": "rules/SIM113/cases.toml",
+    "cases_sha256": "f5b6412159fd6ab6aef8322295805e772f34ca514deae12d02ba6a37559dc223",
+    "case_count": 46,
+    "case_names": [
+      "basic",
+      "increment-first",
+      "unused-index",
+      "one-hex",
+      "zero-hex",
+      "nonzero-start",
+      "float-start",
+      "bool-start",
+      "float-increment",
+      "bool-increment",
+      "subtract",
+      "continue",
+      "nested-continue",
+      "two-writes",
+      "loop-target-write",
+      "after-loop-read",
+      "before-initializer-read",
+      "annotation",
+      "nested-block-init",
+      "branch-modifies-initializer",
+      "nested-namespace",
+      "no-initializer",
+      "async-loop",
+      "noqa",
+      "function",
+      "function-global",
+      "nonlocal",
+      "tagged-flake8_simplify-SIM113.py",
+      "closure-before-initializer",
+      "closure-inside-loop",
+      "loop-initializer",
+      "while-initializer",
+      "conditional-overwrite",
+      "loop-overwrite",
+      "deleted-before-loop",
+      "overwrite-before-loop",
+      "zero-reinitializes",
+      "post-reinitialized-lifetime",
+      "nested-local-shadow-read",
+      "enclosing-if-same-block",
+      "nested-if-increment",
+      "else-increment",
+      "nested-nonlocal-mutation",
+      "conditional-value-namedexpr",
+      "unconditional-value-namedexpr",
+      "current-lifetime-use-before-loop"
+    ],
+    "effective_settings": {
+      "defaults": [
+        "SIM113"
+      ],
+      "parser_configuration": "python-target=3.10",
+      "project_context_mode": "isolated",
+      "rule_applicability": {
+        "SIM113": "accepted-syntax"
+      },
+      "flags": {}
+    },
+    "profile_sha256": "b1dd08d5e846b8bdf5eefcc4298c17c379bdbe4bd5b83f0cefd3f55850aa37b4",
+    "source_settings": {
+      "defaults": [
+        "SIM113"
+      ],
+      "parser_configuration": "python-target=3.10",
+      "project_context_mode": "isolated",
+      "rule_applicability": {
+        "SIM113": "accepted-syntax"
+      },
+      "flags": {}
+    },
+    "module_registry": {
+      "python/ruff/suppress": "fragments/suppress.ryoql",
+      "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql",
+      "python/ruff/assigned-values": "fragments/assigned-values.ryoql"
+    },
+    "module_sha256": {
+      "python/ruff/suppress": "b3f9278dec26f739d1ee68a53b834629bc51b26fa868ec250e0eaaf5854d9c26",
+      "python/ruff/suppress-directives": "29efaa45457a591ccd20d340327095ef9f6d9644feec94929f245cc420fc3382",
+      "python/ruff/assigned-values": "c78ef906aa7e8b31cc6a4935eed21b9da2034ed392cb56da712889d5168ffb86"
+    },
+    "target_version": "py310",
+    "selection_contract": "explicit-native-standalone"
+  },
+  "case_inventory": [
+    {
+      "rule": "SIM113",
+      "name": "after-loop-read",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "44df6a19d321454b3db64a8ff8ef12e2b4afb3ad417122e2007b22b177b3b4de",
+      "source_sha256": "65f985ec782c9bd9eca5f9727b977288e704c72eda9c0a2e541c6438676279ed",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "SIM113",
+      "name": "annotation",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "4fb359fe97da96ebb2d5858eb37edda6404ff4f48b5575a7d6eb76bdd4f61d6f",
+      "source_sha256": "73fe4f13416a5bdaba01fada6624da78f0a550429935a7b3de9aba2bff754628",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "SIM113",
+          "file": "case.py",
+          "start": 58,
+          "end": 64
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "SIM113",
+      "name": "async-loop",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "c8689015526c640fec60060014a755c3f60ec830167cd4dd5ec9aff5eb4a6cd0",
+      "source_sha256": "eb18fcdd5b68bd66aa375a2ffbd90b5bcb40a6ad9775afbb7c2eef2750b3c3ec",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "SIM113",
+      "name": "basic",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "cc7644404d2340c7db4f346a1d975ec9ef40d71a21b9fa2b201cbb89e02f96b3",
+      "source_sha256": "d5a7e435b949e7d6bd5451cb1c71eafa2283e19a7376238c238b4fb3e86ef9ec",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "SIM113",
+          "file": "case.py",
+          "start": 53,
+          "end": 59
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "SIM113",
+      "name": "before-initializer-read",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "5e8a333b16447f2da296702e12b796a722a28e055253a0bcff61df5099b669f5",
+      "source_sha256": "9288a336b43fe97dbaca26aadf3f5f256bf8b85ffd7d5fbc8f489188cbc09a75",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "SIM113",
+          "file": "case.py",
+          "start": 64,
+          "end": 70
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "SIM113",
+      "name": "bool-increment",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "f970a654eaa67b8909b8a48c0fdf794a620bf9f73db12d04751e223d975616c4",
+      "source_sha256": "d896228086b3e545d54142f87b2df6a5ee0767e4596a382f754b934d97fea2cc",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "SIM113",
+      "name": "bool-start",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "9453bca6e2bba7fbe30910b5c1c8b975af5134b3ebe7c85c7ea49fc051baa1fc",
+      "source_sha256": "4bbcc4df956a563b4940c25051c09bc69358e0f46b282f26fc90b5acd819463e",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "SIM113",
+      "name": "branch-modifies-initializer",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "6634f126bdd1b9e4817bbdc23a6fb684f8a9aecc3d7bc700091f0737fa5618f4",
+      "source_sha256": "870ea35fe3997960e07c06a23a4281c9f2591713738e4ebb6a5147c361585d17",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "SIM113",
+      "name": "closure-before-initializer",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "7cbb2346f29f1e69cd080d0ecefb108d67eba6977871da4d8827fa7dcf449de4",
+      "source_sha256": "629c96cc7242fa53b736476e2087cd6518655872652b7e23474121512ac772d1",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": {
+        "identity": {
+          "tool": "ruff",
+          "version": "0.16.5",
+          "observed-executable-sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+          "profile-sha256": "872466a780757e3aa70395159a0c10a93e1d106cf8036c91743f6288e5c6172e",
+          "settings-sha256": "cb51f9cfffe243010a87d7dd7b6367593afe8a9d00065b5648d33dbf646c565c",
+          "source-sha256": "629c96cc7242fa53b736476e2087cd6518655872652b7e23474121512ac772d1",
+          "reference-output-sha256": "843af959a51f6e5b42e8daae276a307648df2585e8130244fca780b3e0e5b310",
+          "intended-output-sha256": "fe95995b682b3d5703c003a04cf4b5f5b0c3f89c764485cc18476c5c1cf2bd7a"
+        },
+        "approved_executable_sha256": [
+          "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+          "024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32",
+          "515c8e5e3c8c3cd9785f421e050c98748420aae9a02459b7232c89a46bbadba4",
+          "894431afcb8addcd8e3752e53634fdb0a6f9063153cd62ed730ce59d02878487",
+          "29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e"
+        ],
+        "reference_expected": [
+          {
+            "end": 83,
+            "file": "case.py",
+            "rule": "SIM113",
+            "start": 77
+          }
+        ],
+        "intended_expected": [],
+        "reason": "The suggested enumerate rewrite changes the returned closure-observed counter from2 to1 for the exact controlled input; retain the semantically required counter."
+      }
+    },
+    {
+      "rule": "SIM113",
+      "name": "closure-inside-loop",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "9a3a54b5dbb095b906e5445216ed6828fc805c8812b09dd391a80f6a970f70ac",
+      "source_sha256": "a83a00cd9cbc916e3eda8d26e528aaed3df06a705a9fc1cb748058d6460cc9a4",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": {
+        "identity": {
+          "tool": "ruff",
+          "version": "0.16.5",
+          "observed-executable-sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+          "profile-sha256": "872466a780757e3aa70395159a0c10a93e1d106cf8036c91743f6288e5c6172e",
+          "settings-sha256": "cb51f9cfffe243010a87d7dd7b6367593afe8a9d00065b5648d33dbf646c565c",
+          "source-sha256": "a83a00cd9cbc916e3eda8d26e528aaed3df06a705a9fc1cb748058d6460cc9a4",
+          "reference-output-sha256": "ff3d613e3679fb46988ff68475be5c9cbb873528dde283b54dd6d6a5591680ac",
+          "intended-output-sha256": "fe95995b682b3d5703c003a04cf4b5f5b0c3f89c764485cc18476c5c1cf2bd7a"
+        },
+        "approved_executable_sha256": [
+          "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+          "024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32",
+          "515c8e5e3c8c3cd9785f421e050c98748420aae9a02459b7232c89a46bbadba4",
+          "894431afcb8addcd8e3752e53634fdb0a6f9063153cd62ed730ce59d02878487",
+          "29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e"
+        ],
+        "reference_expected": [
+          {
+            "end": 87,
+            "file": "case.py",
+            "rule": "SIM113",
+            "start": 81
+          }
+        ],
+        "intended_expected": [],
+        "reason": "The suggested enumerate rewrite changes the returned closure-observed counter from2 to1 for the exact controlled input; retain the semantically required counter."
+      }
+    },
+    {
+      "rule": "SIM113",
+      "name": "conditional-overwrite",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "1c4254720e6ce49afb866e64037005260ee8b4421321186c074fc92eda78e400",
+      "source_sha256": "5afec4a214ea0d22ec60347040fff324539eef15d5e25f360efa4efbb12c1c1c",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "SIM113",
+      "name": "conditional-value-namedexpr",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "100f1fd6aba3cb7784d4cff1ac476b417145914e6ff22ae353583dd735cde1d5",
+      "source_sha256": "7532b611a6bff3e6a2bbe0e568e7945faaf3f4ad44d3e02bced5d498d096d140",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "SIM113",
+      "name": "continue",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "10913b76c4d1494439b4e025ecab627fb36166487549efa498fc756cde3a8953",
+      "source_sha256": "4dc7ee76958dd7ad5e2f454a58260b0f650a6a068738e911b86d5681328cae17",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "SIM113",
+      "name": "current-lifetime-use-before-loop",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "22a41c60bfb2e6fd4a83960c743b4e59444ab2ec0104c39d56b608acc1cc97df",
+      "source_sha256": "7fc01bcb377ac624f75cbc99bf2f55b9fdcb0a5379c81cb2a61c19fd6b4a8e55",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "SIM113",
+      "name": "deleted-before-loop",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "a10a6b1c6865c8d608abf7c9ed6990a64618380a4f14ec84914ea28e720eb896",
+      "source_sha256": "7a10db0322c509013a064854943fbfd82348fec88363dc855a5770c129a0d222",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "SIM113",
+      "name": "else-increment",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "3578f84998305d65428d7a374612a904647f88625a0557f6ce60510afa136248",
+      "source_sha256": "92c907219977a39934b0da6c2501b4db542b74ecb56a4c36d4e072bcc8110098",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "SIM113",
+      "name": "enclosing-if-same-block",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "9dfe6ddf89be0bdb2959c2627deef5eecde1ce85a144d77a08df872da878d586",
+      "source_sha256": "e87b0fe1a7ccef462dc6e883523abe865ffeef38c2f4924322f8e42dd95639c0",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "SIM113",
+          "file": "case.py",
+          "start": 57,
+          "end": 63
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "SIM113",
+      "name": "float-increment",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "00a48d2f7e0340c672bd4e9fa1d7219e3d7a6de6287f77fb6f40eb05a984c96c",
+      "source_sha256": "74b5eaa6f6fed43d083761d826825ca77d4ddc060f6db9b4b4e4a69b822918da",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "SIM113",
+      "name": "float-start",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "5bb9ecc02db0ad5dcdb11ac0e18c56cb8425fb5c910bcf0e548fb20b9b5cd02a",
+      "source_sha256": "e47b1ae0f3eaa79b5275abd71a24424af6777e1d31716ac21292b63bbe8bcbc7",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "SIM113",
+      "name": "function",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "8dcbf107ce6c3499ff55b6cddfd91dfef8098b251c1eda805a18b5220ef708a2",
+      "source_sha256": "8b507d8f26ce03792188d048070c9daf9c338a7eddecb133dc1035a26fec69f2",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "SIM113",
+          "file": "case.py",
+          "start": 78,
+          "end": 84
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "SIM113",
+      "name": "function-global",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "b05aed1a284b2b11721c506f03e349fbda1be7618800465cf550c03337efcf05",
+      "source_sha256": "536b3638699a2350d71ab3d98521e78a152fc8a2f164b4ade069db3049d14072",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "SIM113",
+      "name": "increment-first",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "29a8f86f91df0dcc9b32e5dc22b6f9790bfff5158b8568cf4fe0b488eb6ca510",
+      "source_sha256": "d8035cdcd44c7fd1551b408da13dfcdd6fda70725065eae71b5ed1310a4e2cf5",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "SIM113",
+          "file": "case.py",
+          "start": 31,
+          "end": 37
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "SIM113",
+      "name": "loop-initializer",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "f91da85f81e65fea9327fa366d1f56ae30ed0b3c888f027c1e90821852e8405e",
+      "source_sha256": "23adcf06f4c3480b3d0769bcdebffa1b78041ce0a69e40cd6154ce64913c9cf5",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "SIM113",
+      "name": "loop-overwrite",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "ffb8baf4e9b74305ce7b62b286260b66d9ea6778d2a21a50963bfa926e008821",
+      "source_sha256": "be1b9719b0ef0f014e3c45a4e286ba328e3dbaa23d22494b2ac44aa1071395c7",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "SIM113",
+      "name": "loop-target-write",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "783f8a9fc88c415fdfff050e7f31d8ebfbcdaf33cfcba1b31e394783b2c5f61b",
+      "source_sha256": "1ee40f36231fda16a24eba628d52272ddce389c2e17042c0940de5432d9dea4e",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "SIM113",
+      "name": "nested-block-init",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "0eb3192d07d3a02b400b6cd5dc9aa127d8f0596db5c6663c0ef63450c057f3dc",
+      "source_sha256": "b421f0137169372b7b1249b3552be3466d25f1fce317ab5af7e0d67e231208f5",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "SIM113",
+      "name": "nested-continue",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "15a0e61228113173e1e17bbc80b6ac5f4862d85f63684200b4905d2dea26de78",
+      "source_sha256": "c7bde4b8ed8c68fb8569514ac835db545674d5f1e63eaac35e787fea6bc1121f",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "SIM113",
+      "name": "nested-if-increment",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "0e633caf4262e6f345e40608aeb21b82ee667ad790394f4286e3f41ee02c68ae",
+      "source_sha256": "be4c4525eecbfa59056b292ce16dbd851696e0cfe7a63da8532d2be3040b55a4",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "SIM113",
+      "name": "nested-local-shadow-read",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "49c628077067354ca29fe5ef42b2e84f5921819964c92a9df7f65c26bbb0e1bc",
+      "source_sha256": "d721e00c32dad1fc770c23da2c534a1cf6752149d3676fa1500c03db3daef0de",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "SIM113",
+          "file": "case.py",
+          "start": 67,
+          "end": 73
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "SIM113",
+      "name": "nested-namespace",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "8b15d3b18fd82d3dce6521e69d7b3ee9da79041a2906f1fd10e65749dcc819a2",
+      "source_sha256": "48290a1e9428cbec7734efeaa9d247e2d43a9639049641653e5dda71c9575f9e",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "SIM113",
+          "file": "case.py",
+          "start": 58,
+          "end": 64
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "SIM113",
+      "name": "nested-nonlocal-mutation",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "e112ac2a38786cbcb0f7520aaf19e48e64187cedb3c226421e8678f0b3c15433",
+      "source_sha256": "135cf79ae2348b66bc1f4a68a60804c0e644623b778118642315373f396d1849",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "SIM113",
+      "name": "no-initializer",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "626086d05a27b72ea6ae5e6c10fb69ee010de9d1632eb0a41821198deaba23bc",
+      "source_sha256": "1c3adb527bfa2169d483f23d02d628e243a460c8e3df0a6d2e54135c780f8c32",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "SIM113",
+      "name": "nonlocal",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "14e9426cb2080afa21db47c175a985e3a9ecdf313eb16bb02703afaf1ffd3c86",
+      "source_sha256": "f8484dd4756f2575950fe97f012b823f69fd7438dddc30d4a18bdf0157b82bc1",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "SIM113",
+      "name": "nonzero-start",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "03f6186396af67526cc2c79e790e44bab9fadf30c0182a752cd58adf57470340",
+      "source_sha256": "ce40b17f0f8c38f11dee21144759eaba81ae08e31604c027c0db9ae9a992faa1",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "SIM113",
+      "name": "noqa",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "8ce0a59d08e6bd73ba48e71c3f6318557e23629b8ee1463fe4a164c31b0ef478",
+      "source_sha256": "66cf254bb77d91ff2c221c9572726ee7da7f36a6ef19e1c92b751231038c1391",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "SIM113",
+      "name": "one-hex",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "e61a54bb71d4e1f2ba129e4c56031272f260e1f42fff0fc2ddfb6b206896ce98",
+      "source_sha256": "79e19b2a2b95f5525d292d68cd4cce05fd36930dbdfb5b6ae91524afb3e8e2cf",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "SIM113",
+          "file": "case.py",
+          "start": 31,
+          "end": 39
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "SIM113",
+      "name": "overwrite-before-loop",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "e15b55fd728032df596d8bb8747adde349972e492fa6f3e9af56d93cfd5925df",
+      "source_sha256": "77cdaa27b6deb603d92327fa84b43ec846974e1c0568a7330f3361f1f6121693",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "SIM113",
+      "name": "post-reinitialized-lifetime",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "978858ca5c3aa384401eb3dca03be4f0a230ca0a12b14d576a533ed4d9f1f5e9",
+      "source_sha256": "535ce8311d6ebf97496474a328deead1c5b67b8270737e539af04ccaf26bf35f",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "SIM113",
+          "file": "case.py",
+          "start": 31,
+          "end": 37
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "SIM113",
+      "name": "subtract",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "6ee1bdf50bb0f9a181c4a3e04254e0de5e4a49e7742d0510fbf9dfeccb674301",
+      "source_sha256": "fc86e4869c1a3b8ce6380f9a1f4342c6c63f8a6aa23fd8109209e1f4919163b7",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "SIM113",
+      "name": "tagged-flake8_simplify-SIM113.py",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "a1d6e57e38df7445f9bab90c202409bd80922a5e52128e4909176a04f9b9c05a",
+      "source_sha256": "d1e94992f2299e0b8274f9e012c7425cfe17c4389deaaeb7aa3aef5a220911b5",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "SIM113",
+          "file": "case.py",
+          "start": 86,
+          "end": 94
+        },
+        {
+          "rule": "SIM113",
+          "file": "case.py",
+          "start": 225,
+          "end": 233
+        },
+        {
+          "rule": "SIM113",
+          "file": "case.py",
+          "start": 376,
+          "end": 384
+        },
+        {
+          "rule": "SIM113",
+          "file": "case.py",
+          "start": 492,
+          "end": 500
+        },
+        {
+          "rule": "SIM113",
+          "file": "case.py",
+          "start": 597,
+          "end": 605
+        },
+        {
+          "rule": "SIM113",
+          "file": "case.py",
+          "start": 3116,
+          "end": 3122
+        },
+        {
+          "rule": "SIM113",
+          "file": "case.py",
+          "start": 3197,
+          "end": 3203
+        },
+        {
+          "rule": "SIM113",
+          "file": "case.py",
+          "start": 3428,
+          "end": 3434
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "SIM113",
+      "name": "two-writes",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "ee15289fa94574423854480c38bc9484c7a8729d73a52e60b6e00ea51c847acf",
+      "source_sha256": "b7484532e05f20a6bda67a0c95eb630750356c327fcbb78cdbc4a984ad78a4d2",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "SIM113",
+      "name": "unconditional-value-namedexpr",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "52117d1fd5a433f225c7c6c23b7022f4b94ab518d70cce0833f6b216289b5227",
+      "source_sha256": "c0a4ff9261251149e542fbe2e8c318680ace83ea51bad1c784abea11907383a2",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "SIM113",
+      "name": "unused-index",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "f988479feca5dfa8dcf54ac0ecd0800ab847e9876e433cc2ab6382d91d52d943",
+      "source_sha256": "ff4bf1765c723eced0d48ee7515468058db88cbec8a9930f0b9e5b40518b9d0c",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "SIM113",
+          "file": "case.py",
+          "start": 31,
+          "end": 37
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "SIM113",
+      "name": "while-initializer",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "279bebe5b9edff3cae707efde03580baaa72aabb15ed7bc05e26eeb0109333ae",
+      "source_sha256": "79d4ae8b196fe3d652d87e6d2e20ff41734fb15851f039547f0ed77e3e41dd13",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "SIM113",
+      "name": "zero-hex",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "f708bf17f485a2be2e327c263960ea3461c852dc90baca2964c000711c81694e",
+      "source_sha256": "842742eda2c32cd8f98b17afb5c93fa1f7cfde2d9caefdc0afb89379c9037b2f",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "SIM113",
+          "file": "case.py",
+          "start": 55,
+          "end": 61
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "SIM113",
+      "name": "zero-reinitializes",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "534dcb991c7a2dc3e1b8ffd240f3453f5ce43eebd7766923a047bd4f05895edf",
+      "source_sha256": "f50d20b499f85629b1af5a0d1203b41009eea99b78d46e0cacb56f43534f457b",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "SIM113",
+          "file": "case.py",
+          "start": 37,
+          "end": 43
+        }
+      ],
+      "reference_discrepancy": null
+    }
+  ]
+}

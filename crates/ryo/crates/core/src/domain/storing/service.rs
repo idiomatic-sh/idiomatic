@@ -15,8 +15,8 @@ use ryo_values::domain::runs::types::{RuleId, Skipped};
 use ryo_values::domain::stored_facts::types::{Bucket, Digest};
 use ryo_values::domain::stores::types::{
     BucketsWanted, Crossing, FileAgain, FindingMade, KeptRows, Stored, StoredCell, StoredFile,
-    StoredFileNumber, StoredFinding, StoredFrontier, StoredHanded, StoredRule, StoredUnknown,
-    StoredUnread, UnknownText,
+    StoredFileNumber, StoredFinding, StoredFrontier, StoredRule, StoredUnknown, StoredUnread,
+    UnknownText,
 };
 
 /// The stored file at `path`: the files are kept in the order of their paths.
@@ -315,10 +315,10 @@ pub(crate) fn with_fresh(kept: Vec<Record>, fresh: Vec<Record>) -> Vec<Record> {
 /// What a run keeps in its store: its rules, a row for each file, the findings, why a file was not read, the manifests refused, what
 /// the rules could not decide, the files the lookup read, and the words as they were: the buckets `unchanged` and the files used again.
 #[must_use]
-pub(crate) fn stored_of(
+pub(crate) fn stored_of<W>(
     keeping: ToKeep<'_>,
     last: &Stored,
-    last_handed: &StoredHanded,
+    last_handed: &ryo_values::domain::stores::types::HandedRows<W>,
     rebuilt: &BucketsWanted,
     unchanged: Vec<Bucket>,
 ) -> ToStore {

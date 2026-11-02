@@ -1,0 +1,512 @@
+{
+  "staged_inputs": {
+    "benchmark.toml": "70a8022dbd170ff0ccfce96bd971919325ec42cb538090a83cc0e8eb79df88a1",
+    "fragments/annotation-evaluation-context.ryoql": "b176d58a1687fe99f5b41d85fc781c0b33d2dcd58b49c6a16670216b78361ef5",
+    "fragments/annotation-origins.ryoql": "d4cd6d1e89c162be2d98e2a7ca427bb010fc866ffc6c0a62247cac4c9af886fd",
+    "fragments/assigned-values.ryoql": "c78ef906aa7e8b31cc6a4935eed21b9da2034ed392cb56da712889d5168ffb86",
+    "fragments/binding-type.ryoql": "24acc8ec7efcd738bf2379d02ed355932c87aa0dfa8e92c9254b2784635a8141",
+    "fragments/boolean-test-context.ryoql": "83551ea264ff2b900d5ef45be4034ed5d73e264a02ebaedaadfae6a8273d2fa1",
+    "fragments/builtin-match-at-visit.ryoql": "16924880fa94dcdc46be1610ecd520565f4a88496152da125f2a051105f8508d",
+    "fragments/checker-namespace-events.ryoql": "7a268dd1ef24bd6589889cd46c15b35ae2b2f90f31fa678452b08cd01fc10ce3",
+    "fragments/checker-type-scope-events.ryoql": "73e0c247d934179dbf5ac9a80c1a1d051384245fa141b3734b94ebf48b7fca43",
+    "fragments/class-bases.ryoql": "fc1631c5cff467313bf8355b76a416475ccf17597cea2fc9a762746e1ee51424",
+    "fragments/conditional-guards.ryoql": "fd83fa7007ae3ee3c1bb069e18064b06e95eac0c011ede7828c543f5ed7e6ebe",
+    "fragments/dataclass-decorators.ryoql": "6fcb046de35d673b2d06ec669896762ca13a826e39d971663c6ed9a93a14bd1b",
+    "fragments/deferred-class-origins.ryoql": "4667ad8e34a470d5252fde9ea4822a41ec675ae49bd3a7b0c11b654c2e2a3d7c",
+    "fragments/deferred-read-events.ryoql": "c14a2ae37ebe042492956e83931cd13ab742b6bbcba1d0b1e67b752cbe382f24",
+    "fragments/deferred-read-resolutions.ryoql": "3c29d708f1763cebaa4e17b3803af2bc4eec614514978820abd2773fc561e9ca",
+    "fragments/deferred-type-reads.ryoql": "dc3906fdde5e7278fa69ae0b365f414d3e77add6b7c2c59b336660cb7ab019f6",
+    "fragments/eager-before-future.ryoql": "c6aeb8a561e1957e2341000601156edb529cfcb00491a28fb9c405ea9085aec1",
+    "fragments/enum-bases.ryoql": "2435c26a20c51b1ccdf03835c5fcdff56f60d9672274c560371aa2f616d5b5c7",
+    "fragments/future-annotation-context.ryoql": "976b10f474f5e82e4976f85c14d73ed3b3c6f864b1de183699784f00e5e8269b",
+    "fragments/immutable-annotation.ryoql": "238eb0e2bc017481d0d78ea74724cd851fa72446ef86badd43b301878598cd76",
+    "fragments/immutable-annotations.ryoql": "acc17b77923b62bd9e5e4ae1df308b73a8a08179a880895e73f6ea2148934a5c",
+    "fragments/in-comparison.ryoql": "4c555f7ff2c3190b54133ace818d2367948e41ae4b165d8624849ee9f471c5ac",
+    "fragments/literal-members.ryoql": "2b2efda02620a07bbcd470b960e6bd628f486d284add38b73a4fa7e8faefc237",
+    "fragments/lookup-attribute.ryoql": "ed4c627599e82cdd9055e81db2b5bdbae8fdbbd253ca4b66e908ea7adc4f4ee1",
+    "fragments/lookup-read-events.ryoql": "7e2c8011f7c7810db6033a8bf74c9650c20b342aa4399ae33060bfc233c48412",
+    "fragments/lookup-symbol-events.ryoql": "b0fb09349eb9b0acde95944add1760c9ce104fc66df1bd218261b40b4f895dfb",
+    "fragments/metaclass.ryoql": "9524812dd4d131f2f5308732d2539ee83f7a8616312ffebfd9e502c635d9819a",
+    "fragments/modernization-symbols.ryoql": "177eeaefcf2ef7b6a37936e8f018bb724532af6b4712264f8f75b7e9386313ff",
+    "fragments/nonlocal-bindings.ryoql": "b9daa7c34cd274c2018dc621f4d141eab6548fb8dadde25ab053d5132041a609",
+    "fragments/pep604-candidates.ryoql": "43f2f3b710aa286bfcf76937171731295562dd0112e1c512d5a0648aad182ee0",
+    "fragments/python-evaluation-regions.ryoql": "3ef1c23b80e5070940ed367d6a269372f0f9486edbafa36e0332f5751a882104",
+    "fragments/qualified-origins.ryoql": "102cd490a9d15e3f4a95600d5644ce18418e1d4059ae8344019edb8d79699ab5",
+    "fragments/repeated-characters.ryoql": "fd01cdabb855e30c993e92864f21790e8221ca6af74d8cfd3e100ee4e9aaddd2",
+    "fragments/simple-stub-defaults.ryoql": "230a35648a917693061cd3c651f834b66e0bc4170ac39921248a0f07a23a050a",
+    "fragments/statement-equal.ryoql": "06f10897d474fd16124ad8fa77d65e366a5a2e3073918fa31acc35f8a7117659",
+    "fragments/suppress-directives.ryoql": "29efaa45457a591ccd20d340327095ef9f6d9644feec94929f245cc420fc3382",
+    "fragments/suppress-unmapped.ryoql": "d45584ef7d81bc8eff40e64c30d1d841acf679a79e5c1c0fd42fb32e4ed65417",
+    "fragments/suppress-with-additional-lines.ryoql": "94fe4dc58c65a666377e9e969f7d1e328c0121376b90d821bddad506cdda53d5",
+    "fragments/suppress.ryoql": "b3f9278dec26f739d1ee68a53b834629bc51b26fa868ec250e0eaaf5854d9c26",
+    "fragments/type-definition-context.ryoql": "a0451b6cf5bebeea9a8cae4fe8c66555d66bca72fdfa1c64c1f159e2d9d957ce",
+    "fragments/type-match-at-check.ryoql": "f6ab40cc1f8c909331adc33de3caa5a2333a4dab04b1b765c339dff97a83f26b",
+    "fragments/typing-match-at-visit.ryoql": "385018e3c0553ab31e8bd3a82332afb30b078073b1fc9c6983ed9c993d3ab2aa",
+    "fragments/union-members.ryoql": "4300be9432454ce1c1deaa3a25dee58808198d96edc9d3bb95097bcd18273bd6",
+    "fragments/unpack-symbols.ryoql": "4594f5c52183ceed86a6a641a575b79322f3a0c2c1f0065b7695b6a97a1218d4",
+    "fragments/version-checks.ryoql": "4c4890ac0f3b49b047c5b679082254cc2fc2f35de7dab440e88843ef414d0771",
+    "fragments/without-effect.ryoql": "ebf2050f8e9314a4964318cc5b0965c8fabd5d237185573e95569d46c550f4a7",
+    "rules/DTZ005/cases.toml": "6d11b21caa34cce623711eebd58627b4edcbb6208fc6f5933f6262746e1856e2",
+    "rules/DTZ005/query.ryoql": "5fc023a7e6542b3500b2e85e3e1b6fa2efd11fabf01bc98659c8bbfb2fd373d3"
+  },
+  "declared": {
+    "profile_name": "native-DTZ005",
+    "rule_id": "DTZ005",
+    "selected_rules": [
+      "DTZ005"
+    ],
+    "profile_file": "benchmark.toml",
+    "candidate_file": "rules/DTZ005/query.ryoql",
+    "query_sha256": "5fc023a7e6542b3500b2e85e3e1b6fa2efd11fabf01bc98659c8bbfb2fd373d3",
+    "cases_file": "rules/DTZ005/cases.toml",
+    "cases_sha256": "6d11b21caa34cce623711eebd58627b4edcbb6208fc6f5933f6262746e1856e2",
+    "case_count": 24,
+    "case_names": [
+      "module",
+      "alias",
+      "from-import",
+      "unimported",
+      "shadowed",
+      "rebound",
+      "before-import",
+      "deferred-body",
+      "ordinary-call",
+      "attribute-only",
+      "noqa",
+      "range",
+      "none-keyword",
+      "none-positional",
+      "valid-keyword",
+      "valid-positional",
+      "false",
+      "unpacked-positional",
+      "unpacked-keyword",
+      "converted",
+      "keyword-precedence-none",
+      "keyword-precedence-valid",
+      "nfkc-semantic-keyword",
+      "nfkc-semantic-attribute"
+    ],
+    "effective_settings": {
+      "defaults": [
+        "DTZ005"
+      ],
+      "parser_configuration": "python-target=3.10",
+      "project_context_mode": "isolated",
+      "rule_applicability": {
+        "DTZ005": "accepted-syntax"
+      },
+      "flags": {}
+    },
+    "target_version": "py310",
+    "selection_contract": "explicit-native-standalone"
+  },
+  "case_inventory": [
+    {
+      "rule": "DTZ005",
+      "name": "alias",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "e1a89e6cef92892ffb4aaf8ef235d0612e3db7437a9756a3a306a0139ffdd763",
+      "source_sha256": "983b2e1f575f5d78ed5b4d592b4b6e2a6a9935a38d93323cc7138c6f10f141ec",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [
+        {
+          "rule": "DTZ005",
+          "file": "case.py",
+          "start": 25,
+          "end": 45
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "DTZ005",
+      "name": "attribute-only",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "6b8e6cb390faa86ecbe7af81f85d17581cf627457815cbb1f77304affeac2c19",
+      "source_sha256": "f5a0f76eb810df36f49736fd6fb5ada15a66f80a9a3eb2f7e7b8340ef12e59d8",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "DTZ005",
+      "name": "before-import",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "a9daa705da51e01f1c7051417c280c689264505c97a53b6a9f7e0f7a37b0d089",
+      "source_sha256": "b9318266ddd9a595d88c01fe7317699ee511742e8de877026fb7211f52372d14",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "DTZ005",
+      "name": "converted",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "81d983cd751066236894fc519a2c589a674331e193e64f7fd0aae12244487db8",
+      "source_sha256": "40c051036a16753db2ee020d742950bd0409cf020a441fd29e223386a2e472b1",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "DTZ005",
+      "name": "deferred-body",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "c9c8330ea5b533e49b1c4b06b3a7f72cf5e294241f27e0400e2db7811af9ad18",
+      "source_sha256": "bfb2fcc5e367a34a651dac023a1778968c48390d2264f88f603199e7dabbf90e",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [
+        {
+          "rule": "DTZ005",
+          "file": "case.py",
+          "start": 13,
+          "end": 36
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "DTZ005",
+      "name": "false",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "ee23d84da38306785758d3263f54e402c5913706bc0828f982c5d7322031a1ed",
+      "source_sha256": "ed2c4e61c31e80d692488228960768468e0abffc69a5f2563b91aa18b33d67fb",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "DTZ005",
+      "name": "from-import",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "7e9b087d3de2d659e32508c9b0c8de081e81efbdbe321b471e785c663dd7183a",
+      "source_sha256": "50194ed5c316a3fa4631947592a39ca0f677b80b313e55dbddcdca8d6bd43ace",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [
+        {
+          "rule": "DTZ005",
+          "file": "case.py",
+          "start": 44,
+          "end": 52
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "DTZ005",
+      "name": "keyword-precedence-none",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "5210e8ffccf97fdae3b47423ce80068d863b16ceedda0ca91bf15174399f7ad0",
+      "source_sha256": "a9b7c8a03ce8169a422fedf693d6a275f0f4c6cbbe368bd2b54052a8e79af69f",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [
+        {
+          "rule": "DTZ005",
+          "file": "case.py",
+          "start": 16,
+          "end": 52
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "DTZ005",
+      "name": "keyword-precedence-valid",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "cc100e935de16aa1e72478dabdf61f5f4e8c5497f134e5f935c37e5b86fd94e8",
+      "source_sha256": "68a38dc09549c728fd7fe0510734b5b13b884e9cc2e64b1acba1e3ccf838d6bf",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "DTZ005",
+      "name": "module",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "0087b47e989faffc9b640d85ba2aee213bae2782b54e011ca7e3cd91668d78bb",
+      "source_sha256": "e7b8582d0730b3da6f9cf075267b2bb89fcdcd55be2c3d99487e89fd106c9fdd",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [
+        {
+          "rule": "DTZ005",
+          "file": "case.py",
+          "start": 16,
+          "end": 39
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "DTZ005",
+      "name": "nfkc-semantic-attribute",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "d88376f9f7ca0b7dc28e074687043ea1ebdbae523fccc73717c889df46ae9bb2",
+      "source_sha256": "49d434099dc05a6625df103d29adf9157f436314e18ac312279cea097607fe0a",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "DTZ005",
+      "name": "nfkc-semantic-keyword",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "9019f8d7bdda84203b07d1b873d2d32340eec9db106ebc180aa46c64185a5edd",
+      "source_sha256": "6ae162077d678f13079092413c3305e3c62897027f734c02c152d9eb108252c8",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "DTZ005",
+      "name": "none-keyword",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "7bc07d7e64dde623b55084307e8abc62a0a9d0234c8ffcd97dd9e4b2cb5f8a66",
+      "source_sha256": "04a570863c35b996396a5ae772abdb2d9bb530ecf4d7f71faaeb1c909c480c4a",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [
+        {
+          "rule": "DTZ005",
+          "file": "case.py",
+          "start": 16,
+          "end": 46
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "DTZ005",
+      "name": "none-positional",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "6e2e52f14b646a1d77028adf166184cef5971ed31606bea03f2874cc36d47858",
+      "source_sha256": "f2271783036a2f4595fe9caf0d5c0ddf92c232d759ce01ac46cb4e35ced6ecdd",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [
+        {
+          "rule": "DTZ005",
+          "file": "case.py",
+          "start": 16,
+          "end": 43
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "DTZ005",
+      "name": "noqa",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "f79ebeb7eabc5abf49e84968dc5dbd019868c86406e507cb08c17e40b9a50857",
+      "source_sha256": "faca1b6fc6906f396b3dea7fe68d337e292c5740e0e968a9a18e8af8f3292180",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "DTZ005",
+      "name": "ordinary-call",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "231e15491bb368b18b654a04bf0d40187f901966afc6fef1e08f0527218395ed",
+      "source_sha256": "d8ded9225ef2939f91a1200325bef8d4b37edaa3962233e3d142c83b94d2674c",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [
+        {
+          "rule": "DTZ005",
+          "file": "case.py",
+          "start": 38,
+          "end": 61
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "DTZ005",
+      "name": "range",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "35bceb81dca7f84111d48263f7b6164787ee8e6cce7c807d64d03f46960459a5",
+      "source_sha256": "f6543d03aa5cb075d9146f02d6cff10dc57fd5fd6e769973e58b839544694cd0",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "DTZ005",
+      "name": "rebound",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "6014abbb3dcd9db2976eceeb255d2f28a1b72b788402881fcb4be86f54cf8eb4",
+      "source_sha256": "33f0cbf38171a71339f939429af97799661089f7ba6187b15171c2f561ed79ea",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "DTZ005",
+      "name": "shadowed",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "f60d8451be6a798e2bff41a3d06418840fd06975839104ef38f2dcc91a5450f7",
+      "source_sha256": "6501488748a955bcf69e28feaa49c6226fe9ca7790cfb6f6b82fb997d0fa6e39",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "DTZ005",
+      "name": "unimported",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "41bf7a8278cd47ece275bda5333b7fc26148033ff72b97eedc6d936f0725ad48",
+      "source_sha256": "1f031c7dcf4b1f7554f691a2ad3bf9a3b6da7e036728f45204eaeaddee733d9d",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "DTZ005",
+      "name": "unpacked-keyword",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "afad42cca7d7f31c0b3c022c4ea363dfd4cdead0372a8e080bbb758398d8022f",
+      "source_sha256": "5c7d1bcffd55ff53693b9e50d8dcc3dbc398f770031353767acc4fb7278ee168",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [
+        {
+          "rule": "DTZ005",
+          "file": "case.py",
+          "start": 16,
+          "end": 47
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "DTZ005",
+      "name": "unpacked-positional",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "c07bcba055e471a33f2ab1189626b5d61b0396cf068a8888ffcc2dcc877afb44",
+      "source_sha256": "296905e315efe31c87340db79436b1aec2fcfbf83cbe1bdde4c864c331171070",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [
+        {
+          "rule": "DTZ005",
+          "file": "case.py",
+          "start": 16,
+          "end": 44
+        }
+      ],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "DTZ005",
+      "name": "valid-keyword",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "0380959545d0328b02b92e5d0b23ae60eab1c4d142775479f6e30617d4448703",
+      "source_sha256": "911508a2e47f282a4ee3af7b16af51a8ba829b478f183ebf3ba5b76d9c947d64",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    },
+    {
+      "rule": "DTZ005",
+      "name": "valid-positional",
+      "project_context_mode": "isolated",
+      "context_identity": null,
+      "case_sha256": "58efc515560dc5b6b87523f4f0c6094d9a16401cf23dcb41088ecf8f8cadb7b7",
+      "source_sha256": "7d4157cfa79ff8664984e2d43e6915fdbc21babd554de923b58b32214641c094",
+      "files": [
+        "case.py"
+      ],
+      "comparison": "rule",
+      "expected": [],
+      "reference_discrepancy": null
+    }
+  ]
+}

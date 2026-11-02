@@ -27,6 +27,8 @@ MANIFEST = Path(
 SHAPE_PROFILE = "shape-110"
 RULE_PHASES_FILE = PROFILE_DIR / "pinned-rule-phases.json"
 NATIVE_DESCRIPTOR_FILE = PROFILE_DIR / "native-standalone.json"
+HISTORICAL_NATIVE_DESCRIPTOR_FILE = PROFILE_DIR / "native-standalone-104.json"
+HISTORICAL_NATIVE_PROFILE_FILE = PROFILE_DIR / "native-standalone-104-base.toml"
 PINNED_RUFF_VERSION = "0.16.5"
 PINNED_RUFF_SOURCE_COMMIT = "9e4938c4a60bed3e87a11ee1e1db1bd23f4d964a"
 RUFF_PHASES = {
@@ -411,17 +413,23 @@ def manifest_paths(manifest: dict[str, object], helper_path: str) -> set[str]:
     base_profile = RUFF_DIR / "benchmark.toml"
     paths = {helper_path, base_profile.relative_to(REPOSITORY).as_posix()}
     paths.add(NATIVE_DESCRIPTOR_FILE.relative_to(REPOSITORY).as_posix())
+    paths.add(HISTORICAL_NATIVE_DESCRIPTOR_FILE.relative_to(REPOSITORY).as_posix())
+    paths.add(HISTORICAL_NATIVE_PROFILE_FILE.relative_to(REPOSITORY).as_posix())
     native = native_descriptor_json(NATIVE_DESCRIPTOR_FILE.read_text(encoding="utf-8"))
     for profile in native["profiles"]:
         paths.add(prepared_candidate_path(profile["rule_id"], profile).relative_to(REPOSITORY).as_posix())
         paths.add(prepared_case_path(profile["rule_id"], profile).relative_to(REPOSITORY).as_posix())
+        native_source_profile = prepared_profile_path(profile["profile_name"], profile)
+        paths.add(native_source_profile.relative_to(REPOSITORY).as_posix())
+        native_source_data = tomllib.loads(native_source_profile.read_text(encoding="utf-8"))
+        paths.update(module_path(relative) for relative in profile_modules(native_source_data).values())
         native_cases = tomllib.loads(
             prepared_case_path(profile["rule_id"], profile).read_text(encoding="utf-8")
         )["cases"]
         paths.update(
             source.relative_to(REPOSITORY).as_posix()
             for source, _digest in declared_discrepancy_artifacts(
-                RUFF_DIR / native["source_profile_file"], native_cases
+                native_source_profile, native_cases
             ).values()
         )
     paths.add(RULE_PHASES_FILE.relative_to(REPOSITORY).as_posix())
@@ -2915,7 +2923,7 @@ def native_standalone_manifest(
               "source_profile_file", "source_profile_sha256", "source_settings",
               "module_registry", "module_sha256", "phase_registry_sha256",
               "query_count", "case_count", "profiles"}
-    if set(descriptor) != fields or descriptor["schema"] != "native-standalone-cases/v1":
+    if set(descriptor) != fields or descriptor["schema"] not in {"native-standalone-cases/v1", "native-standalone-cases/v2"}:
         raise ValueError("unsupported native descriptor schema")
     if descriptor["execution_contract"] != "singleton-per-declared-rule" or descriptor["historical_certification"] is not False:
         raise ValueError("native selection is a new explicit contract, never historical certification")
@@ -2925,6 +2933,7 @@ def native_standalone_manifest(
         raise ValueError("native inventory counts must be positive integers")
     if not isinstance(descriptor["module_registry"], dict) or not isinstance(descriptor["module_sha256"], dict):
         raise ValueError("native module declarations must be objects")
+    per_profile = descriptor["schema"] == "native-standalone-cases/v2"
     source = prepared_profile_path("native", {"profile_file": descriptor["source_profile_file"]})
     if sha256(source) != descriptor["source_profile_sha256"]:
         raise ValueError("native source profile identity mismatch")
@@ -2946,9 +2955,9 @@ def native_standalone_manifest(
         if sha256(module) != descriptor["module_sha256"][logical]:
             raise ValueError(f"native module identity mismatch: {logical}")
     # Declaration closure is checked before any worker is built or invoked.
-    def check_imports(source_path: Path) -> None:
+    def check_imports(source_path: Path, declared: dict[str, str] = registry) -> None:
         imports = re.findall(r'^\s*import\s+\w+\s+from\s+"([^"]+)"\s*;', source_path.read_text(encoding="utf-8"), re.MULTILINE)
-        if set(imports) - set(registry):
+        if set(imports) - set(declared):
             raise ValueError(f"native query has an undeclared module: {source_path}")
     for relative in registry.values():
         check_imports(RUFF_DIR / relative)
@@ -2962,7 +2971,11 @@ def native_standalone_manifest(
     entry_fields = {"profile_name", "rule_id", "selected_rules", "profile_file", "candidate_file",
                     "query_sha256", "cases_file", "cases_sha256", "case_count", "case_names", "effective_settings"}
     for recorded in descriptor["profiles"]:
-        if not isinstance(recorded, dict) or set(recorded) != entry_fields:
+        if not isinstance(recorded, dict):
+            raise ValueError("unsupported native profile declaration schema")
+        custom_profile = per_profile and recorded.get("profile_file") != descriptor["source_profile_file"]
+        expected_entry_fields = entry_fields | ({"profile_sha256", "source_settings", "module_registry", "module_sha256"} if custom_profile else set())
+        if set(recorded) != expected_entry_fields:
             raise ValueError("unsupported native profile declaration schema")
         if type(recorded["case_count"]) is not int or recorded["case_count"] <= 0:
             raise ValueError("native case counts must be positive integers")
@@ -2974,7 +2987,29 @@ def native_standalone_manifest(
             raise ValueError("duplicate or noncanonical native profile identity")
         if recorded["selected_rules"] != [rule]:
             raise ValueError("native singleton selection must be explicitly declared")
-        if recorded["profile_file"] != descriptor["source_profile_file"]:
+        entry_profile = profile
+        entry_registry = registry
+        entry_settings = source_settings
+        if custom_profile:
+            if any(not isinstance(recorded[key], dict) for key in ("source_settings", "module_registry", "module_sha256")):
+                raise ValueError("native per-rule settings/module declarations must be objects")
+            entry_path = prepared_profile_path(name, recorded)
+            if sha256(entry_path) != recorded["profile_sha256"]:
+                raise ValueError("native per-rule source profile identity mismatch")
+            entry_profile = tomllib.loads(entry_path.read_text(encoding="utf-8"))
+            if not profile_tool_matches(entry_profile, manifest):
+                raise ValueError("native per-rule tool identity mismatch")
+            entry_registry = profile_modules(entry_profile)
+            if entry_registry != recorded["module_registry"] or set(entry_registry) != set(recorded["module_sha256"]):
+                raise ValueError("native per-rule module registry mismatch")
+            for logical, relative in entry_registry.items():
+                if sha256(REPOSITORY / module_path(relative)) != recorded["module_sha256"][logical]:
+                    raise ValueError("native per-rule module identity mismatch")
+                check_imports(RUFF_DIR / relative, entry_registry)
+            entry_settings = canonical_run_ryo_settings(entry_profile, entry_profile["defaults"], phases)
+            if entry_settings != recorded["source_settings"]:
+                raise ValueError("native per-rule source settings mismatch")
+        elif recorded["profile_file"] != descriptor["source_profile_file"]:
             raise ValueError("native declaration uses an unreviewed source profile")
         if recorded["candidate_file"] != f"rules/{rule}/query.ryoql" or recorded["cases_file"] != f"rules/{rule}/cases.toml":
             raise ValueError("native query/case path must preserve its exact authored variant")
@@ -2984,7 +3019,7 @@ def native_standalone_manifest(
             raise ValueError(f"native query identity mismatch: {rule}")
         if not cases_path.is_file() or sha256(cases_path) != recorded["cases_sha256"]:
             raise ValueError(f"native case identity mismatch: {rule}")
-        check_imports(query)
+        check_imports(query, entry_registry)
         container = tomllib.loads(cases_path.read_text(encoding="utf-8"))
         if set(container) != {"cases"}:
             raise ValueError("native case container has unreviewed settings")
@@ -2995,9 +3030,9 @@ def native_standalone_manifest(
         for case in cases:
             if set(case) - {"name", "comparison", "files", "expected", "context", "reference-discrepancy"}:
                 raise ValueError("native case has unreviewed execution settings")
-            if (source_settings["project_context_mode"] == "isolated") != (case.get("context") is None):
+            if (entry_settings["project_context_mode"] == "isolated") != (case.get("context") is None):
                 raise ValueError("native case context differs from its declared profile mode")
-        effective = canonical_run_ryo_settings(profile, [rule], phases)
+        effective = canonical_run_ryo_settings(entry_profile, [rule], phases)
         if effective != recorded["effective_settings"]:
             raise ValueError(f"native selected execution settings mismatch: {rule}")
         target = {"python-target=3.10": "py310", "python-target=3.11": "py311"}.get(effective["parser_configuration"])
@@ -3064,6 +3099,24 @@ def native_standalone_self_test() -> None:
             ("module-omission", lambda d: d["module_registry"].pop(next(iter(d["module_registry"])))),
             ("module-hash", lambda d: d["module_sha256"].update({next(iter(d["module_sha256"])): "0" * 64})),
         ]
+        if descriptor["schema"] == "native-standalone-cases/v2":
+            custom_index = next(i for i, entry in enumerate(descriptor["profiles"]) if entry["profile_file"] != descriptor["source_profile_file"])
+            mutations.extend([
+                ("entry-profile-hash", lambda d: d["profiles"][custom_index].update(profile_sha256="0" * 64)),
+                ("entry-source-target", lambda d: d["profiles"][custom_index]["source_settings"].update(parser_configuration="python-target=3.11")),
+                ("entry-source-phase", lambda d: d["profiles"][custom_index]["source_settings"].update(rule_applicability={})),
+                ("entry-module-hash", lambda d: d["profiles"][custom_index]["module_sha256"].update({next(iter(d["profiles"][custom_index]["module_sha256"])): "0" * 64})),
+                ("entry-module-omission", lambda d: d["profiles"][custom_index]["module_registry"].pop(next(iter(d["profiles"][custom_index]["module_registry"])))),
+                ("entry-module-schema", lambda d: d["profiles"][custom_index].update(module_sha256=None)),
+                ("entry-profile-substitution", lambda d: d["profiles"][custom_index].update(profile_file="profiles/UP044/benchmark.toml")),
+            ])
+            historical = native_descriptor_json(HISTORICAL_NATIVE_DESCRIPTOR_FILE.read_text(encoding="utf-8"))
+            assert sha256(HISTORICAL_NATIVE_PROFILE_FILE) == historical["source_profile_sha256"]
+            current_by_rule = {entry["rule_id"]: entry for entry in descriptor["profiles"]}
+            for entry in historical["profiles"]:
+                current = current_by_rule[entry["rule_id"]]
+                for key in ("candidate_file", "query_sha256", "cases_file", "cases_sha256", "case_names", "case_count"):
+                    assert current[key] == entry[key], "historical native source identity changed"
         for name, edit in mutations:
             try:
                 native_standalone_manifest(base, changed(edit))
@@ -3081,19 +3134,23 @@ def native_standalone_self_test() -> None:
         source_sha = sha256(source_profile)
         with tempfile.TemporaryDirectory(prefix="native-standalone-guards-") as temporary:
             with contextlib.ExitStack() as stack:
-                staged = stage_binding(resolved, ["native-PYI035", "native-ASYNC115"], stack, Path(temporary))
+                staged = stage_binding(resolved, ["native-PYI035", "native-ASYNC115", "native-UP044", "native-PLE1142"], stack, Path(temporary))
                 for name, root in staged:
                     recorded = resolved["profiles"][name]
                     rule = recorded["rule_id"]
                     effective = tomllib.loads((root / "benchmark.toml").read_text())
                     assert effective["defaults"] == [rule]
                     assert set(effective["rule-applicability"]) == {rule}
-                    assert profile_modules(effective) == descriptor["module_registry"]
+                    assert profile_modules(effective) == recorded.get("module_registry", descriptor["module_registry"])
                     assert canonical_run_ryo_settings(effective, [rule], verify_rule_phase_registry(base)) == recorded["effective_settings"]
                     assert sorted(p.name for p in (root / "rules").iterdir()) == [rule]
                     assert sha256(root / "rules" / rule / "query.ryoql") == recorded["query_sha256"]
                     assert sha256(root / "rules" / rule / "cases.toml") == recorded["cases_sha256"]
                     assert not effective.get("deferred") and not effective.get("pending")
+                    if rule == "UP044":
+                        assert effective["parser-configuration"] == "python-target=3.11", "declared target was coerced to the base target"
+                    if rule == "PLE1142":
+                        assert (root / "evidence/cpython-3.10.19.json").is_file(), "declared native evidence was not staged"
                     if rule == "PYI035":
                         cases = tomllib.loads((root / "rules" / rule / "cases.toml").read_text())["cases"]
                         control = next(c for c in cases if c["name"] == "function-scope-special-2-pyi-False")
@@ -3103,7 +3160,7 @@ def native_standalone_self_test() -> None:
                         alternate = RUFF_DIR / "rules/ASYNC115/candidate.ryoql"
                         assert alternate.read_bytes() != (root / "rules" / rule / "query.ryoql").read_bytes()
                 assert sha256(source_profile) == source_sha, "source profile must never be rewritten"
-        print(f"native standalone guards passed: {descriptor['query_count']} exact queries, {descriptor['case_count']} unchanged cases, {len(mutations) + 1} refusals, two staging controls; no contestants executed")
+        print(f"native standalone guards passed: {descriptor['query_count']} exact queries, {descriptor['case_count']} unchanged cases, {len(mutations) + 1} refusals, four staging controls; no contestants executed")
     finally:
         subprocess.run = original_run
 

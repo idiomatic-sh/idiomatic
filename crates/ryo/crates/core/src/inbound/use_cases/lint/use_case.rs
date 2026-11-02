@@ -103,7 +103,7 @@ use ryo_values::domain::plan_parts::types::{Heading, InputNumber};
 use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::records::types::{Freshness, PlacedRule, Unreadable};
 use ryo_values::domain::runs::types::RuleId;
-use ryo_values::domain::stores::types::{BucketsWanted, StoredHanded};
+use ryo_values::domain::stores::types::{BucketsWanted, ReadHanded};
 use ryo_values::domain::stores::types::{Crossing, StoredFile, StoredRule};
 
 use ryo_values::domain::records::types::{RowTotal, RowsTextView};
@@ -1328,7 +1328,7 @@ impl LintUseCase for LintUseCaseImpl {
         let resolved = self.resolution(&manifests, &plans, &request.session)?;
         let stored_rules = self.stored_rules(&rules, &plans, &request.hosted, resolved);
         let (nothing_handed, nothing_wanted) =
-            (StoredHanded::default(), BucketsWanted::These(Vec::new()));
+            (ReadHanded::default(), BucketsWanted::These(Vec::new()));
         let unknown = self.language.unknown_reasons();
         let mut setting = VisitSetting {
             plans: &plans,

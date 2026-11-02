@@ -40,14 +40,17 @@ impl ReadStore for MemoryRead {
         }
     }
 
-    fn handed(&self, wanted: &BucketsWanted) -> Result<StoredHanded, LintStoreError> {
+    fn handed(
+        &self,
+        wanted: &BucketsWanted,
+    ) -> Result<ryo_values::domain::stores::types::ReadHanded, LintStoreError> {
         let mut handed = self.was.handed.clone();
         if let BucketsWanted::These(buckets) = wanted {
             handed
                 .frontier
                 .retain(|each| buckets.binary_search(&each.bucket).is_ok());
         }
-        Ok(handed)
+        Ok(ryo_values::domain::stores::service::read_handed(handed))
     }
 
     fn keep(&self, mut stored: Stored, kept: &KeptRows) -> Result<(), LintStoreError> {
