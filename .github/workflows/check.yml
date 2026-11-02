@@ -3,8 +3,11 @@
 # own `check` job runs (`asymptote check --root crates/<product> --groups <group>`, one job per group and machine): the tests on
 # every machine the products ship to, the SDK's API on macOS, where cargo-public-api ships a prebuilt, and every other group once,
 # on Linux. A change to the files outside crates/<product>/ (tools/, ci/, .github/, the root's configurations) is every product's,
-# so it runs all three, and the `root` job, the repository root's lint and check groups (the check group is the ci/ tests). A hand
-# run checks all three and the root too. Each
+# so it runs all three, and the `root` job's check group (the ci/ tests) beside its lint group. The `root` job runs the repository
+# root's lint group on every pull request: its `commitizen` tool checks the pull request's commits and its title, which a squash
+# merge makes the commit main keeps. A hand run checks the one product its `product` input names, and no root: the release pull
+# request workflow (release-pr.yml) starts one on its branch, since a pull request a workflow opens starts no workflow, and that
+# run's `gate` is the check the pull request's head commit needs. Each
 # job is a machine, the toolchains (every sample's among them: a sample whose toolchain is missing fails its test),
 # `tools/install.py`, which installs every tool the checks run at the version declared for it, prebuilt, and one `asymptote check`
 # call. The `gate` job waits for every other and fails when one failed or was cancelled; a product the change does not reach is
@@ -15,6 +18,12 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      product:
+        description: The one product this run checks
+        type: choice
+        required: true
+        options: [ryo, tastemaker, asymptote]
 permissions:
   contents: read
 concurrency:
@@ -27,9 +36,9 @@ jobs:
       contents: read
       pull-requests: read
     outputs:
-      # Every product on a hand run, or when the pull request changes a file outside the products; otherwise the ones it changes.
-      products: ${{ (github.event_name != 'pull_request' || steps.filter.outputs.repository == 'true') && '["ryo","tastemaker","asymptote"]' || steps.filter.outputs.changes }}
-      repository: ${{ github.event_name != 'pull_request' || steps.filter.outputs.repository == 'true' }}
+      # A hand run's product; every product when the pull request changes a file outside the products; otherwise the ones it changes.
+      products: ${{ github.event_name != 'pull_request' && format('["{0}"]', inputs.product) || (steps.filter.outputs.repository == 'true' && '["ryo","tastemaker","asymptote"]' || steps.filter.outputs.changes) }}
+      repository: ${{ github.event_name == 'pull_request' && steps.filter.outputs.repository == 'true' }}
     steps:
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: filter
@@ -46,11 +55,11 @@ jobs:
               - "!crates/ryo/**"
               - "!crates/tastemaker/**"
               - "!crates/asymptote/**"
-  # The repository root's lint and check groups, run when the change is the repository's. A workspace's check runs its members'
-  # tools of the same groups too.
+  # The repository root's lint group on every pull request, its check group too when the change is the repository's. A
+  # workspace's check runs its members' tools of the same groups too.
   root:
     needs: changes
-    if: needs.changes.outputs.repository == 'true'
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-26.04
     defaults:
       run:
@@ -100,7 +109,7 @@ jobs:
         env:
           # cargo-binstall asks GitHub for each release: unauthenticated, the rate limit stalls it.
           GH_TOKEN: ${{ github.token }}
-      - run: asymptote check --root . --groups lint,check
+      - run: asymptote check --root . --groups ${{ needs.changes.outputs.repository == 'true' && 'lint,check' || 'lint' }}
   check:
     needs: changes
     if: needs.changes.outputs.products != '[]'

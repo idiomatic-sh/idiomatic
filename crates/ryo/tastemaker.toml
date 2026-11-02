@@ -49,6 +49,8 @@ templates = [
   { template = "idiomatic.arch/lint-call-count-test", file = "cli/tests/call_count.rs", description = "The call-count row of the whole per-file path: a port is called for a file, never for a row." },
   { template = "idiomatic.arch/cargo-workspace", file = "Cargo.toml", params = { version = "0.1.2" }, description = "The product's Cargo workspace: its crates as members, the shared dependencies and the lints every crate inherits." },
   { template = "idiomatic.arch/cargo-lock", file = "Cargo.lock", description = "The product's Cargo.lock, committed so every build resolves the same dependencies." },
+  { template = "idiomatic.arch/unchecked", file = "release-plz.toml", description = "The release pull request's configuration: release-plz opens it, every crate at the workspace's new version and the changelog, and nothing else." },
+  { template = "idiomatic.arch/unchecked", file = "CHANGELOG.md", count = { min = 0 }, description = "The product's changelog, which each release pull request writes: absent until the first." },
   { template = "idiomatic.arch/tastemaker-lock", file = "tastemaker.lock", description = "This file's lock: the definition versions the product resolved." },
   { template = "idiomatic.arch/product-readme", file = "README.md", params = { product = "ryo" }, description = "The product's README: what it is for, how to install it and one checked command line example." },
   { template = "idiomatic.arch/public-api", file = "crates/sdk/api.txt", params = { library = "ryo" }, description = "The recorded public API of the SDK, written by `cargo public-api`: the baseline of its semver gate." },

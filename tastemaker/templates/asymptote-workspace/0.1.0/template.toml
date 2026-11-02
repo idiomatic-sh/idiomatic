@@ -78,7 +78,7 @@ id = "commitizen"
 group = "lint"
 # The branch's commit messages are conventional commits (cz.toml); a branch with no commit ahead of origin/main has none to check.
 # The commit being made is checked at the next commit, or in CI.
-run = ["bash", "-c", "[ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD"]
+run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD; [ -z \"${GITHUB_EVENT_PATH:-}\" ] || ! jq -e .pull_request \"$GITHUB_EVENT_PATH\" > /dev/null || cz check --message \"$(jq -r .pull_request.title \"$GITHUB_EVENT_PATH\")\""]
 timeout-seconds = 300
 
 [[tools]]
@@ -174,7 +174,7 @@ id = "commitizen"
 group = "lint"
 # The branch's commit messages are conventional commits (cz.toml); a branch with no commit ahead of origin/main has none to check.
 # The commit being made is checked at the next commit, or in CI.
-run = ["bash", "-c", "[ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD"]
+run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD; [ -z \"${GITHUB_EVENT_PATH:-}\" ] || ! jq -e .pull_request \"$GITHUB_EVENT_PATH\" > /dev/null || cz check --message \"$(jq -r .pull_request.title \"$GITHUB_EVENT_PATH\")\""]
 timeout-seconds = 300
 
 [[tools]]
@@ -273,7 +273,7 @@ id = "commitizen"
 group = "lint"
 # The branch's commit messages are conventional commits (cz.toml); a branch with no commit ahead of origin/main has none to check.
 # The commit being made is checked at the next commit, or in CI.
-run = ["bash", "-c", "[ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD"]
+run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD; [ -z \"${GITHUB_EVENT_PATH:-}\" ] || ! jq -e .pull_request \"$GITHUB_EVENT_PATH\" > /dev/null || cz check --message \"$(jq -r .pull_request.title \"$GITHUB_EVENT_PATH\")\""]
 timeout-seconds = 300
 
 [[tools]]
@@ -360,7 +360,7 @@ id = "commitizen"
 group = "lint"
 # The branch's commit messages are conventional commits (cz.toml); a branch with no commit ahead of origin/main has none to check.
 # The commit being made is checked at the next commit, or in CI.
-run = ["bash", "-c", "[ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD"]
+run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD; [ -z \"${GITHUB_EVENT_PATH:-}\" ] || ! jq -e .pull_request \"$GITHUB_EVENT_PATH\" > /dev/null || cz check --message \"$(jq -r .pull_request.title \"$GITHUB_EVENT_PATH\")\""]
 timeout-seconds = 300
 
 [[tools]]
@@ -454,7 +454,7 @@ id = "commitizen"
 group = "lint"
 # The branch's commit messages are conventional commits (cz.toml); a branch with no commit ahead of origin/main has none to check.
 # The commit being made is checked at the next commit, or in CI.
-run = ["bash", "-c", "[ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD"]
+run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD; [ -z \"${GITHUB_EVENT_PATH:-}\" ] || ! jq -e .pull_request \"$GITHUB_EVENT_PATH\" > /dev/null || cz check --message \"$(jq -r .pull_request.title \"$GITHUB_EVENT_PATH\")\""]
 timeout-seconds = 300
 
 [[tools]]
@@ -548,7 +548,7 @@ id = "commitizen"
 group = "lint"
 # The branch's commit messages are conventional commits (cz.toml); a branch with no commit ahead of origin/main has none to check.
 # The commit being made is checked at the next commit, or in CI.
-run = ["bash", "-c", "[ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD"]
+run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD; [ -z \"${GITHUB_EVENT_PATH:-}\" ] || ! jq -e .pull_request \"$GITHUB_EVENT_PATH\" > /dev/null || cz check --message \"$(jq -r .pull_request.title \"$GITHUB_EVENT_PATH\")\""]
 timeout-seconds = 300
 
 [[tools]]
@@ -639,7 +639,7 @@ id = "commitizen"
 group = "lint"
 # The branch's commit messages are conventional commits (cz.toml); a branch with no commit ahead of origin/main has none to check.
 # The commit being made is checked at the next commit, or in CI.
-run = ["bash", "-c", "[ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD"]
+run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD; [ -z \"${GITHUB_EVENT_PATH:-}\" ] || ! jq -e .pull_request \"$GITHUB_EVENT_PATH\" > /dev/null || cz check --message \"$(jq -r .pull_request.title \"$GITHUB_EVENT_PATH\")\""]
 timeout-seconds = 300
 
 [[tools]]
@@ -728,7 +728,7 @@ id = "commitizen"
 group = "lint"
 # The branch's commit messages are conventional commits (cz.toml); a branch with no commit ahead of origin/main has none to check.
 # The commit being made is checked at the next commit, or in CI.
-run = ["bash", "-c", "[ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD"]
+run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD; [ -z \"${GITHUB_EVENT_PATH:-}\" ] || ! jq -e .pull_request \"$GITHUB_EVENT_PATH\" > /dev/null || cz check --message \"$(jq -r .pull_request.title \"$GITHUB_EVENT_PATH\")\""]
 timeout-seconds = 300
 
 [[tools]]
@@ -817,7 +817,7 @@ id = "commitizen"
 group = "lint"
 # The branch's commit messages are conventional commits (cz.toml); a branch with no commit ahead of origin/main has none to check.
 # The commit being made is checked at the next commit, or in CI.
-run = ["bash", "-c", "[ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD"]
+run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD; [ -z \"${GITHUB_EVENT_PATH:-}\" ] || ! jq -e .pull_request \"$GITHUB_EVENT_PATH\" > /dev/null || cz check --message \"$(jq -r .pull_request.title \"$GITHUB_EVENT_PATH\")\""]
 timeout-seconds = 300
 
 [[tools]]
@@ -908,7 +908,7 @@ id = "commitizen"
 group = "lint"
 # The branch's commit messages are conventional commits (cz.toml); a branch with no commit ahead of origin/main has none to check.
 # The commit being made is checked at the next commit, or in CI.
-run = ["bash", "-c", "[ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD"]
+run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD; [ -z \"${GITHUB_EVENT_PATH:-}\" ] || ! jq -e .pull_request \"$GITHUB_EVENT_PATH\" > /dev/null || cz check --message \"$(jq -r .pull_request.title \"$GITHUB_EVENT_PATH\")\""]
 timeout-seconds = 300
 
 [[tools]]
@@ -998,7 +998,7 @@ id = "commitizen"
 group = "lint"
 # The branch's commit messages are conventional commits (cz.toml); a branch with no commit ahead of origin/main has none to check.
 # The commit being made is checked at the next commit, or in CI.
-run = ["bash", "-c", "[ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD"]
+run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD; [ -z \"${GITHUB_EVENT_PATH:-}\" ] || ! jq -e .pull_request \"$GITHUB_EVENT_PATH\" > /dev/null || cz check --message \"$(jq -r .pull_request.title \"$GITHUB_EVENT_PATH\")\""]
 timeout-seconds = 300
 
 [[tools]]
@@ -1184,7 +1184,7 @@ id = "commitizen"
 group = "lint"
 # The branch's commit messages are conventional commits (cz.toml); a branch with no commit ahead of origin/main has none to check.
 # The commit being made is checked at the next commit, or in CI.
-run = ["bash", "-c", "[ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD"]
+run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD; [ -z \"${GITHUB_EVENT_PATH:-}\" ] || ! jq -e .pull_request \"$GITHUB_EVENT_PATH\" > /dev/null || cz check --message \"$(jq -r .pull_request.title \"$GITHUB_EVENT_PATH\")\""]
 timeout-seconds = 300
 '''
 then.findings = [
