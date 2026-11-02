@@ -19,6 +19,7 @@ use ryo_values::domain::records::types::Cell;
 use ryo_values::domain::records::types::{GoverningRules, PlacedRule};
 use ryo_values::domain::records::types::{PlacedColumn, PlacedLine, Unreadable};
 use ryo_values::domain::runs::types::{ManifestRefused, RuleId, SkipReason, Skipped};
+#[cfg(test)]
 use ryo_values::domain::stored_facts::types::PackedWords;
 use ryo_values::domain::stored_facts::types::{
     ArenaBytes, Bucket, Digest, FileNotes, LanguageNumber, NoteBytes, PartialAt, PartialCause,
@@ -27,8 +28,11 @@ use ryo_values::domain::stored_facts::types::{
 use ryo_values::domain::stores::types::{
     Crossing, FindingMade, FindingPlace, Stored, StoredCell, StoredCovered, StoredFile,
     StoredFileNumber, StoredFinding, StoredFrontier, StoredHanded, StoredNotes, StoredPlace,
-    StoredRule, StoredText, StoredUnknown, StoredUnread, StoredValue, StoredWords, UnknownText,
+    StoredRule, StoredText, StoredUnknown, StoredUnread, StoredValue, UnknownText,
 };
+
+#[cfg(test)]
+use ryo_values::domain::stores::types::StoredWords;
 
 /// A text, by its place in the table of strings.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -238,6 +242,7 @@ pub(super) struct RestSchema<'a> {
 }
 
 /// The words one file handed one bucket: one row for each file, in a section of the bucket's own.
+#[cfg(test)]
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub(super) struct WordsSchema<'a> {
     /// The file, by its place among the files.
@@ -951,6 +956,7 @@ pub(super) fn rest_from(bytes: &[u8]) -> Option<StoredHanded> {
 }
 
 /// The words the files handed `bucket`, from its section's bytes.
+#[cfg(test)]
 pub(super) fn bucket_from(bucket: Bucket, bytes: &[u8]) -> Option<Vec<StoredWords>> {
     postcard::from_bytes::<Vec<WordsSchema<'_>>>(bytes)
         .ok() // ignore: idiomatic.arch/no-ok-on-result - a section that does not read back holds nothing the run can use again: the files are read again
