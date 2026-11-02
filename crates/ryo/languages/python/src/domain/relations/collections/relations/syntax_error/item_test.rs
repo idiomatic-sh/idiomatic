@@ -66,6 +66,23 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         }),
     },
     Case {
+        name: CaseName("late_future_directive_remains_validation_on_a_complete_ast"),
+        word: Word::Succeeds,
+        input: || "x = 1\nfrom __future__ import annotations\n",
+        expect: Expect::Value(Reading {
+            rows: &[&[
+                want_node(2_147_483_648),
+                want_name("from __future__ imports must occur at the beginning of the file"),
+                want_name("validation"),
+                want_name("preserved"),
+                want_name("future-directive-invalid"),
+                want_file(SHOWN),
+                want_span((2, 1), (2, 35)),
+            ]],
+            causes: &[],
+        }),
+    },
+    Case {
         name: CaseName("an_unknown_future_feature_is_an_error_and_braces_not_a_chance"),
         word: Word::Succeeds,
         input: || "from __future__ import annotations, nope\nfrom __future__ import braces\n",

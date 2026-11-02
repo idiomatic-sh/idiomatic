@@ -558,8 +558,10 @@ fn module_future_annotations(
             self.errors.push(SemanticSyntaxDiagnostic {
                 message,
                 range,
-                code: PARSER_ERROR,
-                phase: DiagnosticPhase::Parse,
+                // Compiler-directive placement is checked after a complete AST is parsed.
+                // Keep the validity row without projecting it as a grammar failure.
+                code: super::constants::FUTURE_DIRECTIVE_INVALID,
+                phase: DiagnosticPhase::Validation,
                 impact: TreeImpact::Preserved,
             });
         }

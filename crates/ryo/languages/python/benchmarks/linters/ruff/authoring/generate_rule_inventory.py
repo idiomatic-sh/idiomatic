@@ -83,7 +83,38 @@ def render_full_inventory(path: Path) -> str:
                 raise ValueError("SIM supplement is stale or changes the complete base receipt")
             for row in extra_rows:
                 by_rule[row["rule_id"]] = {**row, "reason": "[separate 17/17 raw-exact proof](results/full-inventory-current/sim222-sim223-supplement/summary.json)"}
-            supplement_label = " The count combines the complete 413-rule run with two later singleton replays on the same worker; it is not one 364-rule execution."
+            supplement_label = " The SIM222/SIM223 proof is a separate replay on the base worker."
+        future = current / "future-directive-supplement"
+        proof_file = future / "proof.json"
+        if proof_file.is_file():
+            proof = json.loads(proof_file.read_text(encoding="utf-8"))
+            extra_file = future / "summary.json"
+            extra = json.loads(extra_file.read_text(encoding="utf-8"))
+            extra_rows = extra.get("rules", [])
+            expected = {"F404": (26, 26, 0), "F407": (23, 23, 0),
+                        "UP007": (33, 32, 1), "UP010": (15, 15, 0)}
+            if (proof.get("schema") != "benchmark-inventory-supplement/v1"
+                or proof.get("base_summary_sha256") != sha(path)
+                or proof.get("sim_supplement_summary_sha256") != sha(supplement / "summary.json")
+                or proof.get("supplement_summary_sha256") != sha(extra_file)
+                or proof.get("raw_receipts_sha256") != sha(future / "raw-receipts.tar.gz")
+                or proof.get("independent_controls_sha256") != sha(future / "controls.json")
+                or proof.get("rule_ids") != list(expected)
+                or [row.get("rule_id") for row in extra_rows] != list(expected)
+                or extra.get("schema") != "benchmark-inventory/v1"
+                or extra.get("run_state") != "complete"
+                or extra.get("counts") != {"PASS": 4, "FAIL": 0}
+                or extra.get("identity", {}).get("worker_sha256") != proof.get("worker_sha256")
+                or not proof.get("worker_sha256")
+                or any(row.get("status") != "PASS"
+                       or (row.get("case_count"), row.get("raw_exact"), row.get("documented_discrepancies")) != expected[row["rule_id"]]
+                       or not row.get("case_results_sha256")
+                       or by_rule[row["rule_id"]]["status"] != "FAIL" for row in extra_rows)):
+                raise ValueError("future directive supplement is stale or changes the complete base receipt")
+            for row in extra_rows:
+                by_rule[row["rule_id"]] = {**row, "reason": "[separate source-bound fixture proof](results/full-inventory-current/future-directive-supplement/summary.json)"}
+            supplement_label += (" The F404/F407/UP007/UP010 proof is a separate replay on worker `"
+                                 + proof["worker_sha256"] + "`; the base 413-rule receipt remains immutable.")
     rendered = []
     passed = 0
     for rule in defaults:
@@ -111,7 +142,7 @@ def render_full_inventory(path: Path) -> str:
         "Generated from canonical source and the existing full-inventory runner's results. "
         "Every pinned default is preloaded; missing, unrun, invalid and failed implementations remain FAIL.", "",
         f"**{passed} PASS / {413 - passed} FAIL / 413 pinned defaults**; run state `{summary.get('run_state')}`. "
-        f"Worker `{worker_sha256 or 'not run'}`. "
+        f"Base worker `{worker_sha256 or 'not run'}`. "
         "PASS means executed intended expectations, including only independently validated explicit reference discrepancies. "
         "Raw parity and documented differences remain explicit in result receipts. This table is not an admission subset." + supplement_label, "",
         "| Rule | Result | Reason / evidence |",

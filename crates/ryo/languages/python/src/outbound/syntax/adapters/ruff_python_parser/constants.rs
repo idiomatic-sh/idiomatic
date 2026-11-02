@@ -57,6 +57,9 @@ pub(super) const ELSE_WITHOUT_EXCEPT_CODE: ryo::languages::DiagnosticCode =
 /// A future feature name not present in the parser's supported feature set.
 pub(super) const FUTURE_FEATURE_NOT_DEFINED: ryo::languages::DiagnosticCode =
     ryo::languages::DiagnosticCode::provider_owned("future-feature-not-defined");
+/// A compiler directive with an invalid location or form, after successful grammar parsing.
+pub(super) const FUTURE_DIRECTIVE_INVALID: ryo::languages::DiagnosticCode =
+    ryo::languages::DiagnosticCode::provider_owned("future-directive-invalid");
 /// A repeated parameter name in one function or lambda signature.
 pub(super) const DUPLICATE_PARAMETER: ryo::languages::DiagnosticCode =
     ryo::languages::DiagnosticCode::provider_owned("duplicate-parameter");

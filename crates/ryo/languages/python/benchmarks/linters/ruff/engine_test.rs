@@ -23,6 +23,7 @@ enum EngineScenario {
     InvalidSyntaxProjectionDisabled,
     CustomFrontendProjection,
     FutureFeatureProjection,
+    LateFutureDirectiveProjection,
     UnknownFutureWithoutConsumer,
     FrontendRuleCollision,
     ProjectionCacheQueryChange,
@@ -85,6 +86,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("future-feature_validation_stays_a_lint_not_invalid_syntax"),
         word: Word::Succeeds,
         input: || EngineScenario::FutureFeatureProjection,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("late_future_directive_keeps_f404_without_a_grammar_error"),
+        word: Word::Succeeds,
+        input: || EngineScenario::LateFutureDirectiveProjection,
         expect: Expect::Value(true),
     },
     Case {
@@ -237,6 +244,7 @@ fn input_file(scenario: EngineScenario) -> &'static str {
         | EngineScenario::InvalidSyntaxProjectionDisabled
         | EngineScenario::CustomFrontendProjection
         | EngineScenario::FutureFeatureProjection
+        | EngineScenario::LateFutureDirectiveProjection
         | EngineScenario::UnknownFutureWithoutConsumer
         | EngineScenario::FrontendRuleCollision
         | EngineScenario::ProjectionCacheQueryChange
@@ -261,6 +269,9 @@ fn source_for(scenario: EngineScenario) -> &'static str {
         EngineScenario::OrdinaryAnnotationNamedExpression => "def f(x: (a := b)): ...\n",
         EngineScenario::FutureFeatureProjection | EngineScenario::UnknownFutureWithoutConsumer => {
             "from __future__ import no_such_feature\n"
+        }
+        EngineScenario::LateFutureDirectiveProjection => {
+            "x = 1\nfrom __future__ import annotations\n"
         }
         EngineScenario::ProjectionCacheQueryChange => "nonlocal x\n",
         EngineScenario::Finding
@@ -311,6 +322,14 @@ fn write_rule_fixtures(rules: &std::path::Path, scenario: EngineScenario) -> Res
         std::fs::write(
             f407.join("query.ryoql"),
             include_str!("rules/F407/query.ryoql"),
+        )?;
+    }
+    if scenario == EngineScenario::LateFutureDirectiveProjection {
+        let f404 = rules.join("F404");
+        std::fs::create_dir_all(&f404)?;
+        std::fs::write(
+            f404.join("query.ryoql"),
+            include_str!("rules/F404/query.ryoql"),
         )?;
     }
     if scenario == EngineScenario::FrontendRuleCollision {
@@ -497,6 +516,7 @@ fn expected_diagnostics(scenario: EngineScenario) -> Result<Vec<BenchmarkFinding
         }
         EngineScenario::CustomFrontendProjection => ("parser-check", 9, 19),
         EngineScenario::FutureFeatureProjection => ("F407", 23, 38),
+        EngineScenario::LateFutureDirectiveProjection => ("F404", 6, 40),
         EngineScenario::Finding
         | EngineScenario::Missing
         | EngineScenario::Unread
