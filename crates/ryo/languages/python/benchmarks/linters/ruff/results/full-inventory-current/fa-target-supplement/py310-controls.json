@@ -1,0 +1,702 @@
+{
+  "ruff_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "rules": {
+    "FA100": {
+      "candidate_exact": 27,
+      "case_count": 27,
+      "cases": [
+        {
+          "candidate": [],
+          "candidate_exact": true,
+          "complete": true,
+          "expected": [],
+          "name": "upstream-edge_case.py",
+          "reference": [],
+          "reference_exact": true,
+          "request_sha256": "5e4ea4345727bc08caa162b0b8690766cff3d8e73e5093425423db953e64ef84",
+          "source_sha256": {
+            "edge_case.py": "41ebaf80fc573ad64e9653cb09751531b23f4b708f3ff8a6ebd813295a0a9975"
+          }
+        },
+        {
+          "candidate": [],
+          "candidate_exact": true,
+          "complete": true,
+          "expected": [],
+          "name": "upstream-from_typing_import.py",
+          "reference": [],
+          "reference_exact": true,
+          "request_sha256": "d554806008c89dad1bd6c941ed93be3b7f1a0e0c9f3bb63c5317dde3498a99b1",
+          "source_sha256": {
+            "from_typing_import.py": "9196c94b885f58e3dbc2ec3599b9e328f188f34defc47bb5b2dd7760bfd19fa9"
+          }
+        },
+        {
+          "candidate": [],
+          "candidate_exact": true,
+          "complete": true,
+          "expected": [],
+          "name": "upstream-from_typing_import_many.py",
+          "reference": [],
+          "reference_exact": true,
+          "request_sha256": "b5db3c277be247feb51e467f20521332f52e71a83847ee6c88aeef7cdbcd71d0",
+          "source_sha256": {
+            "from_typing_import_many.py": "e87f6d57954c95d6a793dd6c4691173b23e1caaadd75d1ba4d43e3ab264192fe"
+          }
+        },
+        {
+          "candidate": [],
+          "candidate_exact": true,
+          "complete": true,
+          "expected": [],
+          "name": "upstream-import_typing.py",
+          "reference": [],
+          "reference_exact": true,
+          "request_sha256": "b353e8d1a51edf61c9f713abe05d697d04d955a025036c755f993d387a9cb37b",
+          "source_sha256": {
+            "import_typing.py": "35dc0cc988d9683b3c929364ab444dbecdaae86adacdf680afdc2fe667e1b732"
+          }
+        },
+        {
+          "candidate": [],
+          "candidate_exact": true,
+          "complete": true,
+          "expected": [],
+          "name": "upstream-import_typing_as.py",
+          "reference": [],
+          "reference_exact": true,
+          "request_sha256": "968fb57b4a2a60966172b8f33a17e8780376f07823daea10694f2e7f3b9aca32",
+          "source_sha256": {
+            "import_typing_as.py": "00b43720048d37d69f7d2a3926ed25bbcf4cb3b281daf0301c48741848332c9e"
+          }
+        },
+        {
+          "candidate": [],
+          "candidate_exact": true,
+          "complete": true,
+          "expected": [],
+          "name": "upstream-no_future_import_uses_lowercase.py",
+          "reference": [],
+          "reference_exact": true,
+          "request_sha256": "6ec97b8a9dedf30f7ae86361759d375bfbed47a830c992170c8097d4296fcc34",
+          "source_sha256": {
+            "no_future_import_uses_lowercase.py": "25c25fb77e7bc030f23faefa22b9fc784fba9022015d448ce5c43ec71b980f3e"
+          }
+        },
+        {
+          "candidate": [],
+          "candidate_exact": true,
+          "complete": true,
+          "expected": [],
+          "name": "upstream-no_future_import_uses_union.py",
+          "reference": [],
+          "reference_exact": true,
+          "request_sha256": "7197a997ac1253122b95147c43c2b186ecb3473e7df10878ba98c35cee4e5aed",
+          "source_sha256": {
+            "no_future_import_uses_union.py": "ed35b4ff3cc5aa7d0844fa1f20f0f09d85b03dd2d4446f65bfe3abff1956cb6f"
+          }
+        },
+        {
+          "candidate": [],
+          "candidate_exact": true,
+          "complete": true,
+          "expected": [],
+          "name": "upstream-no_future_import_uses_union_inner.py",
+          "reference": [],
+          "reference_exact": true,
+          "request_sha256": "82b237020a2d698ed5154ce78940397862e8f2b258bca020853b72229cbb30f7",
+          "source_sha256": {
+            "no_future_import_uses_union_inner.py": "a0d5cfcac2f6eebd96f6ab85e0d3f7444b37f8531e67602acee4c3987c0b3c5a"
+          }
+        },
+        {
+          "candidate": [],
+          "candidate_exact": true,
+          "complete": true,
+          "expected": [],
+          "name": "upstream-ok_no_types.py",
+          "reference": [],
+          "reference_exact": true,
+          "request_sha256": "591738b52d1ac3946131104cf70b2e7c7d33fde060fed8db71abc466d2dbde5e",
+          "source_sha256": {
+            "ok_no_types.py": "88bab635c16aab387971de49b29d43bb15df8c2ab0dd8f0b6fca805858ddedef"
+          }
+        },
+        {
+          "candidate": [],
+          "candidate_exact": true,
+          "complete": true,
+          "expected": [],
+          "name": "upstream-ok_non_simplifiable_types.py",
+          "reference": [],
+          "reference_exact": true,
+          "request_sha256": "6eebbd14460cf41e9256344c3b194988cdfeb626f025c16de9e15ccb44182d6b",
+          "source_sha256": {
+            "ok_non_simplifiable_types.py": "066222f191c42ba50e6b6024dbf1debe7248f98c3b5815ef3812a37f6fddbe56"
+          }
+        },
+        {
+          "candidate": [],
+          "candidate_exact": true,
+          "complete": true,
+          "expected": [],
+          "name": "upstream-ok_uses_future.py",
+          "reference": [],
+          "reference_exact": true,
+          "request_sha256": "bba7fc527e4cd671dfd996e27ddaef097ab4475f69bd8d848dfcef6cd707eb7f",
+          "source_sha256": {
+            "ok_uses_future.py": "701a01595f16601360b7b93a6c97b98a02499056b27d54c145d14e1993151cbf"
+          }
+        },
+        {
+          "candidate": [],
+          "candidate_exact": true,
+          "complete": true,
+          "expected": [],
+          "name": "upstream-ok_variable_name.py",
+          "reference": [],
+          "reference_exact": true,
+          "request_sha256": "3debd18356e816910510667129c0d78b27c4764b142b9b3d8e9be39184453acd",
+          "source_sha256": {
+            "ok_variable_name.py": "9f041fd133058352b7d71b1d4d5a42e05d45949f81903cab70a137c1b67ca779"
+          }
+        },
+        {
+          "candidate": [],
+          "candidate_exact": true,
+          "complete": true,
+          "expected": [],
+          "name": "old-list",
+          "reference": [],
+          "reference_exact": true,
+          "request_sha256": "8db619e75e706343cb3ad63161f063c50b2a3b253da98df8a2813af126f27988",
+          "source_sha256": {
+            "case.py": "e76ad7a117b9b68c0a76c6d9f6c89f158aa4843dd513238d6c6c95463e494e9f"
+          }
+        },
+        {
+          "candidate": [],
+          "candidate_exact": true,
+          "complete": true,
+          "expected": [],
+          "name": "old-optional",
+          "reference": [],
+          "reference_exact": true,
+          "request_sha256": "daa2f0edd0882ef5cf98cdebd5f5894c142c53b9fd90dd98730b400dbadfc08e",
+          "source_sha256": {
+            "case.py": "36ed91742900704a66a719baa6494f7da6685ed8a5e87d5983a3ae3d4d1b66f2"
+          }
+        },
+        {
+          "candidate": [],
+          "candidate_exact": true,
+          "complete": true,
+          "expected": [],
+          "name": "old-union",
+          "reference": [],
+          "reference_exact": true,
+          "request_sha256": "0d10e0df956a2fee3f4e1335a510dce91fff95d2942bd8b66e04d55bcd460047",
+          "source_sha256": {
+            "case.py": "4139d707c57342d57b151924fb3a64d3b07c79c45d60231ae9f5500f973bb553"
+          }
+        },
+        {
+          "candidate": [],
+          "candidate_exact": true,
+          "complete": true,
+          "expected": [],
+          "name": "ordinary-value",
+          "reference": [],
+          "reference_exact": true,
+          "request_sha256": "19ae380cce10c3e9250ac8a4d7eb8ef56b5291ccc432d92d2d05c98057a3de31",
+          "source_sha256": {
+            "case.py": "18c83b2bfb48f1509787cea57fa546160c9a662f9130c5df1722dabb6fd94516"
+          }
+        },
+        {
+          "candidate": [],
+          "candidate_exact": true,
+          "complete": true,
+          "expected": [],
+          "name": "future-import",
+          "reference": [],
+          "reference_exact": true,
+          "request_sha256": "73a16ab262cf23591daff31f37680906546c3bff32ae31edea95dc0b800e9a81",
+          "source_sha256": {
+            "case.py": "e84d547b80ea2aa23c60843d08662574a8e5a6e9e970fc3becf31abc23196536"
+          }
+        },
+        {
+          "candidate": [],
+          "candidate_exact": true,
+          "complete": true,
+          "expected": [],
+          "name": "local-annotation",
+          "reference": [],
+          "reference_exact": true,
+          "request_sha256": "a7327e7b2ffef8e999803dafcdeca4f916de2b1e040352f30d09acc5f53c41e7",
+          "source_sha256": {
+            "case.py": "4b17779c19ee19f5ca8eb0ff820949a13f2bac1b1c35f89d013dbe166c874892"
+          }
+        },
+        {
+          "candidate": [],
+          "candidate_exact": true,
+          "complete": true,
+          "expected": [],
+          "name": "runtime-quoted-optional",
+          "reference": [],
+          "reference_exact": true,
+          "request_sha256": "61e7538b0c35f8c942516295df6fcdfe4813d632f15fe423e7831f4a191a8568",
+          "source_sha256": {
+            "case.py": "5deae1b9f4c9372fa408bdc1051a53c7ab8161448fd7c4255bc83a7646a69492"
+          }
+        },
+        {
+          "candidate": [],
+          "candidate_exact": true,
+          "complete": true,
+          "expected": [],
+          "name": "local-quoted-optional",
+          "reference": [],
+          "reference_exact": true,
+          "request_sha256": "057ad86171ed0a305266e69a8218d6e25572928e0264cb994acaf079460b9078",
+          "source_sha256": {
+            "case.py": "305f77cdf23cc30ee933a4cb57080839fe123f0f3c16e95a3c39a7e312f211c0"
+          }
+        },
+        {
+          "candidate": [],
+          "candidate_exact": true,
+          "complete": true,
+          "expected": [],
+          "name": "already-modern",
+          "reference": [],
+          "reference_exact": true,
+          "request_sha256": "87bf1ce97bc11da729e0bf035129224f82238393323db5861d0e74f0ea7ebdd3",
+          "source_sha256": {
+            "case.py": "cda8cabe8f2f2de77c8007a79382e76239aa3c2c1c13c69c7bf87cb2ee6ba553"
+          }
+        },
+        {
+          "candidate": [],
+          "candidate_exact": true,
+          "complete": true,
+          "expected": [],
+          "name": "nonmapped-typing",
+          "reference": [],
+          "reference_exact": true,
+          "request_sha256": "78fc795eeba38fe5f65d7cf497cebda537cbbdb5ff883ba34015485410274c5a",
+          "source_sha256": {
+            "case.py": "362e871476673c202eaca59889e18d3db9c40ba2211a8e07ef88da83b0c6cff8"
+          }
+        },
+        {
+          "candidate": [],
+          "candidate_exact": true,
+          "complete": true,
+          "expected": [],
+          "name": "shadowed-symbol",
+          "reference": [],
+          "reference_exact": true,
+          "request_sha256": "08d0a23bb9562d808d7f023e3e38db2c6ae30b3b2f9a4a84623aa169d154b140",
+          "source_sha256": {
+            "case.py": "74981437e8fa6523bb897e394908768894cf7ed1b0f8b67c3a472a04383c875b"
+          }
+        },
+        {
+          "candidate": [
+            {
+              "end": 40,
+              "file": "case.py",
+              "rule": "invalid-syntax",
+              "start": 34
+            }
+          ],
+          "candidate_exact": true,
+          "complete": true,
+          "expected": [
+            {
+              "end": 40,
+              "file": "case.py",
+              "rule": "invalid-syntax",
+              "start": 34
+            }
+          ],
+          "name": "union-star",
+          "reference": [
+            {
+              "end": 40,
+              "file": "case.py",
+              "rule": "invalid-syntax",
+              "start": 34
+            }
+          ],
+          "reference_exact": true,
+          "request_sha256": "92843bd5d0a68dc0b4eb6db94588bda878da379dfe222a2f76eeaa8a7585b66a",
+          "source_sha256": {
+            "case.py": "82006ddc3f3632ceb1a70f7143bcc3431a3c84b2ed0dbab112729948b00febc7"
+          }
+        },
+        {
+          "candidate": [],
+          "candidate_exact": true,
+          "complete": true,
+          "expected": [],
+          "name": "stub-context",
+          "reference": [],
+          "reference_exact": true,
+          "request_sha256": "7f7490f668ec5666c5105015cb05f56d994d3cb5ae7cd03bbc066a92befd435f",
+          "source_sha256": {
+            "case.pyi": "e76ad7a117b9b68c0a76c6d9f6c89f158aa4843dd513238d6c6c95463e494e9f"
+          }
+        },
+        {
+          "candidate": [],
+          "candidate_exact": true,
+          "complete": true,
+          "expected": [],
+          "name": "suppressed",
+          "reference": [],
+          "reference_exact": true,
+          "request_sha256": "f62188234fc3e2abbeeab04c00e18c2ecccf2a5b3429710916150bd5ad048a53",
+          "source_sha256": {
+            "case.py": "220675d34c14cb518a329ee8e9e829446170754bdee003a56a4a0ef4b4738c7b"
+          }
+        },
+        {
+          "candidate": [],
+          "candidate_exact": true,
+          "complete": true,
+          "expected": [],
+          "name": "unrelated-noqa",
+          "reference": [],
+          "reference_exact": true,
+          "request_sha256": "564a4e37c156dceb15247a14a6179b8cda69e75c4d9ad62236499cd8daf05051",
+          "source_sha256": {
+            "case.py": "c3cef5b2cb30526f29ccb631ce392c93a99c37a7e543b01b0071f56dc42eeede"
+          }
+        }
+      ],
+      "cases_sha256": "d04439eb028cba7d0a7ac38ccecd35391c48a09bcf5e795d6c262f7cc826338f",
+      "complete": 27,
+      "module_sha256": {
+        "python/ruff/annotation-evaluation-context": "b176d58a1687fe99f5b41d85fc781c0b33d2dcd58b49c6a16670216b78361ef5",
+        "python/ruff/annotation-origins": "6cfa26a97e143633f526c534006c42df872a6bff5da05904d2f5843fc10b9240",
+        "python/ruff/future-annotation-context": "976b10f474f5e82e4976f85c14d73ed3b3c6f864b1de183699784f00e5e8269b",
+        "python/ruff/lookup-symbol-events": "b0fb09349eb9b0acde95944add1760c9ce104fc66df1bd218261b40b4f895dfb",
+        "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
+        "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d"
+      },
+      "profile_sha256": "e69f8033f728f71ab324ee88289dea6ae2cd37c3145a9081f82814d9a9bca708",
+      "query_sha256": "2517341b77c5880857add89c1e00e8d9f9932df20c5f7624adedd75ad227bfc7",
+      "reference_exact": 27
+    },
+    "FA102": {
+      "candidate_exact": 22,
+      "case_count": 22,
+      "cases": [
+        {
+          "candidate": [],
+          "candidate_exact": true,
+          "complete": true,
+          "expected": [],
+          "name": "upstream-no_future_import_uses_lowercase.py",
+          "reference": [],
+          "reference_exact": true,
+          "request_sha256": "1d5d7306b4891c4eaaa6c89ad1be5045743c8fa097ccb728b50f441557cafe28",
+          "source_sha256": {
+            "no_future_import_uses_lowercase.py": "25c25fb77e7bc030f23faefa22b9fc784fba9022015d448ce5c43ec71b980f3e"
+          }
+        },
+        {
+          "candidate": [],
+          "candidate_exact": true,
+          "complete": true,
+          "expected": [],
+          "name": "upstream-no_future_import_uses_preview_generics.py",
+          "reference": [],
+          "reference_exact": true,
+          "request_sha256": "10747b92b1a3f7dbcfa1c942d622a49908a49958adb6b10e99749ee5d74b78d8",
+          "source_sha256": {
+            "no_future_import_uses_preview_generics.py": "71b73a99416315c50283d3d897b9bd4562ac665117a94b90a838b1a313c46209"
+          }
+        },
+        {
+          "candidate": [],
+          "candidate_exact": true,
+          "complete": true,
+          "expected": [],
+          "name": "upstream-no_future_import_uses_union.py",
+          "reference": [],
+          "reference_exact": true,
+          "request_sha256": "37cb5cf7494078e957c5db9251c7117653403b6b570bfb8e6450ca2b5b9485eb",
+          "source_sha256": {
+            "no_future_import_uses_union.py": "ed35b4ff3cc5aa7d0844fa1f20f0f09d85b03dd2d4446f65bfe3abff1956cb6f"
+          }
+        },
+        {
+          "candidate": [],
+          "candidate_exact": true,
+          "complete": true,
+          "expected": [],
+          "name": "upstream-no_future_import_uses_union_inner.py",
+          "reference": [],
+          "reference_exact": true,
+          "request_sha256": "52104e2c678dc75f1679c37f5112852dd360c919c9136b2582855e3eabcd5c4a",
+          "source_sha256": {
+            "no_future_import_uses_union_inner.py": "a0d5cfcac2f6eebd96f6ab85e0d3f7444b37f8531e67602acee4c3987c0b3c5a"
+          }
+        },
+        {
+          "candidate": [],
+          "candidate_exact": true,
+          "complete": true,
+          "expected": [],
+          "name": "upstream-ok_no_types.py",
+          "reference": [],
+          "reference_exact": true,
+          "request_sha256": "f6e4754a83e5b460eba3eda91d8ed87bbd9f60b4af9fcb3abe5f89a4e2c50435",
+          "source_sha256": {
+            "ok_no_types.py": "88bab635c16aab387971de49b29d43bb15df8c2ab0dd8f0b6fca805858ddedef"
+          }
+        },
+        {
+          "candidate": [],
+          "candidate_exact": true,
+          "complete": true,
+          "expected": [],
+          "name": "upstream-ok_uses_future.py",
+          "reference": [],
+          "reference_exact": true,
+          "request_sha256": "48b1aa7f2e810e9e21e9466f04d18cf3d45470674ff7fd9e34c9b6cf511a0bd6",
+          "source_sha256": {
+            "ok_uses_future.py": "701a01595f16601360b7b93a6c97b98a02499056b27d54c145d14e1993151cbf"
+          }
+        },
+        {
+          "candidate": [],
+          "candidate_exact": true,
+          "complete": true,
+          "expected": [],
+          "name": "upstream-ok_quoted_type.py",
+          "reference": [],
+          "reference_exact": true,
+          "request_sha256": "c06893d5f4311aa45cd6ded29a9ef5b0a6a4357641c1a119df0d236c63e8227f",
+          "source_sha256": {
+            "ok_quoted_type.py": "11691721d902ecb9cb42ab62bb683d688f38a850a8da10d200a73d153f928845"
+          }
+        },
+        {
+          "candidate": [],
+          "candidate_exact": true,
+          "complete": true,
+          "expected": [],
+          "name": "eager-generic",
+          "reference": [],
+          "reference_exact": true,
+          "request_sha256": "bc17c6349895113ef2db8b24798c69ad987f92ee4dcd0f1b6e7ce6d5bf0f621c",
+          "source_sha256": {
+            "case.py": "cda8cabe8f2f2de77c8007a79382e76239aa3c2c1c13c69c7bf87cb2ee6ba553"
+          }
+        },
+        {
+          "candidate": [],
+          "candidate_exact": true,
+          "complete": true,
+          "expected": [],
+          "name": "local-generic",
+          "reference": [],
+          "reference_exact": true,
+          "request_sha256": "e998fe93022d9881b0a393ac0b3b6e1672c7567f160a3b2c896a212f3f87f7eb",
+          "source_sha256": {
+            "case.py": "687a9db001b12e422775de3e46c22576ba3a1476753faa499ec1def390b3d883"
+          }
+        },
+        {
+          "candidate": [],
+          "candidate_exact": true,
+          "complete": true,
+          "expected": [],
+          "name": "eager-union",
+          "reference": [],
+          "reference_exact": true,
+          "request_sha256": "8783eb9e562cdc4355e9b7672adbf8a73107733425dc37ab41b11ee788527596",
+          "source_sha256": {
+            "case.py": "7d2bed324da7db3faec5d173c16d4b0434113c72a040d2b207f0c8b740c6bf87"
+          }
+        },
+        {
+          "candidate": [],
+          "candidate_exact": true,
+          "complete": true,
+          "expected": [],
+          "name": "local-union",
+          "reference": [],
+          "reference_exact": true,
+          "request_sha256": "7a70220eaac721b660a495ee929a8ae0b98a3c7489dd52da0d6b222605f2498f",
+          "source_sha256": {
+            "case.py": "e9eca0f5563f51d050906367456f338af44640f190eb7fbb10e5ae82c85df0c5"
+          }
+        },
+        {
+          "candidate": [],
+          "candidate_exact": true,
+          "complete": true,
+          "expected": [],
+          "name": "future-generic",
+          "reference": [],
+          "reference_exact": true,
+          "request_sha256": "641f05ba478f7600ac3a6a2172ab3eb1feaee661dc630b2e5564e9e996af8995",
+          "source_sha256": {
+            "case.py": "7c72dae311b403b2bdaafd24fd79ba03547806f5a6cfd154dbdf8262311be0d9"
+          }
+        },
+        {
+          "candidate": [],
+          "candidate_exact": true,
+          "complete": true,
+          "expected": [],
+          "name": "future-union",
+          "reference": [],
+          "reference_exact": true,
+          "request_sha256": "255c2f3fb9f579631556795c7abc0c212ea58c87fc0b21a04516973687c4d1aa",
+          "source_sha256": {
+            "case.py": "283ca98191f26d925e86115387b9603d2d1efb97384dfe841efcfa3f8c3dc2af"
+          }
+        },
+        {
+          "candidate": [],
+          "candidate_exact": true,
+          "complete": true,
+          "expected": [],
+          "name": "quoted-union",
+          "reference": [],
+          "reference_exact": true,
+          "request_sha256": "a119c213ced21b273718acd50f63d8d6525c320886d077aef6743b5e52e41cd7",
+          "source_sha256": {
+            "case.py": "f27f203747daa498eb7db642ba83cadde01f8528cf17ed9a5a05ccab5e69c52d"
+          }
+        },
+        {
+          "candidate": [],
+          "candidate_exact": true,
+          "complete": true,
+          "expected": [],
+          "name": "ordinary-value",
+          "reference": [],
+          "reference_exact": true,
+          "request_sha256": "fc4b523afe40ef92b1310902921a1c0026be4d1929e3b8566b6685638fe0c3c4",
+          "source_sha256": {
+            "case.py": "e1114c49de8ef0780af7289b1c5fbfd836ebe1794b9a9382de0994c72c124781"
+          }
+        },
+        {
+          "candidate": [],
+          "candidate_exact": true,
+          "complete": true,
+          "expected": [],
+          "name": "typing-alias",
+          "reference": [],
+          "reference_exact": true,
+          "request_sha256": "d43037d49f0baa04d5854679f900d47f4c3538933b869c92965b2fcc9aeaaffd",
+          "source_sha256": {
+            "case.py": "e76ad7a117b9b68c0a76c6d9f6c89f158aa4843dd513238d6c6c95463e494e9f"
+          }
+        },
+        {
+          "candidate": [],
+          "candidate_exact": true,
+          "complete": true,
+          "expected": [],
+          "name": "runtime-generic-type",
+          "reference": [],
+          "reference_exact": true,
+          "request_sha256": "dbe6f96678e31a8ce33ddc9a3a3aea6fbeefd5c340ed6e4aa81e2cb25baba53c",
+          "source_sha256": {
+            "case.py": "715689efeedc219c7796b449f521ae6fdb49c76e821857024a718eda4df557c8"
+          }
+        },
+        {
+          "candidate": [],
+          "candidate_exact": true,
+          "complete": true,
+          "expected": [],
+          "name": "standard-module",
+          "reference": [],
+          "reference_exact": true,
+          "request_sha256": "d9fafa18575656b5cca8326a8b4ee2c33d56ad2ee5454b556e40a76ddddfb931",
+          "source_sha256": {
+            "case.py": "93c52d67243af2e02e5057b36b173aad3e430a741d1ae4e722df39d82bf22960"
+          }
+        },
+        {
+          "candidate": [],
+          "candidate_exact": true,
+          "complete": true,
+          "expected": [],
+          "name": "signature",
+          "reference": [],
+          "reference_exact": true,
+          "request_sha256": "12016febbc15bb6556418e126fc3f09248de743a15ebd46a00828c25a388abb5",
+          "source_sha256": {
+            "case.py": "46a984c7201e518891be88a8b13fb445bba4bce7b25bc635db28588883559ebe"
+          }
+        },
+        {
+          "candidate": [],
+          "candidate_exact": true,
+          "complete": true,
+          "expected": [],
+          "name": "stub-context",
+          "reference": [],
+          "reference_exact": true,
+          "request_sha256": "c219f9ba35549a4a02f1a83b8ea5802398406fef84a7fdde2d499e73d4e79c16",
+          "source_sha256": {
+            "case.pyi": "cda8cabe8f2f2de77c8007a79382e76239aa3c2c1c13c69c7bf87cb2ee6ba553"
+          }
+        },
+        {
+          "candidate": [],
+          "candidate_exact": true,
+          "complete": true,
+          "expected": [],
+          "name": "suppressed",
+          "reference": [],
+          "reference_exact": true,
+          "request_sha256": "091accfd818a9b4001e4702546c783777a08bedbd7c95e211bf744c539fb6757",
+          "source_sha256": {
+            "case.py": "bcc110452e8b51c710504fb5fae67e0b9e9fa133170be33aa560957b63c5005b"
+          }
+        },
+        {
+          "candidate": [],
+          "candidate_exact": true,
+          "complete": true,
+          "expected": [],
+          "name": "unrelated-noqa",
+          "reference": [],
+          "reference_exact": true,
+          "request_sha256": "cafd463f7ffa59b4ab50254265df652f41bf9974a8dd4f5510d70b668c86972d",
+          "source_sha256": {
+            "case.py": "dbcb68ad3561eb71845c40c48e668691ad6ab83eaad164974667e2f3c2e51cb9"
+          }
+        }
+      ],
+      "cases_sha256": "23e4e810065a3515e36a1ae2514b00123459933435e3486a44cafdc48206afe4",
+      "complete": 22,
+      "module_sha256": {
+        "python/ruff/annotation-evaluation-context": "b176d58a1687fe99f5b41d85fc781c0b33d2dcd58b49c6a16670216b78361ef5",
+        "python/ruff/future-annotation-context": "976b10f474f5e82e4976f85c14d73ed3b3c6f864b1de183699784f00e5e8269b",
+        "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
+        "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d"
+      },
+      "profile_sha256": "5235f7504b63d1b228481d01ca3950185d0d63f711cdc37181311e672f743858",
+      "query_sha256": "a033d89ead5338ee9adcebbbee009d53e8c4234c9cb3ee07c45cfa2ae9b9034e",
+      "reference_exact": 22
+    }
+  },
+  "schema": "fa-py310-direct-controls/v1",
+  "target": "python-target=3.10",
+  "worker_sha256": "e0092188f1af6786f4981680a7129445f33117050343388ba9cb69016891266a"
+}

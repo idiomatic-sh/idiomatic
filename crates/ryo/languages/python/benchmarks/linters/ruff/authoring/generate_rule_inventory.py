@@ -145,6 +145,49 @@ def render_full_inventory(path: Path) -> str:
             for row in extra_rows:
                 by_rule[row["rule_id"]] = {**row, "reason": "[separate source-bound fixture proof](results/full-inventory-current/match-or-supplement/summary.json)"}
             supplement_label = " Counts combine separately linked receipts; no combined replay is claimed."
+        fa = current / "fa-target-supplement"
+        proof_file = fa / "proof.json"
+        if proof_file.is_file():
+            proof = json.loads(proof_file.read_text(encoding="utf-8"))
+            extra_file = fa / "summary.json"
+            extra = json.loads(extra_file.read_text(encoding="utf-8"))
+            extra_rows = extra.get("rules", [])
+            controls = json.loads((fa / "py310-controls.json").read_text(encoding="utf-8"))
+            expected = {"FA100": (27, 27, 0), "FA102": (22, 22, 0)}
+            if (proof.get("schema") != "benchmark-inventory-supplement/v1"
+                or proof.get("base_summary_sha256") != sha(path)
+                or proof.get("sim_supplement_summary_sha256") != sha(supplement / "summary.json")
+                or proof.get("future_supplement_summary_sha256") != sha(future / "summary.json")
+                or proof.get("match_or_supplement_summary_sha256") != sha(match_or / "summary.json")
+                or proof.get("supplement_summary_sha256") != sha(extra_file)
+                or proof.get("raw_receipts_sha256") != sha(fa / "raw-receipts.tar.gz")
+                or proof.get("py310_controls_sha256") != sha(fa / "py310-controls.json")
+                or proof.get("py310_inputs_sha256") != sha(fa / "py310-inputs.tar.gz")
+                or proof.get("rule_ids") != list(expected)
+                or [row.get("rule_id") for row in extra_rows] != list(expected)
+                or extra.get("schema") != "benchmark-inventory/v1"
+                or extra.get("run_state") != "complete"
+                or extra.get("counts") != {"PASS": 2, "FAIL": 0}
+                or extra.get("identity", {}).get("worker_sha256") != proof.get("worker_sha256")
+                or controls.get("worker_sha256") != proof.get("worker_sha256")
+                or controls.get("target") != "python-target=3.10"
+                or any(row.get("status") != "PASS"
+                       or (row.get("case_count"), row.get("raw_exact"), row.get("documented_discrepancies")) != expected[row["rule_id"]]
+                       or proof.get("case_results_sha256", {}).get(row["rule_id"]) != row.get("case_results_sha256")
+                       or by_rule[row["rule_id"]]["status"] != "FAIL" for row in extra_rows)
+                or any((control.get("case_count") != count
+                        or control.get("candidate_exact") != count
+                        or control.get("reference_exact") != count
+                        or control.get("complete") != count
+                        or control.get("query_sha256") != sha(RUFF / "rules" / rule / "query.ryoql")
+                        or any(any(diagnostic.get("rule") == rule for diagnostic in case.get("candidate", []))
+                               for case in control.get("cases", [])))
+                       for rule, count in (("FA100", 27), ("FA102", 22))
+                       for control in [controls.get("rules", {}).get(rule, {})])):
+                raise ValueError("FA target supplement is stale or changes an earlier receipt")
+            for row in extra_rows:
+                by_rule[row["rule_id"]] = {**row, "reason": "[separate py37 fixture and py310 control proof](results/full-inventory-current/fa-target-supplement/summary.json)"}
+            supplement_label = " Counts combine separately linked receipts; no combined replay is claimed."
     rendered = []
     passed = 0
     for rule in defaults:

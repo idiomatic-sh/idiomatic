@@ -1,0 +1,161 @@
+[[cases]]
+comparison = "full"
+name = "upstream-edge_case.py"
+files = { "edge_case.py" = "from typing import List\nimport typing as t\n\n\ndef main(_: List[int]) -> None:\n    a_list: t.List[str] = []\n    a_list.append(\"hello\")\n" }
+expected = [{ rule = "FA100", file = "edge_case.py", start = 57, end = 61 }, { rule = "FA100", file = "edge_case.py", start = 89, end = 95 }]
+
+[[cases]]
+comparison = "full"
+name = "upstream-from_typing_import.py"
+files = { "from_typing_import.py" = "from typing import List\n\n\ndef main() -> None:\n    a_list: List[str] = []\n    a_list.append(\"hello\")\n" }
+expected = [{ rule = "FA100", file = "from_typing_import.py", start = 58, end = 62 }]
+
+[[cases]]
+comparison = "full"
+name = "upstream-from_typing_import_many.py"
+files = { "from_typing_import_many.py" = "from typing import Dict, List, Optional, Set, Union, cast\n\n\ndef main() -> None:\n    a_list: List[Optional[str]] = []\n    a_list.append(\"hello\")\n    a_dict = cast(Dict[int | None, Union[int, Set[bool]]], {})\n    a_dict[1] = {True, False}\n" }
+expected = [{ rule = "FA100", file = "from_typing_import_many.py", start = 92, end = 96 }, { rule = "FA100", file = "from_typing_import_many.py", start = 97, end = 105 }]
+
+[[cases]]
+comparison = "full"
+name = "upstream-import_typing.py"
+files = { "import_typing.py" = "import typing\n\n\ndef main() -> None:\n    a_list: typing.List[str] = []\n    a_list.append(\"hello\")\n" }
+expected = [{ rule = "FA100", file = "import_typing.py", start = 48, end = 59 }]
+
+[[cases]]
+comparison = "full"
+name = "upstream-import_typing_as.py"
+files = { "import_typing_as.py" = "import typing as t\n\n\ndef main() -> None:\n    a_list: t.List[str] = []\n    a_list.append(\"hello\")\n" }
+expected = [{ rule = "FA100", file = "import_typing_as.py", start = 53, end = 59 }]
+
+[[cases]]
+comparison = "full"
+name = "upstream-no_future_import_uses_lowercase.py"
+files = { "no_future_import_uses_lowercase.py" = "def main() -> None:\n    a_list: list[str] = []\n    a_list.append(\"hello\")\n\n\ndef hello(y: dict[str, int]) -> None:\n    del y\n" }
+expected = []
+
+[[cases]]
+comparison = "full"
+name = "upstream-no_future_import_uses_union.py"
+files = { "no_future_import_uses_union.py" = "def main() -> None:\n    a_list: list[str] | None = []\n    a_list.append(\"hello\")\n\n\ndef hello(y: dict[str, int] | None) -> None:\n    del y\n" }
+expected = []
+
+[[cases]]
+comparison = "full"
+name = "upstream-no_future_import_uses_union_inner.py"
+files = { "no_future_import_uses_union_inner.py" = "def main() -> None:\n    a_list: list[str | None] = []\n    a_list.append(\"hello\")\n\n\ndef hello(y: dict[str | None, int]) -> None:\n    z: tuple[str, str | None, str] = tuple(y)\n    del z\n" }
+expected = []
+
+[[cases]]
+comparison = "full"
+name = "upstream-ok_no_types.py"
+files = { "ok_no_types.py" = "def main() -> str:\n    a_str = \"hello\"\n    return a_str\n" }
+expected = []
+
+[[cases]]
+comparison = "full"
+name = "upstream-ok_non_simplifiable_types.py"
+files = { "ok_non_simplifiable_types.py" = "from typing import NamedTuple\n\n\nclass Stuff(NamedTuple):\n    x: int\n\n\ndef main() -> None:\n    a_list = Stuff(5)\n    print(a_list)\n" }
+expected = []
+
+[[cases]]
+comparison = "full"
+name = "upstream-ok_uses_future.py"
+files = { "ok_uses_future.py" = "from __future__ import annotations\n\n\ndef main() -> None:\n    a_list: list[str] = []\n    a_list.append(\"hello\")\n" }
+expected = []
+
+[[cases]]
+comparison = "full"
+name = "upstream-ok_variable_name.py"
+files = { "ok_variable_name.py" = "import typing\n\nIRRELEVANT = typing.TypeVar\n\n\ndef main() -> None:\n    List: list[str] = []\n    List.append(\"hello\")\n" }
+expected = []
+
+[[cases]]
+comparison = "full"
+name = "old-list"
+files = { "case.py" = "from typing import List\nx: List[int]\n" }
+expected = [{ rule = "FA100", file = "case.py", start = 27, end = 31 }]
+
+[[cases]]
+comparison = "full"
+name = "old-optional"
+files = { "case.py" = "from typing import Optional\nx: Optional[int]\n" }
+expected = [{ rule = "FA100", file = "case.py", start = 31, end = 39 }]
+
+[[cases]]
+comparison = "full"
+name = "old-union"
+files = { "case.py" = "from typing import Union\nx: Union[int, str]\n" }
+expected = [{ rule = "FA100", file = "case.py", start = 28, end = 33 }]
+
+[[cases]]
+comparison = "full"
+name = "ordinary-value"
+files = { "case.py" = "from typing import List\nx = List[int]\n" }
+expected = []
+
+[[cases]]
+comparison = "full"
+name = "future-import"
+files = { "case.py" = "from __future__ import annotations\nfrom typing import List\nx: List[int]\n" }
+expected = []
+
+[[cases]]
+comparison = "full"
+name = "local-annotation"
+files = { "case.py" = "from typing import List\ndef f():\n    x: List[int]\n" }
+expected = [{ rule = "FA100", file = "case.py", start = 40, end = 44 }]
+
+[[cases]]
+comparison = "full"
+name = "runtime-quoted-optional"
+files = { "case.py" = "from typing import Optional\nx: Optional[\"X\"]\n" }
+expected = []
+
+[[cases]]
+comparison = "full"
+name = "local-quoted-optional"
+files = { "case.py" = "from typing import Optional\ndef f():\n    x: Optional[\"X\"]\n" }
+expected = [{ rule = "FA100", file = "case.py", start = 44, end = 52 }]
+
+[[cases]]
+comparison = "full"
+name = "already-modern"
+files = { "case.py" = "x: list[int]\n" }
+expected = []
+
+[[cases]]
+comparison = "full"
+name = "nonmapped-typing"
+files = { "case.py" = "from typing import Callable\nx: Callable[[int], str]\n" }
+expected = []
+
+[[cases]]
+comparison = "full"
+name = "shadowed-symbol"
+files = { "case.py" = "class List: ...\nx: List[int]\n" }
+expected = []
+
+[[cases]]
+comparison = "full"
+name = "union-star"
+files = { "case.py" = "from typing import Union\nx: Union[*types]\n" }
+expected = [{ rule = "invalid-syntax", file = "case.py", start = 34, end = 40 }]
+
+[[cases]]
+comparison = "full"
+name = "stub-context"
+files = { "case.pyi" = "from typing import List\nx: List[int]\n" }
+expected = []
+
+[[cases]]
+comparison = "full"
+name = "suppressed"
+files = { "case.py" = "from typing import List\nx: List[int] # noqa: FA100\n" }
+expected = []
+
+[[cases]]
+comparison = "full"
+name = "unrelated-noqa"
+files = { "case.py" = "from typing import List\nx: List[int] # noqa: F401\n" }
+expected = [{ rule = "FA100", file = "case.py", start = 27, end = 31 }]
