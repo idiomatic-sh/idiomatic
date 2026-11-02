@@ -27,127 +27,134 @@ def source(rule: str) -> tuple[Path | None, str]:
     return None, "absent"
 
 
-def render() -> str:
-    base = tomllib.loads((RUFF / "benchmark.toml").read_text(encoding="utf-8"))
-    rules = base["defaults"]
-    assert len(rules) == 413 and len(rules) == len(set(rules))
-    descriptor = json.loads((RUFF / "profiles/native-standalone.json").read_text(encoding="utf-8"))
-    current = json.loads((RESULTS / "native143-split-2026-11-02/summary.json").read_text(encoding="utf-8"))
-    historical = json.loads((RESULTS / "correctness-324-per-rule-2026-11-01.json").read_text(encoding="utf-8"))
-    historical_final = json.loads((RESULTS / "correctness-324-final-2026-11-01.json").read_text(encoding="utf-8"))
-    historical_manifest = json.loads((RESULTS / "correctness-324-manifest-2026-11-01.json").read_text(encoding="utf-8"))
-    native138_archive = RESULTS / "native143-split-2026-11-02/native138-9348-raw.tar.gz"
-    five_archive = RESULTS / "native143-split-2026-11-02/five-singletons-9348-raw.tar.gz"
-    assert current["native138_archive_sha256"] == sha(native138_archive)
-    assert current["five_singletons_archive_sha256"] == sha(five_archive)
-    assert historical["raw_records_sha256"] == historical_final["raw_candidate_records_sha256"]
-    assert historical["worker_sha256"] == historical_final["worker_sha256"]
-    assert historical["selection_sha256"] == historical_manifest["inventory_sha256"]
-    assert descriptor["query_count"] == len(current["profiles"]) == 143
-    assert descriptor["case_count"] == sum(row["cases"] for row in current["profiles"].values()) == 3775
-    assert set(current["profiles"]) == {row["rule_id"] for row in descriptor["profiles"]}
-    assert set(historical["profiles"]) == set(historical_manifest["selection"])
-    assert len(historical["profiles"]) == 324
-    assert sum(row["cases"] == row["raw_exact"] for row in historical["profiles"].values()) == 302
-
-    authored = 0
-    rows = []
-    for rule in rules:
-        path, label = source(rule)
+def render_full_inventory(path: Path) -> str:
+    """Render the runner's complete pinned inventory, including every failure."""
+    summary = json.loads(path.read_text(encoding="utf-8"))
+    defaults = tomllib.loads((RUFF / "benchmark.toml").read_text(encoding="utf-8"))["defaults"]
+    phases = json.loads((RUFF / "profiles/pinned-rule-phases.json").read_text(encoding="utf-8"))
+    rows = summary.get("rules", [])
+    ids = [row.get("rule_id") for row in rows]
+    if (summary.get("schema") != "ruff-full-inventory/v1" or len(defaults) != 413
+        or len(set(defaults)) != 413 or set(defaults) != set(phases["shipped_default_rules"])
+        or len(ids) != 413 or len(set(ids)) != 413 or set(ids) != set(defaults)
+        or any(row.get("status") not in {"PASS", "FAIL"} for row in rows)):
+        raise ValueError("full inventory result omitted, duplicated, or changed a pinned rule ID")
+    by_rule = {row["rule_id"]: row for row in rows}
+    rendered = []
+    passed = 0
+    for rule in defaults:
+        row = by_rule[rule]
+        query, label = source(rule)
         case_path = RUFF / "rules" / rule / "cases.toml"
-        if path is not None:
-            authored += 1
-            relative = path.relative_to(RUFF).as_posix()
-            source_cell = f"[{label}]({relative}) `{sha(path)[:12]}`"
-        else:
-            source_cell = "absent"
-        current_row = current["profiles"].get(rule)
-        if current_row is not None:
-            assert path is not None and label == "native query" and case_path.is_file()
-            declared = next(item for item in descriptor["profiles"] if item["rule_id"] == rule)
-            assert declared["query_sha256"] == sha(path)
-            assert declared["cases_sha256"] == sha(case_path)
-            assert current_row["intended_passes"] == current_row["cases"]
-            assert (current_row["raw_exact"] + current_row["documented_differences"]
-                    + current_row["metadata_asymmetries"] == current_row["cases"])
-            current_cell = (
-                f"verified {current_row['cases']}/{current_row['cases']}; "
-                f"raw {current_row['raw_exact']}; documented {current_row['documented_differences']}; "
-                f"metadata {current_row['metadata_asymmetries']}"
-            )
-            action = "Current fixture proof held"
-        elif path is None:
-            current_cell = "no current proof"
-            action = "Author query and fixtures"
-        elif not case_path.is_file():
-            current_cell = "no current proof"
-            action = "Add independent fixtures, then verify"
-        else:
-            case_count = len(tomllib.loads(case_path.read_text(encoding="utf-8"))["cases"])
-            current_cell = f"source only ({case_count} fixtures)"
-            action = "Verify against current engine and helper closure"
-
-        old = historical["profiles"].get(rule)
-        if old is None:
-            historical_cell = "outside frozen 324"
-        else:
-            historical_cell = f"{old['raw_exact']}/{old['cases']} raw exact"
-            if path is None or not case_path.is_file() or (
-                sha(path) != old["query_sha256"] or sha(case_path) != old["cases_sha256"]
-            ):
-                historical_cell += "; query or cases changed"
-            else:
-                historical_cell += "; query and cases unchanged"
-        rows.append(f"| {rule} | {source_cell} | {current_cell} | {historical_cell} | {action} |")
-
-    assert len(rows) == 413
-    pending = authored - len(current["profiles"])
-    absent = len(rows) - authored
-    assert pending >= 0 and absent >= 0
-    raw = sum(row["raw_exact"] for row in current["profiles"].values())
-    documented = sum(row["documented_differences"] for row in current["profiles"].values())
-    metadata = sum(row["metadata_asymmetries"] for row in current["profiles"].values())
-    assert (raw, documented, metadata) == (3694, 77, 4)
+        status = row["status"]
+        reason = row.get("reason") or "verified intended expectations"
+        if status == "PASS":
+            instance = row.get("instance", {})
+            if (query is None or not case_path.is_file()
+                or instance.get("query_sha256") != sha(query)
+                or instance.get("cases_sha256") != sha(case_path)):
+                status, reason = "FAIL", "recorded PASS has changed or missing current source/cases"
+            elif not summary.get("worker_sha256") or not row.get("case_results_sha256"):
+                raise ValueError("PASS lacks worker identity or executed case receipts")
+        passed += status == "PASS"
+        if status == "FAIL" and query is not None:
+            reason += f"; [query source]({query.relative_to(RUFF).as_posix()})"
+        reason = str(reason).replace("|", "\\|").replace("\n", " ")
+        rendered.append(f"| {rule} | {status} | {reason} |")
     return "\n".join([
-        "# Ruff 0.16.5 pinned rule inventory",
-        "",
-        "Generated by `python3 authoring/generate_rule_inventory.py`; check with `--check`. "
-        "This is a source and proof view, not a second task ledger.",
-        "",
-        f"The pinned default list has **413 rules**. Current source contains **{authored}** rule queries or candidates; "
-        f"**{len(current['profiles'])}** are admitted and fixture-verified on sealed worker "
-        f"`{current['worker_sha256']}`; **{pending}** have source but await current proof; **{absent}** have no query source. "
-        "The current native143 evidence is a **split proof**: one canonical 138-rule run plus five separate "
-        "byte-identical singleton stages, totaling **3,775/3,775 intended cases**, **3,694 raw report matches**, "
-        "**77 documented diagnostic differences**, and **four UP025 reference metadata asymmetries**. "
-        "It is not a one-shot 143-rule run. Ruff execution telemetry is unavailable for all 3,775 comparisons. "
-        "[Summary](results/native143-split-2026-11-02/summary.json), "
-        "[native138 raw receipts](results/native143-split-2026-11-02/native138-9348-raw.tar.gz), and "
-        "[five singleton raw receipts](results/native143-split-2026-11-02/five-singletons-9348-raw.tar.gz) "
-        f"bind native138 manifest `{current['native138_manifest_sha256']}`, "
-        f"current descriptor `{current['current_descriptor_sha256']}`, and public-base commit `{current['source_head']}`.",
-        "",
-        "The separate frozen **324-rule / 8,086-case** combined replay on worker "
-        f"`{historical['worker_sha256']}` had **302 rules entirely raw exact**, "
-        "7,862 exact cases and 224 mismatches. Its [historical per-rule summary]"
-        "(results/correctness-324-per-rule-2026-11-01.json) and "
-        "[source manifest](results/correctness-324-manifest-2026-11-01.json) are older evidence. "
-        "Even an unchanged query and fixture needs current engine and shared-helper revalidation. "
-        "The frozen 310-rule Django workload is a performance subset, not the native admission count.",
-        "",
-        "| Rule | Current source | Current 9348 fixture result | Frozen 279a combined result | Next step |",
-        "|---|---|---|---|---|",
-        *rows,
-        "",
+        "# Ruff 0.16.5 complete pinned rule inventory", "",
+        "Generated from canonical source and the existing full-inventory runner's results. "
+        "Every pinned default is preloaded; missing, unrun, invalid and failed implementations remain FAIL.", "",
+        f"**{passed} PASS / {413 - passed} FAIL / 413 pinned defaults**; run state `{summary.get('run_state')}`. "
+        f"Worker `{summary.get('worker_sha256', 'not run')}`. "
+        "PASS means executed intended expectations, including only independently validated explicit reference discrepancies. "
+        "Raw parity and documented differences remain separate columns. This table is not an admission subset.", "",
+        "| Rule | Result | Reason / evidence |",
+        "|---|---|---|", *rendered, "",
+    ])
+
+
+
+def render() -> str:
+    """Show one current PASS or FAIL for every pinned default."""
+    base = tomllib.loads((RUFF / "benchmark.toml").read_text(encoding="utf-8"))
+    defaults = base["defaults"]
+    assert len(defaults) == len(set(defaults)) == 413
+    descriptor = json.loads((RUFF / "profiles/native-standalone.json").read_text(encoding="utf-8"))
+    first = json.loads((RESULTS / "native143-split-2026-11-02/summary.json").read_text(encoding="utf-8"))
+    supplement = json.loads((RESULTS / "native151-supplement-2026-11-02/summary.json").read_text(encoding="utf-8"))
+    assert first["worker_sha256"] == supplement["worker_sha256"]
+    assert first["native138_archive_sha256"] == sha(RESULTS / "native143-split-2026-11-02/native138-9348-raw.tar.gz")
+    assert first["five_singletons_archive_sha256"] == sha(RESULTS / "native143-split-2026-11-02/five-singletons-9348-raw.tar.gz")
+    assert len(first["profiles"]) == 143 and len(supplement["profiles"]) == 8
+    assert not set(first["profiles"]) & set(supplement["profiles"])
+    assert supplement["case_count"] == 175
+    assert descriptor["query_count"] == 151 and descriptor["case_count"] == 3950
+    assert {entry["rule_id"] for entry in descriptor["profiles"]} == set(first["profiles"]) | set(supplement["profiles"])
+
+    passed = 0
+    rows = []
+    for rule in defaults:
+        query, _label = source(rule)
+        cases = RUFF / "rules" / rule / "cases.toml"
+        if rule in first["profiles"]:
+            proof = first["profiles"][rule]
+            assert query is not None and query.name == "query.ryoql" and cases.is_file()
+            assert proof["intended_passes"] == proof["cases"]
+            assert proof["raw_exact"] + proof["documented_differences"] + proof["metadata_asymmetries"] == proof["cases"]
+            status = "PASS"
+            reason = f"[sealed fixture proof](results/native143-split-2026-11-02/summary.json): {proof['cases']}/{proof['cases']} intended, {proof['raw_exact']} raw exact"
+        elif rule in supplement["profiles"]:
+            proof = supplement["profiles"][rule]
+            directory = RESULTS / "native151-supplement-2026-11-02" / rule
+            for filename, key in (("result.json", "result_sha256"), ("cases.jsonl", "cases_sha256"), ("stdout.bin", "stdout_sha256"), ("stderr.bin", "stderr_sha256")):
+                assert sha(directory / filename) == proof[key]
+            assert query is not None and query.name == "query.ryoql" and cases.is_file()
+            assert sha(query) == proof["source_sha256"]["query"]
+            assert sha(cases) == proof["source_sha256"]["cases"]
+            profile = RUFF / "profiles" / rule / "benchmark.toml"
+            assert sha(profile) == proof["source_sha256"]["profile"]
+            modules = tomllib.loads(profile.read_text(encoding="utf-8"))["query-modules"]
+            assert set(modules) == set(proof["module_sha256"])
+            for logical, relative in modules.items():
+                assert sha(RUFF / relative) == proof["module_sha256"][logical]
+            assert proof["candidate_intended"] == proof["reference_intended"] == proof["raw_exact"] == proof["cases"]
+            status = "PASS"
+            reason = f"[sealed fixture proof](results/native151-supplement-2026-11-02/{rule}/result.json): {proof['cases']}/{proof['cases']} intended and raw exact"
+        else:
+            status = "FAIL"
+            if query is None:
+                reason = "No query source"
+            elif not cases.is_file():
+                reason = f"No fixtures for [query]({query.relative_to(RUFF).as_posix()})"
+            else:
+                reason = f"No current sealed-worker proof for [query]({query.relative_to(RUFF).as_posix()})"
+        passed += status == "PASS"
+        rows.append(f"| {rule} | {status} | {reason} |")
+    assert len(rows) == 413 and passed == 151
+    return "\n".join([
+        "# Ruff 0.16.5 rule check", "",
+        f"**{passed} PASS / {413-passed} FAIL / 413 TOTAL**", "",
+        f"PASS means current fixture proof on sealed worker `{first['worker_sha256']}`. "
+        "FAIL means that proof is missing; the reason is listed per rule. "
+        "[Native143 receipts](results/native143-split-2026-11-02/summary.json) and "
+        "[eight-rule supplement](results/native151-supplement-2026-11-02/summary.json) "
+        "are separate runs, not a single 151-rule execution. "
+        "The full 413-rule CI runner reports its own PASS/FAIL result and raw receipts.", "",
+        "| Rule | Result | Reason / evidence |", "|---|---|---|", *rows, "",
     ])
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true", help="refuse a stale RULES.md")
+    parser.add_argument("--full-inventory-result", type=Path, help="render all 413 PASS/FAIL rows from a completed or interrupted full-inventory summary")
     args = parser.parse_args()
     destination = RUFF / "RULES.md"
-    rendered = render()
+    full_result = args.full_inventory_result or RESULTS / "full-inventory-current/summary.json"
+    rendered = render_full_inventory(full_result) if full_result.is_file() else render()
+    if args.full_inventory_result is not None and not full_result.is_file():
+        raise ValueError("requested full-inventory result does not exist")
     if args.check:
         if not destination.is_file() or destination.read_text(encoding="utf-8") != rendered:
             print("RULES.md is stale; regenerate it", file=sys.stderr)

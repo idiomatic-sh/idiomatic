@@ -1,0 +1,104 @@
+[[cases]]
+name = "upstream-UP040.py"
+files = { "UP040.py" = "import typing\nfrom typing import Any, TypeAlias\n\n# UP040\nx: typing.TypeAlias = int\nx: TypeAlias = int\n\n# UP040 simple generic\nT = typing.TypeVar[\"T\"]\nx: typing.TypeAlias = list[T]\n\n# UP040 call style generic\nT = typing.TypeVar(\"T\")\nx: typing.TypeAlias = list[T]\n\n# UP040 bounded generic\nT = typing.TypeVar(\"T\", bound=int)\nx: typing.TypeAlias = list[T]\n\n# UP040 constrained generic\nT = typing.TypeVar(\"T\", int, str)\nx: typing.TypeAlias = list[T]\n\n# UP040 contravariant generic\nT = typing.TypeVar(\"T\", contravariant=True)\nx: typing.TypeAlias = list[T]\n\n# UP040 covariant generic\nT = typing.TypeVar(\"T\", covariant=True)\nx: typing.TypeAlias = list[T]\n\n# UP040 in class scope\nT = typing.TypeVar[\"T\"]\nclass Foo:\n    # reference to global variable\n    x: typing.TypeAlias = list[T]\n\n    # reference to class variable\n    TCLS = typing.TypeVar[\"TCLS\"]\n    y: typing.TypeAlias = list[TCLS]\n\n# UP040 won't add generics in fix\nT = typing.TypeVar(*args)\nx: typing.TypeAlias = list[T]\n\n# `default` was added in Python 3.13\nT = typing.TypeVar(\"T\", default=Any)\nx: typing.TypeAlias = list[T]\n\n# OK\nx: TypeAlias\nx: int = 1\n\n# Ensure that \"T\" appears only once  in the type parameters for the modernized\n# type alias.\nT = typing.TypeVar[\"T\"]\nDecorator: TypeAlias = typing.Callable[[T], T]\n\n\nfrom typing import TypeVar, Annotated, TypeAliasType\n\nfrom annotated_types import Gt, SupportGt\n\n\n# https://github.com/astral-sh/ruff/issues/11422\nT = TypeVar(\"T\")\nPositiveList = TypeAliasType(\n    \"PositiveList\", list[Annotated[T, Gt(0)]], type_params=(T,)\n)\n\n# Bound\nT = TypeVar(\"T\", bound=SupportGt)\nPositiveList = TypeAliasType(\n    \"PositiveList\", list[Annotated[T, Gt(0)]], type_params=(T,)\n)\n\n# Multiple bounds\nT1 = TypeVar(\"T1\", bound=SupportGt)\nT2 = TypeVar(\"T2\")\nT3 = TypeVar(\"T3\")\nTuple3 = TypeAliasType(\"Tuple3\", tuple[T1, T2, T3], type_params=(T1, T2, T3))\n\n# No type_params\nPositiveInt = TypeAliasType(\"PositiveInt\", Annotated[int, Gt(0)])\nPositiveInt = TypeAliasType(\"PositiveInt\", Annotated[int, Gt(0)], type_params=())\n\n# OK: Other name\nT = TypeVar(\"T\", bound=SupportGt)\nPositiveList = TypeAliasType(\n    \"PositiveList2\", list[Annotated[T, Gt(0)]], type_params=(T,)\n)\n\n# `default` was added in Python 3.13\nT = typing.TypeVar(\"T\", default=Any)\nAnyList = TypeAliasType(\"AnyList\", list[T], type_params=(T,))\n\n# unsafe fix if comments within the fix\nT = TypeVar(\"T\")\nPositiveList = TypeAliasType(  # eaten comment\n    \"PositiveList\", list[Annotated[T, Gt(0)]], type_params=(T,)\n)\n\nT = TypeVar(\"T\")\nPositiveList = TypeAliasType(\n    \"PositiveList\", list[Annotated[T, Gt(0)]], type_params=(T,)\n) # this comment should be okay\n\n\n# this comment will actually be preserved because it's inside the \"value\" part\nT = TypeVar(\"T\")\nPositiveList = TypeAliasType(\n    \"PositiveList\", list[\n        Annotated[T, Gt(0)],  # preserved comment\n    ], type_params=(T,)\n)\n\nT: TypeAlias = (\n    int\n    | str\n)\n\nT: TypeAlias = ( # comment0\n    # comment1\n    int  # comment2\n    # comment3\n    | # comment4\n    # comment5\n    str  # comment6\n    # comment7\n) # comment8\n\n# Test case for TypeVar with default - should be converted when preview mode is enabled\nT_default = TypeVar(\"T_default\", default=int)\nDefaultList: TypeAlias = list[T_default]\n" }
+expected = [{ rule = "UP040", file = "UP040.py", start = 57, end = 82 }, { rule = "UP040", file = "UP040.py", start = 83, end = 101 }, { rule = "UP040", file = "UP040.py", start = 150, end = 179 }, { rule = "UP040", file = "UP040.py", start = 232, end = 261 }, { rule = "UP040", file = "UP040.py", start = 322, end = 351 }, { rule = "UP040", file = "UP040.py", start = 415, end = 444 }, { rule = "UP040", file = "UP040.py", start = 520, end = 549 }, { rule = "UP040", file = "UP040.py", start = 617, end = 646 }, { rule = "UP040", file = "UP040.py", start = 745, end = 774 }, { rule = "UP040", file = "UP040.py", start = 848, end = 880 }, { rule = "UP040", file = "UP040.py", start = 942, end = 971 }, { rule = "UP040", file = "UP040.py", start = 1225, end = 1271 }, { rule = "UP040", file = "UP040.py", start = 1438, end = 1533 }, { rule = "UP040", file = "UP040.py", start = 1577, end = 1672 }, { rule = "UP040", file = "UP040.py", start = 1766, end = 1843 }, { rule = "UP040", file = "UP040.py", start = 1862, end = 1927 }, { rule = "UP040", file = "UP040.py", start = 1928, end = 2009 }, { rule = "UP040", file = "UP040.py", start = 2354, end = 2466 }, { rule = "UP040", file = "UP040.py", start = 2485, end = 2580 }, { rule = "UP040", file = "UP040.py", start = 2709, end = 2840 }, { rule = "UP040", file = "UP040.py", start = 2842, end = 2878 }, { rule = "UP040", file = "UP040.py", start = 2880, end = 3026 }]
+
+[[cases]]
+name = "upstream-UP040.pyi"
+files = { "UP040.pyi" = "import typing\nfrom typing import TypeAlias\n\n# UP040\n# Fixes in type stub files should be safe to apply unlike in regular code where runtime behavior could change\nx: typing.TypeAlias = int\nx: TypeAlias = int\n\n\n# comments in the value are preserved\nx: TypeAlias = tuple[\n    int,  # preserved\n    float,\n]\n\nT: TypeAlias = ( # comment0\n    # comment1\n    int  # comment2\n    # comment3\n    | # comment4\n    # comment5\n    str  # comment6\n    # comment7\n) # comment8\n" }
+expected = [{ rule = "UP040", file = "UP040.pyi", start = 162, end = 187 }, { rule = "UP040", file = "UP040.pyi", start = 188, end = 206 }, { rule = "UP040", file = "UP040.pyi", start = 247, end = 303 }, { rule = "UP040", file = "UP040.pyi", start = 305, end = 451 }]
+
+[[cases]]
+name = "simple"
+files = { "case.py" = "from typing import TypeAlias\nfrom typing_extensions import TypeAliasType\nT: TypeAlias = int\n" }
+expected = [{ rule = "UP040", file = "case.py", start = 73, end = 91 }]
+
+[[cases]]
+name = "missing-value"
+files = { "case.py" = "from typing import TypeAlias\nfrom typing_extensions import TypeAliasType\nT: TypeAlias\n" }
+expected = []
+
+[[cases]]
+name = "wrong-annotation"
+files = { "case.py" = "from typing import TypeAlias\nfrom typing_extensions import TypeAliasType\nT: int = int\n" }
+expected = []
+
+[[cases]]
+name = "attribute-target"
+files = { "case.py" = "from typing import TypeAlias\nfrom typing_extensions import TypeAliasType\nobj.T: TypeAlias = int\n" }
+expected = []
+
+[[cases]]
+name = "factory"
+files = { "case.py" = "from typing import TypeAlias\nfrom typing_extensions import TypeAliasType\nT = TypeAliasType(\"T\", int)\n" }
+expected = [{ rule = "UP040", file = "case.py", start = 73, end = 100 }]
+
+[[cases]]
+name = "mismatched-factory-name"
+files = { "case.py" = "from typing import TypeAlias\nfrom typing_extensions import TypeAliasType\nT = TypeAliasType(\"Other\", int)\n" }
+expected = []
+
+[[cases]]
+name = "factory-typeparams"
+files = { "case.py" = "from typing import TypeAlias\nfrom typing_extensions import TypeAliasType\nT = TypeAliasType(\"T\", list[A], type_params=(A,))\n" }
+expected = [{ rule = "UP040", file = "case.py", start = 73, end = 122 }]
+
+[[cases]]
+name = "factory-list-typeparams"
+files = { "case.py" = "from typing import TypeAlias\nfrom typing_extensions import TypeAliasType\nT = TypeAliasType(\"T\", list[A], type_params=[A])\n" }
+expected = []
+
+[[cases]]
+name = "factory-nonname-typeparam"
+files = { "case.py" = "from typing import TypeAlias\nfrom typing_extensions import TypeAliasType\nT = TypeAliasType(\"T\", int, type_params=(int | str,))\n" }
+expected = []
+
+[[cases]]
+name = "factory-extra-keyword"
+files = { "case.py" = "from typing import TypeAlias\nfrom typing_extensions import TypeAliasType\nT = TypeAliasType(\"T\", int, other=())\n" }
+expected = []
+
+[[cases]]
+name = "factory-named-value"
+files = { "case.py" = "from typing import TypeAlias\nfrom typing_extensions import TypeAliasType\nT = TypeAliasType(\"T\", value=int)\n" }
+expected = []
+
+[[cases]]
+name = "multi-target"
+files = { "case.py" = "from typing import TypeAlias\nfrom typing_extensions import TypeAliasType\nT = U = TypeAliasType(\"T\", int)\n" }
+expected = []
+
+[[cases]]
+name = "factory-unlisted-default"
+files = { "case.py" = "from typing import TypeVar\nfrom typing_extensions import TypeAliasType\nA = TypeVar(\"A\", default=int)\nT = TypeAliasType(\"T\", list[A])\n" }
+expected = [{ rule = "UP040", file = "case.py", start = 101, end = 132 }]
+
+[[cases]]
+name = "factory-listed-default"
+files = { "case.py" = "from typing import TypeVar\nfrom typing_extensions import TypeAliasType\nA = TypeVar(\"A\", default=int)\nT = TypeAliasType(\"T\", list[A], type_params=(A,))\n" }
+expected = []
+
+[[cases]]
+name = "default-typevar"
+files = { "case.py" = "from typing import TypeAlias, TypeVar\nA = TypeVar(\"A\", default=int)\nT: TypeAlias = list[A]\n" }
+expected = []
+
+[[cases]]
+name = "plain-typevar"
+files = { "case.py" = "from typing import TypeAlias, TypeVar\nA = TypeVar(\"A\")\nT: TypeAlias = list[A]\n" }
+expected = [{ rule = "UP040", file = "case.py", start = 55, end = 77 }]
+
+[[cases]]
+name = "quoted-default-typevar"
+files = { "case.py" = "from typing import TypeAlias, TypeVar\nA = TypeVar(\"A\", default=int)\nT: TypeAlias = \"list[A]\"\n" }
+expected = [{ rule = "UP040", file = "case.py", start = 68, end = 92 }]
+
+[[cases]]
+name = "suppressed"
+files = { "case.py" = "from typing import TypeAlias\nT: TypeAlias = int # noqa: UP040\n" }
+expected = []
+
+[[cases]]
+name = "unrelated-noqa"
+files = { "case.py" = "from typing import TypeAlias\nT: TypeAlias = int # noqa: F401\n" }
+expected = [{ rule = "UP040", file = "case.py", start = 29, end = 47 }]

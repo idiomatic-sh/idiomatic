@@ -6580,6 +6580,348 @@ def self_test() -> int:
     return 0
 
 
+def full_inventory_ids(profile: dict[str, object], phases: dict[str, object]) -> list[str]:
+    """The pinned defaults are the inventory; an admission subset cannot narrow it."""
+    rules = profile.get("defaults")
+    if (not isinstance(rules, list) or len(rules) != 413
+        or any(not isinstance(rule, str) or not rule for rule in rules)
+        or len(set(rules)) != 413 or set(rules) != set(phases["shipped_default_rules"])):
+        raise ValueError("full inventory requires exactly 413 unique pinned default IDs")
+    return rules
+
+
+def full_inventory_settings(rule: str, manifest: dict[str, object], native: dict[str, object]) -> tuple[Path, str | None, str]:
+    """Preserve explicit singleton settings, otherwise an established cohort's scope."""
+    for entry in native.get("profiles", []):
+        if entry["rule_id"] == rule:
+            return prepared_profile_path(entry["profile_name"], entry), None, "native singleton settings"
+    prepared = [(name, entry) for name, entry in manifest["profiles"].items()
+                if entry.get("rule_id", name) == rule]
+    explicit = [(name, entry) for name, entry in prepared if "profile_file" in entry]
+    if len(explicit) > 1:
+        raise ValueError("ambiguous explicit singleton settings")
+    if explicit:
+        name, entry = explicit[0]
+        return prepared_profile_path(name, entry), entry.get("target_version"), "prepared per-rule settings"
+    dedicated = RUFF_DIR / "profiles" / rule / "benchmark.toml"
+    if dedicated.is_file():
+        target = prepared[0][1].get("target_version") if len(prepared) == 1 else None
+        return dedicated, target, "dedicated singleton profile (existing parser default contract)"
+    cohorts = [(name, entry) for name, entry in manifest.get("combined_profiles", {}).items()
+               if rule in entry.get("selected_rules", [])]
+    active = [(name, entry) for name, entry in cohorts if entry.get("validation_status") == "active-current"]
+    choices = active or cohorts
+    signatures = set()
+    resolved = []
+    for name, entry in choices:
+        path = REPOSITORY / entry["profile_file"]
+        data = tomllib.loads(path.read_text(encoding="utf-8"))
+        target = entry.get("target_version", manifest.get("target_version"))
+        if target is None and "parser-configuration" not in data:
+            raise ValueError("cohort has no established parser target")
+        signature = (data["parser-configuration"] if "parser-configuration" in data else parser_configuration(target), data.get("project-context-mode", "isolated"))
+        signatures.add(signature)
+        resolved.append((path, target, f"established cohort {name}"))
+    if len(signatures) != 1 or not resolved:
+        raise ValueError("missing or ambiguous required singleton/cohort settings registration")
+    return resolved[0]
+
+
+def stage_full_inventory_rule(rule: str, output: Path, base: dict[str, object], phases: dict[str, object], manifest: dict[str, object], native: dict[str, object]) -> tuple[Path, dict[str, object]]:
+    directory = RUFF_DIR / "rules" / rule
+    query = directory / "query.ryoql"
+    if not query.is_file():
+        query = directory / "candidate.ryoql"
+    cases_path = directory / "cases.toml"
+    if not cases_path.is_file():
+        raise ValueError("implemented query has no canonical cases.toml")
+    container = tomllib.loads(cases_path.read_text(encoding="utf-8"))
+    cases = container.get("cases")
+    if set(container) != {"cases"} or not isinstance(cases, list) or not cases:
+        raise ValueError("canonical case registration is empty or has unsupported settings")
+    names = [case["name"] for case in cases]
+    if len(names) != len(set(names)):
+        raise ValueError("canonical cases contain duplicate names")
+    source_profile, target, scope = full_inventory_settings(rule, manifest, native)
+    data = tomllib.loads(source_profile.read_text(encoding="utf-8"))
+    if any(data.get(key) != base.get(key) for key in ("tool", "version", "sha256")):
+        raise ValueError("per-rule profile does not retain the pinned tool identity")
+    if rule not in data.get("defaults", []):
+        raise ValueError("settings registration does not select this rule")
+    configuration = data.get("parser-configuration", parser_configuration(target) if target else "python-target=3.10")
+    if target and "parser-configuration" in data and parser_configuration(target) != configuration:
+        raise ValueError("conflicting explicit parser target registrations")
+    registry = {**base.get("query-modules", {}), **data.get("query-modules", {})}
+    closure = {}
+    pending = [query]
+    while pending:
+        source = pending.pop()
+        for logical in re.findall(r'^\s*import\s+\w+\s+from\s+"([^"]+)"\s*;', source.read_text(encoding="utf-8"), re.MULTILINE):
+            if logical in closure:
+                continue
+            if logical not in registry:
+                raise ValueError(f"undeclared canonical helper: {logical}")
+            relative = registry[logical]
+            module_path(relative)
+            closure[logical] = relative
+            pending.append(RUFF_DIR / relative)
+    destination = output / "profiles" / rule / "repro"
+    rule_root = destination / "rules" / rule
+    rule_root.mkdir(parents=True)
+    # Retain the declared profile registry, including unused entries. Exact
+    # discrepancy certificates bind these profile bytes; imported modules may
+    # additionally come from the base registry.
+    stage_registry = {**data.get("query-modules", {}), **closure}
+    for relative in stage_registry.values():
+        copied = destination / relative
+        copied.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(RUFF_DIR / relative, copied)
+    # Accounting dispositions describe old admission state, not this source attempt.
+    projected = {key: value for key, value in data.items() if key not in {"deferred", "pending", "query-modules", "rule-applicability"}}
+    projected["defaults"] = [rule]
+    projected["parser-configuration"] = configuration
+    if stage_registry:
+        projected["query-modules"] = stage_registry
+    projected["rule-applicability"] = {rule: phases["rules"][rule]["applicability"]}
+    canonical_run_ryo_settings(projected, [rule], phases)
+    profile = destination / "benchmark.toml"
+    profile.write_text("".join(f"{key} = {toml_value(value)}\n" for key, value in projected.items()), encoding="utf-8")
+    assert_staged_profile_fixed_point(destination)
+    shutil.copyfile(query, rule_root / "query.ryoql")
+    shutil.copyfile(cases_path, rule_root / "cases.toml")
+    stage_discrepancy_artifacts(source_profile, destination, cases, rule)
+    inventory = profile_case_inventory(destination)
+    check_canonical_standard_suppression(profile, {rule: query})
+    return destination, {
+        "query_file": query.relative_to(RUFF_DIR).as_posix(), "query_sha256": sha256(query),
+        "cases_file": cases_path.relative_to(RUFF_DIR).as_posix(), "cases_sha256": sha256(cases_path),
+        "case_count": len(inventory), "settings_source": source_profile.relative_to(REPOSITORY).as_posix(),
+        "settings_scope": scope, "parser_configuration": configuration,
+        "settings_source_sha256": sha256(source_profile), "profile_sha256": sha256(profile),
+        "module_sha256": {logical: sha256(RUFF_DIR / relative) for logical, relative in stage_registry.items()},
+        "effective_settings": canonical_run_ryo_settings(projected, [rule], phases),
+    }
+
+
+def write_full_inventory_summary(output: Path, summary: dict[str, object]) -> None:
+    rows = summary["rules"]
+    if len(rows) != 413 or len({row["rule_id"] for row in rows}) != 413:
+        raise ValueError("full inventory result omitted or duplicated a pinned rule")
+    if any(row["status"] not in {"PASS", "FAIL"} for row in rows):
+        raise ValueError("full inventory status must be PASS or FAIL")
+    summary["counts"] = {status: sum(row["status"] == status for row in rows) for status in ("PASS", "FAIL")}
+    summary["failure_reasons"] = dict(collections.Counter(row.get("reason_code", "unknown") for row in rows if row["status"] == "FAIL"))
+    summary["all_passed"] = all(row["status"] == "PASS" for row in rows) and not summary.get("global_errors")
+    atomic_json_write(output / "summary.json", summary)
+
+
+def execute_full_inventory_rows(summary: dict[str, object], staged: dict[str, Path], worker: Path, ruff: Path, output: Path, timeout: float, *, runner=subprocess.run) -> int:
+    """Continue after rule failures; every attempted rule retains native verifier receipts."""
+    worker_sha = sha256(worker)
+    summary["worker_sha256"] = worker_sha
+    try:
+        for row in summary["rules"]:
+            rule = row["rule_id"]
+            if rule not in staged:
+                continue
+            summary["running_rule"] = rule
+            row["reason"] = "verification has not completed"
+            write_full_inventory_summary(output, summary)
+            def bounded(command, **kwargs):
+                try:
+                    return runner(command, timeout=timeout, **kwargs)
+                except subprocess.TimeoutExpired as error:
+                    return subprocess.CompletedProcess(command, 124, error.stdout or b"", (error.stderr or b"") + f"\nworker timeout after {timeout} seconds\n".encode())
+            try:
+                identities = {"inventory": "all-pinned-defaults", "worker": {"sha256": worker_sha}, "instance": row["instance"]}
+                status = verify_profile(rule, staged[rule], [str(worker), "verify-cases", str(ruff), str(staged[rule])], output, identities, runner=bounded)
+                receipt = json.loads((output / "profiles" / rule / "result.json").read_text(encoding="utf-8"))
+                observed = receipt.get("case_expectation_summary", {})
+                row.update({"status": "PASS" if status == 0 else "FAIL", "reason_code": None if status == 0 else "verification", "reason": receipt.get("error") or (None if status == 0 else f"worker exited {receipt.get('process_status')}"),
+                            "receipt": f"profiles/{rule}/result.json", "case_results_sha256": receipt.get("case_results_sha256"),
+                            "case_count": row["instance"]["case_count"], "intended_passes": observed.get("intended_behavior_passes", 0),
+                            "raw_exact": observed.get("raw_parity_matches", 0), "raw_mismatches": observed.get("raw_parity_mismatches", 0),
+                            "documented_discrepancies": observed.get("documented_reference_discrepancies", 0),
+                            "diagnostic_exact": observed.get("diagnostic_parity_matches", 0), "execution_metadata_incomparable": observed.get("execution_metadata_incomparable", 0),
+                            "timed_out": receipt.get("process_status") == 124})
+            except Exception as error:
+                row.update(status="FAIL", reason_code="verification", reason=f"verification: {type(error).__name__}: {error}")
+            summary["running_rule"] = None
+            write_full_inventory_summary(output, summary)
+    except KeyboardInterrupt:
+        summary["run_state"] = "interrupted"
+        write_full_inventory_summary(output, summary)
+        return 130
+    summary["run_state"] = "complete"
+    write_full_inventory_summary(output, summary)
+    return 0 if summary["all_passed"] else 1
+
+
+def verify_full_inventory(arguments) -> int:
+    output = arguments.output_dir.resolve()
+    create_new_output_directory(output)
+    phases = json.loads(RULE_PHASES_FILE.read_text(encoding="utf-8"))
+    # The result starts with all known pinned IDs even if the base is malformed.
+    pinned = phases["shipped_default_rules"]
+    if len(pinned) != 413 or len(set(pinned)) != 413:
+        raise ValueError("pinned phase inventory has unknown/duplicate default IDs")
+    summary = {"schema": "ruff-full-inventory/v1", "inventory_sha256": sha256(RUFF_DIR / "benchmark.toml"),
+               "phase_registry_sha256": sha256(RULE_PHASES_FILE), "runner_sha256": sha256(Path(__file__)), "run_state": "registering", "global_errors": [],
+               "pass_contract": "existing intended diagnostics and independently validated explicit reference discrepancies; raw parity is separately counted",
+               "rules": [{"rule_id": rule, "status": "FAIL", "reason_code": "not_run", "reason": "registration not attempted"} for rule in pinned]}
+    # Absent rules are visible even if global tool/worker validation later fails.
+    for row in summary["rules"]:
+        directory = RUFF_DIR / "rules" / row["rule_id"]
+        if not any((directory / name).is_file() for name in ("query.ryoql", "candidate.ryoql")):
+            row.update(status="FAIL", reason_code="missing_implementation", reason="no canonical query or candidate source")
+    write_full_inventory_summary(output, summary)
+    try:
+        base = tomllib.loads((RUFF_DIR / "benchmark.toml").read_text(encoding="utf-8"))
+        full_inventory_ids(base, phases)
+        manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+        verify_rule_phase_registry(manifest, phases)
+        native = native_descriptor_json(NATIVE_DESCRIPTOR_FILE.read_text(encoding="utf-8"))
+        native_ids = [entry["rule_id"] for entry in native.get("profiles", [])]
+        if len(native_ids) != len(set(native_ids)) or set(native_ids) - set(pinned):
+            raise ValueError("native settings registry has duplicate or unknown pinned IDs")
+        staged = {}
+        for row in summary["rules"]:
+            if row.get("reason_code") == "missing_implementation":
+                continue
+            try:
+                root, instance = stage_full_inventory_rule(row["rule_id"], output, base, phases, manifest, native)
+                row.update(instance=instance, reason="registered; verifier not run")
+                staged[row["rule_id"]] = root
+            except Exception as error:
+                row.update(status="FAIL", reason_code="registration", reason=f"registration: {type(error).__name__}: {error}")
+            write_full_inventory_summary(output, summary)
+        worker = arguments.worker.resolve() if arguments.worker else reuse_frozen_worker(arguments.reuse_worker_from.resolve())[0]
+        summary["worker_sha256"] = sha256(worker)
+        summary["pinned_reference"] = reference_tool_identity(arguments.ruff.resolve(), manifest)
+        protocol_ok, message = audit_worker_protocol(worker)
+        if not protocol_ok:
+            raise ValueError(f"worker protocol refused: {message}")
+        summary["run_state"] = "running"
+        write_full_inventory_summary(output, summary)
+        return execute_full_inventory_rows(summary, staged, worker, arguments.ruff.resolve(), output, arguments.rule_timeout)
+    except KeyboardInterrupt:
+        summary["run_state"] = "interrupted"
+        write_full_inventory_summary(output, summary)
+        return 130
+    except Exception as error:
+        summary["global_errors"].append(f"{type(error).__name__}: {error}")
+        summary["run_state"] = "global_failure"
+        write_full_inventory_summary(output, summary)
+        print(summary["global_errors"][-1], file=sys.stderr)
+        return 1
+
+
+
+def full_inventory_self_test() -> None:
+    """Synthetic subprocesses exercise orchestration only, never real rule correctness."""
+    global RUFF_DIR
+    phases = json.loads(RULE_PHASES_FILE.read_text(encoding="utf-8"))
+    rules = phases["shipped_default_rules"]
+    assert len(full_inventory_ids({"defaults": rules}, phases)) == 413
+    for invalid in [rules[:-1], [rules[0], *rules[1:-1], rules[0]], ["UNKNOWN", *rules[1:]]]:
+        try:
+            full_inventory_ids({"defaults": invalid}, phases)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("incomplete/duplicate/unknown inventory accepted")
+    with tempfile.TemporaryDirectory(prefix="full-inventory-self-test-") as temporary:
+        root = Path(temporary)
+        base = tomllib.loads((RUFF_DIR / "benchmark.toml").read_text(encoding="utf-8"))
+        manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+        native = native_descriptor_json(NATIVE_DESCRIPTOR_FILE.read_text(encoding="utf-8"))
+        # Native base settings, an empty module registry, and a certified
+        # custom profile must all register without changing authored bytes.
+        for rule in ("B002", "ASYNC115", "FURB122"):
+            stage, instance = stage_full_inventory_rule(
+                rule, root / "native-stages", base, phases, manifest, native
+            )
+            assert instance["case_count"] > 0 and (stage / "benchmark.toml").is_file()
+        worker = root / "worker"
+        worker.write_bytes(b"orchestration-test-worker-not-runtime-proof")
+        stages = {}
+        for rule in rules[:3]:
+            stage = root / rule
+            directory = stage / "rules" / rule
+            directory.mkdir(parents=True)
+            (stage / "benchmark.toml").write_text('defaults = [' + json.dumps(rule) + ']\n')
+            (directory / "query.ryoql").write_text("deliberate test input; not parsed by the subprocess stub\n")
+            (directory / "cases.toml").write_text('[[cases]]\nname = "one"\nfiles = { "case.py" = "x=1\\n" }\nexpected = []\n')
+            stages[rule] = stage
+        def initial():
+            return {"rules": [{"rule_id": rule, "status": "FAIL", "reason_code": "not_run" if rule in stages else "missing_implementation",
+                               "instance": {"case_count": 1, "query_sha256": sha256(stages[rule] / "rules" / rule / "query.ryoql")} if rule in stages else None} for rule in rules], "global_errors": [], "run_state": "running"}
+        calls = []
+        def fake(command, **kwargs):
+            rule = Path(command[3]).name
+            calls.append(rule)
+            if rule == rules[0]:
+                return subprocess.CompletedProcess(command, 1, b"", b"deliberate parser/runtime refusal")
+            if rule == rules[1]:
+                return subprocess.CompletedProcess(command, 0, b"1 cases passed against both contestants\n", b"")
+            case = profile_case_inventory(Path(command[3]))[0]
+            rows = [{"rule": rule, "name": "one", "side": side, "complete": True, "error": None,
+                     "source_sha256": case["source_sha256"], "files": case["files"], "expected": case["expected"],
+                     "diagnostics": [], "skipped": [], "case_passed": True, "context_manifest": None, "project_context": None,
+                     "observation_schema": "benchmark-case/v2", "expectation_contract": "diagnostics",
+                     "execution_metadata": {"availability": "complete"},
+                     "coverage": {"selected_rule_file_pairs": 1, "evaluated_rule_file_pairs": 1, "skipped_rule_file_pairs": 0, "unknown_or_unread_rule_file_pairs": 0}}
+                    for side in ("candidate", "reference")]
+            Path(kwargs["env"]["RYO_VERIFY_CASE_RESULTS"]).write_text("".join(json.dumps(row) + "\n" for row in rows))
+            return subprocess.CompletedProcess(command, 0, b"1 cases passed against both contestants\n", b"")
+        output = root / "output"
+        output.mkdir()
+        summary = initial()
+        assert execute_full_inventory_rows(summary, stages, worker, worker, output, 1, runner=fake) == 1
+        assert calls == rules[:3], "first failure prevented a later rule"
+        assert summary["counts"] == {"PASS": 1, "FAIL": 412}
+        assert summary["rules"][1]["status"] == "FAIL", "exit zero without receipts became PASS"
+        receipt = json.loads((output / "profiles" / rules[2] / "result.json").read_text())
+        assert receipt["identities"]["worker"]["sha256"] == sha256(worker)
+        assert receipt["identities"]["instance"]["query_sha256"] == summary["rules"][2]["instance"]["query_sha256"]
+        timed = root / "timeout"
+        timed.mkdir()
+        def timeout(command, **kwargs):
+            if Path(command[3]).name == rules[0]:
+                raise subprocess.TimeoutExpired(command, 1)
+            return fake(command, **kwargs)
+        summary = initial()
+        assert execute_full_inventory_rows(summary, stages, worker, worker, timed, 1, runner=timeout) == 1
+        assert summary["rules"][0]["timed_out"] and summary["rules"][2]["status"] == "PASS"
+        interrupted = root / "interrupted"
+        interrupted.mkdir()
+        def stop(*args, **kwargs):
+            raise KeyboardInterrupt()
+        summary = initial()
+        assert execute_full_inventory_rows(summary, stages, worker, worker, interrupted, 1, runner=stop) == 130
+        saved = json.loads((interrupted / "summary.json").read_text())
+        assert len(saved["rules"]) == 413 and saved["counts"] == {"PASS": 0, "FAIL": 413}
+        assert saved["run_state"] == "interrupted"
+        previous = RUFF_DIR
+        try:
+            RUFF_DIR = root / "malformed"
+            query_dir = RUFF_DIR / "rules" / rules[0]
+            query_dir.mkdir(parents=True)
+            (query_dir / "candidate.ryoql").write_text("not parsed")
+            try:
+                stage_full_inventory_rule(rules[0], root, {}, phases, {}, {})
+            except ValueError as error:
+                assert "no canonical cases" in str(error)
+            else:
+                raise AssertionError("missing cases accepted")
+        finally:
+            RUFF_DIR = previous
+    # Reuse the existing evidence-backed discrepancy guards rather than inventing xfails.
+    reference_discrepancy_self_test()
+    print("full-inventory orchestration guards passed (no real rule execution)")
+
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("ruff", type=Path, nargs="?", help="pinned Ruff executable")
@@ -6587,6 +6929,10 @@ def main() -> int:
         "rules", nargs="*", help="optional rule IDs; default: every prepared profile"
     )
     parser.add_argument("--profile", help="run one named combined prepared profile")
+    parser.add_argument("--full-inventory", action="store_true", help="enumerate all 413 pinned defaults; strict failure unless every rule passes")
+    parser.add_argument("--worker", type=Path, help="existing sealed worker for --full-inventory; never builds a worker")
+    parser.add_argument("--rule-timeout", type=float, default=120.0, help="per-rule full-inventory timeout in seconds (default: 120)")
+    parser.add_argument("--self-test-full-inventory", action="store_true", help="test all-inventory accounting and orchestration without tools or Cargo")
     parser.add_argument(
         "--native-standalone", action="store_true",
         help="execute every explicitly declared native query/case profile separately; never the combined cohort",
@@ -6635,6 +6981,19 @@ def main() -> int:
         help="exercise fail-closed profile guards without running Cargo",
     )
     arguments = parser.parse_args()
+    if arguments.self_test_full_inventory:
+        full_inventory_self_test()
+        return 0
+    if arguments.full_inventory:
+        if (arguments.ruff is None or arguments.output_dir is None
+            or (arguments.worker is None) == (arguments.reuse_worker_from is None)
+            or arguments.rule_timeout <= 0 or arguments.rules or arguments.profile
+            or arguments.native_standalone or arguments.reference_only or arguments.resume
+            or arguments.shards is not None or arguments.workers is not None or arguments.parity_check):
+            parser.error("--full-inventory requires Ruff, fresh output-dir, exactly one of --worker/--reuse-worker-from and a positive rule-timeout; no subset/resume modes")
+        return verify_full_inventory(arguments)
+    if arguments.worker is not None:
+        parser.error("--worker is supported only with --full-inventory")
     if arguments.self_test_native_standalone:
         native_standalone_self_test()
         return 0

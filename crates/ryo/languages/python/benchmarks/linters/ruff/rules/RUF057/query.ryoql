@@ -1,0 +1,14 @@
+import suppress from "python/ruff/suppress";
+import round_values from "python/ruff/round-values";
+let nodes = select id, kind, file, span from "semantic-syntax";
+let calls = select id, file from nodes where kind = "call";
+let funcs = select parent, child, file from "semantic-child" where field = "func";
+let call_origins_join_1 = select l.id as l_id, l.file as l_file, e.parent as e_parent, e.file as e_file, e.child as e_child from calls as l join funcs as e on l.id = e.parent and l.file = e.file;
+let call_origins = select l.l_id as id, r.path as path, l.l_file as file from call_origins_join_1 as l join "qualified-name" as r on l.e_child = r.id and l.e_file = r.file;
+let round_calls = select id, file from call_origins where path = "builtins.round";
+let rounded = round_values(calls=round_calls);
+let selected = select call as id, file from rounded where integer = "true" and (ndigits = "none" or ndigits = "nonnegative-literal");
+let candidates_join_1 = select l.id as l_id, l.file as l_file, r.span as r_span, r.id as r_id, r.file as r_file from selected as l join nodes as r on l.id = r.id and l.file = r.file;
+let candidates = select l.l_id as id, l.l_file as file, l.r_span as span, s."start-line" as line from candidates_join_1 as l join "source-location" as s on l.l_id = s.id and l.l_file = s.file;
+let violations = suppress(candidates=candidates, inline-pattern="(?:^|[^A-Z0-9])RUF057(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:RUF057)(?:,|$)");
+emit violations subject file key(id);

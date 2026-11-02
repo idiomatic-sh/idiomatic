@@ -2,7 +2,7 @@
   "schema": "native-standalone-cases/v2",
   "execution_contract": "singleton-per-declared-rule",
   "historical_certification": false,
-  "intent": "Explicit native143 inventory. The 138-rule sealed9348 run and five independently executed byte-identical singleton profiles form a split 3775-case proof; no one-shot 143-rule run is claimed.",
+  "intent": "Explicit native151 inventory. The native143 split proof and eight separately executed exact singleton profiles form 3,950 intended cases; no one-shot151 run is claimed.",
   "source_profile_file": "benchmark.toml",
   "source_profile_sha256": "d7907baa630941108d2ec0189b5fc2a5de0c6bc5db8635d5ebb4437f3441d143",
   "source_settings": {
@@ -935,8 +935,8 @@
     "python/ruff/without-effect": "ebf2050f8e9314a4964318cc5b0965c8fabd5d237185573e95569d46c550f4a7"
   },
   "phase_registry_sha256": "51f2c210f75d1275cd68369a1c69289a91ca87f83b7c486a2b348edd89c4a8f4",
-  "query_count": 143,
-  "case_count": 3775,
+  "query_count": 151,
+  "case_count": 3950,
   "profiles": [
     {
       "profile_name": "native-ASYNC115",
@@ -7712,6 +7712,89 @@
       }
     },
     {
+      "profile_name": "native-RUF046",
+      "rule_id": "RUF046",
+      "selected_rules": [
+        "RUF046"
+      ],
+      "profile_file": "profiles/RUF046/benchmark.toml",
+      "candidate_file": "rules/RUF046/query.ryoql",
+      "query_sha256": "2b07b2d671538c7a84b8aed27bd87d68951533a9f7915f65b9ac977a8095dac4",
+      "cases_file": "rules/RUF046/cases.toml",
+      "cases_sha256": "cc7a896f39f5650ba5d507f0ab24b4cbe4d0ec13649b522efbaf082132b06988",
+      "case_count": 29,
+      "case_names": [
+        "upstream-RUF046.py",
+        "upstream-RUF046_CR.py",
+        "upstream-RUF046_LF.py",
+        "integer",
+        "float",
+        "boolean",
+        "arithmetic",
+        "division",
+        "direct-name",
+        "length",
+        "custom-function",
+        "math-floor",
+        "math-isqrt",
+        "round-unknown",
+        "round-float-none",
+        "round-float-digits",
+        "round-int-negative",
+        "round-int-arithmetic",
+        "round-unknown-digits",
+        "two-args",
+        "keyword",
+        "star-args",
+        "kwargs",
+        "qualified",
+        "annotated-direct-name",
+        "shadowed-builtin",
+        "suppressed",
+        "unrelated-noqa",
+        "unicode-offset"
+      ],
+      "effective_settings": {
+        "defaults": [
+          "RUF046"
+        ],
+        "parser_configuration": "python-target=3.10",
+        "project_context_mode": "isolated",
+        "rule_applicability": {
+          "RUF046": "accepted-syntax"
+        },
+        "flags": {}
+      },
+      "profile_sha256": "6418d234dfbbe3f6c023e950e62c4e5d4d7f0a033369aed8e08c024d225954cc",
+      "source_settings": {
+        "defaults": [
+          "RUF046"
+        ],
+        "parser_configuration": "python-target=3.10",
+        "project_context_mode": "isolated",
+        "rule_applicability": {
+          "RUF046": "accepted-syntax"
+        },
+        "flags": {}
+      },
+      "module_registry": {
+        "python/ruff/suppress": "fragments/suppress.ryoql",
+        "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql",
+        "python/ruff/round-values": "fragments/round-values.ryoql",
+        "python/ruff/binding-type": "fragments/binding-type.ryoql",
+        "python/ruff/assigned-values": "fragments/assigned-values.ryoql",
+        "python/ruff/type-match-at-check": "fragments/type-match-at-check.ryoql"
+      },
+      "module_sha256": {
+        "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
+        "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d",
+        "python/ruff/round-values": "356583898e0f2412abbc20e740c5f121180edbd5937433b76132833e8f9ae05b",
+        "python/ruff/binding-type": "24acc8ec7efcd738bf2379d02ed355932c87aa0dfa8e92c9254b2784635a8141",
+        "python/ruff/assigned-values": "c78ef906aa7e8b31cc6a4935eed21b9da2034ed392cb56da712889d5168ffb86",
+        "python/ruff/type-match-at-check": "f6ab40cc1f8c909331adc33de3caa5a2333a4dab04b1b765c339dff97a83f26b"
+      }
+    },
+    {
       "profile_name": "native-RUF053",
       "rule_id": "RUF053",
       "selected_rules": [
@@ -7770,6 +7853,88 @@
       "module_sha256": {
         "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
         "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d"
+      }
+    },
+    {
+      "profile_name": "native-RUF057",
+      "rule_id": "RUF057",
+      "selected_rules": [
+        "RUF057"
+      ],
+      "profile_file": "profiles/RUF057/benchmark.toml",
+      "candidate_file": "rules/RUF057/query.ryoql",
+      "query_sha256": "4c0d3a21868bd3d9cbf0a15b398d63ad9206818f7a2805320daeaed5dd3c7ce4",
+      "cases_file": "rules/RUF057/cases.toml",
+      "cases_sha256": "db03436e3adf6e57f9afc92542106b78d316ce8adad12eb521cfb5b430b5b6bb",
+      "case_count": 28,
+      "case_names": [
+        "upstream-RUF057.py",
+        "integer",
+        "arithmetic",
+        "float",
+        "boolean",
+        "none-digits",
+        "zero-digits",
+        "positive-digits",
+        "negative-digits",
+        "arithmetic-digits",
+        "huge-digits",
+        "max-i64-digits",
+        "unknown-number",
+        "named-digits",
+        "keyword-none",
+        "named-number",
+        "star-args",
+        "kwargs",
+        "three-args",
+        "qualified",
+        "inferred-binding",
+        "annotated-binding",
+        "multiple-bindings",
+        "shadowed-builtin",
+        "int-subclass-annotation",
+        "suppressed",
+        "unrelated-noqa",
+        "unicode-offset"
+      ],
+      "effective_settings": {
+        "defaults": [
+          "RUF057"
+        ],
+        "parser_configuration": "python-target=3.10",
+        "project_context_mode": "isolated",
+        "rule_applicability": {
+          "RUF057": "accepted-syntax"
+        },
+        "flags": {}
+      },
+      "profile_sha256": "e94b96daf731a9bdf071f2251c5633a23fa44999de84abc9537ffcf8fd18a0b3",
+      "source_settings": {
+        "defaults": [
+          "RUF057"
+        ],
+        "parser_configuration": "python-target=3.10",
+        "project_context_mode": "isolated",
+        "rule_applicability": {
+          "RUF057": "accepted-syntax"
+        },
+        "flags": {}
+      },
+      "module_registry": {
+        "python/ruff/suppress": "fragments/suppress.ryoql",
+        "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql",
+        "python/ruff/round-values": "fragments/round-values.ryoql",
+        "python/ruff/binding-type": "fragments/binding-type.ryoql",
+        "python/ruff/assigned-values": "fragments/assigned-values.ryoql",
+        "python/ruff/type-match-at-check": "fragments/type-match-at-check.ryoql"
+      },
+      "module_sha256": {
+        "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
+        "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d",
+        "python/ruff/round-values": "356583898e0f2412abbc20e740c5f121180edbd5937433b76132833e8f9ae05b",
+        "python/ruff/binding-type": "24acc8ec7efcd738bf2379d02ed355932c87aa0dfa8e92c9254b2784635a8141",
+        "python/ruff/assigned-values": "c78ef906aa7e8b31cc6a4935eed21b9da2034ed392cb56da712889d5168ffb86",
+        "python/ruff/type-match-at-check": "f6ab40cc1f8c909331adc33de3caa5a2333a4dab04b1b765c339dff97a83f26b"
       }
     },
     {
@@ -8397,6 +8562,79 @@
       }
     },
     {
+      "profile_name": "native-TC010",
+      "rule_id": "TC010",
+      "selected_rules": [
+        "TC010"
+      ],
+      "profile_file": "profiles/TC010/benchmark.toml",
+      "candidate_file": "rules/TC010/query.ryoql",
+      "query_sha256": "c8017a1eb8348e577c6cbef203f3b37741692f657d450e07d5e49e1a302fea43",
+      "cases_file": "rules/TC010/cases.toml",
+      "cases_sha256": "890f3afbba2b77f9dd0d4f6b57ab08bdab9445cff4a71eb28379619130de55a8",
+      "case_count": 19,
+      "case_names": [
+        "upstream-TC010_1.py-py313",
+        "upstream-TC010_2.py-py313",
+        "eager-module",
+        "future-module",
+        "function-signature",
+        "function-local",
+        "bytes-member",
+        "plain-value",
+        "non-union-binop",
+        "nested-union",
+        "quoted-full-union",
+        "typing-only",
+        "typevar-constraint",
+        "literal-metadata",
+        "annotated-metadata",
+        "pep695-alias",
+        "stub-types",
+        "suppressed",
+        "unrelated-noqa"
+      ],
+      "effective_settings": {
+        "defaults": [
+          "TC010"
+        ],
+        "parser_configuration": "python-target=3.13",
+        "project_context_mode": "isolated",
+        "rule_applicability": {
+          "TC010": "accepted-syntax"
+        },
+        "flags": {}
+      },
+      "profile_sha256": "a45cbaf767bf3016675470a49ec22e5c1399adf43007e6d4bf07745af0c7ebec",
+      "source_settings": {
+        "defaults": [
+          "TC010"
+        ],
+        "parser_configuration": "python-target=3.13",
+        "project_context_mode": "isolated",
+        "rule_applicability": {
+          "TC010": "accepted-syntax"
+        },
+        "flags": {}
+      },
+      "module_registry": {
+        "python/ruff/suppress": "fragments/suppress.ryoql",
+        "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql",
+        "python/ruff/annotation-evaluation-context": "fragments/annotation-evaluation-context.ryoql",
+        "python/ruff/future-annotation-context": "fragments/future-annotation-context.ryoql",
+        "python/ruff/deferred-type-reads": "fragments/deferred-type-reads.ryoql",
+        "python/ruff/type-definition-context": "fragments/type-definition-context.ryoql"
+      },
+      "module_sha256": {
+        "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
+        "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d",
+        "python/ruff/annotation-evaluation-context": "b176d58a1687fe99f5b41d85fc781c0b33d2dcd58b49c6a16670216b78361ef5",
+        "python/ruff/future-annotation-context": "976b10f474f5e82e4976f85c14d73ed3b3c6f864b1de183699784f00e5e8269b",
+        "python/ruff/deferred-type-reads": "dc3906fdde5e7278fa69ae0b365f414d3e77add6b7c2c59b336660cb7ab019f6",
+        "python/ruff/type-definition-context": "a0451b6cf5bebeea9a8cae4fe8c66555d66bca72fdfa1c64c1f159e2d9d957ce"
+      }
+    },
+    {
       "profile_name": "native-TRY002",
       "rule_id": "TRY002",
       "selected_rules": [
@@ -8799,6 +9037,74 @@
       }
     },
     {
+      "profile_name": "native-UP014",
+      "rule_id": "UP014",
+      "selected_rules": [
+        "UP014"
+      ],
+      "profile_file": "profiles/UP014/benchmark.toml",
+      "candidate_file": "rules/UP014/query.ryoql",
+      "query_sha256": "8b2504558af3b4148d007cf51ff16ef0d3b6cd95dd5280935ff907f139e78a4c",
+      "cases_file": "rules/UP014/cases.toml",
+      "cases_sha256": "9d8d5f16b33b2c835bb18bd66d813bc7170fce8bff1a0d9edd7f3757a4be65ec",
+      "case_count": 22,
+      "case_names": [
+        "upstream-UP014.py",
+        "empty",
+        "empty-list",
+        "pair-list",
+        "keywords",
+        "invalid-identifier",
+        "keyword-identifier",
+        "dunder-field",
+        "overlapping-dunder-field",
+        "unicode-field",
+        "fstring-field",
+        "tuple-fields",
+        "short-pair",
+        "list-pair",
+        "mixed",
+        "kwargs",
+        "multi-target",
+        "attribute-target",
+        "unrelated-call",
+        "function-scope",
+        "suppressed",
+        "unrelated-noqa"
+      ],
+      "effective_settings": {
+        "defaults": [
+          "UP014"
+        ],
+        "parser_configuration": "python-target=3.10",
+        "project_context_mode": "isolated",
+        "rule_applicability": {
+          "UP014": "accepted-syntax"
+        },
+        "flags": {}
+      },
+      "profile_sha256": "43c1a1aad96fe1ecc2a14942f87ce33d2b44ccde7ba3c216335c0c7d444f3a43",
+      "source_settings": {
+        "defaults": [
+          "UP014"
+        ],
+        "parser_configuration": "python-target=3.10",
+        "project_context_mode": "isolated",
+        "rule_applicability": {
+          "UP014": "accepted-syntax"
+        },
+        "flags": {}
+      },
+      "module_registry": {
+        "python/ruff/suppress": "fragments/suppress.ryoql",
+        "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql"
+      },
+      "module_sha256": {
+        "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
+        "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d"
+      }
+    },
+    {
       "profile_name": "native-UP023",
       "rule_id": "UP023",
       "selected_rules": [
@@ -8981,6 +9287,77 @@
       }
     },
     {
+      "profile_name": "native-UP037",
+      "rule_id": "UP037",
+      "selected_rules": [
+        "UP037"
+      ],
+      "profile_file": "profiles/UP037/benchmark.toml",
+      "candidate_file": "rules/UP037/query.ryoql",
+      "query_sha256": "7877cf8c605ef322b1f8161c33f5163a71ff0e8a44302e791050e842ab9ee566",
+      "cases_file": "rules/UP037/cases.toml",
+      "cases_sha256": "bf8f4ee78f3ca6dbf730c8881cce731c21f5a0d2a3d9a2394988c37288b747d0",
+      "case_count": 19,
+      "case_names": [
+        "upstream-UP037_0.py",
+        "upstream-UP037_1.py",
+        "upstream-UP037_2.pyi",
+        "upstream-UP037_3.py",
+        "future-signature",
+        "eager-signature",
+        "local-annotation",
+        "future-variable",
+        "eager-variable",
+        "future-nested",
+        "literal-values",
+        "annotated-metadata",
+        "invalid-annotation",
+        "ordinary-string",
+        "typevar-outside-annotation",
+        "pep695-alias",
+        "stub-annotation",
+        "suppressed",
+        "unrelated-noqa"
+      ],
+      "effective_settings": {
+        "defaults": [
+          "UP037"
+        ],
+        "parser_configuration": "python-target=3.13",
+        "project_context_mode": "isolated",
+        "rule_applicability": {
+          "UP037": "accepted-syntax"
+        },
+        "flags": {}
+      },
+      "profile_sha256": "c77d0be4d1d4e7959ca1fbf4df8228a43f27d637aece541aca7d2d4286bd341c",
+      "source_settings": {
+        "defaults": [
+          "UP037"
+        ],
+        "parser_configuration": "python-target=3.13",
+        "project_context_mode": "isolated",
+        "rule_applicability": {
+          "UP037": "accepted-syntax"
+        },
+        "flags": {}
+      },
+      "module_registry": {
+        "python/ruff/suppress": "fragments/suppress.ryoql",
+        "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql",
+        "python/ruff/annotation-evaluation-context": "fragments/annotation-evaluation-context.ryoql",
+        "python/ruff/future-annotation-context": "fragments/future-annotation-context.ryoql",
+        "python/ruff/type-definition-context": "fragments/type-definition-context.ryoql"
+      },
+      "module_sha256": {
+        "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
+        "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d",
+        "python/ruff/annotation-evaluation-context": "b176d58a1687fe99f5b41d85fc781c0b33d2dcd58b49c6a16670216b78361ef5",
+        "python/ruff/future-annotation-context": "976b10f474f5e82e4976f85c14d73ed3b3c6f864b1de183699784f00e5e8269b",
+        "python/ruff/type-definition-context": "a0451b6cf5bebeea9a8cae4fe8c66555d66bca72fdfa1c64c1f159e2d9d957ce"
+      }
+    },
+    {
       "profile_name": "native-UP039",
       "rule_id": "UP039",
       "selected_rules": [
@@ -9021,6 +9398,137 @@
           "UP039": "accepted-syntax"
         },
         "flags": {}
+      }
+    },
+    {
+      "profile_name": "native-UP040",
+      "rule_id": "UP040",
+      "selected_rules": [
+        "UP040"
+      ],
+      "profile_file": "profiles/UP040/benchmark.toml",
+      "candidate_file": "rules/UP040/query.ryoql",
+      "query_sha256": "259208f122700c851694edb2051fb3d53602c62fa11134d81fe32df3b85097a6",
+      "cases_file": "rules/UP040/cases.toml",
+      "cases_sha256": "2ef3b355bd36c0bc52f7b6cd7f808de934577cfa6d4981cfca221cdf3ede7efb",
+      "case_count": 21,
+      "case_names": [
+        "upstream-UP040.py",
+        "upstream-UP040.pyi",
+        "simple",
+        "missing-value",
+        "wrong-annotation",
+        "attribute-target",
+        "factory",
+        "mismatched-factory-name",
+        "factory-typeparams",
+        "factory-list-typeparams",
+        "factory-nonname-typeparam",
+        "factory-extra-keyword",
+        "factory-named-value",
+        "multi-target",
+        "factory-unlisted-default",
+        "factory-listed-default",
+        "default-typevar",
+        "plain-typevar",
+        "quoted-default-typevar",
+        "suppressed",
+        "unrelated-noqa"
+      ],
+      "effective_settings": {
+        "defaults": [
+          "UP040"
+        ],
+        "parser_configuration": "python-target=3.13",
+        "project_context_mode": "isolated",
+        "rule_applicability": {
+          "UP040": "accepted-syntax"
+        },
+        "flags": {}
+      },
+      "profile_sha256": "cfe5c900c23590affdcf6a2e9d4ef57b36d704e120a0bcb5869667a54964027e",
+      "source_settings": {
+        "defaults": [
+          "UP040"
+        ],
+        "parser_configuration": "python-target=3.13",
+        "project_context_mode": "isolated",
+        "rule_applicability": {
+          "UP040": "accepted-syntax"
+        },
+        "flags": {}
+      },
+      "module_registry": {
+        "python/ruff/suppress": "fragments/suppress.ryoql",
+        "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql"
+      },
+      "module_sha256": {
+        "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
+        "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d"
+      }
+    },
+    {
+      "profile_name": "native-UP043",
+      "rule_id": "UP043",
+      "selected_rules": [
+        "UP043"
+      ],
+      "profile_file": "profiles/UP043/benchmark.toml",
+      "candidate_file": "rules/UP043/query.ryoql",
+      "query_sha256": "4477fee0ef184b535c1bb4c41eef50836df4f28d8d1e2c93b910301998351ca5",
+      "cases_file": "rules/UP043/cases.toml",
+      "cases_sha256": "2f96fd248e5c07690f1a000b3587cf7f3590b0a9977915e04217bd1541ee8dba",
+      "case_count": 18,
+      "case_names": [
+        "upstream-UP043.py",
+        "upstream-UP043.pyi",
+        "sync-three",
+        "sync-two",
+        "sync-send",
+        "sync-return",
+        "sync-no-default",
+        "sync-extra-arg",
+        "async-two",
+        "async-three",
+        "async-nondefault",
+        "string-none",
+        "tuple-one",
+        "import-alias",
+        "shadowed-name",
+        "stub-context",
+        "suppressed",
+        "unrelated-noqa"
+      ],
+      "effective_settings": {
+        "defaults": [
+          "UP043"
+        ],
+        "parser_configuration": "python-target=3.13",
+        "project_context_mode": "isolated",
+        "rule_applicability": {
+          "UP043": "accepted-syntax"
+        },
+        "flags": {}
+      },
+      "profile_sha256": "3d40519ad6351f02e81376a5c5737bef1c7727723816c693facb30beb20269df",
+      "source_settings": {
+        "defaults": [
+          "UP043"
+        ],
+        "parser_configuration": "python-target=3.13",
+        "project_context_mode": "isolated",
+        "rule_applicability": {
+          "UP043": "accepted-syntax"
+        },
+        "flags": {}
+      },
+      "module_registry": {
+        "python/ruff/suppress": "fragments/suppress.ryoql",
+        "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql"
+      },
+      "module_sha256": {
+        "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
+        "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d"
       }
     },
     {
@@ -9183,6 +9691,71 @@
         "python/ruff/future-annotation-context": "976b10f474f5e82e4976f85c14d73ed3b3c6f864b1de183699784f00e5e8269b",
         "python/ruff/modernization-symbols": "76bbb893f2ddd68018c968fcf8fa9ea15d237a17919c8c898c1144d4c098bf42",
         "python/ruff/pep604-candidates": "43f2f3b710aa286bfcf76937171731295562dd0112e1c512d5a0648aad182ee0",
+        "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
+        "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d"
+      }
+    },
+    {
+      "profile_name": "native-UP049",
+      "rule_id": "UP049",
+      "selected_rules": [
+        "UP049"
+      ],
+      "profile_file": "profiles/UP049/benchmark.toml",
+      "candidate_file": "rules/UP049/query.ryoql",
+      "query_sha256": "c5b926491fd561400785702b0fdffed1d42cc49f1cc3fc38de22c754fe869f85",
+      "cases_file": "rules/UP049/cases.toml",
+      "cases_sha256": "4fa2e3a4f8a4e813b218946b063d64b21a078f4e322eb5afbbef6408bf1a7157",
+      "case_count": 19,
+      "case_names": [
+        "upstream-UP049_0.py",
+        "upstream-UP049_1.py",
+        "class",
+        "function",
+        "async-function",
+        "variadic",
+        "paramspec",
+        "public",
+        "sunder",
+        "dunder",
+        "all-underscores",
+        "alias-not-class",
+        "old-typevar",
+        "multiple",
+        "keyword-new-name",
+        "bounded",
+        "defaulted",
+        "suppressed",
+        "unrelated-noqa"
+      ],
+      "effective_settings": {
+        "defaults": [
+          "UP049"
+        ],
+        "parser_configuration": "python-target=3.13",
+        "project_context_mode": "isolated",
+        "rule_applicability": {
+          "UP049": "accepted-syntax"
+        },
+        "flags": {}
+      },
+      "profile_sha256": "a52d2d513217ec88e6431606f8869cbdc529472275d8840dca3b0f944c25b6e0",
+      "source_settings": {
+        "defaults": [
+          "UP049"
+        ],
+        "parser_configuration": "python-target=3.13",
+        "project_context_mode": "isolated",
+        "rule_applicability": {
+          "UP049": "accepted-syntax"
+        },
+        "flags": {}
+      },
+      "module_registry": {
+        "python/ruff/suppress": "fragments/suppress.ryoql",
+        "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql"
+      },
+      "module_sha256": {
         "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
         "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d"
       }
