@@ -42,7 +42,7 @@ pub(crate) fn filter_of<'x>(
         },
         needed: std::mem::take(&mut context.scratch.needed),
         cells: [Value::Flag(Flag::Lowered); 5],
-        names: NameCount(name_count(context.symbols).0),
+        names: NameCount(name_count(context.symbols.as_ref()).0),
         comparisons,
         gate: std::mem::take(&mut context.scratch.select_scratch.gate),
         text_ok: std::mem::take(&mut context.scratch.select_scratch.text_ok),

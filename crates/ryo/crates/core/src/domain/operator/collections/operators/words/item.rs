@@ -1,7 +1,7 @@
 //! The `words` operator: split a text column into words and append each word, one row for each.
 
 use ryo_language::domain::relations::types::{CellKind, Value};
-use ryo_language::domain::symbols::service::intern_derived;
+use ryo_language::domain::symbols::service::query_intern_derived;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::terms::types::NameText;
 
@@ -92,7 +92,7 @@ fn words_row(
         holder.clear();
         captured.clear();
         let texts = Texts {
-            symbols,
+            symbols: symbols.as_ref(),
             source: *source,
             paths,
             arenas,
@@ -102,8 +102,8 @@ fn words_row(
         };
         holder.push_str(read.0);
         split(TextView(holder), word, |each| {
-            let made = intern_derived(symbols, ByteSlice(source.0), NameText(each.0));
-            captured.push(minted(symbols, made, after));
+            let made = query_intern_derived(symbols, ByteSlice(source.0), NameText(each.0));
+            captured.push(minted(symbols.as_ref(), made, after));
         });
     }
     for place in 0..context.scratch.capture_scratch.captured.len() {

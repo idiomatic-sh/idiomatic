@@ -735,7 +735,7 @@ fn bucket_reader_observes_each_row_at_its_buffer_acquisition() {
             .write(true)
             .open(root.path().join("lint.store"))
             .expect("same inode");
-        file.seek(SeekFrom::Start(if change_header {
+        let _position = file.seek(SeekFrom::Start(if change_header {
             second.header
         } else {
             second.offset
@@ -806,7 +806,7 @@ fn bucket_reader_acquires_other_bucket_after_mutation_or_truncation() {
                 .expect("truncate second bucket");
         } else {
             let mut file = std::fs::OpenOptions::new().write(true).open(path).unwrap();
-            file.seek(SeekFrom::Start(second.header)).unwrap();
+            let _position = file.seek(SeekFrom::Start(second.header)).unwrap();
             file.write_all(&[0x7f]).expect("corrupt second header");
         }
         assert!(batch.read(&second, &mut PackedWords::default()).is_err());

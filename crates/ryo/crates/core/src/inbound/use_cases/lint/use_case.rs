@@ -381,6 +381,10 @@ impl LintUseCaseImpl {
         let hosted = self
             .digest
             .digest(DigestBytes(&configuration(&[], &lines(hosted)).0));
+        let graph_strategy = crate::domain::file_program::service::enabled().then(|| {
+            self.digest
+                .digest(DigestBytes(b"ryo-file-program-graph-v1"))
+        });
         rules
             .iter()
             .zip(plans)
@@ -400,6 +404,8 @@ impl LintUseCaseImpl {
                 } else {
                     own
                 };
+                let own =
+                    graph_strategy.map_or(own, |strategy| self.digest.combine(&[own, strategy]));
                 let reads = reads_project(plan) == PlanReads::Reads;
                 StoredRule {
                     rule: RuleId(rule.id.0.clone()),

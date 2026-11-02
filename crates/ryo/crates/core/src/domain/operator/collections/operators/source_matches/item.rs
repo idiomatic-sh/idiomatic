@@ -10,7 +10,7 @@ use crate::domain::table_model::types::{Rows, Table};
 use regex_automata::meta::Regex;
 use ryo_language::domain::relations::constants::NO_SPAN;
 use ryo_language::domain::relations::types::{CellKind, Integer, Offset, Span, Value};
-use ryo_language::domain::symbols::service::intern_derived;
+use ryo_language::domain::symbols::service::query_intern_derived;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::terms::types::NameText;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -215,8 +215,8 @@ fn occurrences(
                 // Query execution follows provider fact reading. A fresh source-backed
                 // symbol would move `sources` past existing derived provider names
                 // (including comments), corrupting their text resolution.
-                joined.push(Value::Symbol(intern_derived(
-                    context.symbols,
+                joined.push(Value::Symbol(query_intern_derived(
+                    &mut context.symbols,
                     ByteSlice(source),
                     NameText(captured_text),
                 )));

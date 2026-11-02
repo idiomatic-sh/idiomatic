@@ -1,7 +1,7 @@
 //! The `extend` operator: append columns holding a number or a parameter.
 
 use ryo_language::domain::relations::types::{CellKind, Flag, Integer, Value};
-use ryo_language::domain::symbols::service::intern_derived;
+use ryo_language::domain::symbols::service::query_intern_derived;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::terms::types::NameText;
 
@@ -43,8 +43,8 @@ fn appended_values(
             Operand::Literal(QueryLiteral::Number(number)) => Value::Number(Integer(number.0)),
             // A text becomes a name of the file's names, the same name for the same text.
             Operand::Literal(QueryLiteral::Text(text)) => {
-                let made = intern_derived(symbols, ByteSlice(source.0), NameText(&text.0));
-                minted(symbols, made, after)
+                let made = query_intern_derived(symbols, ByteSlice(source.0), NameText(&text.0));
+                minted(symbols.as_ref(), made, after)
             }
             Operand::Column(_) | Operand::Function(_) => return Err(OperatingError::WrongBinding),
             Operand::Parameter(id) => {
@@ -56,8 +56,9 @@ fn appended_values(
                         Flag::Lowered
                     }),
                     ParameterBinding::Text(text) => {
-                        let made = intern_derived(symbols, ByteSlice(source.0), NameText(&text.0));
-                        minted(symbols, made, after)
+                        let made =
+                            query_intern_derived(symbols, ByteSlice(source.0), NameText(&text.0));
+                        minted(symbols.as_ref(), made, after)
                     }
                     ParameterBinding::Numbers(_)
                     | ParameterBinding::Texts(_)

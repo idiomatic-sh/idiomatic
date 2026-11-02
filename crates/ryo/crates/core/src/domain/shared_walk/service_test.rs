@@ -297,7 +297,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                     prepared_matchers: None,
                     stored_indexes: None,
                     bindings: &bindings[rule],
-                    symbols: &mut tables.symbols,
+                    symbols: (&mut tables.symbols).into(),
                     source: SourceView(SMALL_SOURCE),
                     paths: &[],
                     arenas: &[],

@@ -47,7 +47,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
         prepared_matchers: None,
         stored_indexes: None,
         bindings: &[],
-        symbols: &mut symbols,
+        symbols: (&mut symbols).into(),
         source: SourceView(&[]),
         paths: &[],
         arenas: &[],
@@ -64,7 +64,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
     assert_eq!(output.count.0, 1);
     assert_eq!(output.cells[0], Cell::Symbol(symbol));
     let texts = Texts {
-        symbols: context.symbols,
+        symbols: context.symbols.as_ref(),
         source: context.source,
         paths: &[],
         arenas: &[],

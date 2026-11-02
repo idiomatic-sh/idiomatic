@@ -148,7 +148,7 @@ fn edge_admitted(
         cells.push(value(tree, field, child));
     }
     let kinds: Vec<CellKind> = EDGE.iter().map(|field| kind_of(*field)).collect();
-    let names = NameCount(name_count(context.symbols).0);
+    let names = NameCount(name_count(context.symbols.as_ref()).0);
     holds_all(comparisons, cells, &kinds, names, context)
 }
 
@@ -299,7 +299,7 @@ pub(crate) fn join(
             let by_parent = right_on
                 .first()
                 .is_some_and(|on| viewed(view, *on) == ColumnIndex(0));
-            let names = NameCount(name_count(context.symbols).0);
+            let names = NameCount(name_count(context.symbols.as_ref()).0);
             context.memo.clear();
             context.memo.resize(filter.len() * names.0, Memo::Unknown);
             for at in positions(count(left_rows)) {

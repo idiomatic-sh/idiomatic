@@ -169,7 +169,7 @@ pub(crate) fn cross_rule(
             prepared_matchers: None,
             stored_indexes: None,
             bindings: bound,
-            symbols: cross,
+            symbols: cross.into(),
             source: SourceView(&[]),
             paths: crossing.paths,
             arenas: crossing.arenas,

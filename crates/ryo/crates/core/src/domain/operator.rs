@@ -6,4 +6,7 @@ pub(crate) mod service;
 pub(crate) mod types;
 
 #[cfg(test)]
+mod contract_test;
+
+#[cfg(test)]
 mod service_test;

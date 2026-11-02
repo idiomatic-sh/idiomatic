@@ -7,7 +7,7 @@ use ryo_values::domain::plans::types::Operation;
 
 /// What every item of the `operators` collection offers: the rows it
 /// computes from the rows of its inputs into the table it is given, whose room it reuses.
-pub(crate) trait OperatorsItem {
+pub(crate) trait OperatorsItem: Sync {
     /// Computes the rows of one step. The operation is the item's own; any other is refused.
     ///
     /// # Errors

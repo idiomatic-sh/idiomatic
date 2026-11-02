@@ -65,7 +65,7 @@ impl OperatorsItem for GroupDigestItem {
 
         let grouped = table_in(rows, grouped, row);
         let texts = Texts {
-            symbols,
+            symbols: symbols.as_ref(),
             source: *source,
             paths,
             arenas,
@@ -149,7 +149,7 @@ impl OperatorsItem for GroupDigestItem {
                 }
                 let RowFound { at: group, .. } = find_or_add(out, seen, &probe);
                 let texts = Texts {
-                    symbols: &*each.symbols,
+                    symbols: each.symbols.as_ref(),
                     source: each.source,
                     paths: each.paths,
                     arenas: each.arenas,

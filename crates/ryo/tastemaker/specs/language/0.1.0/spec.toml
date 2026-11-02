@@ -1254,34 +1254,14 @@ impl ParseContract {
 impl Parse for ParseContract {
     type FileModel = ();
 
-    fn file_model(&self, _tree: &languages::Tree<'_>, _model: &mut ()) {}
-
-    fn capabilities(&self) -> &'static [languages::OptionalCapability] {
-        &[]
-    }
-
     fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
         languages::ParseConfigurationIdentity("")
     }
 
-    fn literal_properties(&self) -> Support<Reader<languages::LiteralProperties, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
+    fn file_model(&self, _tree: &languages::Tree<'_>, _model: &mut ()) {}
 
-    fn interpolated_string_literal(&self) -> Support<Reader<languages::InterpolatedStringLiteral, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn literal_expression_parse(&self) -> Support<Reader<languages::LiteralExpressionParse, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn raw_format_segment(&self) -> Support<Reader<languages::RawFormatSegment, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn raw_format_field(&self) -> Support<Reader<languages::RawFormatField, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
+    fn capabilities(&self) -> &'static [languages::OptionalCapability] {
+        &[]
     }
 
     fn semantic_syntax(&self) -> Support<Reader<languages::SemanticSyntax, Self::FileModel>> {
@@ -1312,11 +1292,47 @@ impl Parse for ParseContract {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
+    fn literal_properties(&self) -> Support<Reader<languages::LiteralProperties, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn numeric_literal(&self) -> Support<Reader<languages::NumericLiteral, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn interpolated_string_literal(&self) -> Support<Reader<languages::InterpolatedStringLiteral, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn compiler_feature(&self) -> Support<Reader<languages::CompilerFeature, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn language_target(&self) -> Support<Reader<languages::LanguageTarget, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn constant_key(&self) -> Support<Reader<languages::ConstantKey, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn format_parse(&self) -> Support<Reader<languages::FormatParse, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn format_field(&self) -> Support<Reader<languages::FormatField, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn literal_expression_parse(&self) -> Support<Reader<languages::LiteralExpressionParse, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn raw_format_segment(&self) -> Support<Reader<languages::RawFormatSegment, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn raw_format_field(&self) -> Support<Reader<languages::RawFormatField, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -1336,18 +1352,6 @@ impl Parse for ParseContract {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
-
-    fn constant_key(&self) -> Support<Reader<languages::ConstantKey, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn compiler_feature(&self) -> Support<Reader<languages::CompilerFeature, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
-
-    fn language_target(&self) -> Support<Reader<languages::LanguageTarget, Self::FileModel>> {
-        languages::absent(AbsenceCause::NotYetRead)
-    }
 
     fn implicit_symbol(&self) -> Support<Reader<languages::ImplicitSymbol, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)

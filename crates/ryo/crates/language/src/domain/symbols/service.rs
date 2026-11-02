@@ -15,7 +15,7 @@ use crate::domain::relations::types::{
 };
 use crate::domain::symbols::types::ByteSlice;
 use crate::domain::symbols::types::SymbolsEngine;
-use crate::domain::symbols::types::{NameStart, Noted, Symbols};
+use crate::domain::symbols::types::{NameStart, Noted, QuerySymbols, Symbols};
 use crate::domain::terms::service::{is_term, term_text};
 use crate::domain::terms::types::NameText;
 use crate::domain::terms::types::Symbol;
@@ -216,6 +216,43 @@ pub fn intern(symbols: &mut Symbols, source: ByteSlice<'_>, start: Offset, end: 
 /// The symbol for a name that is not in the file's bytes: its text is kept in the derived text.
 pub fn intern_derived(symbols: &mut Symbols, source: ByteSlice<'_>, text: NameText<'_>) -> Symbol {
     derive(symbols.as_mut(), source, text)
+}
+
+/// Reborrows a query's symbols without handing a query operator source-name interning.
+#[must_use]
+pub fn query_reborrow<'a>(symbols: &'a mut QuerySymbols<'_>) -> QuerySymbols<'a> {
+    QuerySymbols(&mut *symbols.0)
+}
+
+/// Adds a value computed by a query, retaining existing source and derived identities.
+///
+/// ```
+/// use ryo_language::domain::symbols::service::{query_intern_derived, text_of};
+/// use ryo_language::domain::symbols::types::{ByteSlice, QuerySymbols, Symbols};
+/// use ryo_language::domain::terms::types::NameText;
+/// let mut file = Symbols::default();
+/// let mut query = QuerySymbols::from(&mut file);
+/// let made = query_intern_derived(&mut query, ByteSlice(b""), NameText("name"));
+/// assert_eq!(text_of(query.as_ref(), ByteSlice(b""), made).map(|text| text.0), Some("name"));
+/// ```
+///
+/// ```compile_fail
+/// use ryo_language::domain::symbols::service::{intern, query_intern_derived, text_of};
+/// use ryo_language::domain::symbols::types::{ByteSlice, QuerySymbols, Symbols};
+/// use ryo_language::domain::relations::types::Offset;
+/// use ryo_language::domain::terms::types::NameText;
+/// let mut file = Symbols::default();
+/// let mut query = QuerySymbols::from(&mut file);
+/// let made = query_intern_derived(&mut query, ByteSlice(b""), NameText("name"));
+/// let _ = text_of(query.as_ref(), ByteSlice(b""), made);
+/// intern(&mut query, ByteSlice(b"name"), Offset(0), Offset(4));
+/// ```
+pub fn query_intern_derived(
+    symbols: &mut QuerySymbols<'_>,
+    source: ByteSlice<'_>,
+    text: NameText<'_>,
+) -> Symbol {
+    intern_derived(&mut *symbols.0, source, text)
 }
 
 /// The symbol for a name that is not in the file's bytes, in the names as the engine keeps them: its text is kept in the derived text.

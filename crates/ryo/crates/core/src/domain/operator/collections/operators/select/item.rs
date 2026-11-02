@@ -77,7 +77,7 @@ impl OperatorsItem for SelectItem {
             return Err(OperatingError::WrongOperation);
         };
         let rows = first(inputs)?;
-        let _names = NameCount(name_count(context.symbols).0);
+        let _names = NameCount(name_count(context.symbols.as_ref()).0);
         if count_of(rows).0 == 0 {
             reset(out, kinds_of(rows));
             if !kept.is_empty() {
@@ -134,7 +134,7 @@ impl OperatorsItem for SelectItem {
         // Rows as they are made: each is decided as it comes.
         kinds.clear();
         kinds.extend_from_slice(ins.kinds(InputPlace(0))?);
-        let names = NameCount(name_count(context.symbols).0);
+        let names = NameCount(name_count(context.symbols.as_ref()).0);
         let mut cut = std::mem::take(&mut scratch.other);
         let mut ready = false;
         let outcome = ins.stream(
@@ -208,7 +208,7 @@ pub(crate) fn tree_each(
     each: &mut EachElement<'_>,
 ) -> Result<(), OperatingError> {
     let rows = Rows::Tree(*tree);
-    let names = NameCount(name_count(context.symbols).0);
+    let names = NameCount(name_count(context.symbols.as_ref()).0);
     let mut needed = std::mem::take(&mut context.scratch.needed);
     needed_of(comparisons, &mut needed);
     let present = columns_present(&needed, kinds_of(&rows));
@@ -325,7 +325,7 @@ pub(crate) fn select_rows(
     else {
         return Err(OperatingError::WrongOperation);
     };
-    let names = NameCount(name_count(context.symbols).0);
+    let names = NameCount(name_count(context.symbols.as_ref()).0);
     if count_of(rows).0 == 0 {
         return Ok(());
     }
@@ -405,7 +405,11 @@ pub(crate) fn select_rows(
                 && kept
                     .iter()
                     .all(|column| column_in(&view.selection.kinds, *column).is_some());
-            let population = view.source.columns.first().map_or(0, |column| column.0.len());
+            let population = view
+                .source
+                .columns
+                .first()
+                .map_or(0, |column| column.0.len());
             let mut validated = false;
             let outcome = positions(count_of(rows)).try_for_each(|index| {
                 let Some(physical) = view.selection.rows.get(index.0) else {

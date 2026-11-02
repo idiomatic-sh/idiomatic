@@ -24,6 +24,24 @@ pub(crate) struct Notes {
 #[derive(Debug, Default)]
 pub struct Symbols(SymbolsEngine);
 
+/// The symbols a query operator may read and the derived names it may add. The
+/// source-name boundary belongs to language fact readers, not query operators.
+/// This borrow has no mutable access to `Symbols` and cannot call `intern`.
+#[derive(Debug)]
+pub struct QuerySymbols<'a>(pub(super) &'a mut Symbols);
+
+impl<'a> From<&'a mut Symbols> for QuerySymbols<'a> {
+    fn from(symbols: &'a mut Symbols) -> Self {
+        Self(symbols)
+    }
+}
+
+impl AsRef<Symbols> for QuerySymbols<'_> {
+    fn as_ref(&self) -> &Symbols {
+        &*self.0
+    }
+}
+
 /// The names of one file as the engine keeps them: where each is, its hash, the index that finds it, the derived text, the notes, the
 /// vocabulary and the places of the names that left their file.
 #[derive(Debug, Default)]

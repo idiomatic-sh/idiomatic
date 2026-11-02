@@ -175,7 +175,7 @@ fn joins_on_the_stretch(stretch_first: bool) -> Result<Table, OperatingError> {
         prepared_matchers: None,
         stored_indexes: None,
         bindings: &[],
-        symbols: &mut symbols,
+        symbols: (&mut symbols).into(),
         source: SourceView(&[]),
         paths: &[],
         arenas: &[],

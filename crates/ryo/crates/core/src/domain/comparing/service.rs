@@ -65,8 +65,13 @@ fn equal_to_text(
     let Value::Symbol(symbol) = column_in(row, *column).copied()? else {
         return None;
     };
-    let same = hash_in(context.symbols, symbol)? == hash_of(ByteSlice(text.0.as_bytes()))
-        && text_of(context.symbols, ByteSlice(context.source.0), symbol).map(|found| found.0)
+    let same = hash_in(context.symbols.as_ref(), symbol)? == hash_of(ByteSlice(text.0.as_bytes()))
+        && text_of(
+            context.symbols.as_ref(),
+            ByteSlice(context.source.0),
+            symbol,
+        )
+        .map(|found| found.0)
             == Some(&*text.0);
     Some(if same == equal {
         Verdict::Holds
@@ -246,7 +251,7 @@ fn holds_one(
     } = context;
     let select = &mut *scratch.select_scratch;
     let texts = Texts {
-        symbols,
+        symbols: symbols.as_ref(),
         source: *source,
         paths,
         arenas,

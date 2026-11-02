@@ -74,6 +74,47 @@ where
     .expect("the source is read")
 }
 
+/// An expansion-aware semantic reader must publish the same visible node, file, and
+/// independently expected source coordinates as `semantic-syntax`.
+///
+/// The caller supplies the relation's node, file, and span columns explicitly: a
+/// lexical reader must not gain expansion participation merely by using this test.
+#[cfg(test)]
+pub(crate) fn assert_expanded_node_coordinate<Item>(
+    source: &'static str,
+    columns: (usize, usize, usize),
+    expected_kind: languages::contract::Want,
+    expected_span: languages::contract::Want,
+) where
+    Item: ReadItem,
+{
+    use crate::domain::relations::collections::relations::semantic_syntax::item::SemanticSyntaxItem;
+
+    let relation = reading::<Item>(source);
+    let syntax = reading::<SemanticSyntaxItem>(source);
+    assert!(relation.causes.is_empty() && syntax.causes.is_empty());
+    let matching: Vec<_> = relation
+        .rows
+        .iter()
+        .filter(|row| row.get(columns.2) == Some(&expected_span))
+        .collect();
+    assert_eq!(
+        matching.len(),
+        1,
+        "one relation row at the expected expanded span"
+    );
+    let row = matching[0];
+    assert!(
+        syntax.rows.iter().any(|element| {
+            element.first() == row.get(columns.0)
+                && element.get(1) == Some(&expected_kind)
+                && element.get(3) == row.get(columns.1)
+                && element.get(4) == Some(&expected_span)
+        }),
+        "expanded relation node must retain its semantic kind, file, and source span"
+    );
+}
+
 /// Exercise the provider's real model initialization without requesting any semantic relation.
 pub(crate) fn initialize_model(
     tree: &languages::Tree<'_>,

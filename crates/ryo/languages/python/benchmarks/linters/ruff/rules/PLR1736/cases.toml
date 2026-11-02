@@ -1,0 +1,655 @@
+# Exact Ruff 0.16.5 tag 9e4938c4a60bed3e87a11ee1e1db1bd23f4d964a; target py310; shipped default settings.
+
+[[cases]]
+name = "upstream-pinned-fixture-0"
+comparison = "full"
+files = { "case.py" = "import builtins\n\nletters = [\"a\", \"b\", \"c\"]\n\n\ndef fix_these():\n    [letters[index] for index, letter in enumerate(letters)]  # PLR1736\n    {letters[index] for index, letter in enumerate(letters)}  # PLR1736\n    {letter: letters[index] for index, letter in enumerate(letters)}  # PLR1736\n\n    for index, letter in enumerate(letters):\n        print(letters[index])  # PLR1736\n        blah = letters[index]  # PLR1736\n        assert letters[index]  == \"d\"  # PLR1736\n\n    for index, letter in builtins.enumerate(letters):\n        print(letters[index])  # PLR1736\n        blah = letters[index]  # PLR1736\n        assert letters[index]  == \"d\"  # PLR1736\n\n\ndef dont_fix_these():\n    # once there is an assignment to the sequence[index], we stop emitting diagnostics\n    for index, letter in enumerate(letters):\n        letters[index] = \"d\"  # OK\n        letters[index] += \"e\"  # OK\n        assert letters[index] == \"de\"  # OK\n\n    # once there is an assignment to the index, we stop emitting diagnostics\n    for index, letter in enumerate(letters):\n        index += 1  # OK\n        print(letters[index])  # OK\n\n    # once there is an assignment to the sequence, we stop emitting diagnostics\n    for index, letter in enumerate(letters):\n        letters = [\"d\", \"e\", \"f\"]  # OK\n        print(letters[index])  # OK\n\n    # once there is an assignment to the value, we stop emitting diagnostics\n    for index, letter in enumerate(letters):\n        letter = \"d\"\n        print(letters[index])  # OK\n\n    # once there is an deletion from or of the sequence or index, we stop emitting diagnostics\n    for index, letter in enumerate(letters):\n        del letters[index]  # OK\n        print(letters[index])  # OK\n    for index, letter in enumerate(letters):\n        del letters  # OK\n        print(letters[index])  # OK\n    for index, letter in enumerate(letters):\n        del index  # OK\n        print(letters[index])  # OK\n\n\ndef value_intentionally_unused():\n    [letters[index] for index, _ in enumerate(letters)]  # OK\n    {letters[index] for index, _ in enumerate(letters)}  # OK\n    {index: letters[index] for index, _ in enumerate(letters)}  # OK\n\n    for index, _ in enumerate(letters):\n        print(letters[index])  # OK\n        blah = letters[index]  # OK\n        letters[index] = \"d\"  # OK\n\n\ndef start():\n    # OK\n    for index, list_item in enumerate(some_list, start=1):\n        print(some_list[index])\n\n    # PLR1736\n    for index, list_item in enumerate(some_list, start=0):\n        print(some_list[index])\n\n    # PLR1736\n    for index, list_item in enumerate(some_list):\n        print(some_list[index])\n\n\ndef nested_index_lookup():\n    data = {\"a\": 1, \"b\": 2}\n    column_names = [\"a\", \"b\"]\n    for index, column_name in enumerate(column_names):\n        _ = data[column_names[index]]  # PLR1736\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 67, end = 81 }, { rule = "PLR1736", file = "case.py", start = 139, end = 153 }, { rule = "PLR1736", file = "case.py", start = 219, end = 233 }, { rule = "PLR1736", file = "case.py", start = 346, end = 360 }, { rule = "PLR1736", file = "case.py", start = 388, end = 402 }, { rule = "PLR1736", file = "case.py", start = 429, end = 443 }, { rule = "PLR1736", file = "case.py", start = 532, end = 546 }, { rule = "PLR1736", file = "case.py", start = 574, end = 588 }, { rule = "PLR1736", file = "case.py", start = 615, end = 629 }, { rule = "PLR1736", file = "case.py", start = 2488, end = 2504 }, { rule = "PLR1736", file = "case.py", start = 2585, end = 2601 }, { rule = "PLR1736", file = "case.py", start = 2762, end = 2781 }]
+
+[[cases]]
+name = "direct"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data):\n    print(data[index])\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 46, end = 57 }]
+
+[[cases]]
+name = "direct-two-accesses"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data):\n    print(data[index],data[index])\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 46, end = 57 }, { rule = "PLR1736", file = "case.py", start = 58, end = 69 }]
+
+[[cases]]
+name = "unknown-source-no-type-gate"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data):\n    print(data[index])\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 46, end = 57 }]
+
+[[cases]]
+name = "parentheses"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data):\n    print(((data)[(index)]))\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 47, end = 62 }]
+
+[[cases]]
+name = "loop-else"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data):\n    pass\nelse:\n    print(data[index])\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 61, end = 72 }]
+
+[[cases]]
+name = "async-loop"
+comparison = "full"
+files = { "case.py" = "async def f():\n    async for index,value in enumerate(data):\n        print(data[index])\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 75, end = 86 }]
+
+[[cases]]
+name = "unicode-normalization"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data):\n    print(ｄａｔａ[ｉｎｄｅｘ])\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 46, end = 75 }]
+
+[[cases]]
+name = "unicode-multiline"
+comparison = "full"
+files = { "case.py" = "é=\"🙂\"\nfor index,value in enumerate(data):\n    print(\n        data[\n            index\n        ]\n    )\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 65, end = 98 }]
+
+[[cases]]
+name = "nested-call-expression"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data):\n    print(f(data[index]))\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 48, end = 59 }]
+
+[[cases]]
+name = "different-sequence"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data):\n    print(other[index])\n" }
+expected = []
+
+[[cases]]
+name = "different-index"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data):\n    print(data[other])\n" }
+expected = []
+
+[[cases]]
+name = "attribute-sequence"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data):\n    print(obj.data[index])\n" }
+expected = []
+
+[[cases]]
+name = "non-name-index"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data):\n    print(data[index+0])\n" }
+expected = []
+
+[[cases]]
+name = "ignored-index"
+comparison = "full"
+files = { "case.py" = "for _,value in enumerate(data):\n    print(data[index])\n" }
+expected = []
+
+[[cases]]
+name = "ignored-value"
+comparison = "full"
+files = { "case.py" = "for index,_ in enumerate(data):\n    print(data[index])\n" }
+expected = []
+
+[[cases]]
+name = "underscore-prefix"
+comparison = "full"
+files = { "case.py" = "for _index,value in enumerate(data):\n    print(data[_index])\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 47, end = 59 }]
+
+[[cases]]
+name = "nested-target"
+comparison = "full"
+files = { "case.py" = "for (index,other),value in enumerate(data):\n    print(data[index])\n" }
+expected = []
+
+[[cases]]
+name = "list-target"
+comparison = "full"
+files = { "case.py" = "for [index,value] in enumerate(data):\n    print(data[index])\n" }
+expected = []
+
+[[cases]]
+name = "triple-target"
+comparison = "full"
+files = { "case.py" = "for index,value,other in enumerate(data):\n    print(data[index])\n" }
+expected = []
+
+[[cases]]
+name = "ordered-mutation-0"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data):\n    print(data[index])\n    index=0\n    print(data[index])\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 46, end = 57 }]
+
+[[cases]]
+name = "ordered-mutation-1"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data):\n    print(data[index])\n    value=0\n    print(data[index])\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 46, end = 57 }]
+
+[[cases]]
+name = "ordered-mutation-2"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data):\n    print(data[index])\n    data=other\n    print(data[index])\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 46, end = 57 }]
+
+[[cases]]
+name = "ordered-mutation-3"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data):\n    print(data[index])\n    data[index]=other\n    print(data[index])\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 46, end = 57 }]
+
+[[cases]]
+name = "ordered-mutation-4"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data):\n    print(data[index])\n    other=0\n    print(data[index])\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 46, end = 57 }, { rule = "PLR1736", file = "case.py", start = 81, end = 92 }]
+
+[[cases]]
+name = "ordered-mutation-5"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data):\n    print(data[index])\n    index:data[index]\n    print(data[index])\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 46, end = 57 }, { rule = "PLR1736", file = "case.py", start = 91, end = 102 }]
+
+[[cases]]
+name = "ordered-mutation-6"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data):\n    print(data[index])\n    other:data[index]\n    print(data[index])\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 46, end = 57 }, { rule = "PLR1736", file = "case.py", start = 91, end = 102 }]
+
+[[cases]]
+name = "ordered-mutation-7"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data):\n    print(data[index])\n    index:int=0\n    print(data[index])\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 46, end = 57 }]
+
+[[cases]]
+name = "ordered-mutation-8"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data):\n    print(data[index])\n    other:int=data[index]\n    print(data[index])\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 46, end = 57 }, { rule = "PLR1736", file = "case.py", start = 73, end = 84 }, { rule = "PLR1736", file = "case.py", start = 95, end = 106 }]
+
+[[cases]]
+name = "ordered-mutation-9"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data):\n    print(data[index])\n    data[index]:int=0\n    print(data[index])\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 46, end = 57 }]
+
+[[cases]]
+name = "ordered-mutation-10"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data):\n    print(data[index])\n    data[other]=0\n    print(data[index])\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 46, end = 57 }, { rule = "PLR1736", file = "case.py", start = 87, end = 98 }]
+
+[[cases]]
+name = "ordered-mutation-11"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data):\n    print(data[index])\n    data[other]:int=0\n    print(data[index])\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 46, end = 57 }, { rule = "PLR1736", file = "case.py", start = 91, end = 102 }]
+
+[[cases]]
+name = "ordered-mutation-12"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data):\n    print(data[index])\n    index+=data[index]\n    print(data[index])\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 46, end = 57 }]
+
+[[cases]]
+name = "ordered-mutation-13"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data):\n    print(data[index])\n    other+=data[index]\n    print(data[index])\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 46, end = 57 }, { rule = "PLR1736", file = "case.py", start = 70, end = 81 }, { rule = "PLR1736", file = "case.py", start = 92, end = 103 }]
+
+[[cases]]
+name = "ordered-mutation-14"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data):\n    print(data[index])\n    data[index]+=data[index]\n    print(data[index])\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 46, end = 57 }]
+
+[[cases]]
+name = "ordered-mutation-15"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data):\n    print(data[index])\n    del index\n    print(data[index])\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 46, end = 57 }]
+
+[[cases]]
+name = "ordered-mutation-16"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data):\n    print(data[index])\n    del value\n    print(data[index])\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 46, end = 57 }]
+
+[[cases]]
+name = "ordered-mutation-17"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data):\n    print(data[index])\n    del data\n    print(data[index])\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 46, end = 57 }]
+
+[[cases]]
+name = "ordered-mutation-18"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data):\n    print(data[index])\n    del data[index]\n    print(data[index])\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 46, end = 57 }]
+
+[[cases]]
+name = "ordered-mutation-19"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data):\n    print(data[index])\n    del other[data[index]]\n    print(data[index])\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 46, end = 57 }, { rule = "PLR1736", file = "case.py", start = 96, end = 107 }]
+
+[[cases]]
+name = "ordered-mutation-20"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data):\n    print(data[index])\n    index,other=(0,0)\n    print(data[index])\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 46, end = 57 }, { rule = "PLR1736", file = "case.py", start = 91, end = 102 }]
+
+[[cases]]
+name = "ordered-mutation-21"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data):\n    print(data[index])\n    (data[index],other)=(0,0)\n    print(data[index])\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 46, end = 57 }, { rule = "PLR1736", file = "case.py", start = 99, end = 110 }]
+
+[[cases]]
+name = "ordered-mutation-22"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data):\n    print(data[index])\n    if flag:\n        index=0\n    print(data[index])\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 46, end = 57 }]
+
+[[cases]]
+name = "ordered-mutation-23"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data):\n    print(data[index])\n    def nested(index):\n        index=0\n    print(data[index])\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 46, end = 57 }]
+
+[[cases]]
+name = "ordered-mutation-24"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data):\n    print(data[index])\n    class Nested:\n        value=0\n    print(data[index])\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 46, end = 57 }]
+
+[[cases]]
+name = "ordered-mutation-25"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data):\n    print(data[index])\n    for index in other:\n        pass\n    print(data[index])\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 46, end = 57 }, { rule = "PLR1736", file = "case.py", start = 106, end = 117 }]
+
+[[cases]]
+name = "ordered-mutation-26"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data):\n    print(data[index])\n    with factory() as index:\n        pass\n    print(data[index])\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 46, end = 57 }, { rule = "PLR1736", file = "case.py", start = 111, end = 122 }]
+
+[[cases]]
+name = "ordered-mutation-27"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data):\n    print(data[index])\n    try:\n        pass\n    except Exception as index:\n        pass\n    print(data[index])\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 46, end = 57 }, { rule = "PLR1736", file = "case.py", start = 135, end = 146 }]
+
+[[cases]]
+name = "nested-loop-contexts"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data):\n    for index,value in enumerate(data):\n        print(data[index])\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 90, end = 101 }, { rule = "PLR1736", file = "case.py", start = 90, end = 101 }]
+
+[[cases]]
+name = "rhs-stopped-before-evaluation"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data):\n    index=data[index]\n    print(data[index])\n" }
+expected = []
+
+[[cases]]
+name = "named-expression-not-statement-mutation"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data):\n    print((index:=data[index]))\n    print(data[index])\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 54, end = 65 }, { rule = "PLR1736", file = "case.py", start = 78, end = 89 }]
+
+[[cases]]
+name = "annotation-only-does-not-visit"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data):\n    index:data[index]\n    print(data[index])\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 68, end = 79 }]
+
+[[cases]]
+name = "expression-before-modification-in-condition"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data):\n    if data[index]:\n        index=0\n    print(data[index])\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 43, end = 54 }]
+
+[[cases]]
+name = "call-argument-order"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data):\n    print(x=data[index],*(data[index],))\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 48, end = 59 }, { rule = "PLR1736", file = "case.py", start = 62, end = 73 }]
+
+[[cases]]
+name = "conditional-expression"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data):\n    print(data[index] if data[index] else data[index])\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 46, end = 57 }, { rule = "PLR1736", file = "case.py", start = 61, end = 72 }, { rule = "PLR1736", file = "case.py", start = 78, end = 89 }]
+
+[[cases]]
+name = "comprehension-policy-0"
+comparison = "full"
+files = { "case.py" = "x=[data[index] for index,value in enumerate(data)]\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 3, end = 14 }]
+
+[[cases]]
+name = "comprehension-policy-1"
+comparison = "full"
+files = { "case.py" = "x={data[index] for index,value in enumerate(data)}\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 3, end = 14 }]
+
+[[cases]]
+name = "comprehension-policy-2"
+comparison = "full"
+files = { "case.py" = "x=(data[index] for index,value in enumerate(data))\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 3, end = 14 }]
+
+[[cases]]
+name = "comprehension-policy-3"
+comparison = "full"
+files = { "case.py" = "x={data[index]: other for index,value in enumerate(data)}\n" }
+expected = []
+
+[[cases]]
+name = "comprehension-policy-4"
+comparison = "full"
+files = { "case.py" = "x={other:data[index] for index,value in enumerate(data)}\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 9, end = 20 }]
+
+[[cases]]
+name = "comprehension-policy-5"
+comparison = "full"
+files = { "case.py" = "x=[other for index,value in enumerate(data) if data[index]]\n" }
+expected = []
+
+[[cases]]
+name = "comprehension-policy-6"
+comparison = "full"
+files = { "case.py" = "x=[data[index] for index,value in enumerate(data) if data[index]]\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 3, end = 14 }]
+
+[[cases]]
+name = "comprehension-policy-7"
+comparison = "full"
+files = { "case.py" = "x=[data[index] for ignored in xs for index,value in enumerate(data)]\n" }
+expected = []
+
+[[cases]]
+name = "comprehension-policy-8"
+comparison = "full"
+files = { "case.py" = "x=[data[index] for index,value in enumerate(data) for ignored in xs]\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 3, end = 14 }]
+
+[[cases]]
+name = "comprehension-policy-9"
+comparison = "full"
+files = { "case.py" = "x=[data[index] for index,value in enumerate(data) for j,w in enumerate(data)]\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 3, end = 14 }]
+
+[[cases]]
+name = "comprehension-policy-10"
+comparison = "full"
+files = { "case.py" = "x=[data[index] for index,value in enumerate(data) if (index:=0)]\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 3, end = 14 }, { rule = "invalid-syntax", file = "case.py", start = 54, end = 59 }]
+
+[[cases]]
+name = "enumerate-arguments-0"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data):\n    print(data[index])\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 46, end = 57 }]
+
+[[cases]]
+name = "enumerate-arguments-1"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data,0):\n    print(data[index])\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 48, end = 59 }]
+
+[[cases]]
+name = "enumerate-arguments-2"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data,0x0):\n    print(data[index])\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 50, end = 61 }]
+
+[[cases]]
+name = "enumerate-arguments-3"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data,+0):\n    print(data[index])\n" }
+expected = []
+
+[[cases]]
+name = "enumerate-arguments-4"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data,-0):\n    print(data[index])\n" }
+expected = []
+
+[[cases]]
+name = "enumerate-arguments-5"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data,False):\n    print(data[index])\n" }
+expected = []
+
+[[cases]]
+name = "enumerate-arguments-6"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data,start=0):\n    print(data[index])\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 54, end = 65 }]
+
+[[cases]]
+name = "enumerate-arguments-7"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data,start=1):\n    print(data[index])\n" }
+expected = []
+
+[[cases]]
+name = "enumerate-arguments-8"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data,1,start=0):\n    print(data[index])\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 56, end = 67 }]
+
+[[cases]]
+name = "enumerate-arguments-9"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data,0,start=1):\n    print(data[index])\n" }
+expected = []
+
+[[cases]]
+name = "enumerate-arguments-10"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data,0,extra):\n    print(data[index])\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 54, end = 65 }]
+
+[[cases]]
+name = "enumerate-arguments-11"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data,*args):\n    print(data[index])\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 52, end = 63 }]
+
+[[cases]]
+name = "enumerate-arguments-12"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data,*args,start=0):\n    print(data[index])\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 60, end = 71 }]
+
+[[cases]]
+name = "enumerate-arguments-13"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data,*args,start=1):\n    print(data[index])\n" }
+expected = []
+
+[[cases]]
+name = "enumerate-arguments-14"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data,**kw):\n    print(data[index])\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 51, end = 62 }]
+
+[[cases]]
+name = "enumerate-arguments-15"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(iterable=data):\n    print(data[index])\n" }
+expected = []
+
+[[cases]]
+name = "enumerate-arguments-16"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(*args):\n    print(data[index])\n" }
+expected = []
+
+[[cases]]
+name = "enumerate-arguments-17"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data,unknown=1):\n    print(data[index])\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 56, end = 67 }]
+
+[[cases]]
+name = "builtin-aliases"
+comparison = "full"
+files = { "case.py" = "from builtins import enumerate as E\nfor index,value in E(data):\n    print(data[index])\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 74, end = 85 }]
+
+[[cases]]
+name = "builtin-qualified"
+comparison = "full"
+files = { "case.py" = "import builtins\nfor index,value in builtins.enumerate(data):\n    print(data[index])\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 71, end = 82 }]
+
+[[cases]]
+name = "shadowed-enumerate"
+comparison = "full"
+files = { "case.py" = "enumerate=unknown\nfor index,value in enumerate(data):\n    print(data[index])\n" }
+expected = []
+
+[[cases]]
+name = "assignment-alias"
+comparison = "full"
+files = { "case.py" = "E=enumerate\nfor index,value in E(data):\n    print(data[index])\n" }
+expected = []
+
+[[cases]]
+name = "inline-suppression"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data):\n    print(data[index])  # noqa: PLR1736\n" }
+expected = []
+
+[[cases]]
+name = "blanket-suppression"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data):\n    print(data[index])  # noqa\n" }
+expected = []
+
+[[cases]]
+name = "file-suppression"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa: PLR1736\nfor index,value in enumerate(data):\n    print(data[index])\n" }
+expected = []
+
+[[cases]]
+name = "wrong-code-unsuppressed"
+comparison = "full"
+files = { "case.py" = "for index,value in enumerate(data):\n    print(data[index])  # noqa: F401\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 46, end = 57 }]
+
+[[cases]]
+name = "block-suppression"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[PLR1736]\nfor index,value in enumerate(data):\n    print(data[index])\n# ruff: enable[PLR1736]\nfor index,value in enumerate(data):\n    print(data[index])\n" }
+expected = [{ rule = "PLR1736", file = "case.py", start = 154, end = 165 }]
+
+[[cases]]
+name="visitor-structure-0"
+comparison="full"
+files={"case.py"="for index,value in enumerate(data):\n    def nested(x:\"data[index]\"):\n        pass\n    print(data[index])\n"}
+expected=[{rule="PLR1736", file="case.py", start=92, end=103}]
+
+[[cases]]
+name="visitor-structure-1"
+comparison="full"
+files={"case.py"="for index,value in enumerate(data):\n    def nested(x:data[index]=data[index])->data[index]:\n        print(data[index])\n"}
+expected=[{rule="PLR1736", file="case.py", start=53, end=64}, {rule="PLR1736", file="case.py", start=65, end=76}, {rule="PLR1736", file="case.py", start=79, end=90}, {rule="PLR1736", file="case.py", start=106, end=117}]
+
+[[cases]]
+name="visitor-structure-2"
+comparison="full"
+files={"case.py"="for index,value in enumerate(data):\n    def index():\n        pass\n    print(data[index])\n"}
+expected=[{rule="PLR1736", file="case.py", start=76, end=87}]
+
+[[cases]]
+name="visitor-structure-3"
+comparison="full"
+files={"case.py"="for index,value in enumerate(data):\n    class value:\n        pass\n    print(data[index])\n"}
+expected=[{rule="PLR1736", file="case.py", start=76, end=87}]
+
+[[cases]]
+name="visitor-structure-4"
+comparison="full"
+files={"case.py"="for index,value in enumerate(data):\n    import data\n    print(data[index])\n"}
+expected=[{rule="PLR1736", file="case.py", start=62, end=73}]
+
+[[cases]]
+name="visitor-structure-5"
+comparison="full"
+files={"case.py"="for index,value in enumerate(data):\n    from pkg import index\n    print(data[index])\n"}
+expected=[{rule="PLR1736", file="case.py", start=72, end=83}]
+
+[[cases]]
+name="visitor-structure-6"
+comparison="full"
+files={"case.py"="for index,value in enumerate(data):\n    try:\n        print(data[index])\n    except data[index] as index:\n        print(data[index])\n"}
+expected=[{rule="PLR1736", file="case.py", start=59, end=70}, {rule="PLR1736", file="case.py", start=83, end=94}, {rule="PLR1736", file="case.py", start=119, end=130}]
+
+[[cases]]
+name="visitor-structure-7"
+comparison="full"
+files={"case.py"="for index,value in enumerate(data):\n    try:\n        index=0\n    except Exception:\n        print(data[index])\n"}
+expected=[]
+
+[[cases]]
+name="visitor-structure-8"
+comparison="full"
+files={"case.py"="for index,value in enumerate(data):\n    with data[index] as index:\n        print(data[index])\n"}
+expected=[{rule="PLR1736", file="case.py", start=45, end=56}, {rule="PLR1736", file="case.py", start=81, end=92}]
+
+[[cases]]
+name="visitor-structure-9"
+comparison="full"
+files={"case.py"="for index,value in enumerate(data):\n    if data[index]:\n        print(data[index])\n    elif data[index]:\n        index=0\n    else:\n        print(data[index])\n"}
+expected=[{rule="PLR1736", file="case.py", start=43, end=54}, {rule="PLR1736", file="case.py", start=70, end=81}, {rule="PLR1736", file="case.py", start=92, end=103}]
+
+[[cases]]
+name="visitor-structure-10"
+comparison="full"
+files={"case.py"="for index,value in enumerate(data):\n    match obj:\n        case {\"index\":index}:\n            print(data[index])\n"}
+expected=[{rule="PLR1736", file="case.py", start=99, end=110}]
+
+[[cases]]
+name="visitor-structure-11"
+comparison="full"
+files={"case.py"="for index,value in enumerate(data):\n    index=0 # noqa: PLR1736\n    print(data[index])\n"}
+expected=[]
+
+[[cases]]
+name="two-files-context-and-span-identities"
+comparison="full"
+files={"a.py"="for index,value in enumerate(data):\n    print(data[index])\n", "b.py"="for index,value in enumerate(data):\n    print(data[index])\n    index=0\n    print(data[index])\n"}
+expected=[{rule="PLR1736", file="a.py", start=46, end=57}, {rule="PLR1736", file="b.py", start=46, end=57}]
+
+[[cases]]
+name="triple-nested-context-multiplicity"
+comparison="full"
+files={"case.py"="for index,value in enumerate(data):\n    for index,value in enumerate(data):\n        for index,value in enumerate(data):\n            print(data[index])\n"}
+expected=[{rule="PLR1736", file="case.py", start=138, end=149}, {rule="PLR1736", file="case.py", start=138, end=149}, {rule="PLR1736", file="case.py", start=138, end=149}]
+
+[[cases]]
+name="quoted-comprehension-not-native"
+comparison="full"
+files={"case.py"="def f(x:\"[data[index] for index,value in enumerate(data)]\"):\n    pass\n"}
+expected=[{rule="PLR1736", file="case.py", start=10, end=21}]
+
+[[cases]]
+name="quoted-comprehension-in-loop"
+comparison="full"
+files={"case.py"="for index,value in enumerate(data):\n    def f(x:\"[data[index] for index,value in enumerate(data)]\"):\n        pass\n    print(data[index])\n"}
+expected=[{rule="PLR1736", file="case.py", start=50, end=61}, {rule="PLR1736", file="case.py", start=124, end=135}]

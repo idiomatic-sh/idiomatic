@@ -1,7 +1,7 @@
 //! The `capture` operator: match paths against a pattern with named slots and append what the slots matched.
 
 use ryo_language::domain::relations::types::{CellKind, Value};
-use ryo_language::domain::symbols::service::intern_derived;
+use ryo_language::domain::symbols::service::query_intern_derived;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::terms::types::NameText;
 
@@ -149,7 +149,7 @@ fn capture_row(
         let mut ways = 0;
         text.clear();
         let texts = Texts {
-            symbols,
+            symbols: symbols.as_ref(),
             source: *source,
             paths,
             arenas,
@@ -166,12 +166,12 @@ fn capture_row(
             places,
             &mut |slots| {
                 for place in &slots.0 {
-                    let made = intern_derived(
+                    let made = query_intern_derived(
                         symbols,
                         ByteSlice(source.0),
                         NameText(text.get(place.clone()).unwrap_or_default()),
                     );
-                    captured.push(minted(symbols, made, after));
+                    captured.push(minted(symbols.as_ref(), made, after));
                 }
                 ways += 1;
             },

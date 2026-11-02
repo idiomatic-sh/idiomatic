@@ -1,0 +1,67 @@
+{
+  "schema": "file-program-demand-followup/v1",
+  "worker_sha256": "934872341208654f3e8228aae360131703417cacd27d4dfbb8fbbcd437364bb5",
+  "scope": {
+    "rules": 310,
+    "files": 2875,
+    "corpus": "frozen Django 3.10",
+    "phase": "cold",
+    "rayon_threads": 1,
+    "graph_default": "off"
+  },
+  "gate": {
+    "summary_sha256": "7616606c43e4d5bc4c96f9a1545b629b97a552584aceb841e1d93b31030d1521",
+    "passed_steps": [
+      "core-lib",
+      "core-bdd",
+      "python-lib",
+      "benchmark-lib",
+      "python-release"
+    ],
+    "core_tests": 392,
+    "python_tests": 197,
+    "benchmark_tests": 101,
+    "source_stable": true
+  },
+  "one_file": {
+    "full_stdout_equal": true,
+    "target_node": 1504,
+    "target_hits": 11,
+    "ancestor_pruned": 44,
+    "event_counts": {
+      "native_tree_admission": 1,
+      "complete_relations": 1,
+      "cut_decision": 67899,
+      "publish": 5,
+      "publish_refused": 3357,
+      "hit": 317,
+      "ancestor_pruned": 44,
+      "release": 2,
+      "null": 1
+    },
+    "diagnostic_intrusive": true
+  },
+  "ordinary_cold": {
+    "off": {
+      "wall_seconds": 248.623745115,
+      "cpu_seconds": 246.53282,
+      "peak_rss_bytes": 2240929792,
+      "report_sha256": "02b96f5f6ef01be201ae8e980dd7a90686702b0f47ecd89d271c2b63f5f5ac9f"
+    },
+    "on": {
+      "wall_seconds": 435.76741371,
+      "cpu_seconds": 435.438996,
+      "peak_rss_bytes": 2237972480,
+      "report_sha256": "02b96f5f6ef01be201ae8e980dd7a90686702b0f47ecd89d271c2b63f5f5ac9f"
+    },
+    "report_exact": true,
+    "wall_ratio_on_over_off": 1.7527184039015962,
+    "cpu_ratio_on_over_off": 1.7662516333525087
+  },
+  "limitations": [
+    "single cold pair across restart and cleanup",
+    "off result from older source sealed84cf; on result from demand/dedup sealed9348",
+    "cannot attribute slowdown to a specific graph component without profile",
+    "full413 and two additional corpora remain open"
+  ]
+}

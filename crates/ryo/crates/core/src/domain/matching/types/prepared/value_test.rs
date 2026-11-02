@@ -65,7 +65,7 @@ fn evaluate(
         prepared_matchers: prepared,
         stored_indexes: None,
         bindings,
-        symbols: &mut symbols,
+        symbols: (&mut symbols).into(),
         source: SourceView(b""),
         paths: &[],
         arenas: &[],

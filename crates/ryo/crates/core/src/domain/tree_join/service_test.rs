@@ -150,7 +150,7 @@ fn either_side() {
             prepared_matchers: None,
             stored_indexes: None,
             bindings: &[],
-            symbols: &mut symbols,
+            symbols: (&mut symbols).into(),
             source: SourceView(b"abcd"),
             paths: &[],
             arenas: &[],

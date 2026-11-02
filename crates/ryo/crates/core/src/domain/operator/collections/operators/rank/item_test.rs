@@ -69,7 +69,7 @@ fn subject((names, binding): Input) -> Result<Value, Failure> {
         prepared_matchers: None,
         stored_indexes: None,
         bindings: &bound,
-        symbols: &mut symbols,
+        symbols: (&mut symbols).into(),
         source: SourceView(bytes),
         paths: &[],
         arenas: &[],

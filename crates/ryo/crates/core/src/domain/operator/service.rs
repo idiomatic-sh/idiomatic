@@ -27,9 +27,13 @@ use super::collections::operators::{
     ordered_dfs::item::OrderedDfsItem, ordered_match::item::OrderedMatchItem,
     replace::item::ReplaceItem,
 };
-use super::types::{Pool, RowsFed};
+use super::types::{AbsencePolicy, Pool, RegisteredOperator, RowsFed};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::{Emit, Feed, OperatorContext, Room};
+use crate::domain::operation_schema::service::{
+    join_schema, project_schema, select_schema, source_matches_schema, span_bounds_schema,
+    union_schema,
+};
 
 use crate::domain::coverage::service::drop_uncertain;
 use crate::domain::coverage::types::Partials;
@@ -37,11 +41,126 @@ use crate::domain::table_model::service::{copy_table, count_of, kinds_of};
 use crate::domain::table_model::types::{Frontier, RowCount, Rows, Table};
 use crate::domain::trust::service::{files_for, needs_of};
 use ryo_values::domain::plan_parts::service::step_in;
-use ryo_values::domain::plan_parts::types::Input;
+use ryo_values::domain::plan_parts::types::{Input, InputCount, Inputs};
 use ryo_values::domain::plans::service::inputs_of;
 use ryo_values::domain::plans::service::named;
 use ryo_values::domain::plans::service::step_scope;
-use ryo_values::domain::plans::types::{Operation, Plan, StepScope};
+use ryo_values::domain::plans::types::{Operation, OperationKind, Plan, StepScope};
+
+/// One executable pilot registry. Other variants retain exhaustive legacy
+/// dispatch until they have equivalent metadata and conformance fixtures.
+static PROJECT_OPERATOR: RegisteredOperator = RegisteredOperator {
+    kind: OperationKind::Project,
+    item: &ProjectItem,
+    schema: project_schema,
+    input: project_input,
+    absence: AbsencePolicy::PositiveRows,
+};
+static SELECT_OPERATOR: RegisteredOperator = RegisteredOperator {
+    kind: OperationKind::Select,
+    item: &SelectItem,
+    schema: select_schema,
+    input: select_input,
+    absence: AbsencePolicy::PositiveRows,
+};
+static JOIN_OPERATOR: RegisteredOperator = RegisteredOperator {
+    kind: OperationKind::Join,
+    item: &JoinItem,
+    schema: join_schema,
+    input: join_input,
+    absence: AbsencePolicy::PositiveRows,
+};
+static UNION_OPERATOR: RegisteredOperator = RegisteredOperator {
+    kind: OperationKind::Union,
+    item: &UnionItem,
+    schema: union_schema,
+    input: union_input,
+    absence: AbsencePolicy::PositiveRows,
+};
+static SOURCE_MATCHES_OPERATOR: RegisteredOperator = RegisteredOperator {
+    kind: OperationKind::SourceMatches,
+    item: &SourceMatchesItem,
+    schema: source_matches_schema,
+    input: source_matches_input,
+    absence: AbsencePolicy::PositiveRows,
+};
+static SPAN_BOUNDS_OPERATOR: RegisteredOperator = RegisteredOperator {
+    kind: OperationKind::SpanBounds,
+    item: &SpanBoundsItem,
+    schema: span_bounds_schema,
+    input: span_bounds_input,
+    absence: AbsencePolicy::PositiveRows,
+};
+
+fn one_input(from: Input) -> Inputs {
+    Inputs {
+        list: [from; 3],
+        used: InputCount(1),
+    }
+}
+
+fn two_inputs(left: Input, right: Input) -> Inputs {
+    Inputs {
+        list: [left, right, left],
+        used: InputCount(2),
+    }
+}
+
+fn select_input(operation: &Operation) -> Result<Inputs, OperatingError> {
+    let Operation::Select { from, .. } = operation else {
+        return Err(OperatingError::WrongOperation);
+    };
+    Ok(one_input(*from))
+}
+
+fn project_input(operation: &Operation) -> Result<Inputs, OperatingError> {
+    let Operation::Project { from, .. } = operation else {
+        return Err(OperatingError::WrongOperation);
+    };
+    Ok(one_input(*from))
+}
+
+fn join_input(operation: &Operation) -> Result<Inputs, OperatingError> {
+    let Operation::Join { left, right, .. } = operation else {
+        return Err(OperatingError::WrongOperation);
+    };
+    Ok(two_inputs(*left, *right))
+}
+
+fn union_input(operation: &Operation) -> Result<Inputs, OperatingError> {
+    let Operation::Union { left, right } = operation else {
+        return Err(OperatingError::WrongOperation);
+    };
+    Ok(two_inputs(*left, *right))
+}
+
+fn source_matches_input(operation: &Operation) -> Result<Inputs, OperatingError> {
+    let Operation::SourceMatches { from, .. } = operation else {
+        return Err(OperatingError::WrongOperation);
+    };
+    Ok(one_input(*from))
+}
+
+fn span_bounds_input(operation: &Operation) -> Result<Inputs, OperatingError> {
+    let Operation::SpanBounds { from, .. } = operation else {
+        return Err(OperatingError::WrongOperation);
+    };
+    Ok(one_input(*from))
+}
+
+/// The current registered subset only. An unregistered variant stays on its
+/// existing exhaustive dispatch and cannot silently acquire shared policy.
+pub(crate) fn pilot(operation: &Operation) -> Option<&'static RegisteredOperator> {
+    match operation {
+        Operation::Select { .. } => Some(&SELECT_OPERATOR),
+        Operation::Project { .. } => Some(&PROJECT_OPERATOR),
+        Operation::Join { .. } => Some(&JOIN_OPERATOR),
+        Operation::Union { .. } => Some(&UNION_OPERATOR),
+        Operation::SourceMatches { .. } => Some(&SOURCE_MATCHES_OPERATOR),
+        Operation::SpanBounds { .. } => Some(&SPAN_BOUNDS_OPERATOR),
+        _ => None,
+    }
+}
 
 /// Computes one step with the operator its operation is, into `out`, whose room it reuses.
 ///
@@ -56,11 +175,23 @@ pub(crate) fn operate(
     emit: &mut dyn Emit,
 ) -> Result<(), OperatingError> {
     match operation {
-        Operation::Select { .. } => SelectItem.stream(operation, ins, context, room, emit),
-        Operation::Project { .. } => ProjectItem.stream(operation, ins, context, room, emit),
+        Operation::Select { .. } => pilot(operation)
+            .expect("registered Select")
+            .item
+            .stream(operation, ins, context, room, emit),
+        Operation::Project { .. } => pilot(operation)
+            .expect("registered Project")
+            .item
+            .stream(operation, ins, context, room, emit),
         Operation::Extend { .. } => ExtendItem.stream(operation, ins, context, room, emit),
-        Operation::Join { .. } => JoinItem.stream(operation, ins, context, room, emit),
-        Operation::Union { .. } => UnionItem.stream(operation, ins, context, room, emit),
+        Operation::Join { .. } => pilot(operation)
+            .expect("registered Join")
+            .item
+            .stream(operation, ins, context, room, emit),
+        Operation::Union { .. } => pilot(operation)
+            .expect("registered Union")
+            .item
+            .stream(operation, ins, context, room, emit),
         Operation::Intersection { .. } => {
             IntersectionItem.stream(operation, ins, context, room, emit)
         }
@@ -70,10 +201,14 @@ pub(crate) fn operate(
         Operation::SpanBetween { .. } => {
             SpanBetweenItem.stream(operation, ins, context, room, emit)
         }
-        Operation::SourceMatches { .. } => {
-            SourceMatchesItem.stream(operation, ins, context, room, emit)
-        }
-        Operation::SpanBounds { .. } => SpanBoundsItem.stream(operation, ins, context, room, emit),
+        Operation::SourceMatches { .. } => pilot(operation)
+            .expect("registered SourceMatches")
+            .item
+            .stream(operation, ins, context, room, emit),
+        Operation::SpanBounds { .. } => pilot(operation)
+            .expect("registered SpanBounds")
+            .item
+            .stream(operation, ins, context, room, emit),
         Operation::OrderedMatch { .. } => {
             OrderedMatchItem.stream(operation, ins, context, room, emit)
         }
@@ -102,20 +237,36 @@ pub(crate) fn compute(
     out: &mut Table,
 ) -> Result<(), OperatingError> {
     match operation {
-        Operation::Select { .. } => SelectItem.compute(operation, inputs, context, out),
-        Operation::Project { .. } => ProjectItem.compute(operation, inputs, context, out),
+        Operation::Select { .. } => pilot(operation)
+            .expect("registered Select")
+            .item
+            .compute(operation, inputs, context, out),
+        Operation::Project { .. } => pilot(operation)
+            .expect("registered Project")
+            .item
+            .compute(operation, inputs, context, out),
         Operation::Extend { .. } => ExtendItem.compute(operation, inputs, context, out),
-        Operation::Join { .. } => JoinItem.compute(operation, inputs, context, out),
-        Operation::Union { .. } => UnionItem.compute(operation, inputs, context, out),
+        Operation::Join { .. } => pilot(operation)
+            .expect("registered Join")
+            .item
+            .compute(operation, inputs, context, out),
+        Operation::Union { .. } => pilot(operation)
+            .expect("registered Union")
+            .item
+            .compute(operation, inputs, context, out),
         Operation::Intersection { .. } => IntersectionItem.compute(operation, inputs, context, out),
         Operation::Difference { .. } => DifferenceItem.compute(operation, inputs, context, out),
         Operation::Antijoin { .. } => AntijoinItem.compute(operation, inputs, context, out),
         Operation::Replace { .. } => ReplaceItem.compute(operation, inputs, context, out),
         Operation::SpanBetween { .. } => SpanBetweenItem.compute(operation, inputs, context, out),
-        Operation::SourceMatches { .. } => {
-            SourceMatchesItem.compute(operation, inputs, context, out)
-        }
-        Operation::SpanBounds { .. } => SpanBoundsItem.compute(operation, inputs, context, out),
+        Operation::SourceMatches { .. } => pilot(operation)
+            .expect("registered SourceMatches")
+            .item
+            .compute(operation, inputs, context, out),
+        Operation::SpanBounds { .. } => pilot(operation)
+            .expect("registered SpanBounds")
+            .item
+            .compute(operation, inputs, context, out),
         Operation::OrderedMatch { .. } => OrderedMatchItem.compute(operation, inputs, context, out),
         Operation::OrderedDfs { .. } => OrderedDfsItem.compute(operation, inputs, context, out),
         Operation::GroupCount { .. } => GroupCountItem.compute(operation, inputs, context, out),

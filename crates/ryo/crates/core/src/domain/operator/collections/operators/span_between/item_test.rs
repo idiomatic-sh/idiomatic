@@ -78,7 +78,7 @@ fn subject((left, right, source): Input) -> Result<Span, Failure> {
         prepared_matchers: None,
         stored_indexes: None,
         bindings: &[],
-        symbols: &mut symbols,
+        symbols: (&mut symbols).into(),
         source: SourceView(source),
         paths: &[],
         arenas: &[],

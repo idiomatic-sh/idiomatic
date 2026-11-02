@@ -13,16 +13,20 @@ pub(crate) fn take_read_row_counts() -> (u64, u64) {
     READ_ROW_COUNTS.with(|counts| counts.replace((0, 0)))
 }
 
-use ryo_language::domain::elements::service::real_count;
-use ryo_language::domain::relations::service::from_bits;
+use ryo_language::domain::elements::service::{
+    has_incomplete_syntax, kind_names, real_count, syntax_acceptance,
+};
+use ryo_language::domain::elements::types::SyntaxAcceptance;
+use ryo_language::domain::relations::service::{from_bits, kinds};
 use ryo_language::domain::relations::types::{
-    Bits, CellKind, ColumnsView, Flag, Integer, Position, Value,
+    Bits, CellKind, ColumnsView, Flag, Integer, Position, Relation, Value,
 };
 
 use super::errors::TableModelError;
 use super::types::{
     ChainLink, Emptiness, HashWord, KeyCellsHash, KeyIndex, On, RowCount, Rows, Table,
 };
+use crate::domain::coverage::types::Partial;
 use crate::domain::table_cells::service::{edge_of, element_of};
 use crate::domain::table_cells::types::{RowIndex, TreeForm, TreeRows};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -355,6 +359,47 @@ pub(crate) fn rectangular(view: ColumnsView<'_>) -> bool {
     let count = view.columns.first().map_or(0, |column| column.0.len());
     view.columns.len() == view.kinds.len()
         && view.columns.iter().all(|column| column.0.len() == count)
+}
+
+/// Whether the actual relation reader supplies one complete, stable file population for
+/// successful-result reuse. The caller must pass the source the executor will actually read;
+/// native syntax rows come from the file-owned tree even when the facts adapter exposes a
+/// vacant relation view. That tree and its source generation remain unchanged for the rule loop.
+pub(crate) fn complete_for_reuse(
+    relation: Relation,
+    rows: &Rows<'_>,
+    partials: &[Partial],
+    stable: bool,
+) -> bool {
+    if !stable || partials.iter().any(|partial| partial.relation == relation) {
+        return false;
+    }
+    match rows {
+        Rows::Stored(view) => {
+            rectangular(*view)
+                && view.kinds == kinds(relation)
+                && view
+                    .columns
+                    .first()
+                    .is_none_or(|column| column.0.len() <= u32::MAX as usize)
+        }
+        Rows::Tree(tree) if relation == Relation::SyntaxTree && tree.form == TreeForm::Elements => {
+            let elements = tree.elements;
+            let count = real_count(elements).0;
+            let names = kind_names(elements);
+            syntax_acceptance(elements) == SyntaxAcceptance::Accepted
+                && !has_incomplete_syntax(elements)
+                && count <= u32::MAX as usize
+                && elements.start.len() == count
+                && elements.end.len() == count
+                && elements.text.len() == count
+                && elements
+                    .kind
+                    .iter()
+                    .all(|kind| usize::from(kind.0) < names.len())
+        }
+        Rows::Tree(_) | Rows::Computed(_) | Rows::Selected(_) => false,
+    }
 }
 
 /// Decode one typed stored cell, preserving normalization such as nonzero flag encodings.

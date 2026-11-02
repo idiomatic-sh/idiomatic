@@ -326,8 +326,15 @@ pub(crate) fn run<'a, 'f>(
 where
     'f: 'a,
 {
-    if stepper.layout.kept.0.get(id.0) == Some(&true) {
+    if stepper.layout.kept.0.get(id.0) == Some(&true) || stepper.graph_kept.get(id.0) == Some(&true)
+    {
         let id = id.0;
+        if let Some(table) = stepper.shared.get(id).and_then(Option::as_ref) {
+            let mut buffer = stepper.spare.pop().unwrap_or_default();
+            let outcome = scan(&Rows::Computed(table.as_ref()), &mut buffer, context, emit);
+            stepper.spare.push(buffer);
+            return outcome;
+        }
         let table = stepper.done.get(id).ok_or(OperatingError::NotRun)?;
         let rows = CompactInput::new(stepper).kept(id, table)?;
         let mut buffer = stepper.spare.pop().unwrap_or_default();
@@ -389,7 +396,12 @@ where
         Input::Relation(relation) => Ok(stepper.read.rows(relation)?),
         Input::Step(id) => {
             let id = usize::try_from(id.0).unwrap_or(usize::MAX);
-            if stepper.layout.kept.0.get(id) == Some(&true) {
+            if stepper.layout.kept.0.get(id) == Some(&true)
+                || stepper.graph_kept.get(id) == Some(&true)
+            {
+                if let Some(table) = stepper.shared.get(id).and_then(Option::as_ref) {
+                    return Ok(Rows::Computed(table.as_ref()));
+                }
                 let table = stepper.done.get(id).ok_or(OperatingError::NotRun)?;
                 return CompactInput::new(stepper).kept(id, table);
             }
@@ -413,6 +425,7 @@ where
 /// # Errors
 ///
 /// Whatever an operator refuses, or `NotRun`/`NotRead` when a step reads what nothing provides.
+#[cfg(test)]
 pub(crate) fn evaluate_file<'f>(
     plan: &Plan,
     relations: &dyn Fn(Relation) -> Option<ColumnsView<'f>>,
@@ -421,6 +434,77 @@ pub(crate) fn evaluate_file<'f>(
     pool: &mut Pool,
     prepared: &mut PreparedPool,
     classes: &[crate::domain::positions::types::Slots],
+) -> Result<(), OperatingError> {
+    evaluate_file_with_graph(
+        plan, relations, tree, context, pool, prepared, classes, None, 0,
+    )
+}
+
+/// Opt-in request graph execution; the ordinary entry point above keeps the
+/// production strategy and its failure order unchanged.
+/// Preserve ordinary eager roots, except pure ancestors already satisfied by a
+/// retained successful cut. A dependency used elsewhere stays live. The caller
+/// pins the retained tables until this rule completes, so publication cannot
+/// evict the cut after this demand decision.
+fn demanded_steps(plan: &Plan, eager: &[bool], cached: &[bool]) -> Vec<bool> {
+    let dependencies = |index: usize| plan.steps.get(index).map(|step| inputs_of(&step.operation));
+    let mut bypassed = vec![false; plan.steps.len()];
+    let mut pending = Vec::new();
+    for (index, retained) in cached.iter().enumerate() {
+        if *retained && let Some(inputs) = dependencies(index) {
+            pending.extend(named(&inputs).iter().copied());
+        }
+    }
+    while let Some(input) = pending.pop() {
+        let Input::Step(step) = input else { continue };
+        let index = step.0 as usize;
+        let Some(seen) = bypassed.get_mut(index) else {
+            continue;
+        };
+        if *seen {
+            continue;
+        }
+        *seen = true;
+        if let Some(inputs) = dependencies(index) {
+            pending.extend(named(&inputs).iter().copied());
+        }
+    }
+    let mut demanded = vec![false; plan.steps.len()];
+    pending.push(Input::Step(plan.emit.step));
+    pending.extend(plan.frontier.iter().copied());
+    pending.extend(eager.iter().enumerate().filter_map(|(index, eager)| {
+        (*eager && !bypassed[index]).then_some(Input::Step(StepId(index as u32)))
+    }));
+    while let Some(input) = pending.pop() {
+        let Input::Step(step) = input else { continue };
+        let index = step.0 as usize;
+        let Some(seen) = demanded.get_mut(index) else {
+            continue;
+        };
+        if *seen {
+            continue;
+        }
+        *seen = true;
+        if cached.get(index) == Some(&true) {
+            continue;
+        }
+        if let Some(inputs) = dependencies(index) {
+            pending.extend(named(&inputs).iter().copied());
+        }
+    }
+    demanded
+}
+
+pub(crate) fn evaluate_file_with_graph<'f>(
+    plan: &Plan,
+    relations: &dyn Fn(Relation) -> Option<ColumnsView<'f>>,
+    tree: Option<TreeRows<'f>>,
+    context: &mut OperatorContext<'_>,
+    pool: &mut Pool,
+    prepared: &mut PreparedPool,
+    classes: &[crate::domain::positions::types::Slots],
+    mut file_program: Option<&mut crate::domain::file_program::types::FileProgram>,
+    rule: usize,
 ) -> Result<(), OperatingError> {
     let read = |relation: Relation| -> Result<Rows<'f>, OperatingError> {
         match (relation, tree) {
@@ -520,12 +604,101 @@ pub(crate) fn evaluate_file<'f>(
     };
     let cut_diagnostic =
         tracing::enabled!(target: "ryo::diagnostic::subplan_cut", tracing::Level::TRACE);
+    let mut shared_steps = if file_program.is_some() {
+        vec![None; plan.steps.len()]
+    } else {
+        Vec::new()
+    };
+    let mut graph_kept = if file_program.is_some() {
+        vec![false; plan.steps.len()]
+    } else {
+        Vec::new()
+    };
+    // Pin existing complete successful cuts before pruning ancestors. These
+    // handles use the existing retained buffers, not an additional row cache.
+    let mut retained = Vec::new();
+    let mut share_nodes = Vec::new();
+    let mut eager = Vec::new();
+    if let Some(program) = file_program.as_deref() {
+        for (index, step) in plan.steps.iter().enumerate() {
+            let lowered_cut = matches!(lowered, LoweredTree::Tree(_))
+                && (layout
+                    .lowering
+                    .shapes
+                    .get(index)
+                    .is_some_and(Option::is_some)
+                    || layout
+                        .lowering
+                        .counting
+                        .get(index)
+                        .copied()
+                        .unwrap_or(Counting::DoesNotCount)
+                        == Counting::Counts);
+            // A formerly streamed step is made eagerly only for total typed
+            // filtering/projection/union over complete inputs. Already kept joins
+            // retain their original evaluation boundary and may also be shared.
+            let force_safe = matches!(
+                &step.operation,
+                ryo_values::domain::plans::types::Operation::Select { .. }
+                    | ryo_values::domain::plans::types::Operation::Project { .. }
+                    | ryo_values::domain::plans::types::Operation::Union { .. }
+            );
+            let share_node = (!lowered_cut
+                && (layout.kept.0.get(index) == Some(&true) || force_safe))
+                .then(|| program.cut(rule, index))
+                .flatten();
+            let table = share_node.and_then(|node| {
+                program
+                    .entries
+                    .iter()
+                    .find(|entry| entry.0 == node)
+                    .map(|entry| std::sync::Arc::clone(&entry.1))
+            });
+            retained.push(table);
+            share_nodes.push(share_node);
+            eager.push(
+                step.scope == StepScope::PerFile
+                    && (layout.kept.0.get(index) == Some(&true) || share_node.is_some()),
+            );
+        }
+    }
+    let demanded = retained.iter().any(Option::is_some).then(|| {
+        let cached = retained.iter().map(Option::is_some).collect::<Vec<_>>();
+        demanded_steps(plan, &eager, &cached)
+    });
     for (index, step) in plan.steps.iter().enumerate() {
-        if step.scope == StepScope::CrossFile || layout.kept.0.get(index) != Some(&true) {
+        if step.scope == StepScope::CrossFile {
             continue;
+        }
+        if demanded.as_ref().is_some_and(|steps| !steps[index]) {
+            tracing::trace!(target: "ryo::diagnostic::file_program",
+                event = "ancestor_pruned", rule, step = index);
+            continue;
+        }
+        let share_node = share_nodes.get(index).copied().flatten();
+        if layout.kept.0.get(index) != Some(&true) && share_node.is_none() {
+            continue;
+        }
+        if let Some(slot) = graph_kept.get_mut(index) {
+            *slot = share_node.is_some();
         }
         let (before, rest) = steps.split_at_mut(index);
         let target = rest.first_mut().ok_or(OperatingError::NotRun)?;
+        if let Some(shared) = share_node.and_then(|node| file_program.as_deref_mut()?.get(node)) {
+            if cut_diagnostic {
+                diagnostic_cut(
+                    identity.0,
+                    tree.map(|tree| tree.file.0),
+                    index,
+                    &shared,
+                    None,
+                    made.ready.get(index),
+                    partial,
+                );
+            }
+            shared_steps[index] = Some(shared);
+            continue;
+        }
         reset(
             target,
             layout.kinds.get(index).ok_or(OperatingError::NotRun)?,
@@ -535,6 +708,8 @@ pub(crate) fn evaluate_file<'f>(
             read: &read,
             done: before,
             selected: &selected[..index],
+            shared: shared_steps.get(..index).unwrap_or(&[]),
+            graph_kept: graph_kept.get(..index).unwrap_or(&[]),
             selectors,
             rooms,
             spare,
@@ -615,7 +790,16 @@ pub(crate) fn evaluate_file<'f>(
                 partial,
             );
         }
+        drop(stepper);
+        if let Some(node) = share_node
+            && let Some(shared) = file_program
+                .as_deref_mut()
+                .and_then(|program| program.publish(node, target))
+        {
+            shared_steps[index] = Some(shared);
+        }
     }
+    drop(retained);
     hand_over(plan, steps, selected, &read, context, frontier)?;
     // The exported/rendered table is the materialization boundary; intermediate kept steps stay compact.
     if let Some(selection) = usize::try_from(plan.emit.step.0)

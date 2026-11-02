@@ -11,7 +11,7 @@ use crate::domain::table_texts::types::SourceView;
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::relations::types::CellKind;
 use ryo_language::domain::relations::types::Value;
-use ryo_language::domain::symbols::types::Symbols;
+use ryo_language::domain::symbols::types::QuerySymbols;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Comparison;
 use ryo_values::domain::plan_parts::types::JoinColumn;
@@ -41,8 +41,8 @@ pub(crate) enum Family {
 }
 
 /// What an operator reads besides its inputs and may write: what the host bound, the names and
-/// bytes of the file the rows are of, and the paths of the files. An operator may add the names it
-/// makes to the file's names.
+/// bytes of the file the rows are of, and the paths of the files. An operator may add only derived
+/// names; language fact readers alone own source-name interning.
 #[derive(Debug)]
 pub(crate) struct OperatorContext<'a> {
     /// Finite authored literal matchers owned by this worker's prepared request.
@@ -55,8 +55,8 @@ pub(crate) struct OperatorContext<'a> {
 
     /// What each parameter is bound to, by the parameter's place.
     pub bindings: &'a [ParameterBinding],
-    /// The names of the file.
-    pub symbols: &'a mut Symbols,
+    /// Readable file names and a derived-only query interning capability.
+    pub symbols: QuerySymbols<'a>,
     /// The bytes of the file.
     pub source: SourceView<'a>,
     /// The path of each file of the run, by file number.

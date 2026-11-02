@@ -3,6 +3,7 @@
 use super::service::schema_of;
 use super::types::InputSchema;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::features::service::{catalog, kind_of};
 use crate::domain::operating::{errors::OperatingError, types::OperatorContext};
 use crate::domain::operator::service::compute;
 use crate::domain::table_model::types::Rows;
@@ -13,16 +14,15 @@ use ryo_language::domain::symbols::{
     types::{ByteSlice, Symbols},
 };
 use ryo_language::domain::terms::types::NameText;
-use ryo_values::domain::plans::types::Operation;
+use ryo_values::domain::plans::types::{Feature, Operation, OperationKind};
 
 use crate::domain::table_model::service::push_row;
 use crate::domain::table_model::types::{
     BindingCell, BindingTable, ParameterBinding, RowCount, Table,
 };
-use ryo_language::domain::relations::constants::NO_SPAN;
 use ryo_language::domain::relations::service::node_id;
 use ryo_language::domain::relations::types::{
-    CellKind, FileId, Flag, Integer, Position, Relation, Value as Cell,
+    CellKind, FileId, Flag, Integer, Offset, Position, Relation, Span, Value as Cell,
 };
 use ryo_language::domain::terms::types::Symbol;
 use ryo_values::domain::plan_parts::types::{
@@ -61,7 +61,7 @@ fn subject(populated: Input) -> Result<Value, Failure> {
             prepared_matchers: None,
             stored_indexes: None,
             bindings: &bindings,
-            symbols: &mut symbols,
+            symbols: (&mut symbols).into(),
             source: SourceView(b""),
             paths: &[],
             arenas: &[],
@@ -83,25 +83,61 @@ fn subject(populated: Input) -> Result<Value, Failure> {
     Ok(variants.len())
 }
 
-/// Both input cardinalities must exercise all 22 actual enum variants, not just schema-only stubs.
+/// Both input cardinalities exercise every registered concrete operation fixture.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("all_empty_operator_shapes_match_evaluation"),
         word: Word::Succeeds,
         input: || false,
-        expect: Expect::Value(22),
+        expect: Expect::Value(24),
     },
     Case {
         name: CaseName("all_populated_operator_shapes_match_evaluation"),
         word: Word::Succeeds,
         input: || true,
-        expect: Expect::Value(22),
+        expect: Expect::Value(24),
     },
 ];
 
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn every_declared_kind_has_one_evaluator_fixture_and_one_feature() {
+    let declared: std::collections::HashSet<_> = OperationKind::ALL.iter().copied().collect();
+    assert_eq!(
+        declared.len(),
+        OperationKind::ALL.len(),
+        "duplicate kind declaration"
+    );
+    let mut fixtures = std::collections::HashSet::new();
+    for operation in operations() {
+        assert!(
+            fixtures.insert(kind_of(&operation)),
+            "duplicate operation fixture"
+        );
+    }
+    assert_eq!(fixtures, declared, "missing operator fixture");
+    let features: Vec<_> = catalog()
+        .into_iter()
+        .filter_map(|feature| match feature {
+            Feature::Operation(kind) => Some(kind),
+            Feature::Family(_) | Feature::Direction(_) | Feature::Relation(_) => None,
+        })
+        .collect();
+    assert_eq!(
+        features.len(),
+        declared.len(),
+        "duplicate or omitted feature"
+    );
+    assert_eq!(
+        features
+            .into_iter()
+            .collect::<std::collections::HashSet<_>>(),
+        declared
+    );
 }
 
 /// A named column index for the fixture's mixed row.
@@ -150,7 +186,10 @@ pub(crate) fn mixed(symbol: Symbol) -> Table {
             Cell::Number(Integer(1)),
             Cell::Symbol(symbol),
             node(0),
-            Cell::Span(NO_SPAN),
+            Cell::Span(Span {
+                start: Offset(0),
+                end: Offset(0),
+            }),
             Cell::Flag(Flag::Raised),
             Cell::File(FileId(0)),
         ],
@@ -254,6 +293,19 @@ fn unary() -> Vec<Operation> {
             from: FROM,
             start: col(3),
             end: col(3),
+        },
+        Operation::SourceMatches {
+            from: FROM,
+            span: col(3),
+            base_line: None,
+            pattern: LiteralText("a".into()),
+            capture: None,
+            capture_text: false,
+            capture_line: false,
+        },
+        Operation::SpanBounds {
+            from: FROM,
+            span: col(3),
         },
     ]
 }

@@ -22,8 +22,8 @@ use crate::domain::table_texts::{
 use ryo_language::domain::{
     relations::types::{CellKind, Integer, Value},
     symbols::{
-        service::intern_derived,
-        types::{ByteSlice, Symbols},
+        service::query_intern_derived,
+        types::{ByteSlice, QuerySymbols},
     },
     terms::types::NameText,
 };
@@ -36,7 +36,7 @@ pub(crate) struct OrderedDfsItem;
 fn canonical_columns(
     table: &mut Table,
     columns: &mut [ColumnIndex],
-    symbols: &mut Symbols,
+    symbols: &mut QuerySymbols<'_>,
     texts_source: crate::domain::table_texts::types::SourceView<'_>,
     paths: &[ryo_language::domain::files::types::FilePath],
     arenas: &[ryo_values::domain::stored_facts::types::ArenaBytes],
@@ -73,7 +73,7 @@ fn canonical_columns(
                 .get(source_cell)
                 .ok_or(OperatingError::ShapeMismatch)?;
             let texts = Texts {
-                symbols,
+                symbols: symbols.as_ref(),
                 source: texts_source,
                 paths,
                 arenas,
@@ -92,7 +92,7 @@ fn canonical_columns(
             let canonical = if let Some(text) = found {
                 buffer.clear();
                 buffer.push_str(text.0);
-                Value::Symbol(intern_derived(
+                Value::Symbol(query_intern_derived(
                     symbols,
                     ByteSlice(texts_source.0),
                     NameText(buffer.as_str()),
@@ -182,7 +182,7 @@ impl OperatorsItem for OrderedDfsItem {
         canonical_columns(
             &mut join.domain,
             &mut walk.dfs_graph.root_columns,
-            context.symbols,
+            &mut context.symbols,
             context.source,
             context.paths,
             context.arenas,
@@ -191,7 +191,7 @@ impl OperatorsItem for OrderedDfsItem {
         canonical_columns(
             &mut join.right,
             &mut walk.dfs_graph.edge_columns,
-            context.symbols,
+            &mut context.symbols,
             context.source,
             context.paths,
             context.arenas,

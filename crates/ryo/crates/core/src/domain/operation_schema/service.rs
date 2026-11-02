@@ -4,13 +4,34 @@ use super::types::InputSchema;
 use super::types::bindings::value::BindingSchema;
 use super::types::traversal::value::TraversalSchema;
 use crate::domain::operating::{errors::OperatingError, types::InputPlace};
+use crate::domain::operator::service::pilot;
+use crate::domain::operator::types::AbsencePolicy;
 use crate::domain::table_model::errors::TableModelError;
 use crate::domain::table_model::service::{check_columns, column_in};
 use crate::domain::table_model::types::ParameterBinding;
 use ryo_language::domain::relations::types::CellKind;
 use ryo_values::domain::plan_parts::service::parameter_in;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn, Side};
-use ryo_values::domain::plans::types::Operation;
+use ryo_values::domain::plans::service::inputs_of;
+use ryo_values::domain::plans::types::{Operation, OperationKind};
+
+/// Validate pilot registration once while checking a step's metadata. Row
+/// evaluation uses the already selected item without repeating these checks.
+fn registered_schema(
+    operation: &Operation,
+    inputs: &[InputSchema<'_>],
+    bindings: &[ParameterBinding],
+    expected_kind: OperationKind,
+) -> Result<Vec<CellKind>, OperatingError> {
+    let registered = pilot(operation).ok_or(OperatingError::WrongOperation)?;
+    if registered.kind != expected_kind
+        || (registered.input)(operation)? != inputs_of(operation)
+        || registered.absence != AbsencePolicy::PositiveRows
+    {
+        return Err(OperatingError::WrongOperation);
+    }
+    (registered.schema)(operation, inputs, bindings)
+}
 
 /// Read one input's metadata in the same input order as execution.
 pub(crate) fn schema_input<'a>(
@@ -92,24 +113,22 @@ pub(crate) fn schema_of(
     let first = || schema_input(inputs, InputPlace(0));
     let second = || schema_input(inputs, InputPlace(1));
     match operation {
-        Operation::Select {
-            comparisons, kept, ..
-        } => {
-            let input = first()?;
-            let answer = if kept.is_empty() {
-                input.kinds.to_vec()
-            } else {
-                projected(input.kinds, kept)?
-            };
-            BindingSchema::new(bindings).predicates(comparisons, input.kinds)?;
-            Ok(answer)
+        Operation::Select { .. } => {
+            registered_schema(operation, inputs, bindings, OperationKind::Select)
         }
-        Operation::Project { columns, .. } => projected(first()?.kinds, columns),
+        Operation::Project { .. } => {
+            registered_schema(operation, inputs, bindings, OperationKind::Project)
+        }
         Operation::Extend { values, .. } => {
             BindingSchema::new(bindings).extended(values, first()?.kinds.to_vec())
         }
-        Operation::Join { .. } => join_schema(operation, inputs, bindings),
-        Operation::Union { .. } | Operation::Intersection { .. } | Operation::Difference { .. } => {
+        Operation::Join { .. } => {
+            registered_schema(operation, inputs, bindings, OperationKind::Join)
+        }
+        Operation::Union { .. } => {
+            registered_schema(operation, inputs, bindings, OperationKind::Union)
+        }
+        Operation::Intersection { .. } | Operation::Difference { .. } => {
             let (left, right) = (first()?, second()?);
             if left.kinds != right.kinds {
                 return Err(OperatingError::ShapeMismatch);
@@ -181,52 +200,127 @@ pub(crate) fn schema_of(
             }
             appended(input.kinds, &[], CellKind::Span)
         }
-        Operation::SourceMatches {
-            span,
-            base_line,
-            capture,
-            capture_text,
-            capture_line,
-            ..
-        } => {
-            let input = first()?;
-            if projected(input.kinds, &[*span])? != [CellKind::Span] {
-                return Err(OperatingError::ShapeMismatch);
-            }
-            if let Some(base_line) = base_line
-                && projected(input.kinds, &[*base_line])? != [CellKind::Number]
-            {
-                return Err(OperatingError::ShapeMismatch);
-            }
-            let mut output = appended(input.kinds, &[], CellKind::Span)?;
-            if base_line.is_some() {
-                output.push(CellKind::Number);
-            }
-            if capture.is_some() {
-                output.push(CellKind::Span);
-                if *capture_text {
-                    output.push(CellKind::Symbol);
-                }
-                if *capture_line {
-                    output.push(CellKind::Number);
-                }
-            }
-            Ok(output)
+        Operation::SourceMatches { .. } => {
+            registered_schema(operation, inputs, bindings, OperationKind::SourceMatches)
         }
-        Operation::SpanBounds { span, .. } => {
-            let input = first()?;
-            if projected(input.kinds, &[*span])? != [CellKind::Span] {
-                return Err(OperatingError::ShapeMismatch);
-            }
-            let mut output = input.kinds.to_vec();
-            output.extend([CellKind::Number, CellKind::Number]);
-            Ok(output)
+        Operation::SpanBounds { .. } => {
+            registered_schema(operation, inputs, bindings, OperationKind::SpanBounds)
         }
     }
 }
 
+/// Pilot metadata contracts live beside the legacy schema algebra while the
+/// remaining operators are migrated. No row or source payload is read here.
+pub(crate) fn select_schema(
+    operation: &Operation,
+    inputs: &[InputSchema<'_>],
+    bindings: &[ParameterBinding],
+) -> Result<Vec<CellKind>, OperatingError> {
+    let Operation::Select {
+        comparisons, kept, ..
+    } = operation
+    else {
+        return Err(OperatingError::WrongOperation);
+    };
+    let input = schema_input(inputs, InputPlace(0))?;
+    let answer = if kept.is_empty() {
+        input.kinds.to_vec()
+    } else {
+        projected(input.kinds, kept)?
+    };
+    BindingSchema::new(bindings).predicates(comparisons, input.kinds)?;
+    Ok(answer)
+}
+
+pub(crate) fn project_schema(
+    operation: &Operation,
+    inputs: &[InputSchema<'_>],
+    _: &[ParameterBinding],
+) -> Result<Vec<CellKind>, OperatingError> {
+    let Operation::Project { columns, .. } = operation else {
+        return Err(OperatingError::WrongOperation);
+    };
+    projected(schema_input(inputs, InputPlace(0))?.kinds, columns)
+}
+
+pub(crate) fn union_schema(
+    operation: &Operation,
+    inputs: &[InputSchema<'_>],
+    _: &[ParameterBinding],
+) -> Result<Vec<CellKind>, OperatingError> {
+    if !matches!(operation, Operation::Union { .. }) {
+        return Err(OperatingError::WrongOperation);
+    }
+    let (left, right) = (
+        schema_input(inputs, InputPlace(0))?,
+        schema_input(inputs, InputPlace(1))?,
+    );
+    if left.kinds != right.kinds {
+        return Err(OperatingError::ShapeMismatch);
+    }
+    Ok(left.kinds.to_vec())
+}
+
+pub(crate) fn source_matches_schema(
+    operation: &Operation,
+    inputs: &[InputSchema<'_>],
+    _: &[ParameterBinding],
+) -> Result<Vec<CellKind>, OperatingError> {
+    let Operation::SourceMatches {
+        span,
+        base_line,
+        capture,
+        capture_text,
+        capture_line,
+        ..
+    } = operation
+    else {
+        return Err(OperatingError::WrongOperation);
+    };
+    let input = schema_input(inputs, InputPlace(0))?;
+    if projected(input.kinds, &[*span])? != [CellKind::Span] {
+        return Err(OperatingError::ShapeMismatch);
+    }
+    if let Some(base_line) = base_line
+        && projected(input.kinds, &[*base_line])? != [CellKind::Number]
+    {
+        return Err(OperatingError::ShapeMismatch);
+    }
+    let mut output = appended(input.kinds, &[], CellKind::Span)?;
+    if base_line.is_some() {
+        output.push(CellKind::Number);
+    }
+    if capture.is_some() {
+        output.push(CellKind::Span);
+        if *capture_text {
+            output.push(CellKind::Symbol);
+        }
+        if *capture_line {
+            output.push(CellKind::Number);
+        }
+    }
+    Ok(output)
+}
+
+pub(crate) fn span_bounds_schema(
+    operation: &Operation,
+    inputs: &[InputSchema<'_>],
+    _: &[ParameterBinding],
+) -> Result<Vec<CellKind>, OperatingError> {
+    let Operation::SpanBounds { span, .. } = operation else {
+        return Err(OperatingError::WrongOperation);
+    };
+    let input = schema_input(inputs, InputPlace(0))?;
+    if projected(input.kinds, &[*span])? != [CellKind::Span] {
+        return Err(OperatingError::ShapeMismatch);
+    }
+    let mut output = input.kinds.to_vec();
+    output.extend([CellKind::Number, CellKind::Number]);
+    Ok(output)
+}
+
 /// Check join keys and native RHS view before deriving its ordered output projection.
-fn join_schema(
+pub(crate) fn join_schema(
     operation: &Operation,
     inputs: &[InputSchema<'_>],
     bindings: &[ParameterBinding],

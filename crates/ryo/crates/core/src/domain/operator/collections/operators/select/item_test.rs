@@ -78,7 +78,7 @@ fn compute(
         prepared_matchers: None,
         stored_indexes: None,
         bindings,
-        symbols: &mut symbols,
+        symbols: (&mut symbols).into(),
         source: SourceView(&[]),
         paths: &[],
         arenas: &[],
@@ -176,7 +176,7 @@ fn services_held(test: Test, left: Operand, right: Operand) -> Result<Value, Ope
         prepared_matchers: None,
         stored_indexes: None,
         bindings: &[],
-        symbols: &mut symbols,
+        symbols: (&mut symbols).into(),
         source: SourceView(SERVICES),
         paths: &[],
         arenas: &[],
@@ -237,13 +237,33 @@ fn tells_prefixes_and_suffixes() -> Result<Value, OperatingError> {
 /// the logical columns a predicate reads. A changed provider still takes the
 /// ordinary full-row path and drops incomplete rows.
 #[test]
-fn selected_columns_match_full_row_selection_with_duplicates_and_partial_source(
-) -> Result<(), OperatingError> {
+fn selected_columns_match_full_row_selection_with_duplicates_and_partial_source()
+-> Result<(), OperatingError> {
     let columns = [
-        FactColumn([10, 20, 30].into_iter().map(|n| to_bits(Cell::Number(Integer(n))).0).collect()),
-        FactColumn([1, 0, 1].into_iter().map(|n| to_bits(Cell::Number(Integer(n))).0).collect()),
-        FactColumn([100, 200, 300].into_iter().map(|n| to_bits(Cell::Number(Integer(n))).0).collect()),
-        FactColumn([1000, 2000, 3000].into_iter().map(|n| to_bits(Cell::Number(Integer(n))).0).collect()),
+        FactColumn(
+            [10, 20, 30]
+                .into_iter()
+                .map(|n| to_bits(Cell::Number(Integer(n))).0)
+                .collect(),
+        ),
+        FactColumn(
+            [1, 0, 1]
+                .into_iter()
+                .map(|n| to_bits(Cell::Number(Integer(n))).0)
+                .collect(),
+        ),
+        FactColumn(
+            [100, 200, 300]
+                .into_iter()
+                .map(|n| to_bits(Cell::Number(Integer(n))).0)
+                .collect(),
+        ),
+        FactColumn(
+            [1000, 2000, 3000]
+                .into_iter()
+                .map(|n| to_bits(Cell::Number(Integer(n))).0)
+                .collect(),
+        ),
     ];
     let selection = Arc::new(StoredSelection {
         relation: Relation::Function,
@@ -260,7 +280,7 @@ fn selected_columns_match_full_row_selection_with_duplicates_and_partial_source(
             prepared_matchers: None,
             stored_indexes: None,
             bindings: &[],
-            symbols: &mut symbols,
+            symbols: (&mut symbols).into(),
             source: SourceView(&[]),
             paths: &[],
             arenas: &[],
@@ -284,7 +304,11 @@ fn selected_columns_match_full_row_selection_with_duplicates_and_partial_source(
             selection: Arc::clone(&selection),
         };
         let mut full = Table::default();
-        materialize(&Rows::Selected(selected.clone()), &mut full, &mut Vec::new());
+        materialize(
+            &Rows::Selected(selected.clone()),
+            &mut full,
+            &mut Vec::new(),
+        );
         for kept in [vec![column(3), column(0), column(3)], Vec::new()] {
             let operation = select(
                 Test::Equal,

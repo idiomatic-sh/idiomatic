@@ -67,7 +67,7 @@ pub(crate) fn select_rows(
         .iter()
         .map(|each| kind_of(each.field))
         .collect();
-    let names = NameCount(name_count(context.symbols).0);
+    let names = NameCount(name_count(context.symbols.as_ref()).0);
     context.memo.clear();
     context
         .memo

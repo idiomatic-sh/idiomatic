@@ -29,6 +29,8 @@ const WORKING_SET_TARGET: &str = "ryo::diagnostic::working_set";
 const LAYOUT_TARGET: &str = "ryo::diagnostic::layout";
 /// Demand-reach and shared graph work in explicit diagnostic runs.
 const GRAPH_TARGET: &str = "ryo::diagnostic::graph";
+/// Request-wide file-program sharing and retained cells in explicit diagnostic runs.
+const FILE_PROGRAM_TARGET: &str = "ryo::diagnostic::file_program";
 /// Coarse retention/decoding/store phases for an explicit lifecycle diagnostic.
 const LIFECYCLE_TARGET: &str = "ryo::diagnostic::lifecycle_memory";
 
@@ -115,6 +117,7 @@ fn subscriber_with_aggregates(
                 .with_target(WORKING_SET_TARGET, aggregate_level)
                 .with_target(LAYOUT_TARGET, aggregate_level)
                 .with_target(GRAPH_TARGET, aggregate_level)
+                .with_target(FILE_PROGRAM_TARGET, aggregate_level)
                 .with_target(LIFECYCLE_TARGET, lifecycle_level)
                 .with_target(
                     RULE_FILE_TARGET,

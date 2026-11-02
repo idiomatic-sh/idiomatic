@@ -106,7 +106,7 @@ impl OperatorsItem for OrderedMatchItem {
             }
         }
         let texts = Texts {
-            symbols: context.symbols,
+            symbols: context.symbols.as_ref(),
             source: context.source,
             paths: context.paths,
             arenas: context.arenas,

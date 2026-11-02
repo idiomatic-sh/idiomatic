@@ -141,7 +141,7 @@ fn run<'f>(
         prepared_matchers: None,
         stored_indexes: (strategy == KernelStrategy::Column).then_some(&mut cache),
         bindings: &[],
-        symbols,
+        symbols: symbols.into(),
         source: SourceView(b""),
         paths: &[],
         arenas: &[],

@@ -7,6 +7,11 @@ use ryo_values::domain::plan_parts::types::{
 use ryo_values::domain::plans::service::{inputs_of, named};
 use ryo_values::domain::plans::types::{Operation, PlanStep, StepScope};
 
+/// Treat an unrepresentable plan index as out of range on narrow targets.
+fn offset(value: u32) -> usize {
+    usize::try_from(value).unwrap_or(usize::MAX)
+}
+
 /// One closure and the pure projection map through which a consumer sees its logical RHS.
 #[derive(Clone)]
 struct Rooted {
@@ -45,7 +50,7 @@ impl<'a> DemandClosure<'a> {
             .collect();
         let mut safe = vec![true; self.steps.len()];
         for protected in self.protected {
-            if let Some(root) = rooted.get(protected.0 as usize).and_then(Option::as_ref) {
+            if let Some(root) = rooted.get(offset(protected.0)).and_then(Option::as_ref) {
                 safe[root.root] = false;
             }
         }
@@ -54,7 +59,7 @@ impl<'a> DemandClosure<'a> {
                 let Input::Step(id) = input else {
                     continue;
                 };
-                let Some(root) = rooted.get(id.0 as usize).and_then(Option::as_ref) else {
+                let Some(root) = rooted.get(offset(id.0)).and_then(Option::as_ref) else {
                     continue;
                 };
                 let wrapper = rooted[index]
@@ -136,13 +141,13 @@ impl<'a> DemandClosure<'a> {
                 from: Input::Step(id),
                 columns,
                 distinct: RepeatedRows::Kept,
-            } => project(before.get(id.0 as usize)?.as_ref()?, columns, false),
+            } => project(before.get(offset(id.0))?.as_ref()?, columns, false),
             Operation::Select {
                 from: Input::Step(id),
                 comparisons,
                 kept,
             } if comparisons.is_empty() => {
-                project(before.get(id.0 as usize)?.as_ref()?, kept, true)
+                project(before.get(offset(id.0))?.as_ref()?, kept, true)
             }
             Operation::Select { .. }
             | Operation::Project { .. }
@@ -188,10 +193,10 @@ fn candidate(step: &PlanStep, rooted: &[Option<Rooted>]) -> Option<Rooted> {
     if step.scope != StepScope::PerFile || !filter.is_empty() || !view.is_empty() {
         return None;
     }
-    let root = rooted.get(id.0 as usize)?.as_ref()?;
+    let root = rooted.get(offset(id.0))?.as_ref()?;
     if let Input::Step(left) = left
         && rooted
-            .get(left.0 as usize)
+            .get(offset(left.0))
             .and_then(Option::as_ref)
             .is_some_and(|other| other.root == root.root)
     {
@@ -199,7 +204,7 @@ fn candidate(step: &PlanStep, rooted: &[Option<Rooted>]) -> Option<Rooted> {
     }
     let bound: Vec<_> = right_on
         .iter()
-        .map(|column| root.reach.columns.get(column.0 as usize).copied())
+        .map(|column| root.reach.columns.get(offset(column.0)).copied())
         .collect::<Option<_>>()?;
     (0..=root.reach.keys.len())
         .all(|column| bound.contains(&ColumnIndex(u32::try_from(column).unwrap_or(u32::MAX))))
@@ -212,7 +217,7 @@ fn project(root: &Rooted, columns: &[ColumnIndex], empty_identity: bool) -> Opti
     if !empty_identity || !columns.is_empty() {
         result.reach.columns = columns
             .iter()
-            .map(|column| root.reach.columns.get(column.0 as usize).copied())
+            .map(|column| root.reach.columns.get(offset(column.0)).copied())
             .collect::<Option<_>>()?;
     }
     Some(result)
@@ -234,7 +239,7 @@ fn graph_source(
         let Input::Step(id) = input else {
             break;
         };
-        let step = steps.get(id.0 as usize)?;
+        let step = steps.get(offset(id.0))?;
         if step.scope != StepScope::PerFile {
             return None;
         }
@@ -278,7 +283,7 @@ fn graph_source(
         }
         let mapped = used
             .iter()
-            .map(|column| columns.get(column.0 as usize).copied())
+            .map(|column| columns.get(offset(column.0)).copied())
             .collect::<Option<Vec<_>>>()?;
         if columns.iter().any(|column| !mapped.contains(column)) {
             break;
@@ -302,7 +307,7 @@ fn graph_input(mut input: Input, steps: &[PlanStep]) -> bool {
             Input::Relation(_) => return true,
             Input::Step(id) => {
                 let Some(step) = steps
-                    .get(id.0 as usize)
+                    .get(offset(id.0))
                     .filter(|step| step.scope == StepScope::PerFile)
                 else {
                     return false;

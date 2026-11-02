@@ -2,7 +2,17 @@
 
 **In progress.** The goal remains all 413 Ruff 0.16.5 defaults as RyoQL, faithful full reports, and subsecond full-Django execution. Neither full parity nor the performance target has passed.
 
-## Current native138 and execution pipeline checkpoint (2026-11-02)
+## Current native143 split proof and graph ownership checkpoint (2026-11-02)
+
+The [143-rule split summary](native143-split-2026-11-02/summary.json) binds one canonical **138-rule / 3,504-case** run on sealed worker `93487234` plus five byte-identical singleton stages (**PLR1733, PLR1736, RUF053, RUF063, RUF068; 271 cases**). All **3,775/3,775 intended** cases pass. Candidate and Ruff raw reports match in **3,694** cases; **77** diagnostic differences have case-specific validated certificates and four UP025 cases have incomparable reference skip metadata. Ruff supplies no equivalent execution telemetry for all 3,775 pairs. The [138-rule raw archive](native143-split-2026-11-02/native138-9348-raw.tar.gz) and [five singleton archive](native143-split-2026-11-02/five-singletons-9348-raw.tar.gz) retain exact inputs, outputs and failed intermediate syntax/expectation attempts. This is a split proof, **not** a one-shot 143-rule run. The [413-row inventory](../RULES.md) now reports 375 source-present rules, 143 admitted with current fixture proof, 232 source-present awaiting current proof and 38 absent. The frozen 324-rule run remains separate historical evidence.
+
+The [checkbox ownership table](../../../../../../docs/contracts/README.md) records which extension responsibilities the engine owns today and which still require implementor coordination. The focused gate passed **392 core, 197 Python and 101 benchmark tests**, plus core BDD, and sealed worker `93487234` from source-stable compilation. Registered primitive conformance now covers six of 24 kinds. The opt-in request graph owns file-local typed cuts and last-consumer release; it is **off by default**.
+
+The [graph evidence](file-program-graph-2026-11-02/README.md) shows a 12-rule Join published once with 11 hits and exact one-file output; the demand-mask follow-up skipped 44 ancestor steps in that trace. On frozen **310-rule / 2,875-file** Django, complete graph-on reports exactly matched graph-off, but cold wall was **248.624 s graph-off**, **405.182 s first graph-on**, and **435.767 s demand-mask graph-on**. The first comparison is about **1.63×** slower and the follow-up comparison about **1.75×** slower. These are single observations across a workspace restart and different graph binaries; no component cause or stable ratio is claimed. The overlay does not meet the subsecond goal. A more complete engine-owned dependency scheduler remains work in progress; the current slowdown does not reject request-wide graph execution as an architecture.
+
+Full 413-rule parity, two other medium or large Python corpora, whole-workflow CI, and the original Rust cold regression guard remain open. The PR remains in progress; no main merge or acceptance claim is made.
+
+## Prior native138 and execution pipeline checkpoint (2026-11-02)
 
 The [current one-shot summary](native138-current-2026-11-02/summary.json) and [complete raw archive](native138-current-2026-11-02/raw.tar.gz) bind sealed worker `7a386a3c` to **138 singleton rules / 3,504 cases** on the current engine and corrected suppression helper. All 3,504 intended cases pass; 3,423 raw reports match, 77 diagnostic differences have case-specific certificates, and four UP025 cases have reference skip metadata unavailable from Ruff. All 3,504 reference execution-metadata comparisons remain incomparable. RUF012 (8), RUF013 (12), and W605 (20) are new and raw exact. The prior native135 split proof remains historical at its earlier source identities.
 

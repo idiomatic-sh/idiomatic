@@ -132,7 +132,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         prepared_matchers: None,
         stored_indexes: None,
         bindings: &[],
-        symbols: &mut symbols,
+        symbols: (&mut symbols).into(),
         source: SourceView(SOURCE),
         paths: &[],
         arenas: &[],

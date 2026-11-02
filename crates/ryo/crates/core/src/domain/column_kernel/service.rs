@@ -184,8 +184,8 @@ fn symbol_holds(value: Value, literal: &str, context: &OperatorContext<'_>) -> b
     let Value::Symbol(symbol) = value else {
         return false;
     };
-    let found = text_of(context.symbols, ByteSlice(context.source.0), symbol);
-    match hash_in(context.symbols, symbol) {
+    let found = text_of(context.symbols.as_ref(), ByteSlice(context.source.0), symbol);
+    match hash_in(context.symbols.as_ref(), symbol) {
         Some(hash) => {
             hash == hash_of(ByteSlice(literal.as_bytes()))
                 && found.is_some_and(|text| text.0 == literal)

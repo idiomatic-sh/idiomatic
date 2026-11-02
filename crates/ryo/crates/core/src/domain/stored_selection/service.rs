@@ -112,6 +112,8 @@ pub(crate) fn prepare(pool: &mut PreparedPool, plans: &[Plan], bindings: &[Vec<P
     }
     let started = tracing::enabled!(target: "ryo::diagnostic::execution", tracing::Level::TRACE)
         .then(std::time::Instant::now);
+    // A new prepared version cannot reuse graph identities from an earlier request.
+    pool.file_graph = None;
     pool.selection_plans = plans
         .iter()
         .zip(bindings)
@@ -395,13 +397,13 @@ fn matches(
     let indexed = candidates.is_some();
     let mut buffer = vec![Value::Flag(Flag::Lowered); source.kinds.len()];
     let mut selected = Vec::new();
-    let names = NameCount(name_count(context.symbols).0);
+    let names = NameCount(name_count(context.symbols.as_ref()).0);
     let mut own = OperatorContext {
         prepared_kinds: context.prepared_kinds,
         prepared_matchers: context.prepared_matchers,
         stored_indexes: None,
         bindings: &program.identity.bindings,
-        symbols: context.symbols,
+        symbols: ryo_language::domain::symbols::service::query_reborrow(&mut context.symbols),
         source: context.source,
         paths: context.paths,
         arenas: context.arenas,
@@ -666,7 +668,7 @@ fn fanout_candidates(
             return None;
         };
         // Malformed IDs have no nonempty text and cannot satisfy these total equalities.
-        let Some(actual) = text_of(context.symbols, ByteSlice(context.source.0), symbol) else {
+        let Some(actual) = text_of(context.symbols.as_ref(), ByteSlice(context.source.0), symbol) else {
             continue;
         };
         if let Ok(at) = postings.binary_search_by(|entry| entry.0.as_str().cmp(actual.0)) {
@@ -769,7 +771,7 @@ fn discriminator(
             // different Symbol IDs. The ordinary evaluator compares their text, while
             // matching_stored compares exact IDs. Index only an unambiguous spelling.
             let mut found_symbol = find_hashed(
-                context.symbols,
+                context.symbols.as_ref(),
                 ByteSlice(context.source.0),
                 ByteSlice(text.0.as_bytes()),
                 hash,

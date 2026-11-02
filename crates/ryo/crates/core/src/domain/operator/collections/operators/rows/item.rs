@@ -1,7 +1,7 @@
 //! The `rows` operator: the rows a `list<table>` parameter holds, one for each table, a text column for each key.
 
 use ryo_language::domain::relations::types::{CellKind, Value};
-use ryo_language::domain::symbols::service::intern_derived;
+use ryo_language::domain::symbols::service::query_intern_derived;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::terms::types::NameText;
 
@@ -60,12 +60,12 @@ fn tables_rows(
                 .iter()
                 .find(|cell| *cell.key.0 == *key.0)
                 .ok_or(OperatingError::WrongBinding)?;
-            let made = intern_derived(
-                context.symbols,
+            let made = query_intern_derived(
+                &mut context.symbols,
                 ByteSlice(context.source.0),
                 NameText(&cell.value.0),
             );
-            row.push(minted(context.symbols, made, after));
+            row.push(minted(context.symbols.as_ref(), made, after));
         }
         emit.row(context, row)?;
     }

@@ -65,7 +65,7 @@ fn compute(
         prepared_matchers: None,
         stored_indexes: None,
         bindings: &[],
-        symbols: &mut symbols,
+        symbols: (&mut symbols).into(),
         source: SourceView(&[]),
         paths: &[],
         arenas: &[],
@@ -307,12 +307,13 @@ fn scratch_reuse_across_graphs_empty_and_old_operator() -> Result<usize, Operati
     let first = compute(&operation(&[], &[]), &roots, &edges, &mut scratch)?;
     assert_eq!(first.count.0, 2);
     let capacity = scratch.walk_scratch.dfs_graph.adjacency.capacity();
+    let mut symbols = Symbols::default();
     let mut context = OperatorContext {
         prepared_kinds: None,
         prepared_matchers: None,
         stored_indexes: None,
         bindings: &[],
-        symbols: &mut Symbols::default(),
+        symbols: (&mut symbols).into(),
         source: SourceView(&[]),
         paths: &[],
         arenas: &[],
@@ -549,7 +550,7 @@ fn retained_text_keys_and_vertices_preserve_output_cells() -> Result<usize, Oper
         prepared_matchers: None,
         stored_indexes: None,
         bindings: &[],
-        symbols: &mut symbols,
+        symbols: (&mut symbols).into(),
         source: SourceView(source),
         paths: &[],
         arenas: &arenas,
@@ -712,12 +713,13 @@ fn streamed_and_computed_visits_agree() -> Result<usize, OperatingError> {
         kinds: computed.kinds.clone(),
         ..Table::default()
     };
+    let mut symbols = Symbols::default();
     let mut context = OperatorContext {
         prepared_kinds: None,
         prepared_matchers: None,
         stored_indexes: None,
         bindings: &[],
-        symbols: &mut Symbols::default(),
+        symbols: (&mut symbols).into(),
         source: SourceView(&[]),
         paths: &[],
         arenas: &[],

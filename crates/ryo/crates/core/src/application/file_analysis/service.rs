@@ -16,8 +16,8 @@ use crate::domain::placement::service::unplace;
 use crate::domain::placement::types::Governing;
 use crate::domain::project::types::Projected;
 use crate::domain::reading::service::{
-    begin, capture_frontier, engine_asked, evaluate_rule, prepare_frontier, settle as settle_file,
-    start_partials,
+    begin, capture_frontier, engine_asked, evaluate_rule_with_graph, prepare_frontier,
+    settle as settle_file, start_partials,
 };
 use crate::domain::reading::types::{EngineAsked, EngineRows};
 use crate::domain::recording::service::{
@@ -341,6 +341,22 @@ impl FileAnalysis {
             visit.setting.plans,
             visit.setting.bindings,
         );
+        let graph_enabled = crate::domain::file_program::service::enabled();
+        if graph_enabled {
+            let same_request = tables.pool.file_graph.as_ref().is_some_and(|graph| {
+                graph.plans.len() == visit.setting.plans.len()
+                    && graph
+                        .plans
+                        .iter()
+                        .zip(visit.setting.plans)
+                        .all(|(address, plan)| *address == std::ptr::from_ref(plan).addr())
+            });
+            if !same_request {
+                tables.pool.file_graph = Some(Arc::new(
+                    crate::domain::file_program::service::compile(visit.setting.plans),
+                ));
+            }
+        }
         // Preserve path scope, but keep syntax-gated rules out of the shared element walk when this provider did not accept the file.
         let acceptance = syntax_acceptance(&tables.elements);
         let scoped_mask =
@@ -351,8 +367,10 @@ impl FileAnalysis {
         let active_wanted = Self::active_wanted(tables, &visit.setting, acceptance);
         // Keep physical reader partiality before any rule's Rows output can relax evaluation coverage.
         let physical_partials = tables.partials.clone();
-        // Only relation views needed by active rules are demanded after acceptance is known.
+        // Stored indexes keep their existing rectangular admission. The graph's
+        // completeness proof also considers the actual native tree reader below.
         let mut selectable = Vec::new();
+        let mut complete = Vec::new();
         for relation in active_wanted.iter() {
             let view = facts.rows(*relation)?;
             if crate::domain::table_model::service::rectangular(view)
@@ -363,6 +381,17 @@ impl FileAnalysis {
                     .is_none_or(|column| column.0.len() <= u32::MAX as usize)
             {
                 selectable.push(*relation);
+                if graph_enabled
+                    && !matches!(*relation, Relation::SyntaxTree | Relation::SyntaxChild)
+                    && crate::domain::table_model::service::complete_for_reuse(
+                        *relation,
+                        &crate::domain::table_model::types::Rows::Stored(view),
+                        &physical_partials,
+                        facts.resident_stability() == ResidentStability::Stable,
+                    )
+                {
+                    complete.push(*relation);
+                }
             }
         }
         let mut stored_indexes = Self::indexes_for(
@@ -371,6 +400,51 @@ impl FileAnalysis {
             active_wanted.as_ref(),
             &physical_partials,
         );
+        let mut file_program = if graph_enabled
+            && tables.language.is_some()
+            && facts.resident_stability() == ResidentStability::Stable
+        {
+            let native_tree = crate::domain::table_model::service::complete_for_reuse(
+                Relation::SyntaxTree,
+                &crate::domain::table_model::types::Rows::Tree(
+                    crate::domain::table_cells::types::TreeRows {
+                        elements: &tables.elements,
+                        file,
+                        form: crate::domain::table_cells::types::TreeForm::Elements,
+                    },
+                ),
+                &physical_partials,
+                true,
+            );
+            // `active_wanted` is the provider walk and intentionally excludes
+            // SyntaxTree. The prepared graph's typed relation edges express
+            // demand; the native reader above proves this file's population.
+            tracing::trace!(target: "ryo::diagnostic::file_program",
+                event = "native_tree_admission", file = file.0,
+                relation = ?Relation::SyntaxTree, admitted = native_tree,
+                acceptance = ?acceptance,
+                incomplete_syntax = has_incomplete_syntax(&tables.elements),
+                physically_partial = physical_partials.iter().any(|partial| partial.relation == Relation::SyntaxTree));
+            if native_tree && !complete.contains(&Relation::SyntaxTree) {
+                complete.push(Relation::SyntaxTree);
+            }
+            tables.pool.file_graph.as_ref().map(|graph| {
+                crate::domain::file_program::types::FileProgram::new(
+                    Arc::clone(graph),
+                    |index| {
+                        governs_rule(tables, RuleIndex(index)) == Governing::Governs
+                            && !skipped
+                                .as_ref()
+                                .and_then(|skipped| skipped.get(index))
+                                .copied()
+                                .unwrap_or(false)
+                    },
+                    &complete,
+                )
+            })
+        } else {
+            None
+        };
         if let Some(indexes) = stored_indexes.as_mut() {
             crate::domain::graph_cache::service::reserve(
                 indexes,
@@ -456,10 +530,17 @@ impl FileAnalysis {
             file,
             skipped.as_deref(),
             stored_indexes.as_mut(),
+            file_program.as_mut(),
             &classes,
         );
         if let Some(started) = rules_started {
             tracing::trace!(target: "ryo::diagnostic::execution", phase = "rules_and_frontiers", file = file.0, elapsed_ns = started.elapsed().as_nanos() as u64, success = evaluated.is_ok());
+        }
+        if let Some(program) = &file_program {
+            tracing::trace!(target: "ryo::diagnostic::file_program", file = file.0,
+                graph_nodes = program.graph.nodes.len(), shared_executions = program.shared_executions,
+                peak_retained_cells = program.peak_retained_cells,
+                remaining_tables = program.entries.len());
         }
         if let Some(indexes) = stored_indexes.as_ref() {
             tracing::trace!(target: "ryo::diagnostic::graph", event = "file_graphs", file = file.0,
@@ -529,6 +610,7 @@ impl FileAnalysis {
         file: FileId,
         skipped: Option<&[bool]>,
         mut stored_indexes: Option<&mut crate::domain::stored_indexes::types::FileIndexes>,
+        mut file_program: Option<&mut crate::domain::file_program::types::FileProgram>,
         classes: &crate::domain::shared_walk::types::SharedClasses,
     ) -> Result<(), FileAnalysisError> {
         for rule in (0..visit.setting.plans.len()).map(RuleIndex) {
@@ -572,7 +654,7 @@ impl FileAnalysis {
                     file = file_path,
                 );
             }
-            let evaluated = evaluate_rule(
+            let evaluated = evaluate_rule_with_graph(
                 tables,
                 &visit.setting,
                 rule,
@@ -586,6 +668,7 @@ impl FileAnalysis {
                     }
                 },
                 classes,
+                file_program.as_deref_mut(),
             );
             let outcome = match refused.take() {
                 Some(error) => Err(FileAnalysisError::from(error)),
@@ -622,6 +705,9 @@ impl FileAnalysis {
                 if visit.setting.keeping == Keeping::Keeps {
                     capture_frontier(tables, visit.setting.answering, bucket);
                 }
+            }
+            if let Some(program) = file_program.as_deref_mut() {
+                program.finish_rule(rule.0);
             }
         }
         Ok(())

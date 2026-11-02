@@ -42,7 +42,7 @@ fn rank_row(
         ..
     } = &*context;
     let texts = Texts {
-        symbols,
+        symbols: symbols.as_ref(),
         source: *source,
         paths,
         arenas,

@@ -100,7 +100,7 @@ pub(crate) fn take_state(
     comparisons: &[Comparison],
     context: &mut OperatorContext<'_>,
 ) -> TreeState {
-    let names = NameCount(name_count(context.symbols).0);
+    let names = NameCount(name_count(context.symbols.as_ref()).0);
     context.memo.clear();
     context
         .memo

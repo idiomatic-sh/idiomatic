@@ -14,6 +14,7 @@ pub mod coverage;
 pub(crate) mod crossing;
 pub(crate) mod describing;
 pub(crate) mod features;
+pub(crate) mod file_program;
 pub(crate) mod finish;
 pub(crate) mod fragment;
 pub(crate) mod frontiers;

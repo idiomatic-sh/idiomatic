@@ -131,7 +131,7 @@ impl std::io::Seek for BufferedBucket {
         if let Ok(delta) = i64::try_from(delta) {
             self.reader.seek_relative(delta)?;
         } else {
-            self.reader.seek(SeekFrom::Start(at))?;
+            let _position = self.reader.seek(SeekFrom::Start(at))?;
         }
         self.at = at;
         Ok(at)

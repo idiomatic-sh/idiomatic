@@ -875,6 +875,7 @@ fn refuses() {
     run(CASES, Word::Refuses, subject);
 }
 '''
+# The Parse template now requires numeric_literal; this deliberate negative mutation rejects that member too.
 then.findings = [
   { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
   { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
@@ -915,6 +916,7 @@ then.findings = [
   { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
   { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
   { rule = 'idiomatic.ryo/contract/contract-implements', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
   { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
   { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
   { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },

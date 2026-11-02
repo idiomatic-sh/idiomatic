@@ -269,7 +269,7 @@ fn execution_boundary(scenario: Scenario) -> Result<Value, Failure> {
         prepared_matchers: None,
         stored_indexes: None,
         bindings: &bindings,
-        symbols: &mut symbols,
+        symbols: (&mut symbols).into(),
         source: SourceView(b""),
         paths: &[],
         arenas: &[],

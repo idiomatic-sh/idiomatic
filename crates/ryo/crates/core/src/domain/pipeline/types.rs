@@ -39,6 +39,10 @@ pub(crate) struct Stepper<'a, 'f> {
     /// Compact kept outputs alongside the materialized table slots.
     pub selected:
         &'a [Option<std::sync::Arc<crate::domain::table_model::types::StoredSelection>>],
+    /// Successful internal cuts from earlier active rules of this same physical file.
+    pub shared: &'a [Option<std::sync::Arc<Table>>],
+    /// Steps made at a global DAG cut even when this rule has one local reader.
+    pub graph_kept: &'a [bool],
     /// Prepared stored programs for the current request's plan.
     pub selectors: &'a [Option<std::sync::Arc<crate::domain::stored_selection::types::Selector>>],
     /// What each step keeps for itself.
@@ -111,7 +115,7 @@ impl<'a> Feed<'a> for Stepper<'a, '_> {
     }
 
     fn streams(&self, which: InputPlace) -> Supply {
-        if matches!(input(self, which), Ok(Input::Step(id)) if self.layout.kept.0.get(usize::try_from(id.0).unwrap_or(usize::MAX)) != Some(&true))
+        if matches!(input(self, which), Ok(Input::Step(id)) if self.layout.kept.0.get(usize::try_from(id.0).unwrap_or(usize::MAX)) != Some(&true) && self.graph_kept.get(usize::try_from(id.0).unwrap_or(usize::MAX)) != Some(&true))
         {
             Supply::Streamed
         } else {

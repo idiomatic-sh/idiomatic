@@ -10,7 +10,7 @@ use crate::domain::table_model::types::{Rows, Table};
 use crate::domain::table_texts::service::datum;
 use crate::domain::table_texts::types::{Datum, TextView, Texts};
 use ryo_language::domain::relations::types::CellKind;
-use ryo_language::domain::symbols::service::intern_derived;
+use ryo_language::domain::symbols::service::query_intern_derived;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::terms::types::NameText;
 use ryo_values::domain::plans::types::Operation;
@@ -44,7 +44,7 @@ impl OperatorsItem for ReplaceItem {
                 continue;
             };
             let texts = Texts {
-                symbols: context.symbols,
+                symbols: context.symbols.as_ref(),
                 source: context.source,
                 paths: context.paths,
                 arenas: context.arenas,
@@ -59,8 +59,8 @@ impl OperatorsItem for ReplaceItem {
                 context.prepared_matchers,
                 &mut context.scratch.select_scratch.compiled_regexes,
             )?;
-            let made = intern_derived(
-                context.symbols,
+            let made = query_intern_derived(
+                &mut context.symbols,
                 ByteSlice(context.source.0),
                 NameText(&changed.0),
             );
@@ -70,7 +70,8 @@ impl OperatorsItem for ReplaceItem {
                 AfterTheFiles::After
             };
             out.cells.extend_from_slice(row);
-            out.cells.push(minted(context.symbols, made, after));
+            out.cells
+                .push(minted(context.symbols.as_ref(), made, after));
             out.count.0 += 1;
         }
         Ok(())

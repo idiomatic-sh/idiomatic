@@ -53,7 +53,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         prepared_matchers: None,
         stored_indexes: None,
         bindings: &[],
-        symbols: &mut symbols,
+        symbols: (&mut symbols).into(),
         source: SourceView(SOURCE),
         paths: &[],
         arenas: &[],
@@ -180,7 +180,7 @@ fn metadata_only() -> Result<Value, Failure> {
         prepared_matchers: None,
         stored_indexes: None,
         bindings: &[],
-        symbols: &mut symbols,
+        symbols: (&mut symbols).into(),
         source: SourceView(SOURCE),
         paths: &[],
         arenas: &[],
@@ -214,8 +214,8 @@ fn metadata_only() -> Result<Value, Failure> {
     };
     let layout = layout_of(&plan, PlanIdentity(0), &provided, &mut context)?;
     assert_eq!(*probes.borrow(), [Relation::Function, Relation::Function]);
-    assert_eq!(name_count(context.symbols), names_before);
-    assert_eq!(derived_of(context.symbols).0, derived_before);
+    assert_eq!(name_count(context.symbols.as_ref()), names_before);
+    assert_eq!(derived_of(context.symbols.as_ref()).0, derived_before);
     assert_eq!(context.source.0, SOURCE);
     assert_eq!(context.scratch.row, row_before);
     assert_eq!(context.scratch.row.capacity(), row_capacity);
@@ -254,7 +254,7 @@ fn probe_order() -> Result<Value, Failure> {
         prepared_matchers: None,
         stored_indexes: None,
         bindings: &[],
-        symbols: &mut symbols,
+        symbols: (&mut symbols).into(),
         source: SourceView(SOURCE),
         paths: &[],
         arenas: &[],
@@ -312,7 +312,7 @@ fn native_frontier() -> Result<Value, Failure> {
         prepared_matchers: None,
         stored_indexes: None,
         bindings: &[],
-        symbols: &mut symbols,
+        symbols: (&mut symbols).into(),
         source: SourceView(b""),
         paths: &[],
         arenas: &[],
@@ -361,7 +361,7 @@ fn owned_frontier_shaping_preserves_native_and_computed_cell_allocations() {
         prepared_matchers: None,
         stored_indexes: None,
         bindings: &[],
-        symbols: &mut symbols,
+        symbols: (&mut symbols).into(),
         source: SourceView(b""),
         paths: &[],
         arenas: &[],
@@ -446,7 +446,7 @@ fn failed_frontier_metadata_lookup_rolls_back_all_empty_schema_fills() {
         prepared_matchers: None,
         stored_indexes: None,
         bindings: &[],
-        symbols: &mut symbols,
+        symbols: (&mut symbols).into(),
         source: SourceView(b""),
         paths: &[],
         arenas: &[],

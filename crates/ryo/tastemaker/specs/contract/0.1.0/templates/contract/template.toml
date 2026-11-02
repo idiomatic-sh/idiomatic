@@ -1256,7 +1256,9 @@ impl Parse for OtherContract {
     }
 }
 '''
+# The Parse template now requires numeric_literal; this deliberate negative mutation rejects that member too.
 then.findings = [
+  { rule = 'contract#template', path = 'contract.rs' },
   { rule = 'contract#template', path = 'contract.rs' },
   { rule = 'contract#template', path = 'contract.rs' },
   { rule = 'contract#template', path = 'contract.rs' },
@@ -1624,7 +1626,9 @@ impl Different for ParseContract {
     }
 }
 '''
+# The Parse template now requires numeric_literal; this deliberate negative mutation rejects that member too.
 then.findings = [
+  { rule = 'contract#template', path = 'contract.rs' },
   { rule = 'contract#template', path = 'contract.rs' },
   { rule = 'contract#template', path = 'contract.rs' },
   { rule = 'contract#template', path = 'contract.rs' },
@@ -1723,7 +1727,9 @@ impl ParseContract {
     }
 }
 '''
+# The Parse template now requires numeric_literal; this deliberate negative mutation rejects that member too.
 then.findings = [
+  { rule = 'contract#template', path = 'contract.rs' },
   { rule = 'contract#template', path = 'contract.rs' },
   { rule = 'contract#template', path = 'contract.rs' },
   { rule = 'contract#template', path = 'contract.rs' },

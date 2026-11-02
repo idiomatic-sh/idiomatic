@@ -76,7 +76,7 @@ fn compact_positive_reach_matches_sorted_closure_with_partitions_cycles_and_dupl
         prepared_matchers: None,
         stored_indexes: None,
         bindings: &[],
-        symbols: &mut symbols,
+        symbols: (&mut symbols).into(),
         source: SourceView(b""),
         paths: &[],
         arenas: &[],

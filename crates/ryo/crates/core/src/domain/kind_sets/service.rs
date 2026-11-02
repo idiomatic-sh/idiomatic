@@ -147,7 +147,8 @@ pub(crate) fn kind_tests(
                     std::sync::Arc::new(make_set(&prepared.names, comparison.test, &named.0))
                 }))
             } else {
-                let names = vocabulary_names(tree.elements, context.symbols, context.source);
+                let names =
+                    vocabulary_names(tree.elements, context.symbols.as_ref(), context.source);
                 std::sync::Arc::new(make_set(&names, comparison.test, &named.0))
             };
             scratch.sets.push(made);

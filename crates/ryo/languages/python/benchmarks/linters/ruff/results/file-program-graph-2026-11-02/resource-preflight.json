@@ -1,0 +1,12 @@
+{
+  "cgroup_limit": null,
+  "cgroup_current": 1198469120,
+  "inactive_file": 167100416,
+  "inactive_file_reclaim_is_estimate": true,
+  "host_available": 47139876864,
+  "effective_headroom": 47139876864,
+  "required_memory": 2777800704,
+  "disk_free": 355112849408,
+  "required_disk": 10737418240,
+  "passed": true
+}

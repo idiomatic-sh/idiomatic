@@ -96,6 +96,10 @@ fn ordinary_info_subscriber_does_not_enable_diagnostic_step_events() {
         || tracing::enabled!(target: RULE_STEP_TARGET, tracing::Level::TRACE),
     );
     assert!(!enabled);
+    let file_program_enabled = tracing::dispatcher::with_default(&dispatch, || {
+        tracing::enabled!(target: super::FILE_PROGRAM_TARGET, tracing::Level::TRACE)
+    });
+    assert!(!file_program_enabled);
 }
 
 /// The same subscriber can expose coarse work without enabling it by default.
@@ -116,6 +120,7 @@ fn aggregate_profile_is_explicit_and_keeps_counter_fields() -> Result<(), Box<dy
             tracing::trace!(target: super::WORKING_SET_TARGET, event = "rule_released", retained_bytes = 11_usize);
             tracing::trace!(target: super::LAYOUT_TARGET, event = "layout_schema", payload_rows = 0_usize);
             tracing::trace!(target: super::GRAPH_TARGET, event = "graph_work", graph_edges = 13_usize);
+            tracing::trace!(target: super::FILE_PROGRAM_TARGET, event = "file_program", shared_executions = 5_u64);
             tracing::trace!(target: super::LIFECYCLE_TARGET, phase = "after_files", retained_bytes = 17_usize);
         });
         let output = std::fs::read_to_string(path)?;
@@ -126,7 +131,7 @@ fn aggregate_profile_is_explicit_and_keeps_counter_fields() -> Result<(), Box<dy
                 .lines()
                 .map(serde_json::from_str::<serde_json::Value>)
                 .collect::<Result<Vec<_>, _>>()?;
-            assert_eq!(events.len(), 6);
+            assert_eq!(events.len(), 7);
             assert!(
                 events
                     .iter()
@@ -141,6 +146,11 @@ fn aggregate_profile_is_explicit_and_keeps_counter_fields() -> Result<(), Box<dy
                 events
                     .iter()
                     .any(|event| event["fields"]["graph_edges"] == 13)
+            );
+            assert!(
+                events
+                    .iter()
+                    .any(|event| event["fields"]["shared_executions"] == 5)
             );
         }
     }

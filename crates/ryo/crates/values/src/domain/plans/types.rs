@@ -345,9 +345,24 @@ pub enum Operation {
     },
 }
 
-/// The kinds of operation the language has, one variant each.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum OperationKind {
+/// Keep the feature catalog's variants generated from the same declaration as
+/// the kind itself. Adding a kind cannot silently omit it from `ALL`.
+macro_rules! operation_kinds {
+    ($( $(#[$meta:meta])* $variant:ident, )+) => {
+        /// The kinds of operation the language has, one variant each.
+        #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+        pub enum OperationKind {
+            $( $(#[$meta])* $variant, )+
+        }
+
+        impl OperationKind {
+            /// Every declared operation kind, in its stable catalog order.
+            pub const ALL: &'static [Self] = &[ $( Self::$variant, )+ ];
+        }
+    };
+}
+
+operation_kinds! {
     /// Literal regular-expression replacement.
     Replace,
     /// Ordered consumption of right rows.
