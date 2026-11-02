@@ -249,10 +249,9 @@ def complete_case_ids(selected_cases: list[dict[str, object]], records: list[dic
             and isinstance(row.get('case_passed'), bool)
             for row in sides.values()
         )
-        legacy = all(row.get('observation_schema') is None for row in sides.values())
         if (identities_match and context_receipts_valid(expected_case, sides)
             and discrepancy_record_pair_valid(expected_case, sides)
-            and (legacy or record_contract_satisfied(expected_case, sides))):
+            and record_contract_satisfied(expected_case, sides)):
             completed.add(case_id)
     return completed
 

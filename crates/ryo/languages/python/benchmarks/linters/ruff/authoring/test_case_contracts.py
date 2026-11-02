@@ -51,3 +51,12 @@ class ContractTests(unittest.TestCase):
         self.assertFalse(record_contract_satisfied(case,sides))
         case,sides=self.fixture();sides['reference']['skipped']=sides['candidate']['skipped']
         self.assertFalse(record_contract_satisfied(case,sides))
+
+    def test_erasing_both_capability_contracts_cannot_forge_a_completed_pair(self):
+        case,sides=self.fixture()
+        for row in sides.values():
+            for field in ['observation_schema','execution_metadata','expectation_contract']:
+                row.pop(field)
+        counts=case_expectation_summary([case],list(sides.values()))
+        self.assertEqual(counts['complete_case_pairs'],0)
+        self.assertEqual(counts['intended_behavior_passes'],0)
