@@ -2,7 +2,7 @@
 
 Generated from canonical source and the existing full-inventory runner's results. Every pinned default is preloaded; missing, unrun, invalid and failed implementations remain FAIL.
 
-**382 PASS / 31 FAIL / 413 pinned defaults**; run state `complete`. Base worker `d43a5760d6c9388d7ba307416417268fbf1cacb92ae6fbe9bf70dffdf0d686b8`. PASS means executed intended expectations, including only independently validated explicit reference discrepancies. Raw parity and documented differences remain explicit in result receipts. This table is not an admission subset. Counts combine separately linked receipts; no combined replay is claimed.
+**383 PASS / 30 FAIL / 413 pinned defaults**; run state `complete`. Base worker `d43a5760d6c9388d7ba307416417268fbf1cacb92ae6fbe9bf70dffdf0d686b8`. PASS means executed intended expectations, including only independently validated explicit reference discrepancies. Raw parity and documented differences remain explicit in result receipts. This table is not an admission subset. Counts combine separately linked receipts; no combined replay is claimed.
 
 | Rule | Result | Reason / evidence |
 |---|---|---|
@@ -137,7 +137,7 @@ Generated from canonical source and the existing full-inventory runner's results
 | FURB169 | PASS | verified intended expectations |
 | FURB177 | PASS | verified intended expectations |
 | FURB181 | PASS | verified intended expectations |
-| FURB188 | FAIL | [Missing implementation](results/full-inventory-current/summary.json) |
+| FURB188 | PASS | [separate fixture and py38 inactive-rule control proof](results/full-inventory-current/furb188-target-supplement/summary.json) |
 | FURB192 | PASS | verified intended expectations |
 | G010 | PASS | verified intended expectations |
 | G101 | PASS | verified intended expectations |
