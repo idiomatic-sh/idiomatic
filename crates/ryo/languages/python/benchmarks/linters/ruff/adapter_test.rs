@@ -271,7 +271,13 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
             end: ryo_benchmark::domain::diagnostics::types::SourceByteOffset(20),
         }]
     };
-    Ok(report.files == request.files && report.diagnostics == expected)
+    Ok(report.files == request.files
+        && report.diagnostics == expected
+        && matches!(
+            report.execution_metadata,
+            ryo_benchmark::domain::diagnostics::types::ExecutionMetadata::Unavailable { .. }
+        )
+        && report.coverage.is_none())
 }
 fn subject(input: Input) -> Result<Value, Failure> {
     exercise(input).map_err(failure)

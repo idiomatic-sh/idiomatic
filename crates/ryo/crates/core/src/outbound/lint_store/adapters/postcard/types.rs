@@ -49,6 +49,8 @@ pub(super) struct TableOfContents {
 pub(super) struct OpenedStore {
     /// The file.
     pub file: std::fs::File,
+    /// The immutable snapshot length observed when this file was opened.
+    pub length: SectionLength,
     /// The bytes of its table of contents.
     pub contents: SectionBytes,
 }

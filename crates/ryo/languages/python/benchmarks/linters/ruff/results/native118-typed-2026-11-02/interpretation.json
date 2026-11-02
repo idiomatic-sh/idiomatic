@@ -1,0 +1,19 @@
+{
+  "schema": "native-typed-proof-checkpoint/v1",
+  "profile_count": 118,
+  "case_pairs": 2791,
+  "intended_passes": 2791,
+  "diagnostic_exact": 2778,
+  "documented_reference_discrepancies": 13,
+  "candidate_complete": 2791,
+  "reference_unavailable": 2791,
+  "execution_metadata_incomparable": 2791,
+  "legacy_stored_field_exact": 2774,
+  "legacy_stored_field_differences": 17,
+  "known_up025_skip_array_differences": 4,
+  "diagnostic_failures": 0,
+  "unknown_or_incomplete_candidates": 0,
+  "artifact_archive_sha256": "7ffe2a766072d9944912343db3fe1dffa9752289f4dc41ddce784d48d94e06fd",
+  "archive_members_match_summary_portable_execution_artifacts": true,
+  "scope": "Current exact118 per-rule identities. Not all413 proof; reference phase coverage unavailable. Historical raw arrays and counts unchanged."
+}

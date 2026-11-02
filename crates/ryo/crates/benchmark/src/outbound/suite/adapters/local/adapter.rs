@@ -411,6 +411,7 @@ fn expected_report(
     expected: Vec<crate::domain::suite::types::Expected>,
 ) -> RunReport {
     let mut report = RunReport {
+        execution_metadata: crate::domain::diagnostics::types::ExecutionMetadata::Unknown,
         project_context: None,
         files,
         skipped: Vec::new(),

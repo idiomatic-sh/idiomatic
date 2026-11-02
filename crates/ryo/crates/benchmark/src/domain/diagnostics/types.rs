@@ -17,6 +17,8 @@ pub struct BenchmarkFinding {
 /// Decoded findings and the exact files submitted to the tool.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RunReport {
+    /// Whether the producer actually reports rule/file execution outcomes; absent evidence is never known zero.
+    pub execution_metadata: ExecutionMetadata,
     /// Actual project lookups and their sealed snapshot identity, when explicitly enabled.
     pub project_context: Option<ProjectContextReceipt>,
     /// Finding multiset, preserving duplicate occurrences.
@@ -27,6 +29,53 @@ pub struct RunReport {
     pub coverage: Option<RuleCoverage>,
     /// Exact relative source paths submitted to the tool.
     pub files: Vec<RelativePath>,
+}
+
+/// What a report's producer can establish about per-rule execution.
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "availability", rename_all = "kebab-case", deny_unknown_fields)]
+pub enum ExecutionMetadata {
+    /// A legacy or undeclared format provides no capability evidence.
+    #[default]
+    Unknown,
+    /// The declared format cannot expose per-rule execution outcomes.
+    Unavailable {
+        /// Format-level limitation, without inferred execution semantics.
+        reason: String,
+    },
+    /// Coverage and every skipped pair are explicitly reported and must validate.
+    Complete,
+}
+
+/// Agreement for one independently comparable report dimension.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum Comparison {
+    /// Both sides expose equivalent evidence.
+    Exact,
+    /// Comparable evidence differs, or a required candidate invariant failed.
+    Different,
+    /// At least one side cannot expose the evidence needed for comparison.
+    Incomparable,
+}
+
+/// Finding parity and execution parity are separate claims.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
+pub struct ReportComparison {
+    /// Exact diagnostic multisets and submitted files.
+    pub diagnostics: Comparison,
+    /// Explicit coverage and skipped rule/file pairs, never inferred from findings.
+    pub execution_metadata: Comparison,
+}
+
+/// The evidence a caller requires before accepting paired observations.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ComparisonContract {
+    /// All diagnostics and submitted files; execution evidence may remain explicitly incomparable.
+    Diagnostics,
+    /// Diagnostics and complete execution metadata must both agree.
+    CompleteReport,
 }
 
 /// Accounting for each selected rule/file pair in one candidate execution.
@@ -65,7 +114,7 @@ pub struct Difference {
     pub reference: Vec<BenchmarkFinding>,
     /// Sorted findings returned by the candidate.
     pub candidate: Vec<BenchmarkFinding>,
-    /// Reference-side applicability skips, normally empty for external tools.
+    /// Raw reference-side skip rows; an empty vector cannot establish producer capability.
     pub reference_skipped: Vec<ryo::linter::Skipped>,
     /// Candidate-side applicability skips, never treated as an empty clean result.
     pub candidate_skipped: Vec<ryo::linter::Skipped>,

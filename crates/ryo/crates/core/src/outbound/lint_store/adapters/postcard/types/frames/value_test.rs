@@ -422,3 +422,95 @@ fn old_descriptor_enumeration_skips_huge_payloads_and_resolution_reads_one() {
         assert!(read_old_in(&mut file, at, StoreSnapshot(91), bucket, &bad, &mut loaded).is_err());
     }
 }
+
+#[test]
+fn old_payload_headers_use_one_exact_read_without_neighbor_prefetch() {
+    use super::value::{old_word_rows_in, read_old_in};
+    use ryo_values::domain::stores::types::{OldWords, StoreSnapshot};
+    use std::io::{Read, Seek, SeekFrom};
+
+    struct Counted {
+        bytes: std::io::Cursor<Vec<u8>>,
+        reads: usize,
+        transferred: usize,
+    }
+    impl Read for Counted {
+        fn read(&mut self, into: &mut [u8]) -> std::io::Result<usize> {
+            self.reads += 1;
+            let count = self.bytes.read(into)?;
+            self.transferred += count;
+            Ok(count)
+        }
+    }
+    impl Seek for Counted {
+        fn seek(&mut self, from: SeekFrom) -> std::io::Result<u64> {
+            self.bytes.seek(from)
+        }
+    }
+
+    for file_number in [0, 127, 128, u32::MAX] {
+        for length in [0, 1, 127, 128, 16_384] {
+            let selected = row(file_number, length);
+            let neighbor = row(7, 23);
+            let bytes = bucket_bytes(&[&selected, &neighbor]).expect("two rows");
+            let held = u64::try_from(bytes.len()).expect("length");
+            let bucket = SectionSpan {
+                start: FileOffset(0),
+                length: SectionLength(held),
+            };
+            let mut file = Counted {
+                bytes: std::io::Cursor::new(bytes),
+                reads: 0,
+                transferred: 0,
+            };
+            let headers = old_word_rows_in(&mut file, bucket, held).expect("framing");
+            let first = headers.first().expect("selected row");
+            let descriptor = OldWords {
+                snapshot: StoreSnapshot(81),
+                bucket: Bucket(3),
+                file: first.file,
+                header: first.header,
+                offset: first.span.start.0,
+                length: first.span.length.0,
+            };
+            file.reads = 0;
+            file.transferred = 0;
+            let mut loaded = PackedWords::default();
+            read_old_in(
+                &mut file,
+                held,
+                StoreSnapshot(81),
+                bucket,
+                &descriptor,
+                &mut loaded,
+            )
+            .expect("selected payload");
+            assert_eq!(loaded, selected.words);
+            assert_eq!(file.reads, if length == 0 { 1 } else { 2 });
+            assert_eq!(
+                u64::try_from(file.transferred).expect("count"),
+                descriptor.offset - descriptor.header + descriptor.length,
+                "only this exact header and payload are read"
+            );
+            let malformed = OldWords {
+                header: bucket.start.0 + 1,
+                offset: bucket.start.0 + 17,
+                length: 0,
+                ..descriptor
+            };
+            file.reads = 0;
+            assert!(
+                read_old_in(
+                    &mut file,
+                    held,
+                    StoreSnapshot(81),
+                    bucket,
+                    &malformed,
+                    &mut loaded
+                )
+                .is_err()
+            );
+            assert_eq!(file.reads, 0, "oversized headers are refused before IO");
+        }
+    }
+}

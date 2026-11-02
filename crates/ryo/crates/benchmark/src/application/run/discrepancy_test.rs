@@ -8,10 +8,16 @@ use crate::domain::suite::types::{
 /// Minimal distinct intended/reference outputs with complete input coverage.
 fn case() -> PreparedCase {
     let report = RunReport {
+        execution_metadata: crate::domain::diagnostics::types::ExecutionMetadata::Complete,
         project_context: None,
         diagnostics: Vec::new(),
         skipped: Vec::new(),
-        coverage: None,
+        coverage: Some(crate::domain::diagnostics::types::RuleCoverage {
+            selected: 1,
+            evaluated: 1,
+            skipped: 0,
+            unknown_or_unread: 0,
+        }),
         files: vec![ryo::linter::RelativePath("case.py".into())],
     };
     let mut reference = report.clone();
@@ -135,11 +141,12 @@ fn approved_platform_digest_can_differ_from_observed_evidence_binary() {
 #[test]
 fn unknown_missing_and_inconsistent_accounting_never_admit_discrepancies() {
     let case = case();
+    let mut report = case.expected.clone();
+    report.coverage = None;
     assert!(
-        complete(&case, &case.expected, true).is_err(),
+        complete(&case, &report, true).is_err(),
         "candidate accounting is mandatory"
     );
-    let mut report = case.expected.clone();
     report.coverage = Some(crate::domain::diagnostics::types::RuleCoverage {
         selected: 1,
         evaluated: 1,
@@ -150,6 +157,19 @@ fn unknown_missing_and_inconsistent_accounting_never_admit_discrepancies() {
         complete(&case, &report, true).is_ok(),
         "complete candidate is admissible"
     );
+    for unavailable in [
+        crate::domain::diagnostics::types::ExecutionMetadata::Unknown,
+        crate::domain::diagnostics::types::ExecutionMetadata::Unavailable {
+            reason: "not observed".into(),
+        },
+    ] {
+        report.execution_metadata = unavailable;
+        assert!(
+            complete(&case, &report, true).is_err(),
+            "candidate capability must be explicitly complete"
+        );
+    }
+    report.execution_metadata = crate::domain::diagnostics::types::ExecutionMetadata::Complete;
     report
         .coverage
         .as_mut()

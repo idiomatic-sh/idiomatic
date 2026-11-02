@@ -95,10 +95,16 @@ impl EnginePort for Engine {
             return Err(Error::Invalid("fixture engine failure".into()));
         }
         Ok(RunReport {
+            execution_metadata: crate::domain::diagnostics::types::ExecutionMetadata::Complete,
             project_context: None,
             files: request.files,
             skipped: Vec::new(),
-            coverage: None,
+            coverage: Some(crate::domain::diagnostics::types::RuleCoverage {
+                selected: 1,
+                evaluated: 1,
+                skipped: 0,
+                unknown_or_unread: 0,
+            }),
             diagnostics: Vec::new(),
         })
     }
@@ -123,10 +129,16 @@ fn subject(stage: Input) -> Result<Value, Failure> {
         responded: transport.respond_calls(),
         published: transport.reports()
             == [RunReport {
+                execution_metadata: crate::domain::diagnostics::types::ExecutionMetadata::Complete,
                 project_context: None,
                 files: request().files,
                 skipped: Vec::new(),
-                coverage: None,
+                coverage: Some(crate::domain::diagnostics::types::RuleCoverage {
+                    selected: 1,
+                    evaluated: 1,
+                    skipped: 0,
+                    unknown_or_unread: 0,
+                }),
                 diagnostics: Vec::new(),
             }],
     };

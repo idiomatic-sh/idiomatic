@@ -36,10 +36,16 @@ pub fn report() -> RunReport {
         end: crate::domain::diagnostics::types::SourceByteOffset(4),
     };
     RunReport {
+        execution_metadata: crate::domain::diagnostics::types::ExecutionMetadata::Complete,
         project_context: None,
         files: vec![ryo::linter::RelativePath("source.txt".into())],
         skipped: Vec::new(),
-        coverage: None,
+        coverage: Some(crate::domain::diagnostics::types::RuleCoverage {
+            selected: 1,
+            evaluated: 1,
+            skipped: 0,
+            unknown_or_unread: 0,
+        }),
         diagnostics: vec![finding.clone(), finding],
     }
 }

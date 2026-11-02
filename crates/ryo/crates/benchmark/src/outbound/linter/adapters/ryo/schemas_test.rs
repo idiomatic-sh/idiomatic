@@ -18,7 +18,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("all canonical fields survive"),
         word: Word::Succeeds,
         input: || {
-            br#"{"diagnostics":[{"rule":"R1","file":"input","start":2,"end":7}],"files":["input","clean"]}"#
+            br#"{"diagnostics":[{"rule":"R1","file":"input","start":2,"end":7}],"files":["input","clean"],"execution_metadata":{"availability":"complete"},"coverage":{"selected":2,"evaluated":2,"skipped":0,"unknown_or_unread":0}}"#
         },
         expect: Expect::Value(true),
     },
@@ -26,7 +26,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("typed syntax rejection remains distinct from an empty result"),
         word: Word::Succeeds,
         input: || {
-            br#"{"diagnostics":[],"files":["bad.py"],"skipped":[{"rule":"F401","path":"bad.py","reason":"syntax-rejected"}]}"#
+            br#"{"diagnostics":[],"files":["bad.py"],"skipped":[{"rule":"F401","path":"bad.py","reason":"syntax-rejected"}],"execution_metadata":{"availability":"complete"},"coverage":{"selected":1,"evaluated":0,"skipped":1,"unknown_or_unread":0}}"#
         },
         expect: Expect::Value(true),
     },
@@ -63,6 +63,8 @@ fn subject(bytes: Input) -> Result<Value, Failure> {
             }
             report
                 == RunReport {
+                    execution_metadata:
+                        crate::domain::diagnostics::types::ExecutionMetadata::Complete,
                     project_context: None,
                     diagnostics: vec![BenchmarkFinding {
                         rule: ryo::linter::RuleId::try_from("R1").expect("fixture rule"),
@@ -75,7 +77,12 @@ fn subject(bytes: Input) -> Result<Value, Failure> {
                         ryo::linter::RelativePath("clean".into()),
                     ],
                     skipped: Vec::new(),
-                    coverage: None,
+                    coverage: Some(crate::domain::diagnostics::types::RuleCoverage {
+                        selected: 2,
+                        evaluated: 2,
+                        skipped: 0,
+                        unknown_or_unread: 0,
+                    }),
                 }
         })
         .map_err(|_rejected_report| ())
@@ -87,6 +94,28 @@ fn succeeds() {
 #[test]
 fn refuses() {
     run(CASES, Word::Refuses, subject);
+}
+
+#[test]
+fn legacy_or_incomplete_candidate_metadata_never_becomes_known_zero() {
+    let report = serde_json::json!({
+        "execution_metadata": {"availability": "complete"},
+        "diagnostics": [], "files": ["bad.py"], "skipped": [],
+        "coverage": {"selected": 1, "evaluated": 1, "skipped": 0, "unknown_or_unread": 0},
+    });
+    for path in ["execution_metadata", "coverage"] {
+        let mut invalid = report.clone();
+        invalid
+            .as_object_mut()
+            .expect("fixture object")
+            .remove(path);
+        assert!(decode_report(&serde_json::to_vec(&invalid).expect("fixture JSON")).is_err());
+    }
+    for field in ["unknown_or_unread", "skipped"] {
+        let mut invalid = report.clone();
+        invalid["coverage"][field] = 1.into();
+        assert!(decode_report(&serde_json::to_vec(&invalid).expect("fixture JSON")).is_err());
+    }
 }
 
 #[test]

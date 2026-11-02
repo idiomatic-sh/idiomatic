@@ -138,6 +138,7 @@ impl LintStorePostcardAdapter {
             .map_err(|error| self.unreadable(&error))?;
         Ok(Some(OpenedStore {
             file,
+            length: SectionLength(size),
             contents: bytes,
         }))
     }
@@ -376,11 +377,7 @@ impl ReadStore for PostcardRead {
                         })
             })
             .ok_or_else(|| self.adapter.unreadable(&"old row bucket or span is absent"))?;
-        let held = opened
-            .file
-            .metadata()
-            .map_err(|error| self.adapter.unreadable(&error))?
-            .len();
+        let held = opened.length.0;
         super::types::frames::value::read_old_in(
             &mut opened.file,
             held,

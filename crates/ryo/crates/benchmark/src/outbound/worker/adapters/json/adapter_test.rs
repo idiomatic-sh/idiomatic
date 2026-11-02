@@ -124,7 +124,14 @@ fn subject(operation: Input) -> Result<Value, Failure> {
         "worker".into(),
         "rules".into(),
         std::collections::BTreeMap::default(),
-        std::collections::BTreeMap::default(),
+        if matches!(operation, Operation::RoundTrip) {
+            std::collections::BTreeMap::from([
+                ("fixture".into(), "always".into()),
+                ("other".into(), "accepted-syntax".into()),
+            ])
+        } else {
+            std::collections::BTreeMap::default()
+        },
         None,
     );
     let temporary = tempfile::tempdir().map_err(|_invalid_parser| Refusal::Unexpected)?;
@@ -150,18 +157,18 @@ fn subject(operation: Input) -> Result<Value, Failure> {
     let child = crate::outbound::worker::factory::json(payload, Box::new(output));
     let mut expected_report = report();
     if matches!(operation, Operation::RoundTrip) {
-        let Some(rule) = expected_report
-            .diagnostics
-            .first()
-            .map(|finding| finding.rule.clone())
-        else {
-            return Err(Refusal::Unexpected);
-        };
+        let skipped_rule = ryo::linter::RuleId::try_from("other").expect("fixture rule");
         expected_report.skipped.push(ryo::linter::Skipped {
-            rule,
+            rule: skipped_rule,
             path: ryo::linter::RelativePath("source.txt".into()),
             reason: ryo::linter::SkipReason::SyntaxRejected,
         });
+        let coverage = expected_report
+            .coverage
+            .as_mut()
+            .expect("complete fixture coverage");
+        coverage.selected = 2;
+        coverage.skipped = 1;
     }
     match operation {
         Operation::Malformed => child.receive().map(|_| false).map_err(classify),
@@ -177,6 +184,10 @@ fn subject(operation: Input) -> Result<Value, Failure> {
                 assert_eq!(received.root, request.root);
                 assert_eq!(received.rules, std::path::PathBuf::from("rules"));
                 assert_eq!(received.files, request.files);
+                assert_eq!(
+                    received.rule_applicability.get("other").map(String::as_str),
+                    Some("accepted-syntax")
+                );
                 assert_eq!(
                     received.state,
                     crate::domain::suite::types::WorkerState::Retained(request.state.join("ryo"))

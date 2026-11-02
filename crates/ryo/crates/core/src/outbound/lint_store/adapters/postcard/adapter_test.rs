@@ -595,3 +595,35 @@ fn old_read_descriptors_survive_replacement_and_reject_other_snapshots() {
         stored(2).handed
     );
 }
+
+#[test]
+fn an_open_snapshot_refuses_external_payload_truncation() {
+    use ryo_values::domain::stored_facts::types::PackedWords;
+    use ryo_values::domain::stores::types::ReadWordPayload;
+
+    let root = tempfile::tempdir().expect("directory");
+    let store = store_in(root.path(), "truncated-open-snapshot");
+    store
+        .stored()
+        .unwrap()
+        .keep(stored(1), &KeptRows::default())
+        .unwrap();
+    let snapshot = store.stored().expect("open immutable snapshot");
+    let handed = snapshot.handed(&BucketsWanted::All).expect("row framing");
+    let descriptor = match handed.frontier.first().expect("a row").words {
+        ReadWordPayload::Old(words) => words,
+        ReadWordPayload::Inline(_) => panic!("postcard retains descriptors"),
+    };
+    assert!(descriptor.length > 0);
+    std::fs::OpenOptions::new()
+        .write(true)
+        .open(root.path().join("lint.store"))
+        .expect("external writer")
+        .set_len(descriptor.offset + descriptor.length - 1)
+        .expect("truncate payload after snapshot creation");
+    let mut loaded = PackedWords::default();
+    assert!(
+        snapshot.read_old(&descriptor, &mut loaded).is_err(),
+        "the cached original length must never turn truncated bytes into a successful read"
+    );
+}

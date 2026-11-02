@@ -1,8 +1,9 @@
 //! Parse native source, report frontend diagnostics, and schedule embedded expression writing.
 use super::constants::{
-    ANNOTATED_GLOBAL, COMPREHENSION_REBIND, DUPLICATE_KEYWORD_ARGUMENT, DUPLICATE_PARAMETER,
-    DUPLICATE_TYPE_PARAMETER, GLOBAL_PARAMETER, INVALID_UTF8, NONLOCAL_AT_MODULE,
-    NONLOCAL_PARAMETER, NOT_UTF8, PARSER_ERROR, TYPE_PARAMETER_DEFAULT_ORDER, UNSUPPORTED_SYNTAX,
+    ANNOTATED_GLOBAL, BARE_STARRED_TARGET, COMPREHENSION_REBIND, DUPLICATE_KEYWORD_ARGUMENT,
+    DUPLICATE_PARAMETER, DUPLICATE_TYPE_PARAMETER, GLOBAL_PARAMETER, INVALID_UTF8,
+    NONLOCAL_AT_MODULE, NONLOCAL_PARAMETER, NOT_UTF8, PARSER_ERROR, TYPE_PARAMETER_DEFAULT_ORDER,
+    UNSUPPORTED_SYNTAX,
 };
 use super::schemas::{offset, readable};
 use super::types::{AnnotationCandidate, AnnotationContext, ByteIndex, Readable, Writer};
@@ -184,6 +185,17 @@ fn semantic_syntax_errors(
             });
         }
 
+        /// A bare starred target needs an unpacking tuple or list around it.
+        fn bare_starred_target(&mut self, target: &Expr) {
+            if let Expr::Starred(starred) = target {
+                self.report(
+                    BARE_STARRED_TARGET,
+                    "starred assignment target must be in a list or tuple",
+                    starred.range(),
+                );
+            }
+        }
+
         fn duplicate_parameters(&mut self, parameters: &Parameters) {
             if parameters.len() < 2 {
                 return;
@@ -359,14 +371,29 @@ fn semantic_syntax_errors(
                     }
                     walk_stmt(self, stmt);
                 }
+                Stmt::Assign(assignment) => {
+                    for target in &assignment.targets {
+                        self.bare_starred_target(target);
+                    }
+                    walk_stmt(self, stmt);
+                }
+                Stmt::For(for_stmt) => {
+                    self.bare_starred_target(&for_stmt.target);
+                    walk_stmt(self, stmt);
+                }
+                Stmt::With(with_stmt) => {
+                    for item in &with_stmt.items {
+                        if let Some(target) = &item.optional_vars {
+                            self.bare_starred_target(target);
+                        }
+                    }
+                    walk_stmt(self, stmt);
+                }
                 Stmt::Return(_)
                 | Stmt::Delete(_)
-                | Stmt::Assign(_)
                 | Stmt::AugAssign(_)
-                | Stmt::For(_)
                 | Stmt::While(_)
                 | Stmt::If(_)
-                | Stmt::With(_)
                 | Stmt::Match(_)
                 | Stmt::Raise(_)
                 | Stmt::Try(_)
@@ -404,6 +431,7 @@ fn semantic_syntax_errors(
             if let Some(generators) = generators {
                 let mut targets = ComprehensionTargets::default();
                 for generator in generators {
+                    self.bare_starred_target(&generator.target);
                     targets.visit_expr(&generator.target);
                 }
                 self.comprehensions.push(targets.names);

@@ -30,9 +30,16 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
                         },
                     ),
                     report: RunReport {
+                        execution_metadata:
+                            crate::domain::diagnostics::types::ExecutionMetadata::Complete,
                         project_context: None,
                         skipped: Vec::new(),
-                        coverage: None,
+                        coverage: Some(crate::domain::diagnostics::types::RuleCoverage {
+                            selected: 1,
+                            evaluated: 1,
+                            skipped: 0,
+                            unknown_or_unread: 0,
+                        }),
                         diagnostics: vec![],
                         files: vec![ryo::linter::RelativePath("input".into())],
                     },
@@ -59,9 +66,16 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
                     wall: Duration::from_millis(5),
                     resources: crate::domain::measurements::types::ResourceObservation::WallOnly,
                     report: RunReport {
+                        execution_metadata:
+                            crate::domain::diagnostics::types::ExecutionMetadata::Complete,
                         project_context: None,
                         skipped: Vec::new(),
-                        coverage: None,
+                        coverage: Some(crate::domain::diagnostics::types::RuleCoverage {
+                            selected: 1,
+                            evaluated: 1,
+                            skipped: 0,
+                            unknown_or_unread: 0,
+                        }),
                         diagnostics: vec![],
                         files: vec![ryo::linter::RelativePath("input".into())],
                     },

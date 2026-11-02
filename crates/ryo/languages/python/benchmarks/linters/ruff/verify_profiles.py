@@ -1451,6 +1451,99 @@ def discrepancy_record_pair_valid(
     return True
 
 
+def record_execution_complete(row: dict[str, object]) -> bool:
+    """Validate an explicitly declared producer capability; legacy absence never becomes complete."""
+    if row.get("execution_metadata") != {"availability": "complete"}:
+        return False
+    coverage = row.get("coverage")
+    fields = {
+        "selected_rule_file_pairs", "evaluated_rule_file_pairs",
+        "skipped_rule_file_pairs", "unknown_or_unread_rule_file_pairs",
+    }
+    if not isinstance(coverage, dict) or set(coverage) != fields:
+        return False
+    if any(type(value) is not int or value < 0 for value in coverage.values()):
+        return False
+    skips = row.get("skipped")
+    files = row.get("files")
+    if (
+        not isinstance(skips, list) or not isinstance(files, list) or not files
+        or any(not isinstance(file, str) or not file for file in files)
+        or len(set(files)) != len(files)
+    ):
+        return False
+    pairs = set()
+    for skip in skips:
+        if (
+            not isinstance(skip, dict)
+            or set(skip) != {"rule", "path", "reason"}
+            or not isinstance(skip["rule"], str) or not skip["rule"].strip()
+            or skip["path"] not in files or skip["reason"] != "syntax-rejected"
+        ):
+            return False
+        pair = (skip["rule"], skip["path"])
+        if pair in pairs:
+            return False
+        pairs.add(pair)
+    return (
+        coverage["selected_rule_file_pairs"] >= len(files)
+        and coverage["unknown_or_unread_rule_file_pairs"] == 0
+        and coverage["skipped_rule_file_pairs"] == len(skips)
+        and coverage["selected_rule_file_pairs"]
+        == coverage["evaluated_rule_file_pairs"] + coverage["skipped_rule_file_pairs"]
+    )
+
+
+def record_execution_comparison(reference: dict[str, object], candidate: dict[str, object]) -> str:
+    """Keep unavailable/legacy evidence incomparable, without accepting invalid new candidate evidence."""
+    if candidate.get("observation_schema") == "benchmark-case/v2" and not record_execution_complete(candidate):
+        return "different"
+    if not record_execution_complete(candidate):
+        return "incomparable"
+    capability = reference.get("execution_metadata")
+    if not isinstance(capability, dict) or capability.get("availability") != "complete":
+        return "incomparable"
+    if not record_execution_complete(reference):
+        return "different"
+    skips = lambda row: sorted((skip["rule"], skip["path"], skip["reason"]) for skip in row["skipped"])
+    return "exact" if reference["coverage"] == candidate["coverage"] and skips(reference) == skips(candidate) else "different"
+
+
+def execution_metadata_self_test() -> None:
+    """Version boundaries retain old diagnostics without inventing known execution or waiving fresh candidate guards."""
+    row = {
+        "observation_schema": "benchmark-case/v2",
+        "execution_metadata": {"availability": "complete"},
+        "files": ["case.py"], "skipped": [],
+        "coverage": {
+            "selected_rule_file_pairs": 1, "evaluated_rule_file_pairs": 1,
+            "skipped_rule_file_pairs": 0, "unknown_or_unread_rule_file_pairs": 0,
+        },
+    }
+    assert record_execution_complete(row)
+    assert record_execution_comparison(row, row) == "exact"
+    unavailable = {**row, "execution_metadata": {"availability": "unavailable", "reason": "findings-only format"}, "coverage": None}
+    assert record_execution_comparison(unavailable, row) == "incomparable"
+    legacy = {key: value for key, value in row.items() if key not in {"observation_schema", "execution_metadata"}}
+    assert not record_execution_complete(legacy)
+    assert record_execution_comparison(unavailable, legacy) == "incomparable"
+    assert record_execution_comparison(legacy, row) == "incomparable"
+    for invalid in (
+        {**row, "execution_metadata": {"availability": "unknown"}},
+        {**row, "coverage": None},
+        {**row, "coverage": {**row["coverage"], "unknown_or_unread_rule_file_pairs": 1}},
+        {**row, "coverage": {**row["coverage"], "selected_rule_file_pairs": 2}},
+    ):
+        assert not record_execution_complete(invalid)
+        assert record_execution_comparison(unavailable, invalid) == "different"
+    skipped = {**row, "skipped": [{"rule": "UP025", "path": "case.py", "reason": "syntax-rejected"}],
+               "coverage": {**row["coverage"], "evaluated_rule_file_pairs": 0, "skipped_rule_file_pairs": 1}}
+    assert record_execution_complete(skipped)
+    assert record_execution_comparison(row, skipped) == "different"
+    assert record_execution_comparison(skipped, skipped) == "exact"
+    assert record_execution_comparison(unavailable, skipped) == "incomparable"
+
+
 def complete_case_ids(
     selected_cases: list[dict[str, object]], records: list[dict[str, object]]
 ) -> set[str]:
@@ -1485,6 +1578,15 @@ def complete_case_ids(
             )
             and context_receipts_valid(expected_case, sides)
             and discrepancy_record_pair_valid(expected_case, sides)
+            and all(
+                row.get("observation_schema") is None
+                or (
+                    row.get("observation_schema") == "benchmark-case/v2"
+                    and row.get("expectation_contract") == "diagnostics"
+                    and (side != "candidate" or record_execution_complete(row))
+                )
+                for side, row in sides.items()
+            )
         ):
             completed.add(case_id)
     return completed
@@ -1509,12 +1611,24 @@ def case_expectation_summary(
         "unexplained_mismatches": 0,
         "intended_behavior_passes": 0,
         "intended_behavior_failures": 0,
+        # Additive dimensions; retain every historical raw-array equality count above.
+        "diagnostic_parity_matches": 0,
+        "diagnostic_parity_mismatches": 0,
+        "execution_metadata_exact": 0,
+        "execution_metadata_different": 0,
+        "execution_metadata_incomparable": 0,
+        "typed_candidate_execution_complete": 0,
+        "legacy_or_unknown_candidate_execution": 0,
     }
     for case in inventory:
         sides = grouped.get(f"{case['rule']}/{case['name']}")
         if sides is None:
             continue
         reference, candidate = sides["reference"], sides["candidate"]
+        diagnostic_match = diagnostic_multiset(reference["diagnostics"]) == diagnostic_multiset(candidate["diagnostics"])
+        counts["diagnostic_parity_matches" if diagnostic_match else "diagnostic_parity_mismatches"] += 1
+        counts[f"execution_metadata_{record_execution_comparison(reference, candidate)}"] += 1
+        counts["typed_candidate_execution_complete" if record_execution_complete(candidate) else "legacy_or_unknown_candidate_execution"] += 1
         raw_match = diagnostic_multiset(
             reference["diagnostics"]
         ) == diagnostic_multiset(candidate["diagnostics"]) and reference.get(
@@ -2432,6 +2546,10 @@ def persist_run_record(
         result.stderr if result is not None else b""
     )
     record = {
+        "comparison_schema": "benchmark-comparison/v1",
+        "expectation_contract": "diagnostics",
+        "raw_count_contract": "legacy-stored-field-equality/v1",
+        "execution_metadata_contract": "explicit-capability/v1; legacy absence remains unknown",
         "profile": name,
         "command": command,
         "cwd": str(REPOSITORY / "crates" / "ryo"),
@@ -4033,12 +4151,15 @@ def complete_run_ryo_report(
         raise ValueError("direct worker did not complete successfully")
     report = json.loads(stdout)
     if not isinstance(report, dict) or set(report) != {
+        "execution_metadata",
         "diagnostics",
         "skipped",
         "coverage",
         "files",
     }:
-        raise ValueError("direct worker report has an invalid schema")
+        raise ValueError("fresh direct worker report has an invalid schema")
+    if report["execution_metadata"] != {"availability": "complete"}:
+        raise ValueError("fresh direct worker execution metadata is not explicitly complete")
     if report["files"] != sorted(set(files)):
         raise ValueError("direct worker file inventory is incomplete")
     coverage = report["coverage"]
@@ -4076,7 +4197,9 @@ def complete_run_ryo_report(
             or not 0 <= diagnostic["start"] <= diagnostic["end"]
         ):
             raise ValueError("direct worker diagnostic has an invalid schema")
-    return report
+    # The raw wire retains its explicit capability. Canonical diagnostic/coverage
+    # bodies stay comparable with archived bodies validated under older contracts.
+    return {key: report[key] for key in ("diagnostics", "skipped", "coverage", "files")}
 
 
 def report_cache_contract_self_test() -> None:
@@ -4100,6 +4223,7 @@ def report_cache_contract_self_test() -> None:
             "cache": str(cache),
         }
         report = json.dumps({
+            "execution_metadata": {"availability": "complete"},
             "diagnostics": [],
             "files": ["case.py"],
             "skipped": [],
@@ -4107,7 +4231,21 @@ def report_cache_contract_self_test() -> None:
         })
         complete_run_ryo_report(0, report, "", ["case.py"], ["GUARD001"], request=request, settings=settings, expected_cache_path=cache)
         cache.mkdir()
-        complete_run_ryo_report(0, report, "", ["case.py"], ["GUARD001"], request=request, settings=settings, expected_cache_path=cache)
+        normalized = complete_run_ryo_report(0, report, "", ["case.py"], ["GUARD001"], request=request, settings=settings, expected_cache_path=cache)
+        raw = json.loads(report)
+        assert normalized == {key: raw[key] for key in ("diagnostics", "skipped", "coverage", "files")}
+        for capability in (None, {"availability": "unknown"}, {"availability": "unavailable", "reason": "not observed"}):
+            invalid = {**raw}
+            if capability is None:
+                invalid.pop("execution_metadata")
+            else:
+                invalid["execution_metadata"] = capability
+            try:
+                complete_run_ryo_report(0, json.dumps(invalid), "", ["case.py"], ["GUARD001"], request=request, settings=settings, expected_cache_path=cache)
+            except ValueError:
+                pass
+            else:
+                raise AssertionError("missing or unavailable fresh candidate metadata was accepted")
         for arguments in (
             {"request": request, "settings": settings},
             {"request": {**request, "cache": None}, "settings": settings, "expected_cache_path": cache},
@@ -4232,6 +4370,7 @@ def self_test_standard_suppression() -> None:
         # An unreviewed partial form is outside this guard's explicit policy scope.
         check_standard_suppression(profile, ["UNMAPPED001"], policies)
     valid_report = {
+        "execution_metadata": {"availability": "complete"},
         "diagnostics": [],
         "skipped": [],
         "files": ["case.py"],
@@ -4523,6 +4662,7 @@ def discrepancy_artifact_staging_self_test() -> None:
 
 
 def self_test() -> int:
+    execution_metadata_self_test()
     """Exercise fail-closed profile-selection and hash-mismatch guards without invoking Cargo."""
     self_test_standard_suppression()
     report_cache_contract_self_test()

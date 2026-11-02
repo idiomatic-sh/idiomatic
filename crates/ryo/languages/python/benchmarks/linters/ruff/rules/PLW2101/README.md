@@ -1,0 +1,7 @@
+PLW2101 reports a fresh threading Lock, RLock, Condition, Semaphore, or BoundedSemaphore constructed directly as a with-context. It inspects every context item, uses unique imported binding origins, and preserves the full call span. Shared lock variables, unrelated factories, shadowing, deletion, reassignment, suppression, Unicode, and multiline calls have controls.
+
+The production query passes all34 intended full-report cases on sealed worker755bda55. Exact query/module/profile/case hashes and raw reports are in evidence. Native Ruff0.16.5 differs on unrelated-call-before-lock: it returns before checking later items. The intended diagnostic remains; CPython3.10.19 executes the exact source with an instrumented real Lock factory and confirms later construction. Raw oracle output is unchanged. Formal reference-discrepancy admission remains pending, so this profile is not READY.
+
+Source audit: tagged0.16.5 crates/ruff_linter/src/rules/pylint/rules/useless_with_lock.rs, plus statement dispatch. Independent implementation uses relational call/import/context matching rather than reproducing the visitor's early return. No shared fragments or provider code changed.
+
+Current canonical singleton proof:34/34intended pass,33raw exact+1documented reference discrepancy; existing stage_binding/native verify-cases on sealed6540. The exact independent real-lock context evaluation evidence is pinned per case.

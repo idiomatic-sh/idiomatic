@@ -140,6 +140,11 @@ impl TryFrom<RuffReportSchema<'_>> for RunReport {
             });
         }
         Ok(RunReport {
+            execution_metadata:
+                ryo_benchmark::domain::diagnostics::types::ExecutionMetadata::Unavailable {
+                    reason: "Ruff JSON findings format has no rule/file execution accounting"
+                        .into(),
+                },
             project_context: None,
             diagnostics,
             skipped: Vec::new(),

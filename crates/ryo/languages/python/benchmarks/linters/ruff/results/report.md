@@ -2,6 +2,27 @@
 
 **In progress.** The goal remains all 413 Ruff 0.16.5 defaults as RyoQL, faithful full reports, and subsecond full-Django execution. Neither full parity nor the performance target has passed.
 
+## Typed execution and bounded descriptor IO checkpoint (2026-11-02)
+
+The [selected source-bound checks](io-capability-measurements-2026-11-02.json) pass 332 core, nine values, 101 benchmark, 190 Python library, 20 Python context and seven real cache-lifecycle tests, plus full Python conformance/allocation and strict helper guards. Passed steps come from their recorded frozen-source attempts; this is not broad QA acceptance. Descriptor reads use the immutable snapshot length and one bounded stack-buffer header read before the requested payload, preserving truncation refusal and avoiding neighboring payload reads. Fresh Ryo reports require explicit Complete execution metadata; reference metadata remains explicitly unavailable.
+
+The [full lifecycle](io-capability-full-django-2026-11-02.json) retains frozen310, the pinned2,875 files, one worker/RAYON1 and600-second caps. Side-by-side values are separate observations, not alternating pairs:
+
+| Mode | Prior20c wall / RSS | Currentafb2 wall / RSS | Current CPU |
+|---|---:|---:|---:|
+| Cold | 246.531 s / 2.181 GB | 248.954 s / 2.199 GB | 248.333 s |
+| Retained CLI cache | 1.879 s / 238 MB | 1.891 s / 238 MB | 1.891 s |
+| Edited, retained cache | 11.453 s / 1.955 GB | 9.387 s / 1.955 GB | 9.386 s |
+| Edited, fresh cache | 245.745 s / 2.176 GB | 245.104 s / 2.201 GB | 245.008 s |
+
+All four current reports are Complete and exact, including cached edit versus fresh recomputation. Coverage remains891,250 selected/890,943 evaluated/307 explicit syntax skips/zero unknowns. Relative to the earlier f125 observation, current retained-edit RSS remains32.79% lower at similar wall time. The earlier unfavorable forward and variable reverse-edit observations below remain retained. The provider also now validates bare starred assignment targets; this is not isolated IO causality or cross-version typed metadata parity. Legacy producer metadata is Unknown, never silently Complete.
+
+Original Rust still **fails**: cold wall723→829ms(1.14661×), CPU4497→5339ms(**1.18724×**, unchanged limit1.15), peak657→505MB; spike1.09835×. The first failing local pair stopped the planned second pair. No five-pair CI certification or overall performance pass is claimed.
+
+The [fresh native proof](native118-typed-2026-11-02/interpretation.json) validates118 rules/2,791 cases: **2,778 diagnostic exact plus13 documented discrepancies, all2,791 intended expectations passed**. Every candidate is typed Complete with valid coverage; every reference is Unavailable, so all2,791 execution metadata comparisons are incomparable. Four historical stored-field differences are the known UP025 skipped-array differences, not additional diagnostic bugs. Complete raw records/stages and exact source seals are preserved in the linked archive and summary. Historical104/114 receipts remain versioned.
+
+Current source presence is349 of413 IDs, versus345 on the preceding public checkpoint; native admission is118, not349 verified rules. Four additional known held source drafts are FURB122/FURB129/PLE0116/TC005; numeric prerequisites and supplemental target profiles remain pending. Full413 parity, subsecond Django, other required corpora and all-language correctness/performance acceptance remain unfinished. Remote Ruff protocol smoke, trybuild/BDD, TM memory, lint/Clippy and existing warm-memory failures remain explicit.
+
 ## Old-store payload descriptors and native promotion (2026-11-02)
 
 The [memory candidate](old-word-memory-measurements-2026-11-02.json) passes **330 core, nine values, seven real CLI cache-lifecycle and 20 Python context tests**. Existing old-store payloads now remain descriptors against the immutable open snapshot until their file/bucket is selected. Persistent wire bytes and all normalized reports remain unchanged; no heap-accounting framework was introduced.

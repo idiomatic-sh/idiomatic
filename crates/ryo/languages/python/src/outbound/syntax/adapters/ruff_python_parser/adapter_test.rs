@@ -1287,3 +1287,95 @@ fn malformed_future_import_never_enables_a_compiler_feature() {
         Some("enabled")
     );
 }
+
+#[test]
+fn bare_starred_loop_target_preserves_accepted_ast_with_validation_error() {
+    let source = "f=open(\"x\",\"w\")\nfor *[x] in rows:\n    f.write(x)\n";
+    for target in [PythonTargetVersion::Py310, PythonTargetVersion::Py313] {
+        for source_kind in [PythonSourceKind::Python, PythonSourceKind::Stub] {
+            let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
+            let mut builder =
+                languages::table_builder(&mut elements, &mut symbols, ByteSlice(source.as_bytes()));
+            SyntaxRuffPythonParserAdapter.read(
+                SourceText(source.as_bytes()),
+                source_kind,
+                &PythonParserSettings::new(target),
+                &mut builder,
+            );
+            assert_eq!(
+                languages::syntax_acceptance(&elements),
+                languages::SyntaxAcceptance::Accepted
+            );
+            assert!(!languages::has_incomplete_syntax(&elements));
+            let diagnostics: Vec<_> = languages::diagnostics(&elements).collect();
+            assert_eq!(diagnostics.len(), 1);
+            let diagnostic = diagnostics.first().expect("one language validation error");
+            assert_eq!(diagnostic.phase.name(), "validation");
+            assert_eq!(diagnostic.impact.name(), "preserved");
+            assert_eq!(diagnostic.code.as_str(), "starred-assignment-target");
+            assert_eq!((diagnostic.start.0, diagnostic.end.0), (20, 24));
+        }
+    }
+}
+
+#[test]
+fn starred_targets_require_unpacking_containers_without_affecting_expression_stars() {
+    let cases = [
+        ("for *x in rows:\n pass\n", false),
+        ("for (*[x]) in rows:\n pass\n", false),
+        ("π=0\nfor *[x] in rows:\n pass\n", false),
+        ("*[x] = rows\n", false),
+        ("with resource() as *[x]:\n pass\n", false),
+        ("values=[x for *[x] in rows]\n", false),
+        ("async def f():\n async for *[x] in rows:\n  pass\n", false),
+        ("for (*[x],) in rows:\n pass\n", true),
+        ("for [*[x]] in rows:\n pass\n", true),
+        ("for *x, in rows:\n pass\n", true),
+        ("(*[x],) = rows\n", true),
+        ("with resource() as (*[x],):\n pass\n", true),
+        ("values=[x for (*[x],) in rows]\n", true),
+        ("values=[*rows]\nfn(*rows)\nvalue=a*b\n", true),
+    ];
+    for (source, valid) in cases {
+        for target in [PythonTargetVersion::Py310, PythonTargetVersion::Py313] {
+            let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
+            let mut builder =
+                languages::table_builder(&mut elements, &mut symbols, ByteSlice(source.as_bytes()));
+            SyntaxRuffPythonParserAdapter.read(
+                SourceText(source.as_bytes()),
+                PythonSourceKind::Python,
+                &PythonParserSettings::new(target),
+                &mut builder,
+            );
+            let diagnostics: Vec<_> = languages::diagnostics(&elements).collect();
+            if valid {
+                assert!(diagnostics.is_empty(), "valid unpacking context: {source}");
+                assert_eq!(
+                    languages::syntax_acceptance(&elements),
+                    languages::SyntaxAcceptance::Accepted
+                );
+            } else {
+                assert!(
+                    !diagnostics.is_empty(),
+                    "bare target must be refused: {source}"
+                );
+                if languages::syntax_acceptance(&elements) == languages::SyntaxAcceptance::Accepted
+                {
+                    assert!(
+                        diagnostics
+                            .iter()
+                            .any(|row| row.code.as_str() == "starred-assignment-target")
+                    );
+                    assert!(!languages::has_incomplete_syntax(&elements));
+                } else {
+                    assert!(
+                        !diagnostics
+                            .iter()
+                            .any(|row| row.code.as_str() == "starred-assignment-target"),
+                        "the parser already refused this input; do not duplicate validation"
+                    );
+                }
+            }
+        }
+    }
+}

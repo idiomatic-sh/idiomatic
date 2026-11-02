@@ -39,6 +39,9 @@ struct RyoWorkerRequestSchema {
 #[serde(deny_unknown_fields)]
 /// Candidate findings and exact covered file set.
 struct RyoReportSchema {
+    /// Missing legacy capability remains unknown and is refused for candidate evidence.
+    #[serde(default)]
+    execution_metadata: crate::domain::diagnostics::types::ExecutionMetadata,
     #[serde(default)]
     /// Actual dependency observations returned by the candidate.
     project_context: Option<crate::outbound::context::adapters::local::schemas::ReceiptSchema>,
@@ -116,7 +119,8 @@ impl From<WorkerRequest> for RyoWorkerRequestSchema {
 impl TryFrom<RyoReportSchema> for RunReport {
     type Error = Error;
     fn try_from(wire: RyoReportSchema) -> Result<Self, Self::Error> {
-        Ok(Self {
+        let report = Self {
+            execution_metadata: wire.execution_metadata,
             project_context: wire.project_context.map(Into::into),
             files: wire
                 .files
@@ -163,7 +167,10 @@ impl TryFrom<RyoReportSchema> for RunReport {
                     })
                 })
                 .collect::<Result<_, Error>>()?,
-        })
+        };
+        crate::domain::diagnostics::service::require_complete_execution(&report)
+            .map_err(|error| Error::Invalid(error.into()))?;
+        Ok(report)
     }
 }
 /// Encode a typed candidate invocation for the child process.

@@ -67,6 +67,8 @@ fn subject(scenario: Input) -> Result<serde_json::Value, Failure> {
                     })
                 },
                 report: RunReport {
+                    execution_metadata:
+                        crate::domain::diagnostics::types::ExecutionMetadata::Unknown,
                     project_context: None,
                     skipped: Vec::new(),
                     coverage: None,

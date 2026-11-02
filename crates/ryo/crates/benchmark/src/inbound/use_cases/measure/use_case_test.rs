@@ -92,7 +92,9 @@ fn subject((complete, differs, order): Input) -> Result<Value, Failure> {
                 {
                     Failure::Incomplete
                 }
-                Error::Invalid(message) if message.starts_with("diagnostics differ:") => {
+                Error::Invalid(message)
+                    if message.starts_with("diagnostic benchmark contract failed:") =>
+                {
                     Failure::Difference
                 }
                 Error::Invalid(_) | Error::Io(_) | Error::Json(_) | Error::Toml(_) => {

@@ -27,10 +27,16 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 ];
 fn matching() -> Input {
     let report = RunReport {
+        execution_metadata: crate::domain::diagnostics::types::ExecutionMetadata::Complete,
         project_context: None,
         files: vec![ryo::linter::RelativePath("input.txt".into())],
         skipped: Vec::new(),
-        coverage: None,
+        coverage: Some(crate::domain::diagnostics::types::RuleCoverage {
+            selected: 1,
+            evaluated: 1,
+            skipped: 0,
+            unknown_or_unread: 0,
+        }),
         diagnostics: Vec::new(),
     };
     (report.clone(), report)

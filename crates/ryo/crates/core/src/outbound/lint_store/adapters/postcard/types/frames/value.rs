@@ -252,13 +252,31 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn read_old_in(
     }
     let length = usize::try_from(words.length)
         .map_err(|_| invalid("old row payload exceeds addressable memory"))?;
+    // Only the two encoded fields belong to this row header. Reading exactly that
+    // span avoids byte-at-a-time file reads without prefetching another payload.
+    const HEADER_BYTES: usize = 5 + (size_of::<usize>() * 8).div_ceil(7);
+    let header_length = words
+        .offset
+        .checked_sub(words.header)
+        .ok_or_else(|| invalid("old row header is inverted"))?;
+    let header_length = usize::try_from(header_length)
+        .map_err(|_| invalid("old row header exceeds addressable memory"))?;
+    if !(2..=HEADER_BYTES).contains(&header_length) {
+        return Err(invalid("old row header exceeds its encoded field widths"));
+    }
+    let mut header = [0_u8; HEADER_BYTES];
+    let header = header
+        .get_mut(..header_length)
+        .ok_or_else(|| invalid("old row header exceeds its encoded field widths"))?;
     let _position = file.seek(SeekFrom::Start(words.header))?;
+    file.read_exact(header)?;
+    let mut fields = std::io::Cursor::new(header);
     let mut cursor = words.header;
-    let number = integer(file, &mut cursor, end, u64::from(u32::MAX))?;
+    let number = integer(&mut fields, &mut cursor, words.offset, u64::from(u32::MAX))?;
     let framed_length = integer(
-        file,
+        &mut fields,
         &mut cursor,
-        end,
+        words.offset,
         u64::try_from(usize::MAX).unwrap_or(u64::MAX),
     )?;
     if number != u64::from(words.file.0) || framed_length != words.length || cursor != words.offset

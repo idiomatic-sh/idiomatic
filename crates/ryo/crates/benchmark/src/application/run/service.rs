@@ -54,7 +54,7 @@ pub fn run(
     })
 }
 
-use crate::domain::diagnostics::service::compare;
+use crate::domain::diagnostics::service::compare_diagnostics as compare;
 use crate::outbound::suite::interface::SuitePort;
 use std::path::Path;
 /// Verify each rule's independently authored findings through both selected contestants.
@@ -208,6 +208,12 @@ pub fn verify_shard(
                 .map(|measurement| measurement.report.clone());
             match result {
                 Ok(mut result) => {
+                    if name == super::constants::CANDIDATE {
+                        crate::domain::diagnostics::service::require_complete_execution(
+                            &result.report,
+                        )
+                        .map_err(|error| Error::Invalid(error.into()))?;
+                    }
                     if case.comparison == crate::domain::suite::types::CaseComparison::Rule {
                         result.report.diagnostics.retain(|finding| {
                             finding.rule == case.rule
@@ -322,6 +328,9 @@ fn write_case_observation(
             "actual_root": case.request.root, "manifest_hash": hash.0 })
     });
     let record = serde_json::json!({
+        "observation_schema": "benchmark-case/v2",
+        "expectation_contract": "diagnostics",
+        "execution_metadata": report.map(|report| &report.execution_metadata),
         "rule": case.rule.as_ref(),
         "name": case.name.to_string(),
         "side": side,
@@ -345,6 +354,7 @@ fn write_case_observation(
         "documented_reference_discrepancy": case.reference_discrepancy.is_some(),
         "discrepancy_validation": validation,
         "raw_parity_matches_intended": report.map(|actual| super::discrepancy::matches_intended(case, actual)),
+        "diagnostics_match_intended": report.map(|actual| super::discrepancy::matches_intended(case, actual)),
         "source_sha256": format!("{:x}", source_hasher.finalize()),
         "error": error,
         "case_passed": passed,

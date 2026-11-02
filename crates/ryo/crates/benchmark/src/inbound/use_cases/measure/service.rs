@@ -1,13 +1,14 @@
 //! Correctness gates each measured sample, including cache and edited runs.
 use crate::application::run::service::run;
 use crate::domain::diagnostics::errors::DiagnosticsError as Error;
-use crate::domain::diagnostics::service::compare;
+use crate::domain::diagnostics::service::compare_with_contract;
+use crate::domain::diagnostics::types::ComparisonContract;
 use crate::domain::measurements::types::{RunOrder, pair::value::Pair};
 use crate::domain::suite::service::require_complete;
 use crate::domain::suite::types::RunRequest;
 use crate::outbound::{execution::interface::ExecutionPort, linter::interface::LinterPort};
 
-/// Execute both contestants in the specified order and retain only exact agreement.
+/// Execute both contestants, requiring all diagnostic findings and valid candidate execution; report incomparable reference metadata.
 pub(super) fn measure(
     audit: &Audit,
     reference: &dyn LinterPort,
@@ -27,8 +28,22 @@ pub(super) fn measure(
             (run(reference, execution, request)?, candidate)
         }
     };
-    compare(&reference.report, &candidate.report)
-        .map_err(|difference| Error::Invalid(format!("diagnostics differ: {difference:?}")))?;
+    let comparison = compare_with_contract(
+        &reference.report,
+        &candidate.report,
+        ComparisonContract::Diagnostics,
+    )
+    .map_err(|difference| {
+        Error::Invalid(format!(
+            "diagnostic benchmark contract failed: {difference:?}"
+        ))
+    })?;
+    crate::outbound::evidence::adapters::comparison::write(
+        &reference.report,
+        &candidate.report,
+        comparison,
+        ComparisonContract::Diagnostics,
+    );
     Ok(Pair {
         reference,
         candidate,

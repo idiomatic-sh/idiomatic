@@ -66,6 +66,18 @@ impl LinterPort for LinterRyoAdapter {
             )));
         }
         let report = super::schemas::decode_report(&output.stdout.0)?;
+        for skip in &report.skipped {
+            if self
+                .rule_applicability
+                .get(skip.rule.as_ref())
+                .map(String::as_str)
+                != Some("accepted-syntax")
+            {
+                return Err(Error::Invalid(
+                    "candidate skipped an undeclared or always-applicable rule".into(),
+                ));
+            }
+        }
         match (
             self.project_context_mode,
             &request.context_manifest,

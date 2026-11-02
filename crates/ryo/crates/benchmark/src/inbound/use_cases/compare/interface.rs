@@ -1,12 +1,23 @@
-//! Compare full diagnostic multisets.
+//! Compare independently declared diagnostic and execution evidence.
 use crate::domain::diagnostics::types::Difference;
 use crate::domain::diagnostics::types::RunReport;
-/// Compare exact finding multisets and submitted-file coverage.
+/// Apply explicit contracts to finding, submitted-file and execution evidence.
 pub trait CompareUseCase {
-    /// Require equal findings, including duplicates, over identical submitted inputs.
+    /// Require equal findings, submitted inputs and explicitly complete execution metadata.
     ///
     /// # Errors
     ///
-    /// Returns both sorted finding multisets when findings or submitted paths disagree.
+    /// Returns raw reports when a dimension differs or execution parity is unproven.
     fn compare(&self, reference: &RunReport, candidate: &RunReport) -> Result<(), Difference>;
+
+    /// Apply the caller's explicit diagnostic or complete-report contract and retain both comparison dimensions.
+    ///
+    /// # Errors
+    /// Refuses invalid candidate execution and differences required by the selected contract.
+    fn compare_with_contract(
+        &self,
+        reference: &RunReport,
+        candidate: &RunReport,
+        contract: crate::domain::diagnostics::types::ComparisonContract,
+    ) -> Result<crate::domain::diagnostics::types::ReportComparison, Difference>;
 }

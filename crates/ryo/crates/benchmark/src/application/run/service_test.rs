@@ -414,9 +414,15 @@ impl LinterPort for Empty {
     }
     fn decode(&self, _: &RunRequest, _: ProcessOutput) -> Result<RunReport, Error> {
         Ok(RunReport {
+            execution_metadata: crate::domain::diagnostics::types::ExecutionMetadata::Complete,
             project_context: None,
             skipped: Vec::new(),
-            coverage: None,
+            coverage: Some(crate::domain::diagnostics::types::RuleCoverage {
+                selected: 1,
+                evaluated: 1,
+                skipped: 0,
+                unknown_or_unread: 0,
+            }),
             diagnostics: vec![],
             files: vec![],
         })
@@ -510,10 +516,16 @@ fn prepared(scenario: Scenario) -> (SuiteFake, BenchmarkFinding) {
                 state: "cache".into(),
             },
             expected: RunReport {
+                execution_metadata: crate::domain::diagnostics::types::ExecutionMetadata::Complete,
                 project_context: None,
                 files: vec![ryo::linter::RelativePath("case.py".into())],
                 skipped: Vec::new(),
-                coverage: None,
+                coverage: Some(crate::domain::diagnostics::types::RuleCoverage {
+                    selected: 1,
+                    evaluated: 1,
+                    skipped: 0,
+                    unknown_or_unread: 0,
+                }),
                 diagnostics: vec![expected.clone()],
             },
         });

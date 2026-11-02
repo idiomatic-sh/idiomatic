@@ -372,10 +372,11 @@ files={"a.py"="from dataclasses import dataclass\n@dataclass\nclass C:\n    x: l
 expected=[{rule="RUF008", file="a.py", start=68, end=70}]
 
 [[cases]]
-name="late-annotation-cache-0"
-comparison="full"
-files={"case.py"="from dataclasses import dataclass\n@dataclass\nclass C:\n    x: ClassVar[list[int]] = []\nfrom typing import ClassVar\n"}
-expected=[]
+name = "late-annotation-cache-0"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\n@dataclass\nclass C:\n    x: ClassVar[list[int]] = []\nfrom typing import ClassVar\n" }
+expected = [{ "rule" = "RUF008", "file" = "case.py", "start" = 83, "end" = 85 }]
+reference-discrepancy = { "expected" = [], "identity" = { "tool" = "ruff", "version" = "0.16.5", "observed-executable-sha256" = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8", "profile-sha256" = "d51ddf1c3e79ca00036145ea23ec4c9dc24a3838c2a01ddfb3f7c041816ad9c7", "settings-sha256" = "aacc8bbee9f98d509028d7e7f3e16148c9089fbdea13481ed1330d03b10aa019", "source-sha256" = "36a69d81dfb8da627b6c20957341cb6cd11531afa640bef1ffbc27e9c9cd023a", "reference-output-sha256" = "fe95995b682b3d5703c003a04cf4b5f5b0c3f89c764485cc18476c5c1cf2bd7a", "intended-output-sha256" = "284b508036dc920b45de1bccb05e2f2ed9f16c5b736b123c12a5a61d4b601d1f" }, "evidence" = [{ "path" = "evidence/cpython310.json", "sha256" = "77cec39eb11d4fe29a254ef31cac1bd9f50ffc16e72607e4697ba5ff789a4a18", "kind" = "independent-language-run", "language-version" = "CPython3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Exact configured3.10 source is independently evaluated with dont_inherit=True;3.13 corroborates. Definitions only: Path has no readlines/iteration protocol; unresolved eager ClassVar raises NameError before the later import. No linter traversal is assumed." }, { "path" = "evidence/cpython313.json", "sha256" = "fc8fb44f143c9b3a8ecad595458e5eb8a74552c7bb7a93b83fe3810512d95661", "kind" = "independent-language-run", "language-version" = "CPython3.13.5", "target-configuration" = "python-target=3.10", "version-rationale" = "Exact configured3.10 source is independently evaluated with dont_inherit=True;3.13 corroborates. Definitions only: Path has no readlines/iteration protocol; unresolved eager ClassVar raises NameError before the later import. No linter traversal is assumed." }], "reason" = "An eager unresolved ClassVar annotation cannot acquire the later typing import. The intended dataclass-field policy does not exempt this earlier unresolved annotation as a valid ClassVar." }
 
 [[cases]]
 name="late-annotation-cache-1"

@@ -17,10 +17,16 @@ fn succeeds() {
             wall: std::time::Duration::from_millis(milliseconds),
             resources: ResourceObservation::WallOnly,
             report: crate::domain::diagnostics::types::RunReport {
+                execution_metadata: crate::domain::diagnostics::types::ExecutionMetadata::Complete,
                 project_context: None,
                 files: vec![],
                 skipped: Vec::new(),
-                coverage: None,
+                coverage: Some(crate::domain::diagnostics::types::RuleCoverage {
+                    selected: 1,
+                    evaluated: 1,
+                    skipped: 0,
+                    unknown_or_unread: 0,
+                }),
                 diagnostics: vec![],
             },
         };

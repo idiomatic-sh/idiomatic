@@ -5,7 +5,7 @@
 )]
 use crate::domain::measurements::types::{Measurement, SampleName, sample::value::BenchmarkSample};
 
-/// Reference and candidate observations retained after exact agreement.
+/// Reference and candidate observations retained under the explicit diagnostics comparison contract.
 ///
 /// ```compile_fail
 /// use ryo_benchmark::domain::measurements::types::{Measurement, pair::value::Pair};
@@ -22,6 +22,14 @@ pub struct Pair {
 }
 
 impl Pair {
+    /// Read the independent evidence dimensions; diagnostic certification is not a full execution-parity claim.
+    #[must_use]
+    pub fn comparison(&self) -> crate::domain::diagnostics::types::ReportComparison {
+        crate::domain::diagnostics::service::compare_dimensions(
+            &self.reference.report,
+            &self.candidate.report,
+        )
+    }
     /// Read the reference observation without permitting replacement.
     #[must_use]
     pub fn reference(&self) -> &Measurement {

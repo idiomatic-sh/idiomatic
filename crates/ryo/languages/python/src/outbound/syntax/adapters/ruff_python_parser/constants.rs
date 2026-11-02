@@ -84,3 +84,7 @@ pub(super) const ANNOTATED_GLOBAL: ryo::languages::DiagnosticCode =
 /// A named expression rebinds an enclosing comprehension's iteration variable.
 pub(super) const COMPREHENSION_REBIND: ryo::languages::DiagnosticCode =
     ryo::languages::DiagnosticCode::provider_owned("comprehension-rebind");
+
+/// A starred target has no enclosing tuple or list unpacking target.
+pub(super) const BARE_STARRED_TARGET: ryo::languages::DiagnosticCode =
+    ryo::languages::DiagnosticCode::provider_owned("starred-assignment-target");

@@ -68,6 +68,8 @@ impl From<RequestSchema> for WorkerRequest {
 #[derive(Debug, Serialize)]
 /// Candidate findings and exact covered file set.
 struct ReportSchema<'a> {
+    /// Explicit producer capability; older reports cannot silently acquire completeness.
+    execution_metadata: crate::domain::diagnostics::types::ExecutionMetadata,
     #[serde(skip_serializing_if = "Option::is_none")]
     /// Actual dependency observations returned by the candidate.
     project_context: Option<crate::outbound::context::adapters::local::schemas::ReceiptSchema>,
@@ -124,6 +126,7 @@ pub(super) fn request(payload: &OsStr) -> Result<WorkerRequest, WorkerSchemaErro
 /// Serialize findings and complete input coverage without deduplication.
 pub(super) fn report(report: &RunReport) -> Result<WorkerResponseBytes, WorkerSchemaError> {
     let wire = ReportSchema {
+        execution_metadata: report.execution_metadata.clone(),
         project_context: report.project_context.clone().map(Into::into),
         files: report.files.iter().map(|path| path.0.as_ref()).collect(),
         diagnostics: report

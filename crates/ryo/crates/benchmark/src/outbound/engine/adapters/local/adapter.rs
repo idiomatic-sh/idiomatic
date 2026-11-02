@@ -266,6 +266,7 @@ impl EnginePort for EngineLocalAdapter {
             .transpose()?;
         let diagnostics = diagnostic_findings(report.findings)?;
         Ok(RunReport {
+            execution_metadata: crate::domain::diagnostics::types::ExecutionMetadata::Complete,
             project_context,
             diagnostics,
             skipped: report.skipped,

@@ -75,9 +75,15 @@ impl LinterPort for Contestant {
             })
             .collect();
         Ok(RunReport {
+            execution_metadata: crate::domain::diagnostics::types::ExecutionMetadata::Complete,
             project_context: None,
             skipped: Vec::new(),
-            coverage: None,
+            coverage: Some(crate::domain::diagnostics::types::RuleCoverage {
+                selected: request.files.len(),
+                evaluated: request.files.len(),
+                skipped: 0,
+                unknown_or_unread: 0,
+            }),
             files: request.files.clone(),
             diagnostics,
         })

@@ -64,7 +64,7 @@ pub enum CaseComparison {
     /// Assert findings belonging to the enclosing rule.
     #[default]
     Rule,
-    /// Assert every diagnostic, including frontend errors.
+    /// Assert every diagnostic, including frontend errors. This describes diagnostic scope, not execution-metadata parity.
     Full,
 }
 

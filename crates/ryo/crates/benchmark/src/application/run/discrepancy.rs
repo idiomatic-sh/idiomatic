@@ -1,6 +1,6 @@
 //! Admit independently evidenced reference disagreements without relaxing either contract.
 use crate::domain::diagnostics::{
-    errors::DiagnosticsError as Error, service::compare, types::RunReport,
+    errors::DiagnosticsError as Error, service::compare_diagnostics as compare, types::RunReport,
 };
 use crate::domain::suite::types::{ArtifactDigest, CaseComparison, PreparedCase};
 use crate::outbound::{
@@ -165,7 +165,9 @@ pub(super) fn complete(
     if case.reference_discrepancy.is_none() {
         return Ok(());
     }
-    if !report.skipped.is_empty()
+    if (candidate
+        && crate::domain::diagnostics::service::require_complete_execution(report).is_err())
+        || !report.skipped.is_empty()
         || report.coverage.is_some_and(|coverage| {
             coverage.selected == 0
                 || coverage.unknown_or_unread != 0

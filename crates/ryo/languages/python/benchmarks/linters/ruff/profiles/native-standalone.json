@@ -2,9 +2,9 @@
   "schema": "native-standalone-cases/v2",
   "execution_contract": "singleton-per-declared-rule",
   "historical_certification": false,
-  "intent": "New explicit native union: the historical104 query/case identities remain unchanged; ten promoted prepared candidates use their exact declared per-rule profiles, target, phases and module closure. Historical104 descriptor/base remain archived byte-identically. Neither historical execution nor full413 parity is inferred.",
+  "intent": "Explicit native118 union, preserving historical104 and114 source/receipt snapshots. Each custom profile pins its own target/settings/module registry. Annotation helper changes require fresh current typed-worker validation; no old receipt is auto-upgraded.",
   "source_profile_file": "benchmark.toml",
-  "source_profile_sha256": "06951470316600f781c90479e85d40c84ada0343256f6214db7c24d3d3e1ca09",
+  "source_profile_sha256": "958957ed79e7f1ffd0d17bfcb34a5d8af42569ff66783f7fd4d632bb007ea2d0",
   "source_settings": {
     "defaults": [
       "ASYNC100",
@@ -893,7 +893,7 @@
     "python/ruff/unpack-symbols": "4594f5c52183ceed86a6a641a575b79322f3a0c2c1f0065b7695b6a97a1218d4",
     "python/ruff/python-evaluation-regions": "3ef1c23b80e5070940ed367d6a269372f0f9486edbafa36e0332f5751a882104",
     "python/ruff/annotation-evaluation-context": "b176d58a1687fe99f5b41d85fc781c0b33d2dcd58b49c6a16670216b78361ef5",
-    "python/ruff/annotation-origins": "d4cd6d1e89c162be2d98e2a7ca427bb010fc866ffc6c0a62247cac4c9af886fd",
+    "python/ruff/annotation-origins": "6cfa26a97e143633f526c534006c42df872a6bff5da05904d2f5843fc10b9240",
     "python/ruff/assigned-values": "c78ef906aa7e8b31cc6a4935eed21b9da2034ed392cb56da712889d5168ffb86",
     "python/ruff/binding-type": "24acc8ec7efcd738bf2379d02ed355932c87aa0dfa8e92c9254b2784635a8141",
     "python/ruff/boolean-test-context": "83551ea264ff2b900d5ef45be4034ed5d73e264a02ebaedaadfae6a8273d2fa1",
@@ -935,8 +935,8 @@
     "python/ruff/without-effect": "ebf2050f8e9314a4964318cc5b0965c8fabd5d237185573e95569d46c550f4a7"
   },
   "phase_registry_sha256": "51f2c210f75d1275cd68369a1c69289a91ca87f83b7c486a2b348edd89c4a8f4",
-  "query_count": 114,
-  "case_count": 2538,
+  "query_count": 118,
+  "case_count": 2791,
   "profiles": [
     {
       "profile_name": "native-ASYNC115",
@@ -1708,6 +1708,175 @@
           "B032": "accepted-syntax"
         },
         "flags": {}
+      }
+    },
+    {
+      "profile_name": "native-BLE001",
+      "rule_id": "BLE001",
+      "selected_rules": [
+        "BLE001"
+      ],
+      "profile_file": "profiles/BLE001/benchmark.toml",
+      "candidate_file": "rules/BLE001/query.ryoql",
+      "query_sha256": "487f898f208c872cfe884754ac5008822592e1411ae2c3baca23c2d9a5b85bdf",
+      "cases_file": "rules/BLE001/cases.toml",
+      "cases_sha256": "356706b974a6d0b10197ba65dddead4912cd9a434557b5dc70f52f9a0a77de11",
+      "case_count": 119,
+      "case_names": [
+        "builtin-exception",
+        "builtin-baseexception",
+        "narrow-exception",
+        "bare-except",
+        "module-builtin",
+        "module-builtin-alias",
+        "builtin-import-alias",
+        "module-shadow",
+        "foreign-import-shadow",
+        "value-alias-is-not-a-qualified-builtin",
+        "parameter-shadow",
+        "first-member-of-nested-tuples",
+        "one-diagnostic-for-repeated-broad-members",
+        "type-call-is-not-tuple-descent",
+        "type-subscript-is-not-tuple-descent",
+        "arbitrary-exception-attribute",
+        "normalized-unicode-builtin",
+        "two-independent-handlers",
+        "bare-reraise",
+        "named-reraise",
+        "named-reraise-from-none",
+        "chained-reraise-cause",
+        "conditional-reraise",
+        "loop-reraise",
+        "with-reraise",
+        "match-reraise",
+        "unrelated-raise",
+        "wrong-cause",
+        "wrapped-exception-is-not-direct-reraise",
+        "exception-attribute-is-not-direct-reraise",
+        "nested-try-does-not-reraise-outer",
+        "nested-finally-does-not-reraise-outer",
+        "nested-function-does-not-reraise-outer",
+        "nested-class-does-not-reraise-outer",
+        "logging-module",
+        "logging-module-alias",
+        "logging-direct-import-alias",
+        "logging-direct-error-enabled",
+        "flask-current-app",
+        "inline-getlogger",
+        "inline-logger-constructor",
+        "exception-method-does-not-require-exc-info",
+        "local-spelling-policy-unresolved",
+        "local-spelling-policy-attribute",
+        "local-spelling-policy-uppercase",
+        "local-spelling-policy-rebound",
+        "local-spelling-policy-unicode-normalized",
+        "logging-without-trace",
+        "direct-logging-without-trace",
+        "ordinary-exception-method",
+        "imported-foreign-logger",
+        "foreign-import-named-logging",
+        "foreign-dotted-logger",
+        "unproven-factory-receiver",
+        "assigned-call-is-not-expression-statement",
+        "nested-call-is-not-expression-statement",
+        "bool-call-is-not-expression-statement",
+        "condition-call-is-not-expression-statement",
+        "nested-try-logging-does-not-exempt",
+        "nested-function-logging-does-not-exempt",
+        "nested-class-logging-does-not-exempt",
+        "kwargs-do-not-prove-exc-info",
+        "enabled-debug",
+        "enabled-info",
+        "enabled-warn",
+        "enabled-warning",
+        "enabled-error",
+        "enabled-critical",
+        "enabled-log",
+        "false-exc-info-false",
+        "false-exc-info-none",
+        "false-exc-info-integer-zero",
+        "false-exc-info-hex-zero",
+        "false-exc-info-underscore-zero",
+        "false-exc-info-float-zero",
+        "false-exc-info-exponent-zero",
+        "false-exc-info-complex-zero",
+        "false-exc-info-empty-string",
+        "false-exc-info-empty-concatenated-string",
+        "false-exc-info-empty-bytes",
+        "false-exc-info-empty-list",
+        "false-exc-info-empty-tuple",
+        "false-exc-info-empty-dict",
+        "false-exc-info-empty-builtin-list",
+        "false-exc-info-empty-builtin-frozenset",
+        "false-exc-info-recursive-empty-constructors",
+        "false-exc-info-empty-iterable-argument",
+        "false-exc-info-empty-dict-iterable",
+        "false-exc-info-empty-fstring",
+        "false-exc-info-empty-fstring-interpolation",
+        "false-exc-info-nested-empty-fstring",
+        "enabled-exc-info-true",
+        "enabled-exc-info-nonzero",
+        "enabled-exc-info-nonempty-string",
+        "enabled-exc-info-decoded-nul",
+        "enabled-exc-info-nonempty-list",
+        "enabled-exc-info-unknown-name",
+        "enabled-exc-info-boolop-is-unknown",
+        "enabled-exc-info-unaryop-is-unknown",
+        "enabled-exc-info-noniterable-constructor-argument",
+        "enabled-exc-info-false-constructor-argument",
+        "enabled-exc-info-none-constructor-argument",
+        "enabled-exc-info-empty-generator-is-unknown",
+        "enabled-exc-info-starred-empty-is-unknown",
+        "enabled-exc-info-unpacked-dict-is-unknown",
+        "enabled-exc-info-qualified-constructor-is-unknown",
+        "enabled-exc-info-fstring-conversion-is-unknown",
+        "enabled-exc-info-fstring-spec-is-unknown",
+        "enabled-exc-info-fstring-debug-is-not-empty",
+        "enabled-exc-info-fstring-bytes-is-not-empty",
+        "enabled-exc-info-fstring-literal-piece",
+        "explicitly-imported-list-is-not-builtin-binding",
+        "shadowed-list-does-not-prove-false",
+        "normalized-exc-info-name",
+        "inline-noqa",
+        "unrelated-noqa",
+        "file-noqa",
+        "body-noqa-does-not-hide-type",
+        "upstream-pinned-BLE.py"
+      ],
+      "effective_settings": {
+        "defaults": [
+          "BLE001"
+        ],
+        "parser_configuration": "python-target=3.10",
+        "project_context_mode": "isolated",
+        "rule_applicability": {
+          "BLE001": "accepted-syntax"
+        },
+        "flags": {}
+      },
+      "profile_sha256": "075a8cac104b38de78a1e727192298cb1ac0e03e89deeadae400a0d282c8cec5",
+      "source_settings": {
+        "defaults": [
+          "BLE001"
+        ],
+        "parser_configuration": "python-target=3.10",
+        "project_context_mode": "isolated",
+        "rule_applicability": {
+          "BLE001": "accepted-syntax"
+        },
+        "flags": {}
+      },
+      "module_registry": {
+        "python/ruff/builtin-match-at-visit": "fragments/builtin-match-at-visit.ryoql",
+        "python/ruff/suppress": "fragments/suppress.ryoql",
+        "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql",
+        "python/ruff/type-match-at-check": "fragments/type-match-at-check.ryoql"
+      },
+      "module_sha256": {
+        "python/ruff/builtin-match-at-visit": "16924880fa94dcdc46be1610ecd520565f4a88496152da125f2a051105f8508d",
+        "python/ruff/suppress": "b3f9278dec26f739d1ee68a53b834629bc51b26fa868ec250e0eaaf5854d9c26",
+        "python/ruff/suppress-directives": "29efaa45457a591ccd20d340327095ef9f6d9644feec94929f245cc420fc3382",
+        "python/ruff/type-match-at-check": "f6ab40cc1f8c909331adc33de3caa5a2333a4dab04b1b765c339dff97a83f26b"
       }
     },
     {
@@ -4548,6 +4717,102 @@
       }
     },
     {
+      "profile_name": "native-PLR2044",
+      "rule_id": "PLR2044",
+      "selected_rules": [
+        "PLR2044"
+      ],
+      "profile_file": "profiles/PLR2044/benchmark.toml",
+      "candidate_file": "rules/PLR2044/query.ryoql",
+      "query_sha256": "15572279a7ff1d99143bfec863094824b513f405d2f098cdc34f074082431e0e",
+      "cases_file": "rules/PLR2044/cases.toml",
+      "cases_sha256": "66712fd0c09829c903e41613e930edd2bfea16ebe9f2e2eb4fe6fab485327c9a",
+      "case_count": 50,
+      "case_names": [
+        "single-empty",
+        "empty-at-eof",
+        "spaces",
+        "tabs-formfeed",
+        "indented",
+        "inline",
+        "unicode-inline",
+        "crlf",
+        "cr",
+        "unicode-before-inline",
+        "only-empty-block",
+        "blank-line-breaks-block",
+        "code-line-breaks-block",
+        "column-change-breaks-block",
+        "column-change-restarts-block",
+        "trailing-comments-never-form-block",
+        "trailing-comment-breaks-own-block",
+        "own-block-followed-by-inline",
+        "explicit-continuation",
+        "double-empty-after-continuation",
+        "bom-first-line-not-own",
+        "only-bom-empty",
+        "nbsp-content-is-not-python-whitespace",
+        "unicode-separator-content-is-not-newline",
+        "inline-comment-at-eof",
+        "after-multiline-string",
+        "parenthesized-comment",
+        "file-noqa",
+        "file-noqa-wrong-rule",
+        "contentful",
+        "multiple-hashes",
+        "nonempty-block-before",
+        "nonempty-block-after",
+        "nonempty-block-middle",
+        "indented-block",
+        "raw-byte-column-tabs",
+        "raw-byte-column-formfeed",
+        "different-visual-columns-same-bytes",
+        "block-with-extra-hash",
+        "string-not-comment",
+        "multiline-string-not-comment",
+        "bytes-not-comment",
+        "fstring-not-comment",
+        "crlf-block",
+        "cr-block",
+        "trailing-nonempty-does-not-hide-next",
+        "block-then-blank-then-empty",
+        "inline-noqa-is-not-empty",
+        "upstream-pinned-empty_comment",
+        "upstream-pinned-empty_comment_line_continuation"
+      ],
+      "effective_settings": {
+        "defaults": [
+          "PLR2044"
+        ],
+        "parser_configuration": "python-target=3.10",
+        "project_context_mode": "isolated",
+        "rule_applicability": {
+          "PLR2044": "always"
+        },
+        "flags": {}
+      },
+      "profile_sha256": "47a0a506afc291561a874705051eb0bcd75ac85348cbb3d8def32a95b6864e60",
+      "source_settings": {
+        "defaults": [
+          "PLR2044"
+        ],
+        "parser_configuration": "python-target=3.10",
+        "project_context_mode": "isolated",
+        "rule_applicability": {
+          "PLR2044": "always"
+        },
+        "flags": {}
+      },
+      "module_registry": {
+        "python/ruff/suppress": "fragments/suppress.ryoql",
+        "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql"
+      },
+      "module_sha256": {
+        "python/ruff/suppress": "b3f9278dec26f739d1ee68a53b834629bc51b26fa868ec250e0eaaf5854d9c26",
+        "python/ruff/suppress-directives": "29efaa45457a591ccd20d340327095ef9f6d9644feec94929f245cc420fc3382"
+      }
+    },
+    {
       "profile_name": "native-PLW0120",
       "rule_id": "PLW0120",
       "selected_rules": [
@@ -4953,6 +5218,86 @@
           "PLW1510": "accepted-syntax"
         },
         "flags": {}
+      }
+    },
+    {
+      "profile_name": "native-PLW2101",
+      "rule_id": "PLW2101",
+      "selected_rules": [
+        "PLW2101"
+      ],
+      "profile_file": "profiles/PLW2101/benchmark.toml",
+      "candidate_file": "rules/PLW2101/query.ryoql",
+      "query_sha256": "6a2c447825cd36f99b463d6149a0273d93049f12118ab32a2fdf759d39e6f2cc",
+      "cases_file": "rules/PLW2101/cases.toml",
+      "cases_sha256": "b6d7ba21ab813ad55912e2ab81bab4e003a8043d17afa9c79b8de25a2d33e8ae",
+      "case_count": 34,
+      "case_names": [
+        "Lock",
+        "Lock-alias",
+        "RLock",
+        "RLock-alias",
+        "Condition",
+        "Condition-alias",
+        "Semaphore",
+        "Semaphore-alias",
+        "BoundedSemaphore",
+        "BoundedSemaphore-alias",
+        "module-alias",
+        "async-with",
+        "arguments",
+        "shared-lock",
+        "unrelated-lock",
+        "unresolved-name",
+        "local-module-shadow",
+        "local-factory-shadow",
+        "reassigned-module",
+        "reassigned-factory",
+        "deleted-import",
+        "later-import",
+        "local-constructor",
+        "other-threading-api",
+        "nested-call",
+        "multiple-locks",
+        "noncall-before-lock",
+        "unrelated-call-before-lock",
+        "unrelated-call-after-lock",
+        "suppressed",
+        "file-suppressed",
+        "different-noqa",
+        "unicode",
+        "multiline"
+      ],
+      "effective_settings": {
+        "defaults": [
+          "PLW2101"
+        ],
+        "parser_configuration": "python-target=3.10",
+        "project_context_mode": "isolated",
+        "rule_applicability": {
+          "PLW2101": "accepted-syntax"
+        },
+        "flags": {}
+      },
+      "profile_sha256": "54ce61e99bb0f1ba2c5f4f5b25b037d9c4c919d1d0eea55996865264a9afa4c5",
+      "source_settings": {
+        "defaults": [
+          "PLW2101"
+        ],
+        "parser_configuration": "python-target=3.10",
+        "project_context_mode": "isolated",
+        "rule_applicability": {
+          "PLW2101": "accepted-syntax"
+        },
+        "flags": {}
+      },
+      "module_registry": {
+        "python/ruff/suppress": "fragments/suppress.ryoql",
+        "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql"
+      },
+      "module_sha256": {
+        "python/ruff/suppress": "b3f9278dec26f739d1ee68a53b834629bc51b26fa868ec250e0eaaf5854d9c26",
+        "python/ruff/suppress-directives": "29efaa45457a591ccd20d340327095ef9f6d9644feec94929f245cc420fc3382"
       }
     },
     {
@@ -6205,6 +6550,102 @@
           "UP005": "accepted-syntax"
         },
         "flags": {}
+      }
+    },
+    {
+      "profile_name": "native-UP012",
+      "rule_id": "UP012",
+      "selected_rules": [
+        "UP012"
+      ],
+      "profile_file": "profiles/UP012/benchmark.toml",
+      "candidate_file": "rules/UP012/query.ryoql",
+      "query_sha256": "e9ad21b5d4601dd8b01c9ce247cbd0373f1766715c7f963f826442125112ccc0",
+      "cases_file": "rules/UP012/cases.toml",
+      "cases_sha256": "1d9f7f19cbd0aeacffc764eda3c3ef623e44c1360745d9046ca8e5002deac6d0",
+      "case_count": 50,
+      "case_names": [
+        "ascii-utf-8",
+        "unicode-utf-8",
+        "ascii-utf8",
+        "unicode-utf8",
+        "ascii-utf_8",
+        "unicode-utf_8",
+        "ascii-u8",
+        "unicode-u8",
+        "ascii-utf",
+        "unicode-utf",
+        "ascii-cp65001",
+        "unicode-cp65001",
+        "ascii-UTF-8",
+        "unicode-UTF-8",
+        "empty-encoding-ascii",
+        "empty-encoding-unicode",
+        "fstring-encoding",
+        "fstring-empty",
+        "nonliteral-receiver",
+        "bytes-receiver",
+        "unknown-encoding",
+        "different-encoding",
+        "errors-keyword",
+        "multiple-args",
+        "multiple-keywords",
+        "unknown-keyword",
+        "starred-string",
+        "starred-tuple",
+        "unpacked-keyword",
+        "unicode-escape",
+        "unicode-escape-explicit",
+        "named-unicode",
+        "long-unicode",
+        "unicode-escaped-backslash",
+        "triple-backslash-unicode",
+        "raw-unicode",
+        "raw-uppercase-prefix",
+        "octal-byte-boundary",
+        "octal-overflow",
+        "escaped-octal-prefix",
+        "concat-bad-segment",
+        "concat-good-segments",
+        "escaped-control-nul",
+        "encoding-concat",
+        "encoding-fstring-not-literal",
+        "multiline-and-comments",
+        "suppression",
+        "embedded-annotation-expression",
+        "tagged-UP012",
+        "two-real-file-identities"
+      ],
+      "effective_settings": {
+        "defaults": [
+          "UP012"
+        ],
+        "parser_configuration": "python-target=3.10",
+        "project_context_mode": "isolated",
+        "rule_applicability": {
+          "UP012": "accepted-syntax"
+        },
+        "flags": {}
+      },
+      "profile_sha256": "361feffd637ab8a4417741515157a530ce3c10155c112eb1e0f4b021e66577f1",
+      "source_settings": {
+        "defaults": [
+          "UP012"
+        ],
+        "parser_configuration": "python-target=3.10",
+        "project_context_mode": "isolated",
+        "rule_applicability": {
+          "UP012": "accepted-syntax"
+        },
+        "flags": {}
+      },
+      "module_registry": {
+        "python/ruff/suppress": "fragments/suppress.ryoql",
+        "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql"
+      },
+      "module_sha256": {
+        "python/ruff/suppress": "b3f9278dec26f739d1ee68a53b834629bc51b26fa868ec250e0eaaf5854d9c26",
+        "python/ruff/suppress-directives": "29efaa45457a591ccd20d340327095ef9f6d9644feec94929f245cc420fc3382"
       }
     },
     {
