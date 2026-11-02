@@ -28,6 +28,7 @@ pub(crate) mod layout;
 pub(crate) mod listing;
 pub(crate) mod lowering;
 pub(crate) mod matching;
+pub(crate) mod numeric_values;
 pub(crate) mod operands;
 pub(crate) mod operating;
 pub(crate) mod operation_schema;

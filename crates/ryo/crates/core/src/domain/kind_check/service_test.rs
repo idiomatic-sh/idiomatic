@@ -30,6 +30,21 @@ enum KindSite {
     Join,
 }
 
+#[test]
+fn numeric_text_is_not_mistaken_for_a_declared_syntax_kind() {
+    for test in [Test::NumericGreaterThanOrEqual, Test::IntegerSuccessor] {
+        for site in [KindSite::Select, KindSite::Join] {
+            let plan = plan_comparing_kind(
+                test,
+                Operand::Literal(QueryLiteral::Text(LiteralText("1.0".into()))),
+                Relation::SyntaxTree,
+                site,
+            );
+            assert!(super::service::kinds_asked(&plan, &[]).is_empty());
+        }
+    }
+}
+
 fn plan_comparing_kind(test: Test, right: Operand, relation: Relation, site: KindSite) -> Plan {
     let source = ryo_values::domain::plan_parts::types::Input::Relation(relation);
     let comparisons = vec![Comparison {

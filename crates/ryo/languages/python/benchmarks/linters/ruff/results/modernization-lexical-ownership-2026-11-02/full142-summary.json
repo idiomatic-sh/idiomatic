@@ -1,0 +1,457 @@
+{
+  "scope": "Generic helper lexical-namespace guard; original cases retained plus8 independent positive/negative controls. No discrepancy waived or expectation rewritten.",
+  "profiles": {
+    "UP045": {
+      "complete_case_pairs": 33,
+      "incomplete_cases": 0,
+      "raw_parity_matches": 32,
+      "raw_parity_mismatches": 1,
+      "documented_reference_discrepancies": 1,
+      "unexplained_mismatches": 0,
+      "intended_behavior_passes": 33,
+      "intended_behavior_failures": 0,
+      "diagnostic_parity_matches": 32,
+      "diagnostic_parity_mismatches": 1,
+      "execution_metadata_exact": 0,
+      "execution_metadata_different": 0,
+      "execution_metadata_incomparable": 33,
+      "typed_candidate_execution_complete": 33,
+      "legacy_or_unknown_candidate_execution": 0
+    },
+    "UP050": {
+      "complete_case_pairs": 18,
+      "incomplete_cases": 0,
+      "raw_parity_matches": 17,
+      "raw_parity_mismatches": 1,
+      "documented_reference_discrepancies": 1,
+      "unexplained_mismatches": 0,
+      "intended_behavior_passes": 18,
+      "intended_behavior_failures": 0,
+      "diagnostic_parity_matches": 17,
+      "diagnostic_parity_mismatches": 1,
+      "execution_metadata_exact": 0,
+      "execution_metadata_different": 0,
+      "execution_metadata_incomparable": 18,
+      "typed_candidate_execution_complete": 18,
+      "legacy_or_unknown_candidate_execution": 0
+    },
+    "UP007": {
+      "complete_case_pairs": 33,
+      "incomplete_cases": 0,
+      "raw_parity_matches": 31,
+      "raw_parity_mismatches": 2,
+      "documented_reference_discrepancies": 1,
+      "unexplained_mismatches": 1,
+      "intended_behavior_passes": 32,
+      "intended_behavior_failures": 1,
+      "diagnostic_parity_matches": 31,
+      "diagnostic_parity_mismatches": 2,
+      "execution_metadata_exact": 0,
+      "execution_metadata_different": 0,
+      "execution_metadata_incomparable": 33,
+      "typed_candidate_execution_complete": 33,
+      "legacy_or_unknown_candidate_execution": 0
+    },
+    "TC005": {
+      "complete_case_pairs": 58,
+      "incomplete_cases": 0,
+      "raw_parity_matches": 56,
+      "raw_parity_mismatches": 2,
+      "documented_reference_discrepancies": 2,
+      "unexplained_mismatches": 0,
+      "intended_behavior_passes": 58,
+      "intended_behavior_failures": 0,
+      "diagnostic_parity_matches": 56,
+      "diagnostic_parity_mismatches": 2,
+      "execution_metadata_exact": 0,
+      "execution_metadata_different": 0,
+      "execution_metadata_incomparable": 58,
+      "typed_candidate_execution_complete": 58,
+      "legacy_or_unknown_candidate_execution": 0
+    }
+  },
+  "case_count": 142,
+  "candidate_intended_passes": 141,
+  "known_pending": "UP007/tagged-UP007_1.py retains late-future invalid-syntax3694..3728 diagnostic taxonomy difference.",
+  "failures": [
+    {
+      "profile": "UP045",
+      "case": "independent-callable-lexical-ownership-0",
+      "side": "reference",
+      "expected": [],
+      "actual": [
+        {
+          "end": 64,
+          "file": "case.py",
+          "rule": "UP045",
+          "start": 56
+        }
+      ],
+      "source_sha256": "d5a984be8a0e780b7100fcabd2d0529967b3c60b636e213b715538a80805f8e3"
+    },
+    {
+      "profile": "UP050",
+      "case": "independent-callable-lexical-ownership-0",
+      "side": "reference",
+      "expected": [],
+      "actual": [
+        {
+          "end": 35,
+          "file": "case.py",
+          "rule": "UP050",
+          "start": 21
+        }
+      ],
+      "source_sha256": "6961abc895026fdc26341b3fb82140a42d642607ae3652d9cc608ce3c699e3cb"
+    },
+    {
+      "profile": "UP007",
+      "case": "independent-callable-lexical-ownership-0",
+      "side": "reference",
+      "expected": [],
+      "actual": [
+        {
+          "end": 56,
+          "file": "case.py",
+          "rule": "UP007",
+          "start": 35
+        }
+      ],
+      "source_sha256": "5814279a5094ae7c4f5ee849a14244c0bbcdd0bfa570658c3aa16c7ad43dc8ca"
+    },
+    {
+      "profile": "UP007",
+      "case": "tagged-UP007_1.py",
+      "side": "candidate",
+      "expected": [
+        {
+          "end": 86,
+          "file": "case.py",
+          "rule": "UP007",
+          "start": 50
+        },
+        {
+          "end": 85,
+          "file": "case.py",
+          "rule": "UP007",
+          "start": 66
+        },
+        {
+          "end": 138,
+          "file": "case.py",
+          "rule": "UP007",
+          "start": 116
+        },
+        {
+          "end": 192,
+          "file": "case.py",
+          "rule": "UP007",
+          "start": 168
+        },
+        {
+          "end": 253,
+          "file": "case.py",
+          "rule": "UP007",
+          "start": 222
+        },
+        {
+          "end": 303,
+          "file": "case.py",
+          "rule": "UP007",
+          "start": 283
+        },
+        {
+          "end": 349,
+          "file": "case.py",
+          "rule": "UP007",
+          "start": 333
+        },
+        {
+          "end": 416,
+          "file": "case.py",
+          "rule": "UP007",
+          "start": 380
+        },
+        {
+          "end": 415,
+          "file": "case.py",
+          "rule": "UP007",
+          "start": 396
+        },
+        {
+          "end": 470,
+          "file": "case.py",
+          "rule": "UP007",
+          "start": 448
+        },
+        {
+          "end": 637,
+          "file": "case.py",
+          "rule": "UP007",
+          "start": 622
+        },
+        {
+          "end": 688,
+          "file": "case.py",
+          "rule": "UP007",
+          "start": 673
+        },
+        {
+          "end": 715,
+          "file": "case.py",
+          "rule": "UP007",
+          "start": 696
+        },
+        {
+          "end": 745,
+          "file": "case.py",
+          "rule": "UP007",
+          "start": 727
+        },
+        {
+          "end": 798,
+          "file": "case.py",
+          "rule": "UP007",
+          "start": 775
+        },
+        {
+          "end": 843,
+          "file": "case.py",
+          "rule": "UP007",
+          "start": 828
+        },
+        {
+          "end": 893,
+          "file": "case.py",
+          "rule": "UP007",
+          "start": 873
+        },
+        {
+          "end": 941,
+          "file": "case.py",
+          "rule": "UP007",
+          "start": 923
+        },
+        {
+          "end": 994,
+          "file": "case.py",
+          "rule": "UP007",
+          "start": 971
+        },
+        {
+          "end": 1281,
+          "file": "case.py",
+          "rule": "UP007",
+          "start": 1259
+        },
+        {
+          "end": 1445,
+          "file": "case.py",
+          "rule": "UP007",
+          "start": 1419
+        },
+        {
+          "end": 3959,
+          "file": "case.py",
+          "rule": "UP007",
+          "start": 3821
+        },
+        {
+          "end": 1114,
+          "file": "case.py",
+          "rule": "invalid-syntax",
+          "start": 1110
+        },
+        {
+          "end": 1163,
+          "file": "case.py",
+          "rule": "invalid-syntax",
+          "start": 1159
+        }
+      ],
+      "actual": [
+        {
+          "end": 192,
+          "file": "case.py",
+          "rule": "UP007",
+          "start": 168
+        },
+        {
+          "end": 3959,
+          "file": "case.py",
+          "rule": "UP007",
+          "start": 3821
+        },
+        {
+          "end": 253,
+          "file": "case.py",
+          "rule": "UP007",
+          "start": 222
+        },
+        {
+          "end": 416,
+          "file": "case.py",
+          "rule": "UP007",
+          "start": 380
+        },
+        {
+          "end": 415,
+          "file": "case.py",
+          "rule": "UP007",
+          "start": 396
+        },
+        {
+          "end": 470,
+          "file": "case.py",
+          "rule": "UP007",
+          "start": 448
+        },
+        {
+          "end": 1445,
+          "file": "case.py",
+          "rule": "UP007",
+          "start": 1419
+        },
+        {
+          "end": 303,
+          "file": "case.py",
+          "rule": "UP007",
+          "start": 283
+        },
+        {
+          "end": 349,
+          "file": "case.py",
+          "rule": "UP007",
+          "start": 333
+        },
+        {
+          "end": 86,
+          "file": "case.py",
+          "rule": "UP007",
+          "start": 50
+        },
+        {
+          "end": 85,
+          "file": "case.py",
+          "rule": "UP007",
+          "start": 66
+        },
+        {
+          "end": 637,
+          "file": "case.py",
+          "rule": "UP007",
+          "start": 622
+        },
+        {
+          "end": 688,
+          "file": "case.py",
+          "rule": "UP007",
+          "start": 673
+        },
+        {
+          "end": 715,
+          "file": "case.py",
+          "rule": "UP007",
+          "start": 696
+        },
+        {
+          "end": 745,
+          "file": "case.py",
+          "rule": "UP007",
+          "start": 727
+        },
+        {
+          "end": 798,
+          "file": "case.py",
+          "rule": "UP007",
+          "start": 775
+        },
+        {
+          "end": 843,
+          "file": "case.py",
+          "rule": "UP007",
+          "start": 828
+        },
+        {
+          "end": 893,
+          "file": "case.py",
+          "rule": "UP007",
+          "start": 873
+        },
+        {
+          "end": 941,
+          "file": "case.py",
+          "rule": "UP007",
+          "start": 923
+        },
+        {
+          "end": 994,
+          "file": "case.py",
+          "rule": "UP007",
+          "start": 971
+        },
+        {
+          "end": 138,
+          "file": "case.py",
+          "rule": "UP007",
+          "start": 116
+        },
+        {
+          "end": 1281,
+          "file": "case.py",
+          "rule": "UP007",
+          "start": 1259
+        },
+        {
+          "end": 1114,
+          "file": "case.py",
+          "rule": "invalid-syntax",
+          "start": 1110
+        },
+        {
+          "end": 1163,
+          "file": "case.py",
+          "rule": "invalid-syntax",
+          "start": 1159
+        },
+        {
+          "end": 3728,
+          "file": "case.py",
+          "rule": "invalid-syntax",
+          "start": 3694
+        }
+      ],
+      "source_sha256": "9fc62ae9104c0ba04c440062078ae2acfabcd20bac5b571bd6ab480d31d419ce"
+    },
+    {
+      "profile": "TC005",
+      "case": "alias-late-local-assignment",
+      "side": "reference",
+      "expected": [],
+      "actual": [
+        {
+          "end": 71,
+          "file": "case.py",
+          "rule": "TC005",
+          "start": 67
+        }
+      ],
+      "source_sha256": "aebfd5b863d10693ba359696f1725610fa84b3d8163a8a5a3043a17fe3c22d00"
+    },
+    {
+      "profile": "TC005",
+      "case": "independent-callable-lexical-ownership-0",
+      "side": "reference",
+      "expected": [],
+      "actual": [
+        {
+          "end": 71,
+          "file": "case.py",
+          "rule": "TC005",
+          "start": 67
+        }
+      ],
+      "source_sha256": "aebfd5b863d10693ba359696f1725610fa84b3d8163a8a5a3043a17fe3c22d00"
+    }
+  ]
+}

@@ -796,7 +796,7 @@ fn refuses() {
 }
 
 /// Every keyword, in the order the grammar meets them.
-const KEYWORDS: [Keyword; 30] = [
+const KEYWORDS: [Keyword; 32] = [
     Keyword::Param,
     Keyword::Import,
     Keyword::Input,
@@ -819,6 +819,8 @@ const KEYWORDS: [Keyword; 30] = [
     Keyword::In,
     Keyword::GlobAny,
     Keyword::FloatTextGte,
+    Keyword::NumericGte,
+    Keyword::IntegerSuccessor,
     Keyword::StartsWith,
     Keyword::Matches,
     Keyword::EndsWith,
@@ -886,6 +888,8 @@ fn misread(name: &str, text: &str) -> usize {
         "factor" => whole(parsers::factor, text),
         "filter" => whole(parsers::filter, text),
         "float_text_filter" => whole(parsers::float_text_filter, text),
+        "numeric_filter" => whole(parsers::numeric_filter, text),
+        "integer_successor_filter" => whole(parsers::integer_successor_filter, text),
         "glob_filter" => whole(parsers::glob_filter, text),
         "affix_filter" => whole(parsers::affix_filter, text),
         "comparison_filter" => whole(parsers::comparison_filter, text),
@@ -1003,4 +1007,42 @@ fn source_names_keep_written_spelling_separate_from_definition_identity() {
     assert_eq!(reference.0.as_ref(), "rows");
     assert_eq!(reference.1, Some(first));
     assert_eq!(parsed.emit.step.1, Some(second));
+}
+
+#[test]
+fn numeric_gte_reads_literal_and_parameter_operands_in_both_positions() {
+    let query = "param limit: integer; let n = select * from \"numeric-literal\" where numeric_gte(value, $limit) and numeric_gte(86400, value); emit n subject file key(span);";
+    let program = SyntaxWinnowAdapter
+        .read(QueryView(query))
+        .expect("numeric filter parses");
+    let Expression::Select(select) = &program.steps[0].expression else {
+        panic!("select")
+    };
+    assert_eq!(
+        test_at(select, 0).test,
+        WrittenTest::NumericGreaterThanOrEqual
+    );
+    assert_eq!(
+        test_at(select, 1).test,
+        WrittenTest::NumericGreaterThanOrEqual
+    );
+    assert_eq!(
+        test_at(select, 0).right,
+        WrittenOperand::Parameter(WrittenParameter("limit".into()))
+    );
+    assert!(matches!(test_at(select, 1).left, WrittenOperand::Number(_)));
+}
+
+#[test]
+fn integer_successor_reads_ordered_text_and_integer_operands() {
+    let program = SyntaxWinnowAdapter.read(QueryView("let a = select * from \"numeric-literal\" where integer_successor(value, 43); emit a subject file key(id);"))
+        .expect("successor predicate parses");
+    let Expression::Select(select) = &program.steps[0].expression else {
+        panic!("select")
+    };
+    assert_eq!(test_at(select, 0).test, WrittenTest::IntegerSuccessor);
+    assert!(matches!(
+        test_at(select, 0).right,
+        WrittenOperand::Number(_)
+    ));
 }

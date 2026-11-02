@@ -37,7 +37,7 @@ pub(super) fn checked_worker_identity(
     configuration: Option<&str>,
 ) -> Result<(), Error> {
     let configuration = configuration
-        .filter(|value| matches!(*value, "python-target=3.10" | "python-target=3.11"))
+        .filter(|value| super::targets::resolve(Some(*value)).is_ok())
         .ok_or_else(|| {
             Error::Invalid("worker requires an explicit supported parser configuration".into())
         })?;

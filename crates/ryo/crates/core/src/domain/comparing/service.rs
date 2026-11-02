@@ -46,6 +46,8 @@ fn equal_to_text(
         | Test::GreaterThan
         | Test::GreaterThanOrEqual
         | Test::FloatTextGreaterThanOrEqual
+        | Test::NumericGreaterThanOrEqual
+        | Test::IntegerSuccessor
         | Test::In
         | Test::NotIn
         | Test::GlobAny
@@ -90,6 +92,13 @@ fn holds(
         Family::Equality => EqualityItem.holds(comparison.test, &left, &right),
         Family::Ordering => OrderingItem.holds(comparison.test, &left, &right),
         Family::FloatText => FloatTextItem.holds(comparison.test, &left, &right),
+        Family::Numeric => {
+            crate::domain::comparing::collections::comparisons::numeric::item::NumericItem.holds(
+                comparison.test,
+                &left,
+                &right,
+            )
+        }
         Family::Membership => MembershipItem.holds(comparison.test, &left, &right),
         Family::Affix => AffixItem.holds(comparison.test, &left, &right),
         Family::Regex => crate::domain::matching::service::matches_prepared(

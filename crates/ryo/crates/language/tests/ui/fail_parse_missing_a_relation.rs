@@ -40,8 +40,8 @@ impl ParseUseCase for Missing {
 
     fn configuration_identity(
         &self,
-    ) -> crate::inbound::use_cases::parse::types::ParseConfigurationIdentity<'_> {
-        crate::inbound::use_cases::parse::types::ParseConfigurationIdentity("")
+    ) -> ryo_language::inbound::use_cases::parse::types::ParseConfigurationIdentity<'_> {
+        ryo_language::inbound::use_cases::parse::types::ParseConfigurationIdentity("")
     }
 
     fn file_model(&self, _tree: &ryo_language::domain::elements::types::Tree<'_>, _model: &mut ()) {

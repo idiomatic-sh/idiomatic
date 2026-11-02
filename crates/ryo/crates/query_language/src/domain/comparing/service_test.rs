@@ -7,6 +7,7 @@ use crate::domain::comparing::service::comparison_of;
 use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::{Addressable, Builder, Sourced};
 use crate::domain::resolving::service::read_source;
+use crate::domain::syntax::constants::parameter_kind_named;
 use crate::outbound::syntax::factory::winnow;
 use crate::outbound::syntax::interface::SyntaxPort as _;
 use ryo_values::domain::plan_parts::types::Comparison;
@@ -60,6 +61,60 @@ const FUNCTION_COMPARED_WITH_A_NUMBER: &str = "let a = select * from \"function\
 
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("successor_accepts_existing_integer_and_numeric_text"),
+        word: Word::Succeeds,
+        input: || "let a = select * from \"numeric-literal\" where integer_successor(value, 43) and integer_successor(41, value); emit a subject file key(id);",
+        expect: Expect::Value(2),
+    },
+    Case {
+        name: CaseName("successor_refuses_flags"),
+        word: Word::Refuses,
+        input: || "let a = select * from \"literal-properties\" where integer_successor(boolean, 1); emit a subject file key(id);",
+        expect: Expect::Refusal(|error| {
+            selects(matches!(error, LoweringError::KindMismatch { .. }))
+        }),
+    },
+    Case {
+        name: CaseName("numeric_text_to_integer"),
+        word: Word::Succeeds,
+        input: || "let a = select * from \"numeric-literal\" where numeric_gte(value, 86400); emit a subject file key(span);",
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("numeric_integer_to_text"),
+        word: Word::Succeeds,
+        input: || "let a = select * from \"numeric-literal\" where numeric_gte(86400, value); emit a subject file key(span);",
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("numeric_integer_to_integer"),
+        word: Word::Succeeds,
+        input: || "let a = select * from \"entry\" where numeric_gte(integer, 3); emit a subject file key(span);",
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("numeric_text_to_text"),
+        word: Word::Succeeds,
+        input: || "let a = select * from \"numeric-literal\" where numeric_gte(value, \"9007199254740993\"); emit a subject file key(span);",
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("numeric_flags_refused"),
+        word: Word::Refuses,
+        input: || "let a = select * from \"literal-properties\" where numeric_gte(boolean, 1); emit a subject file key(span);",
+        expect: Expect::Refusal(|error| {
+            selects(matches!(error, LoweringError::KindMismatch { .. }))
+        }),
+    },
+    Case {
+        name: CaseName("numeric_lists_refused"),
+        word: Word::Refuses,
+        input: || "param limit: list<string>; let a = select * from \"numeric-literal\" where numeric_gte(value, $limit); emit a subject file key(span);",
+        expect: Expect::Refusal(|error| {
+            selects(matches!(error, LoweringError::KindMismatch { .. }))
+        }),
+    },
     Case {
         name: CaseName("invalid_literal_regex_is_refused_before_rows_are_available"),
         word: Word::Refuses,
@@ -274,6 +329,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 /// The relations the rows may read.
 const CATALOG: &[Relation] = &[
+    Relation::NumericLiteral,
+    Relation::LiteralProperties,
     Relation::Defines,
     Relation::Function,
     Relation::SyntaxChild,
@@ -295,7 +352,13 @@ fn subject(text: Input) -> Result<Value, Failure> {
         catalog: CATALOG,
         hosted_steps: Vec::new(),
         parameters: &program.parameters,
-        kinds: Vec::new(),
+        kinds: program
+            .parameters
+            .iter()
+            .map(|parameter| {
+                parameter_kind_named(&parameter.kind.0).expect("the row's parameter type is known")
+            })
+            .collect(),
         steps: Vec::new(),
         lowered: Vec::new(),
         span: program.emit.span,

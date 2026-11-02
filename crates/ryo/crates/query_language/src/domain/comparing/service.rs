@@ -73,6 +73,9 @@ pub(crate) fn compatible(test: parts::Test, left: Typed, right: Typed) -> Compat
         | parts::Test::GreaterThanOrEqual => {
             (numbery(left) && numbery(right)) || (texty(left) && texty(right))
         }
+        parts::Test::NumericGreaterThanOrEqual | parts::Test::IntegerSuccessor => {
+            (texty(left) || numbery(left)) && (texty(right) || numbery(right))
+        }
         parts::Test::FloatTextGreaterThanOrEqual
         | parts::Test::StartsWith
         | parts::Test::Matches
@@ -108,6 +111,8 @@ pub(crate) fn test_of(test: syntax::WrittenTest) -> parts::Test {
         syntax::WrittenTest::FloatTextGreaterThanOrEqual => {
             parts::Test::FloatTextGreaterThanOrEqual
         }
+        syntax::WrittenTest::NumericGreaterThanOrEqual => parts::Test::NumericGreaterThanOrEqual,
+        syntax::WrittenTest::IntegerSuccessor => parts::Test::IntegerSuccessor,
         syntax::WrittenTest::StartsWith => parts::Test::StartsWith,
         syntax::WrittenTest::Matches => parts::Test::Matches,
         syntax::WrittenTest::EndsWith => parts::Test::EndsWith,
@@ -256,6 +261,8 @@ pub(crate) fn comparison_of(
         | parts::Test::GreaterThan
         | parts::Test::GreaterThanOrEqual
         | parts::Test::FloatTextGreaterThanOrEqual
+        | parts::Test::NumericGreaterThanOrEqual
+        | parts::Test::IntegerSuccessor
         | parts::Test::In
         | parts::Test::NotIn
         | parts::Test::GlobAny

@@ -46,6 +46,8 @@ impl ComparisonsItem for MembershipItem {
             | Test::GreaterThan
             | Test::GreaterThanOrEqual
             | Test::FloatTextGreaterThanOrEqual
+            | Test::NumericGreaterThanOrEqual
+            | Test::IntegerSuccessor
             | Test::GlobAny
             | Test::NotGlobAny
             | Test::StartsWith

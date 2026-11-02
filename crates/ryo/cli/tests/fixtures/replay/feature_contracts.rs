@@ -9,6 +9,18 @@ use super::base::{Pending, Recording, rule_of};
 /// These queries assert invariants; only explicitly named provenance and shape witnesses emit rows.
 const QUERIES: &[(&str, &str)] = &[
     (
+        "numeric-order-invariants",
+        include_str!("../feature_contracts/numeric/query.ryoql"),
+    ),
+    (
+        "integer-successor-invariants",
+        include_str!("../feature_contracts/numeric/successor-invariants.ryoql"),
+    ),
+    (
+        "integer-successor-witness",
+        include_str!("../feature_contracts/numeric/witness.ryoql"),
+    ),
+    (
         "expression-shape-invariants",
         include_str!("../feature_contracts/shapes/query.ryoql"),
     ),
@@ -52,6 +64,10 @@ const EMBEDDED_QUERIES: &[(&str, &str)] = &[
 
 /// Actual optional facts and generic operators; positive rows retain source identities.
 const CATALOG_QUERIES: &[(&str, &str)] = &[
+    (
+        "numeric-literal-witness",
+        include_str!("../feature_contracts/numeric/literal-witness.ryoql"),
+    ),
     (
         "metadata-fact-invariants",
         include_str!("../feature_contracts/catalog/metadata-invariants.ryoql"),
@@ -167,7 +183,7 @@ const CATALOG_QUERIES: &[(&str, &str)] = &[
 ];
 
 /// Package ancestry witnesses must come from the real upstream package tree.
-const CATALOG_CORPUS_WITNESSES: &[&str] = &["module-identity-witness"];
+const CATALOG_CORPUS_WITNESSES: &[&str] = &["module-identity-witness", "numeric-literal-witness"];
 
 /// Every newly exercised relation must have a nonvacuous source witness.
 const CATALOG_WITNESSES: &[&str] = &[
@@ -189,6 +205,7 @@ const CATALOG_WITNESSES: &[&str] = &[
     "literal-expression-parse-witness",
     "literal-properties-witness",
     "module-identity-witness",
+    "numeric-literal-witness",
     "raw-format-field-witness",
     "raw-format-segment-witness",
     "ordered-dfs-witness",
@@ -205,6 +222,7 @@ const CATALOG_STRESS_WITNESSES: &[&str] = &[
     "interpolated-string-literal-witness",
     "language-target-witness",
     "module-identity-witness",
+    "numeric-literal-witness",
     "raw-format-field-witness",
 ];
 
@@ -233,7 +251,11 @@ fn measure() -> Result<BTreeMap<String, u64>, String> {
             &super::base::snapshot::ruff(),
             QUERIES,
             &["scripts/**/*.py", "python/**/*.py"],
-            &["known-origin-witness", "expression-shape-witness"],
+            &[
+                "known-origin-witness",
+                "expression-shape-witness",
+                "integer-successor-witness",
+            ],
             1_000,
         )?;
         // One upstream generated visitor API, not repeated or synthesized locally.
@@ -302,8 +324,7 @@ fn measure() -> Result<BTreeMap<String, u64>, String> {
             .iter()
             .copied()
             .filter(|(name, _)| {
-                CATALOG_STRESS_WITNESSES.contains(name)
-                    || CATALOG_STRESS_INVARIANTS.contains(name)
+                CATALOG_STRESS_WITNESSES.contains(name) || CATALOG_STRESS_INVARIANTS.contains(name)
             })
             .collect();
         let (stress_feeds, _) = measure_corpus(
@@ -318,8 +339,7 @@ fn measure() -> Result<BTreeMap<String, u64>, String> {
             .iter()
             .copied()
             .filter(|(name, _)| {
-                CATALOG_FORMAT_STRESS_WITNESSES.contains(name)
-                    || *name == "format-fact-invariants"
+                CATALOG_FORMAT_STRESS_WITNESSES.contains(name) || *name == "format-fact-invariants"
             })
             .collect();
         let (format_feeds, _) = measure_corpus(

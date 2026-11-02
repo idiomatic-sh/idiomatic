@@ -172,6 +172,9 @@ pub use ryo::languages::NameText
 pub use ryo::languages::NodeId
 pub use ryo::languages::NoteRequest
 pub use ryo::languages::Noted
+pub use ryo::languages::NumericLiteral
+pub use ryo::languages::NumericLiteralColumn
+pub use ryo::languages::NumericLiteralRow
 pub use ryo::languages::Offset
 pub use ryo::languages::OptionalCapability
 pub use ryo::languages::Optionality

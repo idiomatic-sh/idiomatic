@@ -1,0 +1,463 @@
+# Intended independent full reports. Canonical candidate/reference evidence is pending.
+
+[[cases]]
+name = "empty-list-zero"
+comparison = "full"
+files = { "case.py" = "result = [][0]\n" }
+expected = [{ rule = "PLE0643", file = "case.py", start = 12, end = 13 }]
+
+[[cases]]
+name = "empty-list-last"
+comparison = "full"
+files = { "case.py" = "result = [][0]\n" }
+expected = [{ rule = "PLE0643", file = "case.py", start = 12, end = 13 }]
+
+[[cases]]
+name = "empty-list-upper-bound"
+comparison = "full"
+files = { "case.py" = "result = [][0]\n" }
+expected = [{ rule = "PLE0643", file = "case.py", start = 12, end = 13 }]
+
+[[cases]]
+name = "empty-list-negative-bound"
+comparison = "full"
+files = { "case.py" = "result = [][-0]\n" }
+expected = [{ rule = "PLE0643", file = "case.py", start = 12, end = 14 }]
+
+[[cases]]
+name = "empty-list-negative-beyond"
+comparison = "full"
+files = { "case.py" = "result = [][-1]\n" }
+expected = [{ rule = "PLE0643", file = "case.py", start = 12, end = 14 }]
+
+[[cases]]
+name = "empty-list-negative-zero"
+comparison = "full"
+files = { "case.py" = "result = [][-0]\n" }
+expected = [{ rule = "PLE0643", file = "case.py", start = 12, end = 14 }]
+
+[[cases]]
+name = "empty-tuple-zero"
+comparison = "full"
+files = { "case.py" = "result = ()[0]\n" }
+expected = [{ rule = "PLE0643", file = "case.py", start = 12, end = 13 }]
+
+[[cases]]
+name = "empty-tuple-last"
+comparison = "full"
+files = { "case.py" = "result = ()[0]\n" }
+expected = [{ rule = "PLE0643", file = "case.py", start = 12, end = 13 }]
+
+[[cases]]
+name = "empty-tuple-upper-bound"
+comparison = "full"
+files = { "case.py" = "result = ()[0]\n" }
+expected = [{ rule = "PLE0643", file = "case.py", start = 12, end = 13 }]
+
+[[cases]]
+name = "empty-tuple-negative-bound"
+comparison = "full"
+files = { "case.py" = "result = ()[-0]\n" }
+expected = [{ rule = "PLE0643", file = "case.py", start = 12, end = 14 }]
+
+[[cases]]
+name = "empty-tuple-negative-beyond"
+comparison = "full"
+files = { "case.py" = "result = ()[-1]\n" }
+expected = [{ rule = "PLE0643", file = "case.py", start = 12, end = 14 }]
+
+[[cases]]
+name = "empty-tuple-negative-zero"
+comparison = "full"
+files = { "case.py" = "result = ()[-0]\n" }
+expected = [{ rule = "PLE0643", file = "case.py", start = 12, end = 14 }]
+
+[[cases]]
+name = "singleton-list-zero"
+comparison = "full"
+files = { "case.py" = "result = [10][0]\n" }
+expected = []
+
+[[cases]]
+name = "singleton-list-last"
+comparison = "full"
+files = { "case.py" = "result = [10][0]\n" }
+expected = []
+
+[[cases]]
+name = "singleton-list-upper-bound"
+comparison = "full"
+files = { "case.py" = "result = [10][1]\n" }
+expected = [{ rule = "PLE0643", file = "case.py", start = 14, end = 15 }]
+
+[[cases]]
+name = "singleton-list-negative-bound"
+comparison = "full"
+files = { "case.py" = "result = [10][-1]\n" }
+expected = []
+
+[[cases]]
+name = "singleton-list-negative-beyond"
+comparison = "full"
+files = { "case.py" = "result = [10][-2]\n" }
+expected = [{ rule = "PLE0643", file = "case.py", start = 14, end = 16 }]
+
+[[cases]]
+name = "singleton-list-negative-zero"
+comparison = "full"
+files = { "case.py" = "result = [10][-0]\n" }
+expected = []
+
+[[cases]]
+name = "singleton-tuple-zero"
+comparison = "full"
+files = { "case.py" = "result = (10,)[0]\n" }
+expected = []
+
+[[cases]]
+name = "singleton-tuple-last"
+comparison = "full"
+files = { "case.py" = "result = (10,)[0]\n" }
+expected = []
+
+[[cases]]
+name = "singleton-tuple-upper-bound"
+comparison = "full"
+files = { "case.py" = "result = (10,)[1]\n" }
+expected = [{ rule = "PLE0643", file = "case.py", start = 15, end = 16 }]
+
+[[cases]]
+name = "singleton-tuple-negative-bound"
+comparison = "full"
+files = { "case.py" = "result = (10,)[-1]\n" }
+expected = []
+
+[[cases]]
+name = "singleton-tuple-negative-beyond"
+comparison = "full"
+files = { "case.py" = "result = (10,)[-2]\n" }
+expected = [{ rule = "PLE0643", file = "case.py", start = 15, end = 17 }]
+
+[[cases]]
+name = "singleton-tuple-negative-zero"
+comparison = "full"
+files = { "case.py" = "result = (10,)[-0]\n" }
+expected = []
+
+[[cases]]
+name = "list-two-zero"
+comparison = "full"
+files = { "case.py" = "result = [10,20][0]\n" }
+expected = []
+
+[[cases]]
+name = "list-two-last"
+comparison = "full"
+files = { "case.py" = "result = [10,20][1]\n" }
+expected = []
+
+[[cases]]
+name = "list-two-upper-bound"
+comparison = "full"
+files = { "case.py" = "result = [10,20][2]\n" }
+expected = [{ rule = "PLE0643", file = "case.py", start = 17, end = 18 }]
+
+[[cases]]
+name = "list-two-negative-bound"
+comparison = "full"
+files = { "case.py" = "result = [10,20][-2]\n" }
+expected = []
+
+[[cases]]
+name = "list-two-negative-beyond"
+comparison = "full"
+files = { "case.py" = "result = [10,20][-3]\n" }
+expected = [{ rule = "PLE0643", file = "case.py", start = 17, end = 19 }]
+
+[[cases]]
+name = "list-two-negative-zero"
+comparison = "full"
+files = { "case.py" = "result = [10,20][-0]\n" }
+expected = []
+
+[[cases]]
+name = "tuple-two-zero"
+comparison = "full"
+files = { "case.py" = "result = (10,20)[0]\n" }
+expected = []
+
+[[cases]]
+name = "tuple-two-last"
+comparison = "full"
+files = { "case.py" = "result = (10,20)[1]\n" }
+expected = []
+
+[[cases]]
+name = "tuple-two-upper-bound"
+comparison = "full"
+files = { "case.py" = "result = (10,20)[2]\n" }
+expected = [{ rule = "PLE0643", file = "case.py", start = 17, end = 18 }]
+
+[[cases]]
+name = "tuple-two-negative-bound"
+comparison = "full"
+files = { "case.py" = "result = (10,20)[-2]\n" }
+expected = []
+
+[[cases]]
+name = "tuple-two-negative-beyond"
+comparison = "full"
+files = { "case.py" = "result = (10,20)[-3]\n" }
+expected = [{ rule = "PLE0643", file = "case.py", start = 17, end = 19 }]
+
+[[cases]]
+name = "tuple-two-negative-zero"
+comparison = "full"
+files = { "case.py" = "result = (10,20)[-0]\n" }
+expected = []
+
+[[cases]]
+name = "hex-index"
+comparison = "full"
+files = { "case.py" = "result = [10,20][0x2]\n" }
+expected = [{ rule = "PLE0643", file = "case.py", start = 17, end = 20 }]
+
+[[cases]]
+name = "octal-index"
+comparison = "full"
+files = { "case.py" = "result = [10,20][0o2]\n" }
+expected = [{ rule = "PLE0643", file = "case.py", start = 17, end = 20 }]
+
+[[cases]]
+name = "binary-index"
+comparison = "full"
+files = { "case.py" = "result = [10,20][0b10]\n" }
+expected = [{ rule = "PLE0643", file = "case.py", start = 17, end = 21 }]
+
+[[cases]]
+name = "underscore-index"
+comparison = "full"
+files = { "case.py" = "result = [10,20][2_0]\n" }
+expected = [{ rule = "PLE0643", file = "case.py", start = 17, end = 20 }]
+
+[[cases]]
+name = "huge-index"
+comparison = "full"
+files = { "case.py" = "result = [10,20][18446744073709551616]\n" }
+expected = [{ rule = "PLE0643", file = "case.py", start = 17, end = 37 }]
+
+[[cases]]
+name = "huge-negative"
+comparison = "full"
+files = { "case.py" = "result = [10,20][-18446744073709551616]\n" }
+expected = [{ rule = "PLE0643", file = "case.py", start = 17, end = 38 }]
+
+[[cases]]
+name = "i64-positive-limit"
+comparison = "full"
+files = { "case.py" = "result = [10,20][9223372036854775807]\n" }
+expected = [{ rule = "PLE0643", file = "case.py", start = 17, end = 36 }]
+
+[[cases]]
+name = "i64-negative-limit"
+comparison = "full"
+files = { "case.py" = "result = [10,20][-9223372036854775808]\n" }
+expected = [{ rule = "PLE0643", file = "case.py", start = 17, end = 37 }]
+
+[[cases]]
+name = "i128-overflow-index"
+comparison = "full"
+files = { "case.py" = "result = [10,20][340282366920938463463374607431768211457]\n" }
+expected = [{ rule = "PLE0643", file = "case.py", start = 17, end = 56 }]
+
+[[cases]]
+name = "parenthesized-negative"
+comparison = "full"
+files = { "case.py" = "result = [10,20][( -4 )]\n" }
+expected = [{ rule = "PLE0643", file = "case.py", start = 19, end = 21 }]
+
+[[cases]]
+name = "parenthesized-integer"
+comparison = "full"
+files = { "case.py" = "result = [10,20][((3))]\n" }
+expected = [{ rule = "PLE0643", file = "case.py", start = 19, end = 20 }]
+
+[[cases]]
+name = "unary-plus"
+comparison = "full"
+files = { "case.py" = "result = [10,20][+3]\n" }
+expected = []
+
+[[cases]]
+name = "double-negative"
+comparison = "full"
+files = { "case.py" = "result = [10,20][--4]\n" }
+expected = []
+
+[[cases]]
+name = "bool-true"
+comparison = "full"
+files = { "case.py" = "result = [10,20][True]\n" }
+expected = []
+
+[[cases]]
+name = "bool-false"
+comparison = "full"
+files = { "case.py" = "result = [10,20][False]\n" }
+expected = []
+
+[[cases]]
+name = "float"
+comparison = "full"
+files = { "case.py" = "result = [10,20][3.0]\n" }
+expected = []
+
+[[cases]]
+name = "complex"
+comparison = "full"
+files = { "case.py" = "result = [10,20][3j]\n" }
+expected = []
+
+[[cases]]
+name = "dynamic-index"
+comparison = "full"
+files = { "case.py" = "result = [10,20][i]\n" }
+expected = []
+
+[[cases]]
+name = "computed-index"
+comparison = "full"
+files = { "case.py" = "result = [10,20][1+2]\n" }
+expected = []
+
+[[cases]]
+name = "slice-index"
+comparison = "full"
+files = { "case.py" = "result = [10,20][3:]\n" }
+expected = []
+
+[[cases]]
+name = "ellipsis"
+comparison = "full"
+files = { "case.py" = "result = [10,20][...]\n" }
+expected = []
+
+[[cases]]
+name = "unknown-starred"
+comparison = "full"
+files = { "case.py" = "result = [*items][1]\n" }
+expected = []
+
+[[cases]]
+name = "known-valid-starred"
+comparison = "full"
+files = { "case.py" = "items = [10,20]\nresult = [*items][1]\n" }
+expected = []
+
+[[cases]]
+name = "inline-literal-starred"
+comparison = "full"
+files = { "case.py" = "result = [*[10,20]][1]\n" }
+expected = []
+
+[[cases]]
+name = "starred-plus-ordinary"
+comparison = "full"
+files = { "case.py" = "result = [1,*items,2][1]\n" }
+expected = []
+
+[[cases]]
+name = "nested-starred-does-not-expand-outer"
+comparison = "full"
+files = { "case.py" = "result = [[*items]][1]\n" }
+expected = [{ rule = "PLE0643", file = "case.py", start = 20, end = 21 }]
+
+[[cases]]
+name = "tuple-receiver"
+comparison = "full"
+files = { "case.py" = "result = (1,2,3)[3]\n" }
+expected = [{ rule = "PLE0643", file = "case.py", start = 17, end = 18 }]
+
+[[cases]]
+name = "set-receiver-excluded"
+comparison = "full"
+files = { "case.py" = "result = {1,2}[2]\n" }
+expected = []
+
+[[cases]]
+name = "dict-receiver-excluded"
+comparison = "full"
+files = { "case.py" = "result = {1:2}[2]\n" }
+expected = []
+
+[[cases]]
+name = "string-receiver-excluded"
+comparison = "full"
+files = { "case.py" = "result = \"λ\"[1]\n" }
+expected = []
+
+[[cases]]
+name = "call-receiver-excluded"
+comparison = "full"
+files = { "case.py" = "result = list()[0]\n" }
+expected = []
+
+[[cases]]
+name = "name-receiver-excluded"
+comparison = "full"
+files = { "case.py" = "result = items[0]\n" }
+expected = []
+
+[[cases]]
+name = "nested-list-values"
+comparison = "full"
+files = { "case.py" = "result = [[1,2],[3,4]][2]\n" }
+expected = [{ rule = "PLE0643", file = "case.py", start = 23, end = 24 }]
+
+[[cases]]
+name = "unknown-normal-element"
+comparison = "full"
+files = { "case.py" = "result = [unknown()][1]\n" }
+expected = [{ rule = "PLE0643", file = "case.py", start = 21, end = 22 }]
+
+[[cases]]
+name = "unicode-prefix"
+comparison = "full"
+files = { "case.py" = "café = \"λ\"\nresult = [1,2][2]\n" }
+expected = [{ rule = "PLE0643", file = "case.py", start = 28, end = 29 }]
+
+[[cases]]
+name = "crlf-prefix"
+comparison = "full"
+files = { "case.py" = "x=1\r\nresult = [1,2][2]\r\n" }
+expected = [{ rule = "PLE0643", file = "case.py", start = 20, end = 21 }]
+
+[[cases]]
+name = "noqa-specific"
+comparison = "full"
+files = { "case.py" = "result = [1,2][2]  # noqa: PLE0643\n" }
+expected = []
+
+[[cases]]
+name = "noqa-other"
+comparison = "full"
+files = { "case.py" = "result = [1,2][2]  # noqa: PLE0642\n" }
+expected = [{ rule = "PLE0643", file = "case.py", start = 15, end = 16 }]
+
+[[cases]]
+name = "stub-file"
+comparison = "full"
+files = { "case.pyi" = "result = [1,2][2]\n" }
+expected = [{ rule = "PLE0643", file = "case.pyi", start = 15, end = 16 }]
+
+[[cases]]
+name = "parenthesized-receiver"
+comparison = "full"
+files = { "case.py" = "result = ([1,2])[2]\n" }
+expected = [{ rule = "PLE0643", file = "case.py", start = 17, end = 18 }]
+
+[[cases]]
+name = "tagged-upstream-fixture"
+comparison = "full"
+files = { "case.py" = "print([1, 2, 3][3])  # PLE0643\nprint([1, 2, 3][-4])  # PLE0643\nprint([1, 2, 3][999999999999999999999999999999999999999999])  # PLE0643\nprint([1, 2, 3][-999999999999999999999999999999999999999999])  # PLE0643\n\nprint([1, 2, 3][2])  # OK\nprint([1, 2, 3][0])  # OK\nprint([1, 2, 3][-3])  # OK\nprint([1, 2, 3][3:])  # OK\n" }
+expected = [{ rule = "PLE0643", file = "case.py", start = 16, end = 17 }, { rule = "PLE0643", file = "case.py", start = 47, end = 49 }, { rule = "PLE0643", file = "case.py", start = 79, end = 121 }, { rule = "PLE0643", file = "case.py", start = 151, end = 194 }]

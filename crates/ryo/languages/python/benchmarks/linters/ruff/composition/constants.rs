@@ -93,7 +93,7 @@ pub(crate) const VERIFY_TOOL: &str = "verify-tool";
 /// Required argument or refusal for expected executable.
 pub(crate) const EXPECTED_EXECUTABLE: &str = "expected executable path";
 /// CLI usage shown when command dispatch fails.
-pub(crate) const USAGE: &str = "usage: ruff benchmark: audit | verify-tool <executable> | verify-cases <ruff> [profile] | verify-reference-cases <ruff> [profile] | measure <ruff> <fresh-cache> | run-ryo <json>|--request-file <path> | diagnostic-ryo <json>|--request-file <path> [python-target=3.10|python-target=3.11] <events.jsonl>";
+pub(crate) const USAGE: &str = "usage: ruff benchmark: audit | verify-tool <executable> | verify-cases <ruff> [profile] | verify-reference-cases <ruff> [profile] | measure <ruff> <fresh-cache> | run-ryo (<json>|--request-file <path>) <python-target=3.MINOR> | diagnostic-ryo (<json>|--request-file <path>) <python-target=3.MINOR> <events.jsonl> (MINOR:7..15)";
 /// Stable command, artifact or observation identity for ruff directory.
 pub(crate) const RUFF_DIRECTORY: &str = "benchmarks/linters/ruff";
 

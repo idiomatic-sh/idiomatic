@@ -4,7 +4,7 @@
   "historical_certification": false,
   "intent": "Explicit native118 union, preserving historical104 and114 source/receipt snapshots. Each custom profile pins its own target/settings/module registry. Annotation helper changes require fresh current typed-worker validation; no old receipt is auto-upgraded.",
   "source_profile_file": "benchmark.toml",
-  "source_profile_sha256": "958957ed79e7f1ffd0d17bfcb34a5d8af42569ff66783f7fd4d632bb007ea2d0",
+  "source_profile_sha256": "ea9403c3a6692d2b43ad6cb49a4466520089dd55bdce489f63410348bd66d11f",
   "source_settings": {
     "defaults": [
       "ASYNC100",
@@ -888,7 +888,7 @@
     "python/ruff/without-effect": "fragments/without-effect.ryoql"
   },
   "module_sha256": {
-    "python/ruff/modernization-symbols": "177eeaefcf2ef7b6a37936e8f018bb724532af6b4712264f8f75b7e9386313ff",
+    "python/ruff/modernization-symbols": "76bbb893f2ddd68018c968fcf8fa9ea15d237a17919c8c898c1144d4c098bf42",
     "python/ruff/pep604-candidates": "43f2f3b710aa286bfcf76937171731295562dd0112e1c512d5a0648aad182ee0",
     "python/ruff/unpack-symbols": "4594f5c52183ceed86a6a641a575b79322f3a0c2c1f0065b7695b6a97a1218d4",
     "python/ruff/python-evaluation-regions": "3ef1c23b80e5070940ed367d6a269372f0f9486edbafa36e0332f5751a882104",
@@ -936,7 +936,7 @@
   },
   "phase_registry_sha256": "51f2c210f75d1275cd68369a1c69289a91ca87f83b7c486a2b348edd89c4a8f4",
   "query_count": 118,
-  "case_count": 2791,
+  "case_count": 2795,
   "profiles": [
     {
       "profile_name": "native-ASYNC115",
@@ -6960,8 +6960,8 @@
       "candidate_file": "rules/UP045/query.ryoql",
       "query_sha256": "76aded66b14a1c842177837c14f7bab120d95adeb9c640cb2e7e68946875aa09",
       "cases_file": "rules/UP045/cases.toml",
-      "cases_sha256": "988b7f54ce6c6d76c0db60b31a4ef5f2087c6291a4735c7956f35e9b73b49fb8",
-      "case_count": 31,
+      "cases_sha256": "3cb66b7b5fe44008b71048db4e4c401967264df8f9dfa239904545e5adacf0a0",
+      "case_count": 33,
       "case_names": [
         "annotation",
         "alias",
@@ -6993,7 +6993,9 @@
         "guard-else",
         "nested-direct-guard",
         "union-nested-tuples",
-        "module-rebound"
+        "module-rebound",
+        "independent-callable-lexical-ownership-0",
+        "independent-callable-lexical-ownership-1"
       ],
       "effective_settings": {
         "defaults": [
@@ -7029,7 +7031,7 @@
       "module_sha256": {
         "python/ruff/annotation-evaluation-context": "b176d58a1687fe99f5b41d85fc781c0b33d2dcd58b49c6a16670216b78361ef5",
         "python/ruff/future-annotation-context": "976b10f474f5e82e4976f85c14d73ed3b3c6f864b1de183699784f00e5e8269b",
-        "python/ruff/modernization-symbols": "177eeaefcf2ef7b6a37936e8f018bb724532af6b4712264f8f75b7e9386313ff",
+        "python/ruff/modernization-symbols": "76bbb893f2ddd68018c968fcf8fa9ea15d237a17919c8c898c1144d4c098bf42",
         "python/ruff/pep604-candidates": "43f2f3b710aa286bfcf76937171731295562dd0112e1c512d5a0648aad182ee0",
         "python/ruff/suppress": "b3f9278dec26f739d1ee68a53b834629bc51b26fa868ec250e0eaaf5854d9c26",
         "python/ruff/suppress-directives": "29efaa45457a591ccd20d340327095ef9f6d9644feec94929f245cc420fc3382"
@@ -7045,8 +7047,8 @@
       "candidate_file": "rules/UP050/query.ryoql",
       "query_sha256": "265307a41298e884883cf171b33cb0890c2a9d144f35a35de0853b93750b9556",
       "cases_file": "rules/UP050/cases.toml",
-      "cases_sha256": "e4c7454ce39cf46633bbbf014e548830885d0707fbc77596d17c8cbbfd0375fd",
-      "case_count": 16,
+      "cases_sha256": "72cf9b848b648db14b60dd74eb6e5bdb4975ce5612d45c948e59edba72168096",
+      "case_count": 18,
       "case_names": [
         "bare",
         "imported",
@@ -7063,7 +7065,9 @@
         "unicode",
         "nested",
         "tagged-UP050.py",
-        "same-name-later-binding"
+        "same-name-later-binding",
+        "independent-callable-lexical-ownership-0",
+        "independent-callable-lexical-ownership-1"
       ],
       "effective_settings": {
         "defaults": [
@@ -7094,7 +7098,7 @@
         "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql"
       },
       "module_sha256": {
-        "python/ruff/modernization-symbols": "177eeaefcf2ef7b6a37936e8f018bb724532af6b4712264f8f75b7e9386313ff",
+        "python/ruff/modernization-symbols": "76bbb893f2ddd68018c968fcf8fa9ea15d237a17919c8c898c1144d4c098bf42",
         "python/ruff/suppress": "b3f9278dec26f739d1ee68a53b834629bc51b26fa868ec250e0eaaf5854d9c26",
         "python/ruff/suppress-directives": "29efaa45457a591ccd20d340327095ef9f6d9644feec94929f245cc420fc3382"
       }

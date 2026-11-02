@@ -15,7 +15,7 @@ pub(crate) struct MergedStep {
     pub step: StepPlace,
 }
 
-/// The steps that select the same elements: they have the same comparisons, under the same bindings of their rules' parameters,
+/// The steps that select the same elements: they have the same comparisons and exact bindings for the parameters those comparisons read,
 /// so what one decides of an element or a text the others have decided too.
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct StepClass {

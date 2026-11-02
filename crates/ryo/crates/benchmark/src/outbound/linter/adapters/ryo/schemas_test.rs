@@ -105,7 +105,7 @@ fn legacy_or_incomplete_candidate_metadata_never_becomes_known_zero() {
     });
     for path in ["execution_metadata", "coverage"] {
         let mut invalid = report.clone();
-        invalid
+        let _removed = invalid
             .as_object_mut()
             .expect("fixture object")
             .remove(path);

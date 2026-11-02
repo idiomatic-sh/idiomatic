@@ -2,6 +2,8 @@
 mod constants;
 #[path = "composition/request_input.rs"]
 mod request_input;
+#[path = "composition/targets.rs"]
+mod targets;
 
 #[test]
 fn reads_the_exact_explicit_request_file() -> Result<(), Box<dyn std::error::Error>> {
@@ -73,5 +75,40 @@ fn worker_execution_requires_the_actual_target_and_canonical_phase()
             .is_some()
     );
     assert!(request_input::checked_worker_identity(&absent.to_string(), configuration).is_err());
+    Ok(())
+}
+
+#[test]
+fn every_explicit_supported_target_preserves_request_and_phase_identity()
+-> Result<(), Box<dyn std::error::Error>> {
+    for configuration in [
+        "python-target=3.7",
+        "python-target=3.8",
+        "python-target=3.9",
+        "python-target=3.10",
+        "python-target=3.11",
+        "python-target=3.12",
+        "python-target=3.13",
+        "python-target=3.14",
+        "python-target=3.15",
+    ] {
+        let request = serde_json::json!({
+            "parser_configuration": configuration,
+            "rule_applicability": {"UP045": "accepted-syntax", "EXE004": "always"}
+        });
+        request_input::checked_worker_identity(&request.to_string(), Some(configuration))?;
+        let wrong = if configuration == "python-target=3.10" {
+            "python-target=3.14"
+        } else {
+            "python-target=3.10"
+        };
+        assert!(request_input::checked_worker_identity(&request.to_string(), Some(wrong)).is_err());
+        let mut missing_phase = request;
+        missing_phase["rule_applicability"] = serde_json::Value::Null;
+        assert!(
+            request_input::checked_worker_identity(&missing_phase.to_string(), Some(configuration))
+                .is_err()
+        );
+    }
     Ok(())
 }

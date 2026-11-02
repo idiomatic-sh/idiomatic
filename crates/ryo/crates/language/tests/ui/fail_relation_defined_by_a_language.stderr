@@ -45,11 +45,11 @@ help: the trait `ryo_language::domain::relations::collections::relations::interf
             ryo_language::domain::relations::collections::relations::analyzed_source::item::AnalyzedSource
             ryo_language::domain::relations::collections::relations::annotates::item::Annotates
             ryo_language::domain::relations::collections::relations::assigns::item::Assigns
-            ryo_language::domain::relations::collections::relations::call_argument::item::CallArgument
-            ryo_language::domain::relations::collections::relations::comment::item::Comment
-            ryo_language::domain::relations::collections::relations::decorates::item::Decorates
-            ryo_language::domain::relations::collections::relations::defines::item::Defines
-            ryo_language::domain::relations::collections::relations::directive::item::Directive
+            ryo_language::domain::relations::collections::relations::binding_event::item::BindingEvent
+            ryo_language::domain::relations::collections::relations::binding_read::item::BindingRead
+            ryo_language::domain::relations::collections::relations::binding_shadow::item::BindingShadow
+            ryo_language::domain::relations::collections::relations::binding_use::item::BindingUse
+            ryo_language::domain::relations::collections::relations::brace_format_field::item::BraceFormatField
           and $N others
 note: required by a bound in `RelationsItem`
  --> src/domain/relations/collections/relations/interface.rs
@@ -61,9 +61,9 @@ note: required by a bound in `RelationsItem`
             ryo_language::domain::relations::collections::relations::analyzed_source::item::AnalyzedSource
             ryo_language::domain::relations::collections::relations::annotates::item::Annotates
             ryo_language::domain::relations::collections::relations::assigns::item::Assigns
+            ryo_language::domain::relations::collections::relations::brace_format_field::item::BraceFormatField
+            ryo_language::domain::relations::collections::relations::brace_format_parse::item::BraceFormatParse
             ryo_language::domain::relations::collections::relations::call_argument::item::CallArgument
             ryo_language::domain::relations::collections::relations::comment::item::Comment
             ryo_language::domain::relations::collections::relations::decorates::item::Decorates
-            ryo_language::domain::relations::collections::relations::defines::item::Defines
-            ryo_language::domain::relations::collections::relations::directive::item::Directive
           and $N others

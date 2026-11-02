@@ -27,6 +27,8 @@ impl ComparisonsItem for AffixItem {
                 | Test::GreaterThan
                 | Test::GreaterThanOrEqual
                 | Test::FloatTextGreaterThanOrEqual
+                | Test::NumericGreaterThanOrEqual
+                | Test::IntegerSuccessor
                 | Test::In
                 | Test::NotIn
                 | Test::GlobAny
@@ -44,6 +46,8 @@ impl ComparisonsItem for AffixItem {
             | Test::GreaterThan
             | Test::GreaterThanOrEqual
             | Test::FloatTextGreaterThanOrEqual
+            | Test::NumericGreaterThanOrEqual
+            | Test::IntegerSuccessor
             | Test::In
             | Test::NotIn
             | Test::GlobAny

@@ -28,6 +28,8 @@ pub(crate) enum Family {
     Ordering,
     /// Numbers written as text.
     FloatText,
+    /// Exact canonical numeric text and whole numbers.
+    Numeric,
     /// In and not in.
     Membership,
     /// Glob matches.

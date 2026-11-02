@@ -2,9 +2,11 @@
 
 use super::service::merge;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::table_model::types::ParameterBinding;
 use ryo_language::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, Comparison, Input as PlanInput, LiteralText, Operand, QueryLiteral, StepId, Test,
+    Applied, ColumnIndex, Comparison, Function, Input as PlanInput, LiteralText, Operand,
+    ParameterId, QueryLiteral, StepId, Test, WholeNumber,
 };
 use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep, StepScope};
 
@@ -124,4 +126,156 @@ fn comparison_origin_does_not_split_shared_step_classes() {
     let merged = merge(&[first, second], &[Vec::new(), Vec::new()]);
     assert_eq!(merged.classes.len(), 1);
     assert_eq!(merged.classes[0].members.len(), 2);
+}
+
+/// Keep the original predicate order and source origins while exercising parameter references.
+fn with_operands(left: Operand, right: Operand) -> Plan {
+    let mut selected = plan("word");
+    let Operation::Select { comparisons, .. } = &mut selected.steps[0].operation else {
+        panic!("fixture is a selection");
+    };
+    comparisons.push(Comparison {
+        test: Test::Equal,
+        left,
+        right,
+        origin: None,
+    });
+    selected
+}
+
+fn text(value: &str) -> ParameterBinding {
+    ParameterBinding::Text(LiteralText(value.into()))
+}
+
+#[test]
+fn parameter_free_predicates_share_across_unrelated_typed_binding_vectors() {
+    let plans = [plan("word"), plan("word"), plan("word")];
+    let merged = merge(
+        &plans,
+        &[
+            vec![text("["), ParameterBinding::Numbers(vec![WholeNumber(17)])],
+            vec![],
+            vec![ParameterBinding::Flag(
+                ryo_values::domain::plan_parts::types::FlagState::Raised,
+            )],
+        ],
+    );
+    assert_eq!(merged.classes.len(), 1);
+    assert_eq!(
+        merged.classes[0]
+            .members
+            .iter()
+            .map(|member| member.rule.0)
+            .collect::<Vec<_>>(),
+        [0, 1, 2]
+    );
+    assert_eq!(merged.class_of[0], merged.class_of[1]);
+    assert_eq!(merged.class_of[1], merged.class_of[2]);
+}
+
+#[test]
+fn only_referenced_slots_must_match_including_left_operands_and_duplicate_reads() {
+    let selected = with_operands(
+        Operand::Parameter(ParameterId(1)),
+        Operand::Parameter(ParameterId(1)),
+    );
+    let equal = merge(
+        &[selected.clone(), selected.clone()],
+        &[
+            vec![text("unused-a"), text("word")],
+            vec![
+                ParameterBinding::Number(WholeNumber(999)),
+                text("word"),
+                text("unused-b"),
+            ],
+        ],
+    );
+    assert_eq!(equal.classes.len(), 1);
+    let changed = merge(
+        &[selected.clone(), selected.clone()],
+        &[
+            vec![text("same-unused"), text("word")],
+            vec![text("same-unused"), text("other")],
+        ],
+    );
+    assert_eq!(changed.classes.len(), 2);
+    let wrong_type = merge(
+        &[selected.clone(), selected],
+        &[
+            vec![text("same-unused"), text("1")],
+            vec![
+                text("same-unused"),
+                ParameterBinding::Number(WholeNumber(1)),
+            ],
+        ],
+    );
+    assert_eq!(wrong_type.classes.len(), 2);
+}
+
+#[test]
+fn nested_function_parameters_are_referenced_but_unread_slots_are_not() {
+    let nested = Operand::Function(Applied {
+        function: Function::Concat,
+        arguments: vec![
+            Operand::Literal(QueryLiteral::Text(LiteralText("prefix".into()))),
+            Operand::Function(Applied {
+                function: Function::Snake,
+                arguments: vec![Operand::Parameter(ParameterId(1))],
+            }),
+        ],
+    });
+    let selected = with_operands(Operand::Column(ColumnIndex(2)), nested);
+    for (second, expected) in [
+        (text("word"), 1),
+        (text("other"), 2),
+        (ParameterBinding::Numbers(vec![]), 2),
+    ] {
+        let merged = merge(
+            &[selected.clone(), selected.clone()],
+            &[
+                vec![text("unused-a"), text("word")],
+                vec![text("unused-b"), second],
+            ],
+        );
+        assert_eq!(merged.classes.len(), expected);
+    }
+    assert_eq!(
+        merge(
+            &[selected.clone(), selected],
+            &[vec![text("unused-a")], vec![text("unused-b")]]
+        )
+        .classes
+        .len(),
+        2
+    );
+}
+
+#[test]
+fn missing_vectors_or_referenced_slots_never_become_equal_values() {
+    let empty = plan("word");
+    assert_eq!(
+        merge(&[empty.clone(), empty.clone()], &[vec![]])
+            .classes
+            .len(),
+        2
+    );
+    assert_eq!(merge(&[empty.clone(), empty], &[]).classes.len(), 2);
+    for id in [0, 1, u32::MAX] {
+        let selected = with_operands(
+            Operand::Parameter(ParameterId(id)),
+            Operand::Column(ColumnIndex(2)),
+        );
+        assert_eq!(
+            merge(&[selected.clone(), selected.clone()], &[vec![], vec![]])
+                .classes
+                .len(),
+            2
+        );
+        assert_eq!(
+            merge(&[selected.clone(), selected], &[vec![], vec![text("word")]])
+                .classes
+                .len(),
+            2
+        );
+    }
 }

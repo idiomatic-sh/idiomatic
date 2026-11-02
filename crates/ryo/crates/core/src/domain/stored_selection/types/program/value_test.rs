@@ -10,6 +10,19 @@ use ryo_values::domain::plan_parts::types::{
 };
 use ryo_values::domain::plans::types::{Operation, PlanStep, StepScope};
 
+#[test]
+fn exact_numeric_comparison_retains_ordinary_execution_until_selector_parity_is_proven() {
+    for test in [Test::NumericGreaterThanOrEqual, Test::IntegerSuccessor] {
+        let mut numeric = plan();
+        let Operation::Select { comparisons, .. } = &mut numeric.steps[0].operation else {
+            panic!("fixture starts with a select");
+        };
+        comparisons[0].test = test;
+        let prepared = SelectionProgram::new(&numeric, &[]).prepare();
+        assert!(prepared.steps.iter().all(Option::is_none));
+    }
+}
+
 /// One statically derivable descriptor or required ordinary-execution boundary.
 #[derive(Clone, Copy)]
 enum Scenario {

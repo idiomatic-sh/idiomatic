@@ -16,6 +16,10 @@ mod expression_shape {
 mod literal_properties {
     include!("../../tests/fixtures/relations/literal_properties/expected.rs");
 }
+/// Numeric parser payloads retain real source identity and exact integer values.
+mod numeric_literal {
+    include!("../../tests/fixtures/relations/numeric_literal/expected.rs");
+}
 /// Basic per-expression type classifications.
 mod expression_type {
     include!("../../tests/fixtures/relations/expression_type/expected.rs");
@@ -169,6 +173,7 @@ pub(super) fn expected() -> Vec<Expected> {
         identifier::expected(),
         expression_shape::expected(),
         literal_properties::expected(),
+        numeric_literal::expected(),
         literal_expression_parse::expected(),
         expression_type::expected(),
         function_terminal::expected(),

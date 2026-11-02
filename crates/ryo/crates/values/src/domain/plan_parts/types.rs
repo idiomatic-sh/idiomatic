@@ -156,6 +156,10 @@ pub enum Test {
     EndsWith,
     /// `matches`: a regular expression searches the text.
     Matches,
+    /// Canonical numeric text or whole numbers, compared without integer rounding.
+    NumericGreaterThanOrEqual,
+    /// `integer_successor(left, right)`: right is exactly left plus one; integers only.
+    IntegerSuccessor,
 }
 
 /// One condition of a `select` step.

@@ -29,6 +29,17 @@ RULE_PHASES_FILE = PROFILE_DIR / "pinned-rule-phases.json"
 NATIVE_DESCRIPTOR_FILE = PROFILE_DIR / "native-standalone.json"
 HISTORICAL_NATIVE_DESCRIPTOR_FILE = PROFILE_DIR / "native-standalone-104.json"
 HISTORICAL_NATIVE_PROFILE_FILE = PROFILE_DIR / "native-standalone-104-base.toml"
+PARSER_CONFIGURATIONS = {
+    "py37": "python-target=3.7",
+    "py38": "python-target=3.8",
+    "py39": "python-target=3.9",
+    "py310": "python-target=3.10",
+    "py311": "python-target=3.11",
+    "py312": "python-target=3.12",
+    "py313": "python-target=3.13",
+    "py314": "python-target=3.14",
+    "py315": "python-target=3.15",
+}
 PINNED_RUFF_VERSION = "0.16.5"
 PINNED_RUFF_SOURCE_COMMIT = "9e4938c4a60bed3e87a11ee1e1db1bd23f4d964a"
 RUFF_PHASES = {
@@ -631,13 +642,22 @@ def write_staged_profile(
                     for reason, rules in parsed[disposition].items()
                     if (chosen := [rule for rule in rules if rule in selected_rules])
                 }
+    # Projecting promoted rules must never serialize empty capability groups:
+    # the native profile decoder rejects those groups before worker execution.
+    for disposition in ("deferred", "pending"):
+        if disposition in parsed:
+            chosen = {reason: rules for reason, rules in parsed[disposition].items() if rules}
+            if chosen:
+                parsed[disposition] = chosen
+            else:
+                parsed.pop(disposition)
     current = profile_modules(parsed)
     registry = profile_modules({"query-modules": registry})
     if any(
         key in registry and registry[key] != value for key, value in current.items()
     ):
         raise ValueError("staged profile conflicts with its query module registry")
-    if parser_configuration not in {"python-target=3.10", "python-target=3.11"}:
+    if parser_configuration not in PARSER_CONFIGURATIONS.values():
         raise ValueError(
             f"unsupported staged parser configuration: {parser_configuration}"
         )
@@ -659,16 +679,12 @@ def write_staged_profile(
 
 
 def parser_configuration(target_version: object) -> str:
-    """Resolve only target versions whose Ruff and Python parser behavior is supported."""
-    configurations = {
-        "py310": "python-target=3.10",
-        "py311": "python-target=3.11",
-    }
-    if not isinstance(target_version, str) or target_version not in configurations:
+    """Map explicit versions available in the pinned reference and linked parser."""
+    if not isinstance(target_version, str) or target_version not in PARSER_CONFIGURATIONS:
         raise ValueError(
             f"unsupported prepared Python target version: {target_version}"
         )
-    return configurations[target_version]
+    return PARSER_CONFIGURATIONS[target_version]
 
 
 def copy_modules(registry: dict[str, str], destination: Path) -> None:
@@ -804,11 +820,15 @@ def verify_files(manifest: dict[str, object], helper_path: str) -> None:
     if manifest.get("target_version") != "py310":
         raise ValueError("prepared Ruff target version must be py310")
     phase_registry = verify_rule_phase_registry(manifest)
+    base_profile = tomllib.loads((RUFF_DIR / "benchmark.toml").read_text(encoding="utf-8"))
+    for disposition in ("deferred", "pending"):
+        if any(not rules for rules in base_profile.get(disposition, {}).values()):
+            raise ValueError("promoted base profile contains an empty capability group")
     check_base_rule_applicability(
         tomllib.loads((RUFF_DIR / "benchmark.toml").read_text(encoding="utf-8")),
         phase_registry,
     )
-    allowed_targets = {"py310", "py311"}
+    allowed_targets = set(PARSER_CONFIGURATIONS)
     if any(
         profile.get("target_version", "py310") not in allowed_targets
         for profile in manifest["profiles"].values()
@@ -1804,7 +1824,8 @@ def audit_worker_protocol(worker: Path, *, runner=subprocess.run) -> tuple[bool,
             f"worker protocol smoke could not start: {type(error).__name__}: {error}",
         )
     if result.returncode != 0:
-        return False, f"worker protocol smoke exited {result.returncode}"
+        detail = result.stderr.decode("utf-8", errors="replace").strip()[:2048]
+        return False, f"worker protocol smoke exited {result.returncode}: {detail}"
     expected = re.fullmatch(
         rb"ruff 0\.16\.5: [0-9]+ queries authored / 413 shipped defaults "
         rb"\(not a parity certificate\)\n",
@@ -2685,13 +2706,13 @@ def verify_reference_profile(
         raise ValueError(
             "reference-only stdin transport cannot verify ListedDisk context; use the sealed native verify-reference-cases protocol"
         )
-    target_config = profile.get("parser-configuration", "python-target=3.10")
-    match = re.fullmatch(r"python-target=(3)\.(10|11)", target_config)
-    if match is None:
+    target_config = profile.get("parser-configuration")
+    targets = {configuration: version for version, configuration in PARSER_CONFIGURATIONS.items()}
+    target = targets.get(target_config) if isinstance(target_config, str) else None
+    if target is None:
         raise ValueError(
             f"unsupported reference-only parser configuration: {target_config}"
         )
-    target = f"py{match.group(1)}{match.group(2)}"
     rules = profile.get("defaults")
     if (
         not isinstance(rules, list)
@@ -3153,7 +3174,7 @@ def native_standalone_manifest(
         effective = canonical_run_ryo_settings(entry_profile, [rule], phases)
         if effective != recorded["effective_settings"]:
             raise ValueError(f"native selected execution settings mismatch: {rule}")
-        target = {"python-target=3.10": "py310", "python-target=3.11": "py311"}.get(effective["parser_configuration"])
+        target = {configuration: version for version, configuration in PARSER_CONFIGURATIONS.items()}.get(effective["parser_configuration"])
         if target is None:
             raise ValueError("unsupported native parser configuration")
         profiles[name] = {**recorded, "target_version": target, "selection_contract": "explicit-native-standalone"}
@@ -4661,9 +4682,56 @@ def discrepancy_artifact_staging_self_test() -> None:
         refused(declaration(path, digest), stage=escape_stage)
 
 
+def parser_target_configuration_self_test() -> None:
+    """Both old and native annotation targets stage explicitly; no implicit/moving mode is accepted."""
+    assert parser_configuration("py37") == "python-target=3.7"
+    assert parser_configuration("py314") == "python-target=3.14"
+    for value in [None, "latest", "py36", "py316", "py3.10", "py310 "]:
+        try:
+            parser_configuration(value)
+        except ValueError:
+            continue
+        raise AssertionError("unknown or missing target was accepted")
+    with tempfile.TemporaryDirectory(prefix="ryo-target-staging-") as temporary:
+        root = Path(temporary)
+        source = root / "source.toml"
+        source.write_text('tool="ruff"\nversion="0.16.5"\nsha256=["pin"]\ndefaults=["UP045"]\n')
+        destination = root / "benchmark.toml"
+        for configuration in PARSER_CONFIGURATIONS.values():
+            write_staged_profile(source, destination, {}, configuration, {"UP045": "accepted-syntax"})
+            staged = tomllib.loads(destination.read_text())
+            assert staged["parser-configuration"] == configuration
+            assert staged["rule-applicability"] == {"UP045": "accepted-syntax"}
+            assert staged["defaults"] == ["UP045"]
+        for configuration in [None, "python-target=latest", "python-target=3.6", "python-target=3.16"]:
+            try:
+                write_staged_profile(source, destination, {}, configuration, {"UP045": "accepted-syntax"})
+            except ValueError:
+                continue
+            raise AssertionError("unsupported staged target was accepted")
+
+
+def profile_accounting_projection_self_test() -> None:
+    with tempfile.TemporaryDirectory(prefix="profile-accounting-guards-") as temporary:
+        source = Path(temporary) / "source.toml"
+        destination = Path(temporary) / "staged.toml"
+        source.write_text('defaults = ["A", "B"]\n[deferred]\npromoted = []\nremaining = ["B"]\n[pending]\nfinished = []\n')
+        before = source.read_bytes()
+        write_staged_profile(source, destination, {})
+        staged = tomllib.loads(destination.read_text())
+        assert staged["deferred"] == {"remaining": ["B"]}
+        assert "pending" not in staged
+        write_staged_profile(source, destination, {}, selected_rules=["A"])
+        staged = tomllib.loads(destination.read_text())
+        assert "deferred" not in staged and "pending" not in staged
+        assert source.read_bytes() == before
+
+
 def self_test() -> int:
     execution_metadata_self_test()
+    profile_accounting_projection_self_test()
     """Exercise fail-closed profile-selection and hash-mismatch guards without invoking Cargo."""
+    parser_target_configuration_self_test()
     self_test_standard_suppression()
     report_cache_contract_self_test()
     reference_discrepancy_self_test()
@@ -5274,7 +5342,7 @@ def self_test() -> int:
             )
             return 1
         try:
-            parser_configuration("py312")
+            parser_configuration("py316")
         except ValueError:
             pass
         else:

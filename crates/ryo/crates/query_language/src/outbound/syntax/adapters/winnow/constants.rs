@@ -48,6 +48,10 @@ pub(crate) enum Keyword {
     GlobAny,
     /// `float_text_gte`.
     FloatTextGte,
+    /// `numeric_gte`.
+    NumericGte,
+    /// `integer_successor`.
+    IntegerSuccessor,
     /// `starts_with`.
     StartsWith,
     /// `matches`.
@@ -103,6 +107,8 @@ pub(crate) fn keyword_text(keyword: Keyword) -> &'static str {
         Keyword::In => "in",
         Keyword::GlobAny => "glob_any",
         Keyword::FloatTextGte => "float_text_gte",
+        Keyword::NumericGte => "numeric_gte",
+        Keyword::IntegerSuccessor => "integer_successor",
         Keyword::StartsWith => "starts_with",
         Keyword::Matches => "matches",
         Keyword::EndsWith => "ends_with",
@@ -255,13 +261,23 @@ pub(crate) const GRAMMAR: &[GrammarLine] = &[
     },
     GrammarLine {
         name: "filter",
-        form: "glob_filter | float_text_filter | affix_filter | comparison_filter",
+        form: "glob_filter | float_text_filter | numeric_filter | integer_successor_filter | affix_filter | comparison_filter",
         example: "name = \"main\"",
     },
     GrammarLine {
         name: "float_text_filter",
         form: "float_text_gte \"(\" operand \",\" operand \")\"",
         example: "float_text_gte(text, $limit)",
+    },
+    GrammarLine {
+        name: "numeric_filter",
+        form: "numeric_gte \"(\" operand \",\" operand \")\"",
+        example: "numeric_gte(value, 86400)",
+    },
+    GrammarLine {
+        name: "integer_successor_filter",
+        form: "integer_successor \"(\" operand \",\" operand \")\"",
+        example: "integer_successor(lower, next_lower)",
     },
     GrammarLine {
         name: "glob_filter",

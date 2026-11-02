@@ -384,7 +384,7 @@ impl FileAnalysis {
             tracing::enabled!(target: "ryo::diagnostic::execution", tracing::Level::TRACE);
         let shared_started = execution_diagnostics.then(Instant::now);
         let mut classes = crate::domain::shared_walk::types::SharedClasses {
-            matchers: Some(std::sync::Arc::clone(&tables.pool.matchers)),
+            matchers: Some(Arc::clone(&tables.pool.matchers)),
             kind_vocabulary: crate::domain::kind_sets::service::prepare_vocabulary(
                 &mut tables.pool.kind_vocabulary,
                 &tables.elements,

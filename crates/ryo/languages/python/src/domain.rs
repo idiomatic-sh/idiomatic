@@ -38,6 +38,7 @@ pub(crate) mod constant_keys;
 pub(crate) mod expression_shapes;
 /// Parsed primitive categories and narrow value predicates.
 pub(crate) mod literal_properties;
+pub(crate) mod numeric_literals;
 
 /// Ordered language events and explicitly deferred evaluation phases.
 pub(crate) mod binding_schedule;

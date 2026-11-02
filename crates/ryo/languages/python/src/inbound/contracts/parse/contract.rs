@@ -91,6 +91,7 @@ impl Parse for ParseContract {
             languages::OptionalCapability::BindingShadow,
             languages::OptionalCapability::ImplicitSymbol,
             languages::OptionalCapability::LiteralProperties,
+            languages::OptionalCapability::NumericLiteral,
             languages::OptionalCapability::InterpolatedStringLiteral,
             languages::OptionalCapability::ConstantKey,
             languages::OptionalCapability::FormatParse,
@@ -306,6 +307,12 @@ impl Parse for ParseContract {
     fn literal_properties(&self) -> Support<Reader<languages::LiteralProperties, Self::FileModel>> {
         languages::reads::<
             crate::domain::relations::collections::relations::literal_properties::item::LiteralPropertiesItem,
+        >()
+    }
+
+    fn numeric_literal(&self) -> Support<Reader<languages::NumericLiteral, Self::FileModel>> {
+        languages::reads::<
+            crate::domain::relations::collections::relations::numeric_literal::item::NumericLiteralItem,
         >()
     }
 

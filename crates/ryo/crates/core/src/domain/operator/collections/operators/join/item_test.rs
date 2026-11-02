@@ -985,6 +985,194 @@ fn stored_right_key_errors_match_computed_before_any_emission() {
     }
 }
 
+/// Exercise the held-input operator with an audited file owner and no stream fixture.
+fn made_with_indexes(
+    operation: &Operation,
+    left: Rows<'_>,
+    right: Rows<'_>,
+    cache: &mut crate::domain::stored_indexes::types::FileIndexes,
+) -> Result<Table, OperatingError> {
+    let mut symbols = Symbols::default();
+    let mut memo = Vec::new();
+    let mut scratch = OperatorScratch::default();
+    let mut context = OperatorContext {
+        prepared_kinds: None,
+        prepared_matchers: None,
+        stored_indexes: Some(cache),
+        bindings: &[],
+        symbols: &mut symbols,
+        source: SourceView(&[]),
+        paths: &[],
+        arenas: &[],
+        memo: &mut memo,
+        scratch: &mut scratch,
+    };
+    let mut out = Table::default();
+    JoinItem.compute(operation, &[left, right], &mut context, &mut out)?;
+    Ok(out)
+}
+
+/// A valid Function population with repeated typed keys and distinct payloads.
+fn sparse_function_columns(count: usize) -> [FactColumn; 4] {
+    let mut columns = std::array::from_fn(|_| FactColumn::default());
+    for place in 0..count {
+        let row = [
+            node((place % 8 + 1) as u32),
+            Cell::Symbol(ryo_language::domain::terms::types::Symbol(1)),
+            Cell::File(FileId((place % 2) as u32)),
+            stretch(place as u32, place as u32 + 1),
+        ];
+        for (column, value) in columns.iter_mut().zip(row) {
+            column.0.push(to_bits(value).0);
+        }
+    }
+    columns
+}
+
+#[test]
+fn sparse_left_matches_computed_bag_order_for_composite_typed_duplicate_keys() {
+    use crate::domain::stored_indexes::service::{LIMIT, new};
+    use crate::domain::table_model::service::materialize;
+    let columns = sparse_function_columns(256);
+    let left = Rows::Stored(ColumnsView {
+        kinds: ryo_language::domain::relations::service::kinds(Relation::Function),
+        columns: &columns,
+    });
+    let right = table_of(
+        &[CellKind::Node, CellKind::File, CellKind::Number],
+        &[
+            &[node(3), Cell::File(FileId(0)), Cell::Number(Integer(30))],
+            &[node(1), Cell::File(FileId(0)), Cell::Number(Integer(10))],
+            &[node(3), Cell::File(FileId(0)), Cell::Number(Integer(31))],
+            &[node(7), Cell::File(FileId(1)), Cell::Number(Integer(70))],
+        ],
+    );
+    let operation = plan(
+        &[2, 0],
+        &[1, 0],
+        &[(Side::Left, 3), (Side::Right, 2), (Side::Left, 0)],
+        Vec::new(),
+        &[],
+    );
+    let mut materialized = Table::default();
+    materialize(&left, &mut materialized, &mut Vec::new());
+    let expected = made(
+        &operation,
+        &[Rows::Computed(&materialized), Rows::Computed(&right)],
+        &mut Symbols::default(),
+        &[],
+    )
+    .expect("ordinary join");
+    let mut cache = new(&[Relation::Function], &[], LIMIT).expect("complete file");
+    let actual = made_with_indexes(&operation, left.clone(), Rows::Computed(&right), &mut cache)
+        .expect("sparse join");
+    assert_eq!(actual, expected);
+    assert_eq!(cache.builds, 1);
+    assert_eq!(cache.entries.len(), 1);
+    let again = made_with_indexes(&operation, left, Rows::Computed(&right), &mut cache)
+        .expect("shared sparse join");
+    assert_eq!(again, expected);
+    assert_eq!(cache.reuses, 1);
+}
+
+#[test]
+fn sparse_left_falls_back_for_partial_or_unretained_sources_and_empty_results() {
+    use crate::domain::coverage::types::{Lacking, Partial};
+    use crate::domain::stored_indexes::service::{LIMIT, new};
+    use ryo_values::domain::stored_facts::types::PartialCause;
+    let columns = sparse_function_columns(256);
+    let left = Rows::Stored(ColumnsView {
+        kinds: ryo_language::domain::relations::service::kinds(Relation::Function),
+        columns: &columns,
+    });
+    let right = table_of(&[CellKind::Node], &[&[node(99)]]);
+    let operation = plan(&[0], &[0], &[(Side::Left, 3)], Vec::new(), &[]);
+    let mut partial = new(
+        &[Relation::Function],
+        &[Partial {
+            relation: Relation::Function,
+            cause: PartialCause("incomplete fixture".into()),
+            lacking: Lacking::Any,
+            at: None,
+        }],
+        LIMIT,
+    )
+    .expect("file owner with partial facts");
+    assert!(
+        made_with_indexes(
+            &operation,
+            left.clone(),
+            Rows::Computed(&right),
+            &mut partial
+        )
+        .expect("partial fallback")
+        .cells
+        .is_empty()
+    );
+    assert!(partial.entries.is_empty());
+    let mut limited = new(&[Relation::Function], &[], LIMIT).expect("complete file");
+    limited.limit = limited.bytes;
+    assert!(
+        made_with_indexes(&operation, left, Rows::Computed(&right), &mut limited)
+            .expect("budget fallback")
+            .cells
+            .is_empty()
+    );
+    assert!(limited.entries.is_empty());
+}
+
+#[test]
+fn sparse_left_dense_pairs_fall_back_before_emitting_and_keep_bag_order() {
+    use crate::domain::stored_indexes::service::{LIMIT, new};
+    use crate::domain::table_model::service::materialize;
+    let mut columns = sparse_function_columns(4_097);
+    columns[0].0.fill(to_bits(node(1)).0);
+    let left = Rows::Stored(ColumnsView {
+        kinds: ryo_language::domain::relations::service::kinds(Relation::Function),
+        columns: &columns,
+    });
+    let mut right = Table {
+        kinds: vec![CellKind::Node, CellKind::Number],
+        ..Table::default()
+    };
+    for place in 0..16 {
+        push_row(&mut right, &[node(1), Cell::Number(Integer(place))]);
+    }
+    let operation = plan(
+        &[0],
+        &[0],
+        &[(Side::Left, 3), (Side::Right, 1)],
+        Vec::new(),
+        &[],
+    );
+    let mut computed_left = Table::default();
+    materialize(&left, &mut computed_left, &mut Vec::new());
+    let expected = made(
+        &operation,
+        &[Rows::Computed(&computed_left), Rows::Computed(&right)],
+        &mut Symbols::default(),
+        &[],
+    )
+    .expect("ordinary dense join");
+    let mut cache = new(&[Relation::Function], &[], LIMIT).expect("complete file");
+    let out = made_with_indexes(&operation, left, Rows::Computed(&right), &mut cache)
+        .expect("dense fallback");
+    assert_eq!(out, expected);
+    assert_eq!(cache.builds, 1, "the sparse index was attempted");
+    assert_eq!(out.count.0, 4_097 * 16);
+    assert_eq!(
+        row_in(&out, crate::domain::table_cells::types::RowIndex(0)),
+        Some(&[stretch(0, 1), Cell::Number(Integer(0))][..])
+    );
+    assert_eq!(
+        row_in(
+            &out,
+            crate::domain::table_cells::types::RowIndex(out.count.0 - 1)
+        ),
+        Some(&[stretch(4_096, 4_097), Cell::Number(Integer(15))][..])
+    );
+}
+
 /// Capture only the opt-in aggregate target, without adding a test dependency.
 #[derive(Clone, Default)]
 struct JoinDiagnostics {

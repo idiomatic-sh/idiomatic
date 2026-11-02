@@ -6,4 +6,5 @@ pub(crate) mod float_text;
 pub(crate) mod glob;
 pub(crate) mod interface;
 pub(crate) mod membership;
+pub(crate) mod numeric;
 pub(crate) mod ordering;

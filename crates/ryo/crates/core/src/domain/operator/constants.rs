@@ -65,6 +65,8 @@ pub(crate) fn describe(operator: QueryOperator) -> OperatorDescription {
                 "comparison family: equality",
                 "comparison family: ordering",
                 "comparison family: float-text",
+                "comparison family: numeric, numeric_gte(value, 86400) compares canonical integer/binary64 text or integer cells without rounding integers; NaN and malformed text are false",
+                "integer_successor(left, right): true only when right is exactly left plus one; canonical integer text or integer cells, no float coercion",
                 "comparison family: membership",
                 "comparison family: glob",
                 "comparison family: affix, starts_with(path, \"src/\") or ends_with(name, \"Service\"), each side text",

@@ -220,26 +220,14 @@ pub(super) fn reference(executable: PathBuf, tool: Tool) -> Result<LinterRuffAda
 
 /// Map the sealed shared identity to Ruff's explicit CLI value.
 fn ruff_target(configuration: Option<&str>) -> Result<&'static str, Error> {
-    match configuration {
-        None | Some("python-target=3.10") => Ok("py310"),
-        Some("python-target=3.11") => Ok("py311"),
-        Some(_) => Err(Error::Invalid(
-            "unsupported Ruff parser configuration".into(),
-        )),
-    }
+    Ok(super::targets::resolve(configuration)?.reference)
 }
 
-/// Map the same sealed identity to the linked Python parser settings.
+/// Use exactly the same explicit identity for the linked parser as the reference.
 fn parser_target(
     configuration: Option<&str>,
 ) -> Result<ryo_python::settings::PythonTargetVersion, Error> {
-    match configuration {
-        Some("python-target=3.10") => Ok(ryo_python::settings::PythonTargetVersion::Py310),
-        Some("python-target=3.11") => Ok(ryo_python::settings::PythonTargetVersion::Py311),
-        None | Some(_) => Err(Error::Invalid(
-            "unsupported or missing Ruff parser configuration".into(),
-        )),
-    }
+    Ok(super::targets::resolve(configuration)?.parser)
 }
 
 /// Locate this language-owned linter profile from the Cargo manifest.

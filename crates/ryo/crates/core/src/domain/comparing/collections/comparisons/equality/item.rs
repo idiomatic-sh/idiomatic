@@ -48,6 +48,8 @@ impl ComparisonsItem for EqualityItem {
             | Test::GreaterThan
             | Test::GreaterThanOrEqual
             | Test::FloatTextGreaterThanOrEqual
+            | Test::NumericGreaterThanOrEqual
+            | Test::IntegerSuccessor
             | Test::In
             | Test::NotIn
             | Test::GlobAny

@@ -420,12 +420,7 @@ fn selective(
             values
                 .0
                 .get(index * population / samples)
-                .is_some_and(|bits| {
-                    ryo_language::domain::relations::service::from_bits(
-                        *kind,
-                        ryo_language::domain::relations::types::Bits(*bits),
-                    ) == value
-                })
+                .is_some_and(|bits| from_bits(*kind, Bits(*bits)) == value)
         })
         .count();
     matches.saturating_mul(4) < samples

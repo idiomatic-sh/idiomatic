@@ -1331,6 +1331,7 @@ dependencies = [
  "idiomatic-sh-ryo-values",
  "ignore",
  "memchr",
+ "num-bigint 0.4.8",
  "postcard",
  "rayon",
  "regex-automata",

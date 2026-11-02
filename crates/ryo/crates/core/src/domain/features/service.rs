@@ -107,6 +107,8 @@ pub(crate) fn catalog() -> Vec<Feature> {
             Test::GreaterThan,
             Test::GreaterThanOrEqual,
             Test::FloatTextGreaterThanOrEqual,
+            Test::NumericGreaterThanOrEqual,
+            Test::IntegerSuccessor,
             Test::In,
             Test::NotIn,
             Test::GlobAny,

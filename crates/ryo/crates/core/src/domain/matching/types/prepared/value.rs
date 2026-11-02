@@ -60,7 +60,8 @@ impl PreparedMatchers {
             Test::GlobAny | Test::NotGlobAny => PreparedPattern::Glob(OnceLock::new()),
             _ => return,
         };
-        self.slots
+        let _slot = self
+            .slots
             .entry(test)
             .or_default()
             .entry(RegexPattern(pattern.to_owned()))

@@ -36,6 +36,16 @@ enum Scenario {
     Selected,
     /// Writes which elements each rule's step takes from the pass, then which the step selects on its own.
     Alike,
+    /// Same predicates have unrelated bindings, including an unused invalid pattern.
+    UnrelatedBindings,
+    /// The first class representative is inactive; two other equivalent rules are active.
+    FirstInactive,
+    /// A single active member leaves the class to that rule's own execution.
+    OneActive,
+    /// A shared dynamic-pattern error leaves both members to their own operators.
+    SharedError,
+    /// Missing referenced slots keep independent rule-specific failure attribution.
+    MissingReferenced,
     /// Runs the pass on steps that are run as operators.
     Unlowered,
 }
@@ -137,8 +147,46 @@ fn describe(elements: &[u32]) -> String {
 }
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
-    let plans = [plan("word"), plan("other"), plan("word"), plan("")];
-    let bindings = vec![Vec::new(); plans.len()];
+    let mut plans = [plan("word"), plan("other"), plan("word"), plan("")];
+    let mut bindings = vec![Vec::new(); plans.len()];
+    if matches!(
+        scenario,
+        Scenario::UnrelatedBindings
+            | Scenario::FirstInactive
+            | Scenario::SharedError
+            | Scenario::MissingReferenced
+    ) {
+        bindings[0] = vec![ParameterBinding::Text(LiteralText("[".into()))];
+        bindings[2] = vec![
+            ParameterBinding::Text(LiteralText("[".into())),
+            ParameterBinding::Numbers(Vec::new()),
+        ];
+    }
+    if matches!(scenario, Scenario::FirstInactive) {
+        plans[1] = plan("word");
+    }
+    if matches!(
+        scenario,
+        Scenario::SharedError | Scenario::MissingReferenced
+    ) {
+        for rule in [0, 2] {
+            let Operation::Select { comparisons, .. } = &mut plans[rule].steps[0].operation else {
+                return Err(());
+            };
+            comparisons.push(Comparison {
+                test: Test::Matches,
+                left: Operand::Column(ColumnIndex(2)),
+                right: Operand::Parameter(ryo_values::domain::plan_parts::types::ParameterId(
+                    if matches!(scenario, Scenario::MissingReferenced) {
+                        3
+                    } else {
+                        0
+                    },
+                )),
+                origin: None,
+            });
+        }
+    }
     let placed = PlacedScopes {
         placement: ScopePlacement::default(),
         matcher: MatchingFake.compile(&[]).map_err(drop)?,
@@ -157,7 +205,16 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     tables.symbols = small_symbols;
     tables.bytes.0 = SMALL_SOURCE.to_vec();
     tables.mask.0 = vec![u64::MAX];
-    let setting = setting(&placed, &plans, &bindings);
+    if matches!(scenario, Scenario::FirstInactive) {
+        tables.mask.0 = vec![0b0110];
+    }
+    if matches!(scenario, Scenario::OneActive) {
+        tables.mask.0 = vec![1];
+    }
+    let ids = ["first", "other", "third", "last"]
+        .map(|id| ryo_values::domain::runs::types::RuleId(id.into()));
+    let mut setting = setting(&placed, &plans, &bindings);
+    setting.ids = &ids;
     let mut classes = super::types::SharedClasses::default();
     {
         let mut scratch = OperatorScratch::default();
@@ -188,13 +245,19 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         );
     }
     let shown = match scenario {
-        Scenario::Selected | Scenario::Unlowered => classes
+        Scenario::Selected
+        | Scenario::Unlowered
+        | Scenario::FirstInactive
+        | Scenario::OneActive => classes
             .classes
             .iter()
             .map(|each| describe(&each.0))
             .collect::<Vec<_>>()
             .join(" | "),
-        Scenario::Alike => {
+        Scenario::Alike
+        | Scenario::UnrelatedBindings
+        | Scenario::SharedError
+        | Scenario::MissingReferenced => {
             let mut shown = Vec::new();
             for (rule, each) in plans.iter().enumerate() {
                 let mut made = crate::domain::positions::types::LoweredRoom::default();
@@ -204,6 +267,24 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 let Operation::Select { comparisons, .. } = &each.steps[0].operation else {
                     return Err(());
                 };
+                if matches!(scenario, Scenario::MissingReferenced) && matches!(rule, 0 | 2) {
+                    let result = crate::domain::reading::service::evaluate_rule(
+                        &mut tables,
+                        &setting,
+                        RuleIndex(rule),
+                        FileId(0),
+                        None,
+                        &|_| None,
+                        &classes,
+                    );
+                    let error =
+                        result.expect_err("the member's referenced parameter remains missing");
+                    shown.push(format!(
+                        "{} / {error}",
+                        taken.unwrap_or_else(|| "none".to_owned())
+                    ));
+                    continue;
+                }
                 let tree = TreeRows {
                     elements: &tables.elements,
                     file: FileId(0),
@@ -215,7 +296,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                     prepared_kinds: None,
                     prepared_matchers: None,
                     stored_indexes: None,
-                    bindings: &[],
+                    bindings: &bindings[rule],
                     symbols: &mut tables.symbols,
                     source: SourceView(SMALL_SOURCE),
                     paths: &[],
@@ -224,11 +305,22 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                     scratch: &mut scratch,
                 };
                 let mut alone = Slots::default();
-                select_tree(&tree, comparisons, &mut context, &mut alone).map_err(drop)?;
+                let result = select_tree(&tree, comparisons, &mut context, &mut alone);
+                let ordinary = if matches!(scenario, Scenario::SharedError) && matches!(rule, 0 | 2)
+                {
+                    assert!(
+                        result.is_err(),
+                        "shared failure must not hide the member's own error"
+                    );
+                    "error".to_owned()
+                } else {
+                    result.map_err(drop)?;
+                    describe(&alone.0)
+                };
                 shown.push(format!(
                     "{} / {}",
                     taken.unwrap_or_else(|| "none".to_owned()),
-                    describe(&alone.0)
+                    ordinary
                 ));
             }
             shown.join(" ; ")
@@ -249,6 +341,40 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Scenario::Alike,
         expect: Expect::Value("1,3 / 1,3 ; none / 2 ; 1,3 / 1,3 ; none / 0"),
+    },
+    Case {
+        name: CaseName(
+            "unused_parameters_share_without_changing_tree_order_or_reading_invalid_patterns",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::UnrelatedBindings,
+        expect: Expect::Value("1,3 / 1,3 ; none / 2 ; 1,3 / 1,3 ; none / 0"),
+    },
+    Case {
+        name: CaseName("inactive_first_representative_does_not_change_shared_predicate_results"),
+        word: Word::Succeeds,
+        input: || Scenario::FirstInactive,
+        expect: Expect::Value("1,3 | "),
+    },
+    Case {
+        name: CaseName("only_one_active_member_keeps_its_original_execution"),
+        word: Word::Succeeds,
+        input: || Scenario::OneActive,
+        expect: Expect::Value(" |  | "),
+    },
+    Case {
+        name: CaseName("a_shared_error_preserves_each_rules_normal_error_path"),
+        word: Word::Succeeds,
+        input: || Scenario::SharedError,
+        expect: Expect::Value("none / error ; none / 2 ; none / error ; none / 0"),
+    },
+    Case {
+        name: CaseName("missing_referenced_bindings_keep_the_owning_rule_in_each_error"),
+        word: Word::Succeeds,
+        input: || Scenario::MissingReferenced,
+        expect: Expect::Value(
+            "none / rule `first`: the parameter has no value ; none / 2 ; none / rule `third`: the parameter has no value ; none / 0",
+        ),
     },
     Case {
         name: CaseName("steps_run_as_operators_are_left_to_their_operators"),

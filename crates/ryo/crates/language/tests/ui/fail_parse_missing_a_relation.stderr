@@ -1,15 +1,15 @@
 warning: unused import: `Elements`
- --> tests/ui/fail_parse_missing_a_relation.rs:4:45
+ --> tests/ui/fail_parse_missing_a_relation.rs:4:57
   |
-4 | use ryo_language::domain::elements::types::{Elements, TableBuilder, Completion};
-  |                                             ^^^^^^^^
+4 | use ryo_language::domain::elements::types::{Completion, Elements, TableBuilder};
+  |                                                         ^^^^^^^^
   |
   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
 
 warning: unused import: `ryo_language::domain::symbols::types::Symbols`
- --> tests/ui/fail_parse_missing_a_relation.rs:6:5
+ --> tests/ui/fail_parse_missing_a_relation.rs:5:5
   |
-6 | use ryo_language::domain::symbols::types::Symbols;
+5 | use ryo_language::domain::symbols::types::Symbols;
   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 error[E0046]: not all trait items implemented, missing: `function`

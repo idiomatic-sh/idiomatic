@@ -649,6 +649,8 @@ pub(super) fn filter(input: &mut Input<'_>) -> ModalResult<Filter> {
     alt((
         glob_filter,
         float_text_filter,
+        numeric_filter,
+        integer_successor_filter,
         affix_filter,
         comparison_filter,
     ))
@@ -701,6 +703,55 @@ pub(super) fn float_text_filter(input: &mut Input<'_>) -> ModalResult<Filter> {
     Ok(Filter {
         left,
         test: WrittenTest::FloatTextGreaterThanOrEqual,
+        right,
+        span: QuerySpan {
+            start: ByteOffset(span.start),
+            end: ByteOffset(span.end),
+        },
+    })
+}
+
+/// `numeric_gte(left, right)`.
+pub(super) fn numeric_filter(input: &mut Input<'_>) -> ModalResult<Filter> {
+    let ((left, right), span) = (
+        preceded(
+            (keyword(Keyword::NumericGte), multispace0, '(', multispace0),
+            terminated(operand, (multispace0, ',', multispace0)),
+        ),
+        terminated(operand, (multispace0, ')')),
+    )
+        .with_span()
+        .parse_next(input)?;
+    Ok(Filter {
+        left,
+        test: WrittenTest::NumericGreaterThanOrEqual,
+        right,
+        span: QuerySpan {
+            start: ByteOffset(span.start),
+            end: ByteOffset(span.end),
+        },
+    })
+}
+
+/// `integer_successor(left, right)`.
+pub(super) fn integer_successor_filter(input: &mut Input<'_>) -> ModalResult<Filter> {
+    let ((left, right), span) = (
+        preceded(
+            (
+                keyword(Keyword::IntegerSuccessor),
+                multispace0,
+                '(',
+                multispace0,
+            ),
+            terminated(operand, (multispace0, ',', multispace0)),
+        ),
+        terminated(operand, (multispace0, ')')),
+    )
+        .with_span()
+        .parse_next(input)?;
+    Ok(Filter {
+        left,
+        test: WrittenTest::IntegerSuccessor,
         right,
         span: QuerySpan {
             start: ByteOffset(span.start),

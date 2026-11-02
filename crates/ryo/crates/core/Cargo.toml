@@ -19,6 +19,7 @@ thiserror.workspace = true
 ignore.workspace = true
 rayon.workspace = true
 memchr.workspace = true
+num-bigint.workspace = true
 serde.workspace = true
 blake3.workspace = true
 globset.workspace = true

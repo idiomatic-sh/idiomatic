@@ -2,6 +2,25 @@
 
 **In progress.** The goal remains all 413 Ruff 0.16.5 defaults as RyoQL, faithful full reports, and subsecond full-Django execution. Neither full parity nor the performance target has passed.
 
+## Numeric, target and sparse join measured checkpoint (2026-11-02)
+
+The [source-bound measured receipt](numeric-sparse-measurements-2026-11-02.json) records selected passing numeric, target, grammar, sparse join, conformance, zero-extra allocation, compile-fail, BDD, cache lifecycle and actual 1,000-row catalog checks. The prior failed allocation and numeric-witness checks were corrected without raising limits or adding unfed exemptions. Fresh release binaries were sealed from the corrected source. These selected checks do not replace broad quality or all-language acceptance.
+
+The full pinned Django lifecycle uses the same **310 rules, 2,875 files, one worker and 600-second cap**. Every report is Complete and exact against the established canonical cold or edited output; the retained edited cache equals a fresh edited recomputation. Coverage remains 891,250 selected / 890,943 evaluated / 307 explicit syntax skips / zero unknown or unread.
+
+| Mode | Prior afb2 wall / RSS | Current sparse wall / RSS | Current CPU |
+|---|---:|---:|---:|
+| Cold | 248.954 s / 2.199 GB | 247.481 s / 2.193 GB | 247.320 s |
+| Retained CLI cache | 1.891 s / 238 MB | 1.955 s / 238 MB | 1.955 s |
+| Edited, retained cache | 9.387 s / 1.955 GB | 8.374 s / 1.955 GB | 8.304 s |
+| Edited, fresh cache | 245.104 s / 2.201 GB | 245.989 s / 2.194 GB | 245.763 s |
+
+These are separate full observations, not paired component attribution. Cold is essentially flat; edited-cache wall improves about 10.8%, while warm and fresh edited wall increase modestly. The subsecond target remains unmet.
+
+Two alternating original Rust benchmark pairs pass the unchanged **1.15 cold/spike limit** locally: cold wall ratios 1.010/1.032, cold CPU 1.136/1.141, spike CPU 1.141/1.070. The same pairs expose an **edited-cache regression**, 361→584 ms and 413→633 ms. An edit-only diagnostic on identical pinned source and edit finds 10,160→531,329 reads and 2,493→263,299 seeks. Decoded edited stores have the same 16,373 ordered findings and 171,916 frontiers; the full debug output hashes differ because report/configuration fields also changed, so full output parity is not inferred. Intrusive profiler and syscall times are not benchmark measurements. A bounded old-row read correction is pending.
+
+The isolated 207 numeric consumer cases passed their candidate expectations: ASYNC116 66/66, PLE0643 77/77 and RUF007 64/64. Reference expectations pass 66/66, 74/77 and 60/64 respectively; the latter two remain unadmitted. RUF028 and UP008 are separate incomplete candidate work, and their first replay raw files were overwritten and unavailable. Existing native warm memory, remote lint/Clippy, Tastemaker memory, baseline Go scaling and full all-language speed comparison remain unresolved. No main merge or full acceptance is claimed.
+
 ## Typed execution and bounded descriptor IO checkpoint (2026-11-02)
 
 The [selected source-bound checks](io-capability-measurements-2026-11-02.json) pass 332 core, nine values, 101 benchmark, 190 Python library, 20 Python context and seven real cache-lifecycle tests, plus full Python conformance/allocation and strict helper guards. Passed steps come from their recorded frozen-source attempts; this is not broad QA acceptance. Descriptor reads use the immutable snapshot length and one bounded stack-buffer header read before the requested payload, preserving truncation refusal and avoiding neighboring payload reads. Fresh Ryo reports require explicit Complete execution metadata; reference metadata remains explicitly unavailable.

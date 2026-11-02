@@ -293,6 +293,10 @@ impl Parse for ParseContract {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
+    fn numeric_literal(&self) -> Support<Reader<languages::NumericLiteral, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn compiler_feature(&self) -> Support<Reader<languages::CompilerFeature, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }

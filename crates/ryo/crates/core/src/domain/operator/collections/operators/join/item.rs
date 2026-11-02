@@ -13,8 +13,8 @@ use crate::domain::stored_indexes::types::Acquired;
 use crate::domain::table_cells::types::{RowIndex, TreeForm, TreeRows};
 use crate::domain::table_model::errors::TableModelError;
 use crate::domain::table_model::service::{
-    cell, column_in, count_of, index, index_stored, key_of, kinds_of, matching_stored, positions,
-    read_row, rectangular, reset, row_in, table_in,
+    cell, cell_at, check_columns, column_in, count_of, index, index_stored, key_of, kinds_of,
+    matching_stored, positions, read_row, rectangular, reset, row_in, table_in,
 };
 use crate::domain::table_model::types::{KeyIndex, On, RowCount, Rows, Table};
 use crate::domain::table_scratch::types::OperatorScratch;
@@ -210,6 +210,129 @@ struct LookupState<'a> {
     indexed: bool,
     /// Owned handle whose cache borrow ended before downstream emission.
     shared: Option<std::sync::Arc<KeyIndex>>,
+    /// The resident right side probed a complete stored left index.
+    sparse_left: bool,
+}
+
+/// Bound the temporary row-position pairs to one MiB on a 64-bit target.
+const SPARSE_PAIR_LIMIT: usize = 65_536;
+/// A small right side must save at least sixteen left probes to justify sorting hits.
+const SPARSE_RIGHT_LIMIT: usize = 1_024;
+
+/// Probe an eligible stored left side using only right key cells. A complete pair list lets a
+/// dense result fall back before emitting, while sorting restores left-major/right-major order.
+fn join_sparse_left(
+    left_input: Input,
+    columns: &LookupColumns<'_>,
+    left: &Rows<'_>,
+    right: &Rows<'_>,
+    context: &mut OperatorContext<'_>,
+    emit: &mut dyn Emit,
+    buffers: &mut JoinBuffers,
+    state: &mut LookupState<'_>,
+) -> Option<Result<(), OperatingError>> {
+    let (Input::Relation(relation), Rows::Stored(view)) = (left_input, left) else {
+        return None;
+    };
+    let left_count = count_of(left).0;
+    let right_count = count_of(right).0;
+    if !rectangular(*view)
+        || view.kinds != ryo_language::domain::relations::service::kinds(relation)
+        || left_count > u32::MAX as usize
+        || right_count == 0
+        || right_count > SPARSE_RIGHT_LIMIT
+        || left_count < right_count.saturating_mul(16)
+        || matches!(right, Rows::Tree(_) | Rows::Selected(_))
+        || matches!(right, Rows::Stored(other) if !rectangular(*other))
+        || matches!(right, Rows::Computed(table) if table.cells.len() != table.count.0.saturating_mul(table.kinds.len()))
+    {
+        return None;
+    }
+    let cache = context.stored_indexes.as_deref_mut()?;
+    let complete_right = match right {
+        Rows::Stored(other) => matches!(columns.right_input, Input::Relation(source)
+            if cache.eligible.contains(&source)
+                && other.kinds == ryo_language::domain::relations::service::kinds(source)),
+        Rows::Computed(_) => true,
+        Rows::Selected(_) | Rows::Tree(_) => false,
+    };
+    if !cache.eligible.contains(&relation)
+        || !complete_right
+        || !crate::domain::stored_indexes::service::can_retain(
+            cache,
+            relation,
+            *view,
+            columns.left_on,
+        )
+    {
+        return None;
+    }
+    // The ordinary path validates the right key before it ever probes a left row.
+    if let Err(error) = check_columns(kinds_of(right), columns.right_on) {
+        return Some(Err(error.into()));
+    }
+    let acquired = match crate::domain::stored_indexes::service::acquire(
+        cache,
+        relation,
+        *view,
+        columns.left_on,
+        &mut buffers.order,
+    ) {
+        Ok(acquired) => acquired,
+        Err(error) => return Some(Err(error.into())),
+    };
+    if state.enabled {
+        state.builds = state.builds.saturating_add(u64::from(acquired.built));
+        state.cache_reuses = state
+            .cache_reuses
+            .saturating_add(u64::from(!acquired.built));
+        state.cache_eligible = acquired.eligible;
+    }
+    let lookup = acquired.shared.as_deref().unwrap_or(&buffers.order);
+    let mut pairs = Vec::new();
+    for right_row in positions(RowCount(right_count)) {
+        buffers.key.clear();
+        for column in columns.right_on {
+            let Some(value) = cell_at(right, right_row, *column) else {
+                return None;
+            };
+            buffers.key.push(value);
+        }
+        if state.enabled {
+            state.probes = state.probes.saturating_add(1);
+        }
+        for left_row in matching_stored(*view, columns.left_on, lookup, &buffers.key) {
+            if pairs.len() == SPARSE_PAIR_LIMIT {
+                return None;
+            }
+            pairs.push((*left_row, right_row));
+        }
+    }
+    pairs.sort_unstable();
+    state.sparse_left = true;
+    for (left_row, right_row) in pairs {
+        buffers.other.clear();
+        for column in columns.output {
+            let (source, row) = match column.side {
+                Side::Left => (left, left_row),
+                Side::Right => (right, right_row),
+            };
+            let Some(value) = cell_at(source, row, column.column) else {
+                return Some(Err(TableModelError::NoSuchColumn {
+                    index: column.column.0,
+                }
+                .into()));
+            };
+            buffers.other.push(value);
+        }
+        if state.enabled {
+            state.hits = state.hits.saturating_add(1);
+        }
+        if let Err(error) = emit.row(context, &buffers.other) {
+            return Some(Err(error));
+        }
+    }
+    Some(Ok(()))
 }
 
 /// Probe rectangular resident columns, decoding payload only for actual hits.
@@ -396,6 +519,7 @@ pub(crate) fn join_rows(
         return crate::domain::demand_join::service::emit(operation, left, right, context, emit);
     }
     let Operation::Join {
+        left: left_input,
         right: right_input,
         left_on,
         right_on,
@@ -451,7 +575,19 @@ pub(crate) fn join_rows(
         right_on,
         output,
     };
-    let outcome = if stored && !matches!(left, Rows::Tree(_)) {
+    let sparse = join_sparse_left(
+        *left_input,
+        &columns,
+        left,
+        right,
+        context,
+        emit,
+        &mut buffers,
+        &mut state,
+    );
+    let outcome = if let Some(outcome) = sparse {
+        outcome
+    } else if stored && !matches!(left, Rows::Tree(_)) {
         join_stored_rows(
             &columns,
             left,
@@ -477,7 +613,13 @@ pub(crate) fn join_rows(
             right,
             right_on,
             *right_input,
-            if stored { "stored-key" } else { "materialized" },
+            if state.sparse_left {
+                "sparse-left-key"
+            } else if stored {
+                "stored-key"
+            } else {
+                "materialized"
+            },
             (state.builds, state.probes, state.hits),
             (state.cache_eligible, state.cache_reuses),
             outcome.is_ok(),

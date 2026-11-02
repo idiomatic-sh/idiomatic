@@ -82,8 +82,43 @@ fn rooted(below: &[Option<Rooted>], operation: &Operation) -> Option<Rooted> {
     })
 }
 
+/// Compare only a predicate operand's referenced request bindings, including nested functions.
+/// A missing referenced slot is not a value and never proves shared evaluation safe.
+fn operand_bindings_match(
+    operand: &Operand,
+    left: &[ParameterBinding],
+    right: &[ParameterBinding],
+) -> bool {
+    match operand {
+        Operand::Parameter(id) => usize::try_from(id.0)
+            .ok()
+            .and_then(|at| left.get(at).zip(right.get(at)))
+            .is_some_and(|(left, right)| left == right),
+        Operand::Function(applied) => applied
+            .arguments
+            .iter()
+            .all(|argument| operand_bindings_match(argument, left, right)),
+        Operand::Column(_) | Operand::Literal(_) => true,
+    }
+}
+
+/// Keep each rule's missing-vector fallback and compare exact typed values only where read.
+fn predicate_bindings_match(
+    comparisons: &[Comparison],
+    left: Option<&[ParameterBinding]>,
+    right: Option<&[ParameterBinding]>,
+) -> bool {
+    let (Some(left), Some(right)) = (left, right) else {
+        return false;
+    };
+    comparisons.iter().all(|comparison| {
+        operand_bindings_match(&comparison.left, left, right)
+            && operand_bindings_match(&comparison.right, left, right)
+    })
+}
+
 /// The classes of the steps that select from the elements of a file, and for each rule and step the class that has it. Steps that
-/// have the same comparisons under the same bindings of their rules' parameters are one class: a step that selects from a step that
+/// have the same comparisons under equal bindings of only their referenced parameters are one class: a step that selects from a step that
 /// selects from the tree is in the class of the comparisons of both.
 #[must_use]
 pub(crate) fn merge(plans: &[Plan], bindings: &[Vec<ParameterBinding>]) -> Merge {
@@ -107,7 +142,11 @@ pub(crate) fn merge(plans: &[Plan], bindings: &[Vec<ParameterBinding>]) -> Merge
             };
             let same = merged.classes.iter().position(|class| {
                 class.comparisons == chosen.comparisons
-                    && bindings.get(class.first.rule.0) == bindings.get(rule)
+                    && predicate_bindings_match(
+                        &class.comparisons,
+                        bindings.get(class.first.rule.0).map(Vec::as_slice),
+                        bindings.get(rule).map(Vec::as_slice),
+                    )
             });
             let place = if let Some(place) = same {
                 if let Some(class) = merged.classes.get_mut(place) {

@@ -14,6 +14,7 @@ pub(crate) fn family_of(test: Test) -> Family {
             Family::Ordering
         }
         Test::FloatTextGreaterThanOrEqual => Family::FloatText,
+        Test::NumericGreaterThanOrEqual | Test::IntegerSuccessor => Family::Numeric,
         Test::In | Test::NotIn => Family::Membership,
         Test::GlobAny | Test::NotGlobAny => Family::Glob,
         Test::StartsWith | Test::EndsWith => Family::Affix,

@@ -169,6 +169,7 @@ pub(crate) fn shaped(
                 | Relation::Identifier
                 | Relation::ExpressionShape
                 | Relation::LiteralProperties
+                | Relation::NumericLiteral
                 | Relation::FunctionTerminal
                 | Relation::ExpressionType
                 | Relation::InterpolatedStringLiteral

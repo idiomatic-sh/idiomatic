@@ -545,4 +545,6 @@ pub enum OptionalCapability {
     RawFormatField,
     /// Syntactic parse outcomes of original string carriers.
     LiteralExpressionParse,
+    /// Parser-decoded integer or binary64 literal payloads.
+    NumericLiteral,
 }

@@ -60,6 +60,8 @@ fn admits(comparison: &Comparison, kind: &LackingKind) -> Passage {
         | Test::GreaterThan
         | Test::GreaterThanOrEqual
         | Test::FloatTextGreaterThanOrEqual
+        | Test::NumericGreaterThanOrEqual
+        | Test::IntegerSuccessor
         | Test::In
         | Test::NotIn
         | Test::StartsWith

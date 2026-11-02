@@ -443,6 +443,10 @@ pub enum WrittenTest {
     EndsWith,
     /// `matches(text, pattern)`: a regular expression searches the text.
     Matches,
+    /// `numeric_gte(left, right)`: exact integer and binary64 numeric ordering.
+    NumericGreaterThanOrEqual,
+    /// `integer_successor(left, right)`: right is exactly left plus one; integers only.
+    IntegerSuccessor,
 }
 
 /// One side of a filter.

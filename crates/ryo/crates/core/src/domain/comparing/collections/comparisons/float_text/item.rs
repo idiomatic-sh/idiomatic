@@ -44,6 +44,8 @@ impl ComparisonsItem for FloatTextItem {
                 _ => Verdict::Fails,
             }),
             Test::Equal
+            | Test::NumericGreaterThanOrEqual
+            | Test::IntegerSuccessor
             | Test::NotEqual
             | Test::LessThan
             | Test::LessThanOrEqual

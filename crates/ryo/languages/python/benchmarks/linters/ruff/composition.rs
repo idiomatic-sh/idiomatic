@@ -4,6 +4,7 @@ mod constants;
 mod diagnostic_protocol;
 mod output;
 mod request_input;
+mod targets;
 use ryo_benchmark::application::run::service::run as execute;
 use ryo_benchmark::domain::diagnostics::errors::DiagnosticsError as Error;
 use ryo_benchmark::domain::measurements::types::{RunOrder, sample::value::BenchmarkSample};

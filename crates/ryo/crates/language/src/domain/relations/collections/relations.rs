@@ -66,6 +66,7 @@ pub mod interpolated_string_literal;
 pub mod language_target;
 /// Typed primitive literal properties.
 pub mod literal_properties;
+pub mod numeric_literal;
 
 /// Canonical keys for constant expressions.
 pub mod constant_key;

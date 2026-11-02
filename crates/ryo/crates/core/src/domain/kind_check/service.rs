@@ -60,6 +60,13 @@ fn asked_in(
         if comparison.left != Operand::Column(KIND_COLUMN) {
             continue;
         }
+        // Numeric ordering does not assert that its text operand names a syntax kind.
+        if matches!(
+            comparison.test,
+            Test::NumericGreaterThanOrEqual | Test::IntegerSuccessor
+        ) {
+            continue;
+        }
         let test = comparison.test;
         // The words the right side names: a literal text, the text or texts a parameter is bound to, or the text a function of
         // constants makes.
@@ -132,6 +139,8 @@ pub(crate) fn names_a_kind(asked: &AskedKind, vocabularies: &KindVocabularies) -
         | Test::GreaterThan
         | Test::GreaterThanOrEqual
         | Test::FloatTextGreaterThanOrEqual
+        | Test::NumericGreaterThanOrEqual
+        | Test::IntegerSuccessor
         | Test::In
         | Test::NotIn => Test::Equal,
     };
