@@ -2,7 +2,7 @@
 
 Generated from canonical source and the existing full-inventory runner's results. Every pinned default is preloaded; missing, unrun, invalid and failed implementations remain FAIL.
 
-**374 PASS / 39 FAIL / 413 pinned defaults**; run state `complete`. Base worker `d43a5760d6c9388d7ba307416417268fbf1cacb92ae6fbe9bf70dffdf0d686b8`. PASS means executed intended expectations, including only independently validated explicit reference discrepancies. Raw parity and documented differences remain explicit in result receipts. This table is not an admission subset. Counts combine separately linked receipts; no combined replay is claimed.
+**375 PASS / 38 FAIL / 413 pinned defaults**; run state `complete`. Base worker `d43a5760d6c9388d7ba307416417268fbf1cacb92ae6fbe9bf70dffdf0d686b8`. PASS means executed intended expectations, including only independently validated explicit reference discrepancies. Raw parity and documented differences remain explicit in result receipts. This table is not an admission subset. Counts combine separately linked receipts; no combined replay is claimed.
 
 | Rule | Result | Reason / evidence |
 |---|---|---|
@@ -378,7 +378,7 @@ Generated from canonical source and the existing full-inventory runner's results
 | UP011 | PASS | verified intended expectations |
 | UP012 | PASS | verified intended expectations |
 | UP014 | PASS | verified intended expectations |
-| UP017 | FAIL | verifier exited 1: a rule requires positive and negative cases ; [query source](rules/UP017/query.ryoql) |
+| UP017 | PASS | [separate py311 fixture and py310 control proof](results/full-inventory-current/up017-target-supplement/summary.json) |
 | UP018 | PASS | verified intended expectations |
 | UP019 | PASS | verified intended expectations |
 | UP020 | PASS | verified intended expectations |

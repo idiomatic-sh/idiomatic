@@ -188,6 +188,53 @@ def render_full_inventory(path: Path) -> str:
             for row in extra_rows:
                 by_rule[row["rule_id"]] = {**row, "reason": "[separate py37 fixture and py310 control proof](results/full-inventory-current/fa-target-supplement/summary.json)"}
             supplement_label = " Counts combine separately linked receipts; no combined replay is claimed."
+        up017 = current / "up017-target-supplement"
+        proof_file = up017 / "proof.json"
+        if proof_file.is_file():
+            proof = json.loads(proof_file.read_text(encoding="utf-8"))
+            extra_file = up017 / "summary.json"
+            extra = json.loads(extra_file.read_text(encoding="utf-8"))
+            extra_rows = extra.get("rules", [])
+            controls = json.loads((up017 / "py310-controls.json").read_text(encoding="utf-8"))
+            cases_file = RUFF / "rules" / "UP017" / "cases.toml"
+            query_file = RUFF / "rules" / "UP017" / "query.ryoql"
+            if (proof.get("schema") != "benchmark-inventory-supplement/v1"
+                or proof.get("base_summary_sha256") != sha(path)
+                or proof.get("sim_supplement_summary_sha256") != sha(supplement / "summary.json")
+                or proof.get("future_supplement_summary_sha256") != sha(future / "summary.json")
+                or proof.get("match_or_supplement_summary_sha256") != sha(match_or / "summary.json")
+                or proof.get("fa_supplement_summary_sha256") != sha(fa / "summary.json")
+                or proof.get("supplement_summary_sha256") != sha(extra_file)
+                or proof.get("raw_receipts_sha256") != sha(up017 / "raw-receipts.tar.gz")
+                or proof.get("py310_controls_sha256") != sha(up017 / "py310-controls.json")
+                or proof.get("py310_inputs_sha256") != sha(up017 / "py310-inputs.tar.gz")
+                or proof.get("rule_ids") != ["UP017"]
+                or extra.get("schema") != "benchmark-inventory/v1"
+                or extra.get("run_state") != "complete"
+                or extra.get("counts") != {"PASS": 1, "FAIL": 0}
+                or len(extra_rows) != 1
+                or extra_rows[0].get("rule_id") != "UP017"
+                or extra_rows[0].get("status") != "PASS"
+                or (extra_rows[0].get("case_count"), extra_rows[0].get("raw_exact"), extra_rows[0].get("documented_discrepancies")) != (14, 14, 0)
+                or proof.get("case_results_sha256", {}).get("UP017") != extra_rows[0].get("case_results_sha256")
+                or proof.get("query_sha256") != sha(query_file)
+                or proof.get("cases_sha256") != sha(cases_file)
+                or proof.get("profile_sha256") != extra_rows[0].get("instance", {}).get("profile_sha256")
+                or extra.get("identity", {}).get("worker_sha256") != proof.get("worker_sha256")
+                or controls.get("worker_sha256") != proof.get("worker_sha256")
+                or controls.get("ruff_sha256") != proof.get("reference_sha256")
+                or controls.get("query_sha256") != proof.get("query_sha256")
+                or controls.get("canonical_cases_sha256") != proof.get("cases_sha256")
+                or controls.get("profile_sha256") != proof.get("py310_control_profile_sha256")
+                or (controls.get("case_count"), controls.get("candidate_exact"), controls.get("reference_exact"), controls.get("candidate_complete")) != (14, 14, 14, 14)
+                or len(controls.get("cases", [])) != 14
+                or any(case.get("candidate") != [] or case.get("reference") != []
+                       or not all(case.get(key) is True for key in ("candidate_exact", "reference_exact", "candidate_complete"))
+                       for case in controls["cases"])
+                or by_rule["UP017"]["status"] != "FAIL"):
+                raise ValueError("UP017 target supplement is stale or changes an earlier receipt")
+            by_rule["UP017"] = {**extra_rows[0], "reason": "[separate py311 fixture and py310 control proof](results/full-inventory-current/up017-target-supplement/summary.json)"}
+            supplement_label = " Counts combine separately linked receipts; no combined replay is claimed."
     rendered = []
     passed = 0
     for rule in defaults:

@@ -2,31 +2,31 @@
 name = "direct-module"
 comparison = "full"
 files = { "case.py" = "import datetime\ndatetime.timezone.utc\n" }
-expected = []
+expected = [{ rule = "UP017", file = "case.py", start = 16, end = 37 }]
 
 [[cases]]
 name = "module-alias"
 comparison = "full"
 files = { "case.py" = "import datetime as dt\ndt.timezone.utc\n" }
-expected = []
+expected = [{ rule = "UP017", file = "case.py", start = 22, end = 37 }]
 
 [[cases]]
 name = "from-timezone"
 comparison = "full"
 files = { "case.py" = "from datetime import timezone\ntimezone.utc\n" }
-expected = []
+expected = [{ rule = "UP017", file = "case.py", start = 30, end = 42 }]
 
 [[cases]]
 name = "from-alias"
 comparison = "full"
 files = { "case.py" = "from datetime import timezone as tz\ntz.utc\n" }
-expected = []
+expected = [{ rule = "UP017", file = "case.py", start = 36, end = 42 }]
 
 [[cases]]
 name = "qualified-import"
 comparison = "full"
 files = { "case.py" = "import datetime.timezone\ndatetime.timezone.utc\n" }
-expected = []
+expected = [{ rule = "UP017", file = "case.py", start = 25, end = 46 }]
 
 [[cases]]
 name = "wrong-module"
@@ -56,7 +56,7 @@ expected = []
 name = "multiple"
 comparison = "full"
 files = { "case.py" = "import datetime\ndatetime.timezone.utc\ndatetime.timezone.utc\n" }
-expected = []
+expected = [{ rule = "UP017", file = "case.py", start = 16, end = 37 }, { rule = "UP017", file = "case.py", start = 38, end = 59 }]
 
 [[cases]]
 name = "noqa"
@@ -68,7 +68,7 @@ expected = []
 name = "other-noqa"
 comparison = "full"
 files = { "case.py" = "import datetime\ndatetime.timezone.utc  # noqa: F401\n" }
-expected = []
+expected = [{ rule = "UP017", file = "case.py", start = 16, end = 37 }]
 
 [[cases]]
 name = "file-noqa"
@@ -80,4 +80,4 @@ expected = []
 name = "unicode-prefix"
 comparison = "full"
 files = { "case.py" = "import datetime\ndatetime.timezone.ｕｔｃ\n" }
-expected = []
+expected = [{ rule = "UP017", file = "case.py", start = 16, end = 43 }]
