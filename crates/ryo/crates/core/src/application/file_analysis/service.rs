@@ -904,7 +904,7 @@ impl FileAnalysis {
     /// What a file read came to, as the store keeps it: its findings, and what it shows other files: what its language noted of it,
     /// the relations it is read in part and what it hands the cross-file steps. Nothing when the run keeps nothing, or the words cannot
     /// be moved to another run.
-    fn recorded(
+    pub(super) fn recorded(
         &self,
         worker: &Worker,
         visit: &FileVisit<'_>,
@@ -931,11 +931,13 @@ impl FileAnalysis {
         let frontier: Vec<Digest> = (0..setting.plans.len())
             .map(|rule| {
                 frontier_flat(&moved, setting, RuleIndex(rule), &mut flat);
-                if flat.0.is_empty() {
+                let digest = if flat.0.is_empty() {
                     Digest([0; 16])
                 } else {
                     self.digest.digest_words(DigestWords(&flat.0))
-                }
+                };
+                flat.0.clear();
+                digest
             })
             .collect();
         let noted = self.digest.digest(DigestBytes(&interface_bytes(tables).0));

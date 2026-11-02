@@ -53,7 +53,7 @@ impl CrossFile {
         &self,
         crossing: &CrossingInput<'_>,
         todo: &Todo,
-        frontier: &[Frontier],
+        frontier: Vec<Frontier>,
         cross: &mut Symbols,
     ) -> Result<Crossed, RulesError> {
         let (Some(plan), Some(_)) = (

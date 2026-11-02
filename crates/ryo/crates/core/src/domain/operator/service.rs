@@ -163,14 +163,15 @@ pub(crate) fn emitted<'p>(plan: &Plan, pool: &'p mut Pool) -> Option<&'p mut Tab
     }
 }
 
-/// Runs the cross-file steps of a plan, in order, on the rows the files handed over.
+/// Own the handed frontier through cross-file evaluation without making a second resident copy.
+/// Runs the cross-file steps of a plan in order; frontier ownership ends when evaluation returns.
 ///
 /// # Errors
 ///
 /// Whatever an operator refuses, or `NotRun`/`NotRead` when a step reads what nothing provides.
 pub(crate) fn evaluate_cross(
     plan: &Plan,
-    frontier: &[Frontier],
+    frontier: Vec<Frontier>,
     partials: &Partials,
     context: &mut OperatorContext<'_>,
     fed: &mut [RowsFed],

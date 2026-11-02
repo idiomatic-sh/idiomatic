@@ -1003,8 +1003,8 @@ impl LintUseCaseImpl {
                         observed_inputs("after_cross_input", &inputs, &mut cross);
                     }
                     observed_inputs("after_cross_prepare", &inputs, &mut cross);
-                    let result = self.cross_file.evaluate(&crossing, each, &inputs, &mut cross);
-                    observed_inputs("before_cross_cleanup", &inputs, &mut cross);
+                    let result = self.cross_file.evaluate(&crossing, each, inputs, &mut cross);
+                    observed_inputs("before_cross_cleanup", &Vec::new(), &mut cross);
                     Ok(result?)
                 })();
                 if memory_enabled() {

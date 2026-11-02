@@ -320,11 +320,12 @@ fn native_frontier() -> Result<Value, Failure> {
         domain_view: Vec::new(),
         output: Vec::new(),
     };
-    let frontier = [Frontier {
+    let mut frontier = [Frontier {
         input: Source::Step(StepId(0)),
         table: Table::default(),
     }];
-    let answer = shaped(&plan, &frontier, &mut context)?;
+    shaped(&plan, &mut frontier, &mut context)?;
+    let answer = frontier;
     let expected = ryo_language::domain::relations::service::kinds(Relation::SyntaxTree);
     assert_eq!(answer[0].table.kinds[..expected.len()], *expected);
     assert_eq!(
@@ -332,4 +333,123 @@ fn native_frontier() -> Result<Value, Failure> {
         Some(&ryo_language::domain::relations::types::CellKind::Node)
     );
     Ok(answer[0].table.kinds.len())
+}
+
+#[test]
+fn owned_frontier_shaping_preserves_native_and_computed_cell_allocations() {
+    use crate::domain::table_model::types::{Frontier, RowCount, Table};
+    use ryo_language::domain::relations::types::{CellKind, Integer, Value};
+    use ryo_values::domain::plan_parts::types::{Input, StepId};
+    let mut symbols = Symbols::default();
+    let mut context = OperatorContext {
+        stored_indexes: None,
+        bindings: &[],
+        symbols: &mut symbols,
+        source: SourceView(b""),
+        paths: &[],
+        arenas: &[],
+        memo: &mut Vec::new(),
+        scratch: &mut OperatorScratch::default(),
+    };
+    let mut cells = Vec::with_capacity(97);
+    cells.push(Value::Number(Integer(7)));
+    let pointer = cells.as_ptr();
+    let capacity = cells.capacity();
+    let native_kinds =
+        ryo_language::domain::relations::service::kinds(Relation::SyntaxTree).to_vec();
+    let mut native_cells = Vec::with_capacity(79);
+    for kind in &native_kinds {
+        native_cells.push(match kind {
+            CellKind::Node => Value::Node(ryo_language::domain::relations::service::node_id(
+                ryo_language::domain::relations::types::FileId(0),
+                ryo_language::domain::relations::types::Position(0),
+            )),
+            CellKind::Symbol => Value::Symbol(ryo_language::domain::terms::types::Symbol(0)),
+            CellKind::File => Value::File(ryo_language::domain::relations::types::FileId(0)),
+            CellKind::Span => Value::Span(ryo_language::domain::relations::constants::NO_SPAN),
+            CellKind::Number => Value::Number(Integer(0)),
+            CellKind::Flag => Value::Flag(ryo_language::domain::relations::types::Flag::Lowered),
+        });
+    }
+    let native_pointer = native_cells.as_ptr();
+    let native_capacity = native_cells.capacity();
+    let mut frontier = vec![
+        Frontier {
+            input: Input::Step(StepId(0)),
+            table: Table {
+                kinds: vec![CellKind::Number],
+                cells,
+                count: RowCount(1),
+            },
+        },
+        Frontier {
+            input: Input::Relation(Relation::SyntaxTree),
+            table: Table {
+                kinds: native_kinds,
+                cells: native_cells,
+                count: RowCount(1),
+            },
+        },
+        Frontier {
+            input: Input::Relation(Relation::SyntaxChild),
+            table: Table::default(),
+        },
+    ];
+    let mut plan = plan();
+    plan.steps.clear();
+    shaped(&plan, &mut frontier, &mut context).expect("derive only the empty native schema");
+    assert_eq!(frontier[0].table.cells.as_ptr(), pointer);
+    assert_eq!(frontier[0].table.cells.capacity(), capacity);
+    assert_eq!(frontier[1].table.cells.as_ptr(), native_pointer);
+    assert_eq!(frontier[1].table.cells.capacity(), native_capacity);
+    assert_eq!(
+        frontier[2].table.kinds,
+        ryo_language::domain::relations::service::kinds(Relation::SyntaxChild)
+    );
+    let native_kinds = frontier[1].table.kinds.as_ptr();
+    let owned = frontier;
+    let mut moved = owned;
+    shaped(&plan, &mut moved, &mut context).expect("already-shaped fast path");
+    assert_eq!(moved[0].table.cells.as_ptr(), pointer);
+    assert_eq!(moved[0].table.cells.capacity(), capacity);
+    assert_eq!(
+        moved[1].table.kinds.as_ptr(),
+        native_kinds,
+        "fast path must not clone even metadata"
+    );
+}
+
+#[test]
+fn failed_frontier_metadata_lookup_rolls_back_all_empty_schema_fills() {
+    use crate::domain::table_model::types::{Frontier, Table};
+    use ryo_values::domain::plan_parts::types::{Input, StepId};
+    let mut symbols = Symbols::default();
+    let mut context = OperatorContext {
+        stored_indexes: None,
+        bindings: &[],
+        symbols: &mut symbols,
+        source: SourceView(b""),
+        paths: &[],
+        arenas: &[],
+        memo: &mut Vec::new(),
+        scratch: &mut OperatorScratch::default(),
+    };
+    let mut plan = plan();
+    plan.steps.clear();
+    let mut frontier = vec![
+        Frontier {
+            input: Input::Relation(Relation::Function),
+            table: Table::default(),
+        },
+        Frontier {
+            input: Input::Step(StepId(99)),
+            table: Table::default(),
+        },
+    ];
+    assert_eq!(
+        shaped(&plan, &mut frontier, &mut context),
+        Err(OperatingError::NotRun)
+    );
+    assert!(frontier.iter().all(|each| each.table.kinds.is_empty()));
+    assert!(frontier.iter().all(|each| each.table.cells.is_empty()));
 }

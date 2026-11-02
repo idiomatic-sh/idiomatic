@@ -823,3 +823,162 @@ fn unstable_same_shape_resident_populations_decline_generation_reuse() {
         "same relation/schema/count is insufficient without an audited stability promise"
     );
 }
+
+#[test]
+fn a_bad_last_captured_bucket_calls_no_digest_even_after_a_valid_rule_bucket() {
+    use super::types::{FileVisit, Worker};
+    use crate::domain::table_model::types::{RowCount, Table};
+    use crate::domain::table_words::service::{encode_table, pack};
+    use crate::domain::table_words::types::WordSlice;
+    use crate::domain::visit::types::{Keeping, Noting, RoleRead};
+    use crate::outbound::digest::fixtures::fake::DigestCounting;
+    use ryo_language::domain::relations::types::{
+        CellKind, FileId, Integer, Name, NamePlace, Offset, Origin, PlaceNumber, TextHash, Value,
+        Words,
+    };
+    use ryo_values::domain::records::types::Kept;
+    use ryo_values::domain::stored_facts::types::{ArenaBase, Bucket, KeptWords};
+    let plan = Plan {
+        parameters: vec![],
+        steps: vec![],
+        comparison_origins: vec![],
+        emit: Emit {
+            step: StepId(0),
+            subject: ColumnIndex(0),
+            key: vec![],
+            headings: vec![],
+        },
+        frontier: vec![ryo_values::domain::plan_parts::types::Input::Step(StepId(
+            0,
+        ))],
+    };
+    let plans = [plan];
+    let placed = PlacedScopes {
+        placement: ScopePlacement::default(),
+        matcher: crate::outbound::matching::fixtures::fake::MatchingFake
+            .compile(&[])
+            .expect("matcher"),
+    };
+    let visit = FileVisit {
+        setting: VisitSetting {
+            plans: &plans,
+            bindings: &[],
+            wanted: &[],
+            paths: &[],
+            first_bucket: &[Bucket(0)],
+            ids: &[],
+            applicability: &[],
+            applicability_can_gate: true,
+            placed: &placed,
+            records: &[],
+            replaying: crate::domain::workers::types::Replaying::Findings,
+            stored: &NOTHING_STORED,
+            handed: &NOTHING_HANDED,
+            wanted_buckets: &NOTHING_WANTED,
+            budget: ryo_values::domain::runs::types::MemoryBytes(u64::MAX),
+            noted: Noting::Unwanted,
+            roled: RoleRead::Skips,
+            needs: &[],
+            answering: &crate::domain::render::types::Answering::Findings,
+            keeping: Keeping::Keeps,
+            unknown: &[],
+        },
+    };
+    let digest = Arc::new(DigestCounting::default());
+    let analysis = FileAnalysis::new(
+        Arc::new(CorpusFake::default()),
+        Arc::new(LanguageFake::default()),
+        digest.clone(),
+        Arc::new(MemoryFake::default()),
+    );
+    let mut worker = Worker {
+        tables: tables_for(
+            WorkerNumber(0),
+            &plans,
+            TreeSteps::Lowered,
+            Counting::DoesNotCount,
+        ),
+        facts: FactsFake::default().worker().expect("facts worker"),
+        failure: None,
+    };
+    let packed = |value, places: &[NamePlace]| {
+        let mut words = Words::default();
+        let kind = if matches!(value, Value::File(_)) {
+            CellKind::File
+        } else if matches!(value, Value::Name(_)) {
+            CellKind::Symbol
+        } else {
+            CellKind::Number
+        };
+        encode_table(
+            &Table {
+                kinds: vec![kind],
+                cells: vec![value],
+                count: RowCount(1),
+            },
+            places,
+            &mut words,
+        );
+        KeptWords(pack(WordSlice(&words.0)))
+    };
+    let good = Kept {
+        bucket: Bucket(0),
+        words: packed(Value::Number(Integer(7)), &[]),
+    };
+    for (value, places) in [
+        (Value::File(FileId(99)), vec![]),
+        (
+            Value::Name(Name {
+                hash: TextHash(1),
+                place: PlaceNumber(0),
+            }),
+            vec![NamePlace {
+                origin: Origin::Derived(WorkerNumber(99)),
+                file: FileId(0),
+                start: Offset(9),
+                end: Offset(12),
+            }],
+        ),
+        (
+            Value::Name(Name {
+                hash: TextHash(1),
+                place: PlaceNumber(0),
+            }),
+            vec![NamePlace {
+                origin: Origin::Derived(WorkerNumber(0)),
+                file: FileId(0),
+                start: Offset(2),
+                end: Offset(4),
+            }],
+        ),
+    ] {
+        worker.tables.captured = vec![
+            good.clone(),
+            Kept {
+                bucket: Bucket(1),
+                words: packed(value, &places),
+            },
+        ];
+        assert!(
+            analysis
+                .recorded(&worker, &visit, FileId(0), ArenaBase(7))
+                .is_none()
+        );
+        assert_eq!(
+            digest.digests.load(Ordering::Relaxed),
+            0,
+            "no digest before every captured remap succeeds"
+        );
+    }
+    worker.tables.captured = vec![good];
+    assert!(
+        analysis
+            .recorded(&worker, &visit, FileId(0), ArenaBase(7))
+            .is_some()
+    );
+    assert_eq!(
+        digest.digests.load(Ordering::Relaxed),
+        2,
+        "nonvacuous rule-flat then noted digest control"
+    );
+}

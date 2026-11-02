@@ -147,7 +147,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             }
             let counted = evaluate_cross(
                 &counting_plan(true),
-                &[Frontier {
+                vec![Frontier {
                     input: PlanInput::Step(StepId(0)),
                     table,
                 }],
@@ -177,7 +177,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::ReadsAStepNobodyHandedOver => {
             let counted = evaluate_cross(
                 &counting_plan(false),
-                &[],
+                Vec::new(),
                 &Partials::default(),
                 &mut context,
                 &mut [],

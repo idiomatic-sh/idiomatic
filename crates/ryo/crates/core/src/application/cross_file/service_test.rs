@@ -249,7 +249,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             let rules = world(counting_plan(1, Vec::new()));
             let mut cross = Symbols::default();
             let frontier = handed_over(&mut cross);
-            let done = service().evaluate(&crossing(&rules), &todo(0), &frontier, &mut cross)?;
+            let done =
+                service().evaluate(&crossing(&rules), &todo(0), Vec::from(frontier), &mut cross)?;
             [
                 done.rendered.order.len(),
                 done.fed.len(),
@@ -259,8 +260,12 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::CrossNoBinding => {
             let mut rules = world(counting_plan(1, Vec::new()));
             rules.bindings.clear();
-            let done =
-                service().evaluate(&crossing(&rules), &todo(0), &[], &mut Symbols::default())?;
+            let done = service().evaluate(
+                &crossing(&rules),
+                &todo(0),
+                Vec::new(),
+                &mut Symbols::default(),
+            )?;
             [
                 usize::from(done.rendered != crate::domain::render::types::Rendered::default()),
                 done.fed.len(),
@@ -269,8 +274,12 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         }
         Scenario::CrossNoRule => {
             let rules = world(counting_plan(1, Vec::new()));
-            let done =
-                service().evaluate(&crossing(&rules), &todo(3), &[], &mut Symbols::default())?;
+            let done = service().evaluate(
+                &crossing(&rules),
+                &todo(3),
+                Vec::new(),
+                &mut Symbols::default(),
+            )?;
             [done.rendered.order.len(), done.fed.len(), 0]
         }
         Scenario::CrossSpellings => {
@@ -290,13 +299,18 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 input: PlanInput::Step(StepId(0)),
                 table,
             }];
-            let done = service().evaluate(&crossing(&rules), &todo(0), &frontier, &mut cross)?;
+            let done =
+                service().evaluate(&crossing(&rules), &todo(0), Vec::from(frontier), &mut cross)?;
             [done.rendered.order.len(), 0, 0]
         }
         Scenario::CrossNothingHanded => {
             let rules = world(counting_plan(1, Vec::new()));
-            let done =
-                service().evaluate(&crossing(&rules), &todo(0), &[], &mut Symbols::default())?;
+            let done = service().evaluate(
+                &crossing(&rules),
+                &todo(0),
+                Vec::new(),
+                &mut Symbols::default(),
+            )?;
             [done.rendered.order.len(), 0, 0]
         }
     })

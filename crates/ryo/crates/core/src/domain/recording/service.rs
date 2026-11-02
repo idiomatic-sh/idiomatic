@@ -13,7 +13,7 @@ use crate::domain::placement::service::governs;
 use crate::domain::placement::types::Governing;
 use crate::domain::render::types::Answering;
 use crate::domain::rules::service::id_at;
-use crate::domain::table_words::service::pack;
+use crate::domain::table_words::service::{pack, unpacked};
 use crate::domain::table_words::types::WordSlice;
 use crate::domain::trust::service::{blocked, matters};
 use crate::domain::trust::types::{Bearing, Blocking};
@@ -81,7 +81,8 @@ pub(crate) fn stored_of(partials: &[Partial]) -> Vec<StoredPartial> {
 }
 
 /// What the file handed to the cross-file steps with the numbers that differ from run to run taken out, to say whether they are
-/// as they were. Words that point at another file or at another worker's text cannot be used by another run: none then.
+/// as they were, normalized and packed one bucket at a time. Words that point at another file or at another worker's text
+/// cannot be used by another run: none then, before the application makes any digest call.
 #[must_use]
 pub(crate) fn moved_words(
     tables: &Tables,
@@ -97,12 +98,16 @@ pub(crate) fn moved_words(
         to_base: ArenaStart(0),
     };
     let mut moved = Vec::with_capacity(tables.captured.len());
+    // Only the largest single normalized u64 bucket is live; all retained buckets are packed.
+    // Every remap still completes before the application calls the digest port.
+    let mut words = Words::default();
     for each in &tables.captured {
-        let mut words = Words::default();
+        words.0.clear();
         remap_packed(&each.words.0, &plain, &mut words)?;
         moved.push(BucketWords {
             bucket: each.bucket,
-            words,
+            word_count: words.0.len(),
+            words: pack(WordSlice(&words.0)),
         });
     }
     Some(moved)
@@ -131,9 +136,9 @@ pub(crate) fn frontier_flat(
     }) {
         flat.0.extend([
             u64::from(each.bucket.0),
-            u64::try_from(each.words.0.len()).unwrap_or(u64::MAX),
+            u64::try_from(each.word_count).unwrap_or(u64::MAX),
         ]);
-        flat.0.extend_from_slice(&each.words.0);
+        flat.0.extend(unpacked(&each.words).map(|word| word.0));
     }
 }
 
@@ -158,7 +163,7 @@ pub(crate) fn made_ran(
                 .into_iter()
                 .map(|each| HandedWords {
                     bucket: each.bucket,
-                    words: pack(WordSlice(&each.words.0)),
+                    words: each.words,
                 })
                 .collect(),
             text: ArenaBytes(

@@ -268,12 +268,17 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             let rules = world(counting_plan(1, Vec::new()));
             let mut cross = Symbols::default();
             let frontier = handed_over(&mut cross);
-            let done = cross_rule(&crossing(&rules), &todo(0), &frontier, &mut cross)?;
+            let done = cross_rule(&crossing(&rules), &todo(0), Vec::from(frontier), &mut cross)?;
             [done.table.count.0, done.fed.len(), done.table.cells.len()]
         }
         Scenario::CrossNoRule => {
             let rules = world(counting_plan(1, Vec::new()));
-            let done = cross_rule(&crossing(&rules), &todo(3), &[], &mut Symbols::default())?;
+            let done = cross_rule(
+                &crossing(&rules),
+                &todo(3),
+                Vec::new(),
+                &mut Symbols::default(),
+            )?;
             [done.table.count.0, done.fed.len(), done.table.cells.len()]
         }
         Scenario::CrossSpellings => {
@@ -293,12 +298,17 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 input: PlanInput::Step(StepId(0)),
                 table,
             }];
-            let done = cross_rule(&crossing(&rules), &todo(0), &frontier, &mut cross)?;
+            let done = cross_rule(&crossing(&rules), &todo(0), Vec::from(frontier), &mut cross)?;
             [done.table.count.0, 0, 0]
         }
         Scenario::CrossNothingHanded => {
             let rules = world(counting_plan(1, Vec::new()));
-            let done = cross_rule(&crossing(&rules), &todo(0), &[], &mut Symbols::default())?;
+            let done = cross_rule(
+                &crossing(&rules),
+                &todo(0),
+                Vec::new(),
+                &mut Symbols::default(),
+            )?;
             [done.table.count.0, 0, 0]
         }
     })

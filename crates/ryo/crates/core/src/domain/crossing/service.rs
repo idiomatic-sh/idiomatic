@@ -137,7 +137,7 @@ fn hosted_tables(crossing: &CrossingInput<'_>, plan: &Plan, cross: &mut Symbols)
 pub(crate) fn cross_rule(
     crossing: &CrossingInput<'_>,
     todo: &Todo,
-    frontier: &[Frontier],
+    mut frontier: Vec<Frontier>,
     cross: &mut Symbols,
 ) -> Result<Evaluated, RulesError> {
     let rule = todo.rule;
@@ -174,9 +174,17 @@ pub(crate) fn cross_rule(
             memo: &mut Vec::new(),
             scratch: &mut OperatorScratch::default(),
         };
-        let shaped = shaped(plan, frontier, &mut context).map_err(|error| refuse(&error))?;
-        evaluate_cross(plan, &shaped, &partials, &mut context, &mut fed, &hosted)
-            .map_err(|error| refuse(&error))?
+        shaped(plan, &mut frontier, &mut context).map_err(|error| refuse(&error))?;
+        if tracing::enabled!(target: "ryo::diagnostic::lifecycle_memory", tracing::Level::TRACE) {
+            let bytes =
+                crate::domain::recording::types::retention::value::RetainedBytes::inputs(&frontier);
+            tracing::trace!(target: "ryo::diagnostic::lifecycle_memory", phase = "after_cross_shape", owner = "decoded_inputs", objects = bytes.objects, decoded_live_bytes = bytes.cells_live, decoded_capacity_bytes = bytes.cells_capacity, metadata_capacity_bytes = bytes.metadata, payload_copied = false);
+        }
+        let evaluated = evaluate_cross(plan, frontier, &partials, &mut context, &mut fed, &hosted);
+        if tracing::enabled!(target: "ryo::diagnostic::lifecycle_memory", tracing::Level::TRACE) {
+            tracing::trace!(target: "ryo::diagnostic::lifecycle_memory", phase = "after_cross_evaluate", owner = "decoded_inputs", caller_inputs_owned = false, decoded_capacity_bytes = 0_usize, success = evaluated.is_ok());
+        }
+        evaluated.map_err(|error| refuse(&error))?
     };
     Ok(Evaluated { table, fed })
 }

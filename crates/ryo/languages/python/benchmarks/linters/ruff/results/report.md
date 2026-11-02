@@ -2,7 +2,26 @@
 
 **In progress.** The goal remains all 413 Ruff 0.16.5 defaults as RyoQL, faithful full reports, and subsecond full-Django execution. Neither full parity nor the performance target has passed.
 
-## Current demand-graph full-Django observation (2026-11-01)
+## Memory ownership and cache lifecycle (published 2026-11-02)
+
+The [sealed memory batch](memory-ownership-measurements-2026-11-01.json), worker `88ea33d2`, preserves the frozen 310-rule workload, all 2,875 pinned Django files, Python 3.10 settings and one worker. Cross-file evaluation now takes ownership of its decoded frontiers; schema shaping does not clone their cells. Checked varint sizing replaces the packed-byte reservation estimate, and normalization moves prepared packed words while preserving remap-before-digest order. No provider or rule bytes changed.
+
+| Mode | Wall | CPU | Peak RSS | Complete-report comparison |
+|---|---:|---:|---:|---|
+| Cold, fresh tool cache | 373.2607 s | 373.1133 s | 3,172,442,112 B | Exact prior candidate |
+| Retained CLI tool cache | 1.9176 s | 1.9157 s | 237,805,568 B | Exact cold report |
+| Pinned edit, retained cache | 12.3123 s | 12.3031 s | 2,908,565,504 B | Exact edited fresh recomputation |
+| Pinned edit, fresh cache | 366.8885 s | 366.7382 s | 3,169,185,792 B | Exact cached edited report |
+
+Every invocation completed before its 600-second cap, with status 0, no signal and complete coverage: 891,250 selected pairs, 890,943 evaluated, 307 syntax skips and zero unknown/unread. Warm means a fresh process with the retained CLI tool cache, not a persistent engine session. The [sealed workload manifest](memory-ownership-manifest-2026-11-01.json) binds the original and edited source inventories, cache paths, existing Django patch, query/module inputs, worker and collector. The original corpus remains unchanged; the edit uses an owned copy.
+
+Cold and warm have canonical report SHA256 `02b96f5f6ef01be201ae8e980dd7a90686702b0f47ecd89d271c2b63f5f5ac9f`, identical to the [prior complete report](demand-graph-full-report-2026-11-01.json). The [edited report](memory-ownership-edited-report-2026-11-01.json) adds only E722 at `django/utils/module_loading.py:2851..2857`; retained-cache and fresh recomputation have the same SHA256 `1bddfa4556420e605c4fdcace52a60ab3d8dc9bc1f95efcd826491ae19361e07`. This proves cache consistency for that edit, not newly certified Ruff parity for the edited source. Cold retains the prior 158 extra/one missing diagnostic versus pinned Ruff.
+
+The previous full observation below was 366.6799 seconds and 4.081 GB. These are separate, nonalternating observations: the new cold run uses less peak memory and slightly more CPU/wall time. No CPU speedup, per-component causal percentage, full 413-rule parity or subsecond success is claimed.
+
+Essential checks passed on the sealed broader source snapshot: 295 core, 91 language, 19 Python SDK context and nine execution tests, plus the unchanged zero-extra allocation guard. Release linking took 57.62 seconds. **Not all checks passed:** independent Python conformance retained 18 findings, recorded verbatim in the measurement receipt. Its fixture and platform-test repairs remain separate work in progress and are excluded from this memory checkpoint; the broader gate must not be read as a whole-workspace quality certificate. Scoped hashes bind all 17 published core files to the tested source snapshot. Remote broad quality/API/Rust performance remain separate requirements.
+
+## Prior demand-graph full-Django observation (2026-11-01)
 
 The [corrected shared-graph batch](demand-graph-measurements-2026-11-01.json), worker `3ee24fc0`, completed all **2,875 files / 310 rules on one worker** in **366.6799 s wall, 366.4765 s CPU**, with **4,080,787,456 bytes peak RSS**, status 0, no signal and no cap. [Coverage](demand-graph-full-comparison-2026-11-01.json) remains 891,250 selected pairs, 890,943 evaluated, 307 syntax-rejected skips and zero unknown/unread. The complete [report](demand-graph-full-report-2026-11-01.json) has exactly the same SHA256 as the prior candidate report: diagnostics, files, coverage and skips all match. Against the prior pinned Ruff report, the same 158 extra and one missing diagnostic remain.
 

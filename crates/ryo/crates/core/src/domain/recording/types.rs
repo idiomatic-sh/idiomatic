@@ -1,15 +1,16 @@
 //! The types of the `recording` concept: plain data, public fields and derives, with no constructor and no inherent impl.
 
-use ryo_language::domain::relations::types::Words;
-use ryo_values::domain::stored_facts::types::Bucket;
+use ryo_values::domain::stored_facts::types::{Bucket, PackedWords};
 
 /// What a file handed to the cross-file steps in one bucket, with the numbers that differ from run to run taken out.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct BucketWords {
     /// The bucket.
     pub bucket: Bucket,
-    /// The words.
-    pub words: Words,
+    /// Valid normalized word count, used by the unchanged digest framing.
+    pub word_count: usize,
+    /// Exact-size normalized packed words, ready to move into the store.
+    pub words: PackedWords,
 }
 
 /// The words a file handed to one rule, with their buckets, one after the other: what is digested to say whether they are as they were.

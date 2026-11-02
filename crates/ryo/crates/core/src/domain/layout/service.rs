@@ -121,7 +121,7 @@ pub(crate) fn layout_of<'f>(
     })
 }
 
-/// The inputs handed to the steps after the files, each with the columns it has. A table the workers gave no row of has no kinds, for
+/// Fill missing frontier schemas in place, never copying resident cell payloads. A table the workers gave no row of has no kinds, for
 /// the words of a table say them with its rows (a rule that governs no file, a relation no file wrote): the columns the input has are
 /// then those the plan says, so that the steps after it find the columns they ask for.
 ///
@@ -130,11 +130,11 @@ pub(crate) fn layout_of<'f>(
 /// Whatever an operator refuses when the columns of the steps are worked out.
 pub(crate) fn shaped(
     plan: &Plan,
-    frontier: &[Frontier],
+    frontier: &mut [Frontier],
     context: &mut OperatorContext<'_>,
-) -> Result<Vec<Frontier>, OperatingError> {
+) -> Result<(), OperatingError> {
     if frontier.iter().all(|each| !each.table.kinds.is_empty()) {
-        return Ok(frontier.to_vec());
+        return Ok(());
     }
     // No file supplied this frontier. Use the declared relation representation,
     // as the old empty-tree fallback did, without making any table or elements.
@@ -206,22 +206,29 @@ pub(crate) fn shaped(
         })
     };
     let kinds = schema_steps(plan, &metadata, context.bindings)?;
-    frontier
+    // Complete all fallible metadata lookup before changing any supplied frontier.
+    let filled = frontier
         .iter()
         .map(|each| {
-            let mut shaped = each.clone();
-            if shaped.table.kinds.is_empty() {
-                shaped.table.kinds = match each.input {
-                    Input::Relation(relation) => relation_kinds(relation).to_vec(),
-                    Input::Step(id) => kinds
-                        .get(usize::try_from(id.0).unwrap_or(usize::MAX))
-                        .cloned()
-                        .ok_or(OperatingError::NotRun)?,
-                };
+            if !each.table.kinds.is_empty() {
+                return Ok(None);
             }
-            Ok(shaped)
+            let kinds = match each.input {
+                Input::Relation(relation) => relation_kinds(relation).to_vec(),
+                Input::Step(id) => kinds
+                    .get(usize::try_from(id.0).unwrap_or(usize::MAX))
+                    .cloned()
+                    .ok_or(OperatingError::NotRun)?,
+            };
+            Ok(Some(kinds))
         })
-        .collect()
+        .collect::<Result<Vec<_>, OperatingError>>()?;
+    for (each, kinds) in frontier.iter_mut().zip(filled) {
+        if let Some(kinds) = kinds {
+            each.table.kinds = kinds;
+        }
+    }
+    Ok(())
 }
 
 /// Propagate schemas topologically, with only the caller's metadata/probe boundary.

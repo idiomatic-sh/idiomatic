@@ -124,9 +124,32 @@ fn rebased(value: Value, base: PlaceNumber) -> Value {
 /// The words packed seven bits to a byte, the high bit saying another byte follows.
 #[must_use]
 pub(crate) fn pack(words: WordSlice<'_>) -> PackedWords {
-    let mut packed = PackedWords(Vec::with_capacity(words.0.len() * 2));
+    // Capacity overflow uses the same standard Vec refusal as an unrepresentable allocation;
+    // never wrap a size or silently truncate encoded data.
+    let exact = encoded_size(words).unwrap_or(usize::MAX);
+    let mut packed = PackedWords(Vec::with_capacity(exact));
     pack_onto(words, &mut packed);
     packed
+}
+
+/// Exact encoded payload size, checked before any allocation.
+#[must_use]
+pub(crate) fn encoded_size(words: WordSlice<'_>) -> Option<usize> {
+    words
+        .0
+        .iter()
+        .try_fold(0_usize, |total, word| with_encoded_word(total, *word))
+}
+
+/// Add one varint's exact width without permitting the total to wrap.
+#[must_use]
+pub(crate) fn with_encoded_word(total: usize, mut word: u64) -> Option<usize> {
+    let mut width = 1_usize;
+    while word >= 0x80 {
+        width += 1;
+        word >>= 7;
+    }
+    total.checked_add(width)
 }
 
 /// The words packed as `pack` packs them, written after what `packed` holds: packed words run together are the words of each.

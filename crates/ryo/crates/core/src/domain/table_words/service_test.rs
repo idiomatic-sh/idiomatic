@@ -106,3 +106,47 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn succeeds() {
     run(CASES, Word::Succeeds, |input| Ok(subject(input)));
 }
+
+#[test]
+fn exact_size_packing_matches_legacy_varints_and_retains_no_capacity_slack() {
+    use super::service::{encoded_size, with_encoded_word};
+    fn legacy(words: &[u64]) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        for word in words {
+            let mut value = *word;
+            while value >= 128 {
+                bytes.push((value & 127) as u8 | 128);
+                value >>= 7;
+            }
+            bytes.push(value as u8);
+        }
+        bytes
+    }
+    for words in [
+        vec![],
+        vec![0],
+        vec![127],
+        vec![128],
+        vec![16383],
+        vec![16384],
+        vec![u64::MAX],
+        vec![0, 127, 128, 16383, 16384, u64::MAX],
+        twice().0,
+    ] {
+        let packed = pack(WordSlice(&words));
+        assert_eq!(packed.0, legacy(&words));
+        assert_eq!(encoded_size(WordSlice(&words)), Some(packed.0.len()));
+        assert_eq!(
+            packed.0.capacity(),
+            packed.0.len(),
+            "no guessed allocation ratio or shrink-copy"
+        );
+        assert!(unpacked(&packed).map(|word| word.0).eq(words));
+    }
+    assert_eq!(with_encoded_word(usize::MAX, 0), None);
+    assert_eq!(with_encoded_word(usize::MAX - 9, u64::MAX), None);
+    assert_eq!(
+        with_encoded_word(usize::MAX - 10, u64::MAX),
+        Some(usize::MAX)
+    );
+}
