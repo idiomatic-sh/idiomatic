@@ -16,7 +16,7 @@ use crate::domain::placement::service::unplace;
 use crate::domain::placement::types::Governing;
 use crate::domain::project::types::Projected;
 use crate::domain::reading::service::{
-    begin, capture_frontier, engine_asked, evaluate_rule_with_graph, prepare_frontier,
+    begin, capture_frontier, engine_asked, evaluate_rule_with_dag, prepare_frontier,
     settle as settle_file, start_partials,
 };
 use crate::domain::reading::types::{EngineAsked, EngineRows};
@@ -445,6 +445,27 @@ impl FileAnalysis {
         } else {
             None
         };
+        let file_dag = if crate::domain::file_program::service::dag_enabled() {
+            file_program.as_ref().map(|program| {
+                std::cell::RefCell::new(crate::application::file_dag::types::FileDagExecution::new(
+                    Arc::clone(&program.graph),
+                    |index| {
+                        governs_rule(tables, RuleIndex(index)) == Governing::Governs
+                            && !skipped
+                                .as_ref()
+                                .and_then(|skipped| skipped.get(index))
+                                .copied()
+                                .unwrap_or(false)
+                    },
+                    &complete,
+                ))
+            })
+        } else {
+            None
+        };
+        if file_dag.is_some() {
+            file_program = None;
+        }
         if let Some(indexes) = stored_indexes.as_mut() {
             crate::domain::graph_cache::service::reserve(
                 indexes,
@@ -487,6 +508,16 @@ impl FileAnalysis {
             ),
             ..crate::domain::shared_walk::types::SharedClasses::default()
         };
+        let residual_mask = file_dag.as_ref().map(|dag| {
+            let dag = dag.borrow();
+            let mut mask = tables.mask.clone();
+            for (rule, active) in dag.active.iter().enumerate() {
+                if *active && dag.graph.cuts[rule].iter().any(Option::is_some) {
+                    unplace(&mut mask, RuleNumber(rule as u32));
+                }
+            }
+            mask
+        });
         {
             let mut native_scratch =
                 crate::domain::table_scratch::types::OperatorScratch::default();
@@ -505,7 +536,7 @@ impl FileAnalysis {
                     plans: visit.setting.plans,
                     bindings: visit.setting.bindings,
                     paths: visit.setting.paths,
-                    mask,
+                    mask: residual_mask.as_ref().unwrap_or(mask),
                     file,
                     elements,
                     symbols,
@@ -531,10 +562,19 @@ impl FileAnalysis {
             skipped.as_deref(),
             stored_indexes.as_mut(),
             file_program.as_mut(),
+            file_dag.as_ref(),
             &classes,
         );
         if let Some(started) = rules_started {
             tracing::trace!(target: "ryo::diagnostic::execution", phase = "rules_and_frontiers", file = file.0, elapsed_ns = started.elapsed().as_nanos() as u64, success = evaluated.is_ok());
+        }
+        if let Some(dag) = &file_dag {
+            let dag = dag.borrow();
+            tracing::trace!(target: "ryo::diagnostic::file_program", event = "dag_file",
+                file = file.0, demands = dag.demands, hits = dag.hits,
+                executions = dag.executions.iter().sum::<u64>(),
+                releases = dag.releases, retained_bytes = dag.retained_bytes,
+                peak_bytes = dag.peak_bytes, unretained = dag.unretained);
         }
         if let Some(program) = &file_program {
             tracing::trace!(target: "ryo::diagnostic::file_program", file = file.0,
@@ -611,6 +651,9 @@ impl FileAnalysis {
         skipped: Option<&[bool]>,
         mut stored_indexes: Option<&mut crate::domain::stored_indexes::types::FileIndexes>,
         mut file_program: Option<&mut crate::domain::file_program::types::FileProgram>,
+        file_dag: Option<
+            &std::cell::RefCell<crate::application::file_dag::types::FileDagExecution>,
+        >,
         classes: &crate::domain::shared_walk::types::SharedClasses,
     ) -> Result<(), FileAnalysisError> {
         for rule in (0..visit.setting.plans.len()).map(RuleIndex) {
@@ -654,7 +697,7 @@ impl FileAnalysis {
                     file = file_path,
                 );
             }
-            let evaluated = evaluate_rule_with_graph(
+            let evaluated = evaluate_rule_with_dag(
                 tables,
                 &visit.setting,
                 rule,
@@ -669,6 +712,7 @@ impl FileAnalysis {
                 },
                 classes,
                 file_program.as_deref_mut(),
+                file_dag.map::<&dyn crate::domain::file_program::types::DagExecution, _>(|dag| dag),
             );
             let outcome = match refused.take() {
                 Some(error) => Err(FileAnalysisError::from(error)),
@@ -708,6 +752,9 @@ impl FileAnalysis {
             }
             if let Some(program) = file_program.as_deref_mut() {
                 program.finish_rule(rule.0);
+            }
+            if let Some(dag) = file_dag {
+                dag.borrow_mut().finish_rule(rule.0);
             }
         }
         Ok(())

@@ -55,6 +55,7 @@ static PROJECT_OPERATOR: RegisteredOperator = RegisteredOperator {
     schema: project_schema,
     input: project_input,
     absence: AbsencePolicy::PositiveRows,
+    shared_execution: shared_plain,
 };
 static SELECT_OPERATOR: RegisteredOperator = RegisteredOperator {
     kind: OperationKind::Select,
@@ -62,6 +63,7 @@ static SELECT_OPERATOR: RegisteredOperator = RegisteredOperator {
     schema: select_schema,
     input: select_input,
     absence: AbsencePolicy::PositiveRows,
+    shared_execution: shared_select,
 };
 static JOIN_OPERATOR: RegisteredOperator = RegisteredOperator {
     kind: OperationKind::Join,
@@ -69,6 +71,7 @@ static JOIN_OPERATOR: RegisteredOperator = RegisteredOperator {
     schema: join_schema,
     input: join_input,
     absence: AbsencePolicy::PositiveRows,
+    shared_execution: shared_join,
 };
 static UNION_OPERATOR: RegisteredOperator = RegisteredOperator {
     kind: OperationKind::Union,
@@ -76,6 +79,7 @@ static UNION_OPERATOR: RegisteredOperator = RegisteredOperator {
     schema: union_schema,
     input: union_input,
     absence: AbsencePolicy::PositiveRows,
+    shared_execution: shared_plain,
 };
 static SOURCE_MATCHES_OPERATOR: RegisteredOperator = RegisteredOperator {
     kind: OperationKind::SourceMatches,
@@ -83,6 +87,7 @@ static SOURCE_MATCHES_OPERATOR: RegisteredOperator = RegisteredOperator {
     schema: source_matches_schema,
     input: source_matches_input,
     absence: AbsencePolicy::PositiveRows,
+    shared_execution: shared_opaque,
 };
 static SPAN_BOUNDS_OPERATOR: RegisteredOperator = RegisteredOperator {
     kind: OperationKind::SpanBounds,
@@ -90,7 +95,30 @@ static SPAN_BOUNDS_OPERATOR: RegisteredOperator = RegisteredOperator {
     schema: span_bounds_schema,
     input: span_bounds_input,
     absence: AbsencePolicy::PositiveRows,
+    shared_execution: shared_opaque,
 };
+
+fn shared_plain(_: &Operation) -> bool {
+    true
+}
+fn shared_opaque(_: &Operation) -> bool {
+    false
+}
+fn shared_select(operation: &Operation) -> bool {
+    use ryo_values::domain::plan_parts::types::{Operand, Test};
+    let Operation::Select { comparisons, .. } = operation else {
+        return false;
+    };
+    comparisons.iter().all(|comparison| {
+        matches!(comparison.test, Test::Equal | Test::NotEqual)
+            && matches!(comparison.left, Operand::Column(_) | Operand::Literal(_))
+            && matches!(comparison.right, Operand::Column(_) | Operand::Literal(_))
+    })
+}
+fn shared_join(operation: &Operation) -> bool {
+    matches!(operation, Operation::Join { filter, view, reach, .. }
+        if filter.is_empty() && view.is_empty() && reach.is_none())
+}
 
 fn one_input(from: Input) -> Inputs {
     Inputs {

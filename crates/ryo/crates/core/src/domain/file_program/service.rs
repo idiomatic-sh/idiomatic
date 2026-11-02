@@ -3,7 +3,7 @@
 use super::types::{FileProgram, Node, NodeId, NodeInput, RequestGraph};
 use crate::domain::table_model::types::Table;
 use ryo_language::domain::relations::types::Relation;
-use ryo_values::domain::plan_parts::types::{Input, Operand, QueryLiteral, StepId, Test};
+use ryo_values::domain::plan_parts::types::{Input, Operand, QueryLiteral, StepId};
 use ryo_values::domain::plans::service::{inputs_of, named};
 use ryo_values::domain::plans::types::{Operation, Plan, StepScope};
 use std::collections::{HashMap, HashSet};
@@ -20,33 +20,30 @@ struct CanonicalNode {
     operation: Operation,
     inputs: Vec<NodeInput>,
     relations: Vec<Relation>,
+    kinds: Vec<ryo_language::domain::relations::types::CellKind>,
+    schema_valid: bool,
 }
 
 /// Experimental execution choice fixed for this process and used by both the
 /// request digest and file executor. It is disabled in ordinary production runs.
 pub(crate) fn enabled() -> bool {
     static ENABLED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-    *ENABLED.get_or_init(|| std::env::var("RYO_FILE_PROGRAM_GRAPH").is_ok_and(|value| value == "1"))
+    dag_enabled()
+        || *ENABLED
+            .get_or_init(|| std::env::var("RYO_FILE_PROGRAM_GRAPH").is_ok_and(|value| value == "1"))
 }
 
-fn simple(operand: &Operand) -> bool {
-    matches!(operand, Operand::Column(_) | Operand::Literal(_))
-}
-
-/// This first graph slice admits operators whose successful output is determined
-/// entirely by typed inputs and authored constants. Row-dependent functions,
-/// parameters, stateful traversal and provider-specific failure paths decline.
+/// The registry, not a rule name or a second primitive switch, owns eligibility.
 fn shareable(operation: &Operation) -> bool {
-    match operation {
-        Operation::Select { comparisons, .. } => comparisons.iter().all(|comparison| {
-            simple(&comparison.left)
-                && simple(&comparison.right)
-                && matches!(comparison.test, Test::Equal | Test::NotEqual)
-        }),
-        Operation::Project { .. } | Operation::Union { .. } => true,
-        Operation::Join { filter, reach, .. } => filter.is_empty() && reach.is_none(),
-        _ => false,
-    }
+    crate::domain::operator::service::pilot(operation)
+        .is_some_and(|registered| (registered.shared_execution)(operation))
+}
+
+/// Separate experimental strategy identity: ordinary and overlay receipts cannot
+/// reuse a snapshot produced by the application-owned execution DAG.
+pub(crate) fn dag_enabled() -> bool {
+    static ENABLED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ENABLED.get_or_init(|| std::env::var("RYO_FILE_DAG_EXECUTION").is_ok_and(|value| value == "1"))
 }
 
 fn node_input(input: Input, previous: &[Option<NodeId>]) -> Option<(Input, NodeInput)> {
@@ -193,7 +190,7 @@ pub(crate) fn compile(plans: &[Plan]) -> RequestGraph {
         let mut rule_cuts = Vec::with_capacity(plan.steps.len());
         for (index, step) in plan.steps.iter().enumerate() {
             let node = if step.scope == StepScope::PerFile {
-                canonical(&step.operation, &mapped).map(|(operation, inputs)| {
+                canonical(&step.operation, &mapped).and_then(|(operation, inputs)| {
                     let hash = fingerprint(&operation, &inputs);
                     if let Some(found) = buckets.get(&hash).and_then(|bucket| {
                         bucket.iter().copied().find(|id| {
@@ -201,7 +198,7 @@ pub(crate) fn compile(plans: &[Plan]) -> RequestGraph {
                             existing.operation == operation && existing.inputs == inputs
                         })
                     }) {
-                        return found;
+                        return Some(found);
                     }
                     let mut relations = Vec::new();
                     for input in &inputs {
@@ -215,14 +212,38 @@ pub(crate) fn compile(plans: &[Plan]) -> RequestGraph {
                             }
                         }
                     }
+                    let schemas = inputs
+                        .iter()
+                        .map(
+                            |input| crate::domain::operation_schema::types::InputSchema {
+                                kinds: match input {
+                                    NodeInput::Relation(relation) => {
+                                        ryo_language::domain::relations::service::kinds(*relation)
+                                    }
+                                    NodeInput::Node(id) => &nodes[id.0].kinds,
+                                },
+                                tree: None,
+                            },
+                        )
+                        .collect::<Vec<_>>();
+                    let validated = crate::domain::operator::service::pilot(&operation)
+                        .and_then(|registered| (registered.schema)(&operation, &schemas, &[]).ok());
+                    let schema_valid = validated.is_some()
+                        && inputs.iter().all(|input| match input {
+                            NodeInput::Node(id) => nodes[id.0].schema_valid,
+                            NodeInput::Relation(_) => true,
+                        });
+                    let kinds = validated.unwrap_or_default();
                     let id = NodeId(nodes.len());
                     nodes.push(CanonicalNode {
                         operation,
                         inputs,
                         relations,
+                        kinds,
+                        schema_valid,
                     });
                     buckets.entry(hash).or_default().push(id);
-                    id
+                    Some(id)
                 })
             } else {
                 None
@@ -248,7 +269,30 @@ pub(crate) fn compile(plans: &[Plan]) -> RequestGraph {
                 .collect()
         })
         .collect();
+    let boundaries = plans
+        .iter()
+        .zip(&cuts)
+        .map(|(plan, owned)| {
+            owned
+                .iter()
+                .enumerate()
+                .filter_map(|(index, node)| {
+                    let node = (*node)?;
+                    let input = Input::Step(StepId(index as u32));
+                    plan.steps
+                        .iter()
+                        .enumerate()
+                        .any(|(consumer, step)| {
+                            owned.get(consumer).is_none_or(Option::is_none)
+                                && named(&inputs_of(&step.operation)).contains(&input)
+                        })
+                        .then_some((index, node))
+                })
+                .collect()
+        })
+        .collect();
     RequestGraph {
+        boundaries,
         consumers,
         plans: plans
             .iter()
@@ -257,6 +301,10 @@ pub(crate) fn compile(plans: &[Plan]) -> RequestGraph {
         nodes: nodes
             .into_iter()
             .map(|node| Node {
+                operation: node.operation,
+                inputs: node.inputs,
+                kinds: node.kinds,
+                schema_valid: node.schema_valid,
                 relations: node.relations,
             })
             .collect(),

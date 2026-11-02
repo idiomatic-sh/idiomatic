@@ -10,7 +10,6 @@ use crate::domain::operating::types::OperatorContext;
 use crate::domain::operator::service::{emitted, pool_for};
 use crate::domain::operator::types::RuleWorkspace;
 use crate::domain::ordering::service::sort_findings;
-use crate::domain::pipeline::service::evaluate_file_with_graph;
 use crate::domain::render::service::{render_rows, rendered_limit, shown_by};
 use crate::domain::render::types::{Answering, FindingRule, RenderInput};
 use crate::domain::rules::errors::RulesError;
@@ -109,6 +108,7 @@ pub(crate) fn evaluate_rule<'f>(
 }
 
 /// Evaluate one rule with optional successful cut handles from the request graph.
+#[cfg(test)]
 pub(crate) fn evaluate_rule_with_graph<'f>(
     tables: &'f mut Tables,
     setting: &VisitSetting<'_>,
@@ -118,6 +118,30 @@ pub(crate) fn evaluate_rule_with_graph<'f>(
     relations: &dyn Fn(Relation) -> Option<ColumnsView<'f>>,
     classes: &crate::domain::shared_walk::types::SharedClasses,
     file_program: Option<&mut crate::domain::file_program::types::FileProgram>,
+) -> Result<Vec<Table>, RulesError> {
+    evaluate_rule_with_dag(
+        tables,
+        setting,
+        rule,
+        file,
+        stored_indexes,
+        relations,
+        classes,
+        file_program,
+        None,
+    )
+}
+
+pub(crate) fn evaluate_rule_with_dag<'f>(
+    tables: &'f mut Tables,
+    setting: &VisitSetting<'_>,
+    rule: RuleIndex,
+    file: FileId,
+    stored_indexes: Option<&mut crate::domain::stored_indexes::types::FileIndexes>,
+    relations: &dyn Fn(Relation) -> Option<ColumnsView<'f>>,
+    classes: &crate::domain::shared_walk::types::SharedClasses,
+    file_program: Option<&mut crate::domain::file_program::types::FileProgram>,
+    file_dag: Option<&dyn crate::domain::file_program::types::DagExecution>,
 ) -> Result<Vec<Table>, RulesError> {
     let (Some(plan), Some(bound)) = (setting.plans.get(rule.0), setting.bindings.get(rule.0))
     else {
@@ -172,7 +196,7 @@ pub(crate) fn evaluate_rule_with_graph<'f>(
             memo: &mut workspace.memo,
             scratch: &mut workspace.scratch,
         };
-        let evaluated = evaluate_file_with_graph(
+        let evaluated = crate::domain::pipeline::service::evaluate_file_with_dag(
             plan,
             relations,
             Some(TreeRows {
@@ -186,6 +210,7 @@ pub(crate) fn evaluate_rule_with_graph<'f>(
             &classes.classes,
             file_program,
             rule.0,
+            file_dag,
         )
         .map_err(|error| refuse(&error));
         evaluated?;

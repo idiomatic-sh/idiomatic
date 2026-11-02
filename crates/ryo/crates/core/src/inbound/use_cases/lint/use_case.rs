@@ -382,8 +382,13 @@ impl LintUseCaseImpl {
             .digest
             .digest(DigestBytes(&configuration(&[], &lines(hosted)).0));
         let graph_strategy = crate::domain::file_program::service::enabled().then(|| {
-            self.digest
-                .digest(DigestBytes(b"ryo-file-program-graph-v1"))
+            self.digest.digest(DigestBytes(
+                if crate::domain::file_program::service::dag_enabled() {
+                    b"ryo-file-dag-execution-v1"
+                } else {
+                    b"ryo-file-program-graph-v1"
+                },
+            ))
         });
         rules
             .iter()

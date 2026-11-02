@@ -380,7 +380,7 @@ fn pilot_registry_checks_real_ordered_bags_and_linear_visits() {
         OperationKind::SourceMatches,
         OperationKind::SpanBounds,
     ] {
-        let operation = self::operation(kind);
+        let operation = operation(kind);
         let reg = pilot(&operation).expect("pilot registration");
         assert_eq!((reg.input)(&operation), Ok(inputs_of(&operation)));
         let empty = verify(reg, &operation, &[&input(0)]).unwrap();
@@ -732,6 +732,7 @@ fn conformance_rejects_a_deliberately_broken_kernel() {
         schema: project_schema,
         input: real.input,
         absence: AbsencePolicy::PositiveRows,
+        shared_execution: real.shared_execution,
     };
     assert_eq!(
         verify(&broken, &operation(OperationKind::Project), &[&input(2)]).err(),

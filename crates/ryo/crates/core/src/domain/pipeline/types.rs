@@ -41,6 +41,12 @@ pub(crate) struct Stepper<'a, 'f> {
         &'a [Option<std::sync::Arc<crate::domain::table_model::types::StoredSelection>>],
     /// Successful internal cuts from earlier active rules of this same physical file.
     pub shared: &'a [Option<std::sync::Arc<Table>>],
+    /// Application-owned schedule, borrowed for this residual invocation only.
+    pub dag: Option<&'a dyn crate::domain::file_program::types::DagExecution>,
+    /// Invocation leases pin a demanded graph handle without copying its cells.
+    pub dag_shared: &'a [std::cell::OnceCell<std::sync::Arc<Table>>],
+    /// Ordered terminal identity; graph computation itself is shared across rules.
+    pub rule: usize,
     /// Steps made at a global DAG cut even when this rule has one local reader.
     pub graph_kept: &'a [bool],
     /// Prepared stored programs for the current request's plan.

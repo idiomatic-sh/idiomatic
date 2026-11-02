@@ -129,6 +129,8 @@ pub(crate) struct RegisteredOperator {
     pub input: fn(&Operation) -> Result<Inputs, OperatingError>,
     /// Absence dependency verified against the engine trust policy.
     pub absence: AbsencePolicy,
+    /// Whether this concrete authored operation is total, effect-free DAG work.
+    pub shared_execution: fn(&Operation) -> bool,
 }
 
 /// A plan, by where it is: the same plan has the same identity in every file.

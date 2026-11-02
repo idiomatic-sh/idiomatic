@@ -312,6 +312,28 @@ fn operation_name(operation: &ryo_values::domain::plans::types::Operation) -> &'
     }
 }
 
+/// Borrow a graph output at its actual consumer, preserving opaque evaluation
+/// order. OnceCell leases belong to this invocation and carry no mutable state.
+fn dag_table<'a>(
+    stepper: &Stepper<'a, '_>,
+    id: usize,
+    context: &mut OperatorContext<'_>,
+) -> Result<Option<&'a Table>, OperatingError> {
+    let Some(dag) = stepper.dag else {
+        return Ok(None);
+    };
+    let Some(node) = dag.owned(stepper.rule, id) else {
+        return Ok(None);
+    };
+    let leases = stepper.dag_shared;
+    let slot = leases.get(id).ok_or(OperatingError::NotRun)?;
+    if slot.get().is_none() {
+        let table = dag.demand(node, &|relation| stepper.read.rows(relation), context)?;
+        let _installed = slot.set(table);
+    }
+    Ok(slot.get().map(|table| table.as_ref()))
+}
+
 /// Passes on the rows of the step `id`: its table when it keeps them, else as it makes them.
 ///
 /// # Errors
@@ -326,6 +348,12 @@ pub(crate) fn run<'a, 'f>(
 where
     'f: 'a,
 {
+    if let Some(table) = dag_table(stepper, id.0, context)? {
+        let mut buffer = stepper.spare.pop().unwrap_or_default();
+        let outcome = scan(&Rows::Computed(table), &mut buffer, context, emit);
+        stepper.spare.push(buffer);
+        return outcome;
+    }
     if stepper.layout.kept.0.get(id.0) == Some(&true) || stepper.graph_kept.get(id.0) == Some(&true)
     {
         let id = id.0;
@@ -396,6 +424,10 @@ where
         Input::Relation(relation) => Ok(stepper.read.rows(relation)?),
         Input::Step(id) => {
             let id = usize::try_from(id.0).unwrap_or(usize::MAX);
+            if let Some(table) = dag_table(stepper, id, context)? {
+                return Ok(Rows::Computed(table));
+            }
+
             if stepper.layout.kept.0.get(id) == Some(&true)
                 || stepper.graph_kept.get(id) == Some(&true)
             {
@@ -495,7 +527,33 @@ fn demanded_steps(plan: &Plan, eager: &[bool], cached: &[bool]) -> Vec<bool> {
     demanded
 }
 
+#[cfg(test)]
 pub(crate) fn evaluate_file_with_graph<'f>(
+    plan: &Plan,
+    relations: &dyn Fn(Relation) -> Option<ColumnsView<'f>>,
+    tree: Option<TreeRows<'f>>,
+    context: &mut OperatorContext<'_>,
+    pool: &mut Pool,
+    prepared: &mut PreparedPool,
+    classes: &[crate::domain::positions::types::Slots],
+    file_program: Option<&mut crate::domain::file_program::types::FileProgram>,
+    rule: usize,
+) -> Result<(), OperatingError> {
+    evaluate_file_with_dag(
+        plan,
+        relations,
+        tree,
+        context,
+        pool,
+        prepared,
+        classes,
+        file_program,
+        rule,
+        None,
+    )
+}
+
+pub(crate) fn evaluate_file_with_dag<'f>(
     plan: &Plan,
     relations: &dyn Fn(Relation) -> Option<ColumnsView<'f>>,
     tree: Option<TreeRows<'f>>,
@@ -505,6 +563,7 @@ pub(crate) fn evaluate_file_with_graph<'f>(
     classes: &[crate::domain::positions::types::Slots],
     mut file_program: Option<&mut crate::domain::file_program::types::FileProgram>,
     rule: usize,
+    file_dag: Option<&dyn crate::domain::file_program::types::DagExecution>,
 ) -> Result<(), OperatingError> {
     let read = |relation: Relation| -> Result<Rows<'f>, OperatingError> {
         match (relation, tree) {
@@ -595,7 +654,10 @@ pub(crate) fn evaluate_file_with_graph<'f>(
     if plan_fed.len() < plan.steps.len() {
         plan_fed.resize(plan.steps.len(), RowsFed::default());
     }
+    let graph_owned = file_dag
+        .is_some_and(|dag| (0..plan.steps.len()).any(|index| dag.owned(rule, index).is_some()));
     let lowered = match tree {
+        _ if graph_owned => LoweredTree::Missing,
         Some(each) if *unlowered == TreeSteps::Lowered => LoweredTree::Tree(TreeRows {
             form: TreeForm::Elements,
             ..each
@@ -604,12 +666,12 @@ pub(crate) fn evaluate_file_with_graph<'f>(
     };
     let cut_diagnostic =
         tracing::enabled!(target: "ryo::diagnostic::subplan_cut", tracing::Level::TRACE);
-    let mut shared_steps = if file_program.is_some() {
+    let mut shared_steps = if file_program.is_some() || file_dag.is_some() {
         vec![None; plan.steps.len()]
     } else {
         Vec::new()
     };
-    let mut graph_kept = if file_program.is_some() {
+    let mut graph_kept = if file_program.is_some() || file_dag.is_some() {
         vec![false; plan.steps.len()]
     } else {
         Vec::new()
@@ -666,7 +728,24 @@ pub(crate) fn evaluate_file_with_graph<'f>(
         let cached = retained.iter().map(Option::is_some).collect::<Vec<_>>();
         demanded_steps(plan, &eager, &cached)
     });
-    for (index, step) in plan.steps.iter().enumerate() {
+    let dag_shared = if file_dag.is_some() {
+        (0..plan.steps.len())
+            .map(|_| std::cell::OnceCell::new())
+            .collect::<Vec<_>>()
+    } else {
+        Vec::new()
+    };
+    // Only opaque steps remain in this schedule. Their Feed requests drive the
+    // unique application DAG at the original lazy/error boundary.
+    let execution_steps = file_dag.map(|dag| {
+        (0..plan.steps.len())
+            .filter(|index| dag.owned(rule, *index).is_none())
+            .collect::<Vec<_>>()
+    });
+    let schedule = execution_steps.as_deref();
+    for cursor in 0..schedule.map_or(plan.steps.len(), <[usize]>::len) {
+        let index = schedule.map_or(cursor, |steps| steps[cursor]);
+        let step = &plan.steps[index];
         if step.scope == StepScope::CrossFile {
             continue;
         }
@@ -710,6 +789,9 @@ pub(crate) fn evaluate_file_with_graph<'f>(
             selected: &selected[..index],
             shared: shared_steps.get(..index).unwrap_or(&[]),
             graph_kept: graph_kept.get(..index).unwrap_or(&[]),
+            dag: file_dag,
+            dag_shared: &dag_shared,
+            rule,
             selectors,
             rooms,
             spare,
