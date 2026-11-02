@@ -3,7 +3,7 @@
     "cap_seconds": 45,
     "completed": false,
     "dag_node_events": 4856658,
-    "interpretation": "trace event emission dominates; no ordinary wall-time attribution",
+    "interpretation": "substantial JSON instrumentation; no ordinary wall-time attribution",
     "last_unfinished_rule_file": {
       "file": "django/core/handlers/__init__.py",
       "rule": "DTZ007",
@@ -13,7 +13,6 @@
     "max_repeat_node": 6026,
     "sampled_file_blocks": 565
   },
-  "collector_sha256": "813f50ad3cf909b23a48da6801a50d756c349ab47129e7dd07815c6e277dd004",
   "django_frozen_310": {
     "baseline_cpu_seconds": 214.474992,
     "baseline_peak_rss_bytes": 2199207936,
@@ -66,6 +65,7 @@
       "passed": 205
     }
   },
+  "inventory_collector_sha256": "813f50ad3cf909b23a48da6801a50d756c349ab47129e7dd07815c6e277dd004",
   "options_py": {
     "baseline_peak_rss_bytes": 402640896,
     "baseline_wall_seconds": 3.456517999,
@@ -107,5 +107,6 @@
   "schema": "required-live-contract-diagnostic/v1",
   "scope": "one frozen Django310 profile; all24 operator contract with required-live graph retention; no performance acceptance",
   "source_manifest_sha256": "23a78e143571f7708ee2ff4a297fe895abd83b3676119a5bed78a4bf3e2680c9",
-  "source_worker_sha256": "92b623314c19b12e0678f77b2248287a329e41254a1340b9ec1245b04641390f"
+  "source_worker_sha256": "92b623314c19b12e0678f77b2248287a329e41254a1340b9ec1245b04641390f",
+  "timing_collector_sha256": "4e1d3d328618bee455f9ee1f6e9c1963f076803e7251bdc953cb55db362d4205"
 }

@@ -1,6 +1,6 @@
 # Required-live operator checkpoint — 2026-11-02
 
-The mandatory operator contract and required-live DAG retention pass 444 core, 3 capability, and 205 Python library tests. The sealed worker is `92b623314c19b12e0678f77b2248287a329e41254a1340b9ec1245b04641390f`. [Raw receipts and source identities](raw.tar.gz) and [machine-readable summary](summary.json) accompany this report.
+The mandatory operator contract and required-live DAG retention pass 444 core, 3 capability, and 205 Python library tests. The sealed worker is `92b623314c19b12e0678f77b2248287a329e41254a1340b9ec1245b04641390f`. Timing used collector `4e1d3d328618bee455f9ee1f6e9c1963f076803e7251bdc953cb55db362d4205`; rule replay used shared inventory collector `813f50ad3cf909b23a48da6801a50d756c349ab47129e7dd07815c6e277dd004`. [Raw receipts and source identities](raw.tar.gz) and [machine-readable summary](summary.json) accompany this report.
 
 ## Frozen Django310 comparison
 
