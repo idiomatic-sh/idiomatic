@@ -143,6 +143,33 @@ fn find_or_add(
     find_or_add_hashed(symbols, source, text, hash_of(text), add)
 }
 
+/// Finds an already-interned file or derived symbol by hash and exact bytes, without adding a name.
+/// Closed-set terms are not in this index; callers comparing by text must check their aliases too.
+#[must_use]
+pub fn find_hashed(
+    symbols: &Symbols,
+    source: ByteSlice<'_>,
+    text: ByteSlice<'_>,
+    hash: TextHash,
+) -> Option<Symbol> {
+    find_hashed_in(symbols.as_ref(), source, text, hash)
+}
+
+/// The shared read-only lookup behind `find_hashed` and interning.
+fn find_hashed_in(
+    symbols: &SymbolsEngine,
+    source: ByteSlice<'_>,
+    text: ByteSlice<'_>,
+    hash: TextHash,
+) -> Option<Symbol> {
+    symbols
+        .index
+        .find(hash.0, |symbol| {
+            bytes_of(symbols, source, *symbol) == Some(text)
+        })
+        .copied()
+}
+
 /// Finds the symbol of the name whose bytes are `text`, which hashes to `hash`, or adds it: a hit is the name only when its text is
 /// `text` too, so two texts of one hash stay two names.
 pub(crate) fn find_or_add_hashed(
@@ -153,10 +180,8 @@ pub(crate) fn find_or_add_hashed(
     add: impl FnOnce(&mut SymbolsEngine) -> Span,
 ) -> Symbol {
     let known = &*symbols;
-    if let Some(found) = known.index.find(hash.0, |symbol| {
-        bytes_of(known, source, *symbol) == Some(text)
-    }) {
-        return *found;
+    if let Some(found) = find_hashed_in(known, source, text, hash) {
+        return found;
     }
     let symbol = Symbol(u32::try_from(symbols.start.len()).unwrap_or(u32::MAX));
     let place = add(symbols);

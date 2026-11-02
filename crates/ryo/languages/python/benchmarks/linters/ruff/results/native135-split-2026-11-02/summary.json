@@ -1,0 +1,101 @@
+{
+  "schema": "native135-split-proof/v1",
+  "worker_sha256": "b7f2f6c3cb0141f5958237cf4b850207668af43fd4faf9631a135724b5647eca",
+  "earlier_one_shot_124": "/tmp/native-b7-source-matches-20261102/run.json",
+  "earlier_inventory_sha256": "15b0761c15e2c4aa44c73bb46b24040c872d0ca6198d5657712001407d176d17",
+  "earlier_entries_unchanged": 124,
+  "earlier_cases": 3129,
+  "new_inventory_sha256": "7226418836419527b4879222d58f214d092b0a5d6b80f6f1b1ff350df4cf5e30",
+  "new_entries": [
+    {
+      "rule": "PLE2510",
+      "receipt": "/tmp/ple25xx-b7-replay-20261102/PLE2510/result.json",
+      "cases": 9,
+      "raw_exact": 9,
+      "documented": 0
+    },
+    {
+      "rule": "PLE2512",
+      "receipt": "/tmp/ple25xx-b7-replay-20261102/PLE2512/result.json",
+      "cases": 6,
+      "raw_exact": 6,
+      "documented": 0
+    },
+    {
+      "rule": "PLE2513",
+      "receipt": "/tmp/ple25xx-b7-replay-20261102/PLE2513/result.json",
+      "cases": 6,
+      "raw_exact": 6,
+      "documented": 0
+    },
+    {
+      "rule": "PLE2514",
+      "receipt": "/tmp/ple25xx-b7-replay-20261102/PLE2514/result.json",
+      "cases": 6,
+      "raw_exact": 6,
+      "documented": 0
+    },
+    {
+      "rule": "PLE2515",
+      "receipt": "/tmp/ple25xx-b7-replay-20261102/PLE2515/result.json",
+      "cases": 6,
+      "raw_exact": 6,
+      "documented": 0
+    },
+    {
+      "rule": "PLE2502",
+      "receipt": "/tmp/ple2502-b7-v2-replay-20261102/result.json",
+      "cases": 13,
+      "raw_exact": 13,
+      "documented": 0
+    },
+    {
+      "rule": "RUF033",
+      "receipt": "/tmp/three-rules-b7-current-helper-20261102/RUF033/run/result.json",
+      "cases": 14,
+      "raw_exact": 14,
+      "documented": 0
+    },
+    {
+      "rule": "SIM107",
+      "receipt": "/tmp/three-rules-b7-current-helper-20261102/SIM107/run/result.json",
+      "cases": 11,
+      "raw_exact": 11,
+      "documented": 0
+    },
+    {
+      "rule": "UP008",
+      "receipt": "/tmp/up008-normalized-b7-20261102-1/profiles/UP008/result.json",
+      "cases": 35,
+      "raw_exact": 31,
+      "documented": 4
+    },
+    {
+      "rule": "FURB122",
+      "receipt": "/tmp/furb122-qualified-guard-replay-v4-b7-20261102-1/profiles/FURB122/result.json",
+      "cases": 98,
+      "raw_exact": 85,
+      "documented": 13
+    },
+    {
+      "rule": "FURB129",
+      "receipt": "/tmp/furb129-canonical-normalized-b7-20261102-1/profiles/FURB129/result.json",
+      "cases": 131,
+      "raw_exact": 97,
+      "documented": 34
+    }
+  ],
+  "new_cases": 335,
+  "new_raw_exact": 284,
+  "new_documented": 51,
+  "total_queries": 135,
+  "total_cases": 3464,
+  "claim": "124 one-shot plus eleven singleton source-identical b7 replays; no one-shot 135 execution",
+  "earlier_raw_parity_matches": 3099,
+  "earlier_documented_reference_discrepancies": 26,
+  "earlier_metadata_asymmetry_cases": 4,
+  "combined_raw_parity_matches": 3383,
+  "combined_documented_reference_discrepancies": 77,
+  "combined_metadata_asymmetry_cases": 4,
+  "combined_intended_behavior_passes": 3464
+}

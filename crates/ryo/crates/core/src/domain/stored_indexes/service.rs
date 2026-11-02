@@ -53,6 +53,9 @@ pub(crate) fn new(wanted: &[Relation], partials: &[Partial], limit: usize) -> Op
         selections: Vec::new(),
         discriminator_columns: Vec::new(),
         selection_counts: Default::default(),
+        selection_histogram:
+            tracing::enabled!(target: "ryo::diagnostic::selection_detail", tracing::Level::TRACE)
+                .then(Vec::new),
         eligible,
         entries: Vec::new(),
         bytes,

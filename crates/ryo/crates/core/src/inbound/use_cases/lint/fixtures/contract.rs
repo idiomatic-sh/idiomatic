@@ -878,6 +878,8 @@ fn expected(operator: QueryOperator) -> Vec<Finding> {
     match operator {
         QueryOperator::Replace => replace::expected(),
         QueryOperator::SpanBetween => span_between::expected(),
+        QueryOperator::SourceMatches => source_matches::expected(),
+        QueryOperator::SpanBounds => span_bounds::expected(),
         QueryOperator::OrderedMatch => ordered_match::expected(),
         QueryOperator::OrderedDfs => ordered_dfs::expected(),
         QueryOperator::Antijoin => antijoin::expected(),
@@ -993,6 +995,13 @@ mod replace {
 /// Independent byte span projection fixture.
 mod span_between {
     include!("../../../../../tests/fixtures/operators/span_between/expected.rs");
+}
+/// Independent physical occurrence spans, including the duplicate nested occurrence.
+mod source_matches {
+    include!("../../../../../tests/fixtures/operators/source_matches/expected.rs");
+}
+mod span_bounds {
+    include!("../../../../../tests/fixtures/operators/span_bounds/expected.rs");
 }
 /// Ordered request/reply fixture, preserving explicit output projection.
 mod ordered_match {

@@ -1,0 +1,611 @@
+[[cases]]
+name = "upstream-pinned-FURB122.py"
+comparison = "full"
+files = { "FURB122.py" = "from pathlib import Path\n\nlines = [\"line 1\", \"line 2\", \"line 3\"]\n\n\n# Errors\n\ndef _():\n    with open(\"file\", \"w\") as f:\n        for line in lines:\n            f.write(line)\n\n\ndef _():\n    other_line = \"other line\"\n    with Path(\"file\").open(\"w\") as f:\n        for line in lines:\n            f.write(other_line)\n\n\ndef _():\n    with Path(\"file\").open(\"w\") as f:\n        for line in lines:\n            f.write(line)\n\n\ndef _():\n    with Path(\"file\").open(\"wb\") as f:\n        for line in lines:\n            f.write(line.encode())\n\n\ndef _():\n    with Path(\"file\").open(\"w\") as f:\n        for line in lines:\n            f.write(line.upper())\n\n\ndef _():\n    with Path(\"file\").open(\"w\") as f:\n        pass\n\n        for line in lines:\n            f.write(line)\n\n\ndef _():\n    # Offer unsafe fix if it would delete comments\n    with open(\"file\",\"w\") as f:\n        for line in lines:\n            # a really important comment\n            f.write(line)\n\n\ndef _():\n    with open(\"file\", \"w\") as f:\n        for () in a:\n            f.write(())\n\n\ndef _():\n    with open(\"file\", \"w\") as f:\n        for a, b, c in d:\n            f.write((a, b))\n\n\ndef _():\n    with open(\"file\", \"w\") as f:\n        for [(), [a.b], (c,)] in d:\n            f.write(())\n\n\ndef _():\n    with open(\"file\", \"w\") as f:\n        for [([([a[b]],)],), [], (c[d],)] in e:\n            f.write(())\n\n\ndef _():\n    # https://github.com/astral-sh/ruff/issues/15936\n    with open(\"file\", \"w\") as f:\n        for char in \"a\", \"b\":\n            f.write(char)\n\ndef _():\n    # https://github.com/astral-sh/ruff/issues/15936\n    with open(\"file\", \"w\") as f:\n        for char in \"a\", \"b\":\n            f.write(f\"{char}\")\n\ndef _():\n    with open(\"file\", \"w\") as f:\n        for char in (\n            \"a\",  # Comment\n            \"b\"\n        ):\n            f.write(f\"{char}\")\n\n\n# OK\n\ndef _():\n    for line in lines:\n        Path(\"file\").open(\"w\").write(line)\n\n\ndef _():\n    with Path(\"file\").open(\"w\") as f:\n        for line in lines:\n            pass\n\n            f.write(line)\n\n\ndef _():\n    with Path(\"file\").open(\"w\") as f:\n        for line in lines:\n            f.write(line)\n        else:\n            pass\n\n\nasync def func():\n    with Path(\"file\").open(\"w\") as f:\n        async for line in lines:  # type: ignore\n            f.write(line)\n\n\ndef _():\n    with Path(\"file\").open(\"w\") as f:\n        for line in lines:\n            f.write()  # type: ignore\n\n\ndef _():\n    with open(\"file\", \"w\") as f:\n        global CURRENT_LINE\n        for CURRENT_LINE in lines:\n            f.write(CURRENT_LINE)\n\n\ndef _():\n    foo = 1\n    def __():\n        with open(\"file\", \"w\") as f:\n            nonlocal foo\n            for foo in lines:\n                f.write(foo)\n\n\ndef _():\n    with open(\"file\", \"w\") as f:\n        line = ''\n        for line in lines:\n            f.write(line)\n\n\ndef _():\n    with open(\"file\", \"w\") as f:\n        for a, b, c in d:\n            f.write((a, b))\n        print(a)\n\n\ndef _():\n    with open(\"file\", \"w\") as f:\n        for [*[*a]], b, [[c]] in d:\n            f.write((a, b))\n        print(c)\n\n\ndef _():\n    with open(\"file\", \"w\") as f:\n        global global_foo\n        for [a, b, (global_foo, c)] in d:\n            f.write((a, b))\n\n\n# Test cases for lambda and ternary expressions - https://github.com/astral-sh/ruff/issues/18590\n\ndef _():\n    with Path(\"file.txt\").open(\"w\", encoding=\"utf-8\") as f:\n        for l in lambda: 0:\n            f.write(f\"[{l}]\")\n\n\ndef _():\n    with Path(\"file.txt\").open(\"w\", encoding=\"utf-8\") as f:\n        for l in (1,) if True else (2,):\n            f.write(f\"[{l}]\")\n\n\n# don't need to add parentheses when making a function argument\ndef _():\n    with open(\"file\", \"w\") as f:\n        for line in lambda: 0:\n            f.write(line)\n\n\ndef _():\n    with open(\"file\", \"w\") as f:\n        for line in (1,) if True else (2,):\n            f.write(line)\n\n\n# don't add extra parentheses if they're already parenthesized\ndef _():\n    with open(\"file\", \"w\") as f:\n        for line in (lambda: 0):\n            f.write(f\"{line}\")\n\n\ndef _():\n    with open(\"file\", \"w\") as f:\n        for line in ((1,) if True else (2,)):\n            f.write(f\"{line}\")\n" }
+expected = [{ "rule" = "FURB122", "file" = "FURB122.py", "start" = 127, "end" = 171 }, { "rule" = "FURB122", "file" = "FURB122.py", "start" = 259, "end" = 309 }, { "rule" = "FURB122", "file" = "FURB122.py", "start" = 367, "end" = 411 }, { "rule" = "FURB122", "file" = "FURB122.py", "start" = 470, "end" = 523 }, { "rule" = "FURB122", "file" = "FURB122.py", "start" = 581, "end" = 633 }, { "rule" = "FURB122", "file" = "FURB122.py", "start" = 705, "end" = 749 }, { "rule" = "FURB122", "file" = "FURB122.py", "start" = 852, "end" = 937 }, { "rule" = "FURB122", "file" = "FURB122.py", "start" = 990, "end" = 1026 }, { "rule" = "FURB122", "file" = "FURB122.py", "start" = 1079, "end" = 1124 }, { "rule" = "FURB122", "file" = "FURB122.py", "start" = 1177, "end" = 1228 }, { "rule" = "FURB122", "file" = "FURB122.py", "start" = 1281, "end" = 1344 }, { "rule" = "FURB122", "file" = "FURB122.py", "start" = 1450, "end" = 1497 }, { "rule" = "FURB122", "file" = "FURB122.py", "start" = 1602, "end" = 1654 }, { "rule" = "FURB122", "file" = "FURB122.py", "start" = 1706, "end" = 1805 }, { "rule" = "FURB122", "file" = "FURB122.py", "start" = 3360, "end" = 3409 }, { "rule" = "FURB122", "file" = "FURB122.py", "start" = 3489, "end" = 3551 }, { "rule" = "FURB122", "file" = "FURB122.py", "start" = 3668, "end" = 3716 }, { "rule" = "FURB122", "file" = "FURB122.py", "start" = 3769, "end" = 3830 }, { "rule" = "FURB122", "file" = "FURB122.py", "start" = 3946, "end" = 4001 }, { "rule" = "FURB122", "file" = "FURB122.py", "start" = 4054, "end" = 4122 }]
+
+[[cases]]
+name = "loop-boundary-0"
+comparison = "full"
+files = { "case.py" = "f=open(\"x\",\"w\")\nfor x in rows:\n    f.write(x)\n" }
+expected = [{ "rule" = "FURB122", "file" = "case.py", "start" = 16, "end" = 45 }]
+
+[[cases]]
+name = "loop-boundary-1"
+comparison = "full"
+files = { "case.py" = "f=open(\"x\",\"w\")\nx=0\nfor x in rows:\n    f.write(x)\n" }
+expected = []
+
+[[cases]]
+name = "loop-boundary-2"
+comparison = "full"
+files = { "case.py" = "f=open(\"x\",\"w\")\nfor x in rows:\n    f.write(x)\nprint(x)\n" }
+expected = []
+
+[[cases]]
+name = "loop-boundary-3"
+comparison = "full"
+files = { "case.py" = "f=open(\"x\",\"w\")\nfor x in rows:\n    f.write(x)\nx=2\nprint(x)\n" }
+expected = [{ "rule" = "FURB122", "file" = "case.py", "start" = 16, "end" = 45 }]
+
+[[cases]]
+name = "loop-boundary-4"
+comparison = "full"
+files = { "case.py" = "f=open(\"x\",\"w\")\nfor x in rows:\n    f.write(x)\ndel x\n" }
+expected = []
+
+[[cases]]
+name = "loop-boundary-5"
+comparison = "full"
+files = { "case.py" = "f=open(\"x\",\"w\")\nfor x in rows:\n    f.write(x)\ndef later():\n    return x\n" }
+expected = []
+
+[[cases]]
+name = "loop-boundary-6"
+comparison = "full"
+files = { "case.py" = "f=open(\"x\",\"w\")\nx: int\nfor x in rows:\n    f.write(x)\n" }
+expected = [{ "rule" = "FURB122", "file" = "case.py", "start" = 23, "end" = 52 }]
+
+[[cases]]
+name = "loop-boundary-7"
+comparison = "full"
+files = { "case.py" = "f=open(\"x\",\"w\")\nx: int=0\nfor x in rows:\n    f.write(x)\n" }
+expected = []
+
+[[cases]]
+name = "loop-boundary-8"
+comparison = "full"
+files = { "case.py" = "f=open(\"x\",\"w\")\nfor x in rows:\n    f.write(x)\nelse:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "loop-boundary-9"
+comparison = "full"
+files = { "case.py" = "f=open(\"x\",\"w\")\nfor x in rows:\n    f.write(x)\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "loop-boundary-10"
+comparison = "full"
+files = { "case.py" = "f=open(\"x\",\"w\")\nfor x in rows:\n    f.write()\n" }
+expected = []
+
+[[cases]]
+name = "loop-boundary-11"
+comparison = "full"
+files = { "case.py" = "f=open(\"x\",\"w\")\nfor x in rows:\n    f.write(x, x)\n" }
+expected = []
+
+[[cases]]
+name = "loop-boundary-12"
+comparison = "full"
+files = { "case.py" = "f=open(\"x\",\"w\")\nfor x in rows:\n    f.write(data=x)\n" }
+expected = []
+
+[[cases]]
+name = "loop-boundary-13"
+comparison = "full"
+files = { "case.py" = "f=open(\"x\",\"w\")\nfor x in rows:\n    f.write(**x)\n" }
+expected = []
+
+[[cases]]
+name = "loop-boundary-14"
+comparison = "full"
+files = { "case.py" = "f=open(\"x\",\"w\")\nfor x in rows:\n    f.write(*x)\n" }
+expected = [{ "rule" = "FURB122", "file" = "case.py", "start" = 16, "end" = 46 }]
+
+[[cases]]
+name = "loop-boundary-15"
+comparison = "full"
+files = { "case.py" = "f=open(\"x\",\"w\")\nfor x in rows:\n    f.write(\"literal\")\n" }
+expected = [{ "rule" = "FURB122", "file" = "case.py", "start" = 16, "end" = 53 }]
+
+[[cases]]
+name = "loop-boundary-16"
+comparison = "full"
+files = { "case.py" = "f=open(\"x\",\"w\")\nfor x in rows:\n    f.writelines(x)\n" }
+expected = []
+
+[[cases]]
+name = "loop-boundary-17"
+comparison = "full"
+files = { "case.py" = "f=open(\"x\",\"w\")\nfor obj.x in rows:\n    f.write(obj.x)\n" }
+expected = [{ "rule" = "FURB122", "file" = "case.py", "start" = 16, "end" = 53 }]
+
+[[cases]]
+name = "loop-boundary-18"
+comparison = "full"
+files = { "case.py" = "f=open(\"x\",\"w\")\nfor ((),[obj.x],(x,)) in rows:\n    f.write(x)\n" }
+expected = [{ "rule" = "FURB122", "file" = "case.py", "start" = 16, "end" = 61 }]
+
+[[cases]]
+name = "loop-boundary-19"
+comparison = "full"
+files = { "case.py" = "f=open(\"x\",\"w\")\nfor ((),[obj.x],(x,)) in rows:\n    f.write(x)\nprint(x)\n" }
+expected = []
+
+[[cases]]
+name = "loop-boundary-20"
+comparison = "full"
+files = { "case.py" = "f=open(\"x\",\"w\")\nfor ((),[obj.x],()) in rows:\n    f.write(())\n" }
+expected = [{ "rule" = "FURB122", "file" = "case.py", "start" = 16, "end" = 60 }]
+
+[[cases]]
+name = "loop-boundary-21"
+comparison = "full"
+files = { "case.py" = "f=open(\"x\",\"w\")\nfor *[x] in rows:\n    f.write(x)\n" }
+expected = [{ "rule" = "FURB122", "file" = "case.py", "start" = 16, "end" = 48 }, { "rule" = "invalid-syntax", "file" = "case.py", "start" = 20, "end" = 24 }]
+
+[[cases]]
+name = "loop-boundary-22"
+comparison = "full"
+files = { "case.py" = "f=open(\"x\",\"w\")\nfor x in (x:=rows):\n    f.write(x)\n" }
+expected = [{ "rule" = "FURB122", "file" = "case.py", "start" = 16, "end" = 50 }]
+
+[[cases]]
+name = "loop-boundary-23"
+comparison = "full"
+files = { "case.py" = "f=open(\"x\",\"w\")\nfor x in rows:\n    f.write((x:=other))\nprint(x)\n" }
+expected = []
+
+[[cases]]
+name = "loop-boundary-24"
+comparison = "full"
+files = { "case.py" = "f=open(\"x\",\"w\")\nfor x in rows:\n    f.write((x:=other))\n" }
+expected = [{ "rule" = "FURB122", "file" = "case.py", "start" = 16, "end" = 54 }]
+
+[[cases]]
+name = "loop-boundary-25"
+comparison = "full"
+files = { "case.py" = "f=open(\"x\",\"w\")\nfor x in rows:\n    f.write(x) # noqa: FURB122\n" }
+expected = [{ "rule" = "FURB122", "file" = "case.py", "start" = 16, "end" = 45 }]
+
+[[cases]]
+name = "loop-boundary-26"
+comparison = "full"
+files = { "case.py" = "f=open(\"x\",\"w\")\nfor x in rows: # noqa: FURB122\n    f.write(x)\n" }
+expected = []
+
+[[cases]]
+name = "loop-boundary-27"
+comparison = "full"
+files = { "case.py" = "f=open(\"x\",\"w\")\nfor x in rows:\n    f.write(x)\nfor x in other:\n    print(x)\n" }
+expected = [{ "rule" = "FURB122", "file" = "case.py", "start" = 16, "end" = 45 }]
+
+[[cases]]
+name = "loop-boundary-28"
+comparison = "full"
+files = { "case.py" = "f=open(\"x\",\"w\")\nfor x in rows:\n    f.write(x)\nfor y in other:\n    f.write(y)\n" }
+expected = [{ "rule" = "FURB122", "file" = "case.py", "start" = 16, "end" = 45 }, { "rule" = "FURB122", "file" = "case.py", "start" = 46, "end" = 76 }]
+
+[[cases]]
+name = "io-binding-0"
+comparison = "full"
+files = { "case.py" = "import io,os\nfrom pathlib import Path\nf=open(\"x\")\nfor x in rows:\n    f.write(x)\n" }
+expected = [{ "rule" = "FURB122", "file" = "case.py", "start" = 50, "end" = 79 }]
+
+[[cases]]
+name = "io-binding-1"
+comparison = "full"
+files = { "case.py" = "import io,os\nfrom pathlib import Path\nf=io.open(\"x\")\nfor x in rows:\n    f.write(x)\n" }
+expected = [{ "rule" = "FURB122", "file" = "case.py", "start" = 53, "end" = 82 }]
+
+[[cases]]
+name = "io-binding-2"
+comparison = "full"
+files = { "case.py" = "import io,os\nfrom pathlib import Path\nf=os.open(\"x\",0)\nfor x in rows:\n    f.write(x)\n" }
+expected = []
+reference-discrepancy = { "expected" = [{ "end" = 84, "file" = "case.py", "rule" = "FURB122", "start" = 55 }], "identity" = { "tool" = "ruff", "version" = "0.16.5", "observed-executable-sha256" = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8", "profile-sha256" = "61027584a03dfbd5df22a51dd7a87d19489b31399c14e3e7edad9238af6409dd", "settings-sha256" = "2f123e871ec765d8e35bd46b097fd33c70d2620ce64c4d2f2d05027a63bd5262", "source-sha256" = "b9aa9123299d17fb72ee9ac498c0bd282dab4df220d195b7548dec41218e6e99", "reference-output-sha256" = "aea2e3ee06a3ff817d1fe6a410b75e2722d9331cf9337f4b2bae0d86d153c2c4", "intended-output-sha256" = "fe95995b682b3d5703c003a04cf4b5f5b0c3f89c764485cc18476c5c1cf2bd7a" }, "evidence" = [{ "path" = "evidence/independent-io-cpython310.json", "sha256" = "7de13ae2b6d61c393fb1e73a75952d6fa3259c016b56ffe70bc6bb3a63940e15", "kind" = "independent-language-run", "language-version" = "CPython3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "The exact target-version source is executed with bounded rows and IO environment; receiver type or prior guard binding is observed. No universal rewrite equivalence is claimed." }], "reason" = "CPython 3.10 executes the exact os.open initializer and observes an integer descriptor with no write method; the loop raises AttributeError. This is not an IOBase receiver, so the candidate declines the pinned reference diagnostic." }
+
+
+[[cases]]
+name = "io-binding-3"
+comparison = "full"
+files = { "case.py" = "import io,os\nfrom pathlib import Path\nf=Path(\"x\").open()\nfor x in rows:\n    f.write(x)\n" }
+expected = [{ "rule" = "FURB122", "file" = "case.py", "start" = 57, "end" = 86 }]
+
+[[cases]]
+name = "io-binding-4"
+comparison = "full"
+files = { "case.py" = "import io,os\nfrom pathlib import Path\nf=io.StringIO()\nfor x in rows:\n    f.write(x)\n" }
+expected = [{ "rule" = "FURB122", "file" = "case.py", "start" = 54, "end" = 83 }]
+reference-discrepancy = { "expected" = [], "identity" = { "tool" = "ruff", "version" = "0.16.5", "observed-executable-sha256" = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8", "profile-sha256" = "61027584a03dfbd5df22a51dd7a87d19489b31399c14e3e7edad9238af6409dd", "settings-sha256" = "2f123e871ec765d8e35bd46b097fd33c70d2620ce64c4d2f2d05027a63bd5262", "source-sha256" = "3894a7b728c0cfc9da6e0d1f44ec1e878330a603db8b13410c77414752ce7023", "reference-output-sha256" = "fe95995b682b3d5703c003a04cf4b5f5b0c3f89c764485cc18476c5c1cf2bd7a", "intended-output-sha256" = "32d242dbfef6beb1eb4d8b365487329b28782feb51648174033fc15599ac2444" }, "evidence" = [{ "path" = "evidence/independent-io-cpython310.json", "sha256" = "7de13ae2b6d61c393fb1e73a75952d6fa3259c016b56ffe70bc6bb3a63940e15", "kind" = "independent-language-run", "language-version" = "CPython3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "The exact target-version source is executed with bounded rows and IO environment; receiver type or prior guard binding is observed. No universal rewrite equivalence is claimed." }], "reason" = "CPython 3.10 executes the exact io.StringIO initializer and observes a TextIOBase stream with write and writelines. Under the standard IO diagnostic policy, the candidate reports the write-loop idiom omitted by the pinned reference." }
+
+
+[[cases]]
+name = "io-binding-5"
+comparison = "full"
+files = { "case.py" = "import io,os\nfrom pathlib import Path\nf=Path(\"x\")\nfor x in rows:\n    f.write(x)\n" }
+expected = []
+
+[[cases]]
+name = "io-binding-6"
+comparison = "full"
+files = { "case.py" = "import io,os\nfrom pathlib import Path\nf=unknown\nfor x in rows:\n    f.write(x)\n" }
+expected = []
+
+[[cases]]
+name = "io-annotation-0"
+comparison = "full"
+files = { "case.py" = "import io,typing\ndef fn(f: io.StringIO):\n    for x in rows:\n        f.write(x)\n" }
+expected = [{ "rule" = "FURB122", "file" = "case.py", "start" = 45, "end" = 78 }]
+
+[[cases]]
+name = "io-annotation-1"
+comparison = "full"
+files = { "case.py" = "import io,typing\ndef fn(f: typing.IO):\n    for x in rows:\n        f.write(x)\n" }
+expected = [{ "rule" = "FURB122", "file" = "case.py", "start" = 43, "end" = 76 }]
+
+[[cases]]
+name = "io-annotation-2"
+comparison = "full"
+files = { "case.py" = "import io,typing\ndef fn(f: typing.TextIO):\n    for x in rows:\n        f.write(x)\n" }
+expected = [{ "rule" = "FURB122", "file" = "case.py", "start" = 47, "end" = 80 }]
+
+[[cases]]
+name = "io-annotation-3"
+comparison = "full"
+files = { "case.py" = "import io,typing\ndef fn(f: typing.IO[str]):\n    for x in rows:\n        f.write(x)\n" }
+expected = [{ "rule" = "FURB122", "file" = "case.py", "start" = 48, "end" = 81 }]
+reference-discrepancy = { "expected" = [], "identity" = { "tool" = "ruff", "version" = "0.16.5", "observed-executable-sha256" = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8", "profile-sha256" = "61027584a03dfbd5df22a51dd7a87d19489b31399c14e3e7edad9238af6409dd", "settings-sha256" = "2f123e871ec765d8e35bd46b097fd33c70d2620ce64c4d2f2d05027a63bd5262", "source-sha256" = "ea9dc31ab96c843e849b9f5c20c38a3b33bb99cd839c144681d8fa3f8548bf3d", "reference-output-sha256" = "fe95995b682b3d5703c003a04cf4b5f5b0c3f89c764485cc18476c5c1cf2bd7a", "intended-output-sha256" = "475855770e9906950755822f0f02146805887f6dc7e47485d2dd6c8fbb247320" }, "evidence" = [{ "path" = "evidence/qualified-guard-cpython310.json", "sha256" = "21c6510b33fa30c5c256c61dbd9c58ec5d28c44478e8d231c1d5fc6679b1af26", "kind" = "independent-language-run", "language-version" = "CPython3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Exact authored source hashes, target-version execution, and framed IO/guard controls are recorded. This supports the stated conservative diagnostic policy, not universal rewrite equivalence." }], "reason" = "The declared generic typing.IO[str] has typing.IO as its origin and exposes writelines; the exact framed StringIO consumer writes the same elements. Under the declared IO interface diagnostic policy this is a write-loop idiom, while the pinned Ruff result omits it. No universal rewrite equivalence is claimed." }
+
+
+[[cases]]
+name = "io-annotation-4"
+comparison = "full"
+files = { "case.py" = "import io,typing\ndef fn(f: Unknown):\n    for x in rows:\n        f.write(x)\n" }
+expected = []
+
+[[cases]]
+name = "direct-receiver"
+comparison = "full"
+files = { "case.py" = "for x in rows:\n    open(\"x\").write(x)\n" }
+expected = []
+
+[[cases]]
+name = "async-loop"
+comparison = "full"
+files = { "case.py" = "async def fn():\n    f=open(\"x\")\n    async for x in rows:\n        f.write(x)\n" }
+expected = []
+
+[[cases]]
+name = "same-names-distinct-scopes"
+comparison = "full"
+files = { "case.py" = "def a():\n    f=open(\"a\")\n    for x in rows:\n        f.write(x)\ndef b():\n    f=open(\"b\")\n    for x in rows:\n        f.write(x)\n    print(x)\n" }
+expected = [{ "rule" = "FURB122", "file" = "case.py", "start" = 29, "end" = 62 }]
+
+[[cases]]
+name = "nested-scope-prebinding"
+comparison = "full"
+files = { "case.py" = "x=0\ndef a():\n    f=open(\"a\")\n    for x in rows:\n        f.write(x)\n" }
+expected = [{ "rule" = "FURB122", "file" = "case.py", "start" = 33, "end" = 66 }]
+reference-discrepancy = { "expected" = [], "identity" = { "tool" = "ruff", "version" = "0.16.5", "observed-executable-sha256" = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8", "profile-sha256" = "61027584a03dfbd5df22a51dd7a87d19489b31399c14e3e7edad9238af6409dd", "settings-sha256" = "2f123e871ec765d8e35bd46b097fd33c70d2620ce64c4d2f2d05027a63bd5262", "source-sha256" = "a2f2f166465294b02b42c93bdcbec65efe5cca0cab961082db00d8cfe0f0b467", "reference-output-sha256" = "fe95995b682b3d5703c003a04cf4b5f5b0c3f89c764485cc18476c5c1cf2bd7a", "intended-output-sha256" = "0e48e552e3b28beaacdae18e3b3f4fe150a40830233a0bf046b4e5423fa12a53" }, "evidence" = [{ "path" = "evidence/target-namespace-cpython310.json", "sha256" = "84ba342119ca6fd8622471fe9e9dc11bd8d44cd2163c9833d87516063b814730", "kind" = "independent-language-run", "language-version" = "CPython3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Exact target3.10 code-object evidence, corroborated3.13. Entire fixture source compiled with dont_inherit=True; no body execution, substitution, or transformed-return probe. Local x is stored before its sole body read; the module binding is separate." }, { "path" = "evidence/target-namespace-cpython313.json", "sha256" = "6a614bc107f104bb26c9d84cb9ead7977f1f1cfa613cfb5f0ac56e2d21ce94a9", "kind" = "independent-language-run", "language-version" = "CPython3.13.5", "target-configuration" = "python-target=3.10", "version-rationale" = "Exact target3.10 code-object evidence, corroborated3.13. Entire fixture source compiled with dont_inherit=True; no body execution, substitution, or transformed-return probe. Local x is stored before its sole body read; the module binding is separate." }, { "path" = "evidence/target-namespace-probe.py", "sha256" = "e7a9136e1d85c4b682a8af2990987c914119687d949aa8a50d1f546047a1e4e8", "kind" = "independent-language-run", "language-version" = "CPython3.10.19 and3.13.5", "target-configuration" = "python-target=3.10", "version-rationale" = "Complete exact sources and original compile-only evidence script; includes negative earlier-unbound-local-read control." }, { "path" = "evidence/target-namespace-inputs.json", "sha256" = "cfe49ee44e9b7121986b3b59075a54ed3f28777607345b6e06715047764d6aaa", "kind" = "independent-language-run", "language-version" = "CPython3.10.19 and3.13.5", "target-configuration" = "python-target=3.10", "version-rationale" = "Complete exact sources and original compile-only evidence script; includes negative earlier-unbound-local-read control." }], "reason" = "The rule diagnoses the write-loop idiom when its loop target has no prior initialized binding in the same lexical storage namespace and no outside lexical read. A module x is not a previous value of the function-local target x. Exact compiler-local evidence supports this namespace distinction and the earlier-read negative guard. This diagnostic policy does not assert universal rewrite equivalence, reflection/frame invariance, or permission to treat unknown alternatives as absent." }
+
+[[cases]]
+name = "nonlocal-target"
+comparison = "full"
+files = { "case.py" = "def outer():\n    x=0\n    def inner():\n        nonlocal x\n        f=open(\"x\")\n        for x in rows:\n            f.write(x)\n" }
+expected = []
+
+[[cases]]
+name = "global-target"
+comparison = "full"
+files = { "case.py" = "x=0\ndef fn():\n    global x\n    f=open(\"x\")\n    for x in rows:\n        f.write(x)\n" }
+expected = []
+
+[[cases]]
+name = "unicode-multiline"
+comparison = "full"
+files = { "case.py" = "f=open(\"α\")\nfor λ_ in (\n    \"a\",\n    \"b\"\n):\n    f.write(λ_)\n" }
+expected = [{ "rule" = "FURB122", "file" = "case.py", "start" = 13, "end" = 62 }]
+
+[[cases]]
+name = "two-file-independent"
+comparison = "full"
+files = { "a.py" = "f=open(\"x\")\nfor x in rows:\n    f.write(x)\n", "b.py" = "f=open(\"x\")\nx=1\nfor x in rows:\n    f.write(x)\n" }
+expected = [{ "rule" = "FURB122", "file" = "a.py", "start" = 12, "end" = 41 }]
+
+[[cases]]
+name = "runtime-builtin-0-0"
+comparison = "full"
+files = { "case.py" = "f=open(\"x\")\nfor list in rows:\n    f.write(list)\n" }
+expected = []
+
+[[cases]]
+name = "runtime-builtin-0-1"
+comparison = "full"
+files = { "case.py" = "def fn():\n    f=open(\"x\")\n    for list in rows:\n        f.write(list)\n" }
+expected = []
+
+[[cases]]
+name = "runtime-builtin-1-0"
+comparison = "full"
+files = { "case.py" = "f=open(\"x\")\nfor print in rows:\n    f.write(print)\n" }
+expected = []
+
+[[cases]]
+name = "runtime-builtin-1-1"
+comparison = "full"
+files = { "case.py" = "def fn():\n    f=open(\"x\")\n    for print in rows:\n        f.write(print)\n" }
+expected = []
+
+[[cases]]
+name = "runtime-builtin-2-0"
+comparison = "full"
+files = { "case.py" = "f=open(\"x\")\nfor Exception in rows:\n    f.write(Exception)\n" }
+expected = []
+
+[[cases]]
+name = "runtime-builtin-2-1"
+comparison = "full"
+files = { "case.py" = "def fn():\n    f=open(\"x\")\n    for Exception in rows:\n        f.write(Exception)\n" }
+expected = []
+
+[[cases]]
+name = "runtime-builtin-3-0"
+comparison = "full"
+files = { "case.py" = "f=open(\"x\")\nfor WindowsError in rows:\n    f.write(WindowsError)\n" }
+expected = []
+
+[[cases]]
+name = "runtime-builtin-3-1"
+comparison = "full"
+files = { "case.py" = "def fn():\n    f=open(\"x\")\n    for WindowsError in rows:\n        f.write(WindowsError)\n" }
+expected = []
+
+[[cases]]
+name = "runtime-builtin-4-0"
+comparison = "full"
+files = { "case.py" = "f=open(\"x\")\nfor ExceptionGroup in rows:\n    f.write(ExceptionGroup)\n" }
+expected = [{ "rule" = "FURB122", "file" = "case.py", "start" = 12, "end" = 67 }]
+
+[[cases]]
+name = "runtime-builtin-4-1"
+comparison = "full"
+files = { "case.py" = "def fn():\n    f=open(\"x\")\n    for ExceptionGroup in rows:\n        f.write(ExceptionGroup)\n" }
+expected = [{ "rule" = "FURB122", "file" = "case.py", "start" = 30, "end" = 89 }]
+
+[[cases]]
+name = "runtime-builtin-5-0"
+comparison = "full"
+files = { "case.py" = "f=open(\"x\")\nfor __name__ in rows:\n    f.write(__name__)\n" }
+expected = []
+
+[[cases]]
+name = "runtime-builtin-5-1"
+comparison = "full"
+files = { "case.py" = "def fn():\n    f=open(\"x\")\n    for __name__ in rows:\n        f.write(__name__)\n" }
+expected = []
+
+[[cases]]
+name = "runtime-builtin-6-0"
+comparison = "full"
+files = { "case.py" = "f=open(\"x\")\nfor __file__ in rows:\n    f.write(__file__)\n" }
+expected = []
+
+[[cases]]
+name = "runtime-builtin-6-1"
+comparison = "full"
+files = { "case.py" = "def fn():\n    f=open(\"x\")\n    for __file__ in rows:\n        f.write(__file__)\n" }
+expected = []
+
+[[cases]]
+name = "runtime-builtin-7-0"
+comparison = "full"
+files = { "case.py" = "f=open(\"x\")\nfor __module__ in rows:\n    f.write(__module__)\n" }
+expected = [{ "rule" = "FURB122", "file" = "case.py", "start" = 12, "end" = 59 }]
+
+[[cases]]
+name = "runtime-builtin-7-1"
+comparison = "full"
+files = { "case.py" = "def fn():\n    f=open(\"x\")\n    for __module__ in rows:\n        f.write(__module__)\n" }
+expected = [{ "rule" = "FURB122", "file" = "case.py", "start" = 30, "end" = 81 }]
+
+[[cases]]
+name = "runtime-builtin-8-0"
+comparison = "full"
+files = { "case.py" = "f=open(\"x\")\nfor __qualname__ in rows:\n    f.write(__qualname__)\n" }
+expected = [{ "rule" = "FURB122", "file" = "case.py", "start" = 12, "end" = 63 }]
+
+[[cases]]
+name = "runtime-builtin-8-1"
+comparison = "full"
+files = { "case.py" = "def fn():\n    f=open(\"x\")\n    for __qualname__ in rows:\n        f.write(__qualname__)\n" }
+expected = [{ "rule" = "FURB122", "file" = "case.py", "start" = 30, "end" = 85 }]
+
+[[cases]]
+name = "runtime-builtin-9-0"
+comparison = "full"
+files = { "case.py" = "f=open(\"x\")\nfor __annotate__ in rows:\n    f.write(__annotate__)\n" }
+expected = [{ "rule" = "FURB122", "file" = "case.py", "start" = 12, "end" = 63 }]
+
+[[cases]]
+name = "runtime-builtin-9-1"
+comparison = "full"
+files = { "case.py" = "def fn():\n    f=open(\"x\")\n    for __annotate__ in rows:\n        f.write(__annotate__)\n" }
+expected = [{ "rule" = "FURB122", "file" = "case.py", "start" = 30, "end" = 85 }]
+
+[[cases]]
+name = "runtime-shadow-history-0"
+comparison = "full"
+files = { "case.py" = "f=open(\"x\")\nx=0\ndel x\nfor x in rows:\n    f.write(x)\n" }
+expected = []
+
+[[cases]]
+name = "runtime-shadow-history-1"
+comparison = "full"
+files = { "case.py" = "f=open(\"x\")\ntry: pass\nexcept Exception as x: pass\nfor x in rows:\n    f.write(x)\n" }
+expected = []
+
+[[cases]]
+name = "runtime-shadow-history-2"
+comparison = "full"
+files = { "case.py" = "f=open(\"x\")\nx: int\nfor x in rows:\n    f.write(x)\n" }
+expected = [{ "rule" = "FURB122", "file" = "case.py", "start" = 19, "end" = 48 }]
+
+[[cases]]
+name = "runtime-shadow-history-3"
+comparison = "full"
+files = { "case.py" = "f=open(\"x\")\ndel x\nfor x in rows:\n    f.write(x)\n" }
+expected = [{ "rule" = "FURB122", "file" = "case.py", "start" = 18, "end" = 47 }]
+
+[[cases]]
+name = "runtime-shadow-history-4"
+comparison = "full"
+files = { "case.py" = "f=open(\"x\")\nif TYPE_CHECKING:\n    x=0\nfor x in rows:\n    f.write(x)\n" }
+expected = []
+reference-discrepancy = { "expected" = [{ "end" = 67, "file" = "case.py", "rule" = "FURB122", "start" = 38 }], "identity" = { "tool" = "ruff", "version" = "0.16.5", "observed-executable-sha256" = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8", "profile-sha256" = "61027584a03dfbd5df22a51dd7a87d19489b31399c14e3e7edad9238af6409dd", "settings-sha256" = "2f123e871ec765d8e35bd46b097fd33c70d2620ce64c4d2f2d05027a63bd5262", "source-sha256" = "d072cbc4c5f89e589bee5d89dd2e4aa13a9973fa8a18f077b0d8caf8a76775af", "reference-output-sha256" = "b6b0f687987c7e07f93b8252481437ca7b0792c0cd87c4bab3dcca8b626f3164", "intended-output-sha256" = "fe95995b682b3d5703c003a04cf4b5f5b0c3f89c764485cc18476c5c1cf2bd7a" }, "evidence" = [{ "path" = "evidence/qualified-guard-cpython310.json", "sha256" = "21c6510b33fa30c5c256c61dbd9c58ec5d28c44478e8d231c1d5fc6679b1af26", "kind" = "independent-language-run", "language-version" = "CPython3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Exact authored source hashes, target-version execution, and framed IO/guard controls are recorded. This supports the stated conservative diagnostic policy, not universal rewrite equivalence." }], "reason" = "The exact source has no import or binding for TYPE_CHECKING; CPython raises NameError at the guard. The diagnostic policy only discounts a resolved unshadowed typing.TYPE_CHECKING sentinel, so this unresolved guard is not proof that its assignment is unreachable. Ruff reports a finding from the spelling alone." }
+
+
+[[cases]]
+name = "runtime-shadow-history-5"
+comparison = "full"
+files = { "case.py" = "f=open(\"x\")\nif unknown.TYPE_CHECKING:\n    x=0\nfor x in rows:\n    f.write(x)\n" }
+expected = []
+reference-discrepancy = { "expected" = [{ "end" = 75, "file" = "case.py", "rule" = "FURB122", "start" = 46 }], "identity" = { "tool" = "ruff", "version" = "0.16.5", "observed-executable-sha256" = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8", "profile-sha256" = "61027584a03dfbd5df22a51dd7a87d19489b31399c14e3e7edad9238af6409dd", "settings-sha256" = "2f123e871ec765d8e35bd46b097fd33c70d2620ce64c4d2f2d05027a63bd5262", "source-sha256" = "b489f6440d4b0974d7028d4286c51f9813a7dfd98b445dba3f3352d5d49c29ce", "reference-output-sha256" = "099368fff266b61b1da352d12f02f604b52db2ec6311e5109a8a9e98f1287de9", "intended-output-sha256" = "fe95995b682b3d5703c003a04cf4b5f5b0c3f89c764485cc18476c5c1cf2bd7a" }, "evidence" = [{ "path" = "evidence/qualified-guard-cpython310.json", "sha256" = "21c6510b33fa30c5c256c61dbd9c58ec5d28c44478e8d231c1d5fc6679b1af26", "kind" = "independent-language-run", "language-version" = "CPython3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Exact authored source hashes, target-version execution, and framed IO/guard controls are recorded. This supports the stated conservative diagnostic policy, not universal rewrite equivalence." }], "reason" = "The exact source uses an arbitrary unknown.TYPE_CHECKING attribute. CPython controls show that it can be true or false; a true branch assigns the target before the loop. Treating it as typing.TYPE_CHECKING would hide a possible prior value, so the candidate declines despite the pinned Ruff finding." }
+
+
+[[cases]]
+name = "runtime-shadow-history-6"
+comparison = "full"
+files = { "case.py" = "f=open(\"x\")\nif TYPE_CHECKING:\n    x=0\nelse:\n    pass\nfor x in rows:\n    f.write(x)\n" }
+expected = []
+reference-discrepancy = { "expected" = [{ "end" = 82, "file" = "case.py", "rule" = "FURB122", "start" = 53 }], "identity" = { "tool" = "ruff", "version" = "0.16.5", "observed-executable-sha256" = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8", "profile-sha256" = "61027584a03dfbd5df22a51dd7a87d19489b31399c14e3e7edad9238af6409dd", "settings-sha256" = "2f123e871ec765d8e35bd46b097fd33c70d2620ce64c4d2f2d05027a63bd5262", "source-sha256" = "c9af99a0b7e0e117414a3b6d980b6893b7434bf2263ece0e6286c8747fb1bd29", "reference-output-sha256" = "959691297ba5b2319758ea38157d14e009603119ecfe8c2178854d64c179d11a", "intended-output-sha256" = "fe95995b682b3d5703c003a04cf4b5f5b0c3f89c764485cc18476c5c1cf2bd7a" }, "evidence" = [{ "path" = "evidence/qualified-guard-cpython310.json", "sha256" = "21c6510b33fa30c5c256c61dbd9c58ec5d28c44478e8d231c1d5fc6679b1af26", "kind" = "independent-language-run", "language-version" = "CPython3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Exact authored source hashes, target-version execution, and framed IO/guard controls are recorded. This supports the stated conservative diagnostic policy, not universal rewrite equivalence." }], "reason" = "The exact source has no import or binding for TYPE_CHECKING; CPython raises NameError before either branch. The diagnostic policy requires a resolved unshadowed typing sentinel before discounting the branch assignment. Ruff reports a finding from the spelling alone." }
+
+
+[[cases]]
+name = "runtime-shadow-history-7"
+comparison = "full"
+files = { "case.py" = "f=open(\"x\")\nif not TYPE_CHECKING:\n    x=0\nfor x in rows:\n    f.write(x)\n" }
+expected = []
+
+[[cases]]
+name = "runtime-shadow-history-8"
+comparison = "full"
+files = { "case.py" = "f=open(\"x\")\nif TYPE_CHECKING and condition:\n    x=0\nfor x in rows:\n    f.write(x)\n" }
+expected = []
+
+[[cases]]
+name = "outer-runtime-history-0"
+comparison = "full"
+files = { "case.py" = "x=0\ndel x\ndef fn():\n    f=open(\"x\")\n    for x in rows:\n        f.write(x)\n" }
+expected = [{ "rule" = "FURB122", "file" = "case.py", "start" = 40, "end" = 73 }]
+
+[[cases]]
+name = "outer-runtime-history-1"
+comparison = "full"
+files = { "case.py" = "x: int\ndef fn():\n    f=open(\"x\")\n    for x in rows:\n        f.write(x)\n" }
+expected = [{ "rule" = "FURB122", "file" = "case.py", "start" = 37, "end" = 70 }]
+
+[[cases]]
+name = "outer-runtime-history-2"
+comparison = "full"
+files = { "case.py" = "if TYPE_CHECKING:\n    x=0\ndef fn():\n    f=open(\"x\")\n    for x in rows:\n        f.write(x)\n" }
+expected = [{ "rule" = "FURB122", "file" = "case.py", "start" = 56, "end" = 89 }]
+
+[[cases]]
+name = "outer-runtime-history-3"
+comparison = "full"
+files = { "case.py" = "list=unknown\ndel list\ndef fn():\n    f=open(\"x\")\n    for list in rows:\n        f.write(list)\n" }
+expected = []
+reference-discrepancy = { "expected" = [{ "end" = 91, "file" = "case.py", "rule" = "FURB122", "start" = 52 }], "identity" = { "tool" = "ruff", "version" = "0.16.5", "observed-executable-sha256" = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8", "profile-sha256" = "61027584a03dfbd5df22a51dd7a87d19489b31399c14e3e7edad9238af6409dd", "settings-sha256" = "2f123e871ec765d8e35bd46b097fd33c70d2620ce64c4d2f2d05027a63bd5262", "source-sha256" = "e65f9d307359369c87a6c3ca57bcec5688adb8089b7ffaea9500bdbc59082772", "reference-output-sha256" = "3bac74065180055cf6f05585d253d6407b9e9a405f6af93859c8abfb57642ec2", "intended-output-sha256" = "fe95995b682b3d5703c003a04cf4b5f5b0c3f89c764485cc18476c5c1cf2bd7a" }, "evidence" = [{ "path" = "evidence/qualified-guard-cpython310.json", "sha256" = "21c6510b33fa30c5c256c61dbd9c58ec5d28c44478e8d231c1d5fc6679b1af26", "kind" = "independent-language-run", "language-version" = "CPython3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Exact authored source hashes, target-version execution, and framed IO/guard controls are recorded. This supports the stated conservative diagnostic policy, not universal rewrite equivalence." }], "reason" = "Deleting module list restores the builtin list, and the function loop target is function-local. The conservative implicit-name target policy declines this loop exactly as it declines the otherwise identical function-local builtin list control. The pinned Ruff result reports it." }
+
+
+[[cases]]
+name = "independent-generator-call-is-not-io"
+comparison = "full"
+files = { "case.py" = "import io\ndef factory()->io.TextIOBase:\n    yield \"line\\n\"\nstream=factory()\nfor item in rows:\n    stream.write(item)\n" }
+expected = []
+
+[[cases]]
+name = "independent-yield-from-call-is-not-io"
+comparison = "full"
+files = { "case.py" = "import io\ndef factory()->io.TextIOBase:\n    yield from [\"line\\n\"]\nstream=factory()\nfor item in rows:\n    stream.write(item)\n" }
+expected = []
+
+[[cases]]
+name = "independent-nested-generator-does-not-change-factory-result"
+comparison = "full"
+files = { "case.py" = "import io\ndef factory()->io.TextIOBase:\n    def nested():\n        yield \"inner\"\n    return io.StringIO(\"line\\n\")\nstream=factory()\nfor item in rows:\n    stream.write(item)\n" }
+expected = [{ "rule" = "FURB122", "file" = "case.py", "start" = 130, "end" = 170 }]
+reference-discrepancy = { "expected" = [], "identity" = { "tool" = "ruff", "version" = "0.16.5", "observed-executable-sha256" = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8", "profile-sha256" = "61027584a03dfbd5df22a51dd7a87d19489b31399c14e3e7edad9238af6409dd", "settings-sha256" = "2f123e871ec765d8e35bd46b097fd33c70d2620ce64c4d2f2d05027a63bd5262", "source-sha256" = "9cbed16da8b789db19cd689b1ec516ef53ad1498ef38531e7ac7e5c635a1ca7a", "reference-output-sha256" = "fe95995b682b3d5703c003a04cf4b5f5b0c3f89c764485cc18476c5c1cf2bd7a", "intended-output-sha256" = "295f52b5c4e49e7db438ba44519ef7733663f62740c80815311debab9e9633ab" }, "evidence" = [{ "path" = "evidence/independent-io-cpython310.json", "sha256" = "7de13ae2b6d61c393fb1e73a75952d6fa3259c016b56ffe70bc6bb3a63940e15", "kind" = "independent-language-run", "language-version" = "CPython3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "The exact target-version source is executed with bounded rows and IO environment; receiver type or prior guard binding is observed. No universal rewrite equivalence is claimed." }], "reason" = "The exact CPython 3.10 source returns an io.StringIO from factory() and writes through it. A yield inside a nested function does not make the outer factory a generator. The candidate reports the IO write-loop idiom omitted by the pinned reference." }
+
+
+[[cases]]
+name = "independent-nested-generator-lambda-does-not-change-factory-result"
+comparison = "full"
+files = { "case.py" = "import io\ndef factory()->io.TextIOBase:\n    nested = lambda: (yield \"inner\")\n    return io.StringIO(\"line\\n\")\nstream=factory()\nfor item in rows:\n    stream.write(item)\n" }
+expected = [{ "rule" = "FURB122", "file" = "case.py", "start" = 127, "end" = 167 }]
+reference-discrepancy = { "expected" = [], "identity" = { "tool" = "ruff", "version" = "0.16.5", "observed-executable-sha256" = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8", "profile-sha256" = "61027584a03dfbd5df22a51dd7a87d19489b31399c14e3e7edad9238af6409dd", "settings-sha256" = "2f123e871ec765d8e35bd46b097fd33c70d2620ce64c4d2f2d05027a63bd5262", "source-sha256" = "85cbcc4414e3f788e6b9296f8122c8b2d34fed8e0590273129dfaac7af2e3909", "reference-output-sha256" = "fe95995b682b3d5703c003a04cf4b5f5b0c3f89c764485cc18476c5c1cf2bd7a", "intended-output-sha256" = "e5667d88cab13796d9d11d315187752a5b1df7c5b92f6d2bcbce322fa094b0d4" }, "evidence" = [{ "path" = "evidence/independent-io-cpython310.json", "sha256" = "7de13ae2b6d61c393fb1e73a75952d6fa3259c016b56ffe70bc6bb3a63940e15", "kind" = "independent-language-run", "language-version" = "CPython3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "The exact target-version source is executed with bounded rows and IO environment; receiver type or prior guard binding is observed. No universal rewrite equivalence is claimed." }], "reason" = "The exact CPython 3.10 source returns an io.StringIO from factory() and writes through it. A yield inside a nested lambda does not make the outer factory a generator. The candidate reports the IO write-loop idiom omitted by the pinned reference." }
+
+
+[[cases]]
+name = "independent-yield-in-nested-function-default-belongs-to-outer"
+comparison = "full"
+files = { "case.py" = "import io\ndef factory()->io.TextIOBase:\n    def nested(value=(yield \"inner\")):\n        pass\n    return io.StringIO(\"line\\n\")\nstream=factory()\nfor item in rows:\n    stream.write(item)\n" }
+expected = []
+
+[[cases]]
+name = "independent-yield-in-class-header-belongs-to-outer"
+comparison = "full"
+files = { "case.py" = "import io\ndef factory()->io.TextIOBase:\n    class Nested((yield io.IOBase)):\n        pass\n    return io.StringIO(\"line\\n\")\nstream=factory()\nfor item in rows:\n    stream.write(item)\n" }
+expected = []
+
+[[cases]]
+name = "independent-target-namespace-outer-binding-is-not-function-local-value"
+comparison = "full"
+files = { "case.py" = "x=7\ndef fn():\n    f=open(\"x\")\n    for x in rows:\n        f.write(x)\n" }
+expected = [{ "rule" = "FURB122", "file" = "case.py", "start" = 34, "end" = 67 }]
+reference-discrepancy = { "expected" = [], "identity" = { "tool" = "ruff", "version" = "0.16.5", "observed-executable-sha256" = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8", "profile-sha256" = "61027584a03dfbd5df22a51dd7a87d19489b31399c14e3e7edad9238af6409dd", "settings-sha256" = "2f123e871ec765d8e35bd46b097fd33c70d2620ce64c4d2f2d05027a63bd5262", "source-sha256" = "0dab00ad461d9fb4a2f32256132e25c945080f9951cfcba9e69c1445f2b6f210", "reference-output-sha256" = "fe95995b682b3d5703c003a04cf4b5f5b0c3f89c764485cc18476c5c1cf2bd7a", "intended-output-sha256" = "002d21ffc9d29b877693f30fdcbee5650d40fb97b1802add0b3dbf39ac337433" }, "evidence" = [{ "path" = "evidence/target-namespace-cpython310.json", "sha256" = "84ba342119ca6fd8622471fe9e9dc11bd8d44cd2163c9833d87516063b814730", "kind" = "independent-language-run", "language-version" = "CPython3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Exact target3.10 code-object evidence, corroborated3.13. Entire fixture source compiled with dont_inherit=True; no body execution, substitution, or transformed-return probe. Local x is stored before its sole body read; the module binding is separate." }, { "path" = "evidence/target-namespace-cpython313.json", "sha256" = "6a614bc107f104bb26c9d84cb9ead7977f1f1cfa613cfb5f0ac56e2d21ce94a9", "kind" = "independent-language-run", "language-version" = "CPython3.13.5", "target-configuration" = "python-target=3.10", "version-rationale" = "Exact target3.10 code-object evidence, corroborated3.13. Entire fixture source compiled with dont_inherit=True; no body execution, substitution, or transformed-return probe. Local x is stored before its sole body read; the module binding is separate." }, { "path" = "evidence/target-namespace-probe.py", "sha256" = "e7a9136e1d85c4b682a8af2990987c914119687d949aa8a50d1f546047a1e4e8", "kind" = "independent-language-run", "language-version" = "CPython3.10.19 and3.13.5", "target-configuration" = "python-target=3.10", "version-rationale" = "Complete exact sources and original compile-only evidence script; includes negative earlier-unbound-local-read control." }, { "path" = "evidence/target-namespace-inputs.json", "sha256" = "cfe49ee44e9b7121986b3b59075a54ed3f28777607345b6e06715047764d6aaa", "kind" = "independent-language-run", "language-version" = "CPython3.10.19 and3.13.5", "target-configuration" = "python-target=3.10", "version-rationale" = "Complete exact sources and original compile-only evidence script; includes negative earlier-unbound-local-read control." }], "reason" = "The rule diagnoses the write-loop idiom when its loop target has no prior initialized binding in the same lexical storage namespace and no outside lexical read. A module x is not a previous value of the function-local target x. Exact compiler-local evidence supports this namespace distinction and the earlier-read negative guard. This diagnostic policy does not assert universal rewrite equivalence, reflection/frame invariance, or permission to treat unknown alternatives as absent." }
+
+[[cases]]
+name = "independent-target-namespace-earlier-local-read-must-remain-unbound"
+comparison = "full"
+files = { "case.py" = "x=7\ndef fn():\n    print(x)\n    f=open(\"x\")\n    for x in rows:\n        f.write(x)\n" }
+expected = []
+
+[[cases]]
+name = "independent-target-namespace-later-target-read-prevents-rewrite"
+comparison = "full"
+files = { "case.py" = "x=7\ndef fn():\n    f=open(\"x\")\n    for x in rows:\n        f.write(x)\n    return x\n" }
+expected = []
+
+[[cases]]
+name = "independent-target-namespace-explicit-global-target-preserves-existing-binding"
+comparison = "full"
+files = { "case.py" = "x=7\ndef fn():\n    global x\n    f=open(\"x\")\n    for x in rows:\n        f.write(x)\n" }
+expected = []
+
+[[cases]]
+name = "independent-target-namespace-explicit-nonlocal-target-preserves-existing-binding"
+comparison = "full"
+files = { "case.py" = "def outer():\n    x=7\n    def fn():\n        nonlocal x\n        f=open(\"x\")\n        for x in rows:\n            f.write(x)\n" }
+expected = []
+
+[[cases]]
+name = "imported-type-checking-false"
+comparison = "full"
+files = { "case.py" = "from typing import TYPE_CHECKING\nf=open(\"x\")\nif TYPE_CHECKING:\n    x=0\nfor x in rows:\n    f.write(x)\n" }
+expected = [{ "rule" = "FURB122", "file" = "case.py", "start" = 71, "end" = 100 }]
+
+[[cases]]
+name = "imported-typing-attribute-false"
+comparison = "full"
+files = { "case.py" = "import typing\nf=open(\"x\")\nif typing.TYPE_CHECKING:\n    x=0\nfor x in rows:\n    f.write(x)\n" }
+expected = [{ "rule" = "FURB122", "file" = "case.py", "start" = 59, "end" = 88 }]
+
+[[cases]]
+name = "rebound-type-checking-true"
+comparison = "full"
+files = { "case.py" = "from typing import TYPE_CHECKING\nTYPE_CHECKING=True\nf=open(\"x\")\nif TYPE_CHECKING:\n    x=0\nfor x in rows:\n    f.write(x)\n" }
+expected = []
+reference-discrepancy = { "expected" = [{ "end" = 119, "file" = "case.py", "rule" = "FURB122", "start" = 90 }], "identity" = { "tool" = "ruff", "version" = "0.16.5", "observed-executable-sha256" = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8", "profile-sha256" = "61027584a03dfbd5df22a51dd7a87d19489b31399c14e3e7edad9238af6409dd", "settings-sha256" = "2f123e871ec765d8e35bd46b097fd33c70d2620ce64c4d2f2d05027a63bd5262", "source-sha256" = "88b1f1c43a78d75cd48b97693b8cb6be622fdfa5b8fe06c0310933eb5c1ddaf0", "reference-output-sha256" = "6048246772f4003de84f3402a8bab5438727798bb7a597de53c4f80ab6a24ac2", "intended-output-sha256" = "fe95995b682b3d5703c003a04cf4b5f5b0c3f89c764485cc18476c5c1cf2bd7a" }, "evidence" = [{ "path" = "evidence/qualified-guard-cpython310.json", "sha256" = "21c6510b33fa30c5c256c61dbd9c58ec5d28c44478e8d231c1d5fc6679b1af26", "kind" = "independent-language-run", "language-version" = "CPython3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "The exact target-version source is executed with bounded rows and IO environment; receiver type or prior guard binding is observed. No universal rewrite equivalence is claimed." }], "reason" = "The exact source rebinds the imported TYPE_CHECKING name to True before the guard; CPython 3.10 empty-row control retains x=0, proving the branch can bind the loop target. The candidate declines the pinned reference finding." }
+
+
+[[cases]]
+name = "rebound-typing-attribute-true"
+comparison = "full"
+files = { "case.py" = "import typing\ntyping.TYPE_CHECKING=True\nf=open(\"x\")\nif typing.TYPE_CHECKING:\n    x=0\nfor x in rows:\n    f.write(x)\n" }
+expected = []
+reference-discrepancy = { "expected" = [{ "end" = 114, "file" = "case.py", "rule" = "FURB122", "start" = 85 }], "identity" = { "tool" = "ruff", "version" = "0.16.5", "observed-executable-sha256" = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8", "profile-sha256" = "61027584a03dfbd5df22a51dd7a87d19489b31399c14e3e7edad9238af6409dd", "settings-sha256" = "2f123e871ec765d8e35bd46b097fd33c70d2620ce64c4d2f2d05027a63bd5262", "source-sha256" = "646dd8c8aa4c808241dc555407b500626b323bc7d46edc57d9106dc39da7632a", "reference-output-sha256" = "c65d8d97c1d938ed40fc1a976333d7784e06d7d4b8ca12c84b820f046adf4182", "intended-output-sha256" = "fe95995b682b3d5703c003a04cf4b5f5b0c3f89c764485cc18476c5c1cf2bd7a" }, "evidence" = [{ "path" = "evidence/qualified-guard-cpython310.json", "sha256" = "21c6510b33fa30c5c256c61dbd9c58ec5d28c44478e8d231c1d5fc6679b1af26", "kind" = "independent-language-run", "language-version" = "CPython3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "The exact target-version source is executed with bounded rows and IO environment; receiver type or prior guard binding is observed. No universal rewrite equivalence is claimed." }], "reason" = "The exact source rebinds typing.TYPE_CHECKING to True before the guard; CPython 3.10 empty-row control retains x=0, proving the branch can bind the loop target. The candidate declines the pinned reference finding." }
+

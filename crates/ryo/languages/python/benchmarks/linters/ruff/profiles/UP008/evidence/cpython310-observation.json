@@ -1,0 +1,60 @@
+{
+  "cases": {
+    "module-class-rebound-after-definition": {
+      "original_is_current_class": false,
+      "original_method_after_rebinding": {
+        "message": "super(type, obj): obj must be an instance or subtype of type",
+        "outcome": "exception",
+        "type": "TypeError"
+      },
+      "source_sha256": "ea87268a250f5e5658e84e45a597261e64c68ce0503d272e4d73be4221bf4b48"
+    },
+    "nested-class-attribute-rebound-after-definition": {
+      "after_rebinding": {
+        "message": "super(type, obj): obj must be an instance or subtype of type",
+        "outcome": "exception",
+        "type": "TypeError"
+      },
+      "before_rebinding": {
+        "outcome": "return",
+        "value": null
+      },
+      "source_sha256": "f62f2a756b30e047d54d8e779e77eb61fdef8c4675fbe40956f99967169e0ca2",
+      "zero_argument_super_after_rebinding": {
+        "outcome": "return",
+        "value": null
+      }
+    },
+    "nested-parent-attribute-rebound-after-definition": {
+      "after_rebinding": {
+        "message": "type object 'Other' has no attribute 'C'",
+        "outcome": "exception",
+        "type": "AttributeError"
+      },
+      "before_rebinding": {
+        "outcome": "return",
+        "value": null
+      },
+      "source_sha256": "8ce4a843cc23ae2c03a6831c9d7fc7a5f621f79b83c78a20685708e0fa641911",
+      "zero_argument_super_after_rebinding": {
+        "outcome": "return",
+        "value": null
+      }
+    },
+    "positional-only-self": {
+      "explicit_super_result": {
+        "outcome": "return",
+        "value": "base"
+      },
+      "first_positional_only_parameter": "self",
+      "source_sha256": "bc69d4089780c232029e07df0c917de03dc19f4c84c7987c0bfff5ef82c99950",
+      "zero_argument_super_result": {
+        "outcome": "return",
+        "value": "base"
+      }
+    }
+  },
+  "implementation": "CPython",
+  "schema": "up008-cpython310-controls/v1",
+  "version": "3.10.19"
+}

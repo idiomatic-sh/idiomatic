@@ -260,3 +260,139 @@ let a = compose(rows=rows); emit a subject file key(diagnostic);"#;
             .contains("requires per-file")
     );
 }
+
+#[test]
+fn source_matches_types_arguments_pattern_and_scope() {
+    use ryo_language::domain::relations::types::CellKind;
+    use ryo_values::domain::hosted::types::{
+        ColumnLabel, HostedColumn, HostedName, HostedRelation,
+    };
+    let valid = r#"let a = source-matches(from="function", span="span", pattern="fn", output="hit"); emit a subject file key(hit);"#;
+    let plan = span_plan(valid, None, &[]).expect("typed source occurrence projection");
+    assert!(
+        plan.steps
+            .iter()
+            .any(|step| matches!(step.operation, Operation::SourceMatches { .. }))
+    );
+    for (bad, expected) in [
+        (
+            valid.replace("span=\"span\"", "span=\"name\""),
+            "cannot compare",
+        ),
+        (
+            valid.replace("span=\"span\"", "span=\"missing\""),
+            "no column",
+        ),
+        (
+            valid.replace("output=\"hit\"", "output=\"span\""),
+            "already exists",
+        ),
+        (
+            valid.replace("pattern=\"fn\"", "pattern=\"[\""),
+            "invalid regular expression",
+        ),
+        (valid.replace("span=\"span\", ", ""), "needs the argument"),
+        (
+            valid.replace("output=\"hit\"", "output=\"hit\", extra=\"x\""),
+            "extra",
+        ),
+    ] {
+        let error = span_plan(&bad, None, &[]).expect_err("bad source-matches call must fail");
+        assert!(error.contains(expected), "{bad}: {error}");
+    }
+    let hosted = [HostedRelation {
+        name: HostedName("global".into()),
+        columns: vec![
+            HostedColumn {
+                name: ColumnLabel("file".into()),
+                kind: CellKind::File,
+            },
+            HostedColumn {
+                name: ColumnLabel("span".into()),
+                kind: CellKind::Span,
+            },
+        ],
+    }];
+    let cross = valid.replace("from=\"function\"", "from=\"global\"");
+    assert!(
+        span_plan(&cross, None, &hosted)
+            .expect_err("cross-file source refused")
+            .contains("requires per-file")
+    );
+    let with_line = r#"let base = extend(from="function", values={base_line:1});
+let a = source-matches(from=base, span="span", base-line="base_line", pattern="fn", output="hit", line-output="hit_line");
+emit a subject file key(hit);"#;
+    let _plan = span_plan(with_line, None, &[]).expect("paired line outputs lower");
+    for bad in [
+        with_line.replace(", line-output=\"hit_line\"", ""),
+        with_line.replace("base-line=\"base_line\", ", ""),
+    ] {
+        assert!(
+            span_plan(&bad, None, &[])
+                .expect_err("unpaired line arguments refuse")
+                .contains("both `base-line` and `line-output`")
+        );
+    }
+}
+
+#[test]
+fn span_bounds_types_outputs_and_file_scope() {
+    use ryo_language::domain::relations::types::CellKind;
+    use ryo_values::domain::hosted::types::{
+        ColumnLabel, HostedColumn, HostedName, HostedRelation,
+    };
+    let valid = r#"let a = span-bounds(from="function", span="span", start-output="begin", end-output="finish"); emit a subject file key(span);"#;
+    let plan = span_plan(valid, None, &[]).expect("typed span endpoints");
+    assert!(
+        plan.steps
+            .iter()
+            .any(|step| matches!(step.operation, Operation::SpanBounds { .. }))
+    );
+    for (bad, expected) in [
+        (
+            valid.replace("span=\"span\"", "span=\"name\""),
+            "cannot compare",
+        ),
+        (
+            valid.replace("span=\"span\"", "span=\"missing\""),
+            "no column",
+        ),
+        (
+            valid.replace("start-output=\"begin\"", "start-output=\"span\""),
+            "already exists",
+        ),
+        (
+            valid.replace("end-output=\"finish\"", "end-output=\"begin\""),
+            "already exists",
+        ),
+        (
+            valid.replace(
+                "end-output=\"finish\"",
+                "end-output=\"finish\", extra=\"x\"",
+            ),
+            "extra",
+        ),
+    ] {
+        let error = span_plan(&bad, None, &[]).expect_err("invalid span-bounds call");
+        assert!(error.contains(expected), "{bad}: {error}");
+    }
+    let hosted = [HostedRelation {
+        name: HostedName("global".into()),
+        columns: vec![
+            HostedColumn {
+                name: ColumnLabel("span".into()),
+                kind: CellKind::Span,
+            },
+            HostedColumn {
+                name: ColumnLabel("file".into()),
+                kind: CellKind::File,
+            },
+        ],
+    }];
+    let cross = valid.replace("from=\"function\"", "from=\"global\"");
+    let cross_result = span_plan(&cross, None, &hosted);
+    assert!(
+        cross_result.is_ok(),
+        "pure endpoint projection is valid after files are joined: {cross_result:?}"
+    );
+}

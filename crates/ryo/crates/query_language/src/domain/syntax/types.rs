@@ -26,6 +26,16 @@ pub(crate) enum ArgumentSlot {
     Start,
     /// Span supplying the end.
     End,
+    /// Physical source span to search.
+    Span,
+    /// Output name for the span's zero-based start byte.
+    StartOutput,
+    /// Output name for the span's exclusive end byte.
+    EndOutput,
+    /// One-based physical line of an input span's first byte.
+    BaseLine,
+    /// Optional output name for each occurrence's physical start line.
+    LineOutput,
     /// Constant replacement text.
     Replacement,
     /// Left numeric ordering column.

@@ -25,6 +25,8 @@ pub(crate) mod fixtures;
 
 pub(crate) mod ordered_match;
 pub(crate) mod replace;
+pub(crate) mod source_matches;
 pub(crate) mod span_between;
+pub(crate) mod span_bounds;
 
 pub(crate) mod ordered_dfs;

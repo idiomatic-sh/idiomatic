@@ -46,6 +46,8 @@ fn dependencies(operation: &Operation) -> Result<(Option<StepId>, Option<StepId>
         | Operation::Difference { .. }
         | Operation::GroupCount { .. }
         | Operation::Replace { .. }
+        | Operation::SpanBounds { .. }
+        | Operation::SourceMatches { .. }
         | Operation::SpanBetween { .. }
         | Operation::OrderedMatch { .. }
         | Operation::OrderedDfs { .. }
@@ -237,6 +239,8 @@ fn make_rows(
         | Operation::Difference { .. }
         | Operation::GroupCount { .. }
         | Operation::Replace { .. }
+        | Operation::SpanBounds { .. }
+        | Operation::SourceMatches { .. }
         | Operation::SpanBetween { .. }
         | Operation::OrderedMatch { .. }
         | Operation::OrderedDfs { .. }

@@ -319,6 +319,24 @@ pub enum Operation {
         /// Span supplying the end offset.
         end: ColumnIndex,
     },
+    /// Emit each regular-expression occurrence in a physical source span.
+    SourceMatches {
+        /// Per-file input rows.
+        from: Input,
+        /// Physical source span to search.
+        span: ColumnIndex,
+        /// Optional one-based line of the input span's first byte.
+        base_line: Option<ColumnIndex>,
+        /// Authored regular expression.
+        pattern: crate::domain::plan_parts::types::LiteralText,
+    },
+    /// Append checked byte offsets of an existing physical source span.
+    SpanBounds {
+        /// Per-file input rows.
+        from: Input,
+        /// Span whose endpoints are projected.
+        span: ColumnIndex,
+    },
 }
 
 /// The kinds of operation the language has, one variant each.
@@ -366,6 +384,10 @@ pub enum OperationKind {
     Hosted,
     /// `span-between`.
     SpanBetween,
+    /// `source-matches`.
+    SourceMatches,
+    /// `span-bounds`.
+    SpanBounds,
     /// Ordered depth-first edge visits.
     OrderedDfs,
 }
@@ -440,6 +462,10 @@ pub enum QueryOperator {
     Cycles,
     /// `span-between(from, start, end, output)`.
     SpanBetween,
+    /// `source-matches(from, span, pattern, output)`.
+    SourceMatches,
+    /// `span-bounds(from, span, start-output, end-output)`.
+    SpanBounds,
     /// `ordered-dfs(from, root, edges, source, destination, order, edge, keys, output)`.
     OrderedDfs,
 }

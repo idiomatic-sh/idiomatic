@@ -42,6 +42,12 @@ pub(crate) fn lower_call(
         QueryOperator::SpanBetween => {
             crate::domain::substituting::service::call_span_between(builder, name, call)?;
         }
+        QueryOperator::SourceMatches => {
+            crate::domain::substituting::service::call_source_matches(builder, name, call)?;
+        }
+        QueryOperator::SpanBounds => {
+            crate::domain::substituting::service::call_span_bounds(builder, name, call)?;
+        }
         QueryOperator::Join | QueryOperator::OrderedMatch => call_join(builder, name, call)?,
         QueryOperator::Replace => {
             crate::domain::substituting::service::call_replace(builder, name, call)?;

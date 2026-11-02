@@ -178,6 +178,8 @@ fn reads_role(operation: &Operation) -> RoleRead {
                         || compares_role(domain_filter) == RoleCompared::Compared))
         }
         Operation::SpanBetween { from, .. }
+        | Operation::SpanBounds { from, .. }
+        | Operation::SourceMatches { from, .. }
         | Operation::Replace { from, .. }
         | Operation::Extend { from, .. }
         | Operation::GroupCount { from, .. }

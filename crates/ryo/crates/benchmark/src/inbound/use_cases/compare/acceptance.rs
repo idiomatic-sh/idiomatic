@@ -24,11 +24,11 @@ fn reports() -> (RunReport, RunReport) {
         ..first.clone()
     };
     let reference = RunReport {
-        execution_metadata: crate::domain::diagnostics::types::ExecutionMetadata::Complete,
+        execution_metadata: ryo_benchmark::domain::diagnostics::types::ExecutionMetadata::Complete,
         project_context: None,
         files: fixture.files,
         skipped: Vec::new(),
-        coverage: Some(crate::domain::diagnostics::types::RuleCoverage {
+        coverage: Some(ryo_benchmark::domain::diagnostics::types::RuleCoverage {
             selected: 1,
             evaluated: 1,
             skipped: 0,

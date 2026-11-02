@@ -17,11 +17,11 @@ use ryo_language::domain::relations::service::to_bits;
 use ryo_language::domain::relations::types::{
     CellKind, ColumnsView, FactColumn, Integer, Relation, Value as Cell,
 };
-use ryo_language::domain::symbols::types::Symbols;
 use ryo_language::domain::symbols::service::intern_derived;
 use ryo_language::domain::symbols::types::ByteSlice;
+use ryo_language::domain::symbols::types::Symbols;
 use ryo_language::domain::terms::service::term_symbol;
-use ryo_language::domain::terms::types::{DeclarationKind, NameText};
+use ryo_language::domain::terms::types::{DeclarationKind, NameText, Symbol};
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Comparison, Input as Source, LiteralText, Operand, ParameterId, QueryLiteral,
     RepeatedRows, Test, WholeNumber,
@@ -346,7 +346,12 @@ fn symbol_discriminator_preserves_text_equality_with_term_aliases() -> Result<()
     let mut cache = new(&[Relation::Defines], &[], LIMIT).expect("generation");
     cache.selectors = vec![Arc::clone(&rare_selector), Arc::clone(&class_selector)];
     crate::domain::stored_indexes::service::candidate_columns(&mut cache);
-    assert!(cache.discriminator_columns.iter().any(|column| column.repeated));
+    assert!(
+        cache
+            .discriminator_columns
+            .iter()
+            .any(|column| column.repeated)
+    );
     let mut memo = Vec::new();
     let mut scratch = OperatorScratch::default();
     let mut context = OperatorContext {
@@ -401,7 +406,204 @@ fn symbol_discriminator_preserves_text_equality_with_term_aliases() -> Result<()
     )?;
     assert_eq!(actual, expected);
     assert_eq!(actual.count.0, 4);
-    assert_eq!(&actual.cells[6..9], &actual.cells[9..12], "duplicate bag rows");
+    assert_eq!(
+        &actual.cells[6..9],
+        &actual.cells[9..12],
+        "duplicate bag rows"
+    );
+    Ok(())
+}
+
+/// A spelling absent from both symbol registries cannot match a nonempty
+/// literal, but a preceding comparison can still fail before that equality.
+#[test]
+fn absent_symbol_literal_preserves_ordered_errors() -> Result<(), Failure> {
+    let mut symbols = Symbols::default();
+    let present = intern_derived(&mut symbols, ByteSlice(b""), NameText("present"));
+    let columns = [FactColumn(vec![to_bits(Cell::Symbol(present)).0; 64])];
+    let source = ColumnsView {
+        kinds: &[CellKind::Symbol],
+        columns: &columns,
+    };
+    let absent = Comparison {
+        test: Test::Equal,
+        left: Operand::Column(ColumnIndex(0)),
+        right: Operand::Literal(QueryLiteral::Text(LiteralText("absent".into()))),
+        origin: None,
+    };
+    let bad = Comparison {
+        test: Test::Equal,
+        left: Operand::Column(ColumnIndex(0)),
+        right: Operand::Parameter(ParameterId(0)),
+        origin: None,
+    };
+    let selector = |comparisons| {
+        Arc::new(Selector {
+            relation: Relation::Defines,
+            identity: Arc::new(crate::domain::table_model::types::SelectionIdentity {
+                comparisons,
+                bindings: vec![ParameterBinding::Tables(Vec::new())],
+            }),
+            columns: vec![ColumnIndex(0), ColumnIndex(0)],
+            distinct: false,
+        })
+    };
+    let first = selector(vec![absent.clone(), bad.clone()]);
+    let reversed = selector(vec![bad, absent]);
+    let mut cache = new(&[Relation::Defines], &[], LIMIT).expect("generation");
+    let mut memo = Vec::new();
+    let mut scratch = OperatorScratch::default();
+    let mut context = OperatorContext {
+        prepared_kinds: None,
+        prepared_matchers: None,
+        stored_indexes: Some(&mut cache),
+        bindings: &[],
+        symbols: &mut symbols,
+        source: SourceView(b""),
+        paths: &[],
+        arenas: &[],
+        memo: &mut memo,
+        scratch: &mut scratch,
+    };
+    let selected = select(&first, source, &mut context)?.expect("compact result");
+    assert!(selected.selection.rows.is_empty());
+    let mut actual = Table::default();
+    materialize(&Rows::Selected(selected), &mut actual, &mut Vec::new());
+    assert_eq!(
+        context
+            .stored_indexes
+            .as_ref()
+            .unwrap()
+            .selection_counts
+            .scanned,
+        0
+    );
+    assert!(context.stored_indexes.as_ref().unwrap().entries.is_empty());
+    assert!(matches!(
+        select(&reversed, source, &mut context),
+        Err(OperatingError::WrongBinding)
+    ));
+    drop(context);
+    let mut ordinary = OperatorContext {
+        prepared_kinds: None,
+        prepared_matchers: None,
+        stored_indexes: None,
+        bindings: &first.identity.bindings,
+        symbols: &mut symbols,
+        source: SourceView(b""),
+        paths: &[],
+        arenas: &[],
+        memo: &mut memo,
+        scratch: &mut scratch,
+    };
+    let mut expected = Table::default();
+    compute(
+        &Operation::Select {
+            from: Source::Relation(Relation::Defines),
+            comparisons: first.identity.comparisons.clone(),
+            kept: first.columns.clone(),
+        },
+        &[Rows::Stored(source)],
+        &mut ordinary,
+        &mut expected,
+    )?;
+    assert_eq!(actual, expected);
+    assert_eq!(actual.count.0, 0);
+    assert!(matches!(
+        compute(
+            &Operation::Select {
+                from: Source::Relation(Relation::Defines),
+                comparisons: reversed.identity.comparisons.clone(),
+                kept: reversed.columns.clone(),
+            },
+            &[Rows::Stored(source)],
+            &mut ordinary,
+            &mut Table::default(),
+        ),
+        Err(OperatingError::WrongBinding)
+    ));
+    Ok(())
+}
+
+/// Invalid Symbol IDs can decode as empty text in ordinary evaluation. They
+/// must not be ruled out by an absent empty literal.
+#[test]
+fn empty_literal_preserves_malformed_symbol_fallback() -> Result<(), Failure> {
+    let mut symbols = Symbols::default();
+    let invalid = Symbol(u32::MAX);
+    let columns = [FactColumn(vec![to_bits(Cell::Symbol(invalid)).0; 3])];
+    let source = ColumnsView {
+        kinds: &[CellKind::Symbol],
+        columns: &columns,
+    };
+    let selector = Arc::new(Selector {
+        relation: Relation::Defines,
+        identity: Arc::new(crate::domain::table_model::types::SelectionIdentity {
+            comparisons: vec![Comparison {
+                test: Test::Equal,
+                left: Operand::Column(ColumnIndex(0)),
+                right: Operand::Literal(QueryLiteral::Text(LiteralText("".into()))),
+                origin: None,
+            }],
+            bindings: Vec::new(),
+        }),
+        columns: vec![ColumnIndex(0), ColumnIndex(0)],
+        distinct: false,
+    });
+    let mut cache = new(&[Relation::Defines], &[], LIMIT).expect("generation");
+    let mut memo = Vec::new();
+    let mut scratch = OperatorScratch::default();
+    let mut context = OperatorContext {
+        prepared_kinds: None,
+        prepared_matchers: None,
+        stored_indexes: Some(&mut cache),
+        bindings: &[],
+        symbols: &mut symbols,
+        source: SourceView(b""),
+        paths: &[],
+        arenas: &[],
+        memo: &mut memo,
+        scratch: &mut scratch,
+    };
+    let selected = select(&selector, source, &mut context)?.expect("compact result");
+    assert_eq!(*selected.selection.rows, [0, 1, 2]);
+    assert_eq!(
+        context
+            .stored_indexes
+            .as_ref()
+            .unwrap()
+            .selection_counts
+            .scanned,
+        3
+    );
+    let mut actual = Table::default();
+    materialize(&Rows::Selected(selected), &mut actual, &mut Vec::new());
+    drop(context);
+    let mut ordinary = OperatorContext {
+        prepared_kinds: None,
+        prepared_matchers: None,
+        stored_indexes: None,
+        bindings: &[],
+        symbols: &mut symbols,
+        source: SourceView(b""),
+        paths: &[],
+        arenas: &[],
+        memo: &mut memo,
+        scratch: &mut scratch,
+    };
+    let mut expected = Table::default();
+    compute(
+        &Operation::Select {
+            from: Source::Relation(Relation::Defines),
+            comparisons: selector.identity.comparisons.clone(),
+            kept: selector.columns.clone(),
+        },
+        &[Rows::Stored(source)],
+        &mut ordinary,
+        &mut expected,
+    )?;
+    assert_eq!(actual, expected);
+    assert_eq!(actual.count.0, 3);
     Ok(())
 }
 

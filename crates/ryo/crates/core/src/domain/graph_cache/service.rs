@@ -60,6 +60,8 @@ pub(crate) fn reserve(
                         | Operation::Cycles { .. }
                         | Operation::Rows { .. }
                         | Operation::Hosted { .. }
+                        | Operation::SpanBounds { .. }
+                        | Operation::SourceMatches { .. }
                         | Operation::SpanBetween { .. } => return false,
                     };
                     let relation = match edges {

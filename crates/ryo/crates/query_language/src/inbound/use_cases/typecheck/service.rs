@@ -49,7 +49,11 @@ pub(super) fn unresolved(error: LoweringError) -> TypecheckError {
             span,
             message: error.to_string(),
         },
-        LoweringError::CrossFileSpan { span }
+        LoweringError::SpanBoundsArgument { span, .. }
+        | LoweringError::SourceMatchesArgument { span, .. }
+        | LoweringError::CrossFileSourceMatches { span }
+        | LoweringError::SourceMatchesLinePair { span }
+        | LoweringError::CrossFileSpan { span }
         | LoweringError::SpanArgument { span, .. }
         | LoweringError::UnknownStep { span, .. }
         | LoweringError::DuplicateOutput { span, .. }

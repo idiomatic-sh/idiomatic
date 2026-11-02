@@ -328,6 +328,8 @@ fn shape_of(operation: &Operation, shapes: &[Option<LoweredShape>]) -> Option<Lo
         | Operation::Difference { .. }
         | Operation::GroupCount { .. }
         | Operation::Replace { .. }
+        | Operation::SpanBounds { .. }
+        | Operation::SourceMatches { .. }
         | Operation::SpanBetween { .. }
         | Operation::OrderedMatch { .. }
         | Operation::OrderedDfs { .. }

@@ -14,6 +14,12 @@ pub(crate) enum OperatingError {
     /// An input or composed span falls outside the current file.
     #[error("span-between encountered an invalid byte range")]
     InvalidSpan,
+    /// A source match cannot be located within valid UTF-8 and physical lines.
+    #[error("source-matches requires an in-file UTF-8 span and valid physical line")]
+    InvalidSourceMatchSpan,
+    /// A span has no representable ordered endpoints.
+    #[error("span-bounds requires a present, ordered span")]
+    InvalidSpanBounds,
     /// Ordering cannot distinguish two rows in the same key group.
     #[error("ordered-match requires unique order values within each side and key group")]
     DuplicateOrder,

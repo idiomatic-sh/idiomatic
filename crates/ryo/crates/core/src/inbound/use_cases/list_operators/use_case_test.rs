@@ -15,7 +15,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
     name: CaseName("lists_every_operator_in_documentation_order"),
     word: Word::Succeeds,
     input: || (),
-    expect: Expect::Value((21, true)),
+    expect: Expect::Value((23, true)),
 }];
 
 fn subject((): Input) -> Result<Value, Failure> {
@@ -27,6 +27,8 @@ fn subject((): Input) -> Result<Value, Failure> {
         .collect();
     let documented = [
         "span-between",
+        "span-bounds",
+        "source-matches",
         "replace",
         "ordered-match",
         "ordered-dfs",

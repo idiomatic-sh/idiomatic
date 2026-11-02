@@ -21,6 +21,8 @@ const RULE_STEP_TARGET: &str = "ryo::diagnostic::rule_step";
 const EXECUTION_TARGET: &str = "ryo::diagnostic::execution";
 /// Aggregate stored selection and materialization work.
 const SELECTION_TARGET: &str = "ryo::diagnostic::selection";
+/// Per-prepared-selector counts, enabled only by an explicit diagnostic opt-in.
+const SELECTION_DETAIL_TARGET: &str = "ryo::diagnostic::selection_detail";
 /// Logical release and retained-capacity accounting.
 const WORKING_SET_TARGET: &str = "ryo::diagnostic::working_set";
 /// Metadata-only layout accounting.
@@ -90,6 +92,9 @@ fn subscriber_with_aggregates(
     let include_subplans = std::env::var_os("RYO_DIAGNOSTIC_SUBPLANS")
         .is_some_and(|value| value == "1")
         && !lifecycle_only;
+    let include_selection_detail = std::env::var_os("RYO_DIAGNOSTIC_SELECTION_DETAIL")
+        .is_some_and(|value| value == "1")
+        && !lifecycle_only;
     let layer = tracing_subscriber::fmt::layer()
         .json()
         .with_ansi(false)
@@ -99,6 +104,14 @@ fn subscriber_with_aggregates(
             tracing_subscriber::filter::Targets::new()
                 .with_target(EXECUTION_TARGET, aggregate_level)
                 .with_target(SELECTION_TARGET, aggregate_level)
+                .with_target(
+                    SELECTION_DETAIL_TARGET,
+                    if include_selection_detail {
+                        tracing_subscriber::filter::LevelFilter::TRACE
+                    } else {
+                        tracing_subscriber::filter::LevelFilter::OFF
+                    },
+                )
                 .with_target(WORKING_SET_TARGET, aggregate_level)
                 .with_target(LAYOUT_TARGET, aggregate_level)
                 .with_target(GRAPH_TARGET, aggregate_level)

@@ -84,6 +84,8 @@ pub(crate) fn drop_uncertain(
             })
             .map(|(place, _)| place),
         Operation::SpanBetween { .. }
+        | Operation::SpanBounds { .. }
+        | Operation::SourceMatches { .. }
         | Operation::Replace { .. }
         | Operation::OrderedMatch { .. }
         | Operation::OrderedDfs { .. }

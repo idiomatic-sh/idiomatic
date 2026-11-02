@@ -37,7 +37,8 @@ impl PreparedMatchers {
                     Operation::Select { comparisons, .. } => comparisons.as_slice(),
                     Operation::Join { filter, .. } => filter.as_slice(),
                     Operation::Axis { domain_filter, .. } => domain_filter.as_slice(),
-                    Operation::Replace { pattern, .. } => {
+                    Operation::Replace { pattern, .. }
+                    | Operation::SourceMatches { pattern, .. } => {
                         prepared.declare(Test::Matches, &pattern.0);
                         continue;
                     }

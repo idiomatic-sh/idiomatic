@@ -306,6 +306,8 @@ fn operation_name(operation: &ryo_values::domain::plans::types::Operation) -> &'
         Operation::Rows { .. } => "rows",
         Operation::Hosted { .. } => "hosted",
         Operation::SpanBetween { .. } => "span-between",
+        Operation::SourceMatches { .. } => "source-matches",
+        Operation::SpanBounds { .. } => "span-bounds",
     }
 }
 

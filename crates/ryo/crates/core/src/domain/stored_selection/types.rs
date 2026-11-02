@@ -80,3 +80,40 @@ pub(crate) struct SelectionCounts {
     /// Successful selections whose retention was refused.
     pub refusals: u64,
 }
+
+/// Diagnostic-only counts for one prepared selector in one file generation.
+/// No row data or provider reference is retained here.
+#[derive(Debug)]
+pub(crate) struct SelectorHistogram {
+    pub selector: Arc<Selector>,
+    pub calls: u64,
+    pub builds: u64,
+    pub reuses: u64,
+    pub errors: u64,
+    pub matched_rows: u64,
+    pub full_scan_rows: u64,
+    pub index_build_rows: u64,
+    pub indexed_candidates: u64,
+    pub predicate_cells: u64,
+    pub paths: [u64; 7],
+    pub admission: [u64; 4],
+}
+
+impl SelectorHistogram {
+    pub(crate) fn new(selector: &Arc<Selector>) -> Self {
+        Self {
+            selector: Arc::clone(selector),
+            calls: 0,
+            builds: 0,
+            reuses: 0,
+            errors: 0,
+            matched_rows: 0,
+            full_scan_rows: 0,
+            index_build_rows: 0,
+            indexed_candidates: 0,
+            predicate_cells: 0,
+            paths: [0; 7],
+            admission: [0; 4],
+        }
+    }
+}

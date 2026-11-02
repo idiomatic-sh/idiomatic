@@ -87,6 +87,8 @@ pub(crate) fn call_set(
         | QueryOperator::GroupCount
         | QueryOperator::Replace
         | QueryOperator::SpanBetween
+        | QueryOperator::SpanBounds
+        | QueryOperator::SourceMatches
         | QueryOperator::OrderedMatch
         | QueryOperator::OrderedDfs
         | QueryOperator::GroupDigest

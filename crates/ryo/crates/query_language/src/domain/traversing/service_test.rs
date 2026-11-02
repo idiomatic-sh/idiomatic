@@ -319,6 +319,8 @@ const CATALOG: &[Relation] = &[
 fn operation_name(operation: &Operation) -> &'static str {
     match operation {
         Operation::SpanBetween { .. } => "span-between",
+        Operation::SpanBounds { .. } => "span-bounds",
+        Operation::SourceMatches { .. } => "source-matches",
         Operation::Select { .. } => "select",
         Operation::Project {
             distinct: RepeatedRows::Kept,
@@ -396,6 +398,8 @@ fn subject(text: Input) -> Result<Value, Failure> {
                     }
                     QueryOperator::Replace
                     | QueryOperator::SpanBetween
+                    | QueryOperator::SpanBounds
+                    | QueryOperator::SourceMatches
                     | QueryOperator::OrderedMatch
                     | QueryOperator::Select
                     | QueryOperator::Project

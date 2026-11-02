@@ -1,0 +1,35 @@
+[[cases]]
+name = "raw-character"
+comparison = "full"
+files = { "case.py" = "x = \"A\u0000B\"\n" }
+expected = [{ rule = "PLE2514", file = "case.py", start = 6, end = 7 }]
+
+[[cases]]
+name = "written-escape"
+comparison = "full"
+files = { "case.py" = "x = \"A\\0B\"\n" }
+expected = []
+
+[[cases]]
+name = "comment-only"
+comparison = "full"
+files = { "case.py" = "# \u0000\nx = \"safe\"\n" }
+expected = []
+
+[[cases]]
+name = "f-string-middle"
+comparison = "full"
+files = { "case.py" = "x = f\"A\u0000B\"\n" }
+expected = [{ rule = "PLE2514", file = "case.py", start = 7, end = 8 }]
+
+[[cases]]
+name = "two-occurrences-one-token"
+comparison = "full"
+files = { "case.py" = "x = \"A\u0000B\u0000\"\n" }
+expected = [{ rule = "PLE2514", file = "case.py", start = 6, end = 7 }, { rule = "PLE2514", file = "case.py", start = 8, end = 9 }]
+
+[[cases]]
+name = "same-line-noqa"
+comparison = "full"
+files = { "case.py" = "x = \"A\u0000B\u0000\"  # noqa: PLE2514\n" }
+expected = []

@@ -17,9 +17,9 @@ let earlier_endings = select l.id as id, l.endline as endline from all_ranges as
 let last_ranges = antijoin(left=all_ranges, right=earlier_endings, left-on=["id", "endline"], right-on=["id", "endline"]);
 let mappings = select l.id as id, l.file as file, l.line as line, r.endline as endline from mapping_ranges as l join last_ranges as r on l.id = r.id;
 let mapped_candidates = select l.id as id, l.file as file, l.span as span, r.endline as line from candidate_locations as l join mappings as r on l.file = r.file where l.line >= r.line and l.line <= r.endline;
-let smaller_candidates = select l.id as id, l.line as line from mapped_candidates as l join mapped_candidates as r on l.id = r.id where l.line < r.line;
-let remapped_locations = antijoin(left=mapped_candidates, right=smaller_candidates, left-on=["id", "line"], right-on=["id", "line"]);
-let unchanged_locations = antijoin(left=candidate_locations, right=remapped_locations, left-on=["id"], right-on=["id"]);
+let smaller_candidates = select l.id as id, l.span as span, l.line as line from mapped_candidates as l join mapped_candidates as r on l.id = r.id and l.span = r.span where l.line < r.line;
+let remapped_locations = antijoin(left=mapped_candidates, right=smaller_candidates, left-on=["id", "span", "line"], right-on=["id", "span", "line"]);
+let unchanged_locations = antijoin(left=candidate_locations, right=remapped_locations, left-on=["id", "span"], right-on=["id", "span"]);
 let located = union(left=unchanged_locations, right=remapped_locations);
 let empty_additional = select id, file, line from candidate_locations where id != id;
 let violations = suppress_directives(candidates=candidate_locations, locations=located, additional_locations=empty_additional, inline-pattern=$inline-pattern, range-pattern=$range-pattern);

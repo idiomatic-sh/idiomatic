@@ -1,8 +1,8 @@
 //! The `symbols` service's cases, on values alone.
 
 use super::service::{
-    bytes_of, derived_of, find_or_add_hashed, intern, intern_derived, name_count, name_made_across,
-    name_of, place_of, text_of,
+    bytes_of, derived_of, find_hashed, find_or_add_hashed, hash_of, intern, intern_derived,
+    name_count, name_made_across, name_of, place_of, text_of,
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::relations::types::{
@@ -10,7 +10,8 @@ use crate::domain::relations::types::{
 };
 use crate::domain::symbols::types::ByteSlice;
 use crate::domain::symbols::types::{Symbols, SymbolsEngine};
-use crate::domain::terms::types::NameText;
+use crate::domain::terms::service::term_symbol;
+use crate::domain::terms::types::{DeclarationKind, NameText};
 
 /// A scenario: what a row asks of the service.
 type Input = fn() -> usize;
@@ -125,12 +126,72 @@ fn two_texts_of_one_hash_in_one_file_are_two_symbols() -> usize {
         start: Offset(0),
         end: Offset(4),
     });
+    let unchanged = left != right
+        && left == left_again
+        && symbols.start.len() == 2
+        && bytes_of(&symbols, source, left) == Some(ByteSlice(b"left"))
+        && bytes_of(&symbols, source, right) == Some(ByteSlice(b"right"));
+    let symbols = Symbols::from(symbols);
     usize::from(
-        left != right
-            && left == left_again
-            && symbols.start.len() == 2
-            && bytes_of(&symbols, source, left) == Some(ByteSlice(b"left"))
-            && bytes_of(&symbols, source, right) == Some(ByteSlice(b"right")),
+        unchanged
+            && find_hashed(&symbols, source, ByteSlice(b"left"), hash) == Some(left)
+            && find_hashed(&symbols, source, ByteSlice(b"right"), hash) == Some(right)
+            && find_hashed(&symbols, source, ByteSlice(b"other"), hash).is_none()
+            && name_count(&symbols) == Count(2),
+    )
+}
+
+/// Lookup reads both source and derived names without interning or changing their identities.
+fn lookup_of_source_and_derived_names_does_not_add_a_name() -> usize {
+    let mut symbols = Symbols::default();
+    let source_name = intern(&mut symbols, SOURCE, Offset(0), Offset(4));
+    let derived_name = intern_derived(&mut symbols, SOURCE, NameText("src/lib"));
+    let before_names = name_count(&symbols);
+    let before_derived_bytes = derived_of(&symbols).0.len();
+    let found_source = find_hashed(
+        &symbols,
+        SOURCE,
+        ByteSlice(b"main"),
+        hash_of(ByteSlice(b"main")),
+    );
+    let found_derived = find_hashed(
+        &symbols,
+        SOURCE,
+        ByteSlice(b"src/lib"),
+        hash_of(ByteSlice(b"src/lib")),
+    );
+    let missing = find_hashed(
+        &symbols,
+        SOURCE,
+        ByteSlice(b"missing"),
+        hash_of(ByteSlice(b"missing")),
+    );
+    usize::from(
+        found_source == Some(source_name)
+            && found_derived == Some(derived_name)
+            && missing.is_none()
+            && name_count(&symbols) == before_names
+            && derived_of(&symbols).0.len() == before_derived_bytes,
+    )
+}
+
+/// File names stay distinct from closed terms with the same text; the term alias is not in the name index.
+fn lookup_of_term_text_returns_only_the_file_symbol() -> usize {
+    let mut symbols = Symbols::default();
+    let dynamic = intern_derived(&mut symbols, ByteSlice(b""), NameText("class"));
+    let closed = term_symbol(DeclarationKind::Class);
+    let before_names = name_count(&symbols);
+    let found = find_hashed(
+        &symbols,
+        ByteSlice(b""),
+        ByteSlice(b"class"),
+        hash_of(ByteSlice(b"class")),
+    );
+    usize::from(
+        dynamic != closed
+            && found == Some(dynamic)
+            && text_of(&symbols, ByteSlice(b""), closed).map(|text| text.0) == Some("class")
+            && name_count(&symbols) == before_names,
     )
 }
 
@@ -164,6 +225,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("two_texts_of_one_hash_in_one_file_are_two_symbols"),
         word: Word::Succeeds,
         input: || two_texts_of_one_hash_in_one_file_are_two_symbols,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("lookup_of_source_and_derived_names_does_not_add_a_name"),
+        word: Word::Succeeds,
+        input: || lookup_of_source_and_derived_names_does_not_add_a_name,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("lookup_of_term_text_returns_only_the_file_symbol"),
+        word: Word::Succeeds,
+        input: || lookup_of_term_text_returns_only_the_file_symbol,
         expect: Expect::Value(1),
     },
 ];

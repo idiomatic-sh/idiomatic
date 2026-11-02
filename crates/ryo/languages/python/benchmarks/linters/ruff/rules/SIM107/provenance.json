@@ -1,0 +1,22 @@
+{
+  "rule": "SIM107",
+  "source_pin": "Ruff0.16.5",
+  "upstream_rule_source": "https://github.com/astral-sh/ruff/blob/0.16.5/crates/ruff_linter/src/rules/flake8_simplify/rules/return_in_try_except_finally.rs",
+  "upstream_fixture": "https://github.com/astral-sh/ruff/blob/0.16.5/crates/ruff_linter/resources/test/fixtures/flake8_simplify/SIM107.py",
+  "fixture_sha256": "b003f969aaa336beaff3d5b7dd65b1704b9d23c02271bcb2dec570438562f1f3",
+  "target_python": "3.12",
+  "cases": 11,
+  "provisional_intended_spans": 6,
+  "query_sha256": "8eeef8f6fa71258fe7f0ebb3c5c7cbfccdf7a7638751e1f835299aec99eadd64",
+  "cases_sha256": "5126349d7e4bd2a4abdf0d179023afad1a7a08b31d7a321efeae1f0d75f946f3",
+  "status": "isolated candidate/reference replay complete; combined admission pending",
+  "first_replay_receipt": "/tmp/python-rule-replay-light-20261102/SIM107/repro-v1-replay-a47-1/result.json",
+  "candidate_replay": {
+    "receipt": "/tmp/python-rule-replay-light-20261102/SIM107/repro-v2-replay-a47-1/result.json",
+    "receipt_sha256": "dafaed54757b24c5b6ea5749f4d9ad152d087cee9e6029c9f937d841085cfee7",
+    "worker_sha256": "a47f39deb6f4a8f3a21ecd5c0ebec50a7d0a2cf6572bb7baa82cee9e3a1bffa2",
+    "candidate_cases_passed": 11,
+    "reference_cases_passed": 11,
+    "raw_findings_each_side": 6
+  }
+}

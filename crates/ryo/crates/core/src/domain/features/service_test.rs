@@ -101,7 +101,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("the_catalog_lists_every_operation_way_of_comparing_direction_and_relation"),
         word: Word::Succeeds,
         input: || Scenario::Catalog,
-        expect: Expect::Value(22 + 16 + 8 + 61),
+        // The feature catalog includes the internal Hosted operation as well as
+        // the 23 public operators.
+        expect: Expect::Value(24 + 16 + 8 + 61),
     },
     Case {
         name: CaseName("a_select_is_fed_the_rows_of_its_input"),

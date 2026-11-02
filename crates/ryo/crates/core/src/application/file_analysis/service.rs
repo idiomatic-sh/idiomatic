@@ -463,6 +463,30 @@ impl FileAnalysis {
                 entries = indexes.entries.len(), eligible_relations = indexes.eligible.len(),
                 retained_bytes = indexes.bytes, physical_builds = indexes.builds,
                 reuses = indexes.reuses, refusals = indexes.refusals);
+            if let Some(entries) = &indexes.selection_histogram {
+                for entry in entries {
+                    let retained = indexes
+                        .selections
+                        .iter()
+                        .find(|result| std::sync::Arc::ptr_eq(&result.selector, &entry.selector));
+                    tracing::trace!(target: "ryo::diagnostic::selection_detail", event = "selector_histogram", file = file.0,
+                        selector_id = std::ptr::from_ref(entry.selector.as_ref()).addr(),
+                        relation = ?entry.selector.relation, comparisons = ?entry.selector.identity.comparisons,
+                        bindings = ?entry.selector.identity.bindings, columns = ?entry.selector.columns,
+                        distinct = entry.selector.distinct, calls = entry.calls, builds = entry.builds,
+                        reuses = entry.reuses, errors = entry.errors, matched_rows = entry.matched_rows,
+                        full_scan_rows = entry.full_scan_rows, index_build_rows = entry.index_build_rows,
+                        indexed_candidates = entry.indexed_candidates, predicate_cells = entry.predicate_cells,
+                        no_discriminator = entry.paths[0], not_repeated = entry.paths[1],
+                        small_population = entry.paths[2], dense_sample = entry.paths[3],
+                        index_budget_refused = entry.paths[4], index_built = entry.paths[5],
+                        index_reused = entry.paths[6], admission_not_repeated = entry.admission[0],
+                        admission_allocation_refused = entry.admission[1],
+                        admission_budget_refused = entry.admission[2], admission_retained = entry.admission[3],
+                        retained_rows = retained.map_or(0, |result| result.rows.len()),
+                        retained_slots = retained.map_or(0, |result| result.rows.capacity()));
+                }
+            }
         }
         // No index handle or allocation survives release or the next visit, even for the same FileId.
         drop(stored_indexes);

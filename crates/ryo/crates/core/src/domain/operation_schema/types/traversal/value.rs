@@ -47,6 +47,8 @@ impl<'a> TraversalSchema<'a> {
             | Operation::Rank { .. }
             | Operation::Replace { .. }
             | Operation::Words { .. }
+            | Operation::SpanBounds { .. }
+            | Operation::SourceMatches { .. }
             | Operation::SpanBetween { .. }
             | Operation::Closure { .. }
             | Operation::Cycles { .. }

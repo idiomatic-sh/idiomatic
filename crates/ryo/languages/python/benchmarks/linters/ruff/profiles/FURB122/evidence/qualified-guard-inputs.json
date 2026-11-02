@@ -1,0 +1,103 @@
+[
+  {
+    "name": "io-annotation-3",
+    "comparison": "full",
+    "files": {
+      "case.py": "import io,typing\ndef fn(f: typing.IO[str]):\n    for x in rows:\n        f.write(x)\n"
+    },
+    "expected": [
+      {
+        "rule": "FURB122",
+        "file": "case.py",
+        "start": 48,
+        "end": 81
+      }
+    ]
+  },
+  {
+    "name": "runtime-builtin-0-1",
+    "comparison": "full",
+    "files": {
+      "case.py": "def fn():\n    f=open(\"x\")\n    for list in rows:\n        f.write(list)\n"
+    },
+    "expected": []
+  },
+  {
+    "name": "runtime-shadow-history-4",
+    "comparison": "full",
+    "files": {
+      "case.py": "f=open(\"x\")\nif TYPE_CHECKING:\n    x=0\nfor x in rows:\n    f.write(x)\n"
+    },
+    "expected": []
+  },
+  {
+    "name": "runtime-shadow-history-5",
+    "comparison": "full",
+    "files": {
+      "case.py": "f=open(\"x\")\nif unknown.TYPE_CHECKING:\n    x=0\nfor x in rows:\n    f.write(x)\n"
+    },
+    "expected": []
+  },
+  {
+    "name": "runtime-shadow-history-6",
+    "comparison": "full",
+    "files": {
+      "case.py": "f=open(\"x\")\nif TYPE_CHECKING:\n    x=0\nelse:\n    pass\nfor x in rows:\n    f.write(x)\n"
+    },
+    "expected": []
+  },
+  {
+    "name": "outer-runtime-history-3",
+    "comparison": "full",
+    "files": {
+      "case.py": "list=unknown\ndel list\ndef fn():\n    f=open(\"x\")\n    for list in rows:\n        f.write(list)\n"
+    },
+    "expected": []
+  },
+  {
+    "name": "imported-type-checking-false",
+    "comparison": "full",
+    "files": {
+      "case.py": "from typing import TYPE_CHECKING\nf=open(\"x\")\nif TYPE_CHECKING:\n    x=0\nfor x in rows:\n    f.write(x)\n"
+    },
+    "expected": [
+      {
+        "rule": "FURB122",
+        "file": "case.py",
+        "start": 71,
+        "end": 100
+      }
+    ]
+  },
+  {
+    "name": "imported-typing-attribute-false",
+    "comparison": "full",
+    "files": {
+      "case.py": "import typing\nf=open(\"x\")\nif typing.TYPE_CHECKING:\n    x=0\nfor x in rows:\n    f.write(x)\n"
+    },
+    "expected": [
+      {
+        "rule": "FURB122",
+        "file": "case.py",
+        "start": 59,
+        "end": 88
+      }
+    ]
+  },
+  {
+    "name": "rebound-type-checking-true",
+    "comparison": "full",
+    "files": {
+      "case.py": "from typing import TYPE_CHECKING\nTYPE_CHECKING=True\nf=open(\"x\")\nif TYPE_CHECKING:\n    x=0\nfor x in rows:\n    f.write(x)\n"
+    },
+    "expected": []
+  },
+  {
+    "name": "rebound-typing-attribute-true",
+    "comparison": "full",
+    "files": {
+      "case.py": "import typing\ntyping.TYPE_CHECKING=True\nf=open(\"x\")\nif typing.TYPE_CHECKING:\n    x=0\nfor x in rows:\n    f.write(x)\n"
+    },
+    "expected": []
+  }
+]

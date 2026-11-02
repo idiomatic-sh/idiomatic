@@ -1,7 +1,7 @@
 //! Demand-driven, generation-local compact selection and equality-candidate replay.
 
 use super::types::program::value::SelectionProgram;
-use super::types::{Matches, Selector};
+use super::types::{Matches, Selector, SelectorHistogram};
 use crate::domain::comparing::service::holds_all;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::{NameCount, OperatorContext};
@@ -17,10 +17,9 @@ use crate::domain::table_model::types::{
 };
 use ryo_language::domain::relations::service::from_bits;
 use ryo_language::domain::relations::types::{Bits, CellKind, ColumnsView, Flag, Integer, Value};
-use ryo_language::domain::symbols::service::{hash_in, hash_of, name_count, text_of};
+use ryo_language::domain::symbols::service::{find_hashed, hash_of, name_count};
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::terms::service::symbols_with_text;
-use ryo_language::domain::terms::types::Symbol;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Operand, QueryLiteral, Test};
 use ryo_values::domain::plans::types::Plan;
 use std::sync::Arc;
@@ -31,6 +30,49 @@ use std::sync::Arc;
 pub(super) const RETAINED_SELECTION_RESERVATION: usize = 4 * 1024 * 1024;
 const MAX_RETAINED_SELECTIONS: usize = 128;
 pub(super) const MAX_RETAINED_POSITION_CAPACITY: usize = 512 * 1024;
+
+/// Diagnostic reasons are fixed integers so normal selection never formats strings.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum SelectionPath {
+    NoDiscriminator = 0,
+    NotRepeated = 1,
+    SmallPopulation = 2,
+    DenseSample = 3,
+    BudgetRefused = 4,
+    IndexBuilt = 5,
+    IndexReused = 6,
+}
+
+/// An absent authored symbol spelling can rule out every row without building an index.
+/// Other unsupported predicates still need ordinary row evaluation.
+enum Discriminator {
+    Unsupported,
+    Impossible,
+    Indexable(ColumnIndex, Value),
+}
+
+#[derive(Clone, Copy)]
+pub(super) enum Admission {
+    NotRepeated = 0,
+    AllocationRefused = 1,
+    BudgetRefused = 2,
+    Retained = 3,
+}
+
+fn histogram<'a>(
+    cache: &'a mut FileIndexes,
+    program: &Arc<Selector>,
+) -> Option<&'a mut SelectorHistogram> {
+    let entries = cache.selection_histogram.as_mut()?;
+    let at = entries
+        .iter()
+        .position(|entry| Arc::ptr_eq(&entry.selector, program));
+    let at = at.unwrap_or_else(|| {
+        entries.push(SelectorHistogram::new(program));
+        entries.len() - 1
+    });
+    entries.get_mut(at)
+}
 
 /// Prepare request-specific metadata once per worker, without evaluating any relation.
 pub(crate) fn prepare(pool: &mut PreparedPool, plans: &[Plan], bindings: &[Vec<ParameterBinding>]) {
@@ -141,18 +183,30 @@ fn make<'a>(
     context: &mut OperatorContext<'_>,
 ) -> Result<Option<SelectedRows<'a>>, OperatingError> {
     check_columns(source.kinds, &program.columns)?;
+    if let Some(entry) = histogram(cache, program) {
+        entry.calls += 1;
+    }
     let population = source.columns.first().map_or(0, |column| column.0.len());
     let rows = if let Some(found) = cache.selections.iter().find(|entry| {
         same(&entry.selector, program)
             && entry.kinds == source.kinds
             && entry.population == population
     }) {
+        let rows = Arc::clone(&found.rows);
         cache.selection_counts.reuses += 1;
-        Arc::clone(&found.rows)
+        if let Some(entry) = histogram(cache, program) {
+            entry.reuses += 1;
+        }
+        rows
     } else {
         let rows = Arc::new(matches(cache, program, source, context)?);
         cache.selection_counts.builds += 1;
-        admit(cache, program, source, population, &rows);
+        let admission = admit(cache, program, source, population, &rows);
+        if let Some(entry) = histogram(cache, program) {
+            entry.builds += 1;
+            entry.matched_rows += rows.len() as u64;
+            entry.admission[admission as usize] += 1;
+        }
         rows
     };
     // The shared result above always contains predicate matches, never distinct representatives.
@@ -244,7 +298,7 @@ pub(super) fn admit(
     source: ColumnsView<'_>,
     population: usize,
     rows: &Arc<Vec<u32>>,
-) {
+) -> Admission {
     if cache
         .selectors
         .iter()
@@ -253,7 +307,7 @@ pub(super) fn admit(
         .count()
         < 2
     {
-        return;
+        return Admission::NotRepeated;
     }
     let positions = cache
         .selections
@@ -265,7 +319,7 @@ pub(super) fn admit(
         || positions.is_none_or(|total| total > MAX_RETAINED_POSITION_CAPACITY)
     {
         cache.selection_counts.refusals += 1;
-        return;
+        return Admission::BudgetRefused;
     }
     let first = cache.selections.is_empty();
     let reserved = first.then_some(RETAINED_SELECTION_RESERVATION).unwrap_or(0);
@@ -275,11 +329,11 @@ pub(super) fn admit(
         .filter(|bytes| *bytes <= crate::domain::stored_indexes::service::non_graph_limit(cache))
     else {
         cache.selection_counts.refusals += 1;
-        return;
+        return Admission::BudgetRefused;
     };
     if cache.selections.try_reserve(1).is_err() {
         cache.selection_counts.refusals += 1;
-        return;
+        return Admission::AllocationRefused;
     }
     cache.selections.push(Matches {
         selector: Arc::clone(program),
@@ -289,12 +343,13 @@ pub(super) fn admit(
     });
     cache.bytes = bytes;
     cache.graph_counts.peak_bytes = cache.graph_counts.peak_bytes.max(bytes);
+    Admission::Retained
 }
 
 /// Decode only predicate cells; candidate indexes preserve original source order and exact typed equality.
 fn matches(
     cache: &mut FileIndexes,
-    program: &Selector,
+    program: &Arc<Selector>,
     source: ColumnsView<'_>,
     context: &mut OperatorContext<'_>,
 ) -> Result<Vec<u32>, OperatingError> {
@@ -306,7 +361,7 @@ fn matches(
         .map(|index| ColumnIndex(u32::try_from(*index).unwrap_or(u32::MAX)))
         .collect();
     check_columns(source.kinds, &columns)?;
-    let candidates = candidates(cache, program, source, context)?;
+    let (candidates, path) = candidates(cache, program, source, context)?;
     let indexed = candidates.is_some();
     let mut buffer = vec![Value::Flag(Flag::Lowered); source.kinds.len()];
     let mut selected = Vec::new();
@@ -338,24 +393,52 @@ fn matches(
         at += 1;
         position
     });
-    for position in positions {
-        if !indexed {
-            cache.selection_counts.scanned = cache.selection_counts.scanned.saturating_add(1);
+    let scanned_before = cache.selection_counts.scanned;
+    let cells_before = cache.selection_counts.predicate_cells;
+    let outcome: Result<(), OperatingError> = (|| {
+        for position in positions {
+            if !indexed {
+                cache.selection_counts.scanned = cache.selection_counts.scanned.saturating_add(1);
+            }
+            cache.selection_counts.predicate_cells += needed.0.len() as u64;
+            if read_cells(&source, RowIndex(position as usize), &mut buffer, &needed)
+                == CellsRead::Read
+                && holds_all(
+                    &program.identity.comparisons,
+                    &buffer,
+                    source.kinds,
+                    names,
+                    &mut own,
+                )? == Verdict::Holds
+            {
+                selected.push(position);
+            }
         }
-        cache.selection_counts.predicate_cells += needed.0.len() as u64;
-        if read_cells(&source, RowIndex(position as usize), &mut buffer, &needed) == CellsRead::Read
-            && holds_all(
-                &program.identity.comparisons,
-                &buffer,
-                source.kinds,
-                names,
-                &mut own,
-            )? == Verdict::Holds
-        {
-            selected.push(position);
+        Ok(())
+    })();
+    if cache.selection_histogram.is_some() {
+        let visited = if indexed {
+            (cache.selection_counts.predicate_cells - cells_before)
+                .checked_div(needed.0.len() as u64)
+                .unwrap_or(0)
+        } else {
+            cache.selection_counts.scanned - scanned_before
+        };
+        if let Some(entry) = histogram(cache, program) {
+            entry.paths[path as usize] += 1;
+            if indexed {
+                entry.indexed_candidates += candidates.as_ref().map_or(0, |rows| rows.len()) as u64;
+                if path == SelectionPath::IndexBuilt {
+                    entry.index_build_rows += population as u64;
+                }
+            } else {
+                entry.full_scan_rows += visited;
+            }
+            entry.predicate_cells += visited * needed.0.len() as u64;
+            entry.errors += u64::from(outcome.is_err());
         }
     }
-    Ok(selected)
+    outcome.map(|()| selected)
 }
 
 /// Use a column index only when multiple active descriptors can amortize its build.
@@ -364,16 +447,32 @@ fn candidates(
     program: &Selector,
     source: ColumnsView<'_>,
     context: &OperatorContext<'_>,
-) -> Result<Option<Vec<u32>>, OperatingError> {
+) -> Result<(Option<Vec<u32>>, SelectionPath), OperatingError> {
     let population = source.columns.first().map_or(0, |column| column.0.len());
-    for comparison in &program.identity.comparisons {
-        let Some((column, value)) = discriminator(comparison, program, source, context) else {
-            continue;
+    let mut path = SelectionPath::NoDiscriminator;
+    for (number, comparison) in program.identity.comparisons.iter().enumerate() {
+        let (column, value) = match discriminator(comparison, program, source, context) {
+            // holds_all evaluates in order. Only the first impossible comparison
+            // may bypass rows without hiding an earlier comparison's error.
+            Discriminator::Impossible if number == 0 => {
+                return Ok((Some(Vec::new()), SelectionPath::NoDiscriminator));
+            }
+            Discriminator::Indexable(column, value) => (column, value),
+            Discriminator::Impossible | Discriminator::Unsupported => continue,
         };
+        path = path.max(SelectionPath::NotRepeated);
         let reused = cache.discriminator_columns.iter().any(|entry| {
             entry.relation == program.relation && entry.column == column && entry.repeated
         });
-        if !reused || population < 32 || !selective(source, column, value, population) {
+        if !reused {
+            continue;
+        }
+        if population < 32 {
+            path = path.max(SelectionPath::SmallPopulation);
+            continue;
+        }
+        if !selective(source, column, value, population) {
+            path = path.max(SelectionPath::DenseSample);
             continue;
         }
         if !crate::domain::stored_indexes::service::can_retain(
@@ -382,6 +481,7 @@ fn candidates(
             source,
             &[column],
         ) {
+            path = path.max(SelectionPath::BudgetRefused);
             continue;
         }
         let mut local = KeyIndex::default();
@@ -400,9 +500,16 @@ fn candidates(
             .filter_map(|index| u32::try_from(index.0).ok())
             .collect();
         cache.selection_counts.candidates += result.len() as u64;
-        return Ok(Some(result));
+        return Ok((
+            Some(result),
+            if acquired.built {
+                SelectionPath::IndexBuilt
+            } else {
+                SelectionPath::IndexReused
+            },
+        ));
     }
-    Ok(None)
+    Ok((None, path))
 }
 
 /// A bounded typed sample rejects dense discriminators before allocating an index.
@@ -436,46 +543,45 @@ fn discriminator(
     program: &Selector,
     source: ColumnsView<'_>,
     context: &OperatorContext<'_>,
-) -> Option<(ColumnIndex, Value)> {
+) -> Discriminator {
     if comparison.test != Test::Equal {
-        return None;
+        return Discriminator::Unsupported;
     }
     let (column, operand) = match (&comparison.left, &comparison.right) {
         (Operand::Column(column), value) | (value, Operand::Column(column)) => (*column, value),
-        _ => return None,
+        _ => return Discriminator::Unsupported,
     };
     let literal = match operand {
         Operand::Literal(value) => value.clone(),
-        Operand::Parameter(id) => match program.identity.bindings.get(id.0 as usize)? {
-            ParameterBinding::Text(text) => QueryLiteral::Text(text.clone()),
-            ParameterBinding::Number(number) => QueryLiteral::Number(Integer(number.0)),
-            ParameterBinding::Flag(_)
-            | ParameterBinding::Numbers(_)
-            | ParameterBinding::Texts(_)
-            | ParameterBinding::TextSets(_)
-            | ParameterBinding::Tables(_) => return None,
-        },
-        Operand::Column(_) | Operand::Function(_) => return None,
+        Operand::Parameter(id) => {
+            let Some(binding) = program.identity.bindings.get(id.0 as usize) else {
+                return Discriminator::Unsupported;
+            };
+            match binding {
+                ParameterBinding::Text(text) => QueryLiteral::Text(text.clone()),
+                ParameterBinding::Number(number) => QueryLiteral::Number(Integer(number.0)),
+                ParameterBinding::Flag(_)
+                | ParameterBinding::Numbers(_)
+                | ParameterBinding::Texts(_)
+                | ParameterBinding::TextSets(_)
+                | ParameterBinding::Tables(_) => return Discriminator::Unsupported,
+            }
+        }
+        Operand::Column(_) | Operand::Function(_) => return Discriminator::Unsupported,
     };
-    let value = match (source.kinds.get(column.0 as usize)?, literal) {
-        (CellKind::Number, QueryLiteral::Number(value)) => Value::Number(value),
-        (CellKind::Symbol, QueryLiteral::Text(text)) => {
+    let value = match (source.kinds.get(column.0 as usize), literal) {
+        (Some(CellKind::Number), QueryLiteral::Number(value)) => Value::Number(value),
+        (Some(CellKind::Symbol), QueryLiteral::Text(text)) => {
             let hash = hash_of(ByteSlice(text.0.as_bytes()));
             // A file name and one or more closed-set terms can have the same text but
             // different Symbol IDs. The ordinary evaluator compares their text, while
             // matching_stored compares exact IDs. Index only an unambiguous spelling.
-            let mut found_symbol = None;
-            for index in 0..name_count(context.symbols).0 {
-                let symbol = Symbol(u32::try_from(index).ok()?);
-                if hash_in(context.symbols, symbol) == Some(hash)
-                    && text_of(context.symbols, ByteSlice(context.source.0), symbol)
-                        .is_some_and(|found| found.0 == &*text.0)
-                {
-                    if found_symbol.replace(symbol).is_some() {
-                        return None;
-                    }
-                }
-            }
+            let mut found_symbol = find_hashed(
+                context.symbols,
+                ByteSlice(context.source.0),
+                ByteSlice(text.0.as_bytes()),
+                hash,
+            );
             let mut ambiguous = false;
             symbols_with_text(&text.0, |candidate| {
                 if found_symbol.replace(candidate).is_some() {
@@ -483,12 +589,25 @@ fn discriminator(
                 }
             });
             if ambiguous {
-                return None;
+                return Discriminator::Unsupported;
             }
-            let symbol = found_symbol?;
+            let Some(symbol) = found_symbol else {
+                // Literal equality on Symbol rows compares text. Valid symbols
+                // with this spelling would be in the dynamic or term lookup.
+                // Keep empty text on the scan path: invalid symbols decode to
+                // empty text in the ordinary evaluator. Bound parameters also
+                // use the ordinary path, including their error behavior.
+                return if matches!(operand, Operand::Literal(QueryLiteral::Text(_)))
+                    && !text.0.is_empty()
+                {
+                    Discriminator::Impossible
+                } else {
+                    Discriminator::Unsupported
+                };
+            };
             Value::Symbol(symbol)
         }
-        _ => return None,
+        _ => return Discriminator::Unsupported,
     };
-    Some((column, value))
+    Discriminator::Indexable(column, value)
 }

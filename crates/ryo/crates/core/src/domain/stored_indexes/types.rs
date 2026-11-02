@@ -44,6 +44,8 @@ pub(crate) struct FileIndexes {
     pub discriminator_columns: Vec<crate::domain::stored_selection::types::CandidateColumn>,
     /// Aggregate compact-selection execution counters.
     pub selection_counts: crate::domain::stored_selection::types::SelectionCounts,
+    /// Explicit diagnostic runs only; absent and allocation-free in normal execution.
+    pub selection_histogram: Option<Vec<crate::domain::stored_selection::types::SelectorHistogram>>,
     /// Active relations whose physical read reported no partiality, of any missing kind.
     pub eligible: Vec<Relation>,
     /// Admitted indexes and their exact keys; linear lookup is bounded by the byte budget.

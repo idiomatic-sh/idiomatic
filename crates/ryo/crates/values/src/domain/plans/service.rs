@@ -11,6 +11,8 @@ use crate::domain::plan_parts::types::{InputCount, Inputs};
 pub fn inputs_of(operation: &Operation) -> Inputs {
     let (first, second, third, used) = match operation {
         Operation::SpanBetween { from, .. }
+        | Operation::SpanBounds { from, .. }
+        | Operation::SourceMatches { from, .. }
         | Operation::Replace { from, .. }
         | Operation::Select { from, .. }
         | Operation::Project { from, .. }

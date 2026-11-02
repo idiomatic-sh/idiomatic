@@ -1,0 +1,7 @@
+import suppress_unmapped from "python/ruff/suppress-unmapped";
+let modules = select id, file, span from "syntax-tree" where kind = "module";
+let locations = extend(from=modules, values={base_line:1});
+let affected = source-matches(from=locations, span="span", base-line="base_line", pattern="(?mR)^[^\r\n]*(?:\x{202A}|\x{202B}|\x{202C}|\x{202D}|\x{202E}|\x{2066}|\x{2067}|\x{2068}|\x{2069}|\x{200F}|\x{061C})[^\r\n]*(?:\r\n|\r|\n|$)", output="line_span", line-output="line");
+let candidates = select id, file, line_span as span, line from affected;
+let violations = suppress_unmapped(candidates=candidates, inline-pattern="(?:^|[^A-Z0-9])PLE2502(?:$|[^A-Z0-9])", range-pattern="(?:^|,)PLE2502(?:,|$)");
+emit violations subject file key(id, span);

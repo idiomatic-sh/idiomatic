@@ -118,9 +118,9 @@ let supp_unmatched_disables = antijoin(left=supp_disables, right=supp_paired_blo
 let supp_implicit_blocks = select l.id as id, l.file as file, l.begin as begin, r.finish as finish from supp_unmatched_disables as l join supp_regions as r on l.region = r.id;
 let supp_block_ranges = union(left=supp_paired_blocks, right=supp_implicit_blocks);
 let supp_file_ignores = select file from supp_indented_directives where mode = "file-ignore" and indentation = "";
-let supp_original_locations = select l.id as id, l.file as file, r."start-byte" as begin, r."end-byte" as finish from candidate_locations as l join "source-location" as r on l.id = r.id;
-let supp_block_hidden = select l.id as id from supp_original_locations as l join supp_block_ranges as r on l.file = r.file where l.begin >= r.begin and l.finish <= r.finish;
-let supp_file_hidden = select l.id as id from supp_original_locations as l join supp_file_ignores as r on l.file = r.file;
+let supp_original_locations = span-bounds(from=candidate_locations, span="span", start-output="begin", end-output="finish");
+let supp_block_hidden = select l.id as id, l.span as span from supp_original_locations as l join supp_block_ranges as r on l.file = r.file where l.begin >= r.begin and l.finish <= r.finish;
+let supp_file_hidden = select l.id as id, l.span as span from supp_original_locations as l join supp_file_ignores as r on l.file = r.file;
 let supp_ignore_directives = select id, file, begin, finish from supp_range_positions where mode = "ignore";
 let supp_ownline_ignores = select id, file, begin, finish from supp_ownline_directives where mode = "ignore";
 let supp_ordinary_trailing_ignores = antijoin(left=supp_ignore_directives, right=supp_ownline_ignores, left-on=["id"], right-on=["id"]);
@@ -168,9 +168,9 @@ let supp_first_line_ranges = extend(from=supp_first_line_ends, values={begin: 0}
 let supp_all_trailing_ranges = union(left=supp_trailing_ranges, right=supp_first_line_ranges);
 let supp_ownline_ranges = union(left=supp_outer_ranges, right=supp_inner_ranges);
 let supp_ignore_ranges = union(left=supp_ownline_ranges, right=supp_all_trailing_ranges);
-let supp_ignore_hidden = select l.id as id from supp_original_locations as l join supp_ignore_ranges as r on l.file = r.file where l.begin >= r.begin and l.begin < r.finish;
+let supp_ignore_hidden = select l.id as id, l.span as span from supp_original_locations as l join supp_ignore_ranges as r on l.file = r.file where l.begin >= r.begin and l.begin < r.finish;
 let supp_block_or_file_hidden = union(left=supp_block_hidden, right=supp_file_hidden);
 let supp_range_hidden = union(left=supp_block_or_file_hidden, right=supp_ignore_hidden);
-let supp_after_ranges = antijoin(left=unsuppressed_files, right=supp_range_hidden, left-on=["id"], right-on=["id"]);
+let supp_after_ranges = antijoin(left=unsuppressed_files, right=supp_range_hidden, left-on=["id", "span"], right-on=["id", "span"]);
 let violations = select id, file, span from supp_after_ranges;
 return violations;

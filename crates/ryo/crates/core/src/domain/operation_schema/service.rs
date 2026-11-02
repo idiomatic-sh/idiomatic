@@ -181,6 +181,33 @@ pub(crate) fn schema_of(
             }
             appended(input.kinds, &[], CellKind::Span)
         }
+        Operation::SourceMatches {
+            span, base_line, ..
+        } => {
+            let input = first()?;
+            if projected(input.kinds, &[*span])? != [CellKind::Span] {
+                return Err(OperatingError::ShapeMismatch);
+            }
+            if let Some(base_line) = base_line
+                && projected(input.kinds, &[*base_line])? != [CellKind::Number]
+            {
+                return Err(OperatingError::ShapeMismatch);
+            }
+            let mut output = appended(input.kinds, &[], CellKind::Span)?;
+            if base_line.is_some() {
+                output.push(CellKind::Number);
+            }
+            Ok(output)
+        }
+        Operation::SpanBounds { span, .. } => {
+            let input = first()?;
+            if projected(input.kinds, &[*span])? != [CellKind::Span] {
+                return Err(OperatingError::ShapeMismatch);
+            }
+            let mut output = input.kinds.to_vec();
+            output.extend([CellKind::Number, CellKind::Number]);
+            Ok(output)
+        }
     }
 }
 

@@ -2548,6 +2548,43 @@ def output_directory_self_test() -> None:
             raise AssertionError("an existing replay output was reused")
         assert sentinel.read_bytes() == b"first source-bound raw receipt\n"
 
+        profile = destination / "profile"
+        profile.mkdir()
+        (profile / "benchmark.toml").write_text('defaults = ["F401"]\n')
+        calls = []
+
+        def fake_runner(command, **options):
+            receipt = Path(options["env"]["RYO_VERIFY_CASE_RESULTS"])
+            assert receipt.parent.is_dir()
+            assert not receipt.exists()
+            calls.append(command)
+            return subprocess.CompletedProcess(
+                command, 1, b"first stdout\n", b"first stderr\n"
+            )
+
+        command = ["fake-worker", "verify-cases", "fake-ruff", str(profile)]
+        assert (
+            verify_profile("mock", profile, command, destination, {}, runner=fake_runner)
+            == 1
+        )
+        record = destination / "profiles" / "mock"
+        assert len(calls) == 1
+        assert (record / "stdout.bin").read_bytes() == b"first stdout\n"
+        sentinel = record / "cases.jsonl"
+        sentinel.write_bytes(b"first raw cases\n")
+        before = {
+            name: (record / name).read_bytes()
+            for name in ("stdout.bin", "stderr.bin", "result.json", "cases.jsonl")
+        }
+        try:
+            verify_profile("mock", profile, command, destination, {}, runner=fake_runner)
+        except FileExistsError:
+            pass
+        else:
+            raise AssertionError("a profile verifier reused an existing raw receipt")
+        assert len(calls) == 1
+        assert before == {name: (record / name).read_bytes() for name in before}
+
 
 def stage_directory(
     name: str, stack: contextlib.ExitStack, output_directory: Path | None
@@ -2568,6 +2605,20 @@ def staged_hashes(root: Path) -> dict[str, str]:
         for path in sorted(root.rglob("*"))
         if path.is_file()
     }
+
+
+def prepare_profile_record_directory(
+    output_directory: Path, name: str, artifacts: tuple[str, ...]
+) -> Path:
+    """Create the worker's receipt parent and refuse an existing raw run."""
+    record_directory = output_directory / "profiles" / name
+    record_directory.mkdir(parents=True, exist_ok=True)
+    for artifact in artifacts:
+        if (record_directory / artifact).exists():
+            raise FileExistsError(
+                f"existing profile receipt: {record_directory / artifact}"
+            )
+    return record_directory
 
 
 def persist_run_record(
@@ -2654,7 +2705,12 @@ def verify_profile(
     case_results_path = None
     environment = os.environ.copy()
     if output_directory is not None and command[1] != "verify-reference-cases":
-        case_results_path = output_directory / "profiles" / name / "cases.jsonl"
+        record_directory = prepare_profile_record_directory(
+            output_directory,
+            name,
+            ("cases.jsonl", "stdout.bin", "stderr.bin", "result.json"),
+        )
+        case_results_path = record_directory / "cases.jsonl"
         environment["RYO_VERIFY_CASE_RESULTS"] = str(case_results_path)
     try:
         result = runner(
@@ -2759,6 +2815,13 @@ def verify_reference_profile(
     cases = tomllib.loads(cases_path.read_text(encoding="utf-8")).get("cases")
     if not isinstance(cases, list) or not cases:
         raise ValueError("reference-only profile has no canonical cases")
+    record_directory = None
+    if output_directory is not None:
+        record_directory = prepare_profile_record_directory(
+            output_directory,
+            name,
+            ("reference-cases.jsonl", "stdout.bin", "stderr.bin", "result.json"),
+        )
     rows = []
     failures = []
     command_log = []
@@ -2880,10 +2943,8 @@ def verify_reference_profile(
         ("\n".join(failures) + ("\n" if failures else "")).encode("utf-8"),
     )
     case_results_path = None
-    if output_directory is not None:
-        case_results_path = (
-            output_directory / "profiles" / name / "reference-cases.jsonl"
-        )
+    if record_directory is not None:
+        case_results_path = record_directory / "reference-cases.jsonl"
         case_results_path.write_text(
             "\n".join(json.dumps(row, ensure_ascii=False) for row in rows) + "\n",
             encoding="utf-8",

@@ -121,6 +121,8 @@ fn operation_name(operation: &Operation) -> &'static str {
         Operation::Join { .. } => "join",
         Operation::Replace { .. } => "replace",
         Operation::SpanBetween { .. } => "span-between",
+        Operation::SpanBounds { .. } => "span-bounds",
+        Operation::SourceMatches { .. } => "source-matches",
         Operation::OrderedMatch { .. } => "ordered-match",
         Operation::OrderedDfs { .. } => "ordered-dfs",
         Operation::GroupCount { .. } => "group-count",

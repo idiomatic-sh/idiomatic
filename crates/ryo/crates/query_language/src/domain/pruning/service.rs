@@ -10,6 +10,8 @@ use ryo_values::domain::plans::types::PlanStep;
 pub(crate) fn each_input(operation: &mut Operation, visit: &mut dyn FnMut(&mut Input)) {
     match operation {
         Operation::SpanBetween { from, .. }
+        | Operation::SpanBounds { from, .. }
+        | Operation::SourceMatches { from, .. }
         | Operation::Replace { from, .. }
         | Operation::Select { from, .. }
         | Operation::Project { from, .. }

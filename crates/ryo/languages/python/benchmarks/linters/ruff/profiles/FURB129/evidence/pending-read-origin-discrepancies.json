@@ -1,0 +1,18 @@
+[
+  {
+    "name": "cached-namespace-1",
+    "files": {
+      "case.py": "if cond:\n    fp=unknown\nelse:\n    fp=open(\"x\")\nfor line in fp.readlines():\n    pass\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "FURB129",
+        "file": "case.py",
+        "start": 59,
+        "end": 73
+      }
+    ],
+    "intended_expected": [],
+    "reason": "An unknown alternative is a possible runtime receiver; source-order of branch declarations does not prove its type."
+  }
+]

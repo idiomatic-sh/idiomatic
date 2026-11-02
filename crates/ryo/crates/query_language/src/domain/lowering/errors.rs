@@ -6,6 +6,17 @@ use ryo_values::domain::program::types::{QueryOrigin, QuerySpan};
 /// Why a program does not lower to a plan.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 pub(crate) enum LoweringError {
+    /// A span endpoint projection has an extra or repeated named argument.
+    #[error("span-bounds has an extra or repeated argument `{name}`")]
+    SpanBoundsArgument { name: String, span: QuerySpan },
+    /// A source occurrence projection has an extra or repeated named argument.
+    #[error("source-matches has an extra or repeated argument `{name}`")]
+    SourceMatchesArgument { name: String, span: QuerySpan },
+    /// Physical source bytes are only available during per-file evaluation.
+    #[error("source-matches requires per-file input")]
+    CrossFileSourceMatches { span: QuerySpan },
+    #[error("source-matches requires both `base-line` and `line-output`, or neither")]
+    SourceMatchesLinePair { span: QuerySpan },
     /// A span projection has an extra or repeated named argument.
     #[error("span-between has an extra or repeated argument `{name}`")]
     SpanArgument {
