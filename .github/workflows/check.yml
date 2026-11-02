@@ -409,39 +409,10 @@ jobs:
           CARGO_BUILD_JOBS=6 cargo bench --no-run --locked -p idiomatic-sh-ryo-python --bench ruff --message-format=json \
             > ../../target/checks/ruff-all-defaults/worker-build.jsonl \
             2> ../../target/checks/ruff-all-defaults/worker-build.stderr
-          python3 - <<'PY'
-          import hashlib
-          import json
-          import shutil
-          from pathlib import Path
-
-          root = Path("../../target/checks/ruff-all-defaults").resolve()
-          matches = []
-          for line in (root / "worker-build.jsonl").read_bytes().splitlines():
-              try:
-                  record = json.loads(line)
-              except (UnicodeDecodeError, json.JSONDecodeError):
-                  continue
-              target = record.get("target", {})
-              source = target.get("src_path", "")
-              if (record.get("reason") == "compiler-artifact"
-                      and target.get("name") == "ruff"
-                      and "bench" in target.get("kind", [])
-                      and target.get("test") is False
-                      and isinstance(source, str)
-                      and source.replace("\\", "/").endswith("/languages/python/benchmarks/linters/ruff/bench.rs")
-                      and isinstance(record.get("executable"), str)):
-                  matches.append(Path(record["executable"]).resolve(strict=True))
-          if len(matches) != 1:
-              raise SystemExit(f"expected one Ruff benchmark worker, found {len(matches)}")
-          sealed = root / "worker"
-          shutil.copyfile(matches[0], sealed)
-          sealed.chmod(0o755)
-          (root / "worker-seal.json").write_text(json.dumps({
-              "source_artifact": str(matches[0]),
-              "sha256": hashlib.sha256(sealed.read_bytes()).hexdigest(),
-          }, sort_keys=True) + "\n")
-          PY
+          python3 ../../.github/scripts/seal_cargo_artifact.py \
+            ../../target/checks/ruff-all-defaults/worker-build.jsonl \
+            ruff bench /languages/python/benchmarks/linters/ruff/bench.rs true \
+            ../../target/checks/ruff-all-defaults/worker
       - name: Build shared benchmark inventory runner
         run: |
           cd crates/ryo
@@ -449,39 +420,11 @@ jobs:
             --bin ryo-benchmark-collector --message-format=json \
             > ../../target/checks/ruff-all-defaults/inventory-build.jsonl \
             2> ../../target/checks/ruff-all-defaults/inventory-build.stderr
-          python3 - <<'PY'
-          import hashlib
-          import json
-          import shutil
-          from pathlib import Path
-
-          root = Path("../../target/checks/ruff-all-defaults").resolve()
-          matches = []
-          for line in (root / "inventory-build.jsonl").read_bytes().splitlines():
-              try:
-                  record = json.loads(line)
-              except (UnicodeDecodeError, json.JSONDecodeError):
-                  continue
-              target = record.get("target", {})
-              source = target.get("src_path", "")
-              if (record.get("reason") == "compiler-artifact"
-                      and target.get("name") == "ryo-benchmark-collector"
-                      and "bin" in target.get("kind", [])
-                      and target.get("test") is False
-                      and isinstance(source, str)
-                      and source.replace("\\", "/").endswith("/crates/benchmark/src/main.rs")
-                      and isinstance(record.get("executable"), str)):
-                  matches.append(Path(record["executable"]).resolve(strict=True))
-          if len(matches) != 1:
-              raise SystemExit(f"expected one shared benchmark inventory runner, found {len(matches)}")
-          sealed = root / "inventory-runner"
-          shutil.copyfile(matches[0], sealed)
-          sealed.chmod(0o755)
-          (root / "inventory-runner-seal.json").write_text(json.dumps({
-              "source_artifact": str(matches[0]),
-              "sha256": hashlib.sha256(sealed.read_bytes()).hexdigest(),
-          }, sort_keys=True) + "\n")
-          PY
+          python3 -m unittest discover -s ../../.github/scripts -p 'test_seal_cargo_artifact.py'
+          python3 ../../.github/scripts/seal_cargo_artifact.py \
+            ../../target/checks/ruff-all-defaults/inventory-build.jsonl \
+            ryo-benchmark-collector bin /crates/benchmark/src/main.rs false \
+            ../../target/checks/ruff-all-defaults/inventory-runner
       - name: Verify all 413 pinned Ruff defaults
         working-directory: crates/ryo
         env:

@@ -224,7 +224,8 @@ expected = [{ rule = "PERF402", file = "case.py", start = 48, end = 64 }]
 name = "function-return-annotation"
 comparison = "full"
 files = { "case.py" = "def out()->list:\n    pass\nfor item in xs:\n    out.append(item)\n" }
-expected = [{ rule = "PERF402", file = "case.py", start = 46, end = 62 }]
+expected = []
+reference-discrepancy = { "expected" = [{ "rule" = "PERF402", "file" = "case.py", "start" = 46, "end" = 62 }], "identity" = { "tool" = "ruff", "version" = "0.16.5", "observed-executable-sha256" = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8", "profile-sha256" = "9c5617d195a8da4be01ed9a4ebb5c7f372b0cc75ff9eda94945a01c16804d365", "settings-sha256" = "3399a266c05beda110f10cb5f9c653fb1a090091e7370375c13835e12ce8c61c", "source-sha256" = "385eadd0ca3dd3da1d596cbe7145c797cd4e39a8d010fb5b92949f535d6f5703", "reference-output-sha256" = "ff0ac1c60ad0d4f92de6345f66cfe0b26fa34a891e87b07035d9f885c0a64e4e", "intended-output-sha256" = "fe95995b682b3d5703c003a04cf4b5f5b0c3f89c764485cc18476c5c1cf2bd7a" }, "evidence" = [{ "path" = "evidence/function-object-probe.py", "sha256" = "36489e25eab2cd342c80958f41b4ebbe85a9738a7ecf0aba49a8371c1f866156", "kind" = "independent-language-run", "language-version" = "CPython3.10.19 and3.13.5", "target-configuration" = "python-target=3.10", "version-rationale" = "Exact target3.10 interpreter executes complete original fixtures with dont_inherit=True;3.13 corroborates. The harness supplies item/xs inputs without rewriting any source. Function objects remain callable and fail the collection operation; explicitly annotated factory-created instances remain collections." }, { "path" = "evidence/function-object-inputs.json", "sha256" = "3b44ef101e4d4a17a8a1fb26207e8bfd973ae70b398a0570613e9ad92b3146e9", "kind" = "independent-language-run", "language-version" = "CPython3.10.19 and3.13.5", "target-configuration" = "python-target=3.10", "version-rationale" = "Exact target3.10 interpreter executes complete original fixtures with dont_inherit=True;3.13 corroborates. The harness supplies item/xs inputs without rewriting any source. Function objects remain callable and fail the collection operation; explicitly annotated factory-created instances remain collections." }, { "path" = "evidence/function-object-cpython310.json", "sha256" = "3b5be2051c520a8ab55445a38ed818fce6cbe43e490c6b2b2973a88c4fa859be", "kind" = "independent-language-run", "language-version" = "CPython3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Exact target3.10 interpreter executes complete original fixtures with dont_inherit=True;3.13 corroborates. The harness supplies item/xs inputs without rewriting any source. Function objects remain callable and fail the collection operation; explicitly annotated factory-created instances remain collections." }, { "path" = "evidence/function-object-cpython313.json", "sha256" = "1d49929cc1ba13b5337c4c74b7929cc62ca60a7173f42e2479d9bd65ce3e5239", "kind" = "independent-language-run", "language-version" = "CPython3.13.5", "target-configuration" = "python-target=3.10", "version-rationale" = "Exact target3.10 interpreter executes complete original fixtures with dont_inherit=True;3.13 corroborates. The harness supplies item/xs inputs without rewriting any source. Function objects remain callable and fail the collection operation; explicitly annotated factory-created instances remain collections." }], "reason" = "This binding denotes the function object itself, not a call result. A return annotation describes the call result and does not turn the function into a set/list instance. Exact unmodified execution raises AttributeError for append on the function. The intended collection-instance policy declines this suggestion. This exception is limited to this exact source; ordinary annotated collection bindings and called factory instances retain their independent positive expectations." }
 
 [[cases]]
 name = "imported-constructor"
@@ -387,3 +388,15 @@ name="set-rhs-mutable-value-runtime-invalid"
 comparison="full"
 files={"case.py"="(out,other)={[1],0}\nfor x in xs:\n    out.append(x)\n"}
 expected=[{ rule = "PERF402", file = "case.py", start = 37, end = 50 }]
+
+[[cases]]
+name = "called-annotated-factory-typed-instance"
+comparison = "full"
+files = { "case.py" = "def factory() -> list:\n    return list()\nout: list = factory()\nfor item in xs:\n    out.append(item)\n" }
+expected = [{ "rule" = "PERF402", "file" = "case.py", "start" = 83, "end" = 99 }]
+
+[[cases]]
+name = "called-annotated-factory-uninferred"
+comparison = "full"
+files = { "case.py" = "def factory() -> list:\n    return list()\nout = factory()\nfor item in xs:\n    out.append(item)\n" }
+expected = []

@@ -1,0 +1,149 @@
+[
+  {
+    "command": {
+      "arguments": [
+        "check",
+        "--isolated",
+        "--output-format",
+        "json",
+        "--cache-dir",
+        "$STATE/ruff",
+        "--select",
+        "PERF402",
+        "--target-version",
+        "py310",
+        "--",
+        "case.py"
+      ],
+      "directory": "$ROOT",
+      "environment": {
+        "RAYON_NUM_THREADS": "1"
+      },
+      "parser_configuration": "python-target=3.10",
+      "project_context_mode": "Isolated"
+    },
+    "executable_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+    "findings": [
+      {
+        "end": 62,
+        "file": "case.py",
+        "rule": "PERF402",
+        "start": 46
+      }
+    ],
+    "name": "function-return-annotation",
+    "raw_findings": [
+      {
+        "cell": null,
+        "code": "PERF402",
+        "end_location": {
+          "column": 21,
+          "row": 4
+        },
+        "filename": "/tmp/return-object-reference-97ktngiv/case.py",
+        "fix": null,
+        "location": {
+          "column": 5,
+          "row": 4
+        },
+        "message": "Use `list` or `list.copy` to create a copy of a list",
+        "name": "manual-list-copy",
+        "noqa_row": 4,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/manual-list-copy"
+      }
+    ],
+    "returncode": 1,
+    "rule": "PERF402",
+    "source": "def out()->list:\n    pass\nfor item in xs:\n    out.append(item)\n"
+  },
+  {
+    "command": {
+      "arguments": [
+        "check",
+        "--isolated",
+        "--output-format",
+        "json",
+        "--cache-dir",
+        "$STATE/ruff",
+        "--select",
+        "PERF402",
+        "--target-version",
+        "py310",
+        "--",
+        "case.py"
+      ],
+      "directory": "$ROOT",
+      "environment": {
+        "RAYON_NUM_THREADS": "1"
+      },
+      "parser_configuration": "python-target=3.10",
+      "project_context_mode": "Isolated"
+    },
+    "executable_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+    "findings": [
+      {
+        "end": 99,
+        "file": "case.py",
+        "rule": "PERF402",
+        "start": 83
+      }
+    ],
+    "name": "called-annotated-factory-typed-instance",
+    "raw_findings": [
+      {
+        "cell": null,
+        "code": "PERF402",
+        "end_location": {
+          "column": 21,
+          "row": 5
+        },
+        "filename": "/tmp/return-object-reference-ocikxmah/case.py",
+        "fix": null,
+        "location": {
+          "column": 5,
+          "row": 5
+        },
+        "message": "Use `list` or `list.copy` to create a copy of a list",
+        "name": "manual-list-copy",
+        "noqa_row": 5,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/manual-list-copy"
+      }
+    ],
+    "returncode": 1,
+    "rule": "PERF402",
+    "source": "def factory() -> list:\n    return list()\nout: list = factory()\nfor item in xs:\n    out.append(item)\n"
+  },
+  {
+    "command": {
+      "arguments": [
+        "check",
+        "--isolated",
+        "--output-format",
+        "json",
+        "--cache-dir",
+        "$STATE/ruff",
+        "--select",
+        "PERF402",
+        "--target-version",
+        "py310",
+        "--",
+        "case.py"
+      ],
+      "directory": "$ROOT",
+      "environment": {
+        "RAYON_NUM_THREADS": "1"
+      },
+      "parser_configuration": "python-target=3.10",
+      "project_context_mode": "Isolated"
+    },
+    "executable_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+    "findings": [],
+    "name": "called-annotated-factory-uninferred",
+    "raw_findings": [],
+    "returncode": 0,
+    "rule": "PERF402",
+    "source": "def factory() -> list:\n    return list()\nout = factory()\nfor item in xs:\n    out.append(item)\n"
+  }
+]

@@ -83,6 +83,67 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         }),
     },
     Case {
+        name: CaseName("or_pattern_alternatives_must_bind_the_same_names"),
+        word: Word::Succeeds,
+        input: || "match x:\n case float(\"nan\") | y: ...\n",
+        expect: Expect::Value(Reading {
+            rows: &[&[
+                want_node(2_147_483_648),
+                want_name("alternative patterns bind different names"),
+                want_name("validation"),
+                want_name("preserved"),
+                want_name("pattern-bindings-mismatch"),
+                want_file(SHOWN),
+                want_span((2, 7), (2, 23)),
+            ]],
+            causes: &[],
+        }),
+    },
+    Case {
+        name: CaseName("or_pattern_nested_captures_can_bind_the_same_names"),
+        word: Word::Succeeds,
+        input: || "match x:\n case [1 as y] | [2 as y]: ...\n",
+        expect: Expect::Value(Reading {
+            rows: &[],
+            causes: &[],
+        }),
+    },
+    Case {
+        name: CaseName("or_pattern_binding_order_does_not_change_its_name_set"),
+        word: Word::Succeeds,
+        input: || "match x:\n case [a, b] | [b, a]: ...\n",
+        expect: Expect::Value(Reading {
+            rows: &[],
+            causes: &[],
+        }),
+    },
+    Case {
+        name: CaseName("or_pattern_wildcards_do_not_bind_and_mapping_rest_does"),
+        word: Word::Succeeds,
+        input: || "match x:\n case [_, y] | [_, y]: ...\n case {\"a\": a, **rest} | {\"b\": a, **rest}: ...\n",
+        expect: Expect::Value(Reading {
+            rows: &[],
+            causes: &[],
+        }),
+    },
+    Case {
+        name: CaseName("or_pattern_mapping_rest_must_be_bound_in_every_alternative"),
+        word: Word::Succeeds,
+        input: || "match x:\n case {\"a\": a, **rest} | {\"b\": a}: ...\n",
+        expect: Expect::Value(Reading {
+            rows: &[&[
+                want_node(2_147_483_648),
+                want_name("alternative patterns bind different names"),
+                want_name("validation"),
+                want_name("preserved"),
+                want_name("pattern-bindings-mismatch"),
+                want_file(SHOWN),
+                want_span((2, 7), (2, 34)),
+            ]],
+            causes: &[],
+        }),
+    },
+    Case {
         name: CaseName("an_unknown_future_feature_is_an_error_and_braces_not_a_chance"),
         word: Word::Succeeds,
         input: || "from __future__ import annotations, nope\nfrom __future__ import braces\n",

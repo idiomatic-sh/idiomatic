@@ -2,8 +2,8 @@
 use super::constants::{
     ANNOTATED_GLOBAL, BARE_STARRED_TARGET, COMPREHENSION_REBIND, DUPLICATE_KEYWORD_ARGUMENT,
     DUPLICATE_PARAMETER, DUPLICATE_TYPE_PARAMETER, GLOBAL_PARAMETER, INVALID_UTF8,
-    NONLOCAL_AT_MODULE, NONLOCAL_PARAMETER, NOT_UTF8, PARSER_ERROR, TYPE_PARAMETER_DEFAULT_ORDER,
-    UNSUPPORTED_SYNTAX,
+    NONLOCAL_AT_MODULE, NONLOCAL_PARAMETER, NOT_UTF8, PARSER_ERROR, PATTERN_BINDINGS_MISMATCH,
+    TYPE_PARAMETER_DEFAULT_ORDER, UNSUPPORTED_SYNTAX,
 };
 use super::schemas::{offset, readable};
 use super::types::{AnnotationCandidate, AnnotationContext, ByteIndex, Readable, Writer};
@@ -12,8 +12,8 @@ use crate::outbound::syntax::types::{PythonSourceKind, SourceText};
 use crate::settings::{PythonParserSettings, PythonTargetVersion};
 use ruff_python_ast::token::Token as RuffToken;
 use ruff_python_ast::visitor::source_order::SourceOrderVisitor as _;
-use ruff_python_ast::visitor::{Visitor, walk_expr, walk_stmt};
-use ruff_python_ast::{Arguments, Expr, Mod, Parameters, Stmt, TypeParams};
+use ruff_python_ast::visitor::{Visitor, walk_expr, walk_pattern, walk_stmt};
+use ruff_python_ast::{Arguments, Expr, Mod, Parameters, Pattern, Stmt, TypeParams};
 use ruff_python_ast::{PySourceType, PythonVersion};
 use ruff_python_parser::{ParseErrorType, ParseOptions, parse_unchecked};
 use ruff_text_size::{Ranged as _, TextSize};
@@ -83,6 +83,54 @@ fn semantic_syntax_errors(
     target_version: PythonVersion,
     future_annotations: bool,
 ) -> Vec<SemanticSyntaxDiagnostic> {
+    /// Compiler pattern validation compares names, independent of their order or nesting.
+    fn pattern_bindings<'a>(pattern: &'a Pattern) -> HashSet<&'a str> {
+        let mut names = HashSet::new();
+        match pattern {
+            Pattern::MatchValue(_) | Pattern::MatchSingleton(_) => {}
+            Pattern::MatchSequence(sequence) => {
+                for child in &sequence.patterns {
+                    names.extend(pattern_bindings(child));
+                }
+            }
+            Pattern::MatchMapping(mapping) => {
+                for child in &mapping.patterns {
+                    names.extend(pattern_bindings(child));
+                }
+                if let Some(rest) = &mapping.rest {
+                    let _new = names.insert(rest.as_str());
+                }
+            }
+            Pattern::MatchClass(class) => {
+                for child in &class.arguments.patterns {
+                    names.extend(pattern_bindings(child));
+                }
+                for keyword in &class.arguments.keywords {
+                    names.extend(pattern_bindings(&keyword.pattern));
+                }
+            }
+            Pattern::MatchStar(star) => {
+                if let Some(name) = &star.name {
+                    let _new = names.insert(name.as_str());
+                }
+            }
+            Pattern::MatchAs(capture) => {
+                if let Some(child) = &capture.pattern {
+                    names.extend(pattern_bindings(child));
+                }
+                if let Some(name) = &capture.name {
+                    let _new = names.insert(name.as_str());
+                }
+            }
+            Pattern::MatchOr(alternatives) => {
+                if let Some(first) = alternatives.patterns.first() {
+                    names.extend(pattern_bindings(first));
+                }
+            }
+        }
+        names
+    }
+
     #[derive(Default)]
     struct VisitorState {
         scopes: Vec<ScopeState>,
@@ -266,6 +314,27 @@ fn semantic_syntax_errors(
     }
 
     impl<'a> Visitor<'a> for VisitorState {
+        fn visit_pattern(&mut self, pattern: &'a Pattern) {
+            if let Pattern::MatchOr(alternatives) = pattern
+                && let Some(first) = alternatives.patterns.first()
+            {
+                let expected = pattern_bindings(first);
+                if alternatives
+                    .patterns
+                    .iter()
+                    .skip(1)
+                    .any(|branch| pattern_bindings(branch) != expected)
+                {
+                    self.report(
+                        PATTERN_BINDINGS_MISMATCH,
+                        "alternative patterns bind different names",
+                        alternatives.range(),
+                    );
+                }
+            }
+            walk_pattern(self, pattern);
+        }
+
         fn visit_stmt(&mut self, stmt: &'a Stmt) {
             debug_assert!(
                 self.scope().is_some(),

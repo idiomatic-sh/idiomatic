@@ -60,6 +60,9 @@ pub(super) const FUTURE_FEATURE_NOT_DEFINED: ryo::languages::DiagnosticCode =
 /// A compiler directive with an invalid location or form, after successful grammar parsing.
 pub(super) const FUTURE_DIRECTIVE_INVALID: ryo::languages::DiagnosticCode =
     ryo::languages::DiagnosticCode::provider_owned("future-directive-invalid");
+/// Alternatives of one OR pattern must bind the same names.
+pub(super) const PATTERN_BINDINGS_MISMATCH: ryo::languages::DiagnosticCode =
+    ryo::languages::DiagnosticCode::provider_owned("pattern-bindings-mismatch");
 /// A repeated parameter name in one function or lambda signature.
 pub(super) const DUPLICATE_PARAMETER: ryo::languages::DiagnosticCode =
     ryo::languages::DiagnosticCode::provider_owned("duplicate-parameter");
