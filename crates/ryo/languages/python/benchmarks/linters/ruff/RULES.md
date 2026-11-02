@@ -2,7 +2,7 @@
 
 Generated from canonical source and the existing full-inventory runner's results. Every pinned default is preloaded; missing, unrun, invalid and failed implementations remain FAIL.
 
-**362 PASS / 51 FAIL / 413 pinned defaults**; run state `complete`. Worker `d43a5760d6c9388d7ba307416417268fbf1cacb92ae6fbe9bf70dffdf0d686b8`. PASS means executed intended expectations, including only independently validated explicit reference discrepancies. Raw parity and documented differences remain explicit in result receipts. This table is not an admission subset.
+**364 PASS / 49 FAIL / 413 pinned defaults**; run state `complete`. Worker `d43a5760d6c9388d7ba307416417268fbf1cacb92ae6fbe9bf70dffdf0d686b8`. PASS means executed intended expectations, including only independently validated explicit reference discrepancies. Raw parity and documented differences remain explicit in result receipts. This table is not an admission subset. The count combines the complete 413-rule run with two later singleton replays on the same worker; it is not one 364-rule execution.
 
 | Rule | Result | Reason / evidence |
 |---|---|---|
@@ -351,8 +351,8 @@ Generated from canonical source and the existing full-inventory runner's results
 | SIM211 | PASS | verified intended expectations |
 | SIM220 | PASS | verified intended expectations |
 | SIM221 | PASS | verified intended expectations |
-| SIM222 | FAIL | rule registration: ValueError: missing or ambiguous required singleton/cohort settings registration; [query source](rules/SIM222/query.ryoql) |
-| SIM223 | FAIL | rule registration: ValueError: missing or ambiguous required singleton/cohort settings registration; [query source](rules/SIM223/query.ryoql) |
+| SIM222 | PASS | [separate 17/17 raw-exact proof](results/full-inventory-current/sim222-sim223-supplement/summary.json) |
+| SIM223 | PASS | [separate 17/17 raw-exact proof](results/full-inventory-current/sim222-sim223-supplement/summary.json) |
 | SIM401 | FAIL | missing implementation |
 | SIM905 | PASS | verified intended expectations |
 | SIM911 | PASS | verified intended expectations |

@@ -1,8 +1,8 @@
 # Complete pinned Ruff inventory, 2026-11-02
 
-**362 PASS / 51 FAIL / 413 defaults.** This is the completed shared benchmark inventory run, not an admission subset. The collector exited 1 because 51 rules failed. [The full summary](summary.json) has one PASS or FAIL row per pinned rule; [raw receipts](raw-receipts.tar.gz) retain the generated registration, native case JSONL, terminal row results, and child streams.
+**364 PASS / 49 FAIL / 413 defaults in current source-bound evidence.** This combines the completed **362 PASS / 51 FAIL** shared benchmark inventory run with [two later 17/17 singleton replays](sim222-sim223-supplement/summary.json) on the same sealed worker. It is not a single 364-rule execution. The full collector exited 1 because 51 rules failed at that source snapshot. [Its summary](summary.json) has one PASS or FAIL row per pinned rule; [raw receipts](raw-receipts.tar.gz) retain the generated registration, native case JSONL, terminal row results, and child streams. [The supplement proof](sim222-sim223-supplement/proof.json) binds the unchanged base summary and separate [raw receipts](sim222-sim223-supplement/raw-receipts.tar.gz).
 
-The 51 failures comprise 30 missing implementations, 19 verifier failures, and 2 missing or ambiguous settings registrations (SIM222, SIM223). Passing rows executed 8,837 case pairs: 8,753 raw exact pairs and 80 independently documented reference differences. These counts describe passing rows only; failed rows retain their error details in the summary and archive.
+In the complete base run, the 51 failures comprised 30 missing implementations, 19 verifier failures, and 2 missing or ambiguous settings registrations (SIM222, SIM223). Passing base rows executed 8,837 case pairs: 8,753 raw exact pairs and 80 independently documented reference differences. The two supplemental rules add 34 raw-exact case pairs. Failed rows retain their error details in the base summary and archive.
 
 | Identity | SHA-256 |
 |---|---|

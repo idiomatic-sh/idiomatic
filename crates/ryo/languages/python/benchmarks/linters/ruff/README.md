@@ -1,6 +1,6 @@
 # Ruff benchmark
 
-**362 PASS / 51 FAIL / 413 pinned Ruff 0.16.5 defaults.** The [completed full-inventory run](results/full-inventory-current/README.md) used the shared Rust benchmark runner and checked each rule independently. Its [summary](results/full-inventory-current/summary.json) and [raw receipts](results/full-inventory-current/raw-receipts.tar.gz) preserve all 413 outcomes. `measure-scoped` remains interim evidence for a selected workload; the complete inventory exits with failure until all 413 pass.
+**364 PASS / 49 FAIL / 413 pinned Ruff 0.16.5 defaults in current evidence.** The [completed full-inventory run](results/full-inventory-current/README.md) checked all 413 defaults and produced 362 PASS / 51 FAIL. [Two later singleton replays](results/full-inventory-current/sim222-sim223-supplement/summary.json) passed SIM222 and SIM223 on the same worker. The [full-run summary](results/full-inventory-current/summary.json), [raw receipts](results/full-inventory-current/raw-receipts.tar.gz), and [supplement proof](results/full-inventory-current/sim222-sim223-supplement/proof.json) keep the runs distinct. `measure-scoped` remains interim evidence for a selected workload; complete inventory success still requires all 413 to pass.
 
 The [per-rule inventory](RULES.md) lists one PASS or FAIL for each pinned ID and the recorded failure reason. Regenerate and check it with `python3 authoring/generate_rule_inventory.py --check` after changing source or proof assets.
 

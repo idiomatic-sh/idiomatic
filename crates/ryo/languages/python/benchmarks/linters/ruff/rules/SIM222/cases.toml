@@ -79,3 +79,27 @@ name = "earlier-line-suppression"
 comparison = "full"
 files = { "case.py" = "(\n    x  # noqa: SIM222\n    or 1\n    or y\n)\n" }
 expected = [{ rule = "SIM222", file = "case.py", start = 31, end = 41 }]
+
+[[cases]]
+name = "test-opposite"
+comparison = "full"
+files = { "case.py" = "if x or False:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "test-known-prefix"
+comparison = "full"
+files = { "case.py" = "if False or True:\n    pass\n" }
+expected = [{ rule = "SIM222", file = "case.py", start = 3, end = 16 }]
+
+[[cases]]
+name = "test-parenthesized-literal"
+comparison = "full"
+files = { "case.py" = "if x or (True):\n    pass\n" }
+expected = [{ rule = "SIM222", file = "case.py", start = 3, end = 14 }]
+
+[[cases]]
+name = "test-nonterminal-literal"
+comparison = "full"
+files = { "case.py" = "if x or True or y:\n    pass\n" }
+expected = [{ rule = "SIM222", file = "case.py", start = 3, end = 17 }]

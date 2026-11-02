@@ -12,6 +12,7 @@ import tomllib
 
 RUFF = Path(__file__).resolve().parents[1]
 RESULTS = RUFF / "results"
+REPOSITORY = RUFF.parents[6]
 
 
 def sha(path: Path) -> str:
@@ -21,6 +22,24 @@ def sha(path: Path) -> str:
 def source(rule: str) -> tuple[Path | None, str]:
     path = RUFF / "rules" / rule / "query.ryoql"
     return (path, "query") if path.is_file() else (None, "missing")
+
+
+def current_source_matches(instance: dict[str, object]) -> bool:
+    """A passing row remains current only while its registered settings and helpers match."""
+    relative = instance.get("settings_source")
+    if not isinstance(relative, str):
+        return False
+    profile = REPOSITORY / relative
+    if not profile.is_file() or instance.get("settings_source_sha256") != sha(profile):
+        return False
+    settings = tomllib.loads(profile.read_text(encoding="utf-8"))
+    base = tomllib.loads((RUFF / "benchmark.toml").read_text(encoding="utf-8"))
+    registry = {**base.get("query-modules", {}), **settings.get("query-modules", {})}
+    modules = instance.get("module_sha256")
+    if not isinstance(modules, dict):
+        return False
+    return all(logical in registry and (RUFF / registry[logical]).is_file()
+               and sha(RUFF / registry[logical]) == digest for logical, digest in modules.items())
 
 
 def render_full_inventory(path: Path) -> str:
@@ -37,6 +56,34 @@ def render_full_inventory(path: Path) -> str:
         or any(row.get("status") not in {"PASS", "FAIL"} for row in rows)):
         raise ValueError("full inventory result omitted, duplicated, or changed a pinned rule ID")
     by_rule = {row["rule_id"]: row for row in rows}
+    supplement_label = ""
+    current = RESULTS / "full-inventory-current"
+    if path.resolve() == (current / "summary.json").resolve():
+        supplement = current / "sim222-sim223-supplement"
+        proof_file = supplement / "proof.json"
+        if proof_file.is_file():
+            proof = json.loads(proof_file.read_text(encoding="utf-8"))
+            extra_file = supplement / "summary.json"
+            extra = json.loads(extra_file.read_text(encoding="utf-8"))
+            extra_rows = extra.get("rules", [])
+            if (proof.get("schema") != "benchmark-inventory-supplement/v1"
+                or proof.get("base_summary_sha256") != sha(path)
+                or proof.get("supplement_summary_sha256") != sha(extra_file)
+                or proof.get("raw_receipts_sha256") != sha(supplement / "raw-receipts.tar.gz")
+                or proof.get("rule_ids") != [row.get("rule_id") for row in extra_rows]
+                or proof.get("rule_ids") != ["SIM222", "SIM223"]
+                or extra.get("schema") != "benchmark-inventory/v1"
+                or extra.get("run_state") != "complete"
+                or extra.get("counts") != {"PASS": 2, "FAIL": 0}
+                or extra.get("identity", {}).get("worker_sha256") != worker_sha256
+                or any(row.get("status") != "PASS" or row.get("case_count") != 17
+                       or row.get("case_count") != row.get("raw_exact")
+                       or row.get("documented_discrepancies") != 0 or not row.get("case_results_sha256")
+                       or by_rule[row["rule_id"]]["status"] != "FAIL" for row in extra_rows)):
+                raise ValueError("SIM supplement is stale or changes the complete base receipt")
+            for row in extra_rows:
+                by_rule[row["rule_id"]] = {**row, "reason": "[separate 17/17 raw-exact proof](results/full-inventory-current/sim222-sim223-supplement/summary.json)"}
+            supplement_label = " The count combines the complete 413-rule run with two later singleton replays on the same worker; it is not one 364-rule execution."
     rendered = []
     passed = 0
     for rule in defaults:
@@ -49,7 +96,8 @@ def render_full_inventory(path: Path) -> str:
             instance = row.get("instance", {})
             if (query is None or not case_path.is_file()
                 or instance.get("query_sha256") != sha(query)
-                or instance.get("cases_sha256") != sha(case_path)):
+                or instance.get("cases_sha256") != sha(case_path)
+                or not current_source_matches(instance)):
                 status, reason = "FAIL", "recorded PASS has changed or missing current source/cases"
             elif not worker_sha256 or not row.get("case_results_sha256"):
                 raise ValueError("PASS lacks worker identity or executed case receipts")
@@ -65,7 +113,7 @@ def render_full_inventory(path: Path) -> str:
         f"**{passed} PASS / {413 - passed} FAIL / 413 pinned defaults**; run state `{summary.get('run_state')}`. "
         f"Worker `{worker_sha256 or 'not run'}`. "
         "PASS means executed intended expectations, including only independently validated explicit reference discrepancies. "
-        "Raw parity and documented differences remain explicit in result receipts. This table is not an admission subset.", "",
+        "Raw parity and documented differences remain explicit in result receipts. This table is not an admission subset." + supplement_label, "",
         "| Rule | Result | Reason / evidence |",
         "|---|---|---|", *rendered, "",
     ])
