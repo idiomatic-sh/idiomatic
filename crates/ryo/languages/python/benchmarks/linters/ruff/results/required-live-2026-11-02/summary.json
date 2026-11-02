@@ -13,6 +13,40 @@
     "max_repeat_node": 6026,
     "sampled_file_blocks": 565
   },
+  "cpu_sample": {
+    "cap_seconds": 30,
+    "event": "cpu-clock:u",
+    "frequency_hz": 99,
+    "lost_samples": 0,
+    "report_sha256": "4c5dd22412352f7a10ef8d67833674c4c844e0de11e42dc38b7543db8e87028f",
+    "scope": "first 30 seconds of frozen310 candidate; diagnostic only; no baseline differential",
+    "top_symbols_percent": [
+      {
+        "percent": 27.29,
+        "symbol": "file_analysis::read_file"
+      },
+      {
+        "percent": 10.68,
+        "symbol": "FileDagExecution::consumed"
+      },
+      {
+        "percent": 7.72,
+        "symbol": "execution::lease::evaluate"
+      },
+      {
+        "percent": 4.08,
+        "symbol": "table_model::read_row"
+      },
+      {
+        "percent": 3.78,
+        "symbol": "BoundPredicate::holds"
+      },
+      {
+        "percent": 2.14,
+        "symbol": "FileDagExecution::consume_required"
+      }
+    ]
+  },
   "django_frozen_310": {
     "baseline_cpu_seconds": 214.474992,
     "baseline_peak_rss_bytes": 2199207936,

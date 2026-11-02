@@ -22,6 +22,8 @@ On `django/contrib/admin/options.py`, the [old capped diagnostic](../all24-contr
 
 A 45-second full-profile diagnostic reached 565 files and emitted 4,856,658 DAG-node events. Within any sampled file, the maximum `(file, node)` repeat count was 16. JSON event writing produced 1.87 GB, so these event counts are work-shape evidence rather than ordinary timing attribution. The [bounded trace summaries](raw.tar.gz) retain the top nodes, files, sampled rule durations, cap boundary, and exact hash of the local raw trace. The 1.87 GB trace is omitted from Git.
 
+A separate 30-second `perf` sample captured about 2,000 user CPU samples with none lost. The largest symbols were `file_analysis::read_file` (27.29%), DAG consumer accounting (10.68%), operator lease evaluation (7.72%), and row decoding (4.08%). Sampling covered only the beginning of the corpus and has no pre-contract profile for subtraction. It identifies places to inspect, without assigning the 14.05% cold regression to any one of them. The sample and report are in the [raw archive](raw.tar.gz).
+
 RUF101 passed all 40 current-helper cases with raw candidate/reference parity on this worker. Its [source-bound supplement](../full-inventory-current/ruf101-target-supplement/README.md) updates the pinned [413-rule table](../../RULES.md) to **378 PASS / 35 FAIL**. N999 remains FAIL: 44 of 47 candidate cases passed; the unresolved cases are a nested dotted initializer and `.txt` and extensionless inputs rejected as `NoLanguage`. The lexical recovery change resolved its prior invalid-syntax case.
 
 The next engine work must account for broad per-node execution and representation cost while retaining the proven result and lifecycle behavior. The current full-corpus performance result is not accepted.
