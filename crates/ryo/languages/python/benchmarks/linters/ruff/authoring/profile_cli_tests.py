@@ -558,6 +558,7 @@ def self_test() -> int:
         candidate.write_bytes(original_candidate)
         manifest = json.loads(temporary_manifest.read_text(encoding='utf-8'))
         last_profile = max(manifest['profiles'])
+        last_rule = manifest['profiles'][last_profile].get('rule_id', last_profile)
         manifest['profiles'][last_profile]['case_count'] += 1
         temporary_manifest.write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
         fake_bin = root / 'fake-bin'
@@ -608,7 +609,7 @@ def self_test() -> int:
             temporary_manifest.write_text(json.dumps(trial_manifest, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
             marker.unlink(missing_ok=True)
             preflight_output = root / 'later-preflight-output'
-            check = subprocess.run([sys.executable, str(helper), ruff, '--output-dir', str(preflight_output)], capture_output=True, text=True, check=False, env={**os.environ, 'PATH': f"{fake_bin}:{os.environ['PATH']}", 'RYO_RUFF_PREPARED_MANIFEST': str(temporary_manifest)})
+            check = subprocess.run([sys.executable, str(helper), ruff, '--profile', later_name, '--output-dir', str(preflight_output)], capture_output=True, text=True, check=False, env={**os.environ, 'PATH': f"{fake_bin}:{os.environ['PATH']}", 'RYO_RUFF_PREPARED_MANIFEST': str(temporary_manifest)})
             receipt_path = preflight_output / 'preflight-error.json'
             receipt = json.loads(receipt_path.read_text(encoding='utf-8')) if receipt_path.is_file() else {}
             valid = check.returncode == 2 and 'complete expected inventory count mismatch' in check.stderr and (not marker.exists()) and (receipt.get('manifest_path') == temporary_manifest.relative_to(root).as_posix()) and (receipt.get('manifest_sha256') == profile_config.sha256(temporary_manifest))
@@ -623,7 +624,7 @@ def self_test() -> int:
         baseline_overlay = (profile_config.REPOSITORY / overlay_relative).read_bytes()
         (root / pristine_manifest['combined_profiles']['expanded-defaults']['expectations_file']).write_bytes((profile_config.REPOSITORY / pristine_manifest['combined_profiles']['expanded-defaults']['expectations_file']).read_bytes())
         (root / pristine_manifest['combined_profiles']['shape-110']['expectations_file']).write_bytes(baseline_overlay)
-        preflight = subprocess.run([sys.executable, str(helper), str(Path(sys.executable).resolve()), '--output-dir', str(root / 'inventory-output')], capture_output=True, text=True, check=False, env={**os.environ, 'PATH': f"{fake_bin}:{os.environ['PATH']}"})
+        preflight = subprocess.run([sys.executable, str(helper), str(Path(sys.executable).resolve()), last_rule, '--output-dir', str(root / 'inventory-output')], capture_output=True, text=True, check=False, env={**os.environ, 'PATH': f"{fake_bin}:{os.environ['PATH']}"})
         if preflight.returncode != 2 or f'case inventory mismatch for {last_profile}' not in preflight.stderr or marker.exists():
             print(f'later-profile preflight guard failed: status={preflight.returncode}; stderr={preflight.stderr.strip()!r}; marker={marker.exists()}', file=sys.stderr)
             return 1
