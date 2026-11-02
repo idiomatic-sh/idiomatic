@@ -1,0 +1,158 @@
+"""Reference discrepancies: linter-specific authoring and proof utilities."""
+from __future__ import annotations
+import hashlib
+import json
+import re
+import shutil
+from pathlib import Path
+import tomllib
+from authoring import case_records
+from authoring import profile_config
+
+def discrepancy_json_hash(value: object) -> str:
+    """Canonical certificate encoding shared with the native benchmark harness."""
+    return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode()).hexdigest()
+
+def discrepancy_output(files: list[str], findings: list[dict[str, object]]) -> dict[str, object]:
+    """Bind exact files and the complete diagnostic multiset, preserving duplicates."""
+    return {'files': sorted(files), 'diagnostics': sorted(findings, key=lambda row: (row['rule'], row['file'], row['start'], row['end'])), 'skipped': []}
+
+def validate_reference_discrepancy(profile_root: Path, case: dict[str, object], parent_rule: str) -> dict[str, object] | None:
+    """Admit two concrete expectations only with pinned independent language evidence.
+
+    This validates evidence identity, not the truth of a specification interpretation.
+    Runtime verification must additionally bind the actual invocation and approved tool.
+    """
+    annotation = case.get('reference-discrepancy')
+    if annotation is None:
+        return None
+    if not isinstance(annotation, dict) or set(annotation) != {'expected', 'identity', 'evidence', 'reason'}:
+        raise ValueError('invalid reference-discrepancy schema')
+    if case.get('comparison', 'rule') != 'full' or not str(annotation['reason']).strip():
+        raise ValueError('reference discrepancy requires full comparison and a reason')
+    identity = annotation['identity']
+    identity_fields = {'tool', 'version', 'observed-executable-sha256', 'profile-sha256', 'settings-sha256', 'source-sha256', 'reference-output-sha256', 'intended-output-sha256'}
+    if not isinstance(identity, dict) or set(identity) != identity_fields:
+        raise ValueError('incomplete reference discrepancy identity')
+    for field in identity_fields - {'tool', 'version'}:
+        if not isinstance(identity[field], str) or re.fullmatch('[a-f0-9]{64}', identity[field]) is None:
+            raise ValueError('reference discrepancy requires lowercase SHA256 identities')
+    profile_path = profile_root / 'benchmark.toml'
+    profile = tomllib.loads(profile_path.read_text(encoding='utf-8'))
+    if identity['tool'] != profile['tool'] or identity['version'] != profile['version'] or identity['observed-executable-sha256'] not in profile['sha256'] or (identity['profile-sha256'] != profile_config.sha256(profile_path)):
+        raise ValueError('stale discrepancy tool/profile identity')
+    source = hashlib.sha256()
+    for file, text in sorted(case['files'].items()):
+        source.update(file.encode())
+        source.update(b'\x00')
+        source.update(text.encode())
+    if source.hexdigest() != identity['source-sha256']:
+        raise ValueError('stale discrepancy source identity')
+
+    def expected_rows(rows: object) -> list[dict[str, object]]:
+        if not isinstance(rows, list):
+            raise ValueError('discrepancy expectation must be an array')
+        normalized = []
+        for row in rows:
+            if not isinstance(row, dict) or set(row) != {'rule', 'file', 'start', 'end'}:
+                raise ValueError('full discrepancy expectations require explicit diagnostic identities')
+            if row['file'] not in case['files'] or not isinstance(row['rule'], str) or (not row['rule']):
+                raise ValueError('discrepancy diagnostic outside supplied source')
+            text = case['files'][row['file']].encode()
+            if type(row['start']) is not int or type(row['end']) is not int or (not 0 <= row['start'] <= row['end'] <= len(text)):
+                raise ValueError('invalid discrepancy diagnostic range')
+            text[:row['start']].decode()
+            text[:row['end']].decode()
+            normalized.append(dict(row))
+        return normalized
+    intended = discrepancy_output(list(case['files']), expected_rows(case['expected']))
+    reference = discrepancy_output(list(case['files']), expected_rows(annotation['expected']))
+    if intended == reference:
+        raise ValueError('identical expectations are not a reference discrepancy')
+    if discrepancy_json_hash(intended) != identity['intended-output-sha256'] or discrepancy_json_hash(reference) != identity['reference-output-sha256']:
+        raise ValueError('stale reference/intended expectation identity')
+    evidence = annotation['evidence']
+    if not isinstance(evidence, list) or not evidence:
+        raise ValueError('reference discrepancy requires independent evidence')
+    for item in evidence:
+        fields = {'path', 'sha256', 'kind', 'language-version', 'target-configuration', 'version-rationale'}
+        if not isinstance(item, dict) or set(item) != fields:
+            raise ValueError('incomplete discrepancy evidence')
+        path = Path(item['path'])
+        if path.is_absolute() or not path.parts or any((part in {'.', '..'} for part in path.parts)):
+            raise ValueError('unsafe discrepancy evidence path')
+        resolved = (profile_root / path).resolve(strict=True)
+        if not resolved.is_relative_to(profile_root.resolve()) or not resolved.is_file() or profile_config.sha256(resolved) != item['sha256'] or (item['kind'] not in {'language-spec', 'independent-language-run'}) or (not str(item['language-version']).strip()) or (not str(item['version-rationale']).strip()) or (item['target-configuration'] != profile.get('parser-configuration')):
+            raise ValueError('stale/external evidence or unsupported language contract')
+    return {'identity': identity, 'approved_executable_sha256': profile['sha256'], 'reference_expected': reference['diagnostics'], 'intended_expected': intended['diagnostics'], 'reason': annotation['reason']}
+
+def classify_reference_discrepancy(profile_root: Path, case: dict[str, object], parent_rule: str, reference: dict[str, object], candidate: dict[str, object], *, actual_executable_sha256: str, actual_settings_sha256: str) -> dict[str, object]:
+    """Retain raw parity mismatch while separately asserting the intended language behavior."""
+    certificate = validate_reference_discrepancy(profile_root, case, parent_rule)
+    if certificate is None:
+        raise ValueError('classification requires an explicit discrepancy certificate')
+    profile = tomllib.loads((profile_root / 'benchmark.toml').read_text())
+    if actual_executable_sha256 not in profile['sha256'] or actual_settings_sha256 != certificate['identity']['settings-sha256']:
+        raise ValueError('unapproved executable or stale actual invocation settings')
+    files = sorted(case['files'])
+    for side, report in (('reference', reference), ('candidate', candidate)):
+        if report.get('complete') is not True or report.get('error') is not None or report.get('files') != files or (report.get('skipped') != []) or (not isinstance(report.get('diagnostics'), list)):
+            raise ValueError('discrepancy cannot accept an incomplete or failed report')
+        coverage = report.get('coverage')
+        if coverage is None and side == 'candidate':
+            raise ValueError('candidate discrepancy classification needs accounting')
+        if coverage is not None and (coverage.get('unknown_or_unread_rule_file_pairs') != 0 or coverage.get('skipped_rule_file_pairs') != 0 or coverage.get('selected_rule_file_pairs', 0) <= 0 or (coverage.get('selected_rule_file_pairs') != coverage.get('evaluated_rule_file_pairs'))):
+            raise ValueError('unknown/inconsistent coverage is not a reference discrepancy')
+    ref_exact = case_records.diagnostic_multiset(reference['diagnostics']) == case_records.diagnostic_multiset(certificate['reference_expected'])
+    intended_exact = case_records.diagnostic_multiset(candidate['diagnostics']) == case_records.diagnostic_multiset(certificate['intended_expected'])
+    raw_exact = case_records.diagnostic_multiset(reference['diagnostics']) == case_records.diagnostic_multiset(candidate['diagnostics'])
+    if not ref_exact or not intended_exact:
+        raise ValueError('reference or candidate violated its separate exact expectation')
+    return {'raw_parity_match': raw_exact, 'documented_reference_discrepancy': True, 'intended_behavior_pass': intended_exact, 'reference_expectation_pass': ref_exact, 'reason': certificate['reason']}
+
+def declared_discrepancy_artifacts(profile: Path, cases: list[dict[str, object]]) -> dict[str, tuple[Path, str]]:
+    """Resolve only explicitly declared, pinned artifacts within the source profile."""
+    source_root = profile.parent.resolve(strict=True)
+    artifacts: dict[str, tuple[Path, str]] = {}
+    for case in cases:
+        annotation = case.get('reference-discrepancy')
+        if annotation is None:
+            continue
+        if not isinstance(annotation, dict) or not isinstance(annotation.get('evidence'), list):
+            raise ValueError('invalid discrepancy evidence declaration')
+        for item in annotation['evidence']:
+            if not isinstance(item, dict):
+                raise ValueError('invalid discrepancy evidence artifact')
+            relative, expected = (item.get('path'), item.get('sha256'))
+            if not isinstance(relative, str) or not relative or '\\' in relative or Path(relative).is_absolute() or any((part in {'', '.', '..'} for part in relative.split('/'))) or (re.match('^[A-Za-z]:', relative) is not None) or (not isinstance(expected, str)) or (re.fullmatch('[a-f0-9]{64}', expected) is None):
+                raise ValueError('unsafe discrepancy evidence artifact')
+            try:
+                source = (source_root / relative).resolve(strict=True)
+            except OSError as error:
+                raise ValueError('missing discrepancy evidence artifact') from error
+            if not source.is_relative_to(source_root) or not source.is_file():
+                raise ValueError('external or non-file discrepancy evidence artifact')
+            if profile_config.sha256(source) != expected:
+                raise ValueError('stale discrepancy evidence artifact')
+            prior = artifacts.get(relative)
+            if prior is not None and prior != (source, expected):
+                raise ValueError('conflicting discrepancy evidence declarations')
+            artifacts[relative] = (source, expected)
+    return artifacts
+
+def stage_discrepancy_artifacts(source_profile: Path, destination: Path, cases: list[dict[str, object]], rule: str) -> None:
+    """Copy the declared artifacts without overwriting any canonical stage input."""
+    artifacts = declared_discrepancy_artifacts(source_profile, cases)
+    root = destination.resolve(strict=True)
+    for relative in artifacts:
+        target = destination / relative
+        if target.exists() or target.is_symlink() or (not target.resolve(strict=False).is_relative_to(root)):
+            raise ValueError('discrepancy evidence collides with staged input')
+    for relative, (source, expected) in artifacts.items():
+        target = destination / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source, target)
+        if profile_config.sha256(target) != expected:
+            raise ValueError('discrepancy evidence changed while staging')
+    for case in cases:
+        validate_reference_discrepancy(destination, case, rule)

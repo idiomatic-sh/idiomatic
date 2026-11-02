@@ -1,10 +1,9 @@
 description = "The language-local artifacts and entry points of one benchmark linter."
-why = "Placed beside the standard adapter spec at the same directory, this artifact spec owns Cargo runners, composition, tool pins and candidate rules. The adapter spec alone owns adapter, settings and schemas roles; neither scope exempts the other."
-specs = [
-  { spec = "idiomatic.arch/benchmark-executable@0.1.0", include = ["."], imports = { default = "deny", allow = ["ryo_benchmark::*", "ryo::*", "std::*", "serde::*", "serde_json::*", "toml::*", "tempfile::*", "crate::*", "self::*", "super::*", "composition::*"] }, description = "The Cargo benchmark workflow owns artifact lifetimes at the executable boundary." },
-]
+why = "Placed beside the standard adapter spec, this existing artifact spec owns thin Cargo registration/composition, pinned inventory and canonical rules/<id>/query.ryoql with cases.toml. The shared benchmark application owns execution, continuation and PASS/FAIL publication; a linter supplies inventory and its external adapter. The adapter spec retains adapter, settings and schemas roles. Archived profiles preserve exact historical bytes and never become a second active source. Imports and AST capability checks are structural rails, not proof that runtime policy is shared; the shared runner must pass its two-provider behavioral contract."
+specs = []
 templates = [
-  { alias = "runner-constants", template = "source", file = "composition/constants.rs", count = { min = 0, max = 1 }, description = "Executable command and artifact protocol vocabulary." },
+  { alias = "composition", template = "source", file = "composition.rs", imports = { default = "deny", allow = ["ryo_benchmark::inbound::*", "ryo_benchmark::outbound::*", "ryo_benchmark::domain::*::types::*", "ryo::*", "std::path::*", "std::sync::*", "std::io::*", "std::fmt::*", "std::env::*", "crate::*", "self::*", "super::*"] }, description = "Thin dependency wiring and delegation to the shared benchmark use case; no local execution/status policy." },
+  { alias = "runner-constants", template = "source", file = "composition/constants.rs", count = { min = 0, max = 1 }, imports = { default = "deny", allow = ["ryo_benchmark::inbound::*", "ryo_benchmark::outbound::*", "ryo_benchmark::domain::*::types::*", "ryo::*", "std::path::*", "std::sync::*", "std::io::*", "std::fmt::*", "std::env::*", "crate::*", "self::*", "super::*"] }, description = "Executable command and artifact protocol vocabulary." },
   { alias = "runner-guide", template = "evidence", file = "README.md", count = { min = 0, max = 1 }, description = "Language-local runner commands and the scope of its benchmark claims." },
   { template = "linter", file = "benchmark.toml", description = "Benchmark linter contract." },
   { template = "source", file = "verify_profiles.py", count = { min = 0, max = 1 }, description = "Portable candidate-profile materializer and verifier." },
@@ -23,17 +22,17 @@ templates = [
   { alias = "result-identity", template = "evidence", file = "results/identity.json", count = { min = 0, max = 1 }, description = "Pinned inputs and contestant artifact identities." },
   { alias = "acceptance-profiles", template = "evidence", file = "profiles/prepared.json", count = { min = 0, max = 1 }, description = "Hash-pinned candidate acceptance profile inputs and exact case inventories." },
   { alias = "acceptance-profile", template = "linter", file = "profiles/{rule}/benchmark.toml", count = { min = 0 }, description = "One-rule tool selection for isolated candidate acceptance." },
-  { alias = "historical-query-snapshot", template = "query", file = "profiles/expanded-defaults/inputs/rules/{rule}/candidate.ryoql", count = { min = 0 }, description = "Exact old query bytes retained for the frozen expanded-defaults cohort." },
-  { alias = "historical-cases-snapshot", template = "cases", file = "profiles/expanded-defaults/inputs/rules/{rule}/cases.toml", count = { min = 0 }, description = "Exact old case bytes retained for the frozen expanded-defaults cohort." },
+  { alias = "historical-query-snapshot", template = "query", file = "profiles/{profile}/inputs/rules/{rule}/candidate.ryoql", count = { min = 0 }, description = "Exact historical query bytes retained only in a frozen profile snapshot." },
+  { alias = "historical-cases-snapshot", template = "cases", file = "profiles/{profile}/inputs/rules/{rule}/cases.toml", count = { min = 0 }, description = "Exact historical case bytes retained only in a frozen profile snapshot." },
   { alias = "candidate-profile-oracle", template = "evidence", file = "profiles/{profile}/oracle.json", count = { min = 0 }, description = "Pinned Ruff outputs for an unpromoted candidate or reference-audit profile." },
   { alias = "combined-profile-expectations", template = "evidence", file = "profiles/{profile}/expectations.json", count = { min = 0 }, description = "Reviewed expected-output overlay for combined full-report cohorts." },
   { template = "query", file = "rules/{implemented}/query.ryoql", count = { min = 0 }, description = "Benchmark query contract." },
-  { alias = "candidate-query", template = "query", file = "rules/{rule}/candidate.ryoql", count = { min = 0 }, description = "Unpromoted query candidate, kept outside the shipped-rule audit." },
   { template = "cases", file = "rules/{rule}/cases.toml", description = "Benchmark cases contract." },
 ]
 rules = [
+  { rule = "idiomatic.arch/file-length@0.3.0", include = ["*.rs", "composition/**/*.rs", "verify_profiles.py"], params = { max-lines = { param = "source-line-limit" } }, description = "Apply the existing product file-length rule to active linter sources, including composition." },
   { rule = "idiomatic.arch/orphan-rust-files@0.1.0", include = ["*.rs"], description = "Every companion is reachable from its Cargo target." },
-  { rule = "companions", include = ["**"], description = "Each authored query has cases and the integration roles are complete." },
+  { rule = "companions", include = ["**"], description = "Canonical queries/cases are paired; thin entry/composition roles cannot implement execution capabilities or loops." },
 ]
 
 [[scenarios]]
@@ -61,13 +60,8 @@ mod schemas_test;
 '''
 given.files.'composition.rs' = ''
 given.files.'rules/F001/cases.toml' = ''
-then.findings = [
-  { rule = "idiomatic.ryo/benchmark-linter/source(bench)#imports", path = "bench.rs", line = 1 },
-  { rule = "idiomatic.arch/benchmark-executable#imports", path = "bench.rs", line = 1 },
-  { rule = "idiomatic.arch/orphan-rust-files", path = "bench.rs" },
-  { rule = "idiomatic.arch/orphan-rust-files", path = "composition.rs" },
-  { rule = "idiomatic.arch/orphan-rust-files", path = "tests.rs" },
-]
+then.only = ["idiomatic.ryo/benchmark-linter/source(bench)#imports"]
+then.findings = [{ rule = "idiomatic.ryo/benchmark-linter/source(bench)#imports", path = "bench.rs", line = 1 }]
 
 [[scenarios]]
 id = "named-evidence-is-placed"
@@ -85,8 +79,8 @@ then.only = ['idiomatic.ryo/benchmark-linter#closed']
 id = "unnamed-evidence-is-refused"
 scenario = "An arbitrary output file is not silently accepted as evidence."
 given.files.'results/scratch.txt' = ''
-then.only = ['idiomatic.arch/benchmark-executable#closed']
-then.findings = [{ rule = 'idiomatic.arch/benchmark-executable#closed', path = 'results/scratch.txt' }]
+then.only = ['idiomatic.ryo/benchmark-linter#closed']
+then.findings = [{ rule = 'idiomatic.ryo/benchmark-linter#closed', path = 'results/scratch.txt' }]
 
 [[scenarios]]
 id = "acceptance-profile-inputs-are-placed"
@@ -94,17 +88,17 @@ scenario = "Portable profile references and their materializer have explicit own
 given.files.'verify_profiles.py' = ''
 given.files.'profiles/prepared.json' = ''
 given.files.'profiles/F401/benchmark.toml' = ''
-given.files.'rules/F401/candidate.ryoql' = ''
+given.files.'rules/F401/query.ryoql' = ''
 given.files.'rules/F401/cases.toml' = ''
 then.only = ['idiomatic.ryo/benchmark-linter#closed']
 
 [[scenarios]]
 id = "frozen-combined-source-snapshots-are-placed"
-scenario = "Historical combined inputs retain exact old query and case bytes while current candidate sources remain canonical under rules."
+scenario = "Historical profile snapshots retain old bytes while active rules use query.ryoql."
 given.files.'profiles/expanded-defaults/inputs/rules/F821/candidate.ryoql' = ''
 given.files.'profiles/expanded-defaults/inputs/rules/F821/cases.toml' = ''
 given.files.'profiles/expanded-defaults/inputs/rules/B039/candidate.ryoql' = ''
-given.files.'rules/F821/candidate.ryoql' = ''
+given.files.'rules/F821/query.ryoql' = ''
 given.files.'rules/F821/cases.toml' = ''
 then.only = ['idiomatic.ryo/benchmark-linter#closed']
 
@@ -112,8 +106,8 @@ then.only = ['idiomatic.ryo/benchmark-linter#closed']
 id = "unplaced-candidate-assets-are-refused"
 scenario = "Candidate assets use their explicit path instead of becoming an unowned profile copy."
 given.files.'profiles/F401/query.ryoql' = ''
-then.only = ['idiomatic.arch/benchmark-executable#closed']
-then.findings = [{ rule = 'idiomatic.arch/benchmark-executable#closed', path = 'profiles/F401/query.ryoql' }]
+then.only = ['idiomatic.ryo/benchmark-linter#closed']
+then.findings = [{ rule = 'idiomatic.ryo/benchmark-linter#closed', path = 'profiles/F401/query.ryoql' }]
 
 [[scenarios]]
 id = "shape-combined-evidence-is-placed"
@@ -130,12 +124,44 @@ then.only = ['idiomatic.ryo/benchmark-linter#closed']
 id = "unplaced-expanded-report-is-refused"
 scenario = "The expanded full-report cohort cannot hide unreviewed oracle outputs."
 given.files.'profiles/expanded-defaults/unreviewed.json' = ''
-then.only = ['idiomatic.arch/benchmark-executable#closed']
-then.findings = [{ rule = 'idiomatic.arch/benchmark-executable#closed', path = 'profiles/expanded-defaults/unreviewed.json' }]
+then.only = ['idiomatic.ryo/benchmark-linter#closed']
+then.findings = [{ rule = 'idiomatic.ryo/benchmark-linter#closed', path = 'profiles/expanded-defaults/unreviewed.json' }]
 
 [[scenarios]]
 id = "unplaced-shape-combined-evidence-is-refused"
 scenario = "Combined candidate profiles cannot hide unreviewed files."
 given.files.'profiles/shape-110/unreviewed.txt' = ''
-then.only = ['idiomatic.arch/benchmark-executable#closed']
-then.findings = [{ rule = 'idiomatic.arch/benchmark-executable#closed', path = 'profiles/shape-110/unreviewed.txt' }]
+then.only = ['idiomatic.ryo/benchmark-linter#closed']
+then.findings = [{ rule = 'idiomatic.ryo/benchmark-linter#closed', path = 'profiles/shape-110/unreviewed.txt' }]
+
+[params.source-line-limit]
+type = "integer"
+default = 400
+description = "The existing product line budget for active source; fixtures may lower it to exercise the real counter."
+
+[[scenarios]]
+id = "active-candidate-is-not-admitted"
+scenario = "An active candidate filename cannot bypass canonical query admission."
+given.files.'rules/F001/candidate.ryoql' = ''
+then.only = ['idiomatic.ryo/benchmark-linter#closed']
+then.findings = [{ rule = 'idiomatic.ryo/benchmark-linter#closed', path = 'rules/F001/candidate.ryoql' }]
+
+[[scenarios]]
+id = "composition-cannot-import-shared-application-policy"
+scenario = "Composition enters the shared inbound use case instead of reaching into its application implementation."
+given.files.'composition.rs' = 'use ryo_benchmark::application::run::inventory::verify;'
+then.only = ['idiomatic.ryo/benchmark-linter/source(composition)#imports']
+then.findings = [{ rule = 'idiomatic.ryo/benchmark-linter/source(composition)#imports', path = 'composition.rs', line = 1 }]
+
+[[scenarios]]
+id = "composition-is-held-to-the-existing-line-counter"
+scenario = "An oversized role fails the actual filesystem line-count rule, with a reduced fixture budget."
+given.params = { source-line-limit = 3 }
+given.files.'composition.rs' = '''
+pub fn run() {
+    let supplied = ();
+    shared::run(supplied)
+}
+'''
+then.only = ['idiomatic.arch/file-length']
+then.findings = [{ rule = 'idiomatic.arch/file-length', path = 'composition.rs' }]

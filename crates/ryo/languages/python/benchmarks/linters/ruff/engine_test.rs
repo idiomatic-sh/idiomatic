@@ -302,7 +302,7 @@ fn write_rule_fixtures(rules: &std::path::Path, scenario: EngineScenario) -> Res
         std::fs::create_dir_all(&f821)?;
         std::fs::write(
             f821.join("query.ryoql"),
-            include_str!("rules/F821/candidate.ryoql"),
+            include_str!("rules/F821/query.ryoql"),
         )?;
     }
     if scenario == EngineScenario::FutureFeatureProjection {
@@ -310,7 +310,7 @@ fn write_rule_fixtures(rules: &std::path::Path, scenario: EngineScenario) -> Res
         std::fs::create_dir_all(&f407)?;
         std::fs::write(
             f407.join("query.ryoql"),
-            include_str!("rules/F407/candidate.ryoql"),
+            include_str!("rules/F407/query.ryoql"),
         )?;
     }
     if scenario == EngineScenario::FrontendRuleCollision {
@@ -670,7 +670,7 @@ fn target_configuration_cache_change(root: &std::path::Path) -> Result<bool, Err
     std::fs::create_dir_all(&rule_directory)?;
     std::fs::write(
         rule_directory.join("query.ryoql"),
-        include_str!("rules/UP017/candidate.ryoql"),
+        include_str!("rules/UP017/query.ryoql"),
     )?;
     write_suppress_module(root)?;
     std::fs::write(
@@ -797,7 +797,7 @@ fn shared_suppression_fragment_matches_the_historical_inline_queries() -> Result
         (
             "F632",
             include_str!("../../../tests/fixtures/ryoql-fragments/F632/query.ryoql"),
-            include_str!("rules/F632/candidate.ryoql"),
+            include_str!("rules/F632/query.ryoql"),
             include_str!("rules/F632/cases.toml"),
         ),
     ];

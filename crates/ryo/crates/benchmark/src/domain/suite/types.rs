@@ -550,3 +550,6 @@ impl std::fmt::Display for ReferenceCaseCount {
         self.0.fmt(f)
     }
 }
+
+/// Complete per-rule verification status, independent of any tool's rule count.
+pub mod inventory;

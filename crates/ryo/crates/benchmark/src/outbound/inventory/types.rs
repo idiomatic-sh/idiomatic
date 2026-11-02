@@ -1,0 +1,93 @@
+//! Tool-neutral wire data; adapters own format and filesystem details.
+use serde::{Deserialize, Serialize};
+use std::{collections::BTreeMap, path::PathBuf};
+
+/// A generated registration, never a second manually maintained rule roster.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Registration {
+    /// Provider identity for report consumers.
+    pub provider: String,
+    /// Complete defaults read from the provider's pinned benchmark profile.
+    pub defaults: Vec<String>,
+    /// Implementations or explicit registration failures for those defaults.
+    pub rules: Vec<RegisteredRule>,
+    /// Source/worker pin metadata supplied by the provider adapter.
+    #[serde(default)]
+    pub identity: BTreeMap<String, serde_json::Value>,
+}
+/// One ordinary native verifier invocation with exact registered case identities.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RegisteredRule {
+    /// Pinned default identifier.
+    pub rule_id: String,
+    /// Absent when no implementation can be invoked.
+    pub command: Option<Command>,
+    /// Explicit missing/configuration reason, never a skipped success.
+    pub reason: Option<String>,
+    /// Complete independently authored case identities, including evidence pins.
+    #[serde(default)]
+    pub cases: Vec<serde_json::Value>,
+    /// Tool-specific source identity, preserved without interpretation by the runner.
+    pub instance: Option<serde_json::Value>,
+}
+/// Native argv: no shell interpretation is involved.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Command {
+    /// Existing verifier executable.
+    pub executable: PathBuf,
+    /// Verifier arguments.
+    pub arguments: Vec<String>,
+    /// Explicit native invocation directory.
+    pub directory: PathBuf,
+    /// Explicit environment overrides.
+    #[serde(default)]
+    pub environment: BTreeMap<String, String>,
+}
+/// Public summary row: only PASS or FAIL.
+#[derive(Clone, Debug, Serialize)]
+pub struct Row {
+    /// Rule identity from the pinned inventory.
+    pub rule_id: String,
+    /// PASS or FAIL only.
+    pub status: &'static str,
+    /// Failure explanation, including missing and unrun.
+    pub reason: Option<String>,
+    /// Original per-rule source identity.
+    pub instance: Option<serde_json::Value>,
+    /// Native receipt identity, absent until actual verification.
+    pub case_results_sha256: Option<String>,
+    /// Complete case pairs.
+    pub case_count: usize,
+    /// Exact raw case pairs.
+    pub raw_exact: usize,
+    /// Independently evidenced reference differences.
+    pub documented_discrepancies: usize,
+}
+/// Atomic public inventory snapshot.
+#[derive(Clone, Debug, Serialize)]
+pub struct Summary {
+    /// Shared schema, with no provider-specific rule count.
+    pub schema: &'static str,
+    /// Provider's stable name.
+    pub provider: String,
+    /// Complete/running state, not a third per-rule status.
+    pub run_state: &'static str,
+    /// Source and executable pins.
+    pub identity: BTreeMap<String, serde_json::Value>,
+    /// PASS plus FAIL always equals the declared registry length.
+    pub counts: BTreeMap<&'static str, usize>,
+    /// Every pinned rule, including missing implementations.
+    pub rules: Vec<Row>,
+}
+
+/// Native observations actually present after one child invocation.
+#[derive(Clone, Debug)]
+pub struct CapturedObservation {
+    /// Absent receipts are not fabricated as successful records.
+    pub records: Vec<serde_json::Value>,
+    /// Absent until a native case receipt exists.
+    pub sha256: Option<String>,
+}

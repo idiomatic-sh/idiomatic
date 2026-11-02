@@ -3,7 +3,7 @@ use super::adapters::process::adapter::ExecutionProcessAdapter;
 /// Construct the process implementation of the execution contract.
 #[must_use]
 pub fn process() -> impl super::interface::ExecutionPort {
-    ExecutionProcessAdapter
+    ExecutionProcessAdapter { timeout: None }
 }
 
 /// Construct isolated per-child Linux CPU and peak-RSS instrumentation.
@@ -30,4 +30,12 @@ pub fn timed(
 #[must_use]
 pub fn direct() -> impl super::interface::ExecutionPort {
     super::adapters::direct::adapter::ExecutionDirectAdapter
+}
+
+/// Construct native process execution with a finite per-invocation deadline.
+#[must_use]
+pub fn bounded(timeout: std::time::Duration) -> impl super::interface::ExecutionPort {
+    ExecutionProcessAdapter {
+        timeout: Some(timeout),
+    }
 }

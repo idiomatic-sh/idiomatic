@@ -442,6 +442,46 @@ jobs:
               "sha256": hashlib.sha256(sealed.read_bytes()).hexdigest(),
           }, sort_keys=True) + "\n")
           PY
+      - name: Build shared benchmark inventory runner
+        run: |
+          cd crates/ryo
+          CARGO_BUILD_JOBS=6 cargo build --release --locked -p idiomatic-sh-ryo-benchmark \
+            --bin ryo-benchmark-collector --message-format=json \
+            > ../../target/checks/ruff-all-defaults/inventory-build.jsonl \
+            2> ../../target/checks/ruff-all-defaults/inventory-build.stderr
+          python3 - <<'PY'
+          import hashlib
+          import json
+          import shutil
+          from pathlib import Path
+
+          root = Path("../../target/checks/ruff-all-defaults").resolve()
+          matches = []
+          for line in (root / "inventory-build.jsonl").read_bytes().splitlines():
+              try:
+                  record = json.loads(line)
+              except (UnicodeDecodeError, json.JSONDecodeError):
+                  continue
+              target = record.get("target", {})
+              source = target.get("src_path", "")
+              if (record.get("reason") == "compiler-artifact"
+                      and target.get("name") == "ryo-benchmark-collector"
+                      and "bin" in target.get("kind", [])
+                      and target.get("test") is False
+                      and isinstance(source, str)
+                      and source.replace("\\", "/").endswith("/crates/benchmark/src/main.rs")
+                      and isinstance(record.get("executable"), str)):
+                  matches.append(Path(record["executable"]).resolve(strict=True))
+          if len(matches) != 1:
+              raise SystemExit(f"expected one shared benchmark inventory runner, found {len(matches)}")
+          sealed = root / "inventory-runner"
+          shutil.copyfile(matches[0], sealed)
+          sealed.chmod(0o755)
+          (root / "inventory-runner-seal.json").write_text(json.dumps({
+              "source_artifact": str(matches[0]),
+              "sha256": hashlib.sha256(sealed.read_bytes()).hexdigest(),
+          }, sort_keys=True) + "\n")
+          PY
       - name: Verify all 413 pinned Ruff defaults
         working-directory: crates/ryo
         env:
@@ -452,11 +492,13 @@ jobs:
           python3 languages/python/benchmarks/linters/ruff/verify_profiles.py "$(command -v ruff)" \
             --full-inventory \
             --worker "$GITHUB_WORKSPACE/target/checks/ruff-all-defaults/worker" \
+            --inventory-runner "$GITHUB_WORKSPACE/target/checks/ruff-all-defaults/inventory-runner" \
             --output-dir "$GITHUB_WORKSPACE/target/checks/ruff-all-defaults/execution"
           inventory_status=$?
           set -e
           python3 - <<'PY'
           import json
+          from collections import Counter
           from pathlib import Path
 
           summary = Path("../../target/checks/ruff-all-defaults/execution/summary.json")
@@ -464,12 +506,16 @@ jobs:
               print("Ruff all-defaults runner produced no inventory summary")
           else:
               data = json.loads(summary.read_text())
+              rows = data.get("rules", [])
+              counts = data.get("counts", {})
+              failures = Counter(str(row.get("reason") or "unspecified") for row in rows if row.get("status") == "FAIL")
               print(json.dumps({
-                  "total": len(data.get("rules", [])),
-                  "counts": data.get("counts"),
+                  "provider": data.get("provider"),
+                  "total": len(rows),
+                  "counts": counts,
                   "run_state": data.get("run_state"),
-                  "all_passed": data.get("all_passed"),
-                  "failure_reasons": data.get("failure_reasons"),
+                  "all_passed": len(rows) == 413 and counts.get("PASS") == 413 and counts.get("FAIL") == 0,
+                  "failure_reasons_top10": failures.most_common(10),
               }, sort_keys=True))
           PY
           exit "$inventory_status"

@@ -6,3 +6,7 @@ mod service_test;
 mod constants;
 
 mod discrepancy;
+
+/// Complete pinned inventory verification, independent of provider policy.
+pub mod inventory;
+mod inventory_receipts;

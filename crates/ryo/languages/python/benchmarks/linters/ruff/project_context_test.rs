@@ -22,7 +22,7 @@ fn staged(root: &Path) -> Result<(PathBuf, Vec<PreparedCase>), Error> {
         profile.join("benchmark.toml"),
     )?;
     let _copied_query = std::fs::copy(
-        source.join("rules/PLW0406/candidate.ryoql"),
+        source.join("rules/PLW0406/query.ryoql"),
         profile.join("rules/PLW0406/query.ryoql"),
     )?;
     let _copied_cases = std::fs::copy(

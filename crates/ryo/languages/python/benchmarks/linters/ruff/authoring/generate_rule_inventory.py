@@ -19,12 +19,8 @@ def sha(path: Path) -> str:
 
 
 def source(rule: str) -> tuple[Path | None, str]:
-    directory = RUFF / "rules" / rule
-    for name, label in (("query.ryoql", "native query"), ("candidate.ryoql", "candidate")):
-        path = directory / name
-        if path.is_file():
-            return path, label
-    return None, "absent"
+    path = RUFF / "rules" / rule / "query.ryoql"
+    return (path, "query") if path.is_file() else (None, "missing")
 
 
 def render_full_inventory(path: Path) -> str:
@@ -32,9 +28,10 @@ def render_full_inventory(path: Path) -> str:
     summary = json.loads(path.read_text(encoding="utf-8"))
     defaults = tomllib.loads((RUFF / "benchmark.toml").read_text(encoding="utf-8"))["defaults"]
     phases = json.loads((RUFF / "profiles/pinned-rule-phases.json").read_text(encoding="utf-8"))
+    worker_sha256 = summary.get("worker_sha256") or summary.get("identity", {}).get("worker_sha256")
     rows = summary.get("rules", [])
     ids = [row.get("rule_id") for row in rows]
-    if (summary.get("schema") != "ruff-full-inventory/v1" or len(defaults) != 413
+    if (summary.get("schema") not in {"ruff-full-inventory/v1", "benchmark-inventory/v1"} or len(defaults) != 413
         or len(set(defaults)) != 413 or set(defaults) != set(phases["shipped_default_rules"])
         or len(ids) != 413 or len(set(ids)) != 413 or set(ids) != set(defaults)
         or any(row.get("status") not in {"PASS", "FAIL"} for row in rows)):
@@ -54,7 +51,7 @@ def render_full_inventory(path: Path) -> str:
                 or instance.get("query_sha256") != sha(query)
                 or instance.get("cases_sha256") != sha(case_path)):
                 status, reason = "FAIL", "recorded PASS has changed or missing current source/cases"
-            elif not summary.get("worker_sha256") or not row.get("case_results_sha256"):
+            elif not worker_sha256 or not row.get("case_results_sha256"):
                 raise ValueError("PASS lacks worker identity or executed case receipts")
         passed += status == "PASS"
         if status == "FAIL" and query is not None:
@@ -66,9 +63,9 @@ def render_full_inventory(path: Path) -> str:
         "Generated from canonical source and the existing full-inventory runner's results. "
         "Every pinned default is preloaded; missing, unrun, invalid and failed implementations remain FAIL.", "",
         f"**{passed} PASS / {413 - passed} FAIL / 413 pinned defaults**; run state `{summary.get('run_state')}`. "
-        f"Worker `{summary.get('worker_sha256', 'not run')}`. "
+        f"Worker `{worker_sha256 or 'not run'}`. "
         "PASS means executed intended expectations, including only independently validated explicit reference discrepancies. "
-        "Raw parity and documented differences remain separate columns. This table is not an admission subset.", "",
+        "Raw parity and documented differences remain explicit in result receipts. This table is not an admission subset.", "",
         "| Rule | Result | Reason / evidence |",
         "|---|---|---|", *rendered, "",
     ])

@@ -7,3 +7,6 @@ pub mod run_ryo;
 pub mod certify;
 
 pub mod collect;
+
+/// Complete pinned inventory verification.
+pub mod verify_inventory;

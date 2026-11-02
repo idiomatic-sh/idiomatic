@@ -1,0 +1,111 @@
+//! Filesystem encoding and atomic publication of complete inventory snapshots.
+use crate::outbound::inventory::{
+    interface::InventoryPort,
+    types::{CapturedObservation, Registration, Row, Summary},
+};
+use std::{io::Write as _, path::Path};
+
+/// Decode the adapter's generated native invocation registration.
+fn load(path: &Path) -> Result<Registration, String> {
+    let bytes = std::fs::read(path).map_err(|e| e.to_string())?;
+    serde_json::from_slice(&bytes).map_err(|e| e.to_string())
+}
+/// Publish a whole snapshot atomically, retaining the previous valid snapshot on failure.
+fn publish(output: &Path, summary: &Summary) -> Result<(), String> {
+    std::fs::create_dir_all(output).map_err(|e| e.to_string())?;
+    let mut temporary = tempfile::NamedTempFile::new_in(output).map_err(|e| e.to_string())?;
+    serde_json::to_writer_pretty(&mut temporary, summary).map_err(|e| e.to_string())?;
+    temporary.write_all(b"\n").map_err(|e| e.to_string())?;
+    temporary.as_file().sync_all().map_err(|e| e.to_string())?;
+    temporary
+        .persist(output.join("summary.json"))
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+/// Keep the exact child streams before interpreting its result.
+fn streams(directory: &Path, stdout: &[u8], stderr: &[u8]) -> Result<(), String> {
+    std::fs::create_dir_all(directory).map_err(|e| e.to_string())?;
+    std::fs::write(directory.join("stdout.bin"), stdout).map_err(|e| e.to_string())?;
+    std::fs::write(directory.join("stderr.bin"), stderr).map_err(|e| e.to_string())
+}
+/// Read actual per-side observations; absence and malformed records remain errors.
+fn observations(path: &Path) -> Result<Vec<serde_json::Value>, String> {
+    std::fs::read_to_string(path)
+        .map_err(|e| e.to_string())?
+        .lines()
+        .map(|line| serde_json::from_str(line).map_err(|e| e.to_string()))
+        .collect()
+}
+/// Persist one terminal row beside its raw receipts.
+fn result(directory: &Path, row: &Row) -> Result<(), String> {
+    std::fs::create_dir_all(directory).map_err(|e| e.to_string())?;
+    let bytes = serde_json::to_vec_pretty(row).map_err(|e| e.to_string())?;
+    std::fs::write(directory.join("result.json"), bytes).map_err(|e| e.to_string())
+}
+
+/// Refuse stale result reuse while allowing the provider's already staged reproductions.
+fn begin(output: &Path) -> Result<(), String> {
+    if output.join("summary.json").exists() {
+        return Err("inventory output already contains a summary".into());
+    }
+    std::fs::create_dir_all(output).map_err(|e| e.to_string())
+}
+/// Each invocation owns fresh native case receipts.
+fn prepare(directory: &Path) -> Result<(), String> {
+    if ["cases.jsonl", "stdout.bin", "stderr.bin", "result.json"]
+        .iter()
+        .any(|name| directory.join(name).exists())
+    {
+        return Err("inventory rule output already contains receipts".into());
+    }
+    std::fs::create_dir_all(directory).map_err(|e| e.to_string())
+}
+
+/// Hash an actual receipt's exact bytes at the filesystem boundary.
+fn digest(path: &Path) -> Result<String, String> {
+    use sha2::Digest as _;
+    Ok(format!(
+        "{:x}",
+        sha2::Sha256::digest(std::fs::read(path).map_err(|e| e.to_string())?)
+    ))
+}
+
+/// Local registrations and atomic verification artifacts.
+#[derive(Debug)]
+pub(crate) struct InventoryLocalAdapter;
+impl InventoryPort for InventoryLocalAdapter {
+    fn load(&self, path: &Path) -> Result<Registration, String> {
+        load(path)
+    }
+    fn begin(&self, output: &Path) -> Result<(), String> {
+        begin(output)
+    }
+    fn publish(&self, output: &Path, summary: &Summary) -> Result<(), String> {
+        publish(output, summary)
+    }
+    fn prepare(&self, directory: &Path) -> Result<(), String> {
+        prepare(directory)
+    }
+    fn capture(
+        &self,
+        directory: &Path,
+        stdout: &[u8],
+        stderr: &[u8],
+    ) -> Result<CapturedObservation, String> {
+        streams(directory, stdout, stderr)?;
+        let path = directory.join("cases.jsonl");
+        if !path.is_file() {
+            return Ok(CapturedObservation {
+                records: Vec::new(),
+                sha256: None,
+            });
+        }
+        Ok(CapturedObservation {
+            records: observations(&path)?,
+            sha256: Some(digest(&path)?),
+        })
+    }
+    fn result(&self, directory: &Path, row: &Row) -> Result<(), String> {
+        result(directory, row)
+    }
+}
