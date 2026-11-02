@@ -176,14 +176,41 @@ def self_test() -> int:
         case_results = root / 'candidate-cases.jsonl'
         if case_records.candidate_result_valid(profile_root, f'{len(inv)} cases passed against both contestants\n'.encode(), case_results)[0]:
             raise ValueError('zero-exit worker without case records was accepted')
+
+        def synthetic_case_record(case, side):
+            # Ruff has diagnostics but no execution accounting; the candidate
+            # reports complete accounting for every selected file.
+            coverage = {'selected_rule_file_pairs': len(case['files']), 'evaluated_rule_file_pairs': len(case['files']), 'skipped_rule_file_pairs': 0, 'unknown_or_unread_rule_file_pairs': 0}
+            return {
+                'observation_schema': 'benchmark-case/v2',
+                'expectation_contract': 'diagnostics',
+                'rule': case['rule'], 'name': case['name'], 'side': side,
+                'complete': True, 'error': None, 'case_passed': True,
+                'source_sha256': case['source_sha256'], 'files': case['files'],
+                'expected': case['expected'], 'diagnostics': [], 'skipped': [],
+                'execution_metadata': {'availability': 'unavailable', 'reason': 'reference tool does not expose execution accounting'} if side == 'reference' else {'availability': 'complete'},
+                'coverage': None if side == 'reference' else coverage,
+            }
+
         rows = []
         for case in inv:
             for side in ('reference', 'candidate'):
-                rows.append({'rule': case['rule'], 'name': case['name'], 'side': side, 'complete': True, 'error': None, 'case_passed': True, 'source_sha256': case['source_sha256'], 'files': case['files'], 'expected': case['expected']})
+                rows.append(synthetic_case_record(case, side))
         case_results.write_text('\n'.join((json.dumps(row) for row in rows)) + '\n', encoding='utf-8')
         valid_receipt, _reason = case_records.candidate_result_valid(profile_root, f'{len(inv)} cases passed against both contestants\n'.encode(), case_results)
         if not valid_receipt:
             raise ValueError('exact worker case receipts were rejected')
+        for altered in (
+            {**rows[1], 'execution_metadata': None},
+            {**rows[1], 'coverage': {**rows[1]['coverage'], 'evaluated_rule_file_pairs': 0}},
+            {**rows[0], 'coverage': rows[1]['coverage']},
+        ):
+            invalid = [dict(row) for row in rows]
+            invalid[0 if altered['side'] == 'reference' else 1] = altered
+            case_results.write_text('\n'.join((json.dumps(row) for row in invalid)) + '\n', encoding='utf-8')
+            if case_records.candidate_result_valid(profile_root, f'{len(inv)} cases passed against both contestants\n'.encode(), case_results)[0]:
+                raise ValueError('missing or contradictory execution metadata was accepted')
+        case_results.write_text('\n'.join((json.dumps(row) for row in rows)) + '\n', encoding='utf-8')
         false_audit = lambda command, **_kwargs: subprocess.CompletedProcess(command, 0, b'running 0 tests\n', b'')
         valid_audit = lambda command, **_kwargs: subprocess.CompletedProcess(command, 0, b'ruff 0.16.5: 104 queries authored / 413 shipped defaults (not a parity certificate)\n', b'')
         if profile_worker.audit_worker_protocol(worker, runner=false_audit)[0]:
@@ -205,7 +232,7 @@ def self_test() -> int:
             with records_path.open('a' if records_path.exists() else 'w', encoding='utf-8') as records:
                 for case in selected:
                     for side in ('reference', 'candidate'):
-                        records.write(json.dumps({'rule': case['rule'], 'name': case['name'], 'side': side, 'complete': True, 'error': None, 'case_passed': True, 'diagnostics': [], 'expected': case['expected'], 'source_sha256': case['source_sha256'], 'files': case['files']}) + '\n')
+                        records.write(json.dumps(synthetic_case_record(case, side)) + '\n')
             summary = f'{len(selected)} cases passed against both contestants\n'.encode()
             return subprocess.CompletedProcess(command, 0, summary, b'')
         identities = {'prepared_sha256': 'sealed'}
