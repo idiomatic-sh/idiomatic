@@ -49,7 +49,7 @@ pub(super) fn select<'f>(
     // output kinds from the exact physical projection. It cannot accept caller
     // supplied positions or a caller supplied trusted bit.
     let Some(selected) =
-        crate::domain::stored_selection::service::select(program, *columns, context)?
+        crate::application::file_dag::derived::selection::select(program, *columns, context)?
     else {
         return Ok(None);
     };

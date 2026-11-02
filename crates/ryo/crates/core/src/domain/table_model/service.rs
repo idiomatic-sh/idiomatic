@@ -394,12 +394,25 @@ fn selected_cell(
     row: RowIndex,
     column: ColumnIndex,
 ) -> Option<Value> {
-    let physical = RowIndex(usize::try_from(*view.selection.rows.get(row.0)?).ok()?);
-    stored_cell(
-        view.source,
-        physical,
-        *view.selection.columns.get(column.0 as usize)?,
+    selected_view_cell(
+        super::types::SelectedView {
+            source: view.source,
+            positions: &view.selection.rows,
+            columns: &view.selection.columns,
+            kinds: &view.selection.kinds,
+        },
+        row,
+        column,
     )
+}
+
+fn selected_view_cell(
+    view: super::types::SelectedView<'_>,
+    row: RowIndex,
+    column: ColumnIndex,
+) -> Option<Value> {
+    let physical = RowIndex(usize::try_from(*view.positions.get(row.0)?).ok()?);
+    stored_cell(view.source, physical, *view.columns.get(column.0 as usize)?)
 }
 
 /// Read one typed cell without decoding unused stored payload or allocating a row buffer.
@@ -409,26 +422,25 @@ pub(crate) fn cell_at(rows: &Rows<'_>, row: RowIndex, column: ColumnIndex) -> Op
 }
 
 /// Index only projected keys of a compact population, preserving logical duplicate row positions.
-pub(crate) fn index_selected(
-    view: &super::types::SelectedRows<'_>,
+pub(crate) fn index_selected_view(
+    view: super::types::SelectedView<'_>,
     columns: &[ColumnIndex],
     order: &mut KeyIndex,
 ) -> Result<(), TableModelError> {
-    check_columns(&view.selection.kinds, columns)?;
+    check_columns(view.kinds, columns)?;
     order.rows.clear();
-    order
-        .rows
-        .extend(positions(RowCount(view.selection.rows.len())));
+    order.rows.extend(positions(RowCount(view.positions.len())));
     order.hashes.clear();
     order.hashes.extend(order.rows.iter().map(|row| {
         columns.iter().fold(KeyCellsHash(0), |hash, column| {
             mix(
                 hash,
-                selected_cell(view, *row, *column).map_or(HashWord(0), |value| word_of(&value)),
+                selected_view_cell(view, *row, *column)
+                    .map_or(HashWord(0), |value| word_of(&value)),
             )
         })
     }));
-    chain(order, view.selection.rows.len());
+    chain(order, view.positions.len());
     Ok(())
 }
 
@@ -559,4 +571,25 @@ pub(crate) fn matching<'o, 'k>(
         }
         None
     })
+}
+
+/// Build equality chains from a borrowed column accessor, retaining only row IDs/hashes.
+pub(crate) fn index_cells(
+    count: RowCount,
+    columns: &[ColumnIndex],
+    order: &mut KeyIndex,
+    cell: impl Fn(RowIndex, ColumnIndex) -> Option<Value>,
+) {
+    order.rows.clear();
+    order.rows.extend(positions(count));
+    order.hashes.clear();
+    order.hashes.extend(order.rows.iter().map(|row| {
+        columns.iter().fold(KeyCellsHash(0), |hash, column| {
+            mix(
+                hash,
+                cell(*row, *column).map_or(HashWord(0), |value| word_of(&value)),
+            )
+        })
+    }));
+    chain(order, count.0);
 }

@@ -2,8 +2,8 @@
 
 use super::service::{acquire, domain};
 use super::types::roots::value::DemandAnswers;
+use crate::application::file_dag::derived::indexes::{LIMIT, new};
 use crate::domain::stored_graph::types::{GraphWalk, Orientation};
-use crate::domain::stored_indexes::service::{LIMIT, new};
 use crate::domain::table_model::types::{Rows, SelectedRows, SelectionIdentity, StoredSelection};
 use ryo_language::domain::relations::types::{
     CellKind, ColumnsView, FactColumn, Integer, Relation, Value,
@@ -382,9 +382,9 @@ fn physical_partiality_ragged_views_and_next_generation_never_hit_old_graphs() {
 
 #[test]
 fn adjacency_admission_reclaims_dormant_payload_but_falls_back_while_the_index_is_live() {
-    use crate::domain::graph_cache::types::reclamation::value::index_payload;
+    use crate::application::file_dag::derived::graph_cache::types::reclamation::value::index_payload;
+    use crate::application::file_dag::derived::indexes::acquire_fixture as acquire_index;
     use crate::domain::stored_graph::types::footprint::value::GraphFootprint;
-    use crate::domain::stored_indexes::service::acquire as acquire_index;
     use crate::domain::table_model::types::KeyIndex;
     let columns = [FactColumn(vec![1, 2, 3, 4]), FactColumn(vec![2, 3, 4, 5])];
     let source = ColumnsView {

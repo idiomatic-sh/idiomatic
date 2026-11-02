@@ -1,5 +1,5 @@
 //! Exact sharing keys, physical partiality, bounded retention and generation-local lifetimes.
-use super::service::{LIMIT, acquire, index_bytes, new};
+use super::{LIMIT, acquire_fixture as acquire, index_bytes, new};
 use crate::domain::coverage::types::{Lacking, LackingKind, Partial};
 use crate::domain::table_cells::types::RowIndex;
 use crate::domain::table_model::service::matching_stored;

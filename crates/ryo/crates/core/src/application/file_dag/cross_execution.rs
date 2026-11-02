@@ -2,7 +2,6 @@
 use super::executor::PrimitiveExecutor;
 use crate::domain::coverage::{service::drop_uncertain, types::Partials};
 use crate::domain::operating::{errors::OperatingError, types::OperatorContext};
-use crate::domain::operator::contract::registration::registered;
 use crate::domain::operator::contract::types::OperatorContract;
 use crate::domain::operator::types::RowsFed;
 use crate::domain::table_model::{
@@ -163,7 +162,10 @@ pub(crate) fn compute(
             },
         })
         .collect::<Vec<_>>();
-    let contract = registered(crate::domain::features::service::kind_of(operation)).prepare(
+    let contract = super::derived::prepare::operator(
+        crate::domain::operator::contract::registration::registered(
+            crate::domain::features::service::kind_of(operation),
+        ),
         operation,
         &schemas,
         context.bindings,

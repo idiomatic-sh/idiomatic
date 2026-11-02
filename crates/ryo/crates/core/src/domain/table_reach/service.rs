@@ -18,32 +18,6 @@ pub(crate) fn follow(edges: &Edges<'_>, start: Value, key: &mut Vec<Value>, into
     }
 }
 
-/// Every entity reachable from `start` by one or more edges, nearest first, each once, into
-/// `walk.reached`.
-pub(crate) fn reach_breadth(edges: &Edges<'_>, start: Value, walk: &mut Walk) {
-    let Walk {
-        key,
-        frontier,
-        next,
-        reached,
-        visited,
-    } = walk;
-    visited.clear();
-    reached.clear();
-    frontier.clear();
-    follow(edges, start, key, frontier);
-    while !frontier.is_empty() {
-        next.clear();
-        for entity in frontier.iter() {
-            if visited.insert(*entity) {
-                follow(edges, *entity, key, next);
-                reached.push(*entity);
-            }
-        }
-        std::mem::swap(frontier, next);
-    }
-}
-
 /// Every entity reachable from `start` by one or more edges, in ascending order, each once, into
 /// `walk.reached`.
 pub(crate) fn reach_all(edges: &Edges<'_>, start: Value, walk: &mut Walk) {

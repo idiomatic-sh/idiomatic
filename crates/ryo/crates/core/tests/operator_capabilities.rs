@@ -66,7 +66,8 @@ pub mod domain {
  pub mod plans {pub mod types {#[derive(Clone,Debug)]pub struct Operation;#[derive(Clone,Copy,Debug,PartialEq,Eq)] __KINDS__}}
  pub mod stored_facts {pub mod types {pub struct ArenaBytes;}}
  pub mod operation_schema {pub mod types {pub struct InputSchema<'a>{pub kinds:&'a[crate::domain::relations::types::CellKind]}}}
- pub mod stored_selection {pub mod types {#[derive(Debug)]pub struct Selector;}}
+ pub mod stored_selection {pub mod types {#[derive(Debug)]pub struct Selector;#[derive(Debug)]pub struct PreparedPlan;#[derive(Debug)]pub struct PreparedSelectionViews;}}
+ pub mod derived_views {pub mod types {#[derive(Clone,Debug,Default)]pub struct DerivedSlots;}}
  pub mod table_model {pub mod types {#[derive(Clone,Debug)]pub struct ParameterBinding;pub struct Table;pub struct Verdict;}pub mod collections {pub mod representations {#[path=__REPRESENTATION_TYPES__]pub mod types;#[path=__PUBLICATION__]pub mod publication;}}}
  pub mod table_texts {pub mod types {#[derive(Clone,Copy)]pub struct SourceView<'a>(pub &'a[u8]);}}
  pub mod table_scratch {pub mod types {pub struct ScratchWord;pub struct Stretches;}}

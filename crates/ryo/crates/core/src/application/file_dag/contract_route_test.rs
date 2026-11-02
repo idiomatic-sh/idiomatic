@@ -142,9 +142,13 @@ fn all24_actual_production_routes_invoke_and_emit_through_the_required_executor(
             })
             .collect::<Vec<_>>();
         let contract = Arc::new(
-            registered(*kind)
-                .prepare(&case.operation, &schemas, &case.bindings)
-                .unwrap(),
+            super::derived::prepare::operator(
+                registered(*kind),
+                &case.operation,
+                &schemas,
+                &case.bindings,
+            )
+            .unwrap(),
         );
         let mut scratch = OperatorScratch::default();
         let mut memo = Vec::new();
@@ -254,9 +258,13 @@ fn partial_route(
         })
         .collect::<Vec<_>>();
     let contract = Arc::new(
-        registered(kind_of(&operation))
-            .prepare(&operation, &schemas, &[])
-            .unwrap(),
+        super::derived::prepare::operator(
+            registered(kind_of(&operation)),
+            &operation,
+            &schemas,
+            &[],
+        )
+        .unwrap(),
     );
     let inputs = named(&inputs_of(&operation))
         .iter()
@@ -358,16 +366,16 @@ impl PrimitiveExecutor for RejectingExecutor {
 fn production_route_cannot_bypass_an_injected_executor_refusal() {
     let case = fixture(OperationKind::Select);
     let contract = Arc::new(
-        registered(OperationKind::Select)
-            .prepare(
-                &case.operation,
-                &[InputSchema {
-                    kinds: &case.inputs[0].kinds,
-                    tree: None,
-                }],
-                &[],
-            )
-            .unwrap(),
+        super::derived::prepare::operator(
+            registered(OperationKind::Select),
+            &case.operation,
+            &[InputSchema {
+                kinds: &case.inputs[0].kinds,
+                tree: None,
+            }],
+            &[],
+        )
+        .unwrap(),
     );
     let storage = columns(&case.inputs[0]);
     let read = |relation| {

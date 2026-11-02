@@ -3,9 +3,11 @@
 use ryo_language::domain::relations::types::Integer;
 use ryo_language::domain::relations::types::{CellKind, Value as Cell};
 
-use super::service::{reach_all, reach_breadth};
+use super::borrowed::reach_breadth;
+use super::service::reach_all;
 use super::types::{Edges, Walk};
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::operator::contract::views::{BorrowedRows, IndexedRows};
 use crate::domain::table_model::errors::TableModelError;
 use crate::domain::table_model::service::{index, push_row};
 use crate::domain::table_model::types::{KeyIndex, On, Table};
@@ -45,7 +47,17 @@ fn reached_from_one(breadth: bool) -> Result<Vec<Cell>, TableModelError> {
         to: ColumnIndex(1),
     };
     if breadth {
-        reach_breadth(&edges, Cell::Number(Integer(1)), &mut walk);
+        let indexed = IndexedRows {
+            rows: BorrowedRows::Computed(&table),
+            columns: &from,
+            index: &order,
+        };
+        reach_breadth(
+            &indexed,
+            ColumnIndex(1),
+            Cell::Number(Integer(1)),
+            &mut walk,
+        );
     } else {
         reach_all(&edges, Cell::Number(Integer(1)), &mut walk);
     }

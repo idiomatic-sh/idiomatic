@@ -48,6 +48,9 @@ struct SourceViews {
 }
 
 pub(crate) struct RelationOwner {
+    pub(super) derived: super::derived::owner::DerivedOwner,
+    next_population: Cell<usize>,
+    producer_populations: RefCell<HashMap<usize, usize>>,
     generation: RefCell<Arc<()>>,
     stable: bool,
     sources: RefCell<HashMap<Relation, SourceViews>>,
@@ -59,6 +62,9 @@ pub(crate) struct RelationOwner {
 impl RelationOwner {
     pub(super) fn new(stable: bool) -> Self {
         Self {
+            derived: super::derived::owner::DerivedOwner::new(1024),
+            next_population: Cell::new(0),
+            producer_populations: RefCell::new(HashMap::new()),
             generation: RefCell::new(Arc::new(())),
             stable,
             sources: RefCell::new(HashMap::new()),
@@ -71,6 +77,9 @@ impl RelationOwner {
     pub(super) fn for_request(stable: bool, views: usize) -> Self {
         let mut owner = Self::new(stable);
         owner.max_views = views;
+        owner.derived = super::derived::owner::DerivedOwner::new(
+            views.saturating_mul(crate::domain::derived_views::types::DerivedKind::ALL.len()),
+        );
         owner
     }
     pub(super) fn source(
@@ -92,6 +101,8 @@ impl RelationOwner {
             }
         }
         let result = Arc::new(RelationResult {
+            population: self.allocate_population()?,
+            producer: OnceLock::new(),
             generation: Arc::clone(&self.generation.borrow()),
             kind: kind(raw),
             body: RelationBody::Source(identity::describe(relation, raw)),
@@ -116,6 +127,8 @@ impl RelationOwner {
         let contract = input.contract()?;
         registered(contract.kind).inspect(&contract)?;
         Ok(Arc::new(RelationResult {
+            population: self.allocate_population()?,
+            producer: OnceLock::new(),
             generation: Arc::clone(&self.generation.borrow()),
             kind: RepresentationKind::Computed,
             body: RelationBody::Computed(Arc::new(table)),
@@ -130,6 +143,8 @@ impl RelationOwner {
         let ProducedSelection { source, selection } = produced;
         self.generation(&source)?;
         Ok(Arc::new(RelationResult {
+            population: self.allocate_population()?,
+            producer: OnceLock::new(),
             generation: Arc::clone(&self.generation.borrow()),
             kind: RepresentationKind::Selected,
             body: RelationBody::Selected { source, selection },
@@ -150,6 +165,8 @@ impl RelationOwner {
     }
     /// Explicitly ends the immutable resident-population lease before release or refill.
     pub(super) fn release_population(&self) {
+        self.derived.clear();
+        self.producer_populations.borrow_mut().clear();
         self.sources.borrow_mut().clear();
         self.views.set(0);
         *self.generation.borrow_mut() = Arc::new(());
@@ -307,3 +324,60 @@ pub(super) fn bytes(result: &RelationResult) -> usize {
 
 #[cfg(test)]
 mod owner_test;
+
+impl RelationOwner {
+    fn allocate_population(&self) -> Result<usize, OperatingError> {
+        let id = self.next_population.get();
+        self.next_population
+            .set(id.checked_add(1).ok_or(OperatingError::ShapeMismatch)?);
+        Ok(id)
+    }
+    /// One canonical DAG producer has one population identity across rules and safe recomputation.
+    pub(super) fn bind_producer(
+        &self,
+        node: crate::domain::file_program::types::NodeId,
+        result: &RelationResult,
+    ) -> Result<(), OperatingError> {
+        self.generation(result)?;
+        if matches!(result.body, RelationBody::Source(_)) || result.producer.get().is_some() {
+            return Ok(());
+        }
+        let mut known = self.producer_populations.borrow_mut();
+        let id = *known.entry(node.0).or_insert(result.population);
+        let _installed = result.producer.set(id);
+        Ok(())
+    }
+    pub(super) fn source_relation(
+        &self,
+        result: &RelationResult,
+        input: BorrowedRows<'_>,
+    ) -> Option<Relation> {
+        if self.generation(result).is_err() || !self.matches(result, input) {
+            return None;
+        }
+        match &result.body {
+            RelationBody::Source(source) => Some(source.relation),
+            _ => None,
+        }
+    }
+    pub(super) fn population_id(
+        &self,
+        result: &RelationResult,
+        input: BorrowedRows<'_>,
+    ) -> Result<super::derived::owner::PopulationId, OperatingError> {
+        self.generation(result)?;
+        if !self.matches(result, input) || self.inspect(result, input)? != PhysicalShape::Complete {
+            return Err(OperatingError::ShapeMismatch);
+        }
+        Ok(self.result_population(result))
+    }
+    fn result_population(&self, result: &RelationResult) -> super::derived::owner::PopulationId {
+        super::derived::owner::PopulationId(*result.producer.get().unwrap_or(&result.population))
+    }
+    pub(super) fn pin_derived(&self, result: &RelationResult) {
+        self.derived.pin(self.result_population(result));
+    }
+    pub(super) fn release_derived(&self, result: &RelationResult) {
+        self.derived.release(self.result_population(result));
+    }
+}

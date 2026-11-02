@@ -50,14 +50,21 @@ fn real_selector_producer_is_the_only_trusted_selection_path() {
         columns: vec![ColumnIndex(1), ColumnIndex(0), ColumnIndex(1)],
         distinct: false,
     });
-    let mut cache = crate::domain::stored_indexes::service::new(
+    let mut cache = crate::application::file_dag::derived::indexes::new(
         &[relation],
         &[],
-        crate::domain::stored_indexes::service::LIMIT,
+        crate::application::file_dag::derived::indexes::LIMIT,
     )
     .unwrap();
     // Two registered consumers make this population eligible for retained match IDs.
     cache.selectors = vec![Arc::clone(&program), Arc::clone(&program)];
+    cache.selection_views = Some(
+        crate::application::file_dag::derived::selection::prepare_views_with_schemas(
+            cache.selectors.iter().cloned(),
+            &|_| schema,
+        )
+        .unwrap(),
+    );
     let (mut symbols, mut memo, mut scratch) =
         (Symbols::default(), Vec::new(), OperatorScratch::default());
     let mut context = OperatorContext {

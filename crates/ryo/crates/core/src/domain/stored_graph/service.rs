@@ -153,15 +153,30 @@ fn population(
 }
 
 /// Build both adjacency orientations from only endpoint/partition cells, retaining original row order.
+#[cfg(test)]
 pub(crate) fn build(
     identity: GraphIdentity,
     rows: &Rows<'_>,
     endpoints: [ColumnIndex; 2],
     keys: &[ColumnIndex],
 ) -> Result<Option<CompactGraph>, OperatingError> {
-    check_columns(kinds_of(rows), &endpoints)?;
-    check_columns(kinds_of(rows), keys)?;
-    if count_of(rows).0 > (u32::MAX - 2) as usize {
+    build_borrowed(
+        identity,
+        crate::domain::operator::contract::views::BorrowedRows::from(rows),
+        endpoints,
+        keys,
+    )
+}
+/// Build directly from every admitted bulk representation without copying its population.
+pub(crate) fn build_borrowed(
+    identity: GraphIdentity,
+    rows: crate::domain::operator::contract::views::BorrowedRows<'_>,
+    endpoints: [ColumnIndex; 2],
+    keys: &[ColumnIndex],
+) -> Result<Option<CompactGraph>, OperatingError> {
+    check_columns(rows.kinds(), &endpoints)?;
+    check_columns(rows.kinds(), keys)?;
+    if rows.count() > (u32::MAX - 2) as usize {
         return Ok(None);
     }
     let mut graph = CompactGraph {
@@ -177,12 +192,12 @@ pub(crate) fn build(
     };
     let mut pairs = Vec::new();
     let mut tuple = Vec::with_capacity(keys.len());
-    for position in 0..count_of(rows).0 {
+    for position in 0..rows.count() {
         let position = crate::domain::table_cells::types::RowIndex(position);
         tuple.clear();
         let mut complete = true;
         for column in keys {
-            if let Some(value) = cell_at(rows, position, *column) {
+            if let Some(value) = rows.cell(position, *column) {
                 tuple.push(value);
             } else {
                 complete = false;
@@ -205,7 +220,7 @@ pub(crate) fn build(
         };
         let mut vertices = [0_u32; 2];
         for (slot, column) in vertices.iter_mut().zip(endpoints) {
-            let Some(value) = cell_at(rows, position, column) else {
+            let Some(value) = rows.cell(position, column) else {
                 complete = false;
                 break;
             };

@@ -119,6 +119,9 @@ impl FileDagExecution {
             return;
         }
         if let Some(table) = self.ready[node.0].take() {
+            if self.graph.derived_sources[node.0] {
+                self.relations.release_derived(table.as_ref());
+            }
             let size = bytes(&table);
             self.retained_bytes = self.retained_bytes.saturating_sub(size);
             if self.required[node.0].is_some() {
@@ -210,6 +213,9 @@ impl FileDagExecution {
         drop(held);
         self.visiting[id.0] = false;
         let table = outcome?;
+        if self.graph.derived_sources[id.0] {
+            self.relations.bind_producer(id, table.as_ref())?;
+        }
         let first_global_execution = self.executions[id.0] == 0;
         self.executions[id.0] += 1;
         // A global edge is consumed once, not once per optional-cache refusal.
@@ -231,6 +237,9 @@ impl FileDagExecution {
         if self.remaining[id.0] > 0 && self.retained_bytes.saturating_add(size) <= self.limit {
             self.retained_bytes += size;
             self.peak_bytes = self.peak_bytes.max(self.retained_bytes);
+            if self.graph.derived_sources[id.0] {
+                self.relations.pin_derived(table.as_ref());
+            }
             self.ready[id.0] = Some(Arc::clone(&table));
             if self.required[id.0].is_some() {
                 self.overlap_bytes = self.overlap_bytes.saturating_add(size);
@@ -246,7 +255,14 @@ impl FileDagExecution {
             required_bytes=self.required_bytes, peak_required_bytes=self.peak_required_bytes,
             overlap_bytes=self.overlap_bytes, peak_owned_bytes=self.peak_owned_bytes,
             required_releases=self.required_releases,
-            required_metadata_bytes=self.required_metadata_bytes());
+            required_metadata_bytes=self.required_metadata_bytes(),
+            derived_required_bytes=self.relations.derived.working_bytes(),
+            derived_peak_required_bytes=self.relations.derived.peak_working_bytes(),
+            derived_retained_bytes=self.relations.derived.retained_bytes(),
+            derived_owned_bytes=self.relations.derived.owned_bytes(),
+            derived_backend_overlap_bytes=self.relations.derived.required_backend_overlap(),
+            derived_peak_required_views=self.relations.derived.peak_required_views(),
+            derived_metadata_bytes=self.relations.derived.metadata_bytes());
         Ok(table)
     }
 }

@@ -1,5 +1,6 @@
 //! Axis traversal semantics over engine-prepared immutable tree/domain resources.
 use super::super::interface::OperatorsItem;
+use crate::domain::derived_views::types::MembershipData;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::contract::axis::PreparedAxis;
 use crate::domain::operator::contract::types::{
@@ -8,10 +9,7 @@ use crate::domain::operator::contract::types::{
 use crate::domain::table_cells::service::element_of;
 use crate::domain::table_model::types::ParameterBinding;
 use crate::domain::table_model::{service::cell, types::Verdict};
-use crate::domain::table_reach::{
-    service::{follow, reach_breadth},
-    types::Edges,
-};
+use crate::domain::table_reach::borrowed::{follow, reach_breadth};
 use crate::domain::tree_join::service::tree_value;
 use ryo_language::domain::elements::service::{
     children, next_sibling, parent_at, previous_sibling, size_at,
@@ -74,20 +72,8 @@ impl OperatorsItem for AxisItem {
         let mut answer = std::mem::take(lease.workspace.row);
         let result = (|| match axis {
             PreparedAxis::Empty => Ok(()),
-            PreparedAxis::Table {
-                edges,
-                index,
-                from,
-                to,
-                domain,
-            } => {
+            PreparedAxis::Indexed { edges, to, domain } => {
                 let start = cell(row, *id)?;
-                let walked = Edges {
-                    table: edges,
-                    order: index,
-                    from,
-                    to: *to,
-                };
                 let work = lease
                     .workspace
                     .axis
@@ -95,9 +81,15 @@ impl OperatorsItem for AxisItem {
                     .ok_or(OperatingError::WrongBinding)?;
                 work.walk.reached.clear();
                 if matches!(direction, Direction::Parent | Direction::Child) {
-                    follow(&walked, start, &mut work.walk.key, &mut work.walk.reached);
+                    follow(
+                        edges,
+                        *to,
+                        start,
+                        &mut work.walk.key,
+                        &mut work.walk.reached,
+                    );
                 } else {
-                    reach_breadth(&walked, start, &mut work.walk);
+                    reach_breadth(edges, *to, start, &mut work.walk);
                 }
                 let count = work.walk.reached.len();
                 for at in 0..count {
@@ -108,7 +100,10 @@ impl OperatorsItem for AxisItem {
                         .and_then(|work| work.walk.reached.get(at))
                         .copied()
                         .ok_or(OperatingError::ShapeMismatch)?;
-                    if !domain.contains(&entity) {
+                    let MembershipData::Values(members) = domain else {
+                        return Err(OperatingError::WrongBinding);
+                    };
+                    if !members.contains(&entity) {
                         continue;
                     }
                     answer.clear();

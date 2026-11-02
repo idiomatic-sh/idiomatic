@@ -1,7 +1,6 @@
 //! One opt-in aggregate observation per physical Join invocation.
 use crate::domain::operating::types::OperatorContext;
 use crate::domain::operator::contract::{resources::ResourceProgram, types::OperatorContract};
-use crate::domain::stored_indexes::types::Acquired;
 use crate::domain::table_model::{
     service::{count_of, kinds_of, rectangular},
     types::Rows,
@@ -19,11 +18,11 @@ pub(super) struct Counts {
     pub(super) sparse_left: bool,
 }
 impl Counts {
-    pub(super) fn acquired(&mut self, acquired: &Acquired) {
+    pub(super) fn derived(&mut self, before: (u64, u64), after: (u64, u64), eligible: bool) {
         if self.enabled {
-            self.builds = self.builds.saturating_add(u64::from(acquired.built));
-            self.reuses = self.reuses.saturating_add(u64::from(!acquired.built));
-            self.eligible = acquired.eligible;
+            self.builds = self.builds.saturating_add(after.0.saturating_sub(before.0));
+            self.reuses = self.reuses.saturating_add(after.1.saturating_sub(before.1));
+            self.eligible |= eligible;
         }
     }
     pub(super) fn finish(

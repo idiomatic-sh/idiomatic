@@ -123,6 +123,7 @@ pub(crate) enum SourceGate {
 /// Owned by one request and aligned with the compiled operation.
 #[derive(Clone, Debug)]
 pub(crate) struct OperatorContract {
+    pub derived: crate::domain::derived_views::types::DerivedSlots,
     pub kind: OperationKind,
     pub inputs: Inputs,
     pub input_kinds: Vec<Vec<CellKind>>,
@@ -230,6 +231,9 @@ pub(crate) struct DistinctWorkspace<'a> {
 /// Prepared metadata belongs to the request; workers only borrow this immutable value.
 #[derive(Debug)]
 pub(crate) struct RequestOperators {
+    pub selection_plans: std::sync::Arc<Vec<crate::domain::stored_selection::types::PreparedPlan>>,
+    pub selection_views:
+        std::sync::Arc<crate::domain::stored_selection::types::PreparedSelectionViews>,
     pub rules: Vec<Vec<std::sync::Arc<OperatorContract>>>,
     pub preparations: usize,
     pub physical: Vec<

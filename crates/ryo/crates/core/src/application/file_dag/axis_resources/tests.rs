@@ -1,0 +1,135 @@
+//! Real borrowed-index traversal, duplicate order and admission timing controls.
+use super::*;
+use crate::domain::derived_views::types::DerivedStorage;
+use crate::domain::{
+    derived_views::types::MembershipData,
+    operator::contract::axis::PreparedAxis,
+    table_model::{
+        service::{index, push_row},
+        types::{KeyIndex, On, Table},
+    },
+    table_reach::{
+        borrowed::{follow, reach_breadth},
+        types::Walk,
+    },
+};
+use ryo_language::domain::relations::types::{CellKind, Integer, Value};
+use std::sync::Arc;
+
+fn number(value: i64) -> Value {
+    Value::Number(Integer(value))
+}
+
+fn table(width: usize, rows: &[&[i64]]) -> Table {
+    let mut table = Table {
+        kinds: vec![CellKind::Number; width],
+        ..Table::default()
+    };
+    for row in rows {
+        push_row(
+            &mut table,
+            &row.iter().copied().map(number).collect::<Vec<_>>(),
+        );
+    }
+    table
+}
+
+fn program(direction: Direction) -> AxisResources {
+    AxisResources {
+        id: ColumnIndex(0),
+        parent: ColumnIndex(0),
+        child: ColumnIndex(1),
+        domain_id: ColumnIndex(0),
+        has_filter: false,
+        domain_view: Vec::new(),
+        output: Vec::new(),
+        direction,
+    }
+}
+
+fn acquired(
+    kind: crate::domain::derived_views::types::DerivedKind,
+    request: crate::domain::derived_views::types::ViewRequest,
+    kinds: &[CellKind],
+    storage: DerivedStorage,
+) -> crate::application::file_dag::derived::view::AcquiredView {
+    let plan = Arc::new(
+        crate::domain::derived_views::collections::views::registration::registered(kind)
+            .prepare(
+                &request,
+                &[crate::domain::operation_schema::types::InputSchema { kinds, tree: None }],
+            )
+            .unwrap(),
+    );
+    crate::application::file_dag::derived::view::AcquiredView::new(&plan, Arc::new(storage))
+}
+
+#[test]
+fn borrowed_axis_keeps_duplicate_direct_edges_and_breadth_order() {
+    let edges = table(2, &[&[1, 2], &[1, 2], &[2, 3]]);
+    let domain = table(1, &[&[2], &[3]]);
+    let mut index_data = KeyIndex::default();
+    index(&edges, On::Columns(&[ColumnIndex(0)]), &mut index_data).unwrap();
+    let values = [number(2), number(3)].into_iter().collect();
+    let resource = prepare_axis(
+        &program(Direction::Child),
+        BorrowedRows::Computed(&edges),
+        BorrowedRows::Computed(&domain),
+        Some(acquired(
+            crate::domain::derived_views::types::DerivedKind::Equality,
+            crate::domain::derived_views::types::ViewRequest::Equality {
+                columns: vec![ColumnIndex(0)],
+            },
+            &edges.kinds,
+            DerivedStorage::Equality(index_data),
+        )),
+        Some(acquired(
+            crate::domain::derived_views::types::DerivedKind::Membership,
+            crate::domain::derived_views::types::ViewRequest::Membership {
+                column: ColumnIndex(0),
+            },
+            &domain.kinds,
+            DerivedStorage::Membership(MembershipData::Values(values)),
+        )),
+    )
+    .unwrap();
+    let PreparedAxis::Indexed {
+        edges: view, to, ..
+    } = resource.view().unwrap()
+    else {
+        panic!("borrowed indexed axis")
+    };
+    let mut key = Vec::new();
+    let mut direct = Vec::new();
+    follow(&view, to, number(1), &mut key, &mut direct);
+    assert_eq!(direct, vec![number(2), number(2)]);
+    let mut walk = Walk::default();
+    reach_breadth(&view, to, number(1), &mut walk);
+    assert_eq!(walk.reached, vec![number(2), number(3)]);
+}
+
+#[test]
+fn unsupported_and_empty_gates_precede_derived_handle_requirement() {
+    let edges = table(2, &[&[1, 2]]);
+    let domain = table(1, &[]);
+    assert!(matches!(
+        prepare_axis(
+            &program(Direction::Child),
+            BorrowedRows::Computed(&edges),
+            BorrowedRows::Computed(&domain),
+            None,
+            None,
+        ),
+        Ok(AxisResource::Empty)
+    ));
+    let nonempty = table(1, &[&[2]]);
+    assert_eq!(
+        classify(
+            &program(Direction::Deep),
+            BorrowedRows::Computed(&edges),
+            BorrowedRows::Computed(&nonempty),
+        )
+        .err(),
+        Some(OperatingError::WrongOperation),
+    );
+}

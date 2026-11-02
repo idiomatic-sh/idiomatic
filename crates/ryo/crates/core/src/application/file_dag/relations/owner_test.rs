@@ -347,10 +347,10 @@ fn stable_partial_population_reuses_structure_without_proving_semantic_absence()
     assert_eq!(owner.checks.get(), 1);
     assert!(complete_for_reuse(relation, &rows, &[], true));
     assert!(!complete_for_reuse(relation, &rows, &partials, true));
-    let semantic = crate::domain::stored_indexes::service::new(
+    let semantic = crate::application::file_dag::derived::indexes::new(
         &[relation],
         &partials,
-        crate::domain::stored_indexes::service::LIMIT,
+        crate::application::file_dag::derived::indexes::LIMIT,
     )
     .unwrap();
     assert!(

@@ -1,27 +1,40 @@
-//! Acquire and prepare immutable native-tree or indexed-table axis resources.
-use crate::domain::operating::errors::OperatingError;
-use crate::domain::operator::contract::{axis::PreparedAxis, views::BorrowedRows};
-use crate::domain::table_cells::types::{RowIndex, TreeForm};
-use crate::domain::table_model::{
-    service::{cell, check_columns, index, push_row},
-    types::{KeyIndex, On, Table},
-};
-use crate::domain::tree_walk::service::entity_of;
-use ryo_language::domain::relations::{
-    service::{node_file, node_position},
-    types::Value,
-};
-use ryo_values::domain::{
-    plan_parts::types::{ColumnIndex, Direction},
-    plans::types::Operation,
-};
+//! Axis admission and engine-owned prepared views over original borrowed populations.
+mod view;
+pub(crate) use view::AxisResource;
+#[cfg(test)]
+mod tests;
 
-pub(crate) fn prepare_axis<'a>(
-    program: &crate::domain::operator::contract::resources::AxisResources,
-    edges: BorrowedRows<'a>,
-    domain: BorrowedRows<'a>,
-) -> Result<PreparedAxis<'a>, OperatingError> {
-    let crate::domain::operator::contract::resources::AxisResources {
+use super::derived::view::AcquiredView;
+use crate::domain::{
+    derived_views::types::{DerivedView, MembershipData},
+    operating::errors::OperatingError,
+    operator::contract::{resources::AxisResources, views::BorrowedRows},
+    table_cells::types::{TreeForm, TreeRows},
+    table_model::service::check_columns,
+    tree_walk::service::entity_of,
+};
+use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction};
+
+#[derive(Clone, Copy)]
+pub(crate) enum AxisMode<'f> {
+    Empty,
+    Native {
+        tree: TreeRows<'f>,
+        among: Option<TreeRows<'f>>,
+    },
+    Indexed {
+        from: [ColumnIndex; 1],
+        to: ColumnIndex,
+    },
+}
+
+/// Preserve the old admission and error gates before acquiring any derived resource.
+pub(crate) fn classify<'f>(
+    program: &AxisResources,
+    edges: BorrowedRows<'f>,
+    domain: BorrowedRows<'f>,
+) -> Result<AxisMode<'f>, OperatingError> {
+    let AxisResources {
         parent,
         child,
         domain_id,
@@ -32,38 +45,21 @@ pub(crate) fn prepare_axis<'a>(
         ..
     } = program;
     if matches!(domain, BorrowedRows::Computed(_)) && domain.count() == 0 && output.is_empty() {
-        return Ok(PreparedAxis::Empty);
+        return Ok(AxisMode::Empty);
     }
     if let BorrowedRows::Tree(tree) = edges {
-        let domain_of_tree = matches!(domain,BorrowedRows::Tree(each) if each.form==TreeForm::Elements)
+        let domain_of_tree = matches!(domain, BorrowedRows::Tree(each) if each.form == TreeForm::Elements)
             && entity_of(domain_view, *domain_id) == ColumnIndex(0);
         if tree.form == TreeForm::Edges
             && (*parent, *child) == (ColumnIndex(0), ColumnIndex(1))
-            && (!*has_filter && domain_view.is_empty() || domain_of_tree)
+            && ((!*has_filter && domain_view.is_empty()) || domain_of_tree)
         {
             let among = if let BorrowedRows::Tree(each) = domain {
                 (each.form == TreeForm::Elements).then_some(each)
             } else {
                 None
             };
-            let mut marks = Vec::new();
-            if among.is_none() {
-                marks.resize(tree.elements.kind.len(), false);
-                let mut row = Vec::new();
-                let entity = entity_of(domain_view, *domain_id);
-                for at in 0..domain.count() {
-                    let Some(row) = domain.read(RowIndex(at), &mut row) else {
-                        continue;
-                    };
-                    if let Value::Node(node) = cell(row, entity)?
-                        && node_file(node) == tree.file
-                        && let Some(mark) = marks.get_mut(node_position(node).0 as usize)
-                    {
-                        *mark = true;
-                    }
-                }
-            }
-            return Ok(PreparedAxis::Native { tree, among, marks });
+            return Ok(AxisMode::Native { tree, among });
         }
     }
     if *has_filter
@@ -82,29 +78,50 @@ pub(crate) fn prepare_axis<'a>(
         Direction::Parent | Direction::Ancestor | Direction::NearestAncestor => ([*child], *parent),
         _ => ([*parent], *child),
     };
-    let mut table = Table {
-        kinds: edges.kinds().to_vec(),
-        ..Table::default()
-    };
-    let mut buffer = Vec::new();
-    for at in 0..edges.count() {
-        if let Some(row) = edges.read(RowIndex(at), &mut buffer) {
-            push_row(&mut table, row);
+    Ok(AxisMode::Indexed { from, to })
+}
+
+pub(crate) fn prepare_axis<'f>(
+    program: &AxisResources,
+    edges: BorrowedRows<'f>,
+    domain: BorrowedRows<'f>,
+    equality: Option<AcquiredView>,
+    membership: Option<AcquiredView>,
+) -> Result<AxisResource<'f>, OperatingError> {
+    match classify(program, edges, domain)? {
+        AxisMode::Empty => Ok(AxisResource::Empty),
+        AxisMode::Native { tree, among } => {
+            if among.is_none()
+                && !matches!(
+                    membership.as_ref().map(AcquiredView::view).transpose()?,
+                    Some(DerivedView::Membership(MembershipData::Dense(_)))
+                )
+            {
+                return Err(OperatingError::WrongBinding);
+            }
+            Ok(AxisResource::Native {
+                tree,
+                among,
+                membership,
+            })
+        }
+        AxisMode::Indexed { from, to } => {
+            if !matches!(
+                equality.as_ref().map(AcquiredView::view).transpose()?,
+                Some(DerivedView::Equality(_))
+            ) || !matches!(
+                membership.as_ref().map(AcquiredView::view).transpose()?,
+                Some(DerivedView::Membership(MembershipData::Values(_)))
+            ) {
+                return Err(OperatingError::WrongBinding);
+            }
+            Ok(AxisResource::Indexed {
+                edges,
+                from,
+                to,
+                equality: equality.ok_or(OperatingError::WrongBinding)?,
+                membership: membership.ok_or(OperatingError::WrongBinding)?,
+            })
         }
     }
-    let mut order = KeyIndex::default();
-    index(&table, On::Columns(&from), &mut order)?;
-    let mut members = hashbrown::HashSet::new();
-    for at in 0..domain.count() {
-        if let Some(row) = domain.read(RowIndex(at), &mut buffer) {
-            let _new = members.insert(cell(row, *domain_id)?);
-        }
-    }
-    Ok(PreparedAxis::Table {
-        edges: table,
-        index: order,
-        from,
-        to,
-        domain: members,
-    })
 }

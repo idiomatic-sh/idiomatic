@@ -2,21 +2,22 @@
 //! Primitive output semantics remain the declared left/right projection; index
 //! choice, cache admission, fallback and diagnostics stay at this application edge.
 
+use crate::application::file_dag::derived::indexes as stored_indexes;
+use crate::domain::derived_views::types::DerivedView;
 use crate::domain::operating::{
     errors::OperatingError,
     types::{Emit, OperatorContext},
 };
 use crate::domain::operator::contract::resources::{JoinResources, ResourceProgram};
-use crate::domain::stored_indexes::{service as stored_indexes, types::Acquired};
+use crate::domain::operator::contract::types::{EvaluationMode, OperatorContract};
 use crate::domain::table_cells::types::RowIndex;
 use crate::domain::table_model::{
     errors::TableModelError,
     service::{
-        cell, cell_at, check_columns, count_of, index, index_selected, index_stored,
-        joined_selected, key_of, kinds_of, matching, matching_selected, matching_stored,
-        materialize, positions, read_row, rectangular, row_in,
+        cell, cell_at, check_columns, count_of, joined_selected, key_of, kinds_of, matching,
+        matching_selected, matching_stored, positions, read_row, rectangular, row_in,
     },
-    types::{KeyIndex, On, RowCount, Rows, Table},
+    types::{On, RowCount, Rows},
 };
 use ryo_language::domain::relations::{service::kinds, types::Value};
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input, JoinColumn, Side};
@@ -24,7 +25,9 @@ use ryo_values::domain::plan_parts::types::{ColumnIndex, Input, JoinColumn, Side
 const SPARSE_PAIR_LIMIT: usize = 65_536;
 const SPARSE_RIGHT_LIMIT: usize = 1_024;
 
+mod acquisition;
 mod diagnostic;
+use acquisition::acquired_index;
 use diagnostic::Counts;
 pub(crate) use diagnostic::StreamJoinStats;
 
@@ -32,9 +35,6 @@ struct Work {
     left_row: Vec<Value>,
     output: Vec<Value>,
     key: Vec<Value>,
-    right_row: Vec<Value>,
-    index: KeyIndex,
-    table: Table,
 }
 impl Work {
     fn take(context: &mut OperatorContext<'_>) -> Self {
@@ -42,18 +42,12 @@ impl Work {
             left_row: std::mem::take(&mut context.scratch.row),
             output: std::mem::take(&mut context.scratch.other),
             key: std::mem::take(&mut context.scratch.join_scratch.key),
-            right_row: std::mem::take(&mut context.scratch.join_scratch.right_row),
-            index: std::mem::take(&mut context.scratch.join_scratch.order),
-            table: std::mem::take(&mut context.scratch.join_scratch.right),
         }
     }
     fn restore(self, context: &mut OperatorContext<'_>) {
         context.scratch.row = self.left_row;
         context.scratch.other = self.output;
         context.scratch.join_scratch.key = self.key;
-        context.scratch.join_scratch.right_row = self.right_row;
-        context.scratch.join_scratch.order = self.index;
-        context.scratch.join_scratch.right = self.table;
     }
 }
 
@@ -83,11 +77,14 @@ fn projected(
 /// The sparse-left candidate is a complete pair list before its first output;
 /// a dense pair set falls back without changing left-major bag order.
 fn sparse_left(
+    contract: &OperatorContract,
+    mode: EvaluationMode,
     join: &JoinResources,
     logical_left: Input,
     logical_right: Input,
     left: &Rows<'_>,
     right: &Rows<'_>,
+    admission: &super::super::workspace::InvocationWorkspace,
     context: &mut OperatorContext<'_>,
     emit: &mut dyn Emit,
     work: &mut Work,
@@ -109,29 +106,35 @@ fn sparse_left(
     {
         return None;
     }
-    let cache = context.stored_indexes.as_deref_mut()?;
-    let complete_right = match right {
-        Rows::Stored(other) => matches!(logical_right, Input::Relation(source)
-            if cache.eligible.contains(&source) && other.kinds==kinds(source)),
-        Rows::Computed(_) => true,
-        _ => false,
+    let eligible = {
+        let cache = context.stored_indexes.as_deref_mut()?;
+        let complete_right = match right {
+            Rows::Stored(other) => matches!(logical_right, Input::Relation(source)
+                if cache.eligible.contains(&source) && other.kinds==kinds(source)),
+            Rows::Computed(_) => true,
+            _ => false,
+        };
+        cache.eligible.contains(&relation)
+            && complete_right
+            && stored_indexes::can_retain(cache, relation, *view, &join.left_on)
     };
-    if !cache.eligible.contains(&relation)
-        || !complete_right
-        || !stored_indexes::can_retain(cache, relation, *view, &join.left_on)
-    {
+    if !eligible {
         return None;
     }
     if let Err(error) = check_columns(kinds_of(right), &join.right_on) {
         return Some(Err(error.into()));
     }
-    let acquired =
-        match stored_indexes::acquire(cache, relation, *view, &join.left_on, &mut work.index) {
-            Ok(value) => value,
-            Err(error) => return Some(Err(error.into())),
-        };
-    counts.acquired(&acquired);
-    let lookup = acquired.shared.as_deref().unwrap_or(&work.index);
+    let storage = match acquired_index(
+        contract, mode, true, left, right, admission, context, counts, eligible,
+    ) {
+        Ok(storage) => storage,
+        Err(error) => return Some(Err(error)),
+    };
+    let lookup = match storage.view() {
+        Ok(DerivedView::Equality(index)) => index,
+        Ok(_) => return Some(Err(OperatingError::WrongBinding)),
+        Err(error) => return Some(Err(error)),
+    };
     let mut pairs = Vec::new();
     for right_at in positions(RowCount(right_count)) {
         work.key.clear();
@@ -175,20 +178,28 @@ fn sparse_left(
 }
 
 fn ordinary(
+    contract: &OperatorContract,
+    mode: EvaluationMode,
     join: &JoinResources,
     logical_right: Input,
     left: &Rows<'_>,
     right: &Rows<'_>,
+    admission: &super::super::workspace::InvocationWorkspace,
     context: &mut OperatorContext<'_>,
     emit: &mut dyn Emit,
     work: &mut Work,
     counts: &mut Counts,
 ) -> Result<(), OperatingError> {
+    let eligible = matches!((logical_right, right, context.stored_indexes.as_deref()),
+        (Input::Relation(relation), Rows::Stored(view), Some(cache))
+            if rectangular(*view) && cache.eligible.contains(&relation));
+    let storage = acquired_index(
+        contract, mode, false, left, right, admission, context, counts, eligible,
+    )?;
+    let DerivedView::Equality(lookup) = storage.view()? else {
+        return Err(OperatingError::WrongBinding);
+    };
     if let Rows::Selected(selected) = right {
-        index_selected(selected, &join.right_on, &mut work.index)?;
-        if counts.enabled {
-            counts.builds = counts.builds.saturating_add(1);
-        }
         for left_at in positions(count_of(left)) {
             let Some(left_row) = read_row(left, left_at, &mut work.left_row) else {
                 continue;
@@ -197,7 +208,7 @@ fn ordinary(
             if counts.enabled {
                 counts.probes = counts.probes.saturating_add(1);
             }
-            for right_at in matching_selected(selected, &join.right_on, &work.index, &work.key) {
+            for right_at in matching_selected(selected, &join.right_on, lookup, &work.key) {
                 joined_selected(selected, right_at, left_row, &join.output, &mut work.output)?;
                 if counts.enabled {
                     counts.hits = counts.hits.saturating_add(1);
@@ -210,20 +221,6 @@ fn ordinary(
     if let Rows::Stored(view) = right
         && rectangular(*view)
     {
-        let acquired = if let (Input::Relation(relation), Some(cache)) =
-            (logical_right, context.stored_indexes.as_deref_mut())
-        {
-            stored_indexes::acquire(cache, relation, *view, &join.right_on, &mut work.index)?
-        } else {
-            index_stored(*view, &join.right_on, &mut work.index)?;
-            Acquired {
-                shared: None,
-                built: true,
-                eligible: false,
-            }
-        };
-        counts.acquired(&acquired);
-        let lookup = acquired.shared.as_deref().unwrap_or(&work.index);
         for left_at in positions(count_of(left)) {
             let Some(left_row) = read_row(left, left_at, &mut work.left_row) else {
                 continue;
@@ -249,18 +246,12 @@ fn ordinary(
         }
         return Ok(());
     }
-    // A malformed physical view retains the original permissive materialize-
-    // then-index path. Its incomplete rows are omitted before indexing.
-    let looked_up = if let Rows::Computed(table) = right {
-        *table
-    } else {
-        materialize(right, &mut work.table, &mut work.right_row);
-        &work.table
+    // The caller normalizes malformed physical rows before this prepared
+    // resource is acquired. The same computed population drives lookup and
+    // projected emission, so no second physical copy or index is built here.
+    let Rows::Computed(looked_up) = right else {
+        return Err(OperatingError::ShapeMismatch);
     };
-    index(looked_up, On::Columns(&join.right_on), &mut work.index)?;
-    if counts.enabled {
-        counts.builds = counts.builds.saturating_add(1);
-    }
     for left_at in positions(count_of(left)) {
         let Some(left_row) = read_row(left, left_at, &mut work.left_row) else {
             continue;
@@ -269,12 +260,7 @@ fn ordinary(
         if counts.enabled {
             counts.probes = counts.probes.saturating_add(1);
         }
-        for right_at in matching(
-            looked_up,
-            On::Columns(&join.right_on),
-            &work.index,
-            &work.key,
-        ) {
+        for right_at in matching(looked_up, On::Columns(&join.right_on), lookup, &work.key) {
             work.output.clear();
             for column in &join.output {
                 let source = match column.side {
@@ -313,9 +299,12 @@ pub(crate) fn supports(program: &ResourceProgram, logical: &[Input], rows: &[Row
 }
 
 pub(crate) fn evaluate(
+    contract: &OperatorContract,
+    mode: EvaluationMode,
     program: &ResourceProgram,
     logical: &[Input],
     rows: &[Rows<'_>],
+    admission: &super::super::workspace::InvocationWorkspace,
     context: &mut OperatorContext<'_>,
     emit: &mut dyn Emit,
 ) -> Option<Result<(), OperatingError>> {
@@ -341,11 +330,14 @@ pub(crate) fn evaluate(
     }
     let mut work = Work::take(context);
     let sparse = sparse_left(
+        contract,
+        mode,
         join,
         *logical_left,
         *logical_right,
         left,
         right,
+        admission,
         context,
         emit,
         &mut work,
@@ -353,10 +345,13 @@ pub(crate) fn evaluate(
     );
     let result = sparse.unwrap_or_else(|| {
         ordinary(
+            contract,
+            mode,
             join,
             *logical_right,
             left,
             right,
+            admission,
             context,
             emit,
             &mut work,

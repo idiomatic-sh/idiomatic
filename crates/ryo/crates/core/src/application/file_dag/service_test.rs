@@ -200,10 +200,10 @@ fn distinct_graph_joins_share_the_existing_file_owned_source_index() {
             columns: &columns,
         })
     };
-    let mut indexes = crate::domain::stored_indexes::service::new(
+    let mut indexes = crate::application::file_dag::derived::indexes::new(
         &[Relation::LanguageTarget],
         &[],
-        crate::domain::stored_indexes::service::LIMIT,
+        crate::application::file_dag::derived::indexes::LIMIT,
     )
     .unwrap();
     let mut symbols = Symbols::default();

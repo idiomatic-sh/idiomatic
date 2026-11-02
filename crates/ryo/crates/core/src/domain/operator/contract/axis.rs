@@ -1,23 +1,20 @@
-//! Engine-prepared immutable axis resources and bounded invocation traversal work.
-use crate::domain::table_cells::types::TreeRows;
-use crate::domain::table_model::types::{KeyIndex, Table};
-use crate::domain::table_reach::types::Walk;
-use ryo_language::domain::relations::types::Value;
+//! Borrowed axis resources exposed by the engine; primitives cannot retain cache handles.
+use crate::domain::{
+    derived_views::types::MembershipData, operator::contract::views::IndexedRows,
+    table_cells::types::TreeRows, table_reach::types::Walk,
+};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-#[derive(Debug)]
 pub(crate) enum PreparedAxis<'a> {
     Empty,
     Native {
         tree: TreeRows<'a>,
         among: Option<TreeRows<'a>>,
-        marks: Vec<bool>,
+        marks: &'a [bool],
     },
-    Table {
-        edges: Table,
-        index: KeyIndex,
-        from: [ColumnIndex; 1],
+    Indexed {
+        edges: IndexedRows<'a>,
         to: ColumnIndex,
-        domain: hashbrown::HashSet<Value>,
+        domain: &'a MembershipData,
     },
 }
 #[derive(Debug, Default)]

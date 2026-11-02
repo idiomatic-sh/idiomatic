@@ -487,7 +487,7 @@ fn refuses() {
 
 #[test]
 fn compact_axes_equal_ordinary_bfs_and_direct_bags_across_rules() {
-    use crate::domain::stored_indexes::service::{LIMIT, new};
+    use crate::application::file_dag::derived::indexes::{LIMIT, new};
     use ryo_language::domain::relations::types::{ColumnsView, FactColumn};
     let columns = [
         FactColumn(vec![1, 1, 1, 9, 2, 4, 90]),

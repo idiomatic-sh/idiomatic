@@ -95,6 +95,15 @@ pub(crate) struct SelectedRows<'a> {
     pub selection: std::sync::Arc<StoredSelection>,
 }
 
+/// Borrowed compact bulk layout without any retained selection capability.
+#[derive(Clone, Copy)]
+pub(crate) struct SelectedView<'a> {
+    pub source: ColumnsView<'a>,
+    pub positions: &'a [u32],
+    pub columns: &'a [ColumnIndex],
+    pub kinds: &'a [CellKind],
+}
+
 /// Owned, generation-local metadata; it contains no provider/source references.
 #[derive(Debug)]
 pub(crate) struct StoredSelection {

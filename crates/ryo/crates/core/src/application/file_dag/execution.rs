@@ -158,9 +158,12 @@ impl CommonOperatorEngine {
                 contract.collected_kinds.as_ref().map_err(Clone::clone)?,
             );
             if let Some(result) = super::optimized::join::evaluate(
+                contract,
+                mode.evaluation,
                 &contract.resources,
                 ryo_values::domain::plans::service::named(&contract.inputs),
-                provider_inputs,
+                originals,
+                workspace,
                 context,
                 &mut Collect(out),
             ) {

@@ -1,8 +1,8 @@
 //! Preflight graph priority without evicting live consumers or recrediting retained metadata.
 
-use crate::domain::graph_cache::service::room;
+use crate::application::file_dag::derived::graph_cache::service::room;
+use crate::application::file_dag::derived::indexes::index_bytes;
 use crate::domain::stored_graph::types::footprint::value::{arc_bytes, vector};
-use crate::domain::stored_indexes::service::index_bytes;
 use crate::domain::stored_indexes::types::{Entry, FileIndexes};
 use crate::domain::stored_selection::types::Matches;
 use ryo_values::domain::plan_parts::types::ColumnIndex;

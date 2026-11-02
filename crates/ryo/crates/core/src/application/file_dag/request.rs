@@ -48,6 +48,7 @@ impl RequestOperators {
                     .collect::<Vec<_>>()
             })
             .collect::<Vec<_>>();
+        let mut views = super::derived::request::RequestViews::default();
         let mut rules = Vec::with_capacity(plans.len());
         let mut preparations = 0;
         for (rule, plan) in plans.iter().enumerate() {
@@ -85,11 +86,12 @@ impl RequestOperators {
                         tree: None,
                     });
                 }
-                let contract = registered(kind_of(&step.operation)).prepare(
+                let mut contract = registered(kind_of(&step.operation)).prepare(
                     &step.operation,
                     &schemas,
                     bindings.get(rule).map_or(&[], Vec::as_slice),
                 )?;
+                views.bind(&mut contract)?;
                 let tree = match &step.operation {
                     Operation::Select {
                         comparisons, kept, ..
@@ -117,8 +119,28 @@ impl RequestOperators {
             }
             rules.push(contracts);
         }
+        let selection_plans = Arc::new(
+            plans
+                .iter()
+                .enumerate()
+                .map(|(rule, plan)| {
+                    crate::domain::stored_selection::types::program::value::SelectionProgram::new(
+                        plan,
+                        bindings.get(rule).map_or(&[], Vec::as_slice),
+                    )
+                    .prepare()
+                })
+                .collect::<Vec<_>>(),
+        );
+        let selection_views = super::derived::selection::prepare_views_with_schemas(
+            selection_plans
+                .iter()
+                .flat_map(|plan| plan.steps.iter().flatten())
+                .cloned(),
+            relation_kinds,
+        )?;
         let physical=plans.iter().enumerate().map(|(rule,plan)| {
-            let selectors=crate::domain::stored_selection::types::program::value::SelectionProgram::new(plan,bindings.get(rule).map_or(&[],Vec::as_slice)).prepare();
+            let selectors = &selection_plans[rule];
             plan.steps.iter().enumerate().map(|(at,step)| {
                 let alias=match &step.operation {
                     Operation::Select{comparisons,kept,..} if comparisons.is_empty()&&kept.is_empty()=>Some(0),
@@ -129,6 +151,8 @@ impl RequestOperators {
             }).collect()
         }).collect();
         let request = Self {
+            selection_plans,
+            selection_views,
             rules,
             preparations,
             physical,

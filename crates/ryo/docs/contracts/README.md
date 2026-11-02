@@ -183,4 +183,19 @@ Runtime Feed, PrimitiveExecutor, DagExecution, pipeline/Stepper, and rule/cross-
 
 The [source-bound relation receipt](../../languages/python/benchmarks/linters/ruff/results/relation-contract-2026-11-02/README.md) records 463 passing core tests, seven passing capability controls, and passing SDK, Python, and benchmark library suites. Its frozen Django cold, warm, and retained-edit reports are byte-identical to the required-live reports. Cold wall time was 222.59 s versus 244.70 s for the required-live worker, with 1.84% lower peak RSS in one observation; warm was 3.29% slower and retained edit 4.04% faster. The later [exact-head 413-rule CI replay](../../languages/python/benchmarks/linters/ruff/results/ci-24274-full-inventory-2026-11-02/README.md) reports 383 PASS and 30 FAIL. Stable performance acceptance and full rule parity remain open.
 
-The next 12-class derived-view acquisition contract is source work in an isolated tree. Its coherent core gate, full Django measurement, and remote checks are pending. Its draft release policy retains a view while any dependent population is pinned; it does not claim exact per-consumer last-use release. No checkbox above or measured relation result is credited to that untested batch.
+The [12-class derived-view acquisition checkpoint](../../languages/python/benchmarks/linters/ruff/results/derived-view-contract-2026-11-02/README.md) passes 485 core, nine capability, 33 SDK, 206 Python, and 110 benchmark library tests. Its frozen Django reports match the relation worker byte for byte. Cold was 242.14 s versus 222.59 s for the relation worker, with 3.32% higher peak RSS; warm was 0.61% slower and retained edit 3.04% faster in single observations. Its release policy retains a view while any dependent population is pinned, without claiming exact per-consumer last-use release. Remote checks and performance acceptance for this source remain open. No ownership checkbox is credited solely by these timings.
+
+## Architecture direction after measurement
+
+Layout changes are deferred until performance measurement is complete. This map authorizes no refactor and changes no ownership checkboxes or evidence above.
+
+| Responsibility | Current modules | Intended owner; unresolved boundary |
+| --- | --- | --- |
+| Workflow/publication | `lint/use_case`; `rule_execution`; `crossing` | Inbound composes and publishes; visit/worker orchestration needs cohesion review. |
+| Request planning | `file_dag/request`; `derived/request`; `domain/file_program` | Application prepares immutable contracts once; domain supplies algorithms. Clarify application preparation of the domain request type. |
+| Demand/execution | `service`; `required`; `execution`; `pipeline`; `optimized` | Application owns demand, error timing and strategy behind the mandatory boundary. Distinguish operations from related helpers. |
+| Shared data/indexes | `relations`; `derived/{owner,indexes,graph,selection}` | Application owns acquisition, admission and reuse; domain exposes borrowed data. Preserve one backing allocation and charge. |
+| Lifetimes/invalidation | `required`; `workspace`; `invocation`; `derived/owner/lifetime` | Application owns request/file/rule/invocation scopes. Separate required liveness from optional retention; measure aggregate live state. |
+| Semantics/injection | Domain contracts; outbound ports; inbound composition | Domain owns invariants/algorithms; outbound owns external contracts/adapters, injected from the edge. |
+
+Sibling-service composition remains unresolved: the existing `application-service` spec forbids sibling operation calls and assigns composition to use cases. Later compositional-service direction must explicitly reconcile that rule; this note claims no verified Tastemaker violation and changes no spec.

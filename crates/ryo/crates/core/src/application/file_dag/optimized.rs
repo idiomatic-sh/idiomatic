@@ -6,7 +6,7 @@ use crate::application::file_dag::pipeline::{
     types::compact::value::CompactInput,
     types::{LoweredTree, Stepper},
 };
-use crate::domain::column_kernel::{service as column, types::KernelStrategy};
+use crate::domain::column_kernel::types::KernelStrategy;
 use crate::domain::fragment::{service as fragment, types::FragmentRun};
 use crate::domain::lowering::types::Counting;
 use crate::domain::operating::{
@@ -145,5 +145,6 @@ impl CommonOperatorEngine {
     }
 }
 
+pub(crate) mod column;
 pub(crate) mod join;
 pub(crate) mod ready;

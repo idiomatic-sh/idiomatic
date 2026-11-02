@@ -29,7 +29,12 @@ fn collect(operation: &Operation, tables: &[Table]) -> Result<Table, OperatingEr
             tree: None,
         })
         .collect::<Vec<_>>();
-    let contract = registered(kind_of(operation)).prepare(operation, &schemas, &[])?;
+    let contract = super::derived::prepare::operator(
+        registered(kind_of(operation)),
+        operation,
+        &schemas,
+        &[],
+    )?;
     let mut symbols = Symbols::default();
     let mut scratch = OperatorScratch::default();
     let mut memo = Vec::new();

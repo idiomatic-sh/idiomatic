@@ -1,8 +1,8 @@
 //! Complete preflight, exact payload credit, live handles and metadata-capacity ownership.
 
 use super::value::{GraphAdmission, index_payload, selection_payload};
+use crate::application::file_dag::derived::indexes::{LIMIT, acquire_fixture as acquire, new};
 use crate::domain::stored_graph::types::footprint::value::{arc_bytes, vector};
-use crate::domain::stored_indexes::service::{LIMIT, acquire, new};
 use crate::domain::stored_indexes::types::FileIndexes;
 use crate::domain::stored_selection::types::{Matches, Selector};
 use crate::domain::table_model::types::{KeyIndex, SelectionIdentity};
@@ -136,7 +136,7 @@ fn enabling_graph_demand_does_not_reserve_unused_ordinary_capacity() {
     let (mut cache, handle) = indexed();
     drop(handle);
     assert_eq!(
-        crate::domain::stored_indexes::service::non_graph_limit(&cache),
+        crate::application::file_dag::derived::indexes::non_graph_limit(&cache),
         LIMIT
     );
     let bytes = cache.bytes;

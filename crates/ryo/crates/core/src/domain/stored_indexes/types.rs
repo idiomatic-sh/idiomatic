@@ -22,6 +22,9 @@ pub(crate) struct Entry {
 /// A file-local owner: dropping it releases all admitted allocations without eviction.
 #[derive(Debug)]
 pub(crate) struct FileIndexes {
+    /// Immutable request-owned selector requirements, never file-owned payload.
+    pub selection_views:
+        Option<Arc<crate::domain::stored_selection::types::PreparedSelectionViews>>,
     /// An active eligible graph consumer may request bounded adjacency admission.
     pub graph_enabled: bool,
     /// Charged graph/domain/memo bytes within `bytes`.
@@ -71,6 +74,7 @@ pub(crate) struct Acquired {
     pub shared: Option<Arc<KeyIndex>>,
     /// Whether this acquisition physically built an index.
     pub built: bool,
-    /// Whether the physical relation was eligible for sharing.
+    /// Test observation of the admission decision; production policy updates counters directly.
+    #[cfg(test)]
     pub eligible: bool,
 }

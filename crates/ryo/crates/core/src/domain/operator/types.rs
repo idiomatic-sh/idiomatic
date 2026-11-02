@@ -50,7 +50,10 @@ pub(crate) struct PreparedPool {
     pub kind_vocabulary:
         Option<std::sync::Arc<crate::domain::kind_sets::types::PreparedVocabulary>>,
     /// Pure stored selector programs, compiled once under this worker's request bindings.
-    pub selection_plans: Vec<crate::domain::stored_selection::types::PreparedPlan>,
+    pub selection_plans: std::sync::Arc<Vec<crate::domain::stored_selection::types::PreparedPlan>>,
+    /// Immutable request-known derived view capabilities for those exact selector Arcs.
+    pub selection_views:
+        Option<std::sync::Arc<crate::domain::stored_selection::types::PreparedSelectionViews>>,
     /// How each plan this pool has run is laid out.
     pub layouts: Vec<PlanLayout>,
     /// Whether the steps that read only the tree run lowered, or as operators, as they did before they were lowered.

@@ -168,8 +168,8 @@ fn remembers_what_a_text_was_decided_in_another_file() -> Result<Value, Operatin
         comparisons: vec![comparison],
         kept: Vec::new(),
     };
-    use crate::domain::operator::collections::operators::interface::OperatorsItem as _;
-    let contract = SelectItem.prepare(
+    let contract = crate::application::file_dag::derived::prepare::operator(
+        &SelectItem,
         &operation,
         &[crate::domain::operation_schema::types::InputSchema {
             kinds: &[CellKind::Symbol],

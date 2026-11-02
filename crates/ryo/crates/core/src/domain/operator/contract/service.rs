@@ -313,6 +313,7 @@ pub(crate) fn prepare_for(
         _ => resources.clone(),
     };
     Ok(OperatorContract {
+        derived: Default::default(),
         kind: expected,
         inputs: ryo_values::domain::plans::service::inputs_of(operation),
         external_source: matches!(

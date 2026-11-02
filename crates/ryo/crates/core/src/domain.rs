@@ -71,8 +71,9 @@ pub(crate) mod walks;
 pub(crate) mod workers;
 
 // Demand-root join semantics now execute through the mandatory registered primitive.
-pub(crate) mod graph_cache;
 pub(crate) mod stored_graph;
 /// Complete stored indexes owned by a single physical file generation.
 pub(crate) mod stored_indexes;
 pub(crate) mod stored_selection;
+
+pub(crate) mod derived_views;

@@ -136,6 +136,11 @@ pub(super) fn evaluate(
         memo: &mut workspace.predicate_memo,
         names: &mut workspace.predicate_names,
     };
+    let axis = resources
+        .axis
+        .as_ref()
+        .map(|axis| axis.view())
+        .transpose()?;
     let views = PrimitiveViews {
         paths: context.paths,
         arenas: context.arenas,
@@ -146,18 +151,18 @@ pub(super) fn evaluate(
         regex,
         appended: resources.appended.as_deref(),
         rank_layers: resources.rank_layers.as_deref(),
-        axis: resources.axis.as_ref(),
+        axis: axis.as_ref(),
         native_join: resources.native_join,
         cached_reach,
         cached_axis,
-        dfs: resources.dfs.as_ref(),
-        cycles: resources.cycles.as_ref(),
+        dfs: InvocationResources::dfs_view(resources.dfs.as_ref())?,
+        cycles: InvocationResources::cycles_view(resources.cycles.as_ref())?,
         closure: if let Some(parts) = resources.partitioned_closure.as_ref() {
             std::slice::from_ref(parts.current())
         } else {
             &resources.closure
         },
-        ordered: resources.ordered.as_ref(),
+        ordered: InvocationResources::ordered_view(resources.ordered.as_ref())?,
         groups: resources.groups.as_deref(),
     };
     let scratch = PrimitiveWorkspace {

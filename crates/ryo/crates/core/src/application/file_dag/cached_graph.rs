@@ -1,8 +1,8 @@
 //! Generation-owned complete graph acquisition and one-row demand answers.
 //! The primitive sees only borrowed values after the mutable cache borrow ends.
-use crate::domain::graph_cache::{
-    service::{acquire, domain},
-    types::roots::value::DemandAnswers,
+use crate::application::file_dag::derived::{
+    graph::{acquire, domain},
+    graph_cache::types::roots::value::DemandAnswers,
 };
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::contract::{
@@ -51,11 +51,26 @@ impl CachedGraph {
     /// inputs at the operation's declared lazy acquisition boundary. Graph
     /// ineligibility returns `None` so the ordinary/native typed backend runs.
     pub(crate) fn prepare(
+        contract: &crate::domain::operator::contract::types::OperatorContract,
+        admission: &super::workspace::InvocationWorkspace,
+        mode: crate::domain::operator::contract::types::EvaluationMode,
         program: &ResourceProgram,
         logical_inputs: &[Input],
         original_inputs: &[Rows<'_>],
         mut cache: Option<&mut FileIndexes>,
     ) -> Result<Option<Self>, OperatingError> {
+        use crate::domain::derived_views::{service::slot, types::DerivedKind};
+        use crate::domain::operator::contract::types::EvaluationMode;
+        let slots = match mode {
+            EvaluationMode::Streaming => &contract.derived.streaming,
+            EvaluationMode::Collected => &contract.derived.collected,
+        };
+        let adjacency = || {
+            slots[slot(DerivedKind::Adjacency)]
+                .as_ref()
+                .map(|group| &group.primary.plan)
+                .ok_or(OperatingError::NotRun)
+        };
         match program {
             ResourceProgram::Join(join) => {
                 let Some(reach) = join.reach.as_ref() else {
@@ -83,10 +98,10 @@ impl CachedGraph {
                     return Ok(None);
                 };
                 let Some(access) = acquire(
+                    adjacency()?,
+                    Some(admission),
                     *input,
                     rows,
-                    [reach.source, reach.destination],
-                    &reach.keys,
                     cache.as_deref_mut(),
                 )?
                 else {
@@ -123,20 +138,24 @@ impl CachedGraph {
                     return Ok(None);
                 };
                 let Some(access) = acquire(
+                    adjacency()?,
+                    Some(admission),
                     *edges_input,
                     edges,
-                    [axis.parent, axis.child],
-                    &[],
                     cache.as_deref_mut(),
                 )?
                 else {
                     return Ok(None);
                 };
                 let membership = domain(
+                    &slots[slot(DerivedKind::Membership)]
+                        .as_ref()
+                        .ok_or(OperatingError::NotRun)?
+                        .primary
+                        .plan,
                     &access,
                     *domain_input,
                     domain_rows,
-                    axis.domain_id,
                     cache.as_deref_mut(),
                 )?;
                 Ok(Some(Self::Axis(AxisGraph {

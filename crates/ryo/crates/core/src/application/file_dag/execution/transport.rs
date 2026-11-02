@@ -350,15 +350,29 @@ fn held<'f>(
                 workspace.validate(place, BorrowedRows::from(rows))?;
             }
         }
+        let normalized = super::physical_fallbacks(rows, workspace, 0)?;
+        let normalized_rows = rows
+            .iter()
+            .zip(&normalized)
+            .map(|(rows, fallback)| {
+                fallback
+                    .as_ref()
+                    .map_or_else(|| rows.clone(), |table| Rows::Computed(table.as_ref()))
+            })
+            .collect::<Vec<_>>();
+        let rows = normalized_rows.as_slice();
         if buffer {
             reset(
                 out,
                 contract.collected_kinds.as_ref().map_err(Clone::clone)?,
             );
             if let Some(result) = super::super::optimized::join::evaluate(
+                contract,
+                mode.evaluation,
                 &contract.resources,
                 logical,
                 rows,
+                workspace,
                 context,
                 &mut Collect(out),
             ) {
@@ -366,9 +380,12 @@ fn held<'f>(
                 return scan(&Rows::Computed(out), &mut Vec::new(), context, emit);
             }
         } else if let Some(result) = super::super::optimized::join::evaluate(
+            contract,
+            mode.evaluation,
             &contract.resources,
             logical,
             rows,
+            workspace,
             context,
             emit,
         ) {

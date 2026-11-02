@@ -2,6 +2,9 @@
 
 use ryo_language::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn, LiteralText};
+use std::sync::Arc;
+
+use crate::domain::derived_views::types::DerivedContract;
 
 /// The default evaluator remains the production strategy until measured proof permits a switch.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -25,6 +28,8 @@ pub(crate) struct Chain {
     pub literal: LiteralText,
     /// Final output columns mapped directly to their source side.
     pub projected: Vec<JoinColumn>,
+    /// Prepared once by the application; the domain shape compiler does no registration.
+    pub index: Option<Arc<DerivedContract>>,
 }
 
 /// One prepared plan's optional chains, indexed by final step number.

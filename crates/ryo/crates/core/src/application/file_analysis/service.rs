@@ -344,10 +344,10 @@ impl FileAnalysis {
         if tables.language.is_none() || facts.resident_stability() != ResidentStability::Stable {
             return None;
         }
-        crate::domain::stored_indexes::service::new(
+        crate::application::file_dag::derived::indexes::new(
             wanted,
             physical_partials,
-            crate::domain::stored_indexes::service::LIMIT,
+            crate::application::file_dag::derived::indexes::LIMIT,
         )
     }
 
@@ -359,10 +359,9 @@ impl FileAnalysis {
         file: FileId,
     ) -> Result<(), FileAnalysisError> {
         let (tables, facts) = (&mut worker.tables, &mut worker.facts);
-        crate::domain::stored_selection::service::prepare(
+        crate::application::file_dag::derived::selection::prepare_request(
             &mut tables.pool,
-            visit.setting.plans,
-            visit.setting.bindings,
+            &visit.setting.operators,
         );
         let graph_enabled = true;
         if graph_enabled {
@@ -495,7 +494,7 @@ impl FileAnalysis {
         });
         file_program = None;
         if let Some(indexes) = stored_indexes.as_mut() {
-            crate::domain::graph_cache::service::reserve(
+            crate::application::file_dag::derived::graph_cache::service::reserve(
                 indexes,
                 visit.setting.plans,
                 &tables.pool,
@@ -508,7 +507,7 @@ impl FileAnalysis {
                             .unwrap_or(false)
                 },
             );
-            crate::domain::stored_selection::service::activate(
+            crate::application::file_dag::derived::selection::activate(
                 indexes,
                 &tables.pool,
                 &selectable,

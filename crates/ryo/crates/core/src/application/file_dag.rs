@@ -2,7 +2,8 @@
 pub(crate) mod aggregation;
 pub(crate) mod axis_resources;
 pub(crate) mod execution;
-pub(crate) mod graph_resources;
+#[cfg(test)]
+mod graph_resources;
 pub(crate) mod invocation;
 pub(crate) mod predicates;
 pub(crate) mod request;
@@ -43,3 +44,5 @@ pub(crate) mod rule_execution;
 pub(crate) mod acceptance;
 
 pub(crate) mod feed;
+
+pub(crate) mod derived;

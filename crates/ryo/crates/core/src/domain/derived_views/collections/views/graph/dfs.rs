@@ -98,7 +98,7 @@ fn canonical_columns(
 }
 
 /// Canonicalize graph lookup aliases once, retaining untouched original output cells.
-pub(crate) fn prepare_dfs(
+pub(super) fn prepare(
     program: &crate::domain::operator::contract::resources::DfsResources,
     roots: BorrowedRows<'_>,
     edges: BorrowedRows<'_>,
@@ -106,6 +106,7 @@ pub(crate) fn prepare_dfs(
     source_view: crate::domain::table_texts::types::SourceView<'_>,
     paths: &[ryo_language::domain::files::types::FilePath],
     arenas: &[ryo_values::domain::stored_facts::types::ArenaBytes],
+    buffer: &mut Vec<Value>,
 ) -> Result<PreparedDfs, OperatingError> {
     let crate::domain::operator::contract::resources::DfsResources {
         root,
@@ -144,14 +145,13 @@ pub(crate) fn prepare_dfs(
         edge_index: KeyIndex::default(),
         layout: crate::domain::table_reach::types::OrderedGraph::default(),
     };
-    let mut buffer = Vec::new();
     for at in 0..roots.count() {
-        if let Some(row) = roots.read(RowIndex(at), &mut buffer) {
+        if let Some(row) = roots.read(RowIndex(at), buffer) {
             push_row(&mut prepared.roots, row);
         }
     }
     for at in 0..edges.count() {
-        if let Some(row) = edges.read(RowIndex(at), &mut buffer) {
+        if let Some(row) = edges.read(RowIndex(at), buffer) {
             push_row(&mut prepared.edges, row);
         }
     }

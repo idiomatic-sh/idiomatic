@@ -254,7 +254,39 @@ pub(crate) fn compile_prepared(
             counts
         })
         .collect();
+    let mut derived_sources = vec![false; nodes.len()];
+    for (rule, plan) in plans.iter().enumerate() {
+        for (step, operation) in plan.steps.iter().enumerate() {
+            let Some(contract) = operators
+                .rules
+                .get(rule)
+                .and_then(|contracts| contracts.get(step))
+            else {
+                continue;
+            };
+            let inputs = inputs_of(&operation.operation);
+            for group in contract
+                .derived
+                .streaming
+                .iter()
+                .chain(&contract.derived.collected)
+                .flatten()
+            {
+                for use_ in std::iter::once(&group.primary).chain(group.secondary.iter()) {
+                    for place in &use_.inputs[..usize::from(use_.len)] {
+                        if let Some(Input::Step(id)) = named(&inputs).get(*place)
+                            && let Some(Some(node)) =
+                                cuts.get(rule).and_then(|steps| steps.get(id.0 as usize))
+                        {
+                            derived_sources[node.0] = true;
+                        }
+                    }
+                }
+            }
+        }
+    }
     RequestGraph {
+        derived_sources,
         rule_liveness,
         boundaries,
         consumers,

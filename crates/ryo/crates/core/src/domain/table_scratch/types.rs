@@ -287,9 +287,6 @@ pub(crate) struct JoinScratch {
 
     /// Reused by the engine's prepared Join lookup across rows in this invocation.
     pub key: Vec<Value>,
-    /// Only populated for a malformed physical right input that needs materialization.
-    pub right_row: Vec<Value>,
-    pub right: Table,
 }
 
 /// Mutable walk work, allocated only by operators that use it.

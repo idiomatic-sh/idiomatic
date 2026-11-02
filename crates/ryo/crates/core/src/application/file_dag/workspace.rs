@@ -10,6 +10,8 @@ use crate::domain::table_scratch::types::{ScratchWord, Stretches};
 use ryo_language::domain::relations::types::{Position, Value};
 #[derive(Default)]
 pub(crate) struct InvocationWorkspace {
+    pub derived_local: super::derived::owner::DerivedOwner,
+    pub derived_scratch: std::cell::RefCell<crate::domain::derived_views::types::DerivedScratch>,
     pub relation_owner: Option<std::rc::Rc<super::relations::RelationOwner>>,
     pub publications: Vec<Option<std::sync::Arc<super::relations::RelationResult>>>,
     #[cfg(test)]
@@ -38,6 +40,26 @@ pub(crate) struct InvocationWorkspace {
 }
 
 impl InvocationWorkspace {
+    pub(super) fn reclaim_derived(
+        &self,
+        cache: &mut crate::domain::stored_indexes::types::FileIndexes,
+        cost: usize,
+    ) {
+        self.derived_local.reclaim_optional(cache, cost);
+        if let Some(owner) = &self.relation_owner {
+            owner.derived.reclaim_optional(cache, cost);
+        }
+    }
+    pub(super) fn derived_counts(&self) -> (u64, u64) {
+        let (mut builds, mut hits, _) = self.derived_local.counts();
+        if let Some(owner) = &self.relation_owner {
+            let (shared_builds, shared_hits, _) = owner.derived.counts();
+            builds += shared_builds;
+            hits += shared_hits;
+        }
+        (builds, hits)
+    }
+
     #[cfg(test)]
     pub(crate) fn measured(&self) -> crate::domain::operating::types::ExecutionObservation {
         let mut observed = self.observation;
@@ -122,3 +144,123 @@ impl InvocationWorkspace {
         }
     }
 }
+
+impl InvocationWorkspace {
+    pub(super) fn acquire_rows(
+        &self,
+        use_: &crate::domain::derived_views::types::PreparedViewUse,
+        inputs: &[crate::domain::operator::contract::views::BorrowedRows<'_>],
+        context: &mut crate::domain::operating::types::OperatorContext<'_>,
+    ) -> Result<
+        std::sync::Arc<crate::domain::derived_views::types::DerivedStorage>,
+        crate::domain::operating::errors::OperatingError,
+    > {
+        if !(1..=2).contains(&use_.len) {
+            return Err(crate::domain::operating::errors::OperatingError::WrongOperation);
+        }
+        let mut rows = [crate::domain::operator::contract::views::BorrowedRows::Computed(
+            &EMPTY_DERIVED_INPUT,
+        ); 2];
+        for at in 0..usize::from(use_.len) {
+            let place = use_.inputs[at];
+            rows[at] = *inputs.get(place).ok_or(
+                crate::domain::operating::errors::OperatingError::MissingInput {
+                    position: place + 1,
+                },
+            )?;
+        }
+        self.acquire_derived(
+            use_,
+            inputs,
+            super::derived::owner::ViewContext::default(),
+            crate::domain::derived_views::types::DerivedInputs::Rows(
+                &rows[..usize::from(use_.len)],
+            ),
+            context.stored_indexes.as_deref_mut(),
+        )
+    }
+    pub(super) fn acquire_derived(
+        &self,
+        use_: &crate::domain::derived_views::types::PreparedViewUse,
+        inputs: &[crate::domain::operator::contract::views::BorrowedRows<'_>],
+        identity: super::derived::owner::ViewContext,
+        supplied: crate::domain::derived_views::types::DerivedInputs<'_, '_>,
+        cache: Option<&mut crate::domain::stored_indexes::types::FileIndexes>,
+    ) -> Result<
+        std::sync::Arc<crate::domain::derived_views::types::DerivedStorage>,
+        crate::domain::operating::errors::OperatingError,
+    > {
+        use super::derived::owner::PopulationId;
+        if !(1..=2).contains(&use_.len) {
+            return Err(crate::domain::operating::errors::OperatingError::WrongOperation);
+        }
+        let mut populations = [PopulationId(0); 2];
+        let mut shared = self.relation_owner.is_some();
+        for at in 0..usize::from(use_.len) {
+            let place = use_.inputs[at];
+            let input = *inputs.get(place).ok_or(
+                crate::domain::operating::errors::OperatingError::MissingInput {
+                    position: place + 1,
+                },
+            )?;
+            self.validate(place, input)?;
+            if let Some((owner, publication)) = self
+                .relation_owner
+                .as_ref()
+                .zip(self.publications.get(place).and_then(Option::as_ref))
+            {
+                if owner.matches(publication, input) {
+                    populations[at] = owner.population_id(publication, input)?;
+                    continue;
+                }
+            }
+            shared = false;
+            populations[at] = PopulationId(place);
+        }
+        let owner = if shared {
+            &self
+                .relation_owner
+                .as_ref()
+                .expect("admitted owner")
+                .derived
+        } else {
+            &self.derived_local
+        };
+        let stored = if use_.plan.kind == crate::domain::derived_views::types::DerivedKind::Equality
+            && use_.len == 1
+        {
+            let place = use_.inputs[0];
+            match inputs[place] {
+                crate::domain::operator::contract::views::BorrowedRows::Stored(source) => {
+                    let relation = use_.relations[0].or_else(|| {
+                        self.relation_owner
+                            .as_ref()
+                            .zip(self.publications.get(place).and_then(Option::as_ref))
+                            .and_then(|(owner, publication)| {
+                                owner.source_relation(publication, inputs[place])
+                            })
+                    });
+                    relation.map(|relation| (relation, source))
+                }
+                _ => None,
+            }
+        } else {
+            None
+        };
+        owner.acquire_stored(
+            &use_.plan,
+            &populations[..usize::from(use_.len)],
+            identity,
+            supplied,
+            &mut self.derived_scratch.borrow_mut(),
+            stored,
+            cache,
+        )
+    }
+}
+
+static EMPTY_DERIVED_INPUT: Table = Table {
+    kinds: Vec::new(),
+    cells: Vec::new(),
+    count: crate::domain::table_model::types::RowCount(0),
+};

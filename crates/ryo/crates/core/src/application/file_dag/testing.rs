@@ -99,7 +99,12 @@ pub(crate) fn prepare(
             tree: None,
         })
         .collect::<Vec<_>>();
-    registered(kind_of(operation)).prepare(operation, &schemas, bindings)
+    super::derived::prepare::operator(
+        registered(kind_of(operation)),
+        operation,
+        &schemas,
+        bindings,
+    )
 }
 /// Both modes call the same real production engine, including all resource acquisition.
 pub(crate) fn execute(
@@ -188,7 +193,8 @@ pub(crate) trait TestOperator:
                 },
             })
             .collect::<Vec<_>>();
-        let contract = self.prepare(operation, &schemas, context.bindings)?;
+        let contract =
+            super::derived::prepare::operator(self, operation, &schemas, context.bindings)?;
         CommonOperatorEngine.collect(&contract, inputs, context, out)
     }
     fn stream(
@@ -211,7 +217,8 @@ pub(crate) trait TestOperator:
             .iter()
             .map(|kinds| InputSchema { kinds, tree: None })
             .collect::<Vec<_>>();
-        let contract = self.prepare(operation, &schemas, context.bindings)?;
+        let contract =
+            super::derived::prepare::operator(self, operation, &schemas, context.bindings)?;
         CommonOperatorEngine.stream(&contract, feed, context, room, emit)
     }
 }
@@ -240,7 +247,7 @@ pub(crate) fn stream_with_inputs(
             },
         })
         .collect::<Vec<_>>();
-    let contract = item.prepare(operation, &schemas, context.bindings)?;
+    let contract = super::derived::prepare::operator(item, operation, &schemas, context.bindings)?;
     CommonOperatorEngine.stream(&contract, feed, context, room, emit)
 }
 

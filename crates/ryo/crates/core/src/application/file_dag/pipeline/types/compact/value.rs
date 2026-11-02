@@ -65,7 +65,7 @@ impl<'a, 'p, 'f: 'p> CompactInput<'a, 'p, 'f> {
         if source.kinds != ryo_language::domain::relations::service::kinds(program.relation) {
             return Ok(None);
         }
-        crate::domain::stored_selection::service::select(program, source, context)
+        crate::application::file_dag::derived::selection::select(program, source, context)
             .map(|selected| selected.map(Rows::Selected))
     }
 }

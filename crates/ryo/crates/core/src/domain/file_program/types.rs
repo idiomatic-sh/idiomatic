@@ -32,6 +32,8 @@ pub(crate) struct Node {
 
 #[derive(Debug)]
 pub(crate) struct RequestGraph {
+    /// Producers of declared derived inputs, computed once for the whole request.
+    pub derived_sources: Vec<bool>,
     pub plans: Vec<usize>,
     pub nodes: Vec<Node>,
     /// Only internal kept cuts may own a file-local result. Other entries are None.

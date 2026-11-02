@@ -1,12 +1,12 @@
 //! The `stored_selection` service's cases, on values alone.
 
 use crate::application::file_dag::cross_execution::compute;
+use crate::application::file_dag::derived::indexes::{LIMIT, new};
+use crate::application::file_dag::derived::selection::select;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::coverage::types::{Lacking, Partial};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
-use crate::domain::stored_indexes::service::{LIMIT, new};
-use crate::domain::stored_selection::service::select;
 use crate::domain::stored_selection::types::Selector;
 use crate::domain::table_model::service::materialize;
 use crate::domain::table_model::types::{
@@ -105,6 +105,16 @@ fn baseline(source: ColumnsView<'_>, program: &Selector) -> Result<Table, Failur
     Ok(out)
 }
 
+/// Explicit request setup for these fixtures' custom physical schemas.
+fn request_views(
+    selectors: impl IntoIterator<Item = Arc<Selector>>,
+    kinds: &'static [CellKind],
+) -> Result<Arc<crate::domain::stored_selection::types::PreparedSelectionViews>, OperatingError> {
+    crate::application::file_dag::derived::selection::prepare_views_with_schemas(selectors, &|_| {
+        kinds
+    })
+}
+
 /// Compare compact and ordinary results before checking the requested cache boundary.
 fn subject(scenario: Input) -> Result<Value, Failure> {
     let columns: Vec<_> = (0_i64..3)
@@ -128,9 +138,35 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         columns: &columns,
     };
     let first = program(2);
+    let alternate = program(3);
+    let second = if matches!(scenario, Scenario::Projected) {
+        let mut projected = (*first).clone();
+        projected.columns = vec![ColumnIndex(2), ColumnIndex(2)];
+        Arc::new(projected)
+    } else if matches!(scenario, Scenario::Bindings) {
+        Arc::clone(&alternate)
+    } else {
+        Arc::clone(&first)
+    };
+    let mut bad = (*first).clone();
+    Arc::make_mut(&mut bad.identity).bindings = vec![ParameterBinding::Tables(Vec::new())];
+    let bad = Arc::new(bad);
     let mut cache = new(&[Relation::Function], &[], LIMIT).expect("generation");
-    cache.selectors = vec![Arc::clone(&first), Arc::clone(&first), program(3)];
-    crate::domain::stored_indexes::service::candidate_columns(&mut cache);
+    cache.selectors = vec![
+        Arc::clone(&first),
+        Arc::clone(&first),
+        Arc::clone(&alternate),
+    ];
+    let views = request_views(
+        cache
+            .selectors
+            .iter()
+            .cloned()
+            .chain([Arc::clone(&second), Arc::clone(&bad)]),
+        source.kinds,
+    )?;
+    cache.selection_views = Some(Arc::clone(&views));
+    crate::application::file_dag::derived::indexes::candidate_columns(&mut cache);
     if matches!(scenario, Scenario::Ineligible) {
         cache.eligible.clear();
     }
@@ -179,10 +215,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         return Ok(1);
     }
     if matches!(scenario, Scenario::Error) {
-        let mut bad = (*first).clone();
-        Arc::make_mut(&mut bad.identity).bindings = vec![ParameterBinding::Tables(Vec::new())];
         assert!(matches!(
-            select(&Arc::new(bad), source, &mut context),
+            select(&bad, source, &mut context),
             Err(OperatingError::WrongBinding)
         ));
         assert!(
@@ -203,15 +237,6 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     );
     assert_eq!(actual, baseline(source, &first)?);
     assert_eq!(actual.count.0, 8);
-    let second = if matches!(scenario, Scenario::Projected) {
-        let mut projected = (*first).clone();
-        projected.columns = vec![ColumnIndex(2), ColumnIndex(2)];
-        Arc::new(projected)
-    } else if matches!(scenario, Scenario::Bindings) {
-        program(3)
-    } else {
-        Arc::clone(&first)
-    };
     let next = select(&second, source, &mut context)?.expect("compact replay");
     if matches!(scenario, Scenario::Reuse | Scenario::Projected) {
         assert_eq!(context.stored_indexes.as_ref().unwrap().builds, 1);
@@ -253,6 +278,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             FactColumn(vec![888]),
         ];
         let mut fresh = new(&[Relation::Function], &[], LIMIT).unwrap();
+        fresh.selection_views = Some(Arc::clone(&views));
         let mut fresh_context = OperatorContext {
             prepared_kinds: None,
             prepared_matchers: None,
@@ -331,7 +357,11 @@ fn symbol_discriminator_preserves_text_equality_with_term_aliases() -> Result<()
     let class_selector = selector("class");
     let mut cache = new(&[Relation::Defines], &[], LIMIT).expect("generation");
     cache.selectors = vec![Arc::clone(&rare_selector), Arc::clone(&class_selector)];
-    crate::domain::stored_indexes::service::candidate_columns(&mut cache);
+    cache.selection_views = Some(request_views(
+        cache.selectors.iter().cloned(),
+        source.kinds,
+    )?);
+    crate::application::file_dag::derived::indexes::candidate_columns(&mut cache);
     assert!(
         cache
             .discriminator_columns
@@ -447,9 +477,37 @@ fn literal_fanout_routes_aliases_once_and_refuses_incomplete_inputs() -> Result<
     };
     let mut selectors = vec![selector("class")];
     selectors.extend((0..7).map(|number| selector(&format!("word{number}"))));
+    let inactive = selector("absent");
+    let bad = Comparison {
+        test: Test::Equal,
+        left: Operand::Column(ColumnIndex(0)),
+        right: Operand::Parameter(ParameterId(0)),
+        origin: None,
+    };
+    let mut error_selector = (*selectors[0]).clone();
+    error_selector.identity = Arc::new(crate::domain::table_model::types::SelectionIdentity {
+        comparisons: vec![selectors[0].identity.comparisons[0].clone(), bad.clone()],
+        bindings: vec![ParameterBinding::Tables(Vec::new())],
+    });
+    let error_selector = Arc::new(error_selector);
+    let mut absent_then_error = (*selectors[0]).clone();
+    absent_then_error.identity = Arc::new(crate::domain::table_model::types::SelectionIdentity {
+        comparisons: vec![selector("absent").identity.comparisons[0].clone(), bad],
+        bindings: vec![ParameterBinding::Tables(Vec::new())],
+    });
+    let absent_then_error = Arc::new(absent_then_error);
+    let views = request_views(
+        selectors.iter().cloned().chain([
+            Arc::clone(&inactive),
+            Arc::clone(&error_selector),
+            Arc::clone(&absent_then_error),
+        ]),
+        source.kinds,
+    )?;
     let mut cache = new(&[Relation::Defines], &[], LIMIT).expect("generation");
     cache.selectors = selectors.clone();
-    crate::domain::stored_indexes::service::candidate_columns(&mut cache);
+    cache.selection_views = Some(Arc::clone(&views));
+    crate::application::file_dag::derived::indexes::candidate_columns(&mut cache);
     let mut memo = Vec::new();
     let mut scratch = OperatorScratch::default();
     let mut context = OperatorContext {
@@ -464,7 +522,6 @@ fn literal_fanout_routes_aliases_once_and_refuses_incomplete_inputs() -> Result<
         memo: &mut memo,
         scratch: &mut scratch,
     };
-    let inactive = selector("absent");
     assert!(
         select(&inactive, source, &mut context)?
             .expect("ordinary absent-literal fallback")
@@ -488,28 +545,12 @@ fn literal_fanout_routes_aliases_once_and_refuses_incomplete_inputs() -> Result<
     assert_eq!(indexes.selection_counts.scanned, 128, "one source pass");
     assert_eq!(indexes.entries.len(), 0, "no whole-column index");
     assert_eq!(actual[0].count.0, 4);
-    let bad = Comparison {
-        test: Test::Equal,
-        left: Operand::Column(ColumnIndex(0)),
-        right: Operand::Parameter(ParameterId(0)),
-        origin: None,
-    };
-    let mut error_selector = (*selectors[0]).clone();
-    error_selector.identity = Arc::new(crate::domain::table_model::types::SelectionIdentity {
-        comparisons: vec![selectors[0].identity.comparisons[0].clone(), bad.clone()],
-        bindings: vec![ParameterBinding::Tables(Vec::new())],
-    });
     assert!(matches!(
-        select(&Arc::new(error_selector), source, &mut context),
+        select(&error_selector, source, &mut context),
         Err(OperatingError::WrongBinding)
     ));
-    let mut absent_then_error = (*selectors[0]).clone();
-    absent_then_error.identity = Arc::new(crate::domain::table_model::types::SelectionIdentity {
-        comparisons: vec![selector("absent").identity.comparisons[0].clone(), bad],
-        bindings: vec![ParameterBinding::Tables(Vec::new())],
-    });
     assert!(
-        select(&Arc::new(absent_then_error), source, &mut context)?
+        select(&absent_then_error, source, &mut context)?
             .expect("empty complete")
             .selection
             .rows
@@ -544,6 +585,7 @@ fn literal_fanout_routes_aliases_once_and_refuses_incomplete_inputs() -> Result<
     }
     let mut constrained = new(&[Relation::Defines], &[], LIMIT).expect("generation");
     constrained.selectors = selectors.clone();
+    constrained.selection_views = Some(Arc::clone(&views));
     constrained.limit = constrained.bytes;
     let mut budget_context = OperatorContext {
         prepared_kinds: None,
@@ -580,6 +622,7 @@ fn literal_fanout_routes_aliases_once_and_refuses_incomplete_inputs() -> Result<
         ..source
     };
     let mut complete_empty = new(&[Relation::Defines], &[], LIMIT).expect("generation");
+    complete_empty.selection_views = Some(Arc::clone(&views));
     let mut empty_context = OperatorContext {
         prepared_kinds: None,
         prepared_matchers: None,
@@ -626,6 +669,7 @@ fn literal_fanout_routes_aliases_once_and_refuses_incomplete_inputs() -> Result<
         at: None,
     };
     let mut incomplete = new(&[Relation::Defines], &[partial], LIMIT).expect("generation");
+    incomplete.selection_views = Some(Arc::clone(&views));
     let mut partial_context = OperatorContext {
         prepared_kinds: None,
         prepared_matchers: None,
@@ -687,6 +731,10 @@ fn absent_symbol_literal_preserves_ordered_errors() -> Result<(), Failure> {
     let first = selector(vec![absent.clone(), bad.clone()]);
     let reversed = selector(vec![bad, absent]);
     let mut cache = new(&[Relation::Defines], &[], LIMIT).expect("generation");
+    cache.selection_views = Some(request_views(
+        [Arc::clone(&first), Arc::clone(&reversed)],
+        source.kinds,
+    )?);
     let mut memo = Vec::new();
     let mut scratch = OperatorScratch::default();
     let mut context = OperatorContext {
@@ -787,6 +835,7 @@ fn empty_literal_preserves_malformed_symbol_fallback() -> Result<(), Failure> {
         distinct: false,
     });
     let mut cache = new(&[Relation::Defines], &[], LIMIT).expect("generation");
+    cache.selection_views = Some(request_views([Arc::clone(&selector)], source.kinds)?);
     let mut memo = Vec::new();
     let mut scratch = OperatorScratch::default();
     let mut context = OperatorContext {
@@ -927,8 +976,28 @@ fn distinct_projections_preserve_rows_and_predicate_cache() -> Result<(), Failur
     let mut second = (*first).clone();
     second.columns = vec![ColumnIndex(1)];
     let second = Arc::new(second);
+    let mut bag = (*first).clone();
+    bag.distinct = false;
+    let bag = Arc::new(bag);
+    let mut zero = (*first).clone();
+    zero.columns.clear();
+    let zero = Arc::new(zero);
+    let mut absent = (*zero).clone();
+    Arc::make_mut(&mut absent.identity).bindings = vec![ParameterBinding::Number(WholeNumber(999))];
+    let absent = Arc::new(absent);
+    let views = request_views(
+        [
+            Arc::clone(&first),
+            Arc::clone(&second),
+            Arc::clone(&bag),
+            Arc::clone(&zero),
+            Arc::clone(&absent),
+        ],
+        source.kinds,
+    )?;
     let mut cache = new(&[Relation::Function], &[], LIMIT).expect("generation");
     cache.selectors = vec![Arc::clone(&first), Arc::clone(&second)];
+    cache.selection_views = Some(Arc::clone(&views));
     let mut symbols = Symbols::default();
     let mut context = OperatorContext {
         prepared_kinds: None,
@@ -949,10 +1018,8 @@ fn distinct_projections_preserve_rows_and_predicate_cache() -> Result<(), Failur
         materialize(&Rows::Selected(actual), &mut table, &mut Vec::new());
         assert_eq!(table, baseline(source, program)?);
     }
-    let mut bag = (*first).clone();
-    bag.distinct = false;
-    let bag = select(&Arc::new(bag), source, &mut context)?.unwrap();
-    assert_eq!(*bag.selection.rows, [0, 1, 2, 3, 4]);
+    let bag_result = select(&bag, source, &mut context)?.unwrap();
+    assert_eq!(*bag_result.selection.rows, [0, 1, 2, 3, 4]);
     assert_eq!(context.stored_indexes.as_ref().unwrap().selections.len(), 1);
     assert_eq!(
         context.stored_indexes.as_ref().unwrap().selections[0]
@@ -961,19 +1028,14 @@ fn distinct_projections_preserve_rows_and_predicate_cache() -> Result<(), Failur
         [0, 1, 2, 3, 4]
     );
 
-    let mut zero = (*first).clone();
-    zero.columns.clear();
-    let zero = Arc::new(zero);
     let selected = select(&zero, source, &mut context)?.unwrap();
     assert_eq!(*selected.selection.rows, [0]);
     let mut table = Table::default();
     materialize(&Rows::Selected(selected), &mut table, &mut Vec::new());
     assert_eq!(table, baseline(source, &zero)?);
     assert_eq!((table.count.0, table.cells.len()), (1, 0));
-    let mut absent = (*zero).clone();
-    Arc::make_mut(&mut absent.identity).bindings = vec![ParameterBinding::Number(WholeNumber(999))];
     assert!(
-        select(&Arc::new(absent), source, &mut context)?
+        select(&absent, source, &mut context)?
             .unwrap()
             .selection
             .rows
@@ -986,6 +1048,7 @@ fn distinct_projections_preserve_rows_and_predicate_cache() -> Result<(), Failur
         FactColumn(Vec::new()),
     ];
     let mut fresh = new(&[Relation::Function], &[], LIMIT).unwrap();
+    fresh.selection_views = Some(Arc::clone(&views));
     context.stored_indexes = Some(&mut fresh);
     let empty = ColumnsView {
         columns: &empty_columns,
@@ -1004,6 +1067,7 @@ fn distinct_projections_preserve_rows_and_predicate_cache() -> Result<(), Failur
         FactColumn(vec![20]),
     ];
     let mut next_file = new(&[Relation::Function], &[], LIMIT).unwrap();
+    next_file.selection_views = Some(Arc::clone(&views));
     context.stored_indexes = Some(&mut next_file);
     let changed = ColumnsView {
         columns: &changed_columns,

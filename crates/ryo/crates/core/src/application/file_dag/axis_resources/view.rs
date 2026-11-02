@@ -1,0 +1,77 @@
+//! Owned derived handles stay in application state; the primitive sees borrowed views only.
+use super::super::derived::view::AcquiredView;
+use crate::domain::{
+    derived_views::types::{DerivedView, MembershipData},
+    operating::errors::OperatingError,
+    operator::contract::{
+        axis::PreparedAxis,
+        views::{BorrowedRows, IndexedRows},
+    },
+    table_cells::types::TreeRows,
+};
+use ryo_values::domain::plan_parts::types::ColumnIndex;
+
+pub(crate) enum AxisResource<'f> {
+    Empty,
+    Native {
+        tree: TreeRows<'f>,
+        among: Option<TreeRows<'f>>,
+        membership: Option<AcquiredView>,
+    },
+    Indexed {
+        edges: BorrowedRows<'f>,
+        from: [ColumnIndex; 1],
+        to: ColumnIndex,
+        equality: AcquiredView,
+        membership: AcquiredView,
+    },
+}
+
+impl AxisResource<'_> {
+    pub(crate) fn view(&self) -> Result<PreparedAxis<'_>, OperatingError> {
+        match self {
+            Self::Empty => Ok(PreparedAxis::Empty),
+            Self::Native {
+                tree,
+                among,
+                membership,
+            } => {
+                let marks = match membership.as_ref().map(AcquiredView::view).transpose()? {
+                    Some(DerivedView::Membership(MembershipData::Dense(marks))) => marks.as_slice(),
+                    None if among.is_some() => &[],
+                    _ => return Err(OperatingError::WrongBinding),
+                };
+                Ok(PreparedAxis::Native {
+                    tree: *tree,
+                    among: *among,
+                    marks,
+                })
+            }
+            Self::Indexed {
+                edges,
+                from,
+                to,
+                equality,
+                membership,
+            } => {
+                let DerivedView::Equality(index) = equality.view()? else {
+                    return Err(OperatingError::WrongBinding);
+                };
+                let DerivedView::Membership(domain @ MembershipData::Values(_)) =
+                    membership.view()?
+                else {
+                    return Err(OperatingError::WrongBinding);
+                };
+                Ok(PreparedAxis::Indexed {
+                    edges: IndexedRows {
+                        rows: *edges,
+                        columns: from,
+                        index,
+                    },
+                    to: *to,
+                    domain,
+                })
+            }
+        }
+    }
+}

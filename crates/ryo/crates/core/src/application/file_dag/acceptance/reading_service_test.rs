@@ -461,7 +461,7 @@ fn duplicate_resident_join_plan() -> Plan {
 
 #[test]
 fn two_real_rule_evaluations_share_only_the_index_and_keep_ordered_duplicate_rows() {
-    use crate::domain::stored_indexes::service::{LIMIT, new};
+    use crate::application::file_dag::derived::indexes::{LIMIT, new};
     let mut join = duplicate_resident_join_plan();
     // Capture the same emitted multiset at its explicit cross-file ownership boundary.
     join.frontier = vec![PlanInput::Step(StepId(0))];
@@ -799,7 +799,7 @@ fn local_matcher_caches_preserve_empty_and_executed_bound_pattern_errors() {
 
 #[test]
 fn render_failure_releases_live_index_handles_before_a_fresh_rule_invocation() {
-    use crate::domain::stored_indexes::service::{LIMIT, new};
+    use crate::application::file_dag::derived::indexes::{LIMIT, new};
     let mut good = duplicate_resident_join_plan();
     good.frontier = vec![PlanInput::Step(StepId(0))];
     let mut bad = good.clone();

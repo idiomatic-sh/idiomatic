@@ -7,7 +7,7 @@ use ryo_language::domain::relations::types::{Relation, Value};
 
 use crate::application::file_dag::pipeline::types::compact::value::CompactInput;
 use crate::application::file_dag::pipeline::types::{LoweredTree, Stepper};
-use crate::domain::column_kernel::{service as column_kernel, types::KernelStrategy};
+use crate::domain::column_kernel::types::KernelStrategy;
 use crate::domain::fragment::service as lowered;
 use crate::domain::fragment::types::FragmentRun;
 use crate::domain::layout::service::layout_of;
@@ -596,7 +596,7 @@ pub(crate) fn evaluate_file_with_executor<'f>(
         }
         prepared.layouts.push(layout);
         if prepared.kernel_strategy == KernelStrategy::Column {
-            let kernel = column_kernel::compile(
+            let kernel = crate::application::file_dag::optimized::column::compile(
                 plan,
                 prepared.layouts.last().ok_or(OperatingError::NotRun)?,
             );

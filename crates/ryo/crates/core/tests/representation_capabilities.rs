@@ -269,7 +269,7 @@ pub mod application {pub(crate) mod file_dag {
   mod produced {use super::{Arc,RelationResult,StoredSelection};__TOKEN__}
   pub(super) use produced::ProducedSelection;
   pub(super) fn control()->(Arc<RelationResult>,ProducedSelection) {
-   let result=Arc::new(RelationResult{generation:Arc::new(()),kind:RepresentationKind::Computed,body:RelationBody::Computed(Arc::new(Table::default())),inspected:OnceLock::from(Ok(PhysicalShape::Complete)),normalized:OnceLock::new()});
+   let result=Arc::new(RelationResult{population:0,producer:OnceLock::new(),generation:Arc::new(()),kind:RepresentationKind::Computed,body:RelationBody::Computed(Arc::new(Table::default())),inspected:OnceLock::from(Ok(PhysicalShape::Complete)),normalized:OnceLock::new()});
    let token=produced::ProducedSelection{source:Arc::clone(&result),selection:Arc::new(StoredSelection)};
    (result,token)
   }

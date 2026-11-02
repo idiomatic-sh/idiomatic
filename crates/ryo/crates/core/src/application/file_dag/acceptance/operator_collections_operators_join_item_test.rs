@@ -1042,7 +1042,7 @@ fn sparse_function_columns(count: usize) -> [FactColumn; 4] {
 
 #[test]
 fn sparse_left_matches_computed_bag_order_for_composite_typed_duplicate_keys() {
-    use crate::domain::stored_indexes::service::{LIMIT, new};
+    use crate::application::file_dag::derived::indexes::{LIMIT, new};
     use crate::domain::table_model::service::materialize;
     let columns = sparse_function_columns(256);
     let left = Rows::Stored(ColumnsView {
@@ -1088,8 +1088,8 @@ fn sparse_left_matches_computed_bag_order_for_composite_typed_duplicate_keys() {
 
 #[test]
 fn sparse_left_falls_back_for_partial_or_unretained_sources_and_empty_results() {
+    use crate::application::file_dag::derived::indexes::{LIMIT, new};
     use crate::domain::coverage::types::{Lacking, Partial};
-    use crate::domain::stored_indexes::service::{LIMIT, new};
     use ryo_values::domain::stored_facts::types::PartialCause;
     let columns = sparse_function_columns(256);
     let left = Rows::Stored(ColumnsView {
@@ -1134,7 +1134,7 @@ fn sparse_left_falls_back_for_partial_or_unretained_sources_and_empty_results() 
 
 #[test]
 fn sparse_left_dense_pairs_fall_back_before_emitting_and_keep_bag_order() {
-    use crate::domain::stored_indexes::service::{LIMIT, new};
+    use crate::application::file_dag::derived::indexes::{LIMIT, new};
     use crate::domain::table_model::service::materialize;
     let mut columns = sparse_function_columns(4_097);
     columns[0].0.fill(to_bits(node(1)).0);
@@ -1338,7 +1338,7 @@ fn stored_join_diagnostics_emit_one_aggregate_including_empty_and_failed_invocat
 
 #[test]
 fn separate_rule_rooms_reuse_one_index_and_still_read_the_provider_before_hits() {
-    use crate::domain::stored_indexes::service::{LIMIT, new};
+    use crate::application::file_dag::derived::indexes::{LIMIT, new};
     let columns = [fact_column(&[2, 1, 2, 2]), fact_column(&[20, 10, 21, 22])];
     let right = Rows::Stored(ColumnsView {
         kinds: NUMBER_PAIR_KINDS,
@@ -1413,7 +1413,7 @@ fn separate_rule_rooms_reuse_one_index_and_still_read_the_provider_before_hits()
 
 #[test]
 fn cached_emit_error_releases_invocation_handle_and_next_generation_uses_new_rows() {
-    use crate::domain::stored_indexes::service::{LIMIT, new};
+    use crate::application::file_dag::derived::indexes::{LIMIT, new};
     let columns = [fact_column(&[1]), fact_column(&[10])];
     let right = Rows::Stored(ColumnsView {
         kinds: NUMBER_PAIR_KINDS,
@@ -1495,7 +1495,7 @@ impl Emit for NestedStoredJoin<'_> {
 
 #[test]
 fn shared_index_handle_releases_mutable_cache_borrow_before_nested_emission() {
-    use crate::domain::stored_indexes::service::{LIMIT, new};
+    use crate::application::file_dag::derived::indexes::{LIMIT, new};
     let columns = [fact_column(&[2, 1, 2, 2]), fact_column(&[20, 10, 21, 22])];
     let right = Rows::Stored(ColumnsView {
         kinds: NUMBER_PAIR_KINDS,
@@ -1553,7 +1553,7 @@ fn shared_index_handle_releases_mutable_cache_borrow_before_nested_emission() {
 
 #[test]
 fn malformed_views_and_failed_upstream_still_use_original_paths_with_a_file_cache() {
-    use crate::domain::stored_indexes::service::{LIMIT, new};
+    use crate::application::file_dag::derived::indexes::{LIMIT, new};
     let columns = [fact_column(&[1, 1, 1]), fact_column(&[10, 11])];
     let right = Rows::Stored(ColumnsView {
         kinds: NUMBER_PAIR_KINDS,
@@ -1605,7 +1605,7 @@ fn malformed_views_and_failed_upstream_still_use_original_paths_with_a_file_cach
 
 #[test]
 fn demand_reach_stream_preserves_lazy_holds_refusals_and_room_reuse() {
-    use crate::domain::stored_indexes::service::{LIMIT, new};
+    use crate::application::file_dag::derived::indexes::{LIMIT, new};
     use ryo_values::domain::plan_parts::types::ReachLookup;
     let columns = [fact_column(&[1, 1, 9, 2]), fact_column(&[9, 2, 1, 3])];
     let right = Rows::Stored(ColumnsView {

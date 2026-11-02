@@ -1,5 +1,7 @@
 //! Same-binary differential proof for a real selected-cut/join/filter/project shape.
 
+use crate::application::file_dag::derived::indexes::{LIMIT, new};
+use crate::application::file_dag::derived::selection::{activate, prepare};
 use crate::application::file_dag::pipeline::service::evaluate_file;
 use crate::domain::column_kernel::types::KernelStrategy;
 use crate::domain::coverage::types::{Lacking, Partial};
@@ -7,8 +9,6 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
 use crate::domain::operator::service::pool_for;
 use crate::domain::operator::types::{Pool, PreparedPool};
-use crate::domain::stored_indexes::service::{LIMIT, new};
-use crate::domain::stored_selection::service::{activate, prepare};
 use crate::domain::table_model::service::take_read_row_counts;
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;

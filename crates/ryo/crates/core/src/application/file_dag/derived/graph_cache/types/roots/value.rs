@@ -1,6 +1,8 @@
 //! Successful demand answers and exact-domain forest memoization under the file's existing cap.
 
-use crate::domain::graph_cache::service::{MEMO_LIMIT, replace, room, slot};
+use crate::application::file_dag::derived::graph_cache::service::{
+    MEMO_LIMIT, replace, room, slot,
+};
 use crate::domain::stored_graph::types::footprint::value::{arc_bytes, vector};
 use crate::domain::stored_graph::types::traversal::value::{GraphTraversal, UNKNOWN};
 use crate::domain::stored_graph::types::{

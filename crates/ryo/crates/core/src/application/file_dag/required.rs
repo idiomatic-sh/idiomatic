@@ -48,6 +48,9 @@ impl FileDagExecution {
         if self.ready[node.0].is_some() {
             self.overlap_bytes = self.overlap_bytes.saturating_add(size);
         }
+        if self.graph.derived_sources[node.0] {
+            self.relations.pin_derived(table.as_ref());
+        }
         self.required[node.0] = Some(table);
         self.observe_required();
     }
@@ -76,6 +79,9 @@ impl FileDagExecution {
             return;
         }
         if let Some(table) = self.required[node.0].take() {
+            if self.graph.derived_sources[node.0] {
+                self.relations.release_derived(table.as_ref());
+            }
             let size = bytes(&table);
             self.required_bytes = self.required_bytes.saturating_sub(size);
             if self.ready[node.0].is_some() {
@@ -95,6 +101,9 @@ impl FileDagExecution {
     pub(super) fn clear_required(&mut self) {
         for node in self.required_nodes.drain(..) {
             if let Some(table) = self.required[node.0].take() {
+                if self.graph.derived_sources[node.0] {
+                    self.relations.release_derived(table.as_ref());
+                }
                 let size = bytes(&table);
                 self.required_bytes = self.required_bytes.saturating_sub(size);
                 if self.ready[node.0].is_some() {
