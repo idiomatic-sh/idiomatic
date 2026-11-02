@@ -65,6 +65,8 @@ pub struct Row {
     pub raw_exact: usize,
     /// Independently evidenced reference differences.
     pub documented_discrepancies: usize,
+    /// Declared-contract passes that are not raw report equality or reference discrepancies.
+    pub contract_only: usize,
 }
 /// Atomic public inventory snapshot.
 #[derive(Clone, Debug, Serialize)]

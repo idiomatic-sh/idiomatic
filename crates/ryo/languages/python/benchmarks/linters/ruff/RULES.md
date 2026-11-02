@@ -2,7 +2,7 @@
 
 Generated from canonical source and the existing full-inventory runner's results. Every pinned default is preloaded; missing, unrun, invalid and failed implementations remain FAIL.
 
-**381 PASS / 32 FAIL / 413 pinned defaults**; run state `complete`. Base worker `d43a5760d6c9388d7ba307416417268fbf1cacb92ae6fbe9bf70dffdf0d686b8`. PASS means executed intended expectations, including only independently validated explicit reference discrepancies. Raw parity and documented differences remain explicit in result receipts. This table is not an admission subset. Counts combine separately linked receipts; no combined replay is claimed.
+**382 PASS / 31 FAIL / 413 pinned defaults**; run state `complete`. Base worker `d43a5760d6c9388d7ba307416417268fbf1cacb92ae6fbe9bf70dffdf0d686b8`. PASS means executed intended expectations, including only independently validated explicit reference discrepancies. Raw parity and documented differences remain explicit in result receipts. This table is not an admission subset. Counts combine separately linked receipts; no combined replay is claimed.
 
 | Rule | Result | Reason / evidence |
 |---|---|---|
@@ -101,7 +101,7 @@ Generated from canonical source and the existing full-inventory runner's results
 | F541 | PASS | verified intended expectations |
 | F601 | PASS | verified intended expectations |
 | F602 | PASS | verified intended expectations |
-| F621 | FAIL | [Missing implementation](results/full-inventory-current/summary.json) |
+| F621 | PASS | [separate declared-contract fixture proof](results/full-inventory-current/f621-target-supplement/summary.json) |
 | F622 | PASS | verified intended expectations |
 | F631 | PASS | verified intended expectations |
 | F632 | PASS | verified intended expectations |

@@ -9,4 +9,5 @@ mod discrepancy;
 
 /// Complete pinned inventory verification, independent of provider policy.
 pub mod inventory;
+mod inventory_execution;
 mod inventory_receipts;

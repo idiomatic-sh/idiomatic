@@ -32,6 +32,7 @@ fn summary(registration: &Registration, inventory: &Inventory, state: &'static s
             case_count: result.cases,
             raw_exact: result.raw_exact,
             documented_discrepancies: result.documented,
+            contract_only: result.contract_only,
         })
         .collect::<Vec<_>>();
     let pass = rules.iter().filter(|row| row.status == "PASS").count();
@@ -84,7 +85,7 @@ pub fn verify(
             .rules
             .iter()
             .find(|entry| entry.rule_id == *rule);
-        let outcome = (|| -> Result<(usize, usize, usize, String), String> {
+        let outcome = (|| -> Result<(usize, usize, usize, usize, String), String> {
             let entry = entry.ok_or("missing implementation registration")?;
             if let Some(reason) = &entry.reason {
                 return Err(reason.clone());
@@ -135,20 +136,21 @@ pub fn verify(
                     String::from_utf8_lossy(&observed.stderr.0)
                 ));
             }
-            let (raw, documented) =
+            let (raw, documented, contract_only) =
                 super::inventory_receipts::validate(&entry.cases, &captured.records)?;
             let digest = captured.sha256.ok_or("native receipt digest is missing")?;
-            Ok((entry.cases.len(), raw, documented, digest))
+            Ok((entry.cases.len(), raw, documented, contract_only, digest))
         })();
         let row = &mut inventory.rules[index];
         match outcome {
-            Ok((cases, raw, documented, receipt)) => {
+            Ok((cases, raw, documented, contract_only, receipt)) => {
                 row.case_results_sha256 = Some(receipt);
                 row.passed = true;
                 row.reason = None;
                 row.cases = cases;
                 row.raw_exact = raw;
                 row.documented = documented;
+                row.contract_only = contract_only;
             }
             Err(reason) => row.reason = Some(reason),
         }

@@ -200,6 +200,27 @@ def record_execution_comparison(reference: dict[str, object], candidate: dict[st
     skips = lambda row: sorted(((skip['rule'], skip['path'], skip['reason']) for skip in row['skipped']))
     return 'exact' if reference['coverage'] == candidate['coverage'] and skips(reference) == skips(candidate) else 'different'
 
+def record_contract_satisfied(case: dict[str, object], sides: dict[str, dict[str, object]]) -> bool:
+    """Apply the declared contract without promoting unavailable reference accounting to zero."""
+    contract = case.get('expectation_contract', 'diagnostics')
+    if contract not in {'diagnostics', 'complete-report'} or set(sides) != {'reference', 'candidate'}:
+        return False
+    for row in sides.values():
+        if row.get('observation_schema') != 'benchmark-case/v2' or row.get('expectation_contract') != contract:
+            return False
+        capability = row.get('execution_metadata')
+        if not isinstance(capability, dict):
+            return False
+        if capability.get('availability') == 'unavailable':
+            if set(capability) != {'availability', 'reason'} or not isinstance(capability['reason'], str) or not capability['reason'].strip() or row.get('coverage') is not None or row.get('skipped') != []:
+                return False
+        elif capability != {'availability': 'complete'} or not record_execution_complete(row):
+            return False
+    if not record_execution_complete(sides['candidate']):
+        return False
+    execution = record_execution_comparison(sides['reference'], sides['candidate'])
+    return execution == 'exact' or (contract == 'diagnostics' and execution == 'incomparable')
+
 def complete_case_ids(selected_cases: list[dict[str, object]], records: list[dict[str, object]]) -> set[str]:
     """Return cases with one valid, durable full report from each contestant."""
     expected_cases = {f"{case['rule']}/{case['name']}": case for case in selected_cases}
@@ -220,7 +241,18 @@ def complete_case_ids(selected_cases: list[dict[str, object]], records: list[dic
         expected_case = expected_cases[case_id]
         if case_id in duplicates or set(sides) != {'reference', 'candidate'}:
             continue
-        if all((row.get('complete') is True and row.get('error') is None and (row.get('source_sha256') == expected_case['source_sha256']) and (row.get('files') == expected_case['files']) and (row.get('expected') == expected_case['expected']) and isinstance(row.get('case_passed'), bool) for row in sides.values())) and context_receipts_valid(expected_case, sides) and discrepancy_record_pair_valid(expected_case, sides) and all((row.get('observation_schema') is None or (row.get('observation_schema') == 'benchmark-case/v2' and row.get('expectation_contract') == 'diagnostics' and (side != 'candidate' or record_execution_complete(row))) for side, row in sides.items())):
+        identities_match = all(
+            row.get('complete') is True and row.get('error') is None
+            and row.get('source_sha256') == expected_case['source_sha256']
+            and row.get('files') == expected_case['files']
+            and row.get('expected') == expected_case['expected']
+            and isinstance(row.get('case_passed'), bool)
+            for row in sides.values()
+        )
+        legacy = all(row.get('observation_schema') is None for row in sides.values())
+        if (identities_match and context_receipts_valid(expected_case, sides)
+            and discrepancy_record_pair_valid(expected_case, sides)
+            and (legacy or record_contract_satisfied(expected_case, sides))):
             completed.add(case_id)
     return completed
 
@@ -250,7 +282,10 @@ def case_expectation_summary(inventory: list[dict[str, object]], records: list[d
         if documented:
             counts['documented_reference_discrepancies'] += 1
         elif not raw_match:
-            counts['unexplained_mismatches'] += 1
+            if diagnostic_match and record_contract_satisfied(case, sides):
+                counts['contract_only_passes'] = counts.get('contract_only_passes', 0) + 1
+            else:
+                counts['unexplained_mismatches'] += 1
     return counts
 
 def case_observation_map(paths: list[Path]) -> dict[tuple[str, str, str], dict[str, object]]:

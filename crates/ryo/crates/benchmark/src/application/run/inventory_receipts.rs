@@ -22,7 +22,10 @@ fn normalized(value: &Value) -> Result<Vec<String>, String> {
     Ok(rows)
 }
 /// Require exact registered case identities and two actual complete, passing observations.
-pub(super) fn validate(cases: &[Value], observations: &[Value]) -> Result<(usize, usize), String> {
+pub(super) fn validate(
+    cases: &[Value],
+    observations: &[Value],
+) -> Result<(usize, usize, usize), String> {
     if cases.is_empty() || observations.len() != cases.len() * 2 {
         return Err("missing or extra native case receipts".into());
     }
@@ -60,7 +63,13 @@ pub(super) fn validate(cases: &[Value], observations: &[Value]) -> Result<(usize
     }
     let mut raw_exact = 0;
     let mut documented = 0;
+    let mut contract_only = 0;
     for case in cases {
+        let declared = if case["expectation_contract"].is_null() {
+            crate::domain::diagnostics::types::ComparisonContract::Diagnostics
+        } else {
+            super::inventory_execution::contract(&case["expectation_contract"])?
+        };
         let expected = normalized(&case["expected"])?;
         let certificate = &case["reference_discrepancy"];
         let reference_expected = if certificate.is_null() {
@@ -85,6 +94,11 @@ pub(super) fn validate(cases: &[Value], observations: &[Value]) -> Result<(usize
                 return Err("missing or duplicate native side receipt".into());
             }
             let row = found[0];
+            if row["observation_schema"] != "benchmark-case/v2"
+                || super::inventory_execution::contract(&row["expectation_contract"])? != declared
+            {
+                return Err("native expectation contract differs from registration".into());
+            }
             if row["complete"] != true
                 || !row["error"].is_null()
                 || row["case_passed"] != true
@@ -172,12 +186,14 @@ pub(super) fn validate(cases: &[Value], observations: &[Value]) -> Result<(usize
                 return Err("discrepancy tool is not independently pinned".into());
             }
         }
+        super::inventory_execution::compare(sides[0], sides[1], declared)?;
         let exact = normalized(&sides[0]["diagnostics"])? == normalized(&sides[1]["diagnostics"])?
             && sides[0]["skipped"] == sides[1]["skipped"];
         raw_exact += usize::from(exact);
         documented += usize::from(!exact && !certificate.is_null());
+        contract_only += usize::from(!exact && certificate.is_null());
     }
-    Ok((raw_exact, documented))
+    Ok((raw_exact, documented, contract_only))
 }
 
 #[cfg(test)]
@@ -208,7 +224,7 @@ mod tests {
         candidate["side"] = json!("candidate");
         assert_eq!(
             validate(&[case.clone()], &[reference.clone(), candidate.clone()]),
-            Ok((1, 0))
+            Ok((1, 0, 0))
         );
 
         candidate["diagnostics"] =
@@ -220,9 +236,11 @@ mod tests {
         );
 
         candidate["diagnostics"] = json!({"not": "an array"});
-        assert!(validate(&[case], &[reference, candidate])
-            .unwrap_err()
-            .contains("diagnostics must be an array"));
+        assert!(
+            validate(&[case], &[reference, candidate])
+                .unwrap_err()
+                .contains("diagnostics must be an array")
+        );
     }
 
     #[test]
@@ -257,39 +275,45 @@ mod tests {
             unrelated_candidate,
         ];
 
-        assert!(validate(&[case.clone(), case.clone()], &rows)
-            .unwrap_err()
-            .contains("duplicate registered case identity"));
+        assert!(
+            validate(&[case.clone(), case.clone()], &rows)
+                .unwrap_err()
+                .contains("duplicate registered case identity")
+        );
         let mut second = case;
         second["name"] = json!("second");
-        assert!(validate(
-            &[
-                second.clone(),
-                json!({
-                    "rule": "A001", "name": "first", "source_sha256": "source-pin",
-                    "files": ["input.txt"], "expected": [],
-                    "project_context_mode": "isolated", "reference_discrepancy": null
-                })
-            ],
-            &rows
-        )
-        .unwrap_err()
-        .contains("unregistered native case observation"));
+        assert!(
+            validate(
+                &[
+                    second.clone(),
+                    json!({
+                        "rule": "A001", "name": "first", "source_sha256": "source-pin",
+                        "files": ["input.txt"], "expected": [],
+                        "project_context_mode": "isolated", "reference_discrepancy": null
+                    })
+                ],
+                &rows
+            )
+            .unwrap_err()
+            .contains("unregistered native case observation")
+        );
 
         let duplicate_rows = [reference.clone(), candidate.clone(), reference, candidate];
-        assert!(validate(
-            &[
-                second,
-                json!({
-                    "rule": "A001", "name": "first", "source_sha256": "source-pin",
-                    "files": ["input.txt"], "expected": [],
-                    "project_context_mode": "isolated", "reference_discrepancy": null
-                })
-            ],
-            &duplicate_rows
-        )
-        .unwrap_err()
-        .contains("duplicate native case observation"));
+        assert!(
+            validate(
+                &[
+                    second,
+                    json!({
+                        "rule": "A001", "name": "first", "source_sha256": "source-pin",
+                        "files": ["input.txt"], "expected": [],
+                        "project_context_mode": "isolated", "reference_discrepancy": null
+                    })
+                ],
+                &duplicate_rows
+            )
+            .unwrap_err()
+            .contains("duplicate native case observation")
+        );
     }
 
     #[test]
@@ -331,15 +355,17 @@ mod tests {
         candidate["side"] = json!("candidate");
         assert_eq!(
             validate(&[case.clone()], &[reference.clone(), candidate.clone()]),
-            Ok((0, 1))
+            Ok((0, 1, 0))
         );
 
         let mut unbound = case;
         unbound["reference_discrepancy"]["identity"]["settings-sha256"] = Value::Null;
         reference["discrepancy_validation"]["settings_sha256"] = Value::Null;
         candidate["discrepancy_validation"]["settings_sha256"] = Value::Null;
-        assert!(validate(&[unbound], &[reference, candidate])
-            .unwrap_err()
-            .contains("stale discrepancy evidence identity"));
+        assert!(
+            validate(&[unbound], &[reference, candidate])
+                .unwrap_err()
+                .contains("stale discrepancy evidence identity")
+        );
     }
 }

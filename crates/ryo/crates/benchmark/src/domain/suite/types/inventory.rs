@@ -19,6 +19,8 @@ pub struct RuleResult {
     pub case_results_sha256: Option<String>,
     /// Explicitly evidenced reference differences.
     pub documented: usize,
+    /// Passing cases whose declared diagnostic contract cannot establish raw report equality.
+    pub contract_only: usize,
 }
 
 /// Every pinned rule, in its declared order, from initial FAIL to final result.
@@ -55,6 +57,7 @@ impl Inventory {
                     cases: 0,
                     raw_exact: 0,
                     documented: 0,
+                    contract_only: 0,
                     case_results_sha256: None,
                 })
                 .collect(),

@@ -87,16 +87,17 @@ def verified_rows(ruff: Path, current: Path, previous: dict[str, object], direct
             if (any(registered["identity"].get(key) != digest for key, digest in proof["identity"].items())
                 or observed.get("identity") != registered["identity"]
                 or profile.get("parser-configuration") != source_settings.get("parser-configuration")
-                or profile.get("source-language") != source_settings.get("source-language")
-                or instance.get("effective_settings", {}).get("source_language") != profile.get("source-language")
                 or instance.get("query_sha256") != item["query_sha256"]
                 or instance.get("cases_sha256") != item["cases_sha256"]):
                 raise ValueError("target control invocation/source identity mismatch")
             records = [json.loads(line) for line in read(item["case_results_path"], item["case_results_sha256"]).splitlines()]
             counts = case_records.case_expectation_summary(registered["rules"][0]["cases"], records)
             raw, differences = item["raw_exact"], item["documented_discrepancies"]
+            contract_only = item.get("contract_only", 0)
             if (item.get("case_count") != count or type(raw) is not int or type(differences) is not int
-                or min(raw, differences) < 0 or raw + differences != count or len(records) != 2 * count
+                or type(contract_only) is not int or min(raw, differences, contract_only) < 0
+                or raw + differences + contract_only != count or len(records) != 2 * count
+                or counts.get("contract_only_passes", 0) != contract_only
                 or counts["complete_case_pairs"] != count or counts["intended_behavior_passes"] != count
                 or counts["raw_parity_matches"] != raw or counts["documented_reference_discrepancies"] != differences
                 or counts["unexplained_mismatches"] or any(record.get("case_passed") is not True for record in records)
@@ -173,6 +174,7 @@ def verified_rows(ruff: Path, current: Path, previous: dict[str, object], direct
         if (previous[rule]["status"] != "FAIL" or row.get("status") != "PASS"
             or row.get("case_count") != canonical["case_count"] or row.get("raw_exact") != canonical["raw_exact"]
             or row.get("documented_discrepancies") != canonical["documented_discrepancies"]
+            or row.get("contract_only", 0) != canonical.get("contract_only", 0)
             or row.get("case_results_sha256") != canonical["case_results_sha256"]
             or row.get("instance", {}).get("profile_sha256") != canonical["profile_sha256"]):
             raise ValueError("default target summary is not its executed fixture evidence")

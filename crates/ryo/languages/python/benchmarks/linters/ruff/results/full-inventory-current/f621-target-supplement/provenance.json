@@ -1,0 +1,26 @@
+{
+  "source_patch_sha256": "895b841b2bf5e8c9b2fd90637034beb377ee98ce3192413f7dda6484e8692390",
+  "worker_sha256": "92b623314c19b12e0678f77b2248287a329e41254a1340b9ec1245b04641390f",
+  "reference_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "native_cases_sha256": "57df2d77150797a80626218e56437da0a6dce4ba43c829f7cdddd7ab3f44a99b",
+  "collector_executed": false,
+  "raw_records_unchanged": true,
+  "counts": {
+    "complete_case_pairs": 24,
+    "incomplete_cases": 0,
+    "raw_parity_matches": 11,
+    "raw_parity_mismatches": 13,
+    "documented_reference_discrepancies": 12,
+    "unexplained_mismatches": 0,
+    "intended_behavior_passes": 24,
+    "intended_behavior_failures": 0,
+    "diagnostic_parity_matches": 12,
+    "diagnostic_parity_mismatches": 12,
+    "execution_metadata_exact": 0,
+    "execution_metadata_different": 0,
+    "execution_metadata_incomparable": 24,
+    "typed_candidate_execution_complete": 24,
+    "legacy_or_unknown_candidate_execution": 0,
+    "contract_only_passes": 1
+  }
+}
