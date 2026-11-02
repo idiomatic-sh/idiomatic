@@ -1,0 +1,774 @@
+{
+  "schema": "engine-measurement-checkpoint/v1",
+  "acceptance_passed": false,
+  "engine_essentials": {
+    "engine_essentials_passed": true,
+    "all_checks_passed": false,
+    "selected_step_results": [
+      {
+        "name": "strict-artifact-staging",
+        "command": [
+          "python3",
+          "/workspaces/idiomatic-benchmark-guards/crates/ryo/languages/python/benchmarks/linters/ruff/verify_profiles.py",
+          "--self-test"
+        ],
+        "cwd": "/workspaces/idiomatic-benchmark-guards/crates/ryo",
+        "exit_code": 0,
+        "wall_seconds": 37.212219972978346
+      },
+      {
+        "name": "core-lifetime-kind-tests",
+        "command": [
+          "cargo",
+          "test",
+          "--locked",
+          "-j6",
+          "-p",
+          "idiomatic-sh-ryo-core",
+          "--lib",
+          "--no-fail-fast"
+        ],
+        "cwd": "/workspaces/idiomatic-benchmark-guards/crates/ryo",
+        "exit_code": 0,
+        "wall_seconds": 27.885421694954857
+      },
+      {
+        "name": "python-contexts-worker-identity",
+        "command": [
+          "cargo",
+          "test",
+          "--locked",
+          "-j6",
+          "-p",
+          "idiomatic-sh-ryo-python",
+          "--test",
+          "ruff",
+          "--no-fail-fast"
+        ],
+        "cwd": "/workspaces/idiomatic-benchmark-guards/crates/ryo",
+        "exit_code": 0,
+        "wall_seconds": 27.357902939082123
+      },
+      {
+        "name": "catalog-stress",
+        "command": [
+          "cargo",
+          "test",
+          "--locked",
+          "-j6",
+          "-p",
+          "idiomatic-sh-ryo",
+          "--test",
+          "replay",
+          "behavior::ruff_rules_feed_every_catalog_feature_a_thousand_rows",
+          "--",
+          "--exact"
+        ],
+        "cwd": "/workspaces/idiomatic-benchmark-guards/crates/ryo",
+        "exit_code": 0,
+        "wall_seconds": 37.09163913503289
+      },
+      {
+        "name": "python-release",
+        "command": [
+          "cargo",
+          "bench",
+          "--no-run",
+          "--locked",
+          "-j6",
+          "-p",
+          "idiomatic-sh-ryo-python",
+          "--bench",
+          "ruff",
+          "--message-format=json"
+        ],
+        "cwd": "/workspaces/idiomatic-benchmark-guards/crates/ryo",
+        "exit_code": 0,
+        "wall_seconds": 54.518018179922365
+      },
+      {
+        "name": "rust-candidate-release",
+        "command": [
+          "cargo",
+          "bench",
+          "--no-run",
+          "--locked",
+          "-j6",
+          "--workspace",
+          "--bench",
+          "lint",
+          "--message-format=json"
+        ],
+        "cwd": "/workspaces/idiomatic-benchmark-guards/crates/ryo",
+        "exit_code": 0,
+        "wall_seconds": 77.74709551699925
+      }
+    ],
+    "remaining_acceptance": "Existing nativewarm109MB failure, actualarchitecturedebt and remotequality/perf remain explicitly notgreen; no baselineRustrebuild. Catalog result is independent and retained even if failed."
+  },
+  "source_stable": true,
+  "gate_source_sha256": "dc35545ab1aa48724839bdbdcf9935e8cfa3f2673a0911f5f30699b9720b42c4",
+  "gate_started_utc": "2026-11-02T04:25:06.195829+00:00",
+  "gate_completed_utc": "2026-11-02T04:29:28.927967+00:00",
+  "gate_receipt_sha256": "17a21df53b5415620e154614077fc419bdb4023cbd50a8752cdd2a594172b278",
+  "forms_paired": {
+    "plan_sha256": "5cb182a452d1f4fa1d70060626c736e6f0b2c9fdc728b68b14b2265cf97af829",
+    "samples": [
+      {
+        "workload": "startup-control",
+        "round": 0,
+        "variant": "baseline",
+        "wall_seconds": 2.126465857,
+        "cpu_seconds": 2.122939,
+        "peak_rss_bytes": 239882240,
+        "report_sha256": "a47bc9be9978b6b3d10cf161f7cfd1e365e5b6246aceca161357bf35dff38a44",
+        "request_sha256": "8bc85cdba3a31bed807b16d8f46322c96e6caed87a74697430ec4c9885a60687",
+        "observation_sha256": "3aa428f13190867b2a67d4a029e09a809d8a96074827165da542a7b146f998b3",
+        "all_reports_equal": true
+      },
+      {
+        "workload": "startup-control",
+        "round": 0,
+        "variant": "candidate",
+        "wall_seconds": 2.045275045,
+        "cpu_seconds": 2.045099,
+        "peak_rss_bytes": 240271360,
+        "report_sha256": "a47bc9be9978b6b3d10cf161f7cfd1e365e5b6246aceca161357bf35dff38a44",
+        "request_sha256": "1740d8a9a545f3145059f0846d81ebca84c363a01075c7a039bda3378676e582",
+        "observation_sha256": "fe2f4a121fe59e833b77855284cbf8bc8687e7a1f1c6d5a7bc869f1e417ca901",
+        "all_reports_equal": true
+      },
+      {
+        "workload": "startup-control",
+        "round": 1,
+        "variant": "candidate",
+        "wall_seconds": 2.067061265,
+        "cpu_seconds": 2.065526,
+        "peak_rss_bytes": 240279552,
+        "report_sha256": "a47bc9be9978b6b3d10cf161f7cfd1e365e5b6246aceca161357bf35dff38a44",
+        "request_sha256": "bee0f882561ae7f12be3d55771bf86c861fb55dd2ba131ca882b775244f0efe8",
+        "observation_sha256": "8db1b3aa03972c38735848be4a9323e5b882f3bb1b09eb45968a2b6b0ac99084",
+        "all_reports_equal": true
+      },
+      {
+        "workload": "startup-control",
+        "round": 1,
+        "variant": "baseline",
+        "wall_seconds": 2.025408138,
+        "cpu_seconds": 2.024836,
+        "peak_rss_bytes": 239857664,
+        "report_sha256": "a47bc9be9978b6b3d10cf161f7cfd1e365e5b6246aceca161357bf35dff38a44",
+        "request_sha256": "0d9cef9f4cd3200ea101915c9702b30f0778499494faba895db156b7b880c1cc",
+        "observation_sha256": "16626ad94fdd53ea52cda94babf039fb72e02408497d85fdbb55d3b52306edcd",
+        "all_reports_equal": true
+      },
+      {
+        "workload": "startup-control",
+        "round": 2,
+        "variant": "baseline",
+        "wall_seconds": 2.002509029,
+        "cpu_seconds": 2.002535,
+        "peak_rss_bytes": 239935488,
+        "report_sha256": "a47bc9be9978b6b3d10cf161f7cfd1e365e5b6246aceca161357bf35dff38a44",
+        "request_sha256": "f7f54940db2e66ccaec953ccb51e011d6511b4fdef150d2bcd2311a1b61e2310",
+        "observation_sha256": "63e46529aeceab7419399fd891611ec8e424eff2b84f1b474c42fa62f81af435",
+        "all_reports_equal": true
+      },
+      {
+        "workload": "startup-control",
+        "round": 2,
+        "variant": "candidate",
+        "wall_seconds": 1.977077763,
+        "cpu_seconds": 1.976969,
+        "peak_rss_bytes": 240177152,
+        "report_sha256": "a47bc9be9978b6b3d10cf161f7cfd1e365e5b6246aceca161357bf35dff38a44",
+        "request_sha256": "d1a5c254476d2d11d3a463460bc69a923c2ddbb457b40c80b8e719c235a31aaa",
+        "observation_sha256": "444e66a401c038a2236d52b521e92e6efe729c7ac69c6bbe9357c20211ff13af",
+        "all_reports_equal": true
+      },
+      {
+        "workload": "forms-all310",
+        "round": 0,
+        "variant": "baseline",
+        "wall_seconds": 4.21816317,
+        "cpu_seconds": 4.217587,
+        "peak_rss_bytes": 582922240,
+        "report_sha256": "cd1703cb559014b97791f8aeac174df4761186882f161cec5599bf70d6b0eb7e",
+        "request_sha256": "5ddf159140cb3f6baf639c5a5e5f79c7cc3c9b6ceec7877e31cf2e38c3c1ef7e",
+        "observation_sha256": "2a352b0ed2b371b845b1f6a9d08681196d8e2592ed7758ea55d8aa3ae4250aa2",
+        "all_reports_equal": true
+      },
+      {
+        "workload": "forms-all310",
+        "round": 0,
+        "variant": "candidate",
+        "wall_seconds": 4.281123429,
+        "cpu_seconds": 4.280402,
+        "peak_rss_bytes": 567287808,
+        "report_sha256": "cd1703cb559014b97791f8aeac174df4761186882f161cec5599bf70d6b0eb7e",
+        "request_sha256": "5ff6929a98d7ac2cd83e93d8374430ebf82e332ef237c8e98b93c9a44bf78bb1",
+        "observation_sha256": "6754638306115d363f972c194d48490964f917225d6fce3390a8fc892b0b559c",
+        "all_reports_equal": true
+      },
+      {
+        "workload": "forms-all310",
+        "round": 1,
+        "variant": "candidate",
+        "wall_seconds": 4.268131022,
+        "cpu_seconds": 4.268101,
+        "peak_rss_bytes": 567226368,
+        "report_sha256": "cd1703cb559014b97791f8aeac174df4761186882f161cec5599bf70d6b0eb7e",
+        "request_sha256": "2cb10bdb276848f9f3b3bdec6322f46f0a5b264865ac6bbc2b5c6db287d9c3db",
+        "observation_sha256": "1ea5313035212ec128de9d42a413fff213c491cf122ca4055c41b24c83a0a2b5",
+        "all_reports_equal": true
+      },
+      {
+        "workload": "forms-all310",
+        "round": 1,
+        "variant": "baseline",
+        "wall_seconds": 4.339089337,
+        "cpu_seconds": 4.338693,
+        "peak_rss_bytes": 577667072,
+        "report_sha256": "cd1703cb559014b97791f8aeac174df4761186882f161cec5599bf70d6b0eb7e",
+        "request_sha256": "7acd164f306dd38c576c249207ad45ee2c13766661bff7e2942c3ca525655bf4",
+        "observation_sha256": "98cf5d4254e64e14169e8a87c3051953dc266b8ed0b6a9cf3e60789d9c645726",
+        "all_reports_equal": true
+      },
+      {
+        "workload": "forms-all310",
+        "round": 2,
+        "variant": "baseline",
+        "wall_seconds": 4.387818383,
+        "cpu_seconds": 4.387274,
+        "peak_rss_bytes": 582926336,
+        "report_sha256": "cd1703cb559014b97791f8aeac174df4761186882f161cec5599bf70d6b0eb7e",
+        "request_sha256": "b4f4b8f5d463a55f8aac8ff115f57ad72bca76e59a90467fed2354f7dca7175e",
+        "observation_sha256": "66bc86eaba43f5765f597aef519999bd3d736071033d1fe1f0ef8e54edeffd23",
+        "all_reports_equal": true
+      },
+      {
+        "workload": "forms-all310",
+        "round": 2,
+        "variant": "candidate",
+        "wall_seconds": 4.142640717,
+        "cpu_seconds": 4.141183,
+        "peak_rss_bytes": 566026240,
+        "report_sha256": "cd1703cb559014b97791f8aeac174df4761186882f161cec5599bf70d6b0eb7e",
+        "request_sha256": "dff9b64da7bfec15cced36a88dc93f4ebb7cba1ee2abc9178f4f536e257d6023",
+        "observation_sha256": "0b691f33e885afa2347dd7d18df7caa0ea1c625ae32468a2c96a853ae5a2b38f",
+        "all_reports_equal": true
+      }
+    ],
+    "reports_equal": true,
+    "workloads": {
+      "startup-control": {
+        "medians": {
+          "baseline": {
+            "wall_seconds": 2.025408138,
+            "cpu_seconds": 2.024836,
+            "peak_rss_bytes": 239882240
+          },
+          "candidate": {
+            "wall_seconds": 2.045275045,
+            "cpu_seconds": 2.045099,
+            "peak_rss_bytes": 240271360
+          }
+        },
+        "ratios": {
+          "wall_seconds": 1.009808841303273,
+          "cpu_seconds": 1.0100072302151877,
+          "peak_rss_bytes": 1.0016221292580894
+        },
+        "report": {
+          "diagnostics": [],
+          "skipped": [],
+          "coverage": {
+            "selected": 310,
+            "evaluated": 310,
+            "skipped": 0,
+            "unknown_or_unread": 0
+          },
+          "files": [
+            "django/__init__.py"
+          ]
+        }
+      },
+      "forms-all310": {
+        "medians": {
+          "baseline": {
+            "wall_seconds": 4.339089337,
+            "cpu_seconds": 4.338693,
+            "peak_rss_bytes": 582922240
+          },
+          "candidate": {
+            "wall_seconds": 4.268131022,
+            "cpu_seconds": 4.268101,
+            "peak_rss_bytes": 567226368
+          }
+        },
+        "ratios": {
+          "wall_seconds": 0.9836467264236926,
+          "cpu_seconds": 0.9837296623660626,
+          "peak_rss_bytes": 0.9730738151284123
+        },
+        "report": {
+          "diagnostics": [
+            {
+              "rule": "B006",
+              "file": "tests/forms_tests/tests/test_forms.py",
+              "start": 76586,
+              "end": 76588
+            },
+            {
+              "rule": "B006",
+              "file": "tests/forms_tests/tests/test_forms.py",
+              "start": 77734,
+              "end": 77736
+            },
+            {
+              "rule": "B018",
+              "file": "tests/forms_tests/tests/test_forms.py",
+              "start": 11401,
+              "end": 11415
+            },
+            {
+              "rule": "B018",
+              "file": "tests/forms_tests/tests/test_forms.py",
+              "start": 147095,
+              "end": 147125
+            },
+            {
+              "rule": "B018",
+              "file": "tests/forms_tests/tests/test_forms.py",
+              "start": 194943,
+              "end": 194957
+            },
+            {
+              "rule": "B026",
+              "file": "tests/forms_tests/tests/test_forms.py",
+              "start": 168473,
+              "end": 168478
+            },
+            {
+              "rule": "B026",
+              "file": "tests/forms_tests/tests/test_forms.py",
+              "start": 169963,
+              "end": 169968
+            },
+            {
+              "rule": "B026",
+              "file": "tests/forms_tests/tests/test_forms.py",
+              "start": 170609,
+              "end": 170614
+            },
+            {
+              "rule": "DTZ001",
+              "file": "tests/forms_tests/tests/test_forms.py",
+              "start": 116003,
+              "end": 116054
+            },
+            {
+              "rule": "DTZ001",
+              "file": "tests/forms_tests/tests/test_forms.py",
+              "start": 116778,
+              "end": 116821
+            },
+            {
+              "rule": "DTZ001",
+              "file": "tests/forms_tests/tests/test_forms.py",
+              "start": 116852,
+              "end": 116895
+            },
+            {
+              "rule": "DTZ001",
+              "file": "tests/forms_tests/tests/test_forms.py",
+              "start": 122649,
+              "end": 122888
+            },
+            {
+              "rule": "DTZ001",
+              "file": "tests/forms_tests/tests/test_forms.py",
+              "start": 123501,
+              "end": 123544
+            },
+            {
+              "rule": "DTZ001",
+              "file": "tests/forms_tests/tests/test_forms.py",
+              "start": 124006,
+              "end": 124049
+            },
+            {
+              "rule": "DTZ001",
+              "file": "tests/forms_tests/tests/test_forms.py",
+              "start": 124289,
+              "end": 124340
+            },
+            {
+              "rule": "DTZ005",
+              "file": "tests/forms_tests/tests/test_forms.py",
+              "start": 120368,
+              "end": 120391
+            }
+          ],
+          "skipped": [],
+          "coverage": {
+            "selected": 310,
+            "evaluated": 310,
+            "skipped": 0,
+            "unknown_or_unread": 0
+          },
+          "files": [
+            "tests/forms_tests/tests/test_forms.py"
+          ]
+        }
+      }
+    }
+  },
+  "rust_original_paired": {
+    "manifest_sha256": "73ace351aa0651fc27bfe04acd7d29fb67967f092f3341d059aadfb374fcac37",
+    "samples": [
+      {
+        "pair": 0,
+        "variant": "base",
+        "exit_code": 0,
+        "wall_seconds": 43.94283220102079,
+        "load_before": [
+          2.880859375,
+          2.81787109375,
+          2.3212890625
+        ],
+        "stdout_sha256": "fd19a601f4ccf56be77d2a8a3fd7c97e481be9bbb00658191d770df202d6ac7f",
+        "stderr_sha256": "4cf68350d85f40815dc0c1521014d4a250ba8b0be41df37e0f187a99119c385f",
+        "bmf": {
+          "ruff": {
+            "cold-cpu-milliseconds": {
+              "lower_value": 4449,
+              "upper_value": 4692,
+              "value": 4572
+            },
+            "cold-milliseconds": {
+              "lower_value": 742,
+              "upper_value": 801,
+              "value": 756
+            },
+            "edit-milliseconds": {
+              "lower_value": 403,
+              "upper_value": 403,
+              "value": 403
+            },
+            "peak-megabytes": {
+              "lower_value": 629,
+              "upper_value": 629,
+              "value": 629
+            },
+            "spike-cpu-milliseconds": {
+              "lower_value": 1399,
+              "upper_value": 1409,
+              "value": 1400
+            },
+            "store-files": {
+              "lower_value": 1,
+              "upper_value": 1,
+              "value": 1
+            },
+            "store-megabytes": {
+              "lower_value": 67,
+              "upper_value": 67,
+              "value": 67
+            },
+            "warm-milliseconds": {
+              "lower_value": 75,
+              "upper_value": 75,
+              "value": 75
+            }
+          }
+        },
+        "internal_rounds": {
+          "cold-milliseconds": [
+            801,
+            742,
+            773,
+            756,
+            751
+          ],
+          "cold-cpu-milliseconds": [
+            4692,
+            4449,
+            4572,
+            4575,
+            4568
+          ],
+          "spike-cpu-milliseconds": [
+            1400,
+            1399,
+            1409
+          ]
+        }
+      },
+      {
+        "pair": 0,
+        "variant": "candidate",
+        "exit_code": 0,
+        "wall_seconds": 48.20282436499838,
+        "load_before": [
+          2.5537109375,
+          2.7451171875,
+          2.3173828125
+        ],
+        "stdout_sha256": "9abbfa58b9aa9b36801ad8e51e5bd853e57caee76d129fa8506d794039bb9f8f",
+        "stderr_sha256": "265656c8b08f6afafb86005f6afdbd43b940a35b3531f3e44f708ba5d0d3e576",
+        "bmf": {
+          "ruff": {
+            "cold-cpu-milliseconds": {
+              "lower_value": 5148,
+              "upper_value": 5591,
+              "value": 5185
+            },
+            "cold-milliseconds": {
+              "lower_value": 741,
+              "upper_value": 828,
+              "value": 766
+            },
+            "edit-milliseconds": {
+              "lower_value": 342,
+              "upper_value": 342,
+              "value": 342
+            },
+            "peak-megabytes": {
+              "lower_value": 507,
+              "upper_value": 507,
+              "value": 507
+            },
+            "spike-cpu-milliseconds": {
+              "lower_value": 1533,
+              "upper_value": 1556,
+              "value": 1555
+            },
+            "store-files": {
+              "lower_value": 1,
+              "upper_value": 1,
+              "value": 1
+            },
+            "store-megabytes": {
+              "lower_value": 67,
+              "upper_value": 67,
+              "value": 67
+            },
+            "warm-milliseconds": {
+              "lower_value": 71,
+              "upper_value": 71,
+              "value": 71
+            }
+          }
+        },
+        "internal_rounds": {
+          "cold-milliseconds": [
+            786,
+            828,
+            766,
+            760,
+            741
+          ],
+          "cold-cpu-milliseconds": [
+            5227,
+            5591,
+            5185,
+            5148,
+            5155
+          ],
+          "spike-cpu-milliseconds": [
+            1555,
+            1556,
+            1533
+          ]
+        }
+      },
+      {
+        "pair": 1,
+        "variant": "candidate",
+        "exit_code": 0,
+        "wall_seconds": 45.93185878894292,
+        "load_before": [
+          4.4931640625,
+          3.22216796875,
+          2.50146484375
+        ],
+        "stdout_sha256": "bb7093f3d7d7aaee24bab01d7d929f28658dce92cc415715ff09aaafa6669b73",
+        "stderr_sha256": "f84cdb8c830ecbbfca370cbe6ca379f90e5ed65caf53c0cd40532a8e358e4d44",
+        "bmf": {
+          "ruff": {
+            "cold-cpu-milliseconds": {
+              "lower_value": 5164,
+              "upper_value": 5720,
+              "value": 5336
+            },
+            "cold-milliseconds": {
+              "lower_value": 785,
+              "upper_value": 902,
+              "value": 812
+            },
+            "edit-milliseconds": {
+              "lower_value": 404,
+              "upper_value": 404,
+              "value": 404
+            },
+            "peak-megabytes": {
+              "lower_value": 513,
+              "upper_value": 513,
+              "value": 513
+            },
+            "spike-cpu-milliseconds": {
+              "lower_value": 1543,
+              "upper_value": 1561,
+              "value": 1559
+            },
+            "store-files": {
+              "lower_value": 1,
+              "upper_value": 1,
+              "value": 1
+            },
+            "store-megabytes": {
+              "lower_value": 67,
+              "upper_value": 67,
+              "value": 67
+            },
+            "warm-milliseconds": {
+              "lower_value": 93,
+              "upper_value": 93,
+              "value": 93
+            }
+          }
+        },
+        "internal_rounds": {
+          "cold-milliseconds": [
+            902,
+            800,
+            820,
+            785,
+            812
+          ],
+          "cold-cpu-milliseconds": [
+            5720,
+            5372,
+            5288,
+            5164,
+            5336
+          ],
+          "spike-cpu-milliseconds": [
+            1561,
+            1543,
+            1559
+          ]
+        }
+      },
+      {
+        "pair": 1,
+        "variant": "base",
+        "exit_code": 0,
+        "wall_seconds": 43.80917970696464,
+        "load_before": [
+          6.013671875,
+          3.79833984375,
+          2.73046875
+        ],
+        "stdout_sha256": "2fbe8bcfc8cb2dee1b7672a2c7ae90d629bffde83f48d4e887dbec9abee0a195",
+        "stderr_sha256": "fae9b4839ea95bf4582f10aa129a7cb330dd965a00498122a6fec689f4ff17b3",
+        "bmf": {
+          "ruff": {
+            "cold-cpu-milliseconds": {
+              "lower_value": 4520,
+              "upper_value": 4928,
+              "value": 4598
+            },
+            "cold-milliseconds": {
+              "lower_value": 685,
+              "upper_value": 787,
+              "value": 748
+            },
+            "edit-milliseconds": {
+              "lower_value": 373,
+              "upper_value": 373,
+              "value": 373
+            },
+            "peak-megabytes": {
+              "lower_value": 671,
+              "upper_value": 671,
+              "value": 671
+            },
+            "spike-cpu-milliseconds": {
+              "lower_value": 1444,
+              "upper_value": 1469,
+              "value": 1454
+            },
+            "store-files": {
+              "lower_value": 1,
+              "upper_value": 1,
+              "value": 1
+            },
+            "store-megabytes": {
+              "lower_value": 67,
+              "upper_value": 67,
+              "value": 67
+            },
+            "warm-milliseconds": {
+              "lower_value": 86,
+              "upper_value": 86,
+              "value": 86
+            }
+          }
+        },
+        "internal_rounds": {
+          "cold-milliseconds": [
+            748,
+            685,
+            787,
+            725,
+            780
+          ],
+          "cold-cpu-milliseconds": [
+            4637,
+            4520,
+            4928,
+            4572,
+            4598
+          ],
+          "spike-cpu-milliseconds": [
+            1469,
+            1454,
+            1444
+          ]
+        }
+      }
+    ],
+    "latest_pair_ratios": {
+      "cold-milliseconds": 1.085561497326203,
+      "cold-cpu-milliseconds": 1.1605045672031318,
+      "spike-cpu-milliseconds": 1.0722145804676755
+    },
+    "cold_spike_within_threshold": false,
+    "all_established_language_gates_passed": false,
+    "scope_limit": "Only Rust cold/spike compared here; full cached phase CI and other language gates remain separate."
+  },
+  "source_patches": [
+    {
+      "source_commit": "930111557350c4646302f065bf3eb944971e1edb",
+      "sha256": "95e854821e354a5aedcff66080f1bb41f0d826614b02c54d5737b1d50a681669"
+    },
+    {
+      "source_commit": "752abb66543cf66ea029ddcc1c7d5b74487112e2",
+      "sha256": "1460f89bbaf98d4bd72bc77092d5a99462c7dcf557eb99263fffae05c0c648cd"
+    }
+  ],
+  "workflow_tests": {
+    "command": "uv run --offline --with pytest --with pyyaml python -m pytest -q ci/workflows_test.py",
+    "exit_code": 0,
+    "passed": 44
+  },
+  "remaining": [
+    "Rust original cold CPU second outer pair1.1605046 exceeds unchanged1.15 gate",
+    "Existing nativewarm109039616>100000000 failure",
+    "Architecture audit findings and remote lint/Clippy/checks remain open",
+    "CI all-language speed comparison incomplete: baseline Go complexity guard failed before head",
+    "No full413 parity/subsecond/fullquality acceptance claim"
+  ]
+}

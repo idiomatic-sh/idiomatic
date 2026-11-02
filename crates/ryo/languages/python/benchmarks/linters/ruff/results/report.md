@@ -2,6 +2,27 @@
 
 **In progress.** The goal remains all 413 Ruff 0.16.5 defaults as RyoQL, faithful full reports, and subsecond full-Django execution. Neither full parity nor the performance target has passed.
 
+## Compact DISTINCT and literal matcher checkpoint (2026-11-02)
+
+The [source-bound selected gate](literal-matcher-measurements-2026-11-02.json) passes **328 core tests, 20 Python SDK/worker-identity tests, the strict discrepancy staging self-test and the actual catalog stress test**. Every catalog feature retains its existing 1,000-occurrence requirement; real pinned pandas and Django inputs close the sparse witnesses without fabricated rows or exemptions. The workflow capture guards separately pass 44 tests. These checks do not establish broad QA acceptance.
+
+Terminal DISTINCT projections now retain representative source-row IDs while sharing predicate selections; descendants across that projection barrier still fall back. Finite authored literal matchers are prepared per worker and initialized only on execution. Dynamic parameters, lists, functions and row patterns remain local; invalid-regex error timing is preserved.
+
+The original Rust comparison still **fails** its unchanged 1.15 CPU gate: the second alternating outer pair gives wall **748→812 ms (1.0856×)**, CPU **4,598→5,336 ms (1.1605×)** and spike CPU **1,454→1,559 ms (1.0722×)**. The first pair passes; both raw pairs remain recorded. This is two local diagnostic pairs, not five-pair CI certification. The immediate-prior compact candidate versus literal-matcher candidate forms comparison has three alternating pairs: median wall **4.3391→4.2681 s (1.64% lower)** and RSS **582.9→567.2 MB (2.69% lower)**, with all 12 startup/forms reports exact.
+
+The [full Django lifecycle](literal-matcher-full-django-2026-11-02.json) uses the pinned 2,875 files, frozen 310 policies, one worker and RAYON1:
+
+| Mode | Wall | CPU | Peak RSS |
+|---|---:|---:|---:|
+| Cold | 245.273 s | 244.900 s | 2.205 GB |
+| Retained CLI cache | 1.915 s | 1.915 s | 238 MB |
+| Edited, retained cache | 9.359 s | 9.355 s | 2.909 GB |
+| Edited, fresh cache | 247.080 s | 246.981 s | 2.225 GB |
+
+All complete reports equal their prior canonical outputs, including cached edit versus fresh recomputation. Each mode accounts for **891,250 selected pairs, 890,943 evaluated, 307 explicit syntax skips and zero unknowns**; none reaches the 600-second cap. The earlier separate full cold observation was 318.006 s: current wall is 22.87% lower across separate observations, incorporating both DISTINCT and matcher changes, without a repeated baseline or component attribution. Python provider production bytes and frozen rule inputs are unchanged. Warm means a new CLI process with the retained tool cache. Edit memory remains essentially unchanged. This lifecycle is diagnostic learning while Rust remains outside its CPU gate; neither all-language acceptance nor subsecond Django has passed.
+
+The current remote speed run restored its Rust cache and decoded the baseline CSS Divan results, then failed the unchanged baseline Go scaling guard (2,500→10,000 functions: 243 ms→2.864 s, about11.78× against5×). It never completed head language comparisons; that is incomplete coverage, not a candidate slowdown claim. The separate Rust peak-memory guard passed. Existing local warm-memory, architecture and remote quality failures remain open.
+
 ## Current Rust regression and staging diagnostics (2026-11-02)
 
 The [later lazy-workspace checkpoint](lazy-workspace-measurements-2026-11-02.json) passes 322 core tests and 20 Python SDK/worker-identity tests. It constructs six operator scratch groups only when used and retains finite literal-kind masks against an exact ordered vocabulary. A deliberate KindSum collision test prevents checksum-only reuse; dynamic predicates remain local, and the existing generation-drop assertion remains intact. The worker CLI now requires its explicit supported target to match the actual request and refuses missing or noncanonical known-rule phases. New rule source batches remain unadmitted pending canonical execution.

@@ -28,7 +28,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
     name: CaseName("prints_relations"),
     word: Word::Succeeds,
     input: || vec![],
-    expect: Expect::Value((55, crate::output::Format::Terminal)),
+    expect: Expect::Value((60, crate::output::Format::Terminal)),
 }];
 
 /// Runs `relation list` on one command line and returns what it printed or the outcome it ended with.

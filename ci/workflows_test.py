@@ -15,6 +15,9 @@ WORKFLOWS = sorted(DIRECTORY.glob("*.yml"))
 
 # The one command a job's checks are, with the product root and the groups it names: Asymptote decides what runs.
 CHECK = re.compile(r"asymptote check( --root [\w./-]+)?( --groups [a-z][a-z-]*(,[a-z][a-z-]*)*)?")
+# Evidence capture keeps one check's stdout, stderr and exact exit status. This is deliberately a whole-script grammar, not
+# permission to run arbitrary shell commands around a check.
+CAPTURE_GROUP = re.compile(r"asymptote check --groups ([a-z][a-z-]*) --format json > target/checks/\1\.json 2> target/checks/\1\.stderr")
 # The release itself: a job that does not check runs one job command (`ci/<job>/command.py`) with plain arguments, which no shell
 # chains anything to, or only actions (a build matrix). The values it is handed are crates.io's token, from its trusted publishing,
 # and the token `gh` creates the GitHub Release with; npm and PyPI exchange the OIDC token themselves.
@@ -74,6 +77,35 @@ def needs(job: dict) -> list[str]:
     return [waits] if isinstance(waits, str) else list(waits)
 
 
+def captured_check(run: str) -> bool:
+    """Accept only the workflow's evidence wrappers, preserving the check's streams and exit status exactly."""
+    lines = run.splitlines()
+    if len(lines) == 9 and (matched := CAPTURE_GROUP.fullmatch(lines[2])):
+        group = matched[1]
+        status = "build_status" if group == "build" else "quality_status"
+        stem = f"target/checks/{group}"
+        return lines == [
+            "mkdir -p target/checks",
+            "set +e",
+            f"asymptote check --groups {group} --format json > {stem}.json 2> {stem}.stderr",
+            f"{status}=$?",
+            "set -e",
+            f"cat {stem}.json",
+            f"cat {stem}.stderr >&2",
+            f"printf '%s\\n' \"${status}\" > {stem}.status",
+            f'exit "${status}"',
+        ]
+    return lines == [
+        "mkdir -p target/benchmarks/speed",
+        "set +e",
+        "asymptote check --groups speed --format json > target/benchmarks/speed/check.json 2> target/benchmarks/speed/check.stderr.log",
+        "speed_status=$?",
+        "cat target/benchmarks/speed/check.json",
+        "cat target/benchmarks/speed/check.stderr.log >&2",
+        'exit "$speed_status"',
+    ]
+
+
 def problems(workflow: dict) -> list[str]:
     """What keeps the workflow from being a thin edge over `asymptote check`: a job that calls it more than once, anywhere but
     last, or with more than the one command line; a job that does not check and runs more than one job command; a job neither
@@ -88,7 +120,7 @@ def problems(workflow: dict) -> list[str]:
             run = re.sub(r"\$\{\{.*?\}\}", "value", job["steps"][positions[0]]["run"].strip())
             if any(not step.get("uses", "").startswith(UPLOAD) for step in job["steps"][positions[0] + 1 :]):
                 found.append(f"{name} does not end in its asymptote check step")
-            if not CHECK.fullmatch(run):
+            if not CHECK.fullmatch(run) and not captured_check(run):
                 found.append(f"{name} runs {run!r}, not one `asymptote check [--root <dir>] [--groups <groups>]`")
         else:
             steps = [step for step in job["steps"] if "run" in step and step.get("name") != RELEASE_STEP]
@@ -204,6 +236,49 @@ def test_a_check_may_take_its_group_from_the_matrix_and_upload_what_its_tools_le
     checking = job("uv run --script tools/install.py", f"asymptote check --groups {expression}")
     checking["steps"].append({"uses": "actions/upload-artifact@0000000000000000000000000000000000000000", "with": {"path": "target"}})
     assert problems({"jobs": {"check": checking}}) == []
+
+
+@pytest.mark.parametrize("name", ["build", "check", "speed"])
+def test_a_check_may_capture_its_json_streams_and_propagate_its_status(name: str) -> None:
+    """The real capture scripts remain one check, including matrix substitution and the trailing artifact upload."""
+    checking = yaml.safe_load((DIRECTORY / "check.yml").read_text())["jobs"][name]
+    assert problems({"jobs": {name: checking}}) == []
+
+
+@pytest.mark.parametrize(
+    ("before", "after"),
+    [
+        ("set +e", "set +e\necho extra"),
+        ("build_status=$?", "asymptote check --groups lint\nbuild_status=$?"),
+        ("build_status=$?", "echo changed-status\nbuild_status=$?"),
+        ("build_status=$?", "build_status=0"),
+        ('exit "$build_status"', "exit 0"),
+        ('exit "$build_status"', 'exit "$other_status"'),
+        ("build.stderr", "other.stderr"),
+        ("cat target/checks/build.json", "cat target/checks/build.json; echo extra"),
+        ("--format json", "--format json --groups lint"),
+        ("--format json", "--format json || true"),
+        ("mkdir -p target/checks", "mkdir -p target/$(echo injected)"),
+    ],
+)
+def test_capture_refuses_extra_commands_changed_streams_and_masked_status(before: str, after: str) -> None:
+    """Finding a check inside a script never authorizes unrelated shell work or a successful exit after a failed check."""
+    checking = yaml.safe_load((DIRECTORY / "check.yml").read_text())["jobs"]["build"]
+    step = checking["steps"][checks(checking)[0]]
+    assert before in step["run"]
+    step["run"] = step["run"].replace(before, after)
+    assert problems({"jobs": {"build": checking}})
+
+
+def test_speed_capture_refuses_a_second_check_or_masked_exit() -> None:
+    """The shorter speed wrapper has the same one-command and status requirements."""
+    workflow = yaml.safe_load((DIRECTORY / "check.yml").read_text())
+    run = workflow["jobs"]["speed"]["steps"][checks(workflow["jobs"]["speed"])[0]]["run"]
+    for changed in (
+        run.replace("speed_status=$?", "asymptote check\nspeed_status=$?"),
+        run.replace('exit "$speed_status"', "exit 0"),
+    ):
+        assert problems({"jobs": {"speed": job(changed)}})
 
 
 def test_a_job_that_checks_twice_is_refused() -> None:

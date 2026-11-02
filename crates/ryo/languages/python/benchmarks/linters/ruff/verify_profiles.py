@@ -340,6 +340,72 @@ def write_cases(path: Path, cases: list[dict[str, object]]) -> None:
     path.write_text("\n".join(lines), encoding="utf-8")
 
 
+def declared_discrepancy_artifacts(
+    profile: Path, cases: list[dict[str, object]]
+) -> dict[str, tuple[Path, str]]:
+    """Resolve only explicitly declared, pinned artifacts within the source profile."""
+    source_root = profile.parent.resolve(strict=True)
+    artifacts: dict[str, tuple[Path, str]] = {}
+    for case in cases:
+        annotation = case.get("reference-discrepancy")
+        if annotation is None:
+            continue
+        if not isinstance(annotation, dict) or not isinstance(annotation.get("evidence"), list):
+            raise ValueError("invalid discrepancy evidence declaration")
+        for item in annotation["evidence"]:
+            if not isinstance(item, dict):
+                raise ValueError("invalid discrepancy evidence artifact")
+            relative, expected = item.get("path"), item.get("sha256")
+            if (
+                not isinstance(relative, str)
+                or not relative
+                or "\\" in relative
+                or Path(relative).is_absolute()
+                or any(part in {"", ".", ".."} for part in relative.split("/"))
+                or re.match(r"^[A-Za-z]:", relative) is not None
+                or not isinstance(expected, str)
+                or re.fullmatch(r"[a-f0-9]{64}", expected) is None
+            ):
+                raise ValueError("unsafe discrepancy evidence artifact")
+            try:
+                source = (source_root / relative).resolve(strict=True)
+            except OSError as error:
+                raise ValueError("missing discrepancy evidence artifact") from error
+            if not source.is_relative_to(source_root) or not source.is_file():
+                raise ValueError("external or non-file discrepancy evidence artifact")
+            if sha256(source) != expected:
+                raise ValueError("stale discrepancy evidence artifact")
+            prior = artifacts.get(relative)
+            if prior is not None and prior != (source, expected):
+                raise ValueError("conflicting discrepancy evidence declarations")
+            artifacts[relative] = (source, expected)
+    return artifacts
+
+
+def stage_discrepancy_artifacts(
+    source_profile: Path, destination: Path, cases: list[dict[str, object]], rule: str
+) -> None:
+    """Copy the declared artifacts without overwriting any canonical stage input."""
+    artifacts = declared_discrepancy_artifacts(source_profile, cases)
+    root = destination.resolve(strict=True)
+    for relative in artifacts:
+        target = destination / relative
+        if (
+            target.exists()
+            or target.is_symlink()
+            or not target.resolve(strict=False).is_relative_to(root)
+        ):
+            raise ValueError("discrepancy evidence collides with staged input")
+    for relative, (source, expected) in artifacts.items():
+        target = destination / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source, target)
+        if sha256(target) != expected:
+            raise ValueError("discrepancy evidence changed while staging")
+    for case in cases:
+        validate_reference_discrepancy(destination, case, rule)
+
+
 def manifest_paths(manifest: dict[str, object], helper_path: str) -> set[str]:
     profiles = manifest["profiles"]
     base_profile = RUFF_DIR / "benchmark.toml"
@@ -349,6 +415,15 @@ def manifest_paths(manifest: dict[str, object], helper_path: str) -> set[str]:
     for profile in native["profiles"]:
         paths.add(prepared_candidate_path(profile["rule_id"], profile).relative_to(REPOSITORY).as_posix())
         paths.add(prepared_case_path(profile["rule_id"], profile).relative_to(REPOSITORY).as_posix())
+        native_cases = tomllib.loads(
+            prepared_case_path(profile["rule_id"], profile).read_text(encoding="utf-8")
+        )["cases"]
+        paths.update(
+            source.relative_to(REPOSITORY).as_posix()
+            for source, _digest in declared_discrepancy_artifacts(
+                RUFF_DIR / native["source_profile_file"], native_cases
+            ).values()
+        )
     paths.add(RULE_PHASES_FILE.relative_to(REPOSITORY).as_posix())
     paths.add(
         (RUFF_DIR / "results/standard-suppression-policy.json")
@@ -368,6 +443,11 @@ def manifest_paths(manifest: dict[str, object], helper_path: str) -> set[str]:
                 candidate_file.relative_to(REPOSITORY).as_posix(),
                 case_file.relative_to(REPOSITORY).as_posix(),
             }
+        )
+        cases = tomllib.loads(case_file.read_text(encoding="utf-8"))["cases"]
+        paths.update(
+            source.relative_to(REPOSITORY).as_posix()
+            for source, _digest in declared_discrepancy_artifacts(profile, cases).values()
         )
         profile_data = tomllib.loads(profile.read_text(encoding="utf-8"))
         paths.update(
@@ -3089,6 +3169,7 @@ def stage_binding(
         check_staged_applicability(destination / "benchmark.toml", [rule], manifest)
         shutil.copyfile(candidate_path, rule_dir / "query.ryoql")
         shutil.copyfile(cases_path, rule_dir / "cases.toml")
+        stage_discrepancy_artifacts(profile, destination, cases, rule)
         check_canonical_standard_suppression(
             destination / "benchmark.toml", {rule: candidate_path}
         )
@@ -4326,11 +4407,70 @@ def reference_discrepancy_self_test() -> None:
             )
 
 
+def discrepancy_artifact_staging_self_test() -> None:
+    """Declared evidence is shared exactly once and cannot escape or replace inputs."""
+    fixture = RUFF_DIR / "fixtures/reference-discrepancy"
+    with tempfile.TemporaryDirectory(prefix="ryo-evidence-staging-") as temporary:
+        directory = Path(temporary)
+        source = directory / "source"
+        shutil.copytree(fixture, source)
+        cases = tomllib.loads((source / "rules/F821/cases.toml").read_text())["cases"][:2]
+        destination = directory / "stage"
+        destination.mkdir()
+        shutil.copyfile(source / "benchmark.toml", destination / "benchmark.toml")
+        artifacts = declared_discrepancy_artifacts(source / "benchmark.toml", cases)
+        assert len(artifacts) == 4, "two cases must share the four pinned artifacts"
+        stage_discrepancy_artifacts(source / "benchmark.toml", destination, cases, "F821")
+        assert {
+            str(path.relative_to(destination))
+            for path in (destination / "evidence").rglob("*")
+            if path.is_file()
+        } == set(artifacts), "undeclared evidence was copied"
+        assert all(sha256(destination / path) == digest for path, (_source, digest) in artifacts.items())
+
+        def declaration(path: str, digest: str) -> list[dict[str, object]]:
+            return [{"reference-discrepancy": {"evidence": [{"path": path, "sha256": digest}]}}]
+
+        def refused(rows: list[dict[str, object]], *, stage: Path | None = None) -> None:
+            try:
+                if stage is None:
+                    declared_discrepancy_artifacts(source / "benchmark.toml", rows)
+                else:
+                    stage_discrepancy_artifacts(source / "benchmark.toml", stage, rows, "F821")
+            except ValueError:
+                return
+            raise AssertionError("unsafe discrepancy evidence was accepted")
+
+        path, (_file, digest) = next(iter(artifacts.items()))
+        for unsafe in ["../outside.json", "/outside.json", "evidence\\outside.json", "C:/outside.json"]:
+            refused(declaration(unsafe, digest))
+        refused(declaration("evidence/missing.json", digest))
+        refused(declaration(path, "0" * 64))
+        conflicting = declaration(path, digest) + declaration(path, "0" * 64)
+        refused(conflicting)
+        outside = directory / "outside.json"
+        outside.write_text("external language evidence")
+        (source / "evidence/escape.json").symlink_to(outside)
+        refused(declaration("evidence/escape.json", sha256(outside)))
+        collision = "fragments/occupied.ryoql"
+        (source / collision).write_text("a declared source artifact")
+        (destination / "fragments").mkdir()
+        occupied = destination / collision
+        occupied.write_text("a canonical staged module")
+        refused(declaration(collision, sha256(source / collision)), stage=destination)
+        assert occupied.read_text() == "a canonical staged module"
+        escape_stage = directory / "escape-stage"
+        escape_stage.mkdir()
+        (escape_stage / "evidence").symlink_to(directory)
+        refused(declaration(path, digest), stage=escape_stage)
+
+
 def self_test() -> int:
     """Exercise fail-closed profile-selection and hash-mismatch guards without invoking Cargo."""
     self_test_standard_suppression()
     report_cache_contract_self_test()
     reference_discrepancy_self_test()
+    discrepancy_artifact_staging_self_test()
     global MANIFEST
     context_guard_self_test()
     actual_proof_asset_guard_self_test()

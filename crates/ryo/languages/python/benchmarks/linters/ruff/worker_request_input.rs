@@ -43,10 +43,13 @@ fn worker_execution_requires_the_actual_target_and_canonical_phase()
         );
     }
     let mut missing = request.clone();
-    missing
-        .as_object_mut()
-        .ok_or("request must be an object")?
-        .remove("parser_configuration");
+    assert!(
+        missing
+            .as_object_mut()
+            .ok_or("request must be an object")?
+            .remove("parser_configuration")
+            .is_some()
+    );
     assert!(request_input::checked_worker_identity(&missing.to_string(), configuration).is_err());
     for phases in [
         serde_json::Value::Null,
@@ -62,10 +65,13 @@ fn worker_execution_requires_the_actual_target_and_canonical_phase()
         );
     }
     let mut absent = request;
-    absent
-        .as_object_mut()
-        .ok_or("request must be an object")?
-        .remove("rule_applicability");
+    assert!(
+        absent
+            .as_object_mut()
+            .ok_or("request must be an object")?
+            .remove("rule_applicability")
+            .is_some()
+    );
     assert!(request_input::checked_worker_identity(&absent.to_string(), configuration).is_err());
     Ok(())
 }

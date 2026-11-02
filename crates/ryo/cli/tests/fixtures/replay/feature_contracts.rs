@@ -166,6 +166,9 @@ const CATALOG_QUERIES: &[(&str, &str)] = &[
     ),
 ];
 
+/// Package ancestry witnesses must come from the real upstream package tree.
+const CATALOG_CORPUS_WITNESSES: &[&str] = &["module-identity-witness"];
+
 /// Every newly exercised relation must have a nonvacuous source witness.
 const CATALOG_WITNESSES: &[&str] = &[
     "binding-event-witness",
@@ -190,6 +193,34 @@ const CATALOG_WITNESSES: &[&str] = &[
     "raw-format-segment-witness",
     "ordered-dfs-witness",
     "span-between-witness",
+];
+
+/// Sparse relations need a larger real package corpus; each query runs once per corpus.
+const CATALOG_STRESS_WITNESSES: &[&str] = &[
+    "binding-shadow-witness",
+    "brace-format-field-witness",
+    "compiler-feature-witness",
+    "format-field-witness",
+    "function-terminal-witness",
+    "interpolated-string-literal-witness",
+    "language-target-witness",
+    "module-identity-witness",
+    "raw-format-field-witness",
+];
+
+/// Integrity checks accompany the sparse relation witnesses on the larger corpus.
+const CATALOG_STRESS_INVARIANTS: &[&str] = &[
+    "metadata-fact-invariants",
+    "function-fact-invariants",
+    "format-fact-invariants",
+    "binding-fact-invariants",
+];
+
+/// Django's production sources add independently authored percent and brace formatting.
+const CATALOG_FORMAT_STRESS_WITNESSES: &[&str] = &[
+    "brace-format-field-witness",
+    "format-field-witness",
+    "raw-format-field-witness",
 ];
 
 /// Check invariants and require positive known-origin witnesses before returning measured feature feeds.
@@ -227,10 +258,16 @@ fn measure() -> Result<BTreeMap<String, u64>, String> {
             &super::base::snapshot::ruff(),
             CATALOG_QUERIES,
             &["scripts/**/*.py", "python/**/*.py"],
-            &[],
+            CATALOG_CORPUS_WITNESSES,
             1,
         )?;
         merge(&mut feeds, catalog)?;
+        // Standalone relation fixtures have no package ancestry.
+        let fixture_witnesses: Vec<_> = CATALOG_WITNESSES
+            .iter()
+            .copied()
+            .filter(|witness| !CATALOG_CORPUS_WITNESSES.contains(witness))
+            .collect();
         let fixtures = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../languages/python/tests/fixtures/relations");
         let (fixture_feeds, _) = measure_corpus(
@@ -257,10 +294,42 @@ fn measure() -> Result<BTreeMap<String, u64>, String> {
                 "raw_format_field/input*.py",
                 "raw_format_segment/input*.py",
             ],
-            CATALOG_WITNESSES,
+            &fixture_witnesses,
             1,
         )?;
         merge(&mut feeds, fixture_feeds)?;
+        let stress_queries: Vec<_> = CATALOG_QUERIES
+            .iter()
+            .copied()
+            .filter(|(name, _)| {
+                CATALOG_STRESS_WITNESSES.contains(name)
+                    || CATALOG_STRESS_INVARIANTS.contains(name)
+            })
+            .collect();
+        let (stress_feeds, _) = measure_corpus(
+            &super::base::snapshot::target("catalog-pandas"),
+            &stress_queries,
+            &["pandas/**/*.py"],
+            CATALOG_STRESS_WITNESSES,
+            1,
+        )?;
+        merge(&mut feeds, stress_feeds)?;
+        let format_queries: Vec<_> = CATALOG_QUERIES
+            .iter()
+            .copied()
+            .filter(|(name, _)| {
+                CATALOG_FORMAT_STRESS_WITNESSES.contains(name)
+                    || *name == "format-fact-invariants"
+            })
+            .collect();
+        let (format_feeds, _) = measure_corpus(
+            &super::base::snapshot::target("catalog-django"),
+            &format_queries,
+            &["django/**/*.py"],
+            CATALOG_FORMAT_STRESS_WITNESSES,
+            1,
+        )?;
+        merge(&mut feeds, format_feeds)?;
         Ok(feeds)
     })();
     super::base::COUNTING.store(false, std::sync::atomic::Ordering::Relaxed);
