@@ -297,7 +297,7 @@ def native_descriptor_json(text: str) -> dict[str, object]:
     return result
 
 def native_standalone_manifest(manifest: dict[str, object], descriptor: dict[str, object] | None=None) -> dict[str, object]:
-    """Validate the newly declared singleton contract over every exact native query/case asset.
+    """Validate the explicitly admitted native singleton query/case assets.
 
     This is current authoring intent, not evidence that the old all-query invocation
     ran these selections. Candidate variants in the ordinary prepared profiles are
@@ -424,8 +424,8 @@ def native_standalone_manifest(manifest: dict[str, object], descriptor: dict[str
         declared_queries.add(recorded['candidate_file'])
         declared_rules.add(rule)
         case_count += len(cases)
-    if declared_queries != set(native_queries) or descriptor['query_count'] != len(native_queries) or descriptor['query_count'] != len(profiles):
-        raise ValueError('native query inventory omitted or added an authored asset')
+    if not declared_queries.issubset(native_queries) or descriptor['query_count'] != len(declared_queries) or descriptor['query_count'] != len(profiles):
+        raise ValueError('native declared query inventory is incomplete or inconsistent')
     if descriptor['case_count'] != case_count:
         raise ValueError('native total case inventory mismatch')
     return {**manifest, 'profiles': profiles, 'combined_profiles': {}, 'actual_proof_receipts': [], 'native_identity': {'execution_contract': descriptor['execution_contract'], 'historical_certification': False, 'descriptor_path': (profile_config.RUFF_DIR.relative_to(profile_config.REPOSITORY) / 'profiles/native-standalone.json').as_posix(), 'descriptor_sha256': profile_config.sha256(profile_config.NATIVE_DESCRIPTOR_FILE), 'source_profile_sha256': descriptor['source_profile_sha256'], 'source_settings': source_settings, 'query_count': len(profiles), 'case_count': case_count}}

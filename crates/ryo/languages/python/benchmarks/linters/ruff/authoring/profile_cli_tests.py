@@ -8,6 +8,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tarfile
 import tempfile
 from pathlib import Path
 import tomllib
@@ -442,7 +443,7 @@ def self_test() -> int:
             return 1
         profile_source = root / 'profile-source.toml'
         profile_source.write_text('tool = "ruff"\nversion = "0"\nsha256 = ["pin"]\ndefaults = ["F401"]\n[query-modules] # existing but empty\n', encoding='utf-8')
-        module_registry = {'python/ruff/suppress': 'rules/F401/candidate.ryoql'}
+        module_registry = {'python/ruff/suppress': 'rules/F401/query.ryoql'}
         profile_sources.copy_modules(module_registry, root)
         staged_profile = root / 'module-profile.toml'
         profile_sources.write_staged_profile(profile_source, staged_profile, module_registry)
@@ -450,7 +451,7 @@ def self_test() -> int:
         if parsed_profile.get('query-modules') != module_registry:
             print('staged query module registry did not remain valid TOML', file=sys.stderr)
             return 1
-        staged_module = root / 'rules/F401/candidate.ryoql'
+        staged_module = root / 'rules/F401/query.ryoql'
         if not staged_module.is_file() or staged_module.read_bytes() != (profile_config.RUFF_DIR / module_registry['python/ruff/suppress']).read_bytes():
             print('staged query module bytes changed', file=sys.stderr)
             return 1
@@ -467,11 +468,11 @@ def self_test() -> int:
                 print(f'{rule} candidate snapshot changed the frozen expanded cohort', file=sys.stderr)
                 return 1
         f821_record = manifest['profiles']['F821']
-        f821_candidate = profile_sources.prepared_candidate_path('F821', f821_record)
+        f821_candidate = profile_config.RUFF_DIR / 'rules/F821/query.ryoql'
         f821_cases = profile_sources.prepared_case_path('F821', f821_record)
         historical_candidate = profile_staging.combined_query_path('F821', expanded_descriptor)
         historical_cases = profile_staging.combined_case_path('F821', expanded_descriptor)
-        if f821_candidate != profile_config.RUFF_DIR / 'rules/F821/candidate.ryoql' or f821_cases.read_bytes() != (profile_config.RUFF_DIR / 'rules/F821/cases.toml').read_bytes() or historical_candidate == f821_candidate or (historical_cases == f821_cases) or (historical_candidate.read_bytes() == f821_candidate.read_bytes()) or (historical_cases.read_bytes() == f821_cases.read_bytes()):
+        if f821_cases.read_bytes() != (profile_config.RUFF_DIR / 'rules/F821/cases.toml').read_bytes() or historical_candidate == f821_candidate or (historical_cases == f821_cases) or (historical_candidate.read_bytes() == f821_candidate.read_bytes()) or (historical_cases.read_bytes() == f821_cases.read_bytes()):
             print('F821 profile snapshots changed the frozen expanded cohort', file=sys.stderr)
             return 1
         shape_profile = tomllib.loads((profile_config.REPOSITORY / shape_descriptor['profile_file']).read_text(encoding='utf-8'))
@@ -488,11 +489,37 @@ def self_test() -> int:
             receipt_data = json.loads((profile_config.REPOSITORY / receipt).read_text(encoding='utf-8'))
             for artifact in receipt_data.get('execution_artifacts', {}):
                 manifest['files'].pop(artifact, None)
-        for relative in manifest['files']:
-            source = profile_config.REPOSITORY / relative
-            destination = root / relative
+        normalization_root = profile_config.RUFF_DIR / 'results/canonical-query-sources-2026-11-02'
+        normalization = json.loads((normalization_root / 'normalization.json').read_text(encoding='utf-8'))
+        migrated = {entry['old_path']: entry for entry in normalization['entries']}
+        with tarfile.open(normalization_root / 'divergent-candidates.tar.gz') as archive:
+            for relative, expected_hash in manifest['files'].items():
+                source = profile_config.REPOSITORY / relative
+                destination = root / relative
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                if source.is_file():
+                    shutil.copyfile(source, destination)
+                    continue
+                entry = migrated.get(relative)
+                if entry is None:
+                    raise FileNotFoundError(f'frozen input is missing: {relative}')
+                if entry['kind'] == 'divergent_candidate_archived':
+                    member = archive.extractfile(f"rules/{entry['rule']}/candidate.ryoql")
+                    if member is None:
+                        raise FileNotFoundError(f'archived candidate is missing: {relative}')
+                    restored = member.read()
+                else:
+                    restored = (profile_config.REPOSITORY / entry['active_path']).read_bytes()
+                if hashlib.sha256(restored).hexdigest() != expected_hash:
+                    raise ValueError(f'frozen input bytes changed during canonical path migration: {relative}')
+                destination.write_bytes(restored)
+        for query in (profile_config.RUFF_DIR / 'rules').glob('*/query.ryoql'):
+            destination = root / query.relative_to(profile_config.REPOSITORY)
             destination.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(source, destination)
+            if destination.is_file():
+                assert destination.read_bytes() == query.read_bytes()
+            else:
+                shutil.copyfile(query, destination)
         for module in (profile_config.RUFF_DIR / 'authoring').glob('*.py'):
             relative = module.relative_to(profile_config.REPOSITORY).as_posix()
             destination = root / relative
@@ -500,7 +527,14 @@ def self_test() -> int:
             shutil.copyfile(module, destination)
             manifest['files'][relative] = profile_config.sha256(module)
         helper_relative = Path(profile_config.ENTRYPOINT).relative_to(profile_config.REPOSITORY).as_posix()
-        manifest['files'][helper_relative] = profile_config.sha256(Path(profile_config.ENTRYPOINT))
+        required = profile_proofs.manifest_paths(manifest, helper_relative)
+        for relative in required:
+            destination = root / relative
+            if not destination.is_file():
+                source = profile_config.REPOSITORY / relative
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(source, destination)
+        manifest['files'] = {relative: profile_config.sha256(root / relative) for relative in sorted(required)}
         temporary_manifest = root / profile_config.MANIFEST.relative_to(profile_config.REPOSITORY)
         temporary_manifest.write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
         helper = root / helper_relative

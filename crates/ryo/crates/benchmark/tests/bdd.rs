@@ -17,6 +17,9 @@ mod certify;
 #[path = "../src/inbound/use_cases/collect/acceptance.rs"]
 mod collect;
 
+#[path = "../src/inbound/use_cases/verify_inventory/acceptance.rs"]
+mod verify_inventory;
+
 /// Stateless world: each acceptance step constructs independently owned boundaries.
 #[derive(Debug, Default, cucumber::World)]
 struct Behavior;

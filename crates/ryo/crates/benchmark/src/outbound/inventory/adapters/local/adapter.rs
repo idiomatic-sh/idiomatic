@@ -17,7 +17,7 @@ fn publish(output: &Path, summary: &Summary) -> Result<(), String> {
     serde_json::to_writer_pretty(&mut temporary, summary).map_err(|e| e.to_string())?;
     temporary.write_all(b"\n").map_err(|e| e.to_string())?;
     temporary.as_file().sync_all().map_err(|e| e.to_string())?;
-    temporary
+    let _persisted = temporary
         .persist(output.join("summary.json"))
         .map_err(|e| e.to_string())?;
     Ok(())

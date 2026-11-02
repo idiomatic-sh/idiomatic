@@ -113,7 +113,7 @@ pub fn verify(
                     )
                 })
                 .collect::<BTreeMap<_, _>>();
-            environment.insert(
+            let _previous = environment.insert(
                 "RYO_VERIFY_CASE_RESULTS".into(),
                 directory.join("cases.jsonl").into_os_string(),
             );

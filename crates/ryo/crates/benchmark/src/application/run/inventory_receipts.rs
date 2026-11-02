@@ -32,7 +32,10 @@ pub(super) fn validate(cases: &[Value], observations: &[Value]) -> Result<(usize
         let reference_expected = if certificate.is_null() {
             expected.clone()
         } else {
-            normalized(&certificate["expected"])?
+            if normalized(&certificate["intended_expected"])? != expected {
+                return Err("discrepancy intention differs from registered case".into());
+            }
+            normalized(&certificate["reference_expected"])?
         };
         let mut sides = Vec::new();
         for side in ["reference", "candidate"] {
@@ -175,5 +178,45 @@ mod tests {
                 .unwrap_err()
                 .contains("diagnostics must be an array")
         );
+    }
+
+    #[test]
+    fn independently_bound_reference_difference_can_pass() {
+        let finding = json!({"rule": "A001", "file": "input.txt", "start": 0, "end": 1});
+        let case = json!({
+            "rule": "A001", "name": "case", "source_sha256": "source-pin",
+            "files": ["input.txt"], "expected": [], "project_context_mode": "isolated",
+            "reference_discrepancy": {
+                "intended_expected": [], "reference_expected": [finding],
+                "approved_executable_sha256": ["tool-pin"],
+                "identity": {
+                    "settings-sha256": "settings-pin", "profile-sha256": "profile-pin",
+                    "source-sha256": "source-pin", "reference-output-sha256": "reference-pin",
+                    "intended-output-sha256": "intended-pin"
+                }
+            }
+        });
+        let proof = json!({
+            "actual_executable_sha256": "tool-pin", "settings_sha256": "settings-pin",
+            "profile_sha256": "profile-pin", "source_sha256": "source-pin",
+            "reference_output_sha256": "reference-pin", "intended_output_sha256": "intended-pin"
+        });
+        let base = json!({
+            "rule": "A001", "name": "case", "complete": true, "error": null,
+            "case_passed": true, "source_sha256": "source-pin", "files": ["input.txt"],
+            "expected": [], "reference_expected": [finding], "diagnostics": [], "skipped": [],
+            "discrepancy_validation": proof,
+            "context_manifest": null, "project_context": null,
+            "observation_schema": "benchmark-case/v2", "expectation_contract": "diagnostics",
+            "execution_metadata": {"availability": "complete"},
+            "coverage": {"selected_rule_file_pairs": 1, "evaluated_rule_file_pairs": 1,
+                         "skipped_rule_file_pairs": 0, "unknown_or_unread_rule_file_pairs": 0}
+        });
+        let mut reference = base.clone();
+        reference["side"] = json!("reference");
+        reference["diagnostics"] = json!([finding]);
+        let mut candidate = base;
+        candidate["side"] = json!("candidate");
+        assert_eq!(validate(&[case], &[reference, candidate]), Ok((0, 1)));
     }
 }

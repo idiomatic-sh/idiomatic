@@ -23,7 +23,7 @@ impl ExecutionPort for ExecutionProcessAdapter {
     fn run(&self, invocation: Invocation) -> Result<ProcessOutput, Error> {
         let start = Instant::now();
         let mut command = Command::new(invocation.executable);
-        command
+        let _command = command
             .args(invocation.arguments)
             .envs(invocation.environment)
             .current_dir(invocation.directory);
@@ -31,13 +31,13 @@ impl ExecutionPort for ExecutionProcessAdapter {
             // Files avoid pipe-reader threads that could remain blocked after a timed-out descendant.
             let mut stdout = tempfile::tempfile()?;
             let mut stderr = tempfile::tempfile()?;
-            command
+            let _command = command
                 .stdout(Stdio::from(stdout.try_clone()?))
                 .stderr(Stdio::from(stderr.try_clone()?));
             #[cfg(unix)]
             {
                 use std::os::unix::process::CommandExt as _;
-                command.process_group(0);
+                let _command = command.process_group(0);
             }
             let mut child = command.spawn()?;
             let deadline = Instant::now()
@@ -71,8 +71,8 @@ impl ExecutionPort for ExecutionProcessAdapter {
             stderr.rewind()?;
             let mut out = Vec::new();
             let mut err = Vec::new();
-            stdout.read_to_end(&mut out)?;
-            stderr.read_to_end(&mut err)?;
+            let _stdout_bytes = stdout.read_to_end(&mut out)?;
+            let _stderr_bytes = stderr.read_to_end(&mut err)?;
             if timed_out {
                 err.extend_from_slice(
                     format!(

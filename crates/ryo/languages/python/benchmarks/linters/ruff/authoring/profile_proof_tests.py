@@ -4,6 +4,7 @@ import contextlib
 import hashlib
 import json
 import subprocess
+import tarfile
 import tempfile
 from pathlib import Path
 import tomllib
@@ -125,8 +126,11 @@ def native_standalone_self_test() -> None:
                         assert control['comparison'] == 'full' and control['expected'] == []
                         assert not (root / 'rules' / 'PYI010').exists()
                     if rule == 'ASYNC115':
-                        alternate = profile_config.RUFF_DIR / 'rules/ASYNC115/candidate.ryoql'
-                        assert alternate.read_bytes() != (root / 'rules' / rule / 'query.ryoql').read_bytes()
+                        archived = profile_config.RUFF_DIR / 'results/canonical-query-sources-2026-11-02/divergent-candidates.tar.gz'
+                        with tarfile.open(archived) as archive:
+                            alternate = archive.extractfile('rules/ASYNC115/candidate.ryoql')
+                            assert alternate is not None
+                            assert alternate.read() != (root / 'rules' / rule / 'query.ryoql').read_bytes()
                 assert profile_config.sha256(source_profile) == source_sha, 'source profile must never be rewritten'
         print(f"native standalone guards passed: {descriptor['query_count']} exact queries, {descriptor['case_count']} unchanged cases, {len(mutations) + 1} refusals, four staging controls; no contestants executed")
     finally:
@@ -154,14 +158,14 @@ def actual_proof_asset_guard_self_test() -> None:
         root = Path(temporary)
         prefix = profile_config.RUFF_DIR.relative_to(profile_config.REPOSITORY)
         profile_path = prefix / 'profiles/F401/benchmark.toml'
-        query_path = prefix / 'rules/F401/candidate.ryoql'
+        query_path = prefix / 'rules/F401/query.ryoql'
         (root / profile_path).parent.mkdir(parents=True, exist_ok=True)
         (root / query_path).parent.mkdir(parents=True, exist_ok=True)
         (root / profile_path).write_text('defaults = ["F401"]\n', encoding='utf-8')
         (root / query_path).write_text('valid source-commit bytes', encoding='utf-8')
         profile = {'rule': 'F401', 'profile_file': profile_path.as_posix(), 'settings': {'defaults': ['F401'], 'parser_configuration': 'python-target=3.10', 'project_context_mode': 'isolated'}, 'module_registry': {}, 'modules': {}, 'query': {'canonical_path': query_path.as_posix(), 'source_commit': '48acfc0321046a0a3d0c44b5d122dbe09eb51cc6', 'proof_sha256': hashlib.sha256(b'different actual executed proof bytes').hexdigest()}}
         (root / 'receipt.json').write_text(json.dumps({'schema': 'actual-proof-assets/v1', 'profiles': [profile]}), encoding='utf-8')
-        manifest = {'profiles': {'F401': {'candidate_file': 'rules/F401/candidate.ryoql'}}, 'actual_proof_receipts': ['receipt.json'], 'files': {'query.ryoql': profile_config.sha256(root / query_path)}}
+        manifest = {'profiles': {'F401': {'candidate_file': 'rules/F401/query.ryoql'}}, 'actual_proof_receipts': ['receipt.json'], 'files': {'query.ryoql': profile_config.sha256(root / query_path)}}
         try:
             profile_proofs.verify_actual_proof_assets(manifest, root)
         except ValueError as error:
