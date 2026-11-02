@@ -253,6 +253,7 @@ def render_full_inventory(path: Path) -> str:
         from authoring.target_supplement import verified_rows
         for directory_name, label in (
             ("up035-up036-target-supplement", "full target-version fixture proof"),
+            ("ruf009-target-supplement", "raw-exact fixture proof"),
             ("ruf101-target-supplement", "raw-exact fixture proof"),
             ("ple0116-target-supplement", "py37 fixture and py310 control proof"),
         ):
