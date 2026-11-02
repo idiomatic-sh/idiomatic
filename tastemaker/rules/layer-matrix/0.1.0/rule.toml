@@ -220,3 +220,52 @@ given.files.'crates/benchmark/src/domain.rs' = 'pub struct Token;'
 given.files.'crates/benchmark/src/outbound.rs' = 'pub mod service;'
 given.files.'crates/benchmark/src/outbound/service.rs' = 'use crate::domain::Token;'
 then.findings = [{ path = "crates/benchmark/src/outbound/service.rs", line = 1 }]
+
+[[scenarios]]
+id = "domain-cannot-construct-application-executor"
+scenario = "Runtime construction in a domain algorithm depends on the application definition even without a use declaration."
+given.files.'src/application.rs' = 'pub mod dispatch;'
+given.files.'src/application/dispatch.rs' = 'pub mod execution;'
+given.files.'src/application/dispatch/execution.rs' = 'pub struct Runner;'
+given.files.'src/domain/service.rs' = 'pub fn run() { let _executor = crate::application::dispatch::execution::Runner; }'
+then.findings = [{ path = "src/domain/service.rs", line = 1 }]
+
+[[scenarios]]
+id = "application-owns-executor-construction"
+scenario = "The identical real executor dependency is allowed when runtime coordination lives in application."
+given.files.'src/application.rs' = 'pub mod dispatch; pub mod service;'
+given.files.'src/application/dispatch.rs' = 'pub mod execution;'
+given.files.'src/application/dispatch/execution.rs' = 'pub struct Runner;'
+given.files.'src/application/service.rs' = 'pub fn run() { let _executor = crate::application::dispatch::execution::Runner; }'
+
+[[scenarios]]
+id = "domain-test-cannot-import-application-helper"
+scenario = "A test module in domain cannot alias a real application execution helper through a relative path."
+given.files.'src/application.rs' = 'pub mod dispatch;'
+given.files.'src/application/dispatch.rs' = 'pub mod testing;'
+given.files.'src/application/dispatch/testing.rs' = 'pub fn run() {}'
+given.files.'src/domain.rs' = 'pub mod service; pub mod types; #[cfg(test)] mod service_test;'
+given.files.'src/domain/service_test.rs' = 'use super::super::application::dispatch::testing::run as ordinary;'
+then.findings = [{ path = "src/domain/service_test.rs", line = 1 }]
+
+[[scenarios]]
+id = "application-test-may-use-its-execution-helper"
+scenario = "The execution fixture remains legitimate after its behavioral test is placed beside the application owner."
+given.files.'src/application.rs' = 'pub mod dispatch;'
+given.files.'src/application/dispatch.rs' = 'pub mod testing; #[cfg(test)] mod owner_test;'
+given.files.'src/application/dispatch/testing.rs' = 'pub fn run() {}'
+given.files.'src/application/dispatch/owner_test.rs' = 'use super::testing::run as ordinary;'
+
+[[scenarios]]
+id = "application-coordinates-domain-reading-port"
+scenario = "Application may invoke a domain-owned reading interface without moving pure interfaces out of domain."
+given.files.'src/domain/service.rs' = 'pub trait Reading { fn read(&self) -> u32; }'
+given.files.'src/application/service.rs' = 'pub fn run(source: &dyn crate::domain::service::Reading) -> u32 { source.read() }'
+
+[[scenarios]]
+id = "domain-message-is-not-a-runtime-dependency"
+scenario = "A diagnostic string containing an application path is not a resolved source dependency."
+given.files.'src/application.rs' = 'pub mod dispatch;'
+given.files.'src/application/dispatch.rs' = 'pub mod execution;'
+given.files.'src/application/dispatch/execution.rs' = 'pub struct Runner;'
+given.files.'src/domain/service.rs' = """pub fn describe() -> &'static str { "crate::application::dispatch::execution::Runner" }"""
