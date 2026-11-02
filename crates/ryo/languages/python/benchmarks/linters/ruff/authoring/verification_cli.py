@@ -22,9 +22,10 @@ from authoring import rule_registration
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('ruff', type=Path, nargs='?', help='pinned Ruff executable')
-    parser.add_argument('rules', nargs='*', help='optional rule IDs; default: every prepared profile')
+    parser.add_argument('rules', nargs='*', help='optional rule IDs in the 413-rule inventory; use --prepared for historical authoring profiles')
     parser.add_argument('--profile', help='run one named combined prepared profile')
     parser.add_argument('--full-inventory', action='store_true', help='enumerate all 413 pinned defaults; strict failure unless every rule passes')
+    parser.add_argument('--prepared', action='store_true', help='use the historical prepared-profile authoring manifest')
     parser.add_argument('--worker', type=Path, help='existing sealed worker for --full-inventory; never builds a worker')
     parser.add_argument('--inventory-runner', type=Path, help='existing shared benchmark collector executable')
     parser.add_argument('--rule-timeout', type=float, default=120.0, help='per-rule full-inventory timeout in seconds (default: 120)')
@@ -39,12 +40,15 @@ def main() -> int:
     parser.add_argument('--reference-only', action='store_true', help='check sealed expected findings with Ruff only')
     parser.add_argument('--self-test', action='store_true', help='exercise fail-closed profile guards without running Cargo')
     arguments = parser.parse_args()
-    if arguments.full_inventory:
-        if arguments.ruff is None or arguments.output_dir is None or (arguments.worker is None) == (arguments.reuse_worker_from is None) or (arguments.rule_timeout <= 0) or arguments.rules or arguments.profile or arguments.native_standalone or arguments.reference_only or arguments.resume or (arguments.shards is not None) or (arguments.workers is not None) or arguments.parity_check:
-            parser.error('--full-inventory requires Ruff, fresh output-dir, exactly one of --worker/--reuse-worker-from and a positive rule-timeout; no subset/resume modes')
+    inventory_default = not (arguments.prepared or arguments.profile or arguments.native_standalone or arguments.self_test or arguments.self_test_native_standalone)
+    if arguments.full_inventory or inventory_default:
+        if arguments.ruff is None or arguments.output_dir is None or (arguments.worker is not None and arguments.reuse_worker_from is not None) or (arguments.rule_timeout <= 0) or arguments.profile or arguments.native_standalone or arguments.reference_only or arguments.resume or (arguments.shards is not None) or (arguments.workers is not None) or arguments.parity_check or arguments.prepared or (arguments.full_inventory and arguments.rules):
+            parser.error('inventory verification requires Ruff, fresh output-dir and positive timeout; use --prepared or --profile for historical authoring flags; --full-inventory accepts no rule subset')
         return rule_registration.verify_full_inventory(arguments)
     if arguments.worker is not None:
-        parser.error('--worker is supported only with --full-inventory')
+        parser.error('--worker is supported only with inventory verification')
+    if arguments.inventory_runner is not None:
+        parser.error('--inventory-runner is supported only with inventory verification')
     if arguments.self_test_native_standalone:
         profile_proof_tests.native_standalone_self_test()
         return 0

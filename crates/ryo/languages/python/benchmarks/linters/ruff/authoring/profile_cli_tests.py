@@ -534,24 +534,41 @@ def self_test() -> int:
                 source = profile_config.REPOSITORY / relative
                 destination.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(source, destination)
+        # The frozen prepared descriptors predate two appended factory controls.
+        # This sandbox copies today's canonical case files, so align only those
+        # append-only inventories before testing unrelated preflight refusals.
+        for rule in ('FURB132', 'PERF402'):
+            recorded = manifest['profiles'][rule]
+            cases_relative = profile_config.RUFF_DIR.relative_to(profile_config.REPOSITORY) / recorded['cases_file']
+            cases_path = root / cases_relative
+            if not cases_path.is_file():
+                cases_path.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(profile_config.REPOSITORY / cases_relative, cases_path)
+            names = [case['name'] for case in tomllib.loads(cases_path.read_text(encoding='utf-8'))['cases']]
+            previous = recorded['case_names']
+            if names[:len(previous)] != previous or len(names) != len(previous) + 2:
+                print(f'{rule} fixture changed beyond its two appended controls', file=sys.stderr)
+                return 1
+            recorded['case_names'] = names
+            recorded['case_count'] = len(names)
         manifest['files'] = {relative: profile_config.sha256(root / relative) for relative in sorted(required)}
         temporary_manifest = root / profile_config.MANIFEST.relative_to(profile_config.REPOSITORY)
         temporary_manifest.write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
         helper = root / helper_relative
         ruff = str(Path(sys.executable).resolve())
         pristine_manifest = json.loads(json.dumps(manifest))
-        invalid_selection = subprocess.run([sys.executable, str(helper), ruff, '--output-dir', str(root / 'invalid-output'), 'INVALID-RULE'], capture_output=True, text=True, check=False)
+        invalid_selection = subprocess.run([sys.executable, str(helper), ruff, '--prepared', '--output-dir', str(root / 'invalid-output'), 'INVALID-RULE'], capture_output=True, text=True, check=False)
         if invalid_selection.returncode != 2 or 'unknown or duplicate profile rule' not in invalid_selection.stderr:
             print(f'invalid profile selection did not fail closed: status={invalid_selection.returncode}; stderr={invalid_selection.stderr!r}', file=sys.stderr)
             return 1
-        duplicate_selection = subprocess.run([sys.executable, str(helper), ruff, '--output-dir', str(root / 'duplicate-output'), 'F401', 'F401'], capture_output=True, text=True, check=False)
+        duplicate_selection = subprocess.run([sys.executable, str(helper), ruff, '--prepared', '--output-dir', str(root / 'duplicate-output'), 'F401', 'F401'], capture_output=True, text=True, check=False)
         if duplicate_selection.returncode != 2 or 'unknown or duplicate profile rule' not in duplicate_selection.stderr:
             print('duplicate profile selection did not fail closed', file=sys.stderr)
             return 1
         candidate = root / next((path for path in manifest['files'] if path.endswith('/rules/F401/candidate.ryoql')))
         original_candidate = candidate.read_bytes()
         candidate.write_bytes(original_candidate + b'\n')
-        changed_input = subprocess.run([sys.executable, str(helper), ruff, '--output-dir', str(root / 'changed-output'), 'F401'], capture_output=True, text=True, check=False)
+        changed_input = subprocess.run([sys.executable, str(helper), ruff, '--prepared', '--output-dir', str(root / 'changed-output'), 'F401'], capture_output=True, text=True, check=False)
         if changed_input.returncode != 2 or 'prepared input hash mismatch' not in changed_input.stderr:
             print('prepared input hash mismatch did not fail closed', file=sys.stderr)
             return 1
@@ -579,8 +596,19 @@ def self_test() -> int:
         if pinned_ruff is None:
             print('reference-only self-test requires the pinned Ruff executable on PATH', file=sys.stderr)
             return 1
+        inventory_collector = fake_bin / 'inventory-collector'
+        inventory_collector.write_text('#!/bin/sh\nexit 0\n', encoding='utf-8')
+        inventory_collector.chmod(493)
+        inventory_output = root / 'default-inventory-output'
+        default_inventory = subprocess.run([sys.executable, str(helper), pinned_ruff, '--worker', str(reference_worker), '--inventory-runner', str(inventory_collector), '--output-dir', str(inventory_output), 'F401'], capture_output=True, text=True, check=False, env={**os.environ, 'RYO_RUFF_PREPARED_MANIFEST': str(temporary_manifest)})
+        registration_path = inventory_output / 'registration.json'
+        registration = json.loads(registration_path.read_text(encoding='utf-8')) if registration_path.is_file() else {}
+        rows = registration.get('rules', [])
+        if default_inventory.returncode != 0 or len(rows) != 413 or [row['rule_id'] for row in rows if row['command'] is not None] != ['F401'] or sum(row['reason'] == 'not selected for this invocation' for row in rows) != 412:
+            print(f'default canonical inventory routing failed: status={default_inventory.returncode}; stderr={default_inventory.stderr!r}', file=sys.stderr)
+            return 1
         reference_output = root / 'reference-only-output'
-        reference_only = subprocess.run([sys.executable, str(helper), pinned_ruff, '--output-dir', str(reference_output), '--reference-only', 'F401'], capture_output=True, text=True, check=False, env={**os.environ, 'PATH': f"{fake_bin}:{os.environ['PATH']}", 'RYO_RUFF_PREPARED_MANIFEST': str(temporary_manifest)})
+        reference_only = subprocess.run([sys.executable, str(helper), pinned_ruff, '--prepared', '--output-dir', str(reference_output), '--reference-only', 'F401'], capture_output=True, text=True, check=False, env={**os.environ, 'PATH': f"{fake_bin}:{os.environ['PATH']}", 'RYO_RUFF_PREPARED_MANIFEST': str(temporary_manifest)})
         builds = cargo_build_marker.read_text().splitlines() if cargo_build_marker.exists() else []
         reference_records = reference_output / 'profiles' / 'F401' / 'reference-cases.jsonl'
         expected_reference_names = {case['name'] for case in tomllib.loads((profile_config.REPOSITORY / 'crates/ryo/languages/python/benchmarks/linters/ruff/rules/F401/cases.toml').read_text(encoding='utf-8'))['cases']}
@@ -592,7 +620,7 @@ def self_test() -> int:
         invalid_rule_manifest = json.loads(json.dumps(pristine_manifest))
         invalid_rule_manifest['combined_profiles']['expanded-defaults']['selected_rules'].append('NOT-SHIPPED')
         temporary_manifest.write_text(json.dumps(invalid_rule_manifest, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
-        invalid_rule = subprocess.run([sys.executable, str(helper), ruff, '--output-dir', str(root / 'invalid-rule-output'), '--profile', 'expanded-defaults'], capture_output=True, text=True, check=False, env={**os.environ, 'PATH': f"{fake_bin}:{os.environ['PATH']}"})
+        invalid_rule = subprocess.run([sys.executable, str(helper), ruff, '--prepared', '--output-dir', str(root / 'invalid-rule-output'), '--profile', 'expanded-defaults'], capture_output=True, text=True, check=False, env={**os.environ, 'PATH': f"{fake_bin}:{os.environ['PATH']}"})
         if invalid_rule.returncode != 2 or 'combined profile contains a non-default rule' not in invalid_rule.stderr or marker.exists():
             print('non-default combined rule did not fail before candidate work', file=sys.stderr)
             return 1
@@ -609,7 +637,7 @@ def self_test() -> int:
             temporary_manifest.write_text(json.dumps(trial_manifest, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
             marker.unlink(missing_ok=True)
             preflight_output = root / 'later-preflight-output'
-            check = subprocess.run([sys.executable, str(helper), ruff, '--profile', later_name, '--output-dir', str(preflight_output)], capture_output=True, text=True, check=False, env={**os.environ, 'PATH': f"{fake_bin}:{os.environ['PATH']}", 'RYO_RUFF_PREPARED_MANIFEST': str(temporary_manifest)})
+            check = subprocess.run([sys.executable, str(helper), ruff, '--prepared', '--output-dir', str(preflight_output), '--profile', later_name, 'F401'], capture_output=True, text=True, check=False, env={**os.environ, 'PATH': f"{fake_bin}:{os.environ['PATH']}", 'RYO_RUFF_PREPARED_MANIFEST': str(temporary_manifest)})
             receipt_path = preflight_output / 'preflight-error.json'
             receipt = json.loads(receipt_path.read_text(encoding='utf-8')) if receipt_path.is_file() else {}
             valid = check.returncode == 2 and 'complete expected inventory count mismatch' in check.stderr and (not marker.exists()) and (receipt.get('manifest_path') == temporary_manifest.relative_to(root).as_posix()) and (receipt.get('manifest_sha256') == profile_config.sha256(temporary_manifest))
@@ -624,7 +652,7 @@ def self_test() -> int:
         baseline_overlay = (profile_config.REPOSITORY / overlay_relative).read_bytes()
         (root / pristine_manifest['combined_profiles']['expanded-defaults']['expectations_file']).write_bytes((profile_config.REPOSITORY / pristine_manifest['combined_profiles']['expanded-defaults']['expectations_file']).read_bytes())
         (root / pristine_manifest['combined_profiles']['shape-110']['expectations_file']).write_bytes(baseline_overlay)
-        preflight = subprocess.run([sys.executable, str(helper), str(Path(sys.executable).resolve()), last_rule, '--output-dir', str(root / 'inventory-output')], capture_output=True, text=True, check=False, env={**os.environ, 'PATH': f"{fake_bin}:{os.environ['PATH']}"})
+        preflight = subprocess.run([sys.executable, str(helper), str(Path(sys.executable).resolve()), '--prepared', '--output-dir', str(root / 'inventory-output'), 'F401', last_rule], capture_output=True, text=True, check=False, env={**os.environ, 'PATH': f"{fake_bin}:{os.environ['PATH']}"})
         if preflight.returncode != 2 or f'case inventory mismatch for {last_profile}' not in preflight.stderr or marker.exists():
             print(f'later-profile preflight guard failed: status={preflight.returncode}; stderr={preflight.stderr.strip()!r}; marker={marker.exists()}', file=sys.stderr)
             return 1

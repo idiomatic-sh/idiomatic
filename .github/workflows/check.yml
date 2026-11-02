@@ -344,8 +344,8 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
   ruff-all-defaults:
-    # Deliberately strict: the existing Ruff candidate and native gates remain
-    # regression subsets, while this job records every pinned default.
+    # Deliberately strict: the Ruff authoring guard and native subset jobs are
+    # separate; this job records every pinned default.
     runs-on: ubuntu-26.04
     timeout-minutes: 360
     defaults:

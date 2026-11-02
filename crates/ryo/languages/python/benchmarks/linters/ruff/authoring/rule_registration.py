@@ -1,5 +1,6 @@
 """Rule registration: linter-specific authoring and proof utilities."""
 from __future__ import annotations
+import contextlib
 import json
 import re
 import shutil
@@ -124,24 +125,36 @@ def verify_full_inventory(arguments) -> int:
     rules = full_inventory_ids(base, phases)
     manifest = json.loads(profile_config.MANIFEST.read_text(encoding='utf-8'))
     native = profile_proofs.native_descriptor_json(profile_config.NATIVE_DESCRIPTOR_FILE.read_text(encoding='utf-8'))
-    worker = arguments.worker.resolve() if arguments.worker else profile_worker.reuse_frozen_worker(arguments.reuse_worker_from.resolve())[0]
     reference = arguments.ruff.resolve()
+    selected = set(arguments.rules)
+    if len(selected) != len(arguments.rules) or selected - set(rules):
+        raise ValueError('unknown or duplicate inventory rule')
     identity = {'inventory_sha256': profile_config.sha256(profile_config.RUFF_DIR / 'benchmark.toml'), 'phase_registry_sha256': profile_config.sha256(profile_config.RULE_PHASES_FILE)}
     registration_error = None
+    worker = None
     try:
         profile_proofs.verify_rule_phase_registry(manifest, phases)
         native_ids = [entry['rule_id'] for entry in native.get('profiles', [])]
         if len(native_ids) != len(set(native_ids)) or set(native_ids) - set(rules):
             raise ValueError('native settings registry has duplicate or unknown pinned IDs')
-        identity['worker_sha256'] = profile_config.sha256(worker)
         identity['pinned_reference'] = profile_worker.reference_tool_identity(reference, manifest)
+        if arguments.worker is not None:
+            worker = arguments.worker.resolve()
+        elif arguments.reuse_worker_from is not None:
+            worker = profile_worker.reuse_frozen_worker(arguments.reuse_worker_from.resolve())[0]
+        else:
+            with contextlib.ExitStack() as stack:
+                worker = profile_worker.build_worker_once(output, stack)[0]
+        identity['worker_sha256'] = profile_config.sha256(worker)
     except Exception as error:
         registration_error = f'tool registration: {type(error).__name__}: {error}'
     registered = []
     for rule in rules:
         entry = {'rule_id': rule, 'command': None, 'reason': None, 'cases': [], 'instance': None}
         directory = profile_config.RUFF_DIR / 'rules' / rule
-        if not (directory / 'query.ryoql').is_file():
+        if selected and rule not in selected:
+            entry['reason'] = 'not selected for this invocation'
+        elif not (directory / 'query.ryoql').is_file():
             entry['reason'] = 'missing implementation'
         elif registration_error is not None:
             entry['reason'] = registration_error
