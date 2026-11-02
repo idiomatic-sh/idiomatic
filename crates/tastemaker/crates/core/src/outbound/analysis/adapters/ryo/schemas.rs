@@ -580,6 +580,7 @@ fn convert_request(request: AnalysisRequest) -> Result<LintRequest, AnalysisErro
         );
     }
     Ok(LintRequest {
+        source_language: None,
         root: std::path::PathBuf::from(&*request.root.0),
         rules,
         files: Vec::new(),

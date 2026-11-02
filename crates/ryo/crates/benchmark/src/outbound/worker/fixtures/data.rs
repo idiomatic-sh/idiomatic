@@ -14,6 +14,7 @@ pub fn request() -> WorkerRequest {
         query_modules: std::collections::BTreeMap::default(),
         rule_applicability: std::collections::BTreeMap::default(),
         parser_configuration: None,
+        source_language: None,
         files: vec![ryo::linter::RelativePath("source.txt".into())],
         state: crate::domain::suite::types::WorkerState::Retained("cache".into()),
     }

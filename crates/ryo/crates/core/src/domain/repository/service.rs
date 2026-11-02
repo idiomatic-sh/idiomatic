@@ -153,3 +153,23 @@ mod schema_identity_tests {
         assert!(!catalog_schema().0.is_empty());
     }
 }
+
+/// Stable, length-delimited request selection identity; computed once per request.
+pub(crate) fn source_selection_identity(
+    name: Option<&ryo_values::domain::descriptions::types::LanguageName>,
+) -> DigestInput {
+    let mut bytes = b"ryo-source-selection-v1".to_vec();
+    match name {
+        None => bytes.push(0),
+        Some(name) => {
+            bytes.push(1);
+            bytes.extend_from_slice(
+                &u64::try_from(name.0.len())
+                    .unwrap_or(u64::MAX)
+                    .to_le_bytes(),
+            );
+            bytes.extend_from_slice(name.0.as_bytes());
+        }
+    }
+    DigestInput(bytes)
+}

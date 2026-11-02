@@ -15,6 +15,7 @@ pub fn ryo(
         query_modules,
         rule_applicability,
         parser_configuration,
+        None,
         crate::domain::suite::types::ProjectContextMode::Isolated,
     )
 }
@@ -27,6 +28,7 @@ pub fn ryo_context(
     query_modules: std::collections::BTreeMap<String, std::path::PathBuf>,
     rule_applicability: std::collections::BTreeMap<String, String>,
     parser_configuration: Option<String>,
+    source_language: Option<String>,
     project_context_mode: crate::domain::suite::types::ProjectContextMode,
 ) -> impl super::interface::LinterPort {
     LinterRyoAdapter {
@@ -36,5 +38,6 @@ pub fn ryo_context(
         query_modules,
         rule_applicability,
         parser_configuration,
+        source_language,
     }
 }

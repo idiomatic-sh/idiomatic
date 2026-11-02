@@ -87,6 +87,8 @@ def verified_rows(ruff: Path, current: Path, previous: dict[str, object], direct
             if (any(registered["identity"].get(key) != digest for key, digest in proof["identity"].items())
                 or observed.get("identity") != registered["identity"]
                 or profile.get("parser-configuration") != source_settings.get("parser-configuration")
+                or profile.get("source-language") != source_settings.get("source-language")
+                or instance.get("effective_settings", {}).get("source_language") != profile.get("source-language")
                 or instance.get("query_sha256") != item["query_sha256"]
                 or instance.get("cases_sha256") != item["cases_sha256"]):
                 raise ValueError("target control invocation/source identity mismatch")

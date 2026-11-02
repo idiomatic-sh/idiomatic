@@ -16,6 +16,8 @@ pub(crate) enum NodeInput {
 #[derive(Debug)]
 pub(crate) struct Node {
     pub contract: Arc<crate::domain::operator::contract::types::OperatorContract>,
+    pub physical:
+        crate::domain::table_model::collections::representations::publication::PreparedPhysical,
     /// Executable registered operation with normalized local input numbers.
     pub operation: ryo_values::domain::plans::types::Operation,
     /// Ordered typed dependencies retained for the central executor.
@@ -50,23 +52,4 @@ pub(crate) struct FileProgram {
     pub entries: Vec<(NodeId, Arc<Table>)>,
     pub shared_executions: u64,
     pub peak_retained_cells: usize,
-}
-
-/// The domain executor asks its application owner for an already scheduled DAG
-/// output. Implementations own generation state; primitives never schedule it.
-pub(crate) trait DagExecution {
-    /// Establish required rule-local liveness before any operator demand.
-    fn begin_rule(&self, rule: usize);
-    fn owned(&self, rule: usize, step: usize) -> Option<NodeId>;
-    fn demand<'f>(
-        &self,
-        node: NodeId,
-        read: &dyn Fn(
-            Relation,
-        ) -> Result<
-            crate::domain::table_model::types::Rows<'f>,
-            crate::domain::operating::errors::OperatingError,
-        >,
-        context: &mut crate::domain::operating::types::OperatorContext<'_>,
-    ) -> Result<Arc<Table>, crate::domain::operating::errors::OperatingError>;
 }

@@ -120,6 +120,7 @@ fn check_case(
         query_modules: modules.clone(),
         rule_applicability: BTreeMap::default(),
         parser_configuration: None,
+        source_language: None,
         files: vec![ryo::linter::RelativePath(case.file.clone().into())],
         state: WorkerState::Fresh,
     })?;

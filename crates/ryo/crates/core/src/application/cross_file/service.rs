@@ -1,7 +1,9 @@
 //! Cross-file evaluation and bounded source rendering over injected ports.
+use crate::application::file_dag::crossing::cross_rule;
+use crate::application::file_dag::settings::CrossingInput;
 use crate::domain::answering::types::{Crossed, Todo};
-use crate::domain::crossing::service::{cross_rule, placeable};
-use crate::domain::crossing::types::{CrossingInput, Placeability};
+use crate::domain::crossing::service::placeable;
+use crate::domain::crossing::types::Placeability;
 use crate::domain::finish::errors::FinishError;
 use crate::domain::finish::service::{
     column_cell, founds, line_cell, place_all, shown_cell, source_of,

@@ -114,3 +114,15 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn succeeds() {
     run(CASES, Word::Succeeds, |input| Ok(subject(input)));
 }
+
+#[test]
+fn explicit_source_selection_identity_is_exact_and_framed() {
+    use ryo_values::domain::descriptions::types::LanguageName;
+    let encode = super::service::source_selection_identity;
+    let python = LanguageName("python".into());
+    let other = LanguageName("python-other".into());
+    assert_eq!(encode(Some(&python)), encode(Some(&python)));
+    assert_ne!(encode(None), encode(Some(&python)));
+    assert_ne!(encode(Some(&python)), encode(Some(&other)));
+    assert_ne!(encode(None), encode(Some(&LanguageName("".into()))));
+}

@@ -6,9 +6,9 @@ use crate::domain::lowering::types::Counting;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
 use crate::domain::operator::types::PlanLayout;
-use crate::domain::pipeline::types::Reading;
 use crate::domain::table_cells::types::RowIndex;
 use crate::domain::table_dedup::service::distinct;
+use crate::domain::table_model::reading::Reading;
 use crate::domain::table_model::service::{
     cell_at, column_in, matching_stored, push_row, rectangular, reset,
 };
@@ -184,7 +184,11 @@ fn symbol_holds(value: Value, literal: &str, context: &OperatorContext<'_>) -> b
     let Value::Symbol(symbol) = value else {
         return false;
     };
-    let found = text_of(context.symbols.as_ref(), ByteSlice(context.source.0), symbol);
+    let found = text_of(
+        context.symbols.as_ref(),
+        ByteSlice(context.source.0),
+        symbol,
+    );
     match hash_in(context.symbols.as_ref(), symbol) {
         Some(hash) => {
             hash == hash_of(ByteSlice(literal.as_bytes()))

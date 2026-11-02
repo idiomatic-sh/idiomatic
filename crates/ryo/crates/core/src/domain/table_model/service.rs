@@ -141,38 +141,8 @@ pub(crate) fn read_row<'s>(
     index: RowIndex,
     scratch: &'s mut Vec<Value>,
 ) -> Option<&'s [Value]> {
-    let found: Option<&[Value]> = match rows {
-        Rows::Selected(view) => {
-            let physical = RowIndex(usize::try_from(*view.selection.rows.get(index.0)?).ok()?);
-            scratch.clear();
-            for column in &view.selection.columns {
-                scratch.push(stored_cell(view.source, physical, *column)?);
-            }
-            Some(scratch)
-        }
-        Rows::Computed(table) => row_in(table, index),
-        Rows::Tree(tree) => {
-            scratch.clear();
-            let place = u32::try_from(index.0 + usize::from(tree.form == TreeForm::Edges))
-                .unwrap_or(u32::MAX);
-            if usize::try_from(place).unwrap_or(usize::MAX) >= tree.elements.kind.len() {
-                return None;
-            }
-            let at = Position(place);
-            match tree.form {
-                TreeForm::Edges => scratch.extend(edge_of(tree, at)),
-                TreeForm::Elements => scratch.extend(element_of(tree, at)),
-            }
-            Some(scratch)
-        }
-        Rows::Stored(view) => {
-            scratch.clear();
-            for (kind, column) in view.kinds.iter().zip(view.columns) {
-                scratch.push(from_bits(*kind, Bits(*column.0.get(index.0)?)));
-            }
-            Some(scratch)
-        }
-    };
+    let found = crate::domain::table_model::collections::representations::service::borrowed(rows)
+        .read(index, scratch);
     #[cfg(test)]
     if let Some(row) = found {
         READ_ROW_COUNTS.with(|counts| {
@@ -434,30 +404,8 @@ fn selected_cell(
 
 /// Read one typed cell without decoding unused stored payload or allocating a row buffer.
 pub(crate) fn cell_at(rows: &Rows<'_>, row: RowIndex, column: ColumnIndex) -> Option<Value> {
-    match rows {
-        Rows::Stored(view) => stored_cell(*view, row, column),
-        Rows::Selected(view) => selected_cell(view, row, column),
-        Rows::Computed(table) => row_in(table, row)
-            .and_then(|row| column_in(row, column))
-            .copied(),
-        Rows::Tree(tree) => {
-            let position = Position(
-                u32::try_from(
-                    row.0
-                        .checked_add(usize::from(tree.form == TreeForm::Edges))?,
-                )
-                .ok()?,
-            );
-            if position.0 as usize >= tree.elements.kind.len() {
-                return None;
-            }
-            let values = match tree.form {
-                TreeForm::Elements => element_of(tree, position),
-                TreeForm::Edges => edge_of(tree, position),
-            };
-            column_in(&values, column).copied()
-        }
-    }
+    crate::domain::table_model::collections::representations::service::borrowed(rows)
+        .cell(row, column)
 }
 
 /// Index only projected keys of a compact population, preserving logical duplicate row positions.

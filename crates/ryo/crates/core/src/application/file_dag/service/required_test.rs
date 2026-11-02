@@ -140,7 +140,7 @@ fn wide_diamond_required_prefix_runs_once_with_zero_or_small_optional_budget() {
         } else {
             assert_eq!(
                 dag.overlap_bytes,
-                bytes(&answer),
+                bytes(dag.required[root.0].as_ref().unwrap()),
                 "same Arc payload charged once in unique ownership"
             );
         }

@@ -23,8 +23,8 @@ use crate::domain::answering::types::Todo;
 use crate::domain::answering::types::{Answered, CrossSteps, Crossed};
 use crate::domain::budget::service::{fit, repository_size, within};
 
+use crate::application::file_dag::settings::CrossingInput;
 use crate::domain::choosing::service::chosen;
-use crate::domain::crossing::types::CrossingInput;
 use crate::domain::features::service::{fed_over, work_over};
 use crate::domain::frontiers::service::{decode_input, project_input, project_relation};
 use crate::domain::hosted::service::lines;
@@ -66,10 +66,10 @@ use crate::domain::trust::types::Needs;
 use crate::domain::visit::service::wants;
 use crate::domain::visit::types::Keeping;
 
+use crate::application::file_dag::settings::VisitSetting;
 use crate::domain::workers::service::{absorb, gathering, note_slots, order, size_at, tables_for};
 use crate::domain::workers::types::{
-    CrossReading, FileOrder, FileTotal, FreshNotes, ProjectHandle, Replaying, VisitSetting,
-    Visited, WorkersMet,
+    CrossReading, FileOrder, FileTotal, FreshNotes, ProjectHandle, Replaying, Visited, WorkersMet,
 };
 use crate::outbound::corpus::interface::CorpusPort;
 use crate::outbound::corpus::types::PathStat;
@@ -376,7 +376,11 @@ impl LintUseCaseImpl {
         plans: &[Plan],
         hosted: &[HostRelation],
         resolved: Digest,
+        source_language: Option<&ryo_values::domain::descriptions::types::LanguageName>,
     ) -> Vec<StoredRule> {
+        let source_selection = self.digest.digest(DigestBytes(
+            &crate::domain::repository::service::source_selection_identity(source_language).0,
+        ));
         // Schema identity is request-wide: an old retained row cannot acquire a new catalog shape.
         let schema = self.digest.digest(DigestBytes(
             &crate::domain::repository::service::catalog_schema().0,
@@ -404,6 +408,7 @@ impl LintUseCaseImpl {
                     )),
                     hosted,
                     schema,
+                    source_selection,
                 ]);
                 // Stored findings from the two physical backends are not interchangeable.
                 let own = if self.file_analysis.kernel_strategy()
@@ -621,8 +626,11 @@ impl LintUseCaseImpl {
     ) -> Result<ReadAlone, LintError> {
         let paths = paths_of(files);
         let setting = VisitSetting {
-            paths: &paths,
-            records: &[],
+            domain: crate::domain::workers::types::VisitSetting {
+                paths: &paths,
+                records: &[],
+                ..(setting.clone()).domain
+            },
             ..setting.clone()
         };
         let visit = FileVisit {
@@ -992,19 +1000,21 @@ impl LintUseCaseImpl {
         let crossing = CrossingInput {
             executor: run.executor,
             operators: std::sync::Arc::clone(&run.operators),
-            plans: run.plans,
-            bindings: run.bindings,
-            ids: run.ids,
-            needs: run.needs,
-            paths: &across,
-            arenas: &*handed.arenas,
-            files: &listing.files,
-            covered: handed.covered,
-            skipped: handed.skipped,
-            project: &now.partials,
-            hosted: &run.request.hosted,
-            answering: run.answering,
-            unknown: &unknown.0,
+            domain: crate::domain::crossing::types::CrossingInput {
+                plans: run.plans,
+                bindings: run.bindings,
+                ids: run.ids,
+                needs: run.needs,
+                paths: &across,
+                arenas: &*handed.arenas,
+                files: &listing.files,
+                covered: handed.covered,
+                skipped: handed.skipped,
+                project: &now.partials,
+                hosted: &run.request.hosted,
+                answering: run.answering,
+                unknown: &unknown.0,
+            },
         };
         let made = self.drain(
             self.workers,
@@ -1337,6 +1347,8 @@ impl LintUseCaseImpl {
 
 impl LintUseCase for LintUseCaseImpl {
     fn lint(&self, request: LintRequest) -> Result<LintReport, LintError> {
+        self.file_analysis
+            .validate_source_language(request.source_language.as_ref())?;
         let rules: Vec<RuleSpec> = request.rules.iter().map(RuleSpec::from).collect();
         let compiling = tracing::info_span!("compile").entered();
         let Compiled { plans, bindings } = self.checked_rules(&rules, &request.hosted)?;
@@ -1371,7 +1383,13 @@ impl LintUseCase for LintUseCaseImpl {
             });
         let needs: Vec<Needs> = plans.iter().map(scoped_needs).collect();
         let resolved = self.resolution(&manifests, &plans, &request.session)?;
-        let stored_rules = self.stored_rules(&rules, &plans, &request.hosted, resolved);
+        let stored_rules = self.stored_rules(
+            &rules,
+            &plans,
+            &request.hosted,
+            resolved,
+            request.source_language.as_ref(),
+        );
         let (nothing_handed, nothing_wanted) =
             (ReadHanded::default(), BucketsWanted::These(Vec::new()));
         let unknown = self.language.unknown_reasons();
@@ -1390,32 +1408,35 @@ impl LintUseCase for LintUseCaseImpl {
         );
         let executor = crate::application::file_dag::execution::CommonOperatorEngine;
         let mut setting = VisitSetting {
+            source_language: request.source_language.as_ref(),
             executor: &executor,
             operators: std::sync::Arc::clone(&operators),
-            plans: &plans,
-            bindings: &bindings,
-            wanted: &wants.walked,
-            paths: &paths,
-            first_bucket: &first_bucket,
-            ids: &ids,
-            applicability: &applicability,
-            applicability_can_gate,
-            placed: &placed,
-            records: &[],
-            replaying: Replaying::Findings,
-            stored: &listing.stored,
-            handed: &nothing_handed,
-            wanted_buckets: &nothing_wanted,
-            budget: listing.budget,
-            noted: wants.noted,
-            roled: wants.roled,
-            needs: &needs,
-            answering: &answering,
-            keeping: match self.store.keeps() {
-                StoreKeeping::Keeps => Keeping::Keeps,
-                StoreKeeping::Discards => Keeping::Discards,
+            domain: crate::domain::workers::types::VisitSetting {
+                plans: &plans,
+                bindings: &bindings,
+                wanted: &wants.walked,
+                paths: &paths,
+                first_bucket: &first_bucket,
+                ids: &ids,
+                applicability: &applicability,
+                applicability_can_gate,
+                placed: &placed,
+                records: &[],
+                replaying: Replaying::Findings,
+                stored: &listing.stored,
+                handed: &nothing_handed,
+                wanted_buckets: &nothing_wanted,
+                budget: listing.budget,
+                noted: wants.noted,
+                roled: wants.roled,
+                needs: &needs,
+                answering: &answering,
+                keeping: match self.store.keeps() {
+                    StoreKeeping::Keeps => Keeping::Keeps,
+                    StoreKeeping::Discards => Keeping::Discards,
+                },
+                unknown: &unknown.0,
             },
-            unknown: &unknown.0,
         };
         let Reused {
             again,

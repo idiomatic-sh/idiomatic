@@ -15,8 +15,6 @@ use ryo_values::domain::stored_facts::types::ArenaBytes;
 /// What the cross-file steps of every rule read besides the rows the files handed over.
 #[derive(Clone, Debug)]
 pub(crate) struct CrossingInput<'a> {
-    pub executor: &'a dyn crate::domain::operator::contract::executor::PrimitiveExecutor,
-    pub operators: std::sync::Arc<crate::domain::operator::contract::types::RequestOperators>,
     /// The plans of the rules.
     pub plans: &'a [Plan],
     /// What each rule binds its parameters to.

@@ -103,6 +103,8 @@ type Failure = Refusal;
 /// The refusals the rows tell apart.
 #[derive(Debug, PartialEq, Eq)]
 enum Refusal {
+    /// The explicitly requested source provider is not linked.
+    SourceLanguage,
     /// A rule whose text is wrong.
     Rule,
     /// A rule that cannot be run.
@@ -402,6 +404,7 @@ fn subject(given: Input) -> Result<Value, Failure> {
     std::fs::write(root.path().join("notes.txt"), "text").expect("a file");
     let id = RuleId::try_from("rule").expect("a rule id");
     let request = LintRequest {
+        source_language: None,
         root: match given.root {
             Root::Directory => root.path().to_path_buf(),
             Root::Missing => root.path().join("not-there"),
@@ -456,6 +459,7 @@ fn subject(given: Input) -> Result<Value, Failure> {
         request,
     )
     .map_err(|error| match error {
+        LintError::SourceLanguage { .. } => Refusal::SourceLanguage,
         LintError::Rule { .. } => Refusal::Rule,
         LintError::Unrunnable { .. } => Refusal::Unrunnable,
         LintError::MissingParameter { .. } => Refusal::MissingParameter,
@@ -533,6 +537,7 @@ fn shared_calls(root: &std::path::Path) -> [LintRequest; 2] {
         }])
     };
     let request = |query: &str, include: &str, file: &str, spec: &str| LintRequest {
+        source_language: None,
         root: root.to_path_buf(),
         rules: BTreeMap::from([(
             RuleId::try_from("rule").expect("a rule id"),
@@ -890,6 +895,7 @@ fn capability_cache(query: &str) -> Value {
         )
     };
     let request = LintRequest {
+        source_language: None,
         root: root.path().to_path_buf(),
         rules: BTreeMap::from([(
             RuleId::try_from("optional").expect("rule"),
@@ -939,6 +945,60 @@ fn capability_cache(query: &str) -> Value {
         1,
         "the cache must contain a real optional finding"
     );
+    let mut selected = request.clone();
+    selected.source_language = Some(crate::domain::language::types::LanguageName(
+        "fixture".into(),
+    ));
+    let explicit =
+        super::entry::lint_with(&advertised, selected.clone()).expect("explicit refusal report");
+    assert!(
+        explicit.findings.is_empty(),
+        "cached path-recognized findings cannot bypass explicit opt-in"
+    );
+    assert_eq!(
+        explicit.unread.len(),
+        1,
+        "a non-opting provider must refuse explicit selection"
+    );
+    let fresh_explicit = super::entry::lint_with(
+        &engine(advertised_capabilities, "", "x", Cache::None),
+        selected.clone(),
+    )
+    .expect("fresh explicit refusal");
+    assert_eq!(
+        explicit, fresh_explicit,
+        "source selection must be in cache identity"
+    );
+    assert_eq!(
+        super::entry::lint_with(&advertised, request.clone()).expect("ordinary selection restored"),
+        first
+    );
+    selected.source_language = Some(crate::domain::language::types::LanguageName(
+        "missing-provider".into(),
+    ));
+    assert!(matches!(
+        super::entry::lint_with(&advertised, selected),
+        Err(super::errors::LintError::SourceLanguage { .. })
+    ));
+
+    let ambiguous = super::types::Linter::new(
+        Languages(vec![
+            language(advertised_capabilities, "", "x"),
+            language(advertised_capabilities, "", "x"),
+        ]),
+        crate::domain::capacity::types::WorkerPool::from(Workers(NonZeroUsize::MIN)),
+        MemoryBudget::Machine,
+        Cache::None,
+    );
+    let mut ambiguous_request = request.clone();
+    ambiguous_request.source_language = Some(crate::domain::language::types::LanguageName(
+        "fixture".into(),
+    ));
+    assert!(matches!(
+        super::entry::lint_with(&ambiguous, ambiguous_request),
+        Err(super::errors::LintError::SourceLanguage { .. })
+    ));
+
     let absent = engine(&[], "", "x", Cache::At(store.path().to_path_buf()));
     let replay = super::entry::lint_with(&absent, request.clone()).expect("unadvertised report");
     let fresh = super::entry::lint_with(&engine(&[], "", "x", Cache::None), request.clone())

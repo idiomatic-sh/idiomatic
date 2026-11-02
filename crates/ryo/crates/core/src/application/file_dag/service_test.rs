@@ -1,9 +1,9 @@
 //! Count actual class-generic work and compare full ordered residual outputs.
+use super::request::compile;
 use super::types::FileDagExecution;
-use crate::domain::file_program::service::compile;
+use crate::application::file_dag::pipeline::service::{evaluate_file, evaluate_file_with_dag};
 use crate::domain::operating::types::OperatorContext;
 use crate::domain::operator::{service::pool_for, types::PreparedPool};
-use crate::domain::pipeline::service::{evaluate_file, evaluate_file_with_dag};
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
 use ryo_language::domain::relations::{

@@ -16,6 +16,12 @@ use ryo_values::domain::plan_parts::types::RefusedQuery;
 /// Why `lint` failed.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 pub enum LintError {
+    /// An explicitly selected source provider is not linked at this request edge.
+    #[error("explicit source provider `{name}` must name exactly one linked provider")]
+    SourceLanguage {
+        /// The exact provider name supplied by the caller.
+        name: String,
+    },
     /// A rule's query is wrong, or cannot be run.
     #[error("rule `{id}`: {reason}")]
     Rule {
@@ -237,6 +243,7 @@ impl From<crate::application::file_analysis::errors::FileAnalysisError> for Lint
     fn from(error: crate::application::file_analysis::errors::FileAnalysisError) -> Self {
         use crate::application::file_analysis::errors::FileAnalysisError;
         match error {
+            FileAnalysisError::SourceLanguage { name } => Self::SourceLanguage { name },
             FileAnalysisError::Store(error) => error.into(),
             FileAnalysisError::Corpus(error) => error.into(),
             FileAnalysisError::Provider { provider, code } => Self::Provider {

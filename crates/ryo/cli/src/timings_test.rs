@@ -182,6 +182,7 @@ fn a_query_run_reports_rows_of_ryo_itself() {
     let tree = super::TimingsTree::default();
     let subscriber = tracing_subscriber::registry().with(tree.clone());
     let request = LintRequest {
+        source_language: None,
         session: ryo_values::domain::runs::types::Session {
             repository: ryo_language::inbound::use_cases::project::types::Repository::Disk,
             root: ryo_language::inbound::use_cases::project::types::RootPath(

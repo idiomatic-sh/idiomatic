@@ -541,6 +541,7 @@ fn prepared(scenario: Scenario) -> (SuiteFake, BenchmarkFinding) {
         query_modules: std::collections::BTreeMap::default(),
         rule_applicability: std::collections::BTreeMap::default(),
         parser_configuration: None,
+        source_language: None,
     });
     (suite, expected)
 }
@@ -614,6 +615,7 @@ fn discrepancy_suite() -> SuiteFake {
         query_modules: std::collections::BTreeMap::default(),
         rule_applicability: std::collections::BTreeMap::default(),
         parser_configuration: Some("python-target=3.10".into()),
+        source_language: None,
     });
     let _previous_profile = suite
         .artifact_digests

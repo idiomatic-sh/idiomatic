@@ -218,6 +218,7 @@ pub(crate) fn lint_observing<T>(
         use_case
     };
     let request = LintRequest {
+        source_language: None,
         answer: ryo_values::domain::runs::types::AnswerShape::Findings,
         hosted: Vec::new(),
         session: Session {

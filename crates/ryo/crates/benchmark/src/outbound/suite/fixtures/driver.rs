@@ -46,6 +46,7 @@ expected = []
         query_modules: std::collections::BTreeMap::default(),
         rule_applicability: std::collections::BTreeMap::default(),
         parser_configuration: None,
+        source_language: None,
         defaults: vec!["fixture".try_into().expect("rule identifier")],
     };
     crate::outbound::suite::factory::local()

@@ -33,6 +33,8 @@ use std::sync::{Arc, Condvar, Mutex};
 /// The rules to check in a session.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LintRequest {
+    /// Explicit provider for these sources; none preserves ordinary path recognition.
+    pub source_language: Option<ryo_values::domain::descriptions::types::LanguageName>,
     /// The session `open` returned.
     pub session: Session,
     /// Only findings in these files are reported; none means every file.
@@ -312,7 +314,7 @@ impl From<AdmissionError> for ProviderFault {
 
 /// What the stages after the reading share: the rules, the files and what the store kept.
 pub(super) struct LintRun<'a> {
-    pub executor: &'a dyn crate::domain::operator::contract::executor::PrimitiveExecutor,
+    pub executor: &'a dyn crate::application::file_dag::executor::PrimitiveExecutor,
     pub operators: std::sync::Arc<crate::domain::operator::contract::types::RequestOperators>,
     /// What the caller asked.
     pub request: &'a LintRequest,

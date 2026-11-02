@@ -143,6 +143,15 @@ where
     if language.recognizes(&request) == Recognition::Declines {
         return Err(ParseError::Unsupported);
     }
+    build_recognized(language, request, table, symbols)
+}
+
+fn build_recognized<L: ParseUseCase + ?Sized>(
+    language: &L,
+    request: ParseRequest<'_>,
+    table: &mut Elements,
+    symbols: &mut Symbols,
+) -> Result<(), ParseError> {
     let mut builder = table_builder(table, symbols, request.bytes);
     language.read_tree(&request, &mut builder)?;
     language.complete(
@@ -185,6 +194,31 @@ where
     L: ParseUseCase + ?Sized,
 {
     build_in(language, request, table, symbols)?;
+    walk_in(
+        language,
+        table,
+        symbols,
+        request.bytes,
+        request.file,
+        wanted,
+        out,
+    );
+    Ok(())
+}
+
+/// Drive the same parser and relation readers after validated explicit provider selection.
+pub(crate) fn read_explicit_in<L: ParseUseCase + ?Sized>(
+    language: &L,
+    request: ParseRequest<'_>,
+    table: &mut Elements,
+    symbols: &mut Symbols,
+    wanted: &[Relation],
+    out: &mut dyn RowWriter,
+) -> Result<(), ParseError> {
+    if language.recognizes_explicit(&request) == Recognition::Declines {
+        return Err(ParseError::Unsupported);
+    }
+    build_recognized(language, request, table, symbols)?;
     walk_in(
         language,
         table,

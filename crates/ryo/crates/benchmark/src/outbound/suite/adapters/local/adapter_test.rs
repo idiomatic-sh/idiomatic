@@ -222,6 +222,7 @@ expected = []
         query_modules: std::collections::BTreeMap::default(),
         rule_applicability: std::collections::BTreeMap::default(),
         parser_configuration: None,
+        source_language: None,
     };
     let audited = SuiteLocalAdapter
         .audit(ArtifactPath(&oracle), &tool)
@@ -392,4 +393,33 @@ fn verify_discrepancy_fixture(
             evidence: &evidence,
         },
     )
+}
+
+#[test]
+fn optional_source_language_profile_preserves_default_and_validates_exact_names() {
+    let directory = tempfile::tempdir().expect("profile");
+    let base = "tool = 'fixture'\nversion = '1'\nsha256 = ['pin']\ndefaults = ['F401']\n";
+    for (suffix, expected) in [("", None), ("source-language = 'python'\n", Some("python"))] {
+        std::fs::write(
+            directory.path().join("benchmark.toml"),
+            format!("{base}{suffix}"),
+        )
+        .expect("profile bytes");
+        let profile = SuiteLocalAdapter
+            .profile(ArtifactPath(directory.path()))
+            .expect("profile");
+        assert_eq!(profile.source_language.as_deref(), expected);
+    }
+    for bad in ["", " python", "python "] {
+        std::fs::write(
+            directory.path().join("benchmark.toml"),
+            format!("{base}source-language = '{bad}'\n"),
+        )
+        .expect("profile bytes");
+        assert!(
+            SuiteLocalAdapter
+                .profile(ArtifactPath(directory.path()))
+                .is_err()
+        );
+    }
 }

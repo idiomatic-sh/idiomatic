@@ -157,6 +157,35 @@ impl LanguagePort for LanguageUseCaseAdapter {
                 }
             },
         };
+        if let Some(selected) = file.source_language {
+            let mut matches = self
+                .languages
+                .iter()
+                .enumerate()
+                .filter(|(_, language)| language.name == *selected);
+            let Some((number, language)) = matches.next() else {
+                return FileReading::Failed(ReadFailure(
+                    format!("explicit source provider `{}` is not linked", selected.0).into(),
+                ));
+            };
+            if matches.next().is_some() {
+                return FileReading::Failed(ReadFailure(
+                    format!("explicit source provider `{}` is ambiguous", selected.0).into(),
+                ));
+            }
+            return match language.parse.read_file_explicit(
+                request,
+                table,
+                symbols,
+                file.wanted,
+                out,
+            ) {
+                Ok(()) => FileReading::Read(LanguageNumber(number)),
+                Err(error) => FileReading::Failed(ReadFailure(
+                    format!("explicit source provider `{}`: {error}", selected.0).into(),
+                )),
+            };
+        }
         let mut failure: Option<ReadFailure> = None;
         for (number, language) in self.languages.iter().enumerate() {
             if language.parse.recognition(&request)

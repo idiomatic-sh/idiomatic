@@ -10,7 +10,7 @@ use crate::domain::kind_sets::types::KindScratch;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::KindNarrowing;
 use crate::domain::operating::types::{
-    Emit, Feed, InputPlace, Memo, NameCount, OperatorContext, Room, Supply,
+    Emit, InputPlace, Memo, NameCount, OperatorContext, Room, Supply,
 };
 use crate::domain::replay::types::{Collect, Pipe};
 use crate::domain::table_cells::service::{read_cells, read_tree_cells};

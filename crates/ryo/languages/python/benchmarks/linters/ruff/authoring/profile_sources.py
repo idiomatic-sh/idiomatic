@@ -197,7 +197,7 @@ def profile_tool_matches(profile_data: dict[str, object], manifest: dict[str, ob
 
 def canonical_run_ryo_settings(profile: dict[str, object], rules: list[str], phases: dict[str, object]) -> dict[str, object]:
     """Normalize a selected profile without silently ignoring new execution flags."""
-    allowed = {'tool', 'version', 'sha256', 'defaults', 'parser-configuration', 'project-context-mode', 'query-modules', 'rule-applicability', 'deferred'}
+    allowed = {'tool', 'version', 'sha256', 'defaults', 'parser-configuration', 'source-language', 'project-context-mode', 'query-modules', 'rule-applicability', 'deferred'}
     if set(profile) - allowed:
         raise ValueError('unreviewed execution settings in canonical profile')
     if profile.get('tool') != 'ruff' or profile.get('version') != profile_config.PINNED_RUFF_VERSION:
@@ -215,4 +215,8 @@ def canonical_run_ryo_settings(profile: dict[str, object], rules: list[str], pha
     context = profile.get('project-context-mode', 'isolated')
     if context not in {'isolated', 'listed-disk'}:
         raise ValueError('unreviewed canonical project context mode')
-    return {'defaults': sorted(set(rules)), 'parser_configuration': profile.get('parser-configuration', 'python-target=3.10'), 'project_context_mode': context, 'rule_applicability': applicability, 'flags': {}}
+    selection = profile.get('source-language')
+    if selection is not None and (not isinstance(selection, str) or not selection or selection.strip() != selection):
+        raise ValueError('source language must be an exact nonblank provider name')
+    extra = {'source_language': selection} if selection is not None else {}
+    return {**extra, 'defaults': sorted(set(rules)), 'parser_configuration': profile.get('parser-configuration', 'python-target=3.10'), 'project_context_mode': context, 'rule_applicability': applicability, 'flags': {}}

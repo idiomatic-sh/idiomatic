@@ -48,7 +48,7 @@ def full_inventory_settings(rule: str, manifest: dict[str, object], native: dict
         target = entry.get('target_version', manifest.get('target_version'))
         if target is None and 'parser-configuration' not in data:
             raise ValueError('cohort has no established parser target')
-        signature = (data['parser-configuration'] if 'parser-configuration' in data else profile_sources.parser_configuration(target), data.get('project-context-mode', 'isolated'))
+        signature = (data['parser-configuration'] if 'parser-configuration' in data else profile_sources.parser_configuration(target), data.get('project-context-mode', 'isolated'), data.get('source-language'))
         signatures.add(signature)
         resolved.append((path, target, f'established cohort {name}'))
     if len(signatures) != 1 or not resolved:

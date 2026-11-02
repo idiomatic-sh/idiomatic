@@ -23,9 +23,17 @@ pub(crate) struct SelectedInput<'f> {
 
 impl<'f> SelectedInput<'f> {
     /// Reject malformed source/selection metadata before indexing any row.
+    #[cfg(test)]
     pub(crate) fn prepare(
         original: &SelectedRows<'f>,
         columns: &[ColumnIndex],
+    ) -> Result<Self, OperatingError> {
+        Self::prepare_admitted(original, columns, false)
+    }
+    pub(super) fn prepare_admitted(
+        original: &SelectedRows<'f>,
+        columns: &[ColumnIndex],
+        proven: bool,
     ) -> Result<Self, OperatingError> {
         let original = original.clone();
         let mut result = Self {
@@ -33,7 +41,9 @@ impl<'f> SelectedInput<'f> {
             columns: columns.to_vec(),
             index: KeyIndex::default(),
         };
-        result.view().rows.validate()?;
+        if !proven {
+            result.view().rows.validate()?;
+        }
         index_selected(&result.original, &result.columns, &mut result.index)?;
         Ok(result)
     }

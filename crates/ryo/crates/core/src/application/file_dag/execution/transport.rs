@@ -3,9 +3,10 @@ use super::super::{
     aggregation::Aggregation, invocation::InvocationResources, workspace::InvocationWorkspace,
 };
 use super::{CommonOperatorEngine, EMPTY, lease};
+use crate::application::file_dag::feed::Feed;
 use crate::domain::operating::{
     errors::OperatingError,
-    types::{Emit, Feed, InputPlace, OperatorContext, Room, Supply},
+    types::{Emit, InputPlace, OperatorContext, Room, Supply},
 };
 use crate::domain::operator::contract::{types::*, views::BorrowedRows};
 use crate::domain::replay::{
@@ -92,6 +93,7 @@ fn stream_scoped(
     if mode.shape == InputShape::RequestSource {
         if contract.external_source {
             let source = feed.hold(InputPlace(0), context, &mut room.held[0])?;
+            workspace.capture(feed, 1);
             let originals = [source];
             let views = originals.iter().map(BorrowedRows::from).collect::<Vec<_>>();
             let mut resources = None;
@@ -119,6 +121,7 @@ fn stream_scoped(
     }
     if mode.publication == Publication::AfterSuccess || mode.shape == InputShape::Views {
         let views = hold(feed, context, &mut room.held, contract.inputs.used.0, false)?;
+        workspace.capture(feed, views.len());
         return held(
             engine,
             contract,
@@ -163,6 +166,7 @@ fn stream_scoped(
                 || feed.streams(InputPlace(1)) == Supply::Streamed
             {
                 let views = hold(feed, context, &mut room.held, 2, true)?;
+                workspace.capture(feed, views.len());
                 if views.len() == 1 {
                     return Ok(());
                 }
@@ -179,10 +183,13 @@ fn stream_scoped(
                 )
             } else {
                 let held_right = feed.hold(InputPlace(1), context, &mut room.held[1])?;
-                let fallback = super::physical_fallbacks(std::slice::from_ref(&held_right))?;
-                let right = fallback[0]
-                    .as_ref()
-                    .map_or_else(|| held_right.clone(), Rows::Computed);
+                workspace.capture(feed, 2);
+                let fallback =
+                    super::physical_fallbacks(std::slice::from_ref(&held_right), workspace, 1)?;
+                let right = fallback[0].as_ref().map_or_else(
+                    || held_right.clone(),
+                    |table| Rows::Computed(table.as_ref()),
+                );
                 let originals = [Rows::Computed(&EMPTY), right];
                 let sides = originals.iter().map(BorrowedRows::from).collect::<Vec<_>>();
                 let mut resources = None;
@@ -230,6 +237,7 @@ fn stream_scoped(
                 && feed.streams(InputPlace(2)) == Supply::AtHand;
             if !streaming {
                 let views = hold(feed, context, &mut room.held, 3, true)?;
+                workspace.capture(feed, views.len());
                 if views.len() == 1 {
                     return Ok(());
                 }
@@ -248,6 +256,7 @@ fn stream_scoped(
                 let [_, edge_table, domain_table] = &mut room.held;
                 let edges = feed.hold(InputPlace(1), context, edge_table)?;
                 let domain = feed.hold(InputPlace(2), context, domain_table)?;
+                workspace.capture(feed, 3);
                 let originals = [Rows::Computed(&EMPTY), edges, domain];
                 let sides = originals.iter().map(BorrowedRows::from).collect::<Vec<_>>();
                 let mut resources = None;
@@ -273,6 +282,7 @@ fn stream_scoped(
         }
         DemandOrder::LeftThenRightUnlessEmptyLeft => {
             let views = hold(feed, context, &mut room.held, 2, true)?;
+            workspace.capture(feed, views.len());
             if views.len() == 1 {
                 return Ok(());
             }
@@ -334,10 +344,10 @@ fn held<'f>(
     let logical = ryo_values::domain::plans::service::named(&contract.inputs);
     if super::super::optimized::join::supports(&contract.resources, logical, rows) {
         // Physical fallback is permissive; authoritative computed populations are not.
-        for rows in rows {
+        for (place, rows) in rows.iter().enumerate() {
             super::selected_schema(rows)?;
             if matches!(rows, Rows::Computed(_)) {
-                BorrowedRows::from(rows).validate()?;
+                workspace.validate(place, BorrowedRows::from(rows))?;
             }
         }
         if buffer {
@@ -365,14 +375,14 @@ fn held<'f>(
             return result;
         }
     }
-    let normalized = super::physical_fallbacks(rows)?;
+    let normalized = super::physical_fallbacks(rows, workspace, 0)?;
     let originals = rows
         .iter()
         .zip(&normalized)
         .map(|(input, fallback)| {
             fallback
                 .as_ref()
-                .map_or_else(|| input.clone(), Rows::Computed)
+                .map_or_else(|| input.clone(), |table| Rows::Computed(table.as_ref()))
         })
         .collect::<Vec<_>>();
     let rows = originals.as_slice();
@@ -385,6 +395,7 @@ fn held<'f>(
             context,
             mode.evaluation,
             rows,
+            workspace,
         )?);
     }
     if buffer {

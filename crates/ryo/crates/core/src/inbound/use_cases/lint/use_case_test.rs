@@ -264,6 +264,7 @@ struct World {
 fn request(given: &Given) -> LintRequest {
     let globs = |texts: &[&str]| texts.iter().map(|glob| Glob((*glob).into())).collect();
     LintRequest {
+        source_language: None,
         answer: given.answer,
         hosted: given.hosted.clone(),
         session: Session {

@@ -27,6 +27,7 @@ fn subject(_: Input) -> Result<Value, Failure> {
         query_modules: BTreeMap::default(),
         rule_applicability: BTreeMap::default(),
         parser_configuration: None,
+        source_language: None,
     });
     Ok(())
 }
@@ -55,6 +56,7 @@ fn oversized_request_is_staged_as_json_file_instead_of_argv()
         query_modules: BTreeMap::new(),
         rule_applicability: BTreeMap::new(),
         parser_configuration: Some("python-target=3.10".into()),
+        source_language: Some("explicit-fixture-provider".into()),
     };
     let invocation = adapter.prepare(&request)?;
     let request_path = state.join("request.json");
@@ -70,6 +72,7 @@ fn oversized_request_is_staged_as_json_file_instead_of_argv()
     assert_eq!(invocation.arguments[3], "python-target=3.10");
     assert_eq!(decoded["files"].as_array().map(Vec::len), Some(8_000));
     assert_eq!(decoded["parser_configuration"], "python-target=3.10");
+    assert_eq!(decoded["source_language"], "explicit-fixture-provider");
     assert!(
         invocation
             .arguments

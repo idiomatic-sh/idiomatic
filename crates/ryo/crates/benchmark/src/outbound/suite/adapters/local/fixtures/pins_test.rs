@@ -114,6 +114,7 @@ fn verify_pin((sha256, version, fixture): (&[&str], &str, PinFixture)) -> Result
         query_modules: std::collections::BTreeMap::default(),
         rule_applicability: std::collections::BTreeMap::default(),
         parser_configuration: None,
+        source_language: None,
         defaults: vec!["E722".try_into().expect("rule identifier")],
     };
     SuiteLocalAdapter

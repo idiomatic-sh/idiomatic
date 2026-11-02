@@ -105,6 +105,7 @@ fn approved_platform_digest_can_differ_from_observed_evidence_binary() {
         query_modules: std::collections::BTreeMap::default(),
         rule_applicability: std::collections::BTreeMap::default(),
         parser_configuration: Some("python3.10".into()),
+        source_language: None,
     };
     assert!(
         validate_pins(

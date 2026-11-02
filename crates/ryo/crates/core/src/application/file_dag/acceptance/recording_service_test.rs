@@ -1,0 +1,724 @@
+//! The `recording` service's cases, on values alone.
+
+use ryo_language::domain::elements::service::notes_mut;
+use ryo_language::domain::files::types::FilePath;
+use ryo_language::domain::relations::types::{
+    CellKind, FileId, Integer, Relation, Value as Cell, Words, WorkerNumber,
+};
+use ryo_values::domain::descriptions::types::RelationName;
+use ryo_values::domain::files::types::{CorpusEntry, FileNumber, FileSize, Nanoseconds};
+use ryo_values::domain::plan_parts::types::{
+    ColumnIndex, Input as PlanInput, RepeatedRows, StepId,
+};
+use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep, StepScope};
+use ryo_values::domain::records::types::{FileOutcome, Kept, Ran, Record, Unreadable};
+use ryo_values::domain::stored_facts::types::{
+    ArenaBase, Bucket, Digest, KeptWords, LanguageNumber,
+};
+
+use crate::application::file_dag::settings::VisitSetting;
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::coverage::types::{Lacking, LackingKind, Partial, RuleIndex};
+use crate::domain::lowering::types::Counting;
+use crate::domain::operator::types::TreeSteps;
+use crate::domain::placement::types::{Mask, PlacedScopes, ScopePlacement};
+use crate::domain::recording::service::{
+    cover, finish_file, frontier_flat, made_ran, moved_words, replay, stored_of,
+};
+use crate::domain::recording::types::{BucketWords, Flat};
+use crate::domain::table_model::service::push_row;
+use crate::domain::table_model::types::Table;
+use crate::domain::table_words::service::{encode_table, pack};
+use crate::domain::table_words::types::WordSlice;
+use crate::domain::trust::types::{Needs, RelationRead};
+use crate::domain::visit::types::{Noting, RoleRead};
+use crate::domain::workers::service::tables_for;
+use crate::domain::workers::types::{FileOrder, Tables};
+use crate::outbound::matching::fixtures::fake::MatchingFake;
+use crate::outbound::matching::interface::MatchingPort as _;
+use ryo_values::domain::runs::types::MemoryBytes;
+use ryo_values::domain::runs::types::RuleId;
+use ryo_values::domain::stored_facts::types::PartialCause;
+
+/// What the last run kept, for a run that uses nothing of it.
+static NOTHING_STORED: std::sync::LazyLock<ryo_values::domain::stores::types::Stored> =
+    std::sync::LazyLock::new(ryo_values::domain::stores::types::Stored::default);
+
+/// What the files of the last run handed, for a run that uses nothing of it.
+static NOTHING_HANDED: std::sync::LazyLock<ryo_values::domain::stores::types::ReadHanded> =
+    std::sync::LazyLock::new(ryo_values::domain::stores::types::ReadHanded::default);
+
+/// No bucket of what the files handed, for a run that reads none.
+static NOTHING_WANTED: ryo_values::domain::stores::types::BucketsWanted =
+    ryo_values::domain::stores::types::BucketsWanted::These(Vec::new());
+
+/// What a row of the cases does.
+#[derive(Clone, Copy)]
+enum Scenario {
+    /// Writes a relation read in part as the interface of a file takes it.
+    PartialsOf,
+    /// Moves the words a file captured to the numbers every run gives them.
+    MovedWords,
+    /// Flattens what a file handed to one rule, among what it handed to two.
+    FrontierFlat,
+    /// Makes the record of what the rules gave of a file.
+    MadeRan,
+    /// Covers a file read in part that a rule governs and trusts.
+    Cover,
+    /// Uses again the record of a file the rules were evaluated on.
+    ReplayRead,
+    /// Ends the visit of a file whose record the run keeps and which a language wrote notes of.
+    FinishKept,
+}
+
+/// What a row of the cases does.
+type Input = Scenario;
+/// A count, or several written one after the other as digits.
+type Value = u64;
+type Failure = ();
+
+fn count(number: usize) -> u64 {
+    u64::try_from(number).unwrap_or(u64::MAX)
+}
+
+fn tables() -> Tables {
+    tables_for(
+        WorkerNumber(2),
+        &[],
+        TreeSteps::Lowered,
+        Counting::DoesNotCount,
+    )
+}
+
+fn placed() -> Result<PlacedScopes, Failure> {
+    Ok(PlacedScopes {
+        placement: ScopePlacement::default(),
+        matcher: MatchingFake.compile(&[]).map_err(drop)?,
+    })
+}
+
+fn setting(placed: &PlacedScopes) -> VisitSetting<'_> {
+    VisitSetting {
+        source_language: None,
+        executor: &crate::application::file_dag::execution::CommonOperatorEngine,
+        operators: crate::application::file_dag::testing::request_fixture(&[], &[], &[]),
+        domain: crate::domain::workers::types::VisitSetting {
+            unknown: &[],
+            plans: &[],
+            bindings: &[],
+            wanted: &[],
+            paths: &[],
+            first_bucket: &[],
+            ids: &[],
+            applicability: &[],
+            applicability_can_gate: true,
+            placed,
+            records: &[],
+            replaying: crate::domain::workers::types::Replaying::Findings,
+            stored: &NOTHING_STORED,
+            handed: &NOTHING_HANDED,
+            wanted_buckets: &NOTHING_WANTED,
+            budget: MemoryBytes(0),
+            noted: Noting::Unwanted,
+            roled: RoleRead::Skips,
+            needs: &[],
+            answering: &crate::domain::render::types::Answering::Findings,
+            keeping: crate::domain::visit::types::Keeping::Keeps,
+        },
+    }
+}
+
+fn partial() -> Partial {
+    Partial {
+        relation: Relation::Defines,
+        cause: PartialCause("syntax error".into()),
+        lacking: Lacking::Any,
+        at: None,
+    }
+}
+
+fn needs() -> Needs {
+    let read = RelationRead {
+        relation: Relation::Defines,
+        kinds: Vec::new(),
+    };
+    Needs {
+        reads: vec![read.clone()],
+        per_file: Vec::new(),
+        cross: vec![read],
+    }
+}
+
+fn words_of_numbers() -> Words {
+    let mut table = Table {
+        kinds: vec![CellKind::Number],
+        ..Table::default()
+    };
+    push_row(&mut table, &[Cell::Number(Integer(7))]);
+    let mut words = Words::default();
+    encode_table(&table, &[], &mut words);
+    words
+}
+
+fn entry() -> CorpusEntry {
+    CorpusEntry {
+        path: FilePath("a.rs".into()),
+        size: FileSize(10),
+        modified: Nanoseconds(5),
+    }
+}
+
+fn unread() -> FileOutcome {
+    FileOutcome::Unread {
+        reason: Unreadable::NoLanguage,
+        ran: None,
+    }
+}
+
+fn ran() -> Ran {
+    made_ran(
+        &tables(),
+        FileId(4),
+        Digest([0; 16]),
+        Vec::new(),
+        ArenaBase(0),
+    )
+}
+
+fn plan_with_a_frontier() -> Plan {
+    Plan {
+        parameters: Vec::new(),
+        steps: vec![PlanStep {
+            operation: Operation::Project {
+                from: PlanInput::Relation(Relation::Function),
+                columns: vec![ColumnIndex(0)],
+                distinct: RepeatedRows::Dropped,
+            },
+            scope: StepScope::PerFile,
+        }],
+        emit: Emit {
+            step: StepId(0),
+            subject: ColumnIndex(0),
+            key: Vec::new(),
+            headings: Vec::new(),
+        },
+        frontier: vec![PlanInput::Step(StepId(0))],
+        comparison_origins: Vec::new(),
+    }
+}
+
+fn cover_scenario(partials: Vec<Partial>, mask: Mask) -> Result<Value, Failure> {
+    let placed = placed()?;
+    let needs = [needs()];
+    let ids = [RuleId("rule".into())];
+    let setting = VisitSetting {
+        domain: crate::domain::workers::types::VisitSetting {
+            needs: &needs,
+            ids: &ids,
+            ..(setting(&placed)).domain
+        },
+        ..setting(&placed)
+    };
+    let mut worker = tables();
+    worker.partials = partials;
+    worker.mask = mask;
+    cover(
+        &mut worker,
+        &setting,
+        FileId(3),
+        &FilePath("a.rs".into()),
+        ryo_language::domain::elements::types::SyntaxAcceptance::Accepted,
+    );
+    Ok(count(worker.unknowns.len()) * 10 + count(worker.covered.len()))
+}
+
+#[test]
+fn rejected_syntax_coverage_ignores_partials_for_gated_rules_after_mask_restore() {
+    use crate::application::file_dag::settings::VisitSetting;
+    use crate::domain::placement::types::Mask;
+    use crate::domain::trust::types::{Needs, RelationRead};
+    use ryo_language::domain::elements::types::SyntaxAcceptance;
+    use ryo_language::domain::relations::types::Relation;
+    use ryo_values::domain::runs::types::{RuleApplicability, RuleId};
+
+    let placed = placed().expect("empty placement is valid");
+    let plans = [plan_with_a_frontier(), plan_with_a_frontier()];
+    let ids = [RuleId("syntax-gated".into()), RuleId("always".into())];
+    let applicability = [RuleApplicability::AcceptedSyntax, RuleApplicability::Always];
+    let needs = [
+        Needs {
+            reads: vec![RelationRead {
+                relation: Relation::Defines,
+                kinds: Vec::new(),
+            }],
+            ..Needs::default()
+        },
+        Needs {
+            reads: vec![RelationRead {
+                relation: Relation::Defines,
+                kinds: Vec::new(),
+            }],
+            ..Needs::default()
+        },
+    ];
+    let path = FilePath("invalid.py".into());
+    let paths = [path.clone()];
+    let setting = VisitSetting {
+        source_language: None,
+        executor: &crate::application::file_dag::execution::CommonOperatorEngine,
+        operators: crate::application::file_dag::testing::request_fixture(&plans, &[], &[]),
+        domain: crate::domain::workers::types::VisitSetting {
+            plans: &plans,
+            ids: &ids,
+            applicability: &applicability,
+            applicability_can_gate: true,
+            needs: &needs,
+            paths: &paths,
+            ..(setting(&placed)).domain
+        },
+        ..setting(&placed)
+    };
+    let mut worker = tables();
+    worker.mask = Mask(vec![0b11]);
+    worker.partials = vec![partial()];
+
+    // `read_file` restores the original cross-rule mask before `cover` runs.
+    worker.mask = Mask(vec![0b11]);
+    cover(
+        &mut worker,
+        &setting,
+        FileId(0),
+        &path,
+        SyntaxAcceptance::Rejected,
+    );
+
+    assert_eq!(worker.unknowns.len(), 1);
+    assert_eq!(worker.unknowns[0].rule, ids[1]);
+    assert_eq!(worker.unknowns[0].path, path);
+    assert!(worker.covered.is_empty());
+}
+
+fn replay_scenario(outcome: FileOutcome) -> Value {
+    let record = Record {
+        path: FilePath("a.rs".into()),
+        size: FileSize(1),
+        modified: Nanoseconds(1),
+        digest: Digest([0; 16]),
+        number: FileNumber(0),
+        outcome,
+    };
+    let mut worker = tables();
+    replay(
+        &mut worker,
+        FileId(3),
+        FileOrder(0),
+        &record,
+        &entry(),
+        Digest([1; 16]),
+    );
+    let fresh = &worker.fresh[0].record;
+    let renewed = fresh.number == FileNumber(3) && fresh.digest == Digest([1; 16]);
+    count(worker.unread.len()) * 100 + count(worker.fresh.len()) * 10 + u64::from(renewed)
+}
+
+fn finish_scenario() -> Result<Value, Failure> {
+    let placed = placed()?;
+    let setting = VisitSetting {
+        domain: crate::domain::workers::types::VisitSetting {
+            noted: Noting::Wanted,
+            ..(setting(&placed)).domain
+        },
+        ..setting(&placed)
+    };
+    let mut worker = tables();
+    notes_mut(&mut worker.elements).0.push(9);
+    worker.language = Some(LanguageNumber(0));
+    finish_file(
+        &mut worker,
+        &setting,
+        FileOrder(0),
+        &entry(),
+        Digest([1; 16]),
+        FileNumber(3),
+        Some(unread()),
+    );
+    Ok(count(worker.fresh.len()) * 100
+        + count(worker.notes.len()) * 10
+        + count(worker.partials.len()))
+}
+
+fn subject(scenario: Input) -> Result<Value, Failure> {
+    match scenario {
+        Scenario::PartialsOf => {
+            let kept = stored_of(&[Partial {
+                lacking: Lacking::Kind(LackingKind("fn".into())),
+                ..partial()
+            }]);
+            Ok(count(kept.len()) * 100
+                + u64::from(kept[0].relation_name == RelationName("defines".into())) * 10
+                + count(kept[0].lacking_kind.0.len()))
+        }
+        Scenario::MovedWords => {
+            let mut worker = tables();
+            worker.captured = vec![Kept {
+                bucket: Bucket(1),
+                words: KeptWords(pack(WordSlice(&words_of_numbers().0))),
+            }];
+            let moved = moved_words(&worker, FileId(3), ArenaBase(0)).unwrap_or_default();
+            Ok(count(moved.len()) * 10
+                + u64::from(
+                    moved.first().map(|each| each.words.clone())
+                        == Some(worker.captured[0].words.0.clone()),
+                ))
+        }
+        Scenario::FrontierFlat => {
+            let placed = placed()?;
+            let plans = [plan_with_a_frontier()];
+            let first = [Bucket(1)];
+            let setting = VisitSetting {
+                source_language: None,
+                executor: &crate::application::file_dag::execution::CommonOperatorEngine,
+                operators: crate::application::file_dag::testing::request_fixture(&plans, &[], &[]),
+                domain: crate::domain::workers::types::VisitSetting {
+                    plans: &plans,
+                    first_bucket: &first,
+                    ..(setting(&placed)).domain
+                },
+                ..setting(&placed)
+            };
+            let moved = [
+                BucketWords {
+                    bucket: Bucket(1),
+                    word_count: 2,
+                    words: pack(WordSlice(&[5, 6])),
+                },
+                BucketWords {
+                    bucket: Bucket(9),
+                    word_count: 1,
+                    words: pack(WordSlice(&[7])),
+                },
+            ];
+            let mut flat = Flat(vec![99]);
+            frontier_flat(&moved, &setting, RuleIndex(0), &mut flat);
+            Ok(flat.0.iter().sum())
+        }
+        Scenario::MadeRan => {
+            let ran = made_ran(
+                &tables(),
+                FileId(5),
+                Digest([2; 16]),
+                Vec::new(),
+                ArenaBase(0),
+            );
+            Ok(u64::from(ran.number.0) * 10 + u64::from(ran.interface == Digest([2; 16])))
+        }
+        Scenario::Cover => cover_scenario(vec![partial()], Mask(vec![1])),
+        Scenario::ReplayRead => Ok(replay_scenario(FileOutcome::Read(ran()))),
+        Scenario::FinishKept => finish_scenario(),
+    }
+}
+
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("a_relation_read_in_part_is_written_with_its_name_and_the_kind_it_lacks"),
+        word: Word::Succeeds,
+        input: || Scenario::PartialsOf,
+        expect: Expect::Value(112),
+    },
+    Case {
+        name: CaseName("words_with_numbers_only_are_the_same_in_another_run"),
+        word: Word::Succeeds,
+        input: || Scenario::MovedWords,
+        expect: Expect::Value(11),
+    },
+    Case {
+        name: CaseName("one_rules_share_of_what_a_file_handed_over_is_its_buckets_and_words"),
+        word: Word::Succeeds,
+        input: || Scenario::FrontierFlat,
+        expect: Expect::Value(14),
+    },
+    Case {
+        name: CaseName("the_record_of_what_the_rules_gave_names_the_file_and_what_it_shows"),
+        word: Word::Succeeds,
+        input: || Scenario::MadeRan,
+        expect: Expect::Value(51),
+    },
+    Case {
+        name: CaseName("a_file_read_in_part_costs_a_rule_that_trusts_its_missing_rows_a_finding"),
+        word: Word::Succeeds,
+        input: || Scenario::Cover,
+        expect: Expect::Value(11),
+    },
+    Case {
+        name: CaseName("a_file_the_store_kept_is_renumbered_and_its_record_kept_again"),
+        word: Word::Succeeds,
+        input: || Scenario::ReplayRead,
+        expect: Expect::Value(11),
+    },
+    Case {
+        name: CaseName(
+            "a_visit_ends_with_the_record_and_the_notes_when_the_run_keeps_its_findings",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::FinishKept,
+        expect: Expect::Value(110),
+    },
+];
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+/// The old all-buckets-u64 normalization, retained only as a small-fixture independent oracle.
+fn legacy_normalized(
+    worker: &Tables,
+    file: FileId,
+    base: ArenaBase,
+) -> Option<Vec<(Bucket, Words)>> {
+    use crate::domain::keeping::service::remap_packed;
+    use crate::domain::keeping::types::{ArenaStart, Remap};
+    let map = Remap {
+        from_file: file,
+        to_file: FileId(0),
+        from_worker: worker.number,
+        to_worker: WorkerNumber(0),
+        from_base: ArenaStart(base.0),
+        to_base: ArenaStart(0),
+    };
+    worker
+        .captured
+        .iter()
+        .map(|each| {
+            let mut words = Words::default();
+            remap_packed(&each.words.0, &map, &mut words)?;
+            Some((each.bucket, words))
+        })
+        .collect()
+}
+
+#[test]
+fn prepared_packed_buckets_preserve_legacy_flat_digests_store_bytes_and_move_ownership() {
+    use crate::domain::table_model::types::RowCount;
+    use crate::outbound::digest::fixtures::fake::DigestFake;
+    use crate::outbound::digest::interface::DigestPort as _;
+    use crate::outbound::digest::types::DigestWords;
+    use ryo_language::domain::relations::service::node_id;
+    use ryo_language::domain::relations::types::{
+        Flag, Name, NamePlace, Offset, Origin, PlaceNumber, Position, Span, TextHash,
+    };
+    let mut worker = tables();
+    worker.arena.0 = b"prefix_derived text".to_vec();
+    let table = Table {
+        kinds: vec![
+            CellKind::Node,
+            CellKind::Symbol,
+            CellKind::File,
+            CellKind::Span,
+            CellKind::Number,
+            CellKind::Flag,
+        ],
+        cells: vec![
+            Cell::Node(node_id(FileId(3), Position(11))),
+            Cell::Name(Name {
+                hash: TextHash(99),
+                place: PlaceNumber(0),
+            }),
+            Cell::File(FileId(3)),
+            Cell::Span(Span {
+                start: Offset(1),
+                end: Offset(4),
+            }),
+            Cell::Number(Integer(-1)),
+            Cell::Flag(Flag::Raised),
+        ],
+        count: RowCount(1),
+    };
+    let places = [NamePlace {
+        origin: Origin::Derived(WorkerNumber(2)),
+        file: FileId(3),
+        start: Offset(8),
+        end: Offset(12),
+    }];
+    let mut complex = Words::default();
+    encode_table(&table, &places, &mut complex);
+    encode_table(&table, &places, &mut complex);
+    let mut zero_width = Words::default();
+    encode_table(
+        &Table {
+            count: RowCount(3),
+            ..Table::default()
+        },
+        &[],
+        &mut zero_width,
+    );
+    worker.captured = vec![
+        Kept {
+            bucket: Bucket(9),
+            words: KeptWords(pack(WordSlice(&complex.0))),
+        },
+        Kept {
+            bucket: Bucket(1),
+            words: KeptWords(pack(WordSlice(&zero_width.0))),
+        },
+        Kept {
+            bucket: Bucket(2),
+            words: KeptWords(pack(WordSlice(&[]))),
+        },
+        Kept {
+            bucket: Bucket(9),
+            words: KeptWords(pack(WordSlice(&words_of_numbers().0))),
+        },
+    ];
+    let legacy = legacy_normalized(&worker, FileId(3), ArenaBase(7)).expect("reference remap");
+    let moved = moved_words(&worker, FileId(3), ArenaBase(7)).expect("incremental remap");
+    assert_eq!(moved.len(), legacy.len());
+    for (prepared, (bucket, words)) in moved.iter().zip(&legacy) {
+        assert_eq!(prepared.bucket, *bucket);
+        assert_eq!(prepared.word_count, words.0.len());
+        assert_eq!(prepared.words, pack(WordSlice(&words.0)));
+        assert_eq!(prepared.words.0.capacity(), prepared.words.0.len());
+    }
+    let placed = placed().expect("placement");
+    let mut first_plan = plan_with_a_frontier();
+    first_plan.frontier.push(PlanInput::Step(StepId(1)));
+    let plans = [first_plan, plan_with_a_frontier()];
+    let first = [Bucket(1), Bucket(9)];
+    let setting = VisitSetting {
+        source_language: None,
+        executor: &crate::application::file_dag::execution::CommonOperatorEngine,
+        operators: crate::application::file_dag::testing::request_fixture(&plans, &[], &[]),
+        domain: crate::domain::workers::types::VisitSetting {
+            plans: &plans,
+            first_bucket: &first,
+            ..(setting(&placed)).domain
+        },
+        ..setting(&placed)
+    };
+    let mut flat = Flat(vec![42]);
+    for rule in 0..plans.len() {
+        let mut expected = Vec::new();
+        for (bucket, words) in &legacy {
+            if bucket.0 >= first[rule].0
+                && (bucket.0 - first[rule].0) < plans[rule].frontier.len() as u32
+            {
+                expected.extend([u64::from(bucket.0), words.0.len() as u64]);
+                expected.extend_from_slice(&words.0);
+            }
+        }
+        frontier_flat(&moved, &setting, RuleIndex(rule), &mut flat);
+        assert_eq!(flat.0, expected, "digest framing and captured order");
+        assert_eq!(
+            DigestFake.digest_words(DigestWords(&flat.0)),
+            DigestFake.digest_words(DigestWords(&expected))
+        );
+    }
+    let pointers: Vec<_> = moved.iter().map(|bucket| bucket.words.0.as_ptr()).collect();
+    let ran = made_ran(&worker, FileId(3), Digest([1; 16]), moved, ArenaBase(7));
+    let ryo_values::domain::records::types::Handing::Made(handed) = ran.handed else {
+        panic!("fresh handover");
+    };
+    for (index, bucket) in handed.buckets.iter().enumerate() {
+        let ryo_values::domain::records::types::RecordWords::Inline(words) = &bucket.words else {
+            panic!("pure normalization stays inline");
+        };
+        assert_eq!(
+            words.0.as_ptr(),
+            pointers[index],
+            "no second packing/copy in made_ran"
+        );
+        assert_eq!(*words, pack(WordSlice(&legacy[index].1.0)));
+    }
+    assert_eq!(handed.text.0, b"derived text");
+}
+
+#[test]
+fn incremental_normalization_preserves_every_truncated_complete_prefix() {
+    let mut worker = tables();
+    let mut table = Table {
+        kinds: vec![CellKind::Number],
+        ..Table::default()
+    };
+    push_row(&mut table, &[Cell::Number(Integer(-1))]);
+    let mut words = Words::default();
+    encode_table(&table, &[], &mut words);
+    encode_table(&table, &[], &mut words);
+    let packed = pack(WordSlice(&words.0));
+    for end in 0..=packed.0.len() {
+        worker.captured = vec![Kept {
+            bucket: Bucket(0),
+            words: KeptWords(ryo_values::domain::stored_facts::types::PackedWords(
+                packed.0[..end].to_vec(),
+            )),
+        }];
+        let expected =
+            legacy_normalized(&worker, FileId(3), ArenaBase(0)).expect("legacy valid prefix");
+        let actual = moved_words(&worker, FileId(3), ArenaBase(0)).expect("new valid prefix");
+        assert_eq!(actual[0].word_count, expected[0].1.0.len());
+        assert_eq!(
+            actual[0].words,
+            pack(WordSlice(&expected[0].1.0)),
+            "cut byte {end}"
+        );
+    }
+}
+
+#[test]
+fn invalid_last_bucket_is_rejected_for_file_worker_and_arena_underflow() {
+    use crate::domain::table_model::types::RowCount;
+    use ryo_language::domain::relations::types::{
+        Name, NamePlace, Offset, Origin, PlaceNumber, TextHash,
+    };
+    let mut worker = tables();
+    let good = Kept {
+        bucket: Bucket(0),
+        words: KeptWords(pack(WordSlice(&words_of_numbers().0))),
+    };
+    for (value, places) in [
+        (Cell::File(FileId(99)), vec![]),
+        (
+            Cell::Name(Name {
+                hash: TextHash(1),
+                place: PlaceNumber(0),
+            }),
+            vec![NamePlace {
+                origin: Origin::Derived(WorkerNumber(99)),
+                file: FileId(3),
+                start: Offset(9),
+                end: Offset(12),
+            }],
+        ),
+        (
+            Cell::Name(Name {
+                hash: TextHash(1),
+                place: PlaceNumber(0),
+            }),
+            vec![NamePlace {
+                origin: Origin::Derived(WorkerNumber(2)),
+                file: FileId(3),
+                start: Offset(2),
+                end: Offset(4),
+            }],
+        ),
+    ] {
+        let mut words = Words::default();
+        encode_table(
+            &Table {
+                kinds: vec![CellKind::Number],
+                cells: vec![value],
+                count: RowCount(1),
+            },
+            &places,
+            &mut words,
+        );
+        worker.captured = vec![
+            good.clone(),
+            Kept {
+                bucket: Bucket(1),
+                words: KeptWords(pack(WordSlice(&words.0))),
+            },
+        ];
+        assert!(legacy_normalized(&worker, FileId(3), ArenaBase(7)).is_none());
+        assert!(moved_words(&worker, FileId(3), ArenaBase(7)).is_none());
+    }
+}

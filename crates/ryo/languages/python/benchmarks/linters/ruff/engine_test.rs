@@ -168,6 +168,7 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
         query_modules: modules_for(scenario)?,
         rule_applicability: BTreeMap::default(),
         parser_configuration: None,
+        source_language: None,
         files: vec![ryo::linter::RelativePath(file.into())],
         state: ryo_benchmark::domain::suite::types::WorkerState::Fresh,
     };
@@ -201,6 +202,7 @@ fn rejected_syntax_with_provider_partials_skips_only_accepted_syntax_rules() -> 
             ("UP025".to_owned(), "accepted-syntax".to_owned()),
         ]),
         parser_configuration: Some("python-target=3.10".to_owned()),
+        source_language: None,
         files: vec![ryo::linter::RelativePath("input.py".into())],
         state: ryo_benchmark::domain::suite::types::WorkerState::Fresh,
     };
@@ -551,6 +553,7 @@ fn projection_cache_query_change(root: &std::path::Path) -> Result<Value, Error>
         query_modules: suppress_modules(),
         rule_applicability: BTreeMap::default(),
         parser_configuration: None,
+        source_language: None,
         files: vec![ryo::linter::RelativePath(file.into())],
         state: ryo_benchmark::domain::suite::types::WorkerState::Fresh,
     };
@@ -608,6 +611,7 @@ fn query_module_inline_equivalence(root: &std::path::Path) -> Result<bool, Error
         query_modules: BTreeMap::default(),
         rule_applicability: BTreeMap::default(),
         parser_configuration: None,
+        source_language: None,
         files: vec![ryo::linter::RelativePath("input.py".into())],
         state: ryo_benchmark::domain::suite::types::WorkerState::Fresh,
     })?;
@@ -637,6 +641,7 @@ fn query_module_inline_equivalence(root: &std::path::Path) -> Result<bool, Error
         query_modules: modules,
         rule_applicability: BTreeMap::default(),
         parser_configuration: None,
+        source_language: None,
         files: vec![ryo::linter::RelativePath("input.py".into())],
         state: ryo_benchmark::domain::suite::types::WorkerState::Fresh,
     })?;
@@ -717,6 +722,7 @@ fn target_configuration_cache_change(root: &std::path::Path) -> Result<bool, Err
         query_modules: query_modules.clone(),
         rule_applicability: BTreeMap::default(),
         parser_configuration: Some("python-target=3.10".to_owned()),
+        source_language: None,
         files: negative_files.clone(),
         state: WorkerState::Fresh,
     })?;
@@ -743,6 +749,7 @@ fn target_configuration_cache_change(root: &std::path::Path) -> Result<bool, Err
             query_modules: query_modules.clone(),
             rule_applicability: BTreeMap::default(),
             parser_configuration: Some(identity.to_owned()),
+            source_language: None,
             files: files.clone(),
             state: WorkerState::Retained(cache.clone()),
         })
@@ -863,6 +870,7 @@ fn shared_suppression_fragment_matches_the_historical_inline_queries() -> Result
             query_modules: BTreeMap::default(),
             rule_applicability: BTreeMap::default(),
             parser_configuration: None,
+            source_language: None,
             files: case.request.files,
             state,
         })?;
@@ -875,6 +883,7 @@ fn shared_suppression_fragment_matches_the_historical_inline_queries() -> Result
             query_modules: registry.clone(),
             rule_applicability: BTreeMap::default(),
             parser_configuration: None,
+            source_language: None,
             files: imported.request.files.clone(),
             state: ryo_benchmark::domain::suite::types::WorkerState::Fresh,
         })?;
@@ -952,6 +961,7 @@ fn assert_single_rule_fragment_equivalence(
             query_modules: BTreeMap::default(),
             rule_applicability: BTreeMap::default(),
             parser_configuration: None,
+            source_language: None,
             files: case.request.files,
             state: ryo_benchmark::domain::suite::types::WorkerState::Fresh,
         })?;
@@ -964,6 +974,7 @@ fn assert_single_rule_fragment_equivalence(
             query_modules: suppress_modules(),
             rule_applicability: BTreeMap::default(),
             parser_configuration: None,
+            source_language: None,
             files: imported_case.request.files.clone(),
             state: ryo_benchmark::domain::suite::types::WorkerState::Fresh,
         })?;
@@ -999,6 +1010,7 @@ fn literal_properties_reach_engine_queries_for_true_and_false_boolean_nodes() ->
         query_modules: BTreeMap::default(),
         rule_applicability: BTreeMap::default(),
         parser_configuration: None,
+        source_language: None,
         files: ["true.py", "false.py"]
             .into_iter()
             .map(|path| ryo::linter::RelativePath(path.into()))
@@ -1061,6 +1073,7 @@ fn decoded_numeric_payloads_and_strict_greater_composition_reach_engine_queries(
         query_modules: BTreeMap::default(),
         rule_applicability: BTreeMap::default(),
         parser_configuration: None,
+        source_language: None,
         files: vec![ryo::linter::RelativePath("numeric.py".into())],
         state: ryo_benchmark::domain::suite::types::WorkerState::Fresh,
     })?;

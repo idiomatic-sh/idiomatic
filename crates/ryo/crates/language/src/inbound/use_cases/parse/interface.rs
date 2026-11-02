@@ -50,6 +50,12 @@ pub trait ParseUseCase: Send + Sync {
     /// Whether the language reads the file the request names, by its path.
     fn recognizes(&self, request: &ParseRequest<'_>) -> Recognition;
 
+    /// Whether this provider accepts a file explicitly assigned to it by the host.
+    /// The conservative default never bypasses path recognition.
+    fn recognizes_explicit(&self, _request: &ParseRequest<'_>) -> Recognition {
+        Recognition::Declines
+    }
+
     /// The names of the directories the language never reads, at any depth: the dependency, environment and build directories of its
     /// ecosystem (`node_modules`, `target`), which both ryo's walk of a repository and Tastemaker's do not enter. A language whose
     /// ecosystem has none answers an empty list, and says in its constants why.

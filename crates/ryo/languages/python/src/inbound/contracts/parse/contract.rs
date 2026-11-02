@@ -141,6 +141,13 @@ impl Parse for ParseContract {
         reads(request.path)
     }
 
+    fn recognizes_explicit(
+        &self,
+        _request: &languages::ParseRequest<'_>,
+    ) -> languages::Recognition {
+        languages::Recognition::Reads
+    }
+
     fn skips(&self) -> &'static [languages::SkippedDirectory] {
         crate::domain::language::constants::SKIPS
     }

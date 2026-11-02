@@ -200,6 +200,8 @@ impl std::fmt::Debug for Linter {
 /// The rules to check in a repository.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LintRequest {
+    /// Explicit provider for these sources; none preserves ordinary path recognition.
+    pub source_language: Option<crate::domain::language::types::LanguageName>,
     /// The repository's root directory.
     pub root: PathBuf,
     /// The rules, by the id their findings carry.

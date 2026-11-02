@@ -130,6 +130,7 @@ pub fn check(adapter: &impl SuitePort) {
             query_modules: std::collections::BTreeMap::default(),
             rule_applicability: std::collections::BTreeMap::default(),
             parser_configuration: None,
+            source_language: None,
             defaults: if selected {
                 vec!["fixture".try_into().expect("rule identifier")]
             } else {

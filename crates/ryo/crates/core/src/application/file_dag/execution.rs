@@ -1,8 +1,9 @@
 //! The mandatory shared operator engine. Policies change demand/retention, never primitive code.
 use super::{invocation::InvocationResources, workspace::InvocationWorkspace};
+use crate::application::file_dag::feed::Feed;
 use crate::domain::operating::{
     errors::OperatingError,
-    types::{Emit, Feed, InputPlace, OperatorContext, Room},
+    types::{Emit, InputPlace, OperatorContext, Room},
 };
 use crate::domain::operator::contract::{types::*, views::BorrowedRows};
 use crate::domain::replay::types::Collect;
@@ -41,11 +42,16 @@ fn selected_schema(input: &Rows<'_>) -> Result<(), OperatingError> {
     Ok(())
 }
 
-fn physical_fallbacks(inputs: &[Rows<'_>]) -> Result<Vec<Option<Table>>, OperatingError> {
+fn physical_fallbacks(
+    inputs: &[Rows<'_>],
+    workspace: &InvocationWorkspace,
+    offset: usize,
+) -> Result<Vec<Option<std::sync::Arc<Table>>>, OperatingError> {
     inputs
         .iter()
-        .map(|input| {
+        .enumerate().map(|(place,input)| {
             selected_schema(input)?;
+            if matches!(input,Rows::Stored(_)|Rows::Selected(_)){if let Some(normalized)=workspace.normalization(place+offset,input.clone()){return normalized}}
             let physical = match input {
                 Rows::Stored(view) => Some(*view),
                 Rows::Selected(view) => Some(view.source),
@@ -62,7 +68,7 @@ fn physical_fallbacks(inputs: &[Rows<'_>]) -> Result<Vec<Option<Table>>, Operati
                     &mut table,
                     &mut Vec::new(),
                 );
-                Ok(Some(table))
+                Ok(Some(std::sync::Arc::new(table)))
             } else {
                 Ok(None)
             }
@@ -103,14 +109,14 @@ impl CommonOperatorEngine {
         workspace: &mut InvocationWorkspace,
     ) -> Result<(), OperatingError> {
         let provider_inputs = inputs;
-        let normalized = physical_fallbacks(inputs)?;
+        let normalized = physical_fallbacks(inputs, workspace, 0)?;
         let originals = inputs
             .iter()
             .zip(&normalized)
             .map(|(input, fallback)| {
                 fallback
                     .as_ref()
-                    .map_or_else(|| input.clone(), Rows::Computed)
+                    .map_or_else(|| input.clone(), |table| Rows::Computed(table.as_ref()))
             })
             .collect::<Vec<_>>();
         let originals = originals.as_slice();
@@ -142,9 +148,9 @@ impl CommonOperatorEngine {
             contract.collected_kinds.as_ref().map_err(Clone::clone)?;
         }
         if mode.preflight == PreflightOrder::SchemaFirst {
-            for input in &inputs {
+            for (place, input) in inputs.iter().enumerate() {
                 if matches!(input, BorrowedRows::Computed(_)) {
-                    input.validate()?;
+                    workspace.validate(place, *input)?;
                 }
             }
             reset(
@@ -169,6 +175,7 @@ impl CommonOperatorEngine {
                 context,
                 mode.evaluation,
                 originals,
+                workspace,
             )?)
         } else {
             None
@@ -217,6 +224,13 @@ impl CommonOperatorEngine {
         context: &mut OperatorContext<'_>,
         emit: &mut dyn Emit,
     ) -> Result<(), OperatingError> {
+        for input in inputs {
+            let _bulk =
+                crate::domain::table_model::collections::representations::service::registered(
+                    crate::domain::table_model::collections::representations::service::kind(*input),
+                )
+                .bulk(*input)?;
+        }
         if matches!(mode.shape, InputShape::Row { .. })
             && !originals.is_empty()
             && resources
@@ -236,7 +250,7 @@ impl CommonOperatorEngine {
                     let source = inputs.get(place).ok_or(OperatingError::MissingInput {
                         position: place + 1,
                     })?;
-                    source.validate()?;
+                    workspace.validate(place, *source)?;
                     for at in 0..source.count() {
                         {
                             let each = source
@@ -267,10 +281,11 @@ impl CommonOperatorEngine {
                         context,
                         mode.evaluation,
                         originals,
+                        workspace,
                     )?);
                 }
-                for input in inputs {
-                    input.validate()?;
+                for (place, input) in inputs.iter().enumerate() {
+                    workspace.validate(place, *input)?;
                 }
                 if resources
                     .as_ref()
@@ -319,13 +334,14 @@ impl CommonOperatorEngine {
                         context,
                         mode.evaluation,
                         originals,
+                        workspace,
                     )?);
                 }
                 let source = inputs
                     .first()
                     .copied()
                     .unwrap_or(BorrowedRows::Computed(&EMPTY));
-                source.validate()?;
+                workspace.validate(0, source)?;
                 lease::evaluate(
                     contract,
                     PreparedInputs::RequestSource(&source),
@@ -357,6 +373,7 @@ impl CommonOperatorEngine {
                 context,
                 mode.evaluation,
                 originals,
+                workspace,
             )?);
         }
         if contract.set_scope == SetScope::PrimaryRow {
@@ -378,7 +395,7 @@ impl CommonOperatorEngine {
     }
 }
 
-impl crate::domain::operator::contract::executor::PrimitiveExecutor for CommonOperatorEngine {
+impl crate::application::file_dag::executor::PrimitiveExecutor for CommonOperatorEngine {
     fn stream(
         &self,
         contract: &OperatorContract,
@@ -401,7 +418,7 @@ impl crate::domain::operator::contract::executor::PrimitiveExecutor for CommonOp
     fn stream_step<'a, 'f>(
         &self,
         contract: &OperatorContract,
-        stepper: &mut crate::domain::pipeline::types::Stepper<'a, 'f>,
+        stepper: &mut crate::application::file_dag::pipeline::types::Stepper<'a, 'f>,
         id: crate::domain::operator::types::StepPlace,
         context: &mut OperatorContext<'_>,
         room: &mut Room,
@@ -415,12 +432,12 @@ impl crate::domain::operator::contract::executor::PrimitiveExecutor for CommonOp
     fn keep_step<'a, 'f>(
         &self,
         contract: &OperatorContract,
-        stepper: &mut crate::domain::pipeline::types::Stepper<'a, 'f>,
+        stepper: &mut crate::application::file_dag::pipeline::types::Stepper<'a, 'f>,
         id: crate::domain::operator::types::StepPlace,
         context: &mut OperatorContext<'_>,
         room: &mut Room,
         target: &mut Table,
-    ) -> Result<crate::domain::operator::contract::executor::StepMaterialization, OperatingError>
+    ) -> Result<crate::application::file_dag::executor::StepMaterialization, OperatingError>
     where
         'f: 'a,
     {
@@ -430,3 +447,38 @@ impl crate::domain::operator::contract::executor::PrimitiveExecutor for CommonOp
 
 #[cfg(test)]
 mod tests;
+
+impl CommonOperatorEngine {
+    pub(super) fn keep_representation(
+        &self,
+        contract: &OperatorContract,
+        physical:&crate::domain::table_model::collections::representations::publication::PreparedPhysical,
+        feed: &mut super::service::GraphInputs<'_, '_>,
+        owner: &super::relations::RelationOwner,
+        context: &mut OperatorContext<'_>,
+    ) -> Result<std::sync::Arc<super::relations::RelationResult>, OperatingError> {
+        if let Some(which) = physical.alias.filter(|_| owner.stable()) {
+            let result = feed.publication(which, context)?;
+            feed.inspect_publication(result.as_ref(), owner)?;
+            return Ok(result);
+        }
+        if let Some(selector) = physical.selector.as_ref() {
+            if let Some(produced) = feed.produce(selector, owner, context)? {
+                return owner.publish_selection(produced);
+            }
+        }
+        let mut table = Table::default();
+        reset(
+            &mut table,
+            &contract.collected_kinds.as_ref().map_err(Clone::clone)?,
+        );
+        self.stream(
+            contract,
+            feed,
+            context,
+            &mut Room::default(),
+            &mut Collect(&mut table),
+        )?;
+        owner.computed(table)
+    }
+}

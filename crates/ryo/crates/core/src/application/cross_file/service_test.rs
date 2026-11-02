@@ -2,11 +2,12 @@
 //! The `crossing` service's cases, on values alone.
 
 use super::service::CrossFile;
+use crate::application::file_dag::settings::CrossingInput;
 use crate::cases::{Case, CaseName, Expect, Selection, Word, run};
 use crate::domain::answering::types::Todo;
 use crate::domain::coverage::types::{Covered, FilePartial, Lacking, Partial, RuleIndex};
 use crate::domain::crossing::service::{partials_for, placeable};
-use crate::domain::crossing::types::{CrossingInput, Placeability};
+use crate::domain::crossing::types::Placeability;
 use crate::domain::frontiers::service::decode_input;
 use crate::domain::rules::errors::RulesError;
 use crate::domain::table_model::service::push_row;
@@ -122,19 +123,21 @@ fn crossing(world: &World) -> CrossingInput<'_> {
             &world.bindings,
             &[],
         ),
-        unknown: &[],
-        plans: &world.plans,
-        bindings: &world.bindings,
-        ids: &world.ids,
-        needs: &world.needs,
-        paths: &[],
-        arenas: &world.arenas,
-        files: &[],
-        covered: &world.covered,
-        skipped: &[],
-        project: &world.project,
-        hosted: &[],
-        answering: &crate::domain::render::types::Answering::Findings,
+        domain: crate::domain::crossing::types::CrossingInput {
+            unknown: &[],
+            plans: &world.plans,
+            bindings: &world.bindings,
+            ids: &world.ids,
+            needs: &world.needs,
+            paths: &[],
+            arenas: &world.arenas,
+            files: &[],
+            covered: &world.covered,
+            skipped: &[],
+            project: &world.project,
+            hosted: &[],
+            answering: &crate::domain::render::types::Answering::Findings,
+        },
     }
 }
 

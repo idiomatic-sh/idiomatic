@@ -1,6 +1,7 @@
 //! State owned by a bounded file analysis invocation.
 use super::errors::FileAnalysisError;
-use crate::domain::workers::types::{Tables, VisitSetting};
+use crate::application::file_dag::settings::VisitSetting;
+use crate::domain::workers::types::Tables;
 use crate::outbound::facts::interface::FactsWorker;
 /// What one worker owns while the jobs run: its tables, its handle of the fact store and the first thing that went wrong in it.
 pub(crate) struct Worker {

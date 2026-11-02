@@ -2,6 +2,3 @@
 //! columns each answers.
 
 pub(crate) mod service;
-
-#[cfg(test)]
-mod service_test;

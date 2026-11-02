@@ -1,6 +1,11 @@
 //! Existing physical algorithms are implementations selected by the common engine.
 //! They borrow application-owned rule state; no primitive gains scheduler/cache access.
 use super::execution::CommonOperatorEngine;
+use crate::application::file_dag::executor::StepMaterialization;
+use crate::application::file_dag::pipeline::{
+    types::compact::value::CompactInput,
+    types::{LoweredTree, Stepper},
+};
 use crate::domain::column_kernel::{service as column, types::KernelStrategy};
 use crate::domain::fragment::{service as fragment, types::FragmentRun};
 use crate::domain::lowering::types::Counting;
@@ -8,12 +13,7 @@ use crate::domain::operating::{
     errors::OperatingError,
     types::{Emit, OperatorContext, Room},
 };
-use crate::domain::operator::contract::executor::StepMaterialization;
 use crate::domain::operator::{contract::types::OperatorContract, types::StepPlace};
-use crate::domain::pipeline::{
-    types::compact::value::CompactInput,
-    types::{LoweredTree, Stepper},
-};
 use crate::domain::replay::{
     service::scan,
     types::{Collect, Pipe},
@@ -74,7 +74,7 @@ impl CommonOperatorEngine {
                 fragment::make(&mut run, step, context)
                     .and_then(|()| fragment::emit(&mut run, step, context, &mut counting))
             };
-            crate::domain::pipeline::service::feed(
+            crate::application::file_dag::pipeline::service::feed(
                 stepper,
                 id,
                 crate::domain::operating::types::InputPlace(0),

@@ -1,18 +1,20 @@
+use super::relations::{RelationOwner, RelationResult};
 use crate::domain::file_program::types::RequestGraph;
-use crate::domain::table_model::types::Table;
+use std::rc::Rc;
 use std::sync::Arc;
 
 /// Application owns one immutable physical file generation's execution state.
 pub(crate) struct FileDagExecution {
     pub graph: Arc<RequestGraph>,
+    pub(super) relations: Rc<RelationOwner>,
     /// A complete rule is admitted as a unit; partial rules use the residual executor.
     pub active: Vec<bool>,
     /// Root and dependency consumers, not occurrences in individual rule plans.
     pub remaining: Vec<usize>,
     /// Optional cross-rule retained results, subject to the existing cache allowance.
-    pub ready: Vec<Option<Arc<Table>>>,
+    pub(super) ready: Vec<Option<Arc<RelationResult>>>,
     /// Required live results for the current rule, independent of that allowance.
-    pub required: Vec<Option<Arc<Table>>>,
+    pub(super) required: Vec<Option<Arc<RelationResult>>>,
     pub required_remaining: Vec<usize>,
     pub required_executed: Vec<bool>,
     pub required_inputs: Vec<bool>,

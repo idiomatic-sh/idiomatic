@@ -181,6 +181,7 @@ fn converted_policy(applicability: RuleApplicability) -> Result<Value, Failure> 
         crate::resources::query::RyoQlQuery::try_from("emit \"syntax-tree\" subject file key(id);");
     let query = query.map_err(|_error| Refused::Policy)?;
     let converted = request(LintRequest {
+        source_language: None,
         root: std::path::PathBuf::from("."),
         rules: [(
             id,
@@ -284,4 +285,26 @@ fn succeeds() {
 #[test]
 fn refuses() {
     run(CASES, Word::Refuses, subject);
+}
+
+#[test]
+fn explicit_source_language_is_preserved_at_sdk_request_boundary() {
+    let converted = request(LintRequest {
+        source_language: Some(crate::domain::language::types::LanguageName(
+            "selected-provider".into(),
+        )),
+        root: std::path::PathBuf::from("."),
+        rules: std::collections::BTreeMap::new(),
+        files: vec![],
+        hosted: vec![],
+        corpus: Corpus::Given(vec![]),
+        beside: vec![],
+    })
+    .expect("request conversion");
+    assert_eq!(
+        converted.source_language,
+        Some(ryo_values::domain::descriptions::types::LanguageName(
+            "selected-provider".into()
+        ))
+    );
 }

@@ -18,6 +18,8 @@ const LARGE_RESULT_CELL_CAPACITY: usize = 256 * 1024;
 
 struct CanonicalNode {
     contract: Arc<crate::domain::operator::contract::types::OperatorContract>,
+    physical:
+        crate::domain::table_model::collections::representations::publication::PreparedPhysical,
     scope: Option<usize>,
     operation: Operation,
     inputs: Vec<NodeInput>,
@@ -168,6 +170,7 @@ pub(crate) fn compile_prepared(
                     let kinds = validated.unwrap_or_default();
                     let id = NodeId(nodes.len());
                     nodes.push(CanonicalNode {
+                        physical: operators.physical[rule][index].clone(),
                         contract,
                         scope,
                         operation,
@@ -263,6 +266,7 @@ pub(crate) fn compile_prepared(
             .into_iter()
             .map(|node| Node {
                 contract: node.contract,
+                physical: node.physical,
                 operation: node.operation,
                 inputs: node.inputs,
                 kinds: node.kinds,
@@ -410,13 +414,4 @@ impl FileProgram {
             }
         }
     }
-}
-
-#[cfg(test)]
-pub(crate) fn compile(plans: &[Plan]) -> RequestGraph {
-    let bindings = vec![Vec::new(); plans.len()];
-    let request =
-        crate::domain::operator::contract::types::RequestOperators::prepare(plans, &bindings, &[])
-            .expect("fixture request metadata");
-    compile_prepared(plans, &request)
 }

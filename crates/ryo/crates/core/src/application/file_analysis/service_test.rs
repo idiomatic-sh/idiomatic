@@ -16,12 +16,12 @@ use ryo_language::inbound::use_cases::project::types::RootPath;
 use ryo_language::inbound::use_cases::project::types::{ManifestFile, ManifestText};
 use std::sync::{Arc, atomic::Ordering};
 
+use crate::application::file_dag::settings::VisitSetting;
 use crate::domain::lowering::types::Counting;
 use crate::domain::operator::types::TreeSteps;
 use crate::domain::placement::types::{Mask, PlacedScopes, ScopePlacement};
 use crate::domain::trust::types::{Needs, RelationRead};
 use crate::domain::workers::service::tables_for;
-use crate::domain::workers::types::VisitSetting;
 use crate::outbound::matching::interface::MatchingPort as _;
 use ryo_language::domain::elements::types::SyntaxAcceptance;
 use ryo_language::domain::relations::types::{Relation, WorkerNumber};
@@ -54,44 +54,47 @@ fn syntax_applicability_skips_only_gated_rules_and_names_the_reason() {
             .expect("empty matcher"),
     };
     let setting = VisitSetting {
+        source_language: None,
         executor: &crate::application::file_dag::execution::CommonOperatorEngine,
         operators: crate::application::file_dag::testing::request_fixture(&plans, &[], &[]),
-        plans: &plans,
-        bindings: &[],
-        wanted: &[Relation::Function, Relation::Identifier],
-        paths: &paths,
-        first_bucket: &[],
-        ids: &ids,
-        applicability: &applicability,
-        applicability_can_gate: true,
-        placed: &placed,
-        records: &[],
-        replaying: crate::domain::workers::types::Replaying::Findings,
-        stored: &NOTHING_STORED,
-        handed: &NOTHING_HANDED,
-        wanted_buckets: &NOTHING_WANTED,
-        budget: ryo_values::domain::runs::types::MemoryBytes(u64::MAX),
-        noted: crate::domain::visit::types::Noting::Unwanted,
-        roled: crate::domain::visit::types::RoleRead::Skips,
-        needs: &[
-            Needs {
-                reads: vec![RelationRead {
-                    relation: Relation::Function,
-                    kinds: Vec::new(),
-                }],
-                ..Needs::default()
-            },
-            Needs {
-                reads: vec![RelationRead {
-                    relation: Relation::Identifier,
-                    kinds: Vec::new(),
-                }],
-                ..Needs::default()
-            },
-        ],
-        answering: &crate::domain::render::types::Answering::Findings,
-        keeping: crate::domain::visit::types::Keeping::Discards,
-        unknown: &[],
+        domain: crate::domain::workers::types::VisitSetting {
+            plans: &plans,
+            bindings: &[],
+            wanted: &[Relation::Function, Relation::Identifier],
+            paths: &paths,
+            first_bucket: &[],
+            ids: &ids,
+            applicability: &applicability,
+            applicability_can_gate: true,
+            placed: &placed,
+            records: &[],
+            replaying: crate::domain::workers::types::Replaying::Findings,
+            stored: &NOTHING_STORED,
+            handed: &NOTHING_HANDED,
+            wanted_buckets: &NOTHING_WANTED,
+            budget: ryo_values::domain::runs::types::MemoryBytes(u64::MAX),
+            noted: crate::domain::visit::types::Noting::Unwanted,
+            roled: crate::domain::visit::types::RoleRead::Skips,
+            needs: &[
+                Needs {
+                    reads: vec![RelationRead {
+                        relation: Relation::Function,
+                        kinds: Vec::new(),
+                    }],
+                    ..Needs::default()
+                },
+                Needs {
+                    reads: vec![RelationRead {
+                        relation: Relation::Identifier,
+                        kinds: Vec::new(),
+                    }],
+                    ..Needs::default()
+                },
+            ],
+            answering: &crate::domain::render::types::Answering::Findings,
+            keeping: crate::domain::visit::types::Keeping::Discards,
+            unknown: &[],
+        },
     };
     for (acceptance, expected_reason) in [
         (SyntaxAcceptance::Rejected, "rule skipped: syntax rejected"),
@@ -173,17 +176,21 @@ fn assert_accepted_and_missing_applicability(setting: &VisitSetting<'_>) {
         [Relation::Function, Relation::Identifier]
     );
     let always_setting = VisitSetting {
+        source_language: None,
         executor: &crate::application::file_dag::execution::CommonOperatorEngine,
         operators: crate::application::file_dag::testing::request_fixture(
             &setting.plans[1..],
             &[],
             &[],
         ),
-        plans: &setting.plans[1..],
-        ids: &setting.ids[1..],
-        applicability: &setting.applicability[1..],
-        applicability_can_gate: false,
-        needs: &setting.needs[1..],
+        domain: crate::domain::workers::types::VisitSetting {
+            plans: &setting.plans[1..],
+            ids: &setting.ids[1..],
+            applicability: &setting.applicability[1..],
+            applicability_can_gate: false,
+            needs: &setting.needs[1..],
+            ..(setting.clone()).domain
+        },
         ..setting.clone()
     };
     assert!(matches!(
@@ -201,8 +208,11 @@ fn assert_accepted_and_missing_applicability(setting: &VisitSetting<'_>) {
     assert!(tables.unknowns.is_empty());
 
     let missing_policy = VisitSetting {
-        applicability: &[],
-        applicability_can_gate: true,
+        domain: crate::domain::workers::types::VisitSetting {
+            applicability: &[],
+            applicability_can_gate: true,
+            ..(setting.clone()).domain
+        },
         ..setting.clone()
     };
     assert!(FileAnalysis::may_gate_rules(
@@ -459,29 +469,32 @@ fn visited_as(
     let visit = FileVisit {
         store: None,
         setting: VisitSetting {
+            source_language: None,
             executor: &crate::application::file_dag::execution::CommonOperatorEngine,
             operators: crate::application::file_dag::testing::request_fixture(&[], &[], &[]),
-            unknown: &[],
-            plans: &[],
-            bindings: &[],
-            wanted: &[Relation::Function],
-            paths: &[],
-            first_bucket: &[],
-            ids: &[],
-            applicability: &[],
-            applicability_can_gate: true,
-            placed: &placed,
-            records: &[],
-            replaying: crate::domain::workers::types::Replaying::Findings,
-            stored: &NOTHING_STORED,
-            handed: &NOTHING_HANDED,
-            wanted_buckets: &NOTHING_WANTED,
-            budget: MemoryBytes(u64::MAX),
-            noted: Noting::Unwanted,
-            roled: RoleRead::Skips,
-            needs: &[],
-            answering,
-            keeping,
+            domain: crate::domain::workers::types::VisitSetting {
+                unknown: &[],
+                plans: &[],
+                bindings: &[],
+                wanted: &[Relation::Function],
+                paths: &[],
+                first_bucket: &[],
+                ids: &[],
+                applicability: &[],
+                applicability_can_gate: true,
+                placed: &placed,
+                records: &[],
+                replaying: crate::domain::workers::types::Replaying::Findings,
+                stored: &NOTHING_STORED,
+                handed: &NOTHING_HANDED,
+                wanted_buckets: &NOTHING_WANTED,
+                budget: MemoryBytes(u64::MAX),
+                noted: Noting::Unwanted,
+                roled: RoleRead::Skips,
+                needs: &[],
+                answering,
+                keeping,
+            },
         },
     };
     let mut worker = Worker {
@@ -873,29 +886,32 @@ fn a_bad_last_captured_bucket_calls_no_digest_even_after_a_valid_rule_bucket() {
     let visit = FileVisit {
         store: None,
         setting: VisitSetting {
+            source_language: None,
             executor: &crate::application::file_dag::execution::CommonOperatorEngine,
             operators: crate::application::file_dag::testing::request_fixture(&plans, &[], &[]),
-            plans: &plans,
-            bindings: &[],
-            wanted: &[],
-            paths: &[],
-            first_bucket: &[Bucket(0)],
-            ids: &[],
-            applicability: &[],
-            applicability_can_gate: true,
-            placed: &placed,
-            records: &[],
-            replaying: crate::domain::workers::types::Replaying::Findings,
-            stored: &NOTHING_STORED,
-            handed: &NOTHING_HANDED,
-            wanted_buckets: &NOTHING_WANTED,
-            budget: ryo_values::domain::runs::types::MemoryBytes(u64::MAX),
-            noted: Noting::Unwanted,
-            roled: RoleRead::Skips,
-            needs: &[],
-            answering: &crate::domain::render::types::Answering::Findings,
-            keeping: Keeping::Keeps,
-            unknown: &[],
+            domain: crate::domain::workers::types::VisitSetting {
+                plans: &plans,
+                bindings: &[],
+                wanted: &[],
+                paths: &[],
+                first_bucket: &[Bucket(0)],
+                ids: &[],
+                applicability: &[],
+                applicability_can_gate: true,
+                placed: &placed,
+                records: &[],
+                replaying: crate::domain::workers::types::Replaying::Findings,
+                stored: &NOTHING_STORED,
+                handed: &NOTHING_HANDED,
+                wanted_buckets: &NOTHING_WANTED,
+                budget: ryo_values::domain::runs::types::MemoryBytes(u64::MAX),
+                noted: Noting::Unwanted,
+                roled: RoleRead::Skips,
+                needs: &[],
+                answering: &crate::domain::render::types::Answering::Findings,
+                keeping: Keeping::Keeps,
+                unknown: &[],
+            },
         },
     };
     let digest = Arc::new(DigestCounting::default());
@@ -1195,29 +1211,32 @@ fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() 
     let visit = FileVisit {
         store: Some(snapshot.as_ref()),
         setting: VisitSetting {
+            source_language: None,
             executor: &crate::application::file_dag::execution::CommonOperatorEngine,
             operators: crate::application::file_dag::testing::request_fixture(&[], &[], &[]),
-            plans: &[],
-            bindings: &[],
-            wanted: &[],
-            paths: &[],
-            first_bucket: &[],
-            ids: &[],
-            applicability: &[],
-            applicability_can_gate: true,
-            placed: &placed,
-            records: &[],
-            replaying: crate::domain::workers::types::Replaying::FindingsAndHanded,
-            stored: &NOTHING_STORED,
-            handed: &NOTHING_HANDED,
-            wanted_buckets: &wanted,
-            budget: ryo_values::domain::runs::types::MemoryBytes(u64::MAX),
-            noted: Noting::Unwanted,
-            roled: RoleRead::Skips,
-            needs: &[],
-            answering: &crate::domain::render::types::Answering::Findings,
-            keeping: Keeping::Keeps,
-            unknown: &[],
+            domain: crate::domain::workers::types::VisitSetting {
+                plans: &[],
+                bindings: &[],
+                wanted: &[],
+                paths: &[],
+                first_bucket: &[],
+                ids: &[],
+                applicability: &[],
+                applicability_can_gate: true,
+                placed: &placed,
+                records: &[],
+                replaying: crate::domain::workers::types::Replaying::FindingsAndHanded,
+                stored: &NOTHING_STORED,
+                handed: &NOTHING_HANDED,
+                wanted_buckets: &wanted,
+                budget: ryo_values::domain::runs::types::MemoryBytes(u64::MAX),
+                noted: Noting::Unwanted,
+                roled: RoleRead::Skips,
+                needs: &[],
+                answering: &crate::domain::render::types::Answering::Findings,
+                keeping: Keeping::Keeps,
+                unknown: &[],
+            },
         },
     };
     let mut replay = new_worker();
@@ -1225,7 +1244,10 @@ fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() 
         .expect("invalid unrequested span is not read");
     let all_visit = FileVisit {
         setting: VisitSetting {
-            wanted_buckets: &BucketsWanted::All,
+            domain: crate::domain::workers::types::VisitSetting {
+                wanted_buckets: &BucketsWanted::All,
+                ..(visit.setting.clone()).domain
+            },
             ..visit.setting.clone()
         },
         store: visit.store,
@@ -1287,8 +1309,11 @@ fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() 
     let old_visit = FileVisit {
         store: Some(old.as_ref()),
         setting: VisitSetting {
-            stored: &persisted,
-            handed: &old_handed,
+            domain: crate::domain::workers::types::VisitSetting {
+                stored: &persisted,
+                handed: &old_handed,
+                ..(visit.setting.clone()).domain
+            },
             ..visit.setting.clone()
         },
     };
@@ -1303,7 +1328,10 @@ fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() 
     let old_all = FileVisit {
         store: old_visit.store,
         setting: VisitSetting {
-            wanted_buckets: &BucketsWanted::All,
+            domain: crate::domain::workers::types::VisitSetting {
+                wanted_buckets: &BucketsWanted::All,
+                ..(old_visit.setting).domain
+            },
             ..old_visit.setting
         },
     };

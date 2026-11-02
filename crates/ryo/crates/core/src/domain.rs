@@ -36,7 +36,7 @@ pub(crate) mod operating;
 pub(crate) mod operation_schema;
 pub(crate) mod operator;
 pub(crate) mod ordering;
-pub(crate) mod pipeline;
+
 pub(crate) mod placement;
 pub(crate) mod positions;
 pub(crate) mod project;

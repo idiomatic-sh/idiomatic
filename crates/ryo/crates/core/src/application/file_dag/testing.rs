@@ -1,9 +1,10 @@
 //! Test transport around the production contract preparation and common executor.
 use super::execution::CommonOperatorEngine;
+use crate::application::file_dag::feed::Feed;
 use crate::domain::features::service::kind_of;
 use crate::domain::operating::{
     errors::OperatingError,
-    types::{Emit, Feed, InputPlace, OperatorContext, Room, Supply},
+    types::{Emit, InputPlace, OperatorContext, Room, Supply},
 };
 use crate::domain::operation_schema::types::InputSchema;
 use crate::domain::operator::{contract::types::OperatorContract, service::registered};

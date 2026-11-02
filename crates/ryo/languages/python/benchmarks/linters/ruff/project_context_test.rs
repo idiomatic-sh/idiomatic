@@ -57,6 +57,7 @@ fn request(profile: &Path, case: &PreparedCase, cache: &Path) -> WorkerRequest {
         },
         rule_applicability: BTreeMap::new(),
         parser_configuration: Some("python-target=3.10".into()),
+        source_language: None,
         files: case.request.files.clone(),
         state: WorkerState::Retained(cache.to_owned()),
     }

@@ -50,6 +50,8 @@ pub struct LanguageBuild(pub Box<str>);
 /// One file to read, and the relations wanted of it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct FileToRead<'a> {
+    /// A linked provider explicitly selected by the request edge.
+    pub source_language: Option<&'a LanguageName>,
     /// The path, relative to the root: text that came from disk.
     pub path: &'a FilePath,
     /// The number the run gave the file.

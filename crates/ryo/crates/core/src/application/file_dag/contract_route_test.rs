@@ -1,24 +1,24 @@
 //! Production-route probes supplement class fixtures; no catalog-only admission is counted.
 use super::{execution::CommonOperatorEngine, types::FileDagExecution};
+use crate::application::file_dag::acceptance::operator_contract_test::fixtures;
+use crate::application::file_dag::cross_execution::evaluate_cross_with_executor;
+use crate::application::file_dag::executor::PrimitiveExecutor;
+use crate::application::file_dag::feed::Feed;
+use crate::application::file_dag::pipeline::service::evaluate_file_with_executor;
 use crate::domain::coverage::types::{Lacking, Partial, Partials};
 use crate::domain::features::service::kind_of;
 use crate::domain::file_program::service::compile_prepared;
 use crate::domain::operating::{
     errors::OperatingError,
-    types::{Emit, Feed, OperatorContext, Room},
+    types::{Emit, OperatorContext, Room},
 };
 use crate::domain::operation_schema::types::InputSchema;
-use crate::domain::operator::contract_test::fixtures;
 use crate::domain::operator::service::registered;
 use crate::domain::operator::{
-    contract::{
-        executor::PrimitiveExecutor,
-        types::{OperatorContract, RequestOperators},
-    },
-    service::{evaluate_cross_with_executor, pool_for},
+    contract::types::{OperatorContract, RequestOperators},
+    service::pool_for,
     types::{PreparedPool, RowsFed},
 };
-use crate::domain::pipeline::service::evaluate_file_with_executor;
 use crate::domain::replay::types::Pipe;
 use crate::domain::table_model::types::{ParameterBinding, Rows, Table};
 use crate::domain::table_scratch::types::OperatorScratch;

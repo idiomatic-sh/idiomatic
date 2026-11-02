@@ -18,6 +18,10 @@ pub(crate) fn scan(
     context: &mut OperatorContext<'_>,
     emit: &mut dyn Emit,
 ) -> Result<(), OperatingError> {
+    if matches!(rows, Rows::Computed(_)) {
+        crate::domain::table_model::collections::representations::service::borrowed(rows)
+            .validate()?;
+    }
     for position in positions(count_of(rows)) {
         if let Some(row) = read_row(rows, position, buffer) {
             if matches!(rows, Rows::Selected(_))
@@ -29,6 +33,8 @@ pub(crate) fn scan(
                     .saturating_add(row.len() as u64);
             }
             emit.row(context, row)?;
+        } else if matches!(rows, Rows::Computed(_)) {
+            return Err(OperatingError::ShapeMismatch);
         }
     }
     Ok(())

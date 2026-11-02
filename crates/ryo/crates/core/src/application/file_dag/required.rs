@@ -1,7 +1,7 @@
 //! Required rule-local ownership is independent of optional cross-rule cache admission.
+use super::relations::RelationResult;
 use super::{service::bytes, types::FileDagExecution};
 use crate::domain::file_program::types::{NodeId, NodeInput};
-use crate::domain::table_model::types::Table;
 use std::sync::Arc;
 impl FileDagExecution {
     pub(crate) fn begin_rule(&mut self, rule: usize) {
@@ -39,7 +39,7 @@ impl FileDagExecution {
             }
         }
     }
-    pub(super) fn pin_required(&mut self, node: NodeId, table: Arc<Table>) {
+    pub(super) fn pin_required(&mut self, node: NodeId, table: Arc<RelationResult>) {
         if self.required_remaining[node.0] == 0 || self.required[node.0].is_some() {
             return;
         }
@@ -53,7 +53,7 @@ impl FileDagExecution {
     }
     /// New required-owner metadata is reported separately from result payloads.
     pub(crate) fn required_metadata_bytes(&self) -> usize {
-        self.required.capacity() * size_of::<Option<Arc<Table>>>()
+        self.required.capacity() * size_of::<Option<Arc<RelationResult>>>()
             + self.required_remaining.capacity() * size_of::<usize>()
             + self.required_executed.capacity() * size_of::<bool>()
             + self.required_inputs.capacity() * size_of::<bool>()

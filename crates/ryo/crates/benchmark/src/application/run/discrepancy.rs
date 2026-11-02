@@ -309,12 +309,16 @@ fn invocation_settings(
         .iter()
         .map(|(key, value)| Ok((normalize(key)?, normalize(value)?)))
         .collect::<Result<std::collections::BTreeMap<_, _>, Error>>()?;
-    Ok(json_digest(&serde_json::json!({
+    let mut settings = serde_json::json!({
         "arguments": arguments, "environment": environment,
         "directory": normalize(invocation.directory.as_os_str())?,
         "parser_configuration": profile.parser_configuration,
         "project_context_mode": format!("{:?}", profile.project_context_mode),
-    })))
+    });
+    if let Some(language) = &profile.source_language {
+        settings["source_language"] = serde_json::json!(language);
+    }
+    Ok(json_digest(&settings))
 }
 
 /// Approved native binaries may differ from the binary used in the original observation.

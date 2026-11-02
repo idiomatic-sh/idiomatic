@@ -8,6 +8,12 @@ use crate::outbound::memory::errors::MemoryError;
 /// Why an analysis could not finish.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 pub(crate) enum FileAnalysisError {
+    /// The request's selected provider is missing or ambiguous.
+    #[error("explicit source provider `{name}` must name exactly one linked provider")]
+    SourceLanguage {
+        /// The exact caller-supplied name.
+        name: String,
+    },
     /// Required normalized-frontier staging or replay failed.
     #[error(transparent)]
     Store(#[from] crate::outbound::lint_store::errors::LintStoreError),

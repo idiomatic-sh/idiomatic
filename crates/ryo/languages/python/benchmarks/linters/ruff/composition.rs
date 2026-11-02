@@ -116,6 +116,7 @@ pub(crate) fn run(
             let query_modules = tool.query_modules.clone();
             let rule_applicability = tool.rule_applicability.clone();
             let parser_configuration = tool.parser_configuration.clone();
+            let source_language = tool.source_language.clone();
             let project_context_mode = tool.project_context_mode;
             tool.defaults = audit.authored().to_vec();
             let reference = Arc::new(commands::reference(executable.clone(), tool)?);
@@ -147,6 +148,7 @@ pub(crate) fn run(
                     query_modules,
                     rule_applicability,
                     parser_configuration,
+                    source_language,
                     project_context_mode,
                 ));
             let case_scratch = tempfile::tempdir()?;

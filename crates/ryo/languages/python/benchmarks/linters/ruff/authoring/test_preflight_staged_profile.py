@@ -71,3 +71,19 @@ class PreflightValidationScopeTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SourceLanguageSettingsTests(unittest.TestCase):
+    def test_optional_explicit_source_provider_is_exact_and_cache_visible(self):
+        from authoring import profile_config, profile_sources
+        base = {"tool": "ruff", "version": profile_config.PINNED_RUFF_VERSION, "defaults": ["N999"]}
+        phases = {"ruff_version": profile_config.PINNED_RUFF_VERSION,
+                  "ruff_source_commit": profile_config.PINNED_RUFF_SOURCE_COMMIT,
+                  "rules": {"N999": {"applicability": "always"}}}
+        ordinary = profile_sources.canonical_run_ryo_settings(base, ["N999"], phases)
+        self.assertNotIn("source_language", ordinary)
+        selected = profile_sources.canonical_run_ryo_settings({**base, "source-language": "python"}, ["N999"], phases)
+        self.assertEqual(selected, {**ordinary, "source_language": "python"})
+        for bad in ["", " python", "python ", 1]:
+            with self.assertRaisesRegex(ValueError, "exact nonblank"):
+                profile_sources.canonical_run_ryo_settings({**base, "source-language": bad}, ["N999"], phases)

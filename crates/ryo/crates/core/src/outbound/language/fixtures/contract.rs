@@ -33,6 +33,7 @@ fn a_file_no_language_reads_is_unsupported(language: &dyn LanguagePort) -> Value
     let path = FilePath("contract.not-a-language".into());
     let bytes = FileBytes(b"anything".to_vec());
     let file = FileToRead {
+        source_language: None,
         path: &path,
         file: FileId(0),
         bytes: &bytes,

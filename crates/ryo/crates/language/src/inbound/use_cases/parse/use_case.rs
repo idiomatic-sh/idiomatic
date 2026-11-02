@@ -123,6 +123,17 @@ impl<P: ParseUseCase> ParseEngine for P {
         read_in(self, request, table, symbols, wanted, out)
     }
 
+    fn read_file_explicit(
+        &self,
+        request: ParseRequest<'_>,
+        table: &mut Elements,
+        symbols: &mut Symbols,
+        wanted: &[Relation],
+        out: &mut dyn RowWriter,
+    ) -> Result<(), ParseError> {
+        super::service::read_explicit_in(self, request, table, symbols, wanted, out)
+    }
+
     fn walk_file(
         &self,
         elements: &mut Elements,

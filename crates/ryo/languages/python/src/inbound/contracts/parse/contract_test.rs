@@ -187,3 +187,63 @@ fn linked_python_keeps_latest_as_its_default_target() {
         "python-target=3.10"
     );
 }
+
+#[test]
+fn explicit_source_selection_preserves_paths_and_default_recognition() {
+    let provider = crate::linked().parse_engine();
+    for path in ["test.txt", "file-with-dashes"] {
+        let request = languages::ParseRequest {
+            path: languages::SourcePath(path),
+            file: languages::FileId(0),
+            bytes: languages::ByteSlice(b"# complete comment\nx = 1\n"),
+            notes: languages::NoteRequest::Unwanted,
+            fields: languages::FieldRequest::Unwanted,
+        };
+        assert_eq!(
+            provider.recognition(&request),
+            languages::Recognition::Declines
+        );
+        let (mut elements, mut symbols) = (
+            languages::Elements::default(),
+            languages::Symbols::default(),
+        );
+        let mut out = languages::contract::Collect::default();
+        assert_eq!(
+            provider.read_file(request, &mut elements, &mut symbols, &[], &mut out),
+            Err(languages::ParseError::Unsupported)
+        );
+        provider
+            .read_file_explicit(
+                request,
+                &mut elements,
+                &mut symbols,
+                &[languages::Relation::Comment],
+                &mut out,
+            )
+            .expect("explicitly selected Python source");
+        assert_eq!(out.count(languages::Relation::Comment), 1);
+        assert!(!languages::has_incomplete_lexical_stream(&elements));
+        assert_eq!(request.path.0, path);
+    }
+    let request = languages::ParseRequest {
+        path: languages::SourcePath("test.txt"),
+        file: languages::FileId(0),
+        bytes: languages::ByteSlice(b"x = \xff\n"),
+        notes: languages::NoteRequest::Unwanted,
+        fields: languages::FieldRequest::Unwanted,
+    };
+    let (mut elements, mut symbols) = (
+        languages::Elements::default(),
+        languages::Symbols::default(),
+    );
+    provider
+        .read_file_explicit(
+            request,
+            &mut elements,
+            &mut symbols,
+            &[],
+            &mut languages::contract::Collect::default(),
+        )
+        .expect("invalid bytes are diagnosed");
+    assert!(languages::has_incomplete_lexical_stream(&elements));
+}

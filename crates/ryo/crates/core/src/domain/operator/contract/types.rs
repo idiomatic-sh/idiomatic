@@ -232,6 +232,11 @@ pub(crate) struct DistinctWorkspace<'a> {
 pub(crate) struct RequestOperators {
     pub rules: Vec<Vec<std::sync::Arc<OperatorContract>>>,
     pub preparations: usize,
+    pub physical: Vec<
+        Vec<
+            crate::domain::table_model::collections::representations::publication::PreparedPhysical,
+        >,
+    >,
 }
 
 /// The evaluator is bound to the prepared contract's exact ordered program.

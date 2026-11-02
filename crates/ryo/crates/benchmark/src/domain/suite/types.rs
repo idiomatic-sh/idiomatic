@@ -49,6 +49,8 @@ pub struct Tool {
     pub rule_applicability: BTreeMap<String, String>,
     /// Optional parser configuration that must be shared by reference and candidate.
     pub parser_configuration: Option<String>,
+    /// Explicit source provider selected by the request edge, if any.
+    pub source_language: Option<String>,
 }
 
 /// The correctness cases authored beside one candidate query.
@@ -235,6 +237,8 @@ pub struct WorkerRequest {
     pub rule_applicability: BTreeMap<String, String>,
     /// Parser configuration identity selected by the frozen profile, if any.
     pub parser_configuration: Option<String>,
+    /// Explicit source provider selected by the request edge, if any.
+    pub source_language: Option<String>,
     /// Explicit relative paths the worker must check.
     pub files: Vec<RelativePath>,
     /// Optional persistent SDK cache directory; absence disables disk caching.

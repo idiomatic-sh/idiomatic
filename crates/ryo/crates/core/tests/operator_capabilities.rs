@@ -45,6 +45,10 @@ fn production_paths() -> (String, String, String, String) {
     )
 }
 fn lease_scaffold(types: &str, interface: &str, kinds: &str) -> String {
+    let representations = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("src/domain/table_model/collections/representations");
+    let representation_types = rust_path_literal(&representations.join("types.rs"));
+    let publication = rust_path_literal(&representations.join("publication.rs"));
     let base = r#"
 #![allow(dead_code,unused_imports,private_interfaces)]
 extern crate self as ryo_language;
@@ -55,17 +59,18 @@ pub struct HashTable<T>(std::marker::PhantomData<T>);
 pub mod meta {pub struct Regex;}
 pub mod domain {
  pub mod operating {pub mod errors{#[derive(Clone,Debug)]pub struct OperatingError;}pub mod types{#[derive(Clone,Copy)]pub struct InputPlace(pub usize);}}
- pub mod relations {pub mod types {#[derive(Clone,Copy,Debug,PartialEq,Eq)]pub struct CellKind;#[derive(Clone,Copy)]pub struct Value;pub struct Position;}}
+ pub mod relations {pub mod types {#[derive(Clone,Copy,Debug,PartialEq,Eq)]pub struct CellKind;#[derive(Clone,Copy,Debug,PartialEq,Eq)]pub struct Value;#[derive(Clone,Copy)]pub struct ColumnsView<'a>(pub &'a ());pub struct Position;}}
  pub mod symbols {pub mod types {pub struct Symbols;pub struct QuerySymbols<'a>(pub &'a mut Symbols);impl QuerySymbols<'_>{pub fn as_ref(&self)->&Symbols {self.0}}}}
  pub mod files {pub mod types {pub struct FilePath;}}
  pub mod plan_parts {pub mod types {#[derive(Clone,Debug)]pub struct Inputs;#[derive(Clone,Copy,Debug,PartialEq,Eq)]pub struct ColumnIndex;#[derive(Clone,Debug)]pub struct LiteralText;#[derive(Clone,Debug)]pub struct Comparison;}}
  pub mod plans {pub mod types {#[derive(Clone,Debug)]pub struct Operation;#[derive(Clone,Copy,Debug,PartialEq,Eq)] __KINDS__}}
  pub mod stored_facts {pub mod types {pub struct ArenaBytes;}}
  pub mod operation_schema {pub mod types {pub struct InputSchema<'a>{pub kinds:&'a[crate::domain::relations::types::CellKind]}}}
- pub mod table_model {pub mod types {#[derive(Clone,Debug)]pub struct ParameterBinding;pub struct Table;pub struct Verdict;}}
+ pub mod stored_selection {pub mod types {#[derive(Debug)]pub struct Selector;}}
+ pub mod table_model {pub mod types {#[derive(Clone,Debug)]pub struct ParameterBinding;pub struct Table;pub struct Verdict;}pub mod collections {pub mod representations {#[path=__REPRESENTATION_TYPES__]pub mod types;#[path=__PUBLICATION__]pub mod publication;}}}
  pub mod table_texts {pub mod types {#[derive(Clone,Copy)]pub struct SourceView<'a>(pub &'a[u8]);}}
  pub mod table_scratch {pub mod types {pub struct ScratchWord;pub struct Stretches;}}
- pub mod table_cells {pub mod types {pub struct RowIndex;}}
+ pub mod table_cells {pub mod types {pub struct RowIndex;#[derive(Clone,Copy)]pub struct TreeRows<'a>(pub &'a());}}
  pub mod table_groups {pub mod types {pub struct Group;}}
  pub mod table_reach {pub mod types {pub struct Walk;}}
  pub mod operator {
@@ -85,7 +90,9 @@ pub mod domain {
  }
 }
 "#;
-    base.replace("__TYPES__", types)
+    base.replace("__REPRESENTATION_TYPES__", &representation_types)
+        .replace("__PUBLICATION__", &publication)
+        .replace("__TYPES__", types)
         .replace("__INTERFACE__", interface)
         .replace("__KINDS__", kinds)
 }

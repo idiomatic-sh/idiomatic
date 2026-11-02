@@ -1,5 +1,6 @@
-// ignore: idiomatic.arch/file-length - this operation owns one bounded worker and the read, parse, admission, evaluation, and retention sequence for its file; its private methods share that invocation state, while domain computations remain separate pure functions.
 //! Bounded read, parse and per-file evaluation using injected ports.
+use crate::application::file_dag::rule_execution::evaluate_rule_with_dag;
+// ignore: idiomatic.arch/file-length - this operation owns one bounded worker and the read, parse, admission, evaluation, and retention sequence for its file; its private methods share that invocation state, while domain computations remain separate pure functions.
 use super::errors::FileAnalysisError;
 use super::types::{FileVisit, Worker};
 use crate::domain::admission::errors::AdmissionError;
@@ -9,6 +10,7 @@ use crate::domain::budget::service::within;
 use crate::domain::coverage::service::partial_of;
 use crate::domain::coverage::types::{Recovery, RuleIndex};
 
+use crate::application::file_dag::settings::VisitSetting;
 use crate::domain::handing::service::rows_of_file;
 use crate::domain::keeping::service::{remap_packed, rows_of};
 use crate::domain::keeping::types::Remap;
@@ -16,8 +18,7 @@ use crate::domain::placement::service::unplace;
 use crate::domain::placement::types::Governing;
 use crate::domain::project::types::Projected;
 use crate::domain::reading::service::{
-    begin, capture_frontier, engine_asked, evaluate_rule_with_dag, prepare_frontier,
-    settle as settle_file, start_partials,
+    begin, capture_frontier, engine_asked, prepare_frontier, settle as settle_file, start_partials,
 };
 use crate::domain::reading::types::{EngineAsked, EngineRows};
 use crate::domain::recording::service::{
@@ -31,7 +32,7 @@ use crate::domain::shared_walk::types::Walking;
 use crate::domain::table_texts::types::SourceView;
 use crate::domain::table_words::service::pack_onto;
 use crate::domain::table_words::types::WordSlice;
-use crate::domain::workers::types::{Replaying, Tables, VisitSetting};
+use crate::domain::workers::types::{Replaying, Tables};
 use ryo_language::domain::relations::types::Words;
 use ryo_values::domain::records::types::{
     GoverningRules, HandedNotes, Handing, PlacedRule, Record, RuleFrontier,
@@ -130,6 +131,28 @@ impl std::fmt::Debug for FileAnalysis {
 }
 
 impl FileAnalysis {
+    /// Admit one exact linked-provider selection before parsing or retained-data reuse.
+    pub(crate) fn validate_source_language(
+        &self,
+        selected: Option<&ryo_values::domain::descriptions::types::LanguageName>,
+    ) -> Result<(), FileAnalysisError> {
+        if let Some(selected) = selected
+            && self
+                .language
+                .kind_vocabularies()
+                .0
+                .iter()
+                .filter(|vocabulary| vocabulary.language == *selected)
+                .count()
+                != 1
+        {
+            return Err(FileAnalysisError::SourceLanguage {
+                name: selected.0.to_string(),
+            });
+        }
+        Ok(())
+    }
+
     /// The parsed relations needed by rules that govern this path and whose applicability is met.
     pub(super) fn active_wanted<'a>(
         tables: &Tables,
@@ -451,18 +474,20 @@ impl FileAnalysis {
         // The generation owner is unconditional. The benchmark switch changes
         // retention only; every class keeps the same executor and semantics.
         let file_dag = tables.pool.file_graph.as_ref().map(|graph| {
-            let mut execution = crate::application::file_dag::types::FileDagExecution::new(
-                Arc::clone(graph),
-                |index| {
-                    governs_rule(tables, RuleIndex(index)) == Governing::Governs
-                        && !skipped
-                            .as_ref()
-                            .and_then(|skipped| skipped.get(index))
-                            .copied()
-                            .unwrap_or(false)
-                },
-                &complete,
-            );
+            let mut execution =
+                crate::application::file_dag::types::FileDagExecution::new_for_population(
+                    Arc::clone(graph),
+                    |index| {
+                        governs_rule(tables, RuleIndex(index)) == Governing::Governs
+                            && !skipped
+                                .as_ref()
+                                .and_then(|skipped| skipped.get(index))
+                                .copied()
+                                .unwrap_or(false)
+                    },
+                    &complete,
+                    facts.resident_stability() == ResidentStability::Stable,
+                );
             if !crate::domain::file_program::service::enabled() {
                 execution.limit = 0;
             }
@@ -642,6 +667,9 @@ impl FileAnalysis {
         let settle_started = execution_diagnostics.then(Instant::now);
         evaluated?;
         settle_file(tables, visit.setting.answering);
+        if let Some(dag) = file_dag.as_ref() {
+            dag.borrow_mut().release_population();
+        }
         facts.release()?;
         if let Some(started) = settle_started {
             tracing::trace!(target: "ryo::diagnostic::execution", phase = "settle_and_release", file = file.0, elapsed_ns = started.elapsed().as_nanos() as u64);
@@ -719,7 +747,9 @@ impl FileAnalysis {
                 },
                 classes,
                 file_program.as_deref_mut(),
-                file_dag.map::<&dyn crate::domain::file_program::types::DagExecution, _>(|dag| dag),
+                file_dag.map::<&dyn crate::application::file_dag::interface::DagExecution, _>(
+                    |dag| dag,
+                ),
             );
             let outcome = match refused.take() {
                 Some(error) => Err(FileAnalysisError::from(error)),
@@ -1029,6 +1059,7 @@ impl FileAnalysis {
         let setting = &visit.setting;
         let base = begin(&mut worker.tables);
         let source = FileToRead {
+            source_language: setting.source_language,
             path: &file.path,
             file: number,
             bytes: &worker.tables.bytes,

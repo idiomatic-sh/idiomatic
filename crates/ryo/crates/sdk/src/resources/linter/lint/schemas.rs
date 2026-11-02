@@ -162,6 +162,9 @@ impl TryFrom<LintRequestSchema> for CoreRequest {
                 .collect::<Vec<_>>()
         };
         Ok(Self {
+            source_language: request
+                .source_language
+                .map(|name| ryo_values::domain::descriptions::types::LanguageName(name.0)),
             session: Session {
                 root: RootPath(root.into()),
                 repository: match request.corpus {
@@ -270,6 +273,7 @@ impl From<LintErrorSchema> for LintError {
     fn from(schema: LintErrorSchema) -> Self {
         let io = |what: Port, reason: String| Self::Io { what, reason };
         match schema.0 {
+            CoreError::SourceLanguage { name } => Self::SourceLanguage { name },
             CoreError::Query { id, error } => Self::Rule {
                 id: RuleId::from_text(id.into()),
                 error: compile_error(error),

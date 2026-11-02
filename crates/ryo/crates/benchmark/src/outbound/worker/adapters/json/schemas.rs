@@ -38,6 +38,8 @@ struct RequestSchema {
     /// Parser configuration identity selected by the frozen profile.
     #[serde(default)]
     parser_configuration: Option<String>,
+    #[serde(default)]
+    source_language: Option<String>,
     /// Exact project-relative file set covered by this request or report.
     files: Vec<String>,
     /// Retained worker state directory, or no retained state for a fresh run.
@@ -53,6 +55,7 @@ impl From<RequestSchema> for WorkerRequest {
             query_modules: request.query_modules,
             rule_applicability: request.rule_applicability,
             parser_configuration: request.parser_configuration,
+            source_language: request.source_language,
             files: request
                 .files
                 .into_iter()

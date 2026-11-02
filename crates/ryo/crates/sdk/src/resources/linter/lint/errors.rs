@@ -8,6 +8,12 @@ use crate::domain::query::errors::ValidateError;
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[non_exhaustive]
 pub enum LintError {
+    /// An explicit source provider is unavailable at the request edge.
+    #[error("explicit source provider `{name}` must name exactly one linked provider")]
+    SourceLanguage {
+        /// The exact provider name supplied by the caller.
+        name: String,
+    },
     /// A rule's query is not correct RyoQL.
     #[error("rule `{id}`: {error}")]
     Rule {

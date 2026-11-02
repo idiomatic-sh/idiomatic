@@ -52,6 +52,7 @@ impl RequestOperators {
         let mut preparations = 0;
         for (rule, plan) in plans.iter().enumerate() {
             let mut contracts: Vec<Arc<OperatorContract>> = Vec::with_capacity(plan.steps.len());
+            let mut tree_outputs: Vec<Option<TreeForm>> = Vec::with_capacity(plan.steps.len());
             for step in &plan.steps {
                 let dependencies = inputs_of(&step.operation);
                 let mut schemas = named(&dependencies)
@@ -70,7 +71,7 @@ impl RequestOperators {
                                 .get(id.0 as usize)
                                 .and_then(|contract| contract.schema.as_ref().ok())
                                 .map_or(&[], Vec::as_slice),
-                            tree: None,
+                            tree: tree_outputs.get(id.0 as usize).copied().flatten(),
                         },
                     })
                     .collect::<Vec<_>>();
@@ -89,14 +90,48 @@ impl RequestOperators {
                     &schemas,
                     bindings.get(rule).map_or(&[], Vec::as_slice),
                 )?;
+                let tree = match &step.operation {
+                    Operation::Select {
+                        comparisons, kept, ..
+                    } if comparisons.is_empty() && kept.is_empty() => {
+                        schemas.first().and_then(|input| input.tree)
+                    }
+                    Operation::Project {
+                        columns, distinct, ..
+                    } if *distinct == ryo_values::domain::plan_parts::types::RepeatedRows::Kept
+                        && schemas.first().is_some_and(|input| {
+                            columns.len() == input.kinds.len()
+                                && columns
+                                    .iter()
+                                    .enumerate()
+                                    .all(|(at, column)| column.0 as usize == at)
+                        }) =>
+                    {
+                        schemas.first().and_then(|input| input.tree)
+                    }
+                    _ => None,
+                };
+                tree_outputs.push(tree);
                 preparations += 1;
                 contracts.push(Arc::new(contract));
             }
             rules.push(contracts);
         }
+        let physical=plans.iter().enumerate().map(|(rule,plan)| {
+            let selectors=crate::domain::stored_selection::types::program::value::SelectionProgram::new(plan,bindings.get(rule).map_or(&[],Vec::as_slice)).prepare();
+            plan.steps.iter().enumerate().map(|(at,step)| {
+                let alias=match &step.operation {
+                    Operation::Select{comparisons,kept,..} if comparisons.is_empty()&&kept.is_empty()=>Some(0),
+                    Operation::Project{columns,distinct,..} if *distinct==ryo_values::domain::plan_parts::types::RepeatedRows::Kept && rules[rule][at].input_kinds.first().is_some_and(|kinds|columns.len()==kinds.len()&&columns.iter().enumerate().all(|(at,column)|column.0 as usize==at))=>Some(0),
+                    _=>None,
+                };
+                crate::domain::table_model::collections::representations::publication::PreparedPhysical{selector:selectors.steps.get(at).cloned().flatten(),alias}
+            }).collect()
+        }).collect();
         let request = Self {
             rules,
             preparations,
+            physical,
         };
         debug_assert_eq!(
             request.preparations,
@@ -104,4 +139,13 @@ impl RequestOperators {
         );
         Ok(request)
     }
+}
+
+#[cfg(test)]
+pub(crate) fn compile(plans: &[Plan]) -> crate::domain::file_program::types::RequestGraph {
+    let bindings = vec![Vec::new(); plans.len()];
+    let request =
+        crate::domain::operator::contract::types::RequestOperators::prepare(plans, &bindings, &[])
+            .expect("fixture request metadata");
+    crate::domain::file_program::service::compile_prepared(plans, &request)
 }

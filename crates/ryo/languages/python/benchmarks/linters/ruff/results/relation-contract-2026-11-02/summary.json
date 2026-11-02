@@ -1,0 +1,137 @@
+{
+  "acceptance": {
+    "full_413_replay_on_candidate": false,
+    "performance_stability_established": false,
+    "remote_rust_guard_on_candidate": false,
+    "report_parity": true
+  },
+  "frozen_profile": {
+    "dag_execution": true,
+    "files": 2875,
+    "rayon_threads": 1,
+    "rules": 310
+  },
+  "n999": {
+    "candidate_cases_passed": 46,
+    "cases_per_side": 47,
+    "reference_cases_passed": 47,
+    "remaining_case": "nested-dotted-initializer",
+    "status": "FAIL",
+    "summary_sha256": "492841f41535a0e899cd059521922615620ae6d45ce1ca0852f23f5dbf177bf0",
+    "worker_sha256": "4c3825271775cabd1f72a71ac8d4af6353c3619ec4e9aff0f07d46ab72f9e9e1"
+  },
+  "phases": {
+    "cold": {
+      "candidate": {
+        "coverage": {
+          "evaluated": 890943,
+          "selected": 891250,
+          "skipped": 307,
+          "unknown_or_unread": 0
+        },
+        "cpu_seconds": 222.511022,
+        "diagnostics": 2327,
+        "peak_rss_bytes": 2228465664,
+        "report_sha256": "8e0dc151c4574e587254785c41aa4b127928bbe2a516b292545ed811cc29a30a",
+        "wall_seconds": 222.59066162
+      },
+      "candidate_result_sha256": "f4331ea8a84d4ed55c1bb7050dca37ca098f611c196fcb044cc6fe487c6c11d6",
+      "peak_rss_change_percent": -1.838,
+      "raw_normalized_report_equal": true,
+      "retained_baseline": {
+        "coverage": {
+          "evaluated": 890943,
+          "selected": 891250,
+          "skipped": 307,
+          "unknown_or_unread": 0
+        },
+        "cpu_seconds": 244.552353,
+        "diagnostics": 2327,
+        "peak_rss_bytes": 2270191616,
+        "report_sha256": "8e0dc151c4574e587254785c41aa4b127928bbe2a516b292545ed811cc29a30a",
+        "wall_seconds": 244.697902423
+      },
+      "structured_report_equal": true,
+      "wall_change_percent": -9.0345
+    },
+    "edit-retained": {
+      "candidate": {
+        "coverage": {
+          "evaluated": 890943,
+          "selected": 891250,
+          "skipped": 307,
+          "unknown_or_unread": 0
+        },
+        "cpu_seconds": 13.104664,
+        "diagnostics": 2328,
+        "peak_rss_bytes": 2098937856,
+        "report_sha256": "e9070428b1d759fb900a10d52311c97b2e50bd7ad5e0119faced82a897377489",
+        "wall_seconds": 13.167500472
+      },
+      "candidate_result_sha256": "1ffffeec74e8d54a53d60eb209286e2440eee61da9d4c6aa18c59c6fdf0c4104",
+      "peak_rss_change_percent": 0.2904,
+      "raw_normalized_report_equal": true,
+      "retained_baseline": {
+        "coverage": {
+          "evaluated": 890943,
+          "selected": 891250,
+          "skipped": 307,
+          "unknown_or_unread": 0
+        },
+        "cpu_seconds": 13.705497,
+        "diagnostics": 2328,
+        "peak_rss_bytes": 2092859392,
+        "report_sha256": "e9070428b1d759fb900a10d52311c97b2e50bd7ad5e0119faced82a897377489",
+        "wall_seconds": 13.722161837
+      },
+      "structured_report_equal": true,
+      "wall_change_percent": -4.0421
+    },
+    "warm": {
+      "candidate": {
+        "coverage": {
+          "evaluated": 890943,
+          "selected": 891250,
+          "skipped": 307,
+          "unknown_or_unread": 0
+        },
+        "cpu_seconds": 2.043093,
+        "diagnostics": 2327,
+        "peak_rss_bytes": 380362752,
+        "report_sha256": "8e0dc151c4574e587254785c41aa4b127928bbe2a516b292545ed811cc29a30a",
+        "wall_seconds": 2.044352856
+      },
+      "candidate_result_sha256": "a4b7cc11c9115bce7fd43018b5097686a752ff34218f04d24fda9c6a4a5ec16c",
+      "peak_rss_change_percent": 1.3921,
+      "raw_normalized_report_equal": true,
+      "retained_baseline": {
+        "coverage": {
+          "evaluated": 890943,
+          "selected": 891250,
+          "skipped": 307,
+          "unknown_or_unread": 0
+        },
+        "cpu_seconds": 1.9792100000000001,
+        "diagnostics": 2327,
+        "peak_rss_bytes": 375140352,
+        "report_sha256": "8e0dc151c4574e587254785c41aa4b127928bbe2a516b292545ed811cc29a30a",
+        "wall_seconds": 1.979167816
+      },
+      "structured_report_equal": true,
+      "wall_change_percent": 3.2936
+    }
+  },
+  "schema": "relation-contract-checkpoint/v1",
+  "source_head": "36616ab89d7e571edb464fd55caac0f79625390b",
+  "source_manifest_sha256": "4ce6972fc36ae4728fae24d46175a6fd6248ee112e7f1aa4e39e7d83f5967a49",
+  "tests": {
+    "benchmark_lib_passed": 107,
+    "core_lib_passed": 463,
+    "operator_capabilities_passed": 3,
+    "python_lib_passed": 206,
+    "representation_capabilities_passed": 4,
+    "sdk_lib_passed": 33
+  },
+  "timing_collector_sha256": "4e1d3d328618bee455f9ee1f6e9c1963f076803e7251bdc953cb55db362d4205",
+  "worker_sha256": "4c3825271775cabd1f72a71ac8d4af6353c3619ec4e9aff0f07d46ab72f9e9e1"
+}

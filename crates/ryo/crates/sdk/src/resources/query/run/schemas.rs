@@ -60,6 +60,7 @@ impl TryFrom<RunRequestSchema> for CoreRequest {
                 root: RootPath(root),
             },
             files: Vec::new(),
+            source_language: None,
             rules: vec![Rule {
                 id: ryo_values::domain::runs::types::RuleId(QUERY_ID.into()),
                 query: request.query.into_bundle(),
@@ -125,6 +126,9 @@ impl From<RunErrorSchema> for RunError {
             CoreError::Corpus { reason } => Self::Corpus { reason },
             CoreError::Facts { reason } => Self::Facts { reason },
             CoreError::Language { reason } => Self::Language { reason },
+            error @ CoreError::SourceLanguage { .. } => Self::Language {
+                reason: error.to_string(),
+            },
             // A language that wrote what its file cannot hold, a store that a run keeping none never reads, and the id the query
             // is given, which is never blank nor another's, are faults of the languages or of ryo: the language is what is told.
             error @ (CoreError::Provider { .. }

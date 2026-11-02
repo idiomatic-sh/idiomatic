@@ -62,11 +62,16 @@ impl<'f> IndexResource<'f> {
         context: &mut OperatorContext<'_>,
         skip_empty: bool,
         original: Option<&crate::domain::table_model::types::Rows<'f>>,
+        proven: bool,
     ) -> Result<Self, OperatingError> {
+        let input = crate::domain::table_model::collections::representations::service::registered(
+            crate::domain::table_model::collections::representations::service::kind(input),
+        )
+        .bulk(input)?;
         if let Some(crate::domain::table_model::types::Rows::Selected(selected)) = original {
-            return Ok(Self::Selected(super::selected::SelectedInput::prepare(
-                selected, columns,
-            )?));
+            return Ok(Self::Selected(
+                super::selected::SelectedInput::prepare_admitted(selected, columns, proven)?,
+            ));
         }
         if skip_empty && input.count() == 0 {
             return Ok(Self::Ordinary {
@@ -76,7 +81,9 @@ impl<'f> IndexResource<'f> {
             });
         }
         crate::domain::table_model::service::check_columns(input.kinds(), columns)?;
-        input.validate()?;
+        if !proven {
+            input.validate()?;
+        }
         let mut order = KeyIndex::default();
         let mut shared = None;
         let rows = if let BorrowedRows::Stored(view) = input {
@@ -193,6 +200,7 @@ impl<'f> InvocationResources<'f> {
         context: &mut OperatorContext<'_>,
         mode: EvaluationMode,
         originals: &[crate::domain::table_model::types::Rows<'f>],
+        admission: &super::workspace::InvocationWorkspace,
     ) -> Result<Self, OperatingError> {
         let mut resources = Self {
             cached_graph: None,
@@ -270,6 +278,7 @@ impl<'f> InvocationResources<'f> {
                     context,
                     skip_empty,
                     originals.get(*place),
+                    admission.proven(*place, source)?,
                 )?);
             }
             ResourceProgram::Join(JoinResources {
@@ -303,6 +312,7 @@ impl<'f> InvocationResources<'f> {
                         context,
                         false,
                         originals.get(1),
+                        admission.proven(1, right)?,
                     )?);
                 }
             }

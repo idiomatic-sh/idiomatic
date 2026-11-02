@@ -32,7 +32,8 @@ fn alone(error: &LintError) -> String {
         LintError::MissingParameter { .. } => {
             "the query has no value for a parameter it declares".to_owned()
         }
-        other @ (LintError::BlankRuleId
+        other @ (LintError::SourceLanguage { .. }
+        | LintError::BlankRuleId
         | LintError::DuplicateRuleId { .. }
         | LintError::Corpus { .. }
         | LintError::Store { .. }
@@ -75,6 +76,7 @@ impl TryFrom<RunArgumentsSchema> for LintRequest {
             return Err(RunSchemaError::BlankText);
         }
         Ok(Self {
+            source_language: None,
             session: Session {
                 repository: ryo_language::inbound::use_cases::project::types::Repository::Disk,
                 root: RootPath(schema.root.into()),

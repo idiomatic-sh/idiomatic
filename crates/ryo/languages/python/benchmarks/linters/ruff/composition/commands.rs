@@ -130,6 +130,7 @@ pub(super) fn verify_cases(
     let query_modules = tool.query_modules.clone();
     let rule_applicability = tool.rule_applicability.clone();
     let parser_configuration = tool.parser_configuration.clone();
+    let source_language = tool.source_language.clone();
     let project_context_mode = tool.project_context_mode;
     suite_source.verify_tool(ArtifactPath(&executable), &tool)?;
     let audit = suite_source.audit(ArtifactPath(&source), &tool)?;
@@ -146,6 +147,7 @@ pub(super) fn verify_cases(
         query_modules,
         rule_applicability,
         parser_configuration,
+        source_language,
         project_context_mode,
     ));
     let count = ryo_benchmark::application::run::service::verify_accounted_shard(

@@ -33,6 +33,8 @@ struct ToolSchema {
     #[serde(default, rename = "parser-configuration")]
     /// Language parser configuration shared by both contestants.
     parser_configuration: Option<String>,
+    #[serde(default, rename = "source-language")]
+    source_language: Option<String>,
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -163,6 +165,15 @@ impl TryFrom<ToolSchema> for types::Tool {
                 "parser configuration must not be blank".into(),
             ));
         }
+        if wire
+            .source_language
+            .as_ref()
+            .is_some_and(|name| name.is_empty() || name.trim() != name)
+        {
+            return Err(Error::Invalid(
+                "source language must be an exact nonblank provider name".into(),
+            ));
+        }
         Ok(Self {
             project_context_mode: wire.project_context_mode.into(),
             tool: wire.tool.into(),
@@ -174,6 +185,7 @@ impl TryFrom<ToolSchema> for types::Tool {
             query_modules,
             rule_applicability: wire.rule_applicability,
             parser_configuration: wire.parser_configuration,
+            source_language: wire.source_language,
         })
     }
 }

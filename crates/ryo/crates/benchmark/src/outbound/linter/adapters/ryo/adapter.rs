@@ -22,6 +22,8 @@ pub(crate) struct LinterRyoAdapter {
     pub rule_applicability: std::collections::BTreeMap<String, String>,
     /// Parser configuration forwarded to the isolated SDK worker.
     pub parser_configuration: Option<String>,
+    /// Explicit source provider selected by the request edge, if any.
+    pub source_language: Option<String>,
 }
 impl LinterPort for LinterRyoAdapter {
     fn prepare(&self, request: &RunRequest) -> Result<Invocation, Error> {
@@ -33,6 +35,7 @@ impl LinterPort for LinterRyoAdapter {
             query_modules: self.query_modules.clone(),
             rule_applicability: self.rule_applicability.clone(),
             parser_configuration: self.parser_configuration.clone(),
+            source_language: self.source_language.clone(),
             files: request.files.clone(),
             state: crate::domain::suite::types::WorkerState::Retained(
                 request.state.join(super::constants::CACHE),

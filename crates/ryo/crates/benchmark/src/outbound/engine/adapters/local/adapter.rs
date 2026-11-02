@@ -226,6 +226,10 @@ impl EnginePort for EngineLocalAdapter {
             MemoryBudget::Machine,
             cache,
             LintRequest {
+                source_language: request
+                    .source_language
+                    .clone()
+                    .map(|name| ryo::languages::LanguageName(name.into())),
                 root: request.root.clone(),
                 rules,
                 files: vec![],

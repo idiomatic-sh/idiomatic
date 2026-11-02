@@ -43,6 +43,7 @@ pub fn check(adapter: &impl EnginePort) {
                 query_modules: std::collections::BTreeMap::default(),
                 rule_applicability: std::collections::BTreeMap::default(),
                 parser_configuration: None,
+                source_language: None,
                 files: vec![ryo::linter::RelativePath("input.txt".into())],
                 state: crate::domain::suite::types::WorkerState::Fresh,
             })

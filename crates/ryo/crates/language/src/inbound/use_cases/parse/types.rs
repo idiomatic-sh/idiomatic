@@ -199,6 +199,22 @@ pub trait ParseEngine: Send + Sync {
         out: &mut dyn RowWriter,
     ) -> Result<(), ParseError>;
 
+    /// Reads a file explicitly assigned to this provider, without rewriting its path.
+    /// Providers must opt in; unsupported selection is never normal path fallback.
+    ///
+    /// # Errors
+    /// `Unsupported` unless the provider supports explicit selection.
+    fn read_file_explicit(
+        &self,
+        _request: ParseRequest<'_>,
+        _table: &mut Elements,
+        _symbols: &mut Symbols,
+        _wanted: &[Relation],
+        _out: &mut dyn RowWriter,
+    ) -> Result<(), ParseError> {
+        Err(ParseError::Unsupported)
+    }
+
     /// Writes the rows of the wanted relations for the file whose table is `elements`.
     fn walk_file(
         &self,
