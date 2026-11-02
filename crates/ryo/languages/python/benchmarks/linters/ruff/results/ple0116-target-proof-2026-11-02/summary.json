@@ -1,0 +1,31 @@
+{
+  "cases_sha256": "db28cecfd461a9cd42780f183f4b29987fa3f4cfdd9aaa371fe2e92d26fa3b18",
+  "py310": {
+    "cases": 12,
+    "counterstage_cases_sha256": "21eec184e690a0ee166202869b0509974873fbd2f24f2f9a91b6d5104ba22ef6",
+    "counterstage_profile_sha256": "6d41ebc955fa1cd672331830fc1cb684e588b7f8a4ee2ade5552351f704af81c",
+    "direct_summary_sha256": "64f2754ea6720da01f2559f585c47653f41de5a1a8df7ae7b14a0441d80e19ff",
+    "empty_candidate_outputs": 12,
+    "empty_reference_outputs": 12,
+    "mode": "direct run-ryo, because all-negative verify-cases is refused by adequacy gate"
+  },
+  "py37": {
+    "candidate_and_reference_records": 24,
+    "case_results_sha256": "59572557a9f74df56b242570db64a8070b863c3b029b9952841cd1f07872fd53",
+    "cases": 12,
+    "full_upstream_expected": {
+      "PLE0116": 13,
+      "invalid-syntax": 1
+    },
+    "passed_records": 24,
+    "profile_sha256": "4504b7868686de606c504862fb3ba8457842bdeaae4fc727cbacb2d644f900f7",
+    "raw_exact_records": 24
+  },
+  "query_sha256": "c93c57b59ffa688b95cc46d53cb1b753b0bcae4bb4ce779caf5aa67caa594ff5",
+  "raw_archive_sha256": "e296fa2cdbc2d2b0868e1f65d254a0a25284540e78f1d810a0951f6248490009",
+  "ruff_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "rule": "PLE0116",
+  "schema": "ple0116-target-proof/v1",
+  "status": "source-bound singleton proof, not integration admission",
+  "worker_sha256": "92b623314c19b12e0678f77b2248287a329e41254a1340b9ec1245b04641390f"
+}

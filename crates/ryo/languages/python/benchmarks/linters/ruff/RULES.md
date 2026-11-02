@@ -2,7 +2,7 @@
 
 Generated from canonical source and the existing full-inventory runner's results. Every pinned default is preloaded; missing, unrun, invalid and failed implementations remain FAIL.
 
-**378 PASS / 35 FAIL / 413 pinned defaults**; run state `complete`. Base worker `d43a5760d6c9388d7ba307416417268fbf1cacb92ae6fbe9bf70dffdf0d686b8`. PASS means executed intended expectations, including only independently validated explicit reference discrepancies. Raw parity and documented differences remain explicit in result receipts. This table is not an admission subset. Counts combine separately linked receipts; no combined replay is claimed.
+**379 PASS / 34 FAIL / 413 pinned defaults**; run state `complete`. Base worker `d43a5760d6c9388d7ba307416417268fbf1cacb92ae6fbe9bf70dffdf0d686b8`. PASS means executed intended expectations, including only independently validated explicit reference discrepancies. Raw parity and documented differences remain explicit in result receipts. This table is not an admission subset. Counts combine separately linked receipts; no combined replay is claimed.
 
 | Rule | Result | Reason / evidence |
 |---|---|---|
@@ -177,7 +177,7 @@ Generated from canonical source and the existing full-inventory runner's results
 | PLE0100 | PASS | verified intended expectations |
 | PLE0101 | PASS | verified intended expectations |
 | PLE0115 | PASS | verified intended expectations |
-| PLE0116 | FAIL | [Missing implementation](results/full-inventory-current/summary.json) |
+| PLE0116 | PASS | [separate py37 fixture and py310 control proof](results/full-inventory-current/ple0116-target-supplement/summary.json) |
 | PLE0117 | PASS | verified intended expectations |
 | PLE0118 | PASS | verified intended expectations |
 | PLE0303 | PASS | verified intended expectations |
@@ -330,7 +330,7 @@ Generated from canonical source and the existing full-inventory runner's results
 | RUF063 | PASS | verified intended expectations |
 | RUF068 | PASS | verified intended expectations |
 | RUF100 | FAIL | [Missing implementation](results/full-inventory-current/summary.json) |
-| RUF101 | PASS | [separate 40/40 raw-exact fixture proof](results/full-inventory-current/ruf101-target-supplement/summary.json) |
+| RUF101 | PASS | [separate raw-exact fixture proof](results/full-inventory-current/ruf101-target-supplement/summary.json) |
 | RUF200 | FAIL | [Missing implementation](results/full-inventory-current/summary.json) |
 | S102 | PASS | verified intended expectations |
 | S110 | PASS | verified intended expectations |

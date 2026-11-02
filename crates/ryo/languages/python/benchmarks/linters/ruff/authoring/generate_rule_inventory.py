@@ -251,12 +251,14 @@ def render_full_inventory(path: Path) -> str:
             supplement_label = " Counts combine separately linked receipts; no combined replay is claimed."
         sys.path.insert(0, str(RUFF))
         from authoring.target_supplement import verified_rows
-        for row in verified_rows(RUFF, current, by_rule, current / "up035-up036-target-supplement"):
-            by_rule[row["rule_id"]] = {**row, "reason": "[separate full target-version fixture proof](results/full-inventory-current/up035-up036-target-supplement/summary.json)"}
-            supplement_label = " Counts combine separately linked receipts; no combined replay is claimed."
-        for row in verified_rows(RUFF, current, by_rule, current / "ruf101-target-supplement"):
-            by_rule[row["rule_id"]] = {**row, "reason": f"[separate {row['raw_exact']}/{row['case_count']} raw-exact fixture proof](results/full-inventory-current/ruf101-target-supplement/summary.json)"}
-            supplement_label = " Counts combine separately linked receipts; no combined replay is claimed."
+        for directory_name, label in (
+            ("up035-up036-target-supplement", "full target-version fixture proof"),
+            ("ruf101-target-supplement", "raw-exact fixture proof"),
+            ("ple0116-target-supplement", "py37 fixture and py310 control proof"),
+        ):
+            for row in verified_rows(RUFF, current, by_rule, current / directory_name):
+                by_rule[row["rule_id"]] = {**row, "reason": f"[separate {label}](results/full-inventory-current/{directory_name}/summary.json)"}
+                supplement_label = " Counts combine separately linked receipts; no combined replay is claimed."
         from authoring.target_supplement import verified_failed_rows
         for row in verified_failed_rows(RUFF, by_rule, current / "ruf101-target-supplement"):
             by_rule[row["rule_id"]] = row

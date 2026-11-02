@@ -103,6 +103,62 @@ def verified_rows(ruff: Path, current: Path, previous: dict[str, object], direct
                 or observed["rules"][0].get("status") != "PASS"
                 or observed["rules"][0].get("case_results_sha256") != item["case_results_sha256"]):
                 raise ValueError("target fixture execution is incomplete or failed")
+        direct = controls.get("direct_negative", [])
+        required_direct = proof.get("direct_negative_requirements", {})
+        if (not isinstance(direct, list) or not isinstance(required_direct, dict)
+            or [(item.get("rule"), item.get("target")) for item in direct] != [
+                (rule, target) for rule, targets in required_direct.items() for target in targets]
+            or any(rule not in required or not isinstance(targets, list) or not targets
+                   or len(targets) != len(set(targets)) for rule, targets in required_direct.items())):
+            raise ValueError("missing, duplicate or unknown direct negative target control")
+        for item in direct:
+            rule = item["rule"]
+            canonical = tomllib.loads((ruff / "rules" / rule / "cases.toml").read_text())["cases"]
+            counter = tomllib.loads(read(item["cases_path"], item["cases_sha256"]).decode())["cases"]
+            profile = tomllib.loads(read(item["profile_path"], item["profile_sha256"]).decode())
+            observed = json.loads(read(item["summary_path"], item["summary_sha256"]))
+            if (item["query_sha256"] != sha(ruff / "rules" / rule / "query.ryoql")
+                or item["canonical_cases_sha256"] != sha(ruff / "rules" / rule / "cases.toml")
+                or hashlib.sha256(read(item["query_path"])).hexdigest() != item["query_sha256"]
+                or profile.get("parser-configuration") != item["parser_configuration"]
+                or profile.get("defaults") != [rule]
+                or observed.get("worker_sha256") != proof["identity"]["worker_sha256"]
+                or observed.get("query_sha256") != item["query_sha256"]
+                or observed.get("cases_sha256") != item["cases_sha256"]
+                or observed.get("cases") != len(canonical) or observed.get("passed") != len(canonical)
+                or len(counter) != len(canonical) or len(observed.get("results", [])) != len(canonical)):
+                raise ValueError("direct negative target source or execution identity differs")
+            positive_settings = next(control for control in actual if control["rule"] == rule)
+            source_settings = tomllib.loads((ruff / positive_settings["settings_source"]).read_text())
+            if any(profile.get(key) != source_settings.get(key) for key in ("tool", "version", "sha256")):
+                raise ValueError("direct negative target changes the pinned reference")
+            profile_prefix = PurePosixPath(item["profile_path"]).parent
+            for relative in profile.get("query-modules", {}).values():
+                if read(str(profile_prefix / relative)) != (ruff / relative).read_bytes():
+                    raise ValueError("direct negative target has stale helper bytes")
+            for index, (source_case, counter_case, result) in enumerate(zip(canonical, counter, observed["results"])):
+                if (len(source_case["files"]) != 1
+                    or source_case["name"] != counter_case["name"] or source_case["files"] != counter_case["files"]
+                    or counter_case["expected"] != [] or result.get("case") != source_case["name"]
+                    or result.get("passed") is not True or result.get("exit") != 0
+                    or result.get("reference_exit") != 0 or result.get("reference_findings") != 0):
+                    raise ValueError("direct negative target changes a source or failed execution")
+                file, source = next(iter(source_case["files"].items()))
+                prefix = f'{item["archive_prefix"]}/{index:02d}'
+                request = json.loads(read(f"{prefix}/request.json"))
+                candidate = json.loads(read(f"{prefix}/stdout.bin", result["stdout_sha256"]))
+                reference = json.loads(read(f"{prefix}/ruff-stdout.bin", result["reference_stdout_sha256"]))
+                coverage = candidate.get("coverage", {})
+                if (read(f"{prefix}/{file}") != source.encode()
+                    or request.get("parser_configuration") != item["parser_configuration"]
+                    or request.get("files") != [file]
+                    or request.get("query_modules") != profile.get("query-modules", {})
+                    or request.get("rule_applicability") != profile.get("rule-applicability", {})
+                    or candidate.get("diagnostics") != [] or candidate.get("skipped") != []
+                    or candidate.get("files") != [file] or candidate.get("execution_metadata", {}).get("availability") != "complete"
+                    or (coverage.get("selected"), coverage.get("evaluated"), coverage.get("unknown_or_unread")) != (1, 1, 0)
+                    or reference != []):
+                    raise ValueError("direct negative target has findings or incomplete execution")
     for row in rows:
         rule = row["rule_id"]
         canonical = next((item for item in actual if item["rule"] == rule
