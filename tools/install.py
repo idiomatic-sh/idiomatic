@@ -112,6 +112,8 @@ ROOT_CRATES = [
     Crate("hyperfine", "1.20.0"),
     # Reclaims stale build directories; it works across workspaces.
     Crate("cargo-sweep", "0.8.0"),
+    # Opens a product's release pull request (ci/release_pr/).
+    Crate("release-plz", "0.4.2"),
 ]
 
 # The tools that are not Rust: the command each installs, its package and version, and what it needs beside it.

@@ -395,11 +395,21 @@ def test_a_push_to_main_releases_the_products_whose_version_it_changes_without_c
 
 def test_a_pull_request_runs_each_changed_product_s_check_fan_out_behind_one_gate() -> None:
     """For each product a pull request to main changes, its whole check fan-out, the rows release.yml checks a hand run with; a
-    change outside the products is every product's and the root's lint and check groups (the ci/ tests) too. One `gate` job, which branch protection requires,
-    fails when a job failed or was cancelled and passes when each succeeded or was skipped."""
+    change outside the products is every product's and the root's check group (the ci/ tests) too, and every pull request the
+    root's lint group (its commit messages and title among them). A hand run checks the one product it names, and no root. One
+    `gate` job, which branch protection requires, fails when a job failed or was cancelled and passes when each succeeded or was
+    skipped."""
     workflow = yaml.safe_load((DIRECTORY / "check.yml").read_text())
     on = workflow["on" if "on" in workflow else True]
     assert set(on) == {"pull_request", "workflow_dispatch"} and on["pull_request"] == {"branches": ["main"]}
+    assert on["workflow_dispatch"]["inputs"] == {
+        "product": {
+            "description": "The one product this run checks",
+            "type": "choice",
+            "required": True,
+            "options": list(PRODUCTS),
+        }
+    }
     assert workflow["concurrency"] == {"group": "check-${{ github.event.pull_request.number || github.ref }}", "cancel-in-progress": True}
     jobs = workflow["jobs"]
     assert set(jobs) == {"changes", "root", "check", "gate"}
@@ -410,9 +420,19 @@ def test_a_pull_request_runs_each_changed_product_s_check_fan_out_behind_one_gat
     assert {name: filters[name] for name in products} == {name: f"crates/{name}/**" for name in products}
     assert filters["repository"] == ["**"] + [f"!crates/{name}/**" for name in products]
     assert sorted(path.parent.name for path in ROOT.glob("crates/*/Cargo.toml")) == sorted(products)
-    assert jobs["root"]["if"] == "needs.changes.outputs.repository == 'true'"
+    outputs = jobs["changes"]["outputs"]
+    assert outputs["products"] == (
+        "${{ github.event_name != 'pull_request' && format('[\"{0}\"]', inputs.product) || "
+        "(steps.filter.outputs.repository == 'true' && '[\"ryo\",\"tastemaker\",\"asymptote\"]' || steps.filter.outputs.changes) }}"
+    )
+    assert outputs["repository"] == "${{ github.event_name == 'pull_request' && steps.filter.outputs.repository == 'true' }}"
+    assert jobs["root"]["if"] == "github.event_name == 'pull_request'"
     (rooted,) = [step["run"] for step in jobs["root"]["steps"] if "asymptote check" in step.get("run", "")]
-    assert rooted == "asymptote check --root . --groups lint,check"
+    assert rooted == "asymptote check --root . --groups ${{ needs.changes.outputs.repository == 'true' && 'lint,check' || 'lint' }}"
+    # The root's lint group checks a pull request's title with its commitizen tool.
+    (commitizen,) = [tool for tool in tomllib.loads((ROOT / "asymptote.toml").read_text())["tools"] if tool["id"] == "commitizen"]
+    assert commitizen["group"] == "lint"
+    assert 'cz check --message "$(jq -r .pull_request.title "$GITHUB_EVENT_PATH")"' in commitizen["run"][-1]
     check = jobs["check"]
     assert check["needs"] == "changes" and check["if"] == "needs.changes.outputs.products != '[]'"
     assert check["strategy"]["matrix"]["product"] == "${{ fromJSON(needs.changes.outputs.products) }}"
@@ -440,3 +460,35 @@ def test_a_pull_request_runs_each_changed_product_s_check_fan_out_behind_one_gat
 def release_check() -> dict:
     """release.yml's check job, whose steps the pull request gate's checking jobs repeat."""
     return yaml.safe_load((DIRECTORY / "release.yml").read_text())["jobs"]["check"]
+
+
+def test_a_hand_run_opens_one_product_s_release_pull_request_after_its_lint_and_starts_its_check() -> None:
+    """The release pull request workflow starts only by hand, for the one product its input names: the product's lint group, then
+    the one job command that opens the pull request with release-plz and starts check.yml on its branch, with the workflow's own
+    token and the permissions that takes alone."""
+    workflow = yaml.safe_load((DIRECTORY / "release-pr.yml").read_text())
+    on = workflow["on" if "on" in workflow else True]
+    assert set(on) == {"workflow_dispatch"}
+    (product,) = on["workflow_dispatch"]["inputs"].values()
+    assert product["type"] == "choice" and product["required"] is True and product["options"] == list(PRODUCTS)
+    assert workflow["permissions"] == {"contents": "read"}
+    jobs = workflow["jobs"]
+    assert set(jobs) == {"check", "release_pr"}
+    (checking,) = [step["run"] for step in jobs["check"]["steps"] if "asymptote check" in step.get("run", "")]
+    assert checking == "asymptote check --root crates/${{ inputs.product }} --groups lint"
+    release_pr = jobs["release_pr"]
+    assert release_pr["needs"] == "check"
+    assert release_pr["permissions"] == {"contents": "write", "pull-requests": "write", "actions": "write"}
+    (command,) = [step for step in release_pr["steps"] if "ci/release_pr/command.py" in step.get("run", "")]
+    assert command["run"] == "uv run ci/release_pr/command.py --product ${{ inputs.product }}"
+    assert command["env"] == {"GH_TOKEN": "${{ github.token }}"}
+    assert "secrets." not in (DIRECTORY / "release-pr.yml").read_text()
+    # release-plz opens the pull request alone: no publish, no tag and no GitHub Release, for every product.
+    for name in PRODUCTS:
+        configuration = tomllib.loads((ROOT / "crates" / name / "release-plz.toml").read_text())["workspace"]
+        assert {key: configuration[key] for key in ("publish", "git_tag_enable", "git_release_enable")} == {
+            "publish": False,
+            "git_tag_enable": False,
+            "git_release_enable": False,
+        }
+        assert configuration["pr_name"] == f"chore({name}): release {{{{ version }}}}"
