@@ -13,6 +13,8 @@ ryo::reads! {
             row {
                 file: value(module.file),
                 path: value(languages::intern_derived(symbols, languages::ByteSlice(&[]), languages::NameText(&module.path))),
+                module_name: value(languages::intern_derived(symbols, languages::ByteSlice(&[]), languages::NameText(&module.module_name))),
+                package_name: value(languages::intern_derived(symbols, languages::ByteSlice(&[]), languages::NameText(&module.package_name))),
             }
         }
     }

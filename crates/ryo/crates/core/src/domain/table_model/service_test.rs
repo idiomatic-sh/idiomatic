@@ -16,14 +16,157 @@ use ryo_language::domain::symbols::types::Symbols;
 use ryo_language::domain::terms::types::NameText;
 
 use super::errors::TableModelError;
-use super::service::{
-    cell, count_of, index, kinds_of, matches_empty, matching, push_row, read_row, reset, table_in,
-};
-use super::types::{Emptiness, KeyIndex, On, RowCount, Rows, Table};
+use super::service::{cell, count_of, index, kinds_of, matching, push_row, read_row, reset};
+use super::types::{KeyIndex, On, RowCount, Rows, Table};
 use crate::cases::{Case, CaseName, Expect, Word, run, selects};
 use crate::domain::table_cells::types::{RowIndex, TreeForm, TreeRows};
 use ryo_language::domain::relations::types::{ColumnsView, FactColumn};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
+
+#[test]
+fn compact_materialization_decodes_projected_cells_without_full_row_reads() {
+    use super::service::{materialize, take_read_row_counts};
+    use super::types::{SelectedRows, StoredSelection};
+    use ryo_language::domain::relations::{service::to_bits, types::Relation};
+    use std::sync::Arc;
+
+    let physical = [
+        FactColumn(
+            [1, 2, 3]
+                .map(|value| to_bits(Cell::Number(Integer(value))).0)
+                .to_vec(),
+        ),
+        FactColumn(
+            [8, 9]
+                .map(|value| to_bits(Cell::Number(Integer(value))).0)
+                .to_vec(),
+        ),
+    ];
+    let selected = Rows::Selected(SelectedRows {
+        source: ColumnsView {
+            kinds: &[CellKind::Number, CellKind::Number],
+            columns: &physical,
+        },
+        selection: Arc::new(StoredSelection {
+            relation: Relation::Function,
+            rows: Arc::new(vec![1, 0, 1, 2]),
+            columns: vec![ColumnIndex(1), ColumnIndex(0), ColumnIndex(1)],
+            kinds: vec![CellKind::Number; 3],
+            identity: Arc::new(Default::default()),
+        }),
+    });
+    // The fourth physical row is malformed. Its first projected cell is absent,
+    // so both paths omit it while retaining duplicate logical positions.
+    let _previous = take_read_row_counts();
+    let mut actual = Table::default();
+    materialize(&selected, &mut actual, &mut Vec::new());
+    assert_eq!(take_read_row_counts(), (0, 0));
+    assert_eq!(actual.count.0, 3);
+    assert_eq!(
+        actual.cells,
+        vec![
+            Cell::Number(Integer(9)),
+            Cell::Number(Integer(2)),
+            Cell::Number(Integer(9)),
+            Cell::Number(Integer(8)),
+            Cell::Number(Integer(1)),
+            Cell::Number(Integer(8)),
+            Cell::Number(Integer(9)),
+            Cell::Number(Integer(2)),
+            Cell::Number(Integer(9)),
+        ]
+    );
+    let mut reference = Table {
+        kinds: actual.kinds.clone(),
+        ..Table::default()
+    };
+    let mut scratch = Vec::new();
+    for index in 0..count_of(&selected).0 {
+        if let Some(row) = read_row(&selected, RowIndex(index), &mut scratch) {
+            push_row(&mut reference, row);
+        }
+    }
+    assert_eq!(actual, reference);
+}
+
+#[test]
+fn compact_materialization_preserves_ragged_and_zero_width_legacy_rows() {
+    use super::service::materialize;
+    use super::types::{SelectedRows, StoredSelection};
+    use ryo_language::domain::relations::{service::to_bits, types::Relation};
+    use std::sync::Arc;
+
+    let physical = [
+        FactColumn(vec![
+            to_bits(Cell::Number(Integer(1))).0,
+            to_bits(Cell::Number(Integer(2))).0,
+        ]),
+        FactColumn(vec![to_bits(Cell::Number(Integer(9))).0]),
+    ];
+    let source = ColumnsView {
+        kinds: &[CellKind::Number, CellKind::Number],
+        columns: &physical,
+    };
+    let selection = |rows, columns, kinds| {
+        Rows::Selected(SelectedRows {
+            source,
+            selection: Arc::new(StoredSelection {
+                relation: Relation::Function,
+                rows: Arc::new(rows),
+                columns,
+                kinds,
+                identity: Arc::new(Default::default()),
+            }),
+        })
+    };
+
+    // An unused physical column may be ragged; only selected cells are read.
+    let mut projected = Table::default();
+    materialize(
+        &selection(vec![1, 0], vec![ColumnIndex(0)], vec![CellKind::Number]),
+        &mut projected,
+        &mut Vec::new(),
+    );
+    assert_eq!(projected.count.0, 2);
+    assert_eq!(
+        projected.cells,
+        vec![Cell::Number(Integer(2)), Cell::Number(Integer(1))]
+    );
+
+    // An invalid selected column skips its row without publishing partial cells.
+    let mut invalid_column = Table::default();
+    materialize(
+        &selection(vec![0], vec![ColumnIndex(5)], vec![CellKind::Number]),
+        &mut invalid_column,
+        &mut Vec::new(),
+    );
+    assert_eq!(invalid_column.count.0, 0);
+    assert!(invalid_column.cells.is_empty());
+
+    // Legacy read_row did not revalidate a malformed declared kind. Retain the
+    // same table shape and decoded source value until the admission layer rejects it.
+    let mut invalid_kind = Table::default();
+    materialize(
+        &selection(vec![0], vec![ColumnIndex(0)], vec![CellKind::Symbol]),
+        &mut invalid_kind,
+        &mut Vec::new(),
+    );
+    assert_eq!(invalid_kind.kinds, vec![CellKind::Symbol]);
+    assert_eq!(invalid_kind.cells, vec![Cell::Number(Integer(1))]);
+    assert_eq!(invalid_kind.count.0, 1);
+
+    // Zero-width projections retain each logical row, even when its physical
+    // position is beyond a provider column that the projection never reads.
+    let mut zero_width = Table::default();
+    materialize(
+        &selection(vec![3, 0, 3], vec![], vec![]),
+        &mut zero_width,
+        &mut Vec::new(),
+    );
+    assert_eq!(zero_width.count.0, 3);
+    assert!(zero_width.kinds.is_empty());
+    assert!(zero_width.cells.is_empty());
+}
 
 /// A scenario: what a row asks of the part.
 type Input = fn() -> Result<Value, TableModelError>;
@@ -78,7 +221,7 @@ fn finds_the_rows_of_a_key() -> Result<Value, TableModelError> {
         &[Cell::Number(Integer(9))],
     );
     Ok(usize::from(
-        found == [RowIndex(0), RowIndex(2)] && matches_empty(&none) == Emptiness::Empty,
+        found == [RowIndex(0), RowIndex(2)] && none.clone().next().is_none(),
     ))
 }
 
@@ -99,12 +242,14 @@ fn finds_a_key_among_many() -> Result<Value, TableModelError> {
     let expected: Vec<RowIndex> = (0..100).map(|each| RowIndex(3 + 7 * each)).collect();
     Ok(usize::from(
         found == expected
-            && matches_empty(&matching(
+            && matching(
                 &table,
                 On::Columns(&on),
                 &order,
                 &[Cell::Number(Integer(7))],
-            )) == Emptiness::Empty,
+            )
+            .next()
+            .is_none(),
     ))
 }
 
@@ -199,13 +344,30 @@ fn a_computed_table_is_not_copied() -> Value {
         kinds: KINDS,
         columns: &columns,
     });
-    let (mut room, mut scratch) = (Table::default(), Vec::new());
-    let same = std::ptr::eq(
-        table_in(&Rows::Computed(&computed), &mut room, &mut scratch),
-        &raw const computed,
-    ) && room.count.0 == 0;
-    let made = table_in(&stored, &mut room, &mut scratch).count.0 == 3;
-    usize::from(same && made)
+    let mut scratch = Vec::new();
+    let computed_rows = Rows::Computed(&computed);
+    let computed_view =
+        crate::domain::operator::contract::views::BorrowedRows::from(&computed_rows);
+    let read = computed_view
+        .read(RowIndex(0), &mut scratch)
+        .expect("computed row");
+    let same = std::ptr::eq(read.as_ptr(), computed.cells.as_ptr()) && scratch.is_empty();
+    let stored_view = crate::domain::operator::contract::views::BorrowedRows::from(&stored);
+    let copied = (0..stored_view.count())
+        .map(|at| {
+            stored_view
+                .read(RowIndex(at), &mut scratch)
+                .and_then(|row| row.first().copied())
+        })
+        .collect::<Option<Vec<_>>>();
+    usize::from(
+        same && copied
+            == Some(vec![
+                Cell::Number(Integer(7)),
+                Cell::Number(Integer(8)),
+                Cell::Number(Integer(9)),
+            ]),
+    )
 }
 
 /// A table emptied for the next file keeps the room a big file grew it to: the worker owns it to the end of the run.

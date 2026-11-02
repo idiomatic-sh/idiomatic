@@ -247,41 +247,13 @@ fn needs_from(plan: &Plan, reads: &[StepReads]) -> Vec<Vec<RelationRead>> {
                 .unwrap_or_default(),
         }
     };
-    plan.steps
-        .iter()
-        .map(|step| match &step.operation {
-            Operation::OrderedDfs { from, edges, .. } => {
-                let mut uses = of(from);
-                absorb(&mut uses, of(edges));
-                uses
-            }
-            Operation::OrderedMatch { left, right, .. } => {
-                let mut uses = of(left);
-                absorb(&mut uses, of(right));
-                uses
-            }
-            Operation::Antijoin { right, .. } | Operation::Difference { right, .. } => of(right),
-            Operation::GroupCount { from, .. } | Operation::GroupDigest { from, .. } => of(from),
-            Operation::SpanBetween { .. }
-            | Operation::SourceMatches { .. }
-            | Operation::SpanBounds { .. }
-            | Operation::Replace { .. }
-            | Operation::Select { .. }
-            | Operation::Project { .. }
-            | Operation::Extend { .. }
-            | Operation::Join { .. }
-            | Operation::Union { .. }
-            | Operation::Intersection { .. }
-            | Operation::Capture { .. }
-            | Operation::Rank { .. }
-            | Operation::Words { .. }
-            | Operation::Axis { .. }
-            | Operation::Closure { .. }
-            | Operation::Cycles { .. }
-            | Operation::Rows { .. }
-            | Operation::Hosted { .. } => Vec::new(),
-        })
-        .collect()
+    let masks = plan.steps.iter().map(|step| {
+        crate::domain::operator::contract::service::modes(
+            crate::domain::features::service::kind_of(&step.operation),
+        )
+        .4
+    });
+    needs_with_masks(plan, of, masks)
 }
 
 /// The reads of the relations the steps of a plan trust the absence of rows of, by where the steps run.
@@ -409,4 +381,47 @@ pub(crate) fn project_unknowns(
         }
     }
     unknowns
+}
+
+fn needs_with_masks(
+    plan: &Plan,
+    of: impl Fn(&Input) -> Vec<RelationRead>,
+    masks: impl IntoIterator<Item = u8>,
+) -> Vec<Vec<RelationRead>> {
+    plan.steps
+        .iter()
+        .zip(masks)
+        .map(|(step, mask)| {
+            let inputs = inputs_of(&step.operation);
+            let mut result = Vec::new();
+            for (position, input) in named(&inputs).iter().enumerate() {
+                if mask & (1 << position) != 0 {
+                    absorb(&mut result, of(input));
+                }
+            }
+            result
+        })
+        .collect()
+}
+pub(crate) fn needs_of_contracts(
+    plan: &Plan,
+    contracts: &[std::sync::Arc<crate::domain::operator::contract::types::OperatorContract>],
+) -> Result<Vec<Vec<RelationRead>>, crate::domain::operating::errors::OperatingError> {
+    if contracts.len() != plan.steps.len() {
+        return Err(crate::domain::operating::errors::OperatingError::NotRun);
+    }
+    let reads = uses_of(plan);
+    Ok(needs_with_masks(
+        plan,
+        |input| match input {
+            Input::Relation(relation) => vec![RelationRead {
+                relation: *relation,
+                kinds: Vec::new(),
+            }],
+            Input::Step(id) => reads
+                .get(id.0 as usize)
+                .map_or_else(Vec::new, |step| step.uses.clone()),
+        },
+        contracts.iter().map(|contract| contract.absence_inputs),
+    ))
 }

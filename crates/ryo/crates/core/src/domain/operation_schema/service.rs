@@ -4,8 +4,6 @@ use super::types::InputSchema;
 use super::types::bindings::value::BindingSchema;
 use super::types::traversal::value::TraversalSchema;
 use crate::domain::operating::{errors::OperatingError, types::InputPlace};
-use crate::domain::operator::service::pilot;
-use crate::domain::operator::types::AbsencePolicy;
 use crate::domain::table_model::errors::TableModelError;
 use crate::domain::table_model::service::{check_columns, column_in};
 use crate::domain::table_model::types::ParameterBinding;
@@ -13,25 +11,7 @@ use ryo_language::domain::relations::types::CellKind;
 use ryo_values::domain::plan_parts::service::parameter_in;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn, Side};
 use ryo_values::domain::plans::service::inputs_of;
-use ryo_values::domain::plans::types::{Operation, OperationKind};
-
-/// Validate pilot registration once while checking a step's metadata. Row
-/// evaluation uses the already selected item without repeating these checks.
-fn registered_schema(
-    operation: &Operation,
-    inputs: &[InputSchema<'_>],
-    bindings: &[ParameterBinding],
-    expected_kind: OperationKind,
-) -> Result<Vec<CellKind>, OperatingError> {
-    let registered = pilot(operation).ok_or(OperatingError::WrongOperation)?;
-    if registered.kind != expected_kind
-        || (registered.input)(operation)? != inputs_of(operation)
-        || registered.absence != AbsencePolicy::PositiveRows
-    {
-        return Err(OperatingError::WrongOperation);
-    }
-    (registered.schema)(operation, inputs, bindings)
-}
+use ryo_values::domain::plans::types::Operation;
 
 /// Read one input's metadata in the same input order as execution.
 pub(crate) fn schema_input<'a>(
@@ -113,21 +93,13 @@ pub(crate) fn schema_of(
     let first = || schema_input(inputs, InputPlace(0));
     let second = || schema_input(inputs, InputPlace(1));
     match operation {
-        Operation::Select { .. } => {
-            registered_schema(operation, inputs, bindings, OperationKind::Select)
-        }
-        Operation::Project { .. } => {
-            registered_schema(operation, inputs, bindings, OperationKind::Project)
-        }
+        Operation::Select { .. } => select_schema(operation, inputs, bindings),
+        Operation::Project { .. } => project_schema(operation, inputs, bindings),
         Operation::Extend { values, .. } => {
             BindingSchema::new(bindings).extended(values, first()?.kinds.to_vec())
         }
-        Operation::Join { .. } => {
-            registered_schema(operation, inputs, bindings, OperationKind::Join)
-        }
-        Operation::Union { .. } => {
-            registered_schema(operation, inputs, bindings, OperationKind::Union)
-        }
+        Operation::Join { .. } => join_schema(operation, inputs, bindings),
+        Operation::Union { .. } => union_schema(operation, inputs, bindings),
         Operation::Intersection { .. } | Operation::Difference { .. } => {
             let (left, right) = (first()?, second()?);
             if left.kinds != right.kinds {
@@ -192,7 +164,7 @@ pub(crate) fn schema_of(
             ..
         } => projected(first()?.kinds, &[*source, *destination]),
         Operation::Rows { parameter, keys } => BindingSchema::new(bindings).rows(*parameter, keys),
-        Operation::Hosted { .. } => Err(OperatingError::WrongOperation),
+        Operation::Hosted { .. } => Ok(schema_input(inputs, InputPlace(0))?.kinds.to_vec()),
         Operation::SpanBetween { start, end, .. } => {
             let input = first()?;
             if projected(input.kinds, &[*start, *end])? != [CellKind::Span; 2] {
@@ -200,12 +172,8 @@ pub(crate) fn schema_of(
             }
             appended(input.kinds, &[], CellKind::Span)
         }
-        Operation::SourceMatches { .. } => {
-            registered_schema(operation, inputs, bindings, OperationKind::SourceMatches)
-        }
-        Operation::SpanBounds { .. } => {
-            registered_schema(operation, inputs, bindings, OperationKind::SpanBounds)
-        }
+        Operation::SourceMatches { .. } => source_matches_schema(operation, inputs, bindings),
+        Operation::SpanBounds { .. } => span_bounds_schema(operation, inputs, bindings),
     }
 }
 

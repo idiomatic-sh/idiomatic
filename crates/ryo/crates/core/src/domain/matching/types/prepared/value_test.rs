@@ -79,12 +79,8 @@ fn evaluate(
         &mut context,
         &mut output,
     )?;
-    let (regexes, globs) = scratch.select_scratch.0.get().map_or((0, 0), |scratch| {
-        (
-            scratch.compiled_regexes.0.len(),
-            scratch.compiled_globs.len(),
-        )
-    });
+    assert!(scratch.observation.local_resources_released);
+    let (regexes, globs) = (scratch.observation.regexes, scratch.observation.globs);
     Ok((output, regexes, globs))
 }
 

@@ -253,7 +253,7 @@ fn prepared_vocabulary_is_send_and_sync() {
 /// Prepared and uncached operators return the same ordered cells, repeated projections, and schemas.
 #[test]
 fn prepared_masks_match_uncached_select_outputs() {
-    use crate::domain::operator::collections::operators::interface::OperatorsItem as _;
+    use crate::application::file_dag::testing::TestOperator as _;
     use crate::domain::operator::collections::operators::select::item::SelectItem;
     use crate::domain::table_model::types::{Rows, Table};
     use ryo_language::domain::relations::types::Relation;

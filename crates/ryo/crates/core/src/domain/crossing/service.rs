@@ -9,7 +9,7 @@ use crate::domain::hosted::service::table_of;
 use crate::domain::hosted::types::NumberedFiles;
 use crate::domain::layout::service::shaped;
 use crate::domain::operating::types::OperatorContext;
-use crate::domain::operator::service::evaluate_cross;
+use crate::domain::operator::service::evaluate_cross_with_executor;
 use crate::domain::operator::types::RowsFed;
 use crate::domain::spelling::service::check_spellings;
 
@@ -182,7 +182,21 @@ pub(crate) fn cross_rule(
                 crate::domain::recording::types::retention::value::RetainedBytes::inputs(&frontier);
             tracing::trace!(target: "ryo::diagnostic::lifecycle_memory", phase = "after_cross_shape", owner = "decoded_inputs", objects = bytes.objects, decoded_live_bytes = bytes.cells_live, decoded_capacity_bytes = bytes.cells_capacity, metadata_capacity_bytes = bytes.metadata, payload_copied = false);
         }
-        let evaluated = evaluate_cross(plan, frontier, &partials, &mut context, &mut fed, &hosted);
+        let evaluated = evaluate_cross_with_executor(
+            plan,
+            frontier,
+            &partials,
+            &mut context,
+            &mut fed,
+            &hosted,
+            crossing.executor,
+            crossing
+                .operators
+                .rules
+                .get(rule.0)
+                .ok_or(crate::domain::operating::errors::OperatingError::NotRun)
+                .map_err(|error| refuse(&error))?,
+        );
         if tracing::enabled!(target: "ryo::diagnostic::lifecycle_memory", tracing::Level::TRACE) {
             tracing::trace!(target: "ryo::diagnostic::lifecycle_memory", phase = "after_cross_evaluate", owner = "decoded_inputs", caller_inputs_owned = false, decoded_capacity_bytes = 0_usize, success = evaluated.is_ok());
         }

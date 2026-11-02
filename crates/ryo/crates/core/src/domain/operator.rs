@@ -2,11 +2,12 @@
 
 pub(crate) mod collections;
 pub(crate) mod constants;
+pub(crate) mod contract;
 pub(crate) mod service;
 pub(crate) mod types;
 
 #[cfg(test)]
-mod contract_test;
+pub(crate) mod contract_test;
 
 #[cfg(test)]
 mod service_test;

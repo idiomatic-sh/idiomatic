@@ -1,39 +1,27 @@
-//! The `rows` operator: the rows a `list<table>` parameter holds, one for each table, a text column for each key.
-
-use ryo_language::domain::relations::types::{CellKind, Value};
-use ryo_language::domain::symbols::service::query_intern_derived;
-use ryo_language::domain::symbols::types::ByteSlice;
-use ryo_language::domain::terms::types::NameText;
-
+//! Request parameter rows, interpreted without scheduling or cache capabilities.
 use super::super::interface::OperatorsItem;
-use crate::domain::operating::errors::OperatingError;
-use crate::domain::operating::service::minted;
-use crate::domain::operating::types::AfterTheFiles;
-use crate::domain::operating::types::{Emit, Feed, OperatorContext, Room};
-use crate::domain::replay::types::Collect;
-use crate::domain::table_model::service::reset;
-use crate::domain::table_model::types::{ParameterBinding, Rows, Table};
+use crate::domain::operating::{errors::OperatingError, service::minted, types::AfterTheFiles};
+use crate::domain::operation_schema::types::InputSchema;
+use crate::domain::operator::contract::types::{
+    OperatorContract, PreparedInputs, PrimitiveLease, RowSink,
+};
+use crate::domain::table_model::types::ParameterBinding;
+use ryo_language::domain::relations::types::Value;
+use ryo_language::domain::symbols::{service::query_intern_derived, types::ByteSlice};
+use ryo_language::domain::terms::types::NameText;
 use ryo_values::domain::plan_parts::service::parameter_in;
-use ryo_values::domain::plans::types::Operation;
-
-/// `rows`, one item of the `operators` collection.
+use ryo_values::domain::plans::types::{Operation, OperationKind};
 pub(crate) struct RowsItem;
-
-/// Passes on a row for each table of the parameter, its cells the texts under the keys, in order, as names.
-///
-/// # Errors
-///
-/// `Unbound` for a parameter nothing gave, `WrongBinding` for one that is not a list of tables or a table without a key.
 fn tables_rows(
     operation: &Operation,
-    context: &mut OperatorContext<'_>,
+    lease: &mut PrimitiveLease<'_>,
     row: &mut Vec<Value>,
-    emit: &mut dyn Emit,
+    emit: &mut dyn RowSink,
 ) -> Result<(), OperatingError> {
     let Operation::Rows { parameter, keys } = operation else {
         return Err(OperatingError::WrongOperation);
     };
-    let bindings = context.bindings;
+    let bindings = lease.views.bindings;
     let tables = match parameter_in(bindings, *parameter).ok_or(OperatingError::Unbound)? {
         ParameterBinding::Tables(tables) => tables.as_slice(),
         // An empty list says no kind of its items: it is no tables.
@@ -47,7 +35,7 @@ fn tables_rows(
         | ParameterBinding::Texts(_)
         | ParameterBinding::TextSets(_) => return Err(OperatingError::WrongBinding),
     };
-    let after = if context.arenas.is_empty() {
+    let after = if lease.views.arenas.is_empty() {
         AfterTheFiles::Before
     } else {
         AfterTheFiles::After
@@ -61,46 +49,44 @@ fn tables_rows(
                 .find(|cell| *cell.key.0 == *key.0)
                 .ok_or(OperatingError::WrongBinding)?;
             let made = query_intern_derived(
-                &mut context.symbols,
-                ByteSlice(context.source.0),
+                &mut lease.derived,
+                ByteSlice(lease.views.source.0),
                 NameText(&cell.value.0),
             );
-            row.push(minted(context.symbols.as_ref(), made, after));
+            row.push(minted(lease.derived.as_ref(), made, after));
         }
-        emit.row(context, row)?;
+        emit.row(lease, row)?;
     }
     Ok(())
 }
 
 impl OperatorsItem for RowsItem {
-    fn compute(
+    fn prepare(
         &self,
         operation: &Operation,
-        _inputs: &[Rows<'_>],
-        context: &mut OperatorContext<'_>,
-        out: &mut Table,
-    ) -> Result<(), OperatingError> {
-        let Operation::Rows { keys, .. } = operation else {
-            return Err(OperatingError::WrongOperation);
-        };
-        reset(out, &vec![CellKind::Symbol; keys.len()]);
-        let mut row = std::mem::take(&mut context.scratch.row);
-        let outcome = tables_rows(operation, context, &mut row, &mut Collect(out));
-        context.scratch.row = row;
-        outcome
+        inputs: &[InputSchema<'_>],
+        bindings: &[ParameterBinding],
+    ) -> Result<OperatorContract, OperatingError> {
+        crate::domain::operator::contract::service::prepare_for(
+            OperationKind::Rows,
+            operation,
+            inputs,
+            bindings,
+        )
     }
-
-    fn stream(
+    fn evaluate(
         &self,
         operation: &Operation,
-        _ins: &mut dyn Feed<'_>,
-        context: &mut OperatorContext<'_>,
-        room: &mut Room,
-        emit: &mut dyn Emit,
+        inputs: PreparedInputs<'_>,
+        lease: &mut PrimitiveLease<'_>,
+        emit: &mut dyn RowSink,
     ) -> Result<(), OperatingError> {
-        let mut row = std::mem::take(&mut room.scratch.row);
-        let outcome = tables_rows(operation, context, &mut row, emit);
-        room.scratch.row = row;
+        if !matches!(inputs, PreparedInputs::RequestSource(_)) {
+            return Err(OperatingError::WrongOperation);
+        }
+        let mut row = std::mem::take(lease.workspace.row);
+        let outcome = tables_rows(operation, lease, &mut row, emit);
+        *lease.workspace.row = row;
         outcome
     }
 }

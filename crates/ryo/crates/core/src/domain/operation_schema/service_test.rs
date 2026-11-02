@@ -69,15 +69,13 @@ fn subject(populated: Input) -> Result<Value, Failure> {
             memo: &mut memo,
         };
         let evaluated = compute(&operation, &rows, &mut context, &mut output);
+        evaluated?;
+        assert_eq!(
+            actual?, output.kinds,
+            "{operation:?}, populated={populated}"
+        );
         if matches!(operation, Operation::Hosted { .. }) {
-            assert_eq!(actual, Err(OperatingError::WrongOperation));
-            assert_eq!(evaluated, Err(OperatingError::WrongOperation));
-        } else {
-            evaluated?;
-            assert_eq!(
-                actual?, output.kinds,
-                "{operation:?}, populated={populated}"
-            );
+            assert_eq!(output.cells, tables[0].cells, "real request-source rows");
         }
     }
     Ok(variants.len())
@@ -392,7 +390,7 @@ pub(crate) fn graph_operations() -> Vec<Operation> {
         },
     ]
 }
-/// Every current Operation variant exactly once; Hosted is a deliberate refusal.
+/// Every current Operation variant exactly once, including a real Hosted request source.
 pub(crate) fn operations() -> Vec<Operation> {
     let mut values = unary();
     values.extend(binary());
@@ -423,7 +421,8 @@ pub(crate) fn tables(operation: &Operation, symbol: Symbol, populated: bool) -> 
         }
         Operation::Closure { .. } | Operation::Cycles { .. } => vec![graph],
         Operation::OrderedDfs { .. } => vec![first, graph],
-        Operation::Rows { .. } | Operation::Hosted { .. } => Vec::new(),
+        Operation::Rows { .. } => Vec::new(),
+        Operation::Hosted { .. } => vec![first],
         Operation::Join { .. }
         | Operation::Union { .. }
         | Operation::Intersection { .. }
@@ -485,5 +484,33 @@ fn demand_join_schema_uses_virtual_partition_source_destination_projection() {
     assert_eq!(
         schema_of(&operation, &inputs, &[]).expect("virtual kinds"),
         [CellKind::Symbol, CellKind::File, CellKind::Symbol]
+    );
+}
+
+#[test]
+fn hosted_without_its_request_source_is_missing_not_an_unsupported_operation() {
+    let operation = Operation::Hosted {
+        relation: HostedNumber(0),
+    };
+    assert_eq!(
+        schema_of(&operation, &[], &[]),
+        Err(OperatingError::MissingInput { position: 1 })
+    );
+    let mut symbols = Symbols::default();
+    let mut context = OperatorContext {
+        prepared_kinds: None,
+        prepared_matchers: None,
+        stored_indexes: None,
+        bindings: &[],
+        symbols: (&mut symbols).into(),
+        source: SourceView(b""),
+        paths: &[],
+        arenas: &[],
+        scratch: &mut OperatorScratch::default(),
+        memo: &mut Vec::new(),
+    };
+    assert_eq!(
+        compute(&operation, &[], &mut context, &mut Table::default()),
+        Err(OperatingError::MissingInput { position: 1 })
     );
 }

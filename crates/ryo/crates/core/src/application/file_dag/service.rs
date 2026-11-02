@@ -142,6 +142,9 @@ impl FileDagExecution {
         self.visiting[id.0] = true;
         let graph = Arc::clone(&self.graph);
         let node = &graph.nodes[id.0];
+        if crate::domain::features::service::kind_of(&node.operation) != node.contract.kind {
+            return Err(OperatingError::WrongOperation);
+        }
         let held = (0..node.inputs.len())
             .map(|_| OnceCell::new())
             .collect::<Vec<_>>();
@@ -155,8 +158,8 @@ impl FileDagExecution {
         let mut table = Table::default();
         reset(&mut table, &node.kinds);
         let mut room = Room::default();
-        let outcome = crate::domain::operator::service::operate(
-            &node.operation,
+        let outcome = super::execution::CommonOperatorEngine.stream(
+            &node.contract,
             &mut feed,
             context,
             &mut room,

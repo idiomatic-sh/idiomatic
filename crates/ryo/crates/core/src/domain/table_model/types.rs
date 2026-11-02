@@ -187,15 +187,6 @@ pub(crate) enum Addition {
     Existing,
 }
 
-/// Whether a table has any row for a key.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Emptiness {
-    /// No row has the key.
-    Empty,
-    /// A row has it.
-    Filled,
-}
-
 /// What a comparison decided about a text.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Verdict {

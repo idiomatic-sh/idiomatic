@@ -105,10 +105,22 @@ impl ModuleContextPort for ModuleContextFilesystem {
                 service::given(file_path, &inventory)
             };
             match decision {
-                Decision::Known(Some(path)) => result.rows.push(ModuleIdentity {
-                    file: file_id,
-                    path,
-                }),
+                Decision::Known(Some(path)) => {
+                    let source = match &root {
+                        Some(root) => absolute(&root.join(file_path))?,
+                        None => file_path.to_path_buf(),
+                    };
+                    let (module_name, package_name) =
+                        service::basenames(&source).ok_or_else(|| {
+                            failed("known module lacks source/package basenames".into())
+                        })?;
+                    result.rows.push(ModuleIdentity {
+                        file: file_id,
+                        path,
+                        module_name: module_name.to_owned(),
+                        package_name: package_name.to_owned(),
+                    });
+                }
                 Decision::Known(None) => {}
                 Decision::Unknown => result.partial = true,
                 Decision::Need(_) => {

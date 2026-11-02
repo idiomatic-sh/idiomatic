@@ -1,7 +1,7 @@
 //! Exact byte offsets, invalid ranges, absence and identical streaming results.
 
-use super::super::interface::OperatorsItem as _;
 use super::item::SpanBetweenItem;
+use crate::application::file_dag::testing::TestOperator as _;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::{Emit, Feed, InputPlace, OperatorContext, Room, Supply};

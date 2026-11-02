@@ -5,3 +5,5 @@ pub(crate) mod types;
 
 #[cfg(test)]
 mod service_test;
+
+pub(crate) mod streaming;

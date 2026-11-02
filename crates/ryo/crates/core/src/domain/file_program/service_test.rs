@@ -1,6 +1,6 @@
 //! Exact typed graph identity and an actual two-rule shared-cut execution.
 
-use super::service::compile;
+use super::service::compile_prepared;
 use super::types::FileProgram;
 use crate::domain::operating::types::OperatorContext;
 use crate::domain::operator::service::pool_for;
@@ -17,6 +17,28 @@ use ryo_values::domain::plan_parts::types::{
 };
 use ryo_values::domain::plans::types::{Operation, Plan, PlanStep, StepScope};
 use std::sync::Arc;
+
+fn request(
+    plans: &[Plan],
+    bindings: &[Vec<crate::domain::table_model::types::ParameterBinding>],
+) -> crate::domain::operator::contract::types::RequestOperators {
+    crate::domain::operator::contract::types::RequestOperators::prepare_with_schemas(
+        plans,
+        bindings,
+        &[],
+        &|relation| {
+            if relation == Relation::Function {
+                KINDS
+            } else {
+                ryo_language::domain::relations::service::kinds(relation)
+            }
+        },
+    )
+    .expect("custom fixture schema")
+}
+fn compile(plans: &[Plan]) -> super::types::RequestGraph {
+    compile_prepared(plans, &request(plans, &vec![Vec::new(); plans.len()]))
+}
 
 fn branched() -> Plan {
     let mut plan = plan();
@@ -188,9 +210,27 @@ fn typed_graph_shares_only_complete_pure_cuts_and_releases_last_consumer() {
     if let Operation::Select { comparisons, .. } = &mut dynamic.steps[0].operation {
         comparisons[0].right = Operand::Parameter(ParameterId(0));
     }
+    let bound_plans = [dynamic.clone(), dynamic];
+    let bound_values = [
+        vec![crate::domain::table_model::types::ParameterBinding::Text(
+            LiteralText("main".into()),
+        )],
+        vec![crate::domain::table_model::types::ParameterBinding::Text(
+            LiteralText("other".into()),
+        )],
+    ];
+    let bound_request = request(&bound_plans, &bound_values);
+    let bound_graph = Arc::new(compile_prepared(&bound_plans, &bound_request));
+    let first_bound = bound_graph.cuts[0][0].expect("rule-owned parameter node");
+    let second_bound = bound_graph.cuts[1][0].expect("other rule-owned parameter node");
+    assert_ne!(
+        first_bound, second_bound,
+        "different bound values cannot share a node"
+    );
+    let bound_program = FileProgram::new(bound_graph, |_| true, &[Relation::Function]);
     assert!(
-        compile(&[dynamic]).cuts[0][0].is_none(),
-        "bound parameters refuse graph identity"
+        bound_program.cut(0, 0).is_none() && bound_program.cut(1, 0).is_none(),
+        "rule-owned parameter nodes cannot become cross-rule cache cuts"
     );
 
     let mut symbols = Symbols::default();
@@ -357,8 +397,10 @@ fn demand_pruning_case(retained: bool, complete: bool, shared_branch: bool) -> (
         query.frontier.push(Input::Step(StepId(3)));
     }
     let plans = [query.clone(), query];
+    // Prepare actual fixture metadata once, before the physical read counter exists.
+    let request = request(&plans, &vec![Vec::new(); plans.len()]);
     let mut program = FileProgram::new(
-        Arc::new(compile(&plans)),
+        Arc::new(compile_prepared(&plans, &request)),
         |_| true,
         if complete { &[Relation::Function] } else { &[] },
     );
@@ -403,7 +445,7 @@ fn demand_pruning_case(retained: bool, complete: bool, shared_branch: bool) -> (
     };
     let query = &plans[1];
     let mut ordinary = pool_for(std::slice::from_ref(query));
-    evaluate_file(
+    crate::domain::pipeline::service::evaluate_file_with_executor(
         query,
         &rows,
         None,
@@ -411,11 +453,16 @@ fn demand_pruning_case(retained: bool, complete: bool, shared_branch: bool) -> (
         &mut ordinary,
         &mut prepared,
         &[],
+        None,
+        1,
+        None,
+        &crate::application::file_dag::execution::CommonOperatorEngine,
+        &request.rules[1],
     )
     .unwrap();
     reads.set(0);
     let mut actual = pool_for(std::slice::from_ref(query));
-    evaluate_file_with_graph(
+    crate::domain::pipeline::service::evaluate_file_with_executor(
         query,
         &rows,
         None,
@@ -425,6 +472,9 @@ fn demand_pruning_case(retained: bool, complete: bool, shared_branch: bool) -> (
         &[],
         Some(&mut program),
         1,
+        None,
+        &crate::application::file_dag::execution::CommonOperatorEngine,
+        &request.rules[1],
     )
     .unwrap();
     assert_eq!(actual.steps[2], ordinary.steps[2], "exact emitted rows");

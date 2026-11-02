@@ -3,9 +3,9 @@
 use super::service::build;
 use super::types::traversal::value::GraphTraversal;
 use super::types::{GraphIdentity, GraphWalk, Orientation, Population};
+use crate::application::file_dag::testing::TestOperator as _;
 use crate::domain::operating::types::OperatorContext;
 use crate::domain::operator::collections::operators::closure::item::ClosureItem;
-use crate::domain::operator::collections::operators::interface::OperatorsItem as _;
 use crate::domain::table_model::service::{push_row, row_in};
 use crate::domain::table_model::types::{Rows, Table};
 use crate::domain::table_texts::types::SourceView;

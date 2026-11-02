@@ -1,8 +1,6 @@
 //! The `operating` service: free functions named by verb over what an operator reads, with no IO and no ports.
 
-use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::Family;
-use crate::domain::table_model::types::Rows;
 use ryo_values::domain::plan_parts::types::Test;
 
 /// The family of comparison a test belongs to.
@@ -20,39 +18,6 @@ pub(crate) fn family_of(test: Test) -> Family {
         Test::StartsWith | Test::EndsWith => Family::Affix,
         Test::Matches => Family::Regex,
     }
-}
-
-/// The first input of an operator.
-///
-/// # Errors
-///
-/// `MissingInput` when the operator was given none.
-pub(crate) fn first<'i, 'a>(inputs: &'i [Rows<'a>]) -> Result<&'i Rows<'a>, OperatingError> {
-    inputs
-        .first()
-        .ok_or(OperatingError::MissingInput { position: 1 })
-}
-
-/// The second input of an operator.
-///
-/// # Errors
-///
-/// `MissingInput` when the operator was given fewer than two.
-pub(crate) fn second<'i, 'a>(inputs: &'i [Rows<'a>]) -> Result<&'i Rows<'a>, OperatingError> {
-    inputs
-        .get(1)
-        .ok_or(OperatingError::MissingInput { position: 2 })
-}
-
-/// The third input of an operator.
-///
-/// # Errors
-///
-/// `MissingInput` when the operator was given fewer than three.
-pub(crate) fn third<'i, 'a>(inputs: &'i [Rows<'a>]) -> Result<&'i Rows<'a>, OperatingError> {
-    inputs
-        .get(2)
-        .ok_or(OperatingError::MissingInput { position: 3 })
 }
 
 /// A name the steps made, as a value: when the steps run after the files were read (the text of the workers is

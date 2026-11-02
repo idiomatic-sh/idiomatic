@@ -9,10 +9,10 @@ use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::symbols::types::Symbols;
 
 use super::service::holds_all;
+use crate::application::file_dag::testing::TestOperator as _;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::{Memo, NameCount, OperatorContext};
-use crate::domain::operator::collections::operators::interface::OperatorsItem as _;
 use crate::domain::operator::collections::operators::select::item::SelectItem;
 use crate::domain::table_model::service::push_row;
 use crate::domain::table_model::types::{Rows, Table, Verdict};
@@ -168,6 +168,15 @@ fn remembers_what_a_text_was_decided_in_another_file() -> Result<Value, Operatin
         comparisons: vec![comparison],
         kept: Vec::new(),
     };
+    use crate::domain::operator::collections::operators::interface::OperatorsItem as _;
+    let contract = SelectItem.prepare(
+        &operation,
+        &[crate::domain::operation_schema::types::InputSchema {
+            kinds: &[CellKind::Symbol],
+            tree: None,
+        }],
+        &[],
+    )?;
     let mut scratch = OperatorScratch::default();
     let mut kept = 0;
     // The first file has `skip` and `main`; the second `main` and `skip`, so the same text is a different name.
@@ -204,8 +213,8 @@ fn remembers_what_a_text_was_decided_in_another_file() -> Result<Value, Operatin
             memo: &mut Vec::new(),
             scratch: &mut scratch,
         };
-        SelectItem.compute(
-            &operation,
+        crate::application::file_dag::execution::CommonOperatorEngine.collect(
+            &contract,
             &[Rows::Computed(&table)],
             &mut context,
             &mut out,

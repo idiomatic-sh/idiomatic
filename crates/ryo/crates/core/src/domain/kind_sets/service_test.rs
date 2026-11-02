@@ -13,11 +13,11 @@ use ryo_language::domain::symbols::types::Symbols;
 use ryo_language::domain::terms::types::NameText;
 
 use super::service::{names_a_kind, satisfies};
+use crate::application::file_dag::testing::TestOperator as _;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::KindNaming;
 use crate::domain::operating::types::OperatorContext;
-use crate::domain::operator::collections::operators::interface::OperatorsItem as _;
 use crate::domain::operator::collections::operators::select::item::SelectItem;
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use crate::domain::table_model::types::{Rows, Table, Verdict};

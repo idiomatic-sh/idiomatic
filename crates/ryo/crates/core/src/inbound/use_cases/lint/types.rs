@@ -312,6 +312,8 @@ impl From<AdmissionError> for ProviderFault {
 
 /// What the stages after the reading share: the rules, the files and what the store kept.
 pub(super) struct LintRun<'a> {
+    pub executor: &'a dyn crate::domain::operator::contract::executor::PrimitiveExecutor,
+    pub operators: std::sync::Arc<crate::domain::operator::contract::types::RequestOperators>,
     /// What the caller asked.
     pub request: &'a LintRequest,
     /// The rules, compiled.

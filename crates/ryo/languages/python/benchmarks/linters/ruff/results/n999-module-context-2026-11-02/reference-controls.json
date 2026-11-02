@@ -1,0 +1,1017 @@
+{
+  "source_commit": "9e4938c4a60bed3e87a11ee1e1db1bd23f4d964a",
+  "ruff_executable_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "upstream_fixture_sha256": {
+    "N999/module/mod with spaces/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "N999/module/mod with spaces/file.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "N999/module/flake9/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "N999/module/MODULE/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "N999/module/MODULE/file.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "N999/module/mod-with-dashes/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "N999/module/valid_name/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "N999/module/no_module/test.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "N999/module/valid_name/file-with-dashes.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "N999/module/valid_name/__main__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "N999/module/invalid_name/0001_initial.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "N999/module/valid_name/__setup__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "N999/module/valid_name/file-with-dashes": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "N999/module/invalid_name/import.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "cases": [
+    {
+      "name": "upstream-N999-module-mod with spaces-__init__.py",
+      "source_sha256": {
+        "N999/module/mod with spaces/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "context": {
+        "logical-root": "inventory",
+        "auxiliary-files": {},
+        "missing": [
+          "__init__.py",
+          "inventory/__init__.py",
+          "inventory/N999/__init__.py",
+          "inventory/N999/module/__init__.py"
+        ]
+      },
+      "expected": [
+        {
+          "rule": "N999",
+          "file": "N999/module/mod with spaces/__init__.py",
+          "start": 0,
+          "end": 0
+        }
+      ],
+      "reference_returncode": 1
+    },
+    {
+      "name": "upstream-N999-module-mod with spaces-file.py",
+      "source_sha256": {
+        "N999/module/mod with spaces/file.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "context": {
+        "logical-root": "inventory",
+        "auxiliary-files": {
+          "inventory/N999/module/mod with spaces/__init__.py": ""
+        },
+        "missing": [
+          "__init__.py",
+          "inventory/__init__.py",
+          "inventory/N999/__init__.py",
+          "inventory/N999/module/__init__.py"
+        ]
+      },
+      "expected": [],
+      "reference_returncode": 0
+    },
+    {
+      "name": "upstream-N999-module-flake9-__init__.py",
+      "source_sha256": {
+        "N999/module/flake9/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "context": {
+        "logical-root": "inventory",
+        "auxiliary-files": {},
+        "missing": [
+          "__init__.py",
+          "inventory/__init__.py",
+          "inventory/N999/__init__.py",
+          "inventory/N999/module/__init__.py"
+        ]
+      },
+      "expected": [],
+      "reference_returncode": 0
+    },
+    {
+      "name": "upstream-N999-module-MODULE-__init__.py",
+      "source_sha256": {
+        "N999/module/MODULE/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "context": {
+        "logical-root": "inventory",
+        "auxiliary-files": {},
+        "missing": [
+          "__init__.py",
+          "inventory/__init__.py",
+          "inventory/N999/__init__.py",
+          "inventory/N999/module/__init__.py"
+        ]
+      },
+      "expected": [
+        {
+          "rule": "N999",
+          "file": "N999/module/MODULE/__init__.py",
+          "start": 0,
+          "end": 0
+        }
+      ],
+      "reference_returncode": 1
+    },
+    {
+      "name": "upstream-N999-module-MODULE-file.py",
+      "source_sha256": {
+        "N999/module/MODULE/file.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "context": {
+        "logical-root": "inventory",
+        "auxiliary-files": {
+          "inventory/N999/module/MODULE/__init__.py": ""
+        },
+        "missing": [
+          "__init__.py",
+          "inventory/__init__.py",
+          "inventory/N999/__init__.py",
+          "inventory/N999/module/__init__.py"
+        ]
+      },
+      "expected": [],
+      "reference_returncode": 0
+    },
+    {
+      "name": "upstream-N999-module-mod-with-dashes-__init__.py",
+      "source_sha256": {
+        "N999/module/mod-with-dashes/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "context": {
+        "logical-root": "inventory",
+        "auxiliary-files": {},
+        "missing": [
+          "__init__.py",
+          "inventory/__init__.py",
+          "inventory/N999/__init__.py",
+          "inventory/N999/module/__init__.py"
+        ]
+      },
+      "expected": [
+        {
+          "rule": "N999",
+          "file": "N999/module/mod-with-dashes/__init__.py",
+          "start": 0,
+          "end": 0
+        }
+      ],
+      "reference_returncode": 1
+    },
+    {
+      "name": "upstream-N999-module-valid_name-__init__.py",
+      "source_sha256": {
+        "N999/module/valid_name/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "context": {
+        "logical-root": "inventory",
+        "auxiliary-files": {},
+        "missing": [
+          "__init__.py",
+          "inventory/__init__.py",
+          "inventory/N999/__init__.py",
+          "inventory/N999/module/__init__.py"
+        ]
+      },
+      "expected": [],
+      "reference_returncode": 0
+    },
+    {
+      "name": "upstream-N999-module-no_module-test.txt",
+      "source_sha256": {
+        "N999/module/no_module/test.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "context": {
+        "logical-root": "inventory",
+        "auxiliary-files": {},
+        "missing": [
+          "__init__.py",
+          "inventory/__init__.py",
+          "inventory/N999/__init__.py",
+          "inventory/N999/module/__init__.py",
+          "inventory/N999/module/no_module/__init__.py"
+        ]
+      },
+      "expected": [],
+      "reference_returncode": 0
+    },
+    {
+      "name": "upstream-N999-module-valid_name-file-with-dashes.py",
+      "source_sha256": {
+        "N999/module/valid_name/file-with-dashes.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "context": {
+        "logical-root": "inventory",
+        "auxiliary-files": {
+          "inventory/N999/module/valid_name/__init__.py": ""
+        },
+        "missing": [
+          "__init__.py",
+          "inventory/__init__.py",
+          "inventory/N999/__init__.py",
+          "inventory/N999/module/__init__.py"
+        ]
+      },
+      "expected": [
+        {
+          "rule": "N999",
+          "file": "N999/module/valid_name/file-with-dashes.py",
+          "start": 0,
+          "end": 0
+        }
+      ],
+      "reference_returncode": 1
+    },
+    {
+      "name": "upstream-N999-module-valid_name-__main__.py",
+      "source_sha256": {
+        "N999/module/valid_name/__main__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "context": {
+        "logical-root": "inventory",
+        "auxiliary-files": {
+          "inventory/N999/module/valid_name/__init__.py": ""
+        },
+        "missing": [
+          "__init__.py",
+          "inventory/__init__.py",
+          "inventory/N999/__init__.py",
+          "inventory/N999/module/__init__.py"
+        ]
+      },
+      "expected": [],
+      "reference_returncode": 0
+    },
+    {
+      "name": "upstream-N999-module-invalid_name-0001_initial.py",
+      "source_sha256": {
+        "N999/module/invalid_name/0001_initial.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "context": {
+        "logical-root": "inventory",
+        "auxiliary-files": {
+          "inventory/N999/module/invalid_name/__init__.py": ""
+        },
+        "missing": [
+          "__init__.py",
+          "inventory/__init__.py",
+          "inventory/N999/__init__.py",
+          "inventory/N999/module/__init__.py"
+        ]
+      },
+      "expected": [
+        {
+          "rule": "N999",
+          "file": "N999/module/invalid_name/0001_initial.py",
+          "start": 0,
+          "end": 0
+        }
+      ],
+      "reference_returncode": 1
+    },
+    {
+      "name": "upstream-N999-module-valid_name-__setup__.py",
+      "source_sha256": {
+        "N999/module/valid_name/__setup__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "context": {
+        "logical-root": "inventory",
+        "auxiliary-files": {
+          "inventory/N999/module/valid_name/__init__.py": ""
+        },
+        "missing": [
+          "__init__.py",
+          "inventory/__init__.py",
+          "inventory/N999/__init__.py",
+          "inventory/N999/module/__init__.py"
+        ]
+      },
+      "expected": [],
+      "reference_returncode": 0
+    },
+    {
+      "name": "upstream-N999-module-valid_name-file-with-dashes",
+      "source_sha256": {
+        "N999/module/valid_name/file-with-dashes": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "context": {
+        "logical-root": "inventory",
+        "auxiliary-files": {
+          "inventory/N999/module/valid_name/__init__.py": ""
+        },
+        "missing": [
+          "__init__.py",
+          "inventory/__init__.py",
+          "inventory/N999/__init__.py",
+          "inventory/N999/module/__init__.py"
+        ]
+      },
+      "expected": [],
+      "reference_returncode": 0
+    },
+    {
+      "name": "upstream-N999-module-invalid_name-import.py",
+      "source_sha256": {
+        "N999/module/invalid_name/import.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "context": {
+        "logical-root": "inventory",
+        "auxiliary-files": {
+          "inventory/N999/module/invalid_name/__init__.py": ""
+        },
+        "missing": [
+          "__init__.py",
+          "inventory/__init__.py",
+          "inventory/N999/__init__.py",
+          "inventory/N999/module/__init__.py"
+        ]
+      },
+      "expected": [
+        {
+          "rule": "N999",
+          "file": "N999/module/invalid_name/import.py",
+          "start": 0,
+          "end": 0
+        }
+      ],
+      "reference_returncode": 1
+    },
+    {
+      "name": "uppercase-module",
+      "source_sha256": {
+        "BadModule.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "context": {
+        "logical-root": "pkg",
+        "auxiliary-files": {
+          "pkg/__init__.py": ""
+        },
+        "missing": [
+          "__init__.py"
+        ]
+      },
+      "expected": [
+        {
+          "rule": "N999",
+          "file": "BadModule.py",
+          "start": 0,
+          "end": 0
+        }
+      ],
+      "reference_returncode": 1
+    },
+    {
+      "name": "dotted-module",
+      "source_sha256": {
+        "bad.name.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "context": {
+        "logical-root": "pkg",
+        "auxiliary-files": {
+          "pkg/__init__.py": ""
+        },
+        "missing": [
+          "__init__.py"
+        ]
+      },
+      "expected": [
+        {
+          "rule": "N999",
+          "file": "bad.name.py",
+          "start": 0,
+          "end": 0
+        }
+      ],
+      "reference_returncode": 1
+    },
+    {
+      "name": "dash-module",
+      "source_sha256": {
+        "bad-name.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "context": {
+        "logical-root": "pkg",
+        "auxiliary-files": {
+          "pkg/__init__.py": ""
+        },
+        "missing": [
+          "__init__.py"
+        ]
+      },
+      "expected": [
+        {
+          "rule": "N999",
+          "file": "bad-name.py",
+          "start": 0,
+          "end": 0
+        }
+      ],
+      "reference_returncode": 1
+    },
+    {
+      "name": "space-module",
+      "source_sha256": {
+        "bad name.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "context": {
+        "logical-root": "pkg",
+        "auxiliary-files": {
+          "pkg/__init__.py": ""
+        },
+        "missing": [
+          "__init__.py"
+        ]
+      },
+      "expected": [
+        {
+          "rule": "N999",
+          "file": "bad name.py",
+          "start": 0,
+          "end": 0
+        }
+      ],
+      "reference_returncode": 1
+    },
+    {
+      "name": "ordinary-lowercase",
+      "source_sha256": {
+        "good_module2.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "context": {
+        "logical-root": "pkg",
+        "auxiliary-files": {
+          "pkg/__init__.py": ""
+        },
+        "missing": [
+          "__init__.py"
+        ]
+      },
+      "expected": [],
+      "reference_returncode": 0
+    },
+    {
+      "name": "private-extension",
+      "source_sha256": {
+        "_socket.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "context": {
+        "logical-root": "pkg",
+        "auxiliary-files": {
+          "pkg/__init__.py": ""
+        },
+        "missing": [
+          "__init__.py"
+        ]
+      },
+      "expected": [],
+      "reference_returncode": 0
+    },
+    {
+      "name": "hard-keyword",
+      "source_sha256": {
+        "import.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "context": {
+        "logical-root": "pkg",
+        "auxiliary-files": {
+          "pkg/__init__.py": ""
+        },
+        "missing": [
+          "__init__.py"
+        ]
+      },
+      "expected": [
+        {
+          "rule": "N999",
+          "file": "import.py",
+          "start": 0,
+          "end": 0
+        }
+      ],
+      "reference_returncode": 1
+    },
+    {
+      "name": "soft-keyword",
+      "source_sha256": {
+        "match.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "context": {
+        "logical-root": "pkg",
+        "auxiliary-files": {
+          "pkg/__init__.py": ""
+        },
+        "missing": [
+          "__init__.py"
+        ]
+      },
+      "expected": [],
+      "reference_returncode": 0
+    },
+    {
+      "name": "unicode-module",
+      "source_sha256": {
+        "\u03b4.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "context": {
+        "logical-root": "pkg",
+        "auxiliary-files": {
+          "pkg/__init__.py": ""
+        },
+        "missing": [
+          "__init__.py"
+        ]
+      },
+      "expected": [
+        {
+          "rule": "N999",
+          "file": "\u03b4.py",
+          "start": 0,
+          "end": 0
+        }
+      ],
+      "reference_returncode": 1
+    },
+    {
+      "name": "ignored-default",
+      "source_sha256": {
+        "setUpClass.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "context": {
+        "logical-root": "pkg",
+        "auxiliary-files": {
+          "pkg/__init__.py": ""
+        },
+        "missing": [
+          "__init__.py"
+        ]
+      },
+      "expected": [],
+      "reference_returncode": 0
+    },
+    {
+      "name": "stub-uppercase",
+      "source_sha256": {
+        "BadModule.pyi": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "context": {
+        "logical-root": "pkg",
+        "auxiliary-files": {
+          "pkg/__init__.py": ""
+        },
+        "missing": [
+          "__init__.py"
+        ]
+      },
+      "expected": [
+        {
+          "rule": "N999",
+          "file": "BadModule.pyi",
+          "start": 0,
+          "end": 0
+        }
+      ],
+      "reference_returncode": 1
+    },
+    {
+      "name": "root-uppercase",
+      "source_sha256": {
+        "__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "context": {
+        "logical-root": "BadPackage",
+        "auxiliary-files": {},
+        "missing": [
+          "__init__.py"
+        ]
+      },
+      "expected": [
+        {
+          "rule": "N999",
+          "file": "__init__.py",
+          "start": 0,
+          "end": 0
+        }
+      ],
+      "reference_returncode": 1
+    },
+    {
+      "name": "root-dotted",
+      "source_sha256": {
+        "__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "context": {
+        "logical-root": "bad.name",
+        "auxiliary-files": {},
+        "missing": [
+          "__init__.py"
+        ]
+      },
+      "expected": [
+        {
+          "rule": "N999",
+          "file": "__init__.py",
+          "start": 0,
+          "end": 0
+        }
+      ],
+      "reference_returncode": 1
+    },
+    {
+      "name": "root-dash",
+      "source_sha256": {
+        "__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "context": {
+        "logical-root": "bad-name",
+        "auxiliary-files": {},
+        "missing": [
+          "__init__.py"
+        ]
+      },
+      "expected": [
+        {
+          "rule": "N999",
+          "file": "__init__.py",
+          "start": 0,
+          "end": 0
+        }
+      ],
+      "reference_returncode": 1
+    },
+    {
+      "name": "root-good",
+      "source_sha256": {
+        "__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "context": {
+        "logical-root": "good_package",
+        "auxiliary-files": {},
+        "missing": [
+          "__init__.py"
+        ]
+      },
+      "expected": [],
+      "reference_returncode": 0
+    },
+    {
+      "name": "root-main-dotted",
+      "source_sha256": {
+        "__main__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "context": {
+        "logical-root": "bad.name",
+        "auxiliary-files": {
+          "bad.name/__init__.py": ""
+        },
+        "missing": [
+          "__init__.py"
+        ]
+      },
+      "expected": [
+        {
+          "rule": "N999",
+          "file": "__main__.py",
+          "start": 0,
+          "end": 0
+        }
+      ],
+      "reference_returncode": 1
+    },
+    {
+      "name": "regular-file-in-invalid-package",
+      "source_sha256": {
+        "good.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "context": {
+        "logical-root": "bad.name",
+        "auxiliary-files": {
+          "bad.name/__init__.py": ""
+        },
+        "missing": [
+          "__init__.py"
+        ]
+      },
+      "expected": [],
+      "reference_returncode": 0
+    },
+    {
+      "name": "setup-is-not-package-special",
+      "source_sha256": {
+        "__setup__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "context": {
+        "logical-root": "BadPackage",
+        "auxiliary-files": {
+          "BadPackage/__init__.py": ""
+        },
+        "missing": [
+          "__init__.py"
+        ]
+      },
+      "expected": [],
+      "reference_returncode": 0
+    },
+    {
+      "name": "standalone-uppercase",
+      "source_sha256": {
+        "BAD.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "context": {
+        "logical-root": "standalone",
+        "auxiliary-files": {},
+        "missing": [
+          "__init__.py",
+          "standalone/__init__.py"
+        ]
+      },
+      "expected": [],
+      "reference_returncode": 0
+    },
+    {
+      "name": "dotted-nonpackage-parent",
+      "source_sha256": {
+        "BAD.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "context": {
+        "logical-root": "no.package",
+        "auxiliary-files": {},
+        "missing": [
+          "__init__.py",
+          "no.package/__init__.py"
+        ]
+      },
+      "expected": [],
+      "reference_returncode": 0
+    },
+    {
+      "name": "numeric-migrations",
+      "source_sha256": {
+        "0001_initial.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "context": {
+        "logical-root": "migrations",
+        "auxiliary-files": {
+          "migrations/__init__.py": ""
+        },
+        "missing": [
+          "__init__.py"
+        ]
+      },
+      "expected": [],
+      "reference_returncode": 0
+    },
+    {
+      "name": "numeric-versions",
+      "source_sha256": {
+        "0001_initial.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "context": {
+        "logical-root": "versions",
+        "auxiliary-files": {
+          "versions/__init__.py": ""
+        },
+        "missing": [
+          "__init__.py"
+        ]
+      },
+      "expected": [],
+      "reference_returncode": 0
+    },
+    {
+      "name": "numeric-Migrations",
+      "source_sha256": {
+        "0001_initial.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "context": {
+        "logical-root": "Migrations",
+        "auxiliary-files": {
+          "Migrations/__init__.py": ""
+        },
+        "missing": [
+          "__init__.py"
+        ]
+      },
+      "expected": [
+        {
+          "rule": "N999",
+          "file": "0001_initial.py",
+          "start": 0,
+          "end": 0
+        }
+      ],
+      "reference_returncode": 1
+    },
+    {
+      "name": "nonmigration-numeric",
+      "source_sha256": {
+        "0001_initial.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "context": {
+        "logical-root": "pkg",
+        "auxiliary-files": {
+          "pkg/__init__.py": ""
+        },
+        "missing": [
+          "__init__.py"
+        ]
+      },
+      "expected": [
+        {
+          "rule": "N999",
+          "file": "0001_initial.py",
+          "start": 0,
+          "end": 0
+        }
+      ],
+      "reference_returncode": 1
+    },
+    {
+      "name": "inline-noqa",
+      "source_sha256": {
+        "BAD.py": "f48b100d768fe284ad43cf03cb41c5be50dca4db0ea6d9ae885c5b6a0c5fe71e"
+      },
+      "context": {
+        "logical-root": "pkg",
+        "auxiliary-files": {
+          "pkg/__init__.py": ""
+        },
+        "missing": [
+          "__init__.py"
+        ]
+      },
+      "expected": [],
+      "reference_returncode": 0
+    },
+    {
+      "name": "inline-unrelated",
+      "source_sha256": {
+        "BAD.py": "a6aa981f140f9a652fbe11fe6ecb2e2a1965cd722e77e474bdfb243012643e58"
+      },
+      "context": {
+        "logical-root": "pkg",
+        "auxiliary-files": {
+          "pkg/__init__.py": ""
+        },
+        "missing": [
+          "__init__.py"
+        ]
+      },
+      "expected": [
+        {
+          "rule": "N999",
+          "file": "BAD.py",
+          "start": 0,
+          "end": 0
+        }
+      ],
+      "reference_returncode": 1
+    },
+    {
+      "name": "file-noqa",
+      "source_sha256": {
+        "BAD.py": "72f6f35207327a6353a300522fdae33e198685147ee6ba1f0e0c0c3837700ee8"
+      },
+      "context": {
+        "logical-root": "pkg",
+        "auxiliary-files": {
+          "pkg/__init__.py": ""
+        },
+        "missing": [
+          "__init__.py"
+        ]
+      },
+      "expected": [],
+      "reference_returncode": 0
+    },
+    {
+      "name": "blanket-noqa",
+      "source_sha256": {
+        "BAD.py": "ab3f3cdd96b0de714abf67c354c9e0d93b18f45c58eee8ef918c37fd10d3b143"
+      },
+      "context": {
+        "logical-root": "pkg",
+        "auxiliary-files": {
+          "pkg/__init__.py": ""
+        },
+        "missing": [
+          "__init__.py"
+        ]
+      },
+      "expected": [],
+      "reference_returncode": 0
+    },
+    {
+      "name": "later-inline",
+      "source_sha256": {
+        "BAD.py": "67c14ca470946dd3d9887f97982816c9e84a9aef29beb7bffae3aa7960a18fc7"
+      },
+      "context": {
+        "logical-root": "pkg",
+        "auxiliary-files": {
+          "pkg/__init__.py": ""
+        },
+        "missing": [
+          "__init__.py"
+        ]
+      },
+      "expected": [
+        {
+          "rule": "N999",
+          "file": "BAD.py",
+          "start": 0,
+          "end": 0
+        }
+      ],
+      "reference_returncode": 1
+    },
+    {
+      "name": "invalid-syntax",
+      "source_sha256": {
+        "BAD.py": "5ffd44bcee04a46e68e054dbeccfe5ddea007524bb84bb0545c8ce108199789b"
+      },
+      "context": {
+        "logical-root": "pkg",
+        "auxiliary-files": {
+          "pkg/__init__.py": ""
+        },
+        "missing": [
+          "__init__.py"
+        ]
+      },
+      "expected": [
+        {
+          "rule": "N999",
+          "file": "BAD.py",
+          "start": 0,
+          "end": 0
+        },
+        {
+          "rule": "invalid-syntax",
+          "file": "BAD.py",
+          "start": 5,
+          "end": 5
+        }
+      ],
+      "reference_returncode": 1
+    },
+    {
+      "name": "content-shadowing",
+      "source_sha256": {
+        "BAD.py": "4f7b7f8e5c4e54b5da6631429017485022d10d4558bbd25473119dc68f477e01"
+      },
+      "context": {
+        "logical-root": "pkg",
+        "auxiliary-files": {
+          "pkg/__init__.py": ""
+        },
+        "missing": [
+          "__init__.py"
+        ]
+      },
+      "expected": [
+        {
+          "rule": "N999",
+          "file": "BAD.py",
+          "start": 0,
+          "end": 0
+        }
+      ],
+      "reference_returncode": 1
+    },
+    {
+      "name": "nested-dotted-initializer",
+      "source_sha256": {
+        "outer/inner.name/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "context": {
+        "logical-root": "inventory",
+        "auxiliary-files": {
+          "inventory/outer/__init__.py": ""
+        },
+        "missing": [
+          "__init__.py",
+          "inventory/__init__.py"
+        ]
+      },
+      "expected": [],
+      "reference_returncode": 0
+    },
+    {
+      "name": "root-stub-initializer-with-runtime-marker",
+      "source_sha256": {
+        "__init__.pyi": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "context": {
+        "logical-root": "BadStubPackage",
+        "auxiliary-files": {
+          "BadStubPackage/__init__.py": ""
+        },
+        "missing": [
+          "__init__.py"
+        ]
+      },
+      "expected": [
+        {
+          "rule": "N999",
+          "file": "__init__.pyi",
+          "start": 0,
+          "end": 0
+        }
+      ],
+      "reference_returncode": 1
+    }
+  ]
+}

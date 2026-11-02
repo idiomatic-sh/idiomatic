@@ -1,4 +1,4 @@
-//! Module identity follows contiguous `__init__.py` ancestry and component file stems.
+//! Module identity preserves raw package directories and strips only the source extension.
 use super::types::{Decision, Markers};
 use std::{
     collections::BTreeSet,
@@ -17,19 +17,30 @@ fn module_path(file: &Path, package: Option<&Path>) -> Decision {
         return Decision::Unknown;
     };
     let mut parts = Vec::new();
-    for component in relative.components() {
+    for component in relative.parent().into_iter().flat_map(Path::components) {
         let Component::Normal(component) = component else {
             return Decision::Unknown;
         };
-        let Some(stem) = Path::new(component)
-            .file_stem()
-            .and_then(|stem| stem.to_str())
-        else {
+        let Some(directory) = component.to_str() else {
             return Decision::Unknown;
         };
-        parts.push(stem);
+        parts.push(directory);
     }
+    let Some((module, _package)) = basenames(file) else {
+        return Decision::Unknown;
+    };
+    parts.push(module);
     Decision::Known(Some(parts.join(".")))
+}
+
+/// Raw names are separate from dotted qualified identity; no absolute path is exposed.
+pub(crate) fn basenames(file: &Path) -> Option<(&str, &str)> {
+    let name = file.file_name()?.to_str()?;
+    let module = name
+        .strip_suffix(".pyi")
+        .or_else(|| name.strip_suffix(".py"))?;
+    let package = file.parent()?.file_name()?.to_str()?;
+    Some((module, package))
 }
 
 /// Resolve an absolute disk source using only supplied marker observations.

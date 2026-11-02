@@ -8,8 +8,8 @@ use ryo_values::domain::plans::types::QueryOperator;
 
 use ryo_language::domain::symbols::types::Symbols;
 
-use super::super::interface::OperatorsItem as _;
 use super::item::AxisItem;
+use crate::application::file_dag::testing::TestOperator as _;
 use crate::cases::{Case, CaseName, Expect, Word, run, selects};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
@@ -395,7 +395,7 @@ fn sparse_computed_walk_work_is_rooted() -> Result<Value, OperatingError> {
             }
             if out.cells != expected
                 || out.count.0 != 2 * expected_targets.len()
-                || context.scratch.walk_scratch.walk.visited.len() != if cycle { 4 } else { 3 }
+                || context.scratch.observation.closure_visited != if cycle { 4 } else { 3 }
             {
                 return Ok(0);
             }

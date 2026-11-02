@@ -4,8 +4,8 @@ use ryo_language::domain::relations::types::{CellKind, Integer, Offset, Relation
 use ryo_language::domain::symbols::service::intern;
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
 
-use super::super::interface::OperatorsItem as _;
 use super::item::RankItem;
+use crate::application::file_dag::testing::TestOperator as _;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;

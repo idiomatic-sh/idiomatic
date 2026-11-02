@@ -24,6 +24,10 @@ macro_rules! module_identity {
                 file File: FileId => File;
                 /// Language-defined dotted module path.
                 path Path: Symbol => Symbol;
+                /// Raw source filename stem after removing only the language-defined source extension.
+                module_name ModuleName: Symbol => Symbol;
+                /// Raw containing package directory basename, preserving punctuation and case.
+                package_name PackageName: Symbol => Symbol;
             }
         }
     };

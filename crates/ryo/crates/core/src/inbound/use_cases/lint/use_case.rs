@@ -377,6 +377,10 @@ impl LintUseCaseImpl {
         hosted: &[HostRelation],
         resolved: Digest,
     ) -> Vec<StoredRule> {
+        // Schema identity is request-wide: an old retained row cannot acquire a new catalog shape.
+        let schema = self.digest.digest(DigestBytes(
+            &crate::domain::repository::service::catalog_schema().0,
+        ));
         // What the host declares is digested once: each rule's digest combines its own with it.
         let hosted = self
             .digest
@@ -399,6 +403,7 @@ impl LintUseCaseImpl {
                         &configuration(std::slice::from_ref(rule), &[]).0,
                     )),
                     hosted,
+                    schema,
                 ]);
                 // Stored findings from the two physical backends are not interchangeable.
                 let own = if self.file_analysis.kernel_strategy()
@@ -618,9 +623,12 @@ impl LintUseCaseImpl {
         let setting = VisitSetting {
             paths: &paths,
             records: &[],
-            ..*setting
+            ..setting.clone()
         };
-        let visit = FileVisit { store, setting };
+        let visit = FileVisit {
+            store,
+            setting: setting.clone(),
+        };
         let mut worker = Worker {
             tables: {
                 let mut tables = tables_for(
@@ -982,6 +990,8 @@ impl LintUseCaseImpl {
             .chain(now.unlisted.iter().map(|each| FilePath(each.0.clone())))
             .collect();
         let crossing = CrossingInput {
+            executor: run.executor,
+            operators: std::sync::Arc::clone(&run.operators),
             plans: run.plans,
             bindings: run.bindings,
             ids: run.ids,
@@ -1365,7 +1375,23 @@ impl LintUseCase for LintUseCaseImpl {
         let (nothing_handed, nothing_wanted) =
             (ReadHanded::default(), BucketsWanted::These(Vec::new()));
         let unknown = self.language.unknown_reasons();
+        let operators = std::sync::Arc::new(
+            crate::domain::operator::contract::types::RequestOperators::prepare(
+                &plans,
+                &bindings,
+                &request.hosted,
+            )
+            .map_err(|error| {
+                crate::domain::rules::service::failed(
+                    &ryo_values::domain::runs::types::RuleId("<request>".into()),
+                    &error,
+                )
+            })?,
+        );
+        let executor = crate::application::file_dag::execution::CommonOperatorEngine;
         let mut setting = VisitSetting {
+            executor: &executor,
+            operators: std::sync::Arc::clone(&operators),
             plans: &plans,
             bindings: &bindings,
             wanted: &wants.walked,
@@ -1410,6 +1436,8 @@ impl LintUseCase for LintUseCaseImpl {
         let records = records_of(&listing.files, &kept_records);
         setting.records = &records;
         let run = LintRun {
+            executor: &executor,
+            operators: std::sync::Arc::clone(&operators),
             request: &request,
             rules: &rules,
             plans: &plans,

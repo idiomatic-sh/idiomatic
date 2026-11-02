@@ -96,6 +96,8 @@ fn placed() -> Result<PlacedScopes, Failure> {
 
 fn setting(placed: &PlacedScopes) -> VisitSetting<'_> {
     VisitSetting {
+        executor: &crate::application::file_dag::execution::CommonOperatorEngine,
+        operators: crate::application::file_dag::testing::request_fixture(&[], &[], &[]),
         unknown: &[],
         plans: &[],
         bindings: &[],
@@ -253,6 +255,8 @@ fn rejected_syntax_coverage_ignores_partials_for_gated_rules_after_mask_restore(
     let path = FilePath("invalid.py".into());
     let paths = [path.clone()];
     let setting = VisitSetting {
+        executor: &crate::application::file_dag::execution::CommonOperatorEngine,
+        operators: crate::application::file_dag::testing::request_fixture(&plans, &[], &[]),
         plans: &plans,
         ids: &ids,
         applicability: &applicability,
@@ -356,6 +360,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             let plans = [plan_with_a_frontier()];
             let first = [Bucket(1)];
             let setting = VisitSetting {
+                executor: &crate::application::file_dag::execution::CommonOperatorEngine,
+                operators: crate::application::file_dag::testing::request_fixture(&plans, &[], &[]),
                 plans: &plans,
                 first_bucket: &first,
                 ..setting(&placed)
@@ -559,6 +565,8 @@ fn prepared_packed_buckets_preserve_legacy_flat_digests_store_bytes_and_move_own
     let plans = [first_plan, plan_with_a_frontier()];
     let first = [Bucket(1), Bucket(9)];
     let setting = VisitSetting {
+        executor: &crate::application::file_dag::execution::CommonOperatorEngine,
+        operators: crate::application::file_dag::testing::request_fixture(&plans, &[], &[]),
         plans: &plans,
         first_bucket: &first,
         ..setting(&placed)

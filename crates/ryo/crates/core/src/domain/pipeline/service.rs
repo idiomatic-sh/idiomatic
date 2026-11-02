@@ -11,7 +11,6 @@ use crate::domain::layout::service::layout_of;
 use crate::domain::lowering::types::Counting;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::{Emit, InputPlace, OperatorContext};
-use crate::domain::operator::service::operate;
 use crate::domain::operator::types::{
     PlanIdentity, Pool, PreparedPool, RowsFed, StepPlace, TreeSteps,
 };
@@ -210,70 +209,15 @@ where
     {
         return Ok(());
     }
-    if let LoweredTree::Tree(tree) = stepper.lowered
-        && (stepper
-            .layout
-            .lowering
-            .shapes
-            .get(id)
-            .is_some_and(Option::is_some)
-            || stepper
-                .layout
-                .lowering
-                .counting
-                .get(id)
-                .copied()
-                .unwrap_or(Counting::DoesNotCount)
-                == Counting::Counts)
-    {
-        let mut run = FragmentRun {
-            plan,
-            lowering: &stepper.layout.lowering,
-            tree,
-            room: &mut *stepper.made,
-            classes: stepper.classes,
-        };
-        let step = StepId(u32::try_from(id).unwrap_or(u32::MAX));
-        if stepper.counting == Counting::DoesNotCount {
-            if lowered::counts(&run, step) == Counting::Counts {
-                return lowered::emit_counts(&mut run, step, context, emit);
-            }
-            lowered::make(&mut run, step, context)?;
-            return lowered::emit(&mut run, step, context, emit);
-        }
-        // A step over the tree is fed the rows it makes: it reads the tree in place.
-        let mut made = 0_usize;
-        let outcome = {
-            let mut counting = Pipe(|piped: &mut OperatorContext<'_>, row: &[Value]| {
-                made += 1;
-                emit.row(piped, row)
-            });
-            if lowered::counts(&run, step) == Counting::Counts {
-                lowered::emit_counts(&mut run, step, context, &mut counting)
-            } else {
-                lowered::make(&mut run, step, context)
-                    .and_then(|()| lowered::emit(&mut run, step, context, &mut counting))
-            }
-        };
-        feed(stepper, StepPlace(id), InputPlace(0), RowCount(made));
-        return outcome;
-    }
-    let operation = &plan.steps.get(id).ok_or(OperatingError::NotRun)?.operation;
-    if stepper.counting == Counting::DoesNotCount
-        && let Some(rows) = CompactInput::new(stepper).selected(StepPlace(id), context)?
-    {
-        let mut buffer = stepper.spare.pop().unwrap_or_default();
-        let result = scan(&rows, &mut buffer, context, emit);
-        stepper.spare.push(buffer);
-        return result;
-    }
     let mut room = stepper
         .rooms
         .get_mut(id)
         .and_then(Option::take)
         .unwrap_or_default();
     let previous = std::mem::replace(&mut stepper.current, StepPlace(id));
-    let outcome = operate(operation, stepper, context, &mut room, emit);
+    let executor = stepper.executor;
+    let contract = std::sync::Arc::clone(stepper.operators.get(id).ok_or(OperatingError::NotRun)?);
+    let outcome = executor.stream_step(&contract, stepper, StepPlace(id), context, &mut room, emit);
     stepper.current = previous;
     if let Some(slot) = stepper.rooms.get_mut(id) {
         *slot = Some(room);
@@ -437,11 +381,6 @@ where
                 let table = stepper.done.get(id).ok_or(OperatingError::NotRun)?;
                 return CompactInput::new(stepper).kept(id, table);
             }
-            if stepper.counting == Counting::DoesNotCount
-                && let Some(rows) = CompactInput::new(stepper).selected(StepPlace(id), context)?
-            {
-                return Ok(rows);
-            }
             let kinds = stepper.layout.kinds.get(id).ok_or(OperatingError::NotRun)?;
             reset(into, kinds);
             pass_on(stepper, StepPlace(id), context, &mut Collect(&mut *into))?;
@@ -553,7 +492,47 @@ pub(crate) fn evaluate_file_with_graph<'f>(
     )
 }
 
+#[cfg(test)]
 pub(crate) fn evaluate_file_with_dag<'f>(
+    plan: &Plan,
+    relations: &dyn Fn(Relation) -> Option<ColumnsView<'f>>,
+    tree: Option<TreeRows<'f>>,
+    context: &mut OperatorContext<'_>,
+    pool: &mut Pool,
+    prepared: &mut PreparedPool,
+    classes: &[crate::domain::positions::types::Slots],
+    file_program: Option<&mut crate::domain::file_program::types::FileProgram>,
+    rule: usize,
+    file_dag: Option<&dyn crate::domain::file_program::types::DagExecution>,
+) -> Result<(), OperatingError> {
+    let request = crate::domain::operator::contract::types::RequestOperators::prepare_with_schemas(
+        std::slice::from_ref(plan),
+        &[context.bindings.to_vec()],
+        &[],
+        &|relation| {
+            relations(relation).map_or_else(
+                || ryo_language::domain::relations::service::kinds(relation),
+                |view| view.kinds,
+            )
+        },
+    )?;
+    evaluate_file_with_executor(
+        plan,
+        relations,
+        tree,
+        context,
+        pool,
+        prepared,
+        classes,
+        file_program,
+        rule,
+        file_dag,
+        &crate::application::file_dag::execution::CommonOperatorEngine,
+        &request.rules[0],
+    )
+}
+
+pub(crate) fn evaluate_file_with_executor<'f>(
     plan: &Plan,
     relations: &dyn Fn(Relation) -> Option<ColumnsView<'f>>,
     tree: Option<TreeRows<'f>>,
@@ -564,6 +543,8 @@ pub(crate) fn evaluate_file_with_dag<'f>(
     mut file_program: Option<&mut crate::domain::file_program::types::FileProgram>,
     rule: usize,
     file_dag: Option<&dyn crate::domain::file_program::types::DagExecution>,
+    executor: &dyn crate::domain::operator::contract::executor::PrimitiveExecutor,
+    operators: &[std::sync::Arc<crate::domain::operator::contract::types::OperatorContract>],
 ) -> Result<(), OperatingError> {
     let read = |relation: Relation| -> Result<Rows<'f>, OperatingError> {
         match (relation, tree) {
@@ -588,7 +569,8 @@ pub(crate) fn evaluate_file_with_dag<'f>(
     {
         place
     } else {
-        let layout = layout_of(plan, identity, &read, context)?;
+        let mut layout = layout_of(plan, identity, &read, context)?;
+        layout.needs = crate::domain::trust::service::needs_of_contracts(plan, operators)?;
         if tracing::enabled!(target: "ryo::diagnostic::compiled_subplan", tracing::Level::TRACE) {
             tracing::event!(
                 target: "ryo::diagnostic::compiled_subplan", tracing::Level::TRACE,
@@ -782,7 +764,19 @@ pub(crate) fn evaluate_file_with_dag<'f>(
             target,
             layout.kinds.get(index).ok_or(OperatingError::NotRun)?,
         );
+        if layout
+            .needs
+            .get(index)
+            .is_some_and(|needs| blocked(needs, partial) == Blocking::Blocked)
+        {
+            continue;
+        }
         let mut stepper = Stepper {
+            kernel_strategy: *kernel_strategy,
+            kernel: kernel_plans.get(place),
+            kernel_counts: &mut *kernel_counts,
+            executor,
+            operators,
             plan,
             read: &read,
             done: before,
@@ -804,63 +798,38 @@ pub(crate) fn evaluate_file_with_dag<'f>(
             fed: &mut *plan_fed,
             counting: *counting,
         };
-        if *counting == Counting::DoesNotCount
-            && let Some(Rows::Selected(rows)) =
-                CompactInput::new(&stepper).selected(StepPlace(index), context)?
-        {
-            let readiness = cut_diagnostic
-                .then(|| stepper.made.ready.get(index).copied())
-                .flatten();
-            selected[index] = Some(rows.selection);
-            if cut_diagnostic {
-                diagnostic_cut(
-                    identity.0,
-                    tree.map(|tree| tree.file.0),
-                    index,
-                    target,
-                    selected[index].as_ref(),
-                    readiness.as_ref(),
-                    partial,
-                );
-            }
-            continue;
-        }
-        if *kernel_strategy == KernelStrategy::Column
-            && *counting == Counting::DoesNotCount
-            && let Some(chain) = kernel_plans
-                .get(place)
-                .and_then(|program| program.0.get(index))
-                .and_then(Option::as_ref)
-            && column_kernel::execute(
-                chain,
-                stepper.read,
-                stepper.selected,
-                stepper.partial,
-                context,
-                target,
-                layout.kinds.get(index).ok_or(OperatingError::NotRun)?,
-                kernel_counts,
-            )?
-        {
-            if cut_diagnostic {
-                diagnostic_cut(
-                    identity.0,
-                    tree.map(|tree| tree.file.0),
-                    index,
-                    target,
-                    selected[index].as_ref(),
-                    stepper.made.ready.get(index),
-                    partial,
-                );
-            }
-            continue;
-        }
-        pass_on(
+        let mut room = stepper
+            .rooms
+            .get_mut(index)
+            .and_then(Option::take)
+            .unwrap_or_default();
+        let contract = std::sync::Arc::clone(operators.get(index).ok_or(OperatingError::NotRun)?);
+        let materialization = executor.keep_step(
+            &contract,
             &mut stepper,
             StepPlace(index),
             context,
-            &mut Collect(target),
-        )?;
+            &mut room,
+            target,
+        );
+        if let Some(slot) = stepper.rooms.get_mut(index) {
+            *slot = Some(room);
+        }
+        let materialization = materialization?;
+        let materialized = matches!(
+            &materialization,
+            crate::domain::operator::contract::executor::StepMaterialization::Materialized
+        );
+        let readiness = cut_diagnostic
+            .then(|| stepper.made.ready.get(index).copied())
+            .flatten();
+        drop(stepper);
+        if let crate::domain::operator::contract::executor::StepMaterialization::Selected(
+            selection,
+        ) = materialization
+        {
+            selected[index] = Some(selection);
+        }
         if cut_diagnostic {
             diagnostic_cut(
                 identity.0,
@@ -868,11 +837,13 @@ pub(crate) fn evaluate_file_with_dag<'f>(
                 index,
                 target,
                 selected[index].as_ref(),
-                stepper.made.ready.get(index),
+                readiness.as_ref(),
                 partial,
             );
         }
-        drop(stepper);
+        if !materialized {
+            continue;
+        }
         if let Some(node) = share_node
             && let Some(shared) = file_program
                 .as_deref_mut()

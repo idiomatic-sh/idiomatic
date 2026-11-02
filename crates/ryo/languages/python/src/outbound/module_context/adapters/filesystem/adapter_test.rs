@@ -39,3 +39,57 @@ fn disk_stat_failures_are_not_package_absence() {
         Err(ProjectError::Context { .. })
     ));
 }
+
+#[test]
+fn given_raw_names_preserve_dotted_packages_modules_and_stub_extension() {
+    let contexts = ModuleContextFilesystem
+        .resolve(&request(
+            Repository::Given,
+            &[
+                "pkg.with.dot/__init__.py",
+                "pkg.with.dot/mod.name.pyi",
+                "pkg.with.dot/sub.package/__init__.py",
+                "pkg.with.dot/sub.package/worker.py",
+                "standalone.dot/script.py",
+            ],
+        ))
+        .unwrap();
+    let observed = contexts
+        .rows
+        .iter()
+        .map(|row| {
+            (
+                row.file.0,
+                row.path.as_str(),
+                row.module_name.as_str(),
+                row.package_name.as_str(),
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        observed,
+        vec![
+            (0, "pkg.with.dot.__init__", "__init__", "pkg.with.dot"),
+            (1, "pkg.with.dot.mod.name", "mod.name", "pkg.with.dot"),
+            (
+                2,
+                "pkg.with.dot.sub.package.__init__",
+                "__init__",
+                "sub.package"
+            ),
+            (
+                3,
+                "pkg.with.dot.sub.package.worker",
+                "worker",
+                "sub.package"
+            ),
+        ]
+    );
+    assert!(!contexts.partial);
+    assert!(
+        contexts
+            .rows
+            .iter()
+            .all(|row| !row.module_name.contains('/') && !row.package_name.contains('/'))
+    );
+}

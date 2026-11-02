@@ -1,7 +1,7 @@
 //! Physical byte spans, bag order, zero-width matches and refusal before row emission.
 
-use super::super::interface::OperatorsItem as _;
 use super::item::SourceMatchesItem;
+use crate::application::file_dag::testing::TestOperator as _;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::{Emit, Feed, InputPlace, OperatorContext, Room, Supply};
 use crate::domain::replay::types::Pipe;
@@ -37,7 +37,7 @@ impl<'f> Feed<'f> for Held<'f> {
         context: &mut OperatorContext<'_>,
         emit: &mut dyn Emit,
     ) -> Result<(), OperatingError> {
-        for row in self.0.cells.chunks_exact(1) {
+        for row in self.0.cells.chunks_exact(self.0.kinds.len()) {
             emit.row(context, row)?;
         }
         Ok(())
@@ -360,3 +360,6 @@ fn named_capture_preserves_offsets_order_bag_and_skips_unmatched_branches() {
         ])
     );
 }
+
+#[path = "gate_test.rs"]
+mod gates;

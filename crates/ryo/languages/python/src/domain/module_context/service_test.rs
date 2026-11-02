@@ -62,3 +62,41 @@ fn paths_above_root_remain_real_relative_dependencies() {
         Some(PathBuf::from("../__init__.py"))
     );
 }
+
+#[test]
+fn raw_basenames_and_directory_components_are_not_filename_stems() {
+    use super::service::basenames;
+    let source = Path::new("/boundary/pkg.with.dot/nested.name/mod.with.dot.pyi");
+    assert_eq!(basenames(source), Some(("mod.with.dot", "nested.name")));
+    let markers = Markers(BTreeMap::from([
+        (
+            "/boundary/pkg.with.dot/nested.name/__init__.py".into(),
+            true,
+        ),
+        ("/boundary/pkg.with.dot/__init__.py".into(), true),
+        ("/boundary/__init__.py".into(), false),
+    ]));
+    assert_eq!(
+        disk(source, &markers),
+        Decision::Known(Some("pkg.with.dot.nested.name.mod.with.dot".into()))
+    );
+    assert_eq!(
+        basenames(Path::new("/boundary/pkg.with.dot/__init__.py")),
+        Some(("__init__", "pkg.with.dot"))
+    );
+    assert_eq!(basenames(Path::new("/boundary/pkg/mod.txt")), None);
+}
+#[test]
+fn dotted_nonpackage_directory_does_not_create_module_context() {
+    let source = Path::new("/boundary/no.package/mod.py");
+    let markers = Markers(BTreeMap::from([(
+        "/boundary/no.package/__init__.py".into(),
+        false,
+    )]));
+    assert_eq!(disk(source, &markers), Decision::Known(None));
+    let files = BTreeSet::from([PathBuf::from("no.package/mod.py")]);
+    assert_eq!(
+        given(Path::new("no.package/mod.py"), &files),
+        Decision::Known(None)
+    );
+}

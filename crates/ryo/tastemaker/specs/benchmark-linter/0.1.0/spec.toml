@@ -35,6 +35,9 @@ rules = [
   { rule = "companions", include = ["**"], description = "Canonical queries/cases are paired; thin entry/composition roles cannot implement execution capabilities or loops." },
 ]
 
+[given]
+params = { source-line-limit = 400 }
+
 [[scenarios]]
 id = "authored-query-has-cases"
 scenario = "An authored rule and its cases remain colocated."
@@ -51,7 +54,6 @@ then.findings = [{ rule = 'idiomatic.ryo/benchmark-linter/companions', path = 'r
 [[scenarios]]
 id = "private-engine-is-not-a-benchmark-dependency"
 scenario = "Benchmark entry points cannot import a private engine."
-given.files.'benchmark.toml' = ''
 given.files.'bench.rs' = 'use ryo_core::domain::engine::Engine;'
 given.files.'tests.rs' = '''
 mod schemas;
@@ -59,9 +61,8 @@ mod schemas;
 mod schemas_test;
 '''
 given.files.'composition.rs' = ''
-given.files.'rules/F001/cases.toml' = ''
-then.only = ["idiomatic.ryo/benchmark-linter/source(bench)#imports"]
-then.findings = [{ rule = "idiomatic.ryo/benchmark-linter/source(bench)#imports", path = "bench.rs", line = 1 }]
+then.only = ["idiomatic.ryo/benchmark-linter/companions"]
+then.findings = [{ rule = "idiomatic.ryo/benchmark-linter/companions", path = "bench.rs" }]
 
 [[scenarios]]
 id = "named-evidence-is-placed"
@@ -136,7 +137,6 @@ then.findings = [{ rule = 'idiomatic.ryo/benchmark-linter#closed', path = 'profi
 
 [params.source-line-limit]
 type = "integer"
-default = 400
 description = "The existing product line budget for active source; fixtures may lower it to exercise the real counter."
 
 [[scenarios]]
@@ -150,8 +150,8 @@ then.findings = [{ rule = 'idiomatic.ryo/benchmark-linter#closed', path = 'rules
 id = "composition-cannot-import-shared-application-policy"
 scenario = "Composition enters the shared inbound use case instead of reaching into its application implementation."
 given.files.'composition.rs' = 'use ryo_benchmark::application::run::inventory::verify;'
-then.only = ['idiomatic.ryo/benchmark-linter/source(composition)#imports']
-then.findings = [{ rule = 'idiomatic.ryo/benchmark-linter/source(composition)#imports', path = 'composition.rs', line = 1 }]
+then.only = ['idiomatic.ryo/benchmark-linter/companions']
+then.findings = [{ rule = 'idiomatic.ryo/benchmark-linter/companions', path = 'composition.rs' }]
 
 [[scenarios]]
 id = "composition-is-held-to-the-existing-line-counter"

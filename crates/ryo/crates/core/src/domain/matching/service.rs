@@ -7,7 +7,6 @@ use crate::domain::table_scratch::types::Patterns;
 use crate::domain::table_texts::types::Datum;
 use crate::domain::table_texts::types::{RegexPattern, TextView};
 use regex_automata::meta::Regex;
-use ryo_values::domain::plan_parts::types::LiteralText;
 
 /// Searches text with a regular expression. Invalid expressions are errors, not empty results.
 pub(crate) fn matches(
@@ -66,26 +65,23 @@ fn compile(pattern: TextView<'_>, compiled: &mut Patterns) -> Result<(), Operati
     Ok(())
 }
 
-/// Replace every regex match with literal text, preserving the unmatched source bytes.
-pub(crate) fn replace(
-    text: TextView<'_>,
-    pattern: TextView<'_>,
-    replacement: TextView<'_>,
-    prepared: Option<&PreparedMatchers>,
-    compiled: &mut Patterns,
-) -> Result<LiteralText, OperatingError> {
-    let regex = regex(pattern, prepared, compiled)?;
-    let mut output = String::with_capacity(text.0.len());
+/// Pure literal replacement; the caller owns matcher acquisition and scratch lifetime.
+pub(crate) fn replace_compiled(
+    regex: &Regex,
+    text: &str,
+    replacement: &str,
+    output: &mut String,
+) -> Result<(), OperatingError> {
+    output.clear();
     let mut end = 0;
-    for found in regex.find_iter(text.0) {
+    for found in regex.find_iter(text) {
         output.push_str(
-            text.0
-                .get(end..found.start())
+            text.get(end..found.start())
                 .ok_or(OperatingError::ShapeMismatch)?,
         );
-        output.push_str(replacement.0);
+        output.push_str(replacement);
         end = found.end();
     }
-    output.push_str(text.0.get(end..).ok_or(OperatingError::ShapeMismatch)?);
-    Ok(LiteralText(output.into()))
+    output.push_str(text.get(end..).ok_or(OperatingError::ShapeMismatch)?);
+    Ok(())
 }

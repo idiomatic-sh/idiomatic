@@ -13,8 +13,8 @@ use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
 use ryo_language::domain::terms::types::NameText;
 use ryo_values::domain::plans::types::QueryOperator;
 
-use super::super::interface::OperatorsItem as _;
 use super::item::JoinItem;
+use crate::application::file_dag::testing::TestOperator as _;
 use crate::cases::{Case, CaseName, Expect, Word, run, selects};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::{Emit, Feed, InputPlace, OperatorContext, Room, Supply};
@@ -471,7 +471,15 @@ fn stream_with_indexes(
         memo: &mut memo,
         scratch: &mut scratch,
     };
-    JoinItem.stream(operation, &mut feed, &mut context, room, &mut emitted)?;
+    crate::application::file_dag::testing::stream_with_inputs(
+        &JoinItem,
+        operation,
+        &[Rows::Computed(left), right.clone()],
+        &mut feed,
+        &mut context,
+        room,
+        &mut emitted,
+    )?;
     Ok((emitted.rows, feed.right_holds))
 }
 
@@ -486,7 +494,7 @@ fn empty_left_does_not_materialize_stored_right() -> Result<Value, OperatingErro
         });
         let mut room = Room::default();
         let (rows, holds) = stream_lookup(&mut room, &left, right.clone(), false, false, false)?;
-        if !rows.is_empty() || holds != 1 || room.scratch.join_scratch.right != Table::default() {
+        if !rows.is_empty() || holds != 1 || room.scratch.observation.index_cells != 0 {
             return Ok(0);
         }
     }
@@ -515,7 +523,7 @@ fn duplicate_unsorted_right_rows_keep_their_order() -> Result<Value, OperatingEr
     Ok(Value::from(rows == expected && holds == 1))
 }
 
-fn a_reused_room_skips_then_replaces_its_right_table() -> Result<Value, OperatingError> {
+fn a_reused_room_skips_then_reacquires_its_right_index() -> Result<Value, OperatingError> {
     let number = |value| Cell::Number(Integer(value));
     let first_left = table_of(&[CellKind::Number], &[&[number(1)]]);
     let empty_left = table_of(&[CellKind::Number], &[]);
@@ -537,14 +545,18 @@ fn a_reused_room_skips_then_replaces_its_right_table() -> Result<Value, Operatin
     });
     let mut room = Room::default();
     let first = stream_lookup(&mut room, &first_left, first_right, false, false, false)?.0;
-    let retained = room.scratch.join_scratch.right.clone();
+    assert_eq!(room.scratch.observation.index_rows, 2);
+    assert_eq!(room.scratch.observation.index_cells, 0);
+    assert!(room.scratch.observation.local_resources_released);
     let skipped = stream_lookup(&mut room, &empty_left, middle_right, false, false, false)?.0;
-    let unchanged = room.scratch.join_scratch.right == retained;
+    let skipped_acquisition = room.scratch.observation.index_rows == 0
+        && room.scratch.observation.index_cells == 0
+        && room.scratch.observation.local_resources_released;
     let last = stream_lookup(&mut room, &last_left, last_right, false, false, false)?.0;
     Ok(Value::from(
         first == [vec![number(11)], vec![number(12)]]
             && skipped.is_empty()
-            && unchanged
+            && skipped_acquisition
             && last == [vec![number(31)]],
     ))
 }
@@ -560,9 +572,7 @@ fn a_left_failure_before_its_first_row_does_not_materialize_the_right()
     });
     let mut room = Room::default();
     let result = stream_lookup(&mut room, &left, right.clone(), true, false, false);
-    if room.scratch.join_scratch.right.count == RowCount(0)
-        && room.scratch.join_scratch.right.cells.is_empty()
-    {
+    if room.scratch.observation.index_rows == 0 && room.scratch.observation.index_cells == 0 {
         result.map(|_| 1)
     } else {
         Ok(0)
@@ -579,7 +589,7 @@ fn an_emit_failure_propagates_after_the_right_is_indexed() -> Result<Value, Oper
     });
     let mut room = Room::default();
     let result = stream_lookup(&mut room, &left, right.clone(), false, false, true);
-    if room.scratch.join_scratch.right.count == RowCount(1) {
+    if room.scratch.observation.index_rows == 1 {
         result.map(|_| 1)
     } else {
         Ok(0)
@@ -671,7 +681,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_reused_room_skips_empty_then_uses_the_next_right"),
         word: Word::Succeeds,
-        input: || a_reused_room_skips_then_replaces_its_right_table,
+        input: || a_reused_room_skips_then_reacquires_its_right_index,
         expect: Expect::Value(1),
     },
     Case {
@@ -738,10 +748,10 @@ fn assert_stored_join_shape(
         .0;
     assert_eq!(stored_rows, expected_rows);
     assert!(
-        room.scratch.join_scratch.right.count.0 <= 1,
+        room.scratch.observation.index_cells == 0,
         "only a matched RHS row is decoded, never the full stored table"
     );
-    assert!(room.scratch.join_scratch.right.cells.len() <= computed.kinds.len());
+    assert!(room.scratch.observation.index_capacity == 0);
     let computed_rows = stream_operation(
         operation,
         room,
@@ -1692,5 +1702,5 @@ fn demand_reach_stream_preserves_lazy_holds_refusals_and_room_reuse() {
         ),
         Err(OperatingError::NotRead)
     ));
-    assert!(room.scratch.walk_scratch.graph_walk.queue.is_empty());
+    assert!(room.scratch.observation.traversal_queue_len == 0);
 }

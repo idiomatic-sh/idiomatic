@@ -196,7 +196,7 @@ pub(crate) fn evaluate_rule_with_dag<'f>(
             memo: &mut workspace.memo,
             scratch: &mut workspace.scratch,
         };
-        let evaluated = crate::domain::pipeline::service::evaluate_file_with_dag(
+        let evaluated = crate::domain::pipeline::service::evaluate_file_with_executor(
             plan,
             relations,
             Some(TreeRows {
@@ -211,6 +211,13 @@ pub(crate) fn evaluate_rule_with_dag<'f>(
             file_program,
             rule.0,
             file_dag,
+            setting.executor,
+            setting
+                .operators
+                .rules
+                .get(rule.0)
+                .ok_or(crate::domain::operating::errors::OperatingError::NotRun)
+                .map_err(|error| refuse(&error))?,
         )
         .map_err(|error| refuse(&error));
         evaluated?;

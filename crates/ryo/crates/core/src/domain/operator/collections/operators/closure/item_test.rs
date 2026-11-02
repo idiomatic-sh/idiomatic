@@ -5,8 +5,8 @@ use ryo_values::domain::plans::types::QueryOperator;
 
 use ryo_language::domain::symbols::types::Symbols;
 
-use super::super::interface::OperatorsItem as _;
 use super::item::ClosureItem;
+use crate::application::file_dag::testing::TestOperator as _;
 use crate::cases::{Case, CaseName, Expect, Word, run, selects};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
@@ -191,18 +191,19 @@ fn scratch_is_reused_and_cleared() -> Result<Value, OperatingError> {
     scratch.other.push(Cell::Number(Integer(999)));
     let initial = closure(&numbers(&[&[1, 2], &[2, 3], &[1, 4]]), &mut scratch)?;
     assert_pairs(&initial, &[[1, 2], [1, 3], [1, 4], [2, 3]]);
-    let capacity = scratch.other.capacity();
+    assert!(scratch.observation.local_resources_released);
     let later = closure(&numbers(&[&[5, 6]]), &mut scratch)?;
     assert_pairs(&later, &[[5, 6]]);
-    assert_eq!(scratch.other, [Cell::Number(Integer(5))]);
+    assert!(scratch.observation.local_resources_released);
+    assert_eq!(scratch.observation.closure_partition_rows, 1);
     let empty = Table {
         kinds: vec![CellKind::Number; 2],
         ..Table::default()
     };
     let cleared = closure(&empty, &mut scratch)?;
     assert_pairs(&cleared, &[]);
-    assert!(scratch.other.is_empty());
-    assert_eq!(scratch.other.capacity(), capacity);
+    assert!(scratch.observation.local_resources_released);
+    assert_eq!(scratch.observation.closure_partition_rows, 0);
     Ok(cleared.count.0)
 }
 
@@ -219,7 +220,17 @@ fn interleaved_work_and_output_are_bounded() -> Result<Value, OperatingError> {
     }
     let mut scratch = OperatorScratch::default();
     let out = closure(&edges, &mut scratch)?;
-    assert_eq!(scratch.other.len(), 1025);
+    let mut sources = out
+        .cells
+        .chunks_exact(2)
+        .map(|row| row[0])
+        .collect::<Vec<_>>();
+    sources.sort_unstable();
+    sources.dedup();
+    assert_eq!(sources.len(), 1025);
+    assert!(scratch.observation.closure_visited > 0);
+    assert!(scratch.observation.closure_visited <= 2049);
+    assert!(scratch.observation.local_resources_released);
     assert_eq!(out.count.0, 3072);
     assert_eq!(out.cells.len(), 6144);
     let mut pairs: Vec<_> = out.cells.chunks_exact(2).collect();
@@ -363,8 +374,8 @@ fn partitioned_and_old_paths_reuse_scratch() -> Result<Value, OperatingError> {
     };
     let empty_output = grouped(&empty, &[2], &mut scratch)?;
     assert_rows(&empty_output, 3, &[]);
-    assert!(scratch.other.is_empty());
-    assert_eq!(scratch.join_scratch.domain.count.0, 0);
+    assert!(scratch.observation.local_resources_released);
+    assert_eq!(scratch.observation.closure_partition_rows, 0);
     let later_partition = grouped(&numbers(&[&[8, 9, 30]]), &[2], &mut scratch)?;
     assert_rows(&later_partition, 3, &[&[30, 8, 9]]);
     let unpartitioned = grouped(&numbers(&[&[1, 2], &[2, 3]]), &[], &mut scratch)?;
@@ -446,10 +457,16 @@ fn many_tiny_partitions_bound_working_graph_and_output() -> Result<Value, Operat
         out.count.0,
         4 * usize::try_from(n).expect("positive partition count")
     );
-    assert_eq!(scratch.join_scratch.domain.count.0, 3);
-    assert_eq!(scratch.other.len(), 2);
-    assert!(scratch.join_scratch.domain.cells.capacity() < 64);
-    assert!(scratch.walk_scratch.walk.visited.len() <= 4);
+    assert!(
+        scratch.observation.closure_partition_rows <= 3,
+        "all simultaneously live adjacency tables must fit one three-row partition"
+    );
+    assert!(scratch.observation.local_resources_released);
+    assert!(
+        scratch.observation.closure_partition_capacity < 64,
+        "aggregate live Value capacity (adjacency, keys, sources and work rows), not only the last partition"
+    );
+    assert!(scratch.observation.closure_visited <= 4);
     let mut rows: Vec<_> = out.cells.chunks_exact(3).collect();
     rows.sort_unstable();
     rows.dedup();

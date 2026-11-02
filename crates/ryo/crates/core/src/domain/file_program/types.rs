@@ -15,6 +15,7 @@ pub(crate) enum NodeInput {
 
 #[derive(Debug)]
 pub(crate) struct Node {
+    pub contract: Arc<crate::domain::operator::contract::types::OperatorContract>,
     /// Executable registered operation with normalized local input numbers.
     pub operation: ryo_values::domain::plans::types::Operation,
     /// Ordered typed dependencies retained for the central executor.

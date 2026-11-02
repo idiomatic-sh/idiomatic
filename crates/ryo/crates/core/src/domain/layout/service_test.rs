@@ -1,6 +1,6 @@
 //! The `layout` service's cases, on the plans of the `pipeline`'s cases.
 
-use ryo_language::domain::relations::types::Relation;
+use ryo_language::domain::relations::types::{CellKind, Relation};
 use ryo_language::domain::symbols::types::Symbols;
 
 use super::service::{layout_of, reads_of, shaped};
@@ -154,7 +154,7 @@ fn refuses() {
 
 /// Probe real nonempty Stored views without filtering, interning text or traversing a graph.
 fn metadata_only() -> Result<Value, Failure> {
-    use ryo_language::domain::relations::types::{CellKind, Integer, Value as Cell};
+    use ryo_language::domain::relations::types::{Integer, Value as Cell};
     use ryo_language::domain::symbols::service::{derived_of, name_count};
     use ryo_values::domain::plan_parts::types::{
         ColumnIndex, Input as Source, LiteralText, Operand, QueryLiteral, StepId,
@@ -167,12 +167,11 @@ fn metadata_only() -> Result<Value, Failure> {
     let mut scratch = OperatorScratch::default();
     let sentinel = Cell::Number(Integer(99));
     scratch.row.push(sentinel);
-    scratch.join_scratch.right.kinds.push(CellKind::Number);
-    scratch.join_scratch.right.cells.push(sentinel);
-    scratch.join_scratch.right.count.0 = 1;
-    let _inserted = scratch.walk_scratch.walk.visited.insert(sentinel);
+    scratch.other.push(sentinel);
+    scratch.walk_scratch.nearest.0.push(17);
+    scratch.select_scratch.text_ok.0.push(2);
     let row_before = scratch.row.clone();
-    let right_before = scratch.join_scratch.right.clone();
+    let other_before = scratch.other.clone();
     let row_capacity = scratch.row.capacity();
     let mut memo = vec![crate::domain::operating::types::Memo::Unknown];
     let mut context = OperatorContext {
@@ -219,16 +218,9 @@ fn metadata_only() -> Result<Value, Failure> {
     assert_eq!(context.source.0, SOURCE);
     assert_eq!(context.scratch.row, row_before);
     assert_eq!(context.scratch.row.capacity(), row_capacity);
-    assert_eq!(context.scratch.join_scratch.right, right_before);
-    assert_eq!(context.scratch.walk_scratch.walk.visited.len(), 1);
-    assert!(
-        context
-            .scratch
-            .walk_scratch
-            .walk
-            .visited
-            .contains(&sentinel)
-    );
+    assert_eq!(context.scratch.other, other_before);
+    assert_eq!(context.scratch.walk_scratch.nearest.0, [17]);
+    assert_eq!(context.scratch.select_scratch.text_ok.0, [2]);
     assert_eq!(context.memo.len(), 1);
     assert_eq!(
         layout.kinds,

@@ -11,10 +11,10 @@ The engine should own scheduling, sharing, invalidation, and lifetime so a langu
 | Source bytes and spans | ☑ | — | ☑ | ☑ | ☑ | Engine holds the file buffer; provider supplies token coordinates and lexical meaning, not a retained cache. |
 | Source and derived symbols | — | — | ☑ | ☑ | ☑ | Engine owns one file's symbol table and query mutation capability; provider supplies source name semantics. |
 | Query grammar and typed plan | ☑ | — | ☑ | ☑ | ☑ | Compiler is an engine component; new syntax still requires compile/typecheck error mapping. |
-| Primitive schema and evaluator | ☑ | ☐ | ☐ | ☑ | ☐ | Some primitives still allocate and manage operator-local indexes/scratch directly. Registration covers six of 24 kinds; global policy is not uniformly declared. |
-| Operator inputs and absence | ☐ | — | — | ☐ | — | Implementors still add per-kind dependency, trust, feature, and provenance branches in several engine services. |
+| Primitive schema and evaluator | ☑ | ☑ | ☑ | ☑ | ☑ | All 24 kinds use request-prepared contracts and the mandatory application executor; primitives receive borrowed semantic capabilities. Behavioral, generation/lifetime and compile-negative capability controls pass; internal optimized algorithms remain behind the same owner. |
+| Operator inputs and absence | ☑ | — | — | ☑ | — | Prepared contracts declare dependencies and absence requirements. Actual production-route tests cover positive partial facts and refusal of partial absence; provider truthfulness and relation semantics remain separate obligations. |
 | Ordinary plan and frontier | ☑ | ☑ | ☑ | ☑ | ☑ | Engine owns ordering, rule-local tables, frontier handover, and opt-in sharing; complete DAG coverage across all operators is still open. |
-| Request-wide file graph | ☑ | ☑ | ☑ | ☑ | ☑ | The opt-in application DAG owns supported node scheduling and result lifetime; other operators retain ordered residual execution. It remains disabled by default. |
+| Request-wide file graph | ☑ | ☑ | ☑ | ☑ | ☑ | Every kind enters the common application owner. DAG retention remains selectable for measurement. This snapshot's frozen Django candidate hit a 600 s cap against a 214.56 s baseline, so performance acceptance is open. |
 | Stored selections and indexes | ☑ | ☑ | ☑ | ☑ | ☑ | Engine owns predicate/index state, bounds, fallback, and release; provider only supplies complete resident columns. |
 | Graph adjacency and traversal | ☑ | ☑ | ☑ | ☑ | ☑ | Engine owns typed per-file graph views and memo. Alternate storage remains unmeasured. |
 | Persistent lint snapshot | ☑ | ☑ | ☑ | ☐ | ☐ | Engine chooses digests/reuse; outbound adapter owns framing, snapshot file handles, and atomic byte replacement behind the port. |
@@ -24,17 +24,20 @@ The open ownership cells identify code that a new implementor must still coordin
 
 ## Executable evidence and open gates
 
-- [Primitive registry and conformance](../../crates/core/src/domain/operator/contract_test.rs) exercises six registered kinds, including ordered bags, errors, and counted scaling. The other 18 kinds still need the same behavioral contract; a catalog match alone is insufficient.
+- **Catalog schema identity gap:** retained rule/frontier identity previously omitted relation column names, kinds and order. The source fix adds one request-wide digest of a versioned, length-framed catalog descriptor to stored-rule identity. Synthetic changed-name/kind/order/width and framing tests passed in the 440-test core library gate. The [old/new/warm retained-cache control](../../languages/python/benchmarks/linters/ruff/results/all24-contract-snapshot-2026-11-02/summary.json) executed PT010 **1, 1, 0** times with byte-identical reports, proving actual cross-version invalidation and new-version reuse. No ownership or lifecycle checkbox is credited by this source change.
+
+- [Primitive registry and conformance](../../crates/core/src/domain/operator/contract_test.rs) exercises all 24 registered kinds through the same production evaluator in collected and streamed modes. [Production-route probes](../../crates/core/src/application/file_dag/contract_route_test.rs) additionally verify actual entry/output for all kinds, binding/generation isolation, and partial-absence refusal. The core library gate passed 440 tests on 2026-11-02; this is behavioral evidence, not a performance result. The two [capability integration controls](../../crates/core/tests/operator_capabilities.rs) pass: legitimate production-boundary implementations compile; forbidden scheduler/cache/escaping-borrow accesses and removal of each real registry arm fail for the intended reason.
 - [Source readiness](../../crates/core/src/domain/table_model/service_test.rs) distinguishes stored/native complete rows from partial or recovered input. [QuerySymbols tests](../../crates/language/src/domain/symbols/service_test.rs) protect source versus derived symbol provenance.
 - [Request graph tests](../../crates/core/src/domain/file_program/service_test.rs) cover identity, successful cut reuse, failure, last-consumer release, and demanded ancestor reads. The [scoped graph receipt](../../languages/python/benchmarks/linters/ruff/results/file-program-graph-2026-11-02/summary.json) proves one 12-rule Join reuse but a 1.63× full-Django cold slowdown on the first overlay. The demand-mask follow-up skips 44 ancestor steps in the one-file trace but its complete cold run remains slower at 435.77 s versus the retained 248.62 s graph-off run (1.75×); neither single observation establishes stable component attribution.
 - The separate [application DAG paired receipt](../../languages/python/benchmarks/linters/ruff/results/file-dag-execution-2026-11-02/summary.json) used one sealed worker and fresh caches: 211.50 s graph-on versus 255.31 s graph-off on frozen Django, with byte-equal complete reports. It is one scoped observation, not a default-on or general performance claim.
+- The [mandatory-contract snapshot](../../languages/python/benchmarks/linters/ruff/results/all24-contract-snapshot-2026-11-02/README.md) passed focused behavior tests but its candidate hit the 600 s Django cap after the matched baseline completed in 214.56 s. Candidate report parity and completed-run memory remain unproven. A bounded diagnostic localized repeated 91,053-cell DAG node evaluation during `PLC0206` on `django/contrib/admin/options.py`; the precise algorithmic repair is pending.
 - The [pipeline Tastemaker spec](../../../../tastemaker/specs/pipeline/0.1.0/spec.toml) currently checks structure and test registration. A string containing “bounded” is not behavioral proof of bounded state. Product lifecycle tests with repeated unchanged and changed runs, measured retained state, and a deliberately unbounded negative control are required before a bounded-lifetime checkbox can be credited to that spec.
 
 The [Ryo design](../README.md) is the architectural source. Update this table only when a passing executable contract changes ownership. Keep source-bound fixture, lifecycle, and performance receipts separate; do not mark an opt-in strategy production-ready from one-file parity alone.
 
 ## Mandatory operator boundary: accepted implementation decision
 
-The next implementation batch replaces the pilot with one mandatory contract for all 24 kinds. This is a target decision; the current-ownership matrix above remains unchanged until executable evidence passes. No new plan ledger is needed.
+The implementation replaces the pilot with one mandatory contract for all 24 kinds. The 440-test core behavioral gate and two capability integration controls pass. The first matched full-corpus candidate was capped at 600 s, so performance acceptance is open; relation/provider ownership cells are unchanged. No new plan ledger is needed.
 
 The existing `operator`/`operating` boundary owns the following interface shape; concrete supporting types reuse existing row, schema, trust, scratch and index concepts:
 
@@ -98,3 +101,74 @@ Acceptance extends existing contract tests and the ownership matrix:
 4. Preserve complete Django report parity and record measured runtime/retention separately. Ownership completion is not proof of a subsecond target or default-on performance benefit.
 
 Write acceptance first, replace the boundary and all 24 implementations in one worktree, then build/gate the complete batch once with serialized builds and the required peer review. No incremental six-kind pilot lands. A measured DAG scheduling/retention strategy may remain switchable; the all-kind contract and common execution owner are unconditional. Update matrix cells only after their executable ownership proof passes.
+
+## Next mandatory boundary: relation representation (proposal)
+
+This boundary describes how rows are represented, not how a language produces semantic facts. It covers **Stored, Selected, Tree and Computed together**; no representation may retain an optional legacy execution path. This is a source-only proposal, not an ownership checkbox or benchmark result.
+
+Today schema/count/cell/row/materialization dispatch lives in `domain/table_model/service.rs`; a second representation enum and validation/access dispatch lives in `domain/operator/contract/views.rs`. Admission is repeated by `application/file_dag/execution.rs`, `invocation.rs` and `selected.rs`; index algorithms have stored/selected/computed entry points; `complete_for_reuse`, stored-selection/index services and graph-cache services independently decide eligibility. Native tree access has additional shape/acceptance assumptions. These are representation semantics and engine policy mixed across call sites, not language-provider semantics.
+
+Place the mandatory interface beside implementing domain items, following `OperatorsItem`: `domain/table_model/collections/representations/interface.rs`, with stored/selected/tree/computed item modules and one exhaustive registry. Supporting domain types remain in the existing table/coverage/symbol concepts. Application owns admission, resource selection and generation state.
+
+```rust
+trait RelationItem: Sync {
+    // Once per immutable logical view, not per consumer or row. Schema errors
+    // remain declared/deferred when the operator's existing demand gate requires it.
+    fn prepare<'file>(
+        &self,
+        input: RepresentationInput<'file>,
+    ) -> Result<RelationContract<'file>, RepresentationError>;
+
+    // Mandatory finite bulk access preserves column, selection, native-tree
+    // and row-major algorithms; the engine chooses how to use the view.
+    fn bulk<'read>(
+        &self,
+        view: &'read RepresentationLease<'_>,
+    ) -> BulkAccess<'read>;
+
+    fn cell(
+        &self,
+        view: &RepresentationLease<'_>,
+        row: RowIndex,
+        column: ColumnIndex,
+    ) -> Result<CellRead, RepresentationError>;
+
+    fn row<'read>(
+        &self,
+        view: &'read RepresentationLease<'_>,
+        row: RowIndex,
+        decode: &'read mut [Value], // fixed-width storage supplied by the engine
+    ) -> Result<RowRead<'read>, RepresentationError>;
+}
+
+fn registered(kind: RepresentationKind) -> &'static dyn RelationItem;
+// RepresentationKind::ALL and its exhaustive match cover all four variants.
+// BulkAccess = StoredColumns | SelectedColumns | NativeTree | ComputedCells;
+// each variant borrows its existing columns/positions/tree or cells+kinds+count.
+// There is no scalar-only/unsupported bulk fallback.
+// CellRead = Value(Value) | MissingPhysical.
+// RowRead = Borrowed(&[Value]) | Decoded(&[Value]) | MissingPhysical.
+```
+
+`RepresentationInput` is the finite borrowed descriptor for all four variants. `RelationContract` declares schema, logical cardinality (including zero-width bags), physical access shape, source/projection mapping, symbol provenance and the representation's missing-physical-row semantics. It does not choose whether to materialize, index, cache, retain or skip work. `RepresentationLease` supplies immutable generation-bound storage only: no `Feed`, `FileIndexes`, mutable memo, retained `Arc`, provider handle or generation mutation. `cell`/`row` perform only representation decoding; they cannot acquire an index or schedule another input. Metadata and reusable decode capacity are prepared outside row loops.
+
+`bulk` is required for every item and exposes existing immutable physical structure, including selected row IDs/projection and native tree form. It contains no retained ownership or cache policy. Index, sparse-join, column and tree algorithms consume these typed views directly; scalar callbacks are available for semantics that need them, never a mandatory replacement for bulk execution.
+
+The application file owner admits a descriptor at the operator contract's existing demand/error boundary and returns an opaque borrowed `AdmittedRelation<'file>`. Its constructor and proof cache are private to the engine. Primitive input views are read-only borrows of that admitted handle. The owner separately acquires requested indexes and native batch views; existing scalar/column/tree algorithms remain available behind this same owner. Dropping the file owner releases admissions/indexes before resident facts. Computed views bind their immutable producer result and symbol provenance, rather than pretending a file ID proves identity.
+
+Admission distinguishes an engine producer's construction proof from an external/unproved descriptor. Validated resident columns, bounded engine-produced selections, admitted native trees and successful typed computed publication can mint proofs without rescanning every cell. External/test descriptors undergo the appropriate structural checks once at demand; a proof is never inferred solely from a representation tag or an asserted provider flag. The existing source/derived-symbol and partial-coverage checks remain independent.
+
+Admission keys bind the current owner generation, immutable resident/producer population, exact schema, and exact ordered projection. For Selected, use the retained shared row-position population and ordered columns/kinds, not a newly minted `StoredSelection` wrapper address; retaining the population prevents pointer reuse while a proof is live. Exact identity checks follow any hash lookup. No global cache or per-row identity hashing is introduced. Successful admission is reused across consumers of that view, while physical completeness and semantic coverage remain separate: partial positive facts can be read, but absence-dependent computation and successful-result sharing still require the operator's declared evidence.
+
+| Representation | Item semantics | Engine admission and preserved behavior |
+| --- | --- | --- |
+| Stored | Decode resident typed columns; preserve physical row and duplicate order. | Validate immutable schema/population once; retain legacy ragged readable-row fallback at the original demand boundary without granting a complete-population proof. |
+| Selected | Map ordered/repeated logical row IDs and ordered/repeated projected columns onto the source. | Check projection kinds/columns before normalization; admit valid positions once per generation/projection. Missing physical rows retain existing skip/fallback and predicate-error timing; malformed metadata never gains a trusted proof. |
+| Tree | Decode Elements/Edges, sentinel/root offsets and existing source-symbol/span values. | Validate actual tree storage, form and accepted/recovered coverage once; native empty gates, traversal order and source provenance remain unchanged. `validate = true` is not sufficient proof. |
+| Computed | Borrow row-major cells without copying; honor explicit row count, even at width zero. | Refuse unreadable declared rows/overflow instead of silently shortening output; publish immutable results only after the existing success/prefix boundary and bind producer generation. |
+
+Migration is one coherent all-four batch: move duplicate schema/access algebra into representation items; replace raw/sanitized parallel dispatch with admitted read views; route scalar, selected-index, native-tree and column backends through the same admissions; then remove superseded validators only after their behavior is exercised through the new boundary. Representation-specific index construction remains a pure domain algorithm; application decides acquisition, bounds, sharing and release. No independently scheduled fallback may bypass admission.
+
+Acceptance extends existing executable contracts, not string checks: table-model borrowed-computed/tree/compact-materialization tests; `complete_source_contract_covers_native_and_stored_without_promoting_partial_or_mutable_rows`; selected duplicate/projection and malformed-population tests; strict computed-count/selected-kind production negatives; graph exact-binding/projection/generation tests; stored-index drop/reacquisition and budget tests. Add an exhaustive four-variant production-route fixture with independent expected cells/order/errors, a counted many-consumer admission test, same-file-ID/new-generation invalidation, reordered/duplicate projection and shared-position/different-projection controls. Preserve ragged fallback, empty-before-error and emitted-prefix controls. A legitimate production trait implementation must compile before negatives assert missing required methods/registry arms, forbidden scheduling/cache acquisition and escaping generation borrows. Tests must exercise native and column routes, not only catalog entries.
+
+Expected avoided work is repeated representation admission and decoding-policy discovery across consumers, including Selected's current position-by-projection scans. Index construction, traversal and semantic fact production are separate costs. Fresh full-Django timing/memory and exact report parity decide whether this change is an improvement; no percentage or performance acceptance is inferred from this proposal.

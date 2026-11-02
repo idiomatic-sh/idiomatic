@@ -17,6 +17,8 @@ const SMALL_RESULT_CELL_CAPACITY: usize = 128 * 1024;
 const LARGE_RESULT_CELL_CAPACITY: usize = 256 * 1024;
 
 struct CanonicalNode {
+    contract: Arc<crate::domain::operator::contract::types::OperatorContract>,
+    scope: Option<usize>,
     operation: Operation,
     inputs: Vec<NodeInput>,
     relations: Vec<Relation>,
@@ -31,12 +33,6 @@ pub(crate) fn enabled() -> bool {
     dag_enabled()
         || *ENABLED
             .get_or_init(|| std::env::var("RYO_FILE_PROGRAM_GRAPH").is_ok_and(|value| value == "1"))
-}
-
-/// The registry, not a rule name or a second primitive switch, owns eligibility.
-fn shareable(operation: &Operation) -> bool {
-    crate::domain::operator::service::pilot(operation)
-        .is_some_and(|registered| (registered.shared_execution)(operation))
 }
 
 /// Separate experimental strategy identity: ordinary and overlay receipts cannot
@@ -62,140 +58,91 @@ fn canonical(
     operation: &Operation,
     previous: &[Option<NodeId>],
 ) -> Option<(Operation, Vec<NodeInput>)> {
-    if !shareable(operation) {
-        return None;
-    }
     let inputs = named(&inputs_of(operation))
         .iter()
         .map(|input| node_input(*input, previous))
         .collect::<Option<Vec<_>>>()?;
     let edges = inputs.iter().map(|(_, edge)| *edge).collect();
-    let normalized = match operation {
-        Operation::Select {
-            comparisons, kept, ..
-        } => Operation::Select {
-            from: inputs[0].0,
-            comparisons: comparisons.clone(),
-            kept: kept.clone(),
-        },
-        Operation::Project {
-            columns, distinct, ..
-        } => Operation::Project {
-            from: inputs[0].0,
-            columns: columns.clone(),
-            distinct: *distinct,
-        },
-        Operation::Join {
-            left_on,
-            right_on,
-            output,
-            filter,
-            view,
-            reach,
+    let mut normalized = operation.clone();
+    match &mut normalized {
+        Operation::Select { from, .. }
+        | Operation::Project { from, .. }
+        | Operation::Extend { from, .. }
+        | Operation::GroupCount { from, .. }
+        | Operation::GroupDigest { from, .. }
+        | Operation::Capture { from, .. }
+        | Operation::Rank { from, .. }
+        | Operation::Replace { from, .. }
+        | Operation::Words { from, .. }
+        | Operation::SpanBetween { from, .. }
+        | Operation::SourceMatches { from, .. }
+        | Operation::SpanBounds { from, .. } => *from = inputs[0].0,
+        Operation::Join { left, right, .. }
+        | Operation::Union { left, right }
+        | Operation::Intersection { left, right }
+        | Operation::Difference { left, right }
+        | Operation::Antijoin { left, right, .. }
+        | Operation::OrderedMatch { left, right, .. } => {
+            *left = inputs[0].0;
+            *right = inputs[1].0;
+        }
+        Operation::Axis {
+            from,
+            edges,
+            domain,
             ..
-        } => Operation::Join {
-            left: inputs[0].0,
-            right: inputs[1].0,
-            left_on: left_on.clone(),
-            right_on: right_on.clone(),
-            output: output.clone(),
-            filter: filter.clone(),
-            view: view.clone(),
-            reach: reach.clone(),
-        },
-        Operation::Union { .. } => Operation::Union {
-            left: inputs[0].0,
-            right: inputs[1].0,
-        },
-        _ => return None,
-    };
+        } => {
+            *from = inputs[0].0;
+            *edges = inputs[1].0;
+            *domain = inputs[2].0;
+        }
+        Operation::Closure { edges, .. } | Operation::Cycles { edges, .. } => *edges = inputs[0].0,
+        Operation::OrderedDfs { from, edges, .. } => {
+            *from = inputs[0].0;
+            *edges = inputs[1].0;
+        }
+        Operation::Rows { .. } | Operation::Hosted { .. } => {}
+    }
     Some((normalized, edges))
 }
 
-fn hash_operand(operand: &Operand, hash: &mut impl Hasher) {
-    match operand {
-        Operand::Column(column) => {
-            0_u8.hash(hash);
-            column.hash(hash);
-        }
-        Operand::Literal(QueryLiteral::Number(number)) => {
-            1_u8.hash(hash);
-            number.hash(hash);
-        }
-        Operand::Literal(QueryLiteral::Text(text)) => {
-            2_u8.hash(hash);
-            text.hash(hash);
-        }
-        Operand::Parameter(_) | Operand::Function(_) => {
-            unreachable!("shareable excludes dynamic operands")
-        }
-    }
-}
-
-/// Hash is only an accelerator: collisions are always checked with typed
-/// Operation equality and exact ordered child IDs before graph nodes merge.
-fn fingerprint(operation: &Operation, inputs: &[NodeInput]) -> u64 {
+/// Hash is an accelerator only: exact typed operation, edges and scope are compared.
+fn fingerprint(operation: &Operation, inputs: &[NodeInput], scope: Option<usize>) -> u64 {
     let mut hash = std::collections::hash_map::DefaultHasher::new();
+    std::mem::discriminant(operation).hash(&mut hash);
     inputs.hash(&mut hash);
-    match operation {
-        Operation::Select {
-            comparisons, kept, ..
-        } => {
-            0_u8.hash(&mut hash);
-            kept.hash(&mut hash);
-            for comparison in comparisons {
-                comparison.test.hash(&mut hash);
-                hash_operand(&comparison.left, &mut hash);
-                hash_operand(&comparison.right, &mut hash);
-            }
-        }
-        Operation::Project {
-            columns, distinct, ..
-        } => {
-            1_u8.hash(&mut hash);
-            columns.hash(&mut hash);
-            (*distinct == ryo_values::domain::plan_parts::types::RepeatedRows::Dropped)
-                .hash(&mut hash);
-        }
-        Operation::Join {
-            left_on,
-            right_on,
-            output,
-            view,
-            ..
-        } => {
-            2_u8.hash(&mut hash);
-            left_on.hash(&mut hash);
-            right_on.hash(&mut hash);
-            for column in output {
-                (column.side == ryo_values::domain::plan_parts::types::Side::Left).hash(&mut hash);
-                column.column.hash(&mut hash);
-            }
-            view.hash(&mut hash);
-        }
-        Operation::Union { .. } => 3_u8.hash(&mut hash),
-        _ => unreachable!("canonical operation is shareable"),
-    }
+    scope.hash(&mut hash);
     hash.finish()
 }
 
 /// Compile one DAG for the entire ordered request. Unsupported descendants
 /// break the chain; no raw Debug serialization or source-origin text is a key.
-pub(crate) fn compile(plans: &[Plan]) -> RequestGraph {
+pub(crate) fn compile_prepared(
+    plans: &[Plan],
+    operators: &crate::domain::operator::contract::types::RequestOperators,
+) -> RequestGraph {
     let mut nodes = Vec::<CanonicalNode>::new();
     let mut cuts = Vec::with_capacity(plans.len());
     let mut buckets = HashMap::<u64, Vec<NodeId>>::new();
-    for plan in plans {
+    for (rule, plan) in plans.iter().enumerate() {
         let mut mapped = Vec::with_capacity(plan.steps.len());
         let mut rule_cuts = Vec::with_capacity(plan.steps.len());
         for (index, step) in plan.steps.iter().enumerate() {
             let node = if step.scope == StepScope::PerFile {
                 canonical(&step.operation, &mapped).and_then(|(operation, inputs)| {
-                    let hash = fingerprint(&operation, &inputs);
+                    let contract = Arc::clone(operators.rules.get(rule)?.get(index)?);
+                    let scope = (contract.reuse
+                        == crate::domain::operator::contract::types::ReuseScope::Rule
+                        || contract.effects
+                            != crate::domain::operator::contract::types::Effects::Pure)
+                        .then_some(rule);
+                    let hash = fingerprint(&operation, &inputs, scope);
                     if let Some(found) = buckets.get(&hash).and_then(|bucket| {
                         bucket.iter().copied().find(|id| {
                             let existing = &nodes[id.0];
-                            existing.operation == operation && existing.inputs == inputs
+                            existing.operation == operation
+                                && existing.inputs == inputs
+                                && existing.scope == scope
                         })
                     }) {
                         return Some(found);
@@ -212,22 +159,7 @@ pub(crate) fn compile(plans: &[Plan]) -> RequestGraph {
                             }
                         }
                     }
-                    let schemas = inputs
-                        .iter()
-                        .map(
-                            |input| crate::domain::operation_schema::types::InputSchema {
-                                kinds: match input {
-                                    NodeInput::Relation(relation) => {
-                                        ryo_language::domain::relations::service::kinds(*relation)
-                                    }
-                                    NodeInput::Node(id) => &nodes[id.0].kinds,
-                                },
-                                tree: None,
-                            },
-                        )
-                        .collect::<Vec<_>>();
-                    let validated = crate::domain::operator::service::pilot(&operation)
-                        .and_then(|registered| (registered.schema)(&operation, &schemas, &[]).ok());
+                    let validated = contract.schema.clone().ok();
                     let schema_valid = validated.is_some()
                         && inputs.iter().all(|input| match input {
                             NodeInput::Node(id) => nodes[id.0].schema_valid,
@@ -236,6 +168,8 @@ pub(crate) fn compile(plans: &[Plan]) -> RequestGraph {
                     let kinds = validated.unwrap_or_default();
                     let id = NodeId(nodes.len());
                     nodes.push(CanonicalNode {
+                        contract,
+                        scope,
                         operation,
                         inputs,
                         relations,
@@ -301,6 +235,7 @@ pub(crate) fn compile(plans: &[Plan]) -> RequestGraph {
         nodes: nodes
             .into_iter()
             .map(|node| Node {
+                contract: node.contract,
                 operation: node.operation,
                 inputs: node.inputs,
                 kinds: node.kinds,
@@ -448,4 +383,13 @@ impl FileProgram {
             }
         }
     }
+}
+
+#[cfg(test)]
+pub(crate) fn compile(plans: &[Plan]) -> RequestGraph {
+    let bindings = vec![Vec::new(); plans.len()];
+    let request =
+        crate::domain::operator::contract::types::RequestOperators::prepare(plans, &bindings, &[])
+            .expect("fixture request metadata");
+    compile_prepared(plans, &request)
 }

@@ -170,6 +170,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 placement,
             };
             let setting = VisitSetting {
+                executor: &crate::application::file_dag::execution::CommonOperatorEngine,
+                operators: crate::application::file_dag::testing::request_fixture(&[], &[], &[]),
                 unknown: &[],
                 plans: &[],
                 bindings: &[],

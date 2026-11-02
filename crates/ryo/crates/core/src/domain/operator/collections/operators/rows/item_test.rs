@@ -4,8 +4,8 @@ use ryo_language::domain::relations::types::Value as Cell;
 use ryo_language::domain::symbols::service::text_of;
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
 
-use super::super::interface::OperatorsItem as _;
 use super::item::RowsItem;
+use crate::application::file_dag::testing::TestOperator as _;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;

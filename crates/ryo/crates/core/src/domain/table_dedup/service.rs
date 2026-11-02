@@ -25,15 +25,17 @@ pub(crate) fn find_or_add(
     row: &[Value],
 ) -> RowFound {
     let hash_of = |cells: &[Value], index: RowIndex| {
-        row_at(cells, &kept.kinds, index)
-            .iter()
-            .fold(KeyCellsHash(0), |hash, value| mix(hash, word_of(value)))
-            .0
+        crate::domain::table_model::service::hash_row(
+            row_at(cells, &kept.kinds, index),
+            crate::domain::table_model::types::On::Whole,
+        )
+        .0
     };
-    let hash = row
-        .iter()
-        .fold(KeyCellsHash(0), |hash, value| mix(hash, word_of(value)))
-        .0;
+    let hash = crate::domain::table_model::service::hash_row(
+        row,
+        crate::domain::table_model::types::On::Whole,
+    )
+    .0;
     if let Some(found) = seen.find(hash, |each| row_at(&kept.cells, &kept.kinds, *each) == row) {
         return RowFound {
             at: *found,

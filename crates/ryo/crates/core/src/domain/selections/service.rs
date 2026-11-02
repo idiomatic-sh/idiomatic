@@ -3,13 +3,13 @@
 use ryo_language::domain::relations::types::Value;
 use ryo_language::domain::symbols::service::name_count;
 
+use super::evaluation::tree_each;
 use super::types::ProjectedColumns;
 use crate::domain::comparing::service::holds_all;
 use crate::domain::lowering::service::{kind_of, shape_at};
 use crate::domain::lowering::types::Lowering;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::{Memo, NameCount, OperatorContext};
-use crate::domain::operator::collections::operators::select::item::tree_each;
 use crate::domain::positions::service::{count, firsts, key_into, made_of, row, values};
 use crate::domain::positions::types::{LoweredRoom, Slots, Stride, Work};
 use crate::domain::table_cells::types::{RowIndex, TreeRows};

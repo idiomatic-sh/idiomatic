@@ -93,8 +93,6 @@ pub(crate) struct Room {
     pub held: [Table; 3],
     /// The rows the step computes whole, to be passed on.
     pub out: Table,
-    /// The columns of the input the step is reading one row at a time.
-    pub kinds: Vec<CellKind>,
 }
 
 /// Where the rows of a step go as they are made, one at a time. The context is the one of the step that makes them; the
@@ -204,26 +202,6 @@ pub(crate) struct StartCount(pub usize);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct ElementCount(pub usize);
 
-/// The room an operator computes in, over rows it holds whole.
-#[derive(Debug)]
-pub(crate) struct HeldRoom<'a> {
-    /// What the comparisons decided about the names.
-    pub memo: &'a mut Vec<Memo>,
-    /// The room the operators read and sort rows in.
-    pub scratch: &'a mut OperatorScratch,
-    /// The rows computed.
-    pub out: &'a mut Table,
-}
-
-/// The room an operator computes in, over rows it holds whole, with the table its starts are held in.
-#[derive(Debug)]
-pub(crate) struct StreamRoom<'a> {
-    /// The room to compute in.
-    pub held: HeldRoom<'a>,
-    /// The table the starts are held in.
-    pub from: &'a mut Table,
-}
-
 /// How the rows of an input of a step come to it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Supply {
@@ -264,10 +242,6 @@ pub(crate) enum Remembering {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct MissingColumn(pub usize);
 
-/// What a group has counted, by the group.
-#[derive(Debug, Default)]
-pub(crate) struct GroupCounts(pub Vec<usize>);
-
 /// A value met in a group, which a count of distinct values counts once.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct GroupValue {
@@ -297,4 +271,67 @@ pub(crate) enum AfterTheFiles {
     Before,
     /// After the files were read.
     After,
+}
+/// Test-only observations captured from real engine-owned resources before release.
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Default)]
+pub(crate) struct ExecutionObservation {
+    pub regexes: usize,
+    pub globs: usize,
+    pub owners_initialized: usize,
+    pub row_capacity: usize,
+    pub other_capacity: usize,
+    pub index_rows: usize,
+    pub index_cells: usize,
+    pub index_capacity: usize,
+    pub closure_partition_rows: usize,
+    pub closure_partition_capacity: usize,
+    pub closure_visited: usize,
+    pub dfs_expanded: usize,
+    pub dfs_examined: usize,
+    pub dfs_adjacency_capacity: usize,
+    pub dfs_adjacency_len: usize,
+    pub dfs_frames_len: usize,
+    pub dfs_visited_len: usize,
+    pub traversal_queue_len: usize,
+    pub local_resources_released: bool,
+}
+
+/// Optional test telemetry is dormant until a real execution publishes observations.
+#[cfg(test)]
+#[derive(Debug, Default)]
+pub(crate) struct ExecutionObservationSlot(Option<Box<ExecutionObservation>>);
+#[cfg(test)]
+impl std::ops::Deref for ExecutionObservationSlot {
+    type Target = ExecutionObservation;
+    fn deref(&self) -> &Self::Target {
+        const ZERO: ExecutionObservation = ExecutionObservation {
+            regexes: 0,
+            globs: 0,
+            owners_initialized: 0,
+            row_capacity: 0,
+            other_capacity: 0,
+            index_rows: 0,
+            index_cells: 0,
+            index_capacity: 0,
+            closure_partition_rows: 0,
+            closure_partition_capacity: 0,
+            closure_visited: 0,
+            dfs_expanded: 0,
+            dfs_examined: 0,
+            dfs_adjacency_capacity: 0,
+            dfs_adjacency_len: 0,
+            dfs_frames_len: 0,
+            dfs_visited_len: 0,
+            traversal_queue_len: 0,
+            local_resources_released: false,
+        };
+        self.0.as_deref().unwrap_or(&ZERO)
+    }
+}
+#[cfg(test)]
+impl std::ops::DerefMut for ExecutionObservationSlot {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.0.get_or_insert_with(Default::default)
+    }
 }

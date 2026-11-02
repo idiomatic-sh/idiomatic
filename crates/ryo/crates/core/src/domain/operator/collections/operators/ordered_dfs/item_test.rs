@@ -1,6 +1,6 @@
 //! Ordered DFS policy-independent graph cases and deterministic work guards.
-use super::super::interface::OperatorsItem as _;
 use super::item::OrderedDfsItem;
+use crate::application::file_dag::testing::TestOperator as _;
 use crate::cases::{Case, CaseName, Expect, Word, run, selects};
 use crate::domain::operating::{errors::OperatingError, types::OperatorContext};
 use crate::domain::table_model::{
@@ -126,8 +126,8 @@ fn numeric_order_and_diamond() -> Result<usize, OperatingError> {
             &[1, 2, 4, 24, 3],
         ],
     );
-    assert_eq!(scratch.walk_scratch.dfs_graph.expanded, 4);
-    assert_eq!(scratch.walk_scratch.dfs_graph.examined, 4);
+    assert_eq!(scratch.observation.dfs_expanded, 4);
+    assert_eq!(scratch.observation.dfs_examined, 4);
     Ok(out.count.0)
 }
 fn cycles_preserve_every_edge_visit() -> Result<usize, OperatingError> {
@@ -156,8 +156,8 @@ fn cycles_preserve_every_edge_visit() -> Result<usize, OperatingError> {
             &[1, 2, 2, 22, 3],
         ],
     );
-    assert_eq!(scratch.walk_scratch.dfs_graph.expanded, 2);
-    assert_eq!(scratch.walk_scratch.dfs_graph.examined, 4);
+    assert_eq!(scratch.observation.dfs_expanded, 2);
+    assert_eq!(scratch.observation.dfs_examined, 4);
     Ok(out.count.0)
 }
 fn parallel_distinct_orders_preserve_multiplicity() -> Result<usize, OperatingError> {
@@ -183,7 +183,7 @@ fn roots_are_independent_and_duplicates_are_deduplicated() -> Result<usize, Oper
         5,
         &[&[1, 1, 2, 12, 0], &[1, 2, 3, 23, 1], &[2, 2, 3, 23, 0]],
     );
-    assert_eq!(scratch.walk_scratch.dfs_graph.expanded, 5);
+    assert_eq!(scratch.observation.dfs_expanded, 5);
     Ok(out.count.0)
 }
 fn partitions_and_multiple_keys_are_exact() -> Result<usize, OperatingError> {
@@ -214,7 +214,7 @@ fn partitions_and_multiple_keys_are_exact() -> Result<usize, OperatingError> {
             &[200, 10, 1, 1, 5, 15, 0],
         ],
     );
-    assert_eq!(scratch.walk_scratch.dfs_graph.examined, 3);
+    assert_eq!(scratch.observation.dfs_examined, 3);
     Ok(out.count.0)
 }
 fn entry_node_encodes_initial_empty_class_seen() -> Result<usize, OperatingError> {
@@ -306,7 +306,8 @@ fn scratch_reuse_across_graphs_empty_and_old_operator() -> Result<usize, Operati
     let edges = numbers(4, &[&[1, 2, 0, 12], &[2, 3, 0, 23]]);
     let first = compute(&operation(&[], &[]), &roots, &edges, &mut scratch)?;
     assert_eq!(first.count.0, 2);
-    let capacity = scratch.walk_scratch.dfs_graph.adjacency.capacity();
+    assert!(scratch.observation.dfs_adjacency_capacity > 0);
+    assert!(scratch.observation.local_resources_released);
     let mut symbols = Symbols::default();
     let mut context = OperatorContext {
         prepared_kinds: None,
@@ -338,13 +339,11 @@ fn scratch_reuse_across_graphs_empty_and_old_operator() -> Result<usize, Operati
         &mut scratch,
     )?;
     assert_eq!(empty.count.0, 0);
-    assert!(scratch.walk_scratch.dfs_walk.visited.is_empty());
-    assert!(scratch.walk_scratch.dfs_walk.frames.is_empty());
-    assert!(scratch.walk_scratch.dfs_graph.adjacency.is_empty());
-    assert_eq!(
-        scratch.walk_scratch.dfs_graph.adjacency.capacity(),
-        capacity
-    );
+    assert_eq!(scratch.observation.dfs_visited_len, 0);
+    assert_eq!(scratch.observation.dfs_frames_len, 0);
+    assert_eq!(scratch.observation.dfs_adjacency_len, 0);
+    assert_eq!(scratch.observation.dfs_adjacency_capacity, 0);
+    assert!(scratch.observation.local_resources_released);
     let next = compute(
         &operation(&[], &[]),
         &numbers(1, &[&[9]]),
@@ -377,9 +376,9 @@ fn deep_chain_and_work_are_bounded() -> Result<usize, OperatingError> {
     )?;
     let expected_count = usize::try_from(n).expect("positive chain length");
     assert_eq!(out.count.0, expected_count);
-    assert_eq!(scratch.walk_scratch.dfs_graph.examined, expected_count);
-    assert_eq!(scratch.walk_scratch.dfs_graph.expanded, expected_count + 1);
-    assert_eq!(scratch.walk_scratch.dfs_walk.frames.len(), 0);
+    assert_eq!(scratch.observation.dfs_examined, expected_count);
+    assert_eq!(scratch.observation.dfs_expanded, expected_count + 1);
+    assert_eq!(scratch.observation.dfs_frames_len, 0);
     Ok(out.count.0)
 }
 fn many_interleaved_partitions_bound_expansions() -> Result<usize, OperatingError> {
@@ -410,9 +409,9 @@ fn many_interleaved_partitions_bound_expansions() -> Result<usize, OperatingErro
     let out = compute(&operation(&[1], &[4]), &roots, &edges, &mut scratch)?;
     let expected_count = 4 * usize::try_from(n).expect("positive partition count");
     assert_eq!(out.count.0, expected_count);
-    assert_eq!(scratch.walk_scratch.dfs_graph.examined, out.count.0);
-    assert_eq!(scratch.walk_scratch.dfs_graph.expanded, expected_count);
-    assert!(scratch.walk_scratch.dfs_walk.visited.len() <= 4);
+    assert_eq!(scratch.observation.dfs_examined, out.count.0);
+    assert_eq!(scratch.observation.dfs_expanded, expected_count);
+    assert!(scratch.observation.dfs_visited_len <= 4);
     Ok(out.count.0)
 }
 fn ordinal_overflow_is_checked_after_the_last_representable_visit() -> Result<usize, OperatingError>
@@ -591,8 +590,8 @@ fn retained_text_keys_and_vertices_preserve_output_cells() -> Result<usize, Oper
             })
         ));
     }
-    assert_eq!(scratch.walk_scratch.dfs_graph.expanded, 6);
-    assert_eq!(scratch.walk_scratch.dfs_graph.examined, 6);
+    assert_eq!(scratch.observation.dfs_expanded, 6);
+    assert_eq!(scratch.observation.dfs_examined, 6);
     Ok(out.count.0)
 }
 fn file_keys_keep_reused_nodes_separate() -> Result<usize, OperatingError> {

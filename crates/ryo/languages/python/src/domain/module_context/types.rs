@@ -8,6 +8,10 @@ pub(crate) struct ModuleIdentity {
     pub file: FileId,
     /// Dotted module name with the initializer component retained.
     pub path: String,
+    /// Source filename stem, retaining embedded dots and original case.
+    pub module_name: String,
+    /// Containing package directory basename, retaining dots and original case.
+    pub package_name: String,
 }
 /// Module context established for this run.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]

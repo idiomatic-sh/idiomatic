@@ -1,7 +1,7 @@
 //! Literal replacement is distinct from capture interpolation.
 
-use super::super::interface::OperatorsItem as _;
 use super::item::ReplaceItem;
+use crate::application::file_dag::testing::TestOperator as _;
 use crate::cases::{Case, CaseName, Expect, Word, run, selects};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;

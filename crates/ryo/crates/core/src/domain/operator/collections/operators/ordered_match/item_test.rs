@@ -1,7 +1,7 @@
 //! Independent queue scenarios for ordered matching.
 
-use super::super::interface::OperatorsItem as _;
 use super::item::OrderedMatchItem;
+use crate::application::file_dag::testing::TestOperator as _;
 use crate::cases::{Case, CaseName, Expect, Word, run, selects};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;

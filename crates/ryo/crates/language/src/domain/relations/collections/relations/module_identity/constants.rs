@@ -16,5 +16,7 @@ pub fn column_name(column: ModuleIdentityColumn) -> &'static str {
     match column {
         ModuleIdentityColumn::File => "file",
         ModuleIdentityColumn::Path => "path",
+        ModuleIdentityColumn::ModuleName => "module-name",
+        ModuleIdentityColumn::PackageName => "package-name",
     }
 }

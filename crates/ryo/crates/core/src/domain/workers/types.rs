@@ -132,8 +132,10 @@ pub(crate) struct Tables {
 }
 
 /// What a visit of a file reads that is the same for every file.
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub(crate) struct VisitSetting<'a> {
+    pub executor: &'a dyn crate::domain::operator::contract::executor::PrimitiveExecutor,
+    pub operators: std::sync::Arc<crate::domain::operator::contract::types::RequestOperators>,
     /// The plans of the rules.
     pub plans: &'a [Plan],
     /// What each rule binds its parameters to.

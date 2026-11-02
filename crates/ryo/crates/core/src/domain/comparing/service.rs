@@ -22,8 +22,8 @@ use crate::domain::operating::types::{ComparisonNumber, Family, Memo, NameCount,
 use crate::domain::table_model::service::{cell, column_in};
 use crate::domain::table_model::types::{ParameterBinding, Verdict};
 use crate::domain::table_scratch::types::{
-    ComparisonNumbers, ComparisonSlot, GlobSubject, MemoPlace, MemoSlot, SubjectHash, SubjectTag,
-    VerdictKey,
+    ComparisonNumbers, ComparisonSlot, GlobSubject, MemoPlace, MemoSlot, SelectScratch,
+    SubjectHash, SubjectTag, VerdictKey,
 };
 use crate::domain::table_texts::types::{Datum, Texts};
 use ryo_values::domain::plan_parts::service::columns_of;
@@ -33,11 +33,7 @@ use ryo_values::domain::plan_parts::types::{Comparison, Operand, QueryLiteral, T
 const VERDICTS: usize = 1 << 14;
 
 /// Whether a name of the file is equal, or not equal, to a text the query wrote, when the comparison is that.
-fn equal_to_text(
-    comparison: &Comparison,
-    row: &[Value],
-    context: &OperatorContext<'_>,
-) -> Option<Verdict> {
+fn equal_to_text(comparison: &Comparison, row: &[Value], texts: &Texts<'_>) -> Option<Verdict> {
     let equal = match comparison.test {
         Test::Equal => true,
         Test::NotEqual => false,
@@ -65,13 +61,8 @@ fn equal_to_text(
     let Value::Symbol(symbol) = column_in(row, *column).copied()? else {
         return None;
     };
-    let same = hash_in(context.symbols.as_ref(), symbol)? == hash_of(ByteSlice(text.0.as_bytes()))
-        && text_of(
-            context.symbols.as_ref(),
-            ByteSlice(context.source.0),
-            symbol,
-        )
-        .map(|found| found.0)
+    let same = hash_in(texts.symbols, symbol)? == hash_of(ByteSlice(text.0.as_bytes()))
+        && text_of(texts.symbols, ByteSlice(texts.source.0), symbol).map(|found| found.0)
             == Some(&*text.0);
     Some(if same == equal {
         Verdict::Holds
@@ -81,7 +72,7 @@ fn equal_to_text(
 }
 
 /// Whether one comparison holds for one row, decided by the family its test belongs to.
-fn holds(
+pub(crate) fn evaluate_comparison(
     comparison: &Comparison,
     row: &[Value],
     bindings: &[ParameterBinding],
@@ -225,37 +216,21 @@ fn memo_place(
 /// Whether the comparison numbered `number` holds for the row. A comparison of a name with something fixed is
 /// decided once for each distinct name of the file, as the prototype decides a name's predicates once
 /// when it interns the name.
-fn holds_one(
-    number: ComparisonNumber,
-    comparison: &Comparison,
+fn holds_one_bound(
+    numbered: (ComparisonNumber, &Comparison),
     row: &[Value],
-    kinds: &[CellKind],
-    names: NameCount,
-    context: &mut OperatorContext<'_>,
+    shape: (&[CellKind], NameCount),
+    texts: &Texts<'_>,
+    bindings: &[ParameterBinding],
+    prepared: Option<&PreparedMatchers>,
+    work: (&mut SelectScratch, &mut Vec<Memo>),
 ) -> Result<Verdict, OperatingError> {
-    // A name equal to a fixed text is told by the hash of its text, which the file keeps for each name: the text is
-    // read only when the hashes agree.
-    if let Some(verdict) = equal_to_text(comparison, row, context) {
+    let (number, comparison) = numbered;
+    let (kinds, names) = shape;
+    if let Some(verdict) = equal_to_text(comparison, row, texts) {
         return Ok(verdict);
     }
-    let OperatorContext {
-        prepared_matchers,
-        bindings,
-        symbols,
-        source,
-        paths,
-        arenas,
-        memo,
-        scratch,
-        ..
-    } = context;
-    let select = &mut *scratch.select_scratch;
-    let texts = Texts {
-        symbols: symbols.as_ref(),
-        source: *source,
-        paths,
-        arenas,
-    };
+    let (select, memo) = work;
     // A glob of a name that left its file is decided once for each name of the run, as the hash of its text tells: a name
     // is the same text in every file. A glob of a file's path is decided once for each file of the run: the path of a file is
     // the same text in every row that names it (the key of a file is the comparison's address with its low bit set, which
@@ -274,12 +249,12 @@ fn holds_one(
         if let Some(verdict) = select.verdicts.get(&key) {
             return Ok(*verdict);
         }
-        let verdict = holds(
+        let verdict = evaluate_comparison(
             comparison,
             row,
             bindings,
-            &texts,
-            *prepared_matchers,
+            texts,
+            prepared,
             &mut select.compiled_globs,
             &mut select.compiled_regexes,
         )?;
@@ -308,12 +283,12 @@ fn holds_one(
                 if let Some(verdict) = known.and_then(|key| select.verdicts.get(&key).copied()) {
                     verdict
                 } else {
-                    let verdict = holds(
+                    let verdict = evaluate_comparison(
                         comparison,
                         row,
                         bindings,
-                        &texts,
-                        *prepared_matchers,
+                        texts,
+                        prepared,
                         &mut select.compiled_globs,
                         &mut select.compiled_regexes,
                     )?;
@@ -336,6 +311,66 @@ fn holds_one(
             decided
         }
     })
+}
+
+/// The engine's bound semantic capability, sharing the existing memo/verdict
+/// algorithm with native callers. Symbols and source text are read-only; only
+/// the explicitly supplied comparison workspace can change.
+pub(crate) fn holds_bound(
+    comparisons: &[Comparison],
+    row: &[Value],
+    shape: (&[CellKind], NameCount),
+    texts: &Texts<'_>,
+    bindings: &[ParameterBinding],
+    prepared: Option<&PreparedMatchers>,
+    work: (&mut SelectScratch, &mut Vec<Memo>),
+) -> Result<Verdict, OperatingError> {
+    let (select, memo) = work;
+    for (number, comparison) in comparisons.iter().enumerate() {
+        if holds_one_bound(
+            (ComparisonNumber(number), comparison),
+            row,
+            shape,
+            texts,
+            bindings,
+            prepared,
+            (&mut *select, &mut *memo),
+        )? == Verdict::Fails
+        {
+            return Ok(Verdict::Fails);
+        }
+    }
+    Ok(Verdict::Holds)
+}
+
+/// Adapt legacy native context owners to the same narrow semantic algorithm.
+fn holds_one(
+    number: ComparisonNumber,
+    comparison: &Comparison,
+    row: &[Value],
+    kinds: &[CellKind],
+    names: NameCount,
+    context: &mut OperatorContext<'_>,
+) -> Result<Verdict, OperatingError> {
+    let texts = Texts {
+        symbols: context.symbols.as_ref(),
+        source: context.source,
+        paths: context.paths,
+        arenas: context.arenas,
+    };
+    // Keep the old equality fast path free of lazy scratch initialization.
+    if let Some(verdict) = equal_to_text(comparison, row, &texts) {
+        return Ok(verdict);
+    }
+    holds_one_bound(
+        (number, comparison),
+        row,
+        (kinds, names),
+        &texts,
+        context.bindings,
+        context.prepared_matchers,
+        (&mut *context.scratch.select_scratch, &mut *context.memo),
+    )
 }
 
 /// Whether every comparison holds for the row.

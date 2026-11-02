@@ -2,12 +2,8 @@
 //! data with public fields and derives, and no constructor or inherent impl.
 
 use crate::domain::table_cells::types::{ColumnPlaces, RowIndex};
-use crate::domain::table_groups::types::Group;
-use crate::domain::table_groups::types::Hashes;
-use crate::domain::table_model::types::KeyIndex;
-use crate::domain::table_model::types::Table;
 use crate::domain::table_model::types::Verdict;
-use crate::domain::table_reach::types::Walk;
+use crate::domain::table_model::types::{KeyIndex, Table};
 use ryo_language::domain::elements::types::KindSum;
 use ryo_language::domain::relations::types::{FileId, KindBits, TextHash, Value};
 use ryo_language::domain::terms::types::Symbol;
@@ -60,39 +56,6 @@ impl std::fmt::Write for ScratchWord {
         self.0.push_str(s);
         Ok(())
     }
-}
-
-/// The room a search for the entities on cycles works in, kept from file to file.
-#[derive(Debug, Default)]
-pub(crate) struct CycleRoom {
-    /// The number of each entity met.
-    pub numbers: hashbrown::HashMap<Value, EntityNumber>,
-    /// The entities, by number.
-    pub values: Vec<Value>,
-    /// The edges, by the numbers of the entities they join.
-    pub pairs: Vec<EdgeEnds>,
-    /// Where the edges leaving each entity begin in `leaving`, one more than there are entities.
-    pub starts: EdgePlaces,
-    /// Where the next edge of each entity is put while they are sorted by their source.
-    pub filled: EdgePlaces,
-    /// The entity each edge leads to, grouped by its source.
-    pub leaving: EntityNumbers,
-    /// When each entity was first met by the walk.
-    pub order: MeetingOrder,
-    /// The earliest meeting any entity below it on the walk can reach.
-    pub low: MeetingOrder,
-    /// Whether each entity is on the stack of the walk.
-    pub open: OnStack,
-    /// The entities of the components being found.
-    pub stack: EntityNumbers,
-    /// Whether each entity is on a cycle.
-    pub found: OnCycle,
-    /// The entities on the walk, each with the next edge to try.
-    pub walk: Vec<WalkStep>,
-    /// The entities of the component just found.
-    pub component: EntityNumbers,
-    /// The entities on cycles, in order.
-    pub ordered: Vec<Value>,
 }
 
 /// Which kinds a test asked of their names is about: the vocabulary of kinds it asked of, the test, and the hash of the text it is
@@ -222,47 +185,13 @@ pub(crate) struct TextedFile {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct TreeSize(pub usize);
 
-/// What a capture read from a path: where in the captured values what its slots matched begins, and how many ways it matched.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct Captured {
-    /// Where in the captured values it begins.
-    pub begin: CapturedPlace,
-    /// How many ways it matched.
-    pub ways: WayCount,
-}
-
-/// A place among the captured values.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct CapturedPlace(pub usize);
-
-/// How many ways a capture matched.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct WayCount(pub usize);
-
 /// An entity met by a search for cycles, by the order it was met in.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct EntityNumber(pub usize);
 
-/// Entities, by number.
-#[derive(Debug, Default, PartialEq, Eq)]
-pub(crate) struct EntityNumbers(pub Vec<usize>);
-
 /// An edge of a search for cycles, by its place among the edges leaving an entity.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct EdgePlace(pub usize);
-
-/// Places among the edges of a search for cycles.
-#[derive(Debug, Default, PartialEq, Eq)]
-pub(crate) struct EdgePlaces(pub Vec<usize>);
-
-/// The entities an edge joins.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub(crate) struct EdgeEnds {
-    /// Where the edge starts.
-    pub from: EntityNumber,
-    /// Where it leads.
-    pub to: EntityNumber,
-}
 
 /// An entity on the walk of a search for cycles, with the next edge to try.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -272,18 +201,6 @@ pub(crate) struct WalkStep {
     /// The next edge to try.
     pub edge: EdgePlace,
 }
-
-/// When each entity was met by the walk, or the earliest meeting reachable.
-#[derive(Debug, Default, PartialEq, Eq)]
-pub(crate) struct MeetingOrder(pub Vec<usize>);
-
-/// Whether each entity is on the stack of the walk.
-#[derive(Debug, Default, PartialEq, Eq)]
-pub(crate) struct OnStack(pub Vec<bool>);
-
-/// Whether each entity is on a cycle.
-#[derive(Debug, Default, PartialEq, Eq)]
-pub(crate) struct OnCycle(pub Vec<bool>);
 
 /// A bit for each kind of a set, by the number of the kind.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -340,6 +257,9 @@ impl<T: Default> std::ops::DerefMut for LazyScratch<T> {
 /// Cheap row buffers and lazy heavy groups owned only by the current rule.
 #[derive(Debug, Default)]
 pub(crate) struct OperatorScratch {
+    /// Measurements copied from real engine-owned invocation resources in tests.
+    #[cfg(test)]
+    pub observation: crate::domain::operating::types::ExecutionObservationSlot,
     /// The cells of a row that a comparison reads, by their place in the row.
     pub needed: ColumnPlaces,
 
@@ -350,16 +270,10 @@ pub(crate) struct OperatorScratch {
     pub other: Vec<Value>,
     /// Lazily constructed join work for this invocation.
     pub join_scratch: LazyScratch<JoinScratch>,
-    /// Lazily constructed groups work for this invocation.
-    pub groups_scratch: LazyScratch<GroupsScratch>,
     /// Lazily constructed walk work for this invocation.
     pub walk_scratch: LazyScratch<WalkScratch>,
-    /// Lazily constructed capture work for this invocation.
-    pub capture_scratch: LazyScratch<CaptureScratch>,
     /// Lazily constructed select work for this invocation.
     pub select_scratch: LazyScratch<SelectScratch>,
-    /// Lazily constructed cycle work for this invocation.
-    pub cycle_scratch: LazyScratch<CycleScratch>,
 }
 
 /// Mutable join work, allocated only by operators that use it.
@@ -368,54 +282,19 @@ pub(crate) struct JoinScratch {
     /// The rows already kept, found by what they hold.
     pub seen: hashbrown::HashTable<RowIndex>,
 
-    /// The cells of a row that say which rows it is alike.
-    pub key: Vec<Value>,
-
     /// The rows of the table at `right`, in the order of their keys.
     pub order: KeyIndex,
 
-    /// An input read whole, for the operators that look rows up in it.
+    /// Reused by the engine's prepared Join lookup across rows in this invocation.
+    pub key: Vec<Value>,
+    /// Only populated for a malformed physical right input that needs materialization.
+    pub right_row: Vec<Value>,
     pub right: Table,
-
-    /// A second input read whole, and the rows of it in the order of their keys.
-    pub domain: Table,
-
-    /// The rows of `domain` in the order of their keys.
-    pub domain_order: KeyIndex,
-}
-
-/// Mutable groups work, allocated only by operators that use it.
-#[derive(Debug, Default)]
-pub(crate) struct GroupsScratch {
-    /// What a group has counted, group by group.
-    pub counts: crate::domain::operating::types::GroupCounts,
-    /// The values already counted for a group, by the group.
-    pub pairs: hashbrown::HashSet<crate::domain::operating::types::GroupValue>,
-    /// The hash of each value of a group, by the group.
-    pub hashed: Vec<crate::domain::operating::types::GroupHash>,
-
-    /// The groups a count found.
-    pub groups: Vec<Group>,
-
-    /// The hashes of the values of a group, to digest the distinct ones.
-    pub hashes: Hashes,
 }
 
 /// Mutable walk work, allocated only by operators that use it.
 #[derive(Debug, Default)]
 pub(crate) struct WalkScratch {
-    /// The room a walk along edges works in.
-    pub walk: Walk,
-
-    /// Compact graph visitation/frontier state, reused without provider references.
-    pub graph_walk: crate::domain::stored_graph::types::GraphWalk,
-
-    /// Prepared adjacency ranges of the ordered DFS operator.
-    pub dfs_graph: crate::domain::table_reach::types::OrderedGraph,
-
-    /// Iterative ordered DFS frames and exact visited values.
-    pub dfs_walk: crate::domain::table_reach::types::OrderedWalk,
-
     /// Which elements of a tree a domain admits, by their place.
     pub marks: Marks,
 
@@ -424,25 +303,6 @@ pub(crate) struct WalkScratch {
 
     /// The elements whose nearest ancestor is being found, from the one asked about up.
     pub climbing: ElementPlaces,
-}
-
-/// Mutable capture work, allocated only by operators that use it.
-#[derive(Debug, Default)]
-pub(crate) struct CaptureScratch {
-    /// Where each group begins and ends in `members`, or where each captured text is in `text`.
-    pub places: Stretches,
-
-    /// Text being made: a path read for a capture, the name of a group.
-    pub text: ScratchText,
-
-    /// The word being read out of a text.
-    pub word: ScratchWord,
-
-    /// For each path a capture has read, where in `captured` what its slots matched begins, and how many ways it matched.
-    pub captures: hashbrown::HashMap<Value, Captured>,
-
-    /// What the slots matched, for every path of `captures`, a way after a way.
-    pub captured: Vec<Value>,
 }
 
 /// Mutable select work, allocated only by operators that use it.
@@ -488,13 +348,6 @@ pub(crate) struct SelectScratch {
 
     /// The comparisons of a filter that the kind sets and the text gate have not decided already.
     pub rest: ComparisonNumbers,
-}
-
-/// Mutable cycle work, allocated only by operators that use it.
-#[derive(Debug, Default)]
-pub(crate) struct CycleScratch {
-    /// The room a search for cycles works in.
-    pub cycles: CycleRoom,
 }
 
 /// Compiled patterns, indexed by their exact source text.

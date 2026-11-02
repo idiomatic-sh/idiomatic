@@ -23,9 +23,7 @@ use ryo_language::domain::relations::types::{
 };
 
 use super::errors::TableModelError;
-use super::types::{
-    ChainLink, Emptiness, HashWord, KeyCellsHash, KeyIndex, On, RowCount, Rows, Table,
-};
+use super::types::{ChainLink, HashWord, KeyCellsHash, KeyIndex, On, RowCount, Rows, Table};
 use crate::domain::coverage::types::Partial;
 use crate::domain::table_cells::service::{edge_of, element_of};
 use crate::domain::table_cells::types::{RowIndex, TreeForm, TreeRows};
@@ -185,26 +183,36 @@ pub(crate) fn read_row<'s>(
     found
 }
 
-/// The rows as a table: the table itself when it was computed, else the rows made into `into`, which keeps its room.
-pub(crate) fn table_in<'a>(
-    rows: &Rows<'a>,
-    into: &'a mut Table,
-    scratch: &mut Vec<Value>,
-) -> &'a Table {
-    if let Rows::Computed(table) = rows {
-        table
-    } else {
-        materialize(rows, into, scratch);
-        into
-    }
-}
-
 /// Copies the rows into `into`, keeping the room `into` has.
 pub(crate) fn materialize(rows: &Rows<'_>, into: &mut Table, scratch: &mut Vec<Value>) {
     reset(into, kinds_of(rows));
-    for index in positions(count_of(rows)) {
-        if let Some(row) = read_row(rows, index, scratch) {
-            push_row(into, row);
+    if let Rows::Selected(view) = rows {
+        // The selection already names physical positions and projected columns.
+        // Decode only those cells into the destination; a malformed source row
+        // remains skipped as it was by read_row, without retaining a partial row.
+        for row in positions(count_of(rows)) {
+            let start = into.cells.len();
+            let complete = view.selection.columns.iter().enumerate().all(|(at, _)| {
+                let Ok(at) = u32::try_from(at) else {
+                    return false;
+                };
+                let Some(value) = selected_cell(view, row, ColumnIndex(at)) else {
+                    return false;
+                };
+                into.cells.push(value);
+                true
+            });
+            if complete {
+                into.count.0 += 1;
+            } else {
+                into.cells.truncate(start);
+            }
+        }
+    } else {
+        for index in positions(count_of(rows)) {
+            if let Some(row) = read_row(rows, index, scratch) {
+                push_row(into, row);
+            }
         }
     }
     tracing::trace!(target: "ryo::diagnostic::selection", event = "materialized",
@@ -603,15 +611,4 @@ pub(crate) fn matching<'o, 'k>(
         }
         None
     })
-}
-
-/// Whether no row has the key.
-#[must_use]
-pub(crate) fn matches_empty<'o>(found: &(impl Iterator<Item = &'o RowIndex> + Clone)) -> Emptiness {
-    let mut probe = found.clone();
-    if probe.next().is_none() {
-        Emptiness::Empty
-    } else {
-        Emptiness::Filled
-    }
 }

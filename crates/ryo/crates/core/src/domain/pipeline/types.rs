@@ -30,6 +30,12 @@ pub(crate) enum LoweredTree<'f> {
 
 /// The steps of a plan being run for a file: the ones that keep their rows are before the one being made.
 pub(crate) struct Stepper<'a, 'f> {
+    pub kernel_strategy: crate::domain::column_kernel::types::KernelStrategy,
+    pub kernel: Option<&'a crate::domain::column_kernel::types::KernelPlan>,
+    pub kernel_counts: &'a mut crate::domain::column_kernel::types::KernelCounts,
+    pub executor: &'a dyn crate::domain::operator::contract::executor::PrimitiveExecutor,
+    pub operators:
+        &'a [std::sync::Arc<crate::domain::operator::contract::types::OperatorContract>],
     /// The plan.
     pub plan: &'a Plan,
     /// The rows of a relation, where the store keeps them.

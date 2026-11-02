@@ -50,9 +50,6 @@ fn initialized(scratch: &super::types::OperatorScratch) -> usize {
         scratch.select_scratch.0.get().is_some(),
         scratch.join_scratch.0.get().is_some(),
         scratch.walk_scratch.0.get().is_some(),
-        scratch.groups_scratch.0.get().is_some(),
-        scratch.capture_scratch.0.get().is_some(),
-        scratch.cycle_scratch.0.get().is_some(),
     ]
     .into_iter()
     .filter(|made| *made)
@@ -62,8 +59,8 @@ fn initialized(scratch: &super::types::OperatorScratch) -> usize {
 /// Pure projection needs only cheap rows; distinct projection constructs just its membership group.
 #[test]
 fn projection_constructs_only_the_group_it_uses_and_keeps_bags() {
+    use crate::application::file_dag::testing::TestOperator as _;
     use crate::domain::operating::types::OperatorContext;
-    use crate::domain::operator::collections::operators::interface::OperatorsItem as _;
     use crate::domain::operator::collections::operators::project::item::ProjectItem;
     use crate::domain::table_model::service::push_row;
     use crate::domain::table_model::types::{Rows, Table};
@@ -119,17 +116,23 @@ fn projection_constructs_only_the_group_it_uses_and_keeps_bags() {
                 .map(|n| Value::Number(Integer(n)))
                 .collect::<Vec<_>>()
         );
-        assert_eq!(initialized(&scratch), groups);
+        assert_eq!(
+            initialized(&scratch),
+            0,
+            "projection uses engine-owned workspace, not legacy operator clusters"
+        );
+        assert_eq!(scratch.observation.owners_initialized, groups);
+        assert!(scratch.observation.local_resources_released);
     }
     // A new rule owns a fresh workspace; no idle group or large payload crosses the boundary.
     assert_eq!(initialized(&super::types::OperatorScratch::default()), 0);
 }
 
-/// A failed dynamic row pattern initializes only select work; an empty input never compiles it.
+/// Dynamic pattern errors remain row-lazy; failed matchers are never cached.
 #[test]
 fn dynamic_regex_initialization_is_execution_local_and_lazy() {
+    use crate::application::file_dag::testing::TestOperator as _;
     use crate::domain::operating::types::OperatorContext;
-    use crate::domain::operator::collections::operators::interface::OperatorsItem as _;
     use crate::domain::operator::collections::operators::select::item::SelectItem;
     use crate::domain::table_model::service::push_row;
     use crate::domain::table_model::types::{Rows, Table};
@@ -182,8 +185,55 @@ fn dynamic_regex_initialization_is_execution_local_and_lazy() {
         );
         assert_eq!(result.is_err(), populated);
         assert_eq!(initialized(&scratch), usize::from(populated));
+        assert_eq!(
+            scratch.observation.regexes, 0,
+            "invalid patterns cannot enter the cache"
+        );
         assert!(scratch.join_scratch.0.get().is_none());
         assert!(scratch.walk_scratch.0.get().is_none());
-        assert!(scratch.cycle_scratch.0.get().is_none());
+        assert!(scratch.observation.local_resources_released);
+    }
+}
+
+/// Aggregations own one real invocation resource and release it after producing
+/// independent nonempty results, without recreating operator-local scratch rooms.
+#[test]
+fn aggregation_resources_are_engine_owned_and_released() {
+    use crate::application::file_dag::testing::TestOperator as _;
+    use crate::domain::operating::types::OperatorContext;
+    use crate::domain::operator::contract_test::fixtures::{SOURCE, assert_expected, fixture};
+    use crate::domain::operator::service::registered;
+    use crate::domain::table_model::types::{Rows, Table};
+    use crate::domain::table_texts::types::SourceView;
+    use ryo_values::domain::plans::types::OperationKind;
+    for kind in [OperationKind::GroupCount, OperationKind::GroupDigest] {
+        let mut case = fixture(kind);
+        let inputs = case.inputs.iter().map(Rows::Computed).collect::<Vec<_>>();
+        let mut scratch = super::types::OperatorScratch::default();
+        let mut out = Table::default();
+        let mut context = OperatorContext {
+            prepared_kinds: None,
+            prepared_matchers: None,
+            stored_indexes: None,
+            bindings: &case.bindings,
+            symbols: (&mut case.symbols).into(),
+            source: SourceView(SOURCE),
+            paths: &[],
+            arenas: &[],
+            memo: &mut Vec::new(),
+            scratch: &mut scratch,
+        };
+        registered(kind)
+            .compute(&case.operation, &inputs, &mut context, &mut out)
+            .unwrap();
+        let rows = out
+            .cells
+            .chunks_exact(out.kinds.len())
+            .map(<[_]>::to_vec)
+            .collect::<Vec<_>>();
+        assert_expected(&case.expected, &rows, &case.symbols);
+        assert_eq!(initialized(&scratch), 0);
+        assert_eq!(scratch.observation.owners_initialized, 1, "{kind:?}");
+        assert!(scratch.observation.local_resources_released, "{kind:?}");
     }
 }

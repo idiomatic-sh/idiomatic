@@ -1,0 +1,61 @@
+//! Independent typed, textual and set-digest expectations for the conformance fixtures.
+use super::SOURCE;
+use crate::domain::table_model::types::{ParameterBinding, Table};
+use crate::domain::table_texts::{
+    service::datum,
+    types::{Datum, SourceView, Texts},
+};
+use ryo_language::domain::{relations::types::Value, symbols::types::Symbols};
+use ryo_values::domain::plans::types::Operation;
+#[derive(Clone)]
+pub(crate) enum Expected {
+    Cell(Value),
+    Text(&'static str),
+    Digest(u8),
+}
+pub(crate) struct Fixture {
+    pub(crate) operation: Operation,
+    pub(crate) inputs: Vec<Table>,
+    pub(crate) bindings: Vec<ParameterBinding>,
+    pub(crate) symbols: Symbols,
+    pub(crate) expected: Vec<Vec<Expected>>,
+}
+pub(super) fn cells(rows: Vec<Vec<Value>>) -> Vec<Vec<Expected>> {
+    rows.into_iter()
+        .map(|row| row.into_iter().map(Expected::Cell).collect())
+        .collect()
+}
+pub(crate) fn assert_expected(
+    expected: &[Vec<Expected>],
+    actual: &[Vec<Value>],
+    symbols: &Symbols,
+) {
+    assert_eq!(expected.len(), actual.len());
+    let mut digests = std::collections::BTreeMap::new();
+    let texts = Texts {
+        symbols,
+        source: SourceView(SOURCE),
+        paths: &[],
+        arenas: &[],
+    };
+    for (expected, actual) in expected.iter().zip(actual) {
+        assert_eq!(expected.len(), actual.len());
+        for (expected, actual) in expected.iter().zip(actual) {
+            match expected {
+                Expected::Cell(value) => assert_eq!(value, actual),
+                Expected::Text(text) => {
+                    let Datum::Text(value) = datum(*actual, &texts) else {
+                        panic!("expected text")
+                    };
+                    assert_eq!(*text, value.0);
+                }
+                Expected::Digest(group) => {
+                    assert!(matches!(actual, Value::Number(_)));
+                    if let Some(previous) = digests.insert(group, actual) {
+                        assert_eq!(previous, actual);
+                    }
+                }
+            }
+        }
+    }
+}

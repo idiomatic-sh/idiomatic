@@ -114,6 +114,8 @@ fn setting<'a>(
     bindings: &'a [Vec<ParameterBinding>],
 ) -> VisitSetting<'a> {
     VisitSetting {
+        executor: &crate::application::file_dag::execution::CommonOperatorEngine,
+        operators: crate::application::file_dag::testing::request_fixture(plans, bindings, &[]),
         unknown: &[],
         plans,
         bindings,

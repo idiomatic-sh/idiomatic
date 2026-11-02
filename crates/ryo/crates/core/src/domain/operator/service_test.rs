@@ -6,9 +6,9 @@ use ryo_language::domain::relations::types::{
 };
 use ryo_language::domain::symbols::types::Symbols;
 
-use super::collections::operators::interface::OperatorsItem as _;
 use super::collections::operators::project::item::ProjectItem;
 use super::service::{compute, evaluate_cross};
+use crate::application::file_dag::testing::TestOperator as _;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::coverage::types::Partials;
 use crate::domain::operating::errors::OperatingError;

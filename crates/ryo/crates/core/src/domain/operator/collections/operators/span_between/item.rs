@@ -1,17 +1,15 @@
 //! Append a checked half-open byte interval without changing input rows.
-
 use super::super::interface::OperatorsItem;
 use crate::domain::operating::errors::OperatingError;
-use crate::domain::operating::service::first;
-use crate::domain::operating::types::{Emit, Feed, InputPlace, OperatorContext, Room};
-use crate::domain::replay::types::Pipe;
-use crate::domain::table_model::service::{cell, count_of, kinds_of, positions, read_row, reset};
-use crate::domain::table_model::types::{Rows, Table};
+use crate::domain::operator::contract::types::{
+    OperatorContract, PreparedInputs, PrimitiveLease, RowSink,
+};
+use crate::domain::table_model::service::cell;
+use crate::domain::table_model::types::ParameterBinding;
 use ryo_language::domain::relations::constants::NO_SPAN;
-use ryo_language::domain::relations::types::{CellKind, Span, Value};
+use ryo_language::domain::relations::types::{Span, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::plans::types::Operation;
-
+use ryo_values::domain::plans::types::{Operation, OperationKind};
 /// Validate both located operands even when the other operand is absent.
 fn composed(
     row: &[Value],
@@ -43,64 +41,41 @@ fn composed(
     }))
 }
 
-/// The per-file span projection.
 pub(crate) struct SpanBetweenItem;
-
 impl OperatorsItem for SpanBetweenItem {
-    fn compute(
+    fn prepare(
         &self,
         operation: &Operation,
-        inputs: &[Rows<'_>],
-        context: &mut OperatorContext<'_>,
-        out: &mut Table,
-    ) -> Result<(), OperatingError> {
-        let Operation::SpanBetween { start, end, .. } = operation else {
-            return Err(OperatingError::WrongOperation);
-        };
-        let input = first(inputs)?;
-        reset(out, kinds_of(input));
-        out.kinds.push(CellKind::Span);
-        let mut buffer = std::mem::take(&mut context.scratch.row);
-        let result = (|| {
-            for at in positions(count_of(input)) {
-                let Some(row) = read_row(input, at, &mut buffer) else {
-                    continue;
-                };
-                let value = composed(row, *start, *end, context.source.0.len())?;
-                out.cells.extend_from_slice(row);
-                out.cells.push(value);
-                out.count.0 += 1;
-            }
-            Ok(())
-        })();
-        context.scratch.row = buffer;
-        result
+        inputs: &[crate::domain::operation_schema::types::InputSchema<'_>],
+        bindings: &[ParameterBinding],
+    ) -> Result<OperatorContract, OperatingError> {
+        crate::domain::operator::contract::service::prepare_for(
+            OperationKind::SpanBetween,
+            operation,
+            inputs,
+            bindings,
+        )
     }
-
-    fn stream(
+    fn evaluate(
         &self,
         operation: &Operation,
-        ins: &mut dyn Feed<'_>,
-        context: &mut OperatorContext<'_>,
-        room: &mut Room,
-        emit: &mut dyn Emit,
+        inputs: PreparedInputs<'_>,
+        lease: &mut PrimitiveLease<'_>,
+        emit: &mut dyn RowSink,
     ) -> Result<(), OperatingError> {
+        let PreparedInputs::Row { row, .. } = inputs else {
+            return Err(OperatingError::WrongOperation);
+        };
         let Operation::SpanBetween { start, end, .. } = operation else {
             return Err(OperatingError::WrongOperation);
         };
-        let mut joined = std::mem::take(&mut room.scratch.row);
-        let result = ins.stream(
-            InputPlace(0),
-            context,
-            &mut Pipe(|each: &mut OperatorContext<'_>, row: &[Value]| {
-                let value = composed(row, *start, *end, each.source.0.len())?;
-                joined.clear();
-                joined.extend_from_slice(row);
-                joined.push(value);
-                emit.row(each, &joined)
-            }),
-        );
-        room.scratch.row = joined;
+        let projected = composed(row, *start, *end, lease.views.source.0.len())?;
+        let mut joined = std::mem::take(lease.workspace.row);
+        joined.clear();
+        joined.extend_from_slice(row);
+        joined.push(projected);
+        let result = emit.row(lease, &joined);
+        *lease.workspace.row = joined;
         result
     }
 }

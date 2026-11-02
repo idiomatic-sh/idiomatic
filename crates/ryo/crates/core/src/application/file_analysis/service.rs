@@ -341,7 +341,7 @@ impl FileAnalysis {
             visit.setting.plans,
             visit.setting.bindings,
         );
-        let graph_enabled = crate::domain::file_program::service::enabled();
+        let graph_enabled = true;
         if graph_enabled {
             let same_request = tables.pool.file_graph.as_ref().is_some_and(|graph| {
                 graph.plans.len() == visit.setting.plans.len()
@@ -353,7 +353,10 @@ impl FileAnalysis {
             });
             if !same_request {
                 tables.pool.file_graph = Some(Arc::new(
-                    crate::domain::file_program::service::compile(visit.setting.plans),
+                    crate::domain::file_program::service::compile_prepared(
+                        visit.setting.plans,
+                        &visit.setting.operators,
+                    ),
                 ));
             }
         }
@@ -445,27 +448,27 @@ impl FileAnalysis {
         } else {
             None
         };
-        let file_dag = if crate::domain::file_program::service::dag_enabled() {
-            file_program.as_ref().map(|program| {
-                std::cell::RefCell::new(crate::application::file_dag::types::FileDagExecution::new(
-                    Arc::clone(&program.graph),
-                    |index| {
-                        governs_rule(tables, RuleIndex(index)) == Governing::Governs
-                            && !skipped
-                                .as_ref()
-                                .and_then(|skipped| skipped.get(index))
-                                .copied()
-                                .unwrap_or(false)
-                    },
-                    &complete,
-                ))
-            })
-        } else {
-            None
-        };
-        if file_dag.is_some() {
-            file_program = None;
-        }
+        // The generation owner is unconditional. The benchmark switch changes
+        // retention only; every class keeps the same executor and semantics.
+        let file_dag = tables.pool.file_graph.as_ref().map(|graph| {
+            let mut execution = crate::application::file_dag::types::FileDagExecution::new(
+                Arc::clone(graph),
+                |index| {
+                    governs_rule(tables, RuleIndex(index)) == Governing::Governs
+                        && !skipped
+                            .as_ref()
+                            .and_then(|skipped| skipped.get(index))
+                            .copied()
+                            .unwrap_or(false)
+                },
+                &complete,
+            );
+            if !crate::domain::file_program::service::enabled() {
+                execution.limit = 0;
+            }
+            std::cell::RefCell::new(execution)
+        });
+        file_program = None;
         if let Some(indexes) = stored_indexes.as_mut() {
             crate::domain::graph_cache::service::reserve(
                 indexes,

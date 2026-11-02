@@ -42,6 +42,20 @@ def current_source_matches(instance: dict[str, object]) -> bool:
                and sha(RUFF / registry[logical]) == digest for logical, digest in modules.items())
 
 
+def failure_category(reason: object) -> str:
+    text = str(reason or "not run").lower()
+    categories = [
+        ("Stale source proof", ("changed or missing current source",)),
+        ("Missing implementation", ("missing implementation", "no query source")),
+        ("Registration failed", ("registration",)),
+        ("Timed out", ("timeout", "timed out")),
+        ("Query rejected", ("query source", "query parse", "typecheck")),
+        ("Fixture mismatch", ("expected-vs-", "cases checked; failures", "mismatch")),
+        ("Not run", ("not run", "not_run", "interrupted")),
+    ]
+    return next((category for category, patterns in categories if any(pattern in text for pattern in patterns)), "Verifier failed")
+
+
 def render_full_inventory(path: Path) -> str:
     """Render the runner's complete pinned inventory, including every failure."""
     summary = json.loads(path.read_text(encoding="utf-8"))
@@ -235,6 +249,11 @@ def render_full_inventory(path: Path) -> str:
                 raise ValueError("UP017 target supplement is stale or changes an earlier receipt")
             by_rule["UP017"] = {**extra_rows[0], "reason": "[separate py311 fixture and py310 control proof](results/full-inventory-current/up017-target-supplement/summary.json)"}
             supplement_label = " Counts combine separately linked receipts; no combined replay is claimed."
+        sys.path.insert(0, str(RUFF))
+        from authoring.target_supplement import verified_rows
+        for row in verified_rows(RUFF, current, by_rule, current / "up035-up036-target-supplement"):
+            by_rule[row["rule_id"]] = {**row, "reason": "[separate full target-version fixture proof](results/full-inventory-current/up035-up036-target-supplement/summary.json)"}
+            supplement_label = " Counts combine separately linked receipts; no combined replay is claimed."
     rendered = []
     passed = 0
     for rule in defaults:
@@ -253,8 +272,9 @@ def render_full_inventory(path: Path) -> str:
             elif not worker_sha256 or not row.get("case_results_sha256"):
                 raise ValueError("PASS lacks worker identity or executed case receipts")
         passed += status == "PASS"
-        if status == "FAIL" and query is not None:
-            reason += f"; [query source]({query.relative_to(RUFF).as_posix()})"
+        if status == "FAIL":
+            receipt = path.resolve().relative_to(RUFF) if path.resolve().is_relative_to(RUFF) else path.resolve()
+            reason = f"[{failure_category(reason)}]({receipt.as_posix()})"
         reason = str(reason).replace("|", "\\|").replace("\n", " ")
         rendered.append(f"| {rule} | {status} | {reason} |")
     return "\n".join([

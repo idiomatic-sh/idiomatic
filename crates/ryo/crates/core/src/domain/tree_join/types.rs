@@ -8,15 +8,6 @@ use crate::domain::operating::types::NameCount;
 use crate::domain::table_cells::types::{ColumnPlaces, RowIndex};
 use crate::domain::table_scratch::types::{Candidates, ComparisonNumbers, TextVerdicts};
 
-/// A row looked up that finds its edge of the tree by the child the edge leads to: the edge's row, then the row looked up.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub(crate) struct EdgeHit {
-    /// The row of the edge among the edges of the tree.
-    pub edge: RowIndex,
-    /// The row looked up.
-    pub found: RowIndex,
-}
-
 /// Whether a comparison of the filter reads a column the elements lack.
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum ColumnLack {

@@ -163,6 +163,22 @@ fn setting<'a>(
     bindings: &'a [Vec<ParameterBinding>],
 ) -> VisitSetting<'a> {
     VisitSetting {
+        executor: &crate::application::file_dag::execution::CommonOperatorEngine,
+        operators: std::sync::Arc::new(
+            crate::domain::operator::contract::types::RequestOperators::prepare_with_schemas(
+                plans,
+                bindings,
+                &[],
+                &|relation| {
+                    if relation == Relation::Function {
+                        KINDS
+                    } else {
+                        ryo_language::domain::relations::service::kinds(relation)
+                    }
+                },
+            )
+            .expect("custom fixture relation metadata"),
+        ),
         unknown: &[],
         plans,
         bindings,

@@ -1,7 +1,7 @@
 //! Exact endpoint projection for repeated rows and invalid spans.
 
-use super::super::interface::OperatorsItem as _;
 use super::item::SpanBoundsItem;
+use crate::application::file_dag::testing::TestOperator as _;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::{Emit, Feed, InputPlace, OperatorContext, Room, Supply};
 use crate::domain::replay::types::Pipe;

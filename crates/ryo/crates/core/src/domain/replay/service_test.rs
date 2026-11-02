@@ -1,133 +1,26 @@
-//! The `replay` service's cases, on tables built in the cases.
-
-use ryo_language::domain::relations::types::{CellKind, FileId, Relation, Value as Cell};
-use ryo_language::domain::symbols::types::Symbols;
-
-use super::service::{derive, replay_computed, scan};
+//! Scan plus transport/key scenarios migrated from obsolete replay/hash facades.
+use super::service::scan;
 use super::types::{Collect, Pipe};
-use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::application::file_dag::testing::TestOperator as _;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::{Emit, Feed, InputPlace, OperatorContext, Room, Supply};
-use crate::domain::table_model::service::{copy_table, push_row};
+use crate::domain::operator::collections::operators::{
+    join::item::JoinItem, project::item::ProjectItem,
+};
+use crate::domain::table_model::errors::TableModelError;
+use crate::domain::table_model::service::push_row;
 use crate::domain::table_model::types::{RowCount, Rows, Table};
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
-use ryo_values::domain::plan_parts::types::Input as PlanInput;
-use ryo_values::domain::plan_parts::types::RepeatedRows;
+use ryo_language::domain::relations::types::{CellKind, FileId, Integer, Relation, Value};
+use ryo_language::domain::symbols::types::Symbols;
+use ryo_values::domain::plan_parts::types::{ColumnIndex, Input, JoinColumn, RepeatedRows, Side};
 use ryo_values::domain::plans::types::Operation;
-
-/// What a row of the cases does.
-#[derive(Clone, Copy)]
-enum Scenario {
-    /// Scans the three rows of a table into a table.
-    ScansATable,
-    /// Scans a table into a taker that refuses the first row.
-    TakerRefuses,
-    /// Derives the context of a step from the context of the step before it.
-    DerivesAContext,
-    /// Holds the two rows of an input, computes them again and passes them on.
-    ReplaysComputedRows,
-    /// Holds the input, and the computing refuses.
-    ComputingRefuses,
-}
-
-/// What a row of the cases does.
-type Input = Scenario;
-/// How many rows were passed on, or how many bytes of source the derived context reads.
-type Value = usize;
-type Failure = OperatingError;
-
 const SOURCE: &[u8] = b"replayed";
 
-/// A table of `rows` files, one column.
-fn files(rows: u32) -> Table {
-    let mut table = Table {
-        kinds: vec![CellKind::File],
-        ..Table::default()
-    };
-    for file in 0..rows {
-        push_row(&mut table, &[Cell::File(FileId(file))]);
-    }
-    table
-}
-
-/// An input that holds its table at hand.
-struct Held<'f> {
-    table: &'f Table,
-}
-
-impl<'f> Feed<'f> for Held<'f> {
-    fn kinds(&self, _which: InputPlace) -> Result<&[CellKind], OperatingError> {
-        Ok(&self.table.kinds)
-    }
-
-    fn found(&mut self, _which: InputPlace, _rows: RowCount) {}
-
-    fn streams(&self, _which: InputPlace) -> Supply {
-        Supply::AtHand
-    }
-
-    fn stream(
-        &mut self,
-        _which: InputPlace,
-        context: &mut OperatorContext<'_>,
-        emit: &mut dyn Emit,
-    ) -> Result<(), OperatingError> {
-        scan(&Rows::Computed(self.table), &mut Vec::new(), context, emit)
-    }
-
-    fn hold<'t>(
-        &mut self,
-        _which: InputPlace,
-        _context: &mut OperatorContext<'_>,
-        _into: &'t mut Table,
-    ) -> Result<Rows<'t>, OperatingError>
-    where
-        'f: 't,
-    {
-        Ok(Rows::Computed(self.table))
-    }
-}
-
-/// A step that reads one input.
-fn operation() -> Operation {
-    Operation::Project {
-        from: PlanInput::Relation(Relation::Function),
-        columns: Vec::new(),
-        distinct: RepeatedRows::Dropped,
-    }
-}
-
-/// Computes the rows of the input as they are.
-fn copy(
-    _operation: &Operation,
-    inputs: &[Rows<'_>],
-    _context: &mut OperatorContext<'_>,
-    out: &mut Table,
-) -> Result<(), OperatingError> {
-    match inputs.first() {
-        Some(Rows::Computed(table)) => {
-            copy_table(table, out);
-            Ok(())
-        }
-        _ => Err(OperatingError::NotRead),
-    }
-}
-
-/// Computes nothing, and refuses.
-fn refuse(
-    _operation: &Operation,
-    _inputs: &[Rows<'_>],
-    _context: &mut OperatorContext<'_>,
-    _out: &mut Table,
-) -> Result<(), OperatingError> {
-    Err(OperatingError::ShapeMismatch)
-}
-
-fn subject(scenario: Input) -> Result<Value, Failure> {
+fn context<T>(run: impl FnOnce(&mut OperatorContext<'_>) -> T) -> T {
     let mut symbols = Symbols::default();
-    let (mut memo, mut scratch) = (Vec::new(), OperatorScratch::default());
-    let mut context = OperatorContext {
+    run(&mut OperatorContext {
         prepared_kinds: None,
         prepared_matchers: None,
         stored_indexes: None,
@@ -138,98 +31,216 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         arenas: &[],
         memo: &mut Vec::new(),
         scratch: &mut OperatorScratch::default(),
+    })
+}
+fn files(count: u32) -> Table {
+    let mut table = Table {
+        kinds: vec![CellKind::File],
+        ..Table::default()
     };
-    match scenario {
-        Scenario::ScansATable => {
-            let (from, mut into) = (files(3), Table::default());
-            scan(
-                &Rows::Computed(&from),
-                &mut Vec::new(),
-                &mut context,
-                &mut Collect(&mut into),
-            )?;
-            Ok(into.count.0)
-        }
-        Scenario::TakerRefuses => {
-            let from = files(3);
-            let mut taker = Pipe(
-                |_: &mut OperatorContext<'_>, _: &[Cell]| -> Result<(), OperatingError> {
-                    Err(OperatingError::NotRun)
-                },
-            );
-            scan(
-                &Rows::Computed(&from),
-                &mut Vec::new(),
-                &mut context,
-                &mut taker,
-            )?;
-            Ok(0)
-        }
-        Scenario::DerivesAContext => {
-            let own = derive(&mut context, &mut memo, &mut scratch);
-            Ok(own.source.0.len())
-        }
-        Scenario::ReplaysComputedRows | Scenario::ComputingRefuses => {
-            let from = files(2);
-            let mut into = Table::default();
-            let compute = if matches!(scenario, Scenario::ComputingRefuses) {
-                refuse
-            } else {
-                copy
-            };
-            replay_computed(
-                &operation(),
-                &mut Held { table: &from },
-                &mut context,
-                &mut Room::default(),
-                &mut Collect(&mut into),
-                compute,
-            )?;
-            Ok(into.count.0)
-        }
+    for file in 0..count {
+        push_row(&mut table, &[Value::File(FileId(file))]);
+    }
+    table
+}
+struct Held<'f>(&'f Table);
+impl<'f> Feed<'f> for Held<'f> {
+    fn kinds(&self, _: InputPlace) -> Result<&[CellKind], OperatingError> {
+        Ok(&self.0.kinds)
+    }
+    fn found(&mut self, _: InputPlace, _: RowCount) {}
+    fn streams(&self, _: InputPlace) -> Supply {
+        Supply::AtHand
+    }
+    fn stream(
+        &mut self,
+        _: InputPlace,
+        context: &mut OperatorContext<'_>,
+        emit: &mut dyn Emit,
+    ) -> Result<(), OperatingError> {
+        scan(&Rows::Computed(self.0), &mut Vec::new(), context, emit)
+    }
+    fn hold<'t>(
+        &mut self,
+        _: InputPlace,
+        _: &mut OperatorContext<'_>,
+        _: &'t mut Table,
+    ) -> Result<Rows<'t>, OperatingError>
+    where
+        'f: 't,
+    {
+        Ok(Rows::Computed(self.0))
     }
 }
-
-/// The rows of this part's cases.
-const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName("a_scan_passes_on_every_row_of_a_table"),
-        word: Word::Succeeds,
-        input: || Scenario::ScansATable,
-        expect: Expect::Value(3),
-    },
-    Case {
-        name: CaseName("a_derived_context_reads_the_source_of_the_context_it_comes_from"),
-        word: Word::Succeeds,
-        input: || Scenario::DerivesAContext,
-        expect: Expect::Value(SOURCE.len()),
-    },
-    Case {
-        name: CaseName("a_step_that_holds_its_inputs_passes_on_the_rows_it_computes"),
-        word: Word::Succeeds,
-        input: || Scenario::ReplaysComputedRows,
-        expect: Expect::Value(2),
-    },
-    Case {
-        name: CaseName("a_scan_stops_at_the_row_the_taker_refuses"),
-        word: Word::Refuses,
-        input: || Scenario::TakerRefuses,
-        expect: Expect::Error(OperatingError::NotRun),
-    },
-    Case {
-        name: CaseName("rows_the_computing_refuses_are_not_passed_on"),
-        word: Word::Refuses,
-        input: || Scenario::ComputingRefuses,
-        expect: Expect::Error(OperatingError::ShapeMismatch),
-    },
-];
-
-#[test]
-fn succeeds() {
-    run(CASES, Word::Succeeds, subject);
+fn project(column: u32) -> Operation {
+    Operation::Project {
+        from: Input::Relation(Relation::Function),
+        columns: vec![ColumnIndex(column)],
+        distinct: RepeatedRows::Kept,
+    }
 }
-
 #[test]
-fn refuses() {
-    run(CASES, Word::Refuses, subject);
+fn a_scan_passes_on_every_row_of_a_table() {
+    context(|context| {
+        let from = files(3);
+        let mut into = Table::default();
+        scan(
+            &Rows::Computed(&from),
+            &mut Vec::new(),
+            context,
+            &mut Collect(&mut into),
+        )
+        .unwrap();
+        assert_eq!(into.cells, from.cells);
+    });
+}
+#[test]
+fn a_scan_stops_at_the_row_the_taker_refuses() {
+    context(|context| {
+        let mut calls = 0;
+        let mut sink = Pipe(|_: &mut OperatorContext<'_>, _: &[Value]| {
+            calls += 1;
+            Err(OperatingError::NotRun)
+        });
+        assert_eq!(
+            scan(
+                &Rows::Computed(&files(3)),
+                &mut Vec::new(),
+                context,
+                &mut sink
+            ),
+            Err(OperatingError::NotRun)
+        );
+        assert_eq!(calls, 1);
+    });
+}
+#[test]
+fn the_engine_sink_reads_the_original_source_context() {
+    context(|context| {
+        let from = files(2);
+        let mut observed = Vec::new();
+        let mut sink = Pipe(|own: &mut OperatorContext<'_>, row: &[Value]| {
+            assert_eq!(own.source.0, SOURCE);
+            observed.push(row[0]);
+            Ok(())
+        });
+        ProjectItem
+            .stream(
+                &project(0),
+                &mut Held(&from),
+                context,
+                &mut Room::default(),
+                &mut sink,
+            )
+            .unwrap();
+        assert_eq!(observed, from.cells);
+    });
+}
+#[test]
+fn a_real_step_passes_on_the_rows_it_computes() {
+    context(|context| {
+        let from = files(2);
+        let mut into = Table::default();
+        ProjectItem
+            .stream(
+                &project(0),
+                &mut Held(&from),
+                context,
+                &mut Room::default(),
+                &mut Collect(&mut into),
+            )
+            .unwrap();
+        assert_eq!(into.cells, from.cells);
+    });
+}
+#[test]
+fn rows_the_real_computation_refuses_are_not_passed_on() {
+    context(|context| {
+        let from = files(2);
+        let mut calls = 0;
+        let mut sink = Pipe(|_: &mut OperatorContext<'_>, _: &[Value]| {
+            calls += 1;
+            Ok(())
+        });
+        let result = ProjectItem.stream(
+            &project(99),
+            &mut Held(&from),
+            context,
+            &mut Room::default(),
+            &mut sink,
+        );
+        assert_eq!(
+            result,
+            Err(OperatingError::Table(TableModelError::NoSuchColumn {
+                index: 99
+            }))
+        );
+        assert_eq!(calls, 0);
+    });
+}
+fn indexed_join(key: i64, column: u32) -> Result<Table, OperatingError> {
+    let mut left = Table {
+        kinds: vec![CellKind::Number],
+        ..Table::default()
+    };
+    push_row(&mut left, &[Value::Number(Integer(key))]);
+    let mut right = Table {
+        kinds: vec![CellKind::Number, CellKind::Number],
+        ..Table::default()
+    };
+    for row in [[1, 10], [2, 20], [1, 30]] {
+        push_row(&mut right, &row.map(|value| Value::Number(Integer(value))));
+    }
+    let operation = Operation::Join {
+        left: Input::Relation(Relation::Function),
+        right: Input::Relation(Relation::Function),
+        left_on: vec![ColumnIndex(column)],
+        right_on: vec![ColumnIndex(0)],
+        output: vec![JoinColumn {
+            side: Side::Right,
+            column: ColumnIndex(1),
+        }],
+        filter: vec![],
+        view: vec![],
+        reach: None,
+    };
+    context(|context| {
+        let mut out = Table::default();
+        JoinItem.compute(
+            &operation,
+            &[Rows::Computed(&left), Rows::Computed(&right)],
+            context,
+            &mut out,
+        )?;
+        Ok(out)
+    })
+}
+#[test]
+fn a_key_finds_the_rows_that_have_it_in_input_order() {
+    assert_eq!(
+        indexed_join(1, 0).unwrap().cells,
+        [Value::Number(Integer(10)), Value::Number(Integer(30))]
+    );
+}
+#[test]
+fn a_key_no_row_has_finds_nothing() {
+    assert_eq!(indexed_join(9, 0).unwrap().count.0, 0);
+}
+#[test]
+fn a_join_row_without_its_key_column_is_refused() {
+    assert!(matches!(
+        indexed_join(1, 3),
+        Err(OperatingError::Table(TableModelError::NoSuchColumn {
+            index: 3
+        }))
+    ));
+}
+#[test]
+fn computed_inputs_use_the_common_typed_index_without_a_native_tree_finding() {
+    // Replaces the deleted HashItem.applies(None) dispatch-shell assertion with
+    // its actual execution behavior. Native node/span routes retain their own tests.
+    assert_eq!(
+        indexed_join(2, 0).unwrap().cells,
+        [Value::Number(Integer(20))]
+    );
 }

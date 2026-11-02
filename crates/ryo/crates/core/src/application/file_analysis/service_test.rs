@@ -54,6 +54,8 @@ fn syntax_applicability_skips_only_gated_rules_and_names_the_reason() {
             .expect("empty matcher"),
     };
     let setting = VisitSetting {
+        executor: &crate::application::file_dag::execution::CommonOperatorEngine,
+        operators: crate::application::file_dag::testing::request_fixture(&plans, &[], &[]),
         plans: &plans,
         bindings: &[],
         wanted: &[Relation::Function, Relation::Identifier],
@@ -171,12 +173,18 @@ fn assert_accepted_and_missing_applicability(setting: &VisitSetting<'_>) {
         [Relation::Function, Relation::Identifier]
     );
     let always_setting = VisitSetting {
+        executor: &crate::application::file_dag::execution::CommonOperatorEngine,
+        operators: crate::application::file_dag::testing::request_fixture(
+            &setting.plans[1..],
+            &[],
+            &[],
+        ),
         plans: &setting.plans[1..],
         ids: &setting.ids[1..],
         applicability: &setting.applicability[1..],
         applicability_can_gate: false,
         needs: &setting.needs[1..],
-        ..*setting
+        ..setting.clone()
     };
     assert!(matches!(
         FileAnalysis::active_wanted(&tables, &always_setting, SyntaxAcceptance::Rejected),
@@ -195,7 +203,7 @@ fn assert_accepted_and_missing_applicability(setting: &VisitSetting<'_>) {
     let missing_policy = VisitSetting {
         applicability: &[],
         applicability_can_gate: true,
-        ..*setting
+        ..setting.clone()
     };
     assert!(FileAnalysis::may_gate_rules(
         &missing_policy,
@@ -451,6 +459,8 @@ fn visited_as(
     let visit = FileVisit {
         store: None,
         setting: VisitSetting {
+            executor: &crate::application::file_dag::execution::CommonOperatorEngine,
+            operators: crate::application::file_dag::testing::request_fixture(&[], &[], &[]),
             unknown: &[],
             plans: &[],
             bindings: &[],
@@ -863,6 +873,8 @@ fn a_bad_last_captured_bucket_calls_no_digest_even_after_a_valid_rule_bucket() {
     let visit = FileVisit {
         store: None,
         setting: VisitSetting {
+            executor: &crate::application::file_dag::execution::CommonOperatorEngine,
+            operators: crate::application::file_dag::testing::request_fixture(&plans, &[], &[]),
             plans: &plans,
             bindings: &[],
             wanted: &[],
@@ -1183,6 +1195,8 @@ fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() 
     let visit = FileVisit {
         store: Some(snapshot.as_ref()),
         setting: VisitSetting {
+            executor: &crate::application::file_dag::execution::CommonOperatorEngine,
+            operators: crate::application::file_dag::testing::request_fixture(&[], &[], &[]),
             plans: &[],
             bindings: &[],
             wanted: &[],
@@ -1212,7 +1226,7 @@ fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() 
     let all_visit = FileVisit {
         setting: VisitSetting {
             wanted_buckets: &BucketsWanted::All,
-            ..visit.setting
+            ..visit.setting.clone()
         },
         store: visit.store,
     };
@@ -1275,7 +1289,7 @@ fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() 
         setting: VisitSetting {
             stored: &persisted,
             handed: &old_handed,
-            ..visit.setting
+            ..visit.setting.clone()
         },
     };
     FileAnalysis::hand_again(

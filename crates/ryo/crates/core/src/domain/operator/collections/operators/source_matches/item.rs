@@ -1,66 +1,15 @@
 //! Match physical source bytes inside a checked span and append exact occurrence spans.
-
 use super::super::interface::OperatorsItem;
 use crate::domain::operating::errors::OperatingError;
-use crate::domain::operating::service::first;
-use crate::domain::operating::types::{Emit, Feed, InputPlace, OperatorContext, Room};
-use crate::domain::replay::types::{Collect, Pipe};
-use crate::domain::table_model::service::{cell, count_of, kinds_of, positions, read_row, reset};
-use crate::domain::table_model::types::{Rows, Table};
-use regex_automata::meta::Regex;
-use ryo_language::domain::relations::constants::NO_SPAN;
-use ryo_language::domain::relations::types::{CellKind, Integer, Offset, Span, Value};
+use crate::domain::operator::contract::types::{
+    OperatorContract, PreparedInputs, PrimitiveLease, RowSink,
+};
+use crate::domain::table_model::types::ParameterBinding;
+use ryo_language::domain::relations::types::{Integer, Offset, Span, Value};
 use ryo_language::domain::symbols::service::query_intern_derived;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::terms::types::NameText;
-use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::plans::types::Operation;
-
-/// Return the physical text only after validating the whole input span. An absent
-/// span carries no occurrences; malformed boundaries fail before the row emits.
-fn source_slice<'a>(
-    row: &[Value],
-    span: ColumnIndex,
-    source: &'a [u8],
-) -> Result<Option<(usize, &'a str)>, OperatingError> {
-    let Value::Span(span) = cell(row, span)? else {
-        return Err(OperatingError::ShapeMismatch);
-    };
-    if span == NO_SPAN {
-        return Ok(None);
-    }
-    let start =
-        usize::try_from(span.start.0).map_err(|_| OperatingError::InvalidSourceMatchSpan)?;
-    let end = usize::try_from(span.end.0).map_err(|_| OperatingError::InvalidSourceMatchSpan)?;
-    if start > end {
-        return Err(OperatingError::InvalidSourceMatchSpan);
-    }
-    let bytes = source
-        .get(start..end)
-        .ok_or(OperatingError::InvalidSourceMatchSpan)?;
-    let text =
-        std::str::from_utf8(bytes).map_err(|_error| OperatingError::InvalidSourceMatchSpan)?;
-    Ok(Some((start, text)))
-}
-
-fn ready<'a>(
-    pattern: &str,
-    prepared: Option<&'a crate::domain::matching::types::prepared::value::PreparedMatchers>,
-    local: &'a mut Option<Regex>,
-) -> Result<&'a Regex, OperatingError> {
-    if let Some(found) = prepared.and_then(|prepared| prepared.regex(pattern)) {
-        return found;
-    }
-    if local.is_none() {
-        *local = Some(
-            Regex::new(pattern).map_err(|error| OperatingError::InvalidRegex {
-                reason: error.to_string(),
-            })?,
-        );
-    }
-    local.as_ref().ok_or(OperatingError::WrongBinding)
-}
-
+use ryo_values::domain::plans::types::{Operation, OperationKind};
 /// Advance only to the next match start. CRLF counts once after LF; a match at
 /// the LF byte still belongs to the preceding physical line.
 fn advance_line(
@@ -105,37 +54,27 @@ fn advance_line(
 
 fn occurrences(
     row: &[Value],
-    span: ColumnIndex,
-    base_line: Option<ColumnIndex>,
-    pattern: &str,
     capture: Option<&str>,
     capture_text: bool,
     capture_line: bool,
-    context: &mut OperatorContext<'_>,
-    local: &mut Option<Regex>,
+    lease: &mut PrimitiveLease<'_>,
     joined: &mut Vec<Value>,
-    emit: &mut dyn Emit,
+    emit: &mut dyn RowSink,
 ) -> Result<(), OperatingError> {
-    if (capture_text || capture_line) && capture.is_none() || capture_line && base_line.is_none() {
+    if (capture_text || capture_line) && capture.is_none() {
         return Err(OperatingError::WrongOperation);
     }
-    let source = context.source.0;
-    let Some((base, text)) = source_slice(row, span, source)? else {
-        return Ok(());
-    };
-    let mut line = if let Some(column) = base_line {
-        let Value::Number(Integer(number)) = cell(row, column)? else {
-            return Err(OperatingError::ShapeMismatch);
-        };
-        if number <= 0 {
-            return Err(OperatingError::InvalidSourceMatchSpan);
-        }
-        Some(number)
-    } else {
-        None
-    };
-    let prepared = context.prepared_matchers;
-    let regex = ready(pattern, prepared, local)?;
+    let source = lease.views.source.0;
+    let checked = lease
+        .views
+        .validated_source
+        .ok_or(OperatingError::WrongBinding)?;
+    if capture_line && checked.line.is_none() {
+        return Err(OperatingError::WrongOperation);
+    }
+    let (base, text) = (checked.base, checked.text);
+    let mut line = checked.line;
+    let regex = lease.views.regex.ok_or(OperatingError::WrongBinding)?;
     if let Some(name) = capture
         && regex
             .group_info()
@@ -216,7 +155,7 @@ fn occurrences(
                 // symbol would move `sources` past existing derived provider names
                 // (including comments), corrupting their text resolution.
                 joined.push(Value::Symbol(query_intern_derived(
-                    &mut context.symbols,
+                    &mut lease.derived,
                     ByteSlice(source),
                     NameText(captured_text),
                 )));
@@ -227,7 +166,7 @@ fn occurrences(
                 )));
             }
         }
-        emit.row(context, joined)?;
+        emit.row(lease, joined)?;
         Ok(())
     };
     if let Some(name) = capture {
@@ -248,80 +187,32 @@ fn occurrences(
     Ok(())
 }
 
-/// Physical occurrence search, preserving input bag/order and regex match order.
 pub(crate) struct SourceMatchesItem;
-
 impl OperatorsItem for SourceMatchesItem {
-    fn compute(
+    fn prepare(
         &self,
         operation: &Operation,
-        inputs: &[Rows<'_>],
-        context: &mut OperatorContext<'_>,
-        out: &mut Table,
-    ) -> Result<(), OperatingError> {
-        let Operation::SourceMatches {
-            span,
-            base_line,
-            pattern,
-            capture,
-            capture_text,
-            capture_line,
-            ..
-        } = operation
-        else {
-            return Err(OperatingError::WrongOperation);
-        };
-        let input = first(inputs)?;
-        reset(out, kinds_of(input));
-        out.kinds.push(CellKind::Span);
-        if base_line.is_some() {
-            out.kinds.push(CellKind::Number);
-        }
-        if capture.is_some() {
-            out.kinds.push(CellKind::Span);
-            if *capture_text {
-                out.kinds.push(CellKind::Symbol);
-            }
-            if *capture_line {
-                out.kinds.push(CellKind::Number);
-            }
-        }
-        let mut row = Vec::new();
-        let mut joined = Vec::new();
-        let mut local = None;
-        for at in positions(count_of(input)) {
-            let Some(each) = read_row(input, at, &mut row) else {
-                continue;
-            };
-            occurrences(
-                each,
-                *span,
-                *base_line,
-                &pattern.0,
-                capture.as_ref().map(|name| name.0.as_ref()),
-                *capture_text,
-                *capture_line,
-                context,
-                &mut local,
-                &mut joined,
-                &mut Collect(out),
-            )?;
-        }
-        Ok(())
+        inputs: &[crate::domain::operation_schema::types::InputSchema<'_>],
+        bindings: &[ParameterBinding],
+    ) -> Result<OperatorContract, OperatingError> {
+        crate::domain::operator::contract::service::prepare_for(
+            OperationKind::SourceMatches,
+            operation,
+            inputs,
+            bindings,
+        )
     }
-
-    fn stream(
+    fn evaluate(
         &self,
         operation: &Operation,
-        ins: &mut dyn Feed<'_>,
-        context: &mut OperatorContext<'_>,
-        room: &mut Room,
-        emit: &mut dyn Emit,
+        inputs: PreparedInputs<'_>,
+        lease: &mut PrimitiveLease<'_>,
+        emit: &mut dyn RowSink,
     ) -> Result<(), OperatingError> {
+        let PreparedInputs::Row { row, .. } = inputs else {
+            return Err(OperatingError::WrongOperation);
+        };
         let Operation::SourceMatches {
-            span,
-            base_line,
-            pattern,
             capture,
             capture_text,
             capture_line,
@@ -330,28 +221,17 @@ impl OperatorsItem for SourceMatchesItem {
         else {
             return Err(OperatingError::WrongOperation);
         };
-        let mut joined = std::mem::take(&mut room.scratch.row);
-        let mut local = None;
-        let result = ins.stream(
-            InputPlace(0),
-            context,
-            &mut Pipe(|each: &mut OperatorContext<'_>, row: &[Value]| {
-                occurrences(
-                    row,
-                    *span,
-                    *base_line,
-                    &pattern.0,
-                    capture.as_ref().map(|name| name.0.as_ref()),
-                    *capture_text,
-                    *capture_line,
-                    each,
-                    &mut local,
-                    &mut joined,
-                    emit,
-                )
-            }),
+        let mut joined = std::mem::take(lease.workspace.row);
+        let result = occurrences(
+            row,
+            capture.as_ref().map(|name| name.0.as_ref()),
+            *capture_text,
+            *capture_line,
+            lease,
+            &mut joined,
+            emit,
         );
-        room.scratch.row = joined;
+        *lease.workspace.row = joined;
         result
     }
 }
