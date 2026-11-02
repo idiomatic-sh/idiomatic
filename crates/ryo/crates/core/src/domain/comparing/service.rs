@@ -14,6 +14,7 @@ use crate::domain::comparing::collections::comparisons::ordering::item::Ordering
 use crate::domain::functions::types::MadeText;
 use crate::domain::globbing::service::{compile, matches_compiled};
 use crate::domain::globbing::types::{CompiledGlobs, GlobMatch, GlobText, Subject};
+use crate::domain::matching::types::prepared::value::PreparedMatchers;
 use crate::domain::operands::service::resolve;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::service::family_of;
@@ -78,6 +79,7 @@ fn holds(
     row: &[Value],
     bindings: &[ParameterBinding],
     texts: &Texts<'_>,
+    prepared: Option<&PreparedMatchers>,
     compiled: &mut hashbrown::HashMap<ComparisonSlot, CompiledGlobs>,
     regexes: &mut crate::domain::table_scratch::types::Patterns,
 ) -> Result<Verdict, OperatingError> {
@@ -90,9 +92,15 @@ fn holds(
         Family::FloatText => FloatTextItem.holds(comparison.test, &left, &right),
         Family::Membership => MembershipItem.holds(comparison.test, &left, &right),
         Family::Affix => AffixItem.holds(comparison.test, &left, &right),
-        Family::Regex => crate::domain::matching::service::matches(&left, &right, regexes),
+        Family::Regex => crate::domain::matching::service::matches_prepared(
+            &left,
+            &right,
+            prepared
+                .filter(|_| matches!(comparison.right, Operand::Literal(QueryLiteral::Text(_)))),
+            regexes,
+        ),
         Family::Glob => {
-            if let Some(verdict) = compiled_glob(comparison, &left, &right, compiled) {
+            if let Some(verdict) = compiled_glob(comparison, &left, &right, prepared, compiled) {
                 return Ok(verdict);
             }
             GlobItem.holds(comparison.test, &left, &right)
@@ -105,11 +113,24 @@ fn compiled_glob(
     comparison: &Comparison,
     left: &Datum<'_>,
     right: &Datum<'_>,
+    prepared: Option<&PreparedMatchers>,
     compiled: &mut hashbrown::HashMap<ComparisonSlot, CompiledGlobs>,
 ) -> Option<Verdict> {
     let Datum::Text(text) = left else {
         return None;
     };
+    if let (Some(prepared), Operand::Literal(QueryLiteral::Text(pattern))) =
+        (prepared, &comparison.right)
+        && let Some(ready) = prepared.glob(comparison.test, &pattern.0)
+    {
+        return matches_compiled(ready, Subject(text.0)).map(|matched| {
+            if (matched == GlobMatch::Matches) == (comparison.test == Test::GlobAny) {
+                Verdict::Holds
+            } else {
+                Verdict::Fails
+            }
+        });
+    }
     if !columns_of(&comparison.right).is_empty() {
         return None;
     }
@@ -204,6 +225,7 @@ fn holds_one(
         return Ok(verdict);
     }
     let OperatorContext {
+        prepared_matchers,
         bindings,
         symbols,
         source,
@@ -243,6 +265,7 @@ fn holds_one(
             row,
             bindings,
             &texts,
+            *prepared_matchers,
             &mut select.compiled_globs,
             &mut select.compiled_regexes,
         )?;
@@ -276,6 +299,7 @@ fn holds_one(
                         row,
                         bindings,
                         &texts,
+                        *prepared_matchers,
                         &mut select.compiled_globs,
                         &mut select.compiled_regexes,
                     )?;

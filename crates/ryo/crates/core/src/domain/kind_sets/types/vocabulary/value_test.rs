@@ -75,6 +75,7 @@ fn prepared_masks_reuse_exact_vocabulary_without_per_row_setup() {
         let mut memo = Vec::new();
         let mut context = OperatorContext {
             prepared_kinds: Some(&prepared),
+            prepared_matchers: None,
             stored_indexes: None,
             bindings: &[],
             symbols: &mut symbols,
@@ -127,6 +128,7 @@ fn prepared_vocabulary_replacement_preserves_live_old_masks_and_test_identity() 
         let mut memo = Vec::new();
         let mut context = OperatorContext {
             prepared_kinds: Some(&prepared),
+            prepared_matchers: None,
             stored_indexes: None,
             bindings: &[],
             symbols: &mut symbols,
@@ -213,6 +215,7 @@ fn dynamic_kind_patterns_do_not_enter_prepared_metadata() {
     let mut memo = Vec::new();
     let mut context = OperatorContext {
         prepared_kinds: Some(&prepared),
+        prepared_matchers: None,
         stored_indexes: None,
         bindings: &[],
         symbols: &mut symbols,
@@ -279,6 +282,7 @@ fn prepared_masks_match_uncached_select_outputs() {
             let mut memo = Vec::new();
             let mut context = OperatorContext {
                 prepared_kinds: metadata,
+                prepared_matchers: None,
                 stored_indexes: None,
                 bindings: &[],
                 symbols: &mut symbols,

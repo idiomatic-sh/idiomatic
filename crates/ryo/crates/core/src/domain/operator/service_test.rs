@@ -121,6 +121,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     let mut symbols = Symbols::default();
     let mut context = OperatorContext {
         prepared_kinds: None,
+        prepared_matchers: None,
         stored_indexes: None,
         bindings: &[],
         symbols: &mut symbols,

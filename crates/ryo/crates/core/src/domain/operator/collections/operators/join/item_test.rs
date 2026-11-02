@@ -96,6 +96,7 @@ fn made(
     let mut out = Table::default();
     let mut context = OperatorContext {
         prepared_kinds: None,
+        prepared_matchers: None,
         stored_indexes: None,
         bindings: &[],
         symbols,
@@ -460,6 +461,7 @@ fn stream_with_indexes(
     let mut scratch = OperatorScratch::default();
     let mut context = OperatorContext {
         prepared_kinds: None,
+        prepared_matchers: None,
         stored_indexes,
         bindings: &[],
         symbols: &mut symbols,
@@ -1308,6 +1310,7 @@ fn shared_index_handle_releases_mutable_cache_borrow_before_nested_emission() {
     let mut scratch = OperatorScratch::default();
     let mut context = OperatorContext {
         prepared_kinds: None,
+        prepared_matchers: None,
         stored_indexes: Some(&mut cache),
         bindings: &[],
         symbols: &mut symbols,

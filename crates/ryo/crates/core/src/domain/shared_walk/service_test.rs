@@ -213,6 +213,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 let mut memo = Vec::new();
                 let mut context = OperatorContext {
                     prepared_kinds: None,
+                    prepared_matchers: None,
                     stored_indexes: None,
                     bindings: &[],
                     symbols: &mut tables.symbols,
@@ -268,6 +269,7 @@ fn native_file_outputs_drop_before_an_empty_next_generation() {
     use crate::domain::shared_walk::types::{MergedWalk, SharedClasses};
     let mut shared = MergedWalk::default();
     let mut classes = SharedClasses {
+        matchers: None,
         kind_vocabulary: None,
         classes: vec![Slots(vec![0; 4096])],
         merged: vec![super::types::Merged::Together],

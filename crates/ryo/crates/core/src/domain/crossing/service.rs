@@ -166,6 +166,7 @@ pub(crate) fn cross_rule(
     let table = {
         let mut context = OperatorContext {
             prepared_kinds: None,
+            prepared_matchers: None,
             stored_indexes: None,
             bindings: bound,
             symbols: cross,

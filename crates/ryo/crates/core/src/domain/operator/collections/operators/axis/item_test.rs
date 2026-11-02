@@ -72,6 +72,7 @@ fn compute(
     let mut out = Table::default();
     let mut context = OperatorContext {
         prepared_kinds: None,
+        prepared_matchers: None,
         stored_indexes: None,
         bindings,
         symbols: &mut symbols,
@@ -170,6 +171,7 @@ fn over_the_tree(
     let mut out = Table::default();
     let mut context = OperatorContext {
         prepared_kinds: None,
+        prepared_matchers: None,
         stored_indexes: None,
         bindings: &[],
         symbols: &mut symbols,
@@ -368,6 +370,7 @@ fn sparse_computed_walk_work_is_rooted() -> Result<Value, OperatingError> {
             let mut out = Table::default();
             let mut context = OperatorContext {
                 prepared_kinds: None,
+                prepared_matchers: None,
                 stored_indexes: None,
                 bindings: &[],
                 symbols: &mut symbols,
@@ -535,6 +538,7 @@ fn compact_axes_equal_ordinary_bfs_and_direct_bags_across_rules() {
         {
             let mut context = OperatorContext {
                 prepared_kinds: None,
+                prepared_matchers: None,
                 stored_indexes: None,
                 bindings: &[],
                 symbols: &mut symbols,
@@ -560,6 +564,7 @@ fn compact_axes_equal_ordinary_bfs_and_direct_bags_across_rules() {
         {
             let mut context = OperatorContext {
                 prepared_kinds: None,
+                prepared_matchers: None,
                 stored_indexes: Some(&mut cache),
                 bindings: &[],
                 symbols: &mut symbols,

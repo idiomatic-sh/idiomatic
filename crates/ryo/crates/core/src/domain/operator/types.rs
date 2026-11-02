@@ -27,9 +27,11 @@ pub(crate) struct Pool {
     pub partial: Vec<crate::domain::coverage::types::Partial>,
 }
 
-/// Request-owned immutable schemas/programs and cumulative counters; no execution payload.
+/// Request-owned immutable schemas/programs, literal matchers and counters; no row payload.
 #[derive(Debug, Default)]
 pub(crate) struct PreparedPool {
+    /// Finite authored literal matcher slots shared by this worker's rule/file invocations.
+    pub matchers: std::sync::Arc<crate::domain::matching::types::prepared::value::PreparedMatchers>,
     /// One exact active vocabulary and immutable literal-kind metadata; replaced on vocabulary change.
     pub kind_vocabulary:
         Option<std::sync::Arc<crate::domain::kind_sets::types::PreparedVocabulary>>,
@@ -50,7 +52,7 @@ pub(crate) struct PreparedPool {
 pub(crate) struct RuleWorkspace {
     /// Tables, rooms, and lowered temporary positions for this rule only.
     pub pool: Pool,
-    /// Row-dependent scratch and lazy matcher caches have this exact invocation lifetime.
+    /// Row-dependent scratch and dynamic matcher caches have this exact invocation lifetime.
     pub scratch: crate::domain::table_scratch::types::OperatorScratch,
     /// Comparisons remembered only within this invocation.
     pub memo: Vec<crate::domain::operating::types::Memo>,

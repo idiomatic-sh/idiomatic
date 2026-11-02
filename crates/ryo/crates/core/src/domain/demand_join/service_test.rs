@@ -48,6 +48,7 @@ fn compute(
     let mut out = Table::default();
     let mut context = OperatorContext {
         prepared_kinds: None,
+        prepared_matchers: None,
         stored_indexes: cache,
         bindings: &[],
         symbols: &mut symbols,
@@ -116,6 +117,7 @@ fn demanded_partitioned_projected_keys_equal_ordinary_join_in_exact_row_order() 
     let mut symbols = Symbols::default();
     let mut context = OperatorContext {
         prepared_kinds: None,
+        prepared_matchers: None,
         stored_indexes: None,
         bindings: &[],
         symbols: &mut symbols,

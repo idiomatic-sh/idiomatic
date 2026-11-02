@@ -90,6 +90,7 @@ fn projection_constructs_only_the_group_it_uses_and_keeps_bags() {
         let mut out = Table::default();
         let mut context = OperatorContext {
             prepared_kinds: None,
+            prepared_matchers: None,
             stored_indexes: None,
             bindings: &[],
             symbols: &mut symbols,
@@ -163,6 +164,7 @@ fn dynamic_regex_initialization_is_execution_local_and_lazy() {
         let mut memo = Vec::new();
         let mut context = OperatorContext {
             prepared_kinds: None,
+            prepared_matchers: None,
             stored_indexes: None,
             bindings: &[],
             symbols: &mut symbols,

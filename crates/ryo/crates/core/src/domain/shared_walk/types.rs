@@ -86,6 +86,9 @@ pub(crate) struct WalkWork {
 /// File-live outputs of the native pass, borrowed by each independent rule invocation.
 #[derive(Debug, Default)]
 pub(crate) struct SharedClasses {
+    /// Request metadata shared by the native walk and each rule invocation.
+    pub matchers:
+        Option<std::sync::Arc<crate::domain::matching::types::prepared::value::PreparedMatchers>>,
     /// Prepared literal masks for this file's exact vocabulary, without provider references.
     pub kind_vocabulary:
         Option<std::sync::Arc<crate::domain::kind_sets::types::PreparedVocabulary>>,
@@ -134,6 +137,8 @@ pub(crate) enum ElementReading {
 
 /// What deciding an element for a class works with, kept for the whole pass over a file.
 pub(crate) struct Pass<'a> {
+    /// Literal matcher slots borrowed from the request, without row ownership.
+    pub matchers: Option<&'a crate::domain::matching::types::prepared::value::PreparedMatchers>,
     /// What each rule binds its parameters to.
     pub bindings: &'a [Vec<ParameterBinding>],
     /// The path of each file of the run.

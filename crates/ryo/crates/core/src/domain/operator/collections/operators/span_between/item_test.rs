@@ -75,6 +75,7 @@ fn subject((left, right, source): Input) -> Result<Span, Failure> {
     let mut scratch = OperatorScratch::default();
     let mut context = OperatorContext {
         prepared_kinds: None,
+        prepared_matchers: None,
         stored_indexes: None,
         bindings: &[],
         symbols: &mut symbols,

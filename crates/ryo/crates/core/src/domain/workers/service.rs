@@ -41,6 +41,9 @@ pub(crate) fn tables_for(
         words: Words::default(),
         packed: PackedWords::default(),
         pool: PreparedPool {
+            matchers: std::sync::Arc::new(
+                crate::domain::matching::types::prepared::value::PreparedMatchers::new(plans),
+            ),
             layouts: Vec::with_capacity(plans.len()),
             fed: Vec::with_capacity(plans.len()),
             unlowered,

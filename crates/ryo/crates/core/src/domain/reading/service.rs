@@ -138,6 +138,7 @@ pub(crate) fn evaluate_rule<'f>(
     {
         let mut context = OperatorContext {
             prepared_kinds: classes.kind_vocabulary.as_deref(),
+            prepared_matchers: classes.matchers.as_deref(),
             stored_indexes,
             bindings: bound,
             symbols: &mut tables.symbols,

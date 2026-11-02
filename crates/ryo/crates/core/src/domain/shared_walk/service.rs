@@ -69,6 +69,7 @@ fn consider(
     let index = usize::try_from(position.0).unwrap_or(usize::MAX);
     let mut context = OperatorContext {
         prepared_kinds: None,
+        prepared_matchers: pass.matchers,
         stored_indexes: None,
         bindings: bound,
         symbols: &mut *pass.symbols,
@@ -219,6 +220,7 @@ pub(crate) fn walk(shared: &mut MergedWalk, walking: Walking<'_>) {
         };
         let mut context = OperatorContext {
             prepared_kinds: room.kind_vocabulary.as_deref(),
+            prepared_matchers: room.matchers.as_deref(),
             stored_indexes: None,
             bindings: bound,
             symbols: &mut *symbols,
@@ -273,6 +275,7 @@ pub(crate) fn walk(shared: &mut MergedWalk, walking: Walking<'_>) {
     let tree_rows = Rows::Tree(tree);
     let element_kinds = kinds_of(&tree_rows);
     let mut pass = Pass {
+        matchers: room.matchers.as_deref(),
         bindings,
         paths,
         tree,

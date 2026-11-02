@@ -53,6 +53,7 @@ fn subject((keys, binding): Input) -> Result<Value, Failure> {
     let mut out = Table::default();
     let mut context = OperatorContext {
         prepared_kinds: None,
+        prepared_matchers: None,
         stored_indexes: None,
         bindings: &bound,
         symbols: &mut symbols,

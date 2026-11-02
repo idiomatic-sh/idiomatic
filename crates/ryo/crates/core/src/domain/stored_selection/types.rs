@@ -15,6 +15,8 @@ pub(crate) struct Selector {
     pub identity: Arc<crate::domain::table_model::types::SelectionIdentity>,
     /// Physical columns corresponding to the step's output.
     pub columns: Vec<ColumnIndex>,
+    /// Drop duplicate projected tuples at this terminal step only.
+    pub distinct: bool,
 }
 
 /// Immutable selector descriptors for one plan and its request bindings.
@@ -24,7 +26,7 @@ pub(crate) struct PreparedPlan {
     pub identity: SelectionPlanId,
     /// Request values that determine the prepared program, checked before reuse across visits.
     pub bound: Vec<crate::domain::table_model::types::ParameterBinding>,
-    /// Eligible direct/chain selectors and non-distinct projections by step index.
+    /// Eligible direct/chain selectors and terminal projections by step index.
     pub steps: Vec<Option<Arc<Selector>>>,
 }
 

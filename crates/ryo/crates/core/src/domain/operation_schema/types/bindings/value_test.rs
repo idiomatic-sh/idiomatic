@@ -266,6 +266,7 @@ fn execution_boundary(scenario: Scenario) -> Result<Value, Failure> {
     let mut memo = Vec::new();
     let mut context = OperatorContext {
         prepared_kinds: None,
+        prepared_matchers: None,
         stored_indexes: None,
         bindings: &bindings,
         symbols: &mut symbols,

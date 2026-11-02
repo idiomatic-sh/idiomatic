@@ -19,7 +19,7 @@ use ryo_language::domain::relations::types::{
 };
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, Comparison, Input as Source, Operand, ParameterId, Test, WholeNumber,
+    ColumnIndex, Comparison, Input as Source, Operand, ParameterId, RepeatedRows, Test, WholeNumber,
 };
 use ryo_values::domain::plans::types::Operation;
 use std::sync::Arc;
@@ -67,6 +67,7 @@ fn program(value: i64) -> Arc<Selector> {
             bindings: vec![ParameterBinding::Number(WholeNumber(value))],
         }),
         columns: vec![ColumnIndex(1), ColumnIndex(0), ColumnIndex(1)],
+        distinct: false,
     })
 }
 
@@ -75,6 +76,7 @@ fn baseline(source: ColumnsView<'_>, program: &Selector) -> Result<Table, Failur
     let mut symbols = Symbols::default();
     let mut context = OperatorContext {
         prepared_kinds: None,
+        prepared_matchers: None,
         stored_indexes: None,
         bindings: &program.identity.bindings,
         symbols: &mut symbols,
@@ -87,10 +89,28 @@ fn baseline(source: ColumnsView<'_>, program: &Selector) -> Result<Table, Failur
     let operation = Operation::Select {
         from: Source::Relation(Relation::Function),
         comparisons: program.identity.comparisons.clone(),
-        kept: program.columns.clone(),
+        kept: if program.distinct {
+            Vec::new()
+        } else {
+            program.columns.clone()
+        },
     };
     let mut out = Table::default();
     compute(&operation, &[Rows::Stored(source)], &mut context, &mut out)?;
+    if program.distinct {
+        let mut projected = Table::default();
+        compute(
+            &Operation::Project {
+                from: Source::Relation(program.relation),
+                columns: program.columns.clone(),
+                distinct: RepeatedRows::Dropped,
+            },
+            &[Rows::Computed(&out)],
+            &mut context,
+            &mut projected,
+        )?;
+        return Ok(projected);
+    }
     Ok(out)
 }
 
@@ -129,6 +149,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     let mut symbols = Symbols::default();
     let mut context = OperatorContext {
         prepared_kinds: None,
+        prepared_matchers: None,
         stored_indexes: Some(&mut cache),
         bindings: &[],
         symbols: &mut symbols,
@@ -243,6 +264,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         let mut fresh = new(&[Relation::Function], &[], LIMIT).unwrap();
         let mut fresh_context = OperatorContext {
             prepared_kinds: None,
+            prepared_matchers: None,
             stored_indexes: Some(&mut fresh),
             bindings: &[],
             symbols: context.symbols,
@@ -332,4 +354,128 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
+}
+
+/// Distinct projections keep independent first representatives while sharing only predicate matches.
+#[test]
+fn distinct_projections_preserve_rows_and_predicate_cache() -> Result<(), Failure> {
+    let columns = [
+        FactColumn(vec![7, 7, 7, 7, 7, 8]),
+        // Unequal bit encodings of the same typed flag must deduplicate.
+        FactColumn(vec![1, 2, 0, 7, 0, 1]),
+        FactColumn(vec![10, 10, 20, 11, 20, 10]),
+    ];
+    let source = ColumnsView {
+        kinds: &[CellKind::Number, CellKind::Flag, CellKind::Symbol],
+        columns: &columns,
+    };
+    let mut first = (*program(7)).clone();
+    first.columns = vec![ColumnIndex(2), ColumnIndex(1), ColumnIndex(2)];
+    first.distinct = true;
+    let first = Arc::new(first);
+    let mut second = (*first).clone();
+    second.columns = vec![ColumnIndex(1)];
+    let second = Arc::new(second);
+    let mut cache = new(&[Relation::Function], &[], LIMIT).expect("generation");
+    cache.selectors = vec![Arc::clone(&first), Arc::clone(&second)];
+    let mut symbols = Symbols::default();
+    let mut context = OperatorContext {
+        prepared_kinds: None,
+        prepared_matchers: None,
+        stored_indexes: Some(&mut cache),
+        bindings: &[],
+        symbols: &mut symbols,
+        source: SourceView(b""),
+        paths: &[],
+        arenas: &[],
+        memo: &mut Vec::new(),
+        scratch: &mut OperatorScratch::default(),
+    };
+    for (program, expected) in [(&first, vec![0, 2, 3]), (&second, vec![0, 2])] {
+        let actual = select(program, source, &mut context)?.expect("compact distinct");
+        assert_eq!(*actual.selection.rows, expected);
+        let mut table = Table::default();
+        materialize(&Rows::Selected(actual), &mut table, &mut Vec::new());
+        assert_eq!(table, baseline(source, program)?);
+    }
+    let mut bag = (*first).clone();
+    bag.distinct = false;
+    let bag = select(&Arc::new(bag), source, &mut context)?.unwrap();
+    assert_eq!(*bag.selection.rows, [0, 1, 2, 3, 4]);
+    assert_eq!(context.stored_indexes.as_ref().unwrap().selections.len(), 1);
+    assert_eq!(
+        context.stored_indexes.as_ref().unwrap().selections[0]
+            .rows
+            .as_slice(),
+        [0, 1, 2, 3, 4]
+    );
+
+    let mut zero = (*first).clone();
+    zero.columns.clear();
+    let zero = Arc::new(zero);
+    let selected = select(&zero, source, &mut context)?.unwrap();
+    assert_eq!(*selected.selection.rows, [0]);
+    let mut table = Table::default();
+    materialize(&Rows::Selected(selected), &mut table, &mut Vec::new());
+    assert_eq!(table, baseline(source, &zero)?);
+    assert_eq!((table.count.0, table.cells.len()), (1, 0));
+    let mut absent = (*zero).clone();
+    Arc::make_mut(&mut absent.identity).bindings = vec![ParameterBinding::Number(WholeNumber(999))];
+    assert!(
+        select(&Arc::new(absent), source, &mut context)?
+            .unwrap()
+            .selection
+            .rows
+            .is_empty()
+    );
+
+    let empty_columns = [
+        FactColumn(Vec::new()),
+        FactColumn(Vec::new()),
+        FactColumn(Vec::new()),
+    ];
+    let mut fresh = new(&[Relation::Function], &[], LIMIT).unwrap();
+    context.stored_indexes = Some(&mut fresh);
+    let empty = ColumnsView {
+        columns: &empty_columns,
+        ..source
+    };
+    assert!(
+        select(&zero, empty, &mut context)?
+            .unwrap()
+            .selection
+            .rows
+            .is_empty()
+    );
+    let changed_columns = [
+        FactColumn(vec![7]),
+        FactColumn(vec![0]),
+        FactColumn(vec![20]),
+    ];
+    let mut next_file = new(&[Relation::Function], &[], LIMIT).unwrap();
+    context.stored_indexes = Some(&mut next_file);
+    let changed = ColumnsView {
+        columns: &changed_columns,
+        ..source
+    };
+    let actual = select(&first, changed, &mut context)?.unwrap();
+    assert_eq!(*actual.selection.rows, [0]);
+    let mut table = Table::default();
+    materialize(&Rows::Selected(actual), &mut table, &mut Vec::new());
+    assert_eq!(table, baseline(changed, &first)?);
+
+    let constant_hash = |_: ColumnsView<'_>, _: &[ColumnIndex], _: u32| Some(0);
+    assert_eq!(
+        super::service::representatives(source, &first.columns, &[0, 1, 2, 3, 4], constant_hash),
+        Some(vec![0, 2, 3]),
+    );
+    assert_eq!(
+        super::service::representatives(source, &first.columns, &[0, 99], constant_hash),
+        None,
+    );
+    assert_eq!(
+        super::service::representatives(source, &[ColumnIndex(99)], &[0], constant_hash),
+        None,
+    );
+    Ok(())
 }

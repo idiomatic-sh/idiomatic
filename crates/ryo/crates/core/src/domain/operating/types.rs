@@ -43,6 +43,9 @@ pub(crate) enum Family {
 /// makes to the file's names.
 #[derive(Debug)]
 pub(crate) struct OperatorContext<'a> {
+    /// Finite authored literal matchers owned by this worker's prepared request.
+    pub prepared_matchers:
+        Option<&'a crate::domain::matching::types::prepared::value::PreparedMatchers>,
     /// Finite prepared literal-kind metadata for the current exact vocabulary.
     pub prepared_kinds: Option<&'a crate::domain::kind_sets::types::PreparedVocabulary>,
     /// Complete stable stored indexes owned only by the current physical file read.

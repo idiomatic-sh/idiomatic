@@ -105,6 +105,7 @@ fn selected_row_ids_pinned_by_a_graph_or_view_cannot_be_reclaimed() {
     let rows = Arc::new(vec![0_u32, 1, 1, 2]);
     cache.selections.push(Matches {
         selector: Arc::new(Selector {
+            distinct: false,
             relation: Relation::Function,
             identity: Arc::new(SelectionIdentity::default()),
             columns: vec![ColumnIndex(0)],

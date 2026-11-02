@@ -44,7 +44,11 @@ impl<'a> SelectionProgram<'a> {
     /// Compose the input map without changing its predicates, bags or physical order.
     fn input(&self, from: Input, steps: &[Option<Arc<Selector>>]) -> Option<Selector> {
         match from {
-            Input::Step(id) => steps.get(usize::try_from(id.0).ok()?)?.as_deref().cloned(),
+            Input::Step(id) => steps
+                .get(usize::try_from(id.0).ok()?)?
+                .as_deref()
+                .filter(|selector| !selector.distinct)
+                .cloned(),
             Input::Relation(
                 ryo_language::domain::relations::types::Relation::SyntaxTree
                 | ryo_language::domain::relations::types::Relation::SyntaxChild,
@@ -55,11 +59,12 @@ impl<'a> SelectionProgram<'a> {
                 columns: (0..kinds(relation).len())
                     .map(|index| ColumnIndex(u32::try_from(index).unwrap_or(u32::MAX)))
                     .collect(),
+                distinct: false,
             }),
         }
     }
 
-    /// Derive a direct filter or non-distinct column map; error-sensitive operators are boundaries.
+    /// Derive pure stored chains and terminal distinct maps; later operations keep their own execution.
     fn derive(&self, operation: &Operation, steps: &[Option<Arc<Selector>>]) -> Option<Selector> {
         match operation {
             Operation::Select {
@@ -110,7 +115,7 @@ impl<'a> SelectionProgram<'a> {
             Operation::Project {
                 from,
                 columns,
-                distinct: RepeatedRows::Kept,
+                distinct,
             } => {
                 let mut selector = self.input(*from, steps)?;
                 selector.columns = columns
@@ -122,10 +127,10 @@ impl<'a> SelectionProgram<'a> {
                             .copied()
                     })
                     .collect::<Option<_>>()?;
+                selector.distinct = *distinct == RepeatedRows::Dropped;
                 Some(selector)
             }
-            Operation::Project { .. }
-            | Operation::Extend { .. }
+            Operation::Extend { .. }
             | Operation::Join { .. }
             | Operation::Union { .. }
             | Operation::Intersection { .. }

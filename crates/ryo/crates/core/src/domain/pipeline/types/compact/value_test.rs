@@ -7,22 +7,30 @@ use ryo_values::domain::plan_parts::types::{
 use ryo_values::domain::plans::types::{Operation, PlanStep, StepScope};
 
 /// This proof supplies its own complete resident file fixture.
-type Input = ();
+type Input = bool;
 /// Completion means every transport, output and refusal assertion held.
 type Value = ();
 /// Ordinary pipeline/provider refusals.
 type Failure = crate::domain::operating::errors::OperatingError;
 
 /// One end-to-end case exercises both plans in the same physical generation.
-const CASES: &[Case<Input, Value, Failure>] = &[Case {
-    name: CaseName("compact_chains_cross_rule_join_and_frontier_match_uncached_execution"),
-    word: Word::Succeeds,
-    input: || (),
-    expect: Expect::Value(()),
-}];
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("compact_chains_cross_rule_join_and_frontier_match_uncached_execution"),
+        word: Word::Succeeds,
+        input: || false,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("compact_distinct_join_frontier_and_provider_refusal_match_fallback"),
+        word: Word::Succeeds,
+        input: || true,
+        expect: Expect::Value(()),
+    },
+];
 
 /// Real Feed/hold and exported/frontier boundaries, with two distinct plans sharing one generation.
-fn subject(_input: Input) -> Result<Value, Failure> {
+fn subject(distinct: Input) -> Result<Value, Failure> {
     use crate::domain::operating::types::OperatorContext;
     use crate::domain::operator::service::pool_for;
     use crate::domain::pipeline::service::evaluate_file;
@@ -88,8 +96,12 @@ fn subject(_input: Input) -> Result<Value, Failure> {
         scope: StepScope::PerFile,
         operation: Operation::Project {
             from: Source::Step(StepId(0)),
-            columns: vec![ColumnIndex(0)],
-            distinct: RepeatedRows::Kept,
+            columns: vec![ColumnIndex(u32::from(distinct))],
+            distinct: if distinct {
+                RepeatedRows::Dropped
+            } else {
+                RepeatedRows::Kept
+            },
         },
     };
     let join = PlanStep {
@@ -98,7 +110,7 @@ fn subject(_input: Input) -> Result<Value, Failure> {
             left: Source::Step(StepId(1)),
             right: Source::Step(StepId(0)),
             left_on: vec![ColumnIndex(0)],
-            right_on: vec![ColumnIndex(0)],
+            right_on: vec![ColumnIndex(u32::from(distinct))],
             filter: Vec::new(),
             view: Vec::new(),
             output: vec![
@@ -135,12 +147,21 @@ fn subject(_input: Input) -> Result<Value, Failure> {
     let mut baseline_prepared = crate::domain::operator::types::PreparedPool::default();
     let mut prepared = crate::domain::operator::types::PreparedPool::default();
     prepare(&mut prepared, &plans, &[Vec::new(), Vec::new()]);
+    assert_eq!(
+        prepared.selection_plans[0].steps[1]
+            .as_ref()
+            .unwrap()
+            .distinct,
+        distinct,
+    );
+    assert!(prepared.selection_plans[0].steps[2].is_none());
     let mut cache = new(&[Relation::Function], &[], LIMIT).unwrap();
     activate(&mut cache, &prepared, &[Relation::Function], |_| true);
     let mut memo = Vec::new();
     let mut scratch = OperatorScratch::default();
     let mut context = OperatorContext {
         prepared_kinds: None,
+        prepared_matchers: None,
         stored_indexes: None,
         bindings: &[],
         symbols: &mut symbols,
@@ -163,6 +184,7 @@ fn subject(_input: Input) -> Result<Value, Failure> {
         {
             let mut actual = OperatorContext {
                 prepared_kinds: None,
+                prepared_matchers: None,
                 stored_indexes: Some(&mut cache),
                 bindings: context.bindings,
                 symbols: &mut *context.symbols,
@@ -187,6 +209,12 @@ fn subject(_input: Input) -> Result<Value, Failure> {
         assert_eq!(compact.steps[2].count.0, 8);
         assert!(compact.selected[0].is_some());
         assert!(compact.steps[0].cells.is_empty());
+        assert!(compact.steps[1].cells.is_empty());
+        assert_eq!(
+            cache.selections[0].rows.len(),
+            8,
+            "shared IDs remain predicate-only"
+        );
         assert!(
             compact
                 .rooms
@@ -209,6 +237,7 @@ fn subject(_input: Input) -> Result<Value, Failure> {
     let refused = {
         let mut actual = OperatorContext {
             prepared_kinds: None,
+            prepared_matchers: None,
             stored_indexes: Some(&mut cache),
             bindings: context.bindings,
             symbols: &mut *context.symbols,

@@ -79,6 +79,7 @@ fn tells_a_name_equal_to_a_text_by_its_hash() -> Result<Value, OperatingError> {
         let mut out = Table::default();
         let mut context = OperatorContext {
             prepared_kinds: None,
+            prepared_matchers: None,
             stored_indexes: None,
             bindings: &[],
             symbols: &mut symbols,
@@ -132,6 +133,7 @@ fn decides_once_for_each_name() -> Result<Value, OperatingError> {
     let mut out = Table::default();
     let mut context = OperatorContext {
         prepared_kinds: None,
+        prepared_matchers: None,
         stored_indexes: None,
         bindings: &[],
         symbols: &mut symbols,
@@ -192,6 +194,7 @@ fn remembers_what_a_text_was_decided_in_another_file() -> Result<Value, Operatin
         let mut out = Table::default();
         let mut context = OperatorContext {
             prepared_kinds: None,
+            prepared_matchers: None,
             stored_indexes: None,
             bindings: &[],
             symbols: &mut symbols,
@@ -232,6 +235,7 @@ fn reads_each_rows_pattern() -> Result<Value, OperatingError> {
     }];
     let mut context = OperatorContext {
         prepared_kinds: None,
+        prepared_matchers: None,
         stored_indexes: None,
         bindings: &[],
         symbols: &mut symbols,
@@ -267,6 +271,7 @@ fn refuses_an_unbound_parameter() -> Result<Value, OperatingError> {
     let mut symbols = Symbols::default();
     let mut context = OperatorContext {
         prepared_kinds: None,
+        prepared_matchers: None,
         stored_indexes: None,
         bindings: &[],
         symbols: &mut symbols,
@@ -296,6 +301,7 @@ fn a_function_of_an_unknown_name_is_unlocated() -> Result<Value, OperatingError>
     });
     let mut context = OperatorContext {
         prepared_kinds: None,
+        prepared_matchers: None,
         stored_indexes: None,
         bindings: &[],
         symbols: &mut symbols,

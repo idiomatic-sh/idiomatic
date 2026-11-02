@@ -9,11 +9,14 @@ use crate::domain::operator::types::PreparedPool;
 use crate::domain::stored_indexes::types::FileIndexes;
 use crate::domain::table_cells::service::read_cells;
 use crate::domain::table_cells::types::{CellsRead, ColumnPlaces, RowIndex};
-use crate::domain::table_model::service::{check_columns, matching_stored, rectangular};
-use crate::domain::table_model::types::{
-    KeyIndex, ParameterBinding, SelectedRows, StoredSelection, Verdict,
+use crate::domain::table_model::service::{
+    check_columns, matching_stored, mix, rectangular, word_of,
 };
-use ryo_language::domain::relations::types::{CellKind, ColumnsView, Flag, Integer, Value};
+use crate::domain::table_model::types::{
+    KeyCellsHash, KeyIndex, ParameterBinding, SelectedRows, StoredSelection, Verdict,
+};
+use ryo_language::domain::relations::service::from_bits;
+use ryo_language::domain::relations::types::{Bits, CellKind, ColumnsView, Flag, Integer, Value};
 use ryo_language::domain::symbols::service::{hash_in, hash_of, name_count, text_of};
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::terms::types::Symbol;
@@ -114,7 +117,7 @@ pub(crate) fn select<'a>(
         return Ok(None);
     };
     let result = if cache.eligible.contains(&program.relation) {
-        make(cache, program, source, context).map(Some)
+        make(cache, program, source, context)
     } else {
         Ok(None)
     };
@@ -128,7 +131,7 @@ fn make<'a>(
     program: &Arc<Selector>,
     source: ColumnsView<'a>,
     context: &mut OperatorContext<'_>,
-) -> Result<SelectedRows<'a>, OperatingError> {
+) -> Result<Option<SelectedRows<'a>>, OperatingError> {
     check_columns(source.kinds, &program.columns)?;
     let population = source.columns.first().map_or(0, |column| column.0.len());
     let rows = if let Some(found) = cache.selections.iter().find(|entry| {
@@ -144,12 +147,22 @@ fn make<'a>(
         admit(cache, program, source, population, &rows);
         rows
     };
+    // The shared result above always contains predicate matches, never distinct representatives.
+    // Each terminal projection owns its representative IDs independently of other output maps.
+    let rows = if program.distinct {
+        let Some(rows) = representatives(source, &program.columns, &rows, projection_hash) else {
+            return Ok(None);
+        };
+        Arc::new(rows)
+    } else {
+        rows
+    };
     let kinds = program
         .columns
         .iter()
         .map(|column| source.kinds[column.0 as usize])
         .collect();
-    Ok(SelectedRows {
+    Ok(Some(SelectedRows {
         source,
         selection: Arc::new(StoredSelection {
             relation: program.relation,
@@ -158,7 +171,62 @@ fn make<'a>(
             kinds,
             identity: Arc::clone(&program.identity),
         }),
-    })
+    }))
+}
+
+/// Decode one projected cell without treating missing storage as a value.
+fn projected_cell(source: ColumnsView<'_>, row: u32, column: ColumnIndex) -> Option<Value> {
+    let place = usize::try_from(column.0).ok()?;
+    Some(from_bits(
+        *source.kinds.get(place)?,
+        Bits(*source.columns.get(place)?.0.get(row as usize)?),
+    ))
+}
+
+/// Hash only projected typed values, preserving repeated columns and their order.
+fn projection_hash(source: ColumnsView<'_>, columns: &[ColumnIndex], row: u32) -> Option<u64> {
+    columns
+        .iter()
+        .try_fold(KeyCellsHash(0), |hash, column| {
+            Some(mix(hash, word_of(&projected_cell(source, row, *column)?)))
+        })
+        .map(|hash| hash.0)
+}
+
+/// Keep the first physical representative of each tuple; the equality index dies with this call.
+/// Cached hashes allow growth without decoding previously admitted rows again.
+pub(super) fn representatives(
+    source: ColumnsView<'_>,
+    columns: &[ColumnIndex],
+    rows: &[u32],
+    hash_of: impl Fn(ColumnsView<'_>, &[ColumnIndex], u32) -> Option<u64>,
+) -> Option<Vec<u32>> {
+    if !rectangular(source) || check_columns(source.kinds, columns).is_err() {
+        return None;
+    }
+    let mut seen = hashbrown::HashTable::<(u32, u64)>::new();
+    let mut kept = Vec::new();
+    for &row in rows {
+        if source.columns.first()?.0.get(row as usize).is_none() {
+            return None;
+        }
+        let hash = hash_of(source, columns, row)?;
+        if seen
+            .find(hash, |(previous, _)| {
+                columns.iter().all(|column| {
+                    projected_cell(source, *previous, *column)
+                        .zip(projected_cell(source, row, *column))
+                        .is_some_and(|(left, right)| left == right)
+                })
+            })
+            .is_some()
+        {
+            continue;
+        }
+        let _ = seen.insert_unique(hash, (row, hash), |(_, hash)| *hash);
+        kept.push(row);
+    }
+    Some(kept)
 }
 
 /// Retain only repeated results, charging vector capacities, Arc metadata and entry storage.
@@ -241,6 +309,7 @@ fn matches(
     let names = NameCount(name_count(context.symbols).0);
     let mut own = OperatorContext {
         prepared_kinds: context.prepared_kinds,
+        prepared_matchers: context.prepared_matchers,
         stored_indexes: None,
         bindings: &program.identity.bindings,
         symbols: context.symbols,

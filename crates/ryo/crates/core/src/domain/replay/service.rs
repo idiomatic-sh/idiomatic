@@ -26,6 +26,7 @@ pub(crate) fn derive<'x>(
 ) -> OperatorContext<'x> {
     OperatorContext {
         prepared_kinds: context.prepared_kinds,
+        prepared_matchers: context.prepared_matchers,
         stored_indexes: context.stored_indexes.as_deref_mut(),
         bindings: context.bindings,
         symbols: &mut *context.symbols,
@@ -75,6 +76,7 @@ pub(crate) fn replay_computed(
         }
         let mut own = OperatorContext {
             prepared_kinds: context.prepared_kinds,
+            prepared_matchers: context.prepared_matchers,
             stored_indexes: context.stored_indexes.as_deref_mut(),
             bindings: context.bindings,
             symbols: &mut *context.symbols,
@@ -93,6 +95,7 @@ pub(crate) fn replay_computed(
     }
     let mut own = OperatorContext {
         prepared_kinds: context.prepared_kinds,
+        prepared_matchers: context.prepared_matchers,
         stored_indexes: context.stored_indexes.as_deref_mut(),
         bindings: context.bindings,
         symbols: &mut *context.symbols,

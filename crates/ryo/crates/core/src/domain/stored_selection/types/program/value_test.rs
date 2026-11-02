@@ -15,7 +15,7 @@ use ryo_values::domain::plans::types::{Operation, PlanStep, StepScope};
 enum Scenario {
     /// Chain projections and bound operands compose onto physical columns.
     Remapped,
-    /// Deduplication prevents descriptor composition across the step.
+    /// A terminal distinct projection derives, then prevents later descriptor composition.
     Distinct,
     /// Regex evaluation stays with the owning runtime comparison.
     Regex,
@@ -82,6 +82,42 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     }
     let compiled = SelectionProgram::new(&plan, &bindings).prepare();
     assert!(compiled.steps[0].is_some());
+    if matches!(scenario, Scenario::Distinct) {
+        let terminal = compiled.steps[1]
+            .as_ref()
+            .expect("terminal distinct selector");
+        assert!(terminal.distinct);
+        assert_eq!(terminal.columns, [ColumnIndex(1), ColumnIndex(1)]);
+        let mut projected = plan.clone();
+        projected.steps.last_mut().unwrap().operation = Operation::Project {
+            from: Source::Step(StepId(1)),
+            columns: vec![ColumnIndex(0)],
+            distinct: RepeatedRows::Kept,
+        };
+        assert!(
+            SelectionProgram::new(&projected, &bindings)
+                .prepare()
+                .steps
+                .last()
+                .unwrap()
+                .is_none()
+        );
+        projected.steps.truncate(2);
+        projected.steps[1].operation = Operation::Project {
+            from: Source::Step(StepId(0)),
+            columns: Vec::new(),
+            distinct: RepeatedRows::Dropped,
+        };
+        let zero = SelectionProgram::new(&projected, &bindings).prepare();
+        let zero = zero.steps[1].as_ref().unwrap();
+        assert!(zero.distinct && zero.columns.is_empty());
+        projected.steps[1].operation = Operation::Project {
+            from: Source::Step(StepId(0)),
+            columns: vec![ColumnIndex(u32::MAX)],
+            distinct: RepeatedRows::Dropped,
+        };
+        assert!(SelectionProgram::new(&projected, &bindings).prepare().steps[1].is_none());
+    }
     if matches!(
         scenario,
         Scenario::Distinct | Scenario::Regex | Scenario::MissingBinding | Scenario::Tables
@@ -119,7 +155,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(1),
     },
     Case {
-        name: CaseName("distinct_is_a_materialization_boundary"),
+        name: CaseName("terminal_distinct_derives_without_flattening_descendants"),
         word: Word::Succeeds,
         input: || Scenario::Distinct,
         expect: Expect::Value(1),

@@ -56,6 +56,7 @@ impl OperatorsItem for ReplaceItem {
                 value,
                 TextView(&pattern.0),
                 TextView(&replacement.0),
+                context.prepared_matchers,
                 &mut context.scratch.select_scratch.compiled_regexes,
             )?;
             let made = intern_derived(

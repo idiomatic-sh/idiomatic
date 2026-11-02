@@ -61,6 +61,7 @@ fn digests(input: &Table, bindings: &[ParameterBinding]) -> Result<Table, Operat
     };
     let mut context = OperatorContext {
         prepared_kinds: None,
+        prepared_matchers: None,
         stored_indexes: None,
         bindings,
         symbols: &mut symbols,
@@ -121,6 +122,7 @@ fn digesting_without_an_input() -> Result<Value, OperatingError> {
     let mut out = Table::default();
     let mut context = OperatorContext {
         prepared_kinds: None,
+        prepared_matchers: None,
         stored_indexes: None,
         bindings: &[],
         symbols: &mut symbols,
@@ -147,6 +149,7 @@ fn digesting_a_column_the_input_lacks() -> Result<Value, OperatingError> {
     let mut out = Table::default();
     let mut context = OperatorContext {
         prepared_kinds: None,
+        prepared_matchers: None,
         stored_indexes: None,
         bindings: &[],
         symbols: &mut symbols,
