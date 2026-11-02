@@ -424,7 +424,7 @@ fn old_descriptor_enumeration_skips_huge_payloads_and_resolution_reads_one() {
 }
 
 #[test]
-fn old_payload_headers_use_one_exact_read_without_neighbor_prefetch() {
+fn old_payloads_and_headers_share_one_exact_read_without_neighbor_prefetch() {
     use super::value::{old_word_rows_in, read_old_in};
     use ryo_values::domain::stores::types::{OldWords, StoreSnapshot};
     use std::io::{Read, Seek, SeekFrom};
@@ -486,7 +486,7 @@ fn old_payload_headers_use_one_exact_read_without_neighbor_prefetch() {
             )
             .expect("selected payload");
             assert_eq!(loaded, selected.words);
-            assert_eq!(file.reads, if length == 0 { 1 } else { 2 });
+            assert_eq!(file.reads, 1);
             assert_eq!(
                 u64::try_from(file.transferred).expect("count"),
                 descriptor.offset - descriptor.header + descriptor.length,
@@ -511,6 +511,78 @@ fn old_payload_headers_use_one_exact_read_without_neighbor_prefetch() {
                 .is_err()
             );
             assert_eq!(file.reads, 0, "oversized headers are refused before IO");
+            let header = usize::try_from(descriptor.header).expect("header offset");
+            file.bytes.get_mut()[header] ^= 1;
+            assert!(
+                read_old_in(
+                    &mut file,
+                    held,
+                    StoreSnapshot(81),
+                    bucket,
+                    &descriptor,
+                    &mut loaded
+                )
+                .is_err(),
+                "changed framing is refused after snapshot enumeration"
+            );
+            assert!(loaded.0.is_empty(), "rejected payload is not returned");
         }
     }
+}
+
+#[cfg(unix)]
+#[test]
+fn positional_old_payload_read_preserves_cursor_and_refuses_late_truncation() {
+    use super::value::{old_word_rows_in, read_old_file_in};
+    use ryo_values::domain::stores::types::{OldWords, StoreSnapshot};
+    use std::io::{Seek as _, SeekFrom};
+
+    let selected = row(128, 16_384);
+    let neighbor = row(7, 23);
+    let bytes = bucket_bytes(&[&selected, &neighbor]).expect("two rows");
+    let held = u64::try_from(bytes.len()).expect("length");
+    let bucket = SectionSpan {
+        start: FileOffset(0),
+        length: SectionLength(held),
+    };
+    let mut file = tempfile::tempfile().expect("snapshot");
+    file.write_all(&bytes).expect("write rows");
+    let headers = old_word_rows_in(&mut file, bucket, held).expect("framing");
+    let first = headers.first().expect("selected row");
+    let descriptor = OldWords {
+        snapshot: StoreSnapshot(81),
+        bucket: Bucket(3),
+        file: first.file,
+        header: first.header,
+        offset: first.span.start.0,
+        length: first.span.length.0,
+    };
+    let cursor = file.seek(SeekFrom::End(0)).expect("cursor");
+    let mut loaded = PackedWords::default();
+    read_old_file_in(
+        &file,
+        held,
+        StoreSnapshot(81),
+        bucket,
+        &descriptor,
+        &mut loaded,
+    )
+    .expect("positional payload");
+    assert_eq!(loaded, selected.words);
+    assert_eq!(file.seek(SeekFrom::Current(0)).expect("cursor"), cursor);
+
+    file.set_len(descriptor.offset + descriptor.length - 1)
+        .expect("truncate selected payload");
+    assert!(
+        read_old_file_in(
+            &file,
+            held,
+            StoreSnapshot(81),
+            bucket,
+            &descriptor,
+            &mut loaded
+        )
+        .is_err()
+    );
+    assert!(loaded.0.is_empty());
 }

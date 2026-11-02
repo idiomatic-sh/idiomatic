@@ -17,6 +17,7 @@
     strum::IntoStaticStr,
     strum::FromRepr,
     strum::EnumCount,
+    strum::EnumIter,
 )]
 #[strum(serialize_all = "kebab-case")]
 #[repr(u8)]
@@ -81,6 +82,7 @@ pub enum DeclarationKind {
     strum::IntoStaticStr,
     strum::FromRepr,
     strum::EnumCount,
+    strum::EnumIter,
 )]
 #[strum(serialize_all = "kebab-case")]
 #[repr(u8)]
@@ -114,6 +116,7 @@ pub enum ParameterKind {
     strum::IntoStaticStr,
     strum::FromRepr,
     strum::EnumCount,
+    strum::EnumIter,
 )]
 #[strum(serialize_all = "kebab-case")]
 #[repr(u8)]
@@ -153,6 +156,7 @@ pub enum ValueKind {
     strum::IntoStaticStr,
     strum::FromRepr,
     strum::EnumCount,
+    strum::EnumIter,
 )]
 #[strum(serialize_all = "kebab-case")]
 #[repr(u8)]
@@ -182,6 +186,7 @@ pub enum MappingKind {
     strum::IntoStaticStr,
     strum::FromRepr,
     strum::EnumCount,
+    strum::EnumIter,
 )]
 #[strum(serialize_all = "kebab-case")]
 #[repr(u8)]
@@ -211,6 +216,7 @@ pub enum DependencyKind {
     strum::IntoStaticStr,
     strum::FromRepr,
     strum::EnumCount,
+    strum::EnumIter,
 )]
 #[strum(serialize_all = "kebab-case")]
 #[repr(u8)]

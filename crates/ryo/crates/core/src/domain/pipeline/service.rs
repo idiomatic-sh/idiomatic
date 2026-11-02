@@ -34,6 +34,46 @@ use std::sync::atomic::{AtomicU64, Ordering};
 /// Supplies distinct IDs to nested diagnostic step invocations.
 static NEXT_DIAGNOSTIC_STEP_ID: AtomicU64 = AtomicU64::new(1);
 
+thread_local! {
+    /// Diagnostic-only call ancestry; no executor state or rows are retained here.
+    static DIAGNOSTIC_STEP_STACK: std::cell::RefCell<Vec<u64>> = const { std::cell::RefCell::new(Vec::new()) };
+}
+
+/// Restore the diagnostic ancestry even if an observed step unwinds.
+struct DiagnosticStepGuard;
+
+impl Drop for DiagnosticStepGuard {
+    fn drop(&mut self) {
+        DIAGNOSTIC_STEP_STACK.with(|stack| {
+            let _completed = stack.borrow_mut().pop();
+        });
+    }
+}
+
+/// Observe one completed kept cut; a compact row-ID view and materialized cells are distinct
+/// representations. These counts describe this invocation, not a proposed shared cache size.
+fn diagnostic_cut(
+    plan_identity: usize,
+    file_id: Option<u32>,
+    step_index: usize,
+    table: &Table,
+    selected: Option<&std::sync::Arc<crate::domain::table_model::types::StoredSelection>>,
+    readiness: Option<&Readiness>,
+    partial: &[crate::domain::coverage::types::Partial],
+) {
+    let compact_rows = selected.map_or(0, |selection| selection.rows.len());
+    let compact_capacity = selected.map_or(0, |selection| selection.rows.capacity());
+    let compact_identity =
+        selected.map(|selection| std::sync::Arc::as_ptr(&selection.rows) as usize);
+    tracing::event!(
+        target: "ryo::diagnostic::subplan_cut", tracing::Level::TRACE,
+        record_kind = "completed_cut", plan_identity, file_id = ?file_id, step_index,
+        rows = table.count.0, cells = table.cells.len(), cell_capacity = table.cells.capacity(),
+        compact_rows, compact_capacity, compact_identity = ?compact_identity,
+        readiness = ?readiness, partial = ?partial,
+    );
+}
+
 /// Notes that the step `consumer` was fed `rows` rows.
 pub(crate) fn feed(
     stepper: &mut Stepper<'_, '_>,
@@ -98,12 +138,16 @@ where
         .get(id.0)
         .map_or("missing", |step| operation_name(&step.operation));
     let details = stepper.plan.steps.get(id.0).map(|step| &step.operation);
+    let plan_identity = std::ptr::from_ref(stepper.plan).addr();
     let parent_step_index = stepper.current.0;
     let invocation_id = NEXT_DIAGNOSTIC_STEP_ID.fetch_add(1, Ordering::Relaxed);
+    let parent_invocation_id = DIAGNOSTIC_STEP_STACK.with(|stack| stack.borrow().last().copied());
     let step_span = tracing::trace_span!(
         target: "ryo::diagnostic::rule_step",
         "rule_step",
         invocation_id,
+        parent_invocation_id = ?parent_invocation_id,
+        plan_identity,
         step_index = id.0,
         parent_step_index,
         nested = parent_step_index != id.0,
@@ -112,21 +156,28 @@ where
     );
     let _entered = step_span.enter();
     let started = std::time::Instant::now();
+    DIAGNOSTIC_STEP_STACK.with(|stack| stack.borrow_mut().push(invocation_id));
+    let guard = DiagnosticStepGuard;
     tracing::trace!(
         target: "ryo::diagnostic::rule_step",
         event = "rule_step_start",
         invocation_id,
+        parent_invocation_id = ?parent_invocation_id,
+        plan_identity,
         step_index = id.0,
         parent_step_index,
         nested = parent_step_index != id.0,
         operation,
     );
     let outcome = pass_on_inner(stepper, id, context, emit);
+    drop(guard);
     let completed_parent_step_index = stepper.current.0;
     tracing::trace!(
         target: "ryo::diagnostic::rule_step",
         event = "rule_step_end",
         invocation_id,
+        parent_invocation_id = ?parent_invocation_id,
+        plan_identity,
         step_index = id.0,
         parent_step_index = completed_parent_step_index,
         nested = completed_parent_step_index != id.0,
@@ -392,6 +443,14 @@ pub(crate) fn evaluate_file<'f>(
         place
     } else {
         let layout = layout_of(plan, identity, &read, context)?;
+        if tracing::enabled!(target: "ryo::diagnostic::compiled_subplan", tracing::Level::TRACE) {
+            tracing::event!(
+                target: "ryo::diagnostic::compiled_subplan", tracing::Level::TRACE,
+                record_kind = "layout", plan_identity = identity.0,
+                kept = ?layout.kept.0, kinds = ?layout.kinds,
+                lowering = ?layout.lowering, needs = ?layout.needs,
+            );
+        }
         prepared.layouts.push(layout);
         prepared.layouts.len() - 1
     };
@@ -444,6 +503,8 @@ pub(crate) fn evaluate_file<'f>(
         }),
         _ => LoweredTree::Missing,
     };
+    let cut_diagnostic =
+        tracing::enabled!(target: "ryo::diagnostic::subplan_cut", tracing::Level::TRACE);
     for (index, step) in plan.steps.iter().enumerate() {
         if step.scope == StepScope::CrossFile || layout.kept.0.get(index) != Some(&true) {
             continue;
@@ -475,7 +536,21 @@ pub(crate) fn evaluate_file<'f>(
             && let Some(Rows::Selected(rows)) =
                 CompactInput::new(&stepper).selected(StepPlace(index), context)?
         {
+            let readiness = cut_diagnostic
+                .then(|| stepper.made.ready.get(index).copied())
+                .flatten();
             selected[index] = Some(rows.selection);
+            if cut_diagnostic {
+                diagnostic_cut(
+                    identity.0,
+                    tree.map(|tree| tree.file.0),
+                    index,
+                    target,
+                    selected[index].as_ref(),
+                    readiness.as_ref(),
+                    partial,
+                );
+            }
             continue;
         }
         pass_on(
@@ -484,6 +559,17 @@ pub(crate) fn evaluate_file<'f>(
             context,
             &mut Collect(target),
         )?;
+        if cut_diagnostic {
+            diagnostic_cut(
+                identity.0,
+                tree.map(|tree| tree.file.0),
+                index,
+                target,
+                selected[index].as_ref(),
+                stepper.made.ready.get(index),
+                partial,
+            );
+        }
     }
     hand_over(plan, steps, selected, &read, context, frontier)?;
     // The exported/rendered table is the materialization boundary; intermediate kept steps stay compact.

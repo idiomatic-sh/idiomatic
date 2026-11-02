@@ -109,6 +109,22 @@ fn retained(matchers: &[Matcher]) -> usize {
 then.findings = [{ path = "src/lib.rs", line = 4 }]
 
 [[scenarios]]
+id = "rebuild-retained-vector-for-every-admission"
+scenario = "Rebuilding a retained Vec to charge its exact heap capacity is custom allocation accounting."
+given.files.'src/lib.rs' = '''
+struct Matches;
+struct Cache { selections: Vec<Matches> }
+fn admit(cache: &mut Cache) {
+    let mut entries = Vec::new();
+    entries.try_reserve_exact(cache.selections.len() + 1).unwrap();
+    let _old = cache.selections.capacity().saturating_mul(size_of::<Matches>());
+    entries.append(&mut cache.selections);
+    cache.selections = entries;
+}
+'''
+then.findings = [{ path = "src/lib.rs", line = 6 }]
+
+[[scenarios]]
 id = "allocator-footprint-added-to-ledger"
 scenario = "Charging an allocator footprint to a running total is allocation accounting."
 given.files.'src/lib.rs' = '''

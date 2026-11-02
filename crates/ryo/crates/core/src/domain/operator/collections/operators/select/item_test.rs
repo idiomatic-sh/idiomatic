@@ -1,6 +1,9 @@
 //! The `select` item's cases.
 
-use ryo_language::domain::relations::types::{CellKind, Offset, Relation, Value as Cell};
+use ryo_language::domain::relations::service::to_bits;
+use ryo_language::domain::relations::types::{
+    CellKind, ColumnsView, FactColumn, Offset, Relation, Value as Cell,
+};
 use ryo_language::domain::symbols::service::intern;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_values::domain::plans::types::QueryOperator;
@@ -12,8 +15,10 @@ use super::item::SelectItem;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
-use crate::domain::table_model::service::push_row;
-use crate::domain::table_model::types::{ParameterBinding, Rows, Table};
+use crate::domain::table_model::service::{materialize, push_row};
+use crate::domain::table_model::types::{
+    ParameterBinding, Rows, SelectedRows, StoredSelection, Table,
+};
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
 use ryo_language::domain::relations::types::Integer;
@@ -28,6 +33,7 @@ use ryo_values::domain::plan_parts::types::ParameterId;
 use ryo_values::domain::plan_parts::types::QueryLiteral;
 use ryo_values::domain::plan_parts::types::Test;
 use ryo_values::domain::plans::types::Operation;
+use std::sync::Arc;
 
 /// A scenario: what a row computes with the item, answering how many rows came out.
 type Input = fn() -> Result<Value, OperatingError>;
@@ -225,6 +231,108 @@ fn tells_prefixes_and_suffixes() -> Result<Value, OperatingError> {
     let starts = services_held(Test::StartsWith, Operand::Column(column(0)), pascal)?;
     let column_suffix = services_held(Test::EndsWith, service_name(), Operand::Column(column(0)))?;
     Ok(ends * 100 + starts * 10 + column_suffix)
+}
+
+/// A compact population keeps row-ID order and duplicates while filtering only
+/// the logical columns a predicate reads. A changed provider still takes the
+/// ordinary full-row path and drops incomplete rows.
+#[test]
+fn selected_columns_match_full_row_selection_with_duplicates_and_partial_source(
+) -> Result<(), OperatingError> {
+    let columns = [
+        FactColumn([10, 20, 30].into_iter().map(|n| to_bits(Cell::Number(Integer(n))).0).collect()),
+        FactColumn([1, 0, 1].into_iter().map(|n| to_bits(Cell::Number(Integer(n))).0).collect()),
+        FactColumn([100, 200, 300].into_iter().map(|n| to_bits(Cell::Number(Integer(n))).0).collect()),
+        FactColumn([1000, 2000, 3000].into_iter().map(|n| to_bits(Cell::Number(Integer(n))).0).collect()),
+    ];
+    let selection = Arc::new(StoredSelection {
+        relation: Relation::Function,
+        rows: Arc::new(vec![2, 0, 2, 1]),
+        columns: vec![column(2), column(1), column(0), column(2), column(3)],
+        kinds: vec![CellKind::Number; 5],
+        identity: Arc::new(Default::default()),
+    });
+    let run = |operation: &Operation, rows: Rows<'_>| -> Result<Table, OperatingError> {
+        let mut symbols = Symbols::default();
+        let mut out = Table::default();
+        let mut context = OperatorContext {
+            prepared_kinds: None,
+            prepared_matchers: None,
+            stored_indexes: None,
+            bindings: &[],
+            symbols: &mut symbols,
+            source: SourceView(&[]),
+            paths: &[],
+            arenas: &[],
+            memo: &mut Vec::new(),
+            scratch: &mut OperatorScratch::default(),
+        };
+        SelectItem.compute(operation, &[rows], &mut context, &mut out)?;
+        Ok(out)
+    };
+    for physical in [columns.to_vec(), {
+        let mut ragged = columns.to_vec();
+        ragged[3].0.truncate(2);
+        ragged
+    }] {
+        let source = ColumnsView {
+            kinds: &[CellKind::Number; 4],
+            columns: &physical,
+        };
+        let selected = SelectedRows {
+            source,
+            selection: Arc::clone(&selection),
+        };
+        let mut full = Table::default();
+        materialize(&Rows::Selected(selected.clone()), &mut full, &mut Vec::new());
+        for kept in [vec![column(3), column(0), column(3)], Vec::new()] {
+            let operation = select(
+                Test::Equal,
+                1,
+                Operand::Literal(QueryLiteral::Number(Integer(1))),
+                kept,
+            );
+            let actual = run(&operation, Rows::Selected(selected.clone()))?;
+            let expected = run(&operation, Rows::Computed(&full))?;
+            assert_eq!(actual, expected);
+            if source.columns[3].0.len() == 3 {
+                assert_eq!(actual.count.0, 3);
+            } else {
+                assert_eq!(actual.count.0, 1);
+            }
+        }
+    }
+    let source = ColumnsView {
+        kinds: &[CellKind::Number; 4],
+        columns: &columns,
+    };
+    let missing = StoredSelection {
+        relation: selection.relation,
+        rows: Arc::new(vec![99]),
+        columns: selection.columns.clone(),
+        kinds: selection.kinds.clone(),
+        identity: Arc::clone(&selection.identity),
+    };
+    let bad_column = select(
+        Test::Equal,
+        99,
+        Operand::Literal(QueryLiteral::Number(Integer(1))),
+        Vec::new(),
+    );
+    assert_eq!(
+        run(
+            &bad_column,
+            Rows::Selected(SelectedRows {
+                source,
+                selection: Arc::new(missing),
+            }),
+        )?
+        .count
+        .0,
+        0,
+        "a missing physical row is skipped before predicate errors",
+    );
+    Ok(())
 }
 
 /// The rows of this part's cases.

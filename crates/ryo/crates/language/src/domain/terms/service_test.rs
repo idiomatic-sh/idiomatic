@@ -1,6 +1,6 @@
 //! The `terms` service's cases, on values alone.
 
-use super::service::{is_term, term_symbol, term_text};
+use super::service::{is_term, symbols_with_text, term_symbol, term_text};
 use super::types::{
     DeclarationKind, DependencyKind, MappingKind, ParameterKind, ValueKind, Wordness,
 };
@@ -104,4 +104,19 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
+}
+
+/// The text lookup must cover every currently decodable closed term, including
+/// future blocks and noncontiguous discriminants in the reserved term range.
+#[test]
+fn text_lookup_covers_every_closed_term() {
+    for raw in super::constants::TERM_BASE..=u32::MAX {
+        let symbol = Symbol(raw);
+        let Some(text) = term_text(symbol) else {
+            continue;
+        };
+        let mut found = Vec::new();
+        symbols_with_text(text.0, |candidate| found.push(candidate));
+        assert!(found.contains(&symbol), "missing {symbol:?} = {}", text.0);
+    }
 }

@@ -20,9 +20,9 @@ use crate::domain::table_cells::service::{read_cells, read_tree_cells};
 use crate::domain::table_cells::types::{CellsRead, ColumnPlaces, RowIndex, TreeForm, TreeRows};
 use crate::domain::table_model::errors::TableModelError;
 use crate::domain::table_model::service::{
-    cell, column_in, count_of, kinds_of, positions, read_row, rectangular, reset,
+    cell, cell_at, column_in, count_of, kinds_of, positions, read_row, rectangular, reset,
 };
-use crate::domain::table_model::types::{Rows, Table, Verdict};
+use crate::domain::table_model::types::{Rows, SelectedRows, Table, Verdict};
 use crate::domain::table_scratch::types::{ElementIndex, KindsBy};
 use crate::domain::text_gate::service::{
     needed_of, needed_of_rest, text_admitted, text_candidates, text_gate, undecided,
@@ -49,6 +49,20 @@ fn emit_kept(
         cut.push(cell(row, *index)?);
     }
     emit.row(context, cut)
+}
+
+/// A selected view can be read by column only when every logical cell still has
+/// a physical provider cell. Otherwise the ordinary full-row path keeps its
+/// existing treatment of incomplete or changed provider populations.
+fn complete_selected(view: &SelectedRows<'_>) -> bool {
+    rectangular(view.source)
+        && view.selection.columns.len() == view.selection.kinds.len()
+        && view
+            .selection
+            .columns
+            .iter()
+            .zip(&view.selection.kinds)
+            .all(|(column, kind)| column_in(view.source.kinds, *column) == Some(kind))
 }
 
 impl OperatorsItem for SelectItem {
@@ -382,6 +396,59 @@ pub(crate) fn select_rows(
                 emit_kept(emit, walked, row, kept, &mut cut)
             },
         ),
+        Rows::Selected(view) if complete_selected(view) => {
+            let mut needed = std::mem::take(&mut context.scratch.needed);
+            needed_of(comparisons, &mut needed);
+            buffer.clear();
+            buffer.resize(view.selection.kinds.len(), Value::Flag(Flag::Lowered));
+            let projected = !kept.is_empty()
+                && kept
+                    .iter()
+                    .all(|column| column_in(&view.selection.kinds, *column).is_some());
+            let population = view.source.columns.first().map_or(0, |column| column.0.len());
+            let mut validated = false;
+            let outcome = positions(count_of(rows)).try_for_each(|index| {
+                let Some(physical) = view.selection.rows.get(index.0) else {
+                    return Ok(());
+                };
+                if usize::try_from(*physical).unwrap_or(usize::MAX) >= population {
+                    return Ok(());
+                }
+                if !validated {
+                    columns_present(&needed, &view.selection.kinds)?;
+                    validated = true;
+                }
+                for place in &needed.0 {
+                    let column = ColumnIndex(u32::try_from(*place).unwrap_or(u32::MAX));
+                    let Some(value) = cell_at(rows, index, column) else {
+                        return Ok(());
+                    };
+                    buffer[*place] = value;
+                }
+                if holds_all(comparisons, &buffer, &view.selection.kinds, names, context)?
+                    != Verdict::Holds
+                {
+                    return Ok(());
+                }
+                if projected {
+                    cut.clear();
+                    for column in kept {
+                        let Some(value) = cell_at(rows, index, *column) else {
+                            return Ok(());
+                        };
+                        cut.push(value);
+                    }
+                    emit.row(context, &cut)
+                } else {
+                    let Some(row) = read_row(rows, index, &mut buffer) else {
+                        return Ok(());
+                    };
+                    emit_kept(emit, context, row, kept, &mut cut)
+                }
+            });
+            context.scratch.needed = needed;
+            outcome
+        }
         Rows::Computed(_) | Rows::Selected(_) => positions(count_of(rows)).try_for_each(|index| {
             let Some(row) = read_row(rows, index, &mut buffer) else {
                 return Ok(());

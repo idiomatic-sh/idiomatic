@@ -2,9 +2,9 @@
   "schema": "native-standalone-cases/v2",
   "execution_contract": "singleton-per-declared-rule",
   "historical_certification": false,
-  "intent": "Explicit native118 union, preserving historical104 and114 source/receipt snapshots. Each custom profile pins its own target/settings/module registry. Annotation helper changes require fresh current typed-worker validation; no old receipt is auto-upgraded.",
+  "intent": "Explicit native124 singleton inventory, preserving historical104,114,118 source and receipt snapshots. Six newly admitted source-bound profiles require fresh descriptor proof; prior 118 results are not relabeled.",
   "source_profile_file": "benchmark.toml",
-  "source_profile_sha256": "ea9403c3a6692d2b43ad6cb49a4466520089dd55bdce489f63410348bd66d11f",
+  "source_profile_sha256": "aa77946a473b4d15fe081a32cc49e58acd2c4cc637158af5d6a736523fb6e99e",
   "source_settings": {
     "defaults": [
       "ASYNC100",
@@ -935,8 +935,8 @@
     "python/ruff/without-effect": "ebf2050f8e9314a4964318cc5b0965c8fabd5d237185573e95569d46c550f4a7"
   },
   "phase_registry_sha256": "51f2c210f75d1275cd68369a1c69289a91ca87f83b7c486a2b348edd89c4a8f4",
-  "query_count": 118,
-  "case_count": 2795,
+  "query_count": 124,
+  "case_count": 3129,
   "profiles": [
     {
       "profile_name": "native-ASYNC115",
@@ -1003,6 +1003,118 @@
           "ASYNC115": "accepted-syntax"
         },
         "flags": {}
+      }
+    },
+    {
+      "profile_name": "native-ASYNC116",
+      "rule_id": "ASYNC116",
+      "selected_rules": [
+        "ASYNC116"
+      ],
+      "profile_file": "profiles/ASYNC116/benchmark.toml",
+      "candidate_file": "rules/ASYNC116/query.ryoql",
+      "query_sha256": "e2b7a62f2405dc85fe861297df3134dfd7d8aff104cd02986cec12e6ab45eac3",
+      "cases_file": "rules/ASYNC116/cases.toml",
+      "cases_sha256": "0ba53844b3700f3b5d0b64e52a558470fa30364d4e63a58f46ac782a35a59139",
+      "case_count": 66,
+      "case_names": [
+        "integer-above",
+        "integer-boundary",
+        "integer-below",
+        "fraction-above",
+        "fraction-nearest-above",
+        "fraction-boundary",
+        "fraction-below",
+        "integral-float-above",
+        "hex-above",
+        "hex-boundary",
+        "octal-above",
+        "binary-above",
+        "underscore-integer",
+        "underscore-float",
+        "huge-integer",
+        "beyond-i128",
+        "overflow-float",
+        "underflow-float",
+        "subnormal-float",
+        "bool-true",
+        "bool-false",
+        "complex",
+        "negative-integer",
+        "negative-float",
+        "unary-plus",
+        "nested-negative",
+        "computed-add",
+        "computed-multiply",
+        "literal-string",
+        "name-delay",
+        "float-infinity-call",
+        "math-infinity",
+        "parenthesized-literal",
+        "no-arguments",
+        "multiple-positional",
+        "positional-plus-keyword",
+        "starred-positional",
+        "dictionary-expansion",
+        "trio-correct-keyword",
+        "trio-wrong-keyword",
+        "trio-two-keywords",
+        "anyio-correct-keyword",
+        "anyio-wrong-keyword",
+        "anyio-positional",
+        "module-alias",
+        "function-alias",
+        "anyio-function-alias",
+        "unicode-alias",
+        "unknown-module",
+        "unknown-receiver",
+        "asyncio-excluded",
+        "other-member",
+        "deeper-member",
+        "parameter-shadow",
+        "alias-shadow",
+        "module-rebind",
+        "alias-rebind",
+        "unawaited-function",
+        "awaited-call",
+        "crlf",
+        "unicode-prefix",
+        "noqa-specific",
+        "noqa-all",
+        "noqa-other",
+        "file-noqa",
+        "tagged-upstream-fixture"
+      ],
+      "effective_settings": {
+        "defaults": [
+          "ASYNC116"
+        ],
+        "parser_configuration": "python-target=3.10",
+        "project_context_mode": "isolated",
+        "rule_applicability": {
+          "ASYNC116": "accepted-syntax"
+        },
+        "flags": {}
+      },
+      "profile_sha256": "ee523829b9094f8ac63d5ba8cd45afd715159aa219208ac0eb290ea23b08bf64",
+      "source_settings": {
+        "defaults": [
+          "ASYNC116"
+        ],
+        "parser_configuration": "python-target=3.10",
+        "project_context_mode": "isolated",
+        "rule_applicability": {
+          "ASYNC116": "accepted-syntax"
+        },
+        "flags": {}
+      },
+      "module_registry": {
+        "python/ruff/suppress": "fragments/suppress.ryoql",
+        "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql"
+      },
+      "module_sha256": {
+        "python/ruff/suppress": "b3f9278dec26f739d1ee68a53b834629bc51b26fa868ec250e0eaaf5854d9c26",
+        "python/ruff/suppress-directives": "29efaa45457a591ccd20d340327095ef9f6d9644feec94929f245cc420fc3382"
       }
     },
     {
@@ -4310,6 +4422,129 @@
       }
     },
     {
+      "profile_name": "native-PLE0643",
+      "rule_id": "PLE0643",
+      "selected_rules": [
+        "PLE0643"
+      ],
+      "profile_file": "profiles/PLE0643/benchmark.toml",
+      "candidate_file": "rules/PLE0643/query.ryoql",
+      "query_sha256": "8b4ac3f9720a829a26fd7ae25466c356338e6eddc4b6ab183c93dddfa2eb21db",
+      "cases_file": "rules/PLE0643/cases.toml",
+      "cases_sha256": "bcec270a8b072a35915d6a755464a1da388740efb997fc79ac596211fbae2a0a",
+      "case_count": 77,
+      "case_names": [
+        "empty-list-zero",
+        "empty-list-last",
+        "empty-list-upper-bound",
+        "empty-list-negative-bound",
+        "empty-list-negative-beyond",
+        "empty-list-negative-zero",
+        "empty-tuple-zero",
+        "empty-tuple-last",
+        "empty-tuple-upper-bound",
+        "empty-tuple-negative-bound",
+        "empty-tuple-negative-beyond",
+        "empty-tuple-negative-zero",
+        "singleton-list-zero",
+        "singleton-list-last",
+        "singleton-list-upper-bound",
+        "singleton-list-negative-bound",
+        "singleton-list-negative-beyond",
+        "singleton-list-negative-zero",
+        "singleton-tuple-zero",
+        "singleton-tuple-last",
+        "singleton-tuple-upper-bound",
+        "singleton-tuple-negative-bound",
+        "singleton-tuple-negative-beyond",
+        "singleton-tuple-negative-zero",
+        "list-two-zero",
+        "list-two-last",
+        "list-two-upper-bound",
+        "list-two-negative-bound",
+        "list-two-negative-beyond",
+        "list-two-negative-zero",
+        "tuple-two-zero",
+        "tuple-two-last",
+        "tuple-two-upper-bound",
+        "tuple-two-negative-bound",
+        "tuple-two-negative-beyond",
+        "tuple-two-negative-zero",
+        "hex-index",
+        "octal-index",
+        "binary-index",
+        "underscore-index",
+        "huge-index",
+        "huge-negative",
+        "i64-positive-limit",
+        "i64-negative-limit",
+        "i128-overflow-index",
+        "parenthesized-negative",
+        "parenthesized-integer",
+        "unary-plus",
+        "double-negative",
+        "bool-true",
+        "bool-false",
+        "float",
+        "complex",
+        "dynamic-index",
+        "computed-index",
+        "slice-index",
+        "ellipsis",
+        "unknown-starred",
+        "known-valid-starred",
+        "inline-literal-starred",
+        "starred-plus-ordinary",
+        "nested-starred-does-not-expand-outer",
+        "tuple-receiver",
+        "set-receiver-excluded",
+        "dict-receiver-excluded",
+        "string-receiver-excluded",
+        "call-receiver-excluded",
+        "name-receiver-excluded",
+        "nested-list-values",
+        "unknown-normal-element",
+        "unicode-prefix",
+        "crlf-prefix",
+        "noqa-specific",
+        "noqa-other",
+        "stub-file",
+        "parenthesized-receiver",
+        "tagged-upstream-fixture"
+      ],
+      "effective_settings": {
+        "defaults": [
+          "PLE0643"
+        ],
+        "parser_configuration": "python-target=3.10",
+        "project_context_mode": "isolated",
+        "rule_applicability": {
+          "PLE0643": "accepted-syntax"
+        },
+        "flags": {}
+      },
+      "profile_sha256": "9d4d5c26810203512d0fb7c30e192e802cf5970fec2b6ecaa971f88198e223cf",
+      "source_settings": {
+        "defaults": [
+          "PLE0643"
+        ],
+        "parser_configuration": "python-target=3.10",
+        "project_context_mode": "isolated",
+        "rule_applicability": {
+          "PLE0643": "accepted-syntax"
+        },
+        "flags": {}
+      },
+      "module_registry": {
+        "python/ruff/suppress": "fragments/suppress.ryoql",
+        "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql"
+      },
+      "module_sha256": {
+        "python/ruff/suppress": "b3f9278dec26f739d1ee68a53b834629bc51b26fa868ec250e0eaaf5854d9c26",
+        "python/ruff/suppress-directives": "29efaa45457a591ccd20d340327095ef9f6d9644feec94929f245cc420fc3382"
+      }
+    },
+    {
       "profile_name": "native-PLE1132",
       "rule_id": "PLE1132",
       "selected_rules": [
@@ -5884,6 +6119,315 @@
       }
     },
     {
+      "profile_name": "native-RUF007",
+      "rule_id": "RUF007",
+      "selected_rules": [
+        "RUF007"
+      ],
+      "profile_file": "profiles/RUF007/benchmark.toml",
+      "candidate_file": "rules/RUF007/query.ryoql",
+      "query_sha256": "64e90886c67d6aee7aa08e3ad70e79fa52047d1f31e5e4341987301417c3b91d",
+      "cases_file": "rules/RUF007/cases.toml",
+      "cases_sha256": "f141de7905182f587279d34f24008c0aa07742573a905ad5977a17f914a36f43",
+      "case_count": 64,
+      "case_names": [
+        "basic",
+        "first-slice",
+        "first-omitted-lower",
+        "nonzero-start",
+        "radix-starts",
+        "underscore-starts",
+        "i32-upper-start",
+        "beyond-i32",
+        "beyond-i32-both",
+        "beyond-f64-integer-precision",
+        "beyond-i128",
+        "integer-step",
+        "radix-step",
+        "different-names",
+        "second-not-slice",
+        "second-not-subscript",
+        "gap-two",
+        "gap-zero",
+        "reversed",
+        "second-missing-start",
+        "float-lower",
+        "bool-lower",
+        "unary-plus-lower",
+        "negative-second-lower",
+        "negative-first-lower",
+        "dynamic-start",
+        "computed-start",
+        "negative-step",
+        "zero-step",
+        "float-step",
+        "bool-step",
+        "step-two",
+        "dynamic-step",
+        "first-step-two",
+        "attribute-receivers",
+        "call-receivers",
+        "three-positional",
+        "one-positional",
+        "zero-positional",
+        "starred-second",
+        "starred-argument",
+        "keyword-strict-true",
+        "keyword-strict-false",
+        "keyword-strict-dynamic",
+        "negative-upper",
+        "different-upper",
+        "clipped-empty-bounds",
+        "dynamic-upper",
+        "named-only",
+        "shadowed-builtin",
+        "parameter-shadow",
+        "builtin-alias",
+        "builtin-module",
+        "builtin-module-alias",
+        "unrelated-import",
+        "unrelated-method",
+        "unicode-name",
+        "unicode-prefix",
+        "known-short-sequence",
+        "known-empty-sequence",
+        "unknown-sequence-name",
+        "noqa-specific",
+        "noqa-other",
+        "tagged-upstream-fixture"
+      ],
+      "effective_settings": {
+        "defaults": [
+          "RUF007"
+        ],
+        "parser_configuration": "python-target=3.10",
+        "project_context_mode": "isolated",
+        "rule_applicability": {
+          "RUF007": "accepted-syntax"
+        },
+        "flags": {}
+      },
+      "profile_sha256": "eb860ae3fcd1db74e64ede60c8d000c289c97744d714f6c279561b09c3a2f87e",
+      "source_settings": {
+        "defaults": [
+          "RUF007"
+        ],
+        "parser_configuration": "python-target=3.10",
+        "project_context_mode": "isolated",
+        "rule_applicability": {
+          "RUF007": "accepted-syntax"
+        },
+        "flags": {}
+      },
+      "module_registry": {
+        "python/ruff/suppress": "fragments/suppress.ryoql",
+        "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql"
+      },
+      "module_sha256": {
+        "python/ruff/suppress": "b3f9278dec26f739d1ee68a53b834629bc51b26fa868ec250e0eaaf5854d9c26",
+        "python/ruff/suppress-directives": "29efaa45457a591ccd20d340327095ef9f6d9644feec94929f245cc420fc3382"
+      }
+    },
+    {
+      "profile_name": "native-RUF010",
+      "rule_id": "RUF010",
+      "selected_rules": [
+        "RUF010"
+      ],
+      "profile_file": "profiles/RUF010/benchmark.toml",
+      "candidate_file": "rules/RUF010/query.ryoql",
+      "query_sha256": "4a72b9251c1cec38b889b051a8ca540202cf2dba341fb684f1c0b85d94bf98e1",
+      "cases_file": "rules/RUF010/cases.toml",
+      "cases_sha256": "594af0f26802aa87c5a9648d436a470ad5efee70af5e27b2dd99000f35a3a7d7",
+      "case_count": 10,
+      "case_names": [
+        "three-builtin-conversions",
+        "explicit-conversion-and-debug",
+        "shadowed-builtin",
+        "builtin-module-attribute",
+        "str-object-keyword",
+        "invalid-call-arguments",
+        "plain-string-and-nested-format-spec",
+        "outer-call-with-nested-format-spec",
+        "noqa",
+        "pinned-ruff-0-16-5"
+      ],
+      "effective_settings": {
+        "defaults": [
+          "RUF010"
+        ],
+        "parser_configuration": "python-target=3.12",
+        "project_context_mode": "isolated",
+        "rule_applicability": {
+          "RUF010": "accepted-syntax"
+        },
+        "flags": {}
+      },
+      "profile_sha256": "5600d4ccd876ba1544002776d34261deac4c6ea034859893dd8fcc1df7388002",
+      "source_settings": {
+        "defaults": [
+          "RUF010"
+        ],
+        "parser_configuration": "python-target=3.12",
+        "project_context_mode": "isolated",
+        "rule_applicability": {
+          "RUF010": "accepted-syntax"
+        },
+        "flags": {}
+      },
+      "module_registry": {
+        "python/ruff/suppress": "fragments/suppress.ryoql",
+        "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql"
+      },
+      "module_sha256": {
+        "python/ruff/suppress": "b3f9278dec26f739d1ee68a53b834629bc51b26fa868ec250e0eaaf5854d9c26",
+        "python/ruff/suppress-directives": "29efaa45457a591ccd20d340327095ef9f6d9644feec94929f245cc420fc3382"
+      }
+    },
+    {
+      "profile_name": "native-RUF028",
+      "rule_id": "RUF028",
+      "selected_rules": [
+        "RUF028"
+      ],
+      "profile_file": "profiles/RUF028/benchmark.toml",
+      "candidate_file": "rules/RUF028/query.ryoql",
+      "query_sha256": "c0d5401801661fc34f8fd50a98a387756c7cc309c56fa015fd112238ceef450b",
+      "cases_file": "rules/RUF028/cases.toml",
+      "cases_sha256": "f3c628a8a6f658003d281a40f49cfb2ae3498668d8b3a8ce564383091c24e5d8",
+      "case_count": 97,
+      "case_names": [
+        "top-level-off",
+        "top-level-on",
+        "own-line-skip",
+        "trailing-skip",
+        "trailing-on",
+        "trailing-off",
+        "yapf-disable",
+        "yapf-enable",
+        "fmt-on",
+        "directive-whitespace",
+        "directive-formfeed",
+        "directive-formfeed-skip",
+        "formfeed-source-prefix",
+        "non-directive-0",
+        "non-directive-1",
+        "non-directive-2",
+        "non-directive-3",
+        "non-directive-4",
+        "non-directive-5",
+        "non-directive-6",
+        "non-directive-7",
+        "non-directive-8",
+        "non-directive-9",
+        "non-directive-10",
+        "non-directive-11",
+        "skip-after-other-hash",
+        "skip-before-other-hash",
+        "off-then-skip-segment",
+        "trailing-embedded-skip",
+        "function-body-switches",
+        "function-own-skip",
+        "function-header-trailing-skip",
+        "list-off",
+        "list-on",
+        "list-trailing-skip",
+        "dictionary-interior",
+        "set-interior",
+        "tuple-interior",
+        "parenthesized-atom-gap",
+        "call-arguments",
+        "call-arguments-inline",
+        "subscript-interior",
+        "comprehension-interior",
+        "generator-interior",
+        "binary-interior",
+        "function-parameters",
+        "function-parameter-trailing-on",
+        "class-bases",
+        "return-annotation-subscript",
+        "with-header-gap",
+        "with-call-interior",
+        "match-pattern-interior",
+        "match-case-header-skip",
+        "decorator-gap-function-off",
+        "decorator-gap-function-on",
+        "decorator-gap-class-off",
+        "decorator-gap-class-on",
+        "decorator-gap-async-function-off",
+        "decorator-gap-async-function-on",
+        "decorator-gap-skip",
+        "before-first-decorator",
+        "between-decorators",
+        "deeper-decorator-trailing-comment",
+        "decorator-prefix-shallow-comment",
+        "decorator-call-interior",
+        "decorator-trailing-skip",
+        "for-else-dedented-off",
+        "while-else-dedented-off",
+        "if-else-dedented-off",
+        "if-elif-dedented-off",
+        "try-except-dedented-off",
+        "try-else-dedented-off",
+        "try-finally-dedented-off",
+        "for-else-body-indent-off",
+        "for-else-deeper-off",
+        "for-else-two-switches",
+        "for-else-normal-comment-controls-indent",
+        "after-else-header-body-indent",
+        "after-else-header-dedented",
+        "normal-inline-comment-not-indentation",
+        "second-elif-distinct-attachment",
+        "second-except-distinct-attachment",
+        "semicolon-body-line-indentation",
+        "switches-do-not-require-pairing",
+        "unmatched-on-is-position-valid",
+        "expression-pair-still-invalid",
+        "unicode-byte-spans",
+        "crlf-own-skip",
+        "strings-are-not-comments",
+        "quoted-annotation-is-not-physical-comment",
+        "noqa-inline",
+        "noqa-file",
+        "comment-at-eof",
+        "after-inner-block-before-next-definition",
+        "tabs-preserve-byte-indentation",
+        "two-file-independent",
+        "upstream-pinned-RUF028.py"
+      ],
+      "effective_settings": {
+        "defaults": [
+          "RUF028"
+        ],
+        "parser_configuration": "python-target=3.10",
+        "project_context_mode": "isolated",
+        "rule_applicability": {
+          "RUF028": "accepted-syntax"
+        },
+        "flags": {}
+      },
+      "profile_sha256": "1fcf7e5600a1de77f30656a600289f48fc88ac3efdbdeedbfa2ae87371148c0b",
+      "source_settings": {
+        "defaults": [
+          "RUF028"
+        ],
+        "parser_configuration": "python-target=3.10",
+        "project_context_mode": "isolated",
+        "rule_applicability": {
+          "RUF028": "accepted-syntax"
+        },
+        "flags": {}
+      },
+      "module_registry": {
+        "python/ruff/suppress": "fragments/suppress.ryoql",
+        "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql"
+      },
+      "module_sha256": {
+        "python/ruff/suppress": "b3f9278dec26f739d1ee68a53b834629bc51b26fa868ec250e0eaaf5854d9c26",
+        "python/ruff/suppress-directives": "29efaa45457a591ccd20d340327095ef9f6d9644feec94929f245cc420fc3382"
+      }
+    },
+    {
       "profile_name": "native-RUF032",
       "rule_id": "RUF032",
       "selected_rules": [
@@ -6199,6 +6743,72 @@
         "python/ruff/suppress": "b3f9278dec26f739d1ee68a53b834629bc51b26fa868ec250e0eaaf5854d9c26",
         "python/ruff/suppress-directives": "29efaa45457a591ccd20d340327095ef9f6d9644feec94929f245cc420fc3382",
         "python/ruff/assigned-values": "c78ef906aa7e8b31cc6a4935eed21b9da2034ed392cb56da712889d5168ffb86"
+      }
+    },
+    {
+      "profile_name": "native-SIM118",
+      "rule_id": "SIM118",
+      "selected_rules": [
+        "SIM118"
+      ],
+      "profile_file": "profiles/SIM118/benchmark.toml",
+      "candidate_file": "rules/SIM118/query.ryoql",
+      "query_sha256": "324e3ea51c348cd2e48a083f0621b3f1e4c23cb8723f0c96cf4e62c1afd764d1",
+      "cases_file": "rules/SIM118/cases.toml",
+      "cases_sha256": "be4bec77b5876eccada59d4ad75be0d992b5f841dbffb044e01f428267d5ccee",
+      "case_count": 20,
+      "case_names": [
+        "membership",
+        "not-membership",
+        "for-loop",
+        "list-comprehension",
+        "set-comprehension",
+        "dict-comprehension",
+        "generator",
+        "async-comprehension",
+        "nested-receiver",
+        "parenthesized-right",
+        "self-receiver",
+        "attribute-on-self-is-reportable",
+        "arguments-and-other-attribute",
+        "chained-comparison",
+        "async-for",
+        "multiple-comparison-operators",
+        "nested-keys-call",
+        "noqa",
+        "custom-keys-method-with-side-effects",
+        "pinned-ruff-0-16-5"
+      ],
+      "effective_settings": {
+        "defaults": [
+          "SIM118"
+        ],
+        "parser_configuration": "python-target=3.10",
+        "project_context_mode": "isolated",
+        "rule_applicability": {
+          "SIM118": "accepted-syntax"
+        },
+        "flags": {}
+      },
+      "profile_sha256": "1ab42d02651a1d7fcf239cdc5716f8cfbe20d48bbf3f518e4087954f82951163",
+      "source_settings": {
+        "defaults": [
+          "SIM118"
+        ],
+        "parser_configuration": "python-target=3.10",
+        "project_context_mode": "isolated",
+        "rule_applicability": {
+          "SIM118": "accepted-syntax"
+        },
+        "flags": {}
+      },
+      "module_registry": {
+        "python/ruff/suppress": "fragments/suppress.ryoql",
+        "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql"
+      },
+      "module_sha256": {
+        "python/ruff/suppress": "b3f9278dec26f739d1ee68a53b834629bc51b26fa868ec250e0eaaf5854d9c26",
+        "python/ruff/suppress-directives": "29efaa45457a591ccd20d340327095ef9f6d9644feec94929f245cc420fc3382"
       }
     },
     {

@@ -76,7 +76,8 @@ impl PreparedMatchers {
         Some(
             slot.get_or_init(|| {
                 #[cfg(test)]
-                self.builds
+                let _previous = self
+                    .builds
                     .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                 Regex::new(pattern).map_err(|error| OperatingError::InvalidRegex {
                     reason: error.to_string(),
@@ -94,7 +95,8 @@ impl PreparedMatchers {
         };
         Some(slot.get_or_init(|| {
             #[cfg(test)]
-            self.builds
+            let _previous = self
+                .builds
                 .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
             crate::domain::globbing::service::compile(&[GlobText(pattern)])
         }))

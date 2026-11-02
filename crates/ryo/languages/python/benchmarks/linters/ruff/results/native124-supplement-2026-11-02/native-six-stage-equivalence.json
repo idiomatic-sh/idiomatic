@@ -1,0 +1,55 @@
+{
+  "schema": "native-supplement-stage-equivalence/v1",
+  "native_descriptor_sha256": "e29efd6cee1a469e9412eb987d29c99b08fbe24c6012b19def4b0e9c6aaa36ce",
+  "prepared_manifest_sha256": "9ba93222ced5c561278f196ec6078b979557edbebb5350d6ca107f50223bc718",
+  "prepared_six_run_sha256": "fff76148714247fc845b8fbaf832c22e767388c6bde41a752fa497d2f17cfe05",
+  "worker_sha256": "a47f39deb6f4a8f3a21ecd5c0ebec50a7d0a2cf6572bb7baa82cee9e3a1bffa2",
+  "scope": "six native declaration stages byte-for-byte equal to six canonically executed prepared singleton stages; old118 runtime proof remains separate",
+  "profiles": {
+    "ASYNC116": {
+      "benchmark.toml": "07df952043e8777bbddb06342ef8e021d61e3f995312d5feac8b3ca8249fd9a8",
+      "fragments/suppress-directives.ryoql": "29efaa45457a591ccd20d340327095ef9f6d9644feec94929f245cc420fc3382",
+      "fragments/suppress.ryoql": "b3f9278dec26f739d1ee68a53b834629bc51b26fa868ec250e0eaaf5854d9c26",
+      "rules/ASYNC116/cases.toml": "0ba53844b3700f3b5d0b64e52a558470fa30364d4e63a58f46ac782a35a59139",
+      "rules/ASYNC116/query.ryoql": "e2b7a62f2405dc85fe861297df3134dfd7d8aff104cd02986cec12e6ab45eac3"
+    },
+    "PLE0643": {
+      "benchmark.toml": "7aaaa6bc32568b0cfbb562696e15ead6cad788f1464e134e3cf0a00644fb9ca5",
+      "evidence/cpython310-observation.json": "1dcf4fb83cbd1f66103f304fa313700b2496b83062756f35c7bd84f2866e91a7",
+      "fragments/suppress-directives.ryoql": "29efaa45457a591ccd20d340327095ef9f6d9644feec94929f245cc420fc3382",
+      "fragments/suppress.ryoql": "b3f9278dec26f739d1ee68a53b834629bc51b26fa868ec250e0eaaf5854d9c26",
+      "rules/PLE0643/cases.toml": "bcec270a8b072a35915d6a755464a1da388740efb997fc79ac596211fbae2a0a",
+      "rules/PLE0643/query.ryoql": "8b4ac3f9720a829a26fd7ae25466c356338e6eddc4b6ab183c93dddfa2eb21db"
+    },
+    "RUF007": {
+      "benchmark.toml": "aa1a83a336d712c6f4356b221e0bfe265cdd693aa13077f9922e59cacea54662",
+      "evidence/cpython310-observation.json": "949499f223b38947590e83dfc9123aa268f57c1b53fffb7d5de88f916e7a76ad",
+      "fragments/suppress-directives.ryoql": "29efaa45457a591ccd20d340327095ef9f6d9644feec94929f245cc420fc3382",
+      "fragments/suppress.ryoql": "b3f9278dec26f739d1ee68a53b834629bc51b26fa868ec250e0eaaf5854d9c26",
+      "rules/RUF007/cases.toml": "f141de7905182f587279d34f24008c0aa07742573a905ad5977a17f914a36f43",
+      "rules/RUF007/query.ryoql": "64e90886c67d6aee7aa08e3ad70e79fa52047d1f31e5e4341987301417c3b91d"
+    },
+    "RUF010": {
+      "benchmark.toml": "79bd2dee95cbbf8331803407c1607cd204439694a6dc8f0fe8e0ad664a864dd0",
+      "fragments/suppress-directives.ryoql": "29efaa45457a591ccd20d340327095ef9f6d9644feec94929f245cc420fc3382",
+      "fragments/suppress.ryoql": "b3f9278dec26f739d1ee68a53b834629bc51b26fa868ec250e0eaaf5854d9c26",
+      "rules/RUF010/cases.toml": "594af0f26802aa87c5a9648d436a470ad5efee70af5e27b2dd99000f35a3a7d7",
+      "rules/RUF010/query.ryoql": "4a72b9251c1cec38b889b051a8ca540202cf2dba341fb684f1c0b85d94bf98e1"
+    },
+    "RUF028": {
+      "benchmark.toml": "1eddb3bc82381cc84c2541b9a7e0c79b86e09d4d2e07ea52707500d768daf7c8",
+      "evidence/cpython310-observation.json": "5806cc67f356f40775f962c66beb3d7d2f82564626f98c55cdb78e942dc791a4",
+      "fragments/suppress-directives.ryoql": "29efaa45457a591ccd20d340327095ef9f6d9644feec94929f245cc420fc3382",
+      "fragments/suppress.ryoql": "b3f9278dec26f739d1ee68a53b834629bc51b26fa868ec250e0eaaf5854d9c26",
+      "rules/RUF028/cases.toml": "f3c628a8a6f658003d281a40f49cfb2ae3498668d8b3a8ce564383091c24e5d8",
+      "rules/RUF028/query.ryoql": "c0d5401801661fc34f8fd50a98a387756c7cc309c56fa015fd112238ceef450b"
+    },
+    "SIM118": {
+      "benchmark.toml": "a2e3ddf5d52abfc55f9fd195e23a9ad1e66507c8e7418d326ee0b6b4a54c9b90",
+      "fragments/suppress-directives.ryoql": "29efaa45457a591ccd20d340327095ef9f6d9644feec94929f245cc420fc3382",
+      "fragments/suppress.ryoql": "b3f9278dec26f739d1ee68a53b834629bc51b26fa868ec250e0eaaf5854d9c26",
+      "rules/SIM118/cases.toml": "be4bec77b5876eccada59d4ad75be0d992b5f841dbffb044e01f428267d5ccee",
+      "rules/SIM118/query.ryoql": "324e3ea51c348cd2e48a083f0621b3f1e4c23cb8723f0c96cf4e62c1afd764d1"
+    }
+  }
+}

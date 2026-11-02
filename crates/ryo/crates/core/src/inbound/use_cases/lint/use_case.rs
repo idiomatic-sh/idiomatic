@@ -1300,7 +1300,12 @@ impl LintUseCase for LintUseCaseImpl {
         let rules: Vec<RuleSpec> = request.rules.iter().map(RuleSpec::from).collect();
         let compiling = tracing::info_span!("compile").entered();
         let Compiled { plans, bindings } = self.checked_rules(&rules, &request.hosted)?;
-        crate::application::rule_compilation::service::observed(&rules, &plans, &bindings);
+        crate::application::rule_compilation::service::observed(
+            &rules,
+            &plans,
+            &bindings,
+            &request.hosted,
+        );
         let ids = ids_of(&rules);
         let Wanting { placed, wants } = self.wanting(&rules, &plans, &ids)?;
         drop(compiling);

@@ -9,6 +9,10 @@ use tracing_subscriber::fmt::writer::MakeWriter;
 const RULE_FILE_TARGET: &str = "ryo::diagnostic::rule_file";
 /// Compile-time source and normalized prefix evidence for explicit attribution.
 const COMPILED_PREFIX_TARGET: &str = "ryo::diagnostic::compiled_prefix";
+/// Complete compiled operations and file-specific physical layouts for an offline census.
+const COMPILED_SUBPLAN_TARGET: &str = "ryo::diagnostic::compiled_subplan";
+/// Completed kept-cut sizes and partial state for the same explicitly scoped census.
+const SUBPLAN_CUT_TARGET: &str = "ryo::diagnostic::subplan_cut";
 /// Aggregate counters for an explicitly diagnosed generic stored join.
 const STORED_JOIN_TARGET: &str = "ryo::diagnostic::stored_join";
 /// Events describing one operator step within a selected rule.
@@ -83,6 +87,9 @@ fn subscriber_with_aggregates(
     let include_prefixes = std::env::var_os("RYO_DIAGNOSTIC_PREFIXES")
         .is_some_and(|value| value == "1")
         && !lifecycle_only;
+    let include_subplans = std::env::var_os("RYO_DIAGNOSTIC_SUBPLANS")
+        .is_some_and(|value| value == "1")
+        && !lifecycle_only;
     let layer = tracing_subscriber::fmt::layer()
         .json()
         .with_ansi(false)
@@ -107,6 +114,22 @@ fn subscriber_with_aggregates(
                 .with_target(
                     COMPILED_PREFIX_TARGET,
                     if include_prefixes {
+                        tracing_subscriber::filter::LevelFilter::TRACE
+                    } else {
+                        tracing_subscriber::filter::LevelFilter::OFF
+                    },
+                )
+                .with_target(
+                    COMPILED_SUBPLAN_TARGET,
+                    if include_subplans {
+                        tracing_subscriber::filter::LevelFilter::TRACE
+                    } else {
+                        tracing_subscriber::filter::LevelFilter::OFF
+                    },
+                )
+                .with_target(
+                    SUBPLAN_CUT_TARGET,
+                    if include_subplans {
                         tracing_subscriber::filter::LevelFilter::TRACE
                     } else {
                         tracing_subscriber::filter::LevelFilter::OFF

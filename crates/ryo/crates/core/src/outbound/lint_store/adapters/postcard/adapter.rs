@@ -378,15 +378,25 @@ impl ReadStore for PostcardRead {
             })
             .ok_or_else(|| self.adapter.unreadable(&"old row bucket or span is absent"))?;
         let held = opened.length.0;
-        super::types::frames::value::read_old_in(
+        #[cfg(unix)]
+        let read = super::types::frames::value::read_old_file_in(
+            &opened.file,
+            held,
+            StoreSnapshot(self.session.0),
+            bucket.span,
+            words,
+            into,
+        );
+        #[cfg(not(unix))]
+        let read = super::types::frames::value::read_old_in(
             &mut opened.file,
             held,
             StoreSnapshot(self.session.0),
             bucket.span,
             words,
             into,
-        )
-        .map_err(|error| self.adapter.unreadable(&error))
+        );
+        read.map_err(|error| self.adapter.unreadable(&error))
     }
 
     fn stage_words(

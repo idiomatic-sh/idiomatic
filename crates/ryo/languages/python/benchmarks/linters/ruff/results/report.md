@@ -2,6 +2,23 @@
 
 **In progress.** The goal remains all 413 Ruff 0.16.5 defaults as RyoQL, faithful full reports, and subsecond full-Django execution. Neither full parity nor the performance target has passed.
 
+## Selected columns and six explicit admissions (2026-11-02)
+
+The [source and measurement receipt](native124-supplement-2026-11-02/summary.json) binds the selected-column and Symbol discriminator repairs, the retained selection admission bound, six new rule admissions, and the actual local checks. The combined gate passed **353 core** and **101 benchmark** tests and sealed fresh Python and Rust workers. A sparse traversal preflight initially failed because three fixture scripts omitted the worker's required explicit parser argument; both the pre-Selected and Selected workers refused the same invocation. The shared fixture command was corrected, and all 26 sparse cases passed before the native run. This failure was a fixture protocol error, not an engine finding.
+
+The source now explicitly declares **124 native singleton queries and 3,129 cases**. The unchanged 118-rule segment ran on the sealed worker with **2,795/2,795 intended cases passing**; its [raw archive](native124-supplement-2026-11-02/native118-a47-execution.tar.gz) retains the original 118 descriptor and per-case receipts. Six admitted profiles (ASYNC116, PLE0643, RUF007, RUF010, RUF028, SIM118) ran canonically with **334/334 intended cases passing**; their [raw archive](native124-supplement-2026-11-02/new-six-a47-execution.tar.gz) and [exact stage equivalence](native124-supplement-2026-11-02/native-six-stage-equivalence.json) bind the six native declarations byte-for-byte to those executed singleton stages. These are two separate execution segments, not one relabeled 124-rule run. Across them, **3,099/3,129 raw case reports match**, **26** have individually validated reference diagnostic discrepancies, and four UP025 cases have identical invalid-syntax findings but incomparable reference skip metadata. Every candidate has complete execution metadata; Ruff exposes none, so all 3,129 metadata comparisons remain incomparable. The raw differences remain visible.
+
+The matched ordinary Django run kept the frozen **310 rules / 2,875 files** and separate fresh corpora and caches for the pre-Selected and Selected workers. Cold reports are exact, as are each worker's cold versus warm and retained edited versus fresh edited reports. Both cold reports have 2,327 findings and coverage 891,250 selected / 890,943 evaluated / 307 syntax skips / zero unknown; edited reports have 2,328 findings.
+
+| Phase | Pre-Selected wall / RSS | Selected wall / RSS |
+|---|---:|---:|
+| Cold | 257.803 s / 2.187 GB | 248.045 s / 2.192 GB |
+| Retained CLI cache | 1.991 s / 238 MB | 2.033 s / 238 MB |
+| Edited, retained cache | 9.206 s / 1.955 GB | 8.491 s / 1.955 GB |
+| Edited, fresh cache | 257.675 s / 2.215 GB | 245.308 s / 2.209 GB |
+
+This one scoped pair shows a **3.8%** cold wall reduction and **7.8%** edited-cache wall reduction, with a **2.1%** warmer retained-cache phase. It establishes no order-of-magnitude gain. Original Rust still fails the unchanged 1.15 guard: main-to-current cold wall ratios are **1.110 / 1.222**, cold CPU **0.984 / 1.201**, while edited-cache wall ratios are **1.375 / 1.417**. Both Rust variants report 16,373 rows, but their debug digests differ and full output parity is not inferred. Full 413-rule parity, two more medium or large Python corpora, all-language CI speed and warm-memory acceptance remain open. The public PR stays in progress; no main merge is claimed.
+
 ## Numeric, target and sparse join measured checkpoint (2026-11-02)
 
 The [source-bound measured receipt](numeric-sparse-measurements-2026-11-02.json) records selected passing numeric, target, grammar, sparse join, conformance, zero-extra allocation, compile-fail, BDD, cache lifecycle and actual 1,000-row catalog checks. The prior failed allocation and numeric-witness checks were corrected without raising limits or adding unfed exemptions. Fresh release binaries were sealed from the corrected source. These selected checks do not replace broad quality or all-language acceptance.

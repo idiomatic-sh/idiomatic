@@ -145,7 +145,7 @@ with output.open("w") as records:
                 before = time.monotonic()
                 try:
                     p = subprocess.run(
-                        [str(worker), "run-ryo", wire],
+                        guard.run_ryo_command(worker, request, wire),
                         text=True,
                         capture_output=True,
                         timeout=20,

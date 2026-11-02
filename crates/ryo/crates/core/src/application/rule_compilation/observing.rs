@@ -2,6 +2,7 @@
 use crate::domain::rules::types::RuleSpec;
 use crate::domain::table_model::types::ParameterBinding;
 use ryo_language::domain::relations::{service::kinds, types::Relation};
+use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::plan_parts::{
     service::remapped,
     types::{ColumnIndex, Comparison, Input, RepeatedRows},
@@ -81,7 +82,15 @@ fn prefix(below: &[Option<Prefix>], operation: &Operation) -> Option<Prefix> {
 
 /// Emit typed compile-time observations only under the explicit diagnostic target.
 /// Grouping predicates without origin IDs does not make their owners' error provenance interchangeable.
-pub(super) fn compiled(rules: &[RuleSpec], plans: &[Plan], bindings: &[Vec<ParameterBinding>]) {
+pub(super) fn compiled(
+    rules: &[RuleSpec],
+    plans: &[Plan],
+    bindings: &[Vec<ParameterBinding>],
+    hosted: &[HostRelation],
+) {
+    if tracing::enabled!(target: "ryo::diagnostic::compiled_subplan", tracing::Level::TRACE) {
+        subplans(rules, plans, bindings, hosted);
+    }
     if !tracing::enabled!(target: "ryo::diagnostic::compiled_prefix", tracing::Level::TRACE) {
         return;
     }
@@ -134,6 +143,45 @@ pub(super) fn compiled(rules: &[RuleSpec], plans: &[Plan], bindings: &[Vec<Param
                 record_kind = "prefix", rule_index, rule = %rule.id.0, step_index,
                 relation = ?relation, comparisons = ?tests, projection = ?projection,
                 origin_ids = ?origins, scope = "per-file",
+            );
+        }
+    }
+}
+
+/// Full physical operation evidence is opt-in and remains separate from executable cache keys.
+/// Source origins and bound values are logged apart from operation shape so an offline census can
+/// decide whether a repeated shape is semantically interchangeable.
+fn subplans(
+    rules: &[RuleSpec],
+    plans: &[Plan],
+    bindings: &[Vec<ParameterBinding>],
+    hosted: &[HostRelation],
+) {
+    for (rule_index, ((rule, plan), bound)) in rules.iter().zip(plans).zip(bindings).enumerate() {
+        let identity = std::ptr::from_ref(plan).addr();
+        let sources = std::iter::once((&rule.query.root.id, &rule.query.root))
+            .chain(rule.query.modules.iter())
+            .map(|(registered, source)| {
+                (
+                    registered,
+                    &source.id,
+                    source.text.len(),
+                    blake3::hash(source.text.as_bytes()).to_hex().to_string(),
+                )
+            })
+            .collect::<Vec<_>>();
+        tracing::event!(
+            target: "ryo::diagnostic::compiled_subplan", tracing::Level::TRACE,
+            record_kind = "plan", rule_index, rule = %rule.id.0, plan_identity = identity,
+            sources = ?sources, parameters = ?plan.parameters, bindings = ?bound,
+            hosted = ?hosted, comparison_origins = ?plan.comparison_origins,
+            emit = ?plan.emit, frontier = ?plan.frontier, steps = plan.steps.len(),
+        );
+        for (step_index, step) in plan.steps.iter().enumerate() {
+            tracing::event!(
+                target: "ryo::diagnostic::compiled_subplan", tracing::Level::TRACE,
+                record_kind = "step", rule_index, rule = %rule.id.0, plan_identity = identity,
+                step_index, scope = ?step.scope, operation = ?step.operation,
             );
         }
     }

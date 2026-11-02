@@ -18,8 +18,13 @@ use ryo_language::domain::relations::types::{
     CellKind, ColumnsView, FactColumn, Integer, Relation, Value as Cell,
 };
 use ryo_language::domain::symbols::types::Symbols;
+use ryo_language::domain::symbols::service::intern_derived;
+use ryo_language::domain::symbols::types::ByteSlice;
+use ryo_language::domain::terms::service::term_symbol;
+use ryo_language::domain::terms::types::{DeclarationKind, NameText};
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, Comparison, Input as Source, Operand, ParameterId, RepeatedRows, Test, WholeNumber,
+    ColumnIndex, Comparison, Input as Source, LiteralText, Operand, ParameterId, QueryLiteral,
+    RepeatedRows, Test, WholeNumber,
 };
 use ryo_values::domain::plans::types::Operation;
 use std::sync::Arc;
@@ -292,6 +297,114 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     Ok(1)
 }
 
+/// A closed term and a file-interned name can spell the same text. An equality
+/// index over raw Symbol IDs must decline that ambiguous discriminator.
+#[test]
+fn symbol_discriminator_preserves_text_equality_with_term_aliases() -> Result<(), Failure> {
+    let mut symbols = Symbols::default();
+    let dynamic_class = intern_derived(&mut symbols, ByteSlice(b""), NameText("class"));
+    let rare = intern_derived(&mut symbols, ByteSlice(b""), NameText("rare"));
+    let class_term = term_symbol(DeclarationKind::Class);
+    let method_term = term_symbol(DeclarationKind::Method);
+    assert_ne!(dynamic_class, class_term);
+    let mut kind = vec![to_bits(Cell::Symbol(method_term)).0; 128];
+    for row in [0, 3, 17] {
+        kind[row] = to_bits(Cell::Symbol(class_term)).0;
+    }
+    kind[2] = to_bits(Cell::Symbol(dynamic_class)).0;
+    kind[4] = to_bits(Cell::Symbol(rare)).0;
+    let columns = [
+        FactColumn(kind),
+        FactColumn(
+            (0..128)
+                .map(|row| to_bits(Cell::Number(Integer(row % 2))).0)
+                .collect(),
+        ),
+    ];
+    let source = ColumnsView {
+        kinds: &[CellKind::Symbol, CellKind::Number],
+        columns: &columns,
+    };
+    let selector = |word: &str| {
+        Arc::new(Selector {
+            relation: Relation::Defines,
+            identity: Arc::new(crate::domain::table_model::types::SelectionIdentity {
+                comparisons: vec![Comparison {
+                    test: Test::Equal,
+                    left: Operand::Column(ColumnIndex(0)),
+                    right: Operand::Literal(QueryLiteral::Text(LiteralText(word.into()))),
+                    origin: None,
+                }],
+                bindings: Vec::new(),
+            }),
+            columns: vec![ColumnIndex(1), ColumnIndex(0), ColumnIndex(1)],
+            distinct: false,
+        })
+    };
+    let rare_selector = selector("rare");
+    let class_selector = selector("class");
+    let mut cache = new(&[Relation::Defines], &[], LIMIT).expect("generation");
+    cache.selectors = vec![Arc::clone(&rare_selector), Arc::clone(&class_selector)];
+    crate::domain::stored_indexes::service::candidate_columns(&mut cache);
+    assert!(cache.discriminator_columns.iter().any(|column| column.repeated));
+    let mut memo = Vec::new();
+    let mut scratch = OperatorScratch::default();
+    let mut context = OperatorContext {
+        prepared_kinds: None,
+        prepared_matchers: None,
+        stored_indexes: Some(&mut cache),
+        bindings: &[],
+        symbols: &mut symbols,
+        source: SourceView(b""),
+        paths: &[],
+        arenas: &[],
+        memo: &mut memo,
+        scratch: &mut scratch,
+    };
+    let rare_rows = select(&rare_selector, source, &mut context)?.expect("indexed rare");
+    assert_eq!(*rare_rows.selection.rows, [4]);
+    let indexes = context.stored_indexes.as_deref().expect("cache");
+    assert_eq!(indexes.entries.len(), 1, "unique name uses the index");
+    let candidates_before = indexes.selection_counts.candidates;
+    let scans_before = indexes.selection_counts.scanned;
+    let class_rows = select(&class_selector, source, &mut context)?.expect("term alias scan");
+    assert_eq!(*class_rows.selection.rows, [0, 2, 3, 17]);
+    let indexes = context.stored_indexes.as_deref().expect("cache");
+    assert_eq!(indexes.entries.len(), 1);
+    assert_eq!(indexes.selection_counts.candidates, candidates_before);
+    assert_eq!(indexes.selection_counts.scanned - scans_before, 128);
+    let mut actual = Table::default();
+    materialize(&Rows::Selected(class_rows), &mut actual, &mut Vec::new());
+    drop(context);
+    let mut ordinary = OperatorContext {
+        prepared_kinds: None,
+        prepared_matchers: None,
+        stored_indexes: None,
+        bindings: &[],
+        symbols: &mut symbols,
+        source: SourceView(b""),
+        paths: &[],
+        arenas: &[],
+        memo: &mut memo,
+        scratch: &mut scratch,
+    };
+    let mut expected = Table::default();
+    compute(
+        &Operation::Select {
+            from: Source::Relation(Relation::Defines),
+            comparisons: class_selector.identity.comparisons.clone(),
+            kept: class_selector.columns.clone(),
+        },
+        &[Rows::Stored(source)],
+        &mut ordinary,
+        &mut expected,
+    )?;
+    assert_eq!(actual, expected);
+    assert_eq!(actual.count.0, 4);
+    assert_eq!(&actual.cells[6..9], &actual.cells[9..12], "duplicate bag rows");
+    Ok(())
+}
+
 /// Registered success, refusal and generation boundaries of compact selection.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
@@ -354,6 +467,89 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
+}
+
+/// Entries append into spare owned capacity instead of moving every retained entry.
+#[test]
+fn retained_selections_keep_spare_vector_capacity() -> Result<(), Failure> {
+    let columns: Vec<_> = (0_i64..3)
+        .map(|column| {
+            FactColumn(
+                (0_i64..4)
+                    .map(|row| to_bits(Cell::Number(Integer(row + column))).0)
+                    .collect(),
+            )
+        })
+        .collect();
+    let source = ColumnsView {
+        kinds: &[CellKind::Number; 3],
+        columns: &columns,
+    };
+    let (first, second) = (program(2), program(3));
+    let mut cache = new(&[Relation::Function], &[], LIMIT).expect("generation");
+    cache.selectors = vec![
+        Arc::clone(&first),
+        Arc::clone(&first),
+        Arc::clone(&second),
+        Arc::clone(&second),
+    ];
+    cache
+        .selections
+        .try_reserve_exact(8)
+        .expect("test spare capacity");
+    let storage = cache.selections.as_ptr();
+    let before = cache.bytes;
+    let mut symbols = Symbols::default();
+    let mut memo = Vec::new();
+    let mut scratch = OperatorScratch::default();
+    let mut context = OperatorContext {
+        prepared_kinds: None,
+        prepared_matchers: None,
+        stored_indexes: Some(&mut cache),
+        bindings: &[],
+        symbols: &mut symbols,
+        source: SourceView(b""),
+        paths: &[],
+        arenas: &[],
+        memo: &mut memo,
+        scratch: &mut scratch,
+    };
+    let selected = select(&first, source, &mut context)?.expect("first result");
+    let selected_next = select(&second, source, &mut context)?.expect("second result");
+    assert_ne!(selected.selection.rows, selected_next.selection.rows);
+    let retained = context.stored_indexes.as_ref().expect("cache restored");
+    assert_eq!(retained.selections.len(), 2);
+    assert_eq!(retained.selections.as_ptr(), storage);
+    assert_eq!(
+        retained.bytes,
+        before + super::service::RETAINED_SELECTION_RESERVATION
+    );
+    Ok(())
+}
+
+/// A result larger than the fixed selection allowance stays local to its call.
+#[test]
+fn oversized_selection_refuses_retention_without_charging_the_cache() {
+    let program = program(2);
+    let mut cache = new(&[Relation::Function], &[], LIMIT).expect("generation");
+    cache.selectors = vec![Arc::clone(&program), Arc::clone(&program)];
+    let before = cache.bytes;
+    let rows = Arc::new(Vec::with_capacity(
+        super::service::MAX_RETAINED_POSITION_CAPACITY + 1,
+    ));
+    let columns = [
+        FactColumn::default(),
+        FactColumn::default(),
+        FactColumn::default(),
+    ];
+    let source = ColumnsView {
+        kinds: &[CellKind::Number; 3],
+        columns: &columns,
+    };
+    super::service::admit(&mut cache, &program, source, 0, &rows);
+    assert!(cache.selections.is_empty());
+    assert_eq!(cache.selection_counts.refusals, 1);
+    assert_eq!(cache.bytes, before);
 }
 
 /// Distinct projections keep independent first representatives while sharing only predicate matches.

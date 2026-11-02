@@ -112,6 +112,7 @@ pub(crate) fn observed(
     rules: &[RuleSpec],
     plans: &[ryo_values::domain::plans::types::Plan],
     bindings: &[Vec<crate::domain::table_model::types::ParameterBinding>],
+    hosted: &[HostRelation],
 ) {
-    super::observing::compiled(rules, plans, bindings);
+    super::observing::compiled(rules, plans, bindings, hosted);
 }

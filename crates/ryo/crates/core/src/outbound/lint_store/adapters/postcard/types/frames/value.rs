@@ -15,6 +15,39 @@ use ryo_values::domain::stores::types::{
 use std::collections::BTreeMap;
 use std::io::{BufReader, Read, Seek, SeekFrom, Write};
 
+#[cfg(unix)]
+struct PositionalReader<'a> {
+    file: &'a std::fs::File,
+    at: u64,
+}
+
+#[cfg(unix)]
+impl Read for PositionalReader<'_> {
+    fn read(&mut self, into: &mut [u8]) -> std::io::Result<usize> {
+        use std::os::unix::fs::FileExt as _;
+
+        let read = self.file.read_at(into, self.at)?;
+        self.at = self
+            .at
+            .checked_add(u64::try_from(read).map_err(std::io::Error::other)?)
+            .ok_or_else(|| invalid("old row position overflows"))?;
+        Ok(read)
+    }
+}
+
+#[cfg(unix)]
+impl Seek for PositionalReader<'_> {
+    fn seek(&mut self, from: SeekFrom) -> std::io::Result<u64> {
+        let at = match from {
+            SeekFrom::Start(at) => i128::from(at),
+            SeekFrom::Current(by) => i128::from(self.at) + i128::from(by),
+            SeekFrom::End(by) => i128::from(self.file.metadata()?.len()) + i128::from(by),
+        };
+        self.at = u64::try_from(at).map_err(|_| invalid("old row seek underflows"))?;
+        Ok(self.at)
+    }
+}
+
 /// One borrowed or file-backed payload, never an eagerly allocated rebuilt bucket.
 #[derive(Clone, Copy, Debug)]
 pub(in crate::outbound::lint_store::adapters::postcard) enum Payload<'a> {
@@ -264,35 +297,65 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn read_old_in(
     if !(2..=HEADER_BYTES).contains(&header_length) {
         return Err(invalid("old row header exceeds its encoded field widths"));
     }
-    let mut header = [0_u8; HEADER_BYTES];
-    let header = header
-        .get_mut(..header_length)
-        .ok_or_else(|| invalid("old row header exceeds its encoded field widths"))?;
-    let _position = file.seek(SeekFrom::Start(words.header))?;
-    file.read_exact(header)?;
-    let mut fields = std::io::Cursor::new(header);
-    let mut cursor = words.header;
-    let number = integer(&mut fields, &mut cursor, words.offset, u64::from(u32::MAX))?;
-    let framed_length = integer(
-        &mut fields,
-        &mut cursor,
-        words.offset,
-        u64::try_from(usize::MAX).unwrap_or(u64::MAX),
-    )?;
-    if number != u64::from(words.file.0) || framed_length != words.length || cursor != words.offset
-    {
-        return Err(invalid("old row descriptor does not match its framing"));
-    }
+    let total = header_length
+        .checked_add(length)
+        .ok_or_else(|| invalid("old row exceeds addressable memory"))?;
     into.0.clear();
     into.0
-        .try_reserve_exact(length)
+        .try_reserve_exact(total)
         .map_err(std::io::Error::other)?;
-    into.0.resize(length, 0);
+    into.0.resize(total, 0);
+    let _position = file.seek(SeekFrom::Start(words.header))?;
     if let Err(error) = file.read_exact(&mut into.0) {
         into.0.clear();
         return Err(error);
     }
+    let framing = (|| {
+        let mut fields = std::io::Cursor::new(&into.0[..header_length]);
+        let mut cursor = words.header;
+        let number = integer(&mut fields, &mut cursor, words.offset, u64::from(u32::MAX))?;
+        let framed_length = integer(
+            &mut fields,
+            &mut cursor,
+            words.offset,
+            u64::try_from(usize::MAX).unwrap_or(u64::MAX),
+        )?;
+        Ok::<_, std::io::Error>((number, framed_length, cursor))
+    })()
+    .map_err(|error| {
+        into.0.clear();
+        error
+    })?;
+    let (number, framed_length, cursor) = framing;
+    if number != u64::from(words.file.0) || framed_length != words.length || cursor != words.offset
+    {
+        into.0.clear();
+        return Err(invalid("old row descriptor does not match its framing"));
+    }
+    into.0.copy_within(header_length.., 0);
+    into.0.truncate(length);
     Ok(())
+}
+
+/// Resolve an old row without changing the shared snapshot file cursor. This keeps
+/// the exact requested-row read and late truncation checks of `read_old_in`.
+#[cfg(unix)]
+pub(in crate::outbound::lint_store::adapters::postcard) fn read_old_file_in(
+    file: &std::fs::File,
+    held: u64,
+    snapshot: StoreSnapshot,
+    bucket: SectionSpan,
+    words: &OldWords,
+    into: &mut PackedWords,
+) -> std::io::Result<()> {
+    read_old_in(
+        &mut PositionalReader { file, at: 0 },
+        held,
+        snapshot,
+        bucket,
+        words,
+        into,
+    )
 }
 
 /// Postcard unsigned varints are bounded by the encoded type's width, including a checked last digit.

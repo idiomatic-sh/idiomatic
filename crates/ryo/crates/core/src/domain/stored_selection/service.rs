@@ -19,10 +19,18 @@ use ryo_language::domain::relations::service::from_bits;
 use ryo_language::domain::relations::types::{Bits, CellKind, ColumnsView, Flag, Integer, Value};
 use ryo_language::domain::symbols::service::{hash_in, hash_of, name_count, text_of};
 use ryo_language::domain::symbols::types::ByteSlice;
+use ryo_language::domain::terms::service::symbols_with_text;
 use ryo_language::domain::terms::types::Symbol;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Operand, QueryLiteral, Test};
 use ryo_values::domain::plans::types::Plan;
 use std::sync::Arc;
+
+// One file owns this cache and drops it after the file. Reserve a fixed, conservative
+// slice of its existing limit for at most this many retained match positions and
+// entries; no allocation-size estimate is maintained for individual entries.
+pub(super) const RETAINED_SELECTION_RESERVATION: usize = 4 * 1024 * 1024;
+const MAX_RETAINED_SELECTIONS: usize = 128;
+pub(super) const MAX_RETAINED_POSITION_CAPACITY: usize = 512 * 1024;
 
 /// Prepare request-specific metadata once per worker, without evaluating any relation.
 pub(crate) fn prepare(pool: &mut PreparedPool, plans: &[Plan], bindings: &[Vec<ParameterBinding>]) {
@@ -229,8 +237,8 @@ pub(super) fn representatives(
     Some(kept)
 }
 
-/// Retain only repeated results, charging vector capacities, Arc metadata and entry storage.
-fn admit(
+/// Retain only repeated results inside one fixed file-local selection allowance.
+pub(super) fn admit(
     cache: &mut FileIndexes,
     program: &Arc<Selector>,
     source: ColumnsView<'_>,
@@ -247,42 +255,38 @@ fn admit(
     {
         return;
     }
-    let mut entries = Vec::new();
-    if entries
-        .try_reserve_exact(cache.selections.len() + 1)
-        .is_err()
+    let positions = cache
+        .selections
+        .iter()
+        .try_fold(rows.capacity(), |total, entry| {
+            total.checked_add(entry.rows.capacity())
+        });
+    if cache.selections.len() >= MAX_RETAINED_SELECTIONS
+        || positions.is_none_or(|total| total > MAX_RETAINED_POSITION_CAPACITY)
     {
         cache.selection_counts.refusals += 1;
         return;
     }
-    let old = cache
-        .selections
-        .capacity()
-        .saturating_mul(size_of::<Matches>());
-    let retained = cache
+    let first = cache.selections.is_empty();
+    let reserved = first.then_some(RETAINED_SELECTION_RESERVATION).unwrap_or(0);
+    let Some(bytes) = cache
         .bytes
-        .checked_sub(old)
-        .and_then(|bytes| bytes.checked_add(entries.capacity().checked_mul(size_of::<Matches>())?))
-        .and_then(|bytes| bytes.checked_add(rows.capacity().checked_mul(size_of::<u32>())?))
-        .and_then(|bytes| {
-            bytes.checked_add(
-                size_of::<Vec<u32>>() + 2 * size_of::<usize>() + align_of::<Vec<u32>>() - 1,
-            )
-        });
-    let Some(bytes) = retained
+        .checked_add(reserved)
         .filter(|bytes| *bytes <= crate::domain::stored_indexes::service::non_graph_limit(cache))
     else {
         cache.selection_counts.refusals += 1;
         return;
     };
-    entries.append(&mut cache.selections);
-    entries.push(Matches {
+    if cache.selections.try_reserve(1).is_err() {
+        cache.selection_counts.refusals += 1;
+        return;
+    }
+    cache.selections.push(Matches {
         selector: Arc::clone(program),
         kinds: source.kinds,
         population,
         rows: Arc::clone(rows),
     });
-    cache.selections = entries;
     cache.bytes = bytes;
     cache.graph_counts.peak_bytes = cache.graph_counts.peak_bytes.max(bytes);
 }
@@ -457,13 +461,31 @@ fn discriminator(
         (CellKind::Number, QueryLiteral::Number(value)) => Value::Number(value),
         (CellKind::Symbol, QueryLiteral::Text(text)) => {
             let hash = hash_of(ByteSlice(text.0.as_bytes()));
-            let symbol = (0..name_count(context.symbols).0).find_map(|index| {
+            // A file name and one or more closed-set terms can have the same text but
+            // different Symbol IDs. The ordinary evaluator compares their text, while
+            // matching_stored compares exact IDs. Index only an unambiguous spelling.
+            let mut found_symbol = None;
+            for index in 0..name_count(context.symbols).0 {
                 let symbol = Symbol(u32::try_from(index).ok()?);
-                (hash_in(context.symbols, symbol) == Some(hash)
+                if hash_in(context.symbols, symbol) == Some(hash)
                     && text_of(context.symbols, ByteSlice(context.source.0), symbol)
-                        .is_some_and(|found| found.0 == &*text.0))
-                .then_some(symbol)
-            })?;
+                        .is_some_and(|found| found.0 == &*text.0)
+                {
+                    if found_symbol.replace(symbol).is_some() {
+                        return None;
+                    }
+                }
+            }
+            let mut ambiguous = false;
+            symbols_with_text(&text.0, |candidate| {
+                if found_symbol.replace(candidate).is_some() {
+                    ambiguous = true;
+                }
+            });
+            if ambiguous {
+                return None;
+            }
+            let symbol = found_symbol?;
             Value::Symbol(symbol)
         }
         _ => return None,

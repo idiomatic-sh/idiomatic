@@ -202,7 +202,7 @@ for case in cases:
             "cache": None,
         }
         process = subprocess.run(
-            [str(args.worker.resolve()), "run-ryo", json.dumps(request)],
+            guard.run_ryo_command(args.worker.resolve(), request),
             text=True,
             capture_output=True,
             timeout=20,

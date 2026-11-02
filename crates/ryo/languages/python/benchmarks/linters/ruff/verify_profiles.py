@@ -687,6 +687,19 @@ def parser_configuration(target_version: object) -> str:
     return PARSER_CONFIGURATIONS[target_version]
 
 
+def run_ryo_command(worker: Path | str, request: dict[str, object],
+                    wire: str | None = None) -> list[str]:
+    """Pass the explicit parser setting required by the direct worker protocol."""
+    configuration = request.get("parser_configuration")
+    if configuration not in PARSER_CONFIGURATIONS.values():
+        raise ValueError(f"unsupported direct worker parser configuration: {configuration}")
+    if wire is None:
+        wire = json.dumps(request)
+    elif json.loads(wire) != request:
+        raise ValueError("direct worker request bytes disagree with the request")
+    return [str(worker), "run-ryo", wire, configuration]
+
+
 def copy_modules(registry: dict[str, str], destination: Path) -> None:
     for source_path in sorted(set(registry.values())):
         source = RUFF_DIR / source_path
@@ -2512,6 +2525,28 @@ def validate_output_directory(output_directory: Path, *, resume: bool) -> None:
     resolved = output_directory.resolve()
     if not resume and resolved.is_relative_to(rust_root):
         raise ValueError("new candidate output directories must be outside crates/ryo")
+
+
+def create_new_output_directory(output_directory: Path) -> None:
+    """Refuse an existing raw receipt root before staging or running a worker."""
+    validate_output_directory(output_directory, resume=False)
+    output_directory.mkdir(parents=True, exist_ok=False)
+
+
+def output_directory_self_test() -> None:
+    """A second replay cannot replace the first run's raw evidence."""
+    with tempfile.TemporaryDirectory(prefix="ryo-exclusive-replay-") as temporary:
+        destination = Path(temporary) / "run"
+        create_new_output_directory(destination)
+        sentinel = destination / "cases.jsonl"
+        sentinel.write_bytes(b"first source-bound raw receipt\n")
+        try:
+            create_new_output_directory(destination)
+        except FileExistsError:
+            pass
+        else:
+            raise AssertionError("an existing replay output was reused")
+        assert sentinel.read_bytes() == b"first source-bound raw receipt\n"
 
 
 def stage_directory(
@@ -4686,6 +4721,14 @@ def parser_target_configuration_self_test() -> None:
     """Both old and native annotation targets stage explicitly; no implicit/moving mode is accepted."""
     assert parser_configuration("py37") == "python-target=3.7"
     assert parser_configuration("py314") == "python-target=3.14"
+    command = run_ryo_command("worker", {"parser_configuration": "python-target=3.10"})
+    assert command[-1] == "python-target=3.10"
+    for request in ({}, {"parser_configuration": "python-target=latest"}):
+        try:
+            run_ryo_command("worker", request)
+        except ValueError:
+            continue
+        raise AssertionError("direct worker accepted a missing or moving parser configuration")
     for value in [None, "latest", "py36", "py316", "py3.10", "py310 "]:
         try:
             parser_configuration(value)
@@ -4728,6 +4771,7 @@ def profile_accounting_projection_self_test() -> None:
 
 
 def self_test() -> int:
+    output_directory_self_test()
     execution_metadata_self_test()
     profile_accounting_projection_self_test()
     """Exercise fail-closed profile-selection and hash-mismatch guards without invoking Cargo."""
@@ -6495,10 +6539,9 @@ def main() -> int:
                 parser.error("resume output directory does not exist")
         else:
             try:
-                validate_output_directory(output_directory, resume=False)
-            except ValueError as error:
+                create_new_output_directory(output_directory)
+            except (ValueError, FileExistsError) as error:
                 parser.error(str(error))
-            output_directory.mkdir(parents=True, exist_ok=False)
             shutil.copyfile(MANIFEST, output_directory / "prepared.json")
 
     try:
